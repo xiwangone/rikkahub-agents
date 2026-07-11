@@ -93,6 +93,13 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
 
+// The image-generation picker should surface any model that can OUTPUT images, not only ones
+// explicitly typed IMAGE: a model added before its type was known, or one the user tagged with an
+// image output modality by hand, still belongs there. Chat/embedding pickers stay an exact match.
+internal fun Model.matchesPickerType(pickerType: ModelType): Boolean =
+    type == pickerType ||
+        (pickerType == ModelType.IMAGE && Modality.IMAGE in outputModalities)
+
 class ModelListState internal constructor(
     modelId: Uuid?,
     providers: List<ProviderSetting>,
@@ -115,7 +122,7 @@ class ModelListState internal constructor(
 
     val filteredProviders: List<ProviderSetting>
         get() = providers.fastFilter { provider ->
-            provider.enabled && provider.models.fastAny { model -> model.type == type }
+            provider.enabled && provider.models.fastAny { model -> model.matchesPickerType(type) }
         }
 
     fun open() {
@@ -305,7 +312,7 @@ private fun ColumnScope.ModelList(
 
     val favoriteModels = settings.value.favoriteModels.mapNotNull { modelId ->
         val model = settings.value.providers.findModelById(modelId) ?: return@mapNotNull null
-        if (model.type != modelType) return@mapNotNull null
+        if (!model.matchesPickerType(modelType)) return@mapNotNull null
         val provider = model.findProvider(providers = settings.value.providers, checkOverwrite = false) ?: return@mapNotNull null
         model to provider
     }
@@ -314,14 +321,14 @@ private fun ColumnScope.ModelList(
 
     val typeFilteredModelsByProvider = remember(providers, modelType) {
         providers.associate { provider ->
-            provider.id to provider.models.fastFilter { it.type == modelType }
+            provider.id to provider.models.fastFilter { it.matchesPickerType(modelType) }
         }
     }
 
     val searchFilteredModelsByProvider = remember(providers, modelType, searchKeywords) {
         providers.associate { provider ->
             provider.id to provider.models.fastFilter {
-                it.type == modelType && it.displayName.contains(searchKeywords, true)
+                it.matchesPickerType(modelType) && it.displayName.contains(searchKeywords, true)
             }
         }
     }
