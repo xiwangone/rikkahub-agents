@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.codex
 
 import android.content.Context
+import android.os.Build
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -295,6 +296,7 @@ class CodexProvider(
             .header("ChatGPT-Account-Id", account.chatgptAccountId)
             .header("OpenAI-Beta", "responses=experimental")
             .header("originator", "codex_cli_rs")
+            .header("User-Agent", CODEX_USER_AGENT)
     }
 
     private fun parseTokenUsage(payload: JsonObject): TokenUsage? {
@@ -325,7 +327,16 @@ class CodexProvider(
 
     private companion object {
         const val CODEX_API_BASE = "${CodexAccountRepository.CODEX_BASE_URL}/codex"
-        const val CLIENT_VERSION = "0.139.0"
+        const val CLIENT_VERSION = "0.144.1"
+
+        // The Codex backend routes newer models (e.g. gpt-5.6-luna, which is gated on
+        // minimal_client_version 0.144.0) by the codex version advertised in the User-Agent, not
+        // just the `client_version` query param on /models. Without a codex-shaped UA the backend
+        // resolves the public slug to an unavailable internal engine and returns 404 "Model not
+        // found". Mirror the codex CLI's UA format: "<originator>/<version> (<os>; <arch>)".
+        val CODEX_USER_AGENT =
+            "codex_cli_rs/$CLIENT_VERSION (Android ${Build.VERSION.RELEASE}; " +
+                "${Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64"})"
         const val DEFAULT_INSTRUCTIONS = "You are a helpful assistant."
         val FINAL_RESPONSE_EVENTS = setOf(
             "response.completed",
