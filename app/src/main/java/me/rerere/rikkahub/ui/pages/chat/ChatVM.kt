@@ -282,7 +282,12 @@ class ChatVM(
     fun moveConversationToAssistant(conversation: Conversation, targetAssistantId: Uuid) {
         viewModelScope.launch {
             val conversationFull = conversationRepo.getConversationById(conversation.id) ?: return@launch
-            val updatedConversation = conversationFull.copy(assistantId = targetAssistantId)
+            // Folders are per-assistant groupings; after switching assistant the old folder is
+            // not visible under the new one, so clear the assignment to avoid losing the chat.
+            val updatedConversation = conversationFull.copy(
+                assistantId = targetAssistantId,
+                folderId = null,
+            )
             // Drop any "Allow for this chat" grants the user gave the previous assistant.
             // The grants apply to a tool surface the new assistant may use very differently
             // (different prompt, different tool list), and the user authorised them under

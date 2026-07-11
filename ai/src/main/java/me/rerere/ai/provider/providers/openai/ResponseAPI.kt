@@ -1,8 +1,11 @@
 package me.rerere.ai.provider.providers.openai
 
 import android.util.Log
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
+import kotlinx.coroutines.channels.onFailure
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArrayBuilder
@@ -142,7 +145,9 @@ class ResponseAPI(
                 val json = json.parseToJsonElement(data).jsonObject
                 val chunk = parseResponseDelta(json)
                 if (chunk != null) {
-                    trySend(chunk)
+                    trySend(chunk).onFailure { e ->
+                        Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                    }
                 }
                 if (type == "response.completed") {
                     close()
@@ -181,7 +186,8 @@ class ResponseAPI(
             println("[awaitClose] 关闭eventSource ")
             eventSource.cancel()
         }
-    }
+        // trySend 在缓冲满时会静默丢弃 delta，导致回复中间缺字 (#1295)，因此缓冲必须无界
+    }.buffer(Channel.UNLIMITED)
 
     fun createRequestBody(
         providerSetting: ProviderSetting.OpenAI,
@@ -358,7 +364,8 @@ class ResponseAPI(
                             put("type", "function_call")
                             put("call_id", tool.toolCallId)
                             put("name", tool.toolName)
-                            put("arguments", tool.input)
+                            // 使用 inputAsJson() 归一化，避免流式中断导致的残缺 JSON 被发送
+                            put("arguments", tool.inputAsJson().toString())
                         })
                         add(buildJsonObject {
                             put("type", "function_call_output")

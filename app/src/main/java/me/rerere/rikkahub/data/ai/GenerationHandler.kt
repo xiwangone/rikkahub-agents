@@ -45,6 +45,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.handleMessageChunk
 import me.rerere.ai.ui.limitContext
+import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
@@ -60,7 +61,6 @@ import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
-import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.utils.applyPlaceholders
 import java.util.Locale

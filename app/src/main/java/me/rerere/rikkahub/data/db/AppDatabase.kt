@@ -10,6 +10,7 @@ import me.rerere.rikkahub.data.agentrun.AgentRun
 import me.rerere.rikkahub.data.agentrun.AgentRunDao
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
 import me.rerere.rikkahub.data.db.dao.FavoriteDAO
+import me.rerere.rikkahub.data.db.dao.FolderDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
 import me.rerere.rikkahub.data.db.dao.ManagedFileDAO
 import me.rerere.rikkahub.data.db.dao.MemoryDAO
@@ -21,6 +22,7 @@ import me.rerere.rikkahub.data.db.dao.TelegramChatDao
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
+import me.rerere.rikkahub.data.db.entity.FolderEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
 import me.rerere.rikkahub.data.db.entity.ManagedFileEntity
 import me.rerere.rikkahub.data.db.entity.MemoryEntity
@@ -57,8 +59,9 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         WorkflowRunEntity::class,
         AgentRun::class,
         WorkspaceEntity::class,
+        FolderEntity::class,
     ],
-    version = 26,
+    version = 27,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -83,6 +86,10 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // v26: the 2.3.1 merge brings upstream's workspaces table (WorkspaceEntity). Existing
         // fork users never had it, so Room auto-creates the table on this step.
         AutoMigration(from = 25, to = 26),
+        // v27: upstream 2.4.x added conversation folders (FolderEntity -> conversation_folder
+        // table) plus a folder_id column on ConversationEntity (defaultValue ""). Both are pure
+        // additions; upstream numbered it as their v24, folded into the fork's version space here.
+        AutoMigration(from = 26, to = 27),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -114,6 +121,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun agentRunDao(): AgentRunDao
 
     abstract fun workspaceDao(): WorkspaceDAO
+
+    abstract fun folderDao(): FolderDAO
 }
 
 object TokenUsageConverter {

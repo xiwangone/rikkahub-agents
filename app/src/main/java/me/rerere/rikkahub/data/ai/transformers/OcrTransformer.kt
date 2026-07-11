@@ -110,6 +110,8 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
                 ),
                 params = TextGenerationParams(
                     model = model,
+                    customHeaders = model.customHeaders,
+                    customBody = model.customBodies,
                 ),
             )
         }

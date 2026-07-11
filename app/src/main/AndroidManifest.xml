@@ -24,6 +24,11 @@
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
   <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
   <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+  <uses-permission
+    android:name="android.permission.PACKAGE_USAGE_STATS"
+    tools:ignore="ProtectedPermissions" />
+  <uses-permission android:name="android.permission.READ_CALENDAR" />
+  <uses-permission android:name="android.permission.WRITE_CALENDAR" />
 
   <uses-permission android:name="android.permission.VIBRATE" />
   <uses-permission android:name="android.permission.READ_PHONE_STATE" />
@@ -103,9 +108,9 @@
     <intent>
       <action android:name="android.intent.action.TTS_SERVICE" />
     </intent>
-    <!-- Required so launch_app and list_installed_apps can see other launcher apps on
-         Android 11+. QUERY_ALL_PACKAGES above is the catch-all; this is the safer
-         alternative the system queries when the permission is denied. -->
+    <!-- Required so launch_app / list_installed_apps can see other launcher apps and so
+         screen-time can resolve app names on Android 11+. QUERY_ALL_PACKAGES above is the
+         catch-all; this is the safer alternative the system queries when it is denied. -->
     <intent>
       <action android:name="android.intent.action.MAIN" />
       <category android:name="android.intent.category.LAUNCHER" />
@@ -113,6 +118,11 @@
     <!-- Android 11+ package visibility: required so KeyboardApiClient can bindService into
          the agent-keyboard package. Without this the bind silently fails on API 30+. -->
     <package android:name="dev.patrickgold.florisboard" />
+    <!-- Resolve the home launcher so screen-time can exclude it. -->
+    <intent>
+      <action android:name="android.intent.action.MAIN" />
+      <category android:name="android.intent.category.HOME" />
+    </intent>
   </queries>
 
   <application
@@ -203,6 +213,22 @@
         <data
           android:host="codex"
           android:path="/oauth"
+          android:scheme="rikkahub" />
+      </intent-filter>
+    </activity>
+    <activity
+      android:name=".ui.activity.McpOAuthCallbackActivity"
+      android:exported="true"
+      android:launchMode="singleTask"
+      android:theme="@android:style/Theme.Translucent.NoTitleBar">
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+
+        <data
+          android:host="mcp-oauth-callback"
           android:scheme="rikkahub" />
       </intent-filter>
     </activity>

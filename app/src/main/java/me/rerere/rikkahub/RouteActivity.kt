@@ -263,6 +263,7 @@ class RouteActivity : ComponentActivity() {
             eventBus.events.collect { event ->
                 when (event) {
                     is AppEvent.Speak -> tts.speak(event.text)
+                    else -> {}
                 }
             }
         }
@@ -420,7 +421,7 @@ class RouteActivity : ComponentActivity() {
                             }
 
                             entry<Screen.WebView> { key ->
-                                WebViewPage(key.url, key.content)
+                                WebViewPage(key.url, key.contentId)
                             }
 
                             entry<Screen.SettingTheme> {
@@ -704,7 +705,7 @@ sealed interface Screen : NavKey {
     data object ImageGen : Screen
 
     @Serializable
-    data class WebView(val url: String = "", val content: String = "") : Screen
+    data class WebView(val url: String = "", val contentId: String = "") : Screen
 
     @Serializable
     data object SettingTheme : Screen

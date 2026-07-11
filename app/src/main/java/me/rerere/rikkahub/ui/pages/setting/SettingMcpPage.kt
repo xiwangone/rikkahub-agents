@@ -2,25 +2,14 @@
 
 package me.rerere.rikkahub.ui.pages.setting
 
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.AlertCircle
-import me.rerere.hugeicons.stroke.ArrowDown01
-import me.rerere.hugeicons.stroke.ArrowUp01
-import me.rerere.hugeicons.stroke.FileImport
-import me.rerere.hugeicons.stroke.MessageBlocked
-import me.rerere.hugeicons.stroke.Add01
-import me.rerere.hugeicons.stroke.Settings03
-import me.rerere.hugeicons.stroke.Console
-import me.rerere.hugeicons.stroke.Delete01
-import me.rerere.hugeicons.stroke.Upload02
-import me.rerere.hugeicons.stroke.Cancel01
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
-import androidx.compose.foundation.layout.FlowRowOverflow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.calculateEndPadding
+import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -53,17 +42,15 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryTabRow
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SwipeToDismissBox
-import me.rerere.rikkahub.ui.components.ui.Switch
-import me.rerere.rikkahub.ui.components.ui.SwitchSize
 import androidx.compose.material3.Tab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
@@ -77,26 +64,39 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 import me.rerere.ai.core.InputSchema
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.AlertCircle
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
+import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.McpServer
+import me.rerere.hugeicons.stroke.MessageBlocked
+import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.mcp.McpCommonOptions
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
-import me.rerere.rikkahub.data.ai.mcp.McpCommonOptions
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
 import me.rerere.rikkahub.data.ai.mcp.McpTool
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.Switch
+import me.rerere.rikkahub.ui.components.ui.SwitchSize
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.hooks.EditState
@@ -169,6 +169,7 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
         val scope = rememberCoroutineScope()
         val state = rememberPullToRefreshState()
         val loading = status.values.any { it == McpStatus.Connecting || it is McpStatus.Reconnecting }
+        val layoutDirection = LocalLayoutDirection.current
         PullToRefreshBox(
             isRefreshing = loading,
             onRefresh = {
@@ -177,13 +178,18 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                 }
             },
             state = state,
-            modifier = Modifier.padding(innerPadding)
+            modifier = Modifier.fillMaxSize()
         ) {
             LazyColumn(
                 modifier = Modifier
                     .fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
-                contentPadding = PaddingValues(16.dp)
+                contentPadding = PaddingValues(
+                    start = innerPadding.calculateStartPadding(layoutDirection) + 16.dp,
+                    top = innerPadding.calculateTopPadding() + 16.dp,
+                    end = innerPadding.calculateEndPadding(layoutDirection) + 16.dp,
+                    bottom = innerPadding.calculateBottomPadding() + 16.dp,
+                )
             ) {
                 items(mcpConfigs, key = { it.id }) { mcpConfig ->
                     McpServerItem(
@@ -297,6 +303,10 @@ private fun McpServerItem(
                         modifier = Modifier.size(24.dp)
                     )
                     is McpStatus.Error -> Icon(HugeIcons.AlertCircle, null)
+                    McpStatus.NeedsAuthorization -> Icon(HugeIcons.AlertCircle, null)
+                    McpStatus.Authorizing -> CircularProgressIndicator(
+                        modifier = Modifier.size(24.dp)
+                    )
                 }
 
                 Column(
@@ -342,6 +352,32 @@ private fun McpServerItem(
                             maxLines = 3,
                             overflow = TextOverflow.Ellipsis,
                         )
+                    }
+                    if (status == McpStatus.NeedsAuthorization) {
+                        val context = LocalContext.current
+                        Text(
+                            text = "需要 OAuth 授权",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                        Button(
+                            onClick = { mcpManager.startAuthorization(item, context) },
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                        ) {
+                            Text("OAuth 授权")
+                        }
+                    }
+                    if (status == McpStatus.Authorizing) {
+                        Text(
+                            text = "正在授权，请在浏览器中完成…",
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                        TextButton(
+                            onClick = { mcpManager.cancelAuthorization(item) },
+                            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
+                        ) {
+                            Text("取消授权")
+                        }
                     }
                 }
 

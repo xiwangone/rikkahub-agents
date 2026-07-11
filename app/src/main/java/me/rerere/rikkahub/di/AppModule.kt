@@ -233,6 +233,7 @@ val appModule = module {
         ChatService(
             context = get(),
             appScope = get(),
+            appEventBus = get(),
             settingsStore = get(),
             conversationRepo = get(),
             memoryRepository = get(),
@@ -244,7 +245,8 @@ val appModule = module {
             filesManager = get(),
             skillManager = get(),
             toolApprovalPreferences = get(),
-            workspaceRepository = get()
+            workspaceRepository = get(),
+            folderRepository = get()
         )
     }
 
@@ -254,6 +256,7 @@ val appModule = module {
             appScope = get(),
             chatService = get(),
             conversationRepo = get(),
+            folderRepo = get(),
             settingsStore = get(),
             filesManager = get()
         )

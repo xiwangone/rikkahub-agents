@@ -1,3 +1,5 @@
+import org.apache.tools.ant.taskdefs.condition.Os
+
 plugins {
     alias(libs.plugins.android.library)
 }
@@ -31,7 +33,11 @@ val buildWebUi = tasks.register<Exec>("buildWebUi") {
     dependsOn(installWebUiDeps)
 
     workingDir = webUiDir.asFile
-    commandLine("pnpm", "run", "build")
+    when {
+        Os.isFamily(Os.FAMILY_MAC) -> commandLine("zsh", "-ic", "pnpm run build")
+        Os.isFamily(Os.FAMILY_WINDOWS) -> commandLine("cmd", "/c", "pnpm run build")
+        else -> commandLine("pnpm", "run", "build")
+    }
 
     inputs.files(
         webUiDir.file("package.json"),

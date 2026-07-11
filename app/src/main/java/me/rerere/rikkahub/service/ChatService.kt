@@ -1,15 +1,9 @@
 package me.rerere.rikkahub.service
 
 import android.app.Application
-import android.app.PendingIntent
 import android.content.Context
-import android.content.Intent
 import android.util.Log
-import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.ProcessLifecycleOwner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -54,10 +48,18 @@ import me.rerere.ai.ui.finishReasoning
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.AppScope
+import android.app.PendingIntent
+import android.content.Intent
+import androidx.core.app.NotificationCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.ProcessLifecycleOwner
 import me.rerere.rikkahub.CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID
 import me.rerere.rikkahub.CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID
-import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
+import me.rerere.rikkahub.utils.cancelNotification
+import me.rerere.rikkahub.utils.sendNotification
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.mcp.McpManager
@@ -76,6 +78,8 @@ import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.WorkspaceReminderTransformer
+import me.rerere.rikkahub.data.event.AppEvent
+import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -89,13 +93,12 @@ import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
 import me.rerere.rikkahub.utils.applyPlaceholders
-import me.rerere.rikkahub.utils.sendNotification
-import me.rerere.rikkahub.utils.cancelNotification
 import me.rerere.workspace.WorkspaceShellStatus
 import java.time.Instant
 import java.util.Locale
@@ -148,6 +151,7 @@ private val outputTransformers by lazy {
 class ChatService(
     private val context: Application,
     private val appScope: AppScope,
+    private val appEventBus: AppEventBus,
     private val settingsStore: SettingsStore,
     private val conversationRepo: ConversationRepository,
     private val memoryRepository: MemoryRepository,
@@ -160,6 +164,7 @@ class ChatService(
     private val skillManager: SkillManager,
     private val toolApprovalPreferences: me.rerere.rikkahub.data.preferences.ToolApprovalPreferences,
     private val workspaceRepository: WorkspaceRepository,
+    private val folderRepository: FolderRepository,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
     private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
@@ -236,7 +241,6 @@ class ChatService(
     }
 
     init {
-        // 添加生命周期观察者
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
     }
 
@@ -1477,6 +1481,43 @@ class ChatService(
                 next
             }
         }
+    }
+
+    /**
+     * 移动会话到文件夹（folderId 为 null 表示移出到未归类）。
+     *
+     * 若该会话当前有活跃 session（正在查看或后台生成），先同步内存态再落库：
+     * 否则仅改数据库 folder_id，而内存里那份 Conversation 仍是旧 folderId，
+     * 后续任意 saveConversation(id, state.value) 会用整对象把 folder_id 覆盖回旧值，导致移动丢失。
+     * 先改内存可确保这段窗口内的整对象保存也带上新 folderId。
+     */
+    suspend fun moveConversationToFolder(conversationId: Uuid, folderId: Uuid?) {
+        if (sessions.containsKey(conversationId)) {
+            updateConversationState(conversationId) { it.copy(folderId = folderId) }
+        }
+        conversationRepo.updateConversationFolderId(conversationId, folderId)
+    }
+
+    /**
+     * 文件夹内是否存在正在生成回复的会话。
+     * 仅活跃 session 可能在生成；内存态 folderId 为权威（移动会先同步内存态）。
+     */
+    fun hasGeneratingConversationInFolder(folderId: Uuid): Boolean {
+        return sessions.values.any { it.isGenerating && it.state.value.folderId == folderId }
+    }
+
+    /**
+     * 删除文件夹（folder_id 归属会被清空，会话本身保留）。
+     *
+     * 先把内存中归属该文件夹的活跃 session folderId 置空，再删库：
+     * 否则 clearFolder 只改了数据库，而活跃 session 内存态仍指向该文件夹，
+     * 后续整对象保存会写回一个已被删除的 folder_id，导致会话在列表中悬空。
+     */
+    suspend fun deleteFolder(folderId: Uuid) {
+        sessions.values
+            .filter { it.state.value.folderId == folderId }
+            .forEach { updateConversationState(it.id) { c -> c.copy(folderId = null) } }
+        folderRepository.deleteFolder(folderId)
     }
 
     private fun checkFilesDelete(newConversation: Conversation, oldConversation: Conversation) {

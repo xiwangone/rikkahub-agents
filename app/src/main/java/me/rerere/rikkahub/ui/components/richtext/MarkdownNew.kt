@@ -895,7 +895,7 @@ private fun AnnotatedString.Builder.appendHtmlInlineElement(
     }
 
     when (element.tagName().lowercase()) {
-        "b", "strong" -> appendElementChildren(SpanStyle(fontWeight = FontWeight.SemiBold))
+        "b", "strong" -> appendElementChildren(SpanStyle(fontWeight = FontWeight.Bold))
 
         "i", "em" -> appendElementChildren(SpanStyle(fontStyle = FontStyle.Italic))
 
@@ -995,7 +995,7 @@ private fun AnnotatedString.Builder.appendHtmlInlineElement(
                                 placeholderVerticalAlign = PlaceholderVerticalAlign.TextCenter,
                             ),
                             children = {
-                                MathInline(latex = formula, modifier = Modifier)
+                                MathInline(latex = formula, modifier = Modifier, fontSize = style.fontSize)
                             },
                         ),
                     )
@@ -1458,7 +1458,7 @@ private fun parseColor(colorString: String): Color? {
 private fun parseFontWeight(weightString: String): FontWeight? {
     return when (weightString.lowercase()) {
         "normal" -> FontWeight.Normal
-        "bold" -> FontWeight.SemiBold
+        "bold" -> FontWeight.Bold
         "bolder" -> FontWeight.ExtraBold
         "lighter" -> FontWeight.Light
         "100" -> FontWeight.W100

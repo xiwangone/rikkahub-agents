@@ -384,13 +384,13 @@ class OpenAIProvider(
             .addFormDataPart("model", params.model.modelId)
             .addFormDataPart("prompt", params.prompt)
             .addFormDataPart("n", params.numOfImages.toString())
-            .addFormDataPart(
-                "size", when (params.aspectRatio) {
-                    ImageAspectRatio.SQUARE -> "1024x1024"
-                    ImageAspectRatio.LANDSCAPE -> "1536x1024"
-                    ImageAspectRatio.PORTRAIT -> "1024x1536"
-                }
-            )
+        bodyBuilder.addFormDataPart(
+            "size", when (params.aspectRatio) {
+                ImageAspectRatio.SQUARE -> "1024x1024"
+                ImageAspectRatio.LANDSCAPE -> "1536x1024"
+                ImageAspectRatio.PORTRAIT -> "1024x1536"
+            }
+        )
 
         val imageFieldName = if (params.images.size == 1) "image" else "image[]"
         params.images.forEach { path ->
