@@ -121,6 +121,7 @@ import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomHeaders
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.CodexProviderConfigure
+import me.rerere.rikkahub.ui.pages.setting.components.GrokProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConnectionTester
 import me.rerere.rikkahub.ui.pages.setting.components.SettingProviderBalanceOption
 import me.rerere.rikkahub.ui.pages.setting.components.isUsingDefaultBaseUrl
@@ -183,7 +184,7 @@ fun SettingProviderDetailPage(id: Uuid, vm: SettingVM = koinViewModel()) {
                     }
                 },
                 actions = {
-                    if (provider !is ProviderSetting.Codex) {
+                    if (provider !is ProviderSetting.Codex && provider !is ProviderSetting.Grok) {
                         val shareSheetState = rememberShareSheetState()
                         ShareSheet(shareSheetState)
                         IconButton(
@@ -266,6 +267,13 @@ private fun SettingProviderConfigPage(
 ) {
     if (provider is ProviderSetting.Codex) {
         CodexProviderConfigure(
+            provider = provider,
+            onEdit = onEdit,
+        )
+        return
+    }
+    if (provider is ProviderSetting.Grok) {
+        GrokProviderConfigure(
             provider = provider,
             onEdit = onEdit,
         )

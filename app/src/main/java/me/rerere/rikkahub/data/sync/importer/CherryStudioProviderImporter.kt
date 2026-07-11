@@ -129,6 +129,7 @@ object CherryStudioProviderImporter {
             is ProviderSetting.AICore -> "aicore|${provider.id}"
             is ProviderSetting.LiteRtLocal -> "local_litert|${provider.id}"
             is ProviderSetting.Codex -> "codex|${provider.id}"
+            is ProviderSetting.Grok -> "grok|${provider.id}"
         }
     }
 }

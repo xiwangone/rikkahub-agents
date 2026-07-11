@@ -57,6 +57,7 @@ class ProviderManager(client: OkHttpClient, context: Context) {
             is ProviderSetting.AICore -> getProvider("aicore")
             is ProviderSetting.LiteRtLocal -> getProvider("local_litert")
             is ProviderSetting.Codex -> getProvider("codex")
+            is ProviderSetting.Grok -> getProvider("grok")
         } as Provider<T>
     }
 }

@@ -26,6 +26,10 @@ import me.rerere.rikkahub.data.codex.CodexAccountRepository
 import me.rerere.rikkahub.data.codex.CodexCredentialStore
 import me.rerere.rikkahub.data.codex.CodexOAuthManager
 import me.rerere.rikkahub.data.codex.CodexProvider
+import me.rerere.rikkahub.data.grok.GrokAccountRepository
+import me.rerere.rikkahub.data.grok.GrokCredentialStore
+import me.rerere.rikkahub.data.grok.GrokOAuthManager
+import me.rerere.rikkahub.data.grok.GrokProvider
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.fts.MessageFtsManager
@@ -233,6 +237,35 @@ val dataSourceModule = module {
             .build()
     }
 
+    single<OkHttpClient>(named("grok")) {
+        OkHttpClient.Builder()
+            .connectTimeout(20, TimeUnit.SECONDS)
+            .readTimeout(10, TimeUnit.MINUTES)
+            .writeTimeout(120, TimeUnit.SECONDS)
+            .followSslRedirects(true)
+            .followRedirects(true)
+            .retryOnConnectionFailure(true)
+            .build()
+    }
+
+    single {
+        GrokAccountRepository(
+            store = GrokCredentialStore(context = get(), json = get()),
+            client = get(named("grok")),
+            json = get(),
+        )
+    }
+
+    single {
+        GrokOAuthManager(
+            context = get(),
+            scope = get<AppScope>(),
+            client = get(named("grok")),
+            repository = get(),
+            json = get(),
+        )
+    }
+
     single {
         SponsorAPI.create(get())
     }
@@ -276,6 +309,15 @@ val dataSourceModule = module {
                     context = get(),
                     client = get(named("codex")),
                     repository = codexRepository,
+                    json = json,
+                )
+            )
+            pm.registerProvider(
+                "grok",
+                GrokProvider(
+                    context = get(),
+                    client = get(named("grok")),
+                    repository = get<GrokAccountRepository>(),
                     json = json,
                 )
             )

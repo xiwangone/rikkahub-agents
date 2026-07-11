@@ -127,6 +127,7 @@ fun ProviderConfigure(
             }
 
             is ProviderSetting.Codex -> Unit
+            is ProviderSetting.Grok -> Unit
         }
     }
 }
@@ -141,6 +142,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
         is ProviderSetting.AICore -> "" // on-device, no API key
         is ProviderSetting.LiteRtLocal -> "" // on-device, no API key
         is ProviderSetting.Codex -> "" // OAuth, no API key
+        is ProviderSetting.Grok -> "" // OAuth, no API key
     }
     val sourceBaseUrl = when (this) {
         is ProviderSetting.OpenAI -> this.baseUrl
@@ -149,6 +151,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
         is ProviderSetting.AICore -> "" // on-device, no base URL
         is ProviderSetting.LiteRtLocal -> "" // on-device, no base URL
         is ProviderSetting.Codex -> "" // OAuth, no base URL
+        is ProviderSetting.Grok -> "" // OAuth, no base URL
     }
     val targetDefaultBaseUrl = when (type) {
         ProviderSetting.OpenAI::class -> ProviderSetting.OpenAI().baseUrl
@@ -204,6 +207,7 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
             is ProviderSetting.AICore -> return "" // on-device, no base URL
             is ProviderSetting.LiteRtLocal -> return "" // on-device, no base URL
             is ProviderSetting.Codex -> return "" // OAuth, no base URL
+            is ProviderSetting.Grok -> return "" // OAuth, no base URL
         }
     }
     return when (this) {
@@ -213,6 +217,7 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
         is ProviderSetting.AICore -> ""
         is ProviderSetting.LiteRtLocal -> ""
         is ProviderSetting.Codex -> ""
+        is ProviderSetting.Grok -> ""
     }
 }
 
@@ -225,6 +230,7 @@ internal fun ProviderSetting.resetBaseUrlToDefault(): ProviderSetting {
         is ProviderSetting.AICore -> this // no base URL to reset
         is ProviderSetting.LiteRtLocal -> this // no base URL to reset
         is ProviderSetting.Codex -> this // no base URL to reset
+        is ProviderSetting.Grok -> this // no base URL to reset
     }
 }
 
@@ -236,6 +242,7 @@ internal fun ProviderSetting.isUsingDefaultBaseUrl(): Boolean {
         is ProviderSetting.AICore -> return true // no base URL concept
         is ProviderSetting.LiteRtLocal -> return true // no base URL concept
         is ProviderSetting.Codex -> return true // no base URL concept
+        is ProviderSetting.Grok -> return true // no base URL concept
     }
     return baseUrl == defaultBaseUrlForReset()
 }
