@@ -5,6 +5,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -22,10 +23,12 @@ import me.rerere.ai.provider.ImageGenerationParams
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
+import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.providers.openai.ResponseAPI
+import me.rerere.ai.ui.ImageAspectRatio
 import me.rerere.ai.ui.ImageGenerationItem
 import me.rerere.ai.ui.MessageChunk
 import me.rerere.ai.ui.UIMessage
@@ -41,6 +44,8 @@ import okhttp3.ResponseBody.Companion.asResponseBody
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
+import kotlin.io.encoding.Base64
+import kotlin.io.encoding.ExperimentalEncodingApi
 
 class GrokProvider(
     private val context: Context,
@@ -90,12 +95,27 @@ class GrokProvider(
             models.mapNotNull { element ->
                 val item = element.jsonObject
                 val id = item["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-                Model(
-                    modelId = id,
-                    displayName = id,
-                    inputModalities = listOf(Modality.TEXT, Modality.IMAGE),
-                    abilities = listOf(ModelAbility.TOOL, ModelAbility.REASONING),
-                )
+                // xAI's /models already lists the Grok Imagine image models next to the chat
+                // models. Tag the image-generation ones as ModelType.IMAGE so they appear in the
+                // image-generation picker (which filters strictly by ModelType.IMAGE), the same
+                // way an image-capable OpenRouter model does. Classified by name off the live
+                // list, so new Imagine image releases surface automatically with no pinned list.
+                if (isGrokImageModel(id)) {
+                    Model(
+                        modelId = id,
+                        displayName = id,
+                        type = ModelType.IMAGE,
+                        inputModalities = listOf(Modality.TEXT),
+                        outputModalities = listOf(Modality.IMAGE),
+                    )
+                } else {
+                    Model(
+                        modelId = id,
+                        displayName = id,
+                        inputModalities = listOf(Modality.TEXT, Modality.IMAGE),
+                        abilities = listOf(ModelAbility.TOOL, ModelAbility.REASONING),
+                    )
+                }
             }
         }
 
@@ -230,12 +250,73 @@ class GrokProvider(
         awaitClose { eventSource.cancel() }
     }
 
+    // xAI's Grok Imagine image generation is OpenAI-compatible: a single POST to
+    // /v1/images/generations, authenticated with the same subscription OAuth token used for chat.
+    // Unlike OpenAI it takes aspect_ratio + resolution rather than a pixel size string.
     override suspend fun generateImage(
         providerSetting: ProviderSetting,
         params: ImageGenerationParams,
-    ): Flow<ImageGenerationItem> {
-        error("Image generation is not supported by the Grok provider")
+    ): Flow<ImageGenerationItem> = flow {
+        val account = repository.acquireAccount()
+        val body = buildJsonObject {
+            put("model", params.model.modelId)
+            put("prompt", params.prompt)
+            put("aspect_ratio", grokImageAspectRatio(params.aspectRatio))
+            put("resolution", GROK_IMAGE_RESOLUTION)
+            put("n", params.numOfImages.coerceIn(1, 10))
+            // Ask for base64 directly; grok-imagine's default URLs are short-lived (imgen.x.ai
+            // temp URLs that 404 within minutes). parseGrokImageResponse still falls back to
+            // downloading a url if a model ignores this.
+            put("response_format", "b64_json")
+        }
+        val request = Request.Builder()
+            .url("$API_BASE/images/generations")
+            .grokHeaders(account)
+            .addHeader("Content-Type", "application/json")
+            .post(json.encodeToString(body).toRequestBody("application/json".toMediaType()))
+            .build()
+        val items = withContext(Dispatchers.IO) {
+            val response = client.newCall(request).await()
+            val bodyStr = response.body.string()
+            if (!response.isSuccessful) {
+                if (response.code == 401) repository.markInvalid(account.id)
+                error("Failed to generate image: ${response.code} $bodyStr")
+            }
+            parseGrokImageResponse(bodyStr)
+        }
+        items.forEach { emit(it) }
     }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    private suspend fun parseGrokImageResponse(bodyStr: String): List<ImageGenerationItem> {
+        val data = json.parseToJsonElement(bodyStr).jsonObject["data"]?.jsonArray
+            ?: error("No data in Grok image response")
+        return data.map { element ->
+            val obj = element.jsonObject
+            val b64 = obj["b64_json"]?.jsonPrimitive?.contentOrNull
+            if (b64 != null) {
+                ImageGenerationItem(data = b64, mimeType = "image/png")
+            } else {
+                // grok-imagine returns short-lived imgen.x.ai URLs that 404 within minutes, so
+                // materialise the bytes immediately rather than handing the URL downstream.
+                val url = obj["url"]?.jsonPrimitive?.contentOrNull
+                    ?: error("Grok image response had neither b64_json nor url")
+                downloadImageAsBase64(url)
+            }
+        }
+    }
+
+    @OptIn(ExperimentalEncodingApi::class)
+    private suspend fun downloadImageAsBase64(url: String): ImageGenerationItem =
+        withContext(Dispatchers.IO) {
+            val response = client.newCall(Request.Builder().url(url).get().build()).await()
+            if (!response.isSuccessful) {
+                error("Failed to download generated image: ${response.code}")
+            }
+            val respBody = response.body
+            val mimeType = respBody.contentType()?.toString() ?: "image/png"
+            ImageGenerationItem(data = Base64.encode(respBody.bytes()), mimeType = mimeType)
+        }
 
     private fun Request.Builder.grokHeaders(account: GrokAccount): Request.Builder {
         return header("Authorization", "Bearer ${account.accessToken}")
@@ -270,6 +351,10 @@ class GrokProvider(
 
     private companion object {
         const val API_BASE = "https://api.x.ai/v1"
+
+        // Default output resolution for Grok Imagine image generation ("1k" or "2k").
+        const val GROK_IMAGE_RESOLUTION = "1k"
+
         val FINAL_RESPONSE_EVENTS = setOf(
             "response.completed",
             "response.done",
@@ -277,6 +362,17 @@ class GrokProvider(
             "response.failed",
         )
     }
+}
+
+// The Grok Imagine image-generation models are listed by /models under the "*image*" family
+// (e.g. grok-imagine-image, grok-imagine-image-quality). "grok-imagine-video" has no "image"
+// substring, so the video-generation models are naturally excluded.
+internal fun isGrokImageModel(id: String): Boolean = id.contains("image", ignoreCase = true)
+
+internal fun grokImageAspectRatio(ratio: ImageAspectRatio): String = when (ratio) {
+    ImageAspectRatio.SQUARE -> "1:1"
+    ImageAspectRatio.LANDSCAPE -> "16:9"
+    ImageAspectRatio.PORTRAIT -> "9:16"
 }
 
 internal fun grokReasoningEffort(level: ReasoningLevel): String? {
