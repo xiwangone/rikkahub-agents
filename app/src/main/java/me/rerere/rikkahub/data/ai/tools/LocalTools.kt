@@ -5,9 +5,17 @@ import com.whl.quickjs.wrapper.QuickJSContext
 import com.whl.quickjs.wrapper.QuickJSObject
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.builtins.ListSerializer
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -195,6 +203,43 @@ sealed class LocalToolOption {
     @Serializable @SerialName("external_storage")     data object ExternalStorage     : LocalToolOption()
     @Serializable @SerialName("archive")              data object Archive             : LocalToolOption()
     @Serializable @SerialName("keyboard_control")     data object KeyboardControl     : LocalToolOption()
+}
+
+/**
+ * Deserializes a [LocalToolOption] list leniently: any entry whose "type" this build no longer
+ * defines (for example an upstream-only tool such as `screen_time` that the fork removed) is
+ * dropped instead of aborting the whole decode. Without this, restoring a backup exported from
+ * a build with a different tool set fails the entire settings restore with
+ * "Serializer for subclass '<type>' is not found in the polymorphic scope of 'LocalToolOption'"
+ * (see the upstream-2.4.x restore path). Encoding is unchanged and known tools decode exactly
+ * as before, so this only ever discards options this build could not represent anyway.
+ */
+object LenientLocalToolListSerializer : KSerializer<List<LocalToolOption>> {
+    private val delegate = ListSerializer(LocalToolOption.serializer())
+
+    override val descriptor: SerialDescriptor = delegate.descriptor
+
+    override fun serialize(encoder: Encoder, value: List<LocalToolOption>) {
+        delegate.serialize(encoder, value)
+    }
+
+    override fun deserialize(decoder: Decoder): List<LocalToolOption> {
+        // Per-element tolerance only applies to JSON; any other format uses the strict delegate
+        // (settings are only ever (de)serialized as JSON in this app).
+        val jsonDecoder = decoder as? JsonDecoder ?: return delegate.deserialize(decoder)
+        val element = jsonDecoder.decodeJsonElement()
+        if (element !is JsonArray) {
+            // Not the shape we expect; re-decode the same element strictly rather than guess.
+            return jsonDecoder.json.decodeFromJsonElement(delegate, element)
+        }
+        return element.mapNotNull { item ->
+            try {
+                jsonDecoder.json.decodeFromJsonElement(LocalToolOption.serializer(), item)
+            } catch (e: SerializationException) {
+                null // a tool type this build does not define; drop it, don't fail the import
+            }
+        }
+    }
 }
 
 private val TOP_TOOL_EXAMPLES: Map<String, String> = mapOf(
