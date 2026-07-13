@@ -36,7 +36,7 @@ The path argument(s) you passed (or what the AI said it passed). For sensitivity
 ## Permissions state
 
 - [ ] `MANAGE_EXTERNAL_STORAGE` (All Files Access) granted
-- [ ] App-private path (e.g. `~/...` or `/data/data/me.rerere.rikkahub/...`)
+- [ ] App-private path (e.g. `~/...` or `/data/data/excp.rikkahub/...`)
 - [ ] Other shared-storage path (e.g. `/sdcard/Download/`)
 
 Check Settings → Doctor → Permissions for the current grants if you're not sure.
