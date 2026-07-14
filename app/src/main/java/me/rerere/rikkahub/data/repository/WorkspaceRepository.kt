@@ -56,6 +56,8 @@ class WorkspaceRepository(
 
     suspend fun getById(id: String): WorkspaceEntity? = dao.getById(id)
 
+    suspend fun getAll(): List<WorkspaceEntity> = withContext(Dispatchers.IO) { dao.getAll() }
+
     suspend fun create(name: String): WorkspaceEntity {
         val id = Uuid.random().toString()
         val now = System.currentTimeMillis()
