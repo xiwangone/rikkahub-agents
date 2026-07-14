@@ -94,3 +94,16 @@
 -keep class * implements org.slf4j.spi.SLF4JServiceProvider
 -keepclassmembers class * implements org.slf4j.spi.SLF4JServiceProvider { <init>(); }
 -keep class uk.uuid.slf4j.android.** { *; }
+
+# QR/barcode scanning: Quickie (io.github.g00fy2.quickie:quickie-bundled) wraps CameraX + the
+# BUNDLED Google ML Kit barcode model (com.google.mlkit:barcode-scanning). Even with
+# -dontobfuscate, R8's optimization horizontally-merges BarcodeScanning.getClient() into an
+# unrelated class and mangles ML Kit's internal component registration, so getClient() hands back
+# a scanner whose internal dependency is null -> NullPointerException the instant a camera frame is
+# decoded (issue #13, release-only: camera opens, decode throws). Keep the whole ML Kit + bundled
+# model + Quickie surface so R8 leaves the scanner wiring intact.
+-keep class com.google.mlkit.** { *; }
+-keep class com.google.android.gms.internal.mlkit_vision_barcode.** { *; }
+-keep class com.google.android.gms.internal.mlkit_vision_barcode_bundled.** { *; }
+-keep class io.github.g00fy2.quickie.** { *; }
+-dontwarn com.google.mlkit.**
