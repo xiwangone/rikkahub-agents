@@ -36,7 +36,8 @@ private const val TAG = "JsSkillRunner"
  * Gallery's format (with `window['ai_edge_gallery_get_result'](data, secret)`) works
  * verbatim in this app.
  *
- * Lifecycle: create one WebView per invocation, load `file://<skillDir>/<scriptName>`,
+ * Lifecycle: create one WebView per invocation, load the entry document from the skill's
+ * per-skill virtual https origin (see [skillOriginHost]),
  * wait for `onPageFinished`, evaluate the trigger script, await the result via the
  * `AiEdgeGallery.onResultReady(json)` JS-bridge callback, then destroy the WebView.
  *
@@ -140,7 +141,13 @@ class JsSkillRunner(private val context: Context) {
                         response
                     }
                 }
+                // Each skill is served from its OWN subdomain of the reserved asset domain so
+                // DOM storage (localStorage/IndexedDB) is per-skill: on a single shared origin
+                // any skill could read state another skill persisted. Subdomains of
+                // androidplatform.net never resolve on the real network, same as the parent.
+                val originHost = skillOriginHost(rootDir.name)
                 val assetLoader = WebViewAssetLoader.Builder()
+                    .setDomain(originHost)
                     .addPathHandler(SKILL_PATH, htmlEntryHandler)
                     .build()
                 val wv = WebView(context.applicationContext).apply {
@@ -213,9 +220,10 @@ class JsSkillRunner(private val context: Context) {
                     }
                 }
                 webView = wv
-                // https://appassets.androidplatform.net/skill/<relPath> — intercepted by the
-                // asset loader and served from the skill root; never touches the network.
-                val skillUrl = "https://$ASSET_DOMAIN$SKILL_PATH$relPath"
+                // https://<skill-slug>-<hash>.appassets.androidplatform.net/skill/<relPath> —
+                // intercepted by the asset loader and served from the skill root; never touches
+                // the network.
+                val skillUrl = "https://$originHost$SKILL_PATH$relPath"
                 Log.d(TAG, "loading: $skillUrl (data=${data.take(80)}, secret=${if (secret.isNotEmpty()) "<set>" else "<empty>"})")
                 wv.loadUrl(skillUrl)
 
@@ -281,6 +289,26 @@ class JsSkillRunner(private val context: Context) {
         const val DEFAULT_TIMEOUT_MS = 60_000L
         const val MAX_TIMEOUT_MS = 5 * 60_000L
         const val MAX_DATA_LENGTH = 64 * 1024  // 64KB cap on the data payload
+
+        /**
+         * Per-skill virtual origin host: `<slug>-<8 hex>.appassets.androidplatform.net`.
+         * Deterministic per skill-directory name so a skill keeps its DOM storage across runs;
+         * the hash keeps hosts distinct when two names sanitize to the same slug; the slug
+         * keeps URLs readable in logs. Label stays within DNS limits (24 + 1 + 8 chars).
+         */
+        internal fun skillOriginHost(skillDirName: String): String {
+            val slug = skillDirName.lowercase()
+                .replace(Regex("[^a-z0-9]+"), "-")
+                .trim('-')
+                .take(24)
+                .trimEnd('-')
+                .ifEmpty { "skill" }
+            val hash = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(skillDirName.toByteArray(Charsets.UTF_8))
+                .take(4)
+                .joinToString("") { "%02x".format(it) }
+            return "$slug-$hash.$ASSET_DOMAIN"
+        }
     }
 }
 
