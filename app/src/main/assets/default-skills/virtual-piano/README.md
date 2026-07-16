@@ -3,7 +3,7 @@ Virtual Piano Skill
 
 allows Agent chat to create virtual piano keyboard
 
-piano sound are from https://github.com/fuhton/piano-mp3 under MIT license
+piano notes are synthesized in the browser with WebAudio (no bundled samples)
 
 Copyright 2026 Google LLC
 

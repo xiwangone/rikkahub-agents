@@ -192,11 +192,44 @@ limitations under the License.
         noteNumber++;
       }
 
-      // 2. THE AUDIO ENGINE
-      const audioNotes = {};
-      for (let i = 1; i <= 88; i++) {
-        const audioUrl = `assets/${i}.mp3`;
-        audioNotes[i] = new Audio(audioUrl);
+      // 2. THE AUDIO ENGINE — notes are synthesized with WebAudio instead of shipping
+      // 88 sampled mp3 files. Key 1 is A0 (27.5 Hz); each key is one semitone up.
+      let audioCtx = null;
+
+      function playNote(note) {
+        if (!audioCtx) {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (audioCtx.state === "suspended") {
+          audioCtx.resume();
+        }
+        const freq = 27.5 * Math.pow(2, (note - 1) / 12);
+        const now = audioCtx.currentTime;
+        // High notes ring shorter than low notes, like a real piano.
+        const duration = 2.2 - (note / 88) * 1.2;
+        const master = audioCtx.createGain();
+        // Percussive attack then exponential decay, roughly piano-shaped.
+        master.gain.setValueAtTime(0.0001, now);
+        master.gain.exponentialRampToValueAtTime(0.4, now + 0.012);
+        master.gain.exponentialRampToValueAtTime(0.0001, now + duration);
+        master.connect(audioCtx.destination);
+        // Fundamental plus a few decaying harmonics for a warmer-than-sine tone.
+        [
+          [1, 1.0],
+          [2, 0.35],
+          [3, 0.15],
+          [4, 0.08],
+        ].forEach(([harmonic, level]) => {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.value = freq * harmonic;
+          gain.gain.value = level;
+          osc.connect(gain);
+          gain.connect(master);
+          osc.start(now);
+          osc.stop(now + duration);
+        });
       }
 
       const keys = document.querySelectorAll(".key");
@@ -205,19 +238,10 @@ limitations under the License.
         key.addEventListener("pointerdown", function (event) {
           event.stopPropagation();
 
-          const note = this.getAttribute("data-note");
-          const audio = audioNotes[note];
-
-          if (audio) {
-            audio.currentTime = 0;
-            audio.play().catch((e) => console.warn("Waiting for audio:", e));
-
+          const note = Number(this.getAttribute("data-note"));
+          if (note >= 1 && note <= 88) {
+            playNote(note);
             this.classList.add("active");
-
-            setTimeout(() => {
-              audio.pause();
-              audio.currentTime = 0;
-            }, 2000);
           }
         });
 

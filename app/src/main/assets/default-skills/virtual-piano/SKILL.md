@@ -1,6 +1,6 @@
 ---
 name: virtual-piano
-description: Show a playable 88-key virtual piano with sampled note audio inside a webview.
+description: Show a playable 88-key virtual piano with synthesized note audio inside a webview.
 compatibility: js
 auto_load: false
 ---
@@ -12,8 +12,7 @@ A playable, horizontally-scrolling virtual piano keyboard that uses web audio.
 ## Files
 - `scripts/index.html`: The local entry point that loads `scripts/index.js`.
 - `scripts/index.js`: Returns the webview URL `ui.html?v=<timestamp>` pointing to the local UI under `assets/`.
-- `assets/ui.html`: The piano keyboard UI (3D, 88 keys, horizontally scrolling).
-- `assets/assets/<n>.mp3`: Sampled audio for each of the 88 piano keys.
+- `assets/ui.html`: The piano keyboard UI (3D, 88 keys, horizontally scrolling); note audio is synthesized with WebAudio.
 
 ## Prompts / Triggers
 - "Open virtual piano"
