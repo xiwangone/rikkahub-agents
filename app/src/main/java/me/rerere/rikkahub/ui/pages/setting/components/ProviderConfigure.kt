@@ -461,6 +461,14 @@ private fun OpenRouterRoutingSection(
         label = { Text("Ignore these providers") },
         modifier = Modifier.fillMaxWidth(),
     )
+    OutlinedTextField(
+        value = listToText(routing.fallbackModels),
+        onValueChange = { onChange(routing.copy(fallbackModels = textToList(it))) },
+        label = { Text("Fallback models (ids, comma-separated)") },
+        placeholder = { Text("anthropic/claude-sonnet-4.5, deepseek/deepseek-chat") },
+        supportingText = { Text("Tried in order when the primary model is down, rate-limited, or refuses") },
+        modifier = Modifier.fillMaxWidth(),
+    )
 
     RoutingToggle("Allow fallbacks beyond the list", routing.allowFallbacks) {
         onChange(routing.copy(allowFallbacks = it))

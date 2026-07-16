@@ -3,6 +3,7 @@ package me.rerere.ai.provider.providers.openai
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -54,6 +55,21 @@ fun buildProviderObject(routing: OpenRouterRouting, hasToolsOrSchema: Boolean): 
             }
         }
     }
+}
+
+/**
+ * Build the top-level `models` fallback array: OpenRouter tries these ids in order when
+ * the primary model is down, rate-limited, or refuses on moderation. Null when no usable
+ * fallback is configured. The primary id is excluded so it is never retried as its own
+ * fallback. https://openrouter.ai/docs/guides/routing/model-fallbacks
+ */
+fun buildFallbackModelsArray(primaryModelId: String, routing: OpenRouterRouting): JsonArray? {
+    val fallbacks = routing.fallbackModels
+        .map { it.trim() }
+        .filter { it.isNotEmpty() && it != primaryModelId }
+        .distinct()
+    if (fallbacks.isEmpty()) return null
+    return buildJsonArray { fallbacks.forEach { add(it) } }
 }
 
 data class ParsedImageDataUri(val mime: String, val base64: String)

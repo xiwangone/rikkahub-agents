@@ -310,6 +310,11 @@ class ChatCompletionsAPI(
                 buildProviderObject(providerSetting.routing, hasToolsOrSchema = hasTools)?.let {
                     put("provider", it)
                 }
+                // Fallback models: tried in order when the primary `model` is down,
+                // rate-limited, or refuses on moderation.
+                buildFallbackModelsArray(params.model.modelId, providerSetting.routing)?.let {
+                    put("models", it)
+                }
             }
 
             if (params.model.abilities.contains(ModelAbility.REASONING)) {

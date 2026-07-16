@@ -34,6 +34,12 @@ data class OpenRouterRouting(
     val maxPricePrompt: Double? = null,
     /** USD per 1M completion tokens ceiling (hard filter). */
     val maxPriceCompletion: Double? = null,
+    /**
+     * Model ids OpenRouter should try, in order, when the primary model is down, rate
+     * limited, or refuses on moderation. Sent as the top-level `models` array, NOT as part
+     * of the `provider` object, so it does not affect [isDefault].
+     */
+    val fallbackModels: List<String> = emptyList(),
 ) {
     /** True when nothing is set → the caller should omit the `provider` object. */
     fun isDefault(): Boolean =
