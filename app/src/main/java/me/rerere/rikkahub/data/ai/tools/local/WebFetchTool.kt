@@ -15,6 +15,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
+import java.nio.charset.Charset
 
 private const val WEB_FETCH_TIMEOUT_MS = 30_000L
 private const val WEB_FETCH_BODY_CAP = 8 * 1024  // 8 KB
@@ -162,4 +163,19 @@ internal fun readBounded(ins: InputStream, cap: Int): Pair<ByteArray, Boolean> {
     }
     val bytes = out.toByteArray()
     return bytes to (bytes.size > cap)
+}
+
+private val CHARSET_RE = Regex("""charset\s*=\s*["']?([^"';\s]+)""", RegexOption.IGNORE_CASE)
+
+/**
+ * Decode the first [len] bytes of [raw] using the charset declared in [contentType],
+ * falling back to UTF-8 when it is absent, malformed, or unsupported on this device.
+ * Decoding everything as UTF-8 mangles every non-UTF-8 page.
+ */
+internal fun decodeBody(raw: ByteArray, len: Int, contentType: String?): String {
+    val charset = contentType
+        ?.let { CHARSET_RE.find(it)?.groupValues?.getOrNull(1) }
+        ?.let { name -> runCatching { Charset.forName(name.trim()) }.getOrNull() }
+        ?: Charsets.UTF_8
+    return String(raw, 0, minOf(len, raw.size), charset)
 }
