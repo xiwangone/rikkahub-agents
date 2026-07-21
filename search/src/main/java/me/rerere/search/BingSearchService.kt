@@ -7,10 +7,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.search.SearchResult.SearchResultItem
+import me.rerere.search.SearchService.Companion.httpClient
+import me.rerere.search.extract.ExtractMode
+import me.rerere.search.extract.ScrapeSchema
+import me.rerere.search.extract.WebExtractor
+import me.rerere.search.net.hostIsBlockedLiteral
+import me.rerere.search.net.withEgressGuard
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Request
 import org.jsoup.Jsoup
 import java.net.URLEncoder
 import java.util.Locale
@@ -34,7 +43,20 @@ object BingSearchService : SearchService<SearchServiceOptions.BingLocalOptions> 
             required = listOf("query")
         )
 
-    override fun scrapingParameters(options: SearchServiceOptions.BingLocalOptions): InputSchema? = null
+    override fun scrapingParameters(options: SearchServiceOptions.BingLocalOptions): InputSchema? =
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("url", buildJsonObject {
+                    put("type", "string")
+                    put("description", ScrapeSchema.URL_DESCRIPTION)
+                })
+                put("mode", buildJsonObject {
+                    put("type", "string")
+                    put("description", ScrapeSchema.MODE_DESCRIPTION)
+                })
+            },
+            required = listOf("url"),
+        )
 
     override suspend fun search(
         params: JsonObject,
@@ -85,7 +107,57 @@ object BingSearchService : SearchService<SearchServiceOptions.BingLocalOptions> 
         params: JsonObject,
         commonOptions: SearchCommonOptions,
         serviceOptions: SearchServiceOptions.BingLocalOptions
-    ): Result<ScrapedResult> {
-        return Result.failure(Exception("Scraping is not supported for Bing"))
+    ): Result<ScrapedResult> = withContext(Dispatchers.IO) {
+        runCatching {
+            val url = params["url"]?.jsonPrimitive?.contentOrNull?.trim()
+            require(!url.isNullOrBlank()) { "url is required" }
+            require(url.startsWith("http://", ignoreCase = true) || url.startsWith("https://", ignoreCase = true)) {
+                "url must be an absolute http(s) URL"
+            }
+            require(!hostIsBlockedLiteral(url.toHttpUrlOrNull()?.host)) {
+                "blocked_private_address: $url"
+            }
+            val mode = when (params["mode"]?.jsonPrimitive?.contentOrNull?.lowercase()) {
+                "text" -> ExtractMode.TEXT
+                "links" -> ExtractMode.LINKS
+                "metadata" -> ExtractMode.METADATA
+                else -> ExtractMode.ARTICLE
+            }
+
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", ScrapeSchema.DEFAULT_USER_AGENT)
+                .get()
+                .build()
+
+            val guarded = httpClient.withEgressGuard()
+            guarded.newCall(request).execute().use { resp ->
+                require(resp.isSuccessful) { "HTTP ${resp.code} from $url" }
+                val html = resp.body.string()
+                val page = WebExtractor.extract(
+                    html = html,
+                    baseUrl = url,
+                    mode = mode,
+                    maxChars = 32 * 1024,
+                    startIndex = 0,
+                )
+                require(page.text.isNotBlank() || mode != ExtractMode.ARTICLE) {
+                    "no readable content extracted from $url"
+                }
+                ScrapedResult(
+                    urls = listOf(
+                        ScrapedResultUrl(
+                            url = url,
+                            content = page.text,
+                            metadata = ScrapedResultMetadata(
+                                title = page.title,
+                                description = page.description,
+                                language = page.language,
+                            ),
+                        ),
+                    ),
+                )
+            }
+        }
     }
 }

@@ -183,3 +183,13 @@ object WebExtractor {
         return out.ifEmpty { root.text().trim() }
     }
 }
+
+/** The `url` argument schema every keyless scraper advertises. */
+object ScrapeSchema {
+    const val URL_DESCRIPTION = "The absolute http(s) URL to read"
+    const val MODE_DESCRIPTION = "article (default), text, links, or metadata"
+
+    /** Neither SearXNGService nor BingSearchService declares a user-agent constant today. */
+    const val DEFAULT_USER_AGENT =
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36"
+}
