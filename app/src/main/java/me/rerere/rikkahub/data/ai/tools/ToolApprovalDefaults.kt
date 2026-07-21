@@ -215,6 +215,9 @@ object ToolApprovalDefaults {
         // anything the LLM puts in the URL / body / headers, so it gets the same
         // approval gate as every other outbound call.
         "web_fetch",
+        // web_extract performs the same outbound GET as web_fetch, so it carries the same
+        // trust footprint and inherits the same approval gate.
+        "web_extract",
 
         // Phase 25 — Phase 3 second cut. Every mutating tool is approval-gated; the
         // read-only tools (keystore_verify, keystore_list_keys, list_storage_volumes,

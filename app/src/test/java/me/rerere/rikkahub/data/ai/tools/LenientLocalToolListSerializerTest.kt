@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai.tools
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -42,5 +43,26 @@ class LenientLocalToolListSerializerTest {
         val lenient = json.encodeToString(LenientLocalToolListSerializer, tools)
         val strict = json.encodeToString(ListSerializer(LocalToolOption.serializer()), tools)
         assertEquals(strict, lenient)
+    }
+
+    @Test
+    fun `web_extract option round trips`() {
+        val decoded = json.decodeFromString(
+            LenientLocalToolListSerializer,
+            """[{"type":"web_fetch"},{"type":"web_extract"}]""",
+        )
+
+        assertTrue(decoded.contains(LocalToolOption.WebExtract))
+        assertTrue(decoded.contains(LocalToolOption.WebFetch))
+    }
+
+    @Test
+    fun `settings saved before web_extract existed still decode`() {
+        val decoded = json.decodeFromString(
+            LenientLocalToolListSerializer,
+            """[{"type":"web_fetch"}]""",
+        )
+
+        assertEquals(listOf(LocalToolOption.WebFetch), decoded)
     }
 }
