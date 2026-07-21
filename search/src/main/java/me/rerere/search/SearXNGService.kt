@@ -168,7 +168,7 @@ object SearXNGService : SearchService<SearchServiceOptions.SearXNGOptions> {
             val guarded = httpClient.withEgressGuard()
             guarded.newCall(request).execute().use { resp ->
                 require(resp.isSuccessful) { "HTTP ${resp.code} from $url" }
-                val html = resp.body.string()
+                val html = boundedBody(resp, SCRAPE_BODY_CAP)
                 val page = WebExtractor.extract(
                     html = html,
                     baseUrl = url,

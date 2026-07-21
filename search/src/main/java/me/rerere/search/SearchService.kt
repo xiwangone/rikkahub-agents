@@ -92,6 +92,31 @@ interface SearchService<T : SearchServiceOptions> {
     }
 }
 
+/** Cap for a scraped page body: bounds memory before Jsoup parses it (which roughly doubles
+ * the footprint), so a huge or unbounded response can't be dragged fully into memory first. */
+internal const val SCRAPE_BODY_CAP = 256 * 1024
+
+/**
+ * Read at most [capBytes] from [response]'s body and decode it using its declared charset
+ * (UTF-8 fallback), mirroring the chunked-read loop WebFetchTool.readBounded uses so a
+ * multi-GB response never gets buffered whole just because callTimeout only bounds time.
+ */
+internal fun boundedBody(response: Response, capBytes: Int): String {
+    val charset = response.body.contentType()?.charset() ?: Charsets.UTF_8
+    val ins = response.body.byteStream()
+    val out = java.io.ByteArrayOutputStream(minOf(capBytes, 8 * 1024))
+    val buf = ByteArray(8192)
+    var total = 0
+    while (total < capBytes) {
+        val want = minOf(buf.size, capBytes - total)
+        val read = ins.read(buf, 0, want)
+        if (read < 0) break
+        out.write(buf, 0, read)
+        total += read
+    }
+    return String(out.toByteArray(), charset)
+}
+
 @Serializable
 data class SearchCommonOptions(
     val resultSize: Int = 10
