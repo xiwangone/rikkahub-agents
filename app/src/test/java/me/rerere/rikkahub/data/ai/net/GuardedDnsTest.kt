@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.ai.net
 
 import okhttp3.Dns
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
@@ -72,6 +73,17 @@ class GuardedDnsTest {
             fail("expected UnknownHostException")
         } catch (e: UnknownHostException) {
             assertTrue(e.message!!.contains("blocked_private_address"))
+        }
+    }
+
+    @Test
+    fun `hostIsBlockedLiteral refuses private ip literals and passes public ones`() {
+        // Covers the literal-IP hosts OkHttp routes without consulting GuardedDns.
+        listOf("127.0.0.1", "192.168.1.1", "169.254.169.254", "::1", "fd00::1").forEach { host ->
+            assertTrue("$host should be blocked", hostIsBlockedLiteral(host))
+        }
+        listOf("8.8.8.8", "2001:4860:4860::8888", "example.com", "html.duckduckgo.com").forEach { host ->
+            assertFalse("$host should be allowed", hostIsBlockedLiteral(host))
         }
     }
 

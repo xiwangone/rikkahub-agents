@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.net
 
 import okhttp3.Dns
+import okhttp3.OkHttpClient
 import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
@@ -64,3 +65,46 @@ class GuardedDns(
         return addresses
     }
 }
+
+private val IPV4_LITERAL_RE = Regex("""^\d{1,3}(\.\d{1,3}){3}$""")
+
+/**
+ * True when [host] is an IP literal that [isBlockedTarget] refuses. OkHttp routes a
+ * literal-IP host straight to the socket without consulting the custom [Dns] (its route
+ * selector short-circuits `canParseAsIpAddress`), so [GuardedDns] never sees it; a caller
+ * uses this to reject such a host before dialing.
+ *
+ * A host counts as a literal when it is an IPv4 dotted-quad or contains ':' (an OkHttp
+ * `HttpUrl.host` for IPv6 is bracket-free, and a real hostname never contains ':'). Only
+ * literals are inspected, so no DNS query happens here; a hostname returns false. A literal
+ * that fails to parse is refused (fail closed) rather than throwing.
+ */
+internal fun hostIsBlockedLiteral(host: String): Boolean {
+    val isLiteral = IPV4_LITERAL_RE.matches(host) || host.contains(':')
+    if (!isLiteral) return false
+    return try {
+        // No DNS lookup happens for an IP literal; getByName just parses it.
+        InetAddress.getByName(host).isBlockedTarget()
+    } catch (e: UnknownHostException) {
+        true
+    }
+}
+
+/**
+ * Wrap [this] client so tool-driven requests cannot reach a private target by either name or
+ * literal. The [GuardedDns] wrapper covers hostname resolution on every hop; the network
+ * interceptor covers literal-IP hosts, which OkHttp routes without consulting [Dns]. A
+ * caller-side [hostIsBlockedLiteral] pre-check on the initial URL makes that case
+ * deterministic, while this interceptor still guards literal-IP redirect hops.
+ */
+internal fun OkHttpClient.withEgressGuard(allowPrivate: Boolean = false): OkHttpClient =
+    newBuilder()
+        .dns(GuardedDns(Dns.SYSTEM, allowPrivate))
+        .addNetworkInterceptor { chain ->
+            val host = chain.request().url.host
+            if (!allowPrivate && hostIsBlockedLiteral(host)) {
+                throw UnknownHostException("blocked_private_address: $host")
+            }
+            chain.proceed(chain.request())
+        }
+        .build()
