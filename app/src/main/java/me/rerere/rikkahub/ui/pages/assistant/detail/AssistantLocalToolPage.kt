@@ -1005,6 +1005,20 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_web_extract_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_web_extract_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.WebExtract),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.WebExtract, it) },
+                    )
+                }
+            )
         }
 
         // Phase 25 — Phase 3 second cut + ExternalStorage + Archive.

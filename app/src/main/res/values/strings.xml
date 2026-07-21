@@ -1492,6 +1492,8 @@
   <string name="assistant_page_local_tools_browser_desc">AI-driven web browser. 17 individually-togglable tools — configure read/write access in Settings → Browser.</string>
   <string name="assistant_page_local_tools_web_fetch_title">Web fetch</string>
   <string name="assistant_page_local_tools_web_fetch_desc">Lightweight HTTP GET/POST tool. 30s timeout, response body capped at 8 KB. Requires approval on each call.</string>
+  <string name="assistant_page_local_tools_web_extract_title">Web extract</string>
+  <string name="assistant_page_local_tools_web_extract_desc">Reads a web page as clean article text, with navigation and boilerplate removed. 30s timeout. Requires approval on each call.</string>
   <string name="assistant_page_local_tools_section_privileged">Privileged tools</string>
   <string name="assistant_page_local_tools_sms_send_title">SMS send</string>
   <string name="assistant_page_local_tools_sms_send_desc">Send SMS messages programmatically. Requires SEND_SMS permission. Approval required per call.</string>
