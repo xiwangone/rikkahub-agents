@@ -123,6 +123,15 @@ fun webExtractTool(client: OkHttpClient): Tool = Tool(
                         headers = null,
                     )
                 }
+            } catch (e: java.io.InterruptedIOException) {
+                // OkHttp's callTimeout (set in withEgressGuard) fires this when a call, including
+                // a trickling read, runs past the advertised 30s limit; withTimeoutOrNull cannot
+                // catch this itself since the blocking execute() call has no suspension point.
+                buildJsonObject {
+                    put("error", "timeout")
+                    put("detail", "Request exceeded the 30s limit.")
+                    put("recovery", "The host is slow or unreachable; try a different URL.")
+                }.toString()
             } catch (e: IOException) {
                 val blocked = e.message?.contains("blocked_private_address") == true
                 buildJsonObject {

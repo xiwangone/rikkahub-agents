@@ -6,6 +6,7 @@ import java.net.Inet4Address
 import java.net.Inet6Address
 import java.net.InetAddress
 import java.net.UnknownHostException
+import java.util.concurrent.TimeUnit
 
 /**
  * True when this address must never be a tool-driven HTTP target: loopback, link-local,
@@ -96,10 +97,15 @@ internal fun hostIsBlockedLiteral(host: String): Boolean {
  * interceptor covers literal-IP hosts, which OkHttp routes without consulting [Dns]. A
  * caller-side [hostIsBlockedLiteral] pre-check on the initial URL makes that case
  * deterministic, while this interceptor still guards literal-IP redirect hops.
+ *
+ * Also sets a 30 s [OkHttpClient.Builder.callTimeout] bounding the entire call, including
+ * trickling reads: a coroutine `withTimeoutOrNull` around a blocking `execute()` has no
+ * suspension point to interrupt, so it cannot enforce a caller-side timeout on its own.
  */
 internal fun OkHttpClient.withEgressGuard(allowPrivate: Boolean = false): OkHttpClient =
     newBuilder()
         .dns(GuardedDns(Dns.SYSTEM, allowPrivate))
+        .callTimeout(30, TimeUnit.SECONDS)
         .addNetworkInterceptor { chain ->
             val host = chain.request().url.host
             if (!allowPrivate && hostIsBlockedLiteral(host)) {
