@@ -111,6 +111,14 @@ class RikkaHubApp : Application() {
         // storage friction. Termux-style: private, persistent, OS-blessed.
         me.rerere.rikkahub.data.ai.tools.local.AgentWorkspace.init(this)
 
+        // TermuxPreferences is already constructed transitively via eagerlyInitChatService()
+        // above (ChatService -> LocalTools -> TermuxPreferences), which runs its init{}
+        // restore + persister wiring for TermuxIntegration.lastVerifiedOkAtMs (GitHub #14).
+        // This explicit touch is a decoupled safety net so that persistence still initializes
+        // if that construction chain is later refactored or throws before reaching
+        // termuxPreferences.
+        eagerlyInitTermuxPreferences()
+
         // Copy any default skills bundled in assets/default-skills/* into the user's skills
         // dir on first launch. SkillManager guards via a per-skill .seeded sentinel so this
         // is a one-time install — user edits / deletes are respected on subsequent launches.
@@ -341,6 +349,16 @@ class RikkaHubApp : Application() {
             get<me.rerere.rikkahub.service.ChatService>()
         } catch (t: Throwable) {
             Log.e(TAG, "eagerlyInitChatService failed", t)
+        }
+    }
+
+    // Decoupled safety net: normally a no-op since eagerlyInitChatService() already
+    // constructed TermuxPreferences transitively; kept independent in case that chain changes.
+    private fun eagerlyInitTermuxPreferences() {
+        try {
+            get<me.rerere.rikkahub.data.preferences.TermuxPreferences>()
+        } catch (t: Throwable) {
+            Log.e(TAG, "eagerlyInitTermuxPreferences failed", t)
         }
     }
 

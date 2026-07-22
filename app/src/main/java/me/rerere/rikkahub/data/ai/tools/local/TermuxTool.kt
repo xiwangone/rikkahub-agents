@@ -56,20 +56,41 @@ internal object TermuxIntegration {
     /**
      * Process-scoped timestamp of the last successful end-to-end smoke test. The toggle row
      * in the assistant Local-tools page reads this so the green indicator persists across
-     * navigations within the session — without it the dot would reset to orange every time
-     * the user left and re-entered the page. Resets on app restart, which is acceptable
-     * since re-verifying is one tap.
+     * navigations within the session. It also survives app restarts: [TermuxPreferences]
+     * restores it from DataStore via [restoreVerifiedAt] at startup and re-persists every
+     * change through [persister] (see GitHub issue #14 — users had to reconnect on every
+     * launch because this was in-memory only).
      */
     @Volatile
     var lastVerifiedOkAtMs: Long = 0L
         private set
 
+    /**
+     * Write-path for [lastVerifiedOkAtMs] set by [me.rerere.rikkahub.data.preferences.TermuxPreferences]
+     * at startup, so every [markVerifiedOk] / [clearVerified] persists to DataStore without
+     * this object needing an Android [android.content.Context] of its own.
+     */
+    @Volatile
+    var persister: ((Long) -> Unit)? = null
+
     fun markVerifiedOk() {
         lastVerifiedOkAtMs = System.currentTimeMillis()
+        persister?.invoke(lastVerifiedOkAtMs)
     }
 
     fun clearVerified() {
         lastVerifiedOkAtMs = 0L
+        persister?.invoke(lastVerifiedOkAtMs)
+    }
+
+    /**
+     * Restore a timestamp persisted in a previous process, called once from
+     * [me.rerere.rikkahub.data.preferences.TermuxPreferences]'s init block before any user
+     * interaction. Does not invoke [persister] — the value already came from disk, so there
+     * is nothing new to write back.
+     */
+    fun restoreVerifiedAt(ms: Long) {
+        lastVerifiedOkAtMs = ms
     }
 
     fun state(ctx: Context): State {

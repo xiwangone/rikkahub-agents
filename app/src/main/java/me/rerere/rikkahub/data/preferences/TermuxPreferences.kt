@@ -43,6 +43,7 @@ class TermuxPreferences(private val context: Context) {
     private val maxStdoutKey      = intPreferencesKey("max_stdout_bytes")
     private val maxStderrKey      = intPreferencesKey("max_stderr_bytes")
     private val aptWrapKey        = booleanPreferencesKey("apt_wrap_enabled")
+    private val lastVerifiedMsKey = longPreferencesKey("last_verified_ms")
 
     init {
         // Seed the runtime holders SYNCHRONOUSLY from DataStore before starting the async
@@ -61,12 +62,22 @@ class TermuxPreferences(private val context: Context) {
         TermuxRuntime.maxStderrBytes     = initial.maxStderrBytes
         TermuxRuntime.aptWrapEnabled     = initial.aptWrapEnabled
         ToolRuntimeLimits.turnBudgetMs   = initial.turnBudgetMs
+        // Issue #14: restore the "verified/connected" indicator across app restarts. Without
+        // this, TermuxIntegration.lastVerifiedOkAtMs starts at 0 every launch and the user
+        // has to re-run the verify smoke test even though nothing about the Termux
+        // integration actually changed.
+        me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.restoreVerifiedAt(initial.lastVerifiedMs)
 
         // Async collectors keep the holders live on subsequent user edits. This scope is
         // intentionally NOT stored as a field — it is process-lived and we want it to stay
         // alive as long as the singleton itself. SupervisorJob means one failing collector
         // doesn't kill the others.
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+        // Wire the write-back path so every future markVerifiedOk()/clearVerified() persists,
+        // instead of only being restorable for the run that already set it.
+        me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.persister = { ms ->
+            scope.launch { setLastVerifiedMs(ms) }
+        }
         scope.launch {
             commandTimeoutFlow()
                 .distinctUntilChanged()
@@ -183,6 +194,10 @@ class TermuxPreferences(private val context: Context) {
         store.edit { it[aptWrapKey] = enabled }
     }
 
+    suspend fun setLastVerifiedMs(ms: Long) {
+        store.edit { it[lastVerifiedMsKey] = ms }
+    }
+
     /**
      * One-shot suspend snapshot for callers that need all fields at once (e.g. the VM's
      * combined state flow). Fields are clamped on read, same as the individual flow accessors.
@@ -197,6 +212,7 @@ class TermuxPreferences(private val context: Context) {
             maxStdoutBytes     = TermuxDefaults.clampMaxStdout(prefs[maxStdoutKey]              ?: TermuxDefaults.DEFAULT_MAX_STDOUT),
             maxStderrBytes     = TermuxDefaults.clampMaxStderr(prefs[maxStderrKey]              ?: TermuxDefaults.DEFAULT_MAX_STDERR),
             aptWrapEnabled     = prefs[aptWrapKey]                                              ?: TermuxDefaults.DEFAULT_APT_WRAP_ENABLED,
+            lastVerifiedMs     = prefs[lastVerifiedMsKey]                                        ?: 0L,
         )
     }
 
@@ -216,4 +232,5 @@ data class TermuxRuntimeConfig(
     val maxStdoutBytes: Int,
     val maxStderrBytes: Int,
     val aptWrapEnabled: Boolean,
+    val lastVerifiedMs: Long = 0L,
 )
