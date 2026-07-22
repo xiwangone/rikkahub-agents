@@ -39,6 +39,14 @@ private const val TAG = "CronJobWorker"
 internal const val REPLAY_WINDOW_MS = 10L * 60_000L
 
 /**
+ * Prepended to every cron LLM-mode prompt. Models otherwise treat a `post_notification`
+ * call as "done" and leave a terse chat reply, but the reply IS what the user reads when
+ * they tap that notification (it deep-links back to this conversation), so it has to
+ * carry the full result, not the notification.
+ */
+private const val CRON_DELIVERY_DIRECTIVE = "[System] Your full text reply to this task is saved to a conversation the user can open in the app, including by tapping any notification you post (the notification deep-links to this conversation). ALWAYS write your complete result as your reply here. If you also call post_notification, keep the notification a short alert and still include the full content in your reply. Do not rely on writing files or external channels for the user to read the result: your reply in this conversation is the record."
+
+/**
  * Wait for the ChatService generation job on [flow] to terminate (transition to null)
  * within a wall-clock [timeoutMs] cap. Returns `true` on natural completion, `false` if
  * the cap fired first.
@@ -282,7 +290,7 @@ class CronJobWorker(
         chatService.initializeConversation(conv.id)
         HeadlessConversations.mark(conv.id)
         try {
-            chatService.sendMessage(conv.id, listOf(UIMessagePart.Text(prompt)))
+            chatService.sendMessage(conv.id, listOf(UIMessagePart.Text(CRON_DELIVERY_DIRECTIVE + "\n\n" + prompt)))
             // Wait for the generation job to clear, with a 15-min wall-clock cap.
             // See awaitGenerationTerminal's KDoc for the Unit-sentinel rationale.
             val completed = awaitGenerationTerminal(

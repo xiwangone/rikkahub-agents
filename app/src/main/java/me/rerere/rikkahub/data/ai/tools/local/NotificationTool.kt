@@ -1,7 +1,9 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import android.app.NotificationManager
+import android.app.PendingIntent
 import android.content.Context
+import android.content.Intent
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -14,6 +16,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
 private const val CHANNEL_ID = "rikkahub_ai_tool"
@@ -85,6 +88,22 @@ fun notificationTool(
             .setAutoCancel(true)
         if (body != null) {
             builder.setContentText(body)
+            builder.setStyle(NotificationCompat.BigTextStyle().bigText(body))
+        }
+
+        val convId = invocationContext.callerConversationId
+        if (!convId.isNullOrBlank()) {
+            val intent = Intent(context, RouteActivity::class.java).apply {
+                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
+                putExtra("conversationId", convId)
+            }
+            val pi = PendingIntent.getActivity(
+                context,
+                convId.hashCode(),
+                intent,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            )
+            builder.setContentIntent(pi)
         }
 
         val payload = try {

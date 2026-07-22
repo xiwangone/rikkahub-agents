@@ -137,6 +137,7 @@ import me.rerere.rikkahub.ui.pages.webview.WebViewPage
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
+import me.rerere.rikkahub.utils.resolveInitialChatStack
 import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
 import org.koin.compose.koinInject
@@ -250,6 +251,7 @@ class RouteActivity : ComponentActivity() {
         // Navigate to the chat screen if a conversation ID is provided
         intent.getStringExtra("conversationId")?.let { text ->
             navStack?.add(Screen.Chat(text))
+            intent.removeExtra("conversationId")
         }
     }
 
@@ -271,18 +273,23 @@ class RouteActivity : ComponentActivity() {
         }
         val migrationState by DatabaseMigrationTracker.state.collectAsStateWithLifecycle()
 
-        val startScreen = Screen.Chat(
-            id = if (readBooleanPreference("create_new_conversation_on_start", true)) {
-                Uuid.random().toString()
-            } else {
-                readStringPreference(
-                    "lastConversationId",
-                    Uuid.random().toString()
-                ) ?: Uuid.random().toString()
-            }
-        )
+        // Resolve once per composition (not on every recomposition) so a later removeExtra()
+        // of "conversationId" can't flip which rememberNavBackStack() branch below gets called.
+        val deepLinkConversationId = remember { intent?.getStringExtra("conversationId") }
+        val initialChatIds = remember {
+            resolveInitialChatStack(
+                deepLinkConversationId = deepLinkConversationId,
+                createNewOnStart = readBooleanPreference("create_new_conversation_on_start", true),
+                lastConversationId = readStringPreference("lastConversationId", null),
+                newId = { Uuid.random().toString() },
+            )
+        }
 
-        val backStack = rememberNavBackStack(startScreen)
+        val backStack = if (initialChatIds.size > 1) {
+            rememberNavBackStack(Screen.Chat(initialChatIds[0]), Screen.Chat(initialChatIds[1]))
+        } else {
+            rememberNavBackStack(Screen.Chat(initialChatIds[0]))
+        }
         SideEffect { this@RouteActivity.navStack = backStack }
 
         LaunchedEffect(backStack) {
@@ -290,6 +297,12 @@ class RouteActivity : ComponentActivity() {
                 val destination = Screen.SettingProviderDetail(DEFAULT_CODEX_PROVIDER_ID.toString())
                 if (backStack.lastOrNull() != destination) backStack.add(destination)
                 intent.removeExtra(EXTRA_OPEN_CODEX_SETTINGS)
+            }
+            // Deep link was already consumed into the initial back stack above; clear it so a
+            // future recreation with the same Intent doesn't re-push it (mirrors how
+            // EXTRA_OPEN_CODEX_SETTINGS is cleared above).
+            if (deepLinkConversationId != null) {
+                intent.removeExtra("conversationId")
             }
         }
 
