@@ -149,6 +149,7 @@ class SettingsStore(
         val SEARCH_SERVICES = stringPreferencesKey("search_services")
         val SEARCH_COMMON = stringPreferencesKey("search_common")
         val SEARCH_SELECTED = intPreferencesKey("search_selected")
+        val ENABLE_WEB_FETCH_TOOLS = booleanPreferencesKey("enable_web_fetch_tools")
 
         // MCP
         val MCP_SERVERS = stringPreferencesKey("mcp_servers")
@@ -253,6 +254,7 @@ class SettingsStore(
                     JsonInstant.decodeFromString(it)
                 } ?: SearchCommonOptions(),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
+                enableWebFetchTools = preferences[ENABLE_WEB_FETCH_TOOLS] != false,
                 mcpServers = preferences[MCP_SERVERS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
@@ -508,6 +510,7 @@ class SettingsStore(
             // IllegalArgumentException because min > max — crashing every settings write.
             preferences[SEARCH_SELECTED] =
                 settings.searchServiceSelected.coerceIn(0, maxOf(0, settings.searchServices.size - 1))
+            preferences[ENABLE_WEB_FETCH_TOOLS] = settings.enableWebFetchTools
 
             preferences[MCP_SERVERS] = JsonInstant.encodeToString(settings.mcpServers)
             preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settings.webDavConfig)
@@ -679,6 +682,7 @@ data class Settings(
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),
     val searchServiceSelected: Int = 0,
+    val enableWebFetchTools: Boolean = true,
     val mcpServers: List<McpServerConfig> = emptyList(),
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val s3Config: S3Config = S3Config(),

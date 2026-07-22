@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.ai.tools
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -46,23 +45,29 @@ class LenientLocalToolListSerializerTest {
     }
 
     @Test
-    fun `web_extract option round trips`() {
+    fun `web_fetch and web_extract are dropped, rest of the list survives`() {
+        // web_fetch/web_extract moved from per-assistant LocalToolOption entries to a single
+        // global setting, so they are no longer defined subtypes. An assistant persisted before
+        // this change may still carry them in its tool list; the restore must not abort and must
+        // keep the other, still-known entries in order.
+        val decoded = json.decodeFromString(
+            LenientLocalToolListSerializer,
+            """[{"type":"time_info"},{"type":"web_fetch"},{"type":"web_extract"},{"type":"ask_user"}]""",
+        )
+
+        assertEquals(
+            listOf(LocalToolOption.TimeInfo, LocalToolOption.AskUser),
+            decoded,
+        )
+    }
+
+    @Test
+    fun `settings containing only removed web_fetch and web_extract decode to an empty list`() {
         val decoded = json.decodeFromString(
             LenientLocalToolListSerializer,
             """[{"type":"web_fetch"},{"type":"web_extract"}]""",
         )
 
-        assertTrue(decoded.contains(LocalToolOption.WebExtract))
-        assertTrue(decoded.contains(LocalToolOption.WebFetch))
-    }
-
-    @Test
-    fun `settings saved before web_extract existed still decode`() {
-        val decoded = json.decodeFromString(
-            LenientLocalToolListSerializer,
-            """[{"type":"web_fetch"}]""",
-        )
-
-        assertEquals(listOf(LocalToolOption.WebFetch), decoded)
+        assertEquals(emptyList<LocalToolOption>(), decoded)
     }
 }
