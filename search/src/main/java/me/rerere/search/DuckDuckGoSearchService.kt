@@ -13,6 +13,7 @@ import me.rerere.search.SearchService.Companion.httpClient
 import me.rerere.search.extract.ExtractMode
 import me.rerere.search.extract.ScrapeSchema
 import me.rerere.search.extract.WebExtractor
+import me.rerere.search.net.SearchCircuitBreaker
 import me.rerere.search.net.hostIsBlockedLiteral
 import me.rerere.search.net.withEgressGuard
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -22,11 +23,99 @@ import java.net.URLDecoder
 import java.net.URLEncoder
 import java.util.Locale
 
+/**
+ * Thrown for a keyless-search failure that the model should treat as retryable: the engine's
+ * anti-bot protection kicked in (rate-limited by our own circuit breaker, or a challenge page
+ * detected fresh). Deliberately distinct from a generic exception so the tool layer's
+ * `exception` field (which surfaces `javaClass.simpleName`) reads as something actionable
+ * instead of a bare `IllegalArgumentException`.
+ */
+class SearchRateLimitedException(message: String) : Exception(message)
+
+/**
+ * Outcome of classifying a DuckDuckGo HTML-endpoint response. Kept separate from an exception
+ * so classification stays a pure, unit-testable function (see [classifyDdgResponse]) - the
+ * markup is what breaks, not the transport.
+ */
+internal sealed interface DdgOutcome {
+    data class Results(val items: List<SearchResult.SearchResultItem>) : DdgOutcome
+    data object Empty : DdgOutcome
+    data class Blocked(val reason: String) : DdgOutcome
+}
+
+/** HTTP statuses DuckDuckGo's anti-bot layer is known to answer a challenge/rate-limit with. */
+private val BLOCKED_HTTP_STATUSES = setOf(202, 403, 429)
+
+/**
+ * Case-insensitive substrings unique to DuckDuckGo's anti-bot challenge ("anomaly") page,
+ * derived from an actual capture of `https://html.duckduckgo.com/html/?q=test` returned to a
+ * rate-limited IP (HTTP 202): a "select all squares containing a duck" puzzle whose markup
+ * carries the `anomaly-modal` class family and this description text.
+ */
+private val CHALLENGE_MARKERS = listOf(
+    "anomaly-modal",
+    "unfortunately, bots use duckduckgo too",
+    "confirm this search was made by a human",
+)
+
+/** Substrings of DuckDuckGo's genuine "nothing matched your query" markup. */
+private val NO_RESULTS_MARKERS = listOf(
+    "no-results",
+    "no results.",
+)
+
+/**
+ * Classify a DuckDuckGo HTML-endpoint response into real results, a genuine empty SERP, or an
+ * anti-bot block - replacing the old `require(results.isNotEmpty())`, which conflated "we were
+ * blocked" with "the web has nothing" and reported both as "no results found".
+ *
+ * An unrecognised zero-result shape defaults to [DdgOutcome.Blocked] rather than [DdgOutcome.Empty]:
+ * a retryable false-positive is safer than telling the model the web has nothing when the markup
+ * just drifted.
+ */
+internal fun classifyDdgResponse(httpStatus: Int, html: String, limit: Int): DdgOutcome {
+    val results = DuckDuckGoSearchService.parseResults(html, limit)
+    if (results.isNotEmpty()) return DdgOutcome.Results(results)
+
+    if (httpStatus in BLOCKED_HTTP_STATUSES || httpStatus >= 500) {
+        return DdgOutcome.Blocked("http $httpStatus")
+    }
+
+    val lowerHtml = html.lowercase()
+    if (CHALLENGE_MARKERS.any { lowerHtml.contains(it) }) {
+        return DdgOutcome.Blocked("challenge page")
+    }
+    if (NO_RESULTS_MARKERS.any { lowerHtml.contains(it) }) {
+        return DdgOutcome.Empty
+    }
+    return DdgOutcome.Blocked("unrecognised empty response")
+}
+
+/** Model-facing message for a search short-circuited locally by the (already open) breaker. */
+private fun rateLimited(remainingMs: Long): SearchRateLimitedException {
+    val seconds = (remainingMs / 1000L).coerceAtLeast(1L)
+    return SearchRateLimitedException(
+        "Search is temporarily rate-limited by the engine's anti-bot protection. " +
+            "Wait about ${seconds}s before searching again, and avoid firing many searches in quick succession."
+    )
+}
+
+/** Model-facing message for a challenge/block detected fresh (breaker not yet open). */
+private fun blocked(reason: String): SearchRateLimitedException =
+    SearchRateLimitedException(
+        "The search engine returned an anti-bot challenge instead of results ($reason). " +
+            "This usually clears in a few seconds; wait before retrying and avoid rapid repeated searches."
+    )
+
 object DuckDuckGoSearchService : SearchService<SearchServiceOptions.DuckDuckGoOptions> {
 
-    override val name: String = "DuckDuckGo"
+    override val name: String = "Built-in"
 
     private const val ENDPOINT = "https://html.duckduckgo.com/html/?q="
+
+    // Process-lifetime only: no persistence, no cache. Living on this singleton is what makes
+    // repeated blocks across calls visible without any disk/cache writes.
+    private val breaker = SearchCircuitBreaker()
 
     @Composable
     override fun Description() {
@@ -63,12 +152,19 @@ object DuckDuckGoSearchService : SearchService<SearchServiceOptions.DuckDuckGoOp
         commonOptions: SearchCommonOptions,
         serviceOptions: SearchServiceOptions.DuckDuckGoOptions
     ): Result<SearchResult> = withContext(Dispatchers.IO) {
+        val query = params["query"]?.jsonPrimitive?.content
+            ?: return@withContext Result.failure(IllegalStateException("query is required"))
+
+        if (!breaker.canAttempt()) {
+            return@withContext Result.failure(rateLimited(breaker.remainingCooldownMillis()))
+        }
+
+        val url = ENDPOINT + URLEncoder.encode(query, "UTF-8")
+        val locale = Locale.getDefault()
+        val acceptLanguage = "${locale.language}-${locale.country},${locale.language}"
+
         runCatching {
-            val query = params["query"]?.jsonPrimitive?.content ?: error("query is required")
-            val url = ENDPOINT + URLEncoder.encode(query, "UTF-8")
-            val locale = Locale.getDefault()
-            val acceptLanguage = "${locale.language}-${locale.country},${locale.language}"
-            val body = Jsoup.connect(url)
+            val resp = Jsoup.connect(url)
                 .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
                 .header(
                     "Accept",
@@ -78,19 +174,43 @@ object DuckDuckGoSearchService : SearchService<SearchServiceOptions.DuckDuckGoOp
                 .header("Accept-Encoding", "gzip, deflate, sdch")
                 .header("Accept-Charset", "utf-8")
                 .header("Connection", "keep-alive")
+                .header("Sec-Fetch-Dest", "document")
+                .header("Sec-Fetch-Mode", "navigate")
+                .header("Sec-Fetch-Site", "none")
+                .header("Sec-Fetch-User", "?1")
+                .header("Upgrade-Insecure-Requests", "1")
                 .referrer("https://duckduckgo.com/")
-                .timeout(5000)
+                .ignoreHttpErrors(true) // otherwise jsoup throws on 403/429 and we can't read the body to classify it
+                .timeout(12_000)
                 .execute()
-                .body()
 
-            val results = parseResults(body, commonOptions.resultSize)
+            classifyDdgResponse(resp.statusCode(), resp.body(), commonOptions.resultSize)
+        }.fold(
+            onSuccess = { outcome ->
+                when (outcome) {
+                    is DdgOutcome.Results -> {
+                        breaker.recordSuccess()
+                        Result.success(SearchResult(items = outcome.items))
+                    }
 
-            require(results.isNotEmpty()) {
-                "Search failed: no results found"
-            }
+                    DdgOutcome.Empty -> {
+                        // A genuine empty SERP is a valid answer, not a failure: we reached DDG
+                        // and it answered, so it does not invite a retry storm.
+                        breaker.recordSuccess()
+                        Result.success(SearchResult(items = emptyList()))
+                    }
 
-            SearchResult(items = results)
-        }
+                    is DdgOutcome.Blocked -> {
+                        breaker.recordFailure()
+                        Result.failure(blocked(outcome.reason))
+                    }
+                }
+            },
+            onFailure = { e ->
+                breaker.recordFailure()
+                Result.failure(e)
+            },
+        )
     }
 
     override suspend fun scrape(

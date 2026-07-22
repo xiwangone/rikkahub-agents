@@ -163,11 +163,11 @@ sealed class SearchServiceOptions {
         get() = TYPES[this::class] ?: "Unknown"
 
     companion object {
-        val DEFAULT = BingLocalOptions()
+        val DEFAULT = DuckDuckGoOptions()
 
         val TYPES = mapOf(
             BingLocalOptions::class to "Bing",
-            DuckDuckGoOptions::class to "DuckDuckGo",
+            DuckDuckGoOptions::class to "Built-in",
             RikkaHubOptions::class to "RikkaHub",
             ZhipuOptions::class to "智谱",
             TavilyOptions::class to "Tavily",
