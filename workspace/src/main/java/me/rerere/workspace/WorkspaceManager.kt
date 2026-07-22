@@ -12,6 +12,12 @@ class WorkspaceManager(
     private val shellRunner: WorkspaceShellRunner = HostShellRunner(),
 ) {
     private val fileSystem = WorkspaceFileSystem(config)
+    private val background = WorkspaceBackgroundProcesses()
+
+    // 让 startBackground 的启动+注册 与 deleteWorkspace 的 killAll+删除 互斥:
+    // 要么启动先完成(随后被 killAll 杀掉), 要么删除先完成(随后 shellRunner.start 因 rootfs
+    // 缺失而失败并抛出), 不会出现"进程活着但 workspace 目录已删"的孤儿进程
+    private val backgroundLifecycleLock = Any()
 
     init {
         baseDir.mkdirs()
@@ -38,7 +44,11 @@ class WorkspaceManager(
 
     fun hasRootfs(root: String): Boolean = File(linuxDir(root), "bin/sh").isFile
 
-    fun deleteWorkspace(root: String): Boolean = workspaceDir(root).deleteRecursively()
+    fun deleteWorkspace(root: String): Boolean = synchronized(backgroundLifecycleLock) {
+        // 先杀掉该 workspace 所有后台进程, 再删目录, 避免进程仍持有已删除目录下的 fd
+        killAllBackground(root)
+        workspaceDir(root).deleteRecursively()
+    }
 
     fun listFiles(
         root: String,
@@ -128,9 +138,7 @@ class WorkspaceManager(
         stdin: ByteArray? = null,
     ): WorkspaceCommandResult {
         require(command.isNotBlank()) { "Command is required" }
-        val workingDir = fileSystem.resolve(filesDir(root), cwd)
-        require(workingDir.exists()) { "Working directory does not exist: $cwd" }
-        require(workingDir.isDirectory) { "Working path is not a directory: $cwd" }
+        val workingDir = resolveCommandWorkingDir(root, cwd)
 
         return shellRunner.execute(
             WorkspaceShellContext(
@@ -145,6 +153,47 @@ class WorkspaceManager(
                 stdin = stdin,
             )
         )
+    }
+
+    /**
+     * Starts [command] as a long-lived background process for [root]. The process runs
+     * in the foreground of its own proot invocation; the caller polls/kills it via
+     * [backgroundStatus]/[killBackground]. Throws IllegalStateException if [root] is
+     * already at the running-process cap.
+     */
+    fun startBackground(root: String, command: String, cwd: String = ""): BackgroundStatus =
+        synchronized(backgroundLifecycleLock) {
+            require(command.isNotBlank()) { "Command is required" }
+            val workingDir = resolveCommandWorkingDir(root, cwd)
+
+            val process = shellRunner.start(
+                WorkspaceShellContext(
+                    root = root,
+                    command = command,
+                    cwd = cwd,
+                    filesDir = filesDir(root),
+                    linuxDir = linuxDir(root),
+                    tempDir = tempDir(root),
+                    workingDir = workingDir,
+                    timeoutMillis = 0L,
+                )
+            )
+            background.start(root, process, command, cwd)
+        }
+
+    fun backgroundStatus(root: String, id: String): BackgroundStatus? = background.status(root, id)
+
+    fun listBackground(root: String): List<BackgroundStatus> = background.list(root)
+
+    fun killBackground(root: String, id: String): Boolean = background.kill(root, id)
+
+    fun killAllBackground(root: String) = background.killAll(root)
+
+    private fun resolveCommandWorkingDir(root: String, cwd: String): File {
+        val workingDir = fileSystem.resolve(filesDir(root), cwd)
+        require(workingDir.exists()) { "Working directory does not exist: $cwd" }
+        require(workingDir.isDirectory) { "Working path is not a directory: $cwd" }
+        return workingDir
     }
 
     private fun requireValidRoot(root: String) {

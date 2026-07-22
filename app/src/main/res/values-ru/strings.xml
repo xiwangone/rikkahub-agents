@@ -1635,6 +1635,9 @@
   <string name="workspace_detail_tool_delete_file">Удалить файл</string>
   <string name="workspace_detail_tool_move_file">Переместить файл</string>
   <string name="workspace_detail_tool_shell">Выполнить команду</string>
+  <string name="workspace_detail_tool_run_background">Запустить в фоне</string>
+  <string name="workspace_detail_tool_background_status">Статус фоновой задачи</string>
+  <string name="workspace_detail_tool_background_kill">Остановить фоновую задачу</string>
   <string name="workspace_detail_install_rootfs_desc">Загрузит tar.gz и распакует в каталог Linux %s.</string>
   <string name="workspace_detail_download_url">URL для скачивания tar.gz</string>
   <string name="workspace_detail_area_files">Файлы</string>

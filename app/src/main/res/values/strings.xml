@@ -1744,6 +1744,9 @@
   <string name="workspace_detail_tool_delete_file">Delete File</string>
   <string name="workspace_detail_tool_move_file">Move File</string>
   <string name="workspace_detail_tool_shell">Execute Command</string>
+  <string name="workspace_detail_tool_run_background">Run in Background</string>
+  <string name="workspace_detail_tool_background_status">Background Task Status</string>
+  <string name="workspace_detail_tool_background_kill">Stop Background Task</string>
   <string name="workspace_detail_install_rootfs_desc">Will download tar.gz and extract to the linux directory of %s.</string>
   <string name="workspace_detail_download_url">tar.gz download URL</string>
   <string name="workspace_detail_area_files">Files</string>

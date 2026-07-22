@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools
 
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.JsonObjectBuilder
@@ -14,6 +15,7 @@ import me.rerere.ai.ui.toMetadata
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.utils.generateUnifiedDiff
+import me.rerere.workspace.BackgroundStatus
 import me.rerere.workspace.WorkspaceCommandResult
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceManager
@@ -29,6 +31,9 @@ val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(
     "workspace_write_file" to false,
     "workspace_edit_file" to false,
     "workspace_shell" to true,
+    "workspace_run_background" to true,
+    "workspace_background_status" to false,
+    "workspace_background_kill" to false,
 )
 
 fun resolveWorkspaceToolApproval(name: String, overrides: Map<String, Boolean>): Boolean =
@@ -50,6 +55,9 @@ suspend fun createWorkspaceTools(
         createWriteFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createEditFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createShellTool(workspaceId, ::needsApproval, workspaceRepository, shellCwd),
+        createRunBackgroundTool(workspaceId, ::needsApproval, workspaceRepository, shellCwd),
+        createBackgroundStatusTool(workspaceId, ::needsApproval, workspaceRepository),
+        createBackgroundKillTool(workspaceId, ::needsApproval, workspaceRepository),
     )
 }
 
@@ -267,6 +275,151 @@ private fun createShellTool(
         )
     },
 )
+
+private fun createRunBackgroundTool(
+    workspaceId: String,
+    needsApproval: (String) -> Boolean,
+    workspaceRepository: WorkspaceRepository,
+    defaultCwd: String? = null,
+) = Tool(
+    name = "workspace_run_background",
+    description = buildString {
+        append("Run a shell command persistently in the background in the assistant's bound workspace Rootfs. ")
+        append("The process survives across tool calls, so use it for dev servers, long-running installs, or watchers ")
+        append("(e.g. 'python -m http.server 8000'). The command runs in the foreground of its own process, so do NOT append '&'. ")
+        append("Returns a task id: poll it with workspace_background_status and stop it with workspace_background_kill. ")
+        append("Use cwd for a path relative to the workspace files root. ")
+        if (!defaultCwd.isNullOrBlank()) {
+            append("Defaults to '$defaultCwd'. ")
+        }
+        append("Requires Rootfs to be installed and ready.")
+    },
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("command", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Shell command to run persistently in the background")
+                })
+                put("cwd", buildJsonObject {
+                    put("type", "string")
+                    put(
+                        "description",
+                        if (!defaultCwd.isNullOrBlank()) {
+                            "Working directory relative to the workspace files root. Defaults to '$defaultCwd'."
+                        } else {
+                            "Working directory relative to the workspace files root. Defaults to root."
+                        }
+                    )
+                })
+            },
+            required = listOf("command"),
+        )
+    },
+    needsApproval = { needsApproval("workspace_run_background") },
+    execute = {
+        val params = it.jsonObject
+        val command = params.string("command") ?: error("command is required")
+        val cwd = (params.string("cwd") ?: defaultCwd.orEmpty())
+            .removePrefix("/workspace/").removePrefix("/workspace")
+        val status = workspaceRepository.startBackground(workspaceId, command, cwd)
+        listOf(
+            UIMessagePart.Text(
+                buildJsonObject {
+                    put("id", status.id)
+                    put("status", "running")
+                    put("command", status.command)
+                }.toString()
+            )
+        )
+    },
+)
+
+private fun createBackgroundStatusTool(
+    workspaceId: String,
+    needsApproval: (String) -> Boolean,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_background_status",
+    description = """
+        Check the status and captured output of background processes started with workspace_run_background.
+        Omit id to list every background process for this workspace.
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("id", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Task id returned by workspace_run_background. Omit to list all.")
+                })
+            },
+            required = emptyList(),
+        )
+    },
+    needsApproval = { needsApproval("workspace_background_status") },
+    execute = {
+        val taskId = it.jsonObject.string("id")
+        val statuses = if (taskId != null) {
+            listOfNotNull(workspaceRepository.backgroundStatus(workspaceId, taskId))
+        } else {
+            workspaceRepository.listBackground(workspaceId)
+        }
+        listOf(
+            UIMessagePart.Text(
+                buildJsonObject {
+                    put("processes", buildJsonArray {
+                        statuses.forEach { status -> add(status.toJson()) }
+                    })
+                }.toString()
+            )
+        )
+    },
+)
+
+private fun createBackgroundKillTool(
+    workspaceId: String,
+    needsApproval: (String) -> Boolean,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_background_kill",
+    description = "Stop a background process started with workspace_run_background.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("id", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Task id returned by workspace_run_background")
+                })
+            },
+            required = listOf("id"),
+        )
+    },
+    needsApproval = { needsApproval("workspace_background_kill") },
+    execute = {
+        val taskId = it.jsonObject.string("id") ?: error("id is required")
+        val killed = workspaceRepository.killBackground(workspaceId, taskId)
+        listOf(
+            UIMessagePart.Text(
+                buildJsonObject {
+                    put("id", taskId)
+                    put("killed", killed)
+                }.toString()
+            )
+        )
+    },
+)
+
+private fun BackgroundStatus.toJson() = buildJsonObject {
+    put("id", id)
+    put("command", command)
+    put("status", if (running) "running" else "exited")
+    if (!running) put("exitCode", exitCode)
+    put("startedAt", startedAtMillis)
+    put("stdout", stdout)
+    put("stderr", stderr)
+    if (droppedStdout > 0) put("droppedStdout", droppedStdout)
+    if (droppedStderr > 0) put("droppedStderr", droppedStderr)
+}
 
 private fun kotlinx.serialization.json.JsonObject.string(name: String): String? =
     this[name]?.jsonPrimitive?.contentOrNull

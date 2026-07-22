@@ -79,7 +79,11 @@ private fun buildWorkspacePrompt(workspace: WorkspaceEntity, cwd: String? = null
     appendLine("  - `workspace_read_file`: read file contents.")
     appendLine("  - `workspace_write_file` / `workspace_edit_file`: create files, or make precise edits to existing files.")
     appendLine("  - `workspace_shell`: run shell commands (the files area is mounted at /workspace).")
+    appendLine("  - `workspace_run_background`: start a long-running command that persists across tool calls and survives after the call returns (dev servers, long installs, file watchers, batch jobs); returns a task id. The command runs in the FOREGROUND of its own persistent process, so do NOT append `&`.")
+    appendLine("  - `workspace_background_status`: check status and recent output of background tasks (all, or one by task id).")
+    appendLine("  - `workspace_background_kill`: stop a background task by task id.")
     appendLine("- Prefer `workspace_shell` for tasks that standard Unix tools handle well, and prefer `workspace_edit_file` for targeted edits over rewriting whole files.")
+    appendLine("- To preview web files in the browser, start a static server with `workspace_run_background` (for example `python3 -m http.server 8000`) and then open it, since file:// breaks ES modules and fetch.")
     appendLine("- The skills directory is mounted at `/skills`. Each skill is a subdirectory `/skills/<skill-name>/` containing a `SKILL.md` (with `name` and `description` frontmatter) plus any supporting files. Read a skill's `SKILL.md` before using it, and follow its instructions.")
     appendLine("- Files the user uploaded are mounted at `/upload`. Treat `/upload` as READ-ONLY: read uploaded files from `/upload/<file-name>`, but never modify, overwrite, or delete anything there. If you need to change an uploaded file, copy it into `/workspace` first and edit the copy.")
     if (!cwd.isNullOrBlank()) {
@@ -93,7 +97,7 @@ private fun buildWorkspacePrompt(workspace: WorkspaceEntity, cwd: String? = null
  */
 private fun buildWorkspaceNotReadyPrompt(workspace: WorkspaceEntity): String = buildString {
     appendLine("<workspace-setup>")
-    appendLine("A workspace named \"${workspace.name}\" is bound to this assistant, but its Linux shell is not ready (status: ${workspace.shellStatus}), so the workspace tools (workspace_read_file, workspace_write_file, workspace_edit_file, workspace_shell) are NOT available right now.")
+    appendLine("A workspace named \"${workspace.name}\" is bound to this assistant, but its Linux shell is not ready (status: ${workspace.shellStatus}), so the workspace tools (workspace_read_file, workspace_write_file, workspace_edit_file, workspace_shell, workspace_run_background, workspace_background_status, workspace_background_kill) are NOT available right now.")
     val howto = when (workspace.shellStatus) {
         WorkspaceShellStatus.INSTALLING.name ->
             "the rootfs is currently installing; ask them to wait for the install to finish, then send a new message."
@@ -112,7 +116,7 @@ private fun buildWorkspaceNotReadyPrompt(workspace: WorkspaceEntity): String = b
  */
 private fun buildWorkspaceUnboundPrompt(): String = buildString {
     appendLine("<workspace-setup>")
-    appendLine("The user has a workspace, but none is bound to this assistant, so the workspace tools (workspace_read_file, workspace_write_file, workspace_edit_file, workspace_shell) are NOT available.")
+    appendLine("The user has a workspace, but none is bound to this assistant, so the workspace tools (workspace_read_file, workspace_write_file, workspace_edit_file, workspace_shell, workspace_run_background, workspace_background_status, workspace_background_kill) are NOT available.")
     appendLine("If the user asks to save files or run shell / Linux commands in a workspace, explain in the user's language how to enable it:")
     appendLine("1. Tap the + button in the chat input bar and select a workspace to bind it to this assistant.")
     appendLine("2. If that workspace's shell is not Ready yet, open Extensions > Workspace, open the workspace, and install its rootfs until the shell status shows Ready.")

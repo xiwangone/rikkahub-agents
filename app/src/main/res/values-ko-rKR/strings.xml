@@ -1635,6 +1635,9 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="workspace_detail_tool_delete_file">파일 삭제</string>
   <string name="workspace_detail_tool_move_file">파일 이동</string>
   <string name="workspace_detail_tool_shell">명령 실행</string>
+  <string name="workspace_detail_tool_run_background">백그라운드에서 실행</string>
+  <string name="workspace_detail_tool_background_status">백그라운드 작업 상태</string>
+  <string name="workspace_detail_tool_background_kill">백그라운드 작업 중지</string>
   <string name="workspace_detail_install_rootfs_desc">%s의 linux 디렉터리에 tar.gz를 다운로드하여 압축을 풉니다.</string>
   <string name="workspace_detail_download_url">tar.gz 다운로드 URL</string>
   <string name="workspace_detail_area_files">파일</string>
