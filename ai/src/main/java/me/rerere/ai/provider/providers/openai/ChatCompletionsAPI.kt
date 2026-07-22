@@ -68,6 +68,11 @@ import kotlin.time.Clock
 
 private const val TAG = "ChatCompletionsAPI"
 
+// Same wording toToolResultContent() already uses when downgrading a tool-result image to
+// text for a model without image input support; reused here for consistency.
+private const val IMAGE_UNSUPPORTED_PLACEHOLDER =
+    "[Image output omitted: current model does not support image input]"
+
 class ChatCompletionsAPI(
     private val client: OkHttpClient,
     private val keyRoulette: KeyRoulette
@@ -567,7 +572,11 @@ class ChatCompletionsAPI(
                     supportInputModalities = supportInputModalities,
                 )
             } else {
-                addNonAssistantMessage(message, openRouterCache = openRouterCache)
+                addNonAssistantMessage(
+                    message,
+                    openRouterCache = openRouterCache,
+                    supportInputModalities = supportInputModalities,
+                )
             }
         }
     }
@@ -600,7 +609,8 @@ class ChatCompletionsAPI(
                     buildAssistantMessageJson(
                         contentParts = contentBuffer,
                         tools = group.tools,
-                        reasoningPart = reasoningPart
+                        reasoningPart = reasoningPart,
+                        supportInputModalities = supportInputModalities,
                     )?.let { assistantMessage ->
                         add(assistantMessage)
                     }
@@ -620,7 +630,13 @@ class ChatCompletionsAPI(
                         // vision-capable model otherwise. Emit a follow-up user message that
                         // carries those images so the model actually sees them on its next
                         // turn (e.g. take_screenshot, take_photo, etc.).
-                        val toolImages = tool.output.filterIsInstance<UIMessagePart.Image>()
+                        val toolImages = if (Modality.IMAGE in supportInputModalities) {
+                            tool.output.filterIsInstance<UIMessagePart.Image>()
+                        } else {
+                            // Model can't see images anyway; the tool-result content above
+                            // already carries the text placeholder, don't double up.
+                            emptyList()
+                        }
                         if (toolImages.isNotEmpty()) {
                             add(buildJsonObject {
                                 put("role", "user")
@@ -655,7 +671,8 @@ class ChatCompletionsAPI(
             buildAssistantMessageJson(
                 contentParts = contentBuffer,
                 tools = emptyList(),
-                reasoningPart = reasoningPart
+                reasoningPart = reasoningPart,
+                supportInputModalities = supportInputModalities,
             )?.let { assistantMessage ->
                 add(assistantMessage)
             }
@@ -665,7 +682,8 @@ class ChatCompletionsAPI(
     private fun buildAssistantMessageJson(
         contentParts: List<UIMessagePart>,
         tools: List<UIMessagePart.Tool>,
-        reasoningPart: UIMessagePart.Reasoning?
+        reasoningPart: UIMessagePart.Reasoning?,
+        supportInputModalities: List<Modality>,
     ): JsonObject? {
         val hasUsableContent = contentParts.any { part ->
             when (part) {
@@ -705,15 +723,20 @@ class ChatCompletionsAPI(
 
                             is UIMessagePart.Image -> {
                                 add(buildJsonObject {
-                                    part.encodeBase64().onSuccess { encodedImage ->
-                                        put("type", "image_url")
-                                        put("image_url", buildJsonObject {
-                                            put("url", encodedImage.base64)
-                                        })
-                                    }.onFailure {
-                                        Log.w(TAG, "failed to encode image to base64", it)
+                                    if (Modality.IMAGE !in supportInputModalities) {
                                         put("type", "text")
-                                        put("text", "")
+                                        put("text", IMAGE_UNSUPPORTED_PLACEHOLDER)
+                                    } else {
+                                        part.encodeBase64().onSuccess { encodedImage ->
+                                            put("type", "image_url")
+                                            put("image_url", buildJsonObject {
+                                                put("url", encodedImage.base64)
+                                            })
+                                        }.onFailure {
+                                            Log.w(TAG, "failed to encode image to base64", it)
+                                            put("type", "text")
+                                            put("text", "")
+                                        }
                                     }
                                 })
                             }
@@ -743,7 +766,11 @@ class ChatCompletionsAPI(
         }
     }
 
-    private fun JsonArrayBuilder.addNonAssistantMessage(message: UIMessage, openRouterCache: Boolean = false) {
+    private fun JsonArrayBuilder.addNonAssistantMessage(
+        message: UIMessage,
+        openRouterCache: Boolean = false,
+        supportInputModalities: List<Modality>,
+    ) {
         add(buildJsonObject {
             put("role", JsonPrimitive(message.role.name.lowercase()))
 
@@ -781,15 +808,20 @@ class ChatCompletionsAPI(
 
                             is UIMessagePart.Image -> {
                                 add(buildJsonObject {
-                                    part.encodeBase64().onSuccess { encodedImage ->
-                                        put("type", "image_url")
-                                        put("image_url", buildJsonObject {
-                                            put("url", encodedImage.base64)
-                                        })
-                                    }.onFailure {
-                                        Log.w(TAG, "failed to encode image to base64", it)
+                                    if (Modality.IMAGE !in supportInputModalities) {
                                         put("type", "text")
-                                        put("text", "")
+                                        put("text", IMAGE_UNSUPPORTED_PLACEHOLDER)
+                                    } else {
+                                        part.encodeBase64().onSuccess { encodedImage ->
+                                            put("type", "image_url")
+                                            put("image_url", buildJsonObject {
+                                                put("url", encodedImage.base64)
+                                            })
+                                        }.onFailure {
+                                            Log.w(TAG, "failed to encode image to base64", it)
+                                            put("type", "text")
+                                            put("text", "")
+                                        }
                                     }
                                 })
                             }

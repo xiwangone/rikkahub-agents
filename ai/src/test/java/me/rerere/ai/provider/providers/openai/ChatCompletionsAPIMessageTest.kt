@@ -35,6 +35,7 @@ class ChatCompletionsAPIMessageTest {
     private fun invokeBuildMessages(
         messages: List<UIMessage>,
         includeHistoryReasoning: Boolean = true,
+        supportInputModalities: List<Modality> = listOf(Modality.TEXT, Modality.IMAGE),
     ): JsonArray {
         val method = ChatCompletionsAPI::class.java.getDeclaredMethod(
             "buildMessages",
@@ -49,7 +50,7 @@ class ChatCompletionsAPIMessageTest {
             messages,
             includeHistoryReasoning,
             false,
-            listOf(Modality.TEXT, Modality.IMAGE)
+            supportInputModalities
         ) as JsonArray
     }
 
@@ -383,6 +384,89 @@ class ChatCompletionsAPIMessageTest {
         assertEquals("assistant", result[1].jsonObject["role"]?.jsonPrimitive?.content)
         assertEquals("thinking", result[1].jsonObject["reasoning_content"]?.jsonPrimitive?.content)
         assertEquals("", result[1].jsonObject["content"]?.jsonPrimitive?.content)
+    }
+
+    // ==================== Vision gate tests ====================
+    // Regression coverage for the DeepSeek crash: a text-only model must never see
+    // an `image_url` content block, no matter which of the three emission sites
+    // (tool image-lift, assistant content image, user content image) produced it.
+
+    private val imagePlaceholder = "[Image output omitted: current model does not support image input]"
+
+    private fun createHistoryWithImages(): List<UIMessage> {
+        val assistantWithToolImage = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(
+                UIMessagePart.Text("Let me take a screenshot"),
+                createExecutedToolWithImage("call_shot", "take_screenshot", "{}"),
+            )
+        )
+        val assistantWithImageContent = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(
+                UIMessagePart.Text("Here is a generated image"),
+                UIMessagePart.Image("data:image/png;base64,QUJD"),
+            )
+        )
+        val userWithImage = UIMessage(
+            role = MessageRole.USER,
+            parts = listOf(
+                UIMessagePart.Text("What's in this image?"),
+                UIMessagePart.Image("data:image/png;base64,WFla"),
+            )
+        )
+        return listOf(
+            UIMessage.user("Take a screenshot"),
+            assistantWithToolImage,
+            UIMessage.user("Now generate an image"),
+            assistantWithImageContent,
+            userWithImage,
+        )
+    }
+
+    private fun createExecutedToolWithImage(callId: String, name: String, input: String): UIMessagePart.Tool {
+        return UIMessagePart.Tool(
+            toolCallId = callId,
+            toolName = name,
+            input = input,
+            output = listOf(UIMessagePart.Image("data:image/png;base64,AAAA")),
+        )
+    }
+
+    @Test
+    fun `text-only model emits zero image_url and a placeholder at every site`() {
+        val result = invokeBuildMessages(
+            createHistoryWithImages(),
+            supportInputModalities = listOf(Modality.TEXT),
+        )
+        val serialized = result.toString()
+
+        assertFalse(
+            "text-only model must not emit image_url anywhere",
+            serialized.contains("\"image_url\"")
+        )
+        val placeholderCount = Regex(Regex.escape(imagePlaceholder)).findAll(serialized).count()
+        assertEquals(
+            "expected a placeholder for the tool-output image, the assistant content image, " +
+                "and the user content image",
+            3,
+            placeholderCount
+        )
+    }
+
+    @Test
+    fun `vision model still emits image_url unchanged`() {
+        val result = invokeBuildMessages(
+            createHistoryWithImages(),
+            supportInputModalities = listOf(Modality.TEXT, Modality.IMAGE),
+        )
+        val serialized = result.toString()
+
+        assertTrue("vision model should still emit image_url", serialized.contains("\"image_url\""))
+        assertFalse(
+            "vision model should not fall back to the text placeholder",
+            serialized.contains(imagePlaceholder)
+        )
     }
 
     // ==================== Helper Functions ====================
