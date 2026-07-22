@@ -18,9 +18,21 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 private const val CHANNEL_ID = "rikkahub_ai_tool"
 private const val CHANNEL_NAME = "AI tool notifications"
+
+// PendingIntent request codes keyed by conversation id. String.hashCode() collides too
+// easily for a FLAG_UPDATE_CURRENT PendingIntent (a tap could open the wrong
+// conversation); a per-process registry guarantees distinct codes across different
+// conversation ids while staying stable for the same id, so updates refresh in place.
+private val conversationRequestCodes = ConcurrentHashMap<String, Int>()
+private val nextConversationRequestCode = AtomicInteger(0)
+
+private fun requestCodeForConversation(convId: String): Int =
+    conversationRequestCodes.computeIfAbsent(convId) { nextConversationRequestCode.incrementAndGet() }
 
 private fun ensureChannel(context: Context) {
     val channel = NotificationChannelCompat.Builder(
@@ -99,7 +111,7 @@ fun notificationTool(
             }
             val pi = PendingIntent.getActivity(
                 context,
-                convId.hashCode(),
+                requestCodeForConversation(convId),
                 intent,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
             )

@@ -227,7 +227,7 @@ class CronJobWorker(
 
             // Failure notification (post once per failure; the existing channel handles dedup)
             if (outcome != "success") {
-                postFailureNotification(job.name, "$outcome: ${errorMessage.orEmpty()}")
+                postFailureNotification(job.id, job.name, "$outcome: ${errorMessage.orEmpty()}")
             }
 
             // Manual fires (trigger_job_now) are bonus — they get a history row but
@@ -360,7 +360,7 @@ class CronJobWorker(
         }.onFailure { Log.w(TAG, "recordRun failed", it) }
     }
 
-    private fun postFailureNotification(jobName: String, errorMessage: String) {
+    private fun postFailureNotification(jobId: String, jobName: String, errorMessage: String) {
         val ctx = applicationContext
         val nm = ctx.getSystemService(NotificationManager::class.java)
         if (nm.getNotificationChannel(CHANNEL_ID) == null) {
@@ -374,7 +374,11 @@ class CronJobWorker(
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setAutoCancel(true)
         try {
-            NotificationManagerCompat.from(ctx).notify(jobName.hashCode(), builder.build())
+            // jobId is the job's DB primary key (a stable UUID string), not the
+            // user-editable display name — two jobs can share a name (and thus a
+            // hashCode) but never an id, so this can't collide across different jobs
+            // while still hashing to the same value across reruns of the same job.
+            NotificationManagerCompat.from(ctx).notify(jobId.hashCode(), builder.build())
         } catch (_: SecurityException) { /* POST_NOTIFICATIONS not granted — fine */ }
     }
 

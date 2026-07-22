@@ -782,10 +782,13 @@ class ChatCompletionsAPI(
                 // cache_control breakpoint can land on the stable (first) block; the
                 // volatile block after it does not bust the prefix hash.
                 putJsonArray("content") {
-                    textParts.forEach { part ->
+                    // Append "\n" to every block but the last so the concatenated block
+                    // text equals the "\n"-joined non-caching form below (stable\nvolatile
+                    // either way); otherwise cache-on and cache-off send different prompts.
+                    textParts.forEachIndexed { index, part ->
                         add(buildJsonObject {
                             put("type", "text")
-                            put("text", part.text)
+                            put("text", if (index == textParts.lastIndex) part.text else "${part.text}\n")
                         })
                     }
                 }

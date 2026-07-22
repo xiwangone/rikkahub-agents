@@ -26,6 +26,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.BuiltInTools
+import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
@@ -63,6 +64,11 @@ import okhttp3.sse.EventSources
 import kotlin.time.Clock
 
 private const val TAG = "ResponseAPI"
+
+// Same wording ChatCompletionsAPI uses when downgrading an image to text for a
+// model without image input support; reused here for consistency.
+private const val IMAGE_UNSUPPORTED_PLACEHOLDER =
+    "[Image output omitted: current model does not support image input]"
 
 class ResponseAPI(
     private val client: OkHttpClient,
@@ -224,7 +230,7 @@ class ResponseAPI(
             }
 
             // messages
-            put("input", buildMessages(messages))
+            put("input", buildMessages(messages, supportInputModalities = params.model.inputModalities))
 
             // reasoning
             if (params.model.abilities.contains(ModelAbility.REASONING)) {
@@ -288,19 +294,22 @@ class ResponseAPI(
         }.mergeCustomBody(params.customBody)
     }
 
-    fun buildMessages(messages: List<UIMessage>) = buildJsonArray {
+    fun buildMessages(
+        messages: List<UIMessage>,
+        supportInputModalities: List<Modality> = listOf(Modality.TEXT, Modality.IMAGE),
+    ) = buildJsonArray {
         messages
             .filter { it.isValidToUpload() && it.role != MessageRole.SYSTEM }
             .forEach { message ->
                 if (message.role == MessageRole.ASSISTANT) {
-                    addAssistantItems(message)
+                    addAssistantItems(message, supportInputModalities)
                 } else {
-                    addUserItems(message)
+                    addUserItems(message, supportInputModalities)
                 }
             }
     }
 
-    private fun JsonArrayBuilder.addAssistantItems(message: UIMessage) {
+    private fun JsonArrayBuilder.addAssistantItems(message: UIMessage, supportInputModalities: List<Modality>) {
         val groups = groupPartsByToolBoundary(message.parts)
         val contentBuffer = mutableListOf<UIMessagePart>()
 
@@ -312,7 +321,7 @@ class ResponseAPI(
                             is UIMessagePart.Reasoning -> {
                                 // 先输出累积的文本/图片内容
                                 if (contentBuffer.isNotEmpty()) {
-                                    addContentItem(MessageRole.ASSISTANT, contentBuffer)
+                                    addContentItem(MessageRole.ASSISTANT, contentBuffer, supportInputModalities)
                                     contentBuffer.clear()
                                 }
                                 // 输出 reasoning item
@@ -336,10 +345,10 @@ class ResponseAPI(
 
                             is UIMessagePart.Image -> {
                                 if (contentBuffer.isNotEmpty()) {
-                                    addContentItem(MessageRole.ASSISTANT, contentBuffer)
+                                    addContentItem(MessageRole.ASSISTANT, contentBuffer, supportInputModalities)
                                     contentBuffer.clear()
                                 }
-                                addContentItem(MessageRole.USER, listOf(part))
+                                addContentItem(MessageRole.USER, listOf(part), supportInputModalities)
                             }
 
                             is UIMessagePart.Text -> {
@@ -354,7 +363,7 @@ class ResponseAPI(
                 is PartGroup.Tools -> {
                     // 先输出累积的内容
                     if (contentBuffer.isNotEmpty()) {
-                        addContentItem(MessageRole.ASSISTANT, contentBuffer)
+                        addContentItem(MessageRole.ASSISTANT, contentBuffer, supportInputModalities)
                         contentBuffer.clear()
                     }
 
@@ -371,7 +380,8 @@ class ResponseAPI(
                             put("type", "function_call_output")
                             put("call_id", tool.toolCallId)
                             val hasImage = tool.output.any { it is UIMessagePart.Image }
-                            if (hasImage) {
+                            val supportsImageInput = Modality.IMAGE in supportInputModalities
+                            if (hasImage && supportsImageInput) {
                                 putJsonArray("output") {
                                     tool.output.forEach { part ->
                                         when (part) {
@@ -393,6 +403,21 @@ class ResponseAPI(
                                         }
                                     }
                                 }
+                            } else if (hasImage) {
+                                // Text-only model: fold the image(s) into the placeholder
+                                // text, mirroring ChatCompletionsAPI's toToolResultContent,
+                                // so the model still sees that a tool produced an image
+                                // without leaking image data it can't accept.
+                                put(
+                                    "output",
+                                    tool.output.mapNotNull { part ->
+                                        when (part) {
+                                            is UIMessagePart.Text -> part.text
+                                            is UIMessagePart.Image -> IMAGE_UNSUPPORTED_PLACEHOLDER
+                                            else -> null
+                                        }
+                                    }.joinToString("\n")
+                                )
                             } else {
                                 put(
                                     "output",
@@ -404,15 +429,22 @@ class ResponseAPI(
                         // Image lift: function_call_output is text-only, so a tool that
                         // returns UIMessagePart.Image (take_screenshot, take_photo, etc.)
                         // would otherwise be invisible to vision-capable models. Inject
-                        // those images as a follow-up user content item.
-                        val toolImages = tool.output.filterIsInstance<UIMessagePart.Image>()
+                        // those images as a follow-up user content item. Skipped for
+                        // text-only models: the function_call_output above already emits
+                        // the placeholder text for those images, so nothing is lost.
+                        val toolImages = if (Modality.IMAGE in supportInputModalities) {
+                            tool.output.filterIsInstance<UIMessagePart.Image>()
+                        } else {
+                            emptyList()
+                        }
                         if (toolImages.isNotEmpty()) {
                             addContentItem(
                                 MessageRole.USER,
                                 buildList {
                                     add(UIMessagePart.Text("[Tool ${tool.toolName} produced the image(s) below.]"))
                                     addAll(toolImages)
-                                }
+                                },
+                                supportInputModalities
                             )
                         }
                     }
@@ -422,18 +454,22 @@ class ResponseAPI(
 
         // 输出剩余内容
         if (contentBuffer.isNotEmpty()) {
-            addContentItem(MessageRole.ASSISTANT, contentBuffer)
+            addContentItem(MessageRole.ASSISTANT, contentBuffer, supportInputModalities)
         }
     }
 
-    private fun JsonArrayBuilder.addUserItems(message: UIMessage) {
+    private fun JsonArrayBuilder.addUserItems(message: UIMessage, supportInputModalities: List<Modality>) {
         val contentParts = message.parts.filter { it is UIMessagePart.Text || it is UIMessagePart.Image }
         if (contentParts.isNotEmpty()) {
-            addContentItem(message.role, contentParts)
+            addContentItem(message.role, contentParts, supportInputModalities)
         }
     }
 
-    private fun JsonArrayBuilder.addContentItem(role: MessageRole, parts: List<UIMessagePart>) {
+    private fun JsonArrayBuilder.addContentItem(
+        role: MessageRole,
+        parts: List<UIMessagePart>,
+        supportInputModalities: List<Modality>,
+    ) {
         if (parts.isEmpty()) return
 
         add(buildJsonObject {
@@ -454,13 +490,18 @@ class ResponseAPI(
 
                             is UIMessagePart.Image -> {
                                 add(buildJsonObject {
-                                    part.encodeBase64().onSuccess { encodedImage ->
-                                        put("type", "input_image")
-                                        put("image_url", encodedImage.base64)
-                                    }.onFailure {
-                                        Log.w(TAG, "failed to encode image to base64", it)
+                                    if (Modality.IMAGE !in supportInputModalities) {
                                         put("type", "input_text")
-                                        put("text", "Error: Failed to encode image to base64")
+                                        put("text", IMAGE_UNSUPPORTED_PLACEHOLDER)
+                                    } else {
+                                        part.encodeBase64().onSuccess { encodedImage ->
+                                            put("type", "input_image")
+                                            put("image_url", encodedImage.base64)
+                                        }.onFailure {
+                                            Log.w(TAG, "failed to encode image to base64", it)
+                                            put("type", "input_text")
+                                            put("text", "Error: Failed to encode image to base64")
+                                        }
                                     }
                                 })
                             }

@@ -103,6 +103,7 @@ import me.rerere.workspace.WorkspaceShellStatus
 import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatService"
@@ -183,6 +184,25 @@ class ChatService(
     private val sessionMutexes = ConcurrentHashMap<Uuid, Mutex>()
     private fun mutexFor(conversationId: Uuid): Mutex =
         sessionMutexes.getOrPut(conversationId) { Mutex() }
+
+    /**
+     * Per-conversation notification id / PendingIntent request-code allocator.
+     *
+     * conversationId.hashCode() (the previous scheme) can collide across different
+     * conversationIds, which would let one conversation's live-update notification refresh
+     * clobber another's, or let a stale PendingIntent's FLAG_UPDATE_CURRENT silently repoint
+     * at the wrong conversation. This registry hands out a distinct, stable sequence number
+     * per conversationId instead: stable so repeated calls keep landing on the same
+     * notification/PendingIntent (update-in-place, no stacking), collision-free since two
+     * different conversationIds can never share a slot.
+     */
+    private val conversationNotificationSequence = ConcurrentHashMap<Uuid, Int>()
+    private val nextConversationNotificationSequence = AtomicInteger(0)
+
+    private fun notificationSequenceFor(conversationId: Uuid): Int =
+        conversationNotificationSequence.computeIfAbsent(conversationId) {
+            nextConversationNotificationSequence.incrementAndGet()
+        }
 
     /**
      * Hydrate the in-memory session for [conversationId] from disk if it's currently
@@ -1361,7 +1381,11 @@ class ChatService(
     }
 
     private fun getLiveUpdateNotificationId(conversationId: Uuid): Int {
-        return conversationId.hashCode() + 10000
+        // +10000 keeps this space clear of the other fixed notification ids this app uses
+        // (generation-done = 1; WebServerService FGS = 2001; MediaPlaybackService FGS = 7001;
+        // TelegramBotService FGS = 0xA1B2 = 41394): the sequence would need >31,394 concurrently
+        // tracked conversations to reach the nearest of those, which never happens in practice.
+        return notificationSequenceFor(conversationId) + 10000
     }
 
     private fun sendLiveUpdateNotification(
@@ -1452,7 +1476,14 @@ class ChatService(
         }
         return PendingIntent.getActivity(
             context,
-            conversationId.hashCode(),
+            // +1_000_000 keeps this request-code space clear of NotificationTool.kt's own
+            // per-conversation sequence (also small ints starting at 1): both target the same
+            // RouteActivity with no action/data/categories set, so those intents are
+            // Intent.filterEquals-equal aside from extras, meaning the request code is the only
+            // thing that tells two PendingIntents apart. Sharing a small-int range would risk a
+            // notification-tool PendingIntent for one conversation overwriting a chat
+            // PendingIntent for a different one via FLAG_UPDATE_CURRENT.
+            notificationSequenceFor(conversationId) + 1_000_000,
             intent,
             PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
         )

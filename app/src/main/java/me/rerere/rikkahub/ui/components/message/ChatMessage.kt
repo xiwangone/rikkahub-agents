@@ -119,7 +119,10 @@ fun ChatMessage(
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
 ) {
-    val message = node.messages[node.selectIndex]
+    // node.selectIndex can be stale (e.g. after a branch/message was removed) or the
+    // node can be empty; degrade to the last message, or render nothing, instead of
+    // crashing with an IndexOutOfBoundsException.
+    val message = node.messages.getOrNull(node.selectIndex) ?: node.messages.lastOrNull() ?: return
     val settings = LocalSettings.current.displaySetting
     val chatFontFamily = LocalChatFontFamily.current ?: rememberChatFontFamily(settings)
     val textStyle = LocalTextStyle.current.copy(

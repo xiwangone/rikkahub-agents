@@ -204,31 +204,37 @@ class SettingsStore(
             }
         }.map { preferences ->
             Settings(
-                favoriteModels = preferences[FAVORITE_MODELS]?.let {
-                    JsonInstant.decodeFromString(it)
+                favoriteModels = preferences[FAVORITE_MODELS]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<Uuid>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode favoriteModels, using default", it)
+                        emptyList()
+                    }
                 } ?: emptyList(),
-                chatModelId = preferences[SELECT_MODEL]?.let { Uuid.parse(it) }
+                chatModelId = preferences[SELECT_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
                     ?: DEFAULT_AUTO_MODEL_ID,
-                fastModelId = preferences[FAST_MODEL]?.let { Uuid.parse(it) }
+                fastModelId = preferences[FAST_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
                     ?: DEFAULT_AUTO_MODEL_ID,
-                titleModelId = preferences[TITLE_MODEL]?.let { Uuid.parse(it) },
-                translateModeId = preferences[TRANSLATE_MODEL]?.let { Uuid.parse(it) }
+                titleModelId = preferences[TITLE_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() },
+                translateModeId = preferences[TRANSLATE_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
                     ?: DEFAULT_AUTO_MODEL_ID,
                 enableSuggestion = preferences[ENABLE_SUGGESTION] != false,
-                suggestionModelId = preferences[SUGGESTION_MODEL]?.let { Uuid.parse(it) },
-                imageGenerationModelId = preferences[IMAGE_GENERATION_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
+                suggestionModelId = preferences[SUGGESTION_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() },
+                imageGenerationModelId = preferences[IMAGE_GENERATION_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: Uuid.random(),
                 titlePrompt = preferences[TITLE_PROMPT] ?: DEFAULT_TITLE_PROMPT,
                 translatePrompt = preferences[TRANSLATION_PROMPT] ?: DEFAULT_TRANSLATION_PROMPT,
                 translateThinkingBudget = preferences[TRANSLATE_THINKING_BUDGET] ?: 0,
                 suggestionPrompt = preferences[SUGGESTION_PROMPT] ?: DEFAULT_SUGGESTION_PROMPT,
-                ocrModelId = preferences[OCR_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
+                ocrModelId = preferences[OCR_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: Uuid.random(),
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
-                compressModelId = preferences[COMPRESS_MODEL]?.let { Uuid.parse(it) } ?: DEFAULT_AUTO_MODEL_ID,
+                compressModelId = preferences[COMPRESS_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: DEFAULT_AUTO_MODEL_ID,
                 compressPrompt = preferences[COMPRESS_PROMPT] ?: DEFAULT_COMPRESS_PROMPT,
-                assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
+                assistantId = preferences[SELECT_ASSISTANT]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
                     ?: DEFAULT_ASSISTANT_ID,
-                assistantTags = preferences[ASSISTANT_TAGS]?.let {
-                    JsonInstant.decodeFromString(it)
+                assistantTags = preferences[ASSISTANT_TAGS]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<Tag>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode assistantTags, using default", it)
+                        emptyList()
+                    }
                 } ?: emptyList(),
                 providers = decodeProvidersTolerant(preferences[PROVIDERS] ?: "[]"),
                 deletedBuiltInProviderIds = preferences[DELETED_BUILTIN_PROVIDER_IDS]
@@ -239,48 +245,91 @@ class SettingsStore(
                                 .toSet()
                         }.getOrNull()
                     } ?: emptySet(),
-                assistants = JsonInstant.decodeFromString(preferences[ASSISTANTS] ?: "[]"),
+                assistants = runCatching {
+                    JsonInstant.decodeFromString<List<Assistant>>(preferences[ASSISTANTS] ?: "[]")
+                }.getOrElse {
+                    Log.w(TAG, "Failed to decode assistants, using default", it)
+                    emptyList()
+                },
                 dynamicColor = preferences[DYNAMIC_COLOR] != false,
                 themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
-                customThemes = preferences[CUSTOM_THEMES]?.let {
-                    JsonInstant.decodeFromString(it)
+                customThemes = preferences[CUSTOM_THEMES]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<CustomTheme>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode customThemes, using default", it)
+                        emptyList()
+                    }
                 } ?: emptyList(),
                 developerMode = preferences[DEVELOPER_MODE] == true,
-                displaySetting = JsonInstant.decodeFromString(preferences[DISPLAY_SETTING] ?: "{}"),
-                searchServices = preferences[SEARCH_SERVICES]?.let {
-                    JsonInstant.decodeFromString(it)
+                displaySetting = runCatching {
+                    JsonInstant.decodeFromString<DisplaySetting>(preferences[DISPLAY_SETTING] ?: "{}")
+                }.getOrElse {
+                    Log.w(TAG, "Failed to decode displaySetting, using default", it)
+                    DisplaySetting()
+                },
+                searchServices = preferences[SEARCH_SERVICES]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<SearchServiceOptions>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode searchServices, using default", it)
+                        listOf(SearchServiceOptions.DEFAULT)
+                    }
                 } ?: listOf(SearchServiceOptions.DEFAULT),
-                searchCommonOptions = preferences[SEARCH_COMMON]?.let {
-                    JsonInstant.decodeFromString(it)
+                searchCommonOptions = preferences[SEARCH_COMMON]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<SearchCommonOptions>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode searchCommonOptions, using default", it)
+                        SearchCommonOptions()
+                    }
                 } ?: SearchCommonOptions(),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
                 enableWebFetchTools = preferences[ENABLE_WEB_FETCH_TOOLS] != false,
-                mcpServers = preferences[MCP_SERVERS]?.let {
-                    JsonInstant.decodeFromString(it)
+                mcpServers = preferences[MCP_SERVERS]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<McpServerConfig>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode mcpServers, using default", it)
+                        emptyList()
+                    }
                 } ?: emptyList(),
-                webDavConfig = preferences[WEBDAV_CONFIG]?.let {
-                    JsonInstant.decodeFromString(it)
+                webDavConfig = preferences[WEBDAV_CONFIG]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<WebDavConfig>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode webDavConfig, using default", it)
+                        WebDavConfig()
+                    }
                 } ?: WebDavConfig(),
-                s3Config = preferences[S3_CONFIG]?.let {
-                    JsonInstant.decodeFromString(it)
+                s3Config = preferences[S3_CONFIG]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<S3Config>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode s3Config, using default", it)
+                        S3Config()
+                    }
                 } ?: S3Config(),
-                ttsProviders = preferences[TTS_PROVIDERS]?.let {
-                    JsonInstant.decodeFromString(it)
+                ttsProviders = preferences[TTS_PROVIDERS]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<TTSProviderSetting>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode ttsProviders, using default", it)
+                        emptyList()
+                    }
                 } ?: emptyList(),
-                selectedTTSProviderId = preferences[SELECTED_TTS_PROVIDER]?.let { Uuid.parse(it) }
+                selectedTTSProviderId = preferences[SELECTED_TTS_PROVIDER]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
                     ?: DEFAULT_SYSTEM_TTS_ID,
-                asrProviders = preferences[ASR_PROVIDERS]?.let {
-                    JsonInstant.decodeFromString(it)
+                asrProviders = preferences[ASR_PROVIDERS]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<ASRProviderSetting>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode asrProviders, using default", it)
+                        emptyList()
+                    }
                 } ?: emptyList(),
-                selectedASRProviderId = preferences[SELECTED_ASR_PROVIDER]?.let { Uuid.parse(it) },
-                modeInjections = preferences[MODE_INJECTIONS]?.let {
-                    JsonInstant.decodeFromString(it)
+                selectedASRProviderId = preferences[SELECTED_ASR_PROVIDER]?.let { runCatching { Uuid.parse(it) }.getOrNull() },
+                modeInjections = preferences[MODE_INJECTIONS]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<PromptInjection.ModeInjection>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode modeInjections, using default", it)
+                        emptyList()
+                    }
                 } ?: emptyList(),
-                lorebooks = preferences[LOREBOOKS]?.let {
-                    JsonInstant.decodeFromString(it)
+                lorebooks = preferences[LOREBOOKS]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<Lorebook>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode lorebooks, using default", it)
+                        emptyList()
+                    }
                 } ?: emptyList(),
-                quickMessages = preferences[QUICK_MESSAGES]?.let {
-                    JsonInstant.decodeFromString(it)
+                quickMessages = preferences[QUICK_MESSAGES]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<QuickMessage>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode quickMessages, using default", it)
+                        emptyList()
+                    }
                 } ?: emptyList(),
                 webServerEnabled = preferences[WEB_SERVER_ENABLED] == true,
                 webServerPort = preferences[WEB_SERVER_PORT] ?: 8080,
@@ -288,8 +337,11 @@ class SettingsStore(
                 webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD] ?: "",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
                 aiLogLevel = AiLogLevel.fromPreference(preferences[AI_LOG_LEVEL]),
-                backupReminderConfig = preferences[BACKUP_REMINDER_CONFIG]?.let {
-                    JsonInstant.decodeFromString(it)
+                backupReminderConfig = preferences[BACKUP_REMINDER_CONFIG]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<BackupReminderConfig>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode backupReminderConfig, using default", it)
+                        BackupReminderConfig()
+                    }
                 } ?: BackupReminderConfig(),
                 launchCount = preferences[LAUNCH_COUNT] ?: 0,
                 sponsorAlertDismissedAt = preferences[SPONSOR_ALERT_DISMISSED_AT] ?: 0,

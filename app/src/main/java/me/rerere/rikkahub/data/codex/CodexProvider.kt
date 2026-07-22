@@ -10,7 +10,9 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -89,18 +91,18 @@ class CodexProvider(
                 if (response.code == 401) repository.markInvalid(account.id)
                 error("Failed to get Codex models: ${response.code} ${response.body.string()}")
             }
-            val models = json.parseToJsonElement(response.body.string())
-                .jsonObject["models"]?.jsonArray
+            val models = (json.parseToJsonElement(response.body.string()) as? JsonObject)
+                ?.get("models") as? JsonArray
                 ?: return@withContext emptyList()
             models.mapNotNull { element ->
-                val item = element.jsonObject
+                val item = element as? JsonObject ?: return@mapNotNull null
                 if (item["visibility"]?.jsonPrimitive?.contentOrNull != "list") {
                     return@mapNotNull null
                 }
                 val slug = item["slug"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
                 val modalities = item["input_modalities"]?.jsonArray
                     ?.mapNotNull { modality ->
-                        when (modality.jsonPrimitive.contentOrNull) {
+                        when ((modality as? JsonPrimitive)?.contentOrNull) {
                             "text" -> Modality.TEXT
                             "image" -> Modality.IMAGE
                             else -> null

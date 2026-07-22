@@ -7,6 +7,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
+import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
@@ -39,8 +40,11 @@ class ResponseAPIMessageTest {
     }
 
     // Helper to invoke buildMessages method
-    private fun invokeBuildMessages(messages: List<UIMessage>): JsonArray {
-        return api.buildMessages(messages)
+    private fun invokeBuildMessages(
+        messages: List<UIMessage>,
+        supportInputModalities: List<Modality> = listOf(Modality.TEXT, Modality.IMAGE),
+    ): JsonArray {
+        return api.buildMessages(messages, supportInputModalities)
     }
 
     private fun invokeBuildRequestBody(
@@ -414,6 +418,89 @@ class ResponseAPIMessageTest {
                 requestBody["reasoning"]?.jsonObject?.get("effort")?.jsonPrimitive?.content,
             )
         }
+    }
+
+    // ==================== Vision gate tests ====================
+    // Regression coverage mirroring ChatCompletionsAPI: a text-only model must never
+    // see an `input_image` item, no matter which of the three emission sites
+    // (tool image-lift, assistant content image, user content image) produced it.
+
+    private val imagePlaceholder = "[Image output omitted: current model does not support image input]"
+
+    private fun createHistoryWithImages(): List<UIMessage> {
+        val assistantWithToolImage = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(
+                UIMessagePart.Text("Let me take a screenshot"),
+                createExecutedToolWithImage("call_shot", "take_screenshot", "{}"),
+            )
+        )
+        val assistantWithImageContent = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(
+                UIMessagePart.Text("Here is a generated image"),
+                UIMessagePart.Image("data:image/png;base64,QUJD"),
+            )
+        )
+        val userWithImage = UIMessage(
+            role = MessageRole.USER,
+            parts = listOf(
+                UIMessagePart.Text("What's in this image?"),
+                UIMessagePart.Image("data:image/png;base64,WFla"),
+            )
+        )
+        return listOf(
+            UIMessage.user("Take a screenshot"),
+            assistantWithToolImage,
+            UIMessage.user("Now generate an image"),
+            assistantWithImageContent,
+            userWithImage,
+        )
+    }
+
+    private fun createExecutedToolWithImage(callId: String, name: String, input: String): UIMessagePart.Tool {
+        return UIMessagePart.Tool(
+            toolCallId = callId,
+            toolName = name,
+            input = input,
+            output = listOf(UIMessagePart.Image("data:image/png;base64,AAAA")),
+        )
+    }
+
+    @Test
+    fun `text-only model emits zero input_image and a placeholder at every site`() {
+        val result = invokeBuildMessages(
+            createHistoryWithImages(),
+            supportInputModalities = listOf(Modality.TEXT),
+        )
+        val serialized = result.toString()
+
+        assertFalse(
+            "text-only model must not emit input_image anywhere",
+            serialized.contains("\"input_image\"")
+        )
+        val placeholderCount = Regex(Regex.escape(imagePlaceholder)).findAll(serialized).count()
+        assertEquals(
+            "expected a placeholder for the tool-output image, the assistant content image, " +
+                "and the user content image",
+            3,
+            placeholderCount
+        )
+    }
+
+    @Test
+    fun `vision model still emits input_image unchanged`() {
+        val result = invokeBuildMessages(
+            createHistoryWithImages(),
+            supportInputModalities = listOf(Modality.TEXT, Modality.IMAGE),
+        )
+        val serialized = result.toString()
+
+        assertTrue("vision model should still emit input_image", serialized.contains("\"input_image\""))
+        assertFalse(
+            "vision model should not fall back to the text placeholder",
+            serialized.contains(imagePlaceholder)
+        )
     }
 
     // ==================== Helper Functions ====================

@@ -6,10 +6,12 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.util.KeyRoulette
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
@@ -145,6 +147,33 @@ class ChatCompletionsAPIPromptCacheTest {
         assertEquals("ephemeral", system.lastBlockCacheControl()!!["type"]!!.jsonPrimitive.content)
         // with a single user turn there is no cacheable prefix to mark
         assertNull(msgs.userMessages().single().lastBlockCacheControl())
+    }
+
+    @Test
+    fun `system block-split text equals the newline-joined non-caching form`() {
+        // Regression test: caching-on used to concatenate the stable+volatile system
+        // blocks with no separator ("stablevolatile"), while caching-off joined them
+        // with "\n" ("stable\nvolatile"), so the model saw a different prompt per mode.
+        val stableVolatile = UIMessage(
+            role = MessageRole.SYSTEM,
+            parts = listOf(UIMessagePart.Text("stable"), UIMessagePart.Text("volatile"))
+        )
+        val messages = listOf(stableVolatile, UIMessage.user("first question"))
+        val params = TextGenerationParams(model = Model(modelId = "anthropic/claude-sonnet-4"))
+
+        val cachedSystem = buildRequest(messages, params, openRouter())["messages"]!!.jsonArray
+            .first { it.jsonObject["role"]?.jsonPrimitive?.contentOrNull == "system" }.jsonObject
+        val uncachedSystem =
+            buildRequest(messages, params, openRouter(promptCaching = false))["messages"]!!.jsonArray
+                .first { it.jsonObject["role"]?.jsonPrimitive?.contentOrNull == "system" }.jsonObject
+
+        val cachedText = (cachedSystem["content"] as JsonArray).joinToString("") {
+            it.jsonObject["text"]!!.jsonPrimitive.content
+        }
+        val uncachedText = uncachedSystem["content"]!!.jsonPrimitive.content
+
+        assertEquals("stable\nvolatile", uncachedText)
+        assertEquals(uncachedText, cachedText)
     }
 
     private fun assertNoCacheControl(request: JsonObject) {

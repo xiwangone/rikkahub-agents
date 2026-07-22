@@ -485,7 +485,7 @@ sealed class UIMessagePart {
         fun merge(other: Tool): Tool {
             return Tool(
                 toolCallId = toolCallId,
-                toolName = toolName + other.toolName,
+                toolName = if (other.toolName.isBlank()) toolName else other.toolName,
                 input = input + other.input,
                 output = output + other.output,
                 approvalState = approvalState,

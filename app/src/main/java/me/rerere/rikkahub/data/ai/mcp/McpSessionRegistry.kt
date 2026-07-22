@@ -106,7 +106,7 @@ internal class McpSessionRegistry(
 
     fun getStatus(configId: Uuid): Flow<McpStatus> = statusStore.get(configId)
 
-    fun reconcile(configs: List<McpServerConfig>) {
+    suspend fun reconcile(configs: List<McpServerConfig>) {
         val activeConfigs = configs
             .filter { it.commonOptions.enable && it.commonOptions.name.isNotBlank() }
             .associateBy { it.id }
@@ -129,7 +129,13 @@ internal class McpSessionRegistry(
             }
 
             val mustReconnect = !hasSameConnectionParameters(existing.config, newConfig)
-            existing.config = newConfig
+            // Written under the same lifecycleMutex connectSession/syncSession use to
+            // read-modify-write session.config, so this can't land in the middle of their
+            // critical section and get lost (or silently clobber a config they just wrote).
+            // Not nested: reconcile runs on the settings-collector coroutine and never holds
+            // this lock itself; any reconnect it triggers happens afterwards via
+            // appScope.launch, outside this block, so it cannot deadlock.
+            existing.lifecycleMutex.withLock { existing.config = newConfig }
             if (mustReconnect) {
                 appScope.launch { addClient(newConfig) }
             }
@@ -141,7 +147,12 @@ internal class McpSessionRegistry(
             ?: throw McpClientUnavailableException("No MCP session for server $serverId")
         val freshConfig = oauthCoordinator.ensureFreshToken(session.config)
         if (!hasSameConnectionParameters(session.connectedConfig, freshConfig)) {
-            session.config = freshConfig
+            // Written under the same lifecycleMutex connectSession/syncSession use to
+            // read-modify-write session.config, so this refresh can't land in the middle
+            // of their critical section and get lost. Not nested: the lock is released
+            // before addClient() runs, and addClient()/connectSession() acquire it fresh
+            // (this call site is not itself inside a withLock), so this cannot deadlock.
+            session.lifecycleMutex.withLock { session.config = freshConfig }
             addClient(freshConfig)
         }
 
@@ -179,7 +190,14 @@ internal class McpSessionRegistry(
         }
 
         val session = sessions.computeIfAbsent(desiredConfig.id) { McpSession(desiredConfig) }
-        session.config = desiredConfig
+        // Guarded with the same lifecycleMutex connectSession's read-modify-write of
+        // session.config uses, so this fast-path config adoption can't race with (and lose
+        // to, or clobber) an in-flight connectSession/syncSession for the same session. Not
+        // nested: the lock is released before connectSession(...) below, which acquires it
+        // fresh (this call site is not itself inside a withLock), so this cannot deadlock.
+        // The write still happens before connectSession runs, so its "no reconnect needed"
+        // fast path (which never re-reads requestedConfig) still adopts this config.
+        session.lifecycleMutex.withLock { session.config = desiredConfig }
         connectSession(
             session = session,
             requestedConfig = desiredConfig,

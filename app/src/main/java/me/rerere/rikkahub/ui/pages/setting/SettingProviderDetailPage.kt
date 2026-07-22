@@ -1517,7 +1517,8 @@ private fun ProviderOverrideSettings(
         }
 
         // Provider configuration modal
-        if (showProviderConfig && editingProvider != null) {
+        val currentEditingProvider = editingProvider
+        if (showProviderConfig && currentEditingProvider != null) {
             ModalBottomSheet(
                 onDismissRequest = {
                     showProviderConfig = false
@@ -1525,7 +1526,7 @@ private fun ProviderOverrideSettings(
                 },
                 sheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden, enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded))
             ) {
-                var internalProvider by remember(editingProvider) { mutableStateOf(editingProvider!!) }
+                var internalProvider by remember(currentEditingProvider) { mutableStateOf(currentEditingProvider) }
 
                 Column(
                     modifier = Modifier
