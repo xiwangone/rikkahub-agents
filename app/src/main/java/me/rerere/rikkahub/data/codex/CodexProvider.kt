@@ -327,7 +327,7 @@ class CodexProvider(
 
     private companion object {
         const val CODEX_API_BASE = "${CodexAccountRepository.CODEX_BASE_URL}/codex"
-        const val CLIENT_VERSION = "0.144.1"
+        const val CLIENT_VERSION = "0.144.5"
 
         // The Codex backend routes newer models (e.g. gpt-5.6-luna, which is gated on
         // minimal_client_version 0.144.0) by the codex version advertised in the User-Agent, not
