@@ -19,14 +19,14 @@ private const val TAG = "LiteRtToolDeclaration"
  * The SDK builds its tool description from [getToolDescriptionJsonString]: it parses the
  * string, reads `name` as the registry key, and hands the whole object to the model's chat
  * template. The shape it expects is the standard function declaration
- * `{name, description, parameters:{type:"object", properties:{...}, required:[...]}}` —
+ * `{name, description, parameters:{type:"object", properties:{...}, required:[...]}}`,
  * the same shape `ReflectionTool` generates for `@Tool`-annotated methods, and the same
  * shape `ToolManager.getToolsDescription()` wraps as `{"type":"function","function":{...}}`.
  *
  * # Why declaration-only
  *
  * The conversation is created with `automaticToolCalling = false`, so the runtime never
- * executes tools itself — it surfaces the model's calls on `Message.toolCalls` and
+ * executes tools itself: it surfaces the model's calls on `Message.toolCalls` and
  * [LiteRtProvider] republishes them as ordinary `UIMessagePart.Tool` parts. That puts local
  * models on exactly the same execution path as every cloud provider, so the HARDLINE floor,
  * the per-call approval prompt, the auto-approve allowlist, and the per-turn wall-clock
@@ -48,14 +48,14 @@ internal class LiteRtToolDeclaration(private val tool: RikkaTool) : OpenApiTool 
     /**
      * Never called: the conversation disables automatic tool calling, so the runtime hands
      * calls back to the host instead of dispatching them here. If it ever is called, the
-     * conversation was misconfigured — executing the tool at this point would silently skip
+     * conversation was misconfigured: executing the tool at this point would silently skip
      * approval and HARDLINE, so refuse loudly and return a structured error the model can
      * read rather than doing the unsafe thing.
      */
     override fun execute(params: String): String {
         Log.e(
             TAG,
-            "execute() called for '${tool.name}' — automaticToolCalling should be false so " +
+            "execute() called for '${tool.name}': automaticToolCalling should be false so " +
                 "the host can apply approval and the HARDLINE floor. Refusing to run it here.",
         )
         return buildJsonObject {

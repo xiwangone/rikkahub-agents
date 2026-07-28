@@ -260,14 +260,14 @@ class LiteRtProvider(
         // [LiteRtToolPrefix.budgetForContext] for tier thresholds.
         // Native tool calling. Every enabled tool is declared to the runtime under its real
         // name with its real JSON schema (see [LiteRtToolDeclaration]), so the model calls
-        // `web_fetch(url=...)` rather than a generic dispatcher — the model's own chat
+        // `web_fetch(url=...)` rather than a generic dispatcher: the model's own chat
         // template renders the declarations, which is what these models were tuned on.
         //
         // The conversation sets `automaticToolCalling = false`, so the runtime hands the
         // calls back and we republish them as ordinary tool parts. That keeps local models
         // on the same execution path as every cloud provider: HARDLINE floor, approval
         // prompt, auto-approve allowlist, and the per-turn wall-clock budget all apply.
-        // No system-prompt tool catalogue is needed, and none is added — a duplicate
+        // No system-prompt tool catalogue is needed, and none is added: a duplicate
         // listing would only compete with the template's own rendering for context.
         val nativeTools: List<ToolProvider> =
             params.tools.map { litertTool(LiteRtToolDeclaration(it)) }
@@ -481,7 +481,7 @@ class LiteRtProvider(
                             val cumulative = event.cumulative
                             // Defensive: if the SDK ever emits a non-monotonic cumulative (e.g.
                             // after an internal retry or template re-tokenisation), treat the new
-                            // payload as a fresh start — emit it whole as the delta rather than
+                            // payload as a fresh start, emitting it whole as the delta rather than
                             // computing a negative-length suffix that would silently drop
                             // characters.
                             val delta = if (cumulative.startsWith(previousCumulative)) {
@@ -519,7 +519,7 @@ class LiteRtProvider(
                             // up and runs its HARDLINE -> approval -> timeout pipeline, then
                             // re-invokes this provider with the results in the history. The
                             // SDK gives no call id, so mint one that is unique within the
-                            // stream — GenerationHandler matches parts by it.
+                            // stream. GenerationHandler matches parts by it.
                             val parts = event.calls.map { call ->
                                 val id = "$streamId-tool-${toolCallCount++}"
                                 Log.i(TAG, "model requested tool '${call.name}' (id=$id)")
@@ -592,7 +592,7 @@ class LiteRtProvider(
         }
 
         // Close the stream. Tool calls were republished as tool parts above and have NOT
-        // run yet — the host executes them after applying approval and the HARDLINE floor,
+        // run yet: the host executes them after applying approval and the HARDLINE floor,
         // then calls back in with the results. Reporting "tool_calls" is what tells the
         // agent loop to do that; reporting "stop" would end the turn with the model's
         // request silently dropped.

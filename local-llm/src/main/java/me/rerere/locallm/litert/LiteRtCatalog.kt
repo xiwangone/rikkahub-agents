@@ -11,7 +11,7 @@ data class LiteRtCatalogEntry(
     val sizeBytes: Long,
     val minDeviceMemoryGb: Int,
     val recommended: Boolean = false, // Marks a "good default pick" for its size class
-    val tags: List<String> = emptyList(), // ["multimodal", "thinking"] — for chips in UI
+    val tags: List<String> = emptyList(), // ["multimodal", "thinking"], for chips in UI
 ) {
     /** Pre-built download URL on HuggingFace's `resolve` path. Same format ModelInstall already validates. */
     fun resolveUrl(): String = "https://huggingface.co/$modelId/resolve/main/$modelFile"

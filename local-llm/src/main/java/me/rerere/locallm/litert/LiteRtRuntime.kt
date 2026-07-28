@@ -78,7 +78,7 @@ data class RuntimeToolCall(val name: String, val argumentsJson: String)
  * surfaced rather than run here so the host can apply approval and the HARDLINE floor.
  */
 sealed interface StreamEvent {
-    /** The **cumulative** response so far, not a delta — same contract the SDK's
+    /** The **cumulative** response so far, not a delta, same contract the SDK's
      *  `MessageCallback` uses. Downstream computes deltas itself. */
     data class Delta(val cumulative: String) : StreamEvent
 
@@ -934,7 +934,7 @@ class LiteRtRuntime(private val context: Context) {
             )
             awaitClose {
                 // Reached either because the SDK finished (the callbacks close the channel
-                // above) or because the collector went away first — the user hit stop, or
+                // above) or because the collector went away first: the user hit stop, or
                 // the surface collecting this flow was torn down.
                 //
                 // In the second case the native generation is STILL RUNNING: it keeps the
