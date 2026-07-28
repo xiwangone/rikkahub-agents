@@ -452,7 +452,11 @@ private suspend fun WorkspaceRepository.readImageInRootfs(
     path: String,
 ): List<UIMessagePart> {
     val (area, relativePath) = rootfsPathToAreaAndRelative(path)
-    val buffer = ByteArrayOutputStream()
+    val size = fileSize(workspaceId, area, relativePath)
+    require(size <= MAX_READ_FILE_BYTES) {
+        "File is too large to read: $path (${size / 1024 / 1024}MB, max ${MAX_READ_FILE_BYTES / 1024 / 1024}MB)."
+    }
+    val buffer = ByteArrayOutputStream(size.toInt())
     exportFile(workspaceId, area, relativePath, buffer)
     val bytes = buffer.toByteArray()
 
