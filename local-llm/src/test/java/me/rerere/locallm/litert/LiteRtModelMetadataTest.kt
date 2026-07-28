@@ -43,18 +43,20 @@ class LiteRtModelMetadataTest {
     }
 
     @Test
-    fun `Gemma-3n-E2B-it derives multimodal + tool (Gallery-parity, no thinking)`() {
-        val caps = LiteRtModelMetadata.deriveCapabilities("gemma-3n-E2B-it-int4.litertlm")
+    fun `Qwen3 derives text + thinking + tool`() {
+        val caps = LiteRtModelMetadata.deriveCapabilities("qwen3_4b_mixed_int4.litertlm")
+        assertEquals(listOf(Modality.TEXT), caps.inputModalities)
         assertEquals(
-            listOf(Modality.TEXT, Modality.IMAGE),
-            caps.inputModalities,
+            setOf(ModelAbility.TOOL, ModelAbility.REASONING),
+            caps.abilities.toSet(),
         )
-        assertEquals(listOf(ModelAbility.TOOL), caps.abilities)
     }
 
     @Test
-    fun `Gemma3-1B-IT derives text + tool only`() {
-        val caps = LiteRtModelMetadata.deriveCapabilities("gemma3-1b-it-int4.litertlm")
+    fun `Phi-4-mini derives text + tool only`() {
+        val caps = LiteRtModelMetadata.deriveCapabilities(
+            "Phi-4-mini-instruct_multi-prefill-seq_q8_ekv4096.litertlm",
+        )
         assertEquals(listOf(Modality.TEXT), caps.inputModalities)
         assertEquals(listOf(ModelAbility.TOOL), caps.abilities)
     }

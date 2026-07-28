@@ -132,7 +132,10 @@ class LiteRtProvider(
         return installed.map { (fileName, _) ->
             Model(
                 modelId = fileName,
-                displayName = fileName,
+                // The chat picker shows this. Raw filenames like
+                // "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm" are
+                // unreadable next to cloud model names, so prefer the catalog's label.
+                displayName = LiteRtCatalog.displayNameFor(fileName),
             )
         }
     }

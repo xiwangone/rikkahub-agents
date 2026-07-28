@@ -109,11 +109,11 @@ class SettingLocalLlmViewModel(
      * The default model URL for the runtime.
      *
      * LiteRT default: litert-community/Qwen2.5-1.5B-Instruct — q8 multi-prefill variant
-     * (~1.5 GB on disk). Present in Google Gallery's 1_0_13 allowlist, which is built
-     * against LiteRT-LM 0.11.0 — the same version we ship. Public and ungated (Apache-2.0).
+     * (~1.6 GB on disk). Public and ungated (Apache-2.0), and its chat template supports
+     * tool calling, which the agent loop depends on.
      *
      * paulsp94/Qwen3.5-2B-LiteRT-LM was dropped: that model is packaged for a different
-     * runtime version and throws FAILED_PRECONDITION: No KV cache inputs found on 0.11.0.
+     * runtime version and throws FAILED_PRECONDITION: No KV cache inputs found.
      */
     private val defaultModelUrl: String =
         "https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm"
