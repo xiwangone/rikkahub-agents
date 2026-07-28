@@ -171,11 +171,11 @@ class LocalRuntimePreferences(private val context: Context) {
     }
 
     companion object {
-        /** Must mirror the SDK version pinned in `local-llm/build.gradle.kts`. Bumping
-         *  the dep without bumping this constant will leave stale CPU/vision-unavailable
-         *  decisions live; bumping this constant without bumping the dep is harmless
-         *  (just causes a one-time unnecessary re-probe). */
-        const val LITERTLM_SDK_VERSION: String = "0.11.0"
+        /** The LiteRT-LM version this build compiled against, generated from the version
+         *  catalog entry the module actually depends on. Reading it from BuildConfig means
+         *  the dependency and this value cannot drift: bumping the catalog alone is enough
+         *  to invalidate the persisted SDK-coupled decisions on the next launch. */
+        val LITERTLM_SDK_VERSION: String = BuildConfig.LITERTLM_SDK_VERSION
     }
 
     private fun decodeInstalledMap(raw: String?): Map<String, String> {
