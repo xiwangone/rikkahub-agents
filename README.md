@@ -6,7 +6,7 @@
 
 **Your phone, automated.**
 
-A fork of [RikkaHub](https://github.com/rikkahub/rikkahub) that turns the native Android LLM chat client into a real on-device agent: 80+ device tools, AI-authored workflows, scheduled jobs, an in-app browser the AI drives, SSH, screen automation, file manager, music player, voice transcription, downloadable on-device LLMs, and a remote Telegram bot. All opt-in.
+A fork of [RikkaHub](https://github.com/rikkahub/rikkahub) that turns the native Android LLM chat client into a real on-device agent: 80+ device tools, AI-authored workflows, scheduled jobs, an in-app browser the AI drives, keyless web search, a Linux workspace, SSH, screen automation, file manager, music player, voice transcription, downloadable on-device LLMs, and a remote Telegram bot. All opt-in.
 
 <p>
   <a href="https://github.com/ExTV/rikkahub-agent/releases"><img src="https://img.shields.io/github/v/release/ExTV/rikkahub-agent?include_prereleases&style=flat-square&label=release&color=blue" alt="Release" /></a>
@@ -63,9 +63,26 @@ Talk to your assistant from anywhere. Send a question, photo, PDF, or voice note
 
 A real browser built into the app. The AI clicks through cookie banners, fills search boxes, scrolls, and reads pages back to you. Streams fresh screenshots to your chat after every step. Floating chat pill lets you keep talking to the AI without leaving the page. Built-in article extraction and diff-after-action keep token costs low.
 
+### Web Search & Fetch
+
+Search works with no API key out of the box: the **Built-in** engine (DuckDuckGo) is the default, and anti-bot blocks report an honest retryable error instead of a silent "no results" thanks to a circuit breaker. The engine picker lists 19 in total if you'd rather bring your own key: Tavily, Exa, Brave, Perplexity, Jina, Firecrawl, SearXNG, Bing, Serper, Ollama, and more, plus a custom-script engine you can point anywhere.
+
+Separately, the assistant can pull any page directly. **Web fetch and extract** is on by default (Settings → Search) and stays out of the per-assistant tool menu:
+
+- `web_fetch` — retrieves a page, decodes it with the response charset, and paginates long documents instead of blowing the context window
+- `web_extract` — jsoup-based readability pass that strips nav and boilerplate down to article text
+
+Both are capped at 30 seconds, read bounded response bodies so a huge page can't OOM the app, and are blocked from private network targets at DNS resolution time.
+
 ### File Manager
 
 Find files, read them, save new ones, copy, move, rename, delete. *"Find every PDF mentioning 'invoice' on my phone"* works in one sentence. System folders outside your app's sandbox are off-limits, even if you ask.
+
+### Workspace
+
+A real Linux environment on the phone. The AI runs shell commands, reads, writes, and patches files in it, and browses the result in a built-in file manager with a text editor and image/video preview. Copy files in from anywhere on the device through the system file picker.
+
+Long-running work survives across turns: `workspace_run_background` starts a dev server, install, or file watcher and hands back a task id, `workspace_background_status` polls its recent output, and `workspace_background_kill` stops it. Task ids are scoped to their workspace, and deleting a workspace kills everything it started.
 
 ### SSH
 
@@ -93,7 +110,7 @@ Connect [Model Context Protocol](https://modelcontextprotocol.io) servers and th
 
 ### Notifications & External Triggers
 
-The AI can read, summarize, and forward incoming notifications from apps you choose. The whitelist starts empty. Other apps (Tasker, automation tools, ADB) can hand the agent tasks through the External Automation Intent API.
+The AI can read, summarize, and forward incoming notifications from apps you choose. The whitelist starts empty. Notifications the agent posts deep-link back to the conversation that produced them, so a tap opens the full reply even from a cold start. Other apps (Tasker, automation tools, ADB) can hand the agent tasks through the External Automation Intent API.
 
 ### Safety & Privacy
 
@@ -103,7 +120,7 @@ Three layers of protection:
 2. **Per-call approval** — Tools that change something ask before running.
 3. **HARDLINE floor** — Genuinely dangerous commands (wipe, reboot, fork bombs, system file destruction) are blocked unconditionally.
 
-Passwords and API keys never hit log files. Cloud backups skip saved credentials. The Telegram bot ignores everyone except your allowlist.
+Passwords and API keys never hit log files. Cloud backups skip saved credentials. The Telegram bot ignores everyone except your allowlist. Web fetches are refused at DNS resolution if they resolve to a private network address, so the assistant cannot be talked into probing your LAN or a cloud metadata endpoint.
 
 ---
 
@@ -121,7 +138,7 @@ Download the latest `*-release.apk` from [Releases](https://github.com/ExTV/rikk
 
 **Settings → Providers → pick one → paste your API key.**
 
-- **OpenRouter** — first-class support with auto-detected model capabilities, pricing, and routing
+- **OpenRouter** — first-class support with auto-detected model capabilities, pricing, and routing, plus a fallback model list tried in order when your primary is down, rate-limited, or refuses
 - **Codex** — sign in with your ChatGPT account (OpenAI plan over OAuth)
 - **Grok** — sign in with your xAI account (SuperGrok or X Premium+ over OAuth)
 - **Local · LiteRT** — download a local model (Gemma, Qwen). No key, no network. Runs on-device with GPU acceleration where supported
@@ -189,4 +206,4 @@ This fork is unaffiliated with upstream RikkaHub maintainers. All credit for the
 
 ## License
 
-Inherited from [upstream](https://github.com/rikkahub/rikkahub), see [LICENSE](LICENSE).
+GNU AGPL-3.0, inherited from [upstream](https://github.com/rikkahub/rikkahub). See [LICENSE](LICENSE).
