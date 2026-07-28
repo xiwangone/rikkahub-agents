@@ -864,6 +864,9 @@ class LiteRtRuntime(private val context: Context) {
             // budget for this call.
             val telemetryInputChars = inputText.length
             val callStartedNs = System.nanoTime()
+            // Set once the SDK reports the generation finished (either way). Read from the
+            // flow's coroutine in awaitClose to tell a natural end from a cancellation.
+            val generationFinished = java.util.concurrent.atomic.AtomicBoolean(false)
             var firstMessageNs: Long = 0L
             var lastCumulative = ""
             // How many of the message's tool calls have already been forwarded. The SDK
@@ -916,18 +919,42 @@ class LiteRtRuntime(private val context: Context) {
                             specDecodingEngaged = instance.speculativeDecodingEngaged,
                         )
                         instance.lastUseAtMs = android.os.SystemClock.elapsedRealtime()
+                        generationFinished.set(true)
                         close()
                     }
                     override fun onError(throwable: Throwable) {
                         // The KV-cache state is now unknown — force the next turn cold.
                         instance.processed.clear()
                         instance.lastUseAtMs = android.os.SystemClock.elapsedRealtime()
+                        generationFinished.set(true)
                         if (throwable is CancellationException) close() else close(throwable)
                     }
                 },
                 emptyMap(),
             )
-            awaitClose { /* SDK callback already closed the channel above. */ }
+            awaitClose {
+                // Reached either because the SDK finished (the callbacks close the channel
+                // above) or because the collector went away first — the user hit stop, or
+                // the surface collecting this flow was torn down.
+                //
+                // In the second case the native generation is STILL RUNNING: it keeps the
+                // GPU busy writing into a channel nobody reads, and because the mutex is
+                // released as soon as this block returns, the next turn can call
+                // sendMessageAsync on a Conversation that has not finished the previous
+                // one. Cancel it so stopping actually stops.
+                if (!generationFinished.get()) {
+                    android.util.Log.i(
+                        "LiteRtRuntime",
+                        "stream cancelled before completion; cancelling native generation",
+                    )
+                    runCatching { conv.cancelProcess() }
+                        .onFailure {
+                            android.util.Log.w("LiteRtRuntime", "cancelProcess failed", it)
+                        }
+                    // The KV cache now holds a partial turn, so the next turn must go cold.
+                    instance.processed.clear()
+                }
+            }
         } } finally {
             runCatching { hintSession?.close() }
             runCatching { Process.setThreadPriority(callerTid, originalPriority) }
