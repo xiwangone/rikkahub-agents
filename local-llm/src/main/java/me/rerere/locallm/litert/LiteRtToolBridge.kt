@@ -1,82 +1,90 @@
 package me.rerere.locallm.litert
 
 import android.util.Log
-import com.google.ai.edge.litertlm.Tool
-import com.google.ai.edge.litertlm.ToolParam
-import com.google.ai.edge.litertlm.ToolSet
-import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.Json
+import com.google.ai.edge.litertlm.OpenApiTool
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
+import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool as RikkaTool
-import me.rerere.ai.ui.UIMessagePart
 
-private const val TAG = "LiteRtToolBridge"
+private const val TAG = "LiteRtToolDeclaration"
 
 /**
- * Bridges Rikka's `me.rerere.ai.core.Tool` registry to LiteRT-LM's native `@Tool`
- * mechanism. Mirrors Google AI Edge Gallery's pattern (see Gallery's `AgentTools.kt` +
- * `MobileActionsTools.kt`): a single `ToolSet` class with `@Tool`-annotated methods that
- * the SDK discovers via reflection, the model calls natively, and the runtime dispatches
- * back into our regular tool-execution path.
+ * Declares one Rikka tool to the LiteRT-LM runtime under its real name and real JSON
+ * schema.
  *
- * Why one bridge with a single `runTool` method instead of one `@Tool` per Rikka tool:
- *   - Our tool catalog has ~55 dynamic tool factories. Generating 55 `@Tool` methods
- *     at compile time would require a KSP processor that introspects [LocalTools.kt]'s
- *     registration logic.
- *   - The SDK enumerates @Tool methods at runtime, and the model is told their NAMES +
- *     parameter shapes via the SDK's prompt template. The SDK does NOT prevent us from
- *     calling `runTool(name=..., args=...)` and letting the bridge dispatch internally —
- *     that's a valid pattern (Gallery's `AgentTools.runMcpTool` works exactly this way
- *     for the MCP-tool case).
- *   - Single bridge is simpler to test and reason about; the SDK's prompt template is
- *     still the canonical source of truth for what the model sees.
+ * The SDK builds its tool description from [getToolDescriptionJsonString]: it parses the
+ * string, reads `name` as the registry key, and hands the whole object to the model's chat
+ * template. The shape it expects is the standard function declaration
+ * `{name, description, parameters:{type:"object", properties:{...}, required:[...]}}` —
+ * the same shape `ReflectionTool` generates for `@Tool`-annotated methods, and the same
+ * shape `ToolManager.getToolsDescription()` wraps as `{"type":"function","function":{...}}`.
  *
- * Concurrency: the bridge holds an immutable snapshot of the current request's tools.
- * Each [LiteRtProvider.streamText] call updates the snapshot via
- * [LiteRtToolBridgeRegistry] before invoking the SDK; the @Tool method reads from there.
+ * # Why declaration-only
+ *
+ * The conversation is created with `automaticToolCalling = false`, so the runtime never
+ * executes tools itself — it surfaces the model's calls on `Message.toolCalls` and
+ * [LiteRtProvider] republishes them as ordinary `UIMessagePart.Tool` parts. That puts local
+ * models on exactly the same execution path as every cloud provider, so the HARDLINE floor,
+ * the per-call approval prompt, the auto-approve allowlist, and the per-turn wall-clock
+ * budget all apply.
+ *
+ * The previous implementation was a single `@Tool fun runTool(name, argsJson)` that looked
+ * the tool up and called `execute()` inline. That ran with none of those protections, so a
+ * local model could invoke a destructive tool with no prompt and no HARDLINE check, and its
+ * calls never appeared in the transcript as tool steps.
  */
-class LiteRtToolBridge : ToolSet {
+internal class LiteRtToolDeclaration(private val tool: RikkaTool) : OpenApiTool {
 
-    @Tool(
-        description = "Invoke a Rikka local tool by its registered name. Returns the tool's " +
-            "structured JSON output as a string. Use this when you need to take an action " +
-            "outside of pure conversation (e.g. running a Termux shell command, reading a " +
-            "file, fetching a URL, controlling the device).",
-    )
-    fun runTool(
-        @ToolParam(description = "The tool's registered name (e.g. termux_run_command, files_read, get_time_info).")
-        name: String,
-        @ToolParam(description = "A JSON string holding the tool's arguments object. Pass \"{}\" when the tool takes no arguments.")
-        argsJson: String,
-    ): String {
-        val tool = LiteRtToolBridgeRegistry.lookup(name)
-            ?: return errorEnvelope("tool_not_found", "No tool named '$name' is registered for this request.")
-        val args: JsonObject = parseArgs(argsJson)
-            ?: return errorEnvelope("invalid_json_args", "argsJson must be a valid JSON object, got: $argsJson")
-        return runBlocking {
-            runCatching {
-                val parts = tool.execute(args)
-                val textOnly = parts
-                    .filterIsInstance<UIMessagePart.Text>()
-                    .joinToString("") { it.text }
-                textOnly.ifBlank { "(tool returned no text output)" }
-            }.getOrElse { t ->
-                Log.w(TAG, "runTool($name) threw", t)
-                errorEnvelope("tool_threw", t.message ?: t::class.java.simpleName)
-            }
-        }
+    override fun getToolDescriptionJsonString(): String = buildJsonObject {
+        put("name", tool.name)
+        put("description", tool.description)
+        put("parameters", parametersSchema())
+    }.toString()
+
+    /**
+     * Never called: the conversation disables automatic tool calling, so the runtime hands
+     * calls back to the host instead of dispatching them here. If it ever is called, the
+     * conversation was misconfigured — executing the tool at this point would silently skip
+     * approval and HARDLINE, so refuse loudly and return a structured error the model can
+     * read rather than doing the unsafe thing.
+     */
+    override fun execute(params: String): String {
+        Log.e(
+            TAG,
+            "execute() called for '${tool.name}' — automaticToolCalling should be false so " +
+                "the host can apply approval and the HARDLINE floor. Refusing to run it here.",
+        )
+        return buildJsonObject {
+            put("error", "tool_execution_not_permitted_here")
+            put(
+                "detail",
+                "This tool must be executed by the host application so that approval and " +
+                    "safety checks apply. Report this as a bug.",
+            )
+        }.toString()
     }
 
-    private fun parseArgs(raw: String): JsonObject? = runCatching {
-        Json.parseToJsonElement(raw.ifBlank { "{}" }).jsonObject
-    }.getOrNull()
+    /**
+     * Translate the tool's [InputSchema] into a JSON-Schema object. A tool that declares no
+     * parameters still gets a well-formed empty object schema, because a missing
+     * `parameters` key makes some chat templates render a malformed declaration.
+     */
+    private fun parametersSchema(): JsonObject = when (val schema = tool.parameters()) {
+        is InputSchema.Obj -> buildJsonObject {
+            put("type", "object")
+            put("properties", schema.properties)
+            schema.required?.takeIf { it.isNotEmpty() }?.let { required ->
+                put("required", JsonArray(required.map { JsonPrimitive(it) }))
+            }
+        }
 
-    private fun errorEnvelope(error: String, detail: String): String =
-        buildJsonObject {
-            put("error", error)
-            put("detail", detail)
-        }.toString()
+        null -> buildJsonObject {
+            put("type", "object")
+            put("properties", JsonObject(emptyMap()))
+        }
+    }
 }

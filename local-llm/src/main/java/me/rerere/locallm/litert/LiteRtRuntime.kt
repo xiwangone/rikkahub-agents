@@ -19,6 +19,11 @@ import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.ToolProvider
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -56,6 +61,29 @@ fun turnSignature(role: String, text: String): String = "$role|${text.length}|${
  */
 data class Turn(val role: String, val rawText: String) {
     val signature: String get() = turnSignature(role, rawText)
+}
+
+/**
+ * One tool call the model asked for, lifted out of the SDK's `ToolCall` so callers do not
+ * have to depend on litertlm types. [argumentsJson] is the arguments object serialised back
+ * to a JSON string, matching the `input` field of `UIMessagePart.Tool`.
+ */
+data class RuntimeToolCall(val name: String, val argumentsJson: String)
+
+/**
+ * What [LiteRtRuntime.streamTurns] emits.
+ *
+ * The runtime disables the SDK's automatic tool calling, so a turn can end either with
+ * generated text, with tool calls the host must execute, or with both. Tool calls are
+ * surfaced rather than run here so the host can apply approval and the HARDLINE floor.
+ */
+sealed interface StreamEvent {
+    /** The **cumulative** response so far, not a delta — same contract the SDK's
+     *  `MessageCallback` uses. Downstream computes deltas itself. */
+    data class Delta(val cumulative: String) : StreamEvent
+
+    /** Tool calls the model emitted this turn, in the order the model produced them. */
+    data class ToolCalls(val calls: List<RuntimeToolCall>) : StreamEvent
 }
 
 /**
@@ -106,8 +134,8 @@ class LiteRtVisionUnavailableException(
 )
 
 /**
- * Wraps Google's LiteRT-LM runtime (com.google.ai.edge.litertlm:litertlm-android:0.11.0)
- * for on-device inference of `.litertlm` model files.
+ * Wraps Google's LiteRT-LM runtime (`com.google.ai.edge.litertlm:litertlm-android`, version
+ * pinned in the version catalog) for on-device inference of `.litertlm` model files.
  *
  * # Why this rewrite (vs. the simpler v22A original)
  *
@@ -725,6 +753,12 @@ class LiteRtRuntime(private val context: Context) {
                     },
                     systemInstruction = spec.systemInstruction,
                     tools = spec.tools,
+                    // Surface tool calls instead of dispatching them. The SDK would happily
+                    // run them itself, but that path skips the host's approval prompt, the
+                    // auto-approve allowlist, the HARDLINE floor, and the per-turn
+                    // wall-clock budget. [LiteRtProvider] republishes the calls as ordinary
+                    // tool parts so the normal execution path applies.
+                    automaticToolCalling = false,
                 )
             )
         } finally {
@@ -769,7 +803,7 @@ class LiteRtRuntime(private val context: Context) {
         images: List<Bitmap> = emptyList(),
         audioClips: List<ByteArray> = emptyList(),
         onThinking: ((String) -> Unit)? = null,
-    ): Flow<String> = callbackFlow {
+    ): Flow<StreamEvent> = callbackFlow {
         // GPU-boost the inference. Three levers, in order of effectiveness:
         //   1. PerformanceHintManager (API 33+). Opens a hint session for this thread
         //      with a 50ms target — the OS scheduler treats the process as doing
@@ -832,6 +866,9 @@ class LiteRtRuntime(private val context: Context) {
             val callStartedNs = System.nanoTime()
             var firstMessageNs: Long = 0L
             var lastCumulative = ""
+            // How many of the message's tool calls have already been forwarded. The SDK
+            // re-delivers the full list on each callback, so forward only the new tail.
+            var emittedToolCalls = 0
             conv.sendMessageAsync(
                 Contents.of(contentList),
                 object : MessageCallback {
@@ -843,7 +880,18 @@ class LiteRtRuntime(private val context: Context) {
                         val text = message.toString()
                         if (text.isNotEmpty()) {
                             lastCumulative = text
-                            trySend(text)
+                            trySend(StreamEvent.Delta(text))
+                        }
+                        val calls = message.toolCalls
+                        if (calls.size > emittedToolCalls) {
+                            val fresh = calls.drop(emittedToolCalls).map { call ->
+                                RuntimeToolCall(
+                                    name = call.name,
+                                    argumentsJson = argumentsToJson(call.arguments),
+                                )
+                            }
+                            emittedToolCalls = calls.size
+                            trySend(StreamEvent.ToolCalls(fresh))
                         }
                     }
                     override fun onDone() {
@@ -956,6 +1004,34 @@ class LiteRtRuntime(private val context: Context) {
          * implemented` (the upstream root cause on Adreno 7xx + One UI / OriginOS), or
          * `gpu_backend_opengl.cc` (the file that hosts the stub). Match any of those.
          */
+        /**
+         * Serialise a `ToolCall`'s argument map to a JSON object string, matching the
+         * `input` field of `UIMessagePart.Tool` so the host can parse it exactly like a
+         * cloud provider's arguments payload.
+         *
+         * The SDK decodes arguments into plain Kotlin values (`String`, `Number`,
+         * `Boolean`, `List`, `Map`, null) and its own converter is internal, so we walk the
+         * structure ourselves. An unrecognised leaf is stringified rather than dropped: a
+         * tool receiving a stringly-typed argument can still fail loudly, whereas a missing
+         * key looks like the model never supplied it.
+         */
+        internal fun argumentsToJson(arguments: Map<String, Any?>): String =
+            JsonObject(arguments.mapValues { (_, v) -> toJsonElement(v) }).toString()
+
+        private fun toJsonElement(value: Any?): JsonElement = when (value) {
+            null -> JsonNull
+            is String -> JsonPrimitive(value)
+            is Boolean -> JsonPrimitive(value)
+            is Number -> JsonPrimitive(value)
+            is Map<*, *> -> JsonObject(
+                value.entries.associate { (k, v) -> k.toString() to toJsonElement(v) }
+            )
+
+            is Iterable<*> -> JsonArray(value.map { toJsonElement(it) })
+            is Array<*> -> JsonArray(value.map { toJsonElement(it) })
+            else -> JsonPrimitive(value.toString())
+        }
+
         internal fun isVisionExecutorError(joinedMessage: String): Boolean =
             joinedMessage.contains("vision_litert", ignoreCase = true) ||
                 joinedMessage.contains("CreateSharedMemoryManager", ignoreCase = true) ||

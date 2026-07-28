@@ -1,5 +1,9 @@
 package me.rerere.locallm.litert
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -188,5 +192,54 @@ class LiteRtRuntimeTest {
     @Test
     fun `isVisionExecutorError handles empty input`() {
         assertFalse(LiteRtRuntime.isVisionExecutorError(""))
+    }
+
+    // ---- argumentsToJson -------------------------------------------------------------
+    //
+    // The SDK hands tool-call arguments back as plain Kotlin values. This is what turns
+    // them into the `input` string on UIMessagePart.Tool, so the host parses a local
+    // model's arguments through exactly the same path as a cloud provider's.
+
+    @Test
+    fun `argumentsToJson preserves primitive types rather than stringifying them`() {
+        val json = Json.parseToJsonElement(
+            LiteRtRuntime.argumentsToJson(
+                mapOf("s" to "hi", "n" to 42, "d" to 1.5, "b" to true)
+            )
+        ).jsonObject
+        assertEquals("hi", json["s"]!!.jsonPrimitive.content)
+        assertEquals("42", json["n"]!!.jsonPrimitive.content)
+        assertFalse("numbers must not be quoted", json["n"]!!.jsonPrimitive.isString)
+        assertEquals("1.5", json["d"]!!.jsonPrimitive.content)
+        assertEquals(true, json["b"]!!.jsonPrimitive.content.toBoolean())
+    }
+
+    @Test
+    fun `argumentsToJson walks nested objects and arrays`() {
+        val json = Json.parseToJsonElement(
+            LiteRtRuntime.argumentsToJson(
+                mapOf(
+                    "outer" to mapOf("inner" to listOf(1, "two", null)),
+                )
+            )
+        ).jsonObject
+        val inner = json["outer"]!!.jsonObject["inner"]!!.jsonArray
+        assertEquals(3, inner.size)
+        assertEquals("1", inner[0].jsonPrimitive.content)
+        assertEquals("two", inner[1].jsonPrimitive.content)
+        assertTrue(inner[2] is kotlinx.serialization.json.JsonNull)
+    }
+
+    @Test
+    fun `argumentsToJson emits an empty object for a tool called with no arguments`() {
+        assertEquals("{}", LiteRtRuntime.argumentsToJson(emptyMap()))
+    }
+
+    @Test
+    fun `argumentsToJson keeps an unrecognised leaf as a string instead of dropping the key`() {
+        val json = Json.parseToJsonElement(
+            LiteRtRuntime.argumentsToJson(mapOf("weird" to StringBuilder("xyz")))
+        ).jsonObject
+        assertEquals("xyz", json["weird"]!!.jsonPrimitive.content)
     }
 }

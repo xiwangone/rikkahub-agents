@@ -80,11 +80,6 @@ class LiteRtProvider(
     private val settingsUpdater: suspend (transform: (List<ProviderSetting>) -> List<ProviderSetting>) -> Unit,
 ) : Provider<ProviderSetting.LiteRtLocal> {
 
-    /** Singleton bridge — one ToolSet for the lifetime of this provider. Its @Tool
-     *  method reads the per-request tool list from [LiteRtToolBridgeRegistry]. */
-    private val toolBridge = LiteRtToolBridge()
-    private val toolProvider: ToolProvider = litertTool(toolBridge)
-
     /**
      * Self-heal a permanently corrupt model: delete the file from disk, remove it from
      * [LocalRuntimePreferences], and remove it from the provider's models list in settings.
@@ -260,53 +255,28 @@ class LiteRtProvider(
         // can afford. For models without a curated maxContextLength (URL-pasted entries),
         // fall back to maxTokens (output cap) as a conservative lower bound. See
         // [LiteRtToolPrefix.budgetForContext] for tier thresholds.
-        // Native tool calling via the LiteRT-LM SDK's ToolSet mechanism — mirrors Google
-        // AI Edge Gallery's approach exactly. The bridge's @Tool method is enumerated
-        // by the SDK at engine creation time; the model invokes it as a native function
-        // call (no <tool_call> prompt-engineering, no regex extraction). When the model
-        // calls runTool(name, argsJson) the bridge looks up the named tool from the
-        // per-request snapshot and dispatches it through the regular execute path.
+        // Native tool calling. Every enabled tool is declared to the runtime under its real
+        // name with its real JSON schema (see [LiteRtToolDeclaration]), so the model calls
+        // `web_fetch(url=...)` rather than a generic dispatcher — the model's own chat
+        // template renders the declarations, which is what these models were tuned on.
         //
-        // Populate the snapshot before handing the engine the call, clear it in the
-        // finally below so concurrent requests cannot see each other's tools.
-        LiteRtToolBridgeRegistry.setForRequest(params.tools)
-        val nativeTools = if (params.tools.isNotEmpty()) listOf(toolProvider) else emptyList()
-        Log.i(
-            TAG,
-            "tool bridge: ${params.tools.size} tool(s) registered for this request " +
-                "(${params.tools.joinToString(",") { it.name }.take(200)}…)",
-        )
-        // For models that still need a per-tool catalogue in the system prompt (small
-        // local models that benefit from explicit name + description listing alongside
-        // SDK tool registration), build a compact reference block. This is descriptive
-        // text only; the model invokes tools through the bridge, NOT by emitting
-        // <tool_call> blocks.
-        val toolReference = if (params.tools.isNotEmpty()) {
-            buildString {
-                append("You have ${params.tools.size} tools available. ")
-                append("Call runTool(name, argsJson) with one of these names to use them:\n")
-                params.tools.take(60).forEach { tool ->
-                    val firstLineDesc = tool.description.lineSequence().firstOrNull()
-                        ?.trim().orEmpty().take(80)
-                    append("- ${tool.name}: $firstLineDesc\n")
-                }
-                if (params.tools.size > 60) {
-                    append("(…and ${params.tools.size - 60} more tools available — ")
-                    append("call runTool with their names directly when needed.)\n")
-                }
-            }
-        } else {
-            ""
+        // The conversation sets `automaticToolCalling = false`, so the runtime hands the
+        // calls back and we republish them as ordinary tool parts. That keeps local models
+        // on the same execution path as every cloud provider: HARDLINE floor, approval
+        // prompt, auto-approve allowlist, and the per-turn wall-clock budget all apply.
+        // No system-prompt tool catalogue is needed, and none is added — a duplicate
+        // listing would only compete with the template's own rendering for context.
+        val nativeTools: List<ToolProvider> =
+            params.tools.map { litertTool(LiteRtToolDeclaration(it)) }
+        if (nativeTools.isNotEmpty()) {
+            Log.i(
+                TAG,
+                "declared ${nativeTools.size} tool(s) natively: " +
+                    params.tools.joinToString(",") { it.name }.take(200),
+            )
         }
-        val toolPrefix = toolReference
 
-        val combinedSystem = buildString {
-            if (toolPrefix.isNotEmpty()) {
-                append(toolPrefix.trimEnd())
-                append("\n\n")
-            }
-            if (trimmedSystemTexts.isNotEmpty()) append(trimmedSystemTexts)
-        }.trim()
+        val combinedSystem = trimmedSystemTexts.trim()
 
         // ---- Conversation history → turn list + cold-path blob ----
         //
@@ -494,45 +464,87 @@ class LiteRtProvider(
             )
         }
 
-        try {
+        var toolCallCount = 0
+        run {
             try {
                 runtime.streamTurns(
                     history = turns,
                     coldBlob = coldBlob,
                     images = turnImages,
                     audioClips = turnAudio,
-                ).collect { cumulative ->
-                    // Defensive: if the SDK ever emits a non-monotonic cumulative (e.g. after
-                    // an internal retry or template re-tokenisation), treat the new payload as a
-                    // fresh start — emit it whole as the delta rather than computing a negative-
-                    // length suffix that would silently drop characters.
-                    val delta = if (cumulative.startsWith(previousCumulative)) {
-                        cumulative.substring(previousCumulative.length)
-                    } else {
-                        cumulative
-                    }
-                    previousCumulative = cumulative
-                    fullResponseBuilder.setLength(0)
-                    fullResponseBuilder.append(cumulative)
+                ).collect { event ->
+                    when (event) {
+                        is StreamEvent.Delta -> {
+                            val cumulative = event.cumulative
+                            // Defensive: if the SDK ever emits a non-monotonic cumulative (e.g.
+                            // after an internal retry or template re-tokenisation), treat the new
+                            // payload as a fresh start — emit it whole as the delta rather than
+                            // computing a negative-length suffix that would silently drop
+                            // characters.
+                            val delta = if (cumulative.startsWith(previousCumulative)) {
+                                cumulative.substring(previousCumulative.length)
+                            } else {
+                                cumulative
+                            }
+                            previousCumulative = cumulative
+                            fullResponseBuilder.setLength(0)
+                            fullResponseBuilder.append(cumulative)
 
-                    if (delta.isNotEmpty()) {
-                        emit(
-                            MessageChunk(
-                                id = streamId,
-                                model = params.model.modelId,
-                                choices = listOf(
-                                    UIMessageChoice(
-                                        index = 0,
-                                        delta = UIMessage(
-                                            role = MessageRole.ASSISTANT,
-                                            parts = listOf(UIMessagePart.Text(delta)),
+                            if (delta.isNotEmpty()) {
+                                emit(
+                                    MessageChunk(
+                                        id = streamId,
+                                        model = params.model.modelId,
+                                        choices = listOf(
+                                            UIMessageChoice(
+                                                index = 0,
+                                                delta = UIMessage(
+                                                    role = MessageRole.ASSISTANT,
+                                                    parts = listOf(UIMessagePart.Text(delta)),
+                                                ),
+                                                message = null,
+                                                finishReason = null,
+                                            )
                                         ),
-                                        message = null,
-                                        finishReason = null,
                                     )
-                                ),
+                                )
+                            }
+                        }
+
+                        is StreamEvent.ToolCalls -> {
+                            // Republish as ordinary tool parts. GenerationHandler picks these
+                            // up and runs its HARDLINE -> approval -> timeout pipeline, then
+                            // re-invokes this provider with the results in the history. The
+                            // SDK gives no call id, so mint one that is unique within the
+                            // stream — GenerationHandler matches parts by it.
+                            val parts = event.calls.map { call ->
+                                val id = "$streamId-tool-${toolCallCount++}"
+                                Log.i(TAG, "model requested tool '${call.name}' (id=$id)")
+                                UIMessagePart.Tool(
+                                    toolCallId = id,
+                                    toolName = call.name,
+                                    input = call.argumentsJson,
+                                    output = emptyList(),
+                                )
+                            }
+                            emit(
+                                MessageChunk(
+                                    id = streamId,
+                                    model = params.model.modelId,
+                                    choices = listOf(
+                                        UIMessageChoice(
+                                            index = 0,
+                                            delta = UIMessage(
+                                                role = MessageRole.ASSISTANT,
+                                                parts = parts,
+                                            ),
+                                            message = null,
+                                            finishReason = null,
+                                        )
+                                    ),
+                                )
                             )
-                        )
+                        }
                     }
                 }
             } catch (t: Throwable) {
@@ -543,8 +555,6 @@ class LiteRtProvider(
                 // hold". Surface that with a recovery hint.
                 throw translateSdkError(t, effectiveMaxNumTokens)
             }
-        } finally {
-            LiteRtToolBridgeRegistry.clear()
         }
 
         // ---- Persist tok/s telemetry --------------------------------------------------
@@ -578,15 +588,11 @@ class LiteRtProvider(
             }
         }
 
-        // With native SDK tool calling the @Tool method body already executed the tool
-        // and returned its output as the function's return value — there are NO leftover
-        // <tool_call> blocks to extract from the streamed text. The SDK incorporated the
-        // tool's output back into the model's reasoning automatically. Always emit
-        // finishReason = "stop" at end of stream.
-        //
-        // (The legacy LiteRtToolPrefix.extractToolCalls + unclosed-tag recovery path
-        // is kept around for the in-app browser tool which still uses prompt-engineered
-        // tool calling, but it is not called from the LiteRT chat path anymore.)
+        // Close the stream. Tool calls were republished as tool parts above and have NOT
+        // run yet — the host executes them after applying approval and the HARDLINE floor,
+        // then calls back in with the results. Reporting "tool_calls" is what tells the
+        // agent loop to do that; reporting "stop" would end the turn with the model's
+        // request silently dropped.
         emit(
             MessageChunk(
                 id = streamId,
@@ -599,7 +605,7 @@ class LiteRtProvider(
                             parts = emptyList(),
                         ),
                         message = null,
-                        finishReason = "stop",
+                        finishReason = if (toolCallCount > 0) "tool_calls" else "stop",
                     )
                 ),
             )
