@@ -34,7 +34,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.rerere.locallm.AcceleratorProbe
+import me.rerere.locallm.BuildConfig
 import java.io.ByteArrayOutputStream
+import java.io.File
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
 
@@ -184,6 +186,46 @@ class LiteRtRuntime(private val context: Context) {
      * subsequent loads skip the GPU-init attempt. Resets on app restart (acceptable for v1).
      */
     @Volatile private var sessionFallbackAccelerator: String? = null
+
+    // ---- Durable accelerator-crash guard ----
+    //
+    // A GPU delegate that faults takes the whole process down with it. No exception ever
+    // reaches Kotlin, so neither [sessionFallbackAccelerator] nor the CPU retry in
+    // [ensureLoaded] gets a chance to run, and the next launch walks straight back into
+    // the same crash. The only thing that outlives a SIGSEGV is a file: arm a marker
+    // before handing a non-CPU backend to the native engine, disarm it once the model has
+    // actually produced a token, and force CPU while a marker is still standing.
+    //
+    // Keyed on the SDK version so a runtime upgrade that fixes a device re-enables its GPU
+    // instead of leaving it blacklisted forever.
+
+    private val crashMarkers by lazy {
+        context.getSharedPreferences("litert_accel_crash", Context.MODE_PRIVATE)
+    }
+
+    /** Key of the marker currently on disk, so repeat turns skip a redundant write. */
+    @Volatile private var armedMarkerKey: String? = null
+
+    private fun crashMarkerKey(modelPath: String, accel: String): String =
+        "${BuildConfig.LITERTLM_SDK_VERSION}|$accel|${File(modelPath).name}"
+
+    private fun armCrashMarker(modelPath: String, accel: String) {
+        if (accel == "CPU") return
+        val key = crashMarkerKey(modelPath, accel)
+        if (armedMarkerKey == key) return
+        // commit(), not apply(): a native fault can easily beat an async write to disk.
+        crashMarkers.edit().putBoolean(key, true).commit()
+        armedMarkerKey = key
+    }
+
+    private fun disarmCrashMarker() {
+        val key = armedMarkerKey ?: return
+        armedMarkerKey = null
+        crashMarkers.edit().remove(key).commit()
+    }
+
+    private fun crashedPreviously(modelPath: String, accel: String): Boolean =
+        accel != "CPU" && crashMarkers.getBoolean(crashMarkerKey(modelPath, accel), false)
 
     /** Last-known telemetry from [streamTurns]. Read by [LiteRtProvider] after each stream
      *  completes so the rolling perf samples can be persisted. Cleared on engine teardown. */
@@ -405,10 +447,23 @@ class LiteRtRuntime(private val context: Context) {
     ): LoadOutcome = mutex.withLock {
         // Use in-session fallback if a prior GPU→CPU retry already succeeded this session.
         // forceCpu wins over a non-null preferredAccel.
-        val accel = if (forceCpu) "CPU"
+        val requestedAccel = if (forceCpu) "CPU"
         else sessionFallbackAccelerator
             ?: preferredAccel
             ?: AcceleratorProbe.probeLiteRt(context)
+        // A prior run on this accelerator took the process down mid-inference. There is no
+        // safe way to retry it, so stay on CPU until the SDK version changes.
+        val accel = if (crashedPreviously(modelPath, requestedAccel)) {
+            android.util.Log.w(
+                "LiteRtRuntime",
+                "ensureLoaded: $requestedAccel crashed the process on a previous run for " +
+                    "${File(modelPath).name} (SDK ${BuildConfig.LITERTLM_SDK_VERSION}); using CPU",
+            )
+            sessionFallbackAccelerator = "CPU"
+            "CPU"
+        } else {
+            requestedAccel
+        }
 
         // Probe the file for speculative-decoding support BEFORE building the engine.
         val supportsSpeculativeDecoding = try {
@@ -484,6 +539,9 @@ class LiteRtRuntime(private val context: Context) {
         loaded = null
 
         // Try the preferred accelerator first; fall back to CPU if it isn't already CPU.
+        // Arm the durable marker first: engine init is one of the two places a broken GPU
+        // delegate can fault, and a fault here leaves nothing for the runCatching to see.
+        armCrashMarker(modelPath, accel)
         val firstAttempt = runCatching {
             tryLoadWithBackend(desiredEngineKey, accel, desiredConversationSpec)
         }
@@ -851,6 +909,10 @@ class LiteRtRuntime(private val context: Context) {
             }
 
             val conv = instance.conversation
+            // The other place a broken GPU delegate faults: it can survive engine init and
+            // only die once real work is submitted. Re-arm for every turn; the first token
+            // below disarms.
+            armCrashMarker(instance.engineKey.modelPath, instance.engineKey.accelerator)
             // Build Contents in Gallery's order: images and audio first, text last.
             val contentList = mutableListOf<Content>()
             for (image in images) contentList.add(Content.ImageBytes(image.toPngByteArray()))
@@ -876,7 +938,12 @@ class LiteRtRuntime(private val context: Context) {
                 Contents.of(contentList),
                 object : MessageCallback {
                     override fun onMessage(message: Message) {
-                        if (firstMessageNs == 0L) firstMessageNs = System.nanoTime()
+                        if (firstMessageNs == 0L) {
+                            firstMessageNs = System.nanoTime()
+                            // The accelerator got through init and prefill and produced a
+                            // token, so it is not the one that kills the process.
+                            disarmCrashMarker()
+                        }
                         message.channels["thought"]?.let { thinking ->
                             if (thinking.isNotEmpty()) onThinking?.invoke(thinking)
                         }
