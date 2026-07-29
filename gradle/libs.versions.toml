@@ -64,7 +64,14 @@ slf4j = "2.0.18"
 sqlite-android = "-SNAPSHOT"
 termux = "0.118.0"
 diffutils = "4.17"
-litertlm = "0.14.0"
+# Pinned below 0.14.0 deliberately. 0.14.0 drops libLiteRtClGlAccelerator.so and moves
+# the GPU backend from OpenCL/GLES to Dawn/WebGPU-on-Vulkan, which Adreno 6xx rejects:
+# every CreateComputePipelines call returns VK_ERROR_UNKNOWN, the delegate keeps
+# submitting the resulting invalid command buffers, and the native execution thread
+# SIGSEGVs. That is unrecoverable from Kotlin, so the accelerator fallback cannot catch
+# it. 0.13.1 has an identical public API (same classes, same tool-calling surface,
+# getTokenCount/getBenchmarkInfo/cancelProcess all present) and a working GPU path.
+litertlm = "0.13.1"
 
 [libraries]
 androidx-camera-core = { module = "androidx.camera:camera-core", version.ref = "cameraCore" }
