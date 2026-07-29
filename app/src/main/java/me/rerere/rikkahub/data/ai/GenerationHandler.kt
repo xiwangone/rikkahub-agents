@@ -987,7 +987,10 @@ class GenerationHandler(
             if (systemParts.isNotEmpty()) {
                 add(UIMessage(role = MessageRole.SYSTEM, parts = systemParts))
             }
-            addAll(messages.limitContext(assistant.contextMessageSize).ageOldToolImages())
+            // Keeps the fork's multi-part system assembly and tool-image ageing, on top of
+            // upstream's renamed field and its stepped truncation (which now preserves
+            // prompt caching instead of trimming one message at a time).
+            addAll(messages.limitContext(assistant.contextMessageLimit).ageOldToolImages())
         }.transforms(
             transformers = transformers,
             context = context,

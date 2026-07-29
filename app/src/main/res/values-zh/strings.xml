@@ -63,10 +63,6 @@
   <string name="assistant_page_chat_model_desc">设置助手的默认聊天模型，如果不设置，则使用全局默认聊天模型</string>
   <string name="assistant_page_clone">复制</string>
   <string name="assistant_page_confirm">确定</string>
-  <string name="assistant_page_context_message_count">上下文消息数量: %d</string>
-  <string name="assistant_page_context_message_desc">控制多少条历史消息会被作为上下文发送给模型, 超过此数量的消息会被忽略，只有最近的N条消息会被保留，可以节省token</string>
-  <string name="assistant_page_context_message_size">上下文消息数量</string>
-  <string name="assistant_page_context_message_unlimited">无限制的上下文消息</string>
   <string name="assistant_page_creative">创造</string>
   <string name="assistant_page_current_assistant">当前助手</string>
   <string name="assistant_page_custom_bodies">自定义 Body</string>
@@ -1096,6 +1092,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="text_area_save">保存</string>
   <string name="theme_name_autumn">秋黄</string>
   <string name="theme_name_black">中性黑</string>
+  <string name="theme_name_minimal">极简白</string>
   <string name="theme_name_ocean">海湾蓝</string>
   <string name="theme_name_sakura">樱花粉</string>
   <string name="theme_name_spring">原野绿</string>
@@ -1786,4 +1783,10 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_page_folder_add">新建</string>
   <string name="chat_page_delete_folder_confirm">删除文件夹 "%1$s"？其中的对话不会被删除，只会从文件夹中移除。</string>
   <string name="chat_page_delete_folder_generating">此文件夹中有对话仍在生成中，请停止后再删除。</string>
+  <string name="assistant_page_context_message_limit">上下文消息限制</string>
+  <string name="assistant_page_context_message_limit_desc">限制发送给模型的最近消息数量。超出限制时，上下文会一次性缩减至约一半，而非每轮丢弃一条消息，从而保持请求前缀稳定，并使提示词缓存在多轮对话中持续生效。</string>
+  <string name="assistant_page_context_message_limit_count">上下文消息限制: %d</string>
+  <string name="assistant_page_context_message_limit_unlimited">无限上下文消息</string>
+  <string name="assistant_page_context_message_limit_warning">任何非零值都会在每次截断上下文时使提示词缓存失效。上限越大，截断越少；0 表示从不截断，缓存完整保留。</string>
 </resources>
+

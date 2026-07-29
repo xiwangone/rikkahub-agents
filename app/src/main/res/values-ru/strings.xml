@@ -63,10 +63,6 @@
   <string name="assistant_page_chat_model_desc">Установить модель чата по умолчанию для ассистента. Если не задано, будет использована глобальная модель чата по умолчанию</string>
   <string name="assistant_page_clone">Клонировать</string>
   <string name="assistant_page_confirm">Подтвердить</string>
-  <string name="assistant_page_context_message_count">Размер контекстных сообщений: %d</string>
-  <string name="assistant_page_context_message_desc">Управляет количеством исторических сообщений, отправляемых модели в качестве контекста. Сообщения, превышающие это число, будут игнорироваться; будут сохранены только последние N сообщений, что позволяет экономить токены</string>
-  <string name="assistant_page_context_message_size">Размер контекстного сообщения</string>
-  <string name="assistant_page_context_message_unlimited">Неограниченные контекстные сообщения</string>
   <string name="assistant_page_creative">Творческий</string>
   <string name="assistant_page_current_assistant">Текущий ассистент</string>
   <string name="assistant_page_custom_bodies">Пользовательский контекст</string>
@@ -1061,6 +1057,7 @@
   <string name="text_area_save">Сохранить</string>
   <string name="theme_name_autumn">Осенний жёлтый</string>
   <string name="theme_name_black">Нейтральный чёрный</string>
+  <string name="theme_name_minimal">Минималистичный белый</string>
   <string name="theme_name_ocean">Океанический синий</string>
   <string name="theme_name_sakura">Сакура Розовый</string>
   <string name="theme_name_spring">Луговой зелёный</string>
@@ -1783,4 +1780,10 @@
   <string name="chat_page_delete_folder_generating">Некоторые беседы в этой папке все еще генерируются. Пожалуйста, остановите их перед удалением.</string>
   <string name="setting_display_page_tts_read_outside_brackets_title">TTS не читает текст в скобках</string>
   <string name="setting_display_page_tts_read_outside_brackets_desc">Если включено, TTS не будет читать содержимое в скобках</string>
+  <string name="assistant_page_context_message_limit">Лимит контекстных сообщений</string>
+  <string name="assistant_page_context_message_limit_desc">Ограничивает количество последних сообщений, отправляемых модели. Когда лимит превышен, контекст сокращается примерно вдвое за один шаг, вместо удаления одного сообщения за каждый оборот, благодаря чему префикс запроса остаётся стабильным, и кэширование промптов продолжает работать на протяжении многих оборотов.</string>
+  <string name="assistant_page_context_message_limit_count">Лимит сообщений контекста: %d</string>
+  <string name="assistant_page_context_message_limit_unlimited">Неограниченные сообщения контекста</string>
+  <string name="assistant_page_context_message_limit_warning">Любой ненулевой лимит аннулирует кеш промпта каждый раз, когда контекст урезается. Больший лимит урезает реже; 0 никогда не урезает и сохраняет кеш полностью нетронутым.</string>
 </resources>
+

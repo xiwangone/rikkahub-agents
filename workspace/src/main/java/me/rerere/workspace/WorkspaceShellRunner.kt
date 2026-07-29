@@ -27,6 +27,7 @@ data class WorkspaceShellContext(
     val workingDir: File,
     val timeoutMillis: Long,
     val stdin: ByteArray? = null,
+    val bindMounts: List<WorkspaceBindMount> = emptyList(),
 )
 
 class HostShellRunner : WorkspaceShellRunner {

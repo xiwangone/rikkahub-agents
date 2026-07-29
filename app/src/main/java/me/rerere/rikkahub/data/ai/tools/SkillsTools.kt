@@ -7,25 +7,36 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.files.SkillFrontmatterParser
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.files.SkillMetadata
+import me.rerere.rikkahub.data.files.SkillPaths
 
 fun createSkillTools(
     enabledSkills: Set<String>,
     allSkills: List<SkillMetadata>,
-    skillManager: SkillManager,
+    /**
+     * Optional disk helper: supplies the mtime-aware read cache the per-turn auto-load
+     * path uses, and backs the read-only `skill_get_content` tool. Everything needed for
+     * correctness already lives on [SkillMetadata], so when this is absent the files are
+     * read straight from the skill's own directory. Same result, just uncached, and the
+     * content tool is not offered.
+     */
+    skillManager: SkillManager? = null,
 ): List<Tool> {
     val available = allSkills.filter { it.name in enabledSkills }
     if (available.isEmpty()) return emptyList()
 
-    return listOf(
+    return listOfNotNull(
         // Phase 16 audit fix — read-only accessor so the LLM can show a skill's content
         // without re-installing it. Sits under the same skills surface as use_skill.
-        skillGetContentTool(
-            enabledSkills = enabledSkills,
-            allSkills = allSkills,
-            contentReader = skillManager::getContent,
-        ),
+        skillManager?.let { manager ->
+            skillGetContentTool(
+                enabledSkills = enabledSkills,
+                allSkills = allSkills,
+                contentReader = manager::getContent,
+            )
+        },
         Tool(
             name = "use_skill",
             description = """
@@ -48,9 +59,14 @@ fun createSkillTools(
                         // re-read SOUL/HEARTBEAT/etc from disk every time.
                         val body = runCatching {
                             if (path.isNullOrBlank()) {
-                                skillManager.readSkillBody(skill.name)
+                                skillManager?.readSkillBody(skill.name)
+                                    ?: SkillFrontmatterParser
+                                        .extractBody(skill.skillFile.readText())
                             } else {
-                                skillManager.readSkillFileCached(skill.name, path)
+                                skillManager?.readSkillFileCached(skill.name, path)
+                                    ?: SkillPaths.resolveSkillFile(skill.skillDir, path)
+                                        ?.takeIf { file -> file.exists() }
+                                        ?.readText()
                             }
                         }.getOrNull()
                         if (!body.isNullOrBlank()) {
@@ -141,20 +157,31 @@ fun createSkillTools(
                         "Skill '$name' is not in the enabled-skills set for this assistant.",
                     )
                 }
+                // Resolve through the skill's own directory rather than looking it up by
+                // name. A skill whose frontmatter `name:` differs from its folder name
+                // (e.g. folder "directory-name", name "Display Name") is unreachable by a
+                // name-keyed lookup, which is the upstream bug this adopts the fix for.
+                val skill = available.firstOrNull { skill -> skill.name == name }
+                    ?: return@Tool err(
+                        "skill_not_found",
+                        "Skill '$name' is enabled but has no metadata entry on disk.",
+                    )
                 val path = it.jsonObject["path"]?.jsonPrimitive?.content
                 if (path.isNullOrBlank()) {
-                    val skillMd = skillManager.getSkillDir(name)?.resolve("SKILL.md")
-                    if (skillMd != null && skillMd.length() > SkillManager.MAX_SKILL_FILE_BYTES) {
-                        return@Tool tooLargeErr(skillMd)
-                    }
-                    val content = skillManager.readSkillBody(name)
-                        ?: return@Tool err(
+                    val skillMd = skill.skillFile
+                    if (!skillMd.exists()) {
+                        return@Tool err(
                             "skill_body_not_found",
                             "Skill '$name' is enabled but its SKILL.md body could not be read on disk.",
                         )
+                    }
+                    if (skillMd.length() > SkillManager.MAX_SKILL_FILE_BYTES) {
+                        return@Tool tooLargeErr(skillMd)
+                    }
+                    val content = SkillFrontmatterParser.extractBody(skillMd.readText())
                     return@Tool listOf(UIMessagePart.Text(content))
                 }
-                val target = skillManager.resolveSkillFile(name, path)
+                val target = SkillPaths.resolveSkillFile(skill.skillDir, path)
                     ?: return@Tool err(
                         "path_outside_skill",
                         "Path '$path' resolves outside the '$name' skill directory.",
