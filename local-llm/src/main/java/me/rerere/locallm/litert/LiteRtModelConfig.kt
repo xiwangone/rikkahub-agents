@@ -110,7 +110,8 @@ object LiteRtModelDefaults {
             topP = 0.95,
             temperature = 1.0,
             maxTokens = 4096,
-            maxContextLength = 32768,
+            // 32003, not the 32768 the model card implies: this is what the file declares.
+            maxContextLength = 32003,
             preferredAccelerators = listOf("gpu", "cpu"),
             visionAccelerator = "gpu",
             supportsImage = true,
@@ -135,12 +136,18 @@ object LiteRtModelDefaults {
         ),
 
         // ---- Qwen3 (text only, thinking mode) ------------------------------------------
+        // maxContextLength values below are the ceilings the files declare in their own
+        // LlmMetadataProto, read out of the published artifacts rather than guessed. The
+        // `mixed_int4` builds are 2048 despite Qwen3 supporting 32k as a base model: the
+        // KV cache is baked at conversion time. Getting this wrong is not a quality
+        // problem, it faults the native executor (see [LiteRtModelFile]).
         LiteRtModelConfig(
             modelFile = "qwen3_0_6b_mixed_int4.litertlm",
             topK = 20,
             topP = 0.95,
             temperature = 0.6,
-            maxTokens = 4096,
+            maxTokens = 2048,
+            maxContextLength = 2048,
             preferredAccelerators = listOf("gpu", "cpu"),
             supportsThinking = true,
             minDeviceMemoryGb = 4,
@@ -164,6 +171,7 @@ object LiteRtModelDefaults {
             topP = 0.95,
             temperature = 0.6,
             maxTokens = 4096,
+            maxContextLength = 4096,
             preferredAccelerators = listOf("gpu", "cpu"),
             supportsThinking = true,
             minDeviceMemoryGb = 6,
@@ -174,7 +182,8 @@ object LiteRtModelDefaults {
             topK = 20,
             topP = 0.95,
             temperature = 0.6,
-            maxTokens = 4096,
+            maxTokens = 2048,
+            maxContextLength = 2048,
             preferredAccelerators = listOf("gpu", "cpu"),
             supportsThinking = true,
             minDeviceMemoryGb = 8,

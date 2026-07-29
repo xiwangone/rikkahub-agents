@@ -39,11 +39,19 @@ private const val TAG = "LiteRtToolDeclaration"
  */
 internal class LiteRtToolDeclaration(private val tool: RikkaTool) : OpenApiTool {
 
-    override fun getToolDescriptionJsonString(): String = buildJsonObject {
-        put("name", tool.name)
-        put("description", tool.description)
-        put("parameters", parametersSchema())
-    }.toString()
+    /**
+     * The rendered declaration. Built once: [LiteRtProvider] measures its length to fit the
+     * tool set inside the model's context budget, and the SDK then asks for the same string.
+     */
+    val declarationJson: String by lazy {
+        buildJsonObject {
+            put("name", tool.name)
+            put("description", tool.description)
+            put("parameters", parametersSchema())
+        }.toString()
+    }
+
+    override fun getToolDescriptionJsonString(): String = declarationJson
 
     /**
      * Never called: the conversation disables automatic tool calling, so the runtime hands

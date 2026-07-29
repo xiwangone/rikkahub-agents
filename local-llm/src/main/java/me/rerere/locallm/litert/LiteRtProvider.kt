@@ -213,11 +213,34 @@ class LiteRtProvider(
         // GPU-broken devices (Adreno 7xx + restrictive OEM ROMs, Google Tensor) by
         // making the bigger Gemma-4 models completely unreachable when a text-only
         // load would have worked.
+        // The model's real context ceiling, most trustworthy source first:
+        //   1. what the file declares about itself (LlmMetadataProto field 5),
+        //   2. the `ekvNNNN` marker its packager put in the filename,
+        //   3. our curated table.
+        // This is NOT advisory. `EngineConfig.maxNumTokens` is taken on trust by the
+        // engine, so a value above the KV cache the file was built for makes prefill run
+        // off the end of that cache and fault inside the native executor: SIGSEGV on the
+        // execution thread, nothing catchable, process gone. The comment that used to sit
+        // here claimed "the underlying KV cache size still caps it" — it does not, and
+        // that assumption is what let a 32000-token setting reach a 2048-token model.
+        val contextCeiling = LiteRtModelFile.readDeclaredMaxTokens(java.io.File(modelPath))
+            ?: LiteRtModelDefaults.contextCeilingFromFileName(params.model.modelId)
+            ?: config.maxContextLength
+
         // User-set max-context override. Lets capable models (Gemma 4 E2B = 32k) use more
-        // than Gallery's curated default; the underlying KV cache size still caps it
-        // (Qwen `ekv4096` cannot exceed 4096 regardless of this setting).
+        // than Gallery's curated default, but never past the ceiling above.
         val maxNumTokensOverride = prefs.maxNumTokensOverride(LocalRuntime.LiteRT)
-        val effectiveMaxNumTokens = maxNumTokensOverride ?: config.maxTokens
+        val requestedMaxNumTokens = maxNumTokensOverride ?: config.maxTokens
+        val effectiveMaxNumTokens =
+            contextCeiling?.let { minOf(requestedMaxNumTokens, it) } ?: requestedMaxNumTokens
+        if (contextCeiling != null && requestedMaxNumTokens > contextCeiling) {
+            Log.w(
+                TAG,
+                "clamped maxNumTokens $requestedMaxNumTokens -> $contextCeiling for " +
+                    "${params.model.modelId}: the model cannot hold more than its declared " +
+                    "ceiling, and asking for more faults the native executor",
+            )
+        }
 
         // ---- System instruction (RADICALLY TRIMMED for small-context local models) ----
         //
@@ -249,16 +272,7 @@ class LiteRtProvider(
             systemTextsRaw
         }
 
-        // Compact tool prefix only — full-schema dump would re-blow the context budget
-        // (every tool's schema is ~200-500 chars, ×50 tools = ~15k chars on its own).
-        // Budget is adaptive: large-context models (Gemma 4 = 32k) see every enabled
-        // tool, small-context models (Qwen 1.5B = 4k) stay capped at 25 / 2000 chars.
-        // We pass the model's MAX CONTEXT LENGTH (not output cap): config.maxContextLength
-        // is the input + output budget, which is what determines how much tool prefix we
-        // can afford. For models without a curated maxContextLength (URL-pasted entries),
-        // fall back to maxTokens (output cap) as a conservative lower bound. See
-        // [LiteRtToolPrefix.budgetForContext] for tier thresholds.
-        // Native tool calling. Every enabled tool is declared to the runtime under its real
+        // Native tool calling. Every declared tool is handed to the runtime under its real
         // name with its real JSON schema (see [LiteRtToolDeclaration]), so the model calls
         // `web_fetch(url=...)` rather than a generic dispatcher: the model's own chat
         // template renders the declarations, which is what these models were tuned on.
@@ -269,13 +283,43 @@ class LiteRtProvider(
         // prompt, auto-approve allowlist, and the per-turn wall-clock budget all apply.
         // No system-prompt tool catalogue is needed, and none is added: a duplicate
         // listing would only compete with the template's own rendering for context.
-        val nativeTools: List<ToolProvider> =
-            params.tools.map { litertTool(LiteRtToolDeclaration(it)) }
-        if (nativeTools.isNotEmpty()) {
+        //
+        // Declarations are budgeted like every other part of the prompt. The model's max
+        // context is the constraint (config.maxContextLength); models with no curated
+        // value fall back to the engine's token budget as a conservative lower bound. A
+        // tool that does not fit is skipped rather than truncated: half a JSON schema
+        // would render a malformed declaration.
+        val contextTokens = contextCeiling ?: effectiveMaxNumTokens
+        val toolCharBudget = toolDeclarationCharBudget(contextTokens)
+        var toolCharsUsed = 0
+        val droppedTools = mutableListOf<String>()
+        val declarations = params.tools.mapNotNull { tool ->
+            val declaration = LiteRtToolDeclaration(tool)
+            val cost = declaration.declarationJson.length
+            if (toolCharsUsed + cost > toolCharBudget) {
+                droppedTools += tool.name
+                null
+            } else {
+                toolCharsUsed += cost
+                declaration
+            }
+        }
+        val nativeTools: List<ToolProvider> = declarations.map { litertTool(it) }
+        if (params.tools.isNotEmpty()) {
             Log.i(
                 TAG,
-                "declared ${nativeTools.size} tool(s) natively: " +
-                    params.tools.joinToString(",") { it.name }.take(200),
+                "declared ${nativeTools.size}/${params.tools.size} tool(s) natively, " +
+                    "$toolCharsUsed/$toolCharBudget chars (context ${contextTokens}t)",
+            )
+        }
+        // Never drop tools silently: an assistant with a large enabled set on a small model
+        // loses real capability here, and that has to be visible when debugging why the
+        // model "ignored" a tool.
+        if (droppedTools.isNotEmpty()) {
+            Log.w(
+                TAG,
+                "dropped ${droppedTools.size} tool(s) over the declaration budget: " +
+                    droppedTools.joinToString(",").take(300),
             )
         }
 
@@ -308,6 +352,17 @@ class LiteRtProvider(
             coldBlob = renderColdBlob(trimmed)
         }
         val turns = trimmed.map { it.toTurn() }
+
+        // Every piece of the prefill, so an overflow is visible in a bug report without a
+        // rebuild. The engine has no bounds check we can rely on here: a prompt past its
+        // token budget faults inside the native executor rather than returning an error.
+        val prefillChars = combinedSystem.length + toolCharsUsed + coldBlob.length
+        Log.i(
+            TAG,
+            "prefill budget: system=${combinedSystem.length} tools=$toolCharsUsed " +
+                "history=${coldBlob.length} total=${prefillChars}c " +
+                "(~${prefillChars / CHARS_PER_TOKEN}t of ${contextTokens}t)",
+        )
 
         // Check the persisted vision-unavailable flag. If a prior load fell back to
         // text-only on this device, skip the GPU vision attempt entirely — saves ~1 s of
@@ -790,8 +845,25 @@ class LiteRtProvider(
         /** Hard char-cap for the rendered ChatML history. ~3000 chars ≈ 750 tokens. */
         private const val HISTORY_CHAR_BUDGET = 3000
 
-        // MAX_TOOLS_IN_PREFIX / TOOL_PREFIX_CHAR_BUDGET were static caps that starved
-        // large-context models (Gemma 4 = 32k) of 30+ enabled tools. Replaced by
-        // [LiteRtToolPrefix.budgetForContext], which scales with the model's context.
+        /** Rough chars-per-token used to turn a model's token context into a char budget. */
+        private const val CHARS_PER_TOKEN = 4
+
+        /**
+         * Char budget for the joined native tool declarations, scaled to the model's
+         * context the way the system prompt and history already are.
+         *
+         * Declarations are prompt text: the chat template renders every one of them ahead
+         * of the conversation. Leaving them uncapped let an assistant with a large enabled
+         * tool set push tens of thousands of characters of JSON schema into a model whose
+         * whole context is a few thousand tokens, which is far more than the 3.5k chars
+         * system + history are allowed between them.
+         *
+         * Half the context is reserved for the response; the system prompt and history
+         * budgets come off the input half first, and the declarations get what is left.
+         */
+        internal fun toolDeclarationCharBudget(contextTokens: Int): Int =
+            (contextTokens * CHARS_PER_TOKEN / 2) -
+                SYSTEM_MESSAGE_CHAR_BUDGET -
+                HISTORY_CHAR_BUDGET
     }
 }

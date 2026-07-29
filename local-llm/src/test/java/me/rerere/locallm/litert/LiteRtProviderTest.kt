@@ -1,5 +1,6 @@
 package me.rerere.locallm.litert
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -75,5 +76,61 @@ class LiteRtProviderTest {
         )
         assertTrue(d.forwardImages)
         assertFalse(d.noteImagesDropped)
+    }
+}
+
+/**
+ * Budget tests for the native tool declarations.
+ *
+ * Tool declarations are prompt text: the chat template renders each one ahead of the
+ * conversation. They were the one part of the prefill with no cap, so an assistant with a
+ * large enabled tool set pushed tens of thousands of characters of JSON schema into a model
+ * whose whole context is a few thousand tokens. The engine does not bounds-check that: it
+ * faults inside the native executor rather than returning a context-overflow error.
+ */
+class LiteRtToolDeclarationBudgetTest {
+
+    private fun budget(contextTokens: Int) =
+        LiteRtProvider.toolDeclarationCharBudget(contextTokens)
+
+    @Test
+    fun `budget leaves room for system prompt and history`() {
+        // 4096t * 4 chars / 2 = 8192 input chars, minus the 500 + 3000 already committed.
+        assertEquals(4692, budget(4096))
+    }
+
+    @Test
+    fun `budget scales with the model's context`() {
+        assertTrue(
+            "a 32k model must afford far more declarations than a 4k one",
+            budget(32768) > budget(4096) * 10,
+        )
+    }
+
+    @Test
+    fun `budget goes non-positive for a context too small to hold any tool`() {
+        // 1280t (qwen3 ekv1280) -> 2560 - 3500 < 0, so no tool is declared at all rather
+        // than one being forced in over budget.
+        assertTrue("tiny context yields no tool room", budget(1280) <= 0)
+    }
+
+    @Test
+    fun `declarations are taken until the budget is spent and the rest reported`() {
+        val costs = listOf(100, 100, 100, 100)
+        val charBudget = 250
+        var used = 0
+        val dropped = mutableListOf<Int>()
+        val kept = costs.filterIndexed { index, cost ->
+            if (used + cost > charBudget) {
+                dropped += index
+                false
+            } else {
+                used += cost
+                true
+            }
+        }
+        assertEquals("only whole declarations that fit are kept", listOf(100, 100), kept)
+        assertEquals(200, used)
+        assertEquals("the overflow is reported, not silently swallowed", listOf(2, 3), dropped)
     }
 }
