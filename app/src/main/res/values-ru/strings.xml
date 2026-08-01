@@ -264,7 +264,7 @@
   <string name="chat_page_compress_keep_recent">Сохранять недавние сообщения</string>
   <string name="chat_page_compress_not_enough_messages">Недостаточно сообщений для сжатия. Уменьшите количество сохраняемых сообщений или добавьте больше сообщений.</string>
   <string name="chat_page_compress_target_tokens">Целевой размер токенов</string>
-  <string name="chat_page_compress_warning">⚠️ Сжатие контекста приведёт к сбросу всех сообщений в текущем диалоге</string>
+  <string name="chat_page_compress_warning">Сжатие обновляет только сводку контекста для модели; исходные сообщения сохраняются.</string>
   <string name="chat_page_compressing">Сжатие...</string>
   <string name="chat_page_conversation_system_prompt">Системный запрос для беседы</string>
   <string name="chat_page_conversation_system_prompt_clear">Очистить</string>
@@ -1783,5 +1783,13 @@
   <string name="assistant_page_context_message_limit_count">Лимит сообщений контекста: %d</string>
   <string name="assistant_page_context_message_limit_unlimited">Неограниченные сообщения контекста</string>
   <string name="assistant_page_context_message_limit_warning">Ограничение контекста аннулирует кэш промпта каждый раз, когда контекст усекается. Больший лимит усекает реже; безлимитный не усекает никогда и сохраняет кэш полностью нетронутым.</string>
+  <string name="setting_model_page_enable_auto_compaction">Включить автоматическое сжатие контекста</string>
+  <string name="setting_model_page_enable_auto_compaction_desc">Автоматически суммировать старые сообщения, когда диалог приближается к лимиту контекста модели</string>
+  <string name="setting_model_page_auto_compaction_threshold">Порог сжатия</string>
+  <string name="setting_model_page_auto_compaction_threshold_desc">Выберите порог контекста. Автоматическое сжатие начинается, когда оценка достигает выбранного процента или количества токенов.</string>
+  <string name="setting_model_page_auto_compaction_mode_percent">Процент</string>
+  <string name="setting_model_page_auto_compaction_mode_tokens">Количество токенов</string>
+  <string name="setting_model_page_auto_compaction_tokens">Порог токенов</string>
+  <string name="setting_model_page_auto_compaction_tokens_desc">Введите порог в тысячах токенов. Например, 8k означает 8 000 токенов.</string>
 </resources>
 

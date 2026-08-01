@@ -264,7 +264,7 @@
   <string name="chat_page_compress_keep_recent">최근 메시지 유지</string>
   <string name="chat_page_compress_not_enough_messages">압축할 메시지가 부족합니다. 유지할 메시지 수를 줄이거나 더 많은 메시지를 추가하세요.</string>
   <string name="chat_page_compress_target_tokens">대상 토큰 크기</string>
-  <string name="chat_page_compress_warning">⚠️ 문맥 압축 시 현재 대화의 모든 메시지가 초기화됩니다</string>
+  <string name="chat_page_compress_warning">압축은 모델에 전송되는 컨텍스트 요약만 업데이트하며 원본 메시지는 유지됩니다.</string>
   <string name="chat_page_compressing">압축 중...</string>
   <string name="chat_page_conversation_system_prompt">대화 시스템 프롬프트</string>
   <string name="chat_page_conversation_system_prompt_clear">지우기</string>
@@ -1783,5 +1783,13 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="assistant_page_context_message_limit_count">컨텍스트 메시지 한도: %d</string>
   <string name="assistant_page_context_message_limit_unlimited">무제한 컨텍스트 메시지</string>
   <string name="assistant_page_context_message_limit_warning">컨텍스트 제한 시 컨텍스트가 정리될 때마다 프롬프트 캐시가 무효화됩니다. 제한이 클수록 정리 빈도가 낮아지며, 무제한일 경우 정리되지 않아 캐시가 완전히 보존됩니다.</string>
+  <string name="setting_model_page_enable_auto_compaction">자동 컨텍스트 압축 사용</string>
+  <string name="setting_model_page_enable_auto_compaction_desc">대화가 모델의 컨텍스트 한도에 가까워지면 이전 메시지를 자동으로 요약합니다</string>
+  <string name="setting_model_page_auto_compaction_threshold">압축 임계값</string>
+  <string name="setting_model_page_auto_compaction_threshold_desc">컨텍스트 임계값을 선택합니다. 추정값이 선택한 백분율 또는 토큰 수에 도달하면 자동 압축을 시작합니다.</string>
+  <string name="setting_model_page_auto_compaction_mode_percent">백분율</string>
+  <string name="setting_model_page_auto_compaction_mode_tokens">토큰 수</string>
+  <string name="setting_model_page_auto_compaction_tokens">토큰 임계값</string>
+  <string name="setting_model_page_auto_compaction_tokens_desc">천 토큰 단위로 임계값을 입력하세요. 예: 8k는 8,000토큰을 의미합니다.</string>
 </resources>
 

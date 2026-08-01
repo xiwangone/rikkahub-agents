@@ -9,6 +9,7 @@ import me.rerere.ai.core.TokenUsage
 import me.rerere.rikkahub.data.agentrun.AgentRun
 import me.rerere.rikkahub.data.agentrun.AgentRunDao
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
+import me.rerere.rikkahub.data.db.dao.ConversationCompactionDAO
 import me.rerere.rikkahub.data.db.dao.FavoriteDAO
 import me.rerere.rikkahub.data.db.dao.FolderDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
@@ -21,6 +22,7 @@ import me.rerere.rikkahub.data.db.dao.SshHostDao
 import me.rerere.rikkahub.data.db.dao.TelegramChatDao
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
+import me.rerere.rikkahub.data.db.entity.ConversationCompactionEntity
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
 import me.rerere.rikkahub.data.db.entity.FolderEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
@@ -46,6 +48,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
 @Database(
     entities = [
         ConversationEntity::class,
+        ConversationCompactionEntity::class,
         MemoryEntity::class,
         GenMediaEntity::class,
         MessageNodeEntity::class,
@@ -61,7 +64,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         WorkspaceEntity::class,
         FolderEntity::class,
     ],
-    version = 28,
+    version = 29,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -95,11 +98,18 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // query shape its index covers. Pure additions, so Room generates the CREATE INDEX
         // statements itself.
         AutoMigration(from = 27, to = 28),
+        // v29: the conversation_compaction table backing automatic context compaction. The
+        // table is a pure addition and the original message nodes are left untouched, so Room
+        // creates it outright. Numbered 29 rather than 28 because the fork's v28 was already
+        // taken by the index migration above.
+        AutoMigration(from = 28, to = 29),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun conversationDao(): ConversationDAO
+
+    abstract fun conversationCompactionDao(): ConversationCompactionDAO
 
     abstract fun memoryDao(): MemoryDAO
 

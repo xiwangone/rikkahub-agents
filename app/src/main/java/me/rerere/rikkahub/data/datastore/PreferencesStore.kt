@@ -58,6 +58,11 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import kotlin.uuid.Uuid
 
+enum class AutoCompactionThresholdMode {
+    PERCENT,
+    TOKENS,
+}
+
 private const val TAG = "PreferencesStore"
 
 /**
@@ -134,6 +139,10 @@ class SettingsStore(
         val OCR_PROMPT = stringPreferencesKey("ocr_prompt")
         val COMPRESS_MODEL = stringPreferencesKey("compress_model")
         val COMPRESS_PROMPT = stringPreferencesKey("compress_prompt")
+        val ENABLE_AUTO_COMPACTION = booleanPreferencesKey("enable_auto_compaction")
+        val AUTO_COMPACTION_THRESHOLD_MODE = stringPreferencesKey("auto_compaction_threshold_mode")
+        val AUTO_COMPACTION_THRESHOLD_PERCENT = intPreferencesKey("auto_compaction_threshold_percent")
+        val AUTO_COMPACTION_THRESHOLD_TOKENS_K = intPreferencesKey("auto_compaction_threshold_tokens_k")
 
         // 提供商
         val PROVIDERS = stringPreferencesKey("providers")
@@ -232,6 +241,14 @@ class SettingsStore(
                 compressPrompt = preferences[COMPRESS_PROMPT] ?: DEFAULT_COMPRESS_PROMPT,
                 assistantId = preferences[SELECT_ASSISTANT]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
                     ?: DEFAULT_ASSISTANT_ID,
+                enableAutoCompaction = preferences[ENABLE_AUTO_COMPACTION] == true,
+                autoCompactionThresholdMode = preferences[AUTO_COMPACTION_THRESHOLD_MODE]
+                    ?.let { value -> runCatching { AutoCompactionThresholdMode.valueOf(value) }.getOrNull() }
+                    ?: AutoCompactionThresholdMode.PERCENT,
+                autoCompactionThresholdPercent = (preferences[AUTO_COMPACTION_THRESHOLD_PERCENT] ?: 80)
+                    .coerceIn(5, 95),
+                autoCompactionThresholdTokensK = (preferences[AUTO_COMPACTION_THRESHOLD_TOKENS_K] ?: 8)
+                    .coerceIn(1, Int.MAX_VALUE / 1_000),
                 assistantTags = preferences[ASSISTANT_TAGS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<Tag>>(raw) }.getOrElse {
                         Log.w(TAG, "Failed to decode assistantTags, using default", it)
@@ -576,6 +593,12 @@ class SettingsStore(
             preferences[OCR_PROMPT] = settings.ocrPrompt
             preferences[COMPRESS_MODEL] = settings.compressModelId.toString()
             preferences[COMPRESS_PROMPT] = settings.compressPrompt
+            preferences[ENABLE_AUTO_COMPACTION] = settings.enableAutoCompaction
+            preferences[AUTO_COMPACTION_THRESHOLD_MODE] = settings.autoCompactionThresholdMode.name
+            preferences[AUTO_COMPACTION_THRESHOLD_PERCENT] =
+                settings.autoCompactionThresholdPercent.coerceIn(5, 95)
+            preferences[AUTO_COMPACTION_THRESHOLD_TOKENS_K] =
+                settings.autoCompactionThresholdTokensK.coerceIn(1, Int.MAX_VALUE / 1_000)
 
             preferences[PROVIDERS] = JsonInstant.encodeToString(settings.providers)
             preferences[DELETED_BUILTIN_PROVIDER_IDS] = JsonInstant.encodeToString(
@@ -752,6 +775,10 @@ data class Settings(
     val ocrPrompt: String = DEFAULT_OCR_PROMPT,
     val compressModelId: Uuid = Uuid.random(),
     val compressPrompt: String = DEFAULT_COMPRESS_PROMPT,
+    val enableAutoCompaction: Boolean = false,
+    val autoCompactionThresholdMode: AutoCompactionThresholdMode = AutoCompactionThresholdMode.PERCENT,
+    val autoCompactionThresholdPercent: Int = 80,
+    val autoCompactionThresholdTokensK: Int = 8,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
     /**
