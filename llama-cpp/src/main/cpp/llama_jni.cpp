@@ -176,6 +176,16 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeApplyTemplate(
         // is what makes tool declarations and thinking reach the template at all, and
         // enable_thinking matches what ChatDeltaTracker expects downstream, that the model
         // emits its own thinking block for reasoning_content to be split out of.
+        //
+        // Whether that thinking block is ever actually split out is decided here rather than
+        // at parse time. common_chat_templates_apply evaluates
+        // `inputs.reasoning_format != COMMON_REASONING_FORMAT_NONE` while it builds the parser
+        // and bakes the answer into it (common/chat.cpp). The struct default is NONE, so left
+        // alone the parser is built to leave thinking inline, reasoning_content is always
+        // empty, and ChatDeltaTracker's reasoning channel is permanently dead. DEEPSEEK is
+        // what llama.cpp's own server defaults to and is the variant that reports reasoning
+        // separately in streaming deltas rather than inlining it.
+        inputs.reasoning_format = COMMON_REASONING_FORMAT_DEEPSEEK;
 
         const common_chat_params params = common_chat_templates_apply(tmpls.get(), inputs);
 
@@ -188,6 +198,17 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeApplyTemplate(
         out["thinking_start_tag"] = params.thinking_start_tag;
         out["thinking_end_tags"]  = params.thinking_end_tags;
         out["format"]             = common_chat_format_name(params.format);
+        out["generation_prompt"]  = params.generation_prompt;
+
+        // The parser the template layer built for this exact request, serialized. This is the
+        // whole of what reading the response back needs: common_chat_parse does NOT dispatch on
+        // "format" above, it parses with common_chat_parser_params::parser and quietly
+        // substitutes a content-only parser when that is empty, which returns plausible text
+        // with every tool call missing. "format" is still carried because the parse side uses
+        // it to pick a mapper for two of the formats, but it is not a substitute for this.
+        // The value is itself a JSON document (common_peg_arena::save dumps one), nested here
+        // as a string exactly as llama.cpp's server carries it between the two halves.
+        out["parser"]             = params.parser;
 
         // trigger.token (for a COMMON_GRAMMAR_TRIGGER_TYPE_TOKEN trigger) is not carried across:
         // every construction site in common/chat.cpp builds a "word" or "pattern" trigger today,

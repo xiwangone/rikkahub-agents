@@ -39,6 +39,15 @@ class LlamaCppTemplateTest {
             // A plain chat request with no tools must not be constrained to tool-call syntax,
             // or the model could never answer in prose.
             assertTrue("a tool-less request must not carry a grammar", result.getString("grammar").isEmpty())
+            // The serialized parser is what reading the response back actually runs on.
+            // common_chat_parse falls back to a content-only parser when it is missing rather
+            // than failing, so losing this field costs every tool call with nothing to show
+            // for it; the "format" name alone cannot stand in for it.
+            assertTrue("the response parser must be carried across", result.getString("parser").isNotBlank())
+            assertTrue(
+                "the generation prompt the parser matches on must be carried across",
+                result.getString("generation_prompt").isNotBlank(),
+            )
         } finally {
             LlamaCppJni.nativeFreeModel(handle)
         }
