@@ -4,6 +4,8 @@
 
 #include "llama.h"
 #include "jni_util.h"
+#include "chat.h"
+#include <nlohmann/json.hpp>
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_me_rerere_llamacpp_LlamaCppJni_nativeSystemInfo(JNIEnv *env, jobject) {
@@ -124,5 +126,61 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeChatTemplate(JNIEnv *env, jobject, jlo
         }
         const char *tmpl = llama_model_chat_template(model, nullptr);
         return tmpl == nullptr ? nullptr : env->NewStringUTF(tmpl);
+    })
+}
+
+extern "C" JNIEXPORT jstring JNICALL
+Java_me_rerere_llamacpp_LlamaCppJni_nativeApplyTemplate(
+        JNIEnv *env, jobject, jlong handle, jstring requestIn) {
+    JNI_GUARD(env, nullptr, {
+        auto *model = reinterpret_cast<llama_model *>(handle);
+        if (model == nullptr) {
+            throwJava(env, "model handle is null");
+            return nullptr;
+        }
+
+        const std::string requestStr = jstringToUtf8(env, requestIn);
+        const nlohmann::ordered_json request = nlohmann::ordered_json::parse(requestStr);
+
+        // Reads the Jinja template out of the GGUF itself. Passing "" does not fail on a
+        // model with no stored template: common_chat_templates_init (common/chat.cpp) falls
+        // back to a built-in ChatML template in that case rather than throwing. It only
+        // throws if a template (fallback or the model's own) fails to parse, and that is
+        // already turned into a Java exception by JNI_GUARD below.
+        common_chat_templates_ptr tmpls = common_chat_templates_init(model, "");
+
+        common_chat_templates_inputs inputs;
+        inputs.messages = common_chat_msgs_parse_oaicompat(request.at("messages"));
+        if (request.contains("tools") && !request.at("tools").is_null()) {
+            inputs.tools = common_chat_tools_parse_oaicompat(request.at("tools"));
+        }
+        inputs.add_generation_prompt = true;
+        // use_jinja and enable_thinking keep their struct defaults (both true): use_jinja
+        // is what makes tool declarations and thinking reach the template at all, and
+        // enable_thinking matches what ChatDeltaTracker expects downstream, that the model
+        // emits its own thinking block for reasoning_content to be split out of.
+
+        const common_chat_params params = common_chat_templates_apply(tmpls.get(), inputs);
+
+        nlohmann::ordered_json out;
+        out["prompt"]             = params.prompt;
+        out["grammar"]            = params.grammar;
+        out["grammar_lazy"]       = params.grammar_lazy;
+        out["additional_stops"]   = params.additional_stops;
+        out["preserved_tokens"]   = params.preserved_tokens;
+        out["thinking_start_tag"] = params.thinking_start_tag;
+        out["thinking_end_tags"]  = params.thinking_end_tags;
+        out["format"]             = common_chat_format_name(params.format);
+
+        nlohmann::ordered_json triggers = nlohmann::ordered_json::array();
+        for (const auto &trigger : params.grammar_triggers) {
+            triggers.push_back({
+                {"type",  static_cast<int>(trigger.type)},
+                {"value", trigger.value},
+            });
+        }
+        out["grammar_triggers"] = triggers;
+
+        return env->NewStringUTF(out.dump().c_str());
     })
 }

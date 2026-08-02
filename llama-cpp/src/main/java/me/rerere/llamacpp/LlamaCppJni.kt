@@ -31,4 +31,10 @@ object LlamaCppJni {
 
     /** The model's own Jinja chat template, or null when it declares none. */
     external fun nativeChatTemplate(handle: Long): String?
+
+    /**
+     * Renders an OpenAI-shaped request through the model's own chat template.
+     * Returns prompt, grammar and stop conditions as JSON.
+     */
+    external fun nativeApplyTemplate(modelHandle: Long, requestJson: String): String
 }
