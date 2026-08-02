@@ -176,6 +176,20 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeApplyTemplate(
         if (request.contains("tools") && !request.at("tools").is_null()) {
             inputs.tools = common_chat_tools_parse_oaicompat(request.at("tools"));
         }
+        // Left at its default of "auto" the tool-call grammar permits zero calls, so the model
+        // may always decline to call anything: chat.cpp derives both `min_calls` and whether
+        // the grammar is lazy from this. "required" is the only way to make a tool call
+        // actually obligatory.
+        if (request.contains("tool_choice") && !request.at("tool_choice").is_null()) {
+            inputs.tool_choice =
+                    common_chat_tool_choice_parse_oaicompat(request.at("tool_choice").get<std::string>());
+        }
+        // Defaults to true, so a thinking model reasons unless the caller says otherwise. Set
+        // false and the template writes an empty thinking block into the prompt itself, which
+        // is how a caller skips straight to the answer.
+        if (request.contains("enable_thinking") && !request.at("enable_thinking").is_null()) {
+            inputs.enable_thinking = request.at("enable_thinking").get<bool>();
+        }
         inputs.add_generation_prompt = true;
         // use_jinja and enable_thinking keep their struct defaults (both true): use_jinja
         // is what makes tool declarations and thinking reach the template at all, and
