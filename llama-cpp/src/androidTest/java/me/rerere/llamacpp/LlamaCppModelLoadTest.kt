@@ -96,4 +96,9 @@ class LlamaCppModelLoadTest {
     fun modelInfoOnAZeroHandleThrows() {
         LlamaCppJni.nativeModelInfo(0L)
     }
+
+    @Test(expected = RuntimeException::class)
+    fun chatTemplateOnAZeroHandleThrows() {
+        LlamaCppJni.nativeChatTemplate(0L)
+    }
 }
