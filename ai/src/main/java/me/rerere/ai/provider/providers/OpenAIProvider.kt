@@ -272,13 +272,19 @@ class OpenAIProvider(
                 put("model", params.model.modelId)
                 put("prompt", params.prompt)
                 put("n", params.numOfImages)
-                put(
-                    "size", when (params.aspectRatio) {
-                        ImageAspectRatio.SQUARE -> "1024x1024"
-                        ImageAspectRatio.LANDSCAPE -> "1536x1024"
-                        ImageAspectRatio.PORTRAIT -> "1024x1536"
-                    }
-                )
+                // xAI rejects the OpenAI `size` parameter with a 400 (upstream issue #1602),
+                // so leave it off for Grok and let the endpoint pick its own dimensions.
+                val isGrok = providerSetting.baseUrl.contains("x.ai", ignoreCase = true) ||
+                    params.model.modelId.contains("grok", ignoreCase = true)
+                if (!isGrok) {
+                    put(
+                        "size", when (params.aspectRatio) {
+                            ImageAspectRatio.SQUARE -> "1024x1024"
+                            ImageAspectRatio.LANDSCAPE -> "1536x1024"
+                            ImageAspectRatio.PORTRAIT -> "1024x1536"
+                        }
+                    )
+                }
             }
                 .mergeCustomBody(params.customBody)
         )

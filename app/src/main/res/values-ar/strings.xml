@@ -540,8 +540,6 @@
   <string name="placeholder_battery_level">مستوى البطارية</string>
   <string name="placeholder_char">اسم المساعد</string>
   <string name="placeholder_current_date">التاريخ</string>
-  <string name="placeholder_current_datetime">التاريخ والوقت</string>
-  <string name="placeholder_current_time">الوقت</string>
   <string name="placeholder_device_info">معلومات الجهاز</string>
   <string name="placeholder_locale">اللغة المحلية</string>
   <string name="placeholder_model_id">معرّف النموذج</string>
