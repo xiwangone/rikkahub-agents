@@ -8,6 +8,8 @@ data class ChatDelta(
     val textDelta: String,
     val reasoningDelta: String,
     val completedToolCalls: List<ParsedToolCall>,
+    val textReset: Boolean = false,
+    val reasoningReset: Boolean = false,
 )
 
 /**
@@ -24,6 +26,15 @@ class ChatDeltaTracker {
 
     /**
      * Consumes one whole-message parse and returns what changed since the last call.
+     *
+     * [ChatDelta.textReset] and [ChatDelta.reasoningReset]: when a reset flag is true,
+     * the consumer MUST discard whatever it has accumulated for that channel and start
+     * again from this delta's value, instead of appending it. This exists because a
+     * streaming re-parse can reclassify text it already reported: most commonly, a
+     * reasoning model's `<think>` block is first reported as content until the closing
+     * tag arrives, at which point the parser reassigns that text to reasoning and
+     * content restarts from the real answer. A plain append-only delta cannot express
+     * "what I told you before is no longer true", so the channel resets instead.
      *
      * A tool call's arguments are emitted the first time they parse as complete JSON: a
      * top-level JSON object cannot parse until its closing brace arrives, so completeness
@@ -42,8 +53,8 @@ class ChatDeltaTracker {
         val content = obj.optString("content", "")
         val reasoning = obj.optString("reasoning_content", "")
 
-        val (textDelta, newEmittedText) = advance(emittedText, content)
-        val (reasoningDelta, newEmittedReasoning) = advance(emittedReasoning, reasoning)
+        val (textDelta, newEmittedText, textReset) = advance(emittedText, content)
+        val (reasoningDelta, newEmittedReasoning, reasoningReset) = advance(emittedReasoning, reasoning)
         emittedText = newEmittedText
         emittedReasoning = newEmittedReasoning
 
@@ -73,22 +84,25 @@ class ChatDeltaTracker {
             }
         }
 
-        return ChatDelta(textDelta, reasoningDelta, completed)
+        return ChatDelta(textDelta, reasoningDelta, completed, textReset, reasoningReset)
     }
 
     /**
-     * The new text minus what was already emitted, plus the watermark to carry into the
-     * next call. When the new content does not extend what was already emitted (a
-     * re-parse that shrank), nothing is emitted and the watermark stays at the longer,
-     * already-emitted text instead of retreating to the shorter one. Retreating would
-     * let a later extension of the shorter text re-emit content the UI already showed,
-     * e.g. "Hello world" -> "Hello" -> "Hello there" would otherwise render as
-     * "Hello world there".
+     * The new text minus what was already emitted, the watermark to carry into the next
+     * call, and whether the channel reset. When the new content extends what was already
+     * emitted, this is the ordinary case: the suffix is the delta, the watermark advances
+     * to the new content, no reset. When it does not extend (a re-parse that shrank or
+     * diverged), the previously emitted text is no longer a valid prefix of the truth, so
+     * the entire new content is emitted as the delta, the watermark becomes the new
+     * content, and the channel resets. Freezing the watermark instead (never emitting
+     * again once a non-extension is seen) was tried and rejected: it turns a single
+     * non-extending parse into permanent silent content loss for that channel, which is
+     * worse than the duplication it was meant to prevent.
      */
-    private fun advance(previouslyEmitted: String, current: String): Pair<String, String> = when {
-        current == previouslyEmitted -> "" to previouslyEmitted
-        current.startsWith(previouslyEmitted) -> current.substring(previouslyEmitted.length) to current
-        else -> "" to previouslyEmitted
+    private fun advance(previouslyEmitted: String, current: String): Triple<String, String, Boolean> = when {
+        current == previouslyEmitted -> Triple("", previouslyEmitted, false)
+        current.startsWith(previouslyEmitted) -> Triple(current.substring(previouslyEmitted.length), current, false)
+        else -> Triple(current, current, true)
     }
 
     private fun isCompleteJson(value: String): Boolean {

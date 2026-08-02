@@ -12,6 +12,24 @@ class ChatDeltaTrackerTest {
          "tool_calls":$toolCalls}
     """.trimIndent()
 
+    /**
+     * Applies deltas the way a real consumer must: appending unless a reset flag says to
+     * discard what is buffered so far and start over from this delta's value. Used to
+     * assert on the text a user would actually end up seeing, not just on individual
+     * deltas in isolation.
+     */
+    private class DeltaBuffer {
+        var text = ""
+            private set
+        var reasoning = ""
+            private set
+
+        fun apply(delta: ChatDelta) {
+            text = if (delta.textReset) delta.textDelta else text + delta.textDelta
+            reasoning = if (delta.reasoningReset) delta.reasoningDelta else reasoning + delta.reasoningDelta
+        }
+    }
+
     @Test
     fun `emits only the newly added text`() {
         val tracker = ChatDeltaTracker()
@@ -85,19 +103,58 @@ class ChatDeltaTrackerTest {
         assertEquals(setOf("a", "b"), completed.map { it.name }.toSet())
     }
 
-    // Defect 3: delta() must not move the watermark backwards when a re-parse shrinks
-    // the content, or a later extension from the shorter base re-emits already-shown text.
+    // Defect 3: a re-parse that shrinks the content (or otherwise diverges from what was
+    // already emitted) must reset the channel rather than either duplicating the old
+    // text or, worse, freezing and silently dropping everything that follows.
     @Test
-    fun `a shrinking then regrowing content never repeats or duplicates already emitted text`() {
+    fun `a shrinking then regrowing content delivers exactly the final text without duplication`() {
         val tracker = ChatDeltaTracker()
-        val deltas = mutableListOf<String>()
-        deltas += tracker.consume(parsed("Hello world")).textDelta
-        deltas += tracker.consume(parsed("Hello")).textDelta
-        deltas += tracker.consume(parsed("Hello there")).textDelta
+        val buffer = DeltaBuffer()
+        buffer.apply(tracker.consume(parsed("Hello world")))
+        buffer.apply(tracker.consume(parsed("Hello")))
+        buffer.apply(tracker.consume(parsed("Hello there")))
 
-        val combined = deltas.joinToString("")
-        assertFalse("must not repeat text already emitted", combined.contains("world there"))
-        assertFalse("must not duplicate 'world'", combined.count { it == 'w' } > 1)
+        assertEquals("Hello there", buffer.text)
+    }
+
+    // A non-extending parse must reset and still deliver the new content in full, not
+    // just avoid duplicating the old content. A watermark that freezes instead of
+    // resetting would pass a "no duplication" check while silently losing everything
+    // generated after the divergence, which is a worse failure than the duplication.
+    @Test
+    fun `content that diverges instead of extending resets and still delivers the full new value`() {
+        val tracker = ChatDeltaTracker()
+        val buffer = DeltaBuffer()
+        buffer.apply(tracker.consume(parsed("abc")))
+        buffer.apply(tracker.consume(parsed("xyz")))
+        buffer.apply(tracker.consume(parsed("xyzdef")))
+
+        assertEquals("xyzdef", buffer.text)
+    }
+
+    // A reasoning model reports its <think> block as content until the closing tag
+    // arrives, at which point content is reclassified as reasoning and content restarts
+    // from the real answer. The text channel must reset without corrupting reasoning.
+    @Test
+    fun `reasoning reclassification resets content without corrupting reasoning`() {
+        val tracker = ChatDeltaTracker()
+        val buffer = DeltaBuffer()
+        buffer.apply(tracker.consume(parsed(content = "abc")))
+        buffer.apply(tracker.consume(parsed(content = "", reasoning = "abc")))
+        buffer.apply(tracker.consume(parsed(content = "xyz", reasoning = "abc")))
+
+        assertEquals("xyz", buffer.text)
+        assertEquals("abc", buffer.reasoning)
+    }
+
+    @Test
+    fun `a pure extension never sets a reset flag`() {
+        val tracker = ChatDeltaTracker()
+        tracker.consume(parsed(content = "Hel", reasoning = "thinking"))
+        val delta = tracker.consume(parsed(content = "Hello", reasoning = "thinking more"))
+
+        assertFalse(delta.textReset)
+        assertFalse(delta.reasoningReset)
     }
 
     // Ruling 2: generation can be cut off mid-tool-call (e.g. by max_tokens). A call
