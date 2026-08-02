@@ -51,8 +51,8 @@ class ContextPlannerTest {
 
     @Test
     fun `steps the cache to q8_0 before giving up context`() {
-        // Budget that fits 8192 at Q8_0 (3.96B) but not at F16 (4.41B).
-        // Measured: 8192 F16=4414828492, 8192 Q8_0=3964989388.
+        // Budget that fits 8192 at Q8_0 but not at F16, and 16384 Q8_0 exceeds budget.
+        // Measured: 8192 F16=4414828493, 8192 Q8_0=3964989389, 16384 Q8_0=4474807040.
         // Budget = 4_100_000_000 < F16, >= Q8_0. availableRam = 4_100_000_000 / 0.8.
         val ramBudget = 5_125_000_000L
         val plan = ContextPlanner.plan(smallModel(), ramBudget, tools(40), 500)
@@ -102,6 +102,7 @@ class ContextPlannerTest {
         // both system prompt and all enabled tools, with headroom reserved for history.
         listOf(4096, 8192, 16384, 32768).forEach { trained ->
             val plan = ContextPlanner.plan(smallModel(nCtxTrain = trained), plentyOfRam, tools(40), 500)
+            assertEquals("planner must use the trained context at trained=$trained", trained, plan.nCtx)
             val keptToolBytes = tools(40)
                 .filterNot { plan.droppedToolNames.contains(it.name) }
                 .sumOf { it.jsonBytes }
