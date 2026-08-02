@@ -35,6 +35,14 @@ object LlamaCppJni {
     /**
      * Renders an OpenAI-shaped request through the model's own chat template.
      * Returns prompt, grammar and stop conditions as JSON.
+     *
+     * Bytes, not a String: request or rendered prompt text containing a supplementary-plane
+     * character (an emoji, for example) is not valid Modified UTF-8, which is what a jstring
+     * would require crossing this boundary. [applyTemplate] carries the standard-UTF-8
+     * conversion for callers that just want a String in and a String out.
      */
-    external fun nativeApplyTemplate(modelHandle: Long, requestJson: String): String
+    external fun nativeApplyTemplate(modelHandle: Long, requestJson: ByteArray): ByteArray
+
+    fun applyTemplate(modelHandle: Long, requestJson: String): String =
+        String(nativeApplyTemplate(modelHandle, requestJson.toByteArray(Charsets.UTF_8)), Charsets.UTF_8)
 }

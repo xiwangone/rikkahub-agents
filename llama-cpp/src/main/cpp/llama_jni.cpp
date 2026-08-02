@@ -129,9 +129,23 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeChatTemplate(JNIEnv *env, jobject, jlo
     })
 }
 
-extern "C" JNIEXPORT jstring JNICALL
+// Emits the trigger type by name rather than the enum's positional ordinal
+// (common_grammar_trigger_type has no explicit values), so a llama.cpp bump that inserts a new
+// variant produces a visible lookup miss on the Kotlin side instead of silently relabelling
+// every existing trigger.
+static const char *grammarTriggerTypeName(common_grammar_trigger_type type) {
+    switch (type) {
+        case COMMON_GRAMMAR_TRIGGER_TYPE_TOKEN:        return "token";
+        case COMMON_GRAMMAR_TRIGGER_TYPE_WORD:         return "word";
+        case COMMON_GRAMMAR_TRIGGER_TYPE_PATTERN:      return "pattern";
+        case COMMON_GRAMMAR_TRIGGER_TYPE_PATTERN_FULL: return "pattern_full";
+    }
+    return "unknown";
+}
+
+extern "C" JNIEXPORT jbyteArray JNICALL
 Java_me_rerere_llamacpp_LlamaCppJni_nativeApplyTemplate(
-        JNIEnv *env, jobject, jlong handle, jstring requestIn) {
+        JNIEnv *env, jobject, jlong handle, jbyteArray requestIn) {
     JNI_GUARD(env, nullptr, {
         auto *model = reinterpret_cast<llama_model *>(handle);
         if (model == nullptr) {
@@ -139,7 +153,10 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeApplyTemplate(
             return nullptr;
         }
 
-        const std::string requestStr = jstringToUtf8(env, requestIn);
+        // Carried as a byte[], not a jstring: GetStringUTFChars would hand back Modified UTF-8
+        // (see jni_util.h), which nlohmann's strict UTF-8 parser rejects for any request
+        // containing a supplementary-plane character, e.g. an emoji in a chat message.
+        const std::string requestStr = byteArrayToUtf8(env, requestIn);
         const nlohmann::ordered_json request = nlohmann::ordered_json::parse(requestStr);
 
         // Reads the Jinja template out of the GGUF itself. Passing "" does not fail on a
@@ -172,15 +189,22 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeApplyTemplate(
         out["thinking_end_tags"]  = params.thinking_end_tags;
         out["format"]             = common_chat_format_name(params.format);
 
+        // trigger.token (for a COMMON_GRAMMAR_TRIGGER_TYPE_TOKEN trigger) is not carried across:
+        // every construction site in common/chat.cpp builds a "word" or "pattern" trigger today,
+        // so nothing is lost, but a future "token" trigger would serialize with an empty value
+        // and never fire.
         nlohmann::ordered_json triggers = nlohmann::ordered_json::array();
         for (const auto &trigger : params.grammar_triggers) {
             triggers.push_back({
-                {"type",  static_cast<int>(trigger.type)},
+                {"type",  grammarTriggerTypeName(trigger.type)},
                 {"value", trigger.value},
             });
         }
         out["grammar_triggers"] = triggers;
 
-        return env->NewStringUTF(out.dump().c_str());
+        // Returned as a byte[], not a jstring: out.dump() is standard UTF-8, and NewStringUTF
+        // requires Modified UTF-8, which does not allow the four-byte sequences a
+        // supplementary-plane character in the rendered prompt would produce.
+        return utf8ToByteArray(env, out.dump());
     })
 }
