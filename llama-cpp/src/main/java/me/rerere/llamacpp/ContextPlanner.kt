@@ -63,8 +63,8 @@ object ContextPlanner {
         // Prefer a bigger context over a higher-precision cache: quantising the cache
         // costs a little quality, while a context too small to hold the tools costs the
         // agent its capabilities outright.
-        for (cache in listOf(KvCacheType.F16, KvCacheType.Q8_0)) {
-            for (ctx in rungs.reversed()) {
+        for (ctx in rungs.reversed()) {
+            for (cache in listOf(KvCacheType.F16, KvCacheType.Q8_0)) {
                 val bytes = estimateBytes(info, ctx, cache)
                 if (bytes <= budget) {
                     val kept = fitTools(ctx, tools, systemPromptBytes)
@@ -130,8 +130,10 @@ object ContextPlanner {
 
         var used = 0
         val dropped = mutableListOf<String>()
+        var fitting = true
         for (tool in tools) {
-            if (used + tool.jsonBytes > availableBytes) {
+            if (!fitting || used + tool.jsonBytes > availableBytes) {
+                fitting = false
                 dropped += tool.name
             } else {
                 used += tool.jsonBytes
