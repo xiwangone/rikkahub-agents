@@ -7,7 +7,7 @@ import me.rerere.ai.ui.UIMessagePart
  * - Content: 普通内容（Text、Image、Reasoning 等）
  * - Tools: 连续的已执行工具
  */
-internal sealed class PartGroup {
+sealed class PartGroup {
     data class Content(val parts: List<UIMessagePart>) : PartGroup()
     data class Tools(val tools: List<UIMessagePart.Tool>) : PartGroup()
 }
@@ -23,7 +23,7 @@ internal sealed class PartGroup {
  *
  * 这样可以确保 tool_use/functionCall 后面紧跟 tool_result/functionResponse
  */
-internal fun groupPartsByToolBoundary(parts: List<UIMessagePart>): List<PartGroup> {
+fun groupPartsByToolBoundary(parts: List<UIMessagePart>): List<PartGroup> {
     val groups = mutableListOf<PartGroup>()
     val currentContent = mutableListOf<UIMessagePart>()
     val currentTools = mutableListOf<UIMessagePart.Tool>()
