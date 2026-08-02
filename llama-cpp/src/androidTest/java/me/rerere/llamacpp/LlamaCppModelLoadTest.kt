@@ -39,9 +39,16 @@ class LlamaCppModelLoadTest {
             assertEquals(128, info.getInt("n_embd_head_k"))
             assertEquals(128, info.getInt("n_embd_head_v"))
             assertEquals(40960, info.getInt("n_ctx_train"))
-            assertEquals(0, info.optInt("sliding_window", 0))
+            // getInt, not optInt: the key must be present, not merely absent-and-defaulted.
+            assertEquals(0, info.getInt("sliding_window"))
             assertTrue("n_vocab must be positive", info.getInt("n_vocab") > 0)
-            assertTrue("weights_bytes must be positive", info.getLong("weights_bytes") > 0)
+            // llama_model_size is the summed tensor size, not the 428,970,080-byte file
+            // size, so a band rather than an exact match; still tight enough to catch a
+            // units or truncation error.
+            assertTrue(
+                "weights_bytes should be in a plausible range for this fixture",
+                info.getLong("weights_bytes") in 300_000_000L..500_000_000L,
+            )
 
             // The planner must accept what the native side reports.
             val parsed = GgufModelInfo(
@@ -78,5 +85,15 @@ class LlamaCppModelLoadTest {
     @Test(expected = RuntimeException::class)
     fun aMissingFileThrowsRatherThanCrashing() {
         LlamaCppJni.nativeLoadModel("/data/local/tmp/definitely-not-here.gguf")
+    }
+
+    @Test
+    fun freeingAZeroHandleIsANoOp() {
+        LlamaCppJni.nativeFreeModel(0L)
+    }
+
+    @Test(expected = RuntimeException::class)
+    fun modelInfoOnAZeroHandleThrows() {
+        LlamaCppJni.nativeModelInfo(0L)
     }
 }

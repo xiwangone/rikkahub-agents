@@ -38,10 +38,12 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeLoadModel(JNIEnv *env, jobject, jstrin
 
 extern "C" JNIEXPORT void JNICALL
 Java_me_rerere_llamacpp_LlamaCppJni_nativeFreeModel(JNIEnv *env, jobject, jlong handle) {
-    if (handle == 0L) {
-        return;
-    }
-    llama_model_free(reinterpret_cast<llama_model *>(handle));
+    JNI_GUARD_VOID(env, {
+        if (handle == 0L) {
+            return;
+        }
+        llama_model_free(reinterpret_cast<llama_model *>(handle));
+    })
 }
 
 // Reads one integer-valued metadata key, trying the architecture-prefixed name first.
@@ -80,13 +82,17 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeModelInfo(JNIEnv *env, jobject, jlong 
         const int slidingWindow = llama_model_n_swa(model);
 
         // Head dims are declared on newer models and derivable on older ones. There is no
-        // typed accessor for them, so read the metadata key directly.
+        // typed accessor for them, so read the metadata key directly. The nEmbd / nHeadCnt
+        // fallback only holds without grouped-query attention (nHeadKv == nHeadCnt); with
+        // GQA, such as Qwen3, Gemma 3, and several Llama derivatives, that ratio is simply
+        // wrong. Leave a missing value as 0 there so isComplete catches it, rather than
+        // handing the planner a plausible-looking but incorrect head dimension.
         int headK = metaInt(model, "attention.key_length", 0);
         int headV = metaInt(model, "attention.value_length", 0);
-        if (headK == 0 && nHeadCnt > 0) {
+        if (headK == 0 && nHeadCnt > 0 && nHeadKv == nHeadCnt) {
             headK = nEmbd / nHeadCnt;
         }
-        if (headV == 0 && nHeadCnt > 0) {
+        if (headV == 0 && nHeadCnt > 0 && nHeadKv == nHeadCnt) {
             headV = nEmbd / nHeadCnt;
         }
 
@@ -113,6 +119,7 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeChatTemplate(JNIEnv *env, jobject, jlo
     JNI_GUARD(env, nullptr, {
         auto *model = reinterpret_cast<llama_model *>(handle);
         if (model == nullptr) {
+            throwJava(env, "model handle is null");
             return nullptr;
         }
         const char *tmpl = llama_model_chat_template(model, nullptr);

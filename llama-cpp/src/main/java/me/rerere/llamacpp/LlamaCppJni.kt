@@ -15,10 +15,15 @@ object LlamaCppJni {
 
     fun systemInfo(): String = nativeSystemInfo()
 
-    /** Loads a GGUF and returns an opaque handle. Throws RuntimeException on failure. */
+    /**
+     * Loads a GGUF and returns an opaque handle. Throws RuntimeException on failure.
+     * The handle is only valid until [nativeFreeModel] releases it: passing it to any
+     * function here afterward, or freeing it twice, is undefined behaviour, since nothing
+     * here tracks live handles to turn that into a checked error.
+     */
     external fun nativeLoadModel(path: String): Long
 
-    /** Releases a handle from [nativeLoadModel]. Safe to call with 0. */
+    /** Releases a handle from [nativeLoadModel]. Safe to call with 0; see its doc for the freed-handle caveat. */
     external fun nativeFreeModel(handle: Long)
 
     /** Model metadata as a JSON object, shaped for [GgufModelInfo]. */

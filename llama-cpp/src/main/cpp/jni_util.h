@@ -16,11 +16,18 @@ inline std::string jstringToUtf8(JNIEnv *env, jstring value) {
         return std::string();
     }
     const char *chars = env->GetStringUTFChars(value, nullptr);
-    std::string out(chars == nullptr ? "" : chars);
-    if (chars != nullptr) {
-        env->ReleaseStringUTFChars(value, chars);
+    if (chars == nullptr) {
+        return std::string();
     }
-    return out;
+    // Releases the JVM-owned buffer even if constructing the std::string below throws,
+    // since the destructor still runs during stack unwinding.
+    struct ReleaseGuard {
+        JNIEnv *env;
+        jstring value;
+        const char *chars;
+        ~ReleaseGuard() { env->ReleaseStringUTFChars(value, chars); }
+    } guard{env, value, chars};
+    return std::string(chars);
 }
 
 // Wraps a JNI body so no C++ exception can cross the boundary.
@@ -33,4 +40,14 @@ inline std::string jstringToUtf8(JNIEnv *env, jstring value) {
     } catch (...) {                                              \
         throwJava(env, "unknown native error");                  \
         return failValue;                                        \
+    }
+
+// Same as JNI_GUARD, for void-returning entry points where there is no failValue.
+#define JNI_GUARD_VOID(env, body)                                \
+    try {                                                        \
+        body                                                     \
+    } catch (const std::exception &e) {                          \
+        throwJava(env, e.what());                                \
+    } catch (...) {                                              \
+        throwJava(env, "unknown native error");                  \
     }
