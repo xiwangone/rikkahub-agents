@@ -6,6 +6,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Assume.assumeTrue
 import org.junit.Test
@@ -23,12 +24,18 @@ class LlamaCppTemplateTest {
         val handle = LlamaCppJni.nativeLoadModel(fixture.absolutePath)
         try {
             val request = """
-                {"messages":[{"role":"user","content":"Say hello"}]}
+                {"messages":[{"role":"user","content":"Say hello 😀"}]}
             """.trimIndent()
             val result = JSONObject(LlamaCppJni.applyTemplate(handle, request))
             val prompt = result.getString("prompt")
             assertTrue("prompt must contain the user text", prompt.contains("Say hello"))
             assertTrue("prompt must be templated, not raw", prompt.length > "Say hello".length)
+            // U+1F600 is supplementary-plane: as a jstring it would arrive as Modified UTF-8
+            // (CESU-8) and fail nlohmann's strict UTF-8 parse. The prompt is handed back through
+            // utf8ToByteArray, so this single assertion pins both directions of that fix; do not
+            // delete it as redundant with the plain-text checks above, it is the only thing in
+            // this suite that would catch a regression back to a jstring signature.
+            assertTrue("supplementary-plane text must survive both directions", prompt.contains("😀"))
             // A plain chat request with no tools must not be constrained to tool-call syntax,
             // or the model could never answer in prose.
             assertTrue("a tool-less request must not carry a grammar", result.getString("grammar").isEmpty())
@@ -93,37 +100,55 @@ class LlamaCppTemplateTest {
             )
             val request = ChatRequestMapper.toRequestJson(history, emptyList())
             val result = JSONObject(LlamaCppJni.applyTemplate(handle, request))
-            assertTrue(
-                "the tool result text must reach the rendered prompt",
-                result.getString("prompt").contains("sunny and 22C"),
-            )
+            val prompt = result.getString("prompt")
+            assertTrue("the tool result text must reach the rendered prompt", prompt.contains("sunny and 22C"))
+            // The result text alone proves the role:"tool" message rendered; also check the
+            // call side, or a regression dropping the assistant's tool_calls entry while still
+            // emitting the tool message would pass unnoticed.
+            assertTrue("the tool call itself must also reach the rendered prompt", prompt.contains("get_weather"))
         } finally {
             LlamaCppJni.nativeFreeModel(handle)
         }
     }
 
-    @Test(expected = RuntimeException::class)
+    @Test
     fun applyTemplateOnAZeroHandleThrows() {
-        LlamaCppJni.applyTemplate(0L, "{}")
+        val error = assertThrows(RuntimeException::class.java) {
+            LlamaCppJni.applyTemplate(0L, "{}")
+        }
+        assertTrue("expected the null-handle message, got: ${error.message}", error.message == "model handle is null")
     }
 
-    @Test(expected = RuntimeException::class)
+    @Test
     fun malformedRequestJsonThrows() {
         assumeTrue("fixture GGUF not present", fixture.exists())
         val handle = LlamaCppJni.nativeLoadModel(fixture.absolutePath)
         try {
-            LlamaCppJni.applyTemplate(handle, "not json")
+            // @Test(expected=...) would scope the expectation to the whole method, so a throw
+            // from nativeLoadModel above (fixture present but fails to load) would satisfy it
+            // without ever reaching the parse this test exists to pin. assertThrows scopes the
+            // expectation to this one statement instead.
+            val error = assertThrows(RuntimeException::class.java) {
+                LlamaCppJni.applyTemplate(handle, "not json")
+            }
+            assertTrue("expected a JSON parse error, got: ${error.message}", error.message?.contains("parse error") == true)
         } finally {
             LlamaCppJni.nativeFreeModel(handle)
         }
     }
 
-    @Test(expected = RuntimeException::class)
+    @Test
     fun requestMissingMessagesThrows() {
         assumeTrue("fixture GGUF not present", fixture.exists())
         val handle = LlamaCppJni.nativeLoadModel(fixture.absolutePath)
         try {
-            LlamaCppJni.applyTemplate(handle, "{}")
+            val error = assertThrows(RuntimeException::class.java) {
+                LlamaCppJni.applyTemplate(handle, "{}")
+            }
+            assertTrue(
+                "expected a missing 'messages' key error, got: ${error.message}",
+                error.message?.contains("messages") == true,
+            )
         } finally {
             LlamaCppJni.nativeFreeModel(handle)
         }
