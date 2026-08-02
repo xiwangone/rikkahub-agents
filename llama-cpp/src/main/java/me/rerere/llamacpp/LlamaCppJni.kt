@@ -98,6 +98,13 @@ object LlamaCppJni {
      * carries the prompt, the grammar and the grammar's triggers and preserved tokens
      * together, so a caller cannot forward the grammar while dropping the triggers it needs
      * in order to ever activate.
+     *
+     * CONTRACT: the blob is strictly opaque to Kotlin. Do not parse it, rebuild it, filter it,
+     * re-serialise it, or pass a subset of it. Turning it into a typed data class is the
+     * obvious-looking improvement and it is precisely what this shape exists to prevent: every
+     * field in it is load-bearing for either generation or parsing, several in ways that fail
+     * silently rather than loudly, and a hand-maintained mirror of it will drift. Hold the
+     * bytes, hand them back.
      */
     external fun nativeGenerate(
         ctxHandle: Long,
@@ -110,9 +117,11 @@ object LlamaCppJni {
     /**
      * Parses generated text into an OpenAI-shaped message. Safe on partial text.
      *
-     * Takes the same [appliedTemplateJson] blob as [nativeGenerate]: reading a response
-     * requires the parser the template layer built for that exact request, which no amount of
-     * format name alone can reconstruct.
+     * Takes the same [appliedTemplateJson] blob as [nativeGenerate], under the same opacity
+     * contract: reading a response requires the parser the template layer built for that exact
+     * request, which no amount of format name alone can reconstruct. Passing a blob with no
+     * parser is refused rather than quietly parsed as plain content, since that silently
+     * discards every tool call.
      */
     external fun nativeParseChat(
         textUtf8: ByteArray,

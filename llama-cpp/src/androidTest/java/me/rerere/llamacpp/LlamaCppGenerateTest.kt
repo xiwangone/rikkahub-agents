@@ -34,7 +34,13 @@ class LlamaCppGenerateTest {
         }
     }
 
-    private fun applied(model: Long, userText: String, toolsJson: String = ""): String =
+    private fun applied(
+        model: Long,
+        userText: String,
+        toolsJson: String = "",
+        toolChoice: String = "",
+        enableThinking: Boolean? = null,
+    ): String =
         LlamaCppJni.applyTemplate(
             model,
             JSONObject()
@@ -42,7 +48,11 @@ class LlamaCppGenerateTest {
                     "messages",
                     JSONArray().put(JSONObject().put("role", "user").put("content", userText)),
                 )
-                .apply { if (toolsJson.isNotEmpty()) put("tools", JSONArray(toolsJson)) }
+                .apply {
+                    if (toolsJson.isNotEmpty()) put("tools", JSONArray(toolsJson))
+                    if (toolChoice.isNotEmpty()) put("tool_choice", toolChoice)
+                    if (enableThinking != null) put("enable_thinking", enableThinking)
+                }
                 .toString(),
         )
 
@@ -148,14 +158,14 @@ class LlamaCppGenerateTest {
         // real chat prompt carrying a system prompt and a few tool schemas is past a normal
         // batch, so the prefill has to be sliced.
         //
-        // The batch is 32 rather than the planner's 512 so that the short prompt above is
-        // certainly several batches long. At 512 the prompt would have to be thousands of
-        // tokens for this to bite, which at this suite's speed costs tens of minutes, and a
-        // prompt that happened to land under the batch would pass while proving nothing.
+        // The batch is 8 rather than the planner's 512 so that even a two-word prompt is
+        // several batches long. Making the prompt long enough to span a realistic batch is the
+        // obvious alternative and it is the wrong trade: at this suite's speed it costs minutes
+        // per run, and the slicing loop cannot tell how big the slices are.
         val model = LlamaCppJni.nativeLoadModel(fixture.absolutePath)
-        val ctx = LlamaCppJni.nativeCreateContext(model, 256, 32, 32, "f16", "f16", 4)
+        val ctx = LlamaCppJni.nativeCreateContext(model, 256, 8, 8, "f16", "f16", 4)
         try {
-            val pieces = collect(ctx, model, applied(model, filler), maxTokens = 2)
+            val pieces = collect(ctx, model, applied(model, "Say hi"), maxTokens = 2)
             assertTrue("a multi-batch prompt must still produce output", pieces.isNotEmpty())
         } finally {
             LlamaCppJni.nativeFreeContext(ctx)
@@ -264,6 +274,51 @@ class LlamaCppGenerateTest {
     }
 
     @Test
+    fun generatingWithToolsProducesAToolCallThatParsesBack() {
+        assumeTrue("fixture GGUF not present", fixture.exists())
+        withModelAndContext { model, ctx ->
+            // The whole feature end to end: declare a tool, generate, parse what came back,
+            // get the call out. Nothing else here proves the generate and parse halves agree.
+            //
+            // tool_choice "required" is what makes this deterministic. Under the default
+            // "auto" the template builds a lazy grammar with min_calls of zero, so declining
+            // to call anything is a legal completion and a 0.6B model takes that option: the
+            // first attempt at this test generated the empty string and parsed to empty
+            // content. "required" makes the grammar eager with min_calls of one, so a
+            // syntactically valid call is the only thing the sampler will allow.
+            val tools = """
+                [{"type":"function","function":{"name":"get_time",
+                  "description":"Get the current time",
+                  "parameters":{"type":"object","properties":{"zone":{"type":"string"}},
+                  "required":["zone"]}}}]
+            """.trimIndent()
+            val blob = applied(
+                // Terse on purpose: the eager grammar still allows a free-text section before
+                // the call, so anything inviting a chatty preamble is paid for token by token.
+                model, "Use the tool. Zone Europe/Paris.", tools,
+                toolChoice = "required",
+                // Thinking off, or the budget goes on a reasoning block before the call is
+                // ever reached: at 48 tokens the first attempt at this returned only "<think>".
+                enableThinking = false,
+            )
+            val source = JSONObject(blob)
+            assertTrue("the fixture must produce a tool grammar", source.getString("grammar").isNotBlank())
+            assertTrue("a required tool choice must produce an eager grammar", !source.getBoolean("grammar_lazy"))
+
+            val pieces = collect(ctx, model, blob, maxTokens = 128)
+            val text = pieces.joinToString("") { String(it, Charsets.UTF_8) }
+
+            val parsed = JSONObject(LlamaCppJni.parseChat(text, isPartial = false, appliedTemplateJson = blob))
+            val calls = parsed.optJSONArray("tool_calls")
+            assertTrue(
+                "a generated tool call must survive the round trip, generated '$text', parsed $parsed",
+                calls != null && calls.length() > 0,
+            )
+            assertEquals("get_time", calls!!.getJSONObject(0).getJSONObject("function").getString("name"))
+        }
+    }
+
+    @Test
     fun parsingRecoversAToolCall() {
         assumeTrue("fixture GGUF not present", fixture.exists())
         val model = LlamaCppJni.nativeLoadModel(fixture.absolutePath)
@@ -338,7 +393,7 @@ class LlamaCppGenerateTest {
             // runtime's parser, with the blob that produced it. Nothing else in this suite
             // proves the two agree on the same applied-template document.
             val blob = applied(model, "Reply with the single word: apple")
-            val pieces = collect(ctx, model, blob, maxTokens = 64)
+            val pieces = collect(ctx, model, blob, maxTokens = 24)
             val text = pieces.joinToString("") { String(it, Charsets.UTF_8) }
 
             val parsed = JSONObject(LlamaCppJni.parseChat(text, isPartial = true, appliedTemplateJson = blob))
