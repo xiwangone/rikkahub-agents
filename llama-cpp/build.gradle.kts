@@ -59,6 +59,10 @@ dependencies {
     implementation(libs.kotlinx.serialization.json)
 
     testImplementation(libs.junit)
+    // Real org.json impl for JVM unit tests: the stub android.jar throws "not mocked" on
+    // every JSONObject call, and ChatRequestMapper builds its request with org.json to
+    // keep one JSON object model in that file.
+    testImplementation(libs.json)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
 }
