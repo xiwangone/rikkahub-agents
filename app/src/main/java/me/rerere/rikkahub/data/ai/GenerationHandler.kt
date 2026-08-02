@@ -993,6 +993,7 @@ class GenerationHandler(
             temperature = assistant.temperature,
             topP = assistant.topP,
             maxTokens = assistant.maxTokens,
+            maxStreamRetries = settings.responseStreamMaxRetries,
             tools = tools,
             reasoningLevel = assistant.reasoningLevel,
             customHeaders = buildList {
@@ -1123,6 +1124,7 @@ class GenerationHandler(
                 params = TextGenerationParams(
                     model = model,
                     reasoningLevel = ReasoningLevel.fromBudgetTokens(settings.translateThinkingBudget),
+                    maxStreamRetries = settings.responseStreamMaxRetries,
                 ),
             ).collect { chunk ->
                 messages = messages.handleMessageChunk(chunk)

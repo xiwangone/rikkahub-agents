@@ -23,6 +23,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
+import java.io.IOException
 
 /**
  * Unit tests for ResponseAPI message building logic.
@@ -423,7 +424,7 @@ class ResponseAPIMessageTest {
         }
     }
 
-    // ==================== Vision gate tests ====================
+    // ==================== Vision gate tests =============
     // Regression coverage mirroring ChatCompletionsAPI: a text-only model must never
     // see an `input_image` item, no matter which of the three emission sites
     // (tool image-lift, assistant content image, user content image) produced it.
@@ -545,6 +546,50 @@ class ResponseAPIMessageTest {
         )
 
         assertFalse("tools key should not be written", requestBody.containsKey("tools"))
+=======
+    @Test
+    fun `response stream retry only replays failures without output`() {
+        assertTrue(
+            shouldRetryResponseStream(
+                failure = ResponseStreamFailureException(
+                    receivedMeaningfulOutput = false,
+                    message = "closed before completion",
+                ),
+                retryAttempt = 0,
+                maxRetries = 2,
+            )
+        )
+        assertTrue(
+            shouldRetryResponseStream(
+                failure = IOException("stream reset"),
+                retryAttempt = 1,
+                maxRetries = 2,
+            )
+        )
+        assertFalse(
+            shouldRetryResponseStream(
+                failure = ResponseStreamFailureException(
+                    receivedMeaningfulOutput = true,
+                    message = "stream reset after text",
+                ),
+                retryAttempt = 0,
+                maxRetries = 2,
+            )
+        )
+        assertFalse(
+            shouldRetryResponseStream(
+                failure = IOException("stream reset"),
+                retryAttempt = 2,
+                maxRetries = 2,
+            )
+        )
+        assertFalse(
+            shouldRetryResponseStream(
+                failure = IllegalStateException("HTTP 401"),
+                retryAttempt = 0,
+                maxRetries = 2,
+            )
+        )
     }
 
     // ==================== Helper Functions ====================

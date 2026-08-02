@@ -145,6 +145,7 @@ class SettingsStore(
         val AUTO_COMPACTION_THRESHOLD_TOKENS_K = intPreferencesKey("auto_compaction_threshold_tokens_k")
         val AUTO_COMPACTION_KEEP_RECENT_TOOL_CALLS = intPreferencesKey("auto_compaction_keep_recent_tool_calls")
         val CONTEXT_COMPACTION_TARGET_TOKENS_K = intPreferencesKey("context_compaction_target_tokens_k")
+        val RESPONSE_STREAM_MAX_RETRIES = intPreferencesKey("response_stream_max_retries")
 
         // 提供商
         val PROVIDERS = stringPreferencesKey("providers")
@@ -255,6 +256,8 @@ class SettingsStore(
                     (preferences[AUTO_COMPACTION_KEEP_RECENT_TOOL_CALLS] ?: 5).coerceIn(0, 1_000),
                 contextCompactionTargetTokensK = preferences[CONTEXT_COMPACTION_TARGET_TOKENS_K]
                     ?.coerceIn(1, Int.MAX_VALUE / 1_000),
+                responseStreamMaxRetries = (preferences[RESPONSE_STREAM_MAX_RETRIES] ?: 2)
+                    .coerceIn(0, 10),
                 assistantTags = preferences[ASSISTANT_TAGS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<Tag>>(raw) }.getOrElse {
                         Log.w(TAG, "Failed to decode assistantTags, using default", it)
@@ -611,6 +614,7 @@ class SettingsStore(
                 preferences[CONTEXT_COMPACTION_TARGET_TOKENS_K] =
                     targetTokensK.coerceIn(1, Int.MAX_VALUE / 1_000)
             } ?: preferences.remove(CONTEXT_COMPACTION_TARGET_TOKENS_K)
+            preferences[RESPONSE_STREAM_MAX_RETRIES] = settings.responseStreamMaxRetries.coerceIn(0, 10)
 
             preferences[PROVIDERS] = JsonInstant.encodeToString(settings.providers)
             preferences[DELETED_BUILTIN_PROVIDER_IDS] = JsonInstant.encodeToString(
@@ -798,6 +802,8 @@ data class Settings(
      * A value is stored in thousands of tokens so the setting remains easy to edit on mobile.
      */
     val contextCompactionTargetTokensK: Int? = null,
+    /** Additional attempts for Response API streams that fail before yielding content. */
+    val responseStreamMaxRetries: Int = 2,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
     /**
