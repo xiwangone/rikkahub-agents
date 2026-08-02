@@ -62,6 +62,7 @@ import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.ContextBudgetPlanner
 import me.rerere.rikkahub.data.ai.ContextCompactionPlanner
+import me.rerere.rikkahub.data.ai.ContextCompactionPresentation
 import me.rerere.rikkahub.data.ai.CompactedMessageView
 import me.rerere.rikkahub.data.ai.ContextCompactionView
 import me.rerere.rikkahub.data.ai.mcp.McpManager
@@ -1001,6 +1002,17 @@ class ChatService(
                                 processingStatus = session.processingStatus,
                                 force = true,
                             )
+                            compacted.newlyCreatedAutoCompaction?.let { compaction ->
+                                generatedMessages.lastOrNull()
+                                    ?.takeIf { it.role == MessageRole.ASSISTANT }
+                                    ?.let { sourceMessage ->
+                                        attachAutomaticCompactionPresentation(
+                                            conversationId = conversationId,
+                                            messageId = sourceMessage.id,
+                                            compaction = compaction,
+                                        )
+                                    }
+                            }
                             compactedMessageView = compacted
                             compacted.messages
                         }
@@ -1205,6 +1217,17 @@ class ChatService(
                 Log.w(TAG, "Context-limit retry compaction failed", it)
             }.getOrNull()
             if (forcedView?.compaction != null) {
+                forcedView.newlyCreatedAutoCompaction?.let { compaction ->
+                    getConversationFlow(conversationId).value.currentMessages
+                        .lastOrNull { it.role == MessageRole.ASSISTANT }
+                        ?.let { sourceMessage ->
+                            attachAutomaticCompactionPresentation(
+                                conversationId = conversationId,
+                                messageId = sourceMessage.id,
+                                compaction = compaction,
+                            )
+                        }
+                }
                 handleMessageComplete(
                     conversationId = conversationId,
                     messageRange = null,
@@ -1496,6 +1519,7 @@ class ChatService(
         )
         processingStatus.value = context.getString(R.string.chat_page_compressing)
         try {
+            var newlyCreatedAutoCompaction: ConversationCompaction? = null
             val compaction = compactionMutexFor(conversation.id).withLock {
                 val latestConversation = getConversationFlow(conversation.id).value
                 view = loadCompactedMessageView(latestConversation)
@@ -1520,11 +1544,13 @@ class ChatService(
                         // Forced compaction happens after a provider-reported threshold/overflow.
                         // Keep a conservative recent tail without reintroducing a preflight trigger.
                         triggerTokens = latestContextLength,
-                    )
+                    ).also { newlyCreatedAutoCompaction = it }
                 }
             }
             val latestConversation = getConversationFlow(conversation.id).value
-            return ContextCompactionView.build(latestConversation, compaction)
+            return ContextCompactionView.build(latestConversation, compaction).copy(
+                newlyCreatedAutoCompaction = newlyCreatedAutoCompaction,
+            )
         } finally {
             processingStatus.value = null
         }
@@ -1602,6 +1628,24 @@ class ChatService(
             targetTokens = summaryTargetTokens,
             isAuto = true,
         )
+    }
+
+    /**
+     * Keep the persisted compaction summary request-only, but show the user the automatic
+     * compression as an executed tool on the assistant message that triggered it.
+     */
+    private fun attachAutomaticCompactionPresentation(
+        conversationId: Uuid,
+        messageId: Uuid,
+        compaction: ConversationCompaction,
+    ) {
+        updateConversationState(conversationId) { current ->
+            ContextCompactionPresentation.attachToMessage(
+                conversation = current,
+                messageId = messageId,
+                tool = ContextCompactionPresentation.createTool(compaction),
+            )
+        }
     }
 
     suspend fun compressConversation(

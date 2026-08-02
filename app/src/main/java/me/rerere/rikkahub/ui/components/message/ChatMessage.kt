@@ -101,6 +101,11 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 fun ChatMessage(
     node: MessageNode,
+    // Tolerant default: node.currentMessage throws when selectIndex is stale, and a default
+    // argument is evaluated before the body runs, so the guard below could never catch it.
+    displayMessage: UIMessage = node.messages.getOrNull(node.selectIndex)
+        ?: node.messages.lastOrNull()
+        ?: UIMessage.assistant(""),
     modifier: Modifier = Modifier,
     loading: Boolean = false,
     model: Model? = null,
@@ -122,7 +127,9 @@ fun ChatMessage(
     // node.selectIndex can be stale (e.g. after a branch/message was removed) or the
     // node can be empty; degrade to the last message, or render nothing, instead of
     // crashing with an IndexOutOfBoundsException.
-    val message = node.messages.getOrNull(node.selectIndex) ?: node.messages.lastOrNull() ?: return
+    if (node.messages.isEmpty()) return
+    val message = displayMessage
+    val actionMessage = node.messages.getOrNull(node.selectIndex) ?: node.messages.last()
     val settings = LocalSettings.current.displaySetting
     val chatFontFamily = LocalChatFontFamily.current ?: rememberChatFontFamily(settings)
     val textStyle = LocalTextStyle.current.copy(
@@ -198,7 +205,7 @@ fun ChatMessage(
                 modifier = Modifier.animateContentSize()
             ) {
                 ChatMessageActionButtons(
-                    message = message,
+                    message = actionMessage,
                     onRegenerate = onRegenerate,
                     node = node,
                     onUpdate = onUpdate,
@@ -223,7 +230,7 @@ fun ChatMessage(
     }
     if (showActionsSheet) {
         ChatMessageActionsSheet(
-            message = message,
+            message = actionMessage,
             onEdit = onEdit,
             onDelete = onDelete,
             onShare = onShare,
