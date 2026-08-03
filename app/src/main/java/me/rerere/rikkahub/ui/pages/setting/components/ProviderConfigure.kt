@@ -60,6 +60,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import me.rerere.ai.provider.ClaudePromptCacheTtl
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.llamacpp.LlamaCppCatalog
+import me.rerere.llamacpp.LlamaCppCatalogEntry
 import me.rerere.locallm.LocalRuntime
 import me.rerere.locallm.litert.LiteRtCatalog
 import me.rerere.locallm.litert.LiteRtCatalogEntry
@@ -1126,14 +1128,20 @@ private fun ColumnScope.ProviderConfigureLiteRT(
     }
 }
 
-// llama.cpp has no model catalog, download, or picker UI yet (a separate plan owns that),
-// so this stays a minimal placeholder rather than duplicating LiteRT's download/catalog
-// screen above for a runtime that cannot install anything through Settings yet.
 @Composable
 private fun ColumnScope.ProviderConfigureLlamaCpp(
     provider: ProviderSetting.LlamaCppLocal,
     onEdit: (ProviderSetting.LlamaCppLocal) -> Unit,
 ) {
+    val vm = koinViewModel<SettingLocalLlmViewModel>(
+        key = "configure-${LocalRuntime.LlamaCpp.displayName}",
+        parameters = { parametersOf(LocalRuntime.LlamaCpp) },
+    )
+    val downloadProgress by vm.downloadProgress.collectAsStateWithLifecycle()
+    val errorMessage by vm.errorMessage.collectAsStateWithLifecycle()
+    val installedModelFiles by vm.installedModelFiles.collectAsStateWithLifecycle()
+    val perfTelemetry by vm.perfTelemetry.collectAsStateWithLifecycle()
+
     provider.description()
 
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1152,11 +1160,177 @@ private fun ColumnScope.ProviderConfigureLlamaCpp(
         maxLines = 3,
     )
 
+    // Installed model count — model management is on the Models tab (page 1).
     Text(
-        text = stringResource(id = R.string.setting_provider_page_llamacpp_model_selection_hint),
-        style = MaterialTheme.typography.labelSmall,
-        modifier = Modifier.fillMaxWidth(),
+        text = stringResource(R.string.local_llm_installed_models_count, provider.models.size),
+        style = MaterialTheme.typography.bodySmall,
     )
+
+    // Manage installed files — rename or delete each downloaded GGUF.
+    if (provider.models.isNotEmpty()) {
+        Text(
+            stringResource(R.string.local_llm_manage_files_title),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(top = 8.dp),
+        )
+        provider.models.forEach { model ->
+            InstalledModelRow(
+                model = model,
+                // llama.cpp is CPU-only with no vision support in this build (vision and
+                // mmproj are a spec non-goal) — there is no vision encoder that could
+                // fail, so this row never shows the vision caption or retry button.
+                visionUnavailable = false,
+                allowVisionRetry = false,
+                perfSample = perfTelemetry[model.modelId],
+                onRename = { newName -> vm.renameModel(model.modelId, newName) },
+                onDelete = { vm.deleteModel(model.modelId) },
+                onRetryVision = {},
+            )
+        }
+    }
+
+    // Curated GGUF picker (LlamaCppCatalog.ENTRIES). Per-entry Install button calls the
+    // same startManualDownload path the LiteRT catalog uses below, so the install flow
+    // (and the progress/error reporting at the bottom of this tile) is identical.
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+        Text(
+            stringResource(R.string.local_llm_llamacpp_catalog_title),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        Text(
+            stringResource(R.string.local_llm_llamacpp_catalog_subtitle),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        LlamaCppCatalog.ENTRIES.forEach { entry ->
+            LlamaCppCatalogEntryCard(
+                entry = entry,
+                installed = entry.file in installedModelFiles,
+                downloadInProgress = downloadProgress != null,
+                onInstall = { vm.startManualDownload(entry.resolveUrl()) },
+            )
+        }
+    }
+
+    // Download progress indicator.
+    downloadProgress?.let { progress ->
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (progress.totalBytes != null && progress.totalBytes > 0) {
+                LinearProgressIndicator(
+                    progress = { progress.percent / 100f },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            Text(
+                text = stringResource(R.string.local_llm_download_progress, progress.percent),
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
+
+    // Error text.
+    errorMessage?.let { msg ->
+        Text(
+            text = stringResource(R.string.local_llm_status_error_format, msg),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+    }
+}
+
+@Composable
+private fun LlamaCppCatalogEntryCard(
+    entry: LlamaCppCatalogEntry,
+    installed: Boolean,
+    downloadInProgress: Boolean,
+    onInstall: () -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(
+            containerColor = MaterialTheme.colorScheme.surfaceVariant,
+        ),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Column(
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+            modifier = Modifier.padding(12.dp),
+        ) {
+            Text(
+                entry.displayName,
+                style = MaterialTheme.typography.titleSmall,
+            )
+
+            Text(
+                entry.repo,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            if (entry.tags.isNotEmpty()) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    entry.tags.forEach { tag ->
+                        val labelRes = when (tag) {
+                            "thinking" -> R.string.local_llm_catalog_tag_thinking
+                            "tools" -> R.string.local_llm_catalog_tag_tools
+                            else -> null
+                        }
+                        val label = labelRes?.let { stringResource(it) } ?: tag
+                        SuggestionChip(
+                            onClick = {},
+                            enabled = false,
+                            label = {
+                                Text(
+                                    label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            },
+                            colors = SuggestionChipDefaults.suggestionChipColors(
+                                disabledContainerColor = MaterialTheme.colorScheme.surface,
+                                disabledLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            ),
+                        )
+                    }
+                }
+            }
+
+            Text(
+                text = String.format(
+                    java.util.Locale.US,
+                    stringResource(R.string.local_llm_catalog_size_format),
+                    entry.sizeBytes / 1_000_000_000.0,
+                    entry.minMemGb,
+                ),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                if (installed) {
+                    Text(
+                        text = stringResource(R.string.local_llm_catalog_installed),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                } else {
+                    Button(
+                        onClick = onInstall,
+                        enabled = !downloadInProgress,
+                    ) {
+                        Text(stringResource(R.string.local_llm_catalog_install))
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

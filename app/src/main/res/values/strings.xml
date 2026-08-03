@@ -956,7 +956,6 @@
   <string name="setting_provider_page_import_service_account_json">Import Service Account JSON</string>
   <string name="setting_provider_page_import_success">Import successful</string>
   <string name="setting_provider_page_input_modality">Input Modality</string>
-  <string name="setting_provider_page_llamacpp_model_selection_hint">Model selection for llama.cpp is not available in Settings yet; models are chosen elsewhere.</string>
   <string name="setting_provider_page_location">Location (e.g. us-central1)</string>
   <string name="setting_provider_page_model_count">%d models</string>
   <string name="setting_provider_page_model_display_name">Model Display Name</string>
@@ -1684,6 +1683,9 @@
   <string name="local_llm_catalog_tag_multimodal">Multimodal</string>
   <string name="local_llm_catalog_tag_thinking">Thinking</string>
   <string name="local_llm_catalog_tag_speculative">Speculative decoding</string>
+  <string name="local_llm_catalog_tag_tools">Tools</string>
+  <string name="local_llm_llamacpp_catalog_title">Available models</string>
+  <string name="local_llm_llamacpp_catalog_subtitle">Curated GGUF models with a tool-calling chat template. Pick one for one-tap install.</string>
   <string name="mcp_error_reconnect_exhausted">Connection lost — maximum reconnect attempts reached</string>
   <string name="ocr_status_recognizing">Recognizing image…</string>
   <string name="share_sheet_title">Share your LLM models</string>
