@@ -74,6 +74,25 @@
     static int sDefaultCursorWindowSize;
 }
 
+# llama.cpp streaming: llama_jni.cpp's nativeGenerate resolves its streaming callback by
+# name at runtime, via GetObjectClass + GetMethodID(sinkCls, "onToken", "([B)Z"), because JNI
+# has no static view of a Kotlin TokenSink implementor's shape. R8 can't see that call, so on
+# release it inlines LlamaCppJni's delegating wrapper methods, strips the TokenSink interface
+# off the class that implements it, and horizontally merges the anonymous implementor created
+# inside LlamaCppJni.generate into LlamaCppJni's own singleton, which never had an onToken
+# method. GetMethodID then returns null and the process crashes with "no non-static method
+# Lme/rerere/llamacpp/RealLlamaCppNative;.onToken([B)Z" the first time a local GGUF model
+# streams a token. -dontobfuscate above does not help here: nothing is renamed, this is R8's
+# optimizer (inlining, class merging, member removal) erasing the method outright, so only a
+# -keep closes it. Keep the whole JNI-facing surface: LlamaCppJni itself and its native
+# methods, the TokenSink interface, and every class implementing it.
+-keep class me.rerere.llamacpp.LlamaCppJni { *; }
+-keepclasseswithmembers class me.rerere.llamacpp.LlamaCppJni {
+    native <methods>;
+}
+-keep interface me.rerere.llamacpp.LlamaCppJni$TokenSink { *; }
+-keep class * implements me.rerere.llamacpp.LlamaCppJni$TokenSink { *; }
+
 # SLF4J 2.x service-loader binding. Without these rules the ServiceLoader<SLF4JServiceProvider>
 # lookup can return empty in release (R8 keeps the META-INF/services file but the implementing
 # class itself gets stripped); Ktor / jmDNS / cron-utils logs then disappear, making future
