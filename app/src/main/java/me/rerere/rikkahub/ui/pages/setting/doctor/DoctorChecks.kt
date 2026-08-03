@@ -791,6 +791,9 @@ class DoctorChecks(
                     // been loaded/downloaded. A disabled provider with no models is the factory
                     // default — don't count it.
                     is me.rerere.ai.provider.ProviderSetting.LiteRtLocal -> p.enabled && p.models.isNotEmpty()
+                    // Local provider (llama.cpp): usable when enabled AND at least one model
+                    // has been loaded, same criterion as LiteRT above.
+                    is me.rerere.ai.provider.ProviderSetting.LlamaCppLocal -> p.enabled && p.models.isNotEmpty()
                     is me.rerere.ai.provider.ProviderSetting.Codex -> p.enabled  // OAuth, no API key
                     is me.rerere.ai.provider.ProviderSetting.Grok -> p.enabled  // OAuth, no API key
                 }

@@ -29,6 +29,29 @@ object ChatRequestMapper {
         return root.toString()
     }
 
+    /**
+     * Drops the oldest turns until the rendered conversation fits [budgetBytes].
+     *
+     * The newest turn is always kept: sending an empty conversation is worse than
+     * overflowing and getting a readable error. System messages are kept too, since the
+     * template needs them and they are already capped by the planner's budget.
+     */
+    fun trimToBudget(messages: List<UIMessage>, budgetBytes: Int): List<UIMessage> {
+        if (messages.isEmpty()) return messages
+
+        fun sizeOf(list: List<UIMessage>): Int =
+            messagesArray(list).toString().toByteArray().size
+
+        var working = messages
+        while (working.size > 1 && sizeOf(working) > budgetBytes) {
+            // Drop the oldest non-system turn.
+            val index = working.indexOfFirst { it.role != MessageRole.SYSTEM }
+            if (index < 0) break
+            working = working.toMutableList().apply { removeAt(index) }
+        }
+        return working
+    }
+
     fun toolDeclarations(tools: List<Tool>): List<ToolDeclaration> {
         val array = toolsArray(tools)
         return tools.mapIndexed { index, tool ->

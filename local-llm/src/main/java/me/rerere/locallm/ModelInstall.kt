@@ -82,6 +82,7 @@ object ModelInstall {
     fun targetFile(baseDir: File, runtime: LocalRuntime, fileName: String): File {
         val sub = when (runtime) {
             LocalRuntime.LiteRT -> "litert"
+            LocalRuntime.LlamaCpp -> "llamacpp"
         }
         return File(File(baseDir, sub), fileName)
     }

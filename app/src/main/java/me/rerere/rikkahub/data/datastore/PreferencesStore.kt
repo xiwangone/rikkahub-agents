@@ -73,7 +73,7 @@ private const val TAG = "PreferencesStore"
  * → user loses ALL their saved providers (API keys, custom models, the lot).
  *
  * Per-entry decode lets surviving entries land while the unknown one is logged and skipped.
- * Keep this even after `local_llamacpp` is fully gone — it's good hygiene for any future
+ * Keep this even though `local_llamacpp` now ships — it's good hygiene for any future
  * polymorphic schema change (renamed types, removed types, etc).
  */
 private fun decodeProvidersTolerant(raw: String): List<ProviderSetting> {
@@ -461,6 +461,10 @@ class SettingsStore(
                         )
 
                         is ProviderSetting.LiteRtLocal -> provider.copy(
+                            models = provider.models.distinctBy { model -> model.id }
+                        )
+
+                        is ProviderSetting.LlamaCppLocal -> provider.copy(
                             models = provider.models.distinctBy { model -> model.id }
                         )
 

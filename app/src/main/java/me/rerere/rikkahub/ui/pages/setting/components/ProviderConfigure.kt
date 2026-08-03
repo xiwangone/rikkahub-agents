@@ -126,6 +126,10 @@ fun ProviderConfigure(
                 ProviderConfigureLiteRT(provider, onEdit)
             }
 
+            is ProviderSetting.LlamaCppLocal -> {
+                ProviderConfigureLlamaCpp(provider, onEdit)
+            }
+
             is ProviderSetting.Codex -> Unit
             is ProviderSetting.Grok -> Unit
         }
@@ -141,6 +145,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
         is ProviderSetting.Claude -> this.apiKey
         is ProviderSetting.AICore -> "" // on-device, no API key
         is ProviderSetting.LiteRtLocal -> "" // on-device, no API key
+        is ProviderSetting.LlamaCppLocal -> "" // on-device, no API key
         is ProviderSetting.Codex -> "" // OAuth, no API key
         is ProviderSetting.Grok -> "" // OAuth, no API key
     }
@@ -150,6 +155,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
         is ProviderSetting.Claude -> this.baseUrl
         is ProviderSetting.AICore -> "" // on-device, no base URL
         is ProviderSetting.LiteRtLocal -> "" // on-device, no base URL
+        is ProviderSetting.LlamaCppLocal -> "" // on-device, no base URL
         is ProviderSetting.Codex -> "" // OAuth, no base URL
         is ProviderSetting.Grok -> "" // OAuth, no base URL
     }
@@ -206,6 +212,7 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
             is ProviderSetting.Claude -> if (defaultProvider is ProviderSetting.Claude) return defaultProvider.baseUrl
             is ProviderSetting.AICore -> return "" // on-device, no base URL
             is ProviderSetting.LiteRtLocal -> return "" // on-device, no base URL
+            is ProviderSetting.LlamaCppLocal -> return "" // on-device, no base URL
             is ProviderSetting.Codex -> return "" // OAuth, no base URL
             is ProviderSetting.Grok -> return "" // OAuth, no base URL
         }
@@ -216,6 +223,7 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
         is ProviderSetting.Claude -> ProviderSetting.Claude().baseUrl
         is ProviderSetting.AICore -> ""
         is ProviderSetting.LiteRtLocal -> ""
+        is ProviderSetting.LlamaCppLocal -> ""
         is ProviderSetting.Codex -> ""
         is ProviderSetting.Grok -> ""
     }
@@ -229,6 +237,7 @@ internal fun ProviderSetting.resetBaseUrlToDefault(): ProviderSetting {
         is ProviderSetting.Claude -> this.copy(baseUrl = defaultBaseUrl)
         is ProviderSetting.AICore -> this // no base URL to reset
         is ProviderSetting.LiteRtLocal -> this // no base URL to reset
+        is ProviderSetting.LlamaCppLocal -> this // no base URL to reset
         is ProviderSetting.Codex -> this // no base URL to reset
         is ProviderSetting.Grok -> this // no base URL to reset
     }
@@ -241,6 +250,7 @@ internal fun ProviderSetting.isUsingDefaultBaseUrl(): Boolean {
         is ProviderSetting.Claude -> this.baseUrl
         is ProviderSetting.AICore -> return true // no base URL concept
         is ProviderSetting.LiteRtLocal -> return true // no base URL concept
+        is ProviderSetting.LlamaCppLocal -> return true // no base URL concept
         is ProviderSetting.Codex -> return true // no base URL concept
         is ProviderSetting.Grok -> return true // no base URL concept
     }
@@ -1114,6 +1124,39 @@ private fun ColumnScope.ProviderConfigureLiteRT(
             }
         }
     }
+}
+
+// llama.cpp has no model catalog, download, or picker UI yet (a separate plan owns that),
+// so this stays a minimal placeholder rather than duplicating LiteRT's download/catalog
+// screen above for a runtime that cannot install anything through Settings yet.
+@Composable
+private fun ColumnScope.ProviderConfigureLlamaCpp(
+    provider: ProviderSetting.LlamaCppLocal,
+    onEdit: (ProviderSetting.LlamaCppLocal) -> Unit,
+) {
+    provider.description()
+
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(id = R.string.setting_provider_page_enable), modifier = Modifier.weight(1f))
+        Checkbox(
+            checked = provider.enabled,
+            onCheckedChange = { onEdit(provider.copy(enabled = it)) },
+        )
+    }
+
+    OutlinedTextField(
+        value = provider.name,
+        onValueChange = { onEdit(provider.copy(name = it.trim())) },
+        label = { Text(stringResource(id = R.string.setting_provider_page_name)) },
+        modifier = Modifier.fillMaxWidth(),
+        maxLines = 3,
+    )
+
+    Text(
+        text = stringResource(id = R.string.setting_provider_page_llamacpp_model_selection_hint),
+        style = MaterialTheme.typography.labelSmall,
+        modifier = Modifier.fillMaxWidth(),
+    )
 }
 
 @Composable

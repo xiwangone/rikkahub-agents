@@ -956,6 +956,7 @@
   <string name="setting_provider_page_import_service_account_json">Import Service Account JSON</string>
   <string name="setting_provider_page_import_success">Import successful</string>
   <string name="setting_provider_page_input_modality">Input Modality</string>
+  <string name="setting_provider_page_llamacpp_model_selection_hint">Model selection for llama.cpp is not available in Settings yet; models are chosen elsewhere.</string>
   <string name="setting_provider_page_location">Location (e.g. us-central1)</string>
   <string name="setting_provider_page_model_count">%d models</string>
   <string name="setting_provider_page_model_display_name">Model Display Name</string>
