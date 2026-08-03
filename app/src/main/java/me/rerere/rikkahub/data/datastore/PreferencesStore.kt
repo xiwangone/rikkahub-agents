@@ -39,6 +39,8 @@ import me.rerere.asr.ASRProviderSetting
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV1Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV2Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV3Migration
+import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV4Migration
+import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV5Migration
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.InjectionPosition
@@ -62,6 +64,9 @@ enum class AutoCompactionThresholdMode {
     PERCENT,
     TOKENS,
 }
+
+/** Default automatic compaction summary target as a percentage of the active context. */
+const val DEFAULT_CONTEXT_COMPACTION_TARGET_PERCENT = 1
 
 private const val TAG = "PreferencesStore"
 
@@ -102,7 +107,9 @@ private val Context.settingsStore by preferencesDataStore(
         listOf(
             PreferenceStoreV1Migration(),
             PreferenceStoreV2Migration(),
-            PreferenceStoreV3Migration()
+            PreferenceStoreV3Migration(),
+            PreferenceStoreV4Migration(),
+            PreferenceStoreV5Migration(),
         )
     }
 )
@@ -256,7 +263,7 @@ class SettingsStore(
                     (preferences[AUTO_COMPACTION_KEEP_RECENT_TOOL_CALLS] ?: 5).coerceIn(0, 1_000),
                 contextCompactionTargetTokensK = preferences[CONTEXT_COMPACTION_TARGET_TOKENS_K]
                     ?.coerceIn(1, Int.MAX_VALUE / 1_000),
-                responseStreamMaxRetries = (preferences[RESPONSE_STREAM_MAX_RETRIES] ?: 2)
+                responseStreamMaxRetries = (preferences[RESPONSE_STREAM_MAX_RETRIES] ?: 5)
                     .coerceIn(0, 10),
                 assistantTags = preferences[ASSISTANT_TAGS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<Tag>>(raw) }.getOrElse {
@@ -798,12 +805,12 @@ data class Settings(
     /** Number of most-recent executed tool calls kept raw during the first automatic pass. */
     val autoCompactionKeepRecentToolCalls: Int = 5,
     /**
-     * Null keeps the dynamic default: 10% of the current chat model's advertised context.
-     * A value is stored in thousands of tokens so the setting remains easy to edit on mobile.
+     * Null uses [DEFAULT_CONTEXT_COMPACTION_TARGET_PERCENT] of the active context. A non-null
+     * value is an explicit summary target stored in thousands of tokens for easy mobile editing.
      */
     val contextCompactionTargetTokensK: Int? = null,
     /** Additional attempts for Response API streams that fail before yielding content. */
-    val responseStreamMaxRetries: Int = 2,
+    val responseStreamMaxRetries: Int = 5,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
     /**
@@ -971,7 +978,7 @@ fun Settings.getCurrentChatModel(): Model? {
 
 private const val FALLBACK_CONTEXT_COMPACTION_TARGET_TOKENS = 2_000
 
-/** Returns the configured summary target, or 10% of the active chat model's context window. */
+/** Returns the configured summary target, defaulting to 1% of the active context. */
 fun Settings.getContextCompactionTargetTokens(contextLength: Int?): Int {
     val configured = contextCompactionTargetTokensK
         ?.toLong()
@@ -982,9 +989,25 @@ fun Settings.getContextCompactionTargetTokens(contextLength: Int?): Int {
     }
     return contextLength
         ?.takeIf { it > 0 }
-        ?.let { (it / 10).coerceAtLeast(1) }
+        ?.let { length ->
+            (length.toLong() * DEFAULT_CONTEXT_COMPACTION_TARGET_PERCENT / 100L)
+                .coerceAtLeast(1L)
+                .coerceAtMost(Int.MAX_VALUE.toLong())
+                .toInt()
+        }
         ?: FALLBACK_CONTEXT_COMPACTION_TARGET_TOKENS
 }
+
+/** Uses the token-threshold setting as the model context ceiling when that mode is active. */
+fun Settings.getCompactionContextLength(model: Model?): Int? =
+    autoCompactionThresholdTokensK
+        .takeIf { autoCompactionThresholdMode == AutoCompactionThresholdMode.TOKENS }
+        ?.toLong()
+        ?.coerceAtLeast(1L)
+        ?.times(1_000L)
+        ?.coerceAtMost(Int.MAX_VALUE.toLong())
+        ?.toInt()
+        ?: model?.contextLength
 
 fun Settings.getCurrentAssistant(): Assistant {
     return this.assistants.find { it.id == assistantId } ?: this.assistants.first()
