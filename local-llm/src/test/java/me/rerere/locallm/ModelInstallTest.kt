@@ -1,12 +1,65 @@
 package me.rerere.locallm
 
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
+import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import java.io.ByteArrayInputStream
 import java.io.File
+import java.io.IOException
+import java.io.InputStream
+
+/** A GGUF magic header followed by [payloadSize] arbitrary bytes. */
+private fun ggufBytes(payloadSize: Int): ByteArray =
+    byteArrayOf(0x47, 0x47, 0x55, 0x46) + ByteArray(payloadSize) { (it % 251).toByte() }
+
+/** Delivers [goodBytes] on the first read, then throws to simulate a dropped connection
+ *  mid-copy (SocketException / IOException territory). */
+private class FailingInputStream(private val goodBytes: ByteArray) : InputStream() {
+    private var delivered = false
+    override fun read(): Int = throw UnsupportedOperationException("not used by copyFromStream")
+    override fun read(b: ByteArray, off: Int, len: Int): Int {
+        if (!delivered) {
+            delivered = true
+            System.arraycopy(goodBytes, 0, b, off, goodBytes.size)
+            return goodBytes.size
+        }
+        throw IOException("simulated connection drop")
+    }
+}
+
+/** Delivers [content] in caller-specified chunk sizes across successive reads, simulating a
+ *  network-backed SAF DocumentsProvider (Google Drive and similar) whose first read(s) can
+ *  hand back as few as 1 byte — InputStream.read(ByteArray) only guarantees at least one byte,
+ *  never four. [chunkSizes] gives each read's byte count in order; once exhausted, every
+ *  remaining byte is delivered in one final read. */
+private class ChunkedInputStream(
+    private val content: ByteArray,
+    private val chunkSizes: List<Int>,
+) : InputStream() {
+    private var pos = 0
+    private var chunkIndex = 0
+    override fun read(): Int = throw UnsupportedOperationException("not used by copyFromStream")
+    override fun read(b: ByteArray, off: Int, len: Int): Int {
+        if (pos >= content.size) return -1
+        val want = if (chunkIndex < chunkSizes.size) chunkSizes[chunkIndex] else content.size - pos
+        chunkIndex++
+        val n = want.coerceAtMost(content.size - pos).coerceAtMost(len)
+        System.arraycopy(content, pos, b, off, n)
+        pos += n
+        return n
+    }
+}
 
 class ModelInstallTest {
+
+    @get:Rule
+    val tempFolder = TemporaryFolder()
 
     @Test fun `validUrl accepts well-formed https URLs`() {
         assertTrue(ModelInstall.isValidDownloadUrl("https://huggingface.co/foo/bar/resolve/main/model.task"))
@@ -190,5 +243,149 @@ class ModelInstallTest {
         val blob = "https://huggingface.co/user/repo/blob/main/file.litertlm"
         val expected = "https://huggingface.co/user/repo/resolve/main/file.litertlm"
         assertEquals(expected, ModelInstall.normalizeHuggingFaceUrl(blob))
+    }
+
+    // copyFromStream (SAF "install a GGUF I already have" import) -------------
+
+    @Test fun `copyFromStream writes matching bytes and ends in Done`() = runBlocking {
+        val content = ggufBytes(5000)
+        val target = File(tempFolder.newFolder(), "model.gguf")
+
+        val events = ModelInstall.copyFromStream(
+            input = ByteArrayInputStream(content),
+            target = target,
+            totalBytes = content.size.toLong(),
+            expectedExtension = "gguf",
+        ).toList()
+
+        assertTrue(events.first() is ModelInstall.Progress.Started)
+        assertTrue(events.last() is ModelInstall.Progress.Done)
+        assertTrue(target.exists())
+        assertArrayEquals(content, target.readBytes())
+        assertFalse(File(target.absolutePath + ".partial").exists())
+    }
+
+    @Test fun `copyFromStream reports a monotonically increasing byte count across multiple buffer fills`() = runBlocking {
+        val content = ggufBytes(200_000) // several 64KB-buffer iterations
+        val target = File(tempFolder.newFolder(), "model.gguf")
+
+        val events = ModelInstall.copyFromStream(
+            ByteArrayInputStream(content), target, content.size.toLong(), "gguf",
+        ).toList()
+
+        val ticks = events.filterIsInstance<ModelInstall.Progress.Tick>()
+        assertTrue(ticks.size > 1)
+        assertEquals(content.size.toLong(), ticks.last().bytesRead)
+        assertTrue(ticks.zipWithNext().all { (a, b) -> b.bytesRead > a.bytesRead })
+    }
+
+    @Test fun `copyFromStream rejects a file whose first bytes are not the expected magic`() = runBlocking {
+        val notGguf = "not a gguf file, just some text".toByteArray()
+        val target = File(tempFolder.newFolder(), "model.gguf")
+
+        val events = ModelInstall.copyFromStream(
+            ByteArrayInputStream(notGguf), target, notGguf.size.toLong(), "gguf",
+        ).toList()
+
+        val failed = events.last() as ModelInstall.Progress.Failed
+        assertTrue(failed.cause is IllegalArgumentException)
+        assertFalse(target.exists())
+        assertFalse(File(target.absolutePath + ".partial").exists())
+    }
+
+    @Test fun `copyFromStream validates against expectedExtension regardless of the target's own name`() = runBlocking {
+        // The picked file is named "model.gguf" (matches the runtime's target), but its
+        // content is HTML — expectedExtension must still be honoured over target.name.
+        val html = "<!DOCTYPE html><html></html>".toByteArray()
+        val target = File(tempFolder.newFolder(), "model.gguf")
+
+        val events = ModelInstall.copyFromStream(
+            ByteArrayInputStream(html), target, html.size.toLong(), "gguf",
+        ).toList()
+
+        assertTrue(events.last() is ModelInstall.Progress.Failed)
+        assertFalse(target.exists())
+    }
+
+    @Test fun `copyFromStream overwrites an existing target file`() = runBlocking {
+        val target = File(tempFolder.newFolder(), "model.gguf")
+        target.writeBytes(ggufBytes(10)) // stale previous install
+        val newContent = ggufBytes(50)
+
+        ModelInstall.copyFromStream(
+            ByteArrayInputStream(newContent), target, newContent.size.toLong(), "gguf",
+        ).toList()
+
+        assertArrayEquals(newContent, target.readBytes())
+    }
+
+    @Test fun `copyFromStream surfaces a mid-stream IOException as Failed and cleans up the partial`() = runBlocking {
+        val target = File(tempFolder.newFolder(), "model.gguf")
+        val source = FailingInputStream(ggufBytes(10))
+
+        val events = ModelInstall.copyFromStream(source, target, null, "gguf").toList()
+
+        assertTrue(events.last() is ModelInstall.Progress.Failed)
+        assertFalse(target.exists())
+        assertFalse(File(target.absolutePath + ".partial").exists())
+    }
+
+    @Test fun `copyFromStream still validates and copies byte-exact when the first reads return fewer than 4 bytes`() = runBlocking {
+        // A network-backed SAF DocumentsProvider (Google Drive, etc.) can return 1-3 bytes on
+        // an early read; InputStream.read(ByteArray) only guarantees at least one. The four
+        // magic bytes now arrive one at a time across the first four reads.
+        val content = ggufBytes(5000)
+        val target = File(tempFolder.newFolder(), "model.gguf")
+        val source = ChunkedInputStream(content, chunkSizes = listOf(1, 1, 1, 1))
+
+        val events = ModelInstall.copyFromStream(
+            input = source, target = target, totalBytes = content.size.toLong(), expectedExtension = "gguf",
+        ).toList()
+
+        assertTrue(events.last() is ModelInstall.Progress.Done)
+        assertArrayEquals(content, target.readBytes())
+        assertFalse(File(target.absolutePath + ".partial").exists())
+    }
+
+    @Test fun `copyFromStream rejects a genuinely truncated file that never reaches 4 bytes across short reads`() = runBlocking {
+        // Only 2 bytes ever arrive, delivered one at a time, then EOF — must still be rejected
+        // by the same size check as a single too-short read, not treated as "keep waiting".
+        val tooShort = byteArrayOf(0x47, 0x47)
+        val target = File(tempFolder.newFolder(), "model.gguf")
+        val source = ChunkedInputStream(tooShort, chunkSizes = listOf(1, 1))
+
+        val events = ModelInstall.copyFromStream(
+            input = source, target = target, totalBytes = 2L, expectedExtension = "gguf",
+        ).toList()
+
+        val failed = events.last() as ModelInstall.Progress.Failed
+        assertTrue(failed.cause is IllegalArgumentException)
+        assertFalse(target.exists())
+        assertFalse(File(target.absolutePath + ".partial").exists())
+    }
+
+    @Test fun `copyFromStream rejects a completely empty picked file instead of registering it`() = runBlocking {
+        val target = File(tempFolder.newFolder(), "model.gguf")
+
+        val events = ModelInstall.copyFromStream(
+            ByteArrayInputStream(ByteArray(0)), target, totalBytes = 0L, expectedExtension = "gguf",
+        ).toList()
+
+        val failed = events.last() as ModelInstall.Progress.Failed
+        assertTrue(failed.cause is IllegalArgumentException)
+        assertFalse(target.exists())
+        assertFalse(File(target.absolutePath + ".partial").exists())
+    }
+
+    @Test fun `copyFromStream passes a null totalBytes through unchanged`() = runBlocking {
+        val content = ggufBytes(10)
+        val target = File(tempFolder.newFolder(), "model.gguf")
+
+        val events = ModelInstall.copyFromStream(
+            ByteArrayInputStream(content), target, totalBytes = null, expectedExtension = "gguf",
+        ).toList()
+
+        assertEquals(null, (events.first() as ModelInstall.Progress.Started).totalBytes)
+        assertEquals(null, (events.filterIsInstance<ModelInstall.Progress.Tick>().first()).totalBytes)
     }
 }

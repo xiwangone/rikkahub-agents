@@ -103,6 +103,7 @@ val viewModelModule = module {
             prefs = get(),
             httpClient = get(),
             settingsStore = get(),
+            hfApi = get(),
         )
     }
 }

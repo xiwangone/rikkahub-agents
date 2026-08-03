@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting.components
 
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -66,6 +67,7 @@ import me.rerere.locallm.LocalRuntime
 import me.rerere.locallm.litert.LiteRtCatalog
 import me.rerere.locallm.litert.LiteRtCatalogEntry
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.api.HuggingFaceModelSearch
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
@@ -1142,6 +1144,21 @@ private fun ColumnScope.ProviderConfigureLlamaCpp(
     val installedModelFiles by vm.installedModelFiles.collectAsStateWithLifecycle()
     val perfTelemetry by vm.perfTelemetry.collectAsStateWithLifecycle()
 
+    val context = LocalContext.current
+    val filePicker = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument(),
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        val fileName = context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+            if (cursor.moveToFirst()) {
+                val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                if (nameIndex >= 0) cursor.getString(nameIndex) else null
+            } else null
+        } ?: uri.lastPathSegment ?: "model.gguf"
+        val inputStream = context.contentResolver.openInputStream(uri) ?: return@rememberLauncherForActivityResult
+        vm.installPickedFile(inputStream, fileName)
+    }
+
     provider.description()
 
     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -1165,6 +1182,14 @@ private fun ColumnScope.ProviderConfigureLlamaCpp(
         text = stringResource(R.string.local_llm_installed_models_count, provider.models.size),
         style = MaterialTheme.typography.bodySmall,
     )
+
+    // Install a GGUF the user already has on-device, via the storage file picker.
+    OutlinedButton(
+        onClick = { filePicker.launch(arrayOf("application/octet-stream")) },
+        enabled = downloadProgress == null,
+    ) {
+        Text(stringResource(R.string.local_llm_llamacpp_import_action))
+    }
 
     // Manage installed files — rename or delete each downloaded GGUF.
     if (provider.models.isNotEmpty()) {
@@ -1212,6 +1237,111 @@ private fun ColumnScope.ProviderConfigureLlamaCpp(
         }
     }
 
+    // HuggingFace search: the public, unauthenticated model API filtered to GGUF repos. A
+    // chosen file installs through the same startManualDownload path as the URL field and
+    // the curated catalog above, so download/resume/magic-byte behaviour is identical.
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+        Text(
+            stringResource(R.string.local_llm_hf_search_title),
+            style = MaterialTheme.typography.titleSmall,
+        )
+
+        var hfQuery by remember { mutableStateOf("") }
+        val hfSearchResults by vm.hfSearchResults.collectAsStateWithLifecycle()
+        val hfSearchInProgress by vm.hfSearchInProgress.collectAsStateWithLifecycle()
+        val hfSelectedRepoId by vm.hfSelectedRepoId.collectAsStateWithLifecycle()
+        val hfSelectedRepoFiles by vm.hfSelectedRepoFiles.collectAsStateWithLifecycle()
+
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedTextField(
+                value = hfQuery,
+                onValueChange = { hfQuery = it },
+                label = { Text(stringResource(R.string.local_llm_hf_search_placeholder)) },
+                singleLine = true,
+                modifier = Modifier.weight(1f),
+            )
+            Button(
+                onClick = { vm.searchHuggingFace(hfQuery) },
+                enabled = !hfSearchInProgress && hfQuery.isNotBlank(),
+            ) {
+                Text(stringResource(R.string.local_llm_hf_search_action))
+            }
+        }
+
+        if (hfSearchInProgress) {
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+        }
+
+        val selectedRepoId = hfSelectedRepoId
+        if (selectedRepoId == null) {
+            if (!hfSearchInProgress && hfQuery.isNotBlank() && hfSearchResults.isEmpty()) {
+                Text(
+                    stringResource(R.string.local_llm_hf_search_no_results),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            hfSearchResults.forEach { repo ->
+                Card(
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { vm.selectHuggingFaceRepo(repo.id) },
+                ) {
+                    Column(modifier = Modifier.padding(12.dp)) {
+                        Text(repo.id, style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            stringResource(R.string.local_llm_hf_downloads_format, repo.downloads),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        } else {
+            TextButton(onClick = { vm.clearHuggingFaceSelection() }) {
+                Text(stringResource(R.string.local_llm_hf_back_to_results))
+            }
+            when (val filesResult = hfSelectedRepoFiles) {
+                null -> Text(
+                    stringResource(R.string.local_llm_hf_loading_files),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+
+                is HuggingFaceModelSearch.FilesResult.RequiresAccess -> Text(
+                    stringResource(R.string.local_llm_hf_requires_access),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+
+                is HuggingFaceModelSearch.FilesResult.Error -> Text(
+                    stringResource(R.string.local_llm_hf_files_error_format, filesResult.message),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+
+                is HuggingFaceModelSearch.FilesResult.Files -> if (filesResult.entries.isEmpty()) {
+                    Text(
+                        stringResource(R.string.local_llm_hf_no_gguf_files),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    filesResult.entries.forEach { file ->
+                        HuggingFaceFileRow(
+                            fileName = file.fileName,
+                            sizeBytes = file.sizeBytes,
+                            installed = file.fileName in installedModelFiles,
+                            downloadInProgress = downloadProgress != null,
+                            onInstall = { vm.installFromHuggingFace(selectedRepoId, file.fileName) },
+                        )
+                    }
+                }
+            }
+        }
+    }
+
     // Download progress indicator.
     downloadProgress?.let { progress ->
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -1237,6 +1367,52 @@ private fun ColumnScope.ProviderConfigureLlamaCpp(
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.error,
         )
+    }
+}
+
+@Composable
+private fun HuggingFaceFileRow(
+    fileName: String,
+    sizeBytes: Long,
+    installed: Boolean,
+    downloadInProgress: Boolean,
+    onInstall: () -> Unit,
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant),
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(12.dp),
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(fileName, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    text = String.format(
+                        java.util.Locale.US,
+                        stringResource(R.string.local_llm_hf_file_size_gb_format),
+                        sizeBytes / 1_000_000_000.0,
+                    ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            if (installed) {
+                Text(
+                    text = stringResource(R.string.local_llm_catalog_installed),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            } else {
+                Button(
+                    onClick = onInstall,
+                    enabled = !downloadInProgress,
+                ) {
+                    Text(stringResource(R.string.local_llm_catalog_install))
+                }
+            }
+        }
     }
 }
 

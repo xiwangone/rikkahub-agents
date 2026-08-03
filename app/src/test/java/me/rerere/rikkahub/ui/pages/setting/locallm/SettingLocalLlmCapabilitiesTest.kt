@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting.locallm
 
 import me.rerere.ai.provider.Modality
+import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.locallm.LocalRuntime
@@ -68,5 +69,45 @@ class SettingLocalLlmCapabilitiesTest {
         val original = ProviderSetting.OpenAI(enabled = false)
 
         assertEquals(original, enableAfterFirstDownload(original))
+    }
+
+    @Test
+    fun `registerInstalledModel appends when no existing model shares the modelId`() {
+        val provider = ProviderSetting.LlamaCppLocal()
+        val model = Model(modelId = "Qwen3-0.6B-Q8_0.gguf", displayName = "Qwen3-0.6B-Q8_0.gguf")
+
+        val result = registerInstalledModel(provider, model) as ProviderSetting.LlamaCppLocal
+
+        assertEquals(listOf(model), result.models)
+    }
+
+    @Test
+    fun `registerInstalledModel updates the existing entry instead of appending a duplicate`() {
+        val original = Model(modelId = "Qwen3-0.6B-Q8_0.gguf", displayName = "old name")
+        val provider = ProviderSetting.LlamaCppLocal(models = listOf(original))
+        // Re-installing the same file (e.g. a re-download) derives a fresh Model with a new
+        // random id, matching what collectInstallProgress builds on every Done event.
+        val reinstalled = Model(modelId = "Qwen3-0.6B-Q8_0.gguf", displayName = "Qwen3-0.6B-Q8_0.gguf")
+
+        val result = registerInstalledModel(provider, reinstalled) as ProviderSetting.LlamaCppLocal
+
+        // Exactly one entry survives, carrying the ORIGINAL model's id (so a subsequent
+        // id-keyed delete still finds it) but the freshly derived fields.
+        assertEquals(1, result.models.size)
+        assertEquals(original.id, result.models.single().id)
+        assertEquals("Qwen3-0.6B-Q8_0.gguf", result.models.single().displayName)
+    }
+
+    @Test
+    fun `registerInstalledModel leaves other installed models on the provider untouched`() {
+        val other = Model(modelId = "other.gguf", displayName = "other.gguf")
+        val target = Model(modelId = "target.gguf", displayName = "old")
+        val provider = ProviderSetting.LlamaCppLocal(models = listOf(other, target))
+        val reinstalled = Model(modelId = "target.gguf", displayName = "target.gguf")
+
+        val result = registerInstalledModel(provider, reinstalled) as ProviderSetting.LlamaCppLocal
+
+        assertEquals(2, result.models.size)
+        assertTrue(result.models.any { it.id == other.id && it.displayName == "other.gguf" })
     }
 }

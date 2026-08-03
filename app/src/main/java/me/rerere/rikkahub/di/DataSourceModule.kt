@@ -20,6 +20,7 @@ import me.rerere.rikkahub.data.ai.RequestLoggingInterceptor
 import me.rerere.rikkahub.data.ai.transformers.AssistantTemplateLoader
 import me.rerere.rikkahub.data.ai.GenerationHandler
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
+import me.rerere.rikkahub.data.api.HuggingFaceAPI
 import me.rerere.rikkahub.data.api.RikkaHubAPI
 import me.rerere.rikkahub.data.api.SponsorAPI
 import me.rerere.rikkahub.data.codex.CodexAccountRepository
@@ -268,6 +269,10 @@ val dataSourceModule = module {
 
     single {
         SponsorAPI.create(get())
+    }
+
+    single {
+        HuggingFaceAPI.create(get())
     }
 
     single {
