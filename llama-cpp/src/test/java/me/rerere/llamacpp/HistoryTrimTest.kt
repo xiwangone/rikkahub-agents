@@ -1,5 +1,6 @@
 package me.rerere.llamacpp
 
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -32,5 +33,41 @@ class HistoryTrimTest {
         val trimmed = ChatRequestMapper.trimToBudget(messages, budgetBytes = 1)
         assertEquals(1, trimmed.size)
         assertEquals(messages.last(), trimmed.first())
+    }
+
+    @Test
+    fun `a system message must not push out the only user turn`() {
+        // Regression: the old loop stopped at working.size > 1, so [system, user]
+        // over budget dropped the user turn (the only droppable message) and left
+        // just the system message. conversation(5) above never caught this because
+        // it has no system message, so the survivor happened to be the newest turn
+        // by coincidence, not because the system-present case was exercised.
+        val messages = listOf(
+            UIMessage.system("s".repeat(10_000)),
+            UIMessage.user("hi"),
+        )
+        val trimmed = ChatRequestMapper.trimToBudget(messages, budgetBytes = 50)
+        assertTrue(
+            "a user-role message must survive trimming",
+            trimmed.any { it.role == MessageRole.USER },
+        )
+        assertEquals(messages, trimmed)
+    }
+
+    @Test
+    fun `the newest turn survives when older turns sit behind a system message`() {
+        val messages = listOf(
+            UIMessage.system("s".repeat(10_000)),
+            UIMessage.user("first"),
+            UIMessage.assistant("second"),
+            UIMessage.user("third"),
+        )
+        val trimmed = ChatRequestMapper.trimToBudget(messages, budgetBytes = 50)
+        assertTrue(
+            "a user-role message must survive trimming",
+            trimmed.any { it.role == MessageRole.USER },
+        )
+        assertEquals(messages.first(), trimmed.first())
+        assertEquals(messages.last(), trimmed.last())
     }
 }
