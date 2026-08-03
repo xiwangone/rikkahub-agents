@@ -23,9 +23,24 @@ class LlamaCppGenerateTest {
 
     private val fixture = File("/data/local/tmp/llamacpp-test.gguf")
 
+    /**
+     * 512 tokens, not the 4096 a real deployment would plan. The KV cache is the dominant
+     * allocation in this whole suite and it scales linearly with the context: this fixture has
+     * 28 layers, 8 KV heads and 128-dimensional heads, so an f16 cache costs 28 * 8 * 128 * 2 *
+     * 2 = 112 KB per token, which is 470 MB at 4096 against 59 MB at 512.
+     *
+     * That is not a tidiness point. At 4096 a single test peaked at 1069 MB resident on top of
+     * the 428 MB model, and Android's low-memory killer takes the whole instrumentation process
+     * when the device is under pressure. That surfaces as "Test run failed to complete due to
+     * Process crashed" with no tombstone and nothing in the crash buffer, attributed to
+     * whichever test happened to be running, which is what made it look like a native fault.
+     *
+     * 512 is above what any test here needs: the largest is the tool round trip, at roughly a
+     * 200-token prompt plus a 128-token budget.
+     */
     private fun withModelAndContext(block: (model: Long, ctx: Long) -> Unit) {
         val model = LlamaCppJni.nativeLoadModel(fixture.absolutePath)
-        val ctx = LlamaCppJni.nativeCreateContext(model, 4096, 512, 512, "f16", "f16", 4)
+        val ctx = LlamaCppJni.nativeCreateContext(model, 512, 512, 512, "f16", "f16", 4)
         try {
             block(model, ctx)
         } finally {
@@ -231,46 +246,67 @@ class LlamaCppGenerateTest {
     @Test
     fun cancellingFromAnotherThreadStopsGeneration() {
         assumeTrue("fixture GGUF not present", fixture.exists())
-        withModelAndContext { model, ctx ->
-            // The case a sink cannot cover: stopping generation from outside it. This is what
-            // a cancelled coroutine does, and the sink is not called during a prefill at all,
-            // so between-token polling could never reach it.
-            val blob = applied(model, "Write a very long essay about the sea.")
-                .toByteArray(Charsets.UTF_8)
-            val firstPiece = CountDownLatch(1)
-            var count = 0
-            val failure = AtomicReference<Throwable>()
+        // Deliberately not using withModelAndContext: this is the one test with native work on
+        // another thread, so it has to own the order in which things are released. Freeing a
+        // context while a worker is still inside nativeGenerate is a use-after-free that takes
+        // the whole process down, and a helper whose finally block runs on the way out of a
+        // failed assertion would do exactly that.
+        val model = LlamaCppJni.nativeLoadModel(fixture.absolutePath)
+        val ctx = LlamaCppJni.nativeCreateContext(model, 512, 512, 512, "f16", "f16", 4)
+        val budget = 256
 
-            val worker = thread(name = "llamacpp-generate") {
-                try {
-                    LlamaCppJni.nativeGenerate(
-                        ctxHandle = ctx,
-                        modelHandle = model,
-                        appliedTemplateJson = blob,
-                        maxTokens = 4096,
-                        sink = object : LlamaCppJni.TokenSink {
-                            override fun onToken(pieceUtf8: ByteArray): Boolean {
-                                count++
-                                firstPiece.countDown()
-                                return true // never stops on its own
-                            }
-                        },
-                    )
-                } catch (t: Throwable) {
-                    failure.set(t)
-                }
+        // The case a sink cannot cover: stopping generation from outside it. This is what a
+        // cancelled coroutine does, and the sink is not called during a prefill at all, so
+        // between-token polling could never reach it.
+        val blob = applied(model, "Write a very long essay about the sea.")
+            .toByteArray(Charsets.UTF_8)
+        val firstPiece = CountDownLatch(1)
+        var count = 0
+        val failure = AtomicReference<Throwable>()
+
+        val worker = thread(name = "llamacpp-generate") {
+            try {
+                LlamaCppJni.nativeGenerate(
+                    ctxHandle = ctx,
+                    modelHandle = model,
+                    appliedTemplateJson = blob,
+                    maxTokens = budget,
+                    sink = object : LlamaCppJni.TokenSink {
+                        override fun onToken(pieceUtf8: ByteArray): Boolean {
+                            count++
+                            firstPiece.countDown()
+                            return true // never stops on its own
+                        }
+                    },
+                )
+            } catch (t: Throwable) {
+                failure.set(t)
             }
-
-            assertTrue("generation never produced a token", firstPiece.await(120, TimeUnit.SECONDS))
-            LlamaCppJni.nativeCancelGeneration(ctx)
-            worker.join(60_000)
-
-            assertTrue("cancellation must stop generation", !worker.isAlive)
-            assertTrue("cancellation must not fail: ${failure.get()}", failure.get() == null)
-            // The sink asked for 4096 tokens and never refused one, so only the cancel can
-            // have ended this. Anything near the limit means the flag was ignored.
-            assertTrue("expected far fewer than the 4096 requested, got $count", count < 500)
         }
+
+        var startedStreaming = false
+        try {
+            startedStreaming = firstPiece.await(120, TimeUnit.SECONDS)
+        } finally {
+            // Unconditional, and before any assertion can unwind: whatever happened above, the
+            // worker must be out of native code before anything is released.
+            LlamaCppJni.nativeCancelGeneration(ctx)
+            worker.join(120_000)
+            if (worker.isAlive) {
+                // Nothing safe is left to do. Freeing now would corrupt the heap under a live
+                // decode and crash a later, innocent test; leaking a context in a test process
+                // that is about to exit costs nothing by comparison.
+                throw AssertionError("generation ignored cancellation, leaking the context rather than freeing it under it")
+            }
+            LlamaCppJni.nativeFreeContext(ctx)
+            LlamaCppJni.nativeFreeModel(model)
+        }
+
+        assertTrue("generation never produced a token", startedStreaming)
+        assertTrue("cancellation must not fail: ${failure.get()}", failure.get() == null)
+        // The sink asked for the full budget and never refused a token, so only the cancel can
+        // have ended this. Anything near the budget means the flag was ignored.
+        assertTrue("expected far fewer than the $budget requested, got $count", count < 200)
     }
 
     @Test
