@@ -134,3 +134,43 @@ class LiteRtToolDeclarationBudgetTest {
         assertEquals("the overflow is reported, not silently swallowed", listOf(2, 3), dropped)
     }
 }
+
+/**
+ * The prompt has to be budgeted against the context the ENGINE was configured with, never
+ * against the ceiling the model file could theoretically hold. Those are different numbers
+ * whenever the catalog allocates less than the file supports, and budgeting against the
+ * ceiling let a 32768-token budget build a prompt for an engine holding 4096: on
+ * gemma-4-E2B the whole enabled tool set was declared, 31067 chars of it, and the engine
+ * rejected the prefill at 7868 tokens.
+ */
+class LiteRtEngineContextTokensTest {
+
+    @Test
+    fun `the allocation wins when the file ceiling is higher`() {
+        // gemma-4-E2B: catalog allocates 4096, the file could hold 32768.
+        assertEquals(4096, LiteRtProvider.engineContextTokens(4096, 32768))
+    }
+
+    @Test
+    fun `the ceiling wins when the request is higher`() {
+        // qwen3_0_6b_mixed_int4 declares 2048; asking for more faults the native executor.
+        assertEquals(2048, LiteRtProvider.engineContextTokens(32000, 2048))
+    }
+
+    @Test
+    fun `an unknown ceiling leaves the request untouched`() {
+        assertEquals(4096, LiteRtProvider.engineContextTokens(4096, null))
+    }
+
+    @Test
+    fun `the tool budget derived from the engine size never exceeds the engine`() {
+        // The regression this guards: budget(ceiling) was handed to an engine sized at the
+        // allocation, so the committed prefill could run past what the engine can hold.
+        val engine = LiteRtProvider.engineContextTokens(4096, 32768)
+        val committedChars = 500 + 3000 + LiteRtProvider.toolDeclarationCharBudget(engine)
+        assertTrue(
+            "prefill budget ${committedChars}c must fit the engine's ${engine}t",
+            committedChars <= engine * 4,
+        )
+    }
+}

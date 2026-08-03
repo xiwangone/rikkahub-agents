@@ -77,7 +77,11 @@ object LiteRtModelDefaults {
             topK = 64,
             topP = 0.95,
             temperature = 1.0,
-            maxTokens = 4096,
+            // 16384, not 4096: an assistant with a normal enabled tool set spends roughly
+            // 8k tokens on declarations alone, so a 4096-token allocation could not hold the
+            // prompt at all. Half the file's 32768 ceiling keeps the KV cache affordable
+            // while leaving the response about as much room as the prompt takes.
+            maxTokens = 16384,
             maxContextLength = 32768,
             preferredAccelerators = listOf("gpu", "cpu"),
             visionAccelerator = "gpu",
@@ -93,7 +97,8 @@ object LiteRtModelDefaults {
             topK = 64,
             topP = 0.95,
             temperature = 1.0,
-            maxTokens = 4096,
+            // See the E2B entry: 4096 cannot hold a real tool set's declarations.
+            maxTokens = 16384,
             maxContextLength = 32768,
             preferredAccelerators = listOf("gpu", "cpu"),
             visionAccelerator = "gpu",
@@ -109,7 +114,8 @@ object LiteRtModelDefaults {
             topK = 64,
             topP = 0.95,
             temperature = 1.0,
-            maxTokens = 4096,
+            // See the E2B entry: 4096 cannot hold a real tool set's declarations.
+            maxTokens = 16384,
             // 32003, not the 32768 the model card implies: this is what the file declares.
             maxContextLength = 32003,
             preferredAccelerators = listOf("gpu", "cpu"),

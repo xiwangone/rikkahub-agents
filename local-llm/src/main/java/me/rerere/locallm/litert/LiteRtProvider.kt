@@ -231,8 +231,7 @@ class LiteRtProvider(
         // than Gallery's curated default, but never past the ceiling above.
         val maxNumTokensOverride = prefs.maxNumTokensOverride(LocalRuntime.LiteRT)
         val requestedMaxNumTokens = maxNumTokensOverride ?: config.maxTokens
-        val effectiveMaxNumTokens =
-            contextCeiling?.let { minOf(requestedMaxNumTokens, it) } ?: requestedMaxNumTokens
+        val effectiveMaxNumTokens = engineContextTokens(requestedMaxNumTokens, contextCeiling)
         if (contextCeiling != null && requestedMaxNumTokens > contextCeiling) {
             Log.w(
                 TAG,
@@ -284,12 +283,13 @@ class LiteRtProvider(
         // No system-prompt tool catalogue is needed, and none is added: a duplicate
         // listing would only compete with the template's own rendering for context.
         //
-        // Declarations are budgeted like every other part of the prompt. The model's max
-        // context is the constraint (config.maxContextLength); models with no curated
-        // value fall back to the engine's token budget as a conservative lower bound. A
-        // tool that does not fit is skipped rather than truncated: half a JSON schema
-        // would render a malformed declaration.
-        val contextTokens = contextCeiling ?: effectiveMaxNumTokens
+        // Declarations are budgeted like every other part of the prompt, against the context
+        // the ENGINE was configured with just above. Budgeting against the file's ceiling
+        // instead is what let a prompt built for 32768 tokens reach an engine holding 4096:
+        // the catalog deliberately allocates less than the file can hold, so the two numbers
+        // differ by 8x on the Gemma 4 entries. A tool that does not fit is skipped rather
+        // than truncated: half a JSON schema would render a malformed declaration.
+        val contextTokens = effectiveMaxNumTokens
         val toolCharBudget = toolDeclarationCharBudget(contextTokens)
         var toolCharsUsed = 0
         val droppedTools = mutableListOf<String>()
@@ -865,5 +865,14 @@ class LiteRtProvider(
             (contextTokens * CHARS_PER_TOKEN / 2) -
                 SYSTEM_MESSAGE_CHAR_BUDGET -
                 HISTORY_CHAR_BUDGET
+
+        /**
+         * The context the engine is actually configured with: what was asked for, clamped to
+         * the ceiling the model file can hold. Every part of the prefill is budgeted against
+         * this one number, so the prompt can never be built for a context larger than the
+         * engine that receives it.
+         */
+        internal fun engineContextTokens(requestedMaxTokens: Int, contextCeiling: Int?): Int =
+            contextCeiling?.let { minOf(requestedMaxTokens, it) } ?: requestedMaxTokens
     }
 }
