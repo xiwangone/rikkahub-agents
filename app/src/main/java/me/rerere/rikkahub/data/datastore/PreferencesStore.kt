@@ -378,6 +378,15 @@ class SettingsStore(
                             val insertAt = providers.indexOfFirst { it is ProviderSetting.AICore } + 1
                             providers.add(insertAt, defaultProvider.copyProvider())
                         }
+                        is ProviderSetting.LlamaCppLocal -> {
+                            // Insert right after LiteRtLocal, so it groups with the other
+                            // on-device provider instead of appending after every remote
+                            // provider below. Falls back to right after AICore, or 0, if
+                            // LiteRtLocal is absent - same absent-index fallback as above.
+                            val insertAt = providers.indexOfFirst { it is ProviderSetting.LiteRtLocal }
+                                .let { if (it >= 0) it + 1 else providers.indexOfFirst { p -> p is ProviderSetting.AICore } + 1 }
+                            providers.add(insertAt, defaultProvider.copyProvider())
+                        }
                         else -> providers.add(defaultProvider.copyProvider())
                     }
                 }

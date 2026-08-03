@@ -23,15 +23,16 @@ class ModelInstallTest {
         assertEquals(false, ModelInstall.isValidDownloadUrl("file:///etc/passwd"))
     }
 
-    @Test fun `runtimeForExtension routes litertlm to LiteRT and unknowns to null`() {
+    @Test fun `runtimeForExtension routes litertlm to LiteRT, gguf to llama_cpp, and unknowns to null`() {
         assertEquals(LocalRuntime.LiteRT, ModelInstall.runtimeForExtension("litertlm"))
-        assertEquals(null, ModelInstall.runtimeForExtension("gguf"))
+        assertEquals(LocalRuntime.LlamaCpp, ModelInstall.runtimeForExtension("gguf"))
         assertEquals(null, ModelInstall.runtimeForExtension("task"))
         assertEquals(null, ModelInstall.runtimeForExtension("tflite"))
     }
 
     @Test fun `runtimeForExtension is case-insensitive`() {
         assertEquals(LocalRuntime.LiteRT, ModelInstall.runtimeForExtension("LITERTLM"))
+        assertEquals(LocalRuntime.LlamaCpp, ModelInstall.runtimeForExtension("GGUF"))
     }
 
     @Test fun `runtimeForExtension returns null for unrecognised extension`() {
@@ -138,6 +139,20 @@ class ModelInstallTest {
     @Test fun `isValidMagicForExtension rejects HTML file for litertlm`() {
         val bytes = "<!DOCTYPE html><html>".toByteArray().copyOf(16)
         assertFalse(ModelInstall.isValidMagicForExtension("litertlm", bytes))
+    }
+
+    @Test fun `isValidMagicForExtension accepts GGUF magic for gguf`() {
+        val bytes = byteArrayOf(0x47, 0x47, 0x55, 0x46) + ByteArray(12)
+        assertTrue(ModelInstall.isValidMagicForExtension("gguf", bytes))
+        assertTrue(ModelInstall.isValidMagicForExtension("GGUF", bytes))  // case-insensitive
+    }
+
+    @Test fun `isValidMagicForExtension rejects a truncated or HTML-error download named gguf`() {
+        // A truncated download or an HTML error page saved under a .gguf name must not be
+        // accepted as a model — this is the regression the magic check exists to catch.
+        val html = "<!DOCTYPE html><html>".toByteArray().copyOf(16)
+        assertFalse(ModelInstall.isValidMagicForExtension("gguf", html))
+        assertFalse(ModelInstall.isValidMagicForExtension("gguf", ByteArray(16)))
     }
 
     @Test fun `isValidMagicForExtension rejects buffer shorter than 4 bytes`() {
