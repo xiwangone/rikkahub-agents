@@ -52,13 +52,16 @@ class GoogleProviderMessageTest {
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): JsonObject {
+        // Reflection pins the exact signature, so the safety-category list has to be passed
+        // explicitly: Kotlin compiles the default away into a separate synthetic overload.
         val method = GoogleProvider::class.java.getDeclaredMethod(
             "buildCompletionRequestBody",
             List::class.java,
-            TextGenerationParams::class.java
+            TextGenerationParams::class.java,
+            List::class.java
         )
         method.isAccessible = true
-        return method.invoke(provider, messages, params) as JsonObject
+        return method.invoke(provider, messages, params, GOOGLE_SAFETY_CATEGORIES) as JsonObject
     }
 
     @Test
