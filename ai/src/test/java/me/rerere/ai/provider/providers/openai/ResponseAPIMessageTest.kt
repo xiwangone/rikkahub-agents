@@ -548,7 +548,8 @@ class ResponseAPIMessageTest {
         )
 
         assertFalse("tools key should not be written", requestBody.containsKey("tools"))
-=======
+    }
+
     @Test
     fun `response stream retry only replays failures without output`() {
         assertTrue(

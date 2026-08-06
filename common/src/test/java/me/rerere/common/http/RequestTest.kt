@@ -6,6 +6,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.yield
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.EventListener
 import okhttp3.Request
 import okhttp3.Response
 import okio.Timeout
@@ -35,6 +36,10 @@ class RequestTest {
         override fun execute(): Response = error("This test call never executes synchronously")
 
         override fun enqueue(responseCallback: Callback) = Unit
+
+        // Present on this project's OkHttp; the interface gained it after the test
+        // double was written.
+        override fun addEventListener(eventListener: EventListener) = Unit
 
         override fun cancel() {
             cancelled.set(true)
