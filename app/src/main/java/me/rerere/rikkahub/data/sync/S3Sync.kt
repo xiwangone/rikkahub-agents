@@ -210,7 +210,7 @@ class S3Sync(
         // The DB is opened in WAL mode, so the close()-time checkpoint folds the OLD connection's
         // cached WAL frames into whatever rikka_hub.db currently is. If we closed AFTER the
         // overwrite, that checkpoint would replay pre-restore frames over the freshly restored
-        // bytes and corrupt the import — so the close has to come first. The restore caller
+        // bytes and corrupt the import, so the close has to come first. The restore caller
         // restarts the process afterwards, so Room reopens cleanly on the reconciled file.
         // (Best-effort: a concurrent DAO access could lazily reopen Room mid-restore; that race
         // is pre-existing and bounded by the user driving a deliberate, near-idle restore.)
@@ -262,10 +262,7 @@ class S3Sync(
                                         TAG,
                                         "restoreFromBackupFile: Restoring ${zipEntry.name} to ${targetFile.absolutePath}"
                                     )
-                                    targetFile.parentFile?.mkdirs()
-                                    FileOutputStream(targetFile).use { outputStream ->
-                                        zipIn.copyTo(outputStream)
-                                    }
+                                    extractEntryAtomically(zipIn, targetFile)
                                     when (zipEntry.name) {
                                         "rikka_hub-wal" -> restoredWal = true
                                         "rikka_hub-shm" -> restoredShm = true
@@ -361,6 +358,33 @@ class S3Sync(
         Log.i(TAG, "restoreFromBackupFile: Restore completed successfully")
     }
 
+    /**
+     * Extract one zip entry to [targetFile] atomically: write to a temp file in the SAME
+     * directory, then rename over the target. Used for rikka_hub.db/-wal/-shm, which used to
+     * be written straight to their live path: a process kill mid-copy left a torn database
+     * file; a rename is atomic on the same filesystem.
+     */
+    private fun extractEntryAtomically(zipIn: ZipInputStream, targetFile: File) {
+        targetFile.parentFile?.mkdirs()
+        val tmp = File(targetFile.parentFile, "${targetFile.name}.restore-${System.nanoTime()}")
+        try {
+            FileOutputStream(tmp).use { outputStream ->
+                zipIn.copyTo(outputStream)
+            }
+            if (!tmp.renameTo(targetFile)) {
+                // Some filesystems won't rename onto an existing target; delete + retry.
+                targetFile.delete()
+                if (!tmp.renameTo(targetFile)) {
+                    tmp.delete()
+                    throw java.io.IOException("Failed to place restored file at ${targetFile.absolutePath}")
+                }
+            }
+        } catch (e: Throwable) {
+            tmp.delete()
+            throw e
+        }
+    }
+
     private fun checkpointDatabase() {
         try {
             appDatabase.openHelper.writableDatabase
@@ -368,7 +392,7 @@ class S3Sync(
             Log.i(TAG, "checkpointDatabase: WAL checkpoint(TRUNCATE) done")
         } catch (e: Exception) {
             // Non-fatal: the -wal/-shm files are still copied below, so no committed data
-            // is lost — the snapshot just isn't guaranteed torn-free for this run.
+            // is lost: the snapshot just isn't guaranteed torn-free for this run.
             Log.w(TAG, "checkpointDatabase: WAL checkpoint failed; copying db+wal+shm as-is", e)
         }
     }

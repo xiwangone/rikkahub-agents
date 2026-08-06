@@ -19,10 +19,14 @@ data class GgufModelInfo(
     val slidingWindow: Int?,
     val weightsBytes: Long,
 ) {
-    /** Every field the KV cache formula reads must be positive to be usable. */
+    /** Every field the KV cache formula reads must be positive to be usable. [weightsBytes]
+     *  is included even though the KV formula doesn't read it: it's the figure
+     *  [MemoryGuard][me.rerere.locallm.MemoryGuard] and [ContextPlanner.estimateBytes] use to
+     *  size the model file's own footprint, and a 0 there would let both silently underrate
+     *  a model that is actually huge. */
     val isComplete: Boolean
         get() = nLayers > 0 && nEmbd > 0 && nHeadKv > 0 && nEmbdHeadK > 0 &&
-            nEmbdHeadV > 0 && nVocab > 0 && nCtxTrain > 0
+            nEmbdHeadV > 0 && nVocab > 0 && nCtxTrain > 0 && weightsBytes > 0
 }
 
 /** KV cache element types, with the bytes-per-element llama.cpp uses for each. */
@@ -46,4 +50,10 @@ data class ContextPlan(
     val nUBatch: Int,
     val droppedToolNames: List<String>,
     val estimatedBytes: Long,
+    /** Bytes of the input half of [nCtx] already spoken for by the system prompt and the
+     *  tools that survived [ContextPlanner.fitTools] - what [LlamaCppRuntime.inputBudgetBytes]
+     *  must subtract so the conversation history it budgets for, plus this reserved amount,
+     *  never together exceed the input half of the context the engine was actually created
+     *  with. */
+    val reservedInputBytes: Int,
 )

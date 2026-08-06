@@ -30,6 +30,41 @@ import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicReference
 
 /**
+ * Turns one [ChatDeltaTracker] channel's deltas into the safe suffix to forward downstream,
+ * given that the shared chunk protocol (UIMessage's delta-append fold) can only ever append,
+ * never retract, what it has already been sent.
+ *
+ * A non-reset delta is already a safe suffix and is forwarded unchanged. A reset delta
+ * carries the channel's full corrected value instead of a suffix (see [ChatDelta]'s doc); what
+ * has already been forwarded downstream cannot be un-sent, so re-sending the corrected value
+ * in full would duplicate whatever of it was already shown rather than fix it. Mid-stream
+ * ([isFinal] false), forwarding nothing and silently resyncing to the corrected value is the
+ * right call: a later, non-reset delta will extend past the corrected value and its suffix
+ * carries the correction downstream, so nothing is lost - keeping the stale watermark instead
+ * would make every later delta fail its "is this an extension of what's shown" check forever,
+ * since the true text no longer contains the stale prefix at all once it has diverged.
+ *
+ * On the terminal delta ([isFinal] true - the final `isPartial = false` parse, see
+ * [ChatDeltaTracker.consume]) there is no later delta to rely on: generation has already
+ * stopped, so swallowing a reset there would drop the model's real final text permanently
+ * instead of merely delaying its correction. [advance] forwards the full corrected value in
+ * that one case instead, accepting a possible duplicate suffix in exchange for never silently
+ * losing content the model actually produced.
+ */
+private class ChannelWatermark {
+    private var shown = ""
+
+    fun advance(deltaValue: String, reset: Boolean, isFinal: Boolean): String {
+        if (reset) {
+            shown = deltaValue
+            return if (isFinal) deltaValue else ""
+        }
+        shown += deltaValue
+        return deltaValue
+    }
+}
+
+/**
  * Streams generation from a locally loaded GGUF through [LlamaCppRuntime]. The prompt, the
  * grammar that constrains tool-call syntax, and the rules for parsing the reply all come from
  * the applied-template blob [LlamaCppRuntime.applyTemplate] returns; this provider treats that
@@ -181,6 +216,13 @@ class LlamaCppProvider(
          * already discarded - otherwise a later call for that still-installed model would
          * see it as already loaded, skip the reload, and hit "no model is loaded" on the
          * very generation call this method exists to prevent.
+         *
+         * A path match still calls [LlamaCppRuntime.replan]: [tools] and
+         * [systemPromptBytes] are this request's, not the ones the model happened to be
+         * loaded with, and they can change turn to turn (a different assistant/tool
+         * config) even when the model itself does not. Skipping that would leave a stale
+         * [ContextPlan.droppedToolNames]/[ContextPlan.reservedInputBytes] in effect for
+         * every request after the first against a given model.
          */
         internal suspend fun ensureLoaded(
             runtime: LlamaCppRuntime,
@@ -190,7 +232,10 @@ class LlamaCppProvider(
             systemPromptBytes: Int,
             availableRamBytes: Long,
         ) {
-            if (loadedPath.get() == path) return
+            if (loadedPath.get() == path) {
+                runtime.replan(tools, systemPromptBytes)
+                return
+            }
             loadedPath.set(null)
             runtime.load(path, tools, systemPromptBytes, availableRamBytes)
             loadedPath.set(path)
@@ -264,17 +309,27 @@ class LlamaCppProvider(
             val tracker = ChatDeltaTracker()
             val accumulated = StringBuilder()
             val finished = AtomicBoolean(false)
+            // The chunk protocol downstream (UIMessage's delta-append fold) can only ever
+            // append, never retract, so these mirror what has actually been forwarded for
+            // each channel - see ChannelWatermark's doc for how that reconciles textReset/
+            // reasoningReset.
+            val textWatermark = ChannelWatermark()
+            val reasoningWatermark = ChannelWatermark()
 
             // A plain captured lambda, not an extension function: it closes over this
             // callbackFlow's ProducerScope directly, so calling it from inside the doubly-nested
-            // onPiece callback below needs no implicit-receiver resolution of its own.
-            val sendDelta: (ChatDelta) -> Boolean = { delta ->
+            // onPiece callback below needs no implicit-receiver resolution of its own. isFinal
+            // marks the terminal (isPartial = false) call so a reset there can still be
+            // forwarded - see ChannelWatermark's doc.
+            val sendDelta: (ChatDelta, Boolean) -> Boolean = { delta, isFinal ->
+                val textDelta = textWatermark.advance(delta.textDelta, delta.textReset, isFinal)
+                val reasoningDelta = reasoningWatermark.advance(delta.reasoningDelta, delta.reasoningReset, isFinal)
                 val parts = buildList {
-                    if (delta.reasoningDelta.isNotEmpty()) {
-                        add(UIMessagePart.Reasoning(reasoning = delta.reasoningDelta))
+                    if (reasoningDelta.isNotEmpty()) {
+                        add(UIMessagePart.Reasoning(reasoning = reasoningDelta))
                     }
-                    if (delta.textDelta.isNotEmpty()) {
-                        add(UIMessagePart.Text(delta.textDelta))
+                    if (textDelta.isNotEmpty()) {
+                        add(UIMessagePart.Text(textDelta))
                     }
                     delta.completedToolCalls.forEach { call ->
                         add(UIMessagePart.Tool(toolCallId = call.id, toolName = call.name, input = call.arguments))
@@ -305,13 +360,13 @@ class LlamaCppProvider(
                     runtime.generate(appliedTemplateJson, params.maxTokens ?: DEFAULT_MAX_TOKENS) { piece ->
                         accumulated.append(piece)
                         val parsed = runtime.parse(accumulated.toString(), true, appliedTemplateJson)
-                        sendDelta(tracker.consume(parsed, isPartial = true))
+                        sendDelta(tracker.consume(parsed, isPartial = true), false)
                     }
 
                     // The final parse is authoritative: it flushes any tool call whose arguments
                     // were still settling when generation stopped (see ChatDeltaTracker.consume).
                     val finalParsed = runtime.parse(accumulated.toString(), false, appliedTemplateJson)
-                    sendDelta(tracker.consume(finalParsed, isPartial = false))
+                    sendDelta(tracker.consume(finalParsed, isPartial = false), true)
                 } finally {
                     finished.set(true)
                     close()

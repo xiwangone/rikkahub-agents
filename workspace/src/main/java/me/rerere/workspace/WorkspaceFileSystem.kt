@@ -57,7 +57,24 @@ class WorkspaceFileSystem(
         val file = resolvePath(root, path)
         file.parentFile?.mkdirs()
         val target = if (!file.exists()) file else resolveConflict(file)
-        inputStream.use { input -> target.outputStream().use { input.copyTo(it) } }
+        try {
+            inputStream.use { input ->
+                target.outputStream().use { output ->
+                    val buffer = ByteArray(8192)
+                    var total = 0L
+                    while (true) {
+                        val read = input.read(buffer)
+                        if (read < 0) break
+                        total += read
+                        require(total <= config.maxWriteBytes) { "Content is too large to write: $total bytes" }
+                        output.write(buffer, 0, read)
+                    }
+                }
+            }
+        } catch (e: IllegalArgumentException) {
+            target.delete()
+            throw e
+        }
         return target.toEntry(root)
     }
 

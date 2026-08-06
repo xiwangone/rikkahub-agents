@@ -18,6 +18,15 @@ object CatchupPlanner {
     private const val FIRE_ALL_CAP = 20
     private const val FIRE_ALL_STAGGER_MS = 2_000L
 
+    /**
+     * Upper bound on 'skipped_catchup' rows written per job per boot. countMatchesBetween's
+     * own loop cap (10_000) is a last-resort safety net, not a real bound: a job that was
+     * off for months with a frequent schedule can still reach it, and CronBootReceiver
+     * inserts one Room row per skipped window sequentially. Capping here keeps that
+     * insert burst small regardless of how long the device was off.
+     */
+    private const val SKIPPED_ROWS_CAP = 100
+
     data class CatchupPlan(
         /** Delays to pass to OneTimeWorkRequestBuilder.setInitialDelay. */
         val fireDelaysMs: List<Long>,
@@ -63,13 +72,13 @@ object CatchupPlanner {
         val missedCount = countMatchesBetween(et, zone, fromMsExclusive = from, toMsInclusive = nowMs)
 
         return when (job.catchup) {
-            "skip"      -> CatchupPlan(emptyList(), missedCount)
+            "skip"      -> CatchupPlan(emptyList(), missedCount.coerceAtMost(SKIPPED_ROWS_CAP))
             "fire_once" -> if (missedCount == 0) CatchupPlan(emptyList(), 0)
-                           else CatchupPlan(listOf(0L), missedCount - 1)
+                           else CatchupPlan(listOf(0L), (missedCount - 1).coerceAtMost(SKIPPED_ROWS_CAP))
             "fire_all"  -> {
                 val capped = missedCount.coerceAtMost(FIRE_ALL_CAP)
                 val delays = (0 until capped).map { it * FIRE_ALL_STAGGER_MS }
-                val skipped = (missedCount - capped).coerceAtLeast(0)
+                val skipped = (missedCount - capped).coerceAtLeast(0).coerceAtMost(SKIPPED_ROWS_CAP)
                 CatchupPlan(delays, skipped)
             }
             else -> CatchupPlan(emptyList(), 0)

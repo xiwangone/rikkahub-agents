@@ -35,6 +35,24 @@ class MemoryRefusalTest {
     }
 
     @Test
+    fun `a model reporting 0 weights_bytes is refused rather than waved through`() = runBlocking {
+        // MemoryGuard.decide(0, anyBudget) always returns Ok, since 0 fits any budget.
+        // load() must catch this before calling MemoryGuard rather than trust it.
+        val native = object : LlamaCppNative by NoopNative() {
+            override fun modelInfo(handle: Long): String = """
+                {"n_layers":48,"n_embd":4096,"n_head_kv":8,"n_embd_head_k":128,
+                 "n_embd_head_v":128,"n_vocab":262144,"n_ctx_train":32768,
+                 "sliding_window":0,"weights_bytes":0}
+            """.trimIndent()
+        }
+        val runtime = LlamaCppRuntime(native)
+        val error = runCatching {
+            runtime.load("/tmp/unmeasurable.gguf", emptyList(), 0, availableRamBytes = 2_000_000_000L)
+        }.exceptionOrNull()
+        assertTrue("expected ModelTooLargeException, got $error", error is ModelTooLargeException)
+    }
+
+    @Test
     fun `a model whose weights fit the budget is accepted even though the full estimate would not`() = runBlocking {
         // 3 GB of weights against 5 GB of RAM: comfortably under MemoryGuard's 0.7 budget
         // (3.5 GB) on their own. But ContextPlanner.estimateBytes adds the KV cache, the

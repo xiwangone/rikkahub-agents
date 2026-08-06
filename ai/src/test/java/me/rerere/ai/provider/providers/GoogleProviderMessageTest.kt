@@ -6,6 +6,8 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.core.Tool
+import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.TextGenerationParams
@@ -447,6 +449,38 @@ class GoogleProviderMessageTest {
         val systemInstruction = request["systemInstruction"]!!.jsonObject
         val parts = systemInstruction["parts"]!!.jsonArray
         assertEquals(prompt, parts.single().jsonObject["text"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `function tools and model built-in tools should both land in the tools array`() {
+        // Regression for the "tools" key being written twice: put("tools", ...) on a
+        // JsonObjectBuilder replaces the existing key outright, so a model with a
+        // built-in tool (e.g. Search) enabled alongside caller-supplied function tools
+        // used to silently drop every function declaration.
+        val messages = listOf(UIMessage.user("hello"))
+        val params = TextGenerationParams(
+            model = Model(
+                modelId = "gemini-test",
+                abilities = listOf(ModelAbility.TOOL),
+                tools = setOf(BuiltInTools.Search),
+            ),
+            tools = listOf(
+                Tool(
+                    name = "my_tool",
+                    description = "a function tool",
+                    execute = { emptyList() },
+                )
+            ),
+        )
+
+        val request = invokeBuildCompletionRequestBody(messages, params)
+        val toolsArray = request["tools"]!!.jsonArray
+
+        val hasFunctionDeclarations = toolsArray.any { it.jsonObject.containsKey("functionDeclarations") }
+        val hasGoogleSearch = toolsArray.any { it.jsonObject.containsKey("googleSearch") }
+
+        assertTrue("function tools must survive alongside built-in tools", hasFunctionDeclarations)
+        assertTrue("built-in tools must still be present", hasGoogleSearch)
     }
 
     // ==================== Helper Functions ====================

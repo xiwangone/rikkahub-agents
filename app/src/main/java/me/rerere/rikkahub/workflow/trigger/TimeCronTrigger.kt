@@ -183,7 +183,12 @@ internal class TimeCronTriggerFamily(
                 val n = every.groupValues[1].toLong()
                 val unit = every.groupValues[2]
                 return when (unit) {
-                    "s" -> n * 1000
+                    // Sub-minute not supported (matches CronExpressionParser's @every Ns
+                    // floor) — without this, WorkflowJson.validate() treats any positive
+                    // n as valid since this function never returns null for "s", and the
+                    // schedule silently degrades to the one-shot path's 60s delay floor
+                    // instead of surfacing a validation error at creation time.
+                    "s" -> if (n < 60) null else n * 1000
                     "m" -> n * 60 * 1000
                     "h" -> n * 60 * 60 * 1000
                     "d" -> n * 24 * 60 * 60 * 1000

@@ -49,8 +49,10 @@ import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
+import me.rerere.ai.util.redactSecrets
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
+import me.rerere.common.android.Logging
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonArrayOrNull
 import me.rerere.common.http.jsonObjectOrNull
@@ -97,7 +99,9 @@ class ChatCompletionsAPI(
             .configureReferHeaders(providerSetting.baseUrl)
             .build()
 
-        Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
+        if (Logging.isDebugLoggingEnabled()) {
+            Log.i(TAG, "generateText: ${json.encodeToString(redactSecrets(requestBody))}")
+        }
 
         val response = client.newCall(request).await()
         if (!response.isSuccessful) {
@@ -155,7 +159,9 @@ class ChatCompletionsAPI(
             .configureReferHeaders(providerSetting.baseUrl)
             .build()
 
-        Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")
+        if (Logging.isDebugLoggingEnabled()) {
+            Log.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
+        }
 
         // just for debugging response body
         // println(client.newCall(request).await().body.string())
@@ -177,45 +183,54 @@ class ChatCompletionsAPI(
                     .trim()
                     .split("\n")
                     .filter { it.isNotBlank() }
-                    .map { json.parseToJsonElement(it).jsonObject }
-                    .forEach {
-                        if (it["error"] != null) {
-                            val error = it["error"]!!.parseErrorDetail()
-                            throw error
-                        }
-                        val id = it["id"]?.jsonPrimitive?.contentOrNull ?: ""
-                        val model = it["model"]?.jsonPrimitive?.contentOrNull ?: ""
-
-                        val choices = it["choices"]?.jsonArray ?: JsonArray(emptyList())
-                        val choiceList = buildList {
-                            if (choices.isNotEmpty()) {
-                                val choice = choices[0].jsonObject
-                                val message =
-                                    choice["delta"]?.jsonObject ?: choice["message"]?.jsonObject
-                                    ?: throw Exception("delta/message is null")
-                                val finishReason =
-                                    choice["finish_reason"]?.jsonPrimitive?.contentOrNull
-                                        ?: "unknown"
-                                add(
-                                    UIMessageChoice(
-                                        index = 0,
-                                        delta = parseMessage(message),
-                                        message = null,
-                                        finishReason = finishReason,
-                                    )
-                                )
+                    .forEach { line ->
+                        // A single malformed/unparseable line must not escape this
+                        // callback: an uncaught exception here propagates through
+                        // OkHttp's SSE reader and aborts the whole stream instead of
+                        // just skipping this one line.
+                        try {
+                            val it = json.parseToJsonElement(line).jsonObject
+                            if (it["error"] != null) {
+                                val error = it["error"]!!.parseErrorDetail()
+                                close(error)
+                                return@forEach
                             }
-                        }
-                        val usage = parseTokenUsage(it["usage"] as? JsonObject)
+                            val id = it["id"]?.jsonPrimitive?.contentOrNull ?: ""
+                            val model = it["model"]?.jsonPrimitive?.contentOrNull ?: ""
 
-                        val messageChunk = MessageChunk(
-                            id = id,
-                            model = model,
-                            choices = choiceList,
-                            usage = usage
-                        )
-                        trySend(messageChunk).onFailure { e ->
-                            Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                            val choices = it["choices"]?.jsonArray ?: JsonArray(emptyList())
+                            val choiceList = buildList {
+                                if (choices.isNotEmpty()) {
+                                    val choice = choices[0].jsonObject
+                                    val message =
+                                        choice["delta"]?.jsonObject ?: choice["message"]?.jsonObject
+                                        ?: throw Exception("delta/message is null")
+                                    val finishReason =
+                                        choice["finish_reason"]?.jsonPrimitive?.contentOrNull
+                                            ?: "unknown"
+                                    add(
+                                        UIMessageChoice(
+                                            index = 0,
+                                            delta = parseMessage(message),
+                                            message = null,
+                                            finishReason = finishReason,
+                                        )
+                                    )
+                                }
+                            }
+                            val usage = parseTokenUsage(it["usage"] as? JsonObject)
+
+                            val messageChunk = MessageChunk(
+                                id = id,
+                                model = model,
+                                choices = choiceList,
+                                usage = usage
+                            )
+                            trySend(messageChunk).onFailure { e ->
+                                Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                            }
+                        } catch (e: Exception) {
+                            Log.w(TAG, "onEvent: skipping malformed chunk (${e.message})", e)
                         }
                     }
             }

@@ -1,5 +1,6 @@
 package me.rerere.search
 
+import android.util.Log
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -24,6 +25,8 @@ import me.rerere.search.SearchService.Companion.keyRoulette
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+
+private const val TAG = "ExaSearchService"
 
 object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
     override val name: String = "Exa"
@@ -100,8 +103,7 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
                 val response = runCatching {
                     json.decodeFromString<ExaData>(bodyRaw)
                 }.onFailure {
-                    it.printStackTrace()
-                    println(bodyRaw)
+                    Log.e(TAG, "Failed to decode Exa search response: $bodyRaw", it)
                     error("Failed to decode response: $bodyRaw")
                 }.getOrThrow()
 
@@ -118,7 +120,7 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
                         images = response.results.mapNotNull { it.image?.takeIf { url -> url.isNotBlank() } },
                     ))
             } else {
-                println(response.body.string())
+                Log.e(TAG, "Exa search failed with code ${response.code}: ${response.body.string()}")
                 error("response failed #${response.code}")
             }
         }
@@ -151,8 +153,7 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
                 val data = runCatching {
                     json.decodeFromString<ExaData>(bodyRaw)
                 }.onFailure {
-                    it.printStackTrace()
-                    println(bodyRaw)
+                    Log.e(TAG, "Failed to decode Exa scrape response: $bodyRaw", it)
                     error("Failed to decode response: $bodyRaw")
                 }.getOrThrow()
 
@@ -170,7 +171,7 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
                     )
                 )
             } else {
-                println(response.body.string())
+                Log.e(TAG, "Exa scrape failed with code ${response.code}: ${response.body.string()}")
                 error("response failed #${response.code}")
             }
         }

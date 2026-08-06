@@ -268,11 +268,11 @@ object ModelInstall {
             // (Main, in our case), and crashes the process. The partial bytes already
             // on disk are intact and resumable on the next Install tap because of the
             // Range-resume logic above.
+            var totalRead = effectiveResumeFrom
             val ioFailure: Throwable? = try {
                 out.use { sink ->
                     body.byteStream().use { input ->
                         val buf = ByteArray(64 * 1024)
-                        var totalRead = effectiveResumeFrom
                         while (true) {
                             val n = input.read(buf)
                             if (n <= 0) break
@@ -308,6 +308,21 @@ object ModelInstall {
                 Log.w(TAG, "Download aborted: HTML magic bytes detected in response body for $normalized")
                 emit(Progress.Failed(IllegalStateException(
                     "Server returned an HTML page (magic-byte check failed). Check the URL."
+                )))
+                return@flow
+            }
+
+            // The read loop above treats a clean EOF (n <= 0) as "done", but a server or
+            // proxy can close the connection early without ever throwing - the socket just
+            // ends. Content-Length (or, resuming, Content-Range's total) is the only way to
+            // tell that apart from a real completed download; without this check a short
+            // read silently passed the magic-byte check below whenever the truncation
+            // landed after the first few bytes, and got registered as a working model.
+            if (total != null && totalRead < total) {
+                Log.w(TAG, "Download short: got $totalRead of $total bytes for $normalized")
+                emit(Progress.Failed(java.io.IOException(
+                    "Download incomplete: received $totalRead of $total bytes. " +
+                    "Tap Install again to resume from where it stopped."
                 )))
                 return@flow
             }

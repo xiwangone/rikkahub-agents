@@ -151,6 +151,16 @@ class LlamaCppRuntime(private val native: LlamaCppNative = RealLlamaCppNative) {
             // compute buffers, so it must see the model file alone (info.weightsBytes), not
             // planned.estimatedBytes - that total already includes KV cache and compute
             // buffer headroom of its own, and adding MemoryGuard's on top double-counts it.
+            //
+            // A weightsBytes of 0 is not a small model, it is unreadable metadata:
+            // MemoryGuard.decide(0, ...) always returns Ok, so it must be refused here
+            // rather than passed through, or an unmeasurable model would sail past the
+            // guard it was supposed to be judged by.
+            if (info.weightsBytes <= 0) {
+                throw ModelTooLargeException(
+                    "This model's file size could not be read, so it cannot be safely loaded."
+                )
+            }
             when (val decision = MemoryGuard.decide(info.weightsBytes, availableRamBytes)) {
                 is MemoryGuard.Decision.TooLarge -> throw ModelTooLargeException(
                     "This model needs about ${decision.requiredFreeBytes / 1_000_000}MB free " +
@@ -202,14 +212,39 @@ class LlamaCppRuntime(private val native: LlamaCppNative = RealLlamaCppNative) {
 
     /**
      * Bytes of prompt the currently planned context can accept, excluding the response
-     * reserve. Backs [ChatRequestMapper.trimToBudget] so a long conversation is trimmed to
-     * what this model's context can actually hold rather than overflowing at generate time.
-     * Throws if no model is loaded, rather than returning 0 - a silent 0 budget would trim
-     * a conversation down to nothing.
+     * reserve, the system prompt and the tools this request already committed to
+     * ([ContextPlan.reservedInputBytes]). Backs [ChatRequestMapper.trimToBudget] so a long
+     * conversation is trimmed to what this model's context can actually hold rather than
+     * overflowing at generate time. Throws if no model is loaded, rather than returning 0 -
+     * a silent 0 budget would trim a conversation down to nothing.
+     *
+     * Coerced to never go negative: a system prompt and tool set large enough to exceed the
+     * whole input budget on their own must still leave [ChatRequestMapper.trimToBudget]
+     * something well-defined to compare against, rather than a budget that reads as "plenty
+     * of room" because it wrapped negative into a huge Int.
      */
     fun inputBudgetBytes(): Int {
         val current = plan ?: error("no model is loaded")
-        return (current.nCtx / 2) * ContextPlanner.BYTES_PER_TOKEN
+        return (ContextPlanner.inputByteBudget(current.nCtx) - current.reservedInputBytes)
+            .coerceAtLeast(0)
+    }
+
+    /**
+     * Re-fits [tools] and [systemPromptBytes] against the model already loaded, without
+     * picking a new context size or touching the native context - see [ContextPlanner]'s
+     * class doc for why [ContextPlan.nCtx] must never drift from what the engine was
+     * created with. [LlamaCppProvider.ensureLoaded] calls this on every request, including
+     * one for a model that is already loaded, since the tools enabled and the system prompt
+     * in use are per-request and can change between turns even when the model does not.
+     */
+    suspend fun replan(tools: List<ToolDeclaration>, systemPromptBytes: Int) = mutex.withLock {
+        check(modelHandle != 0L) { "no model is loaded" }
+        val current = plan ?: error("no model is loaded")
+        val request = ContextPlanner.replanForRequest(current.nCtx, tools, systemPromptBytes)
+        plan = current.copy(
+            droppedToolNames = request.droppedToolNames,
+            reservedInputBytes = request.reservedInputBytes,
+        )
     }
 
     /**

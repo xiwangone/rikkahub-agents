@@ -4,6 +4,7 @@ import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.File
 import java.io.InputStream
+import java.io.StringReader
 import java.util.zip.ZipFile
 
 private data class ManifestItem(
@@ -11,6 +12,18 @@ private data class ManifestItem(
     val href: String,
     val mediaType: String
 )
+
+// EPUB chapter markup is frequently loose HTML rather than strict XHTML: it uses named HTML
+// entities (&nbsp;, &mdash;, ...) and occasional bare "&" that the 5 XML-predefined entities
+// don't cover. With FEATURE_PROCESS_DOCDECL disabled (no DTD lookup), an unresolvable entity
+// makes parser.next() throw partway through the document, and the catch below silently drops
+// everything from that point on. Disarming any "&" that isn't already valid XML turns those
+// into literal text instead of a parser error, so one bad entity can no longer truncate the
+// rest of the chapter.
+private val UNRESOLVABLE_ENTITY_RE = Regex("&(?!amp;|lt;|gt;|quot;|apos;|#[0-9]+;|#x[0-9a-fA-F]+;)")
+
+internal fun escapeUnresolvableEntities(xml: String): String =
+    xml.replace(UNRESOLVABLE_ENTITY_RE, "&amp;")
 
 object EpubParser {
     fun parse(file: File): String {
@@ -100,11 +113,13 @@ object EpubParser {
 
     private fun parseXhtml(inputStream: InputStream): String {
         return try {
+            val xml = escapeUnresolvableEntities(inputStream.bufferedReader(Charsets.UTF_8).readText())
+
             val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = false
             val parser = factory.newPullParser()
             parser.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, false)
-            parser.setInput(inputStream, "UTF-8")
+            parser.setInput(StringReader(xml))
 
             val result = StringBuilder()
             val tagStack = ArrayDeque<String>()

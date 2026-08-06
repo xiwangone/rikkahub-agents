@@ -22,6 +22,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import me.rerere.common.android.Logging
 import me.rerere.common.android.appTempFolder
 import com.whl.quickjs.android.QuickJSLoader
 import me.rerere.rikkahub.di.appModule
@@ -51,6 +52,11 @@ const val WEB_SERVER_NOTIFICATION_CHANNEL_ID = "web_server"
 class RikkaHubApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        // :ai (and other sub-:app modules) have no BuildConfig of their own, so this is
+        // how their provider code learns whether it's running a debug build — needed to
+        // gate full request/response body logging the same way HttpLoggingInterceptor
+        // is already gated behind BuildConfig.DEBUG in DataSourceModule.
+        Logging.setDebugLoggingEnabled(BuildConfig.DEBUG)
         startKoin {
             androidLogger()
             androidContext(this@RikkaHubApp)

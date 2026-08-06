@@ -130,4 +130,37 @@ class JsonTest {
         assertEquals("value1", result["key1"]?.toString()?.trim('"'))
         assertEquals("value2", result["key2"]?.toString()?.trim('"'))
     }
+
+    @Test
+    fun `redactSecrets should mask secret-named keys regardless of nesting depth`() {
+        val body = buildJsonObject {
+            put("model", "gpt-5")
+            put("api_key", "sk-topsecret")
+            put("nested", buildJsonObject {
+                put("private_key", "-----BEGIN KEY-----")
+                put("prompt", "not a secret")
+            })
+        }
+
+        val redacted = redactSecrets(body) as JsonObject
+        val nested = redacted["nested"] as JsonObject
+
+        assertEquals("gpt-5", redacted["model"]?.toString()?.trim('"'))
+        assertEquals("\"***\"", redacted["api_key"].toString())
+        assertEquals("\"***\"", nested["private_key"].toString())
+        assertEquals("not a secret", nested["prompt"]?.toString()?.trim('"'))
+    }
+
+    @Test
+    fun `redactSecrets should leave non-secret keys and non-string values untouched`() {
+        val body = buildJsonObject {
+            put("temperature", 0.7)
+            put("stream", true)
+            put("token_count", 42)
+        }
+
+        val redacted = redactSecrets(body) as JsonObject
+
+        assertEquals(body, redacted)
+    }
 }

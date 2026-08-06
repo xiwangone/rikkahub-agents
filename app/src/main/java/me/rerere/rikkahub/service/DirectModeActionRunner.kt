@@ -86,6 +86,12 @@ class DirectModeActionRunner(
         return try {
             val out = withTimeoutOrNull(60_000L) { tool.execute(action.args) }
             if (out == null) StepResult.TimedOut else StepResult.Success(out)
+        } catch (c: kotlinx.coroutines.CancellationException) {
+            // Don't swallow cancellation — re-throw so structured concurrency can unwind
+            // the run (e.g. the worker is cancelled). The generic catch below would
+            // otherwise turn it into a spurious Failed step, same class of bug already
+            // fixed on the workflow side (see WorkflowActionRunner.run).
+            throw c
         } catch (t: Throwable) {
             Log.w(TAG, "direct-mode action $idx tool=${action.tool} threw", t)
             StepResult.Failed("${t::class.simpleName}: ${t.message.orEmpty()}".take(500))

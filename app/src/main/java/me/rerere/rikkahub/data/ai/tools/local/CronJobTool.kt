@@ -126,10 +126,16 @@ object ScheduleJobValidator {
         if (!tz.isNullOrBlank() && runCatching { ZoneId.of(tz) }.isFailure)
             return ValidationError("bad_timezone", "unknown IANA zone: '$tz'")
 
-        // max_runs
+        // max_runs — capped at MAX_HISTORY_RETENTION so a job's target is always within
+        // what historyRetentionFor() will keep; above that, run-history trim would cap
+        // countSuccessful() below max_runs and the job would fire forever instead of
+        // stopping at its configured count.
         val maxRuns = (input["max_runs"] as? JsonPrimitive)?.intOrNull
         if (maxRuns != null && maxRuns < 1)
             return ValidationError("max_runs_invalid", "max_runs must be >= 1")
+        if (maxRuns != null && maxRuns > me.rerere.rikkahub.service.MAX_HISTORY_RETENTION)
+            return ValidationError("max_runs_invalid",
+                "max_runs must be <= ${me.rerere.rikkahub.service.MAX_HISTORY_RETENTION}")
 
         // catchup
         val catchup = (input["catchup"] as? JsonPrimitive)?.contentOrNull
@@ -225,7 +231,7 @@ fun scheduleJobTool(
                 put("timezone", buildJsonObject { put("type","string") })
                 put("start_at_unix_ms", buildJsonObject { put("type","integer") })
                 put("end_at_unix_ms", buildJsonObject { put("type","integer") })
-                put("max_runs", buildJsonObject { put("type","integer"); put("minimum", 1) })
+                put("max_runs", buildJsonObject { put("type","integer"); put("minimum", 1); put("maximum", me.rerere.rikkahub.service.MAX_HISTORY_RETENTION) })
                 put("catchup", buildJsonObject { put("type","string"); put("enum", buildJsonArray { add("skip"); add("fire_once"); add("fire_all") }) })
             },
             required = listOf("name","mode","schedule_type"),

@@ -1,9 +1,30 @@
 package me.rerere.ai.util
 
+import me.rerere.ai.ui.UIMessagePart
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
 class FileEncoderExifTransformTest {
+
+    @Test
+    fun `encodeBase64 with withPrefix false on a data URL should return the bare payload`() {
+        val part = UIMessagePart.Image(url = "data:image/png;base64,QUJD")
+
+        val result = part.encodeBase64(withPrefix = false).getOrThrow()
+
+        assertEquals("QUJD", result.base64)
+        assertEquals("image/png", result.mimeType)
+    }
+
+    @Test
+    fun `encodeBase64 with withPrefix true on a data URL should return the full data URI`() {
+        val part = UIMessagePart.Image(url = "data:image/png;base64,QUJD")
+
+        val result = part.encodeBase64(withPrefix = true).getOrThrow()
+
+        assertEquals("data:image/png;base64,QUJD", result.base64)
+        assertEquals("image/png", result.mimeType)
+    }
 
     @Test
     fun `all supported exif orientations should map to expected transform`() {

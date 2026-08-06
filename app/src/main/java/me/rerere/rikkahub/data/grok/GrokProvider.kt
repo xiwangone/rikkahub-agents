@@ -2,8 +2,10 @@ package me.rerere.rikkahub.data.grok
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
@@ -248,7 +250,10 @@ class GrokProvider(
         }
         val eventSource = EventSources.createFactory(eventSourceClient).newEventSource(request, listener)
         awaitClose { eventSource.cancel() }
-    }
+        // trySend silently drops a delta when the buffer is full, dropping characters
+        // mid-reply (#1295), so the buffer must be unbounded — same fix as the other
+        // providers' streamText.
+    }.buffer(Channel.UNLIMITED)
 
     // xAI's Grok Imagine image generation is OpenAI-compatible: a single POST to
     // /v1/images/generations, authenticated with the same subscription OAuth token used for chat.

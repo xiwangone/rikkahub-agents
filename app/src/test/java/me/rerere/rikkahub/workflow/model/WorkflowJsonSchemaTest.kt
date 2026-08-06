@@ -96,6 +96,14 @@ class WorkflowJsonSchemaTest {
         assertEquals("invalid_trigger", r.error)
     }
 
+    @Test fun `reject time_cron with sub-minute @every`() {
+        // TimeCronTriggerFamily.derivePeriodMs used to accept ANY positive seconds value,
+        // so this passed validation and then silently degraded to a 60s polling floor at
+        // schedule time instead of surfacing an error here.
+        val r = WorkflowJson.parse("""{"name":"X","trigger":{"type":"time_cron","params":{"cron":"@every 30s"}},"actions":[{"tool":"show_toast","args":{}}]}""", knownTools) as WorkflowJson.ParseResult.Err
+        assertEquals("invalid_trigger", r.error)
+    }
+
     // -- Accept paths (5+) --------------------------------------------------------------
 
     @Test fun `accept manual trigger minimal definition`() {

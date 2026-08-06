@@ -40,6 +40,15 @@ object Logging {
     @Volatile
     private var requestLoggingEnabled = false
 
+    // Modules below :app (e.g. :ai) have no BuildConfig of their own to gate verbose
+    // android.util.Log calls with, the way :app already gates HttpLoggingInterceptor
+    // behind BuildConfig.DEBUG. RikkaHubApp.onCreate() sets this once from
+    // BuildConfig.DEBUG so provider code can gate full request/response body logging
+    // (which otherwise carries prompts and tool results into logcat on every release
+    // build too) without a per-module build.gradle change.
+    @Volatile
+    private var debugLoggingEnabled = false
+
     fun log(tag: String, message: String) {
         addLog(LogEntry.TextLog(tag = tag, message = message))
     }
@@ -53,6 +62,12 @@ object Logging {
 
     fun setRequestLoggingEnabled(enabled: Boolean) {
         requestLoggingEnabled = enabled
+    }
+
+    fun isDebugLoggingEnabled(): Boolean = debugLoggingEnabled
+
+    fun setDebugLoggingEnabled(enabled: Boolean) {
+        debugLoggingEnabled = enabled
     }
 
     private fun addLog(entry: LogEntry) {

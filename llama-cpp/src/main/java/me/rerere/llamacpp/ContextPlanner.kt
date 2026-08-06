@@ -46,15 +46,16 @@ object ContextPlanner {
         // smallest rung and a coarse whole-file estimate instead of guessing.
         if (!info.isComplete) {
             val fallbackCtx = LADDER.first()
-            val kept = fitTools(fallbackCtx, tools, systemPromptBytes)
+            val request = replanForRequest(fallbackCtx, tools, systemPromptBytes)
             return ContextPlan(
                 nCtx = fallbackCtx,
                 cacheTypeK = KvCacheType.F16,
                 cacheTypeV = KvCacheType.F16,
                 nBatch = N_BATCH,
                 nUBatch = N_UBATCH,
-                droppedToolNames = kept.dropped,
+                droppedToolNames = request.droppedToolNames,
                 estimatedBytes = (info.weightsBytes * HEADROOM_WITHOUT_METADATA).roundToLong(),
+                reservedInputBytes = request.reservedInputBytes,
             )
         }
 
@@ -67,15 +68,16 @@ object ContextPlanner {
             for (cache in listOf(KvCacheType.F16, KvCacheType.Q8_0)) {
                 val bytes = estimateBytes(info, ctx, cache)
                 if (bytes <= budget) {
-                    val kept = fitTools(ctx, tools, systemPromptBytes)
+                    val request = replanForRequest(ctx, tools, systemPromptBytes)
                     return ContextPlan(
                         nCtx = ctx,
                         cacheTypeK = cache,
                         cacheTypeV = cache,
                         nBatch = N_BATCH,
                         nUBatch = N_UBATCH,
-                        droppedToolNames = kept.dropped,
+                        droppedToolNames = request.droppedToolNames,
                         estimatedBytes = bytes,
+                        reservedInputBytes = request.reservedInputBytes,
                     )
                 }
             }
@@ -84,15 +86,16 @@ object ContextPlanner {
         // Nothing fit. Take the smallest rung with the smallest cache and let
         // MemoryGuard refuse the load with an actionable message.
         val smallest = rungs.first()
-        val kept = fitTools(smallest, tools, systemPromptBytes)
+        val request = replanForRequest(smallest, tools, systemPromptBytes)
         return ContextPlan(
             nCtx = smallest,
             cacheTypeK = KvCacheType.Q8_0,
             cacheTypeV = KvCacheType.Q8_0,
             nBatch = N_BATCH,
             nUBatch = N_UBATCH,
-            droppedToolNames = kept.dropped,
+            droppedToolNames = request.droppedToolNames,
             estimatedBytes = estimateBytes(info, smallest, KvCacheType.Q8_0),
+            reservedInputBytes = request.reservedInputBytes,
         )
     }
 
@@ -109,7 +112,41 @@ object ContextPlanner {
         return ((info.weightsBytes + kvCache + computeBuffer) * HEADROOM_WITH_METADATA).roundToLong()
     }
 
-    private class ToolFit(val dropped: List<String>)
+    /**
+     * Bytes available for prompt input (history, system prompt and tools combined) at
+     * [nCtx]: half the context reserved for the response, minus [HISTORY_HEADROOM_TOKENS]
+     * kept free for conversation growth. Shared by [fitTools] (which subtracts the system
+     * prompt and tool schemas from it) and [LlamaCppRuntime.inputBudgetBytes] (which
+     * subtracts [ContextPlan.reservedInputBytes] from it), so the two can never drift
+     * apart into disagreeing about what the input half of the context actually holds.
+     */
+    fun inputByteBudget(nCtx: Int): Int {
+        val inputTokens = (nCtx * (1.0 - RESPONSE_RESERVE)).toInt() - HISTORY_HEADROOM_TOKENS
+        return inputTokens * BYTES_PER_TOKEN
+    }
+
+    /** The per-request outcome of fitting [tools] and the system prompt into [nCtx]'s input
+     *  budget: which tools had to be dropped, and how many of the input budget's bytes the
+     *  system prompt plus the surviving tools reserve - the two figures a request-specific
+     *  replan (see [LlamaCppRuntime.replan]) needs without re-picking [nCtx] itself. */
+    data class RequestPlan(val droppedToolNames: List<String>, val reservedInputBytes: Int)
+
+    /**
+     * Fits [tools] and [systemPromptBytes] into [nCtx]'s input budget without picking a new
+     * context size - [nCtx] is a given here, not a candidate, since the native context
+     * cannot be resized once created. Used both when [plan] first sizes a context and by
+     * [LlamaCppRuntime.replan] to re-fit a later request's tools/system prompt against an
+     * already-loaded model.
+     */
+    fun replanForRequest(nCtx: Int, tools: List<ToolDeclaration>, systemPromptBytes: Int): RequestPlan {
+        val kept = fitTools(nCtx, tools, systemPromptBytes)
+        return RequestPlan(
+            droppedToolNames = kept.dropped,
+            reservedInputBytes = systemPromptBytes + kept.keptBytes,
+        )
+    }
+
+    private class ToolFit(val dropped: List<String>, val keptBytes: Int)
 
     /**
      * Keep tools until the input half of the context is spent. Drop order is the reverse
@@ -122,10 +159,9 @@ object ContextPlanner {
         tools: List<ToolDeclaration>,
         systemPromptBytes: Int,
     ): ToolFit {
-        val inputTokens = (nCtx * (1.0 - RESPONSE_RESERVE)).toInt() - HISTORY_HEADROOM_TOKENS
-        val availableBytes = inputTokens * BYTES_PER_TOKEN - systemPromptBytes
+        val availableBytes = inputByteBudget(nCtx) - systemPromptBytes
         if (availableBytes <= 0) {
-            return ToolFit(tools.map { it.name })
+            return ToolFit(dropped = tools.map { it.name }, keptBytes = 0)
         }
 
         var used = 0
@@ -139,6 +175,6 @@ object ContextPlanner {
                 used += tool.jsonBytes
             }
         }
-        return ToolFit(dropped)
+        return ToolFit(dropped = dropped, keptBytes = used)
     }
 }

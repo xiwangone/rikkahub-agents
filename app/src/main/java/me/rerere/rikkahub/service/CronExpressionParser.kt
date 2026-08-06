@@ -96,14 +96,8 @@ object CronExpressionParser {
                 }
                 else -> null  // >31 days not expressible in 5-field cron
             }
-            'm' -> {
-                val minutes = value.coerceAtMost(59)
-                "*/$minutes * * * *"
-            }
-            'h' -> {
-                val hours = value.coerceAtMost(23)
-                "0 */$hours * * *"
-            }
+            'm' -> if (value > 59) null else "*/$value * * * *"
+            'h' -> if (value > 23) null else "0 */$value * * *"
             else -> null
         }
     }

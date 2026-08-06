@@ -3,8 +3,10 @@ package me.rerere.rikkahub.data.codex
 import android.content.Context
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
@@ -284,7 +286,10 @@ class CodexProvider(
         }
         val eventSource = EventSources.createFactory(eventSourceClient).newEventSource(request, listener)
         awaitClose { eventSource.cancel() }
-    }
+        // trySend silently drops a delta when the buffer is full, dropping characters
+        // mid-reply (#1295), so the buffer must be unbounded — same fix as the other
+        // providers' streamText.
+    }.buffer(Channel.UNLIMITED)
 
     override suspend fun generateImage(
         providerSetting: ProviderSetting,

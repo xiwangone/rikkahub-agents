@@ -373,8 +373,13 @@ class WebDavClient(
                 XmlPullParser.END_TAG -> {
                     val tagName = parser.name.substringAfter(":")
                     if (tagName == "response" && currentHref != null) {
-                        val displayName = currentDisplayName
-                            ?: currentHref.trimEnd('/').substringAfterLast("/")
+                        // The server fully controls <displayname>. Reduce it to a bare basename
+                        // here, at the source, so a malicious server can't smuggle "../"
+                        // segments into a value that WebDavSync.restore later uses to build a
+                        // local cache file path.
+                        val displayName = sanitizeWebDavDisplayName(
+                            currentDisplayName ?: currentHref.trimEnd('/').substringAfterLast("/")
+                        )
 
                         resources.add(
                             WebDavResourceInfo(
@@ -418,6 +423,18 @@ class WebDavClient(
             }
         }
     }
+}
+
+/**
+ * Reduce a server-supplied PROPFIND <displayname> (or href fallback) to a bare filename:
+ * strip any path separators and reject "." / "..". Callers that build a local file path out
+ * of [WebDavResourceInfo.displayName] (WebDavSync) rely on this to never contain a traversal
+ * segment. Top-level so it's testable without constructing a [WebDavClient] (which needs a
+ * live [io.ktor.client.HttpClient]).
+ */
+internal fun sanitizeWebDavDisplayName(raw: String): String {
+    val baseName = raw.substringAfterLast('/').substringAfterLast('\\')
+    return if (baseName.isBlank() || baseName == "." || baseName == "..") "" else baseName
 }
 
 data class WebDavResourceInfo(

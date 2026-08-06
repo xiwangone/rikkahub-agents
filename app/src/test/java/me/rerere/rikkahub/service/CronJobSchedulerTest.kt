@@ -77,6 +77,37 @@ class CronJobSchedulerTest {
     }
 
     @Test
+    fun `terminalJobUpdate disables a cron job whose expression fails to parse`() {
+        // e.g. an "@every 90m" row persisted before out-of-range @every values were
+        // rejected — nextRunMs now returns null for it via CronExpressionParser.parse.
+        val updated = CronJobScheduler.terminalJobUpdate(job(cron = "@every 90m"))
+        assertEquals(
+            "an unparseable cron expression must flip enabled=false, or schedule() " +
+                "cancels the WorkManager work forever while the job row still shows enabled=true",
+            false,
+            updated.enabled,
+        )
+        assertNull(updated.nextRunAtMs)
+    }
+
+    @Test
+    fun `terminalJobUpdate leaves enabled alone when the cron expression is valid`() {
+        // max_runs reached, end_at past, etc. already reflect enabled correctly elsewhere;
+        // terminalJobUpdate must not touch enabled for those cases.
+        val updated = CronJobScheduler.terminalJobUpdate(job(maxRuns = 5, runsSoFar = 5))
+        assertEquals(true, updated.enabled)
+        assertNull(updated.nextRunAtMs)
+    }
+
+    @Test
+    fun `terminalJobUpdate leaves enabled alone for a once job`() {
+        val updated = CronJobScheduler.terminalJobUpdate(
+            job(scheduleType = "once", cron = null, atMs = 100L, lastRun = 200L)
+        )
+        assertEquals(true, updated.enabled)
+    }
+
+    @Test
     fun `DST forward skip-day next fire correct`() {
         // 0 2 * * * in America/New_York on the 2026 DST forward day (March 8 2026 2am
         // doesn't exist — clock jumps 2:00 → 3:00). Expect: skip that fire, next fire is

@@ -79,6 +79,33 @@ class CatchupPlannerTest {
     }
 
     @Test
+    fun `skip policy caps skippedCatchupCount when a device was off for a very long time`() {
+        // A device off for ~200 days with an hourly job would otherwise queue ~4800
+        // sequential Room inserts (one per missed window) in CronBootReceiver. Must be
+        // bounded regardless of how long the device was off.
+        val hourMs = 60L * 60 * 1000L
+        val plan = CatchupPlanner.plan(
+            job = job("skip"),
+            lastRunMs = 0L,
+            nowMs = 5_000L * hourMs, // 5000 missed hourly ticks
+        )
+        assertEquals(0, plan.fireDelaysMs.size)
+        assertEquals(100, plan.skippedCatchupCount)
+    }
+
+    @Test
+    fun `fire_once caps its trailing skipped count for a very long outage`() {
+        val hourMs = 60L * 60 * 1000L
+        val plan = CatchupPlanner.plan(
+            job = job("fire_once"),
+            lastRunMs = 0L,
+            nowMs = 5_000L * hourMs,
+        )
+        assertEquals(listOf(0L), plan.fireDelaysMs)
+        assertEquals(100, plan.skippedCatchupCount)
+    }
+
+    @Test
     fun `once-mode missed past fire produces plan with delay-0 and no skipped rows`() {
         val atMs = ms(1, 8)           // scheduled for June 1 08:00
         val nowMs = ms(1, 10)         // now June 1 10:00 — already past

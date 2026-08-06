@@ -5,6 +5,7 @@ import kotlinx.coroutines.runBlocking
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessagePart
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -128,13 +129,19 @@ class LlamaCppProviderTest {
         assertTrue("expected IllegalStateException, got $error", error is IllegalStateException)
     }
 
-    /** Like [ScriptedNative], but records the request JSON handed to [applyTemplate] so a
-     *  test can check what the provider actually sent, without depending on native code. */
+    /** Like [ScriptedNative], but records the request JSON handed to [applyTemplate], and
+     *  how many times [loadModel] actually ran, so a test can check what the provider sent
+     *  and whether it reloaded, without depending on native code. */
     private class CapturingNative(private val nCtxTrain: Int) : LlamaCppNative {
         var capturedRequestJson: String? = null
             private set
+        var loadModelCallCount = 0
+            private set
 
-        override fun loadModel(path: String) = 1L
+        override fun loadModel(path: String): Long {
+            loadModelCallCount++
+            return 1L
+        }
         override fun freeModel(handle: Long) {}
         override fun modelInfo(handle: Long): String = """
             {"n_layers":26,"n_embd":2048,"n_head_kv":4,"n_embd_head_k":256,
@@ -343,4 +350,219 @@ class LlamaCppProviderTest {
 
         runtime.unload()
     }
+
+    // inputBudgetBytes / replan ----------------------------------------------------------
+
+    @Test
+    fun `inputBudgetBytes reserves bytes for the system prompt and the tools that survived`() = runBlocking {
+        // n_ctx_train pins the plan to nCtx 4096, so ContextPlanner.inputByteBudget(4096) is
+        // a fixed, known figure to check the reservation against.
+        val native = CapturingNative(nCtxTrain = 4096)
+        val runtime = LlamaCppRuntime(native)
+        val tools = listOf(ToolDeclaration("get_weather", jsonBytes = 300))
+
+        runtime.load("/tmp/m.gguf", tools, systemPromptBytes = 500, availableRamBytes = 12_000_000_000L)
+
+        val expected = ContextPlanner.inputByteBudget(4096) - 500 - 300
+        assertEquals(expected, runtime.inputBudgetBytes())
+        assertTrue(
+            "the old (nCtx / 2) * BYTES_PER_TOKEN formula ignored system+tool bytes and " +
+                "must no longer be what this returns",
+            runtime.inputBudgetBytes() < (4096 / 2) * ContextPlanner.BYTES_PER_TOKEN,
+        )
+
+        runtime.unload()
+    }
+
+    @Test
+    fun `ensureLoaded re-evaluates the per-request plan on a path match instead of returning early`() = runBlocking {
+        val native = CapturingNative(nCtxTrain = 4096)
+        val runtime = LlamaCppRuntime(native)
+        val loadedPath = AtomicReference<String?>(null)
+        val manyTools = (1..40).map { ToolDeclaration("tool_$it", jsonBytes = 700) }
+
+        LlamaCppProvider.ensureLoaded(
+            runtime, loadedPath, "/tmp/m.gguf", manyTools, systemPromptBytes = 500, availableRamBytes = 12_000_000_000L,
+        )
+        val budgetWithManyTools = runtime.inputBudgetBytes()
+
+        // Same path - no reload - but a much smaller tool set for this request. Returning
+        // early on the path match would leave the first call's dropped-tools/reserved-bytes
+        // plan in effect here too.
+        LlamaCppProvider.ensureLoaded(
+            runtime, loadedPath, "/tmp/m.gguf", emptyList(), systemPromptBytes = 500, availableRamBytes = 12_000_000_000L,
+        )
+        val budgetWithNoTools = runtime.inputBudgetBytes()
+
+        assertEquals("a path match must not reload the model", 1, native.loadModelCallCount)
+        assertTrue(
+            "the input budget must grow once the tool set shrinks, proving the per-request " +
+                "plan was re-evaluated rather than reused from the first call",
+            budgetWithNoTools > budgetWithManyTools,
+        )
+
+        runtime.unload()
+    }
+
+    // sendDelta / textReset / reasoningReset ----------------------------------------------
+
+    /** Reports a fixed sequence of whole-message parses regardless of what [generate] fed
+     *  it, so a test can engineer a specific reset scenario deterministically. [generate]
+     *  delivers one "piece" per parse before the last - the last is delivered by the
+     *  provider's own final (isPartial = false) parse. */
+    private class ScriptedParseNative(private val parses: List<Pair<String, String>>) : LlamaCppNative {
+        private var call = 0
+        override fun loadModel(path: String) = 1L
+        override fun freeModel(handle: Long) {}
+        override fun modelInfo(handle: Long): String = """
+            {"n_layers":26,"n_embd":2048,"n_head_kv":4,"n_embd_head_k":256,
+             "n_embd_head_v":256,"n_vocab":262144,"n_ctx_train":32768,
+             "sliding_window":0,"weights_bytes":2600000000}
+        """.trimIndent()
+        override fun createContext(
+            modelHandle: Long, nCtx: Int, nBatch: Int, nUBatch: Int,
+            cacheTypeK: String, cacheTypeV: String, nThreads: Int,
+        ) = 2L
+        override fun freeContext(handle: Long) {}
+        override fun cancelGeneration(handle: Long) {}
+        override fun applyTemplate(modelHandle: Long, requestJson: String): String = "{}"
+        override fun generate(
+            ctxHandle: Long, modelHandle: Long, appliedTemplateJson: String,
+            maxTokens: Int, onPiece: (String) -> Boolean,
+        ) {
+            for (i in 0 until parses.size - 1) if (!onPiece("piece")) return
+        }
+        override fun parseChat(text: String, isPartial: Boolean, appliedTemplateJson: String): String {
+            val (content, reasoning) = parses[call.coerceAtMost(parses.size - 1)]
+            call++
+            return """{"role":"assistant","content":"$content","reasoning_content":"$reasoning","tool_calls":[]}"""
+        }
+    }
+
+    @Test
+    fun `a mid-stream reset does not resend already-streamed text before the next delta catches up`() =
+        runBlocking {
+            // The second (still-partial) parse reformats what was already sent ("Hello") with a
+            // leading space instead of extending it - ChatDeltaTracker flags this as textReset.
+            // A later delta still extends past the corrected value, so the reset here is not
+            // terminal: naively forwarding the reset delta in full would resend "Hello" a second
+            // time on top of what streamed already, producing "Hello Hello!".
+            val native = ScriptedParseNative(
+                listOf(
+                    "Hello" to "",
+                    " Hello!" to "",
+                    " Hello! Nice to meet you" to "",
+                )
+            )
+            val runtime = LlamaCppRuntime(native)
+            runtime.load("/tmp/m.gguf", emptyList(), 0, 12_000_000_000L)
+
+            val chunks = LlamaCppProvider.streamFromLoadedModel(
+                runtime = runtime,
+                messages = listOf(UIMessage.user("hi")),
+                params = TextGenerationParams(model = Model(modelId = "test.gguf"), maxTokens = 64),
+            ).toList()
+
+            val combined = chunks.joinToString("") { chunk -> chunk.choices.firstOrNull()?.delta?.toText().orEmpty() }
+
+            assertEquals("Hello Nice to meet you", combined)
+
+            runtime.unload()
+        }
+
+    @Test
+    fun `a reset on the terminal parse forwards the corrected text instead of losing it`() = runBlocking {
+        // The third parse - the final, isPartial = false one, with no delta after it - reformats
+        // what was already sent ("Hello world") with a leading space instead of extending it.
+        // There is no later delta to catch up, so swallowing this reset the way a mid-stream one
+        // is swallowed would silently drop the model's real final text. The correction is
+        // forwarded in full instead, even though it duplicates the "Hello world" already shown.
+        val native = ScriptedParseNative(
+            listOf(
+                "Hello" to "",
+                "Hello world" to "",
+                " Hello world!" to "",
+            )
+        )
+        val runtime = LlamaCppRuntime(native)
+        runtime.load("/tmp/m.gguf", emptyList(), 0, 12_000_000_000L)
+
+        val chunks = LlamaCppProvider.streamFromLoadedModel(
+            runtime = runtime,
+            messages = listOf(UIMessage.user("hi")),
+            params = TextGenerationParams(model = Model(modelId = "test.gguf"), maxTokens = 64),
+        ).toList()
+
+        val combined = chunks.joinToString("") { chunk -> chunk.choices.firstOrNull()?.delta?.toText().orEmpty() }
+
+        assertEquals("Hello world Hello world!", combined)
+
+        runtime.unload()
+    }
+
+    @Test
+    fun `a mid-stream reasoning reset does not resend already-streamed reasoning before the next delta catches up`() =
+        runBlocking {
+            // The reasoning channel goes through the exact same non-extending reformat as the
+            // text case above, followed by a further extension - must not duplicate either.
+            val native = ScriptedParseNative(
+                listOf(
+                    "" to "Thinking",
+                    "" to " Thinking!",
+                    "answer" to " Thinking! Almost there",
+                )
+            )
+            val runtime = LlamaCppRuntime(native)
+            runtime.load("/tmp/m.gguf", emptyList(), 0, 12_000_000_000L)
+
+            val chunks = LlamaCppProvider.streamFromLoadedModel(
+                runtime = runtime,
+                messages = listOf(UIMessage.user("hi")),
+                params = TextGenerationParams(model = Model(modelId = "test.gguf"), maxTokens = 64),
+            ).toList()
+
+            val combinedReasoning = chunks.joinToString("") { chunk ->
+                chunk.choices.firstOrNull()?.delta?.parts
+                    ?.filterIsInstance<UIMessagePart.Reasoning>()
+                    ?.joinToString("") { it.reasoning }
+                    .orEmpty()
+            }
+
+            assertEquals("Thinking Almost there", combinedReasoning)
+
+            runtime.unload()
+        }
+
+    @Test
+    fun `a reasoning reset on the terminal parse forwards the corrected reasoning instead of losing it`() =
+        runBlocking {
+            // The reasoning channel's terminal reset must not be silently dropped either -
+            // reasoning is user-visible content just like the text channel.
+            val native = ScriptedParseNative(
+                listOf(
+                    "" to "Thinking",
+                    "" to "Thinking about it",
+                    "answer" to " Thinking about it!",
+                )
+            )
+            val runtime = LlamaCppRuntime(native)
+            runtime.load("/tmp/m.gguf", emptyList(), 0, 12_000_000_000L)
+
+            val chunks = LlamaCppProvider.streamFromLoadedModel(
+                runtime = runtime,
+                messages = listOf(UIMessage.user("hi")),
+                params = TextGenerationParams(model = Model(modelId = "test.gguf"), maxTokens = 64),
+            ).toList()
+
+            val combinedReasoning = chunks.joinToString("") { chunk ->
+                chunk.choices.firstOrNull()?.delta?.parts
+                    ?.filterIsInstance<UIMessagePart.Reasoning>()
+                    ?.joinToString("") { it.reasoning }
+                    .orEmpty()
+            }
+
+            assertEquals("Thinking about it Thinking about it!", combinedReasoning)
+
+            runtime.unload()
+        }
 }

@@ -47,8 +47,10 @@ import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
+import me.rerere.ai.util.redactSecrets
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
+import me.rerere.common.android.Logging
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.common.http.jsonPrimitiveOrNull
@@ -97,7 +99,9 @@ class ResponseAPI(
             .configureReferHeaders(providerSetting.baseUrl)
             .build()
 
-        Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
+        if (Logging.isDebugLoggingEnabled()) {
+            Log.i(TAG, "generateText: ${json.encodeToString(redactSecrets(requestBody))}")
+        }
 
         val response = client.newCall(request).await()
         if (!response.isSuccessful) {
@@ -105,7 +109,9 @@ class ResponseAPI(
         }
 
         val bodyStr = response.body.string()
-        Log.i(TAG, "generateText: $bodyStr")
+        if (Logging.isDebugLoggingEnabled()) {
+            Log.i(TAG, "generateText: ${redactSecrets(json.parseToJsonElement(bodyStr))}")
+        }
         val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
         val output = parseResponseOutput(bodyJson)
 
@@ -134,7 +140,9 @@ class ResponseAPI(
             .configureReferHeaders(providerSetting.baseUrl)
             .build()
 
-        Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")
+        if (Logging.isDebugLoggingEnabled()) {
+            Log.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
+        }
 
         val listener = object : EventSourceListener() {
             override fun onEvent(
@@ -148,15 +156,22 @@ class ResponseAPI(
                     return
                 }
                 Log.d(TAG, "onEvent: $id/$type $data")
-                val json = json.parseToJsonElement(data).jsonObject
-                val chunk = parseResponseDelta(json)
-                if (chunk != null) {
-                    trySend(chunk).onFailure { e ->
-                        Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                // A single malformed/unparseable chunk must not escape this callback:
+                // an uncaught exception here propagates through OkHttp's SSE reader and
+                // aborts the whole stream instead of just skipping this one line.
+                try {
+                    val json = json.parseToJsonElement(data).jsonObject
+                    val chunk = parseResponseDelta(json)
+                    if (chunk != null) {
+                        trySend(chunk).onFailure { e ->
+                            Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                        }
                     }
-                }
-                if (type == "response.completed") {
-                    close()
+                    if (type == "response.completed") {
+                        close()
+                    }
+                } catch (e: Exception) {
+                    Log.w(TAG, "onEvent: skipping malformed chunk (${e.message})", e)
                 }
             }
 

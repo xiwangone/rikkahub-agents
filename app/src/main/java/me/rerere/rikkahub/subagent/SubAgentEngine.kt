@@ -23,6 +23,28 @@ import kotlin.uuid.Uuid
 private const val TAG = "SubAgentEngine"
 
 /**
+ * Turn a wait-for-completion outcome into a stop decision, stopping the still-running
+ * generation via [stop] when the wait timed out. Returns true on timeout, false on
+ * natural completion. The generation itself is NOT cancelled by withTimeoutOrNull — that
+ * only abandons the wait, leaving the LLM call running in ChatService's own session job.
+ * Left uncalled, a timed-out sub-agent keeps burning tokens (and, if it later succeeds,
+ * races a duplicate parallel run against whatever the parent does next). [stop] is
+ * responsible for its own failure handling (see the runCatching wrapper around
+ * chatService.stopGeneration at the call site in [SubAgentEngine.executeRun]) — kept out
+ * of this pure function so it stays testable without touching android.util.Log, which
+ * isn't mocked in this module's plain-JVM unit tests. Split out the same way
+ * CronJobWorker.finishRunLlm is, so a JVM test can pin the stop-on-timeout contract
+ * without a live ChatService.
+ */
+internal suspend fun finishSubAgentWait(completed: Boolean, stop: suspend () -> Unit): Boolean {
+    if (!completed) {
+        stop()
+        return true
+    }
+    return false
+}
+
+/**
  * Phase 11 — sub-agent dispatch engine.
  *
  * The engine reuses the existing cron-headless dispatch pattern (mark conv headless,
@@ -237,7 +259,11 @@ class SubAgentEngine(
                 chatService.getGenerationJobStateFlow(conv.id).first { it == null }
                 Unit
             }
-            if (completed == null) {
+            val timedOut = finishSubAgentWait(completed = completed != null) {
+                runCatching { chatService.stopGeneration(conv.id) }
+                    .onFailure { Log.w(TAG, "sub-agent timeout: stopGeneration failed for $runId", it) }
+            }
+            if (timedOut) {
                 markTerminal(runId, SubAgentStatus.TIMED_OUT, "exceeded ${request.timeoutSeconds}-second cap")
                 notifyParentIfBackground(parentChatId, registry.get(runId))
                 return

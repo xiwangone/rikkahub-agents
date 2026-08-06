@@ -1,11 +1,13 @@
 package me.rerere.rikkahub.workflow.condition
 
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.time.LocalDate
 import java.time.LocalTime
 import java.time.ZoneId
+import java.time.ZonedDateTime
 
 /**
  * Pinned-result tests for the NOAA solar position formula. ±2-minute tolerance per spec.
@@ -48,6 +50,38 @@ class SolarTimesTest {
         val sunset = SolarTimes.sunsetAt(date, lat = -33.8688, lng = 151.2093, zone)
         assertNotNull(sunset)
         assertWithinMinutes(LocalTime.of(20, 8), sunset!!, 3)
+    }
+
+    /**
+     * Regression for isAfterSunset being wrong for the whole post-midnight half of every
+     * night: it compared `now` against the SAME calendar date's sunset, which for a
+     * pre-dawn time (e.g. 2am) hasn't happened yet that date — the sunset that actually
+     * applies is the PREVIOUS evening's. NYC 2026-06-21/22, sunset ~20:31 EDT, sunrise
+     * ~05:25 EDT.
+     */
+    @Test fun `isAfterSunset is true in the post-midnight hours before the next sunrise`() {
+        val zone = ZoneId.of("America/New_York")
+        val postMidnight = ZonedDateTime.of(2026, 6, 22, 2, 0, 0, 0, zone)
+        assertTrue(
+            "2am is still night — after last night's sunset and before today's sunrise",
+            SolarTimes.isAfterSunset(postMidnight, lat = 40.7128, lng = -74.0060, offsetMinutes = 0),
+        )
+    }
+
+    @Test fun `isAfterSunset is true in the evening after today's sunset`() {
+        val zone = ZoneId.of("America/New_York")
+        val evening = ZonedDateTime.of(2026, 6, 21, 21, 0, 0, 0, zone)
+        assertTrue(
+            SolarTimes.isAfterSunset(evening, lat = 40.7128, lng = -74.0060, offsetMinutes = 0),
+        )
+    }
+
+    @Test fun `isAfterSunset is false during the day, between sunrise and sunset`() {
+        val zone = ZoneId.of("America/New_York")
+        val midday = ZonedDateTime.of(2026, 6, 21, 12, 0, 0, 0, zone)
+        assertFalse(
+            SolarTimes.isAfterSunset(midday, lat = 40.7128, lng = -74.0060, offsetMinutes = 0),
+        )
     }
 
     private fun assertWithinMinutes(expected: LocalTime, actual: LocalTime, toleranceMin: Int) {

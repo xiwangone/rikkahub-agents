@@ -2,6 +2,12 @@ package me.rerere.locallm
 
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
+import okhttp3.Interceptor
+import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.OkHttpClient
+import okhttp3.Protocol
+import okhttp3.Response
+import okhttp3.ResponseBody.Companion.toResponseBody
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -13,6 +19,25 @@ import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
+
+/** An [OkHttpClient] whose single interceptor answers every call with [bodyBytes] and an
+ *  optional Content-Length header, without ever touching the network - lets [ModelInstall.download]
+ *  be tested against a controlled response body/header pair. */
+private fun clientReturning(bodyBytes: ByteArray, declaredContentLength: Long?): OkHttpClient =
+    OkHttpClient.Builder()
+        .addInterceptor(Interceptor { chain ->
+            val builder = Response.Builder()
+                .request(chain.request())
+                .protocol(Protocol.HTTP_1_1)
+                .code(200)
+                .message("OK")
+                .body(bodyBytes.toResponseBody("application/octet-stream".toMediaType()))
+            if (declaredContentLength != null) {
+                builder.header("Content-Length", declaredContentLength.toString())
+            }
+            builder.build()
+        })
+        .build()
 
 /** A GGUF magic header followed by [payloadSize] arbitrary bytes. */
 private fun ggufBytes(payloadSize: Int): ByteArray =
@@ -387,5 +412,48 @@ class ModelInstallTest {
 
         assertEquals(null, (events.first() as ModelInstall.Progress.Started).totalBytes)
         assertEquals(null, (events.filterIsInstance<ModelInstall.Progress.Tick>().first()).totalBytes)
+    }
+
+    // download() short-read rejection -------------------------------------------
+
+    @Test fun `download rejects a response that ends before Content-Length bytes arrive`() = runBlocking {
+        // The connection closes cleanly (no exception) after 3000 of the 5000 declared
+        // bytes - a server/proxy truncation, not a socket error. The bytes that did
+        // arrive still start with a valid GGUF magic header, so only a byte-count check
+        // against Content-Length can catch this.
+        val fullContent = ggufBytes(5000)
+        val truncated = fullContent.copyOf(3000)
+        val client = clientReturning(truncated, declaredContentLength = fullContent.size.toLong())
+        val target = File(tempFolder.newFolder(), "model.gguf")
+
+        val events = ModelInstall.download(client, "https://example.com/model.gguf", target).toList()
+
+        val failed = events.last() as ModelInstall.Progress.Failed
+        assertTrue("expected an IOException, got ${failed.cause}", failed.cause is IOException)
+        assertFalse("a short read must not be registered as an installed model", target.exists())
+    }
+
+    @Test fun `download accepts a response whose byte count matches Content-Length exactly`() = runBlocking {
+        val content = ggufBytes(5000)
+        val client = clientReturning(content, declaredContentLength = content.size.toLong())
+        val target = File(tempFolder.newFolder(), "model.gguf")
+
+        val events = ModelInstall.download(client, "https://example.com/model.gguf", target).toList()
+
+        assertTrue("expected Done, got ${events.last()}", events.last() is ModelInstall.Progress.Done)
+        assertArrayEquals(content, target.readBytes())
+    }
+
+    @Test fun `download does not reject a short read when the server sends no Content-Length at all`() = runBlocking {
+        // Without a Content-Length there is nothing to compare totalRead against, so the
+        // existing magic-byte check is the only signal available - this must not regress
+        // into rejecting every no-Content-Length response outright.
+        val content = ggufBytes(200)
+        val client = clientReturning(content, declaredContentLength = null)
+        val target = File(tempFolder.newFolder(), "model.gguf")
+
+        val events = ModelInstall.download(client, "https://example.com/model.gguf", target).toList()
+
+        assertTrue("expected Done, got ${events.last()}", events.last() is ModelInstall.Progress.Done)
     }
 }

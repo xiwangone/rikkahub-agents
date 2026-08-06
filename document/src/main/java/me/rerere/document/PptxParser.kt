@@ -187,8 +187,13 @@ object PptxParser {
 
     private fun extractBulletInfo(parser: XmlPullParser): Triple<Boolean, Int, Boolean> {
         val pPrStartDepth = parser.depth
+        // OOXML's <a:pPr> carries the paragraph's indentation level as its own "lvl"
+        // attribute, not as a child element, so it must be read here while the parser is
+        // still positioned at the pPr start tag itself (before the loop below advances past
+        // it). A previous version looked for a child element named "lvl", which pptx never
+        // emits, so the level was always 0.
         var hasBullet = false
-        var level = 0
+        var level = parser.getAttributeValue(null, "lvl")?.toIntOrNull() ?: 0
         var isNumbered = false
 
         while (parser.next() != XmlPullParser.END_DOCUMENT) {
@@ -203,12 +208,6 @@ object PptxParser {
                         "buAutoNum" -> {
                             hasBullet = true
                             isNumbered = true
-                        }
-
-                        "lvl" -> {
-                            parser.getAttributeValue(null, "val")?.let {
-                                level = it.toIntOrNull() ?: 0
-                            }
                         }
                     }
                 }
@@ -383,10 +382,16 @@ object PptxParser {
                     XmlPullParser.START_TAG -> {
                         when (parser.name) {
                             "sp" -> {
-                                // Check if this is a notes text shape (not the slide preview)
+                                // isNotesTextShape scans forward looking for <p:ph>, so the
+                                // parser is no longer positioned at "sp" by the time it
+                                // returns. Capture this shape's own depth first so
+                                // extractShapeText's end-of-shape check has the right
+                                // boundary instead of the deeper depth of wherever the scan
+                                // stopped.
+                                val shapeDepth = parser.depth
                                 inNotesShape = isNotesTextShape(parser)
                                 if (inNotesShape) {
-                                    extractShapeText(parser, result)
+                                    extractShapeText(parser, result, shapeDepth)
                                 }
                             }
                         }
@@ -425,9 +430,7 @@ object PptxParser {
         return false
     }
 
-    private fun extractShapeText(parser: XmlPullParser, result: StringBuilder) {
-        val shapeStartDepth = parser.depth
-
+    private fun extractShapeText(parser: XmlPullParser, result: StringBuilder, shapeStartDepth: Int) {
         while (parser.next() != XmlPullParser.END_DOCUMENT) {
             when (parser.eventType) {
                 XmlPullParser.START_TAG -> {

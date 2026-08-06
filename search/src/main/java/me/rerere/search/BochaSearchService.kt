@@ -1,5 +1,6 @@
 package me.rerere.search
 
+import android.util.Log
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,6 +22,8 @@ import me.rerere.search.SearchService.Companion.json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+
+private const val TAG = "BochaSearchService"
 
 object BochaSearchService : SearchService<SearchServiceOptions.BochaOptions> {
     override val name: String = "Bocha"
@@ -77,8 +80,7 @@ object BochaSearchService : SearchService<SearchServiceOptions.BochaOptions> {
                 val bochaResponse = runCatching {
                     json.decodeFromString<BochaResponse>(bodyRaw)
                 }.onFailure {
-                    it.printStackTrace()
-                    println(bodyRaw)
+                    Log.e(TAG, "Failed to decode Bocha response: $bodyRaw", it)
                     error("Failed to decode response: $bodyRaw")
                 }.getOrThrow()
 
@@ -98,7 +100,7 @@ object BochaSearchService : SearchService<SearchServiceOptions.BochaOptions> {
                     )
                 )
             } else {
-                println(response.body.string())
+                Log.e(TAG, "Bocha search failed with code ${response.code}: ${response.body.string()}")
                 error("response failed #${response.code}")
             }
         }

@@ -49,8 +49,10 @@ import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
+import me.rerere.ai.util.redactSecrets
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
+import me.rerere.common.android.Logging
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonPrimitiveOrNull
 import okhttp3.MediaType.Companion.toMediaType
@@ -164,7 +166,9 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
             .configureReferHeaders(providerSetting.baseUrl)
             .build()
 
-        Log.i(TAG, "generateText: ${json.encodeToString(requestBody)}")
+        if (Logging.isDebugLoggingEnabled()) {
+            Log.i(TAG, "generateText: ${json.encodeToString(redactSecrets(requestBody))}")
+        }
 
         val response = client.newCall(request).await()
         if (!response.isSuccessful) {
@@ -212,10 +216,12 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
             .configureReferHeaders(providerSetting.baseUrl)
             .build()
 
-        Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")
+        if (Logging.isDebugLoggingEnabled()) {
+            Log.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
 
-        requestBody["messages"]!!.jsonArray.forEach {
-            Log.i(TAG, "streamText: $it")
+            requestBody["messages"]!!.jsonArray.forEach {
+                Log.i(TAG, "streamText: ${redactSecrets(it)}")
+            }
         }
 
         val listener = object : EventSourceListener() {
@@ -230,47 +236,53 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                     return
                 }
 
-                val dataJson = json.parseToJsonElement(data).jsonObject
-                val deltaMessage = parseMessage(buildJsonArray {
-                    val contentBlockObj = dataJson["content_block"]?.jsonObject
-                    val deltaObj = dataJson["delta"]?.jsonObject
-                    if (contentBlockObj != null) {
-                        add(contentBlockObj)
-                    }
-                    if (deltaObj != null) {
-                        add(deltaObj)
-                    }
-                })
-                val tokenUsage = parseTokenUsage(dataJson)
-                val messageChunk = MessageChunk(
-                    id = id ?: "",
-                    model = "",
-                    choices = listOf(
-                        UIMessageChoice(
-                            index = 0,
-                            delta = deltaMessage,
-                            message = null,
-                            finishReason = null
-                        )
-                    ),
-                    usage = tokenUsage
-                )
+                // A single malformed/unparseable chunk must not escape this callback:
+                // an uncaught exception here propagates through OkHttp's SSE reader and
+                // aborts the whole stream instead of just skipping this one line.
+                try {
+                    val dataJson = json.parseToJsonElement(data).jsonObject
+                    val deltaMessage = parseMessage(buildJsonArray {
+                        val contentBlockObj = dataJson["content_block"]?.jsonObject
+                        val deltaObj = dataJson["delta"]?.jsonObject
+                        if (contentBlockObj != null) {
+                            add(contentBlockObj)
+                        }
+                        if (deltaObj != null) {
+                            add(deltaObj)
+                        }
+                    })
+                    val tokenUsage = parseTokenUsage(dataJson)
+                    val messageChunk = MessageChunk(
+                        id = id ?: "",
+                        model = "",
+                        choices = listOf(
+                            UIMessageChoice(
+                                index = 0,
+                                delta = deltaMessage,
+                                message = null,
+                                finishReason = null
+                            )
+                        ),
+                        usage = tokenUsage
+                    )
 
-                trySend(messageChunk).onFailure { e ->
-                    Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
-                }
-
-                when (type) {
-                    "message_stop" -> {
-                        Log.d(TAG, "Stream ended")
-                        close()
+                    trySend(messageChunk).onFailure { e ->
+                        Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
                     }
 
-                    "error" -> {
-                        val eventData = json.parseToJsonElement(data).jsonObject
-                        val error = eventData["error"]?.parseErrorDetail()
-                        close(error)
+                    when (type) {
+                        "message_stop" -> {
+                            Log.d(TAG, "Stream ended")
+                            close()
+                        }
+
+                        "error" -> {
+                            val error = dataJson["error"]?.parseErrorDetail()
+                            close(error)
+                        }
                     }
+                } catch (e: Exception) {
+                    Log.w(TAG, "onEvent: skipping malformed chunk (${e.message})", e)
                 }
             }
 

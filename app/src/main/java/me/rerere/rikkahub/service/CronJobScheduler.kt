@@ -29,11 +29,12 @@ class CronJobScheduler(
     suspend fun schedule(job: ScheduledJobEntity) {
         val nowMs = System.currentTimeMillis()
         val nextRun = nextRunMs(job, nowMs)
-        repo.update(job.copy(nextRunAtMs = nextRun))
         if (nextRun == null) {
+            repo.update(terminalJobUpdate(job))
             cancel(job.id)
             return
         }
+        repo.update(job.copy(nextRunAtMs = nextRun))
         val delayMs = max(0L, nextRun - nowMs)
         val req = OneTimeWorkRequestBuilder<CronJobWorker>()
             .setInitialDelay(delayMs, TimeUnit.MILLISECONDS)
@@ -99,6 +100,25 @@ class CronJobScheduler(
                 }
                 else -> null
             }
+        }
+
+        /**
+         * Pure. Decides what to persist when [nextRunMs] returned null (schedule() is about
+         * to [cancel] the job's WorkManager work). Every other reason nextRunMs returns null
+         * (disabled, max_runs reached, end_at past, a "once" job that already fired) already
+         * has `enabled` reflecting reality by the time schedule() runs. An unparseable cron
+         * expression does not: cron_expression validation was tightened after some jobs may
+         * have been persisted (e.g. an out-of-range "@every 90m"), so a pre-existing row can
+         * newly fail to parse. Without this, schedule() would cancel the work forever while
+         * the job row still shows enabled=true, silently zombied with no way to tell.
+         */
+        internal fun terminalJobUpdate(job: ScheduledJobEntity): ScheduledJobEntity {
+            val unparseable = job.scheduleType == "cron" && job.cronExpression != null &&
+                CronExpressionParser.parse(job.cronExpression).isFailure
+            return job.copy(
+                nextRunAtMs = null,
+                enabled = if (unparseable) false else job.enabled,
+            )
         }
     }
 }

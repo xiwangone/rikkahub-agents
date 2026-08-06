@@ -1,6 +1,7 @@
 package me.rerere.llamacpp
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -122,5 +123,44 @@ class ContextPlannerTest {
         val broken = smallModel().copy(nLayers = 0)
         val plan = ContextPlanner.plan(broken, plentyOfRam, tools(4), 500)
         assertEquals(4096, plan.nCtx)
+    }
+
+    @Test
+    fun `zero weights_bytes also counts as incomplete metadata`() {
+        // A model that reports every KV-cache field but a 0 file size is exactly as
+        // untrustworthy as one missing n_layers: estimateBytes would silently omit the
+        // weights term from its memory estimate, and MemoryGuard.decide (called with the
+        // same weightsBytes) would then find 0 <= any budget and never refuse.
+        val broken = smallModel().copy(weightsBytes = 0L)
+        assertFalse(broken.isComplete)
+        val plan = ContextPlanner.plan(broken, plentyOfRam, tools(4), 500)
+        assertEquals(4096, plan.nCtx)
+    }
+
+    // inputByteBudget / replanForRequest -------------------------------------------------
+
+    @Test
+    fun `inputByteBudget is half the context minus the history headroom, in bytes`() {
+        // 4096 * 0.5 = 2048 input tokens; minus 750 headroom = 1298; * 4 bytes/token.
+        assertEquals(1298 * ContextPlanner.BYTES_PER_TOKEN, ContextPlanner.inputByteBudget(4096))
+    }
+
+    @Test
+    fun `replanForRequest reserves the system prompt plus exactly the tools that survived`() {
+        val fortyTools = tools(40) // 700 bytes each; not all fit at nCtx 4096
+        val request = ContextPlanner.replanForRequest(nCtx = 4096, tools = fortyTools, systemPromptBytes = 500)
+
+        assertTrue("some tools must be dropped at this size", request.droppedToolNames.isNotEmpty())
+        val keptBytes = fortyTools
+            .filterNot { request.droppedToolNames.contains(it.name) }
+            .sumOf { it.jsonBytes }
+        assertEquals(500 + keptBytes, request.reservedInputBytes)
+    }
+
+    @Test
+    fun `replanForRequest reserves nothing beyond the system prompt when no tools are given`() {
+        val request = ContextPlanner.replanForRequest(nCtx = 8192, tools = emptyList(), systemPromptBytes = 500)
+        assertEquals(500, request.reservedInputBytes)
+        assertTrue(request.droppedToolNames.isEmpty())
     }
 }

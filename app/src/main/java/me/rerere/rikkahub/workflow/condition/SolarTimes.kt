@@ -42,8 +42,19 @@ object SolarTimes {
 
     /** True if [now] is after sunset (with [offsetMinutes] applied) for [date]. */
     fun isAfterSunset(now: ZonedDateTime, lat: Double, lng: Double, offsetMinutes: Int): Boolean {
-        val sunset = sunsetAt(now.toLocalDate(), lat, lng, now.zone) ?: return true  // polar day → "always after sunset"
-        val cutoff = now.toLocalDate().atTime(sunset).plusMinutes(offsetMinutes.toLong()).atZone(now.zone)
+        // A night spans midnight. Before today's sunrise, "after sunset" still refers to
+        // LAST night's sunset (yesterday's date) — today's own sunset is still hours away
+        // this same calendar date, so comparing against it wrongly reports "not after
+        // sunset" for the entire post-midnight half of the night.
+        val today = now.toLocalDate()
+        val sunriseToday = sunriseAt(today, lat, lng, now.zone)
+        val referenceDate = if (sunriseToday != null && now.toLocalTime().isBefore(sunriseToday)) {
+            today.minusDays(1)
+        } else {
+            today
+        }
+        val sunset = sunsetAt(referenceDate, lat, lng, now.zone) ?: return true  // polar day → "always after sunset"
+        val cutoff = referenceDate.atTime(sunset).plusMinutes(offsetMinutes.toLong()).atZone(now.zone)
         return !now.isBefore(cutoff)
     }
 

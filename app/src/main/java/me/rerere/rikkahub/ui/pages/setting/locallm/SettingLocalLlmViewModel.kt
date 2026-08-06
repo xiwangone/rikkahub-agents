@@ -353,12 +353,26 @@ class SettingLocalLlmViewModel(
         }
     }
 
+    /**
+     * Both entry points below set [_downloadProgress] to a non-null placeholder
+     * synchronously, before [viewModelScope.launch] ever suspends, and refuse to start a
+     * second download while one is already in flight. The Install buttons in
+     * `ProviderConfigure.kt` disable on `downloadProgress != null`, but that value used to
+     * stay null until [ModelInstall.download]'s flow reached its first [ModelInstall.Progress.Started]
+     * event - after the HTTP response headers arrive - leaving a window in which a fast
+     * double-tap launched two concurrent downloads racing to write the same `.partial`
+     * file. Setting the placeholder here closes that window at the moment the tap is
+     * handled instead of once the network responds.
+     */
     fun startDefaultDownload() {
+        if (_downloadProgress.value != null) return
         _errorMessage.value = null
+        _downloadProgress.value = Progress(0, 0L, null)
         viewModelScope.launch {
             val url = defaultModelUrl
             val mem = MemoryGuard.canLoad(context, modelFileBytes = estimatedSize(runtime))
             if (mem is MemoryGuard.Decision.TooLarge) {
+                _downloadProgress.value = null
                 _errorMessage.value = context.getString(
                     R.string.local_llm_insufficient_memory_format,
                     mem.requiredFreeBytes / 1_000_000,
@@ -380,7 +394,9 @@ class SettingLocalLlmViewModel(
             _errorMessage.value = context.getString(R.string.local_llm_invalid_url)
             return
         }
+        if (_downloadProgress.value != null) return
         _errorMessage.value = null
+        _downloadProgress.value = Progress(0, 0L, null)
         viewModelScope.launch { executeDownload(normalizedUrl) }
     }
 
