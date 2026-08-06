@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.gemini
 
 import android.os.Build
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -11,9 +12,11 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -123,7 +126,10 @@ class GeminiAccountRepository internal constructor(
     suspend fun refreshAccount(accountId: String): GeminiAccount = mutex.withLock {
         val account = state.accounts.firstOrNull { it.id == accountId }
             ?: error("Google account not found")
-        ensureFreshLocked(account, force = true)
+        val fresh = ensureFreshLocked(account, force = true)
+        // Quota is informational, so a backend that will not report it must not turn a perfectly
+        // good token refresh into a failure.
+        runCatching { fetchUsageLocked(fresh) }.getOrDefault(fresh)
     }
 
     suspend fun refreshAll() {
@@ -172,6 +178,39 @@ class GeminiAccountRepository internal constructor(
                 ) * 1000,
             tokenStatus = GeminiTokenStatus.AVAILABLE,
         )
+        replaceAccount(account.id) { updated }
+        return updated
+    }
+
+    /**
+     * Refresh the account's quota from `fetchAvailableModels`, which reports it alongside the
+     * model list rather than on an endpoint of its own.
+     */
+    private suspend fun fetchUsageLocked(account: GeminiAccount): GeminiAccount {
+        val response = withContext(Dispatchers.IO) {
+            client.newCall(
+                Request.Builder()
+                    .url("$CODE_ASSIST_ENDPOINT/v1internal:fetchAvailableModels")
+                    .antigravityHeaders(account.accessToken)
+                    .post("{}".toRequestBody(JSON_MEDIA_TYPE))
+                    .build()
+            ).await()
+        }
+        val body = response.body.string()
+        if (!response.isSuccessful) {
+            if (response.code == 401) {
+                replaceAccount(account.id) { it.copy(tokenStatus = GeminiTokenStatus.INVALID) }
+            }
+            error("Failed to fetch Gemini usage: ${response.code} $body")
+        }
+        val snapshot = parseGeminiQuotaUsage(json.parseToJsonElement(body).jsonObject)
+        if (snapshot == null) {
+            // Keeping the previous snapshot beats blanking the card, but the user is then looking
+            // at a stale reading, so say why rather than failing silently.
+            Log.w(TAG, "fetchAvailableModels reported no quota; keeping the previous snapshot")
+            return account
+        }
+        val updated = account.copy(usage = snapshot)
         replaceAccount(account.id) { updated }
         return updated
     }
@@ -339,6 +378,114 @@ internal fun isGeminiRefreshAuthenticationFailure(
     }.getOrNull()
     return errorCode == "invalid_grant" || errorCode == "invalid_token"
 }
+
+/**
+ * Pick the tier to onboard against from a `loadCodeAssist` response.
+ *
+ * `currentTier` wins when present: it is the tier the account is already on, not a signal that
+ * the account is unusable. Only when there is no current tier does the default entry in
+ * `allowedTiers` apply. Returning null leaves the caller on the legacy tier, which is the same
+ * fallback Antigravity uses.
+ */
+internal fun selectGeminiTier(load: JsonObject): JsonObject? =
+    load["currentTier"]?.jsonObject
+        ?: load["allowedTiers"]?.jsonArray
+            ?.map { it.jsonObject }
+            ?.firstOrNull { it["isDefault"]?.jsonPrimitive?.booleanOrNull == true }
+
+private const val WINDOW_DAILY = "daily"
+private const val WINDOW_WEEKLY = "weekly"
+private const val ONE_DAY_SECONDS = 24 * 60 * 60L
+
+// Quota can arrive under any of these keys, singular or as an array. The two prefixed ones name
+// their own window; the bare ones have to be classified from what is inside them.
+private val QUOTA_FIELDS = listOf(
+    "quotaInfo" to null,
+    "quotaInfos" to null,
+    "dailyQuotaInfo" to WINDOW_DAILY,
+    "dailyQuotaInfos" to WINDOW_DAILY,
+    "weeklyQuotaInfo" to WINDOW_WEEKLY,
+    "weeklyQuotaInfos" to WINDOW_WEEKLY,
+)
+
+/**
+ * Collapse the per-model quota in a `fetchAvailableModels` response into one reading per window.
+ *
+ * Returns null when the response carries no quota at all, which keeps a backend that stops
+ * reporting it from wiping a snapshot the user is still looking at.
+ */
+internal fun parseGeminiQuotaUsage(
+    root: JsonObject,
+    nowMillis: Long = System.currentTimeMillis(),
+): GeminiUsageSnapshot? {
+    val models = root["models"] as? JsonObject ?: return null
+    var daily: GeminiUsageWindow? = null
+    var weekly: GeminiUsageWindow? = null
+    for (modelElement in models.values) {
+        val model = modelElement as? JsonObject ?: continue
+        for ((field, declaredWindow) in QUOTA_FIELDS) {
+            for (info in quotaInfosIn(model[field])) {
+                val fraction = info["remainingFraction"]?.jsonPrimitive?.doubleOrNull ?: continue
+                val resetsAt = parseQuotaResetTime(info["resetTime"]?.jsonPrimitive?.contentOrNull)
+                val window = GeminiUsageWindow(fraction.coerceIn(0.0, 1.0), resetsAt)
+                val id = declaredWindow ?: classifyQuotaWindow(info, resetsAt, nowMillis)
+                if (id == WINDOW_WEEKLY) {
+                    weekly = scarcerOf(weekly, window)
+                } else {
+                    daily = scarcerOf(daily, window)
+                }
+            }
+        }
+    }
+    if (daily == null && weekly == null) return null
+    return GeminiUsageSnapshot(daily = daily, weekly = weekly, updatedAt = nowMillis)
+}
+
+private fun quotaInfosIn(element: kotlinx.serialization.json.JsonElement?): List<JsonObject> =
+    when (element) {
+        is JsonObject -> listOf(element)
+        is kotlinx.serialization.json.JsonArray -> element.filterIsInstance<JsonObject>()
+        else -> emptyList()
+    }
+
+private fun scarcerOf(current: GeminiUsageWindow?, candidate: GeminiUsageWindow) =
+    if (current == null || candidate.remainingFraction < current.remainingFraction) {
+        candidate
+    } else {
+        current
+    }
+
+private fun classifyQuotaWindow(
+    info: JsonObject,
+    resetsAt: Long?,
+    nowMillis: Long,
+): String {
+    val source = listOfNotNull(
+        info["windowId"]?.jsonPrimitive?.contentOrNull,
+        info["windowLabel"]?.jsonPrimitive?.contentOrNull,
+    ).joinToString(" ").lowercase()
+    if (source.contains("week") || source.contains("7d")) return WINDOW_WEEKLY
+    if (source.contains("day") || source.contains("24h")) return WINDOW_DAILY
+    // Nothing labelled it, so fall back to how far out it resets: anything more than a day away
+    // cannot be a daily window.
+    val secondsUntilReset = resetsAt?.minus(nowMillis / 1000) ?: return WINDOW_DAILY
+    return if (secondsUntilReset > ONE_DAY_SECONDS) WINDOW_WEEKLY else WINDOW_DAILY
+}
+
+private fun parseQuotaResetTime(raw: String?): Long? {
+    if (raw.isNullOrBlank()) return null
+    return runCatching { java.time.Instant.parse(raw).epochSecond }.getOrNull()
+        ?: runCatching { java.time.OffsetDateTime.parse(raw).toEpochSecond() }.getOrNull()
+}
+
+/**
+ * Read a `cloudaicompanionProject` value, which comes back either as a bare string or as an
+ * object carrying an `id` depending on the tier, so accept both rather than assuming one shape.
+ */
+internal fun readProjectId(element: kotlinx.serialization.json.JsonElement?): String? =
+    ((element as? JsonObject)?.get("id")?.jsonPrimitive?.contentOrNull
+        ?: (element as? JsonPrimitive)?.contentOrNull)
+        ?.takeIf { it.isNotBlank() }
 
 internal fun selectGeminiAccountIndex(
     accounts: List<GeminiAccount>,

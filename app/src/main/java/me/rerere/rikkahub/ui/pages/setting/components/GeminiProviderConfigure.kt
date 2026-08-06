@@ -12,6 +12,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
@@ -40,8 +41,13 @@ import me.rerere.rikkahub.data.gemini.GeminiAccountRepository
 import me.rerere.rikkahub.data.gemini.GeminiOAuthManager
 import me.rerere.rikkahub.data.gemini.GeminiOAuthStatus
 import me.rerere.rikkahub.data.gemini.GeminiTokenStatus
+import me.rerere.rikkahub.data.gemini.GeminiUsageWindow
 import me.rerere.rikkahub.ui.context.LocalToaster
 import org.koin.compose.koinInject
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import kotlin.math.roundToInt
 
 @Composable
 fun GeminiProviderConfigure(
@@ -313,6 +319,13 @@ private fun GeminiAccountCard(
                 },
             )
 
+            account.usage?.daily?.let {
+                GeminiUsageRow(label = stringResource(R.string.gemini_daily_limit), window = it)
+            }
+            account.usage?.weekly?.let {
+                GeminiUsageRow(label = stringResource(R.string.gemini_weekly_limit), window = it)
+            }
+
             HorizontalDivider()
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -334,3 +347,38 @@ private fun GeminiAccountCard(
         }
     }
 }
+
+@Composable
+private fun GeminiUsageRow(label: String, window: GeminiUsageWindow) {
+    val remainingPercent = (window.remainingFraction * 100).coerceIn(0.0, 100.0)
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(label, style = MaterialTheme.typography.bodyMedium)
+            Text(
+                stringResource(R.string.gemini_percent_remaining, remainingPercent.roundToInt()),
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+        LinearProgressIndicator(
+            progress = { window.remainingFraction.toFloat().coerceIn(0f, 1f) },
+            modifier = Modifier.fillMaxWidth(),
+        )
+        window.resetsAt?.let { epochSeconds ->
+            Text(
+                text = stringResource(
+                    R.string.gemini_resets_at,
+                    GEMINI_RESET_FORMAT.format(Instant.ofEpochSecond(epochSeconds)),
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+private val GEMINI_RESET_FORMAT: DateTimeFormatter = DateTimeFormatter
+    .ofPattern("yyyy-MM-dd HH:mm")
+    .withZone(ZoneId.systemDefault())

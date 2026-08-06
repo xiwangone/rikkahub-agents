@@ -1878,9 +1878,13 @@
   <string name="gemini_token_expired">Token expired</string>
   <string name="gemini_token_unavailable">Token unavailable</string>
   <string name="gemini_token_not_checked">Token status not checked</string>
+  <string name="gemini_daily_limit">Daily limit</string>
+  <string name="gemini_weekly_limit">Weekly limit</string>
+  <string name="gemini_percent_remaining">%1$d%% remaining</string>
+  <string name="gemini_resets_at">Resets %1$s</string>
   <string name="gemini_refresh">Refresh</string>
   <string name="gemini_reauthenticate">Re-auth</string>
-  <string name="gemini_oauth_ports_unavailable">Google sign-in cannot start because the local callback ports are in use. Close the app using them and try again.</string>
+  <string name="gemini_oauth_ports_unavailable">Google sign-in cannot start because the local callback port is in use. Close the app using it and try again.</string>
   <string name="grok_provider_description">Uses your xAI Grok subscription (SuperGrok or X Premium+) via OAuth device sign-in and the xAI Responses API. Requires an active subscription; no API key needed.</string>
   <string name="grok_sign_in">Sign in with xAI</string>
   <string name="grok_enter_code_prompt">Approve the sign-in in your browser. If the code is not pre-filled, enter:</string>

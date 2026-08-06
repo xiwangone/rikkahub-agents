@@ -20,6 +20,27 @@ data class GeminiAccount(
     val expiresAt: Long,
     val enabled: Boolean = true,
     val tokenStatus: GeminiTokenStatus = GeminiTokenStatus.UNKNOWN,
+    val usage: GeminiUsageSnapshot? = null,
+)
+
+/**
+ * What is left of the account's Code Assist quota.
+ *
+ * Cloud Code Assist reports quota per model rather than per account, so each window here is the
+ * scarcest reading across every model the account can reach: that is the one that will actually
+ * stop a request.
+ */
+@Serializable
+data class GeminiUsageSnapshot(
+    val daily: GeminiUsageWindow? = null,
+    val weekly: GeminiUsageWindow? = null,
+    val updatedAt: Long = System.currentTimeMillis(),
+)
+
+@Serializable
+data class GeminiUsageWindow(
+    val remainingFraction: Double,
+    val resetsAt: Long? = null, // epoch seconds
 )
 
 @Serializable
