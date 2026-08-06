@@ -6,6 +6,7 @@ import android.os.Handler
 import android.os.Looper
 import android.util.Log
 import android.widget.Toast
+import me.rerere.rikkahub.BuildConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
@@ -22,11 +23,7 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.MessageRole
@@ -45,6 +42,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.handleMessageChunk
 import me.rerere.ai.ui.limitContext
+import me.rerere.ai.util.redactSecrets
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
@@ -70,33 +68,6 @@ import kotlin.uuid.Uuid
 private const val TAG = "GenerationHandler"
 private const val MAX_TOOL_OUTPUT_CHARS = 32 * 1024
 private const val TOOL_OUTPUT_PREVIEW_CHARS = 4 * 1024
-
-/**
- * Keys whose string values are sensitive enough that the raw value MUST NOT land in
- * logcat. Tool args land in `Log.i` for debugging; without redaction, `save_ssh_host`'s
- * `private_key` / `password` and `telegram_set_token`'s `token` would print verbatim
- * — readable on debug builds, by other apps holding READ_LOGS on OEM-bugged ROMs, and
- * by `bugreport`/`dumpsys`. The match is case-insensitive against the key name and
- * applies regardless of nesting depth.
- */
-private val SECRET_KEY_PATTERN: Regex =
-    Regex("(?:^|_)(password|passphrase|secret|token|apikey|api[_-]?key|privatekey|private[_-]?key|key)$",
-        RegexOption.IGNORE_CASE)
-
-/**
- * Walk [element] and replace any string primitive whose KEY matches [SECRET_KEY_PATTERN]
- * with the string `"***"`. Numbers, booleans, nulls, and non-secret strings pass through
- * unchanged. Used only for the per-step "executing tool with args" log line.
- */
-private fun redactSecrets(element: JsonElement, key: String? = null): JsonElement {
-    val isSecret = key != null && SECRET_KEY_PATTERN.containsMatchIn(key)
-    return when (element) {
-        is JsonPrimitive ->
-            if (isSecret && element.isString) JsonPrimitive("***") else element
-        is JsonObject -> JsonObject(element.mapValues { (k, v) -> redactSecrets(v, k) })
-        is JsonArray -> buildJsonArray { element.forEach { add(redactSecrets(it, key)) } }
-    }
-}
 
 /**
  * Replace older tool-result `Image` parts with a small text elision so the same JPEGs
@@ -288,7 +259,9 @@ class GenerationHandler(
         assistant: Assistant,
         memories: List<AssistantMemory>? = null,
         tools: List<Tool> = emptyList(),
-        maxSteps: Int = 32,
+        // Read live from the runtime holder, not captured once: the default expression is
+        // evaluated per call, so a settings change takes effect on the next turn.
+        maxSteps: Int = ToolRuntimeLimits.maxToolSteps,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
         // Returns true when the user has pre-approved [toolName] for this turn (e.g.
         // "Allow for this chat" or "Always Allow" granted earlier). When true, the loop
@@ -755,7 +728,9 @@ class GenerationHandler(
                             val toolDef = toolsInternal.find { toolDef -> toolDef.name == tool.toolName }
                                 ?: error("Tool ${tool.toolName} not found")
                             val args = parsedArgs.getOrThrow()
-                            Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: ${redactSecrets(args)}")
+                            if (BuildConfig.DEBUG) {
+                                Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: ${redactSecrets(args)}")
+                            }
                             // Mark the tool as "execution started" BEFORE actually running.
                             // ChatService persists this when it sees the chunk so a process
                             // kill between mark-and-output leaves a clear breadcrumb on disk:

@@ -166,6 +166,25 @@ class TermuxDefaultsTest {
     }
 
     @Test
+    fun maxToolSteps_defaultMatchesTheOldHardcodedLimit() {
+        // 32 was GenerationHandler's hardcoded maxSteps before issue #22 made it configurable.
+        // Pinning it here keeps an existing user's behaviour identical until they change it.
+        assertEquals(32, TermuxDefaults.DEFAULT_MAX_TOOL_STEPS)
+    }
+
+    @Test
+    fun maxToolSteps_clampsToItsBounds() {
+        assertEquals(TermuxDefaults.MIN_MAX_TOOL_STEPS, TermuxDefaults.clampMaxToolSteps(0))
+        assertEquals(TermuxDefaults.MIN_MAX_TOOL_STEPS, TermuxDefaults.clampMaxToolSteps(-5))
+        assertEquals(TermuxDefaults.MAX_MAX_TOOL_STEPS, TermuxDefaults.clampMaxToolSteps(10_000))
+        assertEquals(200, TermuxDefaults.clampMaxToolSteps(200))
+        assertEquals(
+            TermuxDefaults.DEFAULT_MAX_TOOL_STEPS,
+            TermuxDefaults.clampMaxToolSteps(TermuxDefaults.DEFAULT_MAX_TOOL_STEPS),
+        )
+    }
+
+    @Test
     fun commandTimeout_maxSecondsAligns600() {
         // Ceiling raised from 300 to 600 per spec override.
         assertEquals(600, TermuxDefaults.MAX_COMMAND_TIMEOUT_SECONDS)

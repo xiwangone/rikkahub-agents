@@ -1599,6 +1599,9 @@
   <string name="setting_termux_verify_timeout_desc">Timeout for the allow-external-apps echo smoke test. Range 3 s to 30 s.</string>
   <string name="setting_termux_unit_seconds">seconds</string>
   <string name="setting_termux_unit_minutes">minutes</string>
+  <string name="setting_termux_unit_steps">steps</string>
+  <string name="setting_termux_max_tool_steps">Tool steps per turn</string>
+  <string name="setting_termux_max_tool_steps_desc">How many tool calls one reply may chain before it is force-ended. Raise this for long install or build tasks. Range 1 to 500; the turn time budget above still applies.</string>
   <string name="setting_termux_unit_bytes">bytes</string>
   <string name="setting_termux_section_defaults">Defaults &amp; limits</string>
   <string name="setting_termux_working_dir">Default working directory</string>

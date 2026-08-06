@@ -258,6 +258,17 @@ fun SettingTermuxPage(
                     },
                 )
                 item(
+                    headlineContent = { Text(stringResource(R.string.setting_termux_max_tool_steps)) },
+                    supportingContent = { Text(stringResource(R.string.setting_termux_max_tool_steps_desc)) },
+                    trailingContent = {
+                        TimeoutInput(
+                            currentValue = config.maxToolSteps.toLong(),
+                            unitLabel = stringResource(R.string.setting_termux_unit_steps),
+                            onCommit = vm::setMaxToolSteps,
+                        )
+                    },
+                )
+                item(
                     headlineContent = { Text(stringResource(R.string.setting_termux_verify_timeout)) },
                     supportingContent = { Text(stringResource(R.string.setting_termux_verify_timeout_desc)) },
                     trailingContent = {

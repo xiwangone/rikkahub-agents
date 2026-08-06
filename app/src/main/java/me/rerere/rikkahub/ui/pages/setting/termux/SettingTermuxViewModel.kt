@@ -31,10 +31,12 @@ class SettingTermuxViewModel(
         },
         prefs.maxStderrFlow(),
         prefs.aptWrapEnabledFlow(),
-    ) { partial, maxStderr, aptWrap ->
+        prefs.maxToolStepsFlow(),
+    ) { partial, maxStderr, aptWrap, maxToolSteps ->
         TermuxRuntimeConfig(
             commandTimeoutMs  = partial.commandTimeoutMs,
             turnBudgetMs      = partial.turnBudgetMs,
+            maxToolSteps      = maxToolSteps,
             verifyTimeoutMs   = partial.verifyTimeoutMs,
             defaultWorkingDir = partial.defaultWorkingDir,
             maxStdoutBytes    = partial.maxStdoutBytes,
@@ -47,6 +49,7 @@ class SettingTermuxViewModel(
         initialValue = TermuxRuntimeConfig(
             commandTimeoutMs  = TermuxDefaults.DEFAULT_COMMAND_TIMEOUT_MS,
             turnBudgetMs      = TermuxDefaults.DEFAULT_TURN_BUDGET_MS,
+            maxToolSteps      = TermuxDefaults.DEFAULT_MAX_TOOL_STEPS,
             verifyTimeoutMs   = TermuxDefaults.DEFAULT_VERIFY_TIMEOUT_MS,
             defaultWorkingDir = TermuxDefaults.DEFAULT_WORKING_DIR,
             maxStdoutBytes    = TermuxDefaults.DEFAULT_MAX_STDOUT,
@@ -65,6 +68,11 @@ class SettingTermuxViewModel(
     /** [minutes] is the UI display unit for turn budget. Clamping in [TermuxPreferences]. */
     fun setTurnBudgetMinutes(minutes: Long) {
         viewModelScope.launch { prefs.setTurnBudgetMs(minutes * 60_000L) }
+    }
+
+    /** Tool-call iterations allowed in one turn (issue #22). Clamping in [TermuxPreferences]. */
+    fun setMaxToolSteps(steps: Long) {
+        viewModelScope.launch { prefs.setMaxToolSteps(steps.toInt()) }
     }
 
     /** [seconds] is the UI display unit for verify timeout. */

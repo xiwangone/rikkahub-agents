@@ -38,6 +38,7 @@ class TermuxPreferences(private val context: Context) {
 
     private val commandTimeoutKey = longPreferencesKey("command_timeout_ms")
     private val turnBudgetKey     = longPreferencesKey("turn_budget_ms")
+    private val maxToolStepsKey   = intPreferencesKey("max_tool_steps")
     private val verifyTimeoutKey  = longPreferencesKey("verify_timeout_ms")
     private val workingDirKey     = stringPreferencesKey("working_dir")
     private val maxStdoutKey      = intPreferencesKey("max_stdout_bytes")
@@ -62,6 +63,7 @@ class TermuxPreferences(private val context: Context) {
         TermuxRuntime.maxStderrBytes     = initial.maxStderrBytes
         TermuxRuntime.aptWrapEnabled     = initial.aptWrapEnabled
         ToolRuntimeLimits.turnBudgetMs   = initial.turnBudgetMs
+        ToolRuntimeLimits.maxToolSteps   = initial.maxToolSteps
         // Issue #14: restore the "verified/connected" indicator across app restarts. Without
         // this, TermuxIntegration.lastVerifiedOkAtMs starts at 0 every launch and the user
         // has to re-run the verify smoke test even though nothing about the Termux
@@ -88,6 +90,12 @@ class TermuxPreferences(private val context: Context) {
             turnBudgetFlow()
                 .distinctUntilChanged()
                 .onEach { ToolRuntimeLimits.turnBudgetMs = it }
+                .collect {}
+        }
+        scope.launch {
+            maxToolStepsFlow()
+                .distinctUntilChanged()
+                .onEach { ToolRuntimeLimits.maxToolSteps = it }
                 .collect {}
         }
         scope.launch {
@@ -136,6 +144,12 @@ class TermuxPreferences(private val context: Context) {
         )
     }
 
+    fun maxToolStepsFlow(): Flow<Int> = store.data.map { prefs ->
+        TermuxDefaults.clampMaxToolSteps(
+            prefs[maxToolStepsKey] ?: TermuxDefaults.DEFAULT_MAX_TOOL_STEPS
+        )
+    }
+
     fun verifyTimeoutFlow(): Flow<Long> = store.data.map { prefs ->
         TermuxDefaults.clampVerifyTimeoutMs(
             prefs[verifyTimeoutKey] ?: TermuxDefaults.DEFAULT_VERIFY_TIMEOUT_MS
@@ -174,6 +188,10 @@ class TermuxPreferences(private val context: Context) {
         store.edit { it[turnBudgetKey] = TermuxDefaults.clampTurnBudgetMs(ms) }
     }
 
+    suspend fun setMaxToolSteps(steps: Int) {
+        store.edit { it[maxToolStepsKey] = TermuxDefaults.clampMaxToolSteps(steps) }
+    }
+
     suspend fun setVerifyTimeoutMs(ms: Long) {
         store.edit { it[verifyTimeoutKey] = TermuxDefaults.clampVerifyTimeoutMs(ms) }
     }
@@ -207,6 +225,7 @@ class TermuxPreferences(private val context: Context) {
         return TermuxRuntimeConfig(
             commandTimeoutMs   = TermuxDefaults.clampCommandTimeoutMs(prefs[commandTimeoutKey] ?: TermuxDefaults.DEFAULT_COMMAND_TIMEOUT_MS),
             turnBudgetMs       = TermuxDefaults.clampTurnBudgetMs(prefs[turnBudgetKey]         ?: TermuxDefaults.DEFAULT_TURN_BUDGET_MS),
+            maxToolSteps       = TermuxDefaults.clampMaxToolSteps(prefs[maxToolStepsKey]        ?: TermuxDefaults.DEFAULT_MAX_TOOL_STEPS),
             verifyTimeoutMs    = TermuxDefaults.clampVerifyTimeoutMs(prefs[verifyTimeoutKey]    ?: TermuxDefaults.DEFAULT_VERIFY_TIMEOUT_MS),
             defaultWorkingDir  = TermuxDefaults.clampWorkingDir(prefs[workingDirKey]            ?: TermuxDefaults.DEFAULT_WORKING_DIR),
             maxStdoutBytes     = TermuxDefaults.clampMaxStdout(prefs[maxStdoutKey]              ?: TermuxDefaults.DEFAULT_MAX_STDOUT),
@@ -227,6 +246,7 @@ class TermuxPreferences(private val context: Context) {
 data class TermuxRuntimeConfig(
     val commandTimeoutMs: Long,
     val turnBudgetMs: Long,
+    val maxToolSteps: Int,
     val verifyTimeoutMs: Long,
     val defaultWorkingDir: String,
     val maxStdoutBytes: Int,
