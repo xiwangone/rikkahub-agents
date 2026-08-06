@@ -1,8 +1,11 @@
 package me.rerere.rikkahub.data.gemini
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -116,5 +119,66 @@ class GeminiAccountTest {
     @Test
     fun `a 500 is not an authentication failure`() {
         assertFalse(isGeminiRefreshAuthenticationFailure(500, "", json))
+    }
+
+    private fun load(body: String) = json.parseToJsonElement(body).jsonObject
+
+    @Test
+    fun `an account already on a tier is onboarded against that tier`() {
+        // Regression: sign-in used to refuse any response carrying currentTier at all, which
+        // rejected ordinary accounts that had already used Code Assist once. currentTier is the
+        // tier to onboard against, not a signal that the account is unusable.
+        val tier = selectGeminiTier(load("""{"currentTier":{"id":"free-tier"}}"""))
+        assertNotNull(tier)
+        assertEquals("free-tier", tier!!["id"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `the current tier wins over the default allowed tier`() {
+        val tier = selectGeminiTier(
+            load(
+                """
+                {"currentTier":{"id":"free-tier"},
+                 "allowedTiers":[{"id":"legacy-tier","isDefault":true}]}
+                """
+            )
+        )
+        assertEquals("free-tier", tier!!["id"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `the default allowed tier is used when there is no current tier`() {
+        val tier = selectGeminiTier(
+            load(
+                """
+                {"allowedTiers":[{"id":"other-tier"},{"id":"free-tier","isDefault":true}]}
+                """
+            )
+        )
+        assertEquals("free-tier", tier!!["id"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `no tier information at all leaves the caller on its legacy fallback`() {
+        assertNull(selectGeminiTier(load("{}")))
+    }
+
+    @Test
+    fun `a project delivered as a bare string is read`() {
+        assertEquals("proj-1", readProjectId(load("""{"p":"proj-1"}""")["p"]))
+    }
+
+    @Test
+    fun `a project delivered as an object is read from its id`() {
+        assertEquals("proj-1", readProjectId(load("""{"p":{"id":"proj-1"}}""")["p"]))
+    }
+
+    @Test
+    fun `a missing or blank project reads as null`() {
+        // A blank string here would be stored as the account's project and every later request
+        // would 400 against it, so it has to be treated the same as an absent one.
+        assertNull(readProjectId(null))
+        assertNull(readProjectId(load("""{"p":""}""")["p"]))
+        assertNull(readProjectId(load("""{"p":{}}""")["p"]))
     }
 }

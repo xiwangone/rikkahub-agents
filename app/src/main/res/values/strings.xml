@@ -1857,10 +1857,10 @@
   <string name="codex_response_failed">The Codex response failed.</string>
   <string name="codex_monthly_limit">Monthly limit</string>
   <string name="codex_oauth_ports_unavailable">Codex sign-in cannot start because the local callback ports are in use. Close the app using them and try again.</string>
-  <string name="gemini_provider_description">Signs in with a Google account and generates through Google Cloud Code Assist, the same free-tier backend the Gemini CLI uses. No API key needed.</string>
+  <string name="gemini_provider_description">Signs in with a Google account and generates through Google Cloud Code Assist, the same backend Antigravity uses. No API key needed.</string>
   <string name="gemini_provider_short_description">Google account sign-in - read the ban warning first</string>
   <string name="gemini_ban_warning_title">This may get your Google account banned</string>
-  <string name="gemini_ban_warning_body">This provider signs in with the Gemini CLI\'s own OAuth credentials and calls a private Google endpoint from an app Google did not publish. Google\'s terms let them suspend or terminate accounts for accessing their services through unapproved clients, and there is no appeal path built for this. Use a throwaway Google account you can afford to lose, never one tied to your email, photos, purchases, or work.</string>
+  <string name="gemini_ban_warning_body">This provider signs in with Antigravity\'s own OAuth credentials and calls a private Google endpoint from an app Google did not publish. Google\'s terms let them suspend or terminate accounts for accessing their services through unapproved clients, and there is no appeal path built for this. Use a throwaway Google account you can afford to lose, never one tied to your email, photos, purchases, or work.</string>
   <string name="gemini_sign_in">Sign in with Google</string>
   <string name="gemini_enable">Enable Gemini OAuth</string>
   <string name="gemini_round_robin_description">Use enabled accounts in round-robin order.</string>

@@ -203,15 +203,15 @@ class GeminiAccountRepository internal constructor(
     /**
      * Resolve the `cloudaicompanionProject` this account generates against.
      *
-     * Mirrors the Gemini CLI's own onboarding: loadCodeAssist reports the tier, and an account
-     * that has never used Code Assist is onboarded onto the free tier through a long-running
-     * operation that has to be polled until it reports done.
+     * Mirrors Antigravity's own onboarding: loadCodeAssist either hands back a project outright
+     * or reports the tier to onboard against, and an account that has never used Code Assist is
+     * provisioned one by onboardUser.
      */
     private suspend fun discoverProject(accessToken: String): String = withContext(Dispatchers.IO) {
         val loadResponse = client.newCall(
             Request.Builder()
                 .url("$CODE_ASSIST_ENDPOINT/v1internal:loadCodeAssist")
-                .geminiCliHeaders(accessToken)
+                .antigravityHeaders(accessToken)
                 .post(
                     json.encodeToString(
                         buildJsonObject {
@@ -227,74 +227,43 @@ class GeminiAccountRepository internal constructor(
         }
         val load = json.parseToJsonElement(loadBody).jsonObject
 
-        load["cloudaicompanionProject"]?.jsonPrimitive?.contentOrNull
-            ?.takeIf { it.isNotBlank() }
+        readProjectId(load["cloudaicompanionProject"])
             ?.let { return@withContext it }
 
-        // An account already on a paid or Workspace tier is expected to bring its own GCP
-        // project. The Gemini CLI reads it from GOOGLE_CLOUD_PROJECT, which does not exist on
-        // Android, so there is nothing to fall back to and the failure has to be explicit.
-        if (load["currentTier"] != null) {
-            error(WORKSPACE_PROJECT_REQUIRED)
-        }
+        val tierId = selectGeminiTier(load)?.get("id")?.jsonPrimitive?.contentOrNull ?: TIER_LEGACY
 
-        val tierId = load["allowedTiers"]?.jsonArray
-            ?.map { it.jsonObject }
-            ?.firstOrNull { it["isDefault"]?.jsonPrimitive?.booleanOrNull == true }
-            ?.get("id")?.jsonPrimitive?.contentOrNull
-            ?: TIER_LEGACY
-        if (tierId != TIER_FREE && tierId != TIER_LEGACY) {
-            error(WORKSPACE_PROJECT_REQUIRED)
-        }
-
-        val onboardResponse = client.newCall(
-            Request.Builder()
-                .url("$CODE_ASSIST_ENDPOINT/v1internal:onboardUser")
-                .geminiCliHeaders(accessToken)
-                .post(
-                    json.encodeToString(
-                        buildJsonObject {
-                            put("tierId", tierId)
-                            put("metadata", clientMetadataJson())
-                        }
-                    ).toRequestBody(JSON_MEDIA_TYPE)
-                )
-                .build()
-        ).await()
-        val onboardBody = onboardResponse.body.string()
-        if (!onboardResponse.isSuccessful) {
-            error("onboardUser failed: ${onboardResponse.code} $onboardBody")
-        }
-
-        var operation = json.parseToJsonElement(onboardBody).jsonObject
-        var attempt = 0
-        while (operation["done"]?.jsonPrimitive?.booleanOrNull != true) {
-            val name = operation["name"]?.jsonPrimitive?.contentOrNull
-                ?: error("onboardUser returned no operation to poll")
-            if (attempt >= POLL_MAX_ATTEMPTS) {
-                error("Project provisioning did not finish after $POLL_MAX_ATTEMPTS attempts")
-            }
-            attempt++
-            delay(POLL_INTERVAL_MS)
-            val pollResponse = client.newCall(
+        // onboardUser returns a long-running operation that is usually already finished. When it
+        // is not, Antigravity re-sends the same request rather than polling the operation by name,
+        // so the provisioning it kicked off is picked up by the next call's response.
+        var operation: JsonObject? = null
+        for (attempt in 0 until ONBOARD_MAX_ATTEMPTS) {
+            if (attempt > 0) delay(ONBOARD_RETRY_INTERVAL_MS)
+            val response = client.newCall(
                 Request.Builder()
-                    .url("$CODE_ASSIST_ENDPOINT/v1internal/$name")
-                    .geminiCliHeaders(accessToken)
-                    .get()
+                    .url("$CODE_ASSIST_ENDPOINT/v1internal:onboardUser")
+                    .antigravityHeaders(accessToken)
+                    .post(
+                        json.encodeToString(
+                            buildJsonObject {
+                                put("tierId", tierId)
+                                put("metadata", clientMetadataJson())
+                            }
+                        ).toRequestBody(JSON_MEDIA_TYPE)
+                    )
                     .build()
             ).await()
-            val pollBody = pollResponse.body.string()
-            if (!pollResponse.isSuccessful) {
-                error("Failed to poll project provisioning: ${pollResponse.code} $pollBody")
+            val body = response.body.string()
+            if (!response.isSuccessful) {
+                error("onboardUser failed: ${response.code} $body")
             }
-            operation = json.parseToJsonElement(pollBody).jsonObject
+            val parsed = json.parseToJsonElement(body).jsonObject
+            operation = parsed
+            if (parsed["done"]?.jsonPrimitive?.booleanOrNull == true) break
         }
 
-        operation["response"]?.jsonObject
-            ?.get("cloudaicompanionProject")?.jsonObject
-            ?.get("id")?.jsonPrimitive?.contentOrNull
-            ?.takeIf { it.isNotBlank() }
-            ?: error(WORKSPACE_PROJECT_REQUIRED)
+        val finished = operation ?: error("onboardUser returned nothing")
+        readProjectId(finished["response"]?.jsonObject?.get("cloudaicompanionProject"))
+            ?: error("onboardUser finished without returning a project: $finished")
     }
 
     private fun replaceAccount(
@@ -320,13 +289,10 @@ class GeminiAccountRepository internal constructor(
         const val CODE_ASSIST_ENDPOINT = "https://cloudcode-pa.googleapis.com"
         private const val USERINFO_URL = "https://www.googleapis.com/oauth2/v1/userinfo?alt=json"
         private const val REFRESH_MARGIN_MS = 30_000L
-        private const val TIER_FREE = "free-tier"
+        private const val TAG = "GeminiAccountRepository"
         private const val TIER_LEGACY = "legacy-tier"
-        private const val POLL_INTERVAL_MS = 5_000L
-        private const val POLL_MAX_ATTEMPTS = 24
-        private const val WORKSPACE_PROJECT_REQUIRED =
-            "This Google account needs its own Cloud project for Code Assist, which this app " +
-                "cannot provision. Use a personal account on the free tier instead."
+        private const val ONBOARD_RETRY_INTERVAL_MS = 2_000L
+        private const val ONBOARD_MAX_ATTEMPTS = 5
         private val JSON_MEDIA_TYPE = "application/json".toMediaType()
     }
 }
@@ -338,28 +304,28 @@ private data class GeminiIdentity(
 
 /**
  * The Cloud Code Assist backend gates model routing and quota on the client it believes it is
- * talking to, so every call carries the Gemini CLI's own User-Agent and client metadata.
+ * talking to, so every call identifies itself as `antigravity/hub/<version> <os>/<arch>`. Unlike
+ * the Gemini CLI, Antigravity sends no `Client-Metadata` header: the same information travels in
+ * the request body instead. The arch names follow Go's conventions, so an x86_64 device reports
+ * `amd64`.
  */
-internal fun Request.Builder.geminiCliHeaders(
-    accessToken: String,
-    modelId: String = "gemini-2.5-pro",
-): Request.Builder {
-    val arch = Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64"
+internal fun Request.Builder.antigravityHeaders(accessToken: String): Request.Builder {
+    val arch = when (Build.SUPPORTED_ABIS.firstOrNull()) {
+        "x86_64" -> "amd64"
+        "x86" -> "386"
+        else -> "arm64"
+    }
     return header("Authorization", "Bearer $accessToken")
-        .header("User-Agent", "GeminiCLI/$GEMINI_CLI_VERSION/$modelId (android; $arch; terminal)")
-        .header(
-            "Client-Metadata",
-            "ideType=IDE_UNSPECIFIED,platform=PLATFORM_UNSPECIFIED,pluginType=GEMINI",
-        )
+        .header("User-Agent", "antigravity/hub/$ANTIGRAVITY_VERSION android/$arch")
 }
 
 internal fun clientMetadataJson(): JsonObject = buildJsonObject {
-    put("ideType", "IDE_UNSPECIFIED")
+    put("ideType", "ANTIGRAVITY")
     put("platform", "PLATFORM_UNSPECIFIED")
     put("pluginType", "GEMINI")
 }
 
-internal const val GEMINI_CLI_VERSION = "0.46.0"
+internal const val ANTIGRAVITY_VERSION = "2.1.4"
 
 internal fun isGeminiRefreshAuthenticationFailure(
     statusCode: Int,

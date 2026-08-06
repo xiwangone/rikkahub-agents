@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -28,6 +29,7 @@ import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.providers.CODE_ASSIST_SAFETY_CATEGORIES
 import me.rerere.ai.provider.providers.GoogleProvider
 import me.rerere.ai.ui.ImageGenerationItem
 import me.rerere.ai.ui.MessageChunk
@@ -67,7 +69,7 @@ class GeminiProvider(
         val response = client.newCall(
             Request.Builder()
                 .url("${GeminiAccountRepository.CODE_ASSIST_ENDPOINT}/v1internal:fetchAvailableModels")
-                .geminiCliHeaders(account.accessToken)
+                .antigravityHeaders(account.accessToken)
                 .post("{}".toRequestBody(JSON_MEDIA_TYPE))
                 .build()
         ).await()
@@ -135,12 +137,17 @@ class GeminiProvider(
         val requestBody = buildJsonObject {
             put("project", account.projectId)
             put("model", params.model.modelId)
-            put("request", wire.buildCompletionRequestBody(messages, params))
+            put(
+                "request",
+                raiseMaxTokensAboveThinkingBudget(
+                    wire.buildCompletionRequestBody(messages, params, CODE_ASSIST_SAFETY_CATEGORIES)
+                )
+            )
         }
         val request = Request.Builder()
             .url("${GeminiAccountRepository.CODE_ASSIST_ENDPOINT}/v1internal:streamGenerateContent?alt=sse")
             .headers(params.customHeaders.toHeaders())
-            .geminiCliHeaders(account.accessToken, params.model.modelId)
+            .antigravityHeaders(account.accessToken)
             .addHeader("Content-Type", "application/json")
             .addHeader("Accept", "text/event-stream")
             .post(json.encodeToString(requestBody).toRequestBody(JSON_MEDIA_TYPE))
@@ -230,3 +237,28 @@ class GeminiProvider(
         val JSON_MEDIA_TYPE = "application/json".toMediaType()
     }
 }
+
+/**
+ * Guarantee `maxOutputTokens` sits above the thinking budget.
+ *
+ * Code Assist fronts Anthropic models as well as Gemini, and those reject any request whose
+ * thinking budget is not strictly below `max_tokens`. Gemini itself has no such rule, so the
+ * shared wire builder does not enforce it and the ceiling is raised here instead. Leaving
+ * `maxOutputTokens` unset is not safe either: the backend then applies a default that a high
+ * reasoning level overshoots.
+ */
+private fun raiseMaxTokensAboveThinkingBudget(request: JsonObject): JsonObject {
+    val config = request["generationConfig"] as? JsonObject ?: return request
+    val budget = (config["thinkingConfig"] as? JsonObject)
+        ?.get("thinkingBudget")?.jsonPrimitive?.intOrNull ?: return request
+    if (budget <= 0) return request
+    val maxTokens = config["maxOutputTokens"]?.jsonPrimitive?.intOrNull
+    if (maxTokens != null && maxTokens > budget) return request
+    val raised = JsonObject(
+        config + ("maxOutputTokens" to JsonPrimitive(budget + THINKING_ANSWER_HEADROOM))
+    )
+    return JsonObject(request + ("generationConfig" to raised))
+}
+
+// Room for the answer itself once the thinking budget is spent.
+private const val THINKING_ANSWER_HEADROOM = 8192

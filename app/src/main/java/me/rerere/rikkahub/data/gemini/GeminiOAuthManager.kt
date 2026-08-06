@@ -34,7 +34,7 @@ import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
 
 /**
- * Loopback OAuth against Google's installed-app client, the same one the Gemini CLI ships.
+ * Loopback OAuth against Google's installed-app client, the same one Antigravity ships.
  *
  * Google issues that client as a desktop app rather than a public one, so the token exchange is
  * authenticated with a client secret and there is no PKCE leg. `access_type=offline` plus
@@ -229,21 +229,29 @@ class GeminiOAuthManager(
         private const val TAG = "GeminiOAuthManager"
         private const val CALLBACK_PORTS_UNAVAILABLE = "OAuth callback ports are unavailable"
 
-        // Google's published Gemini CLI installed-app credentials, in plaintext on purpose.
-        // An installed-app OAuth client cannot hold a confidential secret: every copy of the
-        // CLI ships these and they are recoverable from any install, which is why Google
+        // Google's published Antigravity installed-app credentials, in plaintext on purpose.
+        // An installed-app OAuth client cannot hold a confidential secret: every copy of
+        // Antigravity ships these and they are recoverable from any install, which is why Google
         // documents this client type as non-confidential. Encoding them would hide what they
         // are from a reader without hiding anything from anyone else.
         const val CLIENT_ID =
-            "681255809395-oo8ft2oprdrnp9e3aqf6av3hmdib135j.apps.googleusercontent.com"
-        const val CLIENT_SECRET = "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"
+            "1071006060591-tmhssin2h21lcre235vtolojh4g403ep.apps.googleusercontent.com"
+        const val CLIENT_SECRET = "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"
         const val TOKEN_URL = "https://oauth2.googleapis.com/token"
         const val AUTHORIZE_URL = "https://accounts.google.com/o/oauth2/v2/auth"
+
+        // cclog and experimentsandconfigs are Antigravity-specific and are part of what the
+        // consent screen is registered for, so the grant is rejected without them.
         const val SCOPES = "https://www.googleapis.com/auth/cloud-platform " +
             "https://www.googleapis.com/auth/userinfo.email " +
-            "https://www.googleapis.com/auth/userinfo.profile"
-        private const val CALLBACK_PATH = "/oauth2callback"
-        private val CALLBACK_PORTS = listOf(8085, 8086, 8087)
+            "https://www.googleapis.com/auth/userinfo.profile " +
+            "https://www.googleapis.com/auth/cclog " +
+            "https://www.googleapis.com/auth/experimentsandconfigs"
+        private const val CALLBACK_PATH = "/oauth-callback"
+
+        // Antigravity registers a single fixed loopback port with the OAuth client, so unlike a
+        // free-choice port there is nothing to fall back to if it is taken.
+        private val CALLBACK_PORTS = listOf(51121)
     }
 }
 
