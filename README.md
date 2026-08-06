@@ -165,7 +165,7 @@ If you don't turn anything on, the app behaves exactly like vanilla RikkaHub.
 | **Architecture** | arm64 or x86_64 |
 | **Android** | 8.0+ (API 26), targets API 37 |
 | **Storage** | ~80 MB |
-| **LLM Provider** | OpenAI, Google, Anthropic, OpenRouter, Codex, Grok, Ollama, or any OpenAI-compatible endpoint. OR Gemini Nano via AICore on Pixel 8/9/10+ |
+| **LLM Provider** | OpenAI, Google, Anthropic, OpenRouter, Codex, Grok, Ollama, or any OpenAI-compatible endpoint. OR a Google account sign-in instead of a Gemini API key. OR Gemini Nano via AICore on Pixel 8/9/10+ |
 
 ---
 
