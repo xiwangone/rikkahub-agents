@@ -56,9 +56,11 @@ import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
+import me.rerere.ai.util.redactSecrets
 import me.rerere.ai.util.removeElements
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
+import me.rerere.common.android.Logging
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonPrimitiveOrNull
 import okhttp3.HttpUrl
@@ -242,7 +244,9 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 .build()
         )
 
-        Log.i(TAG, "streamText: ${json.encodeToString(requestBody)}")
+        if (Logging.isDebugLoggingEnabled()) {
+            Log.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
+        }
 
         val listener = object : EventSourceListener() {
             override fun onEvent(
@@ -260,38 +264,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                     if (reason != null) {
                         close(RuntimeException("Prompt feedback: $reason"))
                     }
-                    val candidates = jsonData["candidates"]?.jsonArray ?: return
-                    if (candidates.isEmpty()) return
-                    val usage = parseUsageMeta(jsonData["usageMetadata"] as? JsonObject)
-                    val messageChunk = MessageChunk(
-                        id = Uuid.random().toString(),
-                        model = params.model.modelId,
-                        choices = candidates.mapIndexed { index, candidate ->
-                            val candidateObj = candidate.jsonObject
-                            val content = candidateObj["content"]?.jsonObject
-                            val groundingMetadata = candidateObj["groundingMetadata"]?.jsonObject
-                            val finishReason =
-                                candidateObj["finishReason"]?.jsonPrimitive?.contentOrNull
-
-                            val message = content?.let {
-                                parseMessage(buildJsonObject {
-                                    put("role", JsonPrimitive("model"))
-                                    put("content", it)
-                                    groundingMetadata?.let { groundingMetadata ->
-                                        put("groundingMetadata", groundingMetadata)
-                                    }
-                                })
-                            }
-
-                            UIMessageChoice(
-                                index = index,
-                                delta = message,
-                                message = null,
-                                finishReason = finishReason
-                            )
-                        },
-                        usage = usage
-                    )
+                    val messageChunk = parseStreamCandidates(jsonData, params.model) ?: return
 
                     trySend(messageChunk).onFailure { e ->
                         Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
@@ -350,7 +323,49 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         // trySend 在缓冲满时会静默丢弃 delta，导致回复中间缺字 (#1295)，因此缓冲必须无界
     }.buffer(Channel.UNLIMITED)
 
-    private fun buildCompletionRequestBody(
+    /**
+     * Map one decoded `streamGenerateContent` payload onto a [MessageChunk], or null when it
+     * carries no candidates yet.
+     *
+     * Public alongside [buildCompletionRequestBody] so the Cloud Code Assist transport can reuse
+     * the Gemini wire format it wraps: that API takes the same request body under a `request` key
+     * and returns the same candidates under a `response` key, so a second copy of the part
+     * decoding would only give the two transports room to drift apart.
+     */
+    fun parseStreamCandidates(jsonData: JsonObject, model: Model): MessageChunk? {
+        val candidates = jsonData["candidates"]?.jsonArray ?: return null
+        if (candidates.isEmpty()) return null
+        return MessageChunk(
+            id = Uuid.random().toString(),
+            model = model.modelId,
+            choices = candidates.mapIndexed { index, candidate ->
+                val candidateObj = candidate.jsonObject
+                val content = candidateObj["content"]?.jsonObject
+                val groundingMetadata = candidateObj["groundingMetadata"]?.jsonObject
+                val finishReason = candidateObj["finishReason"]?.jsonPrimitive?.contentOrNull
+
+                val message = content?.let {
+                    parseMessage(buildJsonObject {
+                        put("role", JsonPrimitive("model"))
+                        put("content", it)
+                        groundingMetadata?.let { groundingMetadata ->
+                            put("groundingMetadata", groundingMetadata)
+                        }
+                    })
+                }
+
+                UIMessageChoice(
+                    index = index,
+                    delta = message,
+                    message = null,
+                    finishReason = finishReason
+                )
+            },
+            usage = parseUsageMeta(jsonData["usageMetadata"] as? JsonObject)
+        )
+    }
+
+    fun buildCompletionRequestBody(
         messages: List<UIMessage>,
         params: TextGenerationParams
     ): JsonObject = buildJsonObject {
@@ -421,54 +436,58 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             buildContents(messages)
         )
 
-        // Tools
-        if (params.tools.isNotEmpty() && params.model.abilities.contains(ModelAbility.TOOL)) {
+        // Tools — function tools and model built-in tools both live under the same
+        // "tools" key. Writing them via two separate put("tools", ...) calls made the
+        // second overwrite the first outright (JsonObjectBuilder.put replaces an
+        // existing key), so built-in tools silently clobbered every function tool
+        // whenever both were present. Build one array covering both.
+        val hasFunctionTools = params.tools.isNotEmpty() && params.model.abilities.contains(ModelAbility.TOOL)
+        val hasBuiltInTools = params.model.tools.isNotEmpty()
+        if (hasFunctionTools || hasBuiltInTools) {
             put("tools", buildJsonArray {
-                add(buildJsonObject {
-                    put("functionDeclarations", buildJsonArray {
-                        params.tools.forEach { tool ->
-                            add(buildJsonObject {
-                                put("name", JsonPrimitive(tool.name))
-                                put("description", JsonPrimitive(tool.description))
-                                put(
-                                    key = "parameters",
-                                    element = json.encodeToJsonElement(tool.parameters())
-                                        .removeElements(
-                                            listOf(
-                                                "const",
-                                                "exclusiveMaximum",
-                                                "exclusiveMinimum",
-                                                "format",
-                                                "additionalProperties",
-                                                "enum",
+                if (hasFunctionTools) {
+                    add(buildJsonObject {
+                        put("functionDeclarations", buildJsonArray {
+                            params.tools.forEach { tool ->
+                                add(buildJsonObject {
+                                    put("name", JsonPrimitive(tool.name))
+                                    put("description", JsonPrimitive(tool.description))
+                                    put(
+                                        key = "parameters",
+                                        element = json.encodeToJsonElement(tool.parameters())
+                                            .removeElements(
+                                                listOf(
+                                                    "const",
+                                                    "exclusiveMaximum",
+                                                    "exclusiveMinimum",
+                                                    "format",
+                                                    "additionalProperties",
+                                                    "enum",
+                                                )
                                             )
-                                        )
-                                )
-                            })
-                        }
+                                    )
+                                })
+                            }
+                        })
                     })
-                })
-            })
-        }
-        // Model BuiltIn Tools
-        // 目前不能和工具调用兼容
-        if (params.model.tools.isNotEmpty()) {
-            put("tools", buildJsonArray {
-                params.model.tools.forEach { builtInTool ->
-                    when (builtInTool) {
-                        BuiltInTools.Search -> {
-                            add(buildJsonObject {
-                                put("googleSearch", buildJsonObject {})
-                            })
-                        }
+                }
+                if (hasBuiltInTools) {
+                    params.model.tools.forEach { builtInTool ->
+                        when (builtInTool) {
+                            BuiltInTools.Search -> {
+                                add(buildJsonObject {
+                                    put("googleSearch", buildJsonObject {})
+                                })
+                            }
 
-                        BuiltInTools.UrlContext -> {
-                            add(buildJsonObject {
-                                put("urlContext", buildJsonObject {})
-                            })
-                        }
+                            BuiltInTools.UrlContext -> {
+                                add(buildJsonObject {
+                                    put("urlContext", buildJsonObject {})
+                                })
+                            }
 
-                        else -> {}
+                            else -> {}
+                        }
                     }
                 }
             })

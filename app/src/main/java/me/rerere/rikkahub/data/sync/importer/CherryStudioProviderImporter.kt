@@ -131,6 +131,7 @@ object CherryStudioProviderImporter {
             is ProviderSetting.LlamaCppLocal -> "local_llamacpp|${provider.id}"
             is ProviderSetting.Codex -> "codex|${provider.id}"
             is ProviderSetting.Grok -> "grok|${provider.id}"
+            is ProviderSetting.GeminiOAuth -> "gemini_oauth|${provider.id}"
         }
     }
 }

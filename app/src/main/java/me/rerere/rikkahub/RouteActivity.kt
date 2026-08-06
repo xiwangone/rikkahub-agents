@@ -60,6 +60,7 @@ import com.dokar.sonner.rememberToasterState
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.DEFAULT_CODEX_PROVIDER_ID
+import me.rerere.rikkahub.data.datastore.DEFAULT_GEMINI_OAUTH_PROVIDER_ID
 import me.rerere.rikkahub.data.db.DatabaseMigrationTracker
 import me.rerere.rikkahub.data.db.MigrationState
 import me.rerere.rikkahub.data.event.AppEvent
@@ -146,6 +147,7 @@ private const val TAG = "RouteActivity"
 class RouteActivity : ComponentActivity() {
     companion object {
         const val EXTRA_OPEN_CODEX_SETTINGS = "open_codex_settings"
+        const val EXTRA_OPEN_GEMINI_SETTINGS = "open_gemini_settings"
     }
 
     private val okHttpClient by inject<OkHttpClient>()
@@ -245,6 +247,13 @@ class RouteActivity : ComponentActivity() {
             }
             intent.removeExtra(EXTRA_OPEN_CODEX_SETTINGS)
         }
+        if (intent.getBooleanExtra(EXTRA_OPEN_GEMINI_SETTINGS, false)) {
+            val destination = Screen.SettingProviderDetail(DEFAULT_GEMINI_OAUTH_PROVIDER_ID.toString())
+            navStack?.let { stack ->
+                if (stack.lastOrNull() != destination) stack.add(destination)
+            }
+            intent.removeExtra(EXTRA_OPEN_GEMINI_SETTINGS)
+        }
         // Navigate to the chat screen if a conversation ID is provided
         intent.getStringExtra("conversationId")?.let { text ->
             navStack?.add(Screen.Chat(text))
@@ -294,6 +303,12 @@ class RouteActivity : ComponentActivity() {
                 val destination = Screen.SettingProviderDetail(DEFAULT_CODEX_PROVIDER_ID.toString())
                 if (backStack.lastOrNull() != destination) backStack.add(destination)
                 intent.removeExtra(EXTRA_OPEN_CODEX_SETTINGS)
+            }
+            if (intent.getBooleanExtra(EXTRA_OPEN_GEMINI_SETTINGS, false)) {
+                val destination =
+                    Screen.SettingProviderDetail(DEFAULT_GEMINI_OAUTH_PROVIDER_ID.toString())
+                if (backStack.lastOrNull() != destination) backStack.add(destination)
+                intent.removeExtra(EXTRA_OPEN_GEMINI_SETTINGS)
             }
             // Deep link was already consumed into the initial back stack above; clear it so a
             // future recreation with the same Intent doesn't re-push it (mirrors how

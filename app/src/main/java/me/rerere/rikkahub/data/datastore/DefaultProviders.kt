@@ -20,6 +20,7 @@ import kotlin.uuid.Uuid
 val DEFAULT_AUTO_MODEL_ID = Uuid.parse("b7055fb4-39f9-4042-a88a-0d80ed76cf08")
 val DEFAULT_CODEX_PROVIDER_ID = Uuid.parse("7ce7e322-b995-4b0c-9d48-42e08dcfcdda")
 val DEFAULT_GROK_PROVIDER_ID = Uuid.parse("8f3e1d20-4b6a-4c9e-a1f2-9d5c7e0b3a44")
+val DEFAULT_GEMINI_OAUTH_PROVIDER_ID = Uuid.parse("2b6c1f84-73ad-4e35-b0c7-1a9e4d5f8c21")
 
 val DEFAULT_PROVIDERS = listOf(
     ProviderSetting.AICore(
@@ -117,6 +118,15 @@ val DEFAULT_PROVIDERS = listOf(
         name = "Grok",
         enabled = false,
         builtIn = true,
+    ),
+    ProviderSetting.GeminiOAuth(
+        id = DEFAULT_GEMINI_OAUTH_PROVIDER_ID,
+        name = "Gemini OAuth",
+        enabled = false,
+        builtIn = true,
+        shortDescription = {
+            Text(stringResource(R.string.gemini_provider_short_description))
+        },
     ),
     ProviderSetting.Google(
         id = Uuid.parse("6ab18148-c138-4394-a46f-1cd8c8ceaa6d"),

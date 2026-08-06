@@ -23,6 +23,13 @@ android {
 //            version = "3.22.1"
 //        }
 //    }
+    testOptions {
+        // Return default values for Android framework calls in JVM unit tests instead of
+        // throwing "not mocked". The provider parse paths log through android.util.Log, so
+        // without this any test that decodes a real response payload dies in Log.i rather
+        // than on its own assertion. Same reason and same setting as :local-llm.
+        unitTests.isReturnDefaultValues = true
+    }
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions.optIn.add("kotlin.uuid.ExperimentalUuidApi")
         compilerOptions.optIn.add("kotlin.time.ExperimentalTime")
@@ -45,7 +52,7 @@ dependencies {
     // ML Kit GenAI (AICore / Gemini Nano on-device).
     // Only loads runtime native code on GenAI-capable devices; on others
     // checkStatus() returns UNAVAILABLE and the provider self-disables.
-    api("com.google.mlkit:genai-prompt:1.0.0-beta2")
+    api(libs.genai.prompt)
 
     // kotlinx
     api(libs.kotlinx.serialization.json)

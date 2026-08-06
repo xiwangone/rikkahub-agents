@@ -73,7 +73,7 @@ private const val TAG = "PreferencesStore"
  * → user loses ALL their saved providers (API keys, custom models, the lot).
  *
  * Per-entry decode lets surviving entries land while the unknown one is logged and skipped.
- * Keep this even though `local_llamacpp` now ships — it's good hygiene for any future
+ * Keep this even though `local_llamacpp` now ships: it's good hygiene for any future
  * polymorphic schema change (renamed types, removed types, etc).
  */
 private fun decodeProvidersTolerant(raw: String): List<ProviderSetting> {
@@ -484,6 +484,10 @@ class SettingsStore(
                         is ProviderSetting.Grok -> provider.copy(
                             models = provider.models.distinctBy { model -> model.id }
                         )
+
+                        is ProviderSetting.GeminiOAuth -> provider.copy(
+                            models = provider.models.distinctBy { model -> model.id }
+                        )
                     }
                 },
                 assistants = settings.assistants.distinctBy { it.id }.map { assistant ->
@@ -532,7 +536,19 @@ class SettingsStore(
             Log.w(TAG, "Cannot update dummy settings")
             return
         }
-        settingsFlow.value = settings
+        transformLock.withLock {
+            updateInternal(settings)
+        }
+    }
+
+    /**
+     * Unlocked write path: every caller must already hold [transformLock]. Writes disk
+     * before memory: if `dataStore.edit` throws (IOException, disk full, a serialization
+     * bug), `settingsFlow` must still match what's actually on disk rather than a value
+     * that was never persisted, or observers would react to a change that silently rolls
+     * back on the next app launch.
+     */
+    private suspend fun updateInternal(settings: Settings) {
         dataStore.edit { preferences ->
             preferences[DYNAMIC_COLOR] = settings.dynamicColor
             preferences[THEME_ID] = settings.themeId
@@ -575,7 +591,7 @@ class SettingsStore(
             // maxOf(0, size - 1) guards the empty-list case: a persisted "[]" for
             // search_services leaves searchServices empty (the ?: default only fires on a
             // missing key, not on an empty array), and coerceIn(0, -1) throws
-            // IllegalArgumentException because min > max — crashing every settings write.
+            // IllegalArgumentException because min > max, crashing every settings write.
             preferences[SEARCH_SELECTED] =
                 settings.searchServiceSelected.coerceIn(0, maxOf(0, settings.searchServices.size - 1))
             preferences[ENABLE_WEB_FETCH_TOOLS] = settings.enableWebFetchTools
@@ -605,19 +621,23 @@ class SettingsStore(
             preferences[LAUNCH_COUNT] = settings.launchCount
             preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
         }
+        settingsFlow.value = settings
     }
 
-    /** Serialises rapid-fire transform-based updates so concurrent callers don't race
-     *  each other. Without this lock, two `update {fn}` calls dispatched in quick
-     *  succession both snapshot `settingsFlow.value` BEFORE either has written, then
-     *  each writes its own delta off the same stale base — last writer wins, the
-     *  earlier change is silently dropped. The most-visible repro: rapid-fire taps on
-     *  per-assistant tool toggles where every other tap appeared to revert. */
+    /** Serialises every settings write: both transform-based `update {fn}` calls and
+     *  direct `update(Settings)` calls (e.g. a WebDAV/S3 restore replacing the whole
+     *  settings object), so concurrent callers don't race each other. Without this lock,
+     *  two writes dispatched in quick succession could both read `settingsFlow.value`
+     *  before either has persisted, then each write its own delta off the same stale
+     *  base: last writer wins, the earlier change is silently dropped. The most-visible
+     *  repro: rapid-fire taps on per-assistant tool toggles where every other tap
+     *  appeared to revert; a restore racing an in-flight transform update is the same
+     *  class of bug with worse stakes. */
     private val transformLock = kotlinx.coroutines.sync.Mutex()
 
     suspend fun update(fn: (Settings) -> Settings) {
         transformLock.withLock {
-            update(fn(settingsFlow.value))
+            updateInternal(fn(settingsFlow.value))
         }
     }
 

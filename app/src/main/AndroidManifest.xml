@@ -141,7 +141,7 @@
     android:supportsRtl="true"
     android:theme="@style/Theme.Rikkahub"
     android:usesCleartextTraffic="true"
-    tools:targetApi="33">
+    tools:targetApi="37">
     <!--
       Game Mode preferences. Declares to the OEM Game Mode framework (Pixel, Samsung,
       Asus, Nothing, Xiaomi, etc.) that this app accepts PERFORMANCE and BATTERY mode
@@ -160,7 +160,7 @@
       android:theme="@style/Theme.Rikkahub" />
     <activity
       android:name=".RouteActivity"
-      android:configChanges="keyboardHidden|orientation|screenSize"
+      android:configChanges="keyboardHidden|orientation|screenSize|uiMode|screenLayout|smallestScreenSize|density"
       android:exported="true"
       android:importantForAutofill="noExcludeDescendants"
       android:theme="@style/Theme.Rikkahub"
@@ -215,6 +215,22 @@
 
         <data
           android:host="codex"
+          android:path="/oauth"
+          android:scheme="rikkahub" />
+      </intent-filter>
+    </activity>
+    <activity
+      android:name=".ui.activity.GeminiOAuthRedirectActivity"
+      android:exported="true"
+      android:theme="@android:style/Theme.Translucent.NoTitleBar">
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+
+        <data
+          android:host="gemini"
           android:path="/oauth"
           android:scheme="rikkahub" />
       </intent-filter>

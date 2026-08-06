@@ -136,6 +136,7 @@ fun ProviderConfigure(
 
             is ProviderSetting.Codex -> Unit
             is ProviderSetting.Grok -> Unit
+            is ProviderSetting.GeminiOAuth -> Unit
         }
     }
 }
@@ -152,6 +153,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
         is ProviderSetting.LlamaCppLocal -> "" // on-device, no API key
         is ProviderSetting.Codex -> "" // OAuth, no API key
         is ProviderSetting.Grok -> "" // OAuth, no API key
+        is ProviderSetting.GeminiOAuth -> "" // OAuth, no API key
     }
     val sourceBaseUrl = when (this) {
         is ProviderSetting.OpenAI -> this.baseUrl
@@ -162,6 +164,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
         is ProviderSetting.LlamaCppLocal -> "" // on-device, no base URL
         is ProviderSetting.Codex -> "" // OAuth, no base URL
         is ProviderSetting.Grok -> "" // OAuth, no base URL
+        is ProviderSetting.GeminiOAuth -> "" // OAuth, no base URL
     }
     val targetDefaultBaseUrl = when (type) {
         ProviderSetting.OpenAI::class -> ProviderSetting.OpenAI().baseUrl
@@ -219,6 +222,7 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
             is ProviderSetting.LlamaCppLocal -> return "" // on-device, no base URL
             is ProviderSetting.Codex -> return "" // OAuth, no base URL
             is ProviderSetting.Grok -> return "" // OAuth, no base URL
+            is ProviderSetting.GeminiOAuth -> return "" // OAuth, no base URL
         }
     }
     return when (this) {
@@ -230,6 +234,7 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
         is ProviderSetting.LlamaCppLocal -> ""
         is ProviderSetting.Codex -> ""
         is ProviderSetting.Grok -> ""
+        is ProviderSetting.GeminiOAuth -> ""
     }
 }
 
@@ -244,6 +249,7 @@ internal fun ProviderSetting.resetBaseUrlToDefault(): ProviderSetting {
         is ProviderSetting.LlamaCppLocal -> this // no base URL to reset
         is ProviderSetting.Codex -> this // no base URL to reset
         is ProviderSetting.Grok -> this // no base URL to reset
+        is ProviderSetting.GeminiOAuth -> this // no base URL to reset
     }
 }
 
@@ -257,6 +263,7 @@ internal fun ProviderSetting.isUsingDefaultBaseUrl(): Boolean {
         is ProviderSetting.LlamaCppLocal -> return true // no base URL concept
         is ProviderSetting.Codex -> return true // no base URL concept
         is ProviderSetting.Grok -> return true // no base URL concept
+        is ProviderSetting.GeminiOAuth -> return true // no base URL concept
     }
     return baseUrl == defaultBaseUrlForReset()
 }

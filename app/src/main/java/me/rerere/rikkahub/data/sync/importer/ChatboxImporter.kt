@@ -575,6 +575,7 @@ object ChatboxImporter {
         is ProviderSetting.LlamaCppLocal -> "llamacpp"
         is ProviderSetting.Codex -> "codex"
         is ProviderSetting.Grok -> "grok"
+        is ProviderSetting.GeminiOAuth -> "gemini_oauth"
     }
 
     private fun millisToLocalDateTime(timestamp: Long?) =
