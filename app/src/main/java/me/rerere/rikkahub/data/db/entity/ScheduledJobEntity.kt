@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.db.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -15,7 +16,7 @@ import androidx.room.PrimaryKey
  *    never written to by post-v21 code.
  *  - prompt becomes nullable to accommodate mode='direct' rows.
  */
-@Entity(tableName = "scheduled_jobs")
+@Entity(tableName = "scheduled_jobs", indices = [Index(value = ["enabled"])])
 data class ScheduledJobEntity(
     @PrimaryKey val id: String,
     val name: String,

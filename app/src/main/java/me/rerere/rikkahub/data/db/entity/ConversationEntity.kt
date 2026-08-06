@@ -2,9 +2,19 @@ package me.rerere.rikkahub.data.db.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity
+// Every conversation list query is "WHERE assistant_id = ? ORDER BY is_pinned DESC, update_at
+// DESC", and the unfiltered list is the same minus the WHERE, so the two composites below cover
+// both without a sort step. SQLite walks an ASC index backwards for an all-DESC ORDER BY, so no
+// per-column direction is needed.
+@Entity(
+    indices = [
+        Index(value = ["assistant_id", "is_pinned", "update_at"]),
+        Index(value = ["is_pinned", "update_at"]),
+    ]
+)
 data class ConversationEntity(
     @PrimaryKey
     val id: String,

@@ -61,7 +61,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         WorkspaceEntity::class,
         FolderEntity::class,
     ],
-    version = 27,
+    version = 28,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -90,6 +90,11 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // table) plus a folder_id column on ConversationEntity (defaultValue ""). Both are pure
         // additions; upstream numbered it as their v24, folded into the fork's version space here.
         AutoMigration(from = 26, to = 27),
+        // v28: indices only. Conversation listing, assistant memory lookup, the enabled-job
+        // scan and per-job run history were all full table scans; see each entity for which
+        // query shape its index covers. Pure additions, so Room generates the CREATE INDEX
+        // statements itself.
+        AutoMigration(from = 27, to = 28),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)

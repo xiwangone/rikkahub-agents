@@ -22,11 +22,22 @@ interface ScheduledJobRunDao {
     suspend fun update(row: ScheduledJobRunEntity)
 
     /**
-     * Trim history for a single job to the [keep] most-recent rows (by startedAtMs).
-     * Runs at the end of every fire so growth stays bounded.
+     * Trim history for a single job, retaining the [keep] most-recent successful rows and the
+     * [keep] most-recent rows of every other outcome (both by startedAtMs). Runs at the end of
+     * every fire so growth stays bounded, at no more than 2 * [keep] rows per job.
+     *
+     * The success bucket is separate because [countSuccessful] is what max_runs is enforced
+     * against. A single newest-N window shared with failures meant a job that failed often
+     * pushed its own successes out of history, so countSuccessful undercounted and a job with
+     * max_runs set could never reach it and fired forever.
      */
-    @Query("DELETE FROM scheduled_job_runs WHERE jobId = :jobId AND id NOT IN " +
-           "(SELECT id FROM scheduled_job_runs WHERE jobId = :jobId ORDER BY startedAtMs DESC LIMIT :keep)")
+    @Query(
+        "DELETE FROM scheduled_job_runs WHERE jobId = :jobId " +
+            "AND id NOT IN (SELECT id FROM scheduled_job_runs WHERE jobId = :jobId " +
+            "AND outcome = 'success' ORDER BY startedAtMs DESC LIMIT :keep) " +
+            "AND id NOT IN (SELECT id FROM scheduled_job_runs WHERE jobId = :jobId " +
+            "AND outcome <> 'success' ORDER BY startedAtMs DESC LIMIT :keep)"
+    )
     suspend fun trim(jobId: String, keep: Int)
 
     @Query("DELETE FROM scheduled_job_runs WHERE jobId = :jobId")

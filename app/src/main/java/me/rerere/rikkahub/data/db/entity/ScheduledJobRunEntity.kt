@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.db.entity
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
 /**
@@ -8,10 +9,19 @@ import androidx.room.PrimaryKey
  * (success, failure, timeout, catchup-skip, concurrent-skip) so get_job_history
  * can give the LLM and user honest visibility into what actually happened.
  *
- * Capped at last 100 rows per jobId via ScheduledJobRunDao.trim() — that runs at
- * the end of every fire.
+ * Bounded per jobId by ScheduledJobRunDao.trim(), which runs at the end of every fire and keeps
+ * the newest N successes and the newest N of every other outcome separately (N is at least 100).
  */
-@Entity(tableName = "scheduled_job_runs")
+// getRecent / trim / getMostRecent all read "WHERE jobId = ? ORDER BY startedAtMs DESC", and
+// countSuccessful reads "WHERE jobId = ? AND outcome = 'success'"; without these the history
+// table is a full scan per fire.
+@Entity(
+    tableName = "scheduled_job_runs",
+    indices = [
+        Index(value = ["jobId", "startedAtMs"]),
+        Index(value = ["jobId", "outcome"]),
+    ]
+)
 data class ScheduledJobRunEntity(
     @PrimaryKey val id: String,
     val jobId: String,
