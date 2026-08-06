@@ -4,12 +4,12 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>RikkaHub Agent · Tell your phone what to do.</title>
-  <meta name="description" content="A native Android LLM agent with 70+ device tools, an in-app browser the AI drives, AI-authored workflows, scheduled jobs, SSH, music + media, screen automation, file manager, and a remote Telegram bot. All opt-in. Open source." />
+  <meta name="description" content="A native Android LLM agent with 80+ device tools, AI-authored workflows, scheduled jobs, an in-app browser the AI drives, keyless web search, a Linux workspace, SSH, on-device LLMs, and a remote Telegram bot. All opt-in. Open source." />
   <meta name="theme-color" content="#1a1b26" />
   <meta name="color-scheme" content="dark" />
 
   <meta property="og:title" content="RikkaHub Agent · Tell your phone what to do." />
-  <meta property="og:description" content="A native Android LLM agent with 70+ device tools, in-app browser, workflows, scheduled jobs, SSH, music, file manager, and a Telegram bot. Open source. Android 8+." />
+  <meta property="og:description" content="A native Android LLM agent with 80+ device tools, in-app browser, workflows, scheduled jobs, keyless web search, a Linux workspace, SSH, on-device LLMs, and a Telegram bot. Open source. Android 8+." />
   <meta property="og:type" content="website" />
   <meta property="og:url" content="https://extv.github.io/rikkahub-agent/" />
   <meta property="og:image" content="https://raw.githubusercontent.com/ExTV/rikkahub-agent/master/docs/icon.png" />
@@ -37,7 +37,7 @@
     "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
     "url": "https://extv.github.io/rikkahub-agent/",
     "downloadUrl": "https://github.com/ExTV/rikkahub-agent/releases/latest",
-    "description": "On-device LLM agent for Android with 70+ device tools, in-app browser, workflows, scheduled jobs, SSH, music, file manager, and a Telegram bot.",
+    "description": "On-device LLM agent for Android with 80+ device tools, in-app browser, workflows, scheduled jobs, keyless web search, a Linux workspace, SSH, on-device LLMs, and a Telegram bot.",
     "author": { "@type": "Person", "name": "ExTV", "url": "https://github.com/ExTV" }
   }
   </script>
@@ -622,6 +622,17 @@
       line-height: 1.65;
     }
 
+    .feature-card ul {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.94rem;
+      color: var(--text-dim);
+      line-height: 1.65;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
     .feature-card.span-2 h3 { font-size: 1.22rem; }
     .feature-card.span-2 p  { font-size: 0.99rem; }
 
@@ -635,6 +646,19 @@
     }
 
     .feature-card strong { color: var(--text); font-weight: 600; }
+
+    .warn-note {
+      margin-top: 0.4rem;
+      padding: 0.75rem 0.9rem;
+      border-left: 3px solid var(--yellow);
+      border-radius: 6px;
+      background: rgba(224, 175, 104, 0.07);
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .warn-note strong { color: var(--yellow); font-weight: 600; }
 
     @media (max-width: 900px) {
       .features-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1036,6 +1060,7 @@
   </a>
   <ul class="nav-links">
     <li><a href="#features">Features</a></li>
+    <li><a href="#providers">Models</a></li>
     <li><a href="#quickstart">Quick start</a></li>
     <li><a href="#faq">FAQ</a></li>
     <li><a href="https://github.com/ExTV/rikkahub-agent">GitHub</a></li>
@@ -1053,8 +1078,8 @@
     <span class="hero-pill"><span class="dot"></span>Open source · Built for Android</span>
     <h1>Tell it once.<br /><em>Walk away.</em></h1>
     <p class="hero-sub">
-      A fork of <a href="https://github.com/rikkahub/rikkahub">RikkaHub</a> that turns the native Android LLM chat client into a real on-device agent.<br />
-      <strong>70+ device tools</strong>, an in-app browser the AI drives, AI-authored workflows, scheduled jobs, SSH, music, file manager, and a remote Telegram bot.<br />
+      A fork of <a href="https://github.com/rikkahub/rikkahub">RikkaHub</a> that turns the native Android LLM chat client into a real on-device agent:<br />
+      <strong>80+ device tools</strong>, AI-authored workflows, scheduled jobs, an in-app browser the AI drives, keyless web search, a Linux workspace, SSH, screen automation, a file manager, a music player, voice transcription, downloadable on-device LLMs, and a remote Telegram bot.<br />
       All opt-in. Tell it what to do in plain language; it runs in the background, on your phone, on your terms.
     </p>
     <div class="hero-actions">
@@ -1076,6 +1101,7 @@
       <span class="sep">/</span>
       <span>No telemetry</span>
     </div>
+
   </div>
 
 </section>
@@ -1084,13 +1110,13 @@
 <section id="stats">
   <div class="stats-row reveal">
     <div class="stat">
-      <div class="stat-num">70+</div>
+      <div class="stat-num">80+</div>
       <div class="stat-label">device tools</div>
     </div>
     <div class="stat-sep"></div>
     <div class="stat">
-      <div class="stat-num">5+</div>
-      <div class="stat-label">LLM providers</div>
+      <div class="stat-num">19</div>
+      <div class="stat-label">search engines</div>
     </div>
     <div class="stat-sep"></div>
     <div class="stat">
@@ -1099,8 +1125,8 @@
     </div>
     <div class="stat-sep"></div>
     <div class="stat">
-      <div class="stat-num">100%</div>
-      <div class="stat-label">on your phone</div>
+      <div class="stat-num">0</div>
+      <div class="stat-label">telemetry</div>
     </div>
   </div>
 </section>
@@ -1134,17 +1160,17 @@
     <div class="reveal">
       <span class="section-label">Features</span>
       <h2>Everything an agent should have.</h2>
-      <p class="section-sub">Twelve pillars, every one of them off by default until you turn it on.</p>
+      <p class="section-sub">Every capability below ships off by default and stays off until you turn it on.</p>
     </div>
 
     <div class="features-grid">
 
-      <div class="feature-card reveal">
+      <div class="feature-card span-2 reveal">
         <div class="feature-icon">
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="3"/><circle cx="12" cy="18" r="0.6" fill="currentColor"/></svg>
         </div>
         <h3>Control your phone</h3>
-        <p>Tap, swipe, scroll, screenshots, open apps, torch, brightness, volume, notifications, vibrate, share. Plus read battery, WiFi, signal, location, sensors, contacts, and SMS. <strong>70+ tools</strong>, all built into Android, no extra apps required.</p>
+        <p>Tap, swipe, scroll, type, take screenshots, open apps and the specific screens inside them, adjust brightness, volume, and the torch, post notifications, set the wallpaper. Read battery, WiFi, signal, location, and sensors. Read contacts, SMS, and the call log; send SMS. Take photos, record the mic, read and write NFC tags, sign and encrypt with the Android Keystore, reach external storage and SD cards, manage ZIP archives. <strong>80+ tools</strong>, all built into Android, no extra apps required.</p>
       </div>
 
       <div class="feature-card reveal">
@@ -1152,7 +1178,7 @@
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="4" width="20" height="16" rx="2"/><line x1="2" y1="9" x2="22" y2="9"/><circle cx="6" cy="6.5" r="0.6" fill="currentColor"/><circle cx="9" cy="6.5" r="0.6" fill="currentColor"/></svg>
         </div>
         <h3>In-app browser</h3>
-        <p>A real WebView the AI drives end-to-end. Watch it open URLs, click cookie banners, fill in forms, scroll, read the page back to you. Or send it on errands from Telegram and it streams a screenshot to your chat after every step. Built-in article extraction keeps token cost low.</p>
+        <p>A real browser the AI drives end-to-end: it clicks through cookie banners, fills search boxes, scrolls, and reads pages back to you, streaming a fresh screenshot after every step. A floating chat pill lets you keep talking without leaving the page. Article extraction and diff-after-action keep token costs low.</p>
       </div>
 
       <div class="feature-card reveal">
@@ -1160,7 +1186,7 @@
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><circle cx="18" cy="12" r="2"/><line x1="8" y1="6" x2="16" y2="11"/><line x1="8" y1="18" x2="16" y2="13"/></svg>
         </div>
         <h3>Workflows</h3>
-        <p>Tasker-class automation, but the AI writes the rules from natural language. <strong>19 trigger types</strong> (WiFi, Bluetooth, headphones, geofence, app launch, notification, screen, charging, time, more) and <strong>14 conditions</strong> (battery, sunset, foreground app, day-of-week). Receivers register only when needed.</p>
+        <p>Tasker-class automation, but the AI writes the rules from natural language. <strong>20 trigger types</strong> (WiFi, Bluetooth, headphones, geofence, app launch, notification, screen, charging, time, more) and <strong>14 conditions</strong> (battery, sunrise/sunset, foreground app, day-of-week). Receivers register only when needed, so battery drain stays minimal.</p>
       </div>
 
       <div class="feature-card reveal">
@@ -1168,7 +1194,23 @@
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
         </div>
         <h3>Schedule anything</h3>
-        <p>"Every Monday at 8", "every two hours", "next Friday at 3pm". Jobs survive reboots and battery saver. Choose AI-at-runtime decisions, or pre-bake a fixed action that runs without using AI tokens.</p>
+        <p>"Every Monday at 8", "every two hours", "next Friday at 3pm". Jobs survive reboots and battery saver. Choose AI-at-runtime decisions, or pre-bake a fixed action that runs without spending tokens.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+        </div>
+        <h3>Web search, no key needed</h3>
+        <p>The built-in DuckDuckGo engine works out of the box, and anti-bot blocks report an honest retryable error instead of a silent "no results". Prefer your own key? The picker lists <strong>19 engines</strong>: Tavily, Exa, Brave, Perplexity, Jina, Firecrawl, SearXNG, Bing, Serper, Ollama, and more, plus a custom-script engine. <code>web_fetch</code> and <code>web_extract</code> pull and strip any page directly, with private-network targets blocked at DNS resolution.</p>
+      </div>
+
+      <div class="feature-card span-2 reveal">
+        <div class="feature-icon">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"/><line x1="12" y1="19" x2="20" y2="19"/></svg>
+        </div>
+        <h3>A Linux workspace and a real shell</h3>
+        <p>A real Linux environment on the phone. The AI runs shell commands, reads, writes, and patches files, and browses the result in a built-in file manager with a text editor and image/video preview. Long-running work survives across turns: start a dev server or a build in the background, poll its output, kill it later. Through <a href="https://github.com/termux/termux-app">Termux</a> it also gets a full package manager, and the per-turn tool-step ceiling is configurable up to 500 for long installs and builds. Voice notes are transcribed on-device with whisper.cpp running through Termux.</p>
       </div>
 
       <div class="feature-card reveal">
@@ -1176,7 +1218,7 @@
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="2" y="3" width="20" height="14" rx="2"/><path d="M8 21h8M12 17v4"/><path d="M7 8l3 3-3 3M14 14h3"/></svg>
         </div>
         <h3>SSH from your pocket</h3>
-        <p>Save your servers once and the AI can SSH into any of them on demand. Run a command, upload a file, pull down a backup, tail a log. Key-based auth, saved hosts, approval gating on first connect and destructive commands.</p>
+        <p>Save your servers once and the AI can reach any of them on demand. Run commands, upload and download files over SFTP, pipe input, tail logs, or launch long-running servers that return a PID instead of hanging. Approval gating on first connect and destructive commands. Works on WiFi or cell.</p>
       </div>
 
       <div class="feature-card reveal">
@@ -1184,7 +1226,7 @@
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
         </div>
         <h3>Telegram bot</h3>
-        <p>Talk to your assistant from anywhere. Set up a private bot with <code>@BotFather</code>, then chat with it like a contact. Voice notes, photos, PDFs all work; voice gets transcribed locally via whisper.cpp. Inline approval buttons. Allowlist-only.</p>
+        <p>Talk to your assistant from anywhere. Send a question, photo, PDF, or voice note; voice is transcribed locally. Approval prompts arrive as Yes/No buttons, questions as tappable multiple choice, long replies as downloadable files. Allowlist-only, and <code>/doctor</code> runs the health check remotely.</p>
       </div>
 
       <div class="feature-card reveal">
@@ -1192,7 +1234,7 @@
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/></svg>
         </div>
         <h3>Find &amp; manage files</h3>
-        <p>Built-in file manager the AI can drive. <em>"Find every PDF mentioning 'invoice' on my phone"</em> works in one sentence. Read, save, copy, move, rename, delete. System folders are off-limits, even if you ask.</p>
+        <p>Built-in file manager the AI can drive. <em>"Find every PDF mentioning 'invoice' on my phone"</em> works in one sentence. Read, save, copy, move, rename, delete. System folders outside the app's sandbox are off-limits, even if you ask.</p>
       </div>
 
       <div class="feature-card reveal">
@@ -1200,7 +1242,7 @@
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
         </div>
         <h3>Music + media</h3>
-        <p>Plays through Android's normal media controls (lock-screen art, headphone keys). Pause, resume, lower volume for a meeting and bring it back later. Even after a force-stop the AI picks up where you left off, same track and same position.</p>
+        <p>Plays through Android's normal media controls: lock-screen art, headphone keys, the works. Pause, resume, lower the volume for a meeting and bring it back later, from chat or from Telegram. Your queue survives force-stops, same track and same position.</p>
       </div>
 
       <div class="feature-card reveal">
@@ -1208,7 +1250,7 @@
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="9" y1="13" x2="15" y2="13"/><line x1="9" y1="17" x2="13" y2="17"/></svg>
         </div>
         <h3>Skills</h3>
-        <p>Drop a Markdown skill file into the app and the AI gains a new playbook to follow step-by-step. JavaScript skills run in a hidden WebView and open results in the in-app browser. A bundled featured catalog ships with a QR generator, Wikipedia query, an interactive map, and more.</p>
+        <p>Drop a Markdown skill file and the AI gains a new playbook. JavaScript skills run in a hidden WebView and open results in the in-app browser. A bundled catalog ships with a QR generator, Wikipedia query box, piano, interactive map, and more. Add skills from a URL or by sharing a file into the app.</p>
       </div>
 
       <div class="feature-card reveal">
@@ -1216,7 +1258,23 @@
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><circle cx="9" cy="7" r="3"/><circle cx="17" cy="17" r="3"/><circle cx="6" cy="17" r="3"/><line x1="9" y1="10" x2="6.5" y2="14.5"/><line x1="9" y1="10" x2="14.5" y2="14.5"/></svg>
         </div>
         <h3>Sub-agents</h3>
-        <p>For long tasks the main assistant can dispatch a focused sub-agent in a clean side-context, optionally on a smaller cheaper model. Two or more run in parallel: one researches a topic while another updates your server. <code>/stop</code> cascades cancellation through every active child in one tick.</p>
+        <p>For long tasks the main assistant dispatches focused sub-agents into clean side-contexts, optionally on smaller, cheaper models. Two or more run in parallel: one researches a topic while another updates your server. Each result comes back as a single summary. <code>/stop</code> cascades cancellation through every active child in one tick.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 2v4M12 18v4M2 12h4M18 12h4"/><circle cx="12" cy="12" r="4"/></svg>
+        </div>
+        <h3>MCP servers</h3>
+        <p>Connect <a href="https://modelcontextprotocol.io">Model Context Protocol</a> servers and the AI gains whatever tools they expose. The AI can add, update, and manage MCP connections itself; every change is approval-gated.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+        </div>
+        <h3>Notification watcher</h3>
+        <p>The AI reads, summarizes, and forwards incoming notifications from apps you choose; the whitelist starts empty. Notifications the agent posts deep-link back to the conversation that produced them, so a tap opens the full reply even from a cold start.</p>
       </div>
 
       <div class="feature-card reveal">
@@ -1224,15 +1282,63 @@
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
         </div>
         <h3>Doctor</h3>
-        <p>A built-in health checkup. Settings, then Doctor, runs a top-to-bottom audit of permissions, background services, database integrity, network, Termux. Per-row auto-fix grants the missing permission, restarts the service, or rebuilds the chat search index. Smart enough to skip permissions you haven't enabled tools for.</p>
+        <p>A built-in health checkup: a top-to-bottom audit of permissions, background services, database integrity, network, Termux, and diagnostics. Per-row auto-fix grants the missing permission, restarts the service, or rebuilds the search index. Also available remotely via <code>/doctor</code> on Telegram.</p>
       </div>
 
       <div class="feature-card reveal">
         <div class="feature-icon">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><polyline points="16 3 21 3 21 8"/><line x1="14" y1="10" x2="21" y2="3"/><path d="M21 14v5a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5"/></svg>
+        </div>
+        <h3>External triggers</h3>
+        <p>Other apps can hand the agent tasks through the External Automation Intent API: Tasker, automation tools, or a plain ADB command. Your phone's existing automations become the agent's front door.</p>
+      </div>
+
+      <div class="feature-card span-2 reveal">
+        <div class="feature-icon">
           <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg>
         </div>
         <h3>Safety in three layers</h3>
-        <p><strong>Per-assistant toggles</strong>, every tool starts off. <strong>Per-call approval</strong>, Allow once, this chat, always, or deny. <strong>HARDLINE floor</strong>, wipe-everything, fork bombs, and shell tricks to bypass the rule are blocked unconditionally.</p>
+        <p><strong>Per-assistant toggles</strong>: every tool starts off; flip on only what you want. <strong>Per-call approval</strong>: tools that change something ask first, with Allow once, this chat, always, or Deny; permanent grants are listed under Settings and revocable any time. <strong>HARDLINE floor</strong>: wipe-everything commands, fork bombs, system file destruction, and shell tricks to bypass the rule are blocked unconditionally, even if you ask for them. Passwords and API keys never hit log files, cloud backups skip saved credentials, and web fetches that resolve to a private network address are refused, so the assistant cannot be talked into probing your LAN.</p>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- PROVIDERS -->
+<section id="providers">
+  <div class="container">
+    <div class="reveal">
+      <span class="section-label">Models</span>
+      <h2>Bring any model. Or none at all.</h2>
+      <p class="section-sub">Paste an API key, sign in with an account you already pay for, or download a model and run it entirely on the phone.</p>
+    </div>
+
+    <div class="features-grid">
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z"/></svg>
+        </div>
+        <h3>Cloud APIs</h3>
+        <p>OpenAI, Anthropic, Google, DeepSeek, xAI, Ollama, and any OpenAI-compatible endpoint. <strong>OpenRouter</strong> gets first-class support: auto-detected model capabilities and pricing, plus a fallback model list tried in order when your primary is down, rate-limited, or refuses. Providers that discount cached tokens show cache hits and misses under each reply.</p>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+        </div>
+        <h3>Sign in with an account</h3>
+        <p><strong>Codex</strong>: your ChatGPT plan over OAuth. <strong>Grok</strong>: SuperGrok or X Premium+ over OAuth. <strong>Google sign-in</strong>: Gemini through Google Cloud Code Assist with no API key; several accounts round-robin, each showing its remaining daily and weekly quota.</p>
+        <div class="warn-note"><strong>Fair warning:</strong> the Google sign-in reaches Google's services through a client Google did not approve, and Google's terms allow accounts to be suspended or terminated for that. The app shows this warning prominently before you enable it. Use a throwaway account, never one tied to your email, photos, or work.</div>
+      </div>
+
+      <div class="feature-card reveal">
+        <div class="feature-icon">
+          <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><line x1="9" y1="1" x2="9" y2="4"/><line x1="15" y1="1" x2="15" y2="4"/><line x1="9" y1="20" x2="9" y2="23"/><line x1="15" y1="20" x2="15" y2="23"/><line x1="20" y1="9" x2="23" y2="9"/><line x1="20" y1="14" x2="23" y2="14"/><line x1="1" y1="9" x2="4" y2="9"/><line x1="1" y1="14" x2="4" y2="14"/></svg>
+        </div>
+        <h3>Fully on-device</h3>
+        <p>Download a local model (Gemma, Qwen, and more) from HuggingFace search or from storage and run it through <strong>llama.cpp</strong> (GGUF) or <strong>LiteRT</strong>, with GPU acceleration where supported. No key, no network, nothing leaves the phone. Pixel 8/9/10 users can also enable <strong>Gemini Nano</strong> via AICore (currently requires the AICore Beta).</p>
       </div>
 
     </div>
@@ -1252,11 +1358,11 @@
       <div class="qs-steps reveal">
         <div class="qs-step">
           <div class="qs-step-num">1</div>
-          <p><strong>Install.</strong> Download the latest <code>*-universal-debug.apk</code> from <a href="https://github.com/ExTV/rikkahub-agent/releases/latest">Releases</a>, allow install from unknown sources, open.</p>
+          <p><strong>Install.</strong> Download the latest <code>*-arm64-release.apk</code> (or <code>*-universal-release.apk</code> if unsure) from <a href="https://github.com/ExTV/rikkahub-agent/releases/latest">Releases</a>, allow install from unknown sources, open. Old debug builds must be uninstalled first; the signing changed.</p>
         </div>
         <div class="qs-step">
           <div class="qs-step-num">2</div>
-          <p><strong>Add an LLM provider.</strong> Settings → Providers → pick one → paste API key. Pixel 8/9/10 users can flip on the built-in <strong>AICore</strong> card for fully on-device Gemini Nano.</p>
+          <p><strong>Add a model.</strong> Settings → Providers → pick one → paste an API key. Or sign in with a ChatGPT, xAI, or Google account, or download a local model and skip the network entirely.</p>
         </div>
         <div class="qs-step">
           <div class="qs-step-num">3</div>
@@ -1301,7 +1407,7 @@
 <span class="c-comment"># Requirements:</span>
 <span class="c-comment">#   - Android SDK 37</span>
 <span class="c-comment">#   - JDK 17</span>
-<span class="c-comment">#   - bun (for the in-app web UI bundle)</span>
+<span class="c-comment">#   - bun + pnpm (for the in-app web UI bundle)</span>
 
 <span class="c-comment"># Run unit tests</span>
 <span class="c-prompt">$ </span><span class="c-cmd">./gradlew</span> :app:testDebugUnitTest</pre>
@@ -1315,7 +1421,7 @@
 <section id="cta">
   <div class="cta-card reveal">
     <h2>Put your phone to work.</h2>
-    <p>Free, open source, runs entirely on your device. The hard part is deciding what to delegate first.</p>
+    <p>Free, open source, no telemetry. The hard part is deciding what to delegate first.</p>
     <div class="cta-actions">
       <a href="https://github.com/ExTV/rikkahub-agent/releases/latest" class="btn btn-primary">
         <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
@@ -1350,21 +1456,28 @@
       <details>
         <summary>Is my data sent anywhere?</summary>
         <div class="faq-answer">
-          Only to the LLM provider <em>you</em> pick. If you choose <strong>AICore</strong> on a Pixel 8/9/10, inference is fully on-device and nothing leaves the phone. Passwords and API keys are never written to log files. Cloud backups skip your saved server credentials and Telegram bot token.
+          Only to the LLM provider <em>you</em> pick, and the app ships zero analytics or telemetry. If you run a downloaded local model (llama.cpp or LiteRT) or <strong>AICore</strong> on a Pixel 8/9/10, inference is fully on-device and nothing leaves the phone. Passwords and API keys are never written to log files. Cloud backups skip your saved server credentials and Telegram bot token.
         </div>
       </details>
 
       <details>
         <summary>What LLM providers work?</summary>
         <div class="faq-answer">
-          OpenAI, Google, Anthropic, Ollama, and any OpenAI-compatible endpoint (Groq, Mistral, OpenRouter, vLLM, llama.cpp, LM Studio, etc.). Plus <strong>AICore</strong> for on-device Gemini Nano on Pixel 8/9/10+.
+          Cloud APIs: OpenAI, Anthropic, Google, DeepSeek, OpenRouter (first-class, with fallback models), xAI, Ollama, and any OpenAI-compatible endpoint (Groq, Mistral, vLLM, LM Studio, etc.). Account sign-ins: <strong>Codex</strong> (ChatGPT plan), <strong>Grok</strong> (SuperGrok or X Premium+), and a <strong>Google account sign-in</strong> for Gemini. On-device: downloaded GGUF/LiteRT models, or Gemini Nano via AICore on Pixel 8/9/10+.
+        </div>
+      </details>
+
+      <details>
+        <summary>What is the Google account sign-in, and is it risky?</summary>
+        <div class="faq-answer">
+          It signs in with a Google account and generates through Google Cloud Code Assist, so you get Gemini without an API key, with several accounts used round-robin and per-account quota bars. It is risky: the requests reach Google through a client Google did not approve, and Google's terms allow them to suspend or terminate accounts for that, with no appeal path built for this case. The app shows this warning prominently before you can enable the provider. If you use it, use a throwaway account you can afford to lose.
         </div>
       </details>
 
       <details>
         <summary>How are dangerous tools handled?</summary>
         <div class="faq-answer">
-          Three layers, strictest last. <strong>(1)</strong> Every tool category starts off; you flip on only what you want, per assistant. <strong>(2)</strong> Consequential tools (SSH commands, file deletes, app launches, sending messages) prompt you before running, with Allow once / this chat / always / Deny. <strong>(3)</strong> A short <code>HARDLINE</code> list (wipe everything, reboot, fork bombs, system file destruction, and shell tricks to bypass the rule) is blocked unconditionally. Even if you tell the AI to do one of these, it won't.
+          Three layers, strictest last. <strong>(1)</strong> Every tool category starts off; you flip on only what you want, per assistant. <strong>(2)</strong> Consequential tools (SSH commands, file deletes, app launches, sending messages) prompt you before running, with Allow once / this chat / always / Deny; anything you "Always Allow" is listed under Settings → Tool approvals and can be revoked any time. <strong>(3)</strong> A short <code>HARDLINE</code> list (wipe everything, reboot, fork bombs, system file destruction, and shell tricks to bypass the rule) is blocked unconditionally. Even if you tell the AI to do one of these, it won't.
         </div>
       </details>
 
@@ -1378,7 +1491,7 @@
       <details>
         <summary>How is this different from vanilla RikkaHub?</summary>
         <div class="faq-answer">
-          Upstream <a href="https://github.com/rikkahub/rikkahub">RikkaHub</a> is a beautiful native LLM chat client. This fork keeps that UI down to the pixel and adds the agent layer: 70+ device tools, an in-app browser the AI drives, AI-authored workflows, scheduled jobs, sub-agents, the skills system (markdown plus JavaScript), SSH, Telegram bot, music + media controls, notification listener, file manager, screen automation, the Doctor diagnostic menu, and the three-layer approval gate. If you don't enable any of the new features, the app behaves exactly like vanilla RikkaHub.
+          Upstream <a href="https://github.com/rikkahub/rikkahub">RikkaHub</a> is a beautiful native LLM chat client. This fork keeps that UI and adds the agent layer: 80+ device tools, an in-app browser the AI drives, AI-authored workflows, scheduled jobs, sub-agents, keyless web search, the skills system (Markdown plus JavaScript), a Linux workspace with Termux, SSH, the Telegram bot, music + media controls, the notification watcher, file manager, screen automation, on-device LLMs, account sign-in providers, the Doctor diagnostic menu, and the three-layer approval gate. If you don't enable any of the new features, the app behaves exactly like vanilla RikkaHub.
         </div>
       </details>
 
@@ -1392,7 +1505,14 @@
       <details>
         <summary>What do the APKs in Releases mean?</summary>
         <div class="faq-answer">
-          Each release ships three debug-signed APKs: <code>*-arm64-debug.apk</code> for almost every modern phone, <code>*-x86_64-debug.apk</code> for emulators and x86 Chromebooks, and <code>*-universal-debug.apk</code> if you don't know which to pick (it bundles both, larger download). Releases are tagged <code>vX.Y.Z-agent.N</code> where the upstream RikkaHub version is <code>vX.Y.Z</code> and <code>N</code> is the agent revision on top. Google Play Protect may flag the install with a "this app may be harmful" warning since the APKs aren't Play-Store signed; tap "Install anyway", or temporarily turn off "Scan apps with Play Protect" while you install.
+          Each release ships three release-signed APKs: <code>*-arm64-release.apk</code> for almost every modern phone, <code>*-x86_64-release.apk</code> for emulators and x86 Chromebooks, and <code>*-universal-release.apk</code> if you don't know which to pick (it bundles both, larger download). Releases are tagged <code>vX.Y.Z-agent.N</code> where <code>vX.Y.Z</code> is the upstream RikkaHub version and <code>N</code> is the agent revision on top. If you still have an old debug build installed, uninstall it first; the signing changed. Google Play Protect may flag the install with a "this app may be harmful" warning since the APKs aren't Play-Store signed; tap "Install anyway", or temporarily turn off "Scan apps with Play Protect" while you install.
+        </div>
+      </details>
+
+      <details>
+        <summary>What languages does the interface ship in?</summary>
+        <div class="faq-answer">
+          English, Simplified Chinese, Traditional Chinese, Japanese, Korean, Russian, and Arabic. The app follows your system language and falls back to English. Right-to-left languages render correctly in chat, and code blocks stay left-to-right.
         </div>
       </details>
 
@@ -1432,6 +1552,7 @@
       <h4>Built on</h4>
       <ul>
         <li><a href="https://github.com/rikkahub/rikkahub">RikkaHub (upstream)</a></li>
+        <li><a href="https://github.com/termux/termux-app">Termux</a></li>
         <li><a href="https://github.com/mwiede/jsch">JSch · SSH</a></li>
         <li><a href="https://github.com/jmrozanec/cron-utils">cron-utils</a></li>
         <li><a href="https://github.com/ggerganov/whisper.cpp">whisper.cpp</a></li>
@@ -1442,6 +1563,7 @@
       <h4>Author</h4>
       <ul>
         <li><a href="https://github.com/ExTV">@ExTV on GitHub</a></li>
+        <li><a href="https://github.com/ExTV/agent-keyboard">agent-keyboard</a></li>
         <li><a href="https://github.com/ExTV/Podroid">Podroid</a></li>
       </ul>
     </div>
