@@ -8,9 +8,6 @@ plugins {
 android {
     namespace = "me.rerere.search"
 
-    defaultConfig {
-        minSdk = 23
-    }
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions.optIn.add("androidx.compose.material3.ExperimentalMaterial3Api")
         compilerOptions.optIn.add("androidx.compose.material3.ExperimentalMaterial3ExpressiveApi")

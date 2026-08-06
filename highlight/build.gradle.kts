@@ -4,10 +4,6 @@ plugins {
 
 android {
     namespace = "me.rerere.highlight"
-
-    defaultConfig {
-        minSdk = 24
-    }
 }
 
 dependencies {

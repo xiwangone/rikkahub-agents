@@ -10,7 +10,6 @@ android {
     compileSdk = 37
     defaultConfig {
         minSdk = 26
-        consumerProguardFiles("consumer-rules.pro")
         // Single source of truth for the runtime's SDK version. LocalRuntimePreferences
         // compares this against the version its persisted accelerator / vision / crash
         // decisions were made under, and invalidates them when the dependency moves.
