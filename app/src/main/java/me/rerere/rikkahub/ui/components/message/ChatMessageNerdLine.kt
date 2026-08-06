@@ -62,10 +62,19 @@ fun ChatMessageNerdLine(
                         },
                         content = {
                             Text(text = "${usage.promptTokens.formatNumber()} tokens")
-                            // Cached tokens
-                            if (usage.cachedTokens > 0) {
+                            // Cache split. promptTokens counts hits and misses together on
+                            // every provider that reports a cached figure (DeepSeek's
+                            // prompt_cache_hit_tokens, OpenAI's cached_tokens, Anthropic's
+                            // cache_read), so the miss side and the rate are derivable here
+                            // without any extra request. Requested in issue #23: a total alone
+                            // cannot tell the user whether their prompt prefix is stable.
+                            if (usage.cachedTokens > 0 && usage.promptTokens > 0) {
+                                val hit = usage.cachedTokens.coerceAtMost(usage.promptTokens)
+                                val miss = usage.promptTokens - hit
+                                val rate = hit * 100 / usage.promptTokens
                                 Text(
-                                    text = "(${message.usage?.cachedTokens?.formatNumber() ?: "0"} cached)"
+                                    text = "(${hit.formatNumber()} hit / " +
+                                        "${miss.formatNumber()} miss / $rate%)"
                                 )
                             }
                         }

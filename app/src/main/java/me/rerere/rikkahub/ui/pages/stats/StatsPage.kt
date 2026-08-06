@@ -320,6 +320,18 @@ private fun StatsGrid(stats: AppStats, modifier: Modifier = Modifier) {
                 label = stringResource(R.string.stats_page_cached_tokens),
                 value = formatTokens(stats.totalCachedTokens),
             )
+            // Input tokens already include the cached ones, so the rate is the share of input
+            // served from cache. Surfacing it (issue #23) is what lets a user tell an unstable
+            // prompt prefix apart from an inherently expensive workload.
+            if (stats.totalPromptTokens > 0) {
+                val hit = stats.totalCachedTokens.coerceAtMost(stats.totalPromptTokens)
+                StatCard(
+                    modifier = Modifier.fillMaxWidth(),
+                    icon = HugeIcons.Zap,
+                    label = stringResource(R.string.stats_page_cache_hit_rate),
+                    value = "${hit * 100 / stats.totalPromptTokens}%",
+                )
+            }
         }
         StatCard(
             modifier = Modifier.fillMaxWidth(),
