@@ -38,7 +38,7 @@ import org.koin.compose.koinInject
 
 /**
  * Reasonix Provider 配置页。
- * - baseUrl：Reasonix serve 入口（:10002 nginx Basic Auth 或直连 :9899 token）
+ * - baseUrl：Reasonix serve 入口（nginx Basic Auth 或直连 token）
  * - username/password：nginx Basic Auth（与 reasonix-android 客户端一致）
  * - token：Reasonix serve token 模式（留空则走 Basic Auth）
  */
@@ -61,7 +61,7 @@ fun ReasonixProviderConfigure(
         onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
         label = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("例：http://<ECS地址>:10002") },
+        placeholder = { Text("例：http://<ECS地址>") },
         isError = provider.baseUrl.isNotBlank() && provider.baseUrl.toHttpUrlOrNull() == null,
     )
 
@@ -86,7 +86,7 @@ fun ReasonixProviderConfigure(
     Text(
         text =
             if (provider.connectionMode == "serve") {
-                "直连 Reasonix serve 的 HTTP API（:10002），需填写 baseUrl + Basic Auth 用户名/密码。"
+                "直连 Reasonix serve 的 HTTP API，需填写 baseUrl + Basic Auth 用户名/密码。"
             } else {
                 "通过 SSH 反向隧道访问手机 Web 服务（开发中，需配合 Web 桥）。"
             },

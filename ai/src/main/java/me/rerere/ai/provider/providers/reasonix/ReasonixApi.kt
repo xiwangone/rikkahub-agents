@@ -17,7 +17,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 /**
  * Reasonix REST API — 对应 serve 端点的 HTTP 客户端。
  * 移植自 DeepSeek-Reasonix-android `ReasonixApi.kt`（Gson → kotlinx.serialization），
- * 增加 Basic Auth / Bearer 认证支持（:10002 nginx Basic Auth 前置）。
+ * 增加 Basic Auth / Bearer 认证支持（nginx Basic Auth 前置）。
  */
 class ReasonixApi(
     private val baseUrl: String,
