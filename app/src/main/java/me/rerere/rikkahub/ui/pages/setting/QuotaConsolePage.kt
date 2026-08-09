@@ -81,22 +81,6 @@ fun QuotaConsolePage(providerId: String) {
     var lastError by remember { mutableStateOf<String?>(null) }
     var credentialGrabbed by remember { mutableStateOf(provider.credential != null) }
 
-    // 监听悬浮窗「刷新额度」事件 → 重新解析
-    val appEventBus: me.rerere.rikkahub.data.event.AppEventBus = koinInject()
-    androidx.compose.runtime.LaunchedEffect(Unit) {
-        appEventBus.events.collect { event ->
-            if (event is me.rerere.rikkahub.data.event.AppEvent.QuotaRefreshRequested) {
-                webViewState.webView?.let { webView ->
-                    lastError = null
-                    parseQuota(webView, provider) { snap ->
-                        snapshot = snap
-                        QuotaSnapshotHolder.addSnapshot(snap)
-                    }
-                }
-            }
-        }
-    }
-
     val webViewState =
         rememberWebViewState(
             url = provider.consoleUrl,
@@ -113,6 +97,22 @@ fun QuotaConsolePage(providerId: String) {
                 }
             },
         )
+
+    // 监听悬浮窗「刷新额度」事件 → 重新解析
+    val appEventBus: me.rerere.rikkahub.data.event.AppEventBus = koinInject()
+    androidx.compose.runtime.LaunchedEffect(Unit) {
+        appEventBus.events.collect { event ->
+            if (event is me.rerere.rikkahub.data.event.AppEvent.QuotaRefreshRequested) {
+                webViewState.webView?.let { webView ->
+                    lastError = null
+                    parseQuota(webView, provider) { snap ->
+                        snapshot = snap
+                        QuotaSnapshotHolder.addSnapshot(snap)
+                    }
+                }
+            }
+        }
+    }
 
     Scaffold(
         topBar = {
