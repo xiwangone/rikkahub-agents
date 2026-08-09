@@ -10,7 +10,7 @@ import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 
 @Dao
 interface VaultCredentialDao {
-    @Query("SELECT * FROM vault_credentials ORDER BY \`group\` ASC, name ASC")
+    @Query("SELECT * FROM vault_credentials ORDER BY grp ASC, name ASC")
     suspend fun getAll(): List<VaultCredentialEntity>
 
     @Query("SELECT * FROM vault_credentials WHERE name = :name LIMIT 1")

@@ -71,7 +71,7 @@ class CredentialVaultRepository(
                 dao.update(
                     existing.copy(
                         description = e.description.ifEmpty { existing.description },
-                        group = e.group.ifEmpty { existing.group },
+                        group = e.group.ifEmpty { existing.grp },
                         valueEncrypted = encrypted,
                         valueLength = e.value.length,
                         updatedAt = now,

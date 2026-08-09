@@ -107,7 +107,7 @@ fun VaultCredentialsPage() {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 // 按组展示
-                val grouped = entries.groupBy { it.group }
+                val grouped = entries.groupBy { it.grp }
                 grouped.forEach { (group, list) ->
                     item(key = "group_$group") {
                         Text(
@@ -240,7 +240,7 @@ private fun CredentialEditorDialog(
     var name by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.name ?: (mode as? EditorMode.Create)?.initialName ?: "") }
     var value by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.let { repository.decryptValue(it) } ?: "") }
     var description by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.description ?: "") }
-    var group by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.group ?: "Other") }
+    var group by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.grp ?: "Other") }
     var nameError by remember { mutableStateOf(false) }
     var valueError by remember { mutableStateOf(false) }
 

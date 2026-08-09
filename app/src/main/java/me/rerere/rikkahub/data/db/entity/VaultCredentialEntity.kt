@@ -21,7 +21,7 @@ data class VaultCredentialEntity(
     /** 简单描述，如「DeepSeek 官方 API Key」 */
     val description: String = "",
     /** 分组：Git / AI / ECS / MCP / Notification / Other */
-    val group: String = "Other",
+    val grp: String = "Other",
     /** AES-GCM 密文：Base64(IV(12B) + ciphertext) */
     val valueEncrypted: String,
     /** 明文长度（脱敏展示用，不存明文） */
