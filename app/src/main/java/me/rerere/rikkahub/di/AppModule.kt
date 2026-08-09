@@ -63,7 +63,16 @@ val appModule = module {
         me.rerere.rikkahub.data.telegram.TelegramInteractiveToolStreamer(get(), get(), get(), get())
     }
     single { me.rerere.rikkahub.data.preferences.ToolApprovalPreferences(get()) }
-    single { TelegramBotClient { runCatching { kotlinx.coroutines.runBlocking { get<TelegramBotPreferences>().current().token } }.getOrDefault("") } }
+    single {
+        TelegramBotClient(
+            tokenProvider = { runCatching { kotlinx.coroutines.runBlocking { get<TelegramBotPreferences>().current().token } }.getOrDefault("") },
+            proxyConfigProvider = {
+                runCatching {
+                    kotlinx.coroutines.runBlocking { get<TelegramBotPreferences>().current() }
+                }.getOrDefault(me.rerere.rikkahub.data.telegram.TelegramBotConfig())
+            },
+        )
+    }
     // Phase 24 — Telegram long-poll stall tracker. Shared singleton: TelegramBotService's
     // poll loop calls markUpdate() on every getUpdates; the in-service stall checker and
     // DoctorChecks read it. No cross-dependencies, so no DI-cycle risk.

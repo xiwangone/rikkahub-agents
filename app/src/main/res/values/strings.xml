@@ -1212,6 +1212,14 @@
   <string name="setting_page_telegram_battery_needed">Battery optimization: not whitelisted - tap to fix</string>
   <string name="setting_page_telegram_battery_desc">When the screen turns off, aggressive OEM ROMs (Xiaomi, OPPO, OnePlus, Vivo) cut network for non-whitelisted apps. The bot will only deliver during occasional maintenance windows. Tap to whitelist RikkaHub.</string>
   <string name="setting_page_telegram_battery_already_ok">Already whitelisted from battery optimization.</string>
+  <string name="setting_page_telegram_proxy_enabled">Proxy</string>
+  <string name="setting_page_telegram_proxy_enabled_desc">Route the bot\'s own network calls through a proxy. The bot must be stopped to edit.</string>
+  <string name="setting_page_telegram_proxy_type">Proxy type</string>
+  <string name="setting_page_telegram_proxy_type_desc">SOCKS5 doesn\'t support authentication, so username/password below only apply to HTTP.</string>
+  <string name="setting_page_telegram_proxy_host">Proxy host</string>
+  <string name="setting_page_telegram_proxy_port">Proxy port</string>
+  <string name="setting_page_telegram_proxy_username">Proxy username</string>
+  <string name="setting_page_telegram_proxy_password">Proxy password</string>
   <string name="assistant_page_local_tools_media_player_desc">Play and stop audio from a file path or URL.</string>
   <string name="assistant_page_local_tools_media_player_title">Media player</string>
   <string name="assistant_page_local_tools_media_scanner_desc">Notify Android\'s media scanner about new files so they appear in gallery/music apps.</string>

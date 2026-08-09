@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,6 +18,10 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
@@ -80,6 +85,13 @@ fun SettingTelegramPage() {
         mutableStateOf(cfg.whitelist.sorted().joinToString(","))
     }
     var tokenVisible by remember { mutableStateOf(false) }
+    var proxyHostText by remember(cfg.proxyHost) { mutableStateOf(cfg.proxyHost) }
+    var proxyPortText by remember(cfg.proxyPort) {
+        mutableStateOf(if (cfg.proxyPort == 0) "" else cfg.proxyPort.toString())
+    }
+    var proxyUsernameText by remember(cfg.proxyUsername) { mutableStateOf(cfg.proxyUsername) }
+    var proxyPasswordText by remember(cfg.proxyPassword) { mutableStateOf(cfg.proxyPassword) }
+    var proxyPasswordVisible by remember { mutableStateOf(false) }
     val serviceRunning = TelegramBotService.isRunning
 
     fun startService() {
@@ -255,6 +267,158 @@ fun SettingTelegramPage() {
                                 text = stringResource(R.string.setting_page_telegram_boot_note),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        },
+                    )
+                }
+            }
+
+            // Proxy for the bot's own network calls only (never the shared app-wide client).
+            // Locked while the bot is running: the OkHttp clients are built once per
+            // TelegramBotClient instance, so a proxy change only takes effect on restart.
+            item {
+                CardGroup(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 8.dp),
+                ) {
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_page_telegram_proxy_enabled)) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_telegram_proxy_enabled_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = cfg.proxyEnabled,
+                                onCheckedChange = { checked ->
+                                    scope.launch { prefs.update { it.copy(proxyEnabled = checked) } }
+                                },
+                                enabled = !cfg.enabled,
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_page_telegram_proxy_type)) },
+                        supportingContent = {
+                            Column {
+                                Text(stringResource(R.string.setting_page_telegram_proxy_type_desc))
+                                SingleChoiceSegmentedButtonRow(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(top = 8.dp),
+                                ) {
+                                    listOf("SOCKS5", "HTTP").forEachIndexed { index, type ->
+                                        SegmentedButton(
+                                            shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
+                                            selected = cfg.proxyType == type,
+                                            onClick = {
+                                                scope.launch { prefs.update { it.copy(proxyType = type) } }
+                                            },
+                                            enabled = !cfg.enabled,
+                                        ) {
+                                            Text(type)
+                                        }
+                                    }
+                                }
+                            }
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_page_telegram_proxy_host)) },
+                        trailingContent = {
+                            TextField(
+                                value = proxyHostText,
+                                onValueChange = { value ->
+                                    proxyHostText = value.trim()
+                                    scope.launch { prefs.update { it.copy(proxyHost = proxyHostText) } }
+                                },
+                                singleLine = true,
+                                modifier = Modifier.width(200.dp),
+                                enabled = !cfg.enabled,
+                                shape = CircleShape,
+                                colors = TextFieldDefaults.colors(
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    disabledIndicatorColor = Color.Transparent,
+                                ),
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_page_telegram_proxy_port)) },
+                        trailingContent = {
+                            TextField(
+                                value = proxyPortText,
+                                onValueChange = { value ->
+                                    val cleaned = value.filter { it.isDigit() }.take(5)
+                                    proxyPortText = cleaned
+                                    scope.launch {
+                                        prefs.update { it.copy(proxyPort = cleaned.toIntOrNull() ?: 0) }
+                                    }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                singleLine = true,
+                                modifier = Modifier.width(120.dp),
+                                enabled = !cfg.enabled,
+                                shape = CircleShape,
+                                colors = TextFieldDefaults.colors(
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    disabledIndicatorColor = Color.Transparent,
+                                ),
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_page_telegram_proxy_username)) },
+                        trailingContent = {
+                            TextField(
+                                value = proxyUsernameText,
+                                onValueChange = { value ->
+                                    proxyUsernameText = value
+                                    scope.launch { prefs.update { it.copy(proxyUsername = proxyUsernameText) } }
+                                },
+                                singleLine = true,
+                                modifier = Modifier.width(200.dp),
+                                enabled = !cfg.enabled,
+                                shape = CircleShape,
+                                colors = TextFieldDefaults.colors(
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    disabledIndicatorColor = Color.Transparent,
+                                ),
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_page_telegram_proxy_password)) },
+                        trailingContent = {
+                            TextField(
+                                value = proxyPasswordText,
+                                onValueChange = { value ->
+                                    proxyPasswordText = value
+                                    scope.launch { prefs.update { it.copy(proxyPassword = proxyPasswordText) } }
+                                },
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                                visualTransformation = if (proxyPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                                trailingIcon = {
+                                    IconButton(
+                                        onClick = { proxyPasswordVisible = !proxyPasswordVisible },
+                                        enabled = !cfg.enabled,
+                                    ) {
+                                        Icon(
+                                            imageVector = if (proxyPasswordVisible) HugeIcons.ViewOff else HugeIcons.View,
+                                            contentDescription = null,
+                                        )
+                                    }
+                                },
+                                singleLine = true,
+                                modifier = Modifier.width(200.dp),
+                                enabled = !cfg.enabled,
+                                shape = CircleShape,
+                                colors = TextFieldDefaults.colors(
+                                    focusedIndicatorColor = Color.Transparent,
+                                    unfocusedIndicatorColor = Color.Transparent,
+                                    disabledIndicatorColor = Color.Transparent,
+                                ),
                             )
                         },
                     )

@@ -21,6 +21,7 @@ import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import okhttp3.Call
 import okhttp3.Callback
+import okhttp3.Credentials
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
@@ -30,6 +31,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.File
 import java.io.IOException
+import java.net.InetSocketAddress
+import java.net.Proxy
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
@@ -51,11 +54,50 @@ class TelegramApiException(
     val retryAfterSec: Int? = null,
 ) : RuntimeException("Telegram API $errorCode: $description")
 
+/**
+ * Resolves a [TelegramBotConfig]'s proxy fields to a [Proxy], scoped to TelegramBotClient's
+ * own OkHttp clients only. Returns null when disabled, or when enabled with a blank host or a
+ * port outside 1..65535 — callers must log that case and continue without a proxy rather than
+ * crash the bot service. Authenticated SOCKS5 is intentionally unsupported (see
+ * [TelegramBotConfig] doc); HTTP-proxy basic auth is applied separately via proxyAuthenticator.
+ */
+internal fun telegramProxyOrNull(cfg: TelegramBotConfig): Proxy? {
+    if (!cfg.proxyEnabled) return null
+    if (cfg.proxyHost.isBlank() || cfg.proxyPort !in 1..65535) return null
+    val type = if (cfg.proxyType == "HTTP") Proxy.Type.HTTP else Proxy.Type.SOCKS
+    return Proxy(type, InetSocketAddress.createUnresolved(cfg.proxyHost, cfg.proxyPort))
+}
+
 class TelegramBotClient(
     private val tokenProvider: () -> String,
+    proxyConfigProvider: () -> TelegramBotConfig,
 ) {
     private val tag = "TelegramBotClient"
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = false }
+
+    // Resolved once at construction, not per-request like tokenProvider: OkHttp bakes the
+    // proxy into the client at build time, so changing it requires restarting the bot (see
+    // SettingTelegramPage, which locks the proxy fields while the bot is running).
+    private val proxyConfig: TelegramBotConfig =
+        runCatching { proxyConfigProvider() }.getOrDefault(TelegramBotConfig())
+    private val resolvedProxy: Proxy? = telegramProxyOrNull(proxyConfig).also { resolved ->
+        if (proxyConfig.proxyEnabled && resolved == null) {
+            Log.w(tag, "Telegram proxy enabled but host/port invalid; continuing without a proxy")
+        }
+    }
+
+    private fun OkHttpClient.Builder.applyTelegramProxy(): OkHttpClient.Builder = apply {
+        val p = resolvedProxy ?: return@apply
+        proxy(p)
+        if (proxyConfig.proxyType == "HTTP" && proxyConfig.proxyUsername.isNotBlank()) {
+            val credential = Credentials.basic(proxyConfig.proxyUsername, proxyConfig.proxyPassword)
+            proxyAuthenticator { _, response ->
+                response.request.newBuilder()
+                    .header("Proxy-Authorization", credential)
+                    .build()
+            }
+        }
+    }
 
     private val shortClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
@@ -66,6 +108,7 @@ class TelegramBotClient(
         // generous enough for a large file on slow mobile data yet bounds the worst case so a
         // stuck call can never wedge the request forever.
         .callTimeout(10, TimeUnit.MINUTES)
+        .applyTelegramProxy()
         .build()
         .also { me.rerere.rikkahub.utils.NetworkChangeMonitor.register(it) }
 
@@ -80,6 +123,7 @@ class TelegramBotClient(
         // retries. Without this the bot looks dead from the user's POV until the OS
         // eventually evicts the socket.
         .callTimeout(120, TimeUnit.SECONDS)
+        .applyTelegramProxy()
         .build()
         .also { me.rerere.rikkahub.utils.NetworkChangeMonitor.register(it) }
 
