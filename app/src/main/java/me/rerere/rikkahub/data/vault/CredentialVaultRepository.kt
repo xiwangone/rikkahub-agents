@@ -36,22 +36,51 @@ class CredentialVaultRepository(
         description: String,
         group: String,
     ) {
-        val now = System.currentTimeMillis()
         val existing = dao.getByName(name)
-        if (existing != null) {
-            val effectiveValue = value.ifBlank { decryptValue(existing) ?: "" }
-            val encrypted = if (value.isBlank()) existing.valueEncrypted else ProviderCredentialCipher.encrypt(effectiveValue)
+        if (existing != null && value.isBlank()) {
+            // 编辑留空 = 保留原值，仅更新描述/分组
+            val now = System.currentTimeMillis()
             dao.update(
                 existing.copy(
                     description = description,
                     grp = group,
-                    valueEncrypted = encrypted,
-                    valueLength = effectiveValue.length,
                     updatedAt = now,
                 )
             )
         } else {
-            val encrypted = ProviderCredentialCipher.encrypt(value)
+            upsertEntry(name, value, description, group)
+        }
+    }
+
+    /** 批量导入（解析结果 → 逐条 upsert，返回导入条数） */
+    suspend fun importEntries(entries: List<CredentialImporter.ParsedEntry>): Int {
+        entries.forEach { e ->
+            upsertEntry(e.name, e.value, e.description, e.group)
+        }
+        return entries.size
+    }
+
+    /** 新增/覆盖写入：加密后 upsert（同名单覆盖，描述/分组用传入值）。 */
+    private suspend fun upsertEntry(
+        name: String,
+        value: String,
+        description: String,
+        group: String,
+    ) {
+        val now = System.currentTimeMillis()
+        val encrypted = ProviderCredentialCipher.encrypt(value)
+        val existing = dao.getByName(name)
+        if (existing != null) {
+            dao.update(
+                existing.copy(
+                    description = description.ifEmpty { existing.description },
+                    grp = group.ifEmpty { existing.grp },
+                    valueEncrypted = encrypted,
+                    valueLength = value.length,
+                    updatedAt = now,
+                )
+            )
+        } else {
             dao.upsert(
                 VaultCredentialEntity(
                     name = name,
@@ -64,39 +93,6 @@ class CredentialVaultRepository(
                 )
             )
         }
-    }
-
-    /** 批量导入（解析结果 → 逐条 upsert，返回导入条数） */
-    suspend fun importEntries(entries: List<CredentialImporter.ParsedEntry>): Int {
-        entries.forEach { e ->
-            val encrypted = ProviderCredentialCipher.encrypt(e.value)
-            val now = System.currentTimeMillis()
-            val existing = dao.getByName(e.name)
-            if (existing != null) {
-                dao.update(
-                    existing.copy(
-                        description = e.description.ifEmpty { existing.description },
-                        grp = e.group.ifEmpty { existing.grp },
-                        valueEncrypted = encrypted,
-                        valueLength = e.value.length,
-                        updatedAt = now,
-                    )
-                )
-            } else {
-                dao.upsert(
-                    VaultCredentialEntity(
-                        name = e.name,
-                        description = e.description,
-                        grp = e.group,
-                        valueEncrypted = encrypted,
-                        valueLength = e.value.length,
-                        createdAt = now,
-                        updatedAt = now,
-                    )
-                )
-            }
-        }
-        return entries.size
     }
 
     suspend fun delete(entry: VaultCredentialEntity) = dao.delete(entry)

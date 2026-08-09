@@ -1997,7 +1997,7 @@
   <string name="stats_total_input">Total input</string>
   <string name="stats_copy_total">Copy total stats</string>
   <string name="stats_copy">Copy stats</string>
-  <string name="stats_format">↑%1$s in (%2$s cached) ↓%3$s out</string>
+  <string name="stats_format">↑%1$s in (%2$s cached · %4$s) ↓%3$s out</string>
   <string name="doctor_category_permissions">Permissions</string>
   <string name="doctor_category_services">Background services</string>
   <string name="doctor_category_assistant_info">Current assistant</string>

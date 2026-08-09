@@ -662,8 +662,21 @@ private fun TextInputRow(
                     tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
                     modifier = Modifier.size(12.dp),
                 )
+                val totalInput = sessionTotals.inputTokens.toInt().formatNumber()
+                val totalCached = sessionTotals.cachedTokens.toInt().formatNumber()
+                val totalOutput = sessionTotals.outputTokens.toInt().formatNumber()
+                val hitPct =
+                    if (sessionTotals.cachedTokens > 0 && sessionTotals.inputTokens > 0) {
+                        String.format(
+                            java.util.Locale.US,
+                            "%.1f%%",
+                            sessionTotals.cachedTokens.toDouble() / sessionTotals.inputTokens.toDouble() * 100.0,
+                        )
+                    } else {
+                        "0.0%"
+                    }
                 Text(
-                    text = stringResource(R.string.stats_format, sessionTotals.inputTokens.toInt().formatNumber(), sessionTotals.cachedTokens.toInt().formatNumber(), sessionTotals.outputTokens.toInt().formatNumber()),
+                    text = stringResource(R.string.stats_format, totalInput, totalCached, totalOutput, hitPct),
                     style =
                         MaterialTheme.typography.labelSmall.copy(
                             color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
@@ -674,7 +687,7 @@ private fun TextInputRow(
                         Modifier
                             .clickable(onClick = {
                                 pendingSessionTotalsCopy =
-                                    "↑${sessionTotals.inputTokens.toInt().formatNumber()} tokens (${sessionTotals.cachedTokens.toInt().formatNumber()} cached) ↓${sessionTotals.outputTokens.toInt().formatNumber()} tokens"
+                                    "↑${totalInput} tokens (${totalCached} cached · ${hitPct}) ↓${totalOutput} tokens"
                             })
                             .padding(2.dp),
                 ) {
