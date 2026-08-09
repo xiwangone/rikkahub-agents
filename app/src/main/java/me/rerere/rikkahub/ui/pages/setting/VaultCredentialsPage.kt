@@ -43,6 +43,8 @@ import me.rerere.hugeicons.stroke.Key01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.VaultBiometric
+import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import org.koin.compose.koinInject
 
@@ -185,11 +187,40 @@ private fun CredentialRow(
     onDelete: () -> Unit,
 ) {
     val repository: CredentialVaultRepository = koinInject()
+    val vaultPreferences: VaultPreferences = koinInject()
+    val activity = androidx.activity.compose.LocalActivity.current
+    val scope = rememberCoroutineScope()
     var plaintext by remember(entry.id) { mutableStateOf<String?>(null) }
+    var biometricEnabled by remember { mutableStateOf(true) }
+
+    // 读取指纹开关
+    LaunchedEffect(Unit) {
+        vaultPreferences.biometricEnabled.collect { biometricEnabled = it }
+    }
 
     // 需要显示明文时才解密（内存，用完即弃）
     if (revealed && plaintext == null) {
         plaintext = repository.decryptValue(entry)
+    }
+
+    // 展开前弹指纹门禁（开关开启时）；验证通过才真正展开
+    fun requestReveal() {
+        val act = activity
+        if (act == null || !biometricEnabled) {
+            onRevealToggle()
+            return
+        }
+        scope.launch {
+            val ok = VaultBiometric.authenticate(
+                activity = act,
+                title = "验证以查看凭证",
+                subtitle = entry.name,
+            )
+            if (ok) {
+                plaintext = null // 强制重新解密
+                onRevealToggle()
+            }
+        }
     }
 
     androidx.compose.material3.Surface(
@@ -217,7 +248,7 @@ private fun CredentialRow(
                     color = if (revealed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            IconButton(onClick = onRevealToggle) {
+            IconButton(onClick = { requestReveal() }) {
                 Icon(if (revealed) HugeIcons.ViewOff else HugeIcons.View, if (revealed) stringResource(R.string.vault_hide) else stringResource(R.string.vault_show))
             }
             IconButton(onClick = onEdit) {

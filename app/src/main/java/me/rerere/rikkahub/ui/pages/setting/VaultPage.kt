@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,6 +40,7 @@ import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.vault.CredentialImporter
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import org.koin.compose.koinInject
@@ -57,12 +59,14 @@ import java.io.InputStreamReader
 fun VaultPage() {
     val navController = LocalNavController.current
     val repository: CredentialVaultRepository = koinInject()
+    val vaultPreferences: VaultPreferences = koinInject()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     var credentialCount by remember { mutableStateOf(0) }
     var importResult by remember { mutableStateOf<String?>(null) }
     var showClearDialog by remember { mutableStateOf(false) }
+    val biometricEnabled by vaultPreferences.biometricEnabled.collectAsState(initial = true)
 
     // 刷新计数
     fun refreshCount() {
@@ -136,7 +140,10 @@ fun VaultPage() {
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             Text(stringResource(R.string.vault_fingerprint_desc), style = MaterialTheme.typography.bodySmall)
-                            Switch(checked = false, onCheckedChange = {})
+                            Switch(
+                                checked = biometricEnabled,
+                                onCheckedChange = { scope.launch { vaultPreferences.setBiometricEnabled(it) } },
+                            )
                         }
                         Text(
                             text = stringResource(R.string.vault_fingerprint_plan),
