@@ -821,25 +821,39 @@ class ChatCompletionsAPI(
                             }
 
                             is UIMessagePart.Image -> {
-                                add(
-                                    buildJsonObject {
-                                        part
-                                            .encodeBase64()
-                                            .onSuccess { encodedImage ->
-                                                put("type", "image_url")
-                                                put(
-                                                    "image_url",
-                                                    buildJsonObject {
-                                                        put("url", encodedImage.base64)
-                                                    },
-                                                )
-                                            }.onFailure {
-                                                Log.w(TAG, "failed to encode image to base64", it)
-                                                put("type", "text")
-                                                put("text", "")
-                                            }
-                                    },
-                                )
+                                if (Modality.IMAGE in supportInputModalities) {
+                                    add(
+                                        buildJsonObject {
+                                            part
+                                                .encodeBase64()
+                                                .onSuccess { encodedImage ->
+                                                    put("type", "image_url")
+                                                    put(
+                                                        "image_url",
+                                                        buildJsonObject {
+                                                            put("url", encodedImage.base64)
+                                                        },
+                                                    )
+                                                }.onFailure {
+                                                    Log.w(TAG, "failed to encode image to base64", it)
+                                                    put("type", "text")
+                                                    put("text", "")
+                                                }
+                                        },
+                                    )
+                                } else {
+                                    // 模型不支持视觉输入：降级为文本占位，避免上游 400
+                                    // (unknown variant `image_url`, expected `text`)
+                                    add(
+                                        buildJsonObject {
+                                            put("type", "text")
+                                            put(
+                                                "text",
+                                                "[Image provided but the current model does not support image input. Image skipped.]",
+                                            )
+                                        },
+                                    )
+                                }
                             }
 
                             else -> {}
@@ -926,25 +940,39 @@ class ChatCompletionsAPI(
                                 }
 
                                 is UIMessagePart.Image -> {
-                                    add(
-                                        buildJsonObject {
-                                            part
-                                                .encodeBase64()
-                                                .onSuccess { encodedImage ->
-                                                    put("type", "image_url")
-                                                    put(
-                                                        "image_url",
-                                                        buildJsonObject {
-                                                            put("url", encodedImage.base64)
-                                                        },
-                                                    )
-                                                }.onFailure {
-                                                    Log.w(TAG, "failed to encode image to base64", it)
-                                                    put("type", "text")
-                                                    put("text", "")
-                                                }
-                                        },
-                                    )
+                                    if (Modality.IMAGE in supportInputModalities) {
+                                        add(
+                                            buildJsonObject {
+                                                part
+                                                    .encodeBase64()
+                                                    .onSuccess { encodedImage ->
+                                                        put("type", "image_url")
+                                                        put(
+                                                            "image_url",
+                                                            buildJsonObject {
+                                                                put("url", encodedImage.base64)
+                                                            },
+                                                        )
+                                                    }.onFailure {
+                                                        Log.w(TAG, "failed to encode image to base64", it)
+                                                        put("type", "text")
+                                                        put("text", "")
+                                                    }
+                                            },
+                                        )
+                                    } else {
+                                        // 模型不支持视觉输入：降级为文本占位，避免上游 400
+                                        // (unknown variant `image_url`, expected `text`)
+                                        add(
+                                            buildJsonObject {
+                                                put("type", "text")
+                                                put(
+                                                    "text",
+                                                    "[Image provided but the current model does not support image input. Image skipped.]",
+                                                )
+                                            },
+                                        )
+                                    }
                                 }
 
                                 else -> {}
