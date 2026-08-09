@@ -41,6 +41,7 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.hugeicons.stroke.Key01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultBiometric
@@ -190,7 +191,8 @@ private fun CredentialRow(
 ) {
     val repository: CredentialVaultRepository = koinInject()
     val vaultPreferences: VaultPreferences = koinInject()
-    val activity = androidx.activity.compose.LocalActivity.current
+    val biometricBuffer: BiometricResultBuffer = koinInject()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
     var plaintext by remember(entry.id) { mutableStateOf<String?>(null) }
     var biometricEnabled by remember { mutableStateOf(true) }
@@ -207,15 +209,16 @@ private fun CredentialRow(
 
     // 展开前弹指纹门禁（开关开启时）；验证通过才真正展开
     fun requestReveal() {
-        val act = activity
-        if (act == null || !biometricEnabled) {
+        if (!biometricEnabled) {
             onRevealToggle()
             return
         }
+        val appContext = context.applicationContext
         scope.launch {
             val ok = VaultBiometric.authenticate(
-                activity = act,
-                title = stringResource(R.string.vault_biometric_view_title),
+                context = appContext,
+                buffer = biometricBuffer,
+                title = context.getString(R.string.vault_biometric_view_title),
                 subtitle = entry.name,
             )
             if (ok) {

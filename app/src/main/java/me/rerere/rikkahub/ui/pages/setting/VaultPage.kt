@@ -39,6 +39,7 @@ import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.LockKey
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.vault.CredentialImporter
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultBiometric
@@ -76,16 +77,20 @@ fun VaultPage() {
     val biometricEnabled by vaultPreferences.biometricEnabled.collectAsState(initial = true)
 
     // 备份：整个库（含分组）加密导出 .vault
+    val biometricBuffer: BiometricResultBuffer = koinInject()
     val backupExportLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
             if (uri != null && backupPassword.isNotBlank()) {
+                val titleStr = context.getString(R.string.vault_biometric_export_title)
+                val cancelledStr = context.getString(R.string.vault_export_cancelled)
+                val successStr = context.getString(R.string.vault_backup_success)
+                val failedStr = context.getString(R.string.vault_export_failed)
                 scope.launch {
                     runCatching {
-                        val act = context as? android.app.Activity
-                        if (act != null && biometricEnabled) {
-                            val ok = VaultBiometric.authenticate(act, stringResource(R.string.vault_biometric_export_title))
+                        if (biometricEnabled) {
+                            val ok = VaultBiometric.authenticate(context, biometricBuffer, titleStr)
                             if (!ok) {
-                                backupResult = stringResource(R.string.vault_export_cancelled)
+                                backupResult = cancelledStr
                                 return@launch
                             }
                         }
@@ -98,9 +103,9 @@ fun VaultPage() {
                         context.contentResolver.openOutputStream(uri)?.use { out ->
                             out.write(vaultJson.encodeToByteArray())
                         }
-                        backupResult = stringResource(R.string.vault_backup_success, plaintexts.size)
+                        backupResult = successStr.format(plaintexts.size)
                     }.onFailure { e ->
-                        backupResult = stringResource(R.string.vault_export_failed, e.message ?: "")
+                        backupResult = failedStr.format(e.message ?: "")
                     }
                 }
             }
@@ -110,6 +115,8 @@ fun VaultPage() {
     val backupRestoreLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null && backupPassword.isNotBlank()) {
+                val restoreSuccessStr = context.getString(R.string.vault_backup_restore_success)
+                val restoreFailedStr = context.getString(R.string.vault_backup_restore_failed)
                 scope.launch {
                     runCatching {
                         val content =
@@ -120,9 +127,9 @@ fun VaultPage() {
                         restored.forEach { q ->
                             repository.save(q.name, q.plaintext, q.description, q.group.ifEmpty { "Other" })
                         }
-                        backupResult = stringResource(R.string.vault_backup_restore_success, restored.size)
+                        backupResult = restoreSuccessStr.format(restored.size)
                     }.onFailure { e ->
-                        backupResult = stringResource(R.string.vault_backup_restore_failed, e.message ?: "")
+                        backupResult = restoreFailedStr.format(e.message ?: "")
                     }
                     refreshCount()
                 }
@@ -133,13 +140,16 @@ fun VaultPage() {
     val exportLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
             if (uri != null && exportPassword.isNotBlank()) {
+                val titleStr = context.getString(R.string.vault_biometric_export_title)
+                val cancelledStr = context.getString(R.string.vault_export_cancelled)
+                val successStr = context.getString(R.string.vault_export_success)
+                val failedStr = context.getString(R.string.vault_export_failed)
                 scope.launch {
                     runCatching {
-                        val act = context as? android.app.Activity
-                        if (act != null && biometricEnabled) {
-                            val ok = VaultBiometric.authenticate(act, stringResource(R.string.vault_biometric_export_title))
+                        if (biometricEnabled) {
+                            val ok = VaultBiometric.authenticate(context, biometricBuffer, titleStr)
                             if (!ok) {
-                                exportResult = stringResource(R.string.vault_export_cancelled)
+                                exportResult = cancelledStr
                                 return@launch
                             }
                         }
@@ -152,9 +162,9 @@ fun VaultPage() {
                         context.contentResolver.openOutputStream(uri)?.use { out ->
                             out.write(vaultJson.encodeToByteArray())
                         }
-                        exportResult = stringResource(R.string.vault_export_success, plaintexts.size)
+                        exportResult = successStr.format(plaintexts.size)
                     }.onFailure { e ->
-                        exportResult = stringResource(R.string.vault_export_failed, e.message ?: "")
+                        exportResult = failedStr.format(e.message ?: "")
                     }
                 }
             }
@@ -178,9 +188,9 @@ fun VaultPage() {
                             } ?: ""
                         val parsed = CredentialImporter.parse(content)
                         val imported = repository.importEntries(parsed)
-                        importResult = stringResource(R.string.vault_import_success, imported, parsed.size)
+                        importResult = context.getString(R.string.vault_import_success, imported, parsed.size)
                     }.onFailure { e ->
-                        importResult = stringResource(R.string.vault_import_failed, e.message ?: "")
+                        importResult = context.getString(R.string.vault_import_failed, e.message ?: "")
                     }
                     refreshCount()
                 }
@@ -300,7 +310,7 @@ fun VaultPage() {
                         OutlinedButton(
                             onClick = {
                                 if (exportPassword.isBlank()) {
-                                    exportResult = stringResource(R.string.vault_export_password_required)
+                                    exportResult = context.getString(R.string.vault_export_password_required)
                                     return@OutlinedButton
                                 }
                                 exportLauncher.launch("RikkaHub-Vault-${System.currentTimeMillis()}.vault")
@@ -337,7 +347,7 @@ fun VaultPage() {
                             OutlinedButton(
                                 onClick = {
                                     if (backupPassword.isBlank()) {
-                                        backupResult = stringResource(R.string.vault_backup_password_required)
+                                        backupResult = context.getString(R.string.vault_backup_password_required)
                                         return@OutlinedButton
                                     }
                                     backupExportLauncher.launch("RikkaHub-Vault-Backup-${System.currentTimeMillis()}.vault")
