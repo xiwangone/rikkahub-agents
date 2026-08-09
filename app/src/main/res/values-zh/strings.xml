@@ -2151,6 +2151,16 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="doctor_diag_04">堆内存: $freeMb MB 可用 / $totalMb MB ($maxMb MB 最大值)</string>
   <string name="doctor_diag_05">各助手启用的工具</string>
   <string name="doctor_diag_06">未启用任何本地工具 — 智能体功能将无法工作。</string>
+  <string name="vault_export_password_label">导出口令</string>
+  <string name="vault_export_button">导出 .vault 包</string>
+  <string name="vault_export_password_required">请输入导出口令</string>
+  <string name="vault_export_cancelled">已取消（指纹验证未通过）</string>
+  <string name="vault_export_success">已导出 %1$d 条凭证到 .vault 包</string>
+  <string name="vault_export_failed">导出失败: %1$s</string>
+  <string name="vault_import_success">已导入 %1$d 条凭证（共解析 %2$d 条）</string>
+  <string name="vault_import_failed">导入失败: %1$s</string>
+  <string name="vault_biometric_export_title">验证以导出凭证</string>
+  <string name="vault_biometric_view_title">验证以查看凭证</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">额度查询</string>
   <string name="quota_master_switch">额度查询</string>

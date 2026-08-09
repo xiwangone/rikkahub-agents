@@ -790,7 +790,7 @@ internal suspend fun TelegramBotService.handleDoctorCommand(chatId: Long) {
         }
     val report =
         me.rerere.rikkahub.ui.pages.setting.doctor.DoctorReport
-            .format(results)
+            .format(applicationContext, results)
     // Chunk on raw text and send each chunk wrapped in <pre>...</pre> for monospace
     // rendering. Skip sendChunked's markdown→HTML pass (it would mangle the report's
     // existing layout); use the HTML parse mode directly with our own escaping.
@@ -843,7 +843,7 @@ internal suspend fun TelegramBotService.handleDoctorCommand(chatId: Long) {
                             add(
                                 buildJsonArray {
                                     addJsonObject {
-                                        put("text", "🔧 ${af.label}")
+                                        put("text", "🔧 ${applicationContext.getString(af.labelRes)}")
                                         put("callback_data", "${DOCTOR_FIX_CB_PREFIX}${c.id}")
                                     }
                                 },
@@ -888,19 +888,20 @@ internal suspend fun TelegramBotService.handleDoctorFixCallback(cq: TelegramCall
     val match = results.firstOrNull { it.id == checkId }
     val af = match?.fix as? me.rerere.rikkahub.ui.pages.setting.doctor.FixAction.AutoFix
     if (af == null) {
-        val msg = "✅ ${match?.label ?: checkId}: no longer needs a fix."
+        val msg = "✅ ${match?.let { applicationContext.getString(it.labelRes) } ?: checkId}: no longer needs a fix."
         runCatching { client.editMessageText(cq.chatId, msgId, msg) }
         return
     }
     val outcome = runCatching { af.run() }
+    val label = applicationContext.getString(match.labelRes)
     val body =
         outcome.fold(
             onSuccess = { r ->
                 val icon = if (r.ok) "✅" else "❌"
-                "$icon ${match.label}: ${r.message}"
+                "$icon $label: ${r.message}"
             },
             onFailure = { t ->
-                "❌ ${match.label}: ${t::class.simpleName}: ${t.message ?: "(no message)"}"
+                "❌ $label: ${t::class.simpleName}: ${t.message ?: "(no message)"}"
             },
         )
     runCatching { client.editMessageText(cq.chatId, msgId, body) }

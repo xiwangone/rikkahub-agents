@@ -3,8 +3,8 @@ package me.rerere.rikkahub.data.vault
 import android.app.Activity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
+import androidx.core.content.ContextCompat
 import kotlinx.coroutines.suspendCancellableCoroutine
-import java.util.concurrent.Executors
 import kotlin.coroutines.resume
 
 /**
@@ -33,7 +33,7 @@ object VaultBiometric {
         title: String,
         subtitle: String? = null,
     ): Boolean = suspendCancellableCoroutine { cont ->
-        val executor = Executors.newSingleThreadExecutor()
+        val executor = ContextCompat.getMainExecutor(activity)
         val prompt = BiometricPrompt(
             activity,
             executor,
@@ -63,3 +63,4 @@ object VaultBiometric {
         )
     }
 }
+

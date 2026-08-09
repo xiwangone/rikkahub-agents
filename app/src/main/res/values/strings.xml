@@ -2149,6 +2149,16 @@
   <string name="doctor_diag_04">Heap: %1$s MB free / %2$s MB total (%3$s MB max)</string>
   <string name="doctor_diag_05">Tools enabled per assistant</string>
   <string name="doctor_diag_06">No local tools enabled — agent features won\'t work.</string>
+  <string name="vault_export_password_label">Export password</string>
+  <string name="vault_export_button">Export .vault package</string>
+  <string name="vault_export_password_required">Enter an export password</string>
+  <string name="vault_export_cancelled">Cancelled (biometric not verified)</string>
+  <string name="vault_export_success">Exported %1$d credentials to .vault package</string>
+  <string name="vault_export_failed">Export failed: %1$s</string>
+  <string name="vault_import_success">Imported %1$d credentials (%2$d parsed)</string>
+  <string name="vault_import_failed">Import failed: %1$s</string>
+  <string name="vault_biometric_export_title">Verify to export credentials</string>
+  <string name="vault_biometric_view_title">Verify to view credential</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">Quota Query</string>
   <string name="quota_master_switch">Quota Query</string>

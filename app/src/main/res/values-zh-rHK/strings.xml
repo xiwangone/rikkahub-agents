@@ -1511,5 +1511,15 @@
   <string name="doctor_diag_04">堆内存: $freeMb MB 可用 / $totalMb MB ($maxMb MB 最大值)</string>
   <string name="doctor_diag_05">各助手启用的工具</string>
   <string name="doctor_diag_06">未启用任何本地工具 — 智能体功能将无法工作。</string>
+  <string name="vault_export_password_label">匯出口令</string>
+  <string name="vault_export_button">匯出 .vault 套件</string>
+  <string name="vault_export_password_required">請輸入匯出口令</string>
+  <string name="vault_export_cancelled">已取消（指紋驗證未通過）</string>
+  <string name="vault_export_success">已匯出 %1$d 條憑證到 .vault 套件</string>
+  <string name="vault_export_failed">匯出失敗: %1$s</string>
+  <string name="vault_import_success">已匯入 %1$d 條憑證（共解析 %2$d 條）</string>
+  <string name="vault_import_failed">匯入失敗: %1$s</string>
+  <string name="vault_biometric_export_title">驗證以匯出憑證</string>
+  <string name="vault_biometric_view_title">驗證以檢視憑證</string>
 </resources>
 

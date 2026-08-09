@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.rikkahub.BuildConfig
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.browser.BrowserPreferences
 import me.rerere.rikkahub.browser.BrowserToolDefaults
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption

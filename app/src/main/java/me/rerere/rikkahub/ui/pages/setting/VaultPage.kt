@@ -15,6 +15,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -40,6 +41,8 @@ import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.vault.CredentialImporter
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.VaultBiometric
+import me.rerere.rikkahub.data.vault.VaultExporter
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -66,7 +69,40 @@ fun VaultPage() {
     var credentialCount by remember { mutableStateOf(0) }
     var importResult by remember { mutableStateOf<String?>(null) }
     var showClearDialog by remember { mutableStateOf(false) }
+    var exportPassword by remember { mutableStateOf("") }
+    var exportResult by remember { mutableStateOf<String?>(null) }
     val biometricEnabled by vaultPreferences.biometricEnabled.collectAsState(initial = true)
+
+    // 导出：加密 .vault 包写入用户选择的位置
+    val exportLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            if (uri != null && exportPassword.isNotBlank()) {
+                scope.launch {
+                    runCatching {
+                        val act = context as? android.app.Activity
+                        if (act != null && biometricEnabled) {
+                            val ok = VaultBiometric.authenticate(act, stringResource(R.string.vault_biometric_export_title))
+                            if (!ok) {
+                                exportResult = stringResource(R.string.vault_export_cancelled)
+                                return@launch
+                            }
+                        }
+                        val entries = repository.getAll()
+                        val plaintexts =
+                            entries.mapNotNull { e ->
+                                repository.decryptValue(e)?.let { Triple(e.name, it, e.description) }
+                            }
+                        val vaultJson = VaultExporter.export(exportPassword, plaintexts)
+                        context.contentResolver.openOutputStream(uri)?.use { out ->
+                            out.write(vaultJson.encodeToByteArray())
+                        }
+                        exportResult = stringResource(R.string.vault_export_success, plaintexts.size)
+                    }.onFailure { e ->
+                        exportResult = stringResource(R.string.vault_export_failed, e.message ?: "")
+                    }
+                }
+            }
+        }
 
     // 刷新计数
     fun refreshCount() {
@@ -86,9 +122,9 @@ fun VaultPage() {
                             } ?: ""
                         val parsed = CredentialImporter.parse(content)
                         val imported = repository.importEntries(parsed)
-                        importResult = "已导入 $imported 条凭证（共解析 ${parsed.size} 条）"
+                        importResult = stringResource(R.string.vault_import_success, imported, parsed.size)
                     }.onFailure { e ->
-                        importResult = "导入失败: ${e.message}"
+                        importResult = stringResource(R.string.vault_import_failed, e.message ?: "")
                     }
                     refreshCount()
                 }
@@ -196,6 +232,31 @@ fun VaultPage() {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        OutlinedTextField(
+                            value = exportPassword,
+                            onValueChange = { exportPassword = it },
+                            label = { Text(stringResource(R.string.vault_export_password_label)) },
+                            singleLine = true,
+                            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                if (exportPassword.isBlank()) {
+                                    exportResult = stringResource(R.string.vault_export_password_required)
+                                    return@OutlinedButton
+                                }
+                                exportLauncher.launch("RikkaHub-Vault-${System.currentTimeMillis()}.vault")
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(HugeIcons.Upload02, null, modifier = Modifier.padding(end = 8.dp))
+                            Text(stringResource(R.string.vault_export_button))
+                        }
+                        exportResult?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
                     }
                 }
             }

@@ -213,7 +213,7 @@ private fun CredentialRow(
         scope.launch {
             val ok = VaultBiometric.authenticate(
                 activity = act,
-                title = "验证以查看凭证",
+                title = stringResource(R.string.vault_biometric_view_title),
                 subtitle = entry.name,
             )
             if (ok) {
