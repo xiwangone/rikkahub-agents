@@ -30,43 +30,51 @@ class VaultSessionManager(private val context: Context) {
     private object Keys {
         val SECRET = stringPreferencesKey("secret")
         val CREATED_AT = longPreferencesKey("created_at")
+        /** true = Session 模式（当场有效，结束失效）；false = TTL 模式（30 分钟） */
+        val SESSION_MODE = booleanPreferencesKey("session_mode")
     }
 
-    /** 会话有效期：30 分钟。 */
+    /** 会话有效期：30 分钟（TTL 模式）。 */
     companion object {
         const val TTL_MS = 30L * 60 * 1000
     }
 
     /**
      * 签发新会话 token。调用方应在 App 内指纹验证通过后调用。
-     * 每次签发刷新 secret + 过期时间（单次有效，旧 token 立即失效）。
+     * [sessionMode] = true 表示「当场有效，结束失效」（token 有效期到 revoke）；
+     * false 表示 30 分钟 TTL。
+     * 每次签发刷新 secret（单次有效，旧 token 立即失效）。
      */
-    suspend fun issueToken(): String {
+    suspend fun issueToken(sessionMode: Boolean = false): String {
         val secret = ByteArray(32).also { SecureRandom().nextBytes(it) }
         val secretB64 = Base64.encodeToString(secret, Base64.NO_WRAP)
         val now = System.currentTimeMillis()
         context.vaultSessionStore.edit { prefs ->
             prefs[Keys.SECRET] = secretB64
             prefs[Keys.CREATED_AT] = now
+            prefs[Keys.SESSION_MODE] = sessionMode
         }
-        return sign(secretB64, now + TTL_MS)
+        val expiry = if (sessionMode) Long.MAX_VALUE else now + TTL_MS
+        return sign(secretB64, expiry)
     }
 
     /**
      * 校验 token 是否有效且未过期。
-     * 返回 true 表示可以解密。校验失败/过期返回 false。
+     * - Session 模式：仅校验签名 + secret 存在（Long.MAX_VALUE 过期时间，永不自然过期，
+     *   直到 revoke() 清空 secret）
+     * - TTL 模式：校验 30 分钟窗口 + token 自身过期时间
      */
     suspend fun verifyToken(token: String): Boolean {
         val prefs = context.vaultSessionStore.data.first()
         val secretB64 = prefs[Keys.SECRET] ?: return false
         val created = prefs[Keys.CREATED_AT] ?: return false
-        // 会话超时（30 分钟）直接拒绝
-        if (System.currentTimeMillis() - created > TTL_MS) return false
+        val sessionMode = prefs[Keys.SESSION_MODE] ?: false
+        if (!sessionMode && System.currentTimeMillis() - created > TTL_MS) return false
 
         val parts = token.split(".")
         if (parts.size != 2) return false
         val expiry = parts[0].toLongOrNull() ?: return false
-        // token 本身的过期时间校验
+        // token 自身的过期时间校验（Session 模式 expiry=Long.MAX_VALUE 恒通过）
         if (System.currentTimeMillis() > expiry) return false
         val expected = sign(secretB64, expiry)
         return constantTimeEquals(expected, token)

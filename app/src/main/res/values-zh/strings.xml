@@ -2106,6 +2106,10 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_web_bridge_ssh_port">SSH 端口</string>
   <string name="setting_web_bridge_remote_port">远端端口</string>
   <string name="setting_web_bridge_remote_port_desc">ECS 上映射到手机 Web 服务的端口</string>
+  <string name="vault_session_mode_ttl">30 分钟</string>
+  <string name="vault_session_mode_manual">当场有效</string>
+  <string name="vault_session_mode_ttl_desc">Token 30 分钟后自动过期，需重新指纹验证签发</string>
+  <string name="vault_session_mode_manual_desc">Token 本次会话期间一直有效（App 结束/手动撤销即失效）</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">额度查询</string>
   <string name="quota_master_switch">额度查询</string>

@@ -290,6 +290,40 @@ fun VaultPage() {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        var sessionMode by remember { mutableStateOf(false) }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                stringResource(R.string.vault_session_mode_ttl),
+                                style = MaterialTheme.typography.bodySmall,
+                                color =
+                                    if (!sessionMode) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                            androidx.compose.material3.Switch(
+                                checked = sessionMode,
+                                onCheckedChange = { sessionMode = it },
+                            )
+                            Text(
+                                stringResource(R.string.vault_session_mode_manual),
+                                style = MaterialTheme.typography.bodySmall,
+                                color =
+                                    if (sessionMode) MaterialTheme.colorScheme.primary
+                                    else MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        Text(
+                            text =
+                                if (sessionMode) stringResource(R.string.vault_session_mode_manual_desc)
+                                else stringResource(R.string.vault_session_mode_ttl_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         OutlinedButton(
                             onClick = {
                                 scope.launch {
@@ -301,7 +335,7 @@ fun VaultPage() {
                                                 return@launch
                                             }
                                         }
-                                        val token = vaultSessionManager.issueToken()
+                                        val token = vaultSessionManager.issueToken(sessionMode = sessionMode)
                                         sessionToken = token
                                         sessionResult = context.getString(R.string.vault_session_issued)
                                     }.onFailure { e ->

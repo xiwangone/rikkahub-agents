@@ -1468,5 +1468,9 @@
   <string name="setting_web_bridge_ssh_port">SSH 埠</string>
   <string name="setting_web_bridge_remote_port">遠端埠</string>
   <string name="setting_web_bridge_remote_port_desc">ECS 上映射到手機 Web 服務的埠</string>
+  <string name="vault_session_mode_ttl">30 分鐘</string>
+  <string name="vault_session_mode_manual">當場有效</string>
+  <string name="vault_session_mode_ttl_desc">Token 30 分鐘後自動過期，需重新指紋驗證簽發</string>
+  <string name="vault_session_mode_manual_desc">Token 本次會話期間一直有效（App 結束/手動撤銷即失效）</string>
 </resources>
 

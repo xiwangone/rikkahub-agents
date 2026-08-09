@@ -498,6 +498,7 @@ sealed class ProviderSetting {
         var webBridgeRemotePort: Int = 8080,
         var webBridgeLocalPort: Int = 8080,
         var webBridgePrivateKeyPath: String = "",
+        var webBridgePassword: String = "",
     ) : ProviderSetting() {
         override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
 

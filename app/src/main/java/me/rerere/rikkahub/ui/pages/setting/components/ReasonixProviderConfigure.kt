@@ -225,6 +225,14 @@ fun ReasonixProviderConfigure(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
+        OutlinedTextField(
+            value = provider.webBridgePassword,
+            onValueChange = { onEdit(provider.copy(webBridgePassword = it)) },
+            label = { Text("SSH 密码（可选，留空则用私钥）") },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+        )
 
         val webBridge: ReasonixWebBridge = koinInject()
         val scope = rememberCoroutineScope()
@@ -271,6 +279,7 @@ fun ReasonixProviderConfigure(
                             remoteTunnelPort = provider.webBridgeRemotePort,
                             localWebPort = provider.webBridgeLocalPort,
                             privateKeyPath = provider.webBridgePrivateKeyPath,
+                            password = provider.webBridgePassword,
                         )
                     }
                 },

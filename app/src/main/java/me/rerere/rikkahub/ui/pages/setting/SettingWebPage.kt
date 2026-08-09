@@ -330,6 +330,7 @@ fun SettingWebPage() {
                         Modifier
                             .fillMaxWidth()
                             .padding(horizontal = 8.dp),
+                    title = { Text(stringResource(R.string.setting_page_web_server)) },
                 ) {
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_page_web_server_port)) },
