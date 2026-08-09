@@ -97,8 +97,11 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // additions; upstream numbered it as their v24, folded into the fork's version space here.
         AutoMigration(from = 26, to = 27),
         // v28+v29: 密钥库凭证表（VaultCredentialEntity -> vault_credentials）与
-        // 密钥使用审计表（VaultAuditLogEntity -> vault_audit_log）。v28 从未发布
-        // （Vault MVP 未出 Release），真实用户设备停留在 v27，故直接 27→29 一步迁移。
+        // 密钥使用审计表（VaultAuditLogEntity -> vault_audit_log）。v28 已随
+        // Release 2.45.5 发布过（Vault MVP），真实设备存在 v28 数据库；v29 新增
+        // vault_audit_log，28→29 由手写 Migration_28_29 处理（见 DataSourceModule
+        // addMigrations）。此处 27→29 一步迁移服务于仍停留在 v27 的用户，两条路径
+        // 并存，Room 按设备当前版本自动选择。
         // 纯新增表，auto-migration 即可。
         AutoMigration(from = 27, to = 29),
     ]

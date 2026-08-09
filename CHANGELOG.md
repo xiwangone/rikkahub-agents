@@ -5,6 +5,11 @@
 
 ---
 
+## 2026-08-10
+
+- **修复** Room 迁移链断裂导致 2.45.6 闪退 — v29 迁移误判「v28 未发布」只写 `AutoMigration(27→29)`，而 v28 已随 2.45.5（Vault MVP）发布；已装 2.45.5 的用户升级 2.45.6 时 Room 找不到 28→29 迁移路径抛 IllegalStateException。新增手写 `Migration_28_29`（建 `vault_audit_log` 表 + 2 索引），与 27→29 并存，Room 按设备版本自动选路径
+- **chore** versionName 2.45.6 → 2.45.7（versionCode 176）
+
 ## 2026-08-09
 
 - **功能** 密钥库凭证体系 MVP（Credential Vault）— 设置页「Credential Vault」入口 + 密钥列表三级页（分组展示/小眼睛显隐/新增/编辑/删除）+ SAF 文件导入 load-creds.sh + AES-GCM 密文入库（AndroidKeyStore 托管密钥）（`3b933718` / `bea70707`）

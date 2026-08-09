@@ -23,6 +23,12 @@
 
 > <span style="color:red">**❗️❗️❗️ Note: RikkaHub Agents includes 80+ tools — enable on demand, avoid excessive resident resource usage!**</span>
 
+> ⚠️ **⚠️⚠️ IMPORTANT WARNING (2026-08-10)** ⚠️⚠️
+>
+> **Users on 2.45.5: upgrade directly to 2.45.7 — do NOT install 2.45.6!**
+>
+> `2.45.6` has a database-migration defect (crashes on upgrade); fixed and released as **2.45.7**. If you are on 2.45.5 (or earlier), **install 2.45.7 directly** ([Download latest](https://github.com/xiwangone/rikkahub-agents/releases/latest)). If you already installed 2.45.6, **upgrade to 2.45.7 immediately** to recover (data is preserved).
+
 </div>
 
 ---
