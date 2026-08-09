@@ -47,6 +47,7 @@ import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultBiometric
 import me.rerere.rikkahub.data.vault.VaultExporter
 import me.rerere.rikkahub.data.vault.VaultPreferences
+import me.rerere.rikkahub.data.vault.VaultSessionManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import org.koin.compose.koinInject
@@ -77,6 +78,9 @@ fun VaultPage() {
     var backupPassword by remember { mutableStateOf("") }
     var backupResult by remember { mutableStateOf<String?>(null) }
     var auditLogs by remember { mutableStateOf<List<VaultAuditLogEntity>>(emptyList()) }
+    var sessionToken by remember { mutableStateOf<String?>(null) }
+    var sessionResult by remember { mutableStateOf<String?>(null) }
+    val vaultSessionManager: VaultSessionManager = koinInject()
     val biometricEnabled by vaultPreferences.biometricEnabled.collectAsState(initial = true)
 
     // ── 局部函数（必须先定义，供下方 launcher lambda 引用）──
@@ -269,6 +273,79 @@ fun VaultPage() {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+            }
+
+            item {
+                androidx.compose.material3.Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.vault_session_title), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            text = stringResource(R.string.vault_session_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        OutlinedButton(
+                            onClick = {
+                                scope.launch {
+                                    runCatching {
+                                        if (biometricEnabled) {
+                                            val ok = VaultBiometric.authenticate(context, biometricBuffer, context.getString(R.string.vault_biometric_export_title))
+                                            if (!ok) {
+                                                sessionResult = context.getString(R.string.vault_session_cancelled)
+                                                return@launch
+                                            }
+                                        }
+                                        val token = vaultSessionManager.issueToken()
+                                        sessionToken = token
+                                        sessionResult = context.getString(R.string.vault_session_issued)
+                                    }.onFailure { e ->
+                                        sessionResult = context.getString(R.string.vault_export_failed, e.message ?: "")
+                                    }
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(HugeIcons.LockKey, null, modifier = Modifier.padding(end = 8.dp))
+                            Text(stringResource(R.string.vault_session_issue))
+                        }
+                        sessionToken?.let { token ->
+                            Text(
+                                text = token,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("vault-session", token))
+                                        sessionResult = context.getString(R.string.vault_session_copied)
+                                    },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Text(stringResource(R.string.vault_session_copy))
+                                }
+                                OutlinedButton(
+                                    onClick = { scope.launch { vaultSessionManager.revoke(); sessionToken = null; sessionResult = null } },
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Text(stringResource(R.string.vault_session_revoke))
+                                }
+                            }
+                        }
+                        sessionResult?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        }
                     }
                 }
             }

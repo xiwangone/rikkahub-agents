@@ -323,6 +323,14 @@ val appModule =
                 folderRepo = get(),
                 settingsStore = get(),
                 filesManager = get(),
+                vaultRepository = get(),
+                vaultSessionManager = get(),
+            )
+        }
+
+        single {
+            me.rerere.rikkahub.data.vault.VaultSessionManager(
+                context = get(),
             )
         }
 

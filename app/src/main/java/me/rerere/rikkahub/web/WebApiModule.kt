@@ -36,6 +36,7 @@ import me.rerere.rikkahub.web.routes.eventsRoutes
 import me.rerere.rikkahub.web.routes.filesRoutes
 import me.rerere.rikkahub.web.routes.folderRoutes
 import me.rerere.rikkahub.web.routes.settingsRoutes
+import me.rerere.rikkahub.web.routes.vaultRoutes
 import java.security.MessageDigest
 import java.util.Date
 import java.util.UUID
@@ -64,7 +65,9 @@ fun Application.configureWebApi(
     conversationRepo: ConversationRepository,
     folderRepo: FolderRepository,
     settingsStore: SettingsStore,
-    filesManager: FilesManager
+    filesManager: FilesManager,
+    vaultRepository: me.rerere.rikkahub.data.vault.CredentialVaultRepository,
+    vaultSessionManager: me.rerere.rikkahub.data.vault.VaultSessionManager,
 ) {
     val jwtEnabled = settingsStore.settingsFlow.value.webServerJwtEnabled
 
@@ -166,6 +169,9 @@ fun Application.configureWebApi(
             }
 
             aiIconRoutes(context)
+
+            // Vault 解密 API：独立会话 token 鉴权（不依赖 JWT 密码体系）
+            vaultRoutes(vaultRepository, vaultSessionManager)
 
             if (jwtEnabled) {
                 authenticate("auth-jwt") {

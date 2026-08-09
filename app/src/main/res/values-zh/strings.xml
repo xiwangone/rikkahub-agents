@@ -2090,6 +2090,14 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="log_tab_request">请求</string>
   <string name="log_tab_text">文本</string>
   <string name="log_tab_app">应用</string>
+  <string name="vault_session_title">解锁会话</string>
+  <string name="vault_session_desc">指纹验证后签发 30 分钟会话 token，供沙箱/ECS 经 Web 桥远程解密凭证。</string>
+  <string name="vault_session_issue">签发会话 token</string>
+  <string name="vault_session_issued">会话 token 已签发（30 分钟有效）</string>
+  <string name="vault_session_cancelled">已取消（指纹验证未通过）</string>
+  <string name="vault_session_copy">复制</string>
+  <string name="vault_session_revoke">撤销</string>
+  <string name="vault_session_copied">已复制</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">额度查询</string>
   <string name="quota_master_switch">额度查询</string>

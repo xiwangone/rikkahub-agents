@@ -1452,5 +1452,13 @@
   <string name="log_tab_text">文字</string>
   <string name="log_tab_app">應用</string>
   <string name="log_page_search_hint">搜尋…</string>
+  <string name="vault_session_title">解鎖會話</string>
+  <string name="vault_session_desc">指紋驗證後簽發 30 分鐘會話 token，供沙箱/ECS 經 Web 橋遠端解密憑證。</string>
+  <string name="vault_session_issue">簽發會話 token</string>
+  <string name="vault_session_issued">會話 token 已簽發（30 分鐘有效）</string>
+  <string name="vault_session_cancelled">已取消（指紋驗證未通過）</string>
+  <string name="vault_session_copy">複製</string>
+  <string name="vault_session_revoke">撤銷</string>
+  <string name="vault_session_copied">已複製</string>
 </resources>
 

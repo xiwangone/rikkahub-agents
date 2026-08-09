@@ -2088,6 +2088,14 @@
   <string name="log_tab_request">Requests</string>
   <string name="log_tab_text">Text</string>
   <string name="log_tab_app">App</string>
+  <string name="vault_session_title">Unlock session</string>
+  <string name="vault_session_desc">Issue a 30-min session token after biometric verification, so sandbox/ECS can decrypt credentials via the Web bridge.</string>
+  <string name="vault_session_issue">Issue session token</string>
+  <string name="vault_session_issued">Session token issued (valid 30 min)</string>
+  <string name="vault_session_cancelled">Cancelled (biometric not verified)</string>
+  <string name="vault_session_copy">Copy</string>
+  <string name="vault_session_revoke">Revoke</string>
+  <string name="vault_session_copied">Copied</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">Quota Query</string>
   <string name="quota_master_switch">Quota Query</string>
