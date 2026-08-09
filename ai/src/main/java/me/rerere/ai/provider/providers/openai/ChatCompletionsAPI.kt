@@ -654,7 +654,11 @@ class ChatCompletionsAPI(
                     supportInputModalities = supportInputModalities,
                 )
             } else {
-                addNonAssistantMessage(message, openRouterCache = openRouterCache)
+                addNonAssistantMessage(
+                    message = message,
+                    openRouterCache = openRouterCache,
+                    supportInputModalities = supportInputModalities,
+                )
             }
         }
     }
@@ -688,6 +692,7 @@ class ChatCompletionsAPI(
                         contentParts = contentBuffer,
                         tools = group.tools,
                         reasoningPart = reasoningPart,
+                        supportInputModalities = supportInputModalities,
                     )?.let { assistantMessage ->
                         add(assistantMessage)
                     }
@@ -770,6 +775,7 @@ class ChatCompletionsAPI(
                 contentParts = contentBuffer,
                 tools = emptyList(),
                 reasoningPart = reasoningPart,
+                supportInputModalities = supportInputModalities,
             )?.let { assistantMessage ->
                 add(assistantMessage)
             }
@@ -780,6 +786,7 @@ class ChatCompletionsAPI(
         contentParts: List<UIMessagePart>,
         tools: List<UIMessagePart.Tool>,
         reasoningPart: UIMessagePart.Reasoning?,
+        supportInputModalities: List<Modality> = listOf(Modality.TEXT, Modality.IMAGE),
     ): JsonObject? {
         val hasUsableContent =
             contentParts.any { part ->
@@ -892,6 +899,7 @@ class ChatCompletionsAPI(
     private fun JsonArrayBuilder.addNonAssistantMessage(
         message: UIMessage,
         openRouterCache: Boolean = false,
+        supportInputModalities: List<Modality> = listOf(Modality.TEXT, Modality.IMAGE),
     ) {
         add(
             buildJsonObject {
