@@ -1308,5 +1308,40 @@
   <string name="setting_files_page_selected_count">已選 %1$d 項</string>
   <string name="setting_files_page_batch_delete">批量刪除</string>
   <string name="setting_files_page_batch_delete_confirm">確認刪除所選 %1$d 個檔案？</string>
+  <!-- Credential Vault / 安全憑證庫 -->
+  <string name="setting_vault_title">安全憑證庫</string>
+  <string name="setting_page_vault">安全憑證庫</string>
+  <string name="setting_page_vault_desc">安全管理 API 金鑰與各類憑證</string>
+  <string name="vault_credential_count">憑證庫憑證（%1$d 條）</string>
+  <string name="vault_manage_credentials">管理金鑰</string>
+  <string name="vault_fingerprint_title">指紋認證（開發中）</string>
+  <string name="vault_fingerprint_desc">開啟憑證庫時要求指紋/鎖屏驗證</string>
+  <string name="vault_fingerprint_plan">計劃：BiometricPrompt + CryptoObject 綁定 Keystore 金鑰，指紋通過才釋放解密能力。</string>
+  <string name="vault_import_title">從檔案匯入</string>
+  <string name="vault_import_desc">支援 load-creds.sh 格式（export KEY="value" + # 註解分組）。選擇手機上的憑證檔案即可批次匯入。</string>
+  <string name="vault_import_button">選擇檔案匯入</string>
+  <string name="vault_export_title">應急匯出 / 解鎖會話（開發中）</string>
+  <string name="vault_export_desc">後續：口令加密匯出 .vault 包、短時解鎖會話供沙箱/ECS 遠端請求解密。</string>
+  <string name="vault_danger_zone">危險區</string>
+  <string name="vault_clear_all">清空全部憑證</string>
+  <string name="vault_clear_confirm_title">清空全部憑證？</string>
+  <string name="vault_clear_confirm_text">將刪除憑證庫中所有憑證條目（Android Keystore 金鑰本身保留）。此操作不可撤銷。</string>
+  <string name="vault_clear">清空</string>
+  <string name="vault_cancel">取消</string>
+  <string name="vault_list_title">金鑰列表（%1$d）</string>
+  <string name="vault_empty_title">還沒有憑證</string>
+  <string name="vault_empty_desc">點右上角 + 新建，或回上一頁「從檔案匯入」批次匯入 load-creds.sh。</string>
+  <string name="vault_new">新建憑證</string>
+  <string name="vault_delete_confirm_title">刪除 %1$s？</string>
+  <string name="vault_delete_confirm_text">將從憑證庫移除該憑證。此操作不可撤銷。</string>
+  <string name="vault_delete">刪除</string>
+  <string name="vault_editor_name_label">變數名（如 DEEPSEEK_API_KEY）</string>
+  <string name="vault_editor_value_label">憑證值</string>
+  <string name="vault_editor_value_edit_label">新值（留空則不修改）</string>
+  <string name="vault_editor_desc_label">描述（可選）</string>
+  <string name="vault_editor_group_label">分組</string>
+  <string name="vault_save">儲存</string>
+  <string name="vault_show">顯示</string>
+  <string name="vault_hide">隱藏</string>
 </resources>
 

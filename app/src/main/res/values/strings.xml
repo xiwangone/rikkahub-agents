@@ -1946,10 +1946,41 @@
   <string name="setting_files_page_batch_delete">Batch Delete</string>
   <string name="setting_files_page_batch_delete_confirm">Delete the %1$d selected files?</string>
 
-  <!-- Credential Vault / 密钥库凭证 -->
+  <!-- Credential Vault / 安全凭证库 -->
   <string name="setting_vault_title">Credential Vault</string>
   <string name="setting_page_vault">Credential Vault</string>
   <string name="setting_page_vault_desc">Manage API keys and credentials securely</string>
+  <string name="vault_credential_count">Vault credentials (%1$d)</string>
+  <string name="vault_manage_credentials">Manage credentials</string>
+  <string name="vault_fingerprint_title">Biometric auth (planned)</string>
+  <string name="vault_fingerprint_desc">Require fingerprint / screen lock when opening the vault</string>
+  <string name="vault_fingerprint_plan">Planned: BiometricPrompt + CryptoObject bound to the Keystore key, releasing decryption only after fingerprint passes.</string>
+  <string name="vault_import_title">Import from file</string>
+  <string name="vault_import_desc">Supports load-creds.sh format (export KEY="value" + # comment groups). Pick a credential file on your phone to batch-import.</string>
+  <string name="vault_import_button">Choose file to import</string>
+  <string name="vault_export_title">Emergency export / unlock session (planned)</string>
+  <string name="vault_export_desc">Later: password-encrypted .vault export, short-lived unlock sessions for sandbox/ECS remote decryption.</string>
+  <string name="vault_danger_zone">Danger zone</string>
+  <string name="vault_clear_all">Clear all credentials</string>
+  <string name="vault_clear_confirm_title">Clear all credentials?</string>
+  <string name="vault_clear_confirm_text">This will delete all credential entries in the vault (the Android Keystore key itself is kept). This cannot be undone.</string>
+  <string name="vault_clear">Clear</string>
+  <string name="vault_cancel">Cancel</string>
+  <string name="vault_list_title">Credentials (%1$d)</string>
+  <string name="vault_empty_title">No credentials yet</string>
+  <string name="vault_empty_desc">Tap + to create one, or go back to import a load-creds.sh file.</string>
+  <string name="vault_new">New credential</string>
+  <string name="vault_delete_confirm_title">Delete %1$s?</string>
+  <string name="vault_delete_confirm_text">Remove this credential from the vault. This cannot be undone.</string>
+  <string name="vault_delete">Delete</string>
+  <string name="vault_editor_name_label">Variable name (e.g. DEEPSEEK_API_KEY)</string>
+  <string name="vault_editor_value_label">Credential value</string>
+  <string name="vault_editor_value_edit_label">New value (leave empty to keep)</string>
+  <string name="vault_editor_desc_label">Description (optional)</string>
+  <string name="vault_editor_group_label">Group</string>
+  <string name="vault_save">Save</string>
+  <string name="vault_show">Show</string>
+  <string name="vault_hide">Hide</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">Quota Query</string>
   <string name="quota_master_switch">Quota Query</string>

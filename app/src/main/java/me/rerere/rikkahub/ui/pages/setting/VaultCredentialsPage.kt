@@ -30,6 +30,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
@@ -75,11 +76,11 @@ fun VaultCredentialsPage() {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("密钥列表（${entries.size}）") },
+                title = { Text(stringResource(R.string.vault_list_title, entries.size)) },
                 navigationIcon = { BackButton() },
                 actions = {
                     IconButton(onClick = { showEditor = EditorMode.Create() }) {
-                        Icon(HugeIcons.AddCircle, "新增")
+                        Icon(HugeIcons.AddCircle, stringResource(R.string.vault_new))
                     }
                 },
             )
@@ -92,13 +93,13 @@ fun VaultCredentialsPage() {
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Icon(HugeIcons.Key01, null, modifier = Modifier.padding(8.dp))
-                Text("还没有凭证", style = MaterialTheme.typography.titleMedium)
+                Text(stringResource(R.string.vault_empty_title), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "点右上角 + 新建，或回上一页「从文件导入」批量导入 load-creds.sh。",
+                    stringResource(R.string.vault_empty_desc),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Button(onClick = { showEditor = EditorMode.Create() }) { Text("新建凭证") }
+                Button(onClick = { showEditor = EditorMode.Create() }) { Text(stringResource(R.string.vault_new)) }
             }
         } else {
             LazyColumn(
@@ -150,8 +151,8 @@ fun VaultCredentialsPage() {
     deleteTarget?.let { target ->
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
-            title = { Text("删除 ${target.name}？") },
-            text = { Text("将从密钥库移除该凭证。此操作不可撤销。") },
+            title = { Text(stringResource(R.string.vault_delete_confirm_title, target.name)) },
+            text = { Text(stringResource(R.string.vault_delete_confirm_text)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -161,9 +162,9 @@ fun VaultCredentialsPage() {
                             refresh()
                         }
                     },
-                ) { Text("删除", color = MaterialTheme.colorScheme.error) }
+                ) { Text(stringResource(R.string.vault_delete), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.vault_cancel)) } },
         )
     }
 }
@@ -217,13 +218,13 @@ private fun CredentialRow(
                 )
             }
             IconButton(onClick = onRevealToggle) {
-                Icon(if (revealed) HugeIcons.ViewOff else HugeIcons.View, if (revealed) "隐藏" else "显示")
+                Icon(if (revealed) HugeIcons.ViewOff else HugeIcons.View, if (revealed) stringResource(R.string.vault_hide) else stringResource(R.string.vault_show))
             }
             IconButton(onClick = onEdit) {
-                Icon(HugeIcons.Edit02, "编辑")
+                Icon(HugeIcons.Edit02, stringResource(R.string.vault_editor_value_label))
             }
             IconButton(onClick = onDelete) {
-                Icon(HugeIcons.Delete02, "删除", tint = MaterialTheme.colorScheme.error)
+                Icon(HugeIcons.Delete02, stringResource(R.string.vault_delete), tint = MaterialTheme.colorScheme.error)
             }
         }
     }
@@ -248,7 +249,7 @@ private fun CredentialEditorDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (isEdit) "编辑凭证" else "新建凭证") },
+        title = { Text(if (isEdit) stringResource(R.string.vault_editor_value_edit_label) else stringResource(R.string.vault_new)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 OutlinedTextField(
@@ -257,7 +258,7 @@ private fun CredentialEditorDialog(
                         name = it.uppercase().replace(Regex("[^A-Z0-9_]"), "_")
                         nameError = false
                     },
-                    label = { Text("变量名（如 DEEPSEEK_API_KEY）") },
+                    label = { Text(stringResource(R.string.vault_editor_name_label)) },
                     singleLine = true,
                     enabled = !isEdit, // 编辑模式不改变量名（唯一键）
                     isError = nameError,
@@ -266,7 +267,7 @@ private fun CredentialEditorDialog(
                 OutlinedTextField(
                     value = value,
                     onValueChange = { value = it; valueError = false },
-                    label = { Text(if (isEdit) "新值（留空则不修改）" else "凭证值") },
+                    label = { Text(if (isEdit) stringResource(R.string.vault_editor_value_edit_label) else stringResource(R.string.vault_editor_value_label)) },
                     singleLine = false,
                     isError = valueError,
                     modifier = Modifier.fillMaxWidth(),
@@ -274,14 +275,14 @@ private fun CredentialEditorDialog(
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
-                    label = { Text("描述（可选）") },
+                    label = { Text(stringResource(R.string.vault_editor_desc_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedTextField(
                     value = group,
                     onValueChange = { group = it },
-                    label = { Text("分组") },
+                    label = { Text(stringResource(R.string.vault_editor_group_label)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -295,8 +296,8 @@ private fun CredentialEditorDialog(
                     // 编辑模式：value 留空 = 保留原值（在 onSave 里处理）
                     onSave(name, value, description, group)
                 },
-            ) { Text("保存") }
+            ) { Text(stringResource(R.string.vault_save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.vault_cancel)) } },
     )
 }

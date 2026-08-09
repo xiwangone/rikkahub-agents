@@ -110,13 +110,13 @@ fun VaultPage() {
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("密钥库凭证（${credentialCount} 条）", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.vault_credential_count, credentialCount), style = MaterialTheme.typography.titleMedium)
                     Button(onClick = { navController.navigate(me.rerere.rikkahub.Screen.VaultCredentials) }) {
-                        Text("管理密钥")
+                        Text(stringResource(R.string.vault_manage_credentials))
                     }
                 }
                 Text(
-                    text = "凭证以 AES-GCM 密文存于本机 Room（密钥由 Android Keystore 托管），明文不落盘。",
+                    text = stringResource(R.string.vault_fingerprint_plan),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -129,17 +129,17 @@ fun VaultPage() {
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                 ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("指纹认证（开发中）", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.vault_fingerprint_title), style = MaterialTheme.typography.titleSmall)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.SpaceBetween,
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Text("打开凭证库时要求指纹/锁屏验证", style = MaterialTheme.typography.bodySmall)
+                            Text(stringResource(R.string.vault_fingerprint_desc), style = MaterialTheme.typography.bodySmall)
                             Switch(checked = false, onCheckedChange = {})
                         }
                         Text(
-                            text = "计划：BiometricPrompt + CryptoObject 绑定 Keystore 密钥，指纹通过才释放解密能力。",
+                            text = stringResource(R.string.vault_fingerprint_plan),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -154,9 +154,9 @@ fun VaultPage() {
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                 ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("从文件导入", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.vault_import_title), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            text = "支持 load-creds.sh 格式（export KEY=\"value\" + # 注释分组）。选择手机上的凭证文件即可批量导入。",
+                            text = stringResource(R.string.vault_import_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -167,7 +167,7 @@ fun VaultPage() {
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Icon(HugeIcons.Upload02, null, modifier = Modifier.padding(end = 8.dp))
-                            Text("选择文件导入")
+                            Text(stringResource(R.string.vault_import_button))
                         }
                         importResult?.let {
                             Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
@@ -183,9 +183,9 @@ fun VaultPage() {
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                 ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("应急导出 / 解锁会话（开发中）", style = MaterialTheme.typography.titleSmall)
+                        Text(stringResource(R.string.vault_export_title), style = MaterialTheme.typography.titleSmall)
                         Text(
-                            text = "后续：口令加密导出 .vault 包、短时解锁会话供沙箱/ECS 远程请求解密。",
+                            text = stringResource(R.string.vault_export_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
@@ -200,13 +200,13 @@ fun VaultPage() {
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                 ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("危险区", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.vault_danger_zone), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.error)
                         OutlinedButton(
                             onClick = { showClearDialog = true },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Icon(HugeIcons.LockKey, null, modifier = Modifier.padding(end = 8.dp))
-                            Text("清空全部凭证")
+                            Text(stringResource(R.string.vault_clear_all))
                         }
                     }
                 }
@@ -217,8 +217,8 @@ fun VaultPage() {
     if (showClearDialog) {
         AlertDialog(
             onDismissRequest = { showClearDialog = false },
-            title = { Text("清空全部凭证？") },
-            text = { Text("将删除密钥库中所有凭证条目（Android Keystore 密钥本身保留）。此操作不可撤销。") },
+            title = { Text(stringResource(R.string.vault_clear_confirm_title)) },
+            text = { Text(stringResource(R.string.vault_clear_confirm_text)) },
             confirmButton = {
                 TextButton(
                     onClick = {
@@ -228,9 +228,9 @@ fun VaultPage() {
                             refreshCount()
                         }
                     },
-                ) { Text("清空", color = MaterialTheme.colorScheme.error) }
+                ) { Text(stringResource(R.string.vault_clear), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { showClearDialog = false }) { Text("取消") } },
+            dismissButton = { TextButton(onClick = { showClearDialog = false }) { Text(stringResource(R.string.vault_cancel)) } },
         )
     }
 }

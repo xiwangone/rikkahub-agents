@@ -1948,6 +1948,41 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_files_page_batch_delete">批量删除</string>
   <string name="setting_files_page_batch_delete_confirm">确认删除所选 %1$d 个文件？</string>
 
+  <!-- Credential Vault / 安全凭证库 -->
+  <string name="setting_vault_title">安全凭证库</string>
+  <string name="setting_page_vault">安全凭证库</string>
+  <string name="setting_page_vault_desc">安全管理 API 密钥与各类凭证</string>
+  <string name="vault_credential_count">密钥库凭证（%1$d 条）</string>
+  <string name="vault_manage_credentials">管理密钥</string>
+  <string name="vault_fingerprint_title">指纹认证（开发中）</string>
+  <string name="vault_fingerprint_desc">打开凭证库时要求指纹/锁屏验证</string>
+  <string name="vault_fingerprint_plan">计划：BiometricPrompt + CryptoObject 绑定 Keystore 密钥，指纹通过才释放解密能力。</string>
+  <string name="vault_import_title">从文件导入</string>
+  <string name="vault_import_desc">支持 load-creds.sh 格式（export KEY="value" + # 注释分组）。选择手机上的凭证文件即可批量导入。</string>
+  <string name="vault_import_button">选择文件导入</string>
+  <string name="vault_export_title">应急导出 / 解锁会话（开发中）</string>
+  <string name="vault_export_desc">后续：口令加密导出 .vault 包、短时解锁会话供沙箱/ECS 远程请求解密。</string>
+  <string name="vault_danger_zone">危险区</string>
+  <string name="vault_clear_all">清空全部凭证</string>
+  <string name="vault_clear_confirm_title">清空全部凭证？</string>
+  <string name="vault_clear_confirm_text">将删除密钥库中所有凭证条目（Android Keystore 密钥本身保留）。此操作不可撤销。</string>
+  <string name="vault_clear">清空</string>
+  <string name="vault_cancel">取消</string>
+  <string name="vault_list_title">密钥列表（%1$d）</string>
+  <string name="vault_empty_title">还没有凭证</string>
+  <string name="vault_empty_desc">点右上角 + 新建，或回上一页「从文件导入」批量导入 load-creds.sh。</string>
+  <string name="vault_new">新建凭证</string>
+  <string name="vault_delete_confirm_title">删除 %1$s？</string>
+  <string name="vault_delete_confirm_text">将从密钥库移除该凭证。此操作不可撤销。</string>
+  <string name="vault_delete">删除</string>
+  <string name="vault_editor_name_label">变量名（如 DEEPSEEK_API_KEY）</string>
+  <string name="vault_editor_value_label">凭证值</string>
+  <string name="vault_editor_value_edit_label">新值（留空则不修改）</string>
+  <string name="vault_editor_desc_label">描述（可选）</string>
+  <string name="vault_editor_group_label">分组</string>
+  <string name="vault_save">保存</string>
+  <string name="vault_show">显示</string>
+  <string name="vault_hide">隐藏</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">额度查询</string>
   <string name="quota_master_switch">额度查询</string>

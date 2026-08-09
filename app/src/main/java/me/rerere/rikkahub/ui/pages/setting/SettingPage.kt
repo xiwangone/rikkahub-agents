@@ -212,6 +212,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     title = { Text(stringResource(R.string.setting_page_model_and_services)) },
                 ) {
                     item(
+                        onClick = { navController.navigate(Screen.Vault) },
+                        leadingContent = { Icon(HugeIcons.LockKey, null) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_vault_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_vault)) },
+                    )
+                    item(
                         onClick = { navController.navigate(Screen.SettingModels) },
                         leadingContent = { Icon(HugeIcons.AiMagic, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_default_model_desc)) },
@@ -276,12 +282,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         leadingContent = { Icon(HugeIcons.CoinsDollar, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_quota_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_quota)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.Vault) },
-                        leadingContent = { Icon(HugeIcons.LockKey, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_vault_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_vault)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingTermux) },
