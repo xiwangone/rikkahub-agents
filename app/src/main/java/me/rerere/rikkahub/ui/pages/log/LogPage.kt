@@ -40,7 +40,6 @@ import kotlinx.coroutines.launch
 import me.rerere.common.android.LogEntry
 import me.rerere.common.android.Logging
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -55,24 +54,20 @@ import java.util.Locale
 
 @Composable
 fun LogPage() {
-    var showAppLog by remember { mutableStateOf(false) }
-    if (showAppLog) {
-        AppLogPage(onBack = { showAppLog = false })
-    } else {
-        LogPageContent(onShowAppLog = { showAppLog = true })
-    }
+    LogPageContent()
 }
 
 @Composable
-private fun LogPageContent(onShowAppLog: () -> Unit) {
+private fun LogPageContent() {
     var logs by remember { mutableStateOf(Logging.getRecentLogs()) }
     var requestLoggingEnabled by remember { mutableStateOf(Logging.isRequestLoggingEnabled()) }
+    var selectedTab by remember { mutableStateOf(LogTab.Request) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
-                title = { Text("Logs") },
+                title = { Text(stringResource(R.string.log_page_title)) },
                 navigationIcon = { BackButton() },
                 actions = {
                     IconButton(
@@ -91,28 +86,75 @@ private fun LogPageContent(onShowAppLog: () -> Unit) {
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor,
     ) { contentPadding ->
-        UnifiedLogList(
-            logs = logs,
-            requestLoggingEnabled = requestLoggingEnabled,
-            onRequestLoggingChange = {
-                requestLoggingEnabled = it
-                Logging.setRequestLoggingEnabled(it)
-            },
-            onShowAppLog = onShowAppLog,
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(contentPadding),
-        )
+        // 分类 Tab：请求 / 文本 / 应用
+        Column(
+            modifier = Modifier.fillMaxSize().padding(contentPadding),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                LogTab.entries.forEach { tab ->
+                    val selected = selectedTab == tab
+                    androidx.compose.material3.Surface(
+                        onClick = { selectedTab = tab },
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
+                        color =
+                            if (selected) MaterialTheme.colorScheme.primary
+                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text(
+                            stringResource(tab.labelRes),
+                            style = MaterialTheme.typography.labelMedium,
+                            modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth(),
+                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                        )
+                    }
+                }
+            }
+
+            when (selectedTab) {
+                LogTab.Request -> {
+                    RequestLogList(
+                        logs = logs,
+                        requestLoggingEnabled = requestLoggingEnabled,
+                        onRequestLoggingChange = {
+                            requestLoggingEnabled = it
+                            Logging.setRequestLoggingEnabled(it)
+                        },
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                LogTab.Text -> {
+                    TextLogList(
+                        logs = logs,
+                        modifier = Modifier.fillMaxSize(),
+                    )
+                }
+
+                LogTab.App -> {
+                    AppLogPage(onBack = {})
+                }
+            }
+        }
     }
 }
 
+/** 日志分类 Tab */
+enum class LogTab(@StringRes val labelRes: Int) {
+    Request(me.rerere.rikkahub.R.string.log_tab_request),
+    Text(me.rerere.rikkahub.R.string.log_tab_text),
+    App(me.rerere.rikkahub.R.string.log_tab_app),
+}
+
 @Composable
-private fun UnifiedLogList(
+private fun RequestLogList(
     logs: List<LogEntry>,
     requestLoggingEnabled: Boolean,
     onRequestLoggingChange: (Boolean) -> Unit,
-    onShowAppLog: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selectedLog by remember { mutableStateOf<LogEntry.RequestLog?>(null) }
@@ -122,7 +164,7 @@ private fun UnifiedLogList(
             enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
         )
     val scope = rememberCoroutineScope()
-    val sortedLogs = remember(logs) { logs.sortedByDescending { it.timestamp } }
+    val requestLogs = remember(logs) { logs.filterIsInstance<LogEntry.RequestLog>().sortedByDescending { it.timestamp } }
 
     LazyColumn(
         modifier = modifier,
@@ -130,32 +172,20 @@ private fun UnifiedLogList(
         contentPadding = PaddingValues(16.dp),
     ) {
         item {
-            AppLogEntryCard(onClick = onShowAppLog)
-        }
-
-        item {
             RequestLoggingSwitchCard(
                 enabled = requestLoggingEnabled,
                 onEnabledChange = onRequestLoggingChange,
             )
         }
 
-        items(sortedLogs, key = { it.id }, contentType = { it.javaClass.simpleName }) { log ->
-            when (log) {
-                is LogEntry.RequestLog -> {
-                    RequestLogCard(
-                        log = log,
-                        onClick = {
-                            selectedLog = log
-                            scope.launch { sheetState.show() }
-                        },
-                    )
-                }
-
-                is LogEntry.TextLog -> {
-                    TextLogCard(log = log)
-                }
-            }
+        items(requestLogs, key = { it.id }, contentType = { "request" }) { log ->
+            RequestLogCard(
+                log = log,
+                onClick = {
+                    selectedLog = log
+                    scope.launch { sheetState.show() }
+                },
+            )
         }
     }
 
@@ -170,39 +200,44 @@ private fun UnifiedLogList(
 }
 
 @Composable
-private fun AppLogEntryCard(onClick: () -> Unit) {
-    Card(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onClick),
-        colors = CustomColors.cardColorsOnSurfaceContainer,
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.log_page_app_logs_title),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = stringResource(R.string.log_page_app_logs_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
+private fun TextLogList(
+    logs: List<LogEntry>,
+    modifier: Modifier = Modifier,
+) {
+    var keyword by remember { mutableStateOf("") }
+    val textLogs = remember(logs, keyword) {
+        val kw = keyword.trim().lowercase(Locale.getDefault())
+        logs.filterIsInstance<LogEntry.TextLog>()
+            .sortedByDescending { it.timestamp }
+            .filter {
+                kw.isEmpty() ||
+                    it.tag.lowercase(Locale.getDefault()).contains(kw) ||
+                    it.message.lowercase(Locale.getDefault()).contains(kw)
             }
-            Icon(
-                imageVector = HugeIcons.ArrowRight01,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+    }
+
+    Column(modifier = modifier) {
+        OutlinedTextField(
+            value = keyword,
+            onValueChange = { keyword = it },
+            label = { Text(stringResource(R.string.log_page_search_hint)) },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+        Text(
+            stringResource(R.string.log_page_log_count, textLogs.size),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+        )
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+            contentPadding = PaddingValues(16.dp),
+        ) {
+            items(textLogs, key = { it.id }, contentType = { "text" }) { log ->
+                TextLogCard(log = log)
+            }
         }
     }
 }

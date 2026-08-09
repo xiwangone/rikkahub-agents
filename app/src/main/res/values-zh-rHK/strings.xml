@@ -1536,5 +1536,12 @@
   <string name="vault_audit_title">金鑰呼叫記錄</string>
   <string name="vault_audit_desc">最近 %1$d 次金鑰呼叫（保留 500 條 / 30 天）</string>
   <string name="vault_audit_clear">清空呼叫記錄</string>
+  <string name="log_page_title">日誌</string>
+  <string name="log_tab_request">請求</string>
+  <string name="log_tab_text">文字</string>
+  <string name="log_tab_app">應用</string>
+  <string name="log_page_search_hint">搜尋…</string>
+  <string name="setting_page_request_logs">日誌</string>
+  <string name="setting_page_request_logs_desc">請求 / 文字 / 應用日誌，支援搜尋與複製</string>
 </resources>
 

@@ -2176,6 +2176,13 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="vault_audit_title">密钥调用记录</string>
   <string name="vault_audit_desc">最近 %1$d 次密钥调用（保留 500 条 / 30 天）</string>
   <string name="vault_audit_clear">清空调用记录</string>
+  <string name="log_page_title">日志</string>
+  <string name="log_tab_request">请求</string>
+  <string name="log_tab_text">文本</string>
+  <string name="log_tab_app">应用</string>
+  <string name="log_page_search_hint">搜索…</string>
+  <string name="setting_page_request_logs">日志</string>
+  <string name="setting_page_request_logs_desc">请求 / 文本 / 应用日志，支持搜索与复制</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">额度查询</string>
   <string name="quota_master_switch">额度查询</string>

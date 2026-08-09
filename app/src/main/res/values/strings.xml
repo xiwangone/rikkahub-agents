@@ -2174,6 +2174,13 @@
   <string name="vault_audit_title">Key access log</string>
   <string name="vault_audit_desc">Recent %1$d key accesses (kept 500 entries / 30 days)</string>
   <string name="vault_audit_clear">Clear access log</string>
+  <string name="log_page_title">Logs</string>
+  <string name="log_tab_request">Requests</string>
+  <string name="log_tab_text">Text</string>
+  <string name="log_tab_app">App</string>
+  <string name="log_page_search_hint">Search…</string>
+  <string name="setting_page_request_logs">Logs</string>
+  <string name="setting_page_request_logs_desc">Request / text / app logs with search &amp; copy</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">Quota Query</string>
   <string name="quota_master_switch">Quota Query</string>
