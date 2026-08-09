@@ -3,7 +3,9 @@ package me.rerere.rikkahub.ui.pages.setting.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -145,23 +147,21 @@ fun ReasonixProviderConfigure(
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Column {
-            Text(
-                text = "Web 桥（反向隧道）",
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.primary,
-            )
-            Text(
-                text = "手机 Web 服务反向隧道到 ECS，供 Reasonix 调用手机能力",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        Text(
+            text = "Web 桥（反向隧道）",
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
         Switch(
             checked = provider.webBridgeEnabled,
             onCheckedChange = { onEdit(provider.copy(webBridgeEnabled = it)) },
         )
     }
+    Text(
+        text = "手机 Web 服务反向隧道到 ECS，供 Reasonix 调用手机能力",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
     if (provider.webBridgeEnabled) {
         androidx.compose.material3.Surface(
             modifier = Modifier.fillMaxWidth(),
@@ -290,6 +290,11 @@ fun ReasonixProviderConfigure(
             }
         }
     }
+
+    // 分隔：Web 桥区块与下方「是否启用」（整个提供商开关）之间加间距，避免视觉拥挤
+    Spacer(Modifier.height(8.dp))
+    HorizontalDivider()
+    Spacer(Modifier.height(8.dp))
 
     Row(
         modifier = Modifier.fillMaxWidth(),
