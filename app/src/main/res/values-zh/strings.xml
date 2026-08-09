@@ -1148,6 +1148,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_model_page_prompt_translation">翻译</string>
   <string name="setting_model_page_prompt_title">标题生成</string>
   <string name="setting_model_page_prompt_suggestion">聊天回复建议</string>
+  <string name="setting_model_page_ocr_model">OCR 模型</string>
+  <string name="setting_model_page_ocr_model_desc">用于图像光学字符识别的模型</string>
+  <string name="setting_model_page_ocr_prompt_vars">变量：图像数据：{images}</string>
   <string name="setting_model_page_prompt_ocr">OCR识别</string>
   <string name="setting_model_page_prompt_compress">上下文压缩</string>
   <string name="setting_model_page_auto_compress">自动压缩上下文</string>
@@ -1983,6 +1986,20 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="vault_save">保存</string>
   <string name="vault_show">显示</string>
   <string name="vault_hide">隐藏</string>
+  <string name="auto_task_desc">设置自动回复消息，App 将在满足条件时自动发送，无需手动操作。</string>
+  <string name="auto_task_reply_label">回复内容</string>
+  <string name="auto_task_reply_placeholder">继续</string>
+  <string name="auto_task_mode_count">可触发次数</string>
+  <string name="auto_task_count_label">触发次数</string>
+  <string name="auto_task_count_hint">可设置次数上限为 100 次，到达设置次数或次数上限后自动停止触发</string>
+  <string name="auto_task_mode_idle">定时触发</string>
+  <string name="auto_task_idle_label">空闲秒数</string>
+  <string name="auto_task_idle_hint">会话空闲达到指定秒数后自动发送</string>
+  <string name="auto_task_tip">提示：次数模式触发满设置次数后自动停止；定时模式触发后自动任务即清除。</string>
+  <string name="stats_total_input">累计输入</string>
+  <string name="stats_copy_total">复制累计统计</string>
+  <string name="stats_copy">复制统计</string>
+  <string name="stats_format">↑%1$s 输入 (%2$s 命中缓存) ↓%3$s 输出</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">额度查询</string>
   <string name="quota_master_switch">额度查询</string>

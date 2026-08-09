@@ -1110,6 +1110,9 @@
   <string name="setting_model_page_prompt_translation">翻譯</string>
   <string name="setting_model_page_prompt_title">標題生成</string>
   <string name="setting_model_page_prompt_suggestion">聊天回覆建議</string>
+  <string name="setting_model_page_ocr_model">OCR 模型</string>
+  <string name="setting_model_page_ocr_model_desc">用於圖片光學字元識別的模型</string>
+  <string name="setting_model_page_ocr_prompt_vars">變數：圖片資料：{images}</string>
   <string name="setting_model_page_prompt_ocr">OCR 辨識</string>
   <string name="setting_model_page_prompt_compress">上下文壓縮</string>
   <string name="setting_model_page_auto_compress">自動壓縮上下文</string>
@@ -1343,5 +1346,19 @@
   <string name="vault_save">儲存</string>
   <string name="vault_show">顯示</string>
   <string name="vault_hide">隱藏</string>
+  <string name="auto_task_desc">設定自動回覆訊息，App 將在滿足條件時自動發送，無需手動操作。</string>
+  <string name="auto_task_reply_label">回覆內容</string>
+  <string name="auto_task_reply_placeholder">繼續</string>
+  <string name="auto_task_mode_count">可觸發次數</string>
+  <string name="auto_task_count_label">觸發次數</string>
+  <string name="auto_task_count_hint">可設定次數上限為 100 次，到達設定次數或次數上限後自動停止觸發</string>
+  <string name="auto_task_mode_idle">定時觸發</string>
+  <string name="auto_task_idle_label">空閒秒數</string>
+  <string name="auto_task_idle_hint">會話空閒達到指定秒數後自動發送</string>
+  <string name="auto_task_tip">提示：次數模式觸發滿設定次數後自動停止；定時模式觸發後自動任務即清除。</string>
+  <string name="stats_total_input">累計輸入</string>
+  <string name="stats_copy_total">複製累計統計</string>
+  <string name="stats_copy">複製統計</string>
+  <string name="stats_format">↑%1$s 輸入 (%2$s 命中快取) ↓%3$s 輸出</string>
 </resources>
 

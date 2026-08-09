@@ -24,6 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import kotlinx.datetime.toJavaLocalDateTime
@@ -32,6 +33,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.CoinsDollar
 import me.rerere.hugeicons.stroke.Copy01
+import me.rerere.rikkahub.R
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.Zap
@@ -183,7 +185,7 @@ fun ChatMessageNerdLine(
                     ) {
                         Icon(
                             imageVector = HugeIcons.Copy01,
-                            contentDescription = "复制统计",
+                            contentDescription = stringResource(R.string.stats_copy),
                             tint = color,
                             modifier = Modifier.size(14.dp),
                         )
@@ -213,7 +215,7 @@ fun ChatMessageNerdLine(
                         },
                         content = {
                             Text(
-                                text = "↑${sessionTotals.inputTokens.toInt().formatNumber()} 输入 (${sessionTotals.cachedTokens.toInt().formatNumber()} 命中缓存) ↓${sessionTotals.outputTokens.toInt().formatNumber()} 输出",
+                                text = stringResource(R.string.stats_format, sessionTotals.inputTokens.toInt().formatNumber(), sessionTotals.cachedTokens.toInt().formatNumber(), sessionTotals.outputTokens.toInt().formatNumber()),
                             )
                         },
                     )
@@ -228,7 +230,7 @@ fun ChatMessageNerdLine(
                     ) {
                         Icon(
                             imageVector = HugeIcons.Copy01,
-                            contentDescription = "复制累计统计",
+                            contentDescription = stringResource(R.string.stats_copy_total),
                             tint = color,
                             modifier = Modifier.size(14.dp),
                         )

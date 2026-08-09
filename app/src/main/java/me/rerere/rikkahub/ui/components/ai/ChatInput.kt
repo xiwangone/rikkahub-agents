@@ -324,7 +324,7 @@ fun ChatInput(
                         ) {
                             Icon(
                                 imageVector = HugeIcons.Zap,
-                                contentDescription = "自动任务",
+                                contentDescription = stringResource(R.string.auto_task_mode_count),
                             )
                         }
 
@@ -658,12 +658,12 @@ private fun TextInputRow(
             ) {
                 Icon(
                     imageVector = HugeIcons.Upload02,
-                    contentDescription = "累计输入",
+                    contentDescription = stringResource(R.string.stats_total_input),
                     tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
                     modifier = Modifier.size(12.dp),
                 )
                 Text(
-                    text = "↑${sessionTotals.inputTokens.toInt().formatNumber()} 输入 (${sessionTotals.cachedTokens.toInt().formatNumber()} 命中缓存) ↓${sessionTotals.outputTokens.toInt().formatNumber()} 输出",
+                    text = stringResource(R.string.stats_format, sessionTotals.inputTokens.toInt().formatNumber(), sessionTotals.cachedTokens.toInt().formatNumber(), sessionTotals.outputTokens.toInt().formatNumber()),
                     style =
                         MaterialTheme.typography.labelSmall.copy(
                             color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
@@ -680,7 +680,7 @@ private fun TextInputRow(
                 ) {
                     Icon(
                         imageVector = HugeIcons.Copy01,
-                        contentDescription = "复制累计统计",
+                        contentDescription = stringResource(R.string.stats_copy_total),
                         tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
                         modifier = Modifier.size(14.dp),
                     )

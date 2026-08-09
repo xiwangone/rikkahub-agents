@@ -1163,6 +1163,9 @@
   <string name="setting_model_page_prompt_translation">Translation</string>
   <string name="setting_model_page_prompt_title">Title Generation</string>
   <string name="setting_model_page_prompt_suggestion">Chat Reply Suggestions</string>
+  <string name="setting_model_page_ocr_model">OCR Model</string>
+  <string name="setting_model_page_ocr_model_desc">Model used for optical character recognition on images</string>
+  <string name="setting_model_page_ocr_prompt_vars">Variables: Image data: {images}</string>
   <string name="setting_model_page_prompt_ocr">OCR Recognition</string>
   <string name="setting_model_page_prompt_compress">Context Compression</string>
   <string name="setting_model_page_auto_compress">Auto Compress Context</string>
@@ -1981,6 +1984,20 @@
   <string name="vault_save">Save</string>
   <string name="vault_show">Show</string>
   <string name="vault_hide">Hide</string>
+  <string name="auto_task_desc">Set up auto-reply messages; the app will send them automatically when conditions are met, no manual action needed.</string>
+  <string name="auto_task_reply_label">Reply content</string>
+  <string name="auto_task_reply_placeholder">Continue</string>
+  <string name="auto_task_mode_count">Trigger count</string>
+  <string name="auto_task_count_label">Trigger count</string>
+  <string name="auto_task_count_hint">Up to 100 triggers; stops automatically after reaching the set or max count.</string>
+  <string name="auto_task_mode_idle">Timer trigger</string>
+  <string name="auto_task_idle_label">Idle seconds</string>
+  <string name="auto_task_idle_hint">Auto-send after the conversation has been idle for the specified seconds.</string>
+  <string name="auto_task_tip">Note: count mode stops after reaching the set count; timer mode clears the auto task after triggering.</string>
+  <string name="stats_total_input">Total input</string>
+  <string name="stats_copy_total">Copy total stats</string>
+  <string name="stats_copy">Copy stats</string>
+  <string name="stats_format">↑%1$s in (%2$s cached) ↓%3$s out</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">Quota Query</string>
   <string name="quota_master_switch">Quota Query</string>

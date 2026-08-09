@@ -58,7 +58,7 @@ fun AutoTaskDialog(
                 modifier = Modifier.padding(horizontal = 4.dp),
             ) {
                 Text(
-                    text = "设置自动回复消息，App 将在满足条件时自动发送，无需手动操作。",
+                    text = stringResource(R.string.auto_task_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -67,8 +67,8 @@ fun AutoTaskDialog(
                 OutlinedTextField(
                     value = currentMessage,
                     onValueChange = { currentMessage = it },
-                    label = { Text("回复内容") },
-                    placeholder = { Text("继续") },
+                    label = { Text(stringResource(R.string.auto_task_reply_label)) },
+                    placeholder = { Text(stringResource(R.string.auto_task_reply_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                 )
@@ -83,7 +83,7 @@ fun AutoTaskDialog(
                         onClick = { currentMode = 0 },
                     )
                     Text(
-                        text = "可触发次数",
+                        text = stringResource(R.string.auto_task_mode_count),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f),
                     )
@@ -96,9 +96,9 @@ fun AutoTaskDialog(
                                 currentCount = value
                             }
                         },
-                        label = { Text("触发次数") },
+                        label = { Text(stringResource(R.string.auto_task_count_label)) },
                         supportingText = {
-                            Text("可设置次数上限为 100 次，到达设置次数或次数上限后自动停止触发")
+                            Text(stringResource(R.string.auto_task_count_hint))
                         },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
@@ -116,7 +116,7 @@ fun AutoTaskDialog(
                         onClick = { currentMode = 1 },
                     )
                     Text(
-                        text = "定时触发",
+                        text = stringResource(R.string.auto_task_mode_idle),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f),
                     )
@@ -129,8 +129,8 @@ fun AutoTaskDialog(
                                 currentInterval = value
                             }
                         },
-                        label = { Text("空闲秒数") },
-                        supportingText = { Text("会话空闲达到指定秒数后自动发送") },
+                        label = { Text(stringResource(R.string.auto_task_idle_label)) },
+                        supportingText = { Text(stringResource(R.string.auto_task_idle_hint)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
@@ -140,7 +140,7 @@ fun AutoTaskDialog(
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
-                    text = "提示：次数模式触发满设置次数后自动停止；定时模式触发后自动任务即清除。",
+                    text = stringResource(R.string.auto_task_tip),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
                 )

@@ -1114,6 +1114,9 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_model_page_prompt_translation">翻訳</string>
   <string name="setting_model_page_prompt_title">タイトル生成</string>
   <string name="setting_model_page_prompt_suggestion">チャット返信の提案</string>
+  <string name="setting_model_page_ocr_model">OCRモデル</string>
+  <string name="setting_model_page_ocr_model_desc">画像の光学文字認識に使用されるモデル</string>
+  <string name="setting_model_page_ocr_prompt_vars">変数: 画像データ: {images}</string>
   <string name="setting_model_page_prompt_ocr">OCR認識</string>
   <string name="setting_model_page_prompt_compress">コンテキスト圧縮</string>
   <string name="setting_display_page_bubble_opacity_title">吹き出しの不透明度</string>
