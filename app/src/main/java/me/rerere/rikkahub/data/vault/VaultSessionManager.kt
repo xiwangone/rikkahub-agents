@@ -43,7 +43,7 @@ class VaultSessionManager(private val context: Context) {
      */
     suspend fun issueToken(): String {
         val secret = ByteArray(32).also { SecureRandom().nextBytes(it) }
-        val secretB64 = Base64.getEncoder().encodeToString(secret)
+        val secretB64 = Base64.encodeToString(secret, Base64.NO_WRAP)
         val now = System.currentTimeMillis()
         context.vaultSessionStore.edit { prefs ->
             prefs[Keys.SECRET] = secretB64
@@ -79,11 +79,11 @@ class VaultSessionManager(private val context: Context) {
 
     private fun sign(secretB64: String, expiry: Long): String {
         val mac = Mac.getInstance("HmacSHA256")
-        val key = SecretKeySpec(Base64.getDecoder().decode(secretB64), "HmacSHA256")
+        val key = SecretKeySpec(Base64.decode(secretB64, Base64.NO_WRAP), "HmacSHA256")
         mac.init(key)
         val payload = expiry.toString()
         val sig = mac.doFinal(payload.encodeToByteArray())
-        return "$expiry.${Base64.getEncoder().encodeToString(sig)}"
+        return "$expiry.${Base64.encodeToString(sig, Base64.NO_WRAP)}"
     }
 
     private fun constantTimeEquals(a: String, b: String): Boolean =
