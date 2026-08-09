@@ -3,7 +3,7 @@ package me.rerere.rikkahub.data.vault
 import me.rerere.rikkahub.data.datastore.ProviderCredentialCipher
 import me.rerere.rikkahub.data.db.dao.VaultAuditLogDao
 import me.rerere.rikkahub.data.db.dao.VaultCredentialDao
-import me.rerere.rikkahub.data.db.entity.VaultAuditLogDefaults
+import me.rerere.rikkahub.data.db.entity.VaultAuditDefaults
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 
