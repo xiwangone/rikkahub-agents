@@ -9,6 +9,18 @@
 
 - **功能** 密钥库凭证体系 MVP（Credential Vault）— 设置页「Credential Vault」入口 + 密钥列表三级页（分组展示/小眼睛显隐/新增/编辑/删除）+ SAF 文件导入 load-creds.sh + AES-GCM 密文入库（AndroidKeyStore 托管密钥）（`3b933718` / `bea70707`）
 - **修复** VaultCredentialDao `ORDER BY group` — `group` 为 SQLite 保留字，KSP 编译失败；先后尝试反引号转义（KSP 报 No property named value），最终改为非保留字列名 `grp`（`09cf384d` / `bea70707`）
+- **功能** 安全凭证库统一命名 + 多语言（中/繁/英）+ 设置入口移至模型与服务第一项 + 页面文本全部资源化（`fd230859`）
+- **功能** 加回 OCR 模型设置与提示词选项（对照官方，OcrPrompt.kt + SettingModelPage/SettingModelPromptPage）+ 硬编码资源化第一批（AutoTaskDialog/ChatInput/NerdLine 11 处）（`07a084ad`）
+- **功能** Doctor 诊断页资源化 — label/FixAction 改 @StringRes + 三语言资源包 150 key（`bad1417e`）
+- **功能** Vault 指纹门禁 — 查看凭证明文前 BiometricPrompt 验证（复用 ToolHostActivity 承载）+ 开关偏好（`dc2a0e04`）
+- **功能** Vault 导出 — 口令加密 .vault 包（PBKDF2-HMAC-SHA256 20 万次 + AES-GCM）+ SAF 保存 + 导出前指纹门禁（`bc9e4590`）
+- **功能** Vault 密钥分组下拉选择/新建 + 加密备份恢复（.vault 含分组）（`33f27bb7`）
+- **功能** 密钥调用审计日志 — 每次查看/导出/备份留痕 + 双上限清理（500 条 / 30 天）（`58865775`）
+- **功能** 日志页三级分类 — 请求/文本/应用 Tab 切换 + 文本搜索 + 入口更名「日志」（`e2e5a870`）
+- **功能** Vault 阶段 2 — 会话 token（HMAC-SHA256，30 分钟 TTL）+ 解密 API（POST /api/vault/decrypt）+ 解锁会话 UI（`b375d990`）
+- **功能** 累计 token 行双指标 — 本轮命中率 + 平均命中率（UI 中文/复制英文）（`bc45e614` / `c6b695e5`）
+- **功能** Web 设置页分两区（正常 Web + Web 桥全局配置）+ 提供商编辑页隐藏类型切换（去掉其他配置里的 Reasonix 选项）（`d0db6eac`）
+- **chore** 清理 90 个孤儿资源 key（doctor_ detail/工具名 + vault_/log_，三语言同步）+ 更新 3 处过时注释（`5667946e`）
 - **chore** versionName 2.45.3 → 2.45.5（versionCode 174）
 
 ## 2026-08-06
