@@ -119,7 +119,7 @@ object AgentOverlay {
             lp.width = (BAR_WIDTH_DP * density).toInt()
             lp.height = (BAR_HEIGHT_DP * density).toInt()
             (dot as TextView).text = ""
-            (dot.background as? GradientDrawable)?.cornerRadius = (4 * density).toInt()
+            (dot.background as? GradientDrawable)?.cornerRadius = (4 * density)
         } else {
             // 未贴边：pill（显示工作状态文字）
             lp.width = WindowManager.LayoutParams.WRAP_CONTENT
@@ -172,7 +172,7 @@ object AgentOverlay {
             setPadding((10 * density).toInt(), (8 * density).toInt(), (10 * density).toInt(), (8 * density).toInt())
             background =
                 GradientDrawable().apply {
-                    cornerRadius = (12 * density).toInt()
+                    cornerRadius = (12 * density)
                     setColor(0xE6202020.toInt())
                 }
         }
