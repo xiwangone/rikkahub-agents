@@ -676,15 +676,8 @@ private fun TextInputRow(
                     } else {
                         "0.0%"
                     }
-                // 本轮命中率：最近一条消息的 cached / prompt
-                val lastPct =
-                    if (sessionTotals.lastRequestHitPct > 0) {
-                        String.format(java.util.Locale.US, "%.1f%%", sessionTotals.lastRequestHitPct * 100.0)
-                    } else {
-                        "0.0%"
-                    }
                 Text(
-                    text = stringResource(R.string.stats_format, totalInput, totalCached, totalOutput, lastPct, avgPct),
+                    text = stringResource(R.string.stats_format, totalInput, avgPct, totalOutput),
                     style =
                         MaterialTheme.typography.labelSmall.copy(
                             color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
@@ -694,8 +687,13 @@ private fun TextInputRow(
                     modifier =
                         Modifier
                             .clickable(onClick = {
+                                // 对照本轮统计（NerdLine）复制格式：↑X tokens (Y cached · Z%) ↓W tokens
                                 pendingSessionTotalsCopy =
-                                    "↑${totalInput} tokens (${totalCached} cached · last ${lastPct} · avg ${avgPct}) ↓${totalOutput} tokens"
+                                    if (sessionTotals.cachedTokens > 0 && sessionTotals.inputTokens > 0) {
+                                        "↑${totalInput} tokens (${totalCached} cached · ${avgPct}) ↓${totalOutput} tokens"
+                                    } else {
+                                        "↑${totalInput} tokens ↓${totalOutput} tokens"
+                                    }
                             })
                             .padding(2.dp),
                 ) {
