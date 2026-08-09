@@ -86,6 +86,18 @@ fun SettingWebPage() {
     var accessPasswordText by remember(settings.webServerAccessPassword) {
         mutableStateOf(settings.webServerAccessPassword)
     }
+    var webBridgeEcsHost by remember(settings.webBridgeEcsHost) {
+        mutableStateOf(settings.webBridgeEcsHost)
+    }
+    var webBridgeEcsUser by remember(settings.webBridgeEcsUser) {
+        mutableStateOf(settings.webBridgeEcsUser)
+    }
+    var webBridgeSshPort by remember(settings.webBridgeEcsPort) {
+        mutableStateOf(settings.webBridgeEcsPort.toString())
+    }
+    var webBridgeRemotePort by remember(settings.webBridgeRemotePort) {
+        mutableStateOf(settings.webBridgeRemotePort.toString())
+    }
     var passwordVisible by remember {
         mutableStateOf(false)
     }
@@ -202,6 +214,116 @@ fun SettingWebPage() {
             contentPadding = innerPadding + PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            item {
+                CardGroup(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                    title = { Text(stringResource(R.string.setting_web_bridge_title)) },
+                ) {
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_web_bridge_desc)) },
+                        supportingContent = { Text(stringResource(R.string.setting_web_bridge_desc_detail)) },
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_web_bridge_ecs_host)) },
+                        trailingContent = {
+                            TextField(
+                                value = webBridgeEcsHost,
+                                onValueChange = {
+                                    webBridgeEcsHost = it
+                                    scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsHost = it.trim()) } }
+                                },
+                                singleLine = true,
+                                modifier = Modifier.width(160.dp),
+                                shape = CircleShape,
+                                colors =
+                                    TextFieldDefaults.colors(
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent,
+                                        errorIndicatorColor = Color.Transparent,
+                                        disabledIndicatorColor = Color.Transparent,
+                                    ),
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_web_bridge_ecs_user)) },
+                        trailingContent = {
+                            TextField(
+                                value = webBridgeEcsUser,
+                                onValueChange = {
+                                    webBridgeEcsUser = it
+                                    scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsUser = it.trim()) } }
+                                },
+                                singleLine = true,
+                                modifier = Modifier.width(120.dp),
+                                shape = CircleShape,
+                                colors =
+                                    TextFieldDefaults.colors(
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent,
+                                        errorIndicatorColor = Color.Transparent,
+                                        disabledIndicatorColor = Color.Transparent,
+                                    ),
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_web_bridge_ssh_port)) },
+                        trailingContent = {
+                            TextField(
+                                value = webBridgeSshPort,
+                                onValueChange = {
+                                    webBridgeSshPort = it
+                                    it.toIntOrNull()?.let { port ->
+                                        scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsPort = port) } }
+                                    }
+                                },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.width(100.dp),
+                                shape = CircleShape,
+                                colors =
+                                    TextFieldDefaults.colors(
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent,
+                                        errorIndicatorColor = Color.Transparent,
+                                        disabledIndicatorColor = Color.Transparent,
+                                    ),
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = { Text(stringResource(R.string.setting_web_bridge_remote_port)) },
+                        supportingContent = { Text(stringResource(R.string.setting_web_bridge_remote_port_desc)) },
+                        trailingContent = {
+                            TextField(
+                                value = webBridgeRemotePort,
+                                onValueChange = {
+                                    webBridgeRemotePort = it
+                                    it.toIntOrNull()?.let { port ->
+                                        scope.launch { settingsStore.update { s -> s.copy(webBridgeRemotePort = port) } }
+                                    }
+                                },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                modifier = Modifier.width(100.dp),
+                                shape = CircleShape,
+                                colors =
+                                    TextFieldDefaults.colors(
+                                        focusedIndicatorColor = Color.Transparent,
+                                        unfocusedIndicatorColor = Color.Transparent,
+                                        errorIndicatorColor = Color.Transparent,
+                                        disabledIndicatorColor = Color.Transparent,
+                                    ),
+                            )
+                        },
+                    )
+                }
+            }
+
             item {
                 CardGroup(
                     modifier =

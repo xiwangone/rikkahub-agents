@@ -185,6 +185,12 @@ class SettingsStore(
         val WEB_SERVER_ACCESS_PASSWORD = stringPreferencesKey("web_server_access_password")
         val WEB_SERVER_LOCALHOST_ONLY = booleanPreferencesKey("web_server_localhost_only")
 
+        // Web 桥（全局配置，SSH 反向隧道到 ECS）
+        val WEB_BRIDGE_ECS_HOST = stringPreferencesKey("web_bridge_ecs_host")
+        val WEB_BRIDGE_ECS_USER = stringPreferencesKey("web_bridge_ecs_user")
+        val WEB_BRIDGE_ECS_PORT = intPreferencesKey("web_bridge_ecs_port")
+        val WEB_BRIDGE_REMOTE_PORT = intPreferencesKey("web_bridge_remote_port")
+
         // AI logging
         val AI_LOG_LEVEL = stringPreferencesKey("ai_log_level")
 
@@ -308,6 +314,10 @@ class SettingsStore(
                 } ?: emptyList(),
                 webServerEnabled = preferences[WEB_SERVER_ENABLED] == true,
                 webServerPort = preferences[WEB_SERVER_PORT] ?: 8080,
+                webBridgeEcsHost = preferences[WEB_BRIDGE_ECS_HOST] ?: "",
+                webBridgeEcsUser = preferences[WEB_BRIDGE_ECS_USER] ?: "root",
+                webBridgeEcsPort = preferences[WEB_BRIDGE_ECS_PORT] ?: 22,
+                webBridgeRemotePort = preferences[WEB_BRIDGE_REMOTE_PORT] ?: 8080,
                 webServerJwtEnabled = preferences[WEB_SERVER_JWT_ENABLED] == true,
                 webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD] ?: "",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
@@ -568,6 +578,10 @@ class SettingsStore(
             preferences[QUICK_MESSAGES] = JsonInstant.encodeToString(settings.quickMessages)
             preferences[WEB_SERVER_ENABLED] = settings.webServerEnabled
             preferences[WEB_SERVER_PORT] = settings.webServerPort
+            preferences[WEB_BRIDGE_ECS_HOST] = settings.webBridgeEcsHost
+            preferences[WEB_BRIDGE_ECS_USER] = settings.webBridgeEcsUser
+            preferences[WEB_BRIDGE_ECS_PORT] = settings.webBridgeEcsPort
+            preferences[WEB_BRIDGE_REMOTE_PORT] = settings.webBridgeRemotePort
             preferences[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
             preferences[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
             preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
@@ -753,6 +767,11 @@ data class Settings(
     val quickMessages: List<QuickMessage> = emptyList(),
     val webServerEnabled: Boolean = false,
     val webServerPort: Int = 8080,
+    /** Web 桥全局配置：SSH 反向隧道到 ECS（手机 web 服务映射到远端端口） */
+    val webBridgeEcsHost: String = "",
+    val webBridgeEcsUser: String = "root",
+    val webBridgeEcsPort: Int = 22,
+    val webBridgeRemotePort: Int = 8080,
     val webServerJwtEnabled: Boolean = false,
     val webServerAccessPassword: String = "",
     val webServerLocalhostOnly: Boolean = false,

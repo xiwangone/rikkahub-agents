@@ -92,13 +92,16 @@ import kotlin.reflect.KClass
 fun ProviderConfigure(
     provider: ProviderSetting,
     modifier: Modifier = Modifier,
+    showTypeSwitcher: Boolean = false,
     onEdit: (provider: ProviderSetting) -> Unit,
 ) {
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         modifier = modifier,
     ) {
-        if (!provider.builtIn) {
+        // 类型切换仅「添加提供商」时显示（新建可选类型）；
+        // 编辑已有 provider 时不显示，避免在 OpenAI 配置页误切到 Reasonix 等丢配置
+        if (showTypeSwitcher && !provider.builtIn) {
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 ProviderSetting.Types.forEachIndexed { index, type ->
                     SegmentedButton(

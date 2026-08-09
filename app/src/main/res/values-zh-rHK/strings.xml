@@ -1460,5 +1460,13 @@
   <string name="vault_session_copy">複製</string>
   <string name="vault_session_revoke">撤銷</string>
   <string name="vault_session_copied">已複製</string>
+  <string name="setting_web_bridge_title">Web 橋</string>
+  <string name="setting_web_bridge_desc">SSH 反向隧道到 ECS</string>
+  <string name="setting_web_bridge_desc_detail">把手機 Web 服務映射到 ECS 遠端埠，遠端服務（Reasonix 等）可經隧道呼叫手機 API。</string>
+  <string name="setting_web_bridge_ecs_host">ECS 主機</string>
+  <string name="setting_web_bridge_ecs_user">ECS 使用者</string>
+  <string name="setting_web_bridge_ssh_port">SSH 埠</string>
+  <string name="setting_web_bridge_remote_port">遠端埠</string>
+  <string name="setting_web_bridge_remote_port_desc">ECS 上映射到手機 Web 服務的埠</string>
 </resources>
 

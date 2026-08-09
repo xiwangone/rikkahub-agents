@@ -2096,6 +2096,14 @@
   <string name="vault_session_copy">Copy</string>
   <string name="vault_session_revoke">Revoke</string>
   <string name="vault_session_copied">Copied</string>
+  <string name="setting_web_bridge_title">Web bridge</string>
+  <string name="setting_web_bridge_desc">SSH reverse tunnel to ECS</string>
+  <string name="setting_web_bridge_desc_detail">Map the phone web server to the ECS remote port, so remote services (Reasonix etc.) can call phone APIs over the tunnel.</string>
+  <string name="setting_web_bridge_ecs_host">ECS host</string>
+  <string name="setting_web_bridge_ecs_user">ECS user</string>
+  <string name="setting_web_bridge_ssh_port">SSH port</string>
+  <string name="setting_web_bridge_remote_port">Remote port</string>
+  <string name="setting_web_bridge_remote_port_desc">Port on ECS that maps to the phone web server</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">Quota Query</string>
   <string name="quota_master_switch">Quota Query</string>

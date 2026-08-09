@@ -528,7 +528,7 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
                                 .heightIn(max = 420.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        ProviderConfigure(it) { newState ->
+                        ProviderConfigure(it, showTypeSwitcher = true) { newState ->
                             dialogState.currentState = newState
                         }
                     }
