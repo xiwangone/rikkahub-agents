@@ -24,6 +24,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -35,6 +36,8 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.ReasonixWebBridge
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.SshKeyGenerator
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.koin.compose.koinInject
 
@@ -225,6 +228,67 @@ fun ReasonixProviderConfigure(
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
+        // 生成新 SSH 密钥
+        var generatedKeyInfo by remember { mutableStateOf<String?>(null) }
+        var saveToVault by remember { mutableStateOf(true) }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            androidx.compose.material3.OutlinedButton(
+                onClick = {
+                    val key = SshKeyGenerator.generate()
+                    val context = LocalContext.current
+                    scope.launch {
+                        runCatching {
+                            if (saveToVault) {
+                                // 保存到密钥库：分组 SSH + 描述
+                                val vaultRepo: CredentialVaultRepository = koinInject()
+                                vaultRepo.save(
+                                    name = "WEB_BRIDGE_SSH_KEY",
+                                    value = key.privateKeyPem,
+                                    description = "Web 桥 SSH 私钥（${provider.name}，${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())} 生成）",
+                                    group = "SSH",
+                                )
+                                generatedKeyInfo = "✅ 已生成并保存到密钥库（分组：SSH）\n公钥请添加到 ECS ~/.ssh/authorized_keys：\n${key.publicKeyLine}"
+                            } else {
+                                // 保存到 App 文件目录
+                                val dir = java.io.File(context.filesDir, "ssh_keys").apply { mkdirs() }
+                                val file = java.io.File(dir, "web_bridge_rsa")
+                                file.writeText(key.privateKeyPem)
+                                file.setReadable(false, true)
+                                file.setWritable(false, true)
+                                onEdit(provider.copy(webBridgePrivateKeyPath = file.absolutePath))
+                                generatedKeyInfo = "✅ 已生成到 ${file.absolutePath}\n公钥请添加到 ECS ~/.ssh/authorized_keys：\n${key.publicKeyLine}"
+                            }
+                        }.onFailure { e ->
+                            generatedKeyInfo = "❌ 生成失败: ${e.message}"
+                        }
+                    }
+                },
+                modifier = Modifier.weight(1f),
+            ) {
+                Text("生成新 SSH 密钥")
+            }
+            Text(
+                "保存到密钥库",
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.weight(1f),
+            )
+            androidx.compose.material3.Switch(
+                checked = saveToVault,
+                onCheckedChange = { saveToVault = it },
+            )
+        }
+        generatedKeyInfo?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.primary,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
         OutlinedTextField(
             value = provider.webBridgePassword,
             onValueChange = { onEdit(provider.copy(webBridgePassword = it)) },
