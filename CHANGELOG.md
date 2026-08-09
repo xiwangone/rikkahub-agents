@@ -5,6 +5,12 @@
 
 ---
 
+## 2026-08-09
+
+- **功能** 密钥库凭证体系 MVP（Credential Vault）— 设置页「Credential Vault」入口 + 密钥列表三级页（分组展示/小眼睛显隐/新增/编辑/删除）+ SAF 文件导入 load-creds.sh + AES-GCM 密文入库（AndroidKeyStore 托管密钥）（`3b933718` / `bea70707`）
+- **修复** VaultCredentialDao `ORDER BY group` — `group` 为 SQLite 保留字，KSP 编译失败；先后尝试反引号转义（KSP 报 No property named value），最终改为非保留字列名 `grp`（`09cf384d` / `bea70707`）
+- **chore** versionName 2.45.3 → 2.45.5（versionCode 174）
+
 ## 2026-08-06
 
 - **功能** 缓存命中优化（目标 50%→90%+）：`limitContext` 改「保前缀、只从末尾回收」（`c378dd4`）；tool schema 规范化排序保证跨轮前缀字节稳定（`8fd0645` / `7613917`）
