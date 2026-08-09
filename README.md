@@ -57,7 +57,7 @@ Tap, swipe, scroll, type, take screenshots, open apps, adjust brightness/volume,
 
 ### Telegram Bot
 
-Talk to your assistant from anywhere. Send a question, photo, PDF, or voice note. Approval prompts use simple Yes/No buttons. When the AI needs input, it pops a tappable multiple-choice question right in the chat. Long messages arrive as downloadable files. Message bursts are paced to avoid Telegram rate limits.
+Talk to your assistant from anywhere. Send a question, photo, PDF, or voice note. Approval prompts use simple Yes/No buttons. When the AI needs input, it pops a tappable multiple-choice question right in the chat. Long messages arrive as downloadable files. Message bursts are paced to avoid Telegram rate limits. Where Telegram is blocked, point the bot at a SOCKS5 or HTTP proxy in its settings; the proxy covers the bot's own traffic only.
 
 ### In-App Browser
 
@@ -98,7 +98,11 @@ Drop a Markdown skill file and the AI gains a new playbook. A bundled catalog sh
 
 ### Sub-Agents
 
-For long tasks, the main assistant dispatches focused sub-agents into clean side-contexts, optionally on smaller, cheaper models. Run multiple in parallel. Each result comes back as a single summary. `/stop` cascades cancellation through every active child in one tick.
+For long tasks, the main assistant dispatches focused sub-agents into clean side-contexts, optionally on smaller, cheaper models: name a model when you dispatch and that sub-agent runs on it, so cheap work does not have to share the main model. Run multiple in parallel. Each result comes back as a single summary. `/stop` cascades cancellation through every active child in one tick.
+
+### Context Compaction
+
+Long agent runs fill the context window and eventually fail. Compaction summarizes older turns automatically when usage crosses a threshold you set, keeping recent tool calls and their results so the assistant does not lose the thread. Summaries are written alongside the conversation rather than over it, so the original messages stay readable. Can also be triggered by hand.
 
 ### Doctor
 
