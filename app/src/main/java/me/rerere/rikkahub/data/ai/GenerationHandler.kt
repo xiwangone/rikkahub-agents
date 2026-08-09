@@ -278,6 +278,7 @@ class GenerationHandler(
     private val memoryRepo: MemoryRepository,
     private val conversationRepo: ConversationRepository,
     private val aiLoggingManager: AILoggingManager,
+    private val systemPromptBuilder: SystemPromptBuilder,
 ) {
     fun generateText(
         settings: Settings,
@@ -968,32 +969,29 @@ class GenerationHandler(
                 } else {
                     assistant.systemPrompt
                 }
+            val memoryPrompt = if (assistant.enableMemory) {
+                buildMemoryPrompt(memories = memories)
+            } else ""
+            val recentChatsPrompt = if (assistant.enableRecentChatsReference) {
+                buildRecentChatsPrompt(assistant, conversationRepo)
+            } else ""
             val toolPrompts = tools.map { tool -> tool.systemPrompt(model, messages) }
-            // 对照版（test/cache-official）：完全官方写法——buildString 单 SYSTEM
-            // （assistant + memory + tools），无 stable/volatile 分段、无 recentChats/addendum。
-            // 保留 e1033fac 的单行 addAll（消息重复添加修复）。
-            val system = buildString {
-                val effectiveSystemPrompt =
-                    if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
-                        conversationSystemPrompt
-                    } else {
-                        assistant.systemPrompt
-                    }
-                if (effectiveSystemPrompt.isNotBlank()) {
-                    append(effectiveSystemPrompt)
-                }
-                if (assistant.enableMemory) {
-                    appendLine()
-                    append(buildMemoryPrompt(memories = memories))
-                }
-                toolPrompts.forEach { toolPrompt ->
-                    if (toolPrompt.isNotBlank()) {
-                        appendLine()
-                        append(toolPrompt)
-                    }
-                }
+            // 对照版（test/extv-style）：ExTV 写法——SystemPromptBuilder stable/volatile 分段，
+            // volatile（memory/recentChats/addendum）在 SYSTEM 内。保留单行 addAll 修复。
+            val (stableSystem, volatileSystem) = systemPromptBuilder.buildSections(
+                assistantPrompt = effectiveSystemPrompt,
+                memoryPrompt = memoryPrompt,
+                recentChatsPrompt = recentChatsPrompt,
+                toolPrompts = toolPrompts,
+                systemAddendum = systemAddendum,
+            )
+            val systemParts = buildList {
+                if (stableSystem.isNotBlank()) add(UIMessagePart.Text(stableSystem))
+                if (volatileSystem.isNotBlank()) add(UIMessagePart.Text(volatileSystem))
             }
-            if (system.isNotBlank()) add(UIMessage.system(prompt = system))
+            if (systemParts.isNotEmpty()) {
+                add(UIMessage(role = MessageRole.SYSTEM, parts = systemParts))
+            }
             addAll(messages.limitContext(assistant.contextMessageLimit).ageOldToolImages())
         }.transforms(
             transformers = transformers,

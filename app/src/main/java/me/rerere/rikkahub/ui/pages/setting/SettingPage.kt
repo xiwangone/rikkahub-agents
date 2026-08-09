@@ -52,6 +52,7 @@ import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Clapping01
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.CoinsDollar
+import me.rerere.hugeicons.stroke.LockKey
 import me.rerere.hugeicons.stroke.Connect
 import me.rerere.hugeicons.stroke.Console
 import me.rerere.hugeicons.stroke.Database02
@@ -275,6 +276,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         leadingContent = { Icon(HugeIcons.CoinsDollar, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_quota_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_quota)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.Vault) },
+                        leadingContent = { Icon(HugeIcons.LockKey, null) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_vault_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_vault)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingTermux) },

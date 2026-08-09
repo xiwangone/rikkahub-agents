@@ -29,6 +29,7 @@ import me.rerere.rikkahub.data.codex.CodexCredentialStore
 import me.rerere.rikkahub.data.codex.CodexOAuthManager
 import me.rerere.rikkahub.data.codex.CodexProvider
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.fts.MessageFtsManager
 import me.rerere.rikkahub.data.db.fts.SimpleDictManager
@@ -161,6 +162,13 @@ val dataSourceModule =
         }
 
         single {
+            get<AppDatabase>().vaultCredentialDao()
+        }
+        single {
+            CredentialVaultRepository(get())
+        }
+
+        single {
             MessageFtsManager(get())
         }
 
@@ -189,6 +197,7 @@ val dataSourceModule =
                 memoryRepo = get(),
                 conversationRepo = get(),
                 aiLoggingManager = get(),
+                systemPromptBuilder = get(),
             )
         }
 

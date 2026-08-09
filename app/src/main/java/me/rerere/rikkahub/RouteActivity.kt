@@ -122,6 +122,8 @@ import me.rerere.rikkahub.ui.pages.setting.SettingPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
 import me.rerere.rikkahub.ui.pages.setting.SettingQuotaPage
+import me.rerere.rikkahub.ui.pages.setting.VaultCredentialsPage
+import me.rerere.rikkahub.ui.pages.setting.VaultPage
 import me.rerere.rikkahub.ui.pages.setting.QuotaConsolePage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
@@ -427,6 +429,14 @@ class RouteActivity : ComponentActivity() {
                                 SettingQuotaPage()
                             }
 
+                            entry<Screen.Vault> {
+                                VaultPage()
+                            }
+
+                            entry<Screen.VaultCredentials> {
+                                VaultCredentialsPage()
+                            }
+
                             entry<Screen.QuotaConsole> { key ->
                                 QuotaConsolePage(key.providerId)
                             }
@@ -721,6 +731,12 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingQuota : Screen
+
+    @Serializable
+    data object Vault : Screen
+
+    @Serializable
+    data object VaultCredentials : Screen
 
     @Serializable
     data class QuotaConsole(val providerId: String) : Screen

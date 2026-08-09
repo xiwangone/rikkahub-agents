@@ -19,6 +19,7 @@ import me.rerere.rikkahub.data.db.dao.ScheduledJobDao
 import me.rerere.rikkahub.data.db.dao.ScheduledJobRunDao
 import me.rerere.rikkahub.data.db.dao.SshHostDao
 import me.rerere.rikkahub.data.db.dao.TelegramChatDao
+import me.rerere.rikkahub.data.db.dao.VaultCredentialDao
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
@@ -31,6 +32,7 @@ import me.rerere.rikkahub.data.db.entity.ScheduledJobEntity
 import me.rerere.rikkahub.data.db.entity.ScheduledJobRunEntity
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.db.entity.TelegramChatEntity
+import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.db.migrations.Migration_16_17
 import me.rerere.rikkahub.data.db.migrations.Migration_20_21
@@ -60,8 +62,9 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         AgentRun::class,
         WorkspaceEntity::class,
         FolderEntity::class,
+        VaultCredentialEntity::class,
     ],
-    version = 27,
+    version = 28,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -90,6 +93,9 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // table) plus a folder_id column on ConversationEntity (defaultValue ""). Both are pure
         // additions; upstream numbered it as their v24, folded into the fork's version space here.
         AutoMigration(from = 26, to = 27),
+        // v28: 密钥库凭证表（VaultCredentialEntity -> vault_credentials）。纯新增表，
+        // 无既有数据迁移，auto-migration 即可。
+        AutoMigration(from = 27, to = 28),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -123,6 +129,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun workspaceDao(): WorkspaceDAO
 
     abstract fun folderDao(): FolderDAO
+
+    abstract fun vaultCredentialDao(): VaultCredentialDao
 }
 
 object TokenUsageConverter {

@@ -1946,6 +1946,10 @@
   <string name="setting_files_page_batch_delete">Batch Delete</string>
   <string name="setting_files_page_batch_delete_confirm">Delete the %1$d selected files?</string>
 
+  <!-- Credential Vault / 密钥库凭证 -->
+  <string name="setting_vault_title">Credential Vault</string>
+  <string name="setting_page_vault">Credential Vault</string>
+  <string name="setting_page_vault_desc">Manage API keys and credentials securely</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">Quota Query</string>
   <string name="quota_master_switch">Quota Query</string>
