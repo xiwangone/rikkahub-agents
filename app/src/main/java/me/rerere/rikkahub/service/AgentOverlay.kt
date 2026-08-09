@@ -21,6 +21,8 @@ import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.quota.QuotaAggregate
 import me.rerere.rikkahub.data.quota.QuotaSnapshotHolder
 import me.rerere.rikkahub.data.quota.QuotaStatus
+import org.koin.core.component.KoinComponent
+import org.koin.core.component.get
 
 /**
  * Agent 工作状态悬浮窗（可交互版）。
@@ -38,7 +40,7 @@ import me.rerere.rikkahub.data.quota.QuotaStatus
  * 数据源：Agent 运行期间由 GenerationHandler 调用 show()；额度快照由
  * [updateQuota] 更新（QuotaConsolePage 捕获 → QuotaAggregate）。
  */
-object AgentOverlay {
+object AgentOverlay : KoinComponent {
     private const val TAG = "AgentOverlay"
 
     @Volatile private var rootView: View? = null
@@ -46,7 +48,8 @@ object AgentOverlay {
     private var expandedView: LinearLayout? = null
     private var isExpanded = false
     private var latestQuota: QuotaAggregate? = null
-    private var latestText: String = "The agent is working"
+    private var latestTokenStats: me.rerere.rikkahub.costguards.TokenBudgetTracker.Totals? = null
+    private var latestText: String = "Agent 工作中"
     private var quotaJob: Job? = null
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -55,7 +58,7 @@ object AgentOverlay {
 
     fun show(
         context: Context,
-        text: String = "The agent is working",
+        text: String = "Agent 工作中",
     ) {
         latestText = text
         val app = context.applicationContext
@@ -92,6 +95,12 @@ object AgentOverlay {
             (dot.background as? GradientDrawable)?.setColor(statusColor(aggregate))
             refreshExpanded()
         }
+    }
+
+    /** 更新本轮/累计 token 统计（ChatVM sessionTotals 联动）。 */
+    fun updateTokenStats(totals: me.rerere.rikkahub.costguards.TokenBudgetTracker.Totals?) {
+        latestTokenStats = totals
+        mainHandler.post { refreshExpanded() }
     }
 
     private fun statusColor(aggregate: QuotaAggregate?): Int =
@@ -292,6 +301,32 @@ object AgentOverlay {
             }
         expanded.addView(statusRow)
 
+        // 本轮/累计 token 统计行（与聊天底部统计条联动）
+        val totals = latestTokenStats
+        if (totals != null) {
+            val tokenRow =
+                TextView(expanded.context).apply {
+                    text =
+                        buildString {
+                            append("📈 输入 ${totals.inputTokens} · 命中 ")
+                            if (totals.cachedTokens > 0 && totals.inputTokens > 0) {
+                                append(
+                                    "%.1f%%".format(
+                                        totals.cachedTokens.toDouble() / totals.inputTokens.toDouble() * 100.0,
+                                    ),
+                                )
+                            } else {
+                                append("0.0%")
+                            }
+                            append(" ↓${totals.outputTokens} 输出")
+                        }
+                    setTextColor(Color.LTGRAY)
+                    setTextSize(TypedValue.COMPLEX_UNIT_SP, 11f)
+                    setPadding(0, (2 * density).toInt(), 0, (2 * density).toInt())
+                }
+            expanded.addView(tokenRow)
+        }
+
         // 额度行
         val quota = latestQuota
         if (quota == null || quota.snapshots.isEmpty()) {
@@ -320,6 +355,22 @@ object AgentOverlay {
                 expanded.addView(row)
             }
         }
+
+        // 刷新按钮（点击发事件 → QuotaConsolePage 重新解析）
+        val refreshRow =
+            TextView(expanded.context).apply {
+                text = "🔄 刷新额度数据"
+                setTextColor(Color.CYAN)
+                setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+                setPadding(0, (8 * density).toInt(), 0, (2 * density).toInt())
+                setOnClickListener {
+                    runCatching {
+                        get<me.rerere.rikkahub.data.event.AppEventBus>()
+                            .tryEmit(me.rerere.rikkahub.data.event.AppEvent.QuotaRefreshRequested)
+                    }
+                }
+            }
+        expanded.addView(refreshRow)
     }
 
     private fun hideInternal(app: Context) {
