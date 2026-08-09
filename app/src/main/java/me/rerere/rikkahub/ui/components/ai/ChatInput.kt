@@ -665,7 +665,8 @@ private fun TextInputRow(
                 val totalInput = sessionTotals.inputTokens.toInt().formatNumber()
                 val totalCached = sessionTotals.cachedTokens.toInt().formatNumber()
                 val totalOutput = sessionTotals.outputTokens.toInt().formatNumber()
-                val hitPct =
+                // 平均命中率：累计 cached / 累计 input
+                val avgPct =
                     if (sessionTotals.cachedTokens > 0 && sessionTotals.inputTokens > 0) {
                         String.format(
                             java.util.Locale.US,
@@ -675,8 +676,15 @@ private fun TextInputRow(
                     } else {
                         "0.0%"
                     }
+                // 本轮命中率：最近一条消息的 cached / prompt
+                val lastPct =
+                    if (sessionTotals.lastRequestHitPct > 0) {
+                        String.format(java.util.Locale.US, "%.1f%%", sessionTotals.lastRequestHitPct * 100.0)
+                    } else {
+                        "0.0%"
+                    }
                 Text(
-                    text = stringResource(R.string.stats_format, totalInput, totalCached, totalOutput, hitPct),
+                    text = stringResource(R.string.stats_format, totalInput, totalCached, totalOutput, lastPct, avgPct),
                     style =
                         MaterialTheme.typography.labelSmall.copy(
                             color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
@@ -687,7 +695,7 @@ private fun TextInputRow(
                         Modifier
                             .clickable(onClick = {
                                 pendingSessionTotalsCopy =
-                                    "↑${totalInput} tokens (${totalCached} cached · ${hitPct}) ↓${totalOutput} tokens"
+                                    "↑${totalInput} tokens (${totalCached} cached · last ${lastPct} · avg ${avgPct}) ↓${totalOutput} tokens"
                             })
                             .padding(2.dp),
                 ) {

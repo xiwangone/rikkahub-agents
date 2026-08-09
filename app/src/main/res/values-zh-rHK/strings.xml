@@ -1360,7 +1360,7 @@
   <string name="stats_total_input">累計輸入</string>
   <string name="stats_copy_total">複製累計統計</string>
   <string name="stats_copy">複製統計</string>
-  <string name="stats_format">↑%1$s 輸入 (%2$s 命中快取 · %4$s) ↓%3$s 輸出</string>
+  <string name="stats_format">↑%1$s 輸入 (%2$s 命中快取 · 本輪 %4$s · 平均 %5$s) ↓%3$s 輸出</string>
   <string name="doctor_category_permissions">權限</string>
   <string name="doctor_category_services">背景服務</string>
   <string name="doctor_category_assistant_info">目前助手</string>

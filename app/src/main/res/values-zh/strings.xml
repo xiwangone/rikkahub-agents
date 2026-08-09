@@ -1999,7 +1999,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="stats_total_input">累计输入</string>
   <string name="stats_copy_total">复制累计统计</string>
   <string name="stats_copy">复制统计</string>
-  <string name="stats_format">↑%1$s 输入 (%2$s 命中缓存 · %4$s) ↓%3$s 输出</string>
+  <string name="stats_format">↑%1$s 输入 (%2$s 命中缓存 · 本轮 %4$s · 平均 %5$s) ↓%3$s 输出</string>
   <string name="doctor_category_permissions">权限</string>
   <string name="doctor_category_services">后台服务</string>
   <string name="doctor_category_assistant_info">当前助手</string>

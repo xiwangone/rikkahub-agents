@@ -31,6 +31,8 @@ object TokenBudgetTracker {
         val totalTokens: Long,
         val perMessageMax: Long,
         val messageCount: Int,
+        /** 最近一条消息（本轮）的缓存命中率，0~1；无数据为 0 */
+        val lastRequestHitPct: Double = 0.0,
     )
 
     enum class BudgetStatus {
@@ -54,6 +56,7 @@ object TokenBudgetTracker {
         var total = 0L
         var perMax = 0L
         var count = 0
+        var lastHitPct = 0.0
         for (node in conversation.messageNodes) {
             val msg = node.messages.getOrNull(node.selectIndex) ?: continue
             val usage = msg.usage ?: continue
@@ -68,6 +71,11 @@ object TokenBudgetTracker {
             total += totalThis
             if (totalThis > perMax) perMax = totalThis
             count++
+            // 最近一条（按节点遍历顺序最后出现）的命中率 = 本轮命中率
+            if (usage.promptTokens > 0) {
+                lastHitPct =
+                    usage.cachedTokens.toDouble() / usage.promptTokens.toDouble()
+            }
         }
         return Totals(
             inputTokens = input,
@@ -76,6 +84,7 @@ object TokenBudgetTracker {
             totalTokens = total,
             perMessageMax = perMax,
             messageCount = count,
+            lastRequestHitPct = lastHitPct,
         )
     }
 
