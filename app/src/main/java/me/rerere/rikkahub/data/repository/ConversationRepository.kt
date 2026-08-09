@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import me.rerere.ai.ui.UIMessage
+import me.rerere.common.android.Logging
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.fts.MessageFtsManager
 import me.rerere.rikkahub.data.db.fts.MessageSearchSort
@@ -435,6 +436,7 @@ class ConversationRepository(
             lorebookIds = JsonInstant.encodeToString(conversation.lorebookIds),
             workspaceCwd = conversation.workspaceCwd ?: "",
             folderId = conversation.folderId?.toString() ?: "",
+            chatModelId = encodeChatModelId(conversation.chatModelId),
         )
     }
 
@@ -456,6 +458,7 @@ class ConversationRepository(
             lorebookIds = JsonInstant.decodeFromString(conversationEntity.lorebookIds),
             workspaceCwd = conversationEntity.workspaceCwd.ifEmpty { null },
             folderId = conversationEntity.folderId.ifEmpty { null }?.let { Uuid.parse(it) },
+            chatModelId = decodeChatModelId(conversationEntity.chatModelId),
         )
     }
 
@@ -579,6 +582,32 @@ class ConversationRepository(
             )
         }
         messageNodeDAO.insertAll(entities)
+    }
+}
+
+private const val CONVERSATION_REPOSITORY_TAG = "ConversationRepository"
+
+/**
+ * Encodes [Conversation.chatModelId] for the `chat_model_id` column. `null` (no override)
+ * stores as the empty string, matching the `folder_id` convention.
+ */
+internal fun encodeChatModelId(chatModelId: Uuid?): String = chatModelId?.toString() ?: ""
+
+/**
+ * Decodes the `chat_model_id` column back to [Conversation.chatModelId]. A blank column means
+ * "no override". A malformed stored value must not throw - a corrupt row would otherwise make
+ * the conversation unopenable - so it decodes to `null` with a warning naming the bad value.
+ */
+internal fun decodeChatModelId(stored: String): Uuid? {
+    if (stored.isEmpty()) return null
+    return try {
+        Uuid.parse(stored)
+    } catch (e: IllegalArgumentException) {
+        // android.util.Log is unmocked in JVM unit tests (throws instead of logging), so this
+        // testable top-level function uses the Logging facade instead - see the identical note
+        // in GeminiProvider.kt's resolveStreamFailureCause.
+        Logging.log(CONVERSATION_REPOSITORY_TAG, "Malformed chat_model_id \"$stored\" in conversation row; treating as unset: ${e.message}")
+        null
     }
 }
 

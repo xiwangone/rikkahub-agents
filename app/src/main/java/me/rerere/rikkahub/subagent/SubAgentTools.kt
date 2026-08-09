@@ -75,7 +75,16 @@ fun subagentDispatchTool(
             properties = buildJsonObject {
                 put("task", buildJsonObject { put("type", "string") })
                 put("label", buildJsonObject { put("type", "string") })
-                put("model_id", buildJsonObject { put("type", "string") })
+                put("model_id", buildJsonObject {
+                    put("type", "string")
+                    put(
+                        "description",
+                        "Model for this sub-agent: a model uuid, a provider model id, or a " +
+                            "display name (case-insensitive exact match). Ambiguous or unknown " +
+                            "values fail the dispatch and the error lists the valid options. " +
+                            "Omit to inherit the parent assistant's model.",
+                    )
+                })
                 put("system_prompt", buildJsonObject { put("type", "string") })
                 put("tools", buildJsonObject {
                     put("type", "array")

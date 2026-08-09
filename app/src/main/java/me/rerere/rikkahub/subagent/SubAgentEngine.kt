@@ -8,6 +8,9 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelType
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.agentrun.AgentRunKind
@@ -42,6 +45,69 @@ internal suspend fun finishSubAgentWait(completed: Boolean, stop: suspend () -> 
         return true
     }
     return false
+}
+
+/**
+ * Resolves subagent_dispatch's `model_id` (uuid, provider model id, or display name) against
+ * the CHAT-type models of ENABLED providers. Task 3 (#28): `model_id` was parsed, stored and
+ * echoed back but never used to pick a model - the sub-agent silently inherited the parent's.
+ * That silent fallback is the bug; this resolver fails loudly instead.
+ */
+internal object SubAgentModelResolver {
+    sealed class Result {
+        data object Inherit : Result()
+        data class Resolved(val modelId: Uuid) : Result()
+        data class Failed(val message: String) : Result()
+    }
+
+    /**
+     * [modelIdInput] null/blank -> [Result.Inherit] (today's behavior unchanged). Otherwise
+     * tried in order - uuid exact match, then case-insensitive exact match on [Model.modelId],
+     * then case-insensitive exact match on [Model.displayName] - stopping at the first step
+     * with any match. Exactly one match at a step resolves; more than one is ambiguous;
+     * falling through all three with nothing is unknown. Both failure cases list the
+     * candidates as "displayName (providerName) -> uuid" so the caller can retry unambiguously.
+     */
+    fun resolve(modelIdInput: String?, providers: List<ProviderSetting>): Result {
+        if (modelIdInput.isNullOrBlank()) return Result.Inherit
+
+        val chatModels: List<Pair<ProviderSetting, Model>> = providers
+            .filter { it.enabled }
+            .flatMap { provider -> provider.models.filter { it.type == ModelType.CHAT }.map { provider to it } }
+
+        val asUuid = runCatching { Uuid.parse(modelIdInput) }.getOrNull()
+        if (asUuid != null) {
+            chatModels.firstOrNull { (_, model) -> model.id == asUuid }
+                ?.let { (_, model) -> return Result.Resolved(model.id) }
+        }
+
+        val byModelId = chatModels.filter { (_, model) -> model.modelId.equals(modelIdInput, ignoreCase = true) }
+        if (byModelId.size == 1) return Result.Resolved(byModelId[0].second.id)
+        if (byModelId.size > 1) return Result.Failed(ambiguousMessage(modelIdInput, byModelId))
+
+        val byDisplayName = chatModels.filter { (_, model) -> model.displayName.equals(modelIdInput, ignoreCase = true) }
+        if (byDisplayName.size == 1) return Result.Resolved(byDisplayName[0].second.id)
+        if (byDisplayName.size > 1) return Result.Failed(ambiguousMessage(modelIdInput, byDisplayName))
+
+        return Result.Failed(unknownMessage(modelIdInput, chatModels))
+    }
+
+    private fun candidateLine(candidate: Pair<ProviderSetting, Model>): String {
+        val (provider, model) = candidate
+        return "${model.displayName} (${provider.name}) -> ${model.id}"
+    }
+
+    private fun ambiguousMessage(input: String, matches: List<Pair<ProviderSetting, Model>>): String =
+        "model_id \"$input\" matches multiple models - retry with one of these uuids:\n" +
+            matches.joinToString("\n") { candidateLine(it) }
+
+    private fun unknownMessage(input: String, available: List<Pair<ProviderSetting, Model>>): String =
+        if (available.isEmpty()) {
+            "model_id \"$input\" did not match any model, and no chat models are available from enabled providers"
+        } else {
+            "model_id \"$input\" did not match any model. Available models:\n" +
+                available.joinToString("\n") { candidateLine(it) }
+        }
 }
 
 /**
@@ -229,11 +295,26 @@ class SubAgentEngine(
                 markTerminal(runId, SubAgentStatus.FAILED, "bad parent assistant id")
                 return
             }
+        val modelResolution = SubAgentModelResolver.resolve(
+            request.modelId,
+            settingsStore.settingsFlow.first().providers,
+        )
+        val resolvedChatModelId = when (modelResolution) {
+            is SubAgentModelResolver.Result.Inherit -> null
+            is SubAgentModelResolver.Result.Resolved -> modelResolution.modelId
+            is SubAgentModelResolver.Result.Failed -> {
+                markTerminal(runId, SubAgentStatus.FAILED, modelResolution.message)
+                return
+            }
+        }
         val conv = Conversation.ofId(
             id = Uuid.random(),
             assistantId = parentAsstUuid,
             newConversation = true,
-        ).copy(title = "[Sub-agent] ${request.label?.take(40) ?: request.task.take(40)}")
+        ).copy(
+            title = "[Sub-agent] ${request.label?.take(40) ?: request.task.take(40)}",
+            chatModelId = resolvedChatModelId,
+        )
         conversationRepo.insertConversation(conv)
         chatService.initializeConversation(conv.id)
         HeadlessConversations.mark(conv.id)

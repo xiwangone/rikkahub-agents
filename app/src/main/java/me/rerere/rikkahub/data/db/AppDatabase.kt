@@ -64,7 +64,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         WorkspaceEntity::class,
         FolderEntity::class,
     ],
-    version = 29,
+    version = 30,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -103,6 +103,11 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // creates it outright. Numbered 29 rather than 28 because the fork's v28 was already
         // taken by the index migration above.
         AutoMigration(from = 28, to = 29),
+        // v30: a chat_model_id column on ConversationEntity so subagent_dispatch's model_id
+        // override (#28) survives ChatService.initializeConversation reloading the conversation
+        // from Room. Nullable-equivalent (empty string default, matching folder_id), so a plain
+        // auto-migration suffices.
+        AutoMigration(from = 29, to = 30),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
