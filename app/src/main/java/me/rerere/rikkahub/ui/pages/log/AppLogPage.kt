@@ -61,7 +61,7 @@ import java.util.Locale
 
 /**
  * 应用层日志页面（LogPage 的三级页面）：
- * 记录 / 展示 OcrTransformer、ChatService 等应用层 logcat 日志，支持开关、导出（txt/分享）、
+ * 记录 / 展示 ChatService 等应用层 logcat 日志，支持开关、导出（txt/分享）、
  * 关键字搜索、单条/全部复制。
  */
 @Composable

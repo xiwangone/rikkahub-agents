@@ -8,7 +8,7 @@ import java.util.Locale
 /**
  * 应用内自记录日志工具：替代 logcat 读取方案，将所有 AppLog.d/w/e/i 调用同步写入
  * App 内内存 buffer，供「应用层日志」页面直接读取、搜索、导出。release 版无需
- * READ_LOGS 权限即可查看 performLocalOcr / ChatService 等核心日志。
+ * READ_LOGS 权限即可查看 ChatService 等核心日志。
  *
  * 每个方法在调用 android.util.Log 的同时（保留原有 logcat 输出），同步将日志条目
  * 写入内存 buffer（上限 500 条，超过丢弃最旧）。开关持久化在 SharedPreferences

@@ -124,7 +124,7 @@ class RikkaHubApp : Application() {
         // every change. With zero enabled workflows, no receivers are registered.
         startWorkflowRegistry()
 
-        // 应用层日志：开关开启时启动 logcat 流式记录（OcrTransformer / ChatService 等）
+        // 应用层日志：开关开启时启动 logcat 流式记录（ChatService 等）
         me.rerere.rikkahub.data.log.AppLog.startIfEnabled(this)
 
         // Phase-17 stability — register a network-change monitor that evicts OkHttp's
