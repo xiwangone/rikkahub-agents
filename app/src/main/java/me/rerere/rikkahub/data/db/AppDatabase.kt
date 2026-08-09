@@ -96,11 +96,11 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // table) plus a folder_id column on ConversationEntity (defaultValue ""). Both are pure
         // additions; upstream numbered it as their v24, folded into the fork's version space here.
         AutoMigration(from = 26, to = 27),
-        // v28: 密钥库凭证表（VaultCredentialEntity -> vault_credentials）。纯新增表，
-        // 无既有数据迁移，auto-migration 即可。
-        AutoMigration(from = 27, to = 28),
-        // v29: 密钥使用审计日志表（VaultAuditLogEntity -> vault_audit_log）。纯新增表。
-        AutoMigration(from = 28, to = 29),
+        // v28+v29: 密钥库凭证表（VaultCredentialEntity -> vault_credentials）与
+        // 密钥使用审计表（VaultAuditLogEntity -> vault_audit_log）。v28 从未发布
+        // （Vault MVP 未出 Release），真实用户设备停留在 v27，故直接 27→29 一步迁移。
+        // 纯新增表，auto-migration 即可。
+        AutoMigration(from = 27, to = 29),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)

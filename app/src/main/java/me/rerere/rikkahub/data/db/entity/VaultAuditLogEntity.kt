@@ -17,8 +17,8 @@ import androidx.room.PrimaryKey
 @Entity(
     tableName = "vault_audit_log",
     indices = [
-        Index(name = "idx_audit_ts", value = ["ts_ms"]),
-        Index(name = "idx_audit_name", value = ["credential_name"]),
+        Index(name = "idx_audit_ts", value = ["tsMs"]),
+        Index(name = "idx_audit_name", value = ["credentialName"]),
     ],
 )
 data class VaultAuditLogEntity(
