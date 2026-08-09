@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting.doctor
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -9,6 +10,7 @@ import kotlinx.coroutines.launch
 
 class DoctorViewModel(
     private val checks: DoctorChecks,
+    private val appContext: Context,
 ) : ViewModel() {
     data class State(
         val results: List<DoctorCheck> = emptyList(),
@@ -59,5 +61,5 @@ class DoctorViewModel(
             }
 
     /** Plain-text dump suitable for copying to a support chat. Shared formatter. */
-    fun buildReport(): String = DoctorReport.format(_state.value.results)
+    fun buildReport(): String = DoctorReport.format(appContext, _state.value.results)
 }

@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting.doctor
 
 import android.content.Intent
+import androidx.annotation.StringRes
 
 /**
  * One diagnostic line. The Doctor screen renders these in a flat scrollable list grouped
@@ -21,7 +22,12 @@ data class DoctorCheck(
     /** Stable id used as the Compose `key` and for state lookup. */
     val id: String,
     val category: DoctorCategory,
-    val label: String,
+    /** 行标题资源 ID（多语言）。 */
+    @StringRes val labelRes: Int,
+    /**
+     * 详情文本（保留 String：多为动态拼接/插值，如 "已授予。需求方: xxx"，
+     * 资源化需 format 占位符重构，暂保持原样）。
+     */
     val detail: String,
     val severity: Severity,
     val fix: FixAction? = null,
@@ -30,16 +36,16 @@ data class DoctorCheck(
 enum class Severity { OK, INFO, WARN, FAIL }
 
 enum class DoctorCategory(
-    val displayName: String,
+    @StringRes val displayNameRes: Int,
 ) {
-    Permissions("权限"),
-    Services("后台服务"),
-    AssistantInfo("当前助手"),
-    Database("数据库"),
-    Network("网络与供应商"),
-    Termux("Termux 集成"),
-    Maintenance("维护"),
-    Diagnostics("诊断信息"),
+    Permissions(me.rerere.rikkahub.R.string.doctor_category_permissions),
+    Services(me.rerere.rikkahub.R.string.doctor_category_services),
+    AssistantInfo(me.rerere.rikkahub.R.string.doctor_category_assistant_info),
+    Database(me.rerere.rikkahub.R.string.doctor_category_database),
+    Network(me.rerere.rikkahub.R.string.doctor_category_network),
+    Termux(me.rerere.rikkahub.R.string.doctor_category_termux),
+    Maintenance(me.rerere.rikkahub.R.string.doctor_category_maintenance),
+    Diagnostics(me.rerere.rikkahub.R.string.doctor_category_diagnostics),
 }
 
 /**
@@ -50,13 +56,13 @@ enum class DoctorCategory(
 sealed interface FixAction {
     /** Tap this to fire an auto-repair (clear cache, run integrity check, register watcher). */
     data class AutoFix(
-        val label: String,
+        @StringRes val labelRes: Int,
         val run: suspend () -> AutoFixResult,
     ) : FixAction
 
     /** Open a system Settings activity (battery, notification listener, accessibility, etc.). */
     data class OpenIntent(
-        val label: String,
+        @StringRes val labelRes: Int,
         val intent: Intent,
     ) : FixAction
 
@@ -65,7 +71,7 @@ sealed interface FixAction {
      * tweaking. Stored as a string route key the screen passes to the parent NavController.
      */
     data class OpenAppRoute(
-        val label: String,
+        @StringRes val labelRes: Int,
         val routeKey: AppRouteKey,
     ) : FixAction
 }

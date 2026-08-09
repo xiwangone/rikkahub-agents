@@ -109,12 +109,12 @@ fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
                 item("group-${category.name}") {
                     CardGroup(
                         modifier = Modifier.padding(horizontal = 4.dp),
-                        title = { Text(category.displayName) },
+                        title = { Text(stringResource(category.displayNameRes)) },
                     ) {
                         for (check in rows) {
                             item(
                                 leadingContent = { SeverityDot(check.severity) },
-                                headlineContent = { Text(check.label) },
+                                headlineContent = { Text(stringResource(check.labelRes)) },
                                 supportingContent = {
                                     Text(
                                         check.detail,
@@ -251,17 +251,17 @@ private fun FixButton(
     onOpenIntent: (android.content.Intent) -> Unit,
     onOpenAppRoute: (AppRouteKey) -> Unit,
 ) {
-    val (label, click) =
+    val (labelRes, click) =
         when (fix) {
-            is FixAction.AutoFix -> fix.label to { onAutoFix(fix) }
-            is FixAction.OpenIntent -> fix.label to { onOpenIntent(fix.intent) }
-            is FixAction.OpenAppRoute -> fix.label to { onOpenAppRoute(fix.routeKey) }
+            is FixAction.AutoFix -> fix.labelRes to { onAutoFix(fix) }
+            is FixAction.OpenIntent -> fix.labelRes to { onOpenIntent(fix.intent) }
+            is FixAction.OpenAppRoute -> fix.labelRes to { onOpenAppRoute(fix.routeKey) }
         }
     OutlinedButton(
         onClick = click,
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),
     ) {
-        Text(label, style = MaterialTheme.typography.labelSmall)
+        Text(stringResource(labelRes), style = MaterialTheme.typography.labelSmall)
     }
 }
 

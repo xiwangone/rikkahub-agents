@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting.doctor
 
+import android.content.Context
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -11,6 +12,7 @@ import java.util.Locale
  */
 object DoctorReport {
     fun format(
+        context: Context,
         checks: List<DoctorCheck>,
         header: String = "RikkaHub Agents — 诊断报告",
     ): String =
@@ -27,7 +29,7 @@ object DoctorReport {
             DoctorCategory.entries.forEach { cat ->
                 val rows = checks.filter { it.category == cat }
                 if (rows.isEmpty()) return@forEach
-                appendLine("## ${cat.displayName}")
+                appendLine("## ${context.getString(cat.displayNameRes)}")
                 rows.forEach { r ->
                     val mark =
                         when (r.severity) {
@@ -36,7 +38,7 @@ object DoctorReport {
                             Severity.WARN -> "[warn] "
                             Severity.FAIL -> "[fail] "
                         }
-                    appendLine("  $mark ${r.label} — ${r.detail}")
+                    appendLine("  $mark ${context.getString(r.labelRes)} — ${r.detail}")
                 }
                 appendLine()
             }
