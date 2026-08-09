@@ -16,7 +16,10 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.quota.QuotaAggregate
+import me.rerere.rikkahub.data.quota.QuotaSnapshotHolder
 import me.rerere.rikkahub.data.quota.QuotaStatus
 
 /**
@@ -44,6 +47,7 @@ object AgentOverlay {
     private var isExpanded = false
     private var latestQuota: QuotaAggregate? = null
     private var latestText: String = "The agent is working"
+    private var quotaJob: Job? = null
 
     private val mainHandler = Handler(Looper.getMainLooper())
 
@@ -60,9 +64,22 @@ object AgentOverlay {
             return
         }
         mainHandler.post { showInternal(app) }
+        // 订阅额度快照：更新状态线颜色 + 展开卡片
+        if (quotaJob == null) {
+            quotaJob =
+                kotlinx.coroutines.CoroutineScope(
+                    kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.Main.immediate,
+                ).launch {
+                    QuotaSnapshotHolder.aggregate.collect { aggregate ->
+                        updateQuota(aggregate)
+                    }
+                }
+        }
     }
 
     fun hide(context: Context) {
+        quotaJob?.cancel()
+        quotaJob = null
         val app = context.applicationContext
         mainHandler.post { hideInternal(app) }
     }

@@ -39,6 +39,7 @@ import me.rerere.rikkahub.data.quota.QuotaCredentialManager
 import me.rerere.rikkahub.data.quota.QuotaParser
 import me.rerere.rikkahub.data.quota.QuotaPreferences
 import me.rerere.rikkahub.data.quota.QuotaProviderConfig
+import me.rerere.rikkahub.data.quota.QuotaSnapshotHolder
 import me.rerere.rikkahub.data.quota.QuotaSnapshot
 import me.rerere.rikkahub.data.quota.QuotaStatus
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -158,7 +159,12 @@ fun QuotaConsolePage(providerId: String) {
                                 url: String?,
                             ) {
                                 super.onPageFinished(view, url)
-                                view?.let { parseQuota(it, provider) { snapshot = it } }
+                                view?.let {
+                                    parseQuota(it, provider) { snap ->
+                                        snapshot = snap
+                                        QuotaSnapshotHolder.addSnapshot(snap)
+                                    }
+                                }
 
                                 // 首次登录成功后自动捕获 Cookie
                                 if (!credentialGrabbed && url?.contains("login") != true) {
@@ -222,7 +228,10 @@ fun QuotaConsolePage(providerId: String) {
                             onClick = {
                                 webViewState.webView?.let { webView ->
                                     lastError = null
-                                    parseQuota(webView, provider) { snapshot = it }
+                                    parseQuota(webView, provider) { snap ->
+                                        snapshot = snap
+                                        QuotaSnapshotHolder.addSnapshot(snap)
+                                    }
                                 }
                             },
                         ) {
