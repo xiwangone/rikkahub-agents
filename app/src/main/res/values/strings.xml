@@ -1981,6 +1981,8 @@
   <string name="vault_editor_value_edit_label">New value (leave empty to keep)</string>
   <string name="vault_editor_desc_label">Description (optional)</string>
   <string name="vault_editor_group_label">Group</string>
+  <string name="vault_editor_new_group_label">New group name</string>
+  <string name="vault_new_group_option">＋New group</string>
   <string name="vault_save">Save</string>
   <string name="vault_show">Show</string>
   <string name="vault_hide">Hide</string>
@@ -2159,6 +2161,15 @@
   <string name="vault_import_failed">Import failed: %1$s</string>
   <string name="vault_biometric_export_title">Verify to export credentials</string>
   <string name="vault_biometric_view_title">Verify to view credential</string>
+  <string name="vault_backup_title">Encrypted backup / restore</string>
+  <string name="vault_backup_desc">Export the whole vault (incl. descriptions/groups) to a password-encrypted .vault package; restore from a .vault package too.</string>
+  <string name="vault_backup_button">Backup</string>
+  <string name="vault_restore_button">Restore</string>
+  <string name="vault_backup_password_label">Backup password</string>
+  <string name="vault_backup_password_required">Enter a backup password</string>
+  <string name="vault_backup_success">Backed up %1$d credentials to .vault package</string>
+  <string name="vault_backup_restore_success">Restored %1$d credentials from .vault package</string>
+  <string name="vault_backup_restore_failed">Restore failed: %1$s</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">Quota Query</string>
   <string name="quota_master_switch">Quota Query</string>

@@ -71,7 +71,63 @@ fun VaultPage() {
     var showClearDialog by remember { mutableStateOf(false) }
     var exportPassword by remember { mutableStateOf("") }
     var exportResult by remember { mutableStateOf<String?>(null) }
+    var backupPassword by remember { mutableStateOf("") }
+    var backupResult by remember { mutableStateOf<String?>(null) }
     val biometricEnabled by vaultPreferences.biometricEnabled.collectAsState(initial = true)
+
+    // 备份：整个库（含分组）加密导出 .vault
+    val backupExportLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            if (uri != null && backupPassword.isNotBlank()) {
+                scope.launch {
+                    runCatching {
+                        val act = context as? android.app.Activity
+                        if (act != null && biometricEnabled) {
+                            val ok = VaultBiometric.authenticate(act, stringResource(R.string.vault_biometric_export_title))
+                            if (!ok) {
+                                backupResult = stringResource(R.string.vault_export_cancelled)
+                                return@launch
+                            }
+                        }
+                        val entries = repository.getAll()
+                        val plaintexts =
+                            entries.mapNotNull { e ->
+                                repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp) }
+                            }
+                        val vaultJson = VaultExporter.exportWithGroups(backupPassword, plaintexts)
+                        context.contentResolver.openOutputStream(uri)?.use { out ->
+                            out.write(vaultJson.encodeToByteArray())
+                        }
+                        backupResult = stringResource(R.string.vault_backup_success, plaintexts.size)
+                    }.onFailure { e ->
+                        backupResult = stringResource(R.string.vault_export_failed, e.message ?: "")
+                    }
+                }
+            }
+        }
+
+    // 恢复：从 .vault 包导入（覆盖/合并）
+    val backupRestoreLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri != null && backupPassword.isNotBlank()) {
+                scope.launch {
+                    runCatching {
+                        val content =
+                            context.contentResolver.openInputStream(uri)?.use { input ->
+                                BufferedReader(InputStreamReader(input)).readText()
+                            } ?: ""
+                        val restored = VaultExporter.import(content, backupPassword)
+                        restored.forEach { q ->
+                            repository.save(q.name, q.plaintext, q.description, q.group.ifEmpty { "Other" })
+                        }
+                        backupResult = stringResource(R.string.vault_backup_restore_success, restored.size)
+                    }.onFailure { e ->
+                        backupResult = stringResource(R.string.vault_backup_restore_failed, e.message ?: "")
+                    }
+                    refreshCount()
+                }
+            }
+        }
 
     // 导出：加密 .vault 包写入用户选择的位置
     val exportLauncher =
@@ -255,6 +311,58 @@ fun VaultPage() {
                             Text(stringResource(R.string.vault_export_button))
                         }
                         exportResult?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                    }
+                }
+            }
+
+            item {
+                androidx.compose.material3.Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.vault_backup_title), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            text = stringResource(R.string.vault_backup_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedButton(
+                                onClick = {
+                                    if (backupPassword.isBlank()) {
+                                        backupResult = stringResource(R.string.vault_backup_password_required)
+                                        return@OutlinedButton
+                                    }
+                                    backupExportLauncher.launch("RikkaHub-Vault-Backup-${System.currentTimeMillis()}.vault")
+                                },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(stringResource(R.string.vault_backup_button))
+                            }
+                            OutlinedButton(
+                                onClick = { backupRestoreLauncher.launch(arrayOf("application/json", "*/*")) },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(stringResource(R.string.vault_restore_button))
+                            }
+                        }
+                        OutlinedTextField(
+                            value = backupPassword,
+                            onValueChange = { backupPassword = it },
+                            label = { Text(stringResource(R.string.vault_backup_password_label)) },
+                            singleLine = true,
+                            keyboardOptions = androidx.compose.ui.text.input.KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        backupResult?.let {
                             Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
                         }
                     }

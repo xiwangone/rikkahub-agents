@@ -1983,6 +1983,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="vault_editor_value_edit_label">新值（留空则不修改）</string>
   <string name="vault_editor_desc_label">描述（可选）</string>
   <string name="vault_editor_group_label">分组</string>
+  <string name="vault_editor_new_group_label">新分组名称</string>
+  <string name="vault_new_group_option">＋新建分组</string>
   <string name="vault_save">保存</string>
   <string name="vault_show">显示</string>
   <string name="vault_hide">隐藏</string>
@@ -2161,6 +2163,15 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="vault_import_failed">导入失败: %1$s</string>
   <string name="vault_biometric_export_title">验证以导出凭证</string>
   <string name="vault_biometric_view_title">验证以查看凭证</string>
+  <string name="vault_backup_title">加密备份 / 恢复</string>
+  <string name="vault_backup_desc">将整个密钥库（含描述/分组）口令加密导出 .vault 包；也可从 .vault 包恢复。</string>
+  <string name="vault_backup_button">备份</string>
+  <string name="vault_restore_button">恢复</string>
+  <string name="vault_backup_password_label">备份口令</string>
+  <string name="vault_backup_password_required">请输入备份口令</string>
+  <string name="vault_backup_success">已备份 %1$d 条凭证到 .vault 包</string>
+  <string name="vault_backup_restore_success">已从 .vault 包恢复 %1$d 条凭证</string>
+  <string name="vault_backup_restore_failed">恢复失败: %1$s</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">额度查询</string>
   <string name="quota_master_switch">额度查询</string>

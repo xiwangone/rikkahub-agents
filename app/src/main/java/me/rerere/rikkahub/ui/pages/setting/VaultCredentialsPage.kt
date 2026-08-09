@@ -46,6 +46,7 @@ import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultBiometric
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.Select
 import org.koin.compose.koinInject
 
 /**
@@ -138,6 +139,7 @@ fun VaultCredentialsPage() {
     showEditor?.let { mode ->
         CredentialEditorDialog(
             mode = mode,
+            existingGroups = (entries.map { it.grp } + "Other").distinct().sorted(),
             onDismiss = { showEditor = null },
             onSave = { name, value, description, group ->
                 scope.launch {
@@ -265,6 +267,7 @@ private fun CredentialRow(
 @Composable
 private fun CredentialEditorDialog(
     mode: EditorMode,
+    existingGroups: List<String>,
     onDismiss: () -> Unit,
     onSave: (name: String, value: String, description: String, group: String) -> Unit,
 ) {
@@ -273,6 +276,7 @@ private fun CredentialEditorDialog(
     var value by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.let { repository.decryptValue(it) } ?: "") }
     var description by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.description ?: "") }
     var group by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.grp ?: "Other") }
+    var showGroupInput by remember { mutableStateOf(false) }
     var nameError by remember { mutableStateOf(false) }
     var valueError by remember { mutableStateOf(false) }
 
@@ -310,13 +314,31 @@ private fun CredentialEditorDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
-                    value = group,
-                    onValueChange = { group = it },
-                    label = { Text(stringResource(R.string.vault_editor_group_label)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+                if (showGroupInput) {
+                    OutlinedTextField(
+                        value = group,
+                        onValueChange = { group = it },
+                        label = { Text(stringResource(R.string.vault_editor_new_group_label)) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    // 下拉选择已有分组 + 「新建分组…」入口
+                    Select(
+                        options = existingGroups + stringResource(R.string.vault_new_group_option),
+                        selectedOption = group,
+                        onOptionSelected = {
+                            if (it == stringResource(R.string.vault_new_group_option)) {
+                                showGroupInput = true
+                                group = ""
+                            } else {
+                                group = it
+                            }
+                        },
+                        optionToString = { it },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         },
         confirmButton = {

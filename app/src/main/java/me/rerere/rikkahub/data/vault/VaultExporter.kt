@@ -51,6 +51,7 @@ object VaultExporter {
         val iv: String,
         val ct: String,
         val desc: String = "",
+        val group: String = "",
     )
 
     @Serializable
@@ -65,18 +66,25 @@ object VaultExporter {
     fun export(
         password: String,
         entries: List<Triple<String, String, String>>, // name, plaintext, description
+    ): String = exportWithGroups(password, entries.map { (n, p, d) -> Quad(n, p, d, "") })
+
+    /** 导出（含分组）：name, plaintext, description, group → .vault JSON。 */
+    fun exportWithGroups(
+        password: String,
+        entries: List<Quad>,
     ): String {
         require(password.isNotBlank()) { "口令不能为空" }
         val salt = ByteArray(SALT_SIZE).also { SecureRandom().nextBytes(it) }
         val key = deriveKey(password, salt)
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        val entryMap = entries.associate { (name, plaintext, desc) ->
+        val entryMap = entries.associate { e ->
             cipher.init(Cipher.ENCRYPT_MODE, key)
-            val ct = cipher.doFinal(plaintext.encodeToByteArray())
-            name to EntrySpec(
+            val ct = cipher.doFinal(e.plaintext.encodeToByteArray())
+            e.name to EntrySpec(
                 iv = Base64.getEncoder().encodeToString(cipher.iv),
                 ct = Base64.getEncoder().encodeToString(ct),
-                desc = desc,
+                desc = e.description,
+                group = e.group,
             )
         }
         val bundle = VaultBundle(
@@ -87,13 +95,13 @@ object VaultExporter {
     }
 
     /**
-     * 导入（离线）：.vault JSON + 口令 → 明文条目列表。
+     * 导入（离线）：.vault JSON + 口令 → 明文条目列表（含分组）。
      * 口令错/数据被篡改 → 解密失败抛出异常。
      */
     fun import(
         vaultJson: String,
         password: String,
-    ): List<Triple<String, String, String>> {
+    ): List<Quad> {
         val bundle = Json { ignoreUnknownKeys = true }.decodeFromString<VaultBundle>(vaultJson)
         require(bundle.format == FORMAT) { "非 rikkahub-vault 格式" }
         val salt = Base64.getDecoder().decode(bundle.kdf.salt)
@@ -104,9 +112,17 @@ object VaultExporter {
             val ct = Base64.getDecoder().decode(entry.ct)
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_LENGTH, iv))
             val plaintext = cipher.doFinal(ct).decodeToString()
-            Triple(name, plaintext, entry.desc)
+            Quad(name, plaintext, entry.desc, entry.group)
         }
     }
+
+    /** 导出条目（name, plaintext, description, group）。 */
+    data class Quad(
+        val name: String,
+        val plaintext: String,
+        val description: String,
+        val group: String,
+    )
 
     private fun deriveKey(password: String, salt: ByteArray): javax.crypto.SecretKey {
         val spec = PBEKeySpec(password.toCharArray(), salt, PBKDF2_ITERATIONS, KEY_LENGTH_BITS)

@@ -1343,6 +1343,8 @@
   <string name="vault_editor_value_edit_label">新值（留空則不修改）</string>
   <string name="vault_editor_desc_label">描述（可選）</string>
   <string name="vault_editor_group_label">分組</string>
+  <string name="vault_editor_new_group_label">新分組名稱</string>
+  <string name="vault_new_group_option">＋新建分組</string>
   <string name="vault_save">儲存</string>
   <string name="vault_show">顯示</string>
   <string name="vault_hide">隱藏</string>
@@ -1521,5 +1523,14 @@
   <string name="vault_import_failed">匯入失敗: %1$s</string>
   <string name="vault_biometric_export_title">驗證以匯出憑證</string>
   <string name="vault_biometric_view_title">驗證以檢視憑證</string>
+  <string name="vault_backup_title">加密備份 / 還原</string>
+  <string name="vault_backup_desc">將整個憑證庫（含描述/分組）口令加密匯出 .vault 套件；也可從 .vault 套件還原。</string>
+  <string name="vault_backup_button">備份</string>
+  <string name="vault_restore_button">還原</string>
+  <string name="vault_backup_password_label">備份口令</string>
+  <string name="vault_backup_password_required">請輸入備份口令</string>
+  <string name="vault_backup_success">已備份 %1$d 條憑證到 .vault 套件</string>
+  <string name="vault_backup_restore_success">已從 .vault 套件還原 %1$d 條憑證</string>
+  <string name="vault_backup_restore_failed">還原失敗: %1$s</string>
 </resources>
 
