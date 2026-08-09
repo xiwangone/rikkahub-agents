@@ -231,6 +231,9 @@ fun ReasonixProviderConfigure(
         // 生成新 SSH 密钥
         var generatedKeyInfo by remember { mutableStateOf<String?>(null) }
         var saveToVault by remember { mutableStateOf(true) }
+        val genScope = rememberCoroutineScope()
+        val genContext = LocalContext.current
+        val vaultRepo: CredentialVaultRepository = koinInject()
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -239,12 +242,10 @@ fun ReasonixProviderConfigure(
             androidx.compose.material3.OutlinedButton(
                 onClick = {
                     val key = SshKeyGenerator.generate()
-                    val context = LocalContext.current
-                    scope.launch {
+                    genScope.launch {
                         runCatching {
                             if (saveToVault) {
                                 // 保存到密钥库：分组 SSH + 描述
-                                val vaultRepo: CredentialVaultRepository = koinInject()
                                 vaultRepo.save(
                                     name = "WEB_BRIDGE_SSH_KEY",
                                     value = key.privateKeyPem,
@@ -254,7 +255,7 @@ fun ReasonixProviderConfigure(
                                 generatedKeyInfo = "✅ 已生成并保存到密钥库（分组：SSH）\n公钥请添加到 ECS ~/.ssh/authorized_keys：\n${key.publicKeyLine}"
                             } else {
                                 // 保存到 App 文件目录
-                                val dir = java.io.File(context.filesDir, "ssh_keys").apply { mkdirs() }
+                                val dir = java.io.File(genContext.filesDir, "ssh_keys").apply { mkdirs() }
                                 val file = java.io.File(dir, "web_bridge_rsa")
                                 file.writeText(key.privateKeyPem)
                                 file.setReadable(false, true)

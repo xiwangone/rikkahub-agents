@@ -95,7 +95,7 @@ object SshKeyGenerator {
 
     private fun derInteger(bytes: ByteArray): ByteArray {
         var b = bytes
-        if (b[0] and 0x80.toByte() != 0.toByte()) {
+        if ((b[0].toInt() and 0x80) != 0) {
             b = byteArrayOf(0) + b
         }
         return byteArrayOf(0x02) + derLength(b.size) + b
