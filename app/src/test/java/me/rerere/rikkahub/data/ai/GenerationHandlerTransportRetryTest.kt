@@ -9,6 +9,16 @@ import org.junit.Test
 
 class GenerationHandlerTransportRetryTest {
     @Test
+    fun `does not report an empty stream once a chunk arrived, even without parseable parts`() {
+        assertFalse(shouldReportEmptyGenerationStream(receivedAnyChunk = true))
+    }
+
+    @Test
+    fun `still reports an empty stream when zero chunks arrived`() {
+        assertTrue(shouldReportEmptyGenerationStream(receivedAnyChunk = false))
+    }
+
+    @Test
     fun `retries an abort before any model output`() {
         assertTrue(
             shouldRetryGenerationStreamFailure(

@@ -36,7 +36,9 @@ import me.rerere.ai.ui.MessageChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageChoice
 import me.rerere.ai.ui.handleMessageChunk
+import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
+import me.rerere.common.android.Logging
 import me.rerere.common.http.await
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -140,7 +142,9 @@ class GeminiProvider(
             put(
                 "request",
                 raiseMaxTokensAboveThinkingBudget(
-                    wire.buildCompletionRequestBody(messages, params, CODE_ASSIST_SAFETY_CATEGORIES)
+                    raiseThinkingBudgetToClaudeFloor(
+                        wire.buildCompletionRequestBody(messages, params, CODE_ASSIST_SAFETY_CATEGORIES)
+                    )
                 )
             )
         }
@@ -185,23 +189,18 @@ class GeminiProvider(
                         Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "onEvent: failed to parse chunk", e)
+                    Log.w(TAG, "onEvent: failed to parse chunk, payload=${data.take(PAYLOAD_LOG_LIMIT)}", e)
                 }
             }
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
-                val detail = response
-                    ?.takeUnless { it.isSuccessful }
-                    ?.body
-                    ?.string()
                 if (response?.code == 401) {
                     launch { repository.markInvalid(account.id) }
                 }
                 close(
-                    t ?: IllegalStateException(
-                        parseErrorMessage(detail)
-                            ?: "Cloud Code Assist request failed: ${response?.code} $detail"
-                    )
+                    resolveStreamFailureCause(t, response?.code, json) {
+                        response?.takeUnless { it.isSuccessful }?.body?.stringSafe()
+                    }
                 )
             }
 
@@ -222,21 +221,79 @@ class GeminiProvider(
         error("Image generation is not supported by the Gemini OAuth provider")
     }
 
-    private fun parseErrorMessage(body: String?): String? {
-        if (body.isNullOrBlank()) return null
-        return runCatching {
-            val error = json.parseToJsonElement(body).jsonObject["error"]?.jsonObject
-            val message = error?.get("message")?.jsonPrimitive?.contentOrNull ?: return null
-            val code = error["code"]?.jsonPrimitive?.intOrNull
-            if (code != null) "Cloud Code Assist error ($code): $message" else message
-        }.getOrNull()
-    }
-
     private companion object {
-        const val TAG = "GeminiProvider"
         val JSON_MEDIA_TYPE = "application/json".toMediaType()
+        // Keep the diagnostic log line readable; the payload can be many KB of candidate text.
+        const val PAYLOAD_LOG_LIMIT = 500
     }
 }
+
+private const val TAG = "GeminiProvider"
+
+private fun parseErrorMessage(body: String?, json: Json): String? {
+    if (body.isNullOrBlank()) return null
+    return runCatching {
+        val error = json.parseToJsonElement(body).jsonObject["error"]?.jsonObject
+        val message = error?.get("message")?.jsonPrimitive?.contentOrNull ?: return null
+        val code = error["code"]?.jsonPrimitive?.intOrNull
+        if (code != null) "Cloud Code Assist error ($code): $message" else message
+    }.getOrNull()
+}
+
+/**
+ * Resolves what a `streamText` [EventSourceListener.onFailure] should close the SSE producer
+ * with. Reading the error body ([readDetail], normally [stringSafe]) or parsing it
+ * ([parseErrorMessage]) can itself throw - e.g. a truncated or aborted body - and OkHttp never
+ * re-dispatches a signalled callback, so letting that escape here would strand the producer and
+ * the collector would wait forever. Catching it and falling back to the underlying throwable (or
+ * the read failure itself) guarantees the caller always has a cause to close with.
+ */
+private fun resolveStreamFailureCause(
+    t: Throwable?,
+    responseCode: Int?,
+    json: Json,
+    readDetail: () -> String?,
+): Throwable {
+    return try {
+        val detail = readDetail()
+        t ?: IllegalStateException(
+            parseErrorMessage(detail, json)
+                ?: "Cloud Code Assist request failed: $responseCode $detail"
+        )
+    } catch (e: Throwable) {
+        // android.util.Log is unmocked in JVM unit tests (throws instead of logging), so this
+        // testable top-level function uses the Logging facade the rest of :app already relies on
+        // for exactly that reason (e.g. ChatService.kt) rather than android.util.Log.
+        Logging.log(TAG, "onFailure: failed to read error body, detail lost: ${e.javaClass.simpleName}: ${e.message}")
+        t ?: e
+    }
+}
+
+/**
+ * Raise a thinking budget below Claude's floor up to that floor.
+ *
+ * Code Assist fronts Anthropic models as well as Gemini, and Anthropic rejects any request whose
+ * thinking budget is under 1024 tokens. Gemini's own reasoning levels can ask for less (e.g.
+ * [me.rerere.ai.core.ReasoningLevel.LOW] is 1000), so anything in 1..1023 is raised here; `0`
+ * (reasoning off) and budgets already at or above the floor are left untouched, as is the
+ * `thinkingLevel` string used by Gemini-3 models. Must run before
+ * [raiseMaxTokensAboveThinkingBudget] so that function sees the clamped budget.
+ */
+private fun raiseThinkingBudgetToClaudeFloor(request: JsonObject): JsonObject {
+    val config = request["generationConfig"] as? JsonObject ?: return request
+    val thinkingConfig = config["thinkingConfig"] as? JsonObject ?: return request
+    val budget = thinkingConfig["thinkingBudget"]?.jsonPrimitive?.intOrNull ?: return request
+    if (budget !in 1..1023) return request
+    val raisedThinkingConfig = JsonObject(
+        thinkingConfig + ("thinkingBudget" to JsonPrimitive(CLAUDE_MIN_THINKING_BUDGET))
+    )
+    return JsonObject(request + ("generationConfig" to JsonObject(
+        config + ("thinkingConfig" to raisedThinkingConfig)
+    )))
+}
+
+// Anthropic's floor for `thinking.budget_tokens` on Claude models fronted by Code Assist.
+private const val CLAUDE_MIN_THINKING_BUDGET = 1024
 
 /**
  * Guarantee `maxOutputTokens` sits above the thinking budget.

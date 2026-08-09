@@ -3,8 +3,12 @@ package me.rerere.ai.util
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import me.rerere.ai.provider.CustomBody
 import me.rerere.ai.provider.CustomHeader
+import me.rerere.common.android.Logging
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.Request
@@ -89,34 +93,171 @@ private fun mergeJsonObjects(base: JsonObject, overlay: JsonObject): JsonObject 
 }
 
 /**
- * 从 JsonElement 中移除或保留指定的键
- * @param keys 要操作的键列表
- * @param keepOnly 如果为 true，则只保留指定的键；如果为 false，则移除指定的键
- * @return 处理后的 JsonElement
+ * Keys Google's Schema proto actually accepts (verified against googleapis/java-genai
+ * `types/Schema.java`, which mirrors the proto). Anything else - `$ref`, `$schema`, `$defs`,
+ * `deprecated`, `x-google-*`, `oneOf`, `allOf`, ... - triggers
+ * `Invalid JSON payload received. Unknown name "..."` 400s from Google, so unlike the old
+ * blacklist this replaced, this is an allowlist: everything not named here is dropped.
+ *
+ * `enum` and `format` are deliberately excluded to keep behavior parity with the blacklist
+ * this replaces.
  */
-fun JsonElement.removeElements(keys: List<String>, keepOnly: Boolean = false): JsonElement {
-    return when (this) {
-        is JsonObject -> {
-            val newContent = if (keepOnly) {
-                // 只保留指定的键（且键存在）
-                keys.mapNotNull { key ->
-                    get(key)?.let { key to it }
-                }.toMap()
-            } else {
-                // 移除指定的键
-                toMap().filterKeys { key -> key !in keys }
+private val GEMINI_SCHEMA_ALLOWED_KEYS = setOf(
+    "anyOf", "default", "description", "example", "items", "maximum", "maxItems",
+    "maxLength", "maxProperties", "minimum", "minItems", "minLength", "minProperties",
+    "nullable", "pattern", "properties", "propertyOrdering", "required", "title", "type",
+)
+
+private const val GEMINI_SCHEMA_REF_DEPTH_CAP = 8
+private const val GEMINI_SCHEMA_SANITIZER_TAG = "SchemaSanitizer"
+
+/**
+ * Sanitizes a JSON Schema (as produced by MCP servers or hand-written tool schemas) into the
+ * subset Google's Schema proto accepts. Recurses only where subschemas actually live
+ * (`properties` values, `items`, `anyOf` elements); `default`/`example`/`required`/`enum` are
+ * copied verbatim, never descended into.
+ *
+ * Also resolves local `$ref`s (`#/$defs/...`, `#/definitions/...`) against the root schema,
+ * folds `oneOf` into `anyOf`, merges single-element `allOf` into the parent (dropping
+ * multi-element `allOf` instead), and normalizes array-valued `type` (e.g. `["string","null"]`)
+ * into a scalar `type` plus `nullable`.
+ */
+fun JsonElement.sanitizeForGeminiSchema(): JsonElement =
+    sanitizeGeminiSchemaNode(root = this, node = this, depth = 0, refPath = emptySet())
+
+private fun sanitizeGeminiSchemaNode(
+    root: JsonElement,
+    node: JsonElement,
+    depth: Int,
+    refPath: Set<String>,
+): JsonElement {
+    if (node !is JsonObject) return node
+
+    // A local $ref replaces the whole subschema; resolve (or fall back) before anything else.
+    val ref = (node["\$ref"] as? JsonPrimitive)?.takeIf { it.isString }?.content
+    if (ref != null) {
+        val fallback = buildJsonObject { put("type", "object") }
+        if (depth >= GEMINI_SCHEMA_REF_DEPTH_CAP || ref in refPath) {
+            Logging.log(
+                GEMINI_SCHEMA_SANITIZER_TAG,
+                "dropped \$ref '$ref' (${if (ref in refPath) "cyclic" else "exceeded depth cap $GEMINI_SCHEMA_REF_DEPTH_CAP"}), falling back to {type: object}"
+            )
+            return fallback
+        }
+        val resolved = resolveLocalGeminiRef(root, ref)
+        if (resolved == null) {
+            Logging.log(GEMINI_SCHEMA_SANITIZER_TAG, "dropped unresolvable \$ref '$ref', falling back to {type: object}")
+            return fallback
+        }
+        return sanitizeGeminiSchemaNode(root, resolved, depth + 1, refPath + ref)
+    }
+
+    // allOf with exactly one element merges into the parent (parent keys win); its own $ref (if
+    // any - e.g. the common `{"allOf":[{"$ref":"#/$defs/X"}]}` sibling-keyword pattern) is
+    // resolved first so X's content isn't silently discarded. 2+ elements just drops the
+    // keyword and logs it, since it is not in the allowlist and won't be copied to the output
+    // anyway.
+    val allOf = node["allOf"] as? JsonArray
+    val merged: JsonObject = when {
+        allOf != null && allOf.size == 1 -> {
+            val allOfElement = (allOf[0] as? JsonObject)?.let { resolveGeminiAllOfRef(root, it, depth, refPath) }
+            if (allOfElement != null) JsonObject(allOfElement.toMap() + node.toMap()) else node
+        }
+
+        allOf != null && allOf.size > 1 -> {
+            Logging.log(
+                GEMINI_SCHEMA_SANITIZER_TAG,
+                "dropped allOf with ${allOf.size} elements (multi-element allOf is unsupported), keeping the rest of the schema"
+            )
+            node
+        }
+
+        else -> node
+    }
+
+    // oneOf renames to anyOf, merging with any existing anyOf.
+    val oneOf = merged["oneOf"] as? JsonArray
+    val anyOfSource: JsonArray? = if (oneOf != null) {
+        JsonArray((merged["anyOf"] as? JsonArray)?.toList().orEmpty() + oneOf.toList())
+    } else {
+        merged["anyOf"] as? JsonArray
+    }
+
+    val content = linkedMapOf<String, JsonElement>()
+    for (key in GEMINI_SCHEMA_ALLOWED_KEYS) {
+        when (key) {
+            "anyOf" -> anyOfSource?.let { arr ->
+                content["anyOf"] = JsonArray(arr.map { sanitizeGeminiSchemaNode(root, it, depth, refPath) })
             }
 
-            // 递归处理嵌套的 JsonElement
-            JsonObject(newContent.mapValues { (_, value) ->
-                value.removeElements(keys, keepOnly)
-            })
-        }
+            "properties" -> (merged["properties"] as? JsonObject)?.let { properties ->
+                content["properties"] = JsonObject(
+                    properties.mapValues { (_, value) -> sanitizeGeminiSchemaNode(root, value, depth, refPath) }
+                )
+            }
 
-        is JsonArray -> {
-            JsonArray(map { it.removeElements(keys, keepOnly) })
-        }
+            "items" -> merged["items"]?.let { content["items"] = sanitizeGeminiSchemaNode(root, it, depth, refPath) }
 
-        else -> this // 基本类型直接返回
+            "type" -> {} // handled below: a JSON-Schema type array needs normalizing first
+
+            else -> merged[key]?.let { content[key] = it }
+        }
     }
+
+    when (val typeValue = merged["type"]) {
+        is JsonArray -> {
+            val types = typeValue.mapNotNull { (it as? JsonPrimitive)?.takeIf { p -> p.isString }?.content }
+            types.firstOrNull { it != "null" }?.let { content["type"] = JsonPrimitive(it) }
+            if (types.contains("null")) content["nullable"] = JsonPrimitive(true)
+        }
+
+        is JsonPrimitive -> content["type"] = typeValue
+        else -> {}
+    }
+
+    return JsonObject(content)
+}
+
+/**
+ * Resolves a single allOf element's own `$ref` chain (if it has one) against the root schema,
+ * mirroring the top-level `$ref` handling in [sanitizeGeminiSchemaNode] (depth cap, cycle
+ * guard, fallback to `{"type":"object"}`) so a wrapped-ref element inlines its target instead
+ * of being merged in as a bare, unresolved `$ref` key that then gets silently dropped by the
+ * allowlist.
+ */
+private fun resolveGeminiAllOfRef(
+    root: JsonElement,
+    element: JsonObject,
+    depth: Int,
+    refPath: Set<String>,
+): JsonObject {
+    val ref = (element["\$ref"] as? JsonPrimitive)?.takeIf { it.isString }?.content ?: return element
+    val fallback = buildJsonObject { put("type", "object") }
+    if (depth >= GEMINI_SCHEMA_REF_DEPTH_CAP || ref in refPath) {
+        Logging.log(
+            GEMINI_SCHEMA_SANITIZER_TAG,
+            "dropped allOf element's \$ref '$ref' (${if (ref in refPath) "cyclic" else "exceeded depth cap $GEMINI_SCHEMA_REF_DEPTH_CAP"}), falling back to {type: object}"
+        )
+        return fallback
+    }
+    val resolved = resolveLocalGeminiRef(root, ref) as? JsonObject
+    if (resolved == null) {
+        Logging.log(GEMINI_SCHEMA_SANITIZER_TAG, "dropped allOf element's unresolvable \$ref '$ref', falling back to {type: object}")
+        return fallback
+    }
+    return resolveGeminiAllOfRef(root, resolved, depth + 1, refPath + ref)
+}
+
+private fun resolveLocalGeminiRef(root: JsonElement, ref: String): JsonElement? {
+    val (container, path) = when {
+        ref.startsWith("#/\$defs/") -> "\$defs" to ref.removePrefix("#/\$defs/")
+        ref.startsWith("#/definitions/") -> "definitions" to ref.removePrefix("#/definitions/")
+        else -> return null // non-local $ref: unresolvable, caller falls back
+    }
+    var current: JsonElement = (root as? JsonObject)?.get(container) ?: return null
+    for (segment in path.split("/")) {
+        if (segment.isEmpty()) continue
+        current = (current as? JsonObject)?.get(segment) ?: return null
+    }
+    return current
 }

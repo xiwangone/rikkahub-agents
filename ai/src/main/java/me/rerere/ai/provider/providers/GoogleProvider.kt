@@ -57,7 +57,7 @@ import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.redactSecrets
-import me.rerere.ai.util.removeElements
+import me.rerere.ai.util.sanitizeForGeminiSchema
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
 import me.rerere.common.android.Logging
@@ -472,20 +472,14 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                                 add(buildJsonObject {
                                     put("name", JsonPrimitive(tool.name))
                                     put("description", JsonPrimitive(tool.description))
-                                    put(
-                                        key = "parameters",
-                                        element = json.encodeToJsonElement(tool.parameters())
-                                            .removeElements(
-                                                listOf(
-                                                    "const",
-                                                    "exclusiveMaximum",
-                                                    "exclusiveMinimum",
-                                                    "format",
-                                                    "additionalProperties",
-                                                    "enum",
-                                                )
-                                            )
-                                    )
+                                    val parameters = tool.parameters()
+                                    if (parameters != null) {
+                                        put(
+                                            key = "parameters",
+                                            element = json.encodeToJsonElement(parameters)
+                                                .sanitizeForGeminiSchema()
+                                        )
+                                    }
                                 })
                             }
                         })
@@ -510,6 +504,11 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                         }
                     }
                 }
+            })
+        }
+        if (hasFunctionTools && hasBuiltInTools) {
+            put("toolConfig", buildJsonObject {
+                put("includeServerSideToolInvocations", true)
             })
         }
 
@@ -547,7 +546,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             message["role"]?.jsonPrimitive?.contentOrNull ?: "model"
         )
         val content = message["content"]?.jsonObject ?: error("No content")
-        val parts = content["parts"]?.jsonArray?.map { part ->
+        val parts = content["parts"]?.jsonArray?.mapNotNull { part ->
             parseMessagePart(part.jsonObject)
         } ?: emptyList()
 
@@ -578,7 +577,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         return chunks
     }
 
-    private fun parseMessagePart(jsonObject: JsonObject): UIMessagePart {
+    private fun parseMessagePart(jsonObject: JsonObject): UIMessagePart? {
         return when {
             jsonObject.containsKey("text") -> {
                 val thought = jsonObject["thought"]?.jsonPrimitive?.booleanOrNull ?: false
@@ -629,7 +628,10 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 )
             }
 
-            else -> error("unknown message part type: $jsonObject")
+            else -> {
+                Log.w(TAG, "parseMessagePart: skipping unrecognized part, keys=${jsonObject.keys}")
+                null
+            }
         }
     }
 

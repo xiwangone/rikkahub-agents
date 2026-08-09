@@ -2,9 +2,13 @@ package me.rerere.ai.provider.providers
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.boolean
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.BuiltInTools
@@ -484,6 +488,126 @@ class GoogleProviderMessageTest {
 
         assertTrue("function tools must survive alongside built-in tools", hasFunctionDeclarations)
         assertTrue("built-in tools must still be present", hasGoogleSearch)
+    }
+
+    @Test
+    fun `function tool parameters are sanitized to the Gemini schema allowlist`() {
+        val messages = listOf(UIMessage.user("hello"))
+        val params = TextGenerationParams(
+            model = Model(modelId = "gemini-test", abilities = listOf(ModelAbility.TOOL)),
+            tools = listOf(
+                Tool(
+                    name = "search",
+                    description = "a function tool with a JSON-Schema-only key",
+                    parameters = {
+                        InputSchema.Obj(
+                            properties = buildJsonObject {
+                                put("query", buildJsonObject {
+                                    put("type", "string")
+                                    put("x-google-identifier", "should be stripped")
+                                })
+                            }
+                        )
+                    },
+                    execute = { emptyList() },
+                )
+            ),
+        )
+
+        val request = invokeBuildCompletionRequestBody(messages, params)
+        val declaration = request["tools"]!!.jsonArray.first()
+            .jsonObject["functionDeclarations"]!!.jsonArray.single().jsonObject
+        val queryProperty = declaration["parameters"]!!.jsonObject["properties"]!!
+            .jsonObject["query"]!!.jsonObject
+
+        assertEquals("string", queryProperty["type"]?.jsonPrimitive?.content)
+        assertTrue(
+            "unknown vendor keys must not reach Google",
+            queryProperty["x-google-identifier"] == null
+        )
+    }
+
+    @Test
+    fun `a tool with no parameters omits the parameters key entirely`() {
+        val messages = listOf(UIMessage.user("hello"))
+        val params = TextGenerationParams(
+            model = Model(modelId = "gemini-test", abilities = listOf(ModelAbility.TOOL)),
+            tools = listOf(
+                Tool(
+                    name = "no_args",
+                    description = "a tool that takes no arguments",
+                    execute = { emptyList() },
+                )
+            ),
+        )
+
+        val request = invokeBuildCompletionRequestBody(messages, params)
+        val declaration = request["tools"]!!.jsonArray.first()
+            .jsonObject["functionDeclarations"]!!.jsonArray.single().jsonObject
+
+        assertTrue(
+            "parameters key must be omitted, not emitted as JSON null",
+            !declaration.containsKey("parameters")
+        )
+    }
+
+    @Test
+    fun `toolConfig includeServerSideToolInvocations is set when function and built-in tools are mixed`() {
+        val messages = listOf(UIMessage.user("hello"))
+        val params = TextGenerationParams(
+            model = Model(
+                modelId = "gemini-test",
+                abilities = listOf(ModelAbility.TOOL),
+                tools = setOf(BuiltInTools.Search),
+            ),
+            tools = listOf(
+                Tool(
+                    name = "my_tool",
+                    description = "a function tool",
+                    execute = { emptyList() },
+                )
+            ),
+        )
+
+        val request = invokeBuildCompletionRequestBody(messages, params)
+        val toolConfig = request["toolConfig"]!!.jsonObject
+
+        assertTrue(toolConfig["includeServerSideToolInvocations"]!!.jsonPrimitive.boolean)
+    }
+
+    @Test
+    fun `toolConfig is absent when only function tools are present`() {
+        val messages = listOf(UIMessage.user("hello"))
+        val params = TextGenerationParams(
+            model = Model(modelId = "gemini-test", abilities = listOf(ModelAbility.TOOL)),
+            tools = listOf(
+                Tool(
+                    name = "my_tool",
+                    description = "a function tool",
+                    execute = { emptyList() },
+                )
+            ),
+        )
+
+        val request = invokeBuildCompletionRequestBody(messages, params)
+
+        assertTrue("toolConfig must be absent with only function tools", request["toolConfig"] == null)
+    }
+
+    @Test
+    fun `toolConfig is absent when only built-in tools are present`() {
+        val messages = listOf(UIMessage.user("hello"))
+        val params = TextGenerationParams(
+            model = Model(
+                modelId = "gemini-test",
+                abilities = listOf(ModelAbility.TOOL),
+                tools = setOf(BuiltInTools.Search),
+            ),
+        )
+
+        val request = invokeBuildCompletionRequestBody(messages, params)
+
+        assertTrue("toolConfig must be absent with only built-in tools", request["toolConfig"] == null)
     }
 
     // ==================== Helper Functions ====================

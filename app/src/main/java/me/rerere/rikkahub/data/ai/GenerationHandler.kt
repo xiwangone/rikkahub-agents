@@ -92,6 +92,16 @@ private fun isCancellationFailure(failure: Throwable): Boolean =
                 }
         }
 
+/**
+ * A clean stream close only signals a transport failure worth retrying when NOTHING was ever
+ * received. If at least one chunk arrived but none of them yielded parseable parts (e.g. every
+ * part shape was unrecognized), that is a permanent condition - retrying the whole generation
+ * cannot help, so the caller should log it and let the generation end normally instead of
+ * synthesizing a retryable failure.
+ */
+internal fun shouldReportEmptyGenerationStream(receivedAnyChunk: Boolean): Boolean =
+    !receivedAnyChunk
+
 internal fun shouldRetryGenerationStreamFailure(
     failure: Throwable,
     retryAttempt: Long,
@@ -1132,16 +1142,27 @@ class GenerationHandler(
                 )
             )
             var receivedMeaningfulOutput = false
+            var receivedAnyChunk = false
             providerImpl.streamText(
                 providerSetting = provider,
                 messages = internalMessages,
                 params = params
             ).onCompletion { cause ->
                 // Some SSE implementations report an abruptly closed socket through onClosed
-                // without an exception. Treat a clean close with no text/tool/reasoning as a
-                // transport failure so the retry policy can recover a background continuation.
-                if (cause == null && !receivedMeaningfulOutput) {
+                // without an exception. Treat a clean close with no chunks at all as a transport
+                // failure so the retry policy can recover a background continuation. A clean
+                // close after chunks arrived but none produced parseable parts is a permanent
+                // condition (unrecognized part shapes), not a transport hiccup, so it must not
+                // burn retries - log it and let the generation end normally with an empty reply.
+                if (cause == null && shouldReportEmptyGenerationStream(receivedAnyChunk)) {
                     throw IOException("Model stream closed without meaningful output")
+                }
+                if (cause == null && receivedAnyChunk && !receivedMeaningfulOutput) {
+                    Log.w(
+                        TAG,
+                        "streamText: stream closed after chunks arrived but none contained " +
+                            "parseable parts; ending without retry",
+                    )
                 }
             }.retryWhen { cause, retryAttempt ->
                 val shouldRetry = shouldRetryGenerationStreamFailure(
@@ -1151,6 +1172,10 @@ class GenerationHandler(
                     receivedMeaningfulOutput = receivedMeaningfulOutput,
                 )
                 if (shouldRetry) {
+                    // A new attempt is about to start collecting from scratch: reset the
+                    // per-attempt "did anything arrive" flag so onCompletion's transport-failure
+                    // check reflects this attempt, not a chunk seen in an earlier one.
+                    receivedAnyChunk = false
                     val delayMs = generationStreamRetryDelayMs(retryAttempt)
                     processingStatus.value = retryStatusText(
                         context = context,
@@ -1168,6 +1193,7 @@ class GenerationHandler(
                 }
                 shouldRetry
             }.collect {
+                receivedAnyChunk = true
                 if (it.choices.any { choice ->
                     choice.delta?.parts?.isNotEmpty() == true ||
                             choice.message?.parts?.isNotEmpty() == true

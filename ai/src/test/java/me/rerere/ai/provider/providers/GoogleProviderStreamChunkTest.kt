@@ -91,4 +91,41 @@ class GoogleProviderStreamChunkTest {
         assertNull(chunk.choices[0].delta)
         assertEquals("SAFETY", chunk.choices[0].finishReason)
     }
+
+    @Test
+    fun `a signature-only thought part with no text is skipped without throwing`() {
+        val chunk = parse(
+            """{"candidates":[{"content":{"role":"model","parts":[
+                {"thought":true,"thoughtSignature":"sig-1"}
+            ]}}]}"""
+        )
+        val delta = requireNotNull(requireNotNull(chunk).choices[0].delta)
+        assertEquals(0, delta.parts.size)
+    }
+
+    @Test
+    fun `a chunk whose parts are all unrecognized parses to an empty part list without throwing`() {
+        val chunk = parse(
+            """{"candidates":[{"content":{"role":"model","parts":[
+                {"executableCode":{"language":"PYTHON","code":"print(1)"}},
+                {"codeExecutionResult":{"outcome":"OK","output":"1"}}
+            ]}}]}"""
+        )
+        val delta = requireNotNull(requireNotNull(chunk).choices[0].delta)
+        assertEquals(0, delta.parts.size)
+    }
+
+    @Test
+    fun `an unrecognized part is dropped while a thought text part in the same chunk survives`() {
+        val chunk = parse(
+            """{"candidates":[{"content":{"role":"model","parts":[
+                {"thought":true,"text":"pondering"},
+                {"executableCode":{"language":"PYTHON","code":"print(1)"}}
+            ]}}]}"""
+        )
+        val delta = requireNotNull(requireNotNull(chunk).choices[0].delta)
+        assertEquals(1, delta.parts.size)
+        val reasoning = delta.parts.filterIsInstance<UIMessagePart.Reasoning>().single()
+        assertEquals("pondering", reasoning.reasoning)
+    }
 }
