@@ -19,6 +19,7 @@ import me.rerere.rikkahub.data.db.dao.ScheduledJobDao
 import me.rerere.rikkahub.data.db.dao.ScheduledJobRunDao
 import me.rerere.rikkahub.data.db.dao.SshHostDao
 import me.rerere.rikkahub.data.db.dao.TelegramChatDao
+import me.rerere.rikkahub.data.db.dao.VaultAuditLogDao
 import me.rerere.rikkahub.data.db.dao.VaultCredentialDao
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
@@ -32,6 +33,7 @@ import me.rerere.rikkahub.data.db.entity.ScheduledJobEntity
 import me.rerere.rikkahub.data.db.entity.ScheduledJobRunEntity
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.db.entity.TelegramChatEntity
+import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.db.migrations.Migration_16_17
@@ -63,8 +65,9 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         WorkspaceEntity::class,
         FolderEntity::class,
         VaultCredentialEntity::class,
+        VaultAuditLogEntity::class,
     ],
-    version = 28,
+    version = 29,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -96,6 +99,8 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // v28: 密钥库凭证表（VaultCredentialEntity -> vault_credentials）。纯新增表，
         // 无既有数据迁移，auto-migration 即可。
         AutoMigration(from = 27, to = 28),
+        // v29: 密钥使用审计日志表（VaultAuditLogEntity -> vault_audit_log）。纯新增表。
+        AutoMigration(from = 28, to = 29),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
@@ -131,6 +136,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun folderDao(): FolderDAO
 
     abstract fun vaultCredentialDao(): VaultCredentialDao
+
+    abstract fun vaultAuditLogDao(): VaultAuditLogDao
 }
 
 object TokenUsageConverter {

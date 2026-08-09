@@ -224,6 +224,7 @@ private fun CredentialRow(
             if (ok) {
                 plaintext = null // 强制重新解密
                 onRevealToggle()
+                scope.launch { repository.logAccess(entry.name, "manual", "view") }
             }
         }
     }

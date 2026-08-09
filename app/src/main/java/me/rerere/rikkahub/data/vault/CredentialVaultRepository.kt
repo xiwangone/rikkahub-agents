@@ -1,7 +1,10 @@
 package me.rerere.rikkahub.data.vault
 
 import me.rerere.rikkahub.data.datastore.ProviderCredentialCipher
+import me.rerere.rikkahub.data.db.dao.VaultAuditLogDao
 import me.rerere.rikkahub.data.db.dao.VaultCredentialDao
+import me.rerere.rikkahub.data.db.entity.VaultAuditLogDefaults
+import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 
 /**
@@ -11,9 +14,11 @@ import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
  * - 增删改查凭证条目（value 以 AES-GCM 密文存 Room，复用 ProviderCredentialCipher）
  * - 导入 load-creds.sh（解析 → 逐条 upsert）
  * - 脱敏展示（明文仅内存解密，展示前 mask）
+ * - 密钥使用审计：记录每次查看/导出/备份，双上限清理（500 条 / 30 天）
  */
 class CredentialVaultRepository(
     private val dao: VaultCredentialDao,
+    private val auditDao: VaultAuditLogDao,
 ) {
 
     suspend fun getAll(): List<VaultCredentialEntity> = dao.getAll()
@@ -99,6 +104,33 @@ class CredentialVaultRepository(
     suspend fun clearAll() = dao.clearAll()
 
     suspend fun count(): Int = dao.count()
+
+    // ── 密钥使用审计 ──────────────────────────────────────────────
+
+    /**
+     * 记录一次密钥调用（查看/导出/备份）。
+     * 写入后执行双上限清理：超 30 天先删，仍超 500 条则 trim。
+     */
+    suspend fun logAccess(credentialName: String, caller: String, action: String) {
+        auditDao.insert(
+            VaultAuditLogEntity(
+                credentialName = credentialName,
+                caller = caller,
+                action = action,
+            )
+        )
+        val cutoff = System.currentTimeMillis() - VaultAuditDefaults.RETENTION_DAYS * 24 * 60 * 60 * 1000
+        auditDao.deleteOlderThan(cutoff)
+        if (auditDao.count() > VaultAuditDefaults.CAP) {
+            auditDao.trimTo(VaultAuditDefaults.CAP)
+        }
+    }
+
+    /** 最近审计记录（默认 100 条）。 */
+    suspend fun recentAudit(limit: Int = 100): List<VaultAuditLogEntity> =
+        auditDao.getRecent(limit)
+
+    suspend fun clearAudit() = auditDao.clearAll()
 
     companion object {
         /** 脱敏展示：前3后3+***；长度 ≤6 全掩 */

@@ -40,6 +40,7 @@ import me.rerere.hugeicons.stroke.LockKey
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
+import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.vault.CredentialImporter
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultBiometric
@@ -74,7 +75,19 @@ fun VaultPage() {
     var exportResult by remember { mutableStateOf<String?>(null) }
     var backupPassword by remember { mutableStateOf("") }
     var backupResult by remember { mutableStateOf<String?>(null) }
+    var auditLogs by remember { mutableStateOf<List<VaultAuditLogEntity>>(emptyList()) }
     val biometricEnabled by vaultPreferences.biometricEnabled.collectAsState(initial = true)
+
+    fun refreshAudit() {
+        scope.launch { auditLogs = repository.recentAudit(100) }
+    }
+    refreshAudit()
+
+    // 时间格式化
+    fun formatTime(tsMs: Long): String {
+        val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
+        return fmt.format(java.util.Date(tsMs))
+    }
 
     // 备份：整个库（含分组）加密导出 .vault
     val biometricBuffer: BiometricResultBuffer = koinInject()
@@ -102,6 +115,9 @@ fun VaultPage() {
                         val vaultJson = VaultExporter.exportWithGroups(backupPassword, plaintexts)
                         context.contentResolver.openOutputStream(uri)?.use { out ->
                             out.write(vaultJson.encodeToByteArray())
+                        }
+                        plaintexts.forEach { q ->
+                            repository.logAccess(q.name, "backup", "backup")
                         }
                         backupResult = successStr.format(plaintexts.size)
                     }.onFailure { e ->
@@ -161,6 +177,9 @@ fun VaultPage() {
                         val vaultJson = VaultExporter.export(exportPassword, plaintexts)
                         context.contentResolver.openOutputStream(uri)?.use { out ->
                             out.write(vaultJson.encodeToByteArray())
+                        }
+                        plaintexts.forEach { (name, _, _) ->
+                            repository.logAccess(name, "export", "export")
                         }
                         exportResult = successStr.format(plaintexts.size)
                     }.onFailure { e ->
@@ -252,6 +271,50 @@ fun VaultPage() {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                }
+            }
+
+            item {
+                androidx.compose.material3.Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.vault_audit_title), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            text = stringResource(R.string.vault_audit_desc, auditLogs.size),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        auditLogs.take(8).forEach { log ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(log.credentialName, style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        "${log.caller} · ${log.action}",
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                Text(
+                                    formatTime(log.tsMs),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                        OutlinedButton(
+                            onClick = { scope.launch { repository.clearAudit(); refreshAudit() } },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(stringResource(R.string.vault_audit_clear))
+                        }
                     }
                 }
             }

@@ -2170,6 +2170,9 @@
   <string name="vault_backup_success">Backed up %1$d credentials to .vault package</string>
   <string name="vault_backup_restore_success">Restored %1$d credentials from .vault package</string>
   <string name="vault_backup_restore_failed">Restore failed: %1$s</string>
+  <string name="vault_audit_title">Key access log</string>
+  <string name="vault_audit_desc">Recent %1$d key accesses (kept 500 entries / 30 days)</string>
+  <string name="vault_audit_clear">Clear access log</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">Quota Query</string>
   <string name="quota_master_switch">Quota Query</string>

@@ -166,7 +166,10 @@ val dataSourceModule =
             get<AppDatabase>().vaultCredentialDao()
         }
         single {
-            CredentialVaultRepository(get())
+            CredentialVaultRepository(get(), get())
+        }
+        single {
+            get<AppDatabase>().vaultAuditLogDao()
         }
         single {
             VaultPreferences(get())

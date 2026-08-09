@@ -2172,6 +2172,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="vault_backup_success">已备份 %1$d 条凭证到 .vault 包</string>
   <string name="vault_backup_restore_success">已从 .vault 包恢复 %1$d 条凭证</string>
   <string name="vault_backup_restore_failed">恢复失败: %1$s</string>
+  <string name="vault_audit_title">密钥调用记录</string>
+  <string name="vault_audit_desc">最近 %1$d 次密钥调用（保留 500 条 / 30 天）</string>
+  <string name="vault_audit_clear">清空调用记录</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">额度查询</string>
   <string name="quota_master_switch">额度查询</string>
