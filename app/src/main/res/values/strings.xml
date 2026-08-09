@@ -863,8 +863,8 @@
   <string name="setting_page_no_share_app">No sharing app found</string>
   <string name="setting_page_providers">Providers</string>
   <string name="setting_page_providers_desc">Configure AI providers</string>
-  <string name="setting_page_request_logs">Request Logs</string>
-  <string name="setting_page_request_logs_desc">View HTTP request logs</string>
+  <string name="setting_page_request_logs">Logs</string>
+  <string name="setting_page_request_logs_desc">Request / text / app logs with search &amp; copy</string>
   <string name="setting_page_search_add_provider">Add Provider</string>
   <string name="setting_page_search_common_options">Common Options</string>
   <string name="setting_page_search_config">Configuration</string>
@@ -2178,9 +2178,6 @@
   <string name="log_tab_request">Requests</string>
   <string name="log_tab_text">Text</string>
   <string name="log_tab_app">App</string>
-  <string name="log_page_search_hint">Search…</string>
-  <string name="setting_page_request_logs">Logs</string>
-  <string name="setting_page_request_logs_desc">Request / text / app logs with search &amp; copy</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">Quota Query</string>
   <string name="quota_master_switch">Quota Query</string>

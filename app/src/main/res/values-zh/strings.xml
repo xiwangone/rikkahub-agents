@@ -838,8 +838,8 @@
   <string name="setting_page_no_share_app">找不到分享应用</string>
   <string name="setting_page_providers">提供商</string>
   <string name="setting_page_providers_desc">配置AI提供商</string>
-  <string name="setting_page_request_logs">请求日志</string>
-  <string name="setting_page_request_logs_desc">查看 HTTP 请求日志</string>
+  <string name="setting_page_request_logs">日志</string>
+  <string name="setting_page_request_logs_desc">请求 / 文本 / 应用日志，支持搜索与复制</string>
   <string name="setting_page_search_add_provider">添加提供商</string>
   <string name="setting_page_search_common_options">通用选项</string>
   <string name="setting_page_search_config">配置</string>
@@ -2180,9 +2180,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="log_tab_request">请求</string>
   <string name="log_tab_text">文本</string>
   <string name="log_tab_app">应用</string>
-  <string name="log_page_search_hint">搜索…</string>
-  <string name="setting_page_request_logs">日志</string>
-  <string name="setting_page_request_logs_desc">请求 / 文本 / 应用日志，支持搜索与复制</string>
   <!-- Quota / 额度查询 -->
   <string name="quota_page_title">额度查询</string>
   <string name="quota_master_switch">额度查询</string>

@@ -803,8 +803,8 @@
   <string name="setting_page_no_share_app">找不到分享應用</string>
   <string name="setting_page_providers">提供商</string>
   <string name="setting_page_providers_desc">配置AI提供商</string>
-  <string name="setting_page_request_logs">請求記錄</string>
-  <string name="setting_page_request_logs_desc">檢視 HTTP 要求記錄</string>
+  <string name="setting_page_request_logs">日誌</string>
+  <string name="setting_page_request_logs_desc">請求 / 文字 / 應用日誌，支援搜尋與複製</string>
   <string name="setting_page_search_add_provider">新增提供商</string>
   <string name="setting_page_search_common_options">通用選項</string>
   <string name="setting_page_search_config">設定</string>
@@ -1541,7 +1541,5 @@
   <string name="log_tab_text">文字</string>
   <string name="log_tab_app">應用</string>
   <string name="log_page_search_hint">搜尋…</string>
-  <string name="setting_page_request_logs">日誌</string>
-  <string name="setting_page_request_logs_desc">請求 / 文字 / 應用日誌，支援搜尋與複製</string>
 </resources>
 
