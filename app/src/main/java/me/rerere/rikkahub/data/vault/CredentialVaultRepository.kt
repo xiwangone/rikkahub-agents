@@ -39,7 +39,7 @@ class CredentialVaultRepository(
             dao.update(
                 existing.copy(
                     description = description,
-                    group = group,
+                    grp = group,
                     valueEncrypted = encrypted,
                     valueLength = effectiveValue.length,
                     updatedAt = now,
@@ -51,7 +51,7 @@ class CredentialVaultRepository(
                 VaultCredentialEntity(
                     name = name,
                     description = description,
-                    group = group,
+                    grp = group,
                     valueEncrypted = encrypted,
                     valueLength = value.length,
                     createdAt = now,
@@ -71,7 +71,7 @@ class CredentialVaultRepository(
                 dao.update(
                     existing.copy(
                         description = e.description.ifEmpty { existing.description },
-                        group = e.group.ifEmpty { existing.grp },
+                        grp = e.group.ifEmpty { existing.grp },
                         valueEncrypted = encrypted,
                         valueLength = e.value.length,
                         updatedAt = now,
@@ -82,7 +82,7 @@ class CredentialVaultRepository(
                     VaultCredentialEntity(
                         name = e.name,
                         description = e.description,
-                        group = e.group,
+                        grp = e.group,
                         valueEncrypted = encrypted,
                         valueLength = e.value.length,
                         createdAt = now,

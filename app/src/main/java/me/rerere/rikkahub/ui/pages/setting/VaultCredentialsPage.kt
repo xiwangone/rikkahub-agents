@@ -36,8 +36,8 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AddCircle
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.Edit02
-import me.rerere.hugeicons.stroke.Eye
-import me.rerere.hugeicons.stroke.EyeOff
+import me.rerere.hugeicons.stroke.View
+import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.hugeicons.stroke.Key01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
@@ -217,7 +217,7 @@ private fun CredentialRow(
                 )
             }
             IconButton(onClick = onRevealToggle) {
-                Icon(if (revealed) HugeIcons.EyeOff else HugeIcons.Eye, if (revealed) "隐藏" else "显示")
+                Icon(if (revealed) HugeIcons.ViewOff else HugeIcons.View, if (revealed) "隐藏" else "显示")
             }
             IconButton(onClick = onEdit) {
                 Icon(HugeIcons.Edit02, "编辑")
