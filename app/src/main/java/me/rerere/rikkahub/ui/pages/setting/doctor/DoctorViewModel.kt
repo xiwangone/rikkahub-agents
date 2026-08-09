@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting.doctor
 import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import me.rerere.rikkahub.R
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -36,7 +37,7 @@ class DoctorViewModel(
                             DoctorCheck(
                                 id = "doctor.error",
                                 category = DoctorCategory.Diagnostics,
-                                label = "Doctor itself errored",
+                                labelRes = R.string.doctor_common_20,
                                 detail = "${t::class.simpleName}: ${t.message ?: "(no message)"}",
                                 severity = Severity.FAIL,
                             ),

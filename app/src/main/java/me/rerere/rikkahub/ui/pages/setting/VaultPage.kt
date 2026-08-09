@@ -32,6 +32,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardOptions
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
@@ -78,16 +79,19 @@ fun VaultPage() {
     var auditLogs by remember { mutableStateOf<List<VaultAuditLogEntity>>(emptyList()) }
     val biometricEnabled by vaultPreferences.biometricEnabled.collectAsState(initial = true)
 
+    // ── 局部函数（必须先定义，供下方 launcher lambda 引用）──
+    fun refreshCount() {
+        scope.launch { credentialCount = repository.count() }
+    }
     fun refreshAudit() {
         scope.launch { auditLogs = repository.recentAudit(100) }
     }
-    refreshAudit()
-
-    // 时间格式化
     fun formatTime(tsMs: Long): String {
         val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
         return fmt.format(java.util.Date(tsMs))
     }
+    refreshCount()
+    refreshAudit()
 
     // 备份：整个库（含分组）加密导出 .vault
     val biometricBuffer: BiometricResultBuffer = koinInject()
@@ -188,12 +192,6 @@ fun VaultPage() {
                 }
             }
         }
-
-    // 刷新计数
-    fun refreshCount() {
-        scope.launch { credentialCount = repository.count() }
-    }
-    refreshCount()
 
     // SAF 文件选择：导入 load-creds.sh
     val importLauncher =

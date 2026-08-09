@@ -1390,6 +1390,7 @@
   <string name="doctor_common_17">壓縮檔案 (zip)</string>
   <string name="doctor_common_18">NFC</string>
   <string name="doctor_common_19">Android</string>
+  <string name="doctor_common_20">診斷工具自身出錯</string>
   <string name="doctor_perm_01">通知权限</string>
   <string name="doctor_perm_02">已授予。</string>
   <string name="doctor_perm_03">前台服务通知、工具审批和工作流告警需要此权限。</string>

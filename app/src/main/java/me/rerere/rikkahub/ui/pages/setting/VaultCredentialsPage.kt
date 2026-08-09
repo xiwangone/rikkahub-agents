@@ -328,11 +328,12 @@ private fun CredentialEditorDialog(
                     )
                 } else {
                     // 下拉选择已有分组 + 「新建分组…」入口
+                    val newGroupOption = stringResource(R.string.vault_new_group_option)
                     Select(
-                        options = existingGroups + stringResource(R.string.vault_new_group_option),
+                        options = existingGroups + newGroupOption,
                         selectedOption = group,
                         onOptionSelected = {
-                            if (it == stringResource(R.string.vault_new_group_option)) {
+                            if (it == newGroupOption) {
                                 showGroupInput = true
                                 group = ""
                             } else {

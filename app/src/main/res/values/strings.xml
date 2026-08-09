@@ -2028,6 +2028,7 @@
   <string name="doctor_common_17">Archive (zip)</string>
   <string name="doctor_common_18">NFC</string>
   <string name="doctor_common_19">Android</string>
+  <string name="doctor_common_20">Doctor itself errored</string>
   <string name="doctor_perm_01">Notification permission</string>
   <string name="doctor_perm_02">Granted.</string>
   <string name="doctor_perm_03">Foreground-service notifications, tool approvals and workflow alerts need this permission.</string>

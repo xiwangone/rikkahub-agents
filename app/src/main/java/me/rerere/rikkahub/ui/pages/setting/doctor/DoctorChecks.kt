@@ -1013,7 +1013,7 @@ class DoctorChecks(
                             severity = severity,
                             fix =
                                 FixAction.OpenAppRoute(
-                                    "打开本地 LiteRT 设置",
+                                    R.string.doctor_net_11,
                                     AppRouteKey.SettingProvider,
                                 ),
                         ),
@@ -1043,7 +1043,7 @@ class DoctorChecks(
                                 severity = Severity.INFO,
                                 fix =
                                     FixAction.OpenAppRoute(
-                                        "打开本地 LiteRT 设置",
+                                        R.string.doctor_net_11,
                                         AppRouteKey.SettingProvider,
                                     ),
                             ),
@@ -1077,7 +1077,7 @@ class DoctorChecks(
                                 severity = Severity.WARN,
                                 fix =
                                     FixAction.OpenAppRoute(
-                                        "打开本地 LiteRT 设置",
+                                        R.string.doctor_net_11,
                                         AppRouteKey.SettingProvider,
                                     ),
                             ),
