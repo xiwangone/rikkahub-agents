@@ -5,6 +5,15 @@
 
 ---
 
+## 2026-08-11
+
+- **功能** Vault 会话多会话 — 独立 token（id.expiry.HMAC）+ label + 自定义 TTL（30min/7d/30d/当场）+ 单会话撤销 + 会话列表 UI（`7c0fdec5` / `95b62736`）
+- **功能** Vault 会话作用域 — `decrypt` scope 校验，`/vault/decrypt` 要求 scope，为 Web 桥 JWT 预留（`1b9069c0`）
+- **修复** 签发新会话后列表不刷新 — sessionListState 提升页面级，签发/进入/撤销三处刷新（`65b47696`）
+- **重构** 拆分 TelegramBotService 静态注册表 — ApprovalPromptRegistry/RejectedSenderLog/SlashCommandLog/BUILT_IN_COMMANDS → TelegramBotRegistries.kt（-170 行）（`9f6ae3b0`）
+- **修复** WebView 资源释放 — onRelease 时 destroy 防泄漏（cherry-pick 上游 `2c980642`）（`34ba994e`）
+- **功能** 新增 mimo v3 / v3 pro / qwen-3.8-max 模型定义（cherry-pick 上游）（`0ea350ea`）
+
 ## 2026-08-10
 
 - **修复** Room 迁移链断裂导致 2.45.6 闪退 — v29 迁移误判「v28 未发布」只写 `AutoMigration(27→29)`，而 v28 已随 2.45.5（Vault MVP）发布；已装 2.45.5 的用户升级 2.45.6 时 Room 找不到 28→29 迁移路径抛 IllegalStateException。新增手写 `Migration_28_29`（建 `vault_audit_log` 表 + 2 索引），与 27→29 并存，Room 按设备版本自动选路径
