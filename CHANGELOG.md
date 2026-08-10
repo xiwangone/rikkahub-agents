@@ -13,6 +13,8 @@
 - **重构** 拆分 TelegramBotService 静态注册表 — ApprovalPromptRegistry/RejectedSenderLog/SlashCommandLog/BUILT_IN_COMMANDS → TelegramBotRegistries.kt（-170 行）（`9f6ae3b0`）
 - **修复** WebView 资源释放 — onRelease 时 destroy 防泄漏（cherry-pick 上游 `2c980642`）（`34ba994e`）
 - **功能** 新增 mimo v3 / v3 pro / qwen-3.8-max 模型定义（cherry-pick 上游）（`0ea350ea`）
+- **修复** 过期会话惰性自动清理 — readSessions 过滤已过期，防 SESSIONS 无限增长（`97192302`）
+- **ci** 缓存 web-ui 依赖 — bun.lock key，避免每次全量 pnpm install，加速构建（`3b86e00a`）
 
 ## 2026-08-10
 
