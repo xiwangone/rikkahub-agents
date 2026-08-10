@@ -19,6 +19,7 @@ import me.rerere.rikkahub.data.telegram.TelegramApiException
 import me.rerere.rikkahub.data.telegram.TelegramBotClient
 import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
 import me.rerere.rikkahub.service.TelegramBotService
+import me.rerere.rikkahub.service.TelegramBotRegistries
 import java.io.File
 
 private fun textPart(o: JsonObject) = listOf(UIMessagePart.Text(o.toString()))
