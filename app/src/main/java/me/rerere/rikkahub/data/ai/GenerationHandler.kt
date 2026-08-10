@@ -960,6 +960,10 @@ class GenerationHandler(
         conversationLorebookIds: Set<Uuid> = emptySet(),
         workspaceCwd: String? = null,
     ) {
+        // Reset any leftover processing status (e.g. OCR from a previous turn still
+        // inside its 60s window) so a new message without images doesn't show
+        // "recognizing image" from an earlier turn.
+        processingStatus.value = null
         val internalMessages = buildList {
             // Conversation-level system prompt override (upstream): when the assistant
             // allows it and the conversation supplies one, it replaces the assistant prompt.
