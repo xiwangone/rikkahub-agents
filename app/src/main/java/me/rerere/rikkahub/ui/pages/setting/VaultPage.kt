@@ -385,6 +385,96 @@ fun VaultPage() {
             }
 
             item {
+                // 会话列表（多会话）
+                androidx.compose.material3.Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+                ) {
+                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(stringResource(R.string.vault_session_list_title), style = MaterialTheme.typography.titleSmall)
+                        Text(
+                            text = stringResource(R.string.vault_session_list_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        var sessionList by remember { mutableStateOf<List<me.rerere.rikkahub.data.vault.VaultSessionInfo>>(emptyList()) }
+                        // 刷新会话列表（进入页面 + 签发/撤销后）
+                        suspend fun refreshSessionList() {
+                            sessionList = vaultSessionManager.listSessions()
+                        }
+                        LaunchedEffect(Unit) {
+                            refreshSessionList()
+                        }
+                        if (sessionList.isEmpty()) {
+                            Text(
+                                stringResource(R.string.vault_session_empty),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            sessionList.forEach { s ->
+                                androidx.compose.material3.Surface(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                                ) {
+                                    Row(
+                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        Column(Modifier.weight(1f)) {
+                                            Text(
+                                                text = s.label.ifBlank { context.getString(R.string.vault_session_label_default) },
+                                                style = MaterialTheme.typography.bodySmall,
+                                            )
+                                            val remaining = s.remainingMs()
+                                            Text(
+                                                text = when {
+                                                    remaining == Long.MAX_VALUE -> context.getString(R.string.vault_session_remaining_session)
+                                                    remaining >= 24L * 60 * 60 * 1000 -> context.getString(R.string.vault_session_remaining_day, remaining / (24L * 60 * 60 * 1000))
+                                                    else -> context.getString(R.string.vault_session_remaining_min, (remaining / 60000L).toInt())
+                                                },
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                        TextButton(onClick = {
+                                            scope.launch {
+                                                // 复制该会话的 token（按会话 id 重新计算）
+                                                val token = vaultSessionManager.reissueTokenFor(s.id)
+                                                if (token != null) {
+                                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("vault-session", token))
+                                                    sessionResult = context.getString(R.string.vault_session_token_copied)
+                                                }
+                                            }
+                                        }) {
+                                            Text(stringResource(R.string.vault_session_copy))
+                                        }
+                                        TextButton(onClick = {
+                                            scope.launch {
+                                                vaultSessionManager.revokeSession(s.id)
+                                                refreshSessionList()
+                                                sessionResult = context.getString(R.string.vault_session_revoked)
+                                                // 若撤销的是最近会话，清空展示 token
+                                                if (sessionToken != null && vaultSessionManager.listSessions().isEmpty()) {
+                                                    sessionToken = null
+                                                }
+                                            }
+                                        }) {
+                                            Text(stringResource(R.string.vault_session_revoke))
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            item {
                 androidx.compose.material3.Surface(
                     modifier = Modifier.fillMaxWidth(),
                     shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),

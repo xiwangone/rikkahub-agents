@@ -174,9 +174,7 @@ class VaultSessionManager(private val context: Context) {
         val sessions = readSessions()
         if (master != null && sessions.isNotEmpty()) {
             val latest = sessions.maxByOrNull { it.createdAt } ?: return null
-            val expiry = if (latest.ttlMs == Long.MAX_VALUE) Long.MAX_VALUE else latest.createdAt + latest.ttlMs
-            if (System.currentTimeMillis() > expiry) return null
-            return signToken(master, latest.id, expiry)
+            return reissueTokenFor(latest.id)
         }
         // 旧单会话
         val prefs = context.vaultSessionStore.data.first()
@@ -186,6 +184,16 @@ class VaultSessionManager(private val context: Context) {
         val expiry = if (sessionMode) Long.MAX_VALUE else created + TTL_MS
         if (!sessionMode && System.currentTimeMillis() > expiry) return null
         return legacySign(secretB64, expiry)
+    }
+
+    /** 按会话 id 重新生成 token（UI 列表复制用）。返回 null 表示会话不存在或已过期。 */
+    suspend fun reissueTokenFor(tokenId: String): String? {
+        val master = context.vaultSessionStore.data.first()[Keys.MASTER_SECRET] ?: return null
+        val sessions = readSessions()
+        val rec = sessions.find { it.id == tokenId } ?: return null
+        val expiry = if (rec.ttlMs == Long.MAX_VALUE) Long.MAX_VALUE else rec.createdAt + rec.ttlMs
+        if (System.currentTimeMillis() > expiry) return null
+        return signToken(master, rec.id, expiry)
     }
 
     /** 兼容：撤销全部（旧 revoke 语义）。 */
