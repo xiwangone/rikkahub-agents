@@ -18,6 +18,9 @@ import javax.crypto.spec.SecretKeySpec
 
 private val Context.vaultSessionStore by preferencesDataStore(name = "vault_session")
 
+/** 默认作用域：可解密凭据（顶层常量，data class 默认值需在 companion 前可解析） */
+private val DEFAULT_SCOPES: List<String> = listOf("decrypt")
+
 /** 多会话信息（UI 展示用） */
 @Serializable
 data class VaultSessionInfo(
@@ -72,9 +75,6 @@ class VaultSessionManager(private val context: Context) {
         const val TTL_30D_MS = 30L * 24 * 60 * 60 * 1000
         const val TTL_SESSION_MS = Long.MAX_VALUE // 当场有效
         const val DEFAULT_LABEL = "默认"
-
-        /** 默认作用域：可解密凭据 */
-        val DEFAULT_SCOPES = listOf("decrypt")
 
         /** 作用域常量 */
         const val SCOPE_DECRYPT = "decrypt"
