@@ -442,7 +442,7 @@ fun telegramSetCommandsTool(prefs: TelegramBotPreferences, client: TelegramBotCl
         // call without the model knowing the built-in list — Telegram's setMyCommands is
         // a full REPLACE, so without this merge a single innocuous /weather call would
         // wipe /start /help /new /stop /status /model /ratelimit.
-        val builtinNames = TelegramBotService.BUILT_IN_COMMANDS.map { it.first }.toSet()
+        val builtinNames = TelegramBotRegistries.BUILT_IN_COMMANDS.map { it.first }.toSet()
         // Merge with any previously-persisted custom commands so the model can ADD a
         // command without wiping ones it added in earlier turns. Latest wins on name
         // conflict (re-saving a command updates its description).
@@ -454,11 +454,11 @@ fun telegramSetCommandsTool(prefs: TelegramBotPreferences, client: TelegramBotCl
         // Persist FIRST so a subsequent app restart re-registers the same set via the
         // bot service's startup hook. THEN push to Telegram.
         prefs.update { it.copy(customCommands = customList) }
-        val merged = TelegramBotService.BUILT_IN_COMMANDS + customList
+        val merged = TelegramBotRegistries.BUILT_IN_COMMANDS + customList
         val skipped = userList.size - userList.count { it.first.lowercase() !in builtinNames }
         textPart(safeApi { buildJsonObject {
             put("success", client.setMyCommands(merged))
-            put("builtin_count", TelegramBotService.BUILT_IN_COMMANDS.size)
+            put("builtin_count", TelegramBotRegistries.BUILT_IN_COMMANDS.size)
             put("custom_count", customList.size)
             put("total", merged.size)
             if (skipped > 0) {
@@ -490,8 +490,8 @@ fun telegramDeleteCommandsTool(prefs: TelegramBotPreferences, client: TelegramBo
         // doesn't leave a phantom registered on Telegram with no record locally.
         prefs.update { it.copy(customCommands = emptyList()) }
         textPart(safeApi { buildJsonObject {
-            put("success", client.setMyCommands(TelegramBotService.BUILT_IN_COMMANDS))
-            put("kept", TelegramBotService.BUILT_IN_COMMANDS.size)
+            put("success", client.setMyCommands(TelegramBotRegistries.BUILT_IN_COMMANDS))
+            put("kept", TelegramBotRegistries.BUILT_IN_COMMANDS.size)
             put("note", "Custom commands cleared. Built-in commands are preserved.")
         } })
     }

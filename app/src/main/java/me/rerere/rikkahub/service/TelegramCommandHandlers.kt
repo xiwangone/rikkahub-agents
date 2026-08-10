@@ -16,12 +16,12 @@ import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.telegram.TelegramCallbackQuery
 import me.rerere.rikkahub.data.telegram.TelegramHtmlRenderer
 import me.rerere.rikkahub.data.telegram.TelegramIncomingMessage
-import me.rerere.rikkahub.service.TelegramBotService.Companion.ApprovalPromptRegistry
-import me.rerere.rikkahub.service.TelegramBotService.Companion.BUILT_IN_COMMANDS
+import me.rerere.rikkahub.service.TelegramBotRegistries.ApprovalPromptRegistry
+import me.rerere.rikkahub.service.TelegramBotRegistries.BUILT_IN_COMMANDS
 import me.rerere.rikkahub.service.TelegramBotService.Companion.DOCTOR_FIX_CB_PREFIX
 import me.rerere.rikkahub.service.TelegramBotService.Companion.MAX_CHARS
 import me.rerere.rikkahub.service.TelegramBotService.Companion.PARSE_MODE_HTML
-import me.rerere.rikkahub.service.TelegramBotService.Companion.SlashCommandLog
+import me.rerere.rikkahub.service.TelegramBotRegistries.SlashCommandLog
 import me.rerere.rikkahub.service.TelegramBotService.Companion.TAG
 import me.rerere.rikkahub.service.TelegramBotService.Companion.isRunning
 import kotlin.uuid.Uuid
