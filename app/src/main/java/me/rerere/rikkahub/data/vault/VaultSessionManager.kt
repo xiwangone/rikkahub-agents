@@ -26,6 +26,7 @@ data class VaultSessionInfo(
     val ttlMs: Long,
     val createdAt: Long,
     val lastUsedAt: Long,
+    val scopes: List<String> = DEFAULT_SCOPES,
 ) {
     /** 剩余有效毫秒（当场有效 = Long.MAX_VALUE） */
     fun remainingMs(now: Long = System.currentTimeMillis()): Long =
@@ -39,6 +40,7 @@ private data class VaultSessionRecord(
     val ttlMs: Long,
     val createdAt: Long,
     val lastUsedAt: Long,
+    val scopes: List<String> = DEFAULT_SCOPES,
 )
 
 /**
@@ -71,6 +73,13 @@ class VaultSessionManager(private val context: Context) {
         const val TTL_SESSION_MS = Long.MAX_VALUE // 当场有效
         const val DEFAULT_LABEL = "默认"
 
+        /** 默认作用域：可解密凭据 */
+        val DEFAULT_SCOPES = listOf("decrypt")
+
+        /** 作用域常量 */
+        const val SCOPE_DECRYPT = "decrypt"
+        const val SCOPE_SESSION = "session"
+
         private val json = Json { ignoreUnknownKeys = true }
     }
 
@@ -93,8 +102,8 @@ class VaultSessionManager(private val context: Context) {
         return signToken(master, id, expiry)
     }
 
-    /** 校验 token 是否有效（多会话）。 */
-    suspend fun verifyToken(token: String): Boolean {
+    /** 校验 token 是否有效（多会话）。[requiredScope] 指定后还需会话拥有该作用域。 */
+    suspend fun verifyToken(token: String, requiredScope: String? = null): Boolean {
         val master = context.vaultSessionStore.data.first()[Keys.MASTER_SECRET] ?: return legacyVerify(token)
         val parts = token.split(".")
         if (parts.size != 3) return legacyVerify(token)
@@ -106,6 +115,8 @@ class VaultSessionManager(private val context: Context) {
         // 会话必须仍存在（撤销后立即失效）
         val sessions = readSessions()
         val rec = sessions.find { it.id == id } ?: return false
+        // 作用域校验
+        if (requiredScope != null && rec.scopes.none { it == requiredScope || it == "all" }) return false
         // 更新 lastUsedAt（审计）
         if (System.currentTimeMillis() - rec.lastUsedAt > 60_000) {
             updateSessions { list ->
