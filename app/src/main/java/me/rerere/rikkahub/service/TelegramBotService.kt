@@ -2385,10 +2385,6 @@ class TelegramBotService : Service() {
         // typing/edit launch + cancelAndJoin) so a long wait doesn't burn battery or
         // Telegram quota. /stop is still effective via the built-in fast-path.
 
-        /**
-         * Process-scoped registry of (toolCallId → (chatId, messageId)) for in-flight
-
-
         /** Set whenever the service is alive AND its long-poll loop is running. */
         @Volatile var isRunning: Boolean = false
             private set
