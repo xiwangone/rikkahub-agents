@@ -3,10 +3,11 @@ name: 编译 APK · Release
 on:
   workflow_dispatch:
     inputs:
-      release_tag:
-        description: '自定义 Release tag（默认取 versionName，如 2.4.5-beta.1）'
+      nothing:
+        description: '手动触发编译（不发版；发版走 release.yml 工作流，版本号由发版输入控制）'
         required: false
-        type: string
+        type: boolean
+        default: false
   push:
     branches: [master]
     paths-ignore:
@@ -39,19 +40,25 @@ jobs:
 
       - name: Ktlint 静态检查（不阻断，输出风格报告）
         run: |
-          curl -sSLO https://github.com/pinterest/ktlint/releases/latest/download/ktlint
+          # 固定版本避免每次下载 latest 波动
+          curl -sSLO https://github.com/pinterest/ktlint/releases/download/1.5.0/ktlint
           chmod +x ktlint
           ./ktlint app/src/main/java 2>&1 | tail -30 || true
 
-      - name: 缓存 Gradle（依赖/编译缓存，加速构建）
+      - name: 缓存 Gradle 依赖（libs 变化才重建）
         uses: actions/cache@v4
         with:
-          path: |
-            ~/.gradle/caches
-            ~/.gradle/wrapper
-          key: ${{ runner.os }}-gradle-${{ hashFiles('**/*.gradle.kts', '**/gradle.properties') }}
+          path: ~/.gradle/caches/modules-2
+          key: ${{ runner.os }}-gradle-modules-${{ hashFiles('gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
-            ${{ runner.os }}-gradle-
+            ${{ runner.os }}-gradle-modules-
+
+      - name: 缓存 Gradle 构建缓存（固定 key，不堆积）
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: ${{ runner.os }}-gradle-buildcache
+          save-always: true
 
       - name: 安装 bun & pnpm
         run: |
@@ -59,39 +66,12 @@ jobs:
           echo "$HOME/.bun/bin" >> $GITHUB_PATH
           npm install -g pnpm
 
-<<<<<<< HEAD
-      - name: 版本号自动 bump（push 时当前版本已有 Release 则补丁号+1）
-        # 小修复自动区分：2.45.3 已有 Release → 自动 bump 为 2.45.4（versionCode+1）
-        # 避免小修复永远无法发版；workflow_dispatch 手动发版不 bump（用输入 release_tag 控制）
-        if: github.event_name == 'push'
-        run: |
-          VER=$(awk -F'"' '/versionName/{print $2; exit}' app/build.gradle.kts)
-          CODE=$(awk '/versionCode = /{print $3; exit}' app/build.gradle.kts)
-          if gh release view "$VER" >/dev/null 2>&1; then
-            echo "版本 $VER 已有 Release，自动 bump 补丁号"
-            # 标准补丁号递增：2.45.3 → 2.45.4；2.45.9 → 2.45.10
-            NEW_VER=$(echo "$VER" | awk -F. '{ if (NF>=3) { $3=$3+1; print $1"."$2"."$3 } else { print $0".1" } }')
-            NEW_CODE=$((CODE + 1))
-            sed -i "s/versionCode = $CODE/versionCode = $NEW_CODE/" app/build.gradle.kts
-            sed -i "s/versionName = \"$VER\"/versionName = \"$NEW_VER\"/" app/build.gradle.kts
-            echo "bumped: $VER → $NEW_VER (versionCode $CODE → $NEW_CODE)"
-            # 提交版本号推进，避免下次 push 重复 bump
-            git config user.name "Auto Version Bot"
-            git config user.email "bot@rikkahub-agents.local"
-            git add app/build.gradle.kts
-            git commit -m "chore: 自动 bump 版本号 $VER → $NEW_VER（versionCode $NEW_CODE）"
-            git push origin master
-          else
-            echo "版本 $VER 无 Release，保持原版本"
-          fi
-=======
       - name: 缓存 web-ui 依赖（bun.lock 变化才重建）
         uses: actions/cache@v4
         with:
           path: web-ui/node_modules
           key: webui-${{ hashFiles('bun.lock') }}
           restore-keys: webui-
->>>>>>> 3b86e00a (ci: 缓存 web-ui 依赖（bun.lock key，避免每次全量 pnpm install，加速构建）)
 
       - name: 固定签名构建 (overwrite-install)
         env:
@@ -107,19 +87,26 @@ jobs:
           echo "keyAlias=$KEY_ALIAS" >> local.properties
           echo "keyPassword=$KEY_PASSWORD" >> local.properties
           chmod +x gradlew
-          ./gradlew assembleRelease --parallel --configure-on-demand
+          # --build-cache 复用本地构建缓存；--configuration-cache 增量配置解析
+          ./gradlew assembleRelease --parallel --build-cache --configuration-cache
 
       - name: 编译单元测试（验证测试代码可编译，不执行）
         run: |
-          ./gradlew compileDebugUnitTestKotlin --parallel --configure-on-demand || true
+          ./gradlew compileDebugUnitTestKotlin --parallel --build-cache --configuration-cache || true
 
-      - name: 重命名 APK（RikkaHub-Agents-版本号-架构命名）
+      - name: 重命名 APK（统一命名：RikkaHub-Agents-版本号-架构-release）
         run: |
           cd app/build/outputs/apk/release
-          VER=$(awk -F'"' '/versionName/{print $2; exit}' ../../../../../app/build.gradle.kts || echo 0.0)
-          for apk in app-*.apk; do
-            [ -f "$apk" ] && mv "$apk" "RikkaHub-Agents-${VER}-${apk#app-}" || true
+          VER=$(awk -F'\"' '/versionName/{print $2; exit}' ../../../../../app/build.gradle.kts || echo 0.0)
+          for apk in *.apk; do
+            case "$apk" in
+              *arm64*) arch="arm64-v8a" ;;
+              *universal*) arch="universal" ;;
+              *) arch="$(basename "$apk" .apk)" ;;
+            esac
+            mv "$apk" "RikkaHub-Agents-${VER}-${arch}-release.apk"
           done
+          ls -la
           echo "版本号: ${VER}"
 
       - name: 上传 APK (artifact)
@@ -128,56 +115,6 @@ jobs:
         with:
           name: rikkahub-agents-release
           path: app/build/outputs/apk/release/*.apk
-
-      - name: 上传 APK 到 Release
-        # push 与 workflow_dispatch 都尝试发版：push 时仅当 versionName 无对应 Release 才自动创建
-        # （自动发版闭环：push 新版本号 → 构建 → Release → App 检查更新可检测）；
-        # 已存在则跳过创建，仅刷新上传（workflow_dispatch 手动 release_tag 覆盖时同理）。
-        run: |
-          # 动态读取 versionName 作为默认 tag，可用 workflow_dispatch 的 release_tag 覆盖
-          # 注：sed 捕获组在 YAML 转义易坏（\\1 变字面量），改用 awk 提取引号内版本号
-          DEFAULT_TAG=$(awk -F'"' '/versionName/{print $2; exit}' app/build.gradle.kts)
-          TAG="${RELEASE_TAG:-$DEFAULT_TAG}"
-          echo "Release TAG: $TAG"
-          if [ "$GITHUB_EVENT_NAME" = "push" ]; then
-            # push 自动发版：Release 已存在则跳过（避免每 push 都重建同名 Release）
-            if gh release view "$TAG" >/dev/null 2>&1; then
-              echo "Release $TAG 已存在，push 自动发版跳过（如需更新请手动 workflow_dispatch）"
-              exit 0
-            fi
-          fi
-          # Release 不存在则创建（避免 release not found）——保持统一样式
-          # notes 自动生成：git log 按类型分组（✨新增/🔨修复/🔧维护/📝其他）
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" \
-            --title "🚀 RikkaHub Agents $TAG" \
-            --notes "$(git log --oneline --no-merges $(git describe --tags --abbrev=0 2>/dev/null || echo HEAD~10)..HEAD 2>/dev/null | head -60 | awk '
-              function classify(msg,    m) {
-                if (msg ~ /^feat|^✨/) return "✨ 新增"
-                if (msg ~ /^fix|^🐛/) return "🔨 修复"
-                if (msg ~ /^ci|^chore|^🔧/) return "🔧 维护"
-                return "📝 其他"
-              }
-              {
-                msg = $0; sub(/^[0-9a-f]+ /, "", msg)
-                cat = classify(msg)
-                items[cat] = items[cat] "\n- " msg
-              }
-              END {
-                order[1]="✨ 新增"; order[2]="🔨 修复"; order[3]="🔧 维护"; order[4]="📝 其他"
-                for (i=1; i<=4; i++) {
-                  c = order[i]
-                  if (items[c] != "") { print "### " c; print items[c]; print "" }
-                }
-              }' || echo '## ✨ v$TAG\n\n### 📦 安装包\n- ARM64 优化包\n- Universal 通用包')" || true
-          cd app/build/outputs/apk/release
-                    for apk in *.apk; do
-            # 文件已在上一步统一重命名（RikkaHub-Agents-*），直接上传
-            gh release upload "$TAG" "$apk" --clobber
-          done
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          RELEASE_TAG: ${{ inputs.release_tag }}
-          GITHUB_EVENT_NAME: ${{ github.event_name }}
 
       - name: Telegram 构建通知
         if: always()
