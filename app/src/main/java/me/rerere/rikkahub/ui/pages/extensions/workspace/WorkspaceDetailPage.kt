@@ -148,11 +148,11 @@ fun WorkspaceDetailPage(id: String) {
                         }
                     }
                     IconButton(onClick = { vm.refresh() }) {
-                        Icon(HugeIcons.Refresh01, contentDescription = null)
+                        Icon(HugeIcons.Refresh01, contentDescription = stringResource(R.string.accessibility_refresh_workspace))
                     }
                     if (state.workspace?.shellStatus != WorkspaceShellStatus.DISABLED.name) {
                         IconButton(onClick = { navController.navigate(Screen.WorkspaceTerminal(id)) }) {
-                            Icon(HugeIcons.ComputerTerminal01, contentDescription = null)
+                            Icon(HugeIcons.ComputerTerminal01, contentDescription = stringResource(R.string.accessibility_open_terminal))
                         }
                     }
                 },
@@ -672,7 +672,7 @@ private fun WorkspacePathBar(
             enabled = canGoUp,
             onClick = onGoUp,
         ) {
-            Icon(HugeIcons.ArrowTurnBackward, contentDescription = null)
+            Icon(HugeIcons.ArrowTurnBackward, contentDescription = stringResource(R.string.accessibility_navigate_up_directory))
         }
         Text(
             text = path.ifBlank { "/" },
@@ -739,7 +739,7 @@ private fun WorkspaceFileCard(
             }
             Box {
                 IconButton(onClick = { menuExpanded = true }) {
-                    Icon(HugeIcons.MoreVertical, contentDescription = null)
+                    Icon(HugeIcons.MoreVertical, contentDescription = stringResource(R.string.accessibility_more_options))
                 }
                 DropdownMenu(
                     expanded = menuExpanded,

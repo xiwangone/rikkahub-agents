@@ -180,7 +180,7 @@ private fun AttachmentChip(
             ) {
                 Icon(
                     imageVector = HugeIcons.Cancel01,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.accessibility_remove_attachment),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.size(16.dp)
                 )

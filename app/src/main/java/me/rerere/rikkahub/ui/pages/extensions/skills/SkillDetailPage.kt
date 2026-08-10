@@ -128,7 +128,7 @@ fun SkillDetailPage(skillName: String) {
                 exit = fadeOut() + scaleOut(),
             ) {
                 FloatingActionButton(onClick = { showAddDialog = true }) {
-                    Icon(Lucide.Plus, contentDescription = null)
+                    Icon(Lucide.Plus, contentDescription = stringResource(R.string.accessibility_add_skill))
                 }
             }
         },

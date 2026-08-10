@@ -81,7 +81,7 @@ fun TTSController() {
                 ) {
                     Icon(
                         imageVector = HugeIcons.Cancel01,
-                        contentDescription = null,
+                        contentDescription = stringResource(R.string.accessibility_tts_close),
                     )
                 }
 
@@ -103,7 +103,7 @@ fun TTSController() {
                 ) {
                     Icon(
                         imageVector = if (expand) HugeIcons.ArrowLeft01 else HugeIcons.ArrowRight01,
-                        contentDescription = null,
+                        contentDescription = stringResource(if (expand) R.string.accessibility_tts_collapse else R.string.accessibility_tts_expand),
                     )
                 }
             }
@@ -120,7 +120,7 @@ private fun FastForwardButton(ttsState: CustomTtsState) {
     ) {
         Icon(
             imageVector = HugeIcons.Forward02,
-            contentDescription = null,
+            contentDescription = stringResource(R.string.accessibility_tts_fast_forward),
         )
     }
 }
