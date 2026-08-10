@@ -565,6 +565,20 @@ object ModelRegistry {
             toolReasoningAbility()
         }
 
+    private val XIAOMI_MIMO_V3 =
+        defineModel {
+            tokens("mimo", "v", "3")
+            visionInput()
+            toolReasoningAbility()
+        }
+
+    private val XIAOMI_MIMO_V3_PRO =
+        defineModel {
+            tokens("mimo", "v", "3", "pro")
+            visionInput()
+            toolReasoningAbility()
+        }
+
     private val HY3 =
         defineModel {
             tokens("hy", "3")
@@ -580,6 +594,12 @@ object ModelRegistry {
     val QWEN_MT =
         defineModel {
             tokens("qwen", "mt")
+        }
+
+    private val QWEN_3_8_MAX =
+        defineModel {
+            tokens("qwen", "3", "8", "max")
+            toolReasoningAbility()
         }
 
     private val ALL_MODELS =
@@ -634,6 +654,7 @@ object ModelRegistry {
             QWEN_3_5_MAX,
             QWEN_3_6_MAX,
             QWEN_3_7_MAX,
+            QWEN_3_8_MAX,
             DOUBAO_1_6,
             DOUBAO_1_8,
             DOUBAO_2_0,
@@ -661,6 +682,8 @@ object ModelRegistry {
             XIAOMI_MIMO_V2_PRO,
             XIAOMI_MIMO_V2_5,
             XIAOMI_MIMO_V2_5_PRO,
+            XIAOMI_MIMO_V3,
+            XIAOMI_MIMO_V3_PRO,
             HY3,
             LONGCAT_2,
             QWEN_MT,
