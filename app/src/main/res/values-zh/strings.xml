@@ -2098,6 +2098,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="vault_session_copy">复制</string>
   <string name="vault_session_revoke">撤销</string>
   <string name="vault_session_copied">已复制</string>
+  <string name="vault_session_issued_ttl">会话 token 已签发（30 分钟有效）</string>
+  <string name="vault_session_issued_manual">会话 token 已签发（当场有效，会话结束/手动撤销失效）</string>
   <string name="setting_web_bridge_title">Web 桥</string>
   <string name="setting_web_bridge_desc">SSH 反向隧道到 ECS</string>
   <string name="setting_web_bridge_desc_detail">把手机 Web 服务映射到 ECS 远端端口，远端服务（Reasonix 等）可经隧道调用手机 API。</string>

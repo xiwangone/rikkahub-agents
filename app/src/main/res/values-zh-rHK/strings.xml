@@ -1460,6 +1460,8 @@
   <string name="vault_session_copy">複製</string>
   <string name="vault_session_revoke">撤銷</string>
   <string name="vault_session_copied">已複製</string>
+  <string name="vault_session_issued_ttl">會話 token 已簽發（30 分鐘有效）</string>
+  <string name="vault_session_issued_manual">會話 token 已簽發（当场有效，会话结束/手动撤销失效）</string>
   <string name="setting_web_bridge_title">Web 橋</string>
   <string name="setting_web_bridge_desc">SSH 反向隧道到 ECS</string>
   <string name="setting_web_bridge_desc_detail">把手機 Web 服務映射到 ECS 遠端埠，遠端服務（Reasonix 等）可經隧道呼叫手機 API。</string>
