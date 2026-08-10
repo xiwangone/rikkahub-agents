@@ -59,6 +59,7 @@ jobs:
           echo "$HOME/.bun/bin" >> $GITHUB_PATH
           npm install -g pnpm
 
+<<<<<<< HEAD
       - name: 版本号自动 bump（push 时当前版本已有 Release 则补丁号+1）
         # 小修复自动区分：2.45.3 已有 Release → 自动 bump 为 2.45.4（versionCode+1）
         # 避免小修复永远无法发版；workflow_dispatch 手动发版不 bump（用输入 release_tag 控制）
@@ -83,6 +84,14 @@ jobs:
           else
             echo "版本 $VER 无 Release，保持原版本"
           fi
+=======
+      - name: 缓存 web-ui 依赖（bun.lock 变化才重建）
+        uses: actions/cache@v4
+        with:
+          path: web-ui/node_modules
+          key: webui-${{ hashFiles('bun.lock') }}
+          restore-keys: webui-
+>>>>>>> 3b86e00a (ci: 缓存 web-ui 依赖（bun.lock key，避免每次全量 pnpm install，加速构建）)
 
       - name: 固定签名构建 (overwrite-install)
         env:
