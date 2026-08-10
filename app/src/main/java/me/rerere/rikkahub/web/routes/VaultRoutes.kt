@@ -34,7 +34,7 @@ fun Route.vaultRoutes(
         post("/decrypt") {
             val request = call.receive<DecryptRequest>()
             val token = request.token
-            if (token.isBlank() || !sessionManager.verifyToken(token)) {
+            if (token.isBlank() || !sessionManager.verifyToken(token, VaultSessionManager.SCOPE_DECRYPT)) {
                 throw UnauthorizedException("Invalid or expired vault session token")
             }
             val entry = repository.getByName(request.name)
