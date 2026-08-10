@@ -2095,7 +2095,9 @@
   <string name="vault_session_cancelled">Cancelled (biometric not verified)</string>
   <string name="vault_session_copy">Copy</string>
   <string name="vault_session_revoke">Revoke</string>
-  <string name="vault_session_copied">Copied</string>
+  <string name="vault_session_copied">copied</string>
+  <string name="vault_session_issued_ttl">Session token issued (valid 30 min)</string>
+  <string name="vault_session_issued_manual">Session token issued (valid until session ends / manual revoke)</string>
   <string name="setting_web_bridge_title">Web bridge</string>
   <string name="setting_web_bridge_desc">SSH reverse tunnel to ECS</string>
   <string name="setting_web_bridge_desc_detail">Map the phone web server to the ECS remote port, so remote services (Reasonix etc.) can call phone APIs over the tunnel.</string>
