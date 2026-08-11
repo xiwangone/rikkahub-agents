@@ -339,7 +339,7 @@ fun SettingWebBridgePage() {
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text(stringResource(R.string.web_bridge_copy_public_key)
+                                Text(stringResource(R.string.web_bridge_copy_public_key))
                             }
                         }
                     }

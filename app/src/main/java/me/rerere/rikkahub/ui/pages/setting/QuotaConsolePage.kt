@@ -35,6 +35,7 @@ import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.Refresh01
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.quota.QuotaAuthType
 import me.rerere.rikkahub.data.quota.QuotaCredentialManager
 import me.rerere.rikkahub.data.quota.QuotaParser

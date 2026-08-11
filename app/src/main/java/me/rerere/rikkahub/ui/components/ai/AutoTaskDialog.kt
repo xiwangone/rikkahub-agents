@@ -53,7 +53,7 @@ fun AutoTaskDialog(
     AlertDialog(
         onDismissRequest = { onDismiss() },
         title = {
-            Text(stringResource(R.string.auto_task_title)
+            Text(stringResource(R.string.auto_task_title))
         },
         text = {
             Column(
