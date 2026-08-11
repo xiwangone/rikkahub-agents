@@ -306,71 +306,76 @@ fun SettingWebBridgePage() {
                             )
                         },
                     )
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_web_bridge_gen_key)) },
-                        supportingContent = { Text(stringResource(R.string.setting_web_bridge_gen_key_desc)) },
-                    ) {
-                        val scope = rememberCoroutineScope()
-                        val context = LocalContext.current
-                        val vaultRepo: CredentialVaultRepository = koinInject()
-                        var keyInfo by remember { mutableStateOf<String?>(null) }
-                        Column(
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            androidx.compose.material3.OutlinedButton(
-                                onClick = {
-                                    val key = SshKeyGenerator.generate()
-                                    scope.launch {
-                                        runCatching {
-                                            val dir = java.io.File(context.filesDir, "ssh_keys").apply { mkdirs() }
-                                            val file = java.io.File(dir, "web_bridge_rsa")
-                                            if (file.exists()) file.delete()
-                                            file.writeText(key.privateKeyPem)
-                                            file.setReadable(true, true)
-                                            file.setWritable(true, true)
-                                            file.setExecutable(false)
-                                            webBridgePrivateKeyPath = file.absolutePath
-                                            settingsStore.update { s -> s.copy(webBridgePrivateKeyPath = file.absolutePath) }
-                                            vaultRepo.save(
-                                                name = "WEB_BRIDGE_SSH_KEY",
-                                                value = key.privateKeyPem,
-                                                description = "Web 桥 SSH 私钥（全局，${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())} 生成；私钥路径：${file.absolutePath}）",
-                                                group = "SSH",
-                                            )
-                                            keyInfo = "✅ 已生成并保存到密钥库（分组：SSH）\n已写私钥路径：${file.absolutePath}\n公钥请添加到 ECS ~/.ssh/authorized_keys：\n${key.publicKeyLine}"
-                                        }.onFailure { e ->
-                                            keyInfo = "❌ 生成失败: ${e.message}"
-                                        }
-                                    }
-                                },
+                                        item(
+                        headlineContent = {
+                            Column(
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text(stringResource(R.string.setting_web_bridge_gen_key_btn))
-                            }
-                            keyInfo?.let { info ->
+                                Text(stringResource(R.string.setting_web_bridge_gen_key))
                                 Text(
-                                    text = info,
+                                    text = stringResource(R.string.setting_web_bridge_gen_key_desc),
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.fillMaxWidth(),
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
-                                if (info.contains("ssh-rsa")) {
-                                    androidx.compose.material3.OutlinedButton(
-                                        onClick = {
-                                            val pub = info.substringAfter("ssh-rsa").substringBefore("\n").let { "ssh-rsa$it" }
-                                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText("web-bridge-public-key", pub))
-                                            keyInfo = "✅ 公钥已复制！请粘贴发给我/添加到 ECS ~/.ssh/authorized_keys\n$pub"
-                                        },
+                                val scope = rememberCoroutineScope()
+                                val context = LocalContext.current
+                                val vaultRepo: CredentialVaultRepository = koinInject()
+                                var keyInfo by remember { mutableStateOf<String?>(null) }
+                                androidx.compose.material3.OutlinedButton(
+                                    onClick = {
+                                        val key = SshKeyGenerator.generate()
+                                        scope.launch {
+                                            runCatching {
+                                                val dir = java.io.File(context.filesDir, "ssh_keys").apply { mkdirs() }
+                                                val file = java.io.File(dir, "web_bridge_rsa")
+                                                if (file.exists()) file.delete()
+                                                file.writeText(key.privateKeyPem)
+                                                file.setReadable(true, true)
+                                                file.setWritable(true, true)
+                                                file.setExecutable(false)
+                                                webBridgePrivateKeyPath = file.absolutePath
+                                                settingsStore.update { s -> s.copy(webBridgePrivateKeyPath = file.absolutePath) }
+                                                vaultRepo.save(
+                                                    name = "WEB_BRIDGE_SSH_KEY",
+                                                    value = key.privateKeyPem,
+                                                    description = "Web 桥 SSH 私钥（全局，${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())} 生成；私钥路径：${file.absolutePath}）",
+                                                    group = "SSH",
+                                                )
+                                                keyInfo = "✅ 已生成并保存到密钥库（分组：SSH）\n已写私钥路径：${file.absolutePath}\n公钥请添加到 ECS ~/.ssh/authorized_keys：\n${key.publicKeyLine}"
+                                            }.onFailure { e ->
+                                                keyInfo = "❌ 生成失败: ${e.message}"
+                                            }
+                                        }
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(stringResource(R.string.setting_web_bridge_gen_key_btn))
+                                }
+                                keyInfo?.let { info ->
+                                    Text(
+                                        text = info,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.fillMaxWidth(),
-                                    ) {
-                                        Text("复制公钥")
+                                    )
+                                    if (info.contains("ssh-rsa")) {
+                                        androidx.compose.material3.OutlinedButton(
+                                            onClick = {
+                                                val pub = info.substringAfter("ssh-rsa").substringBefore("\n").let { "ssh-rsa$it" }
+                                                val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("web-bridge-public-key", pub))
+                                                keyInfo = "✅ 公钥已复制！请粘贴发给我/添加到 ECS ~/.ssh/authorized_keys\n$pub"
+                                            },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) {
+                                            Text("复制公钥")
+                                        }
                                     }
                                 }
                             }
-                        }
-                    }
+                        },
+                    )
                 }
             }
         }
