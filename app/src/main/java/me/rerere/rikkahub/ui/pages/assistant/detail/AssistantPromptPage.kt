@@ -595,8 +595,6 @@ private fun AssistantRegexCard(
                     Icon(
                         imageVector = if (expanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
                         contentDescription = stringResource(if (expanded) R.string.accessibility_tts_collapse else R.string.accessibility_tts_expand)
-                        imageVector = if (expanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
-                        contentDescription = null
                     )
                 }
             }

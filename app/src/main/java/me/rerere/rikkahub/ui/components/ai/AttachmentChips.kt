@@ -42,6 +42,8 @@ import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import org.koin.compose.koinInject
+import androidx.compose.ui.res.stringResource
+import me.rerere.rikkahub.R
 
 @Composable
 internal fun MediaFileInputRow(

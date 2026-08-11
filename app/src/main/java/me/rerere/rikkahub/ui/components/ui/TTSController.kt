@@ -37,6 +37,8 @@ import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.hooks.CustomTtsState
 import me.rerere.tts.model.PlaybackState
 import me.rerere.tts.model.PlaybackStatus
+import androidx.compose.ui.res.stringResource
+import me.rerere.rikkahub.R
 
 @Composable
 fun TTSController() {
