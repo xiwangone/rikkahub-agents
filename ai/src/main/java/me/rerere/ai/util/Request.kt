@@ -122,8 +122,21 @@ private const val GEMINI_SCHEMA_SANITIZER_TAG = "SchemaSanitizer"
  * multi-element `allOf` instead), and normalizes array-valued `type` (e.g. `["string","null"]`)
  * into a scalar `type` plus `nullable`.
  */
-fun JsonElement.sanitizeForGeminiSchema(): JsonElement =
-    sanitizeGeminiSchemaNode(root = this, node = this, depth = 0, refPath = emptySet())
+fun JsonElement.sanitizeForGeminiSchema(): JsonElement {
+    val sanitized = sanitizeGeminiSchemaNode(root = this, node = this, depth = 0, refPath = emptySet())
+    val isObjectSchema = sanitized is JsonObject &&
+        (sanitized["type"] as? JsonPrimitive)?.takeIf { it.isString }?.content == "object"
+    if (isObjectSchema) return sanitized
+
+    Logging.log(
+        GEMINI_SCHEMA_SANITIZER_TAG,
+        "root schema is not an object schema (${if (this !is JsonObject) "input was not a JSON object" else "no object type"}), falling back to {type: object, properties: {}}"
+    )
+    return buildJsonObject {
+        put("type", "object")
+        put("properties", buildJsonObject {})
+    }
+}
 
 private fun sanitizeGeminiSchemaNode(
     root: JsonElement,
@@ -196,7 +209,20 @@ private fun sanitizeGeminiSchemaNode(
                 )
             }
 
-            "items" -> merged["items"]?.let { content["items"] = sanitizeGeminiSchemaNode(root, it, depth, refPath) }
+            "items" -> when (val itemsValue = merged["items"]) {
+                null -> {}
+                is JsonArray -> if (itemsValue.isEmpty()) {
+                    Logging.log(GEMINI_SCHEMA_SANITIZER_TAG, "dropped empty tuple-form items array")
+                } else {
+                    Logging.log(
+                        GEMINI_SCHEMA_SANITIZER_TAG,
+                        "normalized tuple-form items (${itemsValue.size} elements) to a single schema from its first element"
+                    )
+                    content["items"] = sanitizeGeminiSchemaNode(root, itemsValue[0], depth, refPath)
+                }
+
+                else -> content["items"] = sanitizeGeminiSchemaNode(root, itemsValue, depth, refPath)
+            }
 
             "type" -> {} // handled below: a JSON-Schema type array needs normalizing first
 
@@ -213,6 +239,16 @@ private fun sanitizeGeminiSchemaNode(
 
         is JsonPrimitive -> content["type"] = typeValue
         else -> {}
+    }
+
+    // A node with no explicit type still needs one when its shape implies it, since a bare
+    // `{"properties": ...}` or `{"items": ...}` is not a valid draft-2020-12 schema on its own.
+    // A schema with neither (e.g. a bare anyOf wrapper) is legitimately typeless - leave it be.
+    if (!content.containsKey("type")) {
+        when {
+            content.containsKey("properties") -> content["type"] = JsonPrimitive("object")
+            content.containsKey("items") -> content["type"] = JsonPrimitive("array")
+        }
     }
 
     return JsonObject(content)

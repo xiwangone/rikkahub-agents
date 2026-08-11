@@ -48,12 +48,13 @@ class SchemaSanitizerTest {
     @Test
     fun `enum and format are still stripped`() {
         val result = sanitize(
-            """{"type": "string", "format": "email", "enum": ["a", "b"]}"""
+            """{"type": "object", "properties": {"field": {"type": "string", "format": "email", "enum": ["a", "b"]}}}"""
         ).jsonObject
+        val field = result["properties"]!!.jsonObject["field"]!!.jsonObject
 
-        assertEquals("string", result["type"]?.jsonPrimitive?.content)
-        assertNull(result["format"])
-        assertNull(result["enum"])
+        assertEquals("string", field["type"]?.jsonPrimitive?.content)
+        assertNull(field["format"])
+        assertNull(field["enum"])
     }
 
     @Test
@@ -109,18 +110,24 @@ class SchemaSanitizerTest {
 
     @Test
     fun `type array without null takes the first entry`() {
-        val result = sanitize("""{"type": ["string", "number"]}""").jsonObject
+        val result = sanitize(
+            """{"type": "object", "properties": {"field": {"type": ["string", "number"]}}}"""
+        ).jsonObject
+        val field = result["properties"]!!.jsonObject["field"]!!.jsonObject
 
-        assertEquals("string", result["type"]?.jsonPrimitive?.content)
-        assertNull(result["nullable"])
+        assertEquals("string", field["type"]?.jsonPrimitive?.content)
+        assertNull(field["nullable"])
     }
 
     @Test
     fun `type array with null sets nullable and drops null from type`() {
-        val result = sanitize("""{"type": ["string", "null"]}""").jsonObject
+        val result = sanitize(
+            """{"type": "object", "properties": {"field": {"type": ["string", "null"]}}}"""
+        ).jsonObject
+        val field = result["properties"]!!.jsonObject["field"]!!.jsonObject
 
-        assertEquals("string", result["type"]?.jsonPrimitive?.content)
-        assertTrue(result["nullable"]?.jsonPrimitive?.boolean == true)
+        assertEquals("string", field["type"]?.jsonPrimitive?.content)
+        assertTrue(field["nullable"]?.jsonPrimitive?.boolean == true)
     }
 
     @Test
@@ -128,14 +135,20 @@ class SchemaSanitizerTest {
         val result = sanitize(
             """
             {
-              "anyOf": [{"type": "string"}],
-              "oneOf": [{"type": "number"}]
+              "type": "object",
+              "properties": {
+                "field": {
+                  "anyOf": [{"type": "string"}],
+                  "oneOf": [{"type": "number"}]
+                }
+              }
             }
             """.trimIndent()
         ).jsonObject
+        val field = result["properties"]!!.jsonObject["field"]!!.jsonObject
 
-        assertNull(result["oneOf"])
-        val anyOf = result["anyOf"]!!.jsonArray
+        assertNull(field["oneOf"])
+        val anyOf = field["anyOf"]!!.jsonArray
         assertEquals(2, anyOf.size)
         assertEquals("string", anyOf[0].jsonObject["type"]?.jsonPrimitive?.content)
         assertEquals("number", anyOf[1].jsonObject["type"]?.jsonPrimitive?.content)
@@ -162,21 +175,27 @@ class SchemaSanitizerTest {
         val result = sanitize(
             """
             {
-              "description": "a widget id",
-              "allOf": [{ "${'$'}ref": "#/${'$'}defs/WidgetId" }],
+              "type": "object",
+              "properties": {
+                "field": {
+                  "description": "a widget id",
+                  "allOf": [{ "${'$'}ref": "#/${'$'}defs/WidgetId" }]
+                }
+              },
               "${'$'}defs": {
                 "WidgetId": { "type": "string", "pattern": "^[a-z]+${'$'}", "minLength": 1 }
               }
             }
             """.trimIndent()
         ).jsonObject
+        val field = result["properties"]!!.jsonObject["field"]!!.jsonObject
 
-        assertEquals("a widget id", result["description"]?.jsonPrimitive?.content)
-        assertEquals("string", result["type"]?.jsonPrimitive?.content)
-        assertEquals("^[a-z]+$", result["pattern"]?.jsonPrimitive?.content)
-        assertEquals(1L, result["minLength"]?.jsonPrimitive?.content?.toLong())
-        assertNull(result["allOf"])
-        assertNull(result["\$ref"])
+        assertEquals("a widget id", field["description"]?.jsonPrimitive?.content)
+        assertEquals("string", field["type"]?.jsonPrimitive?.content)
+        assertEquals("^[a-z]+$", field["pattern"]?.jsonPrimitive?.content)
+        assertEquals(1L, field["minLength"]?.jsonPrimitive?.content?.toLong())
+        assertNull(field["allOf"])
+        assertNull(field["\$ref"])
     }
 
     @Test
@@ -225,6 +244,118 @@ class SchemaSanitizerTest {
         assertEquals("string", anyOf[0].jsonObject["type"]?.jsonPrimitive?.content)
         assertNull(anyOf[0].jsonObject["deprecated"])
         assertEquals("number", anyOf[1].jsonObject["type"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `tuple-form items array is reduced to a single schema from its first element`() {
+        val result = sanitize(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "list": {
+                  "type": "array",
+                  "items": [
+                    { "type": "string", "format": "email" },
+                    { "type": "number" }
+                  ]
+                }
+              }
+            }
+            """.trimIndent()
+        ).jsonObject
+        val list = result["properties"]!!.jsonObject["list"]!!.jsonObject
+
+        val items = list["items"]!!.jsonObject
+        assertEquals("string", items["type"]?.jsonPrimitive?.content)
+        assertNull(items["format"])
+        assertFalse(list["items"]!!.toString().contains("number"))
+    }
+
+    @Test
+    fun `empty tuple-form items array is dropped`() {
+        val result = sanitize(
+            """{"type": "object", "properties": {"list": {"type": "array", "items": []}}}"""
+        ).jsonObject
+        val list = result["properties"]!!.jsonObject["list"]!!.jsonObject
+
+        assertNull(list["items"])
+        assertEquals("array", list["type"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `a properties-bearing node with no type gains type object`() {
+        val result = sanitize(
+            """{"type": "object", "properties": {"child": {"properties": {"a": {"type": "string"}}}}}"""
+        ).jsonObject
+        val child = result["properties"]!!.jsonObject["child"]!!.jsonObject
+
+        assertEquals("object", child["type"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `a node with items and no type gains type array`() {
+        val result = sanitize(
+            """{"type": "object", "properties": {"list": {"items": {"type": "string"}}}}"""
+        ).jsonObject
+        val list = result["properties"]!!.jsonObject["list"]!!.jsonObject
+
+        assertEquals("array", list["type"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `a typeless empty root schema becomes an empty object schema`() {
+        val result = sanitize("{}").jsonObject
+
+        assertEquals("object", result["type"]?.jsonPrimitive?.content)
+        assertEquals(0, result["properties"]!!.jsonObject.size)
+        assertEquals(2, result.size)
+    }
+
+    @Test
+    fun `a non-object root schema falls back to an empty object schema`() {
+        val arrayRoot = sanitize("""["not", "a", "schema"]""").jsonObject
+        assertEquals("object", arrayRoot["type"]?.jsonPrimitive?.content)
+        assertEquals(0, arrayRoot["properties"]!!.jsonObject.size)
+
+        val primitiveRoot = sanitize(""""just a string"""").jsonObject
+        assertEquals("object", primitiveRoot["type"]?.jsonPrimitive?.content)
+        assertEquals(0, primitiveRoot["properties"]!!.jsonObject.size)
+    }
+
+    @Test
+    fun `a nested typeless anyOf wrapper does not gain an invented type`() {
+        val result = sanitize(
+            """
+            {
+              "type": "object",
+              "properties": {
+                "either": {
+                  "anyOf": [{"type": "string"}, {"type": "number"}]
+                }
+              }
+            }
+            """.trimIndent()
+        ).jsonObject
+
+        val either = result["properties"]!!.jsonObject["either"]!!.jsonObject
+        assertNull(either["type"])
+    }
+
+    @Test
+    fun `a bare anyOf wrapper root falls back to an object schema at the root boundary`() {
+        val result = sanitize(
+            """
+            {
+              "anyOf": [{"type": "string"}, {"type": "number"}]
+            }
+            """.trimIndent()
+        ).jsonObject
+
+        // Node-level type inference leaves this typeless (a bare anyOf wrapper stays
+        // typeless per node), but the tool root must be an object schema, so it falls back.
+        assertEquals("object", result["type"]?.jsonPrimitive?.content)
+        assertEquals(0, result["properties"]!!.jsonObject.size)
     }
 
     @Test
