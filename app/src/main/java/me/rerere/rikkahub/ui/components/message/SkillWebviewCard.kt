@@ -118,6 +118,16 @@ internal fun SkillWebviewCardOrNull(
     return true
 }
 
+/**
+ * Cheap predicate for whether this part carries a usable `rikkahub.webview` metadata
+ * block, without doing the full render. Shares [extractWebviewMeta] so it can never
+ * disagree with what [SkillWebviewCardOrNull] actually renders - used by
+ * [ChatMessageToolStep] to decide whether a `run_js` tool's nested output parts should
+ * make the step expandable and get rendered as webview cards.
+ */
+internal fun UIMessagePart.Text.hasSkillWebviewMeta(): Boolean =
+    extractWebviewMeta(metadata) != null
+
 /** Compact value type for the webview metadata block. */
 private data class WebviewMeta(
     val url: String,

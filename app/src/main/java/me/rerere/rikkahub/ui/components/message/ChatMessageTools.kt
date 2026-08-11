@@ -107,10 +107,16 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     val isPending = tool.approvalState is ToolApprovalState.Pending
     val isDenied = tool.approvalState is ToolApprovalState.Denied
     val images = tool.output.filterIsInstance<UIMessagePart.Image>()
+    // Text parts nested in tool.output (e.g. run_js's webview payload) that carry
+    // rikkahub.webview metadata never reach the top-level Text rendering branch in
+    // ChatMessage.kt, since tool output is always folded into this step. Surface them
+    // here so skill webview cards (virtual-piano, interactive-map, text-spinner, …) render.
+    val webviewParts = tool.output.filterIsInstance<UIMessagePart.Text>()
+        .filter { it.hasSkillWebviewMeta() }
 
-    // Summary detection is delegated to the registered renderer; image output and
-    // denial reasons are common to all tools.
-    val hasExtraContent = renderer.hasSummary(context) || isDenied || images.isNotEmpty()
+    // Summary detection is delegated to the registered renderer; image output, webview
+    // cards, and denial reasons are common to all tools.
+    val hasExtraContent = renderer.hasSummary(context) || isDenied || images.isNotEmpty() || webviewParts.isNotEmpty()
 
     ControlledChainOfThoughtStep(
         expanded = expanded,
@@ -308,7 +314,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         } else {
             null
         },
-        onClick = if (context.content != null || isPending || images.isNotEmpty()) {
+        onClick = if (context.content != null || isPending || images.isNotEmpty() || webviewParts.isNotEmpty()) {
             { showResult = true }
         } else {
             null
@@ -317,6 +323,9 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             {
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     renderer.Summary(context)
+                    webviewParts.forEach { webviewPart ->
+                        SkillWebviewCardOrNull(part = webviewPart)
+                    }
                     if (images.isNotEmpty()) {
                         LazyRow(
                             horizontalArrangement = Arrangement.spacedBy(4.dp),
