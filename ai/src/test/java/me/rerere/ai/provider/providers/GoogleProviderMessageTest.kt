@@ -125,6 +125,20 @@ class GoogleProviderMessageTest {
         // Verify functionResponse contents
         assertEquals("search", functionResponses[0]["name"]?.jsonPrimitive?.content)
         assertEquals("calculate", functionResponses[1]["name"]?.jsonPrimitive?.content)
+
+        // Every functionCall/functionResponse must carry a non-blank id, and the ids must
+        // pair up per tool call (call_1 -> search, call_2 -> calculate) - see issue #26.
+        val callIds = functionCalls.map { it["id"]?.jsonPrimitive?.content }
+        val responseIds = functionResponses.map { it["id"]?.jsonPrimitive?.content }
+        callIds.forEach { assertTrue("functionCall id should be non-blank", !it.isNullOrBlank()) }
+        responseIds.forEach { assertTrue("functionResponse id should be non-blank", !it.isNullOrBlank()) }
+        assertEquals("call_1", callIds[0])
+        assertEquals("call_2", callIds[1])
+        assertEquals(
+            "functionCall and functionResponse ids should pair up per tool call",
+            callIds,
+            responseIds
+        )
     }
 
     @Test
