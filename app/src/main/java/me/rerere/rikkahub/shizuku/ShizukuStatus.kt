@@ -28,7 +28,12 @@ enum class ShizukuStatus {
 object ShizukuStatusMapper {
 
     fun compute(installed: Boolean, binderAlive: Boolean, permissionGranted: Boolean): ShizukuStatus = when {
-        !installed -> ShizukuStatus.NOT_INSTALLED
+        // Binder-first: a live pingBinder() proves Shizuku is actually running, so it must
+        // never be reported as NOT_INSTALLED. Sui hands out the same binder with no Shizuku
+        // app installed at all, and Android 11+ package visibility can hide the package from
+        // getPackageInfo() even when it is present. The package check is only trusted as the
+        // no-binder signal, so the tap-to-download hint still appears when nothing is running.
+        !binderAlive && !installed -> ShizukuStatus.NOT_INSTALLED
         !binderAlive -> ShizukuStatus.NOT_RUNNING
         !permissionGranted -> ShizukuStatus.PERMISSION_DENIED
         else -> ShizukuStatus.READY

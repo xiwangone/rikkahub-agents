@@ -16,14 +16,26 @@ import org.junit.Test
 class ShizukuStatusMapperTest {
 
     @Test
-    fun `not installed takes priority over every other signal`() {
-        assertEquals(
-            ShizukuStatus.NOT_INSTALLED,
-            ShizukuStatusMapper.compute(installed = false, binderAlive = true, permissionGranted = true),
-        )
+    fun `not installed only applies when there is no live binder`() {
         assertEquals(
             ShizukuStatus.NOT_INSTALLED,
             ShizukuStatusMapper.compute(installed = false, binderAlive = false, permissionGranted = false),
+        )
+    }
+
+    @Test
+    fun `a live binder is never reported as not_installed, even if the package looks absent`() {
+        // Sui hands out the same binder with no Shizuku app installed at all, and Android 11+
+        // package visibility can hide the package from getPackageInfo() even when it is
+        // present. The binder is the ground truth; the package check only matters when there
+        // is no binder to ask.
+        assertEquals(
+            ShizukuStatus.READY,
+            ShizukuStatusMapper.compute(installed = false, binderAlive = true, permissionGranted = true),
+        )
+        assertEquals(
+            ShizukuStatus.PERMISSION_DENIED,
+            ShizukuStatusMapper.compute(installed = false, binderAlive = true, permissionGranted = false),
         )
     }
 

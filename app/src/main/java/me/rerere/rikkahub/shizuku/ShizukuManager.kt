@@ -25,8 +25,11 @@ private const val TAG = "ShizukuManager"
 
 /** Package name of the Shizuku manager app, the only reliable "installed" proxy without a
  *  live binder (the service itself can keep running after the app is force-stopped on some
- *  ROMs, but if the package is gone there is nothing to grant permission from). */
-private const val SHIZUKU_PACKAGE = "moe.shizuku.manager"
+ *  ROMs, but if the package is gone there is nothing to grant permission from).
+ *  `moe.shizuku.manager` is only the Java namespace / permission prefix, never an installed
+ *  package; the real application id is `moe.shizuku.privileged.api` (verified with
+ *  `pm list packages`). */
+private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
 
 /** Arbitrary request code: this app only ever makes one kind of Shizuku permission request. */
 private const val PERMISSION_REQUEST_CODE = 8730

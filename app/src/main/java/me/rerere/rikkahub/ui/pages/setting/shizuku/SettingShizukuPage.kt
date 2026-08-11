@@ -39,7 +39,10 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import rikka.shizuku.Shizuku
 
-private const val SHIZUKU_PACKAGE = "moe.shizuku.manager"
+// `moe.shizuku.manager` is only the Java namespace / permission prefix, never an installed
+// package; the real application id is `moe.shizuku.privileged.api` (verified with
+// `pm list packages`).
+private const val SHIZUKU_PACKAGE = "moe.shizuku.privileged.api"
 private const val SHIZUKU_RELEASES_URL = "https://github.com/RikkaApps/Shizuku/releases/latest"
 
 /**

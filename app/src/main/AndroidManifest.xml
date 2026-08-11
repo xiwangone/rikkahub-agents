@@ -127,6 +127,9 @@
     <!-- Android 11+ package visibility: required so KeyboardApiClient can bindService into
          the agent-keyboard package. Without this the bind silently fails on API 30+. -->
     <package android:name="dev.patrickgold.florisboard" />
+    <!-- Android 11+ package visibility: required so ShizukuManager.isInstalled can see the
+         Shizuku app (moe.shizuku.privileged.api) without QUERY_ALL_PACKAGES. -->
+    <package android:name="moe.shizuku.privileged.api" />
     <!-- Resolve the home launcher so screen-time can exclude it. -->
     <intent>
       <action android:name="android.intent.action.MAIN" />
