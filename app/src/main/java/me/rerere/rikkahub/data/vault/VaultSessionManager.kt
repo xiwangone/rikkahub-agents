@@ -133,9 +133,11 @@ class VaultSessionManager(private val context: Context) {
         return true
     }
 
-    /** 会话列表（UI 展示）。 */
+    /** 会话列表（UI 展示，最新在前）。 */
     suspend fun listSessions(): List<VaultSessionInfo> =
-        readSessions().map { VaultSessionInfo(it.id, it.label, it.ttlMs, it.createdAt, it.lastUsedAt) }
+        readSessions()
+            .sortedByDescending { it.createdAt }
+            .map { VaultSessionInfo(it.id, it.label, it.ttlMs, it.createdAt, it.lastUsedAt) }
 
     /** 撤销单个会话。 */
     suspend fun revokeSession(tokenId: String) {
