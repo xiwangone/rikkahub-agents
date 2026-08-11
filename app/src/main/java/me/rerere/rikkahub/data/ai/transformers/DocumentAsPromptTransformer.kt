@@ -25,7 +25,7 @@ object DocumentAsPromptTransformer : InputMessageTransformer {
                         if (documents.isNotEmpty()) {
                             documents.forEach { document ->
                                 val content = readDocumentContent(document)
-                                val path = resolveWorkspacePath(document)
+                                val path = resolveWorkspacePath(document.url)
                                 val pathAttr = path?.let { " path=\"$it\"" } ?: ""
                                 val prompt = """
                                   <UploadFile name="${document.fileName}"$pathAttr>
@@ -36,6 +36,14 @@ object DocumentAsPromptTransformer : InputMessageTransformer {
                                   """.trimMargin()
                                 add(0, UIMessagePart.Text(prompt))
                             }
+                        }
+                        val images = filterIsInstance<UIMessagePart.Image>()
+                        images.forEach { image ->
+                            val path = resolveWorkspacePath(image.url) ?: return@forEach
+                            val prompt = """
+                              <UploadFile name="${File(path).name}" path="$path" />
+                              """.trimMargin()
+                            add(0, UIMessagePart.Text(prompt))
                         }
                     }
                 )
@@ -61,8 +69,13 @@ object DocumentAsPromptTransformer : InputMessageTransformer {
 
     // 上传文件保存在 filesDir/upload 下, 该目录通过 proot 挂载到 workspace 的 /upload
     // 返回文件在 workspace 内的绝对路径, 便于 AI 用 workspace 工具直接读取原始文件
-    private fun resolveWorkspacePath(document: UIMessagePart.Document): String? {
-        val file = runCatching { document.url.toUri().toFile() }.getOrNull() ?: return null
+    private fun resolveWorkspacePath(url: String): String? {
+        val file = runCatching { url.toUri().toFile() }.getOrNull() ?: return null
+        return resolveWorkspacePathForFile(file)
+    }
+
+    // 纯函数, 不依赖 android.net.Uri, 以便单元测试覆盖 upload 目录网关判断
+    internal fun resolveWorkspacePathForFile(file: File): String? {
         if (file.parentFile?.name != "upload") return null
         return "/upload/${file.name}"
     }
