@@ -80,6 +80,9 @@ class VaultSessionManager(private val context: Context) {
         const val SCOPE_DECRYPT = "decrypt"
         const val SCOPE_SESSION = "session"
 
+        /** 会话数硬上限（防短时大量签发膨胀 SESSIONS JSON，超出丢最旧） */
+        const val MAX_SESSIONS = 50
+
         private val json = Json { ignoreUnknownKeys = true }
     }
 
@@ -97,7 +100,11 @@ class VaultSessionManager(private val context: Context) {
         val record = VaultSessionRecord(
             id = id, label = label, ttlMs = ttlMs, createdAt = now, lastUsedAt = now,
         )
-        updateSessions { it + record }
+        updateSessions { current ->
+            (current + record).let { all ->
+                if (all.size > MAX_SESSIONS) all.drop(all.size - MAX_SESSIONS) else all
+            }
+        }
         val expiry = if (ttlMs == Long.MAX_VALUE) Long.MAX_VALUE else now + ttlMs
         return signToken(master, id, expiry)
     }
