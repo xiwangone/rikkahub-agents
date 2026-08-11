@@ -186,7 +186,7 @@ fun ChatExportSheet(
                 ) {
                     ListItem(
                         headlineContent = { Text("JSON") },
-                        supportingContent = { Text(stringResource(R.string.export_json_desc) },
+                        supportingContent = { Text(stringResource(R.string.export_json_desc)) },
                         leadingContent = { Icon(HugeIcons.Download01, contentDescription = null) },
                     )
                 }
@@ -300,8 +300,8 @@ fun ChatExportSheet(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     ListItem(
-                        headlineContent = { Text(stringResource(R.string.export_import_session) },
-                        supportingContent = { Text(stringResource(R.string.export_import_desc) },
+                        headlineContent = { Text(stringResource(R.string.export_import_session)) },
+                        supportingContent = { Text(stringResource(R.string.export_import_desc)) },
                         leadingContent = { Icon(HugeIcons.FileImport, contentDescription = null) },
                     )
                 }
