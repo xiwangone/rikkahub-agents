@@ -80,6 +80,8 @@ class ChatVM(
 
     // 自动任务调度 Job
     private var autoTaskJob: Job? = null
+    private val _autoTaskActive = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val autoTaskActive: kotlinx.coroutines.flow.StateFlow<Boolean> = _autoTaskActive.asStateFlow()
 
     // 异步任务 (从ChatService获取，响应式)
     val conversationJob: StateFlow<Job?> =
@@ -536,6 +538,7 @@ class ChatVM(
      */
     fun scheduleAutoTask(config: AutoTaskConfig) {
         cancelAutoTask()
+        _autoTaskActive.value = true
 
         if (config.mode == 0 && config.triggerCount <= 0) return
         if (config.mode == 1 && config.intervalSeconds <= 0) return
@@ -604,6 +607,30 @@ class ChatVM(
                             }
                         }
                     }
+
+                    2 -> {
+                        // 随机空闲：空闲后 5-15 秒随机间隔自动发送，持续触发（直到停止）
+                        while (isActive) {
+                            val job = conversationJob.value
+                            if (job != null && job.isActive) {
+                                try {
+                                    withTimeoutOrNull(300_000L) {
+                                        conversationJob.first { it == null || !it.isActive }
+                                    }
+                                } catch (_: Exception) {
+                                }
+                            }
+
+                            val randomDelay = (5L..15L).random() * 1000L
+                            delay(randomDelay)
+                            if (!isActive) break
+                            handleMessageSend(
+                                listOf(UIMessagePart.Text(config.message)),
+                                answer = true,
+                            )
+                        }
+                        writeAutoTaskConfig(context, AutoTaskConfig())
+                    }
                 }
             }
     }
@@ -614,5 +641,6 @@ class ChatVM(
     fun cancelAutoTask() {
         autoTaskJob?.cancel()
         autoTaskJob = null
+        _autoTaskActive.value = false
     }
 }
