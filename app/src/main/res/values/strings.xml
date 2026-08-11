@@ -399,6 +399,7 @@
   <string name="imggen_page_generate_image">Generate Image</string>
   <string name="imggen_page_generation_count">Generation Count</string>
   <string name="imggen_page_generation_count_desc">Number of images to generate each time</string>
+  <string name="imggen_page_image_missing">Image file is missing, it may not have been restored from backup</string>
   <string name="imggen_page_image_saved_success">Image saved to gallery</string>
   <string name="imggen_page_model_selection">Model Selection</string>
   <string name="imggen_page_model_selection_desc">Select AI model for image generation</string>

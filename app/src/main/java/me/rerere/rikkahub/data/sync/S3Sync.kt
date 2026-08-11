@@ -187,6 +187,18 @@ class S3Sync(
                 } else {
                     Log.w(TAG, "prepareBackupFile: Fonts folder does not exist or is not a directory")
                 }
+
+                val imagesFolder = File(context.filesDir, FileFolders.IMAGES)
+                if (imagesFolder.exists() && imagesFolder.isDirectory) {
+                    Log.i(TAG, "prepareBackupFile: Backing up images from ${imagesFolder.absolutePath}")
+                    imagesFolder.listFiles()?.forEach { file ->
+                        if (file.isFile) {
+                            addFileToZip(zipOut, file, "${FileFolders.IMAGES}/${file.name}")
+                        }
+                    }
+                } else {
+                    Log.w(TAG, "prepareBackupFile: Images folder does not exist or is not a directory")
+                }
             }
         }
 
@@ -330,6 +342,42 @@ class S3Sync(
                                         TAG,
                                         "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
                                     )
+                                }
+                            } else if (config.items.contains(S3Config.BackupItem.FILES) &&
+                                zipEntry.name.startsWith("${FileFolders.IMAGES}/")
+                            ) {
+                                val fileName = zipEntry.name.substringAfter("${FileFolders.IMAGES}/")
+                                if (fileName.isNotEmpty()) {
+                                    val imagesFolder = File(context.filesDir, FileFolders.IMAGES)
+                                    if (!imagesFolder.exists()) {
+                                        imagesFolder.mkdirs()
+                                        Log.i(TAG, "restoreFromBackupFile: Created images directory")
+                                    }
+
+                                    // Guard against zip-slip: reject entries that resolve
+                                    // outside the images folder (e.g. "../../databases/...").
+                                    val targetFile = SkillPaths.resolveSkillFile(imagesFolder, fileName)
+                                    if (targetFile == null) {
+                                        Log.w(TAG, "restoreFromBackupFile: Rejected unsafe images entry ${zipEntry.name}")
+                                    } else {
+                                        Log.i(
+                                            TAG,
+                                            "restoreFromBackupFile: Restoring file ${zipEntry.name} to ${targetFile.absolutePath}"
+                                        )
+                                        targetFile.parentFile?.mkdirs()
+                                        try {
+                                            FileOutputStream(targetFile).use { outputStream ->
+                                                zipIn.copyTo(outputStream)
+                                            }
+                                            Log.i(
+                                                TAG,
+                                                "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
+                                            )
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "restoreFromBackupFile: Failed to restore file ${zipEntry.name}", e)
+                                            throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")
+                                        }
+                                    }
                                 }
                             } else {
                                 Log.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
