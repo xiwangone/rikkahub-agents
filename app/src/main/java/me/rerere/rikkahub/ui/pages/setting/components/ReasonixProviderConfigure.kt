@@ -66,7 +66,7 @@ fun ReasonixProviderConfigure(
         onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
         label = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
         modifier = Modifier.fillMaxWidth(),
-        placeholder = { Text("例：http://<ECS地址>") },
+        placeholder = { Text(stringResource(R.string.reasonix_base_url_example)) },
         isError = provider.baseUrl.isNotBlank() && provider.baseUrl.toHttpUrlOrNull() == null,
     )
 
@@ -102,7 +102,7 @@ fun ReasonixProviderConfigure(
     OutlinedTextField(
         value = provider.username,
         onValueChange = { onEdit(provider.copy(username = it.trim())) },
-        label = { Text("用户名（Basic Auth）") },
+        label = { Text(stringResource(R.string.reasonix_username_basic)) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
     )
@@ -111,7 +111,7 @@ fun ReasonixProviderConfigure(
     OutlinedTextField(
         value = provider.password,
         onValueChange = { onEdit(provider.copy(password = it)) },
-        label = { Text("密码（Basic Auth）") },
+        label = { Text(stringResource(R.string.reasonix_password_basic)) },
         modifier = Modifier.fillMaxWidth(),
         singleLine = true,
         visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -129,7 +129,7 @@ fun ReasonixProviderConfigure(
     OutlinedTextField(
         value = provider.token,
         onValueChange = { onEdit(provider.copy(token = it.trim())) },
-        label = { Text("Token（serve token 模式，可选）") },
+        label = { Text(stringResource(R.string.reasonix_token_serve)) },
         modifier = Modifier.fillMaxWidth(),
         maxLines = 3,
         visualTransformation = if (tokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -351,14 +351,14 @@ fun ReasonixProviderConfigure(
                 modifier = Modifier.weight(1f),
                 enabled = !bridgeState.tunnelConnected,
             ) {
-                Text("启动 Web 桥")
+                Text(stringResource(R.string.reasonix_start_web_bridge))
             }
             androidx.compose.material3.OutlinedButton(
                 onClick = { webBridge.stop() },
                 modifier = Modifier.weight(1f),
                 enabled = bridgeState.webServerRunning || bridgeState.tunnelConnected,
             ) {
-                Text("停止")
+                Text(stringResource(R.string.reasonix_stop_web_bridge))
             }
         }
             }

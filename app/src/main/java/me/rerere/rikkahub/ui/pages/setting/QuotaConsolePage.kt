@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting
 import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -251,7 +252,7 @@ fun QuotaConsolePage(providerId: String) {
                                 }
                             },
                         ) {
-                            Text("手动解析")
+                            Text(stringResource(R.string.quota_console_manual_parse))
                         }
                     }
 
@@ -277,18 +278,18 @@ fun QuotaConsolePage(providerId: String) {
                             }
                         Column(modifier = Modifier.padding(top = 12.dp)) {
                             Row {
-                                Text("原始文本: ", fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.quota_console_raw_text), fontWeight = FontWeight.Bold)
                                 Text(
                                     snap.rawText.ifBlank { "(empty)" },
                                     fontFamily = JetbrainsMono,
                                 )
                             }
                             Row {
-                                Text("数值: ", fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.quota_console_numeric), fontWeight = FontWeight.Bold)
                                 Text("%.2f".format(snap.numericValue), fontFamily = JetbrainsMono)
                             }
                             Row {
-                                Text("百分比: ", fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.quota_console_percent), fontWeight = FontWeight.Bold)
                                 Text(
                                     "%.1f%%".format(snap.percentage),
                                     fontFamily = JetbrainsMono,
@@ -296,7 +297,7 @@ fun QuotaConsolePage(providerId: String) {
                                 )
                             }
                             Row {
-                                Text("状态: ", fontWeight = FontWeight.Bold)
+                                Text(stringResource(R.string.quota_console_status), fontWeight = FontWeight.Bold)
                                 Text(
                                     when (snap.status) {
                                         QuotaStatus.GREEN -> "🟢 充足"

@@ -529,7 +529,7 @@ private fun StepASRConfiguration(
                 onValueChange(setting.copy(hotwords = list))
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("热词1, 热词2, 热词3") },
+            placeholder = { Text(stringResource(R.string.asr_hotwords_placeholder))) },
         )
     }
 }
