@@ -215,19 +215,19 @@ fun SettingAboutPage() {
                             onClick = { context.openUrl("https://github.com/rikkahub/rikkahub") },
                             leadingContent = { Icon(HugeIcons.Github, null) },
                             supportingContent = { Text("https://github.com/rikkahub/rikkahub") },
-                            headlineContent = { Text("官方（RikkaHub）") },
+                            headlineContent = { Text(stringResource(R.string.about_official)) },
                         )
                         item(
                             onClick = { context.openUrl("https://github.com/ExTV/rikkahub-agent") },
                             leadingContent = { Icon(HugeIcons.Github, null) },
                             supportingContent = { Text("https://github.com/ExTV/rikkahub-agent") },
-                            headlineContent = { Text("原版 Fork（ExTV）") },
+                            headlineContent = { Text(stringResource(R.string.about_extv_fork)) },
                         )
                         item(
                             onClick = { context.openUrl("https://github.com/xiwangone/rikkahub-agents") },
                             leadingContent = { Icon(HugeIcons.Github, null) },
                             supportingContent = { Text("https://github.com/xiwangone/rikkahub-agents") },
-                            headlineContent = { Text("本仓库（AI 维护版）") },
+                            headlineContent = { Text(stringResource(R.string.about_ai_maintained)) },
                         )
                         item(
                             onClick = { context.openUrl("https://github.com/rikkahub/rikkahub/blob/master/LICENSE") },

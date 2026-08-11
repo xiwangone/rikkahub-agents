@@ -339,7 +339,7 @@ fun SettingWebBridgePage() {
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
-                                Text("复制公钥")
+                                Text(stringResource(R.string.web_bridge_copy_public_key)))
                             }
                         }
                     }

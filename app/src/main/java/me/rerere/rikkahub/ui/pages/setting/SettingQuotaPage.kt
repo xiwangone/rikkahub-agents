@@ -285,17 +285,17 @@ fun SettingQuotaPage() {
         val provider = providers.getOrNull(idx) ?: return@let
         AlertDialog(
             onDismissRequest = { credentialDialogIndex = null },
-            title = { Text("凭证管理 — ${provider.label}") },
+            title = { Text(stringResource(R.string.quota_credential_manage_title, provider.label)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text("鉴权方式: ${provider.authType.displayName}")
+                    Text(stringResource(R.string.quota_credential_auth_method, provider.authType.displayName))
                     if (provider.credential != null) {
-                        Text("状态: 已保存")
-                        Text("脱敏: $maskedValue")
-                        Text("保存时间: ${provider.credential!!.capturedAtMillis}")
+                        Text(stringResource(R.string.quota_credential_saved))
+                        Text(stringResource(R.string.quota_credential_masked, maskedValue))
+                        Text(stringResource(R.string.quota_credential_saved_time, provider.credential!!.capturedAtMillis.toString()))
                     } else {
-                        Text("状态: 未保存凭证")
-                        Text("请在控制台页面登录后点击 🔑 捕获")
+                        Text(stringResource(R.string.quota_credential_not_saved))
+                        Text(stringResource(R.string.quota_credential_capture_hint))
                     }
                 }
             },
@@ -304,7 +304,7 @@ fun SettingQuotaPage() {
                     credentialDialogIndex = null
                     navController.navigate(Screen.QuotaConsole(provider.id))
                 }) {
-                    Text("打开控制台登录")
+                    Text(stringResource(R.string.quota_open_console_login))
                 }
             },
             dismissButton = {
@@ -317,11 +317,11 @@ fun SettingQuotaPage() {
                             }
                             credentialDialogIndex = null
                         }) {
-                            Text("清除凭证", color = MaterialTheme.colorScheme.error)
+                            Text(stringResource(R.string.quota_clear_credential), color = MaterialTheme.colorScheme.error)
                         }
                     }
                     TextButton(onClick = { credentialDialogIndex = null }) {
-                        Text("关闭")
+                        Text(stringResource(R.string.quota_close))
                     }
                 }
             },
@@ -359,7 +359,7 @@ private fun ProviderEditSection(
                 label = it
                 onUpdate(provider.copy(label = it))
             },
-            label = { Text("标签") },
+            label = { Text(stringResource(R.string.quota_label)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
@@ -369,7 +369,7 @@ private fun ProviderEditSection(
                 consoleUrl = it
                 onUpdate(provider.copy(consoleUrl = it))
             },
-            label = { Text("控制台网址") },
+            label = { Text(stringResource(R.string.quota_console_url)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
@@ -379,7 +379,7 @@ private fun ProviderEditSection(
                 totalQuota = it
                 onUpdate(provider.copy(totalQuota = it.toDoubleOrNull() ?: 0.0))
             },
-            label = { Text("总额度（用于计算百分比）") },
+            label = { Text(stringResource(R.string.quota_total_limit)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
@@ -390,7 +390,7 @@ private fun ProviderEditSection(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Text("鉴权方式:", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.quota_auth_method_label), style = MaterialTheme.typography.bodyMedium)
             TextButton(onClick = { showAuthTypeMenu = true }) {
                 Text(provider.authType.displayName)
             }
@@ -425,7 +425,7 @@ private fun ProviderEditSection(
                             authUsername = it
                             onUpdate(provider.copy(manualAuthUsername = it))
                         },
-                        label = { Text("用户名") },
+                        label = { Text(stringResource(R.string.quota_username)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
@@ -459,7 +459,7 @@ private fun ProviderEditSection(
                     authValue = it
                     onUpdate(provider.copy(manualAuthValue = it))
                 },
-                label = { Text("凭证值") },
+                label = { Text(stringResource(R.string.quota_credential_value)) },
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
             )
@@ -471,13 +471,13 @@ private fun ProviderEditSection(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             TextButton(onClick = onOpenConsole) {
-                Text("打开控制台")
+                Text(stringResource(R.string.quota_open_console))
             }
             TextButton(onClick = onManageCredential) {
-                Text("凭证管理")
+                Text(stringResource(R.string.quota_credential_manage))
             }
             TextButton(onClick = onClearCredential) {
-                Text("清除凭证", color = MaterialTheme.colorScheme.error)
+                Text(stringResource(R.string.quota_clear_credential), color = MaterialTheme.colorScheme.error)
             }
             TextButton(onClick = onDelete) {
                 Icon(HugeIcons.Delete02, null, tint = MaterialTheme.colorScheme.error)

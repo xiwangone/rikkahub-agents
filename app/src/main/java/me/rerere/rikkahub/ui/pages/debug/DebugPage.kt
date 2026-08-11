@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.debug
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
@@ -204,7 +205,7 @@ private fun MainPage(vm: DebugVM) {
                 )
             },
         ) {
-            Text("重置Chat模型")
+            Text(stringResource(R.string.debug_reset_chat_model))
         }
 
         Button(
@@ -212,7 +213,7 @@ private fun MainPage(vm: DebugVM) {
                 error("测试崩溃 ${Random.nextInt(0..1000)}")
             },
         ) {
-            Text("崩溃")
+            Text(stringResource(R.string.debug_crash))
         }
 
         Row(
@@ -224,7 +225,7 @@ private fun MainPage(vm: DebugVM) {
                 modifier = Modifier.weight(1f),
             )
             Button(onClick = { vm.refreshConversationCount() }) {
-                Text("刷新")
+                Text(stringResource(R.string.debug_refresh))
             }
         }
 
@@ -234,7 +235,7 @@ private fun MainPage(vm: DebugVM) {
                 toaster.show("正在创建 30MB 超大对话...")
             },
         ) {
-            Text("创建超大对话 (30MB)")
+            Text(stringResource(R.string.debug_create_huge))
         }
 
         Button(
@@ -243,7 +244,7 @@ private fun MainPage(vm: DebugVM) {
                 toaster.show("正在创建 1024 条消息对话...")
             },
         ) {
-            Text("创建 1024 个消息的聊天")
+            Text(stringResource(R.string.debug_create_1024))
         }
 
         HorizontalDivider()
