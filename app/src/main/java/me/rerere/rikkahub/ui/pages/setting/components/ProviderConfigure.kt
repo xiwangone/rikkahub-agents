@@ -528,7 +528,7 @@ private fun OpenRouterRoutingSection(
                         promptPriceText = ""
                         onChange(routing.copy(maxPricePrompt = null))
                     }) {
-                        Icon(HugeIcons.Cancel01, contentDescription = "Clear")
+                        Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.accessibility_clear_text))
                     }
                 }
             },
@@ -548,7 +548,7 @@ private fun OpenRouterRoutingSection(
                         completionPriceText = ""
                         onChange(routing.copy(maxPriceCompletion = null))
                     }) {
-                        Icon(HugeIcons.Cancel01, contentDescription = "Clear")
+                        Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.accessibility_clear_text))
                     }
                 }
             },

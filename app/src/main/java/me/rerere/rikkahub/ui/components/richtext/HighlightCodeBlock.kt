@@ -440,7 +440,7 @@ private fun HighlightCodeActions(
             if (canInlinePreview) {
                 Icon(
                     imageVector = if (previewMode) HugeIcons.Code else HugeIcons.View,
-                    contentDescription = if (previewMode) "Code" else stringResource(id = R.string.code_block_preview),
+                    contentDescription = if (previewMode) stringResource(id = R.string.accessibility_code_view) else stringResource(id = R.string.code_block_preview),
                     tint = iconTint,
                     modifier = Modifier
                         .clip(RoundedCornerShape(4.dp))

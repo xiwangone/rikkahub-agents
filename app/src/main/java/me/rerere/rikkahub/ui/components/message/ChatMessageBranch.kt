@@ -17,10 +17,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowLeft01
 import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.MessageNode
 
 @Composable
@@ -39,7 +41,7 @@ fun ChatMessageBranchSelector(
 
             Icon(
                 imageVector = HugeIcons.ArrowLeft01,
-                contentDescription = "Prev",
+                contentDescription = stringResource(R.string.accessibility_previous_branch),
                 modifier = Modifier
                     .clip(CircleShape)
                     .alpha(if (node.selectIndex == 0) 0.5f else 1f)
@@ -69,7 +71,7 @@ fun ChatMessageBranchSelector(
 
             Icon(
                 imageVector = HugeIcons.ArrowRight01,
-                contentDescription = "Next",
+                contentDescription = stringResource(R.string.accessibility_next_branch),
                 modifier = Modifier
                     .clip(CircleShape)
                     .alpha(if (node.selectIndex == node.messages.lastIndex) 0.5f else 1f)

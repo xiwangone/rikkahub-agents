@@ -1358,7 +1358,7 @@ private fun ModelCard(
                         dialogState.open(model.copy())
                     }
                 ) {
-                    Icon(HugeIcons.Tools, "Edit")
+                    Icon(HugeIcons.Tools, stringResource(R.string.accessibility_edit_model))
                 }
             }
         }
@@ -1497,14 +1497,14 @@ private fun ProviderOverrideSettings(
                                 showProviderConfig = true
                             }
                         ) {
-                            Icon(HugeIcons.Tools, contentDescription = "Edit override")
+                            Icon(HugeIcons.Tools, contentDescription = stringResource(R.string.accessibility_edit_override))
                         }
                         IconButton(
                             onClick = {
                                 onUpdateProviderOverride(null)
                             }
                         ) {
-                            Icon(HugeIcons.Cancel01, contentDescription = "Remove override")
+                            Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.accessibility_remove_override))
                         }
                     }
                 }

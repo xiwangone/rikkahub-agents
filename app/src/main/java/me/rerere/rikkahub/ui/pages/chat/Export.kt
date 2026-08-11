@@ -492,7 +492,7 @@ private fun ExportedChatImage(
                         val painter = painterResource(id = R.mipmap.ic_launcher_foreground)
                         Image(
                             painter = painter,
-                            contentDescription = "Logo",
+                            contentDescription = stringResource(R.string.accessibility_app_logo),
                             modifier = Modifier.size(60.dp)
                         )
                     }
@@ -618,7 +618,7 @@ private fun ExportedChatMessage(
                                         .allowHardware(false)
                                         .crossfade(false)
                                         .build(),
-                                    contentDescription = "Image",
+                                    contentDescription = null,
                                     modifier = Modifier
                                         .sizeIn(maxHeight = 300.dp)
                                         .clip(RoundedCornerShape(12.dp)),

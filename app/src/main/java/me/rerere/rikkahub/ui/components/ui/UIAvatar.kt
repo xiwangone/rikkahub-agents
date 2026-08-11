@@ -205,7 +205,7 @@ fun UIAvatar(
             ) {
                 Icon(
                     imageVector = HugeIcons.Edit03,
-                    contentDescription = "Edit",
+                    contentDescription = stringResource(R.string.accessibility_edit_avatar),
                     modifier = Modifier
                         .size(10.dp)
                         .padding(1.dp),

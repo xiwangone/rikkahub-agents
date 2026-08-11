@@ -103,7 +103,7 @@ fun SettingAboutPage() {
                     ) {
                         AsyncImage(
                             model = R.mipmap.ic_launcher,
-                            contentDescription = "Logo",
+                            contentDescription = stringResource(R.string.accessibility_app_logo),
                             modifier = Modifier
                                 .clip(CircleShape)
                                 .size(150.dp)

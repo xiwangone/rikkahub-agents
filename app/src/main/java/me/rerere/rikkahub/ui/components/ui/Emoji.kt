@@ -95,7 +95,7 @@ fun EmojiPicker(
                         leadingIcon = {
                             Icon(
                                 imageVector = HugeIcons.Search01,
-                                contentDescription = "Search"
+                                contentDescription = stringResource(R.string.accessibility_search)
                             )
                         },
                         modifier = Modifier

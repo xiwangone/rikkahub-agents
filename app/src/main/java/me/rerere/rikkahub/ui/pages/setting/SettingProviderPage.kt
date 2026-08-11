@@ -175,7 +175,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(HugeIcons.Cancel01, contentDescription = "Clear")
+                            Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.accessibility_clear_text))
                         }
                     }
                 },
@@ -590,7 +590,7 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
             dialogState.open(ProviderSetting.OpenAI())
         }
     ) {
-        Icon(HugeIcons.Add01, "Add")
+        Icon(HugeIcons.Add01, stringResource(R.string.accessibility_add_provider))
     }
 
     if (dialogState.isEditing) {

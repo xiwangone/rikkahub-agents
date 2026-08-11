@@ -220,7 +220,7 @@ fun ChatDrawerContent(
 
                         Icon(
                             imageVector = HugeIcons.PencilEdit01,
-                            contentDescription = "Edit",
+                            contentDescription = stringResource(R.string.accessibility_edit_nickname),
                             modifier = Modifier
                                 .onClick {
                                     nicknameEditState.open(settings.displaySetting.userNickname)
@@ -331,7 +331,7 @@ fun ChatDrawerContent(
                 Box {
                     DrawerAction(
                         icon = {
-                            Icon(HugeIcons.Sparkles, "Menu")
+                            Icon(HugeIcons.Sparkles, stringResource(R.string.menu))
                         },
                         label = {
                             Text(stringResource(R.string.menu))

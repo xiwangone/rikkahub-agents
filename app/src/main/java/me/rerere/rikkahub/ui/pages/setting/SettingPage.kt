@@ -142,7 +142,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 navController.navigate(Screen.Developer)
                             }
                         ) {
-                            Icon(HugeIcons.Developer, "Developer")
+                            Icon(HugeIcons.Developer, stringResource(R.string.accessibility_developer_options))
                         }
                     }
                 },
@@ -386,7 +386,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 ) {
                                     Icon(
                                         imageVector = TencentQQIcon,
-                                        contentDescription = "QQ",
+                                        contentDescription = stringResource(R.string.accessibility_qq),
                                         tint = MaterialTheme.colorScheme.secondary
                                     )
                                 }
@@ -402,7 +402,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 ) {
                                     Icon(
                                         imageVector = DiscordIcon,
-                                        contentDescription = "Discord",
+                                        contentDescription = stringResource(R.string.accessibility_discord),
                                         tint = MaterialTheme.colorScheme.secondary
                                     )
                                 }

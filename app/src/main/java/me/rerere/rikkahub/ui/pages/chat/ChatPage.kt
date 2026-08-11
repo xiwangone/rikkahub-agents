@@ -735,7 +735,7 @@ private fun TopBar(
                         scope.launch { drawerState.open() }
                     }
                 ) {
-                    Icon(HugeIcons.Menu03, "Messages")
+                    Icon(HugeIcons.Menu03, stringResource(R.string.accessibility_messages))
                 }
             }
         },
@@ -781,7 +781,7 @@ private fun TopBar(
                     onClickMenu()
                 }
             ) {
-                Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, "Chat Options")
+                Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, stringResource(R.string.accessibility_chat_options))
             }
 
             IconButton(
@@ -789,7 +789,7 @@ private fun TopBar(
                     onNewChat()
                 }
             ) {
-                Icon(HugeIcons.MessageAdd01, "New Message")
+                Icon(HugeIcons.MessageAdd01, stringResource(R.string.chat_page_new_message))
             }
         },
     )

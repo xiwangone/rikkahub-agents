@@ -15,6 +15,7 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.annotation.VisibleForTesting
 import kotlinx.datetime.toJavaLocalDateTime
@@ -25,6 +26,7 @@ import me.rerere.hugeicons.stroke.CoinsDollar
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.Zap
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
@@ -55,7 +57,7 @@ fun ChatMessageNerdLine(
                         icon = {
                             Icon(
                                 imageVector = HugeIcons.Upload02,
-                                contentDescription = "Input",
+                                contentDescription = stringResource(R.string.accessibility_input_tokens),
                                 tint = color,
                                 modifier = Modifier.size(12.dp)
                             )
@@ -84,7 +86,7 @@ fun ChatMessageNerdLine(
                         icon = {
                             Icon(
                                 imageVector = HugeIcons.Download04,
-                                contentDescription = "Output",
+                                contentDescription = stringResource(R.string.accessibility_output_tokens),
                                 modifier = Modifier.size(12.dp)
                             )
                         },
@@ -99,7 +101,7 @@ fun ChatMessageNerdLine(
                             icon = {
                                 Icon(
                                     imageVector = HugeIcons.CoinsDollar,
-                                    contentDescription = "Cost",
+                                    contentDescription = stringResource(R.string.accessibility_cost),
                                     tint = color,
                                     modifier = Modifier.size(12.dp)
                                 )
@@ -121,7 +123,7 @@ fun ChatMessageNerdLine(
                             icon = {
                                 Icon(
                                     imageVector = HugeIcons.Zap,
-                                    contentDescription = "Speed",
+                                    contentDescription = stringResource(R.string.accessibility_speed),
                                     modifier = Modifier.size(12.dp)
                                 )
                             },
@@ -134,7 +136,7 @@ fun ChatMessageNerdLine(
                             icon = {
                                 Icon(
                                     imageVector = HugeIcons.Clock02,
-                                    contentDescription = "Duration",
+                                    contentDescription = stringResource(R.string.accessibility_duration),
                                     modifier = Modifier.size(12.dp)
                                 )
                             },
