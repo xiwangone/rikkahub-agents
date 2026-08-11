@@ -36,6 +36,7 @@ enum class DoctorCategory(val displayName: String) {
     Database("Database"),
     Network("Network & providers"),
     Termux("Termux integration"),
+    Shizuku("Shizuku"),
     Maintenance("Maintenance"),
     Diagnostics("Diagnostics"),
 }
@@ -75,6 +76,10 @@ enum class AppRouteKey {
     SettingPermissions,
     SettingProvider,
     Assistant,
+    SettingShizuku,
+    SettingSubAgents,
+    SettingMcp,
+    Skills,
 }
 
 data class AutoFixResult(val ok: Boolean, val message: String)

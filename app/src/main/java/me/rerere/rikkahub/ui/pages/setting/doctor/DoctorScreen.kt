@@ -271,6 +271,10 @@ private fun routeFor(key: AppRouteKey): Screen = when (key) {
     AppRouteKey.SettingPermissions -> Screen.SettingPermissions
     AppRouteKey.SettingProvider -> Screen.SettingProvider
     AppRouteKey.Assistant -> Screen.Assistant
+    AppRouteKey.SettingShizuku -> Screen.SettingShizuku
+    AppRouteKey.SettingSubAgents -> Screen.SettingSubAgents
+    AppRouteKey.SettingMcp -> Screen.SettingMcp
+    AppRouteKey.Skills -> Screen.Skills
 }
 
 private fun copyToClipboard(ctx: Context, text: String) {

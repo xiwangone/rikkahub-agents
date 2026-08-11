@@ -198,6 +198,23 @@ class SkillManager(
 
     fun getSkillDir(skillName: String): File? = resolveSkillDir(skillName)
 
+    /**
+     * Doctor support, read-only: the skill names currently bundled in
+     * `assets/default-skills/`, so the Doctor can tell a "bundled" skill directory
+     * (seeded from assets) apart from a user-added one without duplicating the seeding
+     * logic in [seedDefaultSkillsIfNeeded].
+     */
+    fun bundledSkillNames(): Set<String> = runCatching {
+        context.assets.list("default-skills").orEmpty().toSet()
+    }.getOrDefault(emptySet())
+
+    /**
+     * Doctor support, read-only: hash [skillName]'s currently-bundled assets the same
+     * way [seedDefaultSkillsIfNeeded] does, so the Doctor can compare it against the
+     * on-disk `.core-bundled-hash` sentinel without re-deriving the hashing algorithm.
+     */
+    fun bundledSkillAssetHash(skillName: String): String = computeBundledSkillHash("default-skills", skillName)
+
     fun saveSkillFile(skillName: String, relativePath: String, content: String): Boolean {
         val skillDir = resolveSkillDir(skillName) ?: return false
         val target = SkillPaths.resolveSkillFile(skillDir, relativePath) ?: return false

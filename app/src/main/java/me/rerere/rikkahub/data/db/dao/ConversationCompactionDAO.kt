@@ -11,6 +11,10 @@ interface ConversationCompactionDAO {
     @Query("SELECT * FROM conversation_compaction WHERE conversation_id = :conversationId")
     suspend fun getByConversationId(conversationId: String): ConversationCompactionEntity?
 
+    /** Doctor support: how many conversations have ever been compacted. */
+    @Query("SELECT COUNT(*) FROM conversation_compaction")
+    suspend fun countAll(): Int
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(compaction: ConversationCompactionEntity)
 

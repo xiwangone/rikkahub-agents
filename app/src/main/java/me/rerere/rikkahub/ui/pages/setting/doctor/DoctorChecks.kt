@@ -7,19 +7,29 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.BuildConfig
+import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.mcp.McpStatus
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.local.AccessibilityServiceHandle
+import me.rerere.rikkahub.data.ai.tools.local.AgentWorkspace
 import me.rerere.rikkahub.data.ai.tools.local.NotificationListenerHandle
 import me.rerere.rikkahub.data.ai.tools.local.PermissionHelper
+import me.rerere.rikkahub.data.datastore.AutoCompactionThresholdMode
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.db.AppDatabase
+import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.ScheduledJobRepository
 import me.rerere.rikkahub.data.repository.ScheduledJobRunRepository
 import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
 import me.rerere.rikkahub.service.TelegramBotService
+import me.rerere.rikkahub.shizuku.ShizukuManager
+import me.rerere.rikkahub.shizuku.ShizukuStatus
+import me.rerere.rikkahub.subagent.SubAgentModelResolver
+import me.rerere.rikkahub.subagent.SubAgentProfile
 import me.rerere.rikkahub.workflow.repository.WorkflowRepository
 import me.rerere.rikkahub.browser.BrowserPreferences
 import me.rerere.rikkahub.browser.BrowserToolDefaults
@@ -97,6 +107,9 @@ private object Capability {
     val BackgroundLocation: Set<LocalToolOption> = setOf(
         LocalToolOption.Workflows,           // geofence triggers fire while the app is closed
     )
+    val Shizuku: Set<LocalToolOption> = setOf(
+        LocalToolOption.Shizuku,             // shizuku_exec runs shell commands with Shizuku's privileges
+    )
 }
 
 /** Friendly name for the row's "needed by:" subtitle. */
@@ -120,6 +133,7 @@ private fun LocalToolOption.shortName(): String = when (this) {
     LocalToolOption.Nfc -> "NFC"
     LocalToolOption.ExternalStorage -> "External storage"
     LocalToolOption.Archive -> "Archive (zip)"
+    LocalToolOption.Shizuku -> "Shizuku"
     else -> this::class.simpleName ?: "?"
 }
 
@@ -155,6 +169,10 @@ class DoctorChecks(
     // local models actually engaged GPU/NPU or silently fell back to CPU.
     // Nullable + defaulted same as the others above for legacy test path compatibility.
     private val localRuntimePreferences: me.rerere.locallm.LocalRuntimePreferences? = null,
+    // Doctor refresh: backs the skills.* rows. Nullable + defaulted same as the others.
+    private val skillManager: SkillManager? = null,
+    // Doctor refresh: backs the service.mcp_servers row. Nullable + defaulted same as the others.
+    private val mcpManager: McpManager? = null,
 ) {
     suspend fun runAll(): List<DoctorCheck> = withContext(Dispatchers.IO) {
         // Aggregate enabled tools across every assistant. A tool is "in use" if at least
@@ -171,8 +189,13 @@ class DoctorChecks(
             addAll(databaseChecks(enabled))
             addAll(networkChecks())
             addAll(termuxChecks(enabled))
+            addAll(shizukuChecks(enabled))
             addAll(browserChecks(enabled))
+            addAll(mcpChecks())
+            addAll(skillsChecks())
+            addAll(storageChecks())
             addAll(maintenanceChecks())
+            addAll(compactionChecks())
             addAll(diagnosticsChecks(enabled))
         }
     }
@@ -505,6 +528,33 @@ class DoctorChecks(
                 )
             )
         }
+        // Telegram proxy configuration: informational only, no reachability probe (out of
+        // scope per the doctor-refresh plan). Exists so a user reporting "the bot stopped
+        // working" can see at a glance whether a proxy is in the path.
+        runCatching {
+            add(
+                DoctorCheck(
+                    id = "service.telegram_proxy",
+                    category = DoctorCategory.Services,
+                    label = "Telegram bot proxy",
+                    detail = if (tg.proxyEnabled)
+                        "${tg.proxyType} proxy at ${tg.proxyHost}:${tg.proxyPort}."
+                    else
+                        "Not configured, connecting directly to Telegram.",
+                    severity = Severity.INFO,
+                )
+            )
+        }.onFailure {
+            add(
+                DoctorCheck(
+                    id = "service.telegram_proxy",
+                    category = DoctorCategory.Services,
+                    label = "Telegram bot proxy",
+                    detail = "Probe failed: ${it::class.simpleName}: ${it.message ?: "?"}",
+                    severity = Severity.WARN,
+                )
+            )
+        }
         // AccessibilityService binding — only flagged if a tool that needs it is enabled.
         val accNeeders = requirersOf(Capability.Accessibility, enabled)
         if (accNeeders.isNotEmpty()) {
@@ -636,6 +686,33 @@ class DoctorChecks(
                     )
                 )
             }
+
+            // Row 4: sub-agent profiles whose configured model no longer resolves. This is
+            // the #28 failure class made visible: a profile with a stale/deleted model id
+            // used to fall back to inheriting the parent's model with no indication anything
+            // was wrong. Reuses SubAgentModelResolver so the Doctor can't drift from the
+            // actual dispatch-time resolution logic.
+            val subAgentStatus = subAgentProfileStatus(settings.subAgents, settings.providers)
+            add(
+                DoctorCheck(
+                    id = "assistant.subagent_profiles",
+                    category = DoctorCategory.AssistantInfo,
+                    label = "Sub-agent profiles",
+                    detail = when {
+                        subAgentStatus.total == 0 -> "No sub-agent profiles configured."
+                        subAgentStatus.broken.isEmpty() ->
+                            "${subAgentStatus.total} profile(s) configured, all resolve to an existing chat model."
+                        else ->
+                            "${subAgentStatus.total} profile(s) configured. ${subAgentStatus.broken.size} " +
+                                "reference a model that no longer resolves to a chat model of an enabled " +
+                                "provider: ${subAgentStatus.broken.joinToString(", ")}."
+                    },
+                    severity = if (subAgentStatus.broken.isEmpty()) Severity.INFO else Severity.WARN,
+                    fix = if (subAgentStatus.broken.isNotEmpty())
+                        FixAction.OpenAppRoute("Open Sub-agents", AppRouteKey.SettingSubAgents)
+                    else null,
+                )
+            )
         }
     }
 
@@ -1007,6 +1084,364 @@ class DoctorChecks(
         }
     }
 
+    // ----- Shizuku ------------------------------------------------------------------------
+
+    /**
+     * Doctor refresh: three rows tracking Shizuku the same way [termuxChecks] tracks Termux,
+     * a companion privileged-helper app the `shizuku_exec` tool depends on. Unlike Termux,
+     * these rows are always emitted (not skipped when unused) so the settings page shows
+     * "not required" rather than silently omitting the whole category; severity still
+     * downgrades to INFO when no enabled tool needs Shizuku, matching every other
+     * capability-aware row in this file.
+     *
+     * All three derive their severity from a single [ShizukuStatus], computed once via
+     * [ShizukuManager.status] (which itself delegates to
+     * [me.rerere.rikkahub.shizuku.ShizukuStatusMapper.compute]) rather than re-deriving the
+     * installed/running/permission precedence here.
+     */
+    private fun shizukuChecks(enabled: Set<LocalToolOption>): List<DoctorCheck> = buildList {
+        runCatching {
+            val needers = requirersOf(Capability.Shizuku, enabled)
+            val status = ShizukuManager.status(context)
+            val fix = FixAction.OpenAppRoute("Open Shizuku settings", AppRouteKey.SettingShizuku)
+
+            add(
+                DoctorCheck(
+                    id = "shizuku.installed",
+                    category = DoctorCategory.Shizuku,
+                    label = "Shizuku installed",
+                    detail = when {
+                        status != ShizukuStatus.NOT_INSTALLED ->
+                            "Shizuku (or an equivalent binder provider such as Sui) is present."
+                        needers.isEmpty() -> "Not installed. Not required by any enabled tool."
+                        else -> "Not installed. Needed by: ${needers.joinToString(", ") { it.shortName() }}."
+                    },
+                    severity = when {
+                        status != ShizukuStatus.NOT_INSTALLED -> Severity.OK
+                        needers.isEmpty() -> Severity.INFO
+                        else -> Severity.WARN
+                    },
+                    fix = if (status == ShizukuStatus.NOT_INSTALLED && needers.isNotEmpty()) fix else null,
+                )
+            )
+            add(
+                DoctorCheck(
+                    id = "shizuku.running",
+                    category = DoctorCategory.Shizuku,
+                    label = "Shizuku service running",
+                    detail = when (status) {
+                        ShizukuStatus.NOT_INSTALLED -> "Can't check: Shizuku isn't installed."
+                        ShizukuStatus.NOT_RUNNING ->
+                            if (needers.isEmpty()) "Binder not alive. Not required by any enabled tool."
+                            else "Binder not alive, start the Shizuku service. Needed by: ${needers.joinToString(", ") { it.shortName() }}."
+                        else -> "Binder alive."
+                    },
+                    severity = when (status) {
+                        ShizukuStatus.NOT_INSTALLED -> Severity.INFO
+                        ShizukuStatus.NOT_RUNNING -> if (needers.isEmpty()) Severity.INFO else Severity.WARN
+                        else -> Severity.OK
+                    },
+                    fix = if (status == ShizukuStatus.NOT_RUNNING && needers.isNotEmpty()) fix else null,
+                )
+            )
+            add(
+                DoctorCheck(
+                    id = "shizuku.permission",
+                    category = DoctorCategory.Shizuku,
+                    label = "Shizuku permission",
+                    detail = when (status) {
+                        ShizukuStatus.NOT_INSTALLED, ShizukuStatus.NOT_RUNNING ->
+                            "Not applicable yet, Shizuku isn't running."
+                        ShizukuStatus.PERMISSION_DENIED ->
+                            if (needers.isEmpty()) "Not granted. Not required by any enabled tool."
+                            else "Not granted. Needed by: ${needers.joinToString(", ") { it.shortName() }}."
+                        ShizukuStatus.READY -> "Granted."
+                    },
+                    severity = when (status) {
+                        ShizukuStatus.NOT_INSTALLED, ShizukuStatus.NOT_RUNNING -> Severity.INFO
+                        ShizukuStatus.PERMISSION_DENIED -> if (needers.isEmpty()) Severity.INFO else Severity.WARN
+                        ShizukuStatus.READY -> Severity.OK
+                    },
+                    fix = if (status == ShizukuStatus.PERMISSION_DENIED && needers.isNotEmpty()) fix else null,
+                )
+            )
+        }.onFailure {
+            add(
+                DoctorCheck(
+                    id = "shizuku.probe_failed",
+                    category = DoctorCategory.Shizuku,
+                    label = "Shizuku",
+                    detail = "Probe failed: ${it::class.simpleName}: ${it.message ?: "?"}",
+                    severity = Severity.WARN,
+                )
+            )
+        }
+    }
+
+    // ----- MCP servers ----------------------------------------------------------------------
+
+    /**
+     * Doctor refresh: read-only summary of configured MCP servers against
+     * [McpManager.syncingStatus]: the live in-memory connection state cache. Never
+     * initiates a connection; a server the app hasn't tried to sync yet just reads as "not
+     * connected" here, same as one that failed.
+     */
+    private suspend fun mcpChecks(): List<DoctorCheck> = buildList {
+        val manager = mcpManager ?: return@buildList
+        runCatching {
+            val settings = settingsStore.settingsFlow.first()
+            val statuses = manager.syncingStatus.value
+            val rows = settings.mcpServers.map { server ->
+                val name = server.commonOptions.name.ifBlank { server.id.toString().take(8) }
+                Triple(name, server.commonOptions.enable, statuses[server.id] is McpStatus.Connected)
+            }
+            val summary = mcpServerSummary(rows)
+            add(
+                DoctorCheck(
+                    id = "service.mcp_servers",
+                    category = DoctorCategory.Services,
+                    label = "MCP servers",
+                    detail = when {
+                        summary.configured == 0 -> "No MCP servers configured."
+                        summary.enabledNotConnected.isEmpty() ->
+                            "${summary.configured} configured, ${summary.enabled} enabled, ${summary.connected} connected."
+                        else ->
+                            "${summary.configured} configured, ${summary.enabled} enabled, ${summary.connected} connected. " +
+                                "Enabled but not connected: ${summary.enabledNotConnected.joinToString(", ")}."
+                    },
+                    severity = if (summary.enabledNotConnected.isEmpty()) Severity.INFO else Severity.WARN,
+                    fix = if (summary.configured > 0)
+                        FixAction.OpenAppRoute("Open MCP servers", AppRouteKey.SettingMcp)
+                    else null,
+                )
+            )
+        }.onFailure {
+            add(
+                DoctorCheck(
+                    id = "service.mcp_servers",
+                    category = DoctorCategory.Services,
+                    label = "MCP servers",
+                    detail = "Probe failed: ${it::class.simpleName}: ${it.message ?: "?"}",
+                    severity = Severity.WARN,
+                )
+            )
+        }
+    }
+
+    // ----- Skills ---------------------------------------------------------------------------
+
+    /**
+     * Doctor refresh: installed-skill count (bundled vs user-added, told apart by the
+     * `.seeded` sentinel [SkillManager.seedDefaultSkillsIfNeeded] writes) plus bundled-seed
+     * health, whether the on-disk `.core-bundled-hash` sentinel still matches what the
+     * currently-installed APK would seed. A stale sentinel is what froze bundled skill
+     * updates before; it means seeding failed silently rather than that a re-seed is merely
+     * pending, since [me.rerere.rikkahub.RikkaHubApp] runs the seed pass on every launch.
+     */
+    private fun skillsChecks(): List<DoctorCheck> = buildList {
+        val mgr = skillManager ?: return@buildList
+        val skillsResult = runCatching { mgr.listSkills() }
+        val skills = skillsResult.getOrNull()
+        if (skills == null) {
+            val err = skillsResult.exceptionOrNull()
+            val detail = "Probe failed: ${err?.let { it::class.simpleName }}: ${err?.message ?: "?"}"
+            add(DoctorCheck("skills.installed", DoctorCategory.Database, "Installed skills", detail, Severity.WARN))
+            add(DoctorCheck("skills.seed", DoctorCategory.Database, "Bundled skill seed health", detail, Severity.WARN))
+            return@buildList
+        }
+
+        runCatching {
+            val bundledCount = skills.count { it.skillDir.resolve(".seeded").exists() }
+            val userCount = skills.size - bundledCount
+            add(
+                DoctorCheck(
+                    id = "skills.installed",
+                    category = DoctorCategory.Database,
+                    label = "Installed skills",
+                    detail = "${skills.size} installed ($bundledCount bundled, $userCount user-added).",
+                    severity = Severity.INFO,
+                    fix = FixAction.OpenAppRoute("Open Skills", AppRouteKey.Skills),
+                )
+            )
+        }.onFailure {
+            add(
+                DoctorCheck(
+                    id = "skills.installed",
+                    category = DoctorCategory.Database,
+                    label = "Installed skills",
+                    detail = "Probe failed: ${it::class.simpleName}: ${it.message ?: "?"}",
+                    severity = Severity.WARN,
+                )
+            )
+        }
+
+        runCatching {
+            val bundledNames = mgr.bundledSkillNames()
+            // Bundled-name match alone isn't ownership: a user can delete a bundled skill and
+            // recreate a same-named one via saveSkill without writing .seeded/.core-bundled-hash.
+            // Mirror decideSeedAction's ownedByUs rule here: core skills (autoLoad) are
+            // unconditionally ours, non-core skills are ours only if we actually seeded them.
+            val entries = skills.filter { skill ->
+                skill.skillDir.name in bundledNames &&
+                    (skill.autoLoad || skill.skillDir.resolve(".seeded").exists())
+            }.map { skill ->
+                val hashFile = skill.skillDir.resolve(".core-bundled-hash")
+                val stored = if (hashFile.exists())
+                    runCatching { hashFile.readText().trim() }.getOrNull()
+                else null
+                val current = runCatching { mgr.bundledSkillAssetHash(skill.skillDir.name) }.getOrNull()
+                SkillSeedEntry(skill.skillDir.name, isBundled = true, storedHash = stored, currentHash = current)
+            }
+            val stale = staleSeedSkillNames(entries)
+            add(
+                DoctorCheck(
+                    id = "skills.seed",
+                    category = DoctorCategory.Database,
+                    label = "Bundled skill seed health",
+                    detail = if (stale.isEmpty())
+                        "Bundled-skill seed sentinels match the shipped assets."
+                    else
+                        "Seed sentinel out of date for: ${stale.joinToString(", ")}. This normally re-seeds " +
+                            "on the next app launch; if it persists, the write is failing silently.",
+                    severity = if (stale.isEmpty()) Severity.OK else Severity.WARN,
+                    fix = if (stale.isNotEmpty())
+                        FixAction.OpenAppRoute("Open Skills", AppRouteKey.Skills)
+                    else null,
+                )
+            )
+        }.onFailure {
+            add(
+                DoctorCheck(
+                    id = "skills.seed",
+                    category = DoctorCategory.Database,
+                    label = "Bundled skill seed health",
+                    detail = "Probe failed: ${it::class.simpleName}: ${it.message ?: "?"}",
+                    severity = Severity.WARN,
+                )
+            )
+        }
+    }
+
+    // ----- Storage (gallery + workspace) -----------------------------------------------------
+
+    /**
+     * Doctor refresh: two read-only storage rows.
+     *  - `storage.gallery_orphans`: the #39 bug class made visible, generated-image DB
+     *    records ([me.rerere.rikkahub.data.db.entity.GenMediaEntity]) whose backing file
+     *    under `filesDir/images/` no longer exists.
+     *  - `storage.workspace`: health of the agent's `~` sandbox ([AgentWorkspace]), exists,
+     *    is a directory, is writable, plus file count and size via the existing
+     *    [directorySize] / [humanBytes] helpers.
+     */
+    private suspend fun storageChecks(): List<DoctorCheck> = buildList {
+        runCatching {
+            val entities = database.genMediaDao().getAllMedia()
+            val absolutePaths = entities.map { File(context.filesDir, it.path).absolutePath }
+            val status = galleryOrphanStatus(absolutePaths)
+            add(
+                DoctorCheck(
+                    id = "storage.gallery_orphans",
+                    category = DoctorCategory.Database,
+                    label = "Gallery orphaned images",
+                    detail = if (status.orphanCount == 0)
+                        "${status.total} generated image record(s), all backed by a file on disk."
+                    else
+                        "${status.orphanCount} of ${status.total} generated image record(s) point at a " +
+                            "file that no longer exists on disk.",
+                    severity = if (status.orphanCount > 0) Severity.WARN else Severity.OK,
+                )
+            )
+        }.onFailure {
+            add(
+                DoctorCheck(
+                    id = "storage.gallery_orphans",
+                    category = DoctorCategory.Database,
+                    label = "Gallery orphaned images",
+                    detail = "Probe failed: ${it::class.simpleName}: ${it.message ?: "?"}",
+                    severity = Severity.WARN,
+                )
+            )
+        }
+
+        runCatching {
+            val root = File(AgentWorkspace.rootPath())
+            val exists = root.exists() && root.isDirectory
+            val writable = exists && root.canWrite()
+            add(
+                DoctorCheck(
+                    id = "storage.workspace",
+                    category = DoctorCategory.Database,
+                    label = "Agent workspace",
+                    detail = when {
+                        !exists -> "${root.absolutePath} does not exist."
+                        !writable -> "${root.absolutePath} exists but is not writable."
+                        else -> {
+                            val fileCount = root.walkTopDown().count { it.isFile }
+                            "${root.absolutePath}: $fileCount file(s), ${humanBytes(directorySize(root))}."
+                        }
+                    },
+                    severity = if (!exists || !writable) Severity.WARN else Severity.INFO,
+                )
+            )
+        }.onFailure {
+            add(
+                DoctorCheck(
+                    id = "storage.workspace",
+                    category = DoctorCategory.Database,
+                    label = "Agent workspace",
+                    detail = "Probe failed: ${it::class.simpleName}: ${it.message ?: "?"}",
+                    severity = Severity.WARN,
+                )
+            )
+        }
+    }
+
+    // ----- Context compaction ---------------------------------------------------------------
+
+    /**
+     * Doctor refresh: whether auto-compaction is enabled, its configured threshold, and how
+     * many conversations have ever actually been compacted, the fact we've repeatedly been
+     * unable to confirm on device. Always INFO: zero-with-it-enabled is an expected state
+     * (no conversation has crossed the threshold yet), not a problem.
+     */
+    private suspend fun compactionChecks(): List<DoctorCheck> = buildList {
+        runCatching {
+            val settings = settingsStore.settingsFlow.first()
+            val count = database.conversationCompactionDao().countAll()
+            val thresholdDesc = when (settings.autoCompactionThresholdMode) {
+                AutoCompactionThresholdMode.PERCENT -> "${settings.autoCompactionThresholdPercent}% of context"
+                AutoCompactionThresholdMode.TOKENS -> "${settings.autoCompactionThresholdTokensK}k tokens"
+            }
+            add(
+                DoctorCheck(
+                    id = "diag.compaction",
+                    category = DoctorCategory.Diagnostics,
+                    label = "Context compaction",
+                    detail = when {
+                        !settings.enableAutoCompaction ->
+                            "Disabled. $count conversation(s) have ever been compacted."
+                        count == 0 ->
+                            "Enabled, threshold $thresholdDesc. 0 conversations compacted so far, " +
+                                "expected until a conversation crosses the threshold."
+                        else ->
+                            "Enabled, threshold $thresholdDesc. $count conversation(s) compacted so far."
+                    },
+                    severity = Severity.INFO,
+                )
+            )
+        }.onFailure {
+            add(
+                DoctorCheck(
+                    id = "diag.compaction",
+                    category = DoctorCategory.Diagnostics,
+                    label = "Context compaction",
+                    detail = "Probe failed: ${it::class.simpleName}: ${it.message ?: "?"}",
+                    severity = Severity.WARN,
+                )
+            )
+        }
+    }
+
     // ----- Browser (Pass 3) ------------------------------------------------------------
 
     /**
@@ -1195,3 +1630,77 @@ internal fun llamaCppModelStatus(installed: Map<String, String>): LlamaCppModelS
         total = installed.size,
         missing = installed.filterValues { path -> !File(path).exists() }.keys.sorted(),
     )
+
+/**
+ * Pure decision logic backing the "storage.gallery_orphans" row: given the resolved
+ * absolute paths of every generated-image DB record, report the total and how many no
+ * longer have a backing file on disk (the #39 bug class). Mirrors [llamaCppModelStatus]'s
+ * shape so both are unit-testable on the JVM without a Context.
+ */
+internal data class GalleryOrphanStatus(val total: Int, val orphanCount: Int)
+
+internal fun galleryOrphanStatus(absolutePaths: List<String>): GalleryOrphanStatus =
+    GalleryOrphanStatus(
+        total = absolutePaths.size,
+        orphanCount = absolutePaths.count { path -> !File(path).exists() },
+    )
+
+/**
+ * Pure decision logic backing the "assistant.subagent_profiles" row: which configured
+ * [SubAgentProfile]s have a `modelId` that no longer resolves to a chat model of an
+ * enabled provider (the #28 failure class; it used to fail silently at dispatch time).
+ * Reuses [SubAgentModelResolver.resolve] itself rather than re-deriving model lookup; a
+ * profile's `modelId` is already a resolved [kotlin.uuid.Uuid], so it's passed through as
+ * the resolver's string input, exactly like a `subagent_dispatch` caller would.
+ */
+internal data class SubAgentProfileStatus(val total: Int, val broken: List<String>)
+
+internal fun subAgentProfileStatus(
+    profiles: List<SubAgentProfile>,
+    providers: List<ProviderSetting>,
+): SubAgentProfileStatus = SubAgentProfileStatus(
+    total = profiles.size,
+    broken = profiles.filter { profile ->
+        val modelId = profile.modelId ?: return@filter false
+        SubAgentModelResolver.resolve(modelId.toString(), providers) is SubAgentModelResolver.Result.Failed
+    }.map { it.name },
+)
+
+/**
+ * Pure decision logic backing the "service.mcp_servers" row: given each configured
+ * server's (name, enabled, connected) triple, report the configured/enabled/connected
+ * counts and which enabled servers are not currently connected.
+ */
+internal data class McpServerSummary(
+    val configured: Int,
+    val enabled: Int,
+    val connected: Int,
+    val enabledNotConnected: List<String>,
+)
+
+internal fun mcpServerSummary(servers: List<Triple<String, Boolean, Boolean>>): McpServerSummary =
+    McpServerSummary(
+        configured = servers.size,
+        enabled = servers.count { (_, enabled, _) -> enabled },
+        connected = servers.count { (_, _, connected) -> connected },
+        enabledNotConnected = servers.filter { (_, enabled, connected) -> enabled && !connected }
+            .map { (name, _, _) -> name },
+    )
+
+/**
+ * Pure decision logic backing the "skills.seed" row: a bundled skill's on-disk
+ * `.core-bundled-hash` sentinel is stale when it's missing, unreadable, or doesn't match
+ * the hash of what the app would currently seed. Non-bundled (user-added) entries are
+ * never flagged: [isBundled] gates them out entirely, mirroring
+ * [me.rerere.rikkahub.data.files.decideSeedAction]'s "never touch a directory we didn't
+ * create" rule.
+ */
+internal data class SkillSeedEntry(
+    val name: String,
+    val isBundled: Boolean,
+    val storedHash: String?,
+    val currentHash: String?,
+)
+
+internal fun staleSeedSkillNames(entries: List<SkillSeedEntry>): List<String> =
+    entries.filter { it.isBundled && it.storedHash != it.currentHash }.map { it.name }

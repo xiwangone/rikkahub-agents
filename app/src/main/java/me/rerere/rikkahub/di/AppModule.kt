@@ -284,6 +284,9 @@ val appModule = module {
             // LiteRT accelerator status row in the Doctor: shows the persisted backend
             // decision so a silent GPU -> CPU fallback is visible.
             localRuntimePreferences = get(),
+            // Doctor refresh: skills.* and service.mcp_servers rows.
+            skillManager = get(),
+            mcpManager = get(),
         )
     }
 }
