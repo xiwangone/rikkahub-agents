@@ -298,10 +298,18 @@ class SkillManager(
                 // Core skills (auto_load=true) re-seed whenever the bundled content changes
                 // — typically across an APK upgrade. This keeps SOUL/HEARTBEAT/TOOLS in
                 // sync with the app version while still allowing the user to edit between
-                // upgrades (their edits stick until we ship a new bundled version).
+                // upgrades (their edits stick until we ship a new bundled version). Core
+                // skills are always ours to manage, so the sentinel does not gate this.
                 val bundledHash = computeBundledSkillHash(assetRoot, skillName)
                 val currentHash = if (coreVersionFile.exists()) coreVersionFile.readText().trim() else ""
-                if (bundledHash == currentHash) continue
+                val decision = decideSeedAction(
+                    ownedByUs = true,
+                    targetDirExists = targetDir.exists(),
+                    targetDirNonEmpty = false, // unused when ownedByUs is true
+                    bundledHash = bundledHash,
+                    storedHash = currentHash,
+                )
+                if (decision == SeedDecision.SKIP) continue
                 try {
                     if (targetDir.exists()) targetDir.deleteRecursively()
                     copyAssetSkill(assetRoot, skillName, targetDir)
@@ -314,17 +322,29 @@ class SkillManager(
                 continue
             }
 
-            // Non-core (lazy) skills: original behavior — seed once, then leave alone.
-            // The user may have manually installed and then deleted the skill. Detect that
-            // case by checking whether the directory exists at all — if it does and there is
-            // no sentinel, the user owns it; do not overwrite. If the directory does not
-            // exist, this is a fresh install and we can seed.
-            if (sentinel.exists()) continue
-            if (targetDir.exists() && targetDir.listFiles()?.isNotEmpty() == true) continue
+            // Non-core (lazy) skills: seeded once, then re-seeded only when the bundled
+            // content changes AND the directory is one we seeded ourselves (tracked by the
+            // .seeded sentinel, reusing the same .core-bundled-hash file the core path uses).
+            // A directory that exists with no sentinel is user-owned — the user may have
+            // manually installed and then deleted the skill, or created a same-named one —
+            // and is never overwritten, preserving the original "seed once, then leave
+            // alone" contract for anything we did not create ourselves.
+            val bundledHash = computeBundledSkillHash(assetRoot, skillName)
+            val storedHash = if (coreVersionFile.exists()) coreVersionFile.readText().trim() else ""
+            val decision = decideSeedAction(
+                ownedByUs = sentinel.exists(),
+                targetDirExists = targetDir.exists(),
+                targetDirNonEmpty = targetDir.exists() && targetDir.listFiles()?.isNotEmpty() == true,
+                bundledHash = bundledHash,
+                storedHash = storedHash,
+            )
+            if (decision == SeedDecision.SKIP) continue
             try {
+                if (targetDir.exists()) targetDir.deleteRecursively()
                 copyAssetSkill(assetRoot, skillName, targetDir)
                 sentinel.writeText(System.currentTimeMillis().toString())
-                Log.i(TAG, "seedDefaultSkillsIfNeeded: seeded $skillName")
+                coreVersionFile.writeText(bundledHash)
+                Log.i(TAG, "seedDefaultSkillsIfNeeded: seeded $skillName (hash=$bundledHash)")
             } catch (e: Exception) {
                 Log.w(TAG, "seedDefaultSkillsIfNeeded: failed to seed $skillName", e)
             }
@@ -442,6 +462,35 @@ class SkillManager(
             null
         }
     }
+}
+
+internal enum class SeedDecision { SKIP, SEED }
+
+/**
+ * Pure decision for whether a bundled skill directory should be (re)written from assets.
+ * Shared by both the core (`auto_load: true`) and non-core seeding branches of
+ * [SkillManager.seedDefaultSkillsIfNeeded] so they cannot drift apart, and extracted out of
+ * [SkillManager] itself so it is testable without a [android.content.Context] /
+ * `AssetManager`.
+ *
+ * @param ownedByUs whether this directory is ours to overwrite: always `true` for core
+ * skills (they are unconditionally ours to manage), or `sentinel.exists()` for non-core
+ * skills (a directory that exists with no `.seeded` sentinel was never created by us and is
+ * user-owned).
+ * @param targetDirNonEmpty ignored when [ownedByUs] is `true`.
+ */
+internal fun decideSeedAction(
+    ownedByUs: Boolean,
+    targetDirExists: Boolean,
+    targetDirNonEmpty: Boolean,
+    bundledHash: String,
+    storedHash: String,
+): SeedDecision {
+    if (!ownedByUs) {
+        // Never touch a directory we did not create ourselves.
+        return if (targetDirExists && targetDirNonEmpty) SeedDecision.SKIP else SeedDecision.SEED
+    }
+    return if (bundledHash == storedHash) SeedDecision.SKIP else SeedDecision.SEED
 }
 
 /**
