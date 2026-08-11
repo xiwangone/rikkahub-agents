@@ -26,17 +26,23 @@ limitations under the License.
     />
     <title>3D 88-Key Virtual Piano</title>
     <style>
+      html,
+      body {
+        height: 100%;
+      }
+
       body {
         margin: 0;
         background-color: #1e1e2f;
         display: flex;
-        align-items: center;
-        height: 100vh;
         overflow-y: hidden;
       }
 
       #piano-scroll-container {
         width: 100%;
+        height: 100%;
+        min-height: 0;
+        box-sizing: border-box;
         overflow-x: auto;
         white-space: nowrap;
         -ms-overflow-style: none;
@@ -51,6 +57,8 @@ limitations under the License.
       #piano {
         display: inline-flex;
         flex-direction: column;
+        height: 100%;
+        box-sizing: border-box;
         background: #222;
         padding: 10px 10px 0 10px;
         border-radius: 12px;
@@ -62,6 +70,8 @@ limitations under the License.
       #key-container {
         display: flex;
         position: relative;
+        flex: 1 1 auto;
+        min-height: 0;
       }
 
       /* THE FIX: Explicitly lock the wrapper to 60px and remove the z-index bias! */
@@ -69,11 +79,13 @@ limitations under the License.
         position: relative;
         display: block;
         width: 60px;
+        height: 100%;
         flex-shrink: 0;
       }
 
       #scroll-lip {
         height: 60px;
+        flex-shrink: 0;
         background: linear-gradient(to bottom, #333, #1a1a1a);
         border-top: 2px solid #111;
         border-radius: 0 0 10px 10px;
@@ -94,7 +106,7 @@ limitations under the License.
       .key.white {
         touch-action: pan-x;
         width: 100%;
-        height: 250px; /* Takes up exactly the 60px of its fair wrapper */
+        height: 100%; /* fills the height-flexible key row */
         background: linear-gradient(to bottom, #ffffff 80%, #f0f0f0 100%);
         box-sizing: border-box;
         border-right: 1px solid #ccc;
@@ -130,7 +142,7 @@ limitations under the License.
       .key.black {
         touch-action: pan-x;
         width: 30px;
-        height: 140px;
+        height: 56%; /* preserves the 140/250 black-to-white key ratio */
         background: linear-gradient(to bottom, #444, #000);
         position: absolute;
         right: -15px; /* Sits perfectly in the middle of the borders */
