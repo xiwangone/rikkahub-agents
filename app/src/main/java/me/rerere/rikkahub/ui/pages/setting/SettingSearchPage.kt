@@ -314,7 +314,7 @@ private fun SearchProviderCard(
             IconButton(onClick = { showMenu = true }) {
                 Icon(
                     imageVector = HugeIcons.MoreVertical,
-                    contentDescription = null
+                    contentDescription = stringResource(R.string.accessibility_more_options)
                 )
                 DropdownMenu(
                     expanded = showMenu,

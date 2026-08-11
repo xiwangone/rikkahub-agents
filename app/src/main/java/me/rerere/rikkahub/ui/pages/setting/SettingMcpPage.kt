@@ -789,7 +789,7 @@ private fun McpCommonOptionsConfigure(
                                     IconButton(onClick = { headerValueVisible = !headerValueVisible }) {
                                         Icon(
                                             if (headerValueVisible) HugeIcons.ViewOff else HugeIcons.View,
-                                            contentDescription = null
+                                            contentDescription = stringResource(if (headerValueVisible) R.string.accessibility_hide_password else R.string.accessibility_show_password)
                                         )
                                     }
                                 },

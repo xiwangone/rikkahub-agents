@@ -522,7 +522,7 @@ private fun SuggestionModelSettingItem(
                                     onClick = { vm.updateSettings(settings.copy(suggestionModelId = null)) },
                                     modifier = Modifier.size(20.dp),
                                 ) {
-                                    Icon(HugeIcons.Cancel01, contentDescription = null, modifier = Modifier.size(14.dp))
+                                    Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.accessibility_clear_text), modifier = Modifier.size(14.dp))
                                 }
                             } else {
                                 Icon(
@@ -582,7 +582,7 @@ private fun ModelSettingItem(
                         )
                         if (onClear != null && state.currentModel != null) {
                             IconButton(onClick = onClear, modifier = Modifier.size(20.dp)) {
-                                Icon(HugeIcons.Cancel01, contentDescription = null, modifier = Modifier.size(14.dp))
+                                Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.accessibility_clear_text), modifier = Modifier.size(14.dp))
                             }
                         } else {
                             Icon(

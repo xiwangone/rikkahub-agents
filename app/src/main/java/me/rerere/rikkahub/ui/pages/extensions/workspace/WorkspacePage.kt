@@ -75,7 +75,7 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {
-                Icon(HugeIcons.Add01, contentDescription = null)
+                Icon(HugeIcons.Add01, contentDescription = stringResource(R.string.accessibility_add_workspace))
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
@@ -224,7 +224,7 @@ private fun WorkspaceCard(
                 }
                 Box {
                     IconButton(onClick = { menuExpanded = true }) {
-                        Icon(HugeIcons.MoreVertical, contentDescription = null)
+                        Icon(HugeIcons.MoreVertical, contentDescription = stringResource(R.string.accessibility_more_options))
                     }
                     DropdownMenu(
                         expanded = menuExpanded,

@@ -103,7 +103,7 @@ fun WorkspaceCwdPickerSheet(
                         browsePath = browsePath.substringBeforeLast('/', missingDelimiterValue = "")
                     },
                 ) {
-                    Icon(HugeIcons.ArrowTurnBackward, contentDescription = null)
+                    Icon(HugeIcons.ArrowTurnBackward, contentDescription = stringResource(R.string.accessibility_navigate_up_directory))
                 }
                 Text(
                     text = toAbsolutePath(browsePath),

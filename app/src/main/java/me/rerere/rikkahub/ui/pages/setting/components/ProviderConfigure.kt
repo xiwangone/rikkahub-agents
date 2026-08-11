@@ -335,7 +335,7 @@ private fun ProviderConfigureOpenAI(
         visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
         trailingIcon = {
             IconButton(onClick = { keyVisible = !keyVisible }) {
-                Icon(if (keyVisible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
+                Icon(if (keyVisible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = stringResource(if (keyVisible) R.string.accessibility_hide_password else R.string.accessibility_show_password))
             }
         },
     )
@@ -601,7 +601,7 @@ private fun ProviderConfigureClaude(
         visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
         trailingIcon = {
             IconButton(onClick = { keyVisible = !keyVisible }) {
-                Icon(if (keyVisible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
+                Icon(if (keyVisible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = stringResource(if (keyVisible) R.string.accessibility_hide_password else R.string.accessibility_show_password))
             }
         },
     )
@@ -713,7 +713,7 @@ private fun ProviderConfigureGoogle(
             visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 IconButton(onClick = { keyVisible = !keyVisible }) {
-                    Icon(if (keyVisible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
+                    Icon(if (keyVisible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = stringResource(if (keyVisible) R.string.accessibility_hide_password else R.string.accessibility_show_password))
                 }
             },
         )
@@ -799,7 +799,7 @@ private fun ProviderConfigureGoogle(
             visualTransformation = if (privateKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
             trailingIcon = {
                 IconButton(onClick = { privateKeyVisible = !privateKeyVisible }) {
-                    Icon(if (privateKeyVisible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
+                    Icon(if (privateKeyVisible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = stringResource(if (privateKeyVisible) R.string.accessibility_hide_password else R.string.accessibility_show_password))
                 }
             },
         )

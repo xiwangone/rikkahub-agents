@@ -1499,4 +1499,28 @@
   <string name="setting_model_page_response_stream_retries">محاولات إعادة تدفق Response API</string>
   <string name="setting_model_page_response_stream_retries_desc">عند إغلاق تدفق Response API قبل اكتماله، أعد محاولة الطلب بهذا العدد من المرات. اضبطه على 0 لتعطيل إعادة المحاولة التلقائية.</string>
   <string name="setting_model_page_response_stream_retries_input">الحد الأقصى لعدد المحاولات</string>
+
+  <!-- نصوص إمكانية الوصول -->
+  <string name="accessibility_hide_password">إخفاء كلمة المرور</string>
+  <string name="accessibility_show_password">إظهار كلمة المرور</string>
+  <string name="accessibility_remove_attachment">إزالة المرفق</string>
+  <string name="accessibility_add_quick_message">إضافة رسالة سريعة</string>
+  <string name="accessibility_add_skill">إضافة مهارة</string>
+  <string name="accessibility_import_skill">استيراد مهارة</string>
+  <string name="accessibility_add_workspace">إضافة مساحة عمل</string>
+  <string name="accessibility_edit_assistant">تعديل المساعد</string>
+  <string name="accessibility_navigate_up_directory">الانتقال للمستوى الأعلى</string>
+  <string name="accessibility_refresh_workspace">تحديث مساحة العمل</string>
+  <string name="accessibility_open_terminal">فتح المحطة الطرفية</string>
+  <string name="accessibility_more_options">خيارات إضافية</string>
+  <string name="accessibility_clear_text">مسح النص</string>
+  <string name="accessibility_toggle_token_visibility">تبديل إظهار الرمز</string>
+  <string name="accessibility_toggle_key_visibility">تبديل إظهار المفتاح</string>
+  <string name="accessibility_tts_play">تشغيل الصوت</string>
+  <string name="accessibility_tts_pause">إيقاف مؤقت للصوت</string>
+  <string name="accessibility_tts_stop">إيقاف الصوت</string>
+  <string name="accessibility_tts_close">إغلاق المشغّل</string>
+  <string name="accessibility_tts_fast_forward">تقديم 5 ثوانٍ</string>
+  <string name="accessibility_tts_expand">توسيع عناصر التحكم</string>
+  <string name="accessibility_tts_collapse">طَي عناصر التحكم</string>
 </resources>

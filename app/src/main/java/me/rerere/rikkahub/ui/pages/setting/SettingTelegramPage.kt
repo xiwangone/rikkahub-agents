@@ -177,7 +177,7 @@ fun SettingTelegramPage() {
                                     IconButton(onClick = { tokenVisible = !tokenVisible }) {
                                         Icon(
                                             imageVector = if (tokenVisible) HugeIcons.ViewOff else HugeIcons.View,
-                                            contentDescription = null,
+                                            contentDescription = stringResource(if (tokenVisible) R.string.accessibility_hide_password else R.string.accessibility_show_password),
                                         )
                                     }
                                 },
@@ -406,7 +406,7 @@ fun SettingTelegramPage() {
                                     ) {
                                         Icon(
                                             imageVector = if (proxyPasswordVisible) HugeIcons.ViewOff else HugeIcons.View,
-                                            contentDescription = null,
+                                            contentDescription = stringResource(if (proxyPasswordVisible) R.string.accessibility_hide_password else R.string.accessibility_show_password),
                                         )
                                     }
                                 },

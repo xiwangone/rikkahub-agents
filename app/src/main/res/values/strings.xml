@@ -1963,4 +1963,28 @@
   <string name="setting_model_page_response_stream_retries">Response stream retries</string>
   <string name="setting_model_page_response_stream_retries_desc">When a Response API stream closes before completion, retry the request this many times. Set 0 to disable automatic retries.</string>
   <string name="setting_model_page_response_stream_retries_input">Maximum retry count</string>
+
+  <!-- Accessibility Strings -->
+  <string name="accessibility_hide_password">Hide password</string>
+  <string name="accessibility_show_password">Show password</string>
+  <string name="accessibility_remove_attachment">Remove attachment</string>
+  <string name="accessibility_add_quick_message">Add quick message</string>
+  <string name="accessibility_add_skill">Add skill</string>
+  <string name="accessibility_import_skill">Import skill</string>
+  <string name="accessibility_add_workspace">Add workspace</string>
+  <string name="accessibility_edit_assistant">Edit assistant</string>
+  <string name="accessibility_navigate_up_directory">Go up one level</string>
+  <string name="accessibility_refresh_workspace">Refresh workspace</string>
+  <string name="accessibility_open_terminal">Open terminal</string>
+  <string name="accessibility_more_options">More options</string>
+  <string name="accessibility_clear_text">Clear text</string>
+  <string name="accessibility_toggle_token_visibility">Toggle token visibility</string>
+  <string name="accessibility_toggle_key_visibility">Toggle key visibility</string>
+  <string name="accessibility_tts_play">Play speech</string>
+  <string name="accessibility_tts_pause">Pause speech</string>
+  <string name="accessibility_tts_stop">Stop speech</string>
+  <string name="accessibility_tts_close">Close player</string>
+  <string name="accessibility_tts_fast_forward">Fast forward 5 seconds</string>
+  <string name="accessibility_tts_expand">Expand controls</string>
+  <string name="accessibility_tts_collapse">Collapse controls</string>
 </resources>
