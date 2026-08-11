@@ -2148,5 +2148,14 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="quota_manage_credential">管理凭证</string>
   <string name="quota_clear_credential">清除凭证</string>
   <string name="quota_credential_masked">脱敏: %1$s</string>
+  <string name="vault_session_empty">暂无会话</string>
+  <string name="vault_session_label_default">默认</string>
+  <string name="vault_session_list_desc">所有已签发的会话，可单独撤销或复制 token</string>
+  <string name="vault_session_list_title">会话列表</string>
+  <string name="vault_session_remaining_day">剩余 %1$d 天</string>
+  <string name="vault_session_remaining_min">剩余 %1$d 分钟</string>
+  <string name="vault_session_remaining_session">当场有效</string>
+  <string name="vault_session_revoked">会话已撤销</string>
+  <string name="vault_session_token_copied">token 已复制</string>
 </resources>
 
