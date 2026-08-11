@@ -49,6 +49,7 @@ import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.data.sync.s3.S3Config
+import me.rerere.rikkahub.subagent.SubAgentProfile
 import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.PresetThemes
 import me.rerere.rikkahub.utils.JsonInstant
@@ -173,6 +174,9 @@ class SettingsStore(
 
         // MCP
         val MCP_SERVERS = stringPreferencesKey("mcp_servers")
+
+        // 子代理
+        val SUB_AGENTS = stringPreferencesKey("sub_agents")
 
         // WebDAV
         val WEBDAV_CONFIG = stringPreferencesKey("webdav_config")
@@ -318,6 +322,14 @@ class SettingsStore(
                 mcpServers = preferences[MCP_SERVERS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<McpServerConfig>>(raw) }.getOrElse {
                         Log.w(TAG, "Failed to decode mcpServers, using default", it)
+                        emptyList()
+                    }
+                } ?: emptyList(),
+                // Task 5 (#36): key absent -> emptyList(), exactly like mcpServers above - the
+                // whole migration for an existing install that predates this field.
+                subAgents = preferences[SUB_AGENTS]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<SubAgentProfile>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode subAgents, using default", it)
                         emptyList()
                     }
                 } ?: emptyList(),
@@ -643,6 +655,7 @@ class SettingsStore(
             preferences[ENABLE_WEB_FETCH_TOOLS] = settings.enableWebFetchTools
 
             preferences[MCP_SERVERS] = JsonInstant.encodeToString(settings.mcpServers)
+            preferences[SUB_AGENTS] = JsonInstant.encodeToString(settings.subAgents)
             preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settings.webDavConfig)
             preferences[S3_CONFIG] = JsonInstant.encodeToString(settings.s3Config)
             preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(settings.ttsProviders)
@@ -834,6 +847,12 @@ data class Settings(
     val searchServiceSelected: Int = 0,
     val enableWebFetchTools: Boolean = true,
     val mcpServers: List<McpServerConfig> = emptyList(),
+    /**
+     * Task 5 (#36): named sub-agent profiles the model can dispatch to by name via
+     * `subagent_dispatch`'s `agent` parameter. MUST default to an empty list so an install
+     * that predates this field decodes cleanly - see [SettingsStore.settingsFlowRaw].
+     */
+    val subAgents: List<SubAgentProfile> = emptyList(),
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val s3Config: S3Config = S3Config(),
     val ttsProviders: List<TTSProviderSetting> = DEFAULT_TTS_PROVIDERS,

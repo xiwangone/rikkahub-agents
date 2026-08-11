@@ -2019,4 +2019,28 @@
   <string name="accessibility_download_table">تنزيل الجدول</string>
   <string name="accessibility_copy_error_message">نسخ رسالة الخطأ</string>
   <string name="accessibility_qr_code_value">رمز الاستجابة السريعة: %1$s</string>
+
+  <!-- Task 5 (#36): named sub-agent profiles -->
+  <string name="setting_page_sub_agents">أنماط الوكيل الفرعي</string>
+  <string name="setting_page_sub_agents_desc">إعدادات نموذج وموجّه نظام مُسمّاة يمكن لأداة إرسال الوكيل الفرعي الإرسال إليها بالاسم.</string>
+  <string name="setting_sub_agents_page_title">أنماط الوكيل الفرعي</string>
+  <string name="setting_sub_agents_page_empty">لا توجد أنماط وكيل فرعي بعد</string>
+  <string name="setting_sub_agents_page_empty_hint">أضف نمطًا ليتمكن المساعد من إرسال وكيل فرعي إليه بالاسم.</string>
+  <string name="setting_sub_agents_page_add">إضافة نمط</string>
+  <string name="setting_sub_agents_page_name">الاسم</string>
+  <string name="setting_sub_agents_page_name_duplicate">يستخدم نمط آخر هذا الاسم بالفعل. يعتمد إرسال الوكيل الفرعي على الاسم لتحديد النمط، لذا يجب أن تكون الأسماء فريدة.</string>
+  <string name="setting_sub_agents_page_description">الوصف</string>
+  <string name="setting_sub_agents_page_description_hint">يُعرض على النموذج ليقرر متى يُرسِل إلى هذا النمط.</string>
+  <string name="setting_sub_agents_page_system_prompt">موجّه النظام</string>
+  <string name="setting_sub_agents_page_system_prompt_hint">يُضاف قبل مهمة الوكيل الفرعي عند إرسالها إلى هذا النمط.</string>
+  <string name="setting_sub_agents_page_model">النموذج</string>
+  <string name="setting_sub_agents_page_model_desc">اتركه غير محدد لوراثة نموذج المساعد الرئيسي.</string>
+  <string name="setting_sub_agents_page_enabled">مُمكَّن</string>
+  <string name="setting_sub_agents_page_edit_title">تعديل النمط</string>
+  <string name="setting_sub_agents_page_unnamed">نمط بلا اسم</string>
+  <string name="setting_sub_agents_page_disabled">مُعطَّل</string>
+  <string name="setting_sub_agents_page_edit">تعديل</string>
+  <string name="setting_sub_agents_page_delete">حذف</string>
+  <string name="setting_sub_agents_page_cancel">إلغاء</string>
+  <string name="setting_sub_agents_page_confirm">حفظ</string>
 </resources>

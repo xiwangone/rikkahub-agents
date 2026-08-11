@@ -75,6 +75,12 @@ object SubAgentDefaults {
 data class SubAgentRequest(
     val task: String,
     val modelId: String? = null,
+    /**
+     * Task 5 (#36): name of a configured [SubAgentProfile], resolved case-insensitively by
+     * [SubAgentProfileResolver]. `modelId` above wins over the profile's model when both are
+     * given; see [SubAgentEngine.executeRun].
+     */
+    val agentName: String? = null,
     val systemPrompt: String? = null,
     val tools: List<String>? = null,
     val runInBackground: Boolean = false,
@@ -130,3 +136,20 @@ object SubAgentRequestValidator {
         return Result.Ok(request.copy(task = task))
     }
 }
+
+/**
+ * Task 5 (#36): a named, reusable sub-agent configuration - a name, description, custom system
+ * prompt and model, defined once in settings so the dispatching model can pick a specialist by
+ * NAME instead of memorizing a model uuid. Resolved by [SubAgentProfileResolver]. `modelId` null
+ * means the profile itself defers to the parent's model, mirroring the "null = inherit"
+ * convention already used by [SubAgentRequest.modelId].
+ */
+@Serializable
+data class SubAgentProfile(
+    val id: Uuid = Uuid.random(),
+    val name: String = "",
+    val description: String = "",
+    val systemPrompt: String = "",
+    val modelId: Uuid? = null,
+    val enabled: Boolean = true,
+)

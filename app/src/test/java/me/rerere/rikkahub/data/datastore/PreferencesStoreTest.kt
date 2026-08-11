@@ -1,6 +1,10 @@
 package me.rerere.rikkahub.data.datastore
 
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import me.rerere.rikkahub.utils.JsonInstant
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class PreferencesStoreTest {
@@ -38,5 +42,23 @@ class PreferencesStoreTest {
         val settings = Settings(contextCompactionTargetTokensK = 30)
 
         assertEquals(30_000, settings.getContextCompactionTargetTokens(372_000))
+    }
+
+    /**
+     * Task 5 (#36): `subAgents` is a new field on [Settings]. An install that predates it wrote
+     * JSON with no "subAgents" key at all - reproduced here by stripping the key from a fresh
+     * encode - and it MUST still decode, defaulting to an empty list, the same way the
+     * `mcpServers` / `assistants` list fields already do.
+     */
+    @Test
+    fun `settings decodes when the subAgents key is absent, as in a pre-existing install`() {
+        val fullJson = JsonInstant.encodeToString(Settings())
+        val withoutSubAgents = JsonObject(
+            JsonInstant.parseToJsonElement(fullJson).jsonObject.filterKeys { it != "subAgents" }
+        )
+
+        val decoded = JsonInstant.decodeFromString<Settings>(withoutSubAgents.toString())
+
+        assertTrue(decoded.subAgents.isEmpty())
     }
 }

@@ -2021,4 +2021,28 @@
   <string name="accessibility_download_table">Download table</string>
   <string name="accessibility_copy_error_message">Copy error message</string>
   <string name="accessibility_qr_code_value">QR code: %1$s</string>
+
+  <!-- Task 5 (#36): named sub-agent profiles -->
+  <string name="setting_page_sub_agents">Sub-agent profiles</string>
+  <string name="setting_page_sub_agents_desc">Named model + system prompt presets subagent_dispatch can dispatch to by name.</string>
+  <string name="setting_sub_agents_page_title">Sub-agent profiles</string>
+  <string name="setting_sub_agents_page_empty">No sub-agent profiles yet</string>
+  <string name="setting_sub_agents_page_empty_hint">Add one so the assistant can dispatch a sub-agent to it by name.</string>
+  <string name="setting_sub_agents_page_add">Add profile</string>
+  <string name="setting_sub_agents_page_name">Name</string>
+  <string name="setting_sub_agents_page_name_duplicate">Another profile already uses this name. Sub-agent dispatch resolves profiles by name, so names must be unique.</string>
+  <string name="setting_sub_agents_page_description">Description</string>
+  <string name="setting_sub_agents_page_description_hint">Shown to the model so it can decide when to dispatch to this profile.</string>
+  <string name="setting_sub_agents_page_system_prompt">System prompt</string>
+  <string name="setting_sub_agents_page_system_prompt_hint">Prepended to the sub-agent\'s task when it is dispatched to this profile.</string>
+  <string name="setting_sub_agents_page_model">Model</string>
+  <string name="setting_sub_agents_page_model_desc">Leave unset to inherit the parent assistant\'s model.</string>
+  <string name="setting_sub_agents_page_enabled">Enabled</string>
+  <string name="setting_sub_agents_page_edit_title">Edit profile</string>
+  <string name="setting_sub_agents_page_unnamed">Unnamed profile</string>
+  <string name="setting_sub_agents_page_disabled">Disabled</string>
+  <string name="setting_sub_agents_page_edit">Edit</string>
+  <string name="setting_sub_agents_page_delete">Delete</string>
+  <string name="setting_sub_agents_page_cancel">Cancel</string>
+  <string name="setting_sub_agents_page_confirm">Save</string>
 </resources>

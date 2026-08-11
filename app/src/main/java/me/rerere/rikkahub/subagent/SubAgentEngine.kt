@@ -111,6 +111,80 @@ internal object SubAgentModelResolver {
 }
 
 /**
+ * Task 5 (#36): resolves subagent_dispatch's `agent` (a [SubAgentProfile] name) against the
+ * user's configured profiles. Mirrors [SubAgentModelResolver]'s contract: no input is not an
+ * error (nothing was requested), an unknown or disabled name fails loudly with the list of
+ * valid names rather than silently falling back to the parent's model - the same
+ * silent-inheritance bug `model_id` had before Task 3 (#28).
+ */
+internal object SubAgentProfileResolver {
+    sealed class Result {
+        data object NotRequested : Result()
+        data class Resolved(val profile: SubAgentProfile) : Result()
+        data class Failed(val message: String) : Result()
+    }
+
+    /**
+     * Profiles eligible for dispatch or for listing in `subagent_dispatch`'s description - a
+     * disabled profile is neither resolvable nor discoverable, so it behaves exactly as if it
+     * didn't exist. Shared by [resolve] and the tool description built in SubAgentTools.kt so
+     * there's a single definition of "eligible" to test.
+     */
+    fun enabledProfiles(profiles: List<SubAgentProfile>): List<SubAgentProfile> =
+        profiles.filter { it.enabled }
+
+    /**
+     * [agentName] null/blank -> [Result.NotRequested]. Otherwise matched case-insensitively by
+     * [SubAgentProfile.name] against only the ENABLED profiles. More than one enabled profile
+     * sharing a name (case-insensitively) is ambiguous and fails loudly naming the duplicate,
+     * mirroring [SubAgentModelResolver]'s ambiguous-`model_id` handling - a sub-agent must never
+     * silently run on whichever of two same-named profiles happened to come first.
+     */
+    fun resolve(agentName: String?, profiles: List<SubAgentProfile>): Result {
+        if (agentName.isNullOrBlank()) return Result.NotRequested
+
+        val enabled = enabledProfiles(profiles)
+        val matches = enabled.filter { it.name.equals(agentName, ignoreCase = true) }
+        if (matches.size > 1) {
+            return Result.Failed(
+                "agent \"$agentName\" matches multiple sub-agent profiles - rename one of these " +
+                    "duplicates: " + matches.joinToString(", ") { it.name }
+            )
+        }
+        val match = matches.firstOrNull()
+        if (match != null) return Result.Resolved(match)
+
+        return Result.Failed(
+            if (enabled.isEmpty()) {
+                "agent \"$agentName\" did not match any sub-agent profile, and no profiles are configured"
+            } else {
+                "agent \"$agentName\" did not match any enabled sub-agent profile. Available: " +
+                    enabled.joinToString(", ") { it.name }
+            }
+        )
+    }
+}
+
+/**
+ * Task 5 (#36): combines `model_id`'s resolution with an `agent` profile's model - `model_id`
+ * always wins when it resolved to something (or failed - a bad explicit model_id must surface,
+ * not be papered over by falling back to the profile's model). Only when `model_id` was never
+ * given ([SubAgentModelResolver.Result.Inherit]) does the profile's model get a chance, and only
+ * if [profile] is non-null and its `modelId` is set - otherwise this is a no-op, exactly
+ * preserving pre-Task-5 behavior when no agent was requested. Split out as a pure function (same
+ * rationale as [finishSubAgentWait]) so the precedence rule is unit-testable without a live
+ * [SubAgentEngine].
+ */
+internal fun resolveSubAgentModel(
+    modelResolution: SubAgentModelResolver.Result,
+    profile: SubAgentProfile?,
+): SubAgentModelResolver.Result = when (modelResolution) {
+    is SubAgentModelResolver.Result.Inherit ->
+        profile?.modelId?.let { SubAgentModelResolver.Result.Resolved(it) } ?: modelResolution
+    else -> modelResolution
+}
+
+/**
  * Phase 11 — sub-agent dispatch engine.
  *
  * The engine reuses the existing cron-headless dispatch pattern (mark conv headless,
@@ -295,9 +369,22 @@ class SubAgentEngine(
                 markTerminal(runId, SubAgentStatus.FAILED, "bad parent assistant id")
                 return
             }
-        val modelResolution = SubAgentModelResolver.resolve(
-            request.modelId,
-            settingsStore.settingsFlow.first().providers,
+        val settings = settingsStore.settingsFlow.first()
+        // Task 5 (#36): resolve `agent` before `model_id` so model_id's own resolution can
+        // fall back to the profile's model when model_id is absent - `model_id` still wins
+        // when both are given (see SubAgentTools' parameter description).
+        val profileResolution = SubAgentProfileResolver.resolve(request.agentName, settings.subAgents)
+        val profile = when (profileResolution) {
+            is SubAgentProfileResolver.Result.NotRequested -> null
+            is SubAgentProfileResolver.Result.Resolved -> profileResolution.profile
+            is SubAgentProfileResolver.Result.Failed -> {
+                markTerminal(runId, SubAgentStatus.FAILED, profileResolution.message)
+                return
+            }
+        }
+        val modelResolution = resolveSubAgentModel(
+            SubAgentModelResolver.resolve(request.modelId, settings.providers),
+            profile,
         )
         val resolvedChatModelId = when (modelResolution) {
             is SubAgentModelResolver.Result.Inherit -> null
@@ -307,6 +394,13 @@ class SubAgentEngine(
                 return
             }
         }
+        // The profile's system prompt is prepended to the task text itself (same technique as
+        // the wrap-up instruction below) rather than plumbed into Conversation/ChatService -
+        // sub-agent runs don't get a per-run system prompt override today, and wiring one in
+        // is out of scope here (see Non-goals: don't change how runs execute).
+        val effectiveTask = profile?.systemPrompt?.trim()?.takeIf { it.isNotEmpty() }
+            ?.let { "$it\n\n${request.task}" }
+            ?: request.task
         val conv = Conversation.ofId(
             id = Uuid.random(),
             assistantId = parentAsstUuid,
@@ -324,7 +418,7 @@ class SubAgentEngine(
             // no closing text. Without explicit text the parent has nothing to harvest and
             // the sub-agent's findings are lost.
             val taskWithWrapup = buildString {
-                append(request.task)
+                append(effectiveTask)
                 appendLine()
                 appendLine()
                 append("When you have finished, end with one short paragraph in plain text that summarises what you did and what you found. Do NOT stop on a tool call — finish with assistant text. The dispatcher harvests only your final text reply, so this paragraph is the entire response the parent sees.")
