@@ -2176,7 +2176,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="quota_open_console">打开控制台</string>
   <string name="quota_credential_manage">凭证管理</string>
   <string name="quota_clear_credential_btn">清除凭证</string>
-  <string name="reasonix_base_url_example">例：http://<ECS地址></string>
+  <string name="reasonix_base_url_example">例：http://&lt;ECS地址&gt;</string>
   <string name="reasonix_username_basic">用户名（Basic Auth）</string>
   <string name="reasonix_password_basic">密码（Basic Auth）</string>
   <string name="reasonix_token_serve">Token（serve token 模式，可选）</string>
