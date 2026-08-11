@@ -23,12 +23,12 @@ import rikka.shizuku.Shizuku
 
 private const val TAG = "ShizukuManager"
 
-/** Package name of the Shizuku manager app — the only reliable "installed" proxy without a
+/** Package name of the Shizuku manager app, the only reliable "installed" proxy without a
  *  live binder (the service itself can keep running after the app is force-stopped on some
  *  ROMs, but if the package is gone there is nothing to grant permission from). */
 private const val SHIZUKU_PACKAGE = "moe.shizuku.manager"
 
-/** Arbitrary request code — this app only ever makes one kind of Shizuku permission request. */
+/** Arbitrary request code: this app only ever makes one kind of Shizuku permission request. */
 private const val PERMISSION_REQUEST_CODE = 8730
 
 private const val BIND_TIMEOUT_MS = 10_000L
@@ -57,7 +57,7 @@ internal fun parseExecResponse(raw: String): JsonObject =
  * Thin wrapper around the static [Shizuku] SDK object (dev.rikka.shizuku:api 13.1.5) plus the
  * bind/unbind lifecycle for [IShizukuUserService]. `Shizuku.newProcess` is private in this
  * artifact (verified with `javap -p`), so [exec] is built on `Shizuku.bindUserService` against
- * our own AIDL service instead — see [ShizukuUserService].
+ * our own AIDL service instead, see [ShizukuUserService].
  *
  * A stateless `object` wrapping a global SDK singleton, mirroring
  * [me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration] in shape: tool factories and the
@@ -87,10 +87,10 @@ object ShizukuManager {
     /**
      * Fires Shizuku's own consent flow. No-op if the binder isn't alive (there is nothing to
      * ask). The result arrives asynchronously via a registered
-     * [Shizuku.OnRequestPermissionResultListener], not an Activity callback — callers must
+     * [Shizuku.OnRequestPermissionResultListener], not an Activity callback: callers must
      * register one (see [addRequestPermissionResultListener]) before calling this.
      *
-     * Only ever called from an explicit tap on the Settings -> Shizuku screen — never at app
+     * Only ever called from an explicit tap on the Settings -> Shizuku screen, never at app
      * start or on first chat.
      */
     fun requestPermission() {
@@ -98,7 +98,7 @@ object ShizukuManager {
         runCatching { Shizuku.requestPermission(PERMISSION_REQUEST_CODE) }
     }
 
-    // --- listeners — settings page wires these into a DisposableEffect -------------------
+    // --- listeners: settings page wires these into a DisposableEffect --------------------
 
     fun addBinderReceivedListener(listener: Shizuku.OnBinderReceivedListener) {
         Shizuku.addBinderReceivedListenerSticky(listener)
@@ -147,13 +147,13 @@ object ShizukuManager {
 
     /**
      * Run [command] with Shizuku's privileges (the shell UID). [timeoutMs] bounds the command
-     * itself — enforced inside [ShizukuUserService], which destroys the process and returns a
+     * itself, enforced inside [ShizukuUserService], which destroys the process and returns a
      * partial-output envelope on timeout. This function adds [CALL_TIMEOUT_SLACK_MS] on top as
      * a belt-and-suspenders bound on the AIDL round-trip, in case the remote process hangs
      * beyond its own timeout (e.g. it was OOM-killed mid-write, or the binder died).
      *
      * Returns a structured error (see [ShizukuStatusMapper]) instead of throwing when Shizuku
-     * isn't ready, the bind fails, or the call itself hangs — callers pass this straight back
+     * isn't ready, the bind fails, or the call itself hangs, callers pass this straight back
      * as the tool result.
      */
     suspend fun exec(context: Context, command: String, timeoutMs: Int): JsonObject {

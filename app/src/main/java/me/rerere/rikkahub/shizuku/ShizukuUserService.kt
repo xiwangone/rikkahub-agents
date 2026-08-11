@@ -8,7 +8,7 @@ import android.util.Log
  * dev.rikka.shizuku:api 13.1.5 (verified with `javap -p` against the published artifact), so
  * this AIDL user service is the supported way to run a command with Shizuku's privileges.
  *
- * The no-arg constructor is required by Shizuku's server — it instantiates this class by
+ * The no-arg constructor is required by Shizuku's server: it instantiates this class by
  * reflection in the spawned process. Actual process launch + bounded capture + timeout
  * enforcement lives in the Android-independent [ShizukuCommandRunner] so that logic can be
  * unit-tested on the host JVM without Shizuku or a device.

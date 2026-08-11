@@ -10,13 +10,13 @@ enum class ShizukuStatus {
     NOT_INSTALLED,
 
     /** Installed, but its privileged service (started from the app, or paired over
-     *  wireless debugging on Android 11+) is not running — no live binder. */
+     *  wireless debugging on Android 11+) is not running, no live binder. */
     NOT_RUNNING,
 
     /** The binder is alive but the user has not granted RikkaHub the Shizuku permission. */
     PERMISSION_DENIED,
 
-    /** Binder alive and permission granted — shizuku_exec can bind the user service. */
+    /** Binder alive and permission granted: shizuku_exec can bind the user service. */
     READY,
 }
 
@@ -41,7 +41,7 @@ object ShizukuStatusMapper {
             put("error", "shizuku_not_installed")
             put(
                 "recovery",
-                "Install Shizuku from https://shizuku.rikka.app/ , start its service, then grant " +
+                "Install Shizuku from https://github.com/RikkaApps/Shizuku/releases/latest , start its service, then grant " +
                     "RikkaHub permission from Settings -> Shizuku."
             )
         }

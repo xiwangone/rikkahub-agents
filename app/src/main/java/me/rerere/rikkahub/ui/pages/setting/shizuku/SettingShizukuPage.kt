@@ -40,12 +40,12 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import rikka.shizuku.Shizuku
 
 private const val SHIZUKU_PACKAGE = "moe.shizuku.manager"
-private const val SHIZUKU_HOMEPAGE = "https://shizuku.rikka.app/"
+private const val SHIZUKU_RELEASES_URL = "https://github.com/RikkaApps/Shizuku/releases/latest"
 
 /**
  * Settings -> Shizuku. Mirrors the Termux settings page's structure: a status section with
  * tap actions (app installed, service running, permission granted), then a help section.
- * The permission is only ever requested from the explicit tap here — never at app start or
+ * The permission is only ever requested from the explicit tap here, never at app start or
  * on first chat.
  */
 @Composable
@@ -129,7 +129,7 @@ fun SettingShizukuPage() {
                             ctx.startActivity(
                                 launchIntent?.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     ?: Intent(Intent.ACTION_VIEW).apply {
-                                        data = Uri.parse(SHIZUKU_HOMEPAGE)
+                                        data = Uri.parse(SHIZUKU_RELEASES_URL)
                                         addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                                     }
                             )

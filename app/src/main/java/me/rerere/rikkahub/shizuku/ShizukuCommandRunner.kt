@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit
  * Pure command-execution core for the Shizuku user service: runs [command] through a shell,
  * captures bounded stdout/stderr, and enforces [timeoutMs] by destroying the process.
  *
- * Deliberately free of Android and Shizuku dependencies — [ProcessBuilder] runs the same way
+ * Deliberately free of Android and Shizuku dependencies: [ProcessBuilder] runs the same way
  * whether this code executes inside the app's own process or inside the separate shell-UID
  * process Shizuku spawns for [ShizukuUserService], so it also runs (and is unit-tested) as a
  * plain JVM process launcher on the host, no device or emulator required. Reuses
@@ -34,7 +34,7 @@ internal object ShizukuCommandRunner {
         val stderrSink = BoundedOutputStream(maxStderrBytes)
         // Drain both streams concurrently on daemon threads. A command that fills its stdout
         // pipe buffer (a common size is 64KB) will block forever if nothing reads it, so
-        // waitFor() alone — without a concurrent reader — can deadlock on chatty output long
+        // waitFor() alone, without a concurrent reader, can deadlock on chatty output long
         // before timeoutMs ever fires.
         val stdoutThread = Thread({ runCatching { process.inputStream.copyTo(stdoutSink) } }, "shizuku-stdout")
             .apply { isDaemon = true; start() }

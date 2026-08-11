@@ -9,11 +9,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Unit tests for [ShizukuCommandRunner] — the Android/Shizuku-independent process-execution
+ * Unit tests for [ShizukuCommandRunner], the Android/Shizuku-independent process-execution
  * core that [ShizukuUserService] wraps. Because it is a plain [ProcessBuilder] launcher it
  * runs (and is testable) as-is on the host JVM: these tests spawn real `sh` subprocesses,
  * unlike most other tests in this module. Everything Shizuku-specific (the AIDL bind, running
- * under the shell UID) is out of scope here — see [ShizukuManager] — and can only be verified
+ * under the shell UID) is out of scope here, see [ShizukuManager], and can only be verified
  * on a device with Shizuku actually running.
  */
 class ShizukuCommandRunnerTest {
@@ -52,7 +52,7 @@ class ShizukuCommandRunnerTest {
             maxStdoutBytes = 8_000,
             maxStderrBytes = 8_000,
         )
-        // The shell itself reports "command not found" via a nonzero exit — this never throws
+        // The shell itself reports "command not found" via a nonzero exit, this never throws
         // out of run(), it's a normal (if unsuccessful) result envelope.
         assertFalse(result["success"]!!.jsonPrimitive.boolean)
         assertTrue(result["exit_code"]!!.jsonPrimitive.int != 0)
@@ -92,7 +92,7 @@ class ShizukuCommandRunnerTest {
             maxStderrBytes = 8_000,
         )
         assertEquals("command_timeout", result["error"]!!.jsonPrimitive.content)
-        // The process is killed mid-sleep, so "after" must never appear — only what was
+        // The process is killed mid-sleep, so "after" must never appear, only what was
         // flushed before the timeout fired.
         assertTrue(result["partial_stdout"]!!.jsonPrimitive.content.contains("before"))
         assertFalse(result["partial_stdout"]!!.jsonPrimitive.content.contains("after"))

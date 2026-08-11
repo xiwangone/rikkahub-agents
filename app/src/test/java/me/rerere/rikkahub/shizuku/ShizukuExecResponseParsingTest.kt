@@ -8,7 +8,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Unit tests for [parseExecResponse] — the AIDL-response parsing step [ShizukuManager.exec]
+ * Unit tests for [parseExecResponse], the AIDL-response parsing step [ShizukuManager.exec]
  * runs on whatever [ShizukuUserService.exec] returns over the binder. Pure string-in,
  * JsonObject-out; no Shizuku SDK or device involved.
  */

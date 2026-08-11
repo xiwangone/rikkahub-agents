@@ -11,7 +11,7 @@ import org.junit.Test
  * mapping used by both `shizuku_exec` (to fail with a recovery hint) and the Settings ->
  * Shizuku page (to render the status rows). Live acquisition of `installed` / `binderAlive` /
  * `permissionGranted` from the real Shizuku SDK can only be verified on a device with Shizuku
- * actually running — see [ShizukuManager].
+ * actually running, see [ShizukuManager].
  */
 class ShizukuStatusMapperTest {
 
