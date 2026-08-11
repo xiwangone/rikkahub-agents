@@ -1275,7 +1275,7 @@ private fun StepTTSConfiguration(
     // API Key
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
-        description = { Text(stringResource(R.string.tts_stepfun_key_desc))) },
+        description = { Text(stringResource(R.string.tts_stepfun_key_desc) },
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -1283,7 +1283,7 @@ private fun StepTTSConfiguration(
                 onValueChange(setting.copy(apiKey = newApiKey))
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.tts_stepfun_key_hint))) },
+            placeholder = { Text(stringResource(R.string.tts_stepfun_key_hint) },
         )
     }
 
@@ -1433,7 +1433,7 @@ private fun StepTTSConfiguration(
 
     FormItem(
         label = { Text("Response Format") },
-        description = { Text(stringResource(R.string.tts_audio_format_desc))) },
+        description = { Text(stringResource(R.string.tts_audio_format_desc) },
     ) {
         ExposedDropdownMenuBox(
             expanded = formatExpanded,
@@ -1472,7 +1472,7 @@ private fun StepTTSConfiguration(
     // Speed
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_speed)) },
-        description = { Text(stringResource(R.string.tts_speed_desc))) },
+        description = { Text(stringResource(R.string.tts_speed_desc) },
     ) {
         OutlinedNumberInput(
             value = setting.speed,
@@ -1489,7 +1489,7 @@ private fun StepTTSConfiguration(
     // Volume
     FormItem(
         label = { Text("Volume") },
-        description = { Text(stringResource(R.string.tts_volume_desc))) },
+        description = { Text(stringResource(R.string.tts_volume_desc) },
     ) {
         OutlinedNumberInput(
             value = setting.volume,
@@ -1509,7 +1509,7 @@ private fun StepTTSConfiguration(
 
     FormItem(
         label = { Text("Sample Rate") },
-        description = { Text(stringResource(R.string.tts_sample_rate_desc))) },
+        description = { Text(stringResource(R.string.tts_sample_rate_desc) },
     ) {
         ExposedDropdownMenuBox(
             expanded = sampleRateExpanded,
@@ -1547,7 +1547,7 @@ private fun StepTTSConfiguration(
     // Instruction (仅 stepaudio-2.5-tts 生效)
     FormItem(
         label = { Text("Instruction") },
-        description = { Text(stringResource(R.string.tts_global_instruction_desc))) },
+        description = { Text(stringResource(R.string.tts_global_instruction_desc) },
     ) {
         OutlinedTextField(
             value = setting.instruction,
@@ -1558,7 +1558,7 @@ private fun StepTTSConfiguration(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.tts_global_instruction_placeholder))) },
+            placeholder = { Text(stringResource(R.string.tts_global_instruction_placeholder) },
             minLines = 2,
             maxLines = 4,
         )

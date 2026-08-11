@@ -485,7 +485,7 @@ private fun ChatListNormal(
                 ) {
                     Tooltip(
                         tooltip = {
-                            Text(stringResource(R.string.chat_list_clear_selection)))
+                            Text(stringResource(R.string.chat_list_clear_selection)
                         },
                     ) {
                         IconButton(
@@ -499,7 +499,7 @@ private fun ChatListNormal(
                     }
                     Tooltip(
                         tooltip = {
-                            Text(stringResource(R.string.chat_list_select_all)))
+                            Text(stringResource(R.string.chat_list_select_all)
                         },
                     ) {
                         IconButton(
@@ -516,7 +516,7 @@ private fun ChatListNormal(
                     }
                     Tooltip(
                         tooltip = {
-                            Text(stringResource(R.string.chat_list_confirm)))
+                            Text(stringResource(R.string.chat_list_confirm)
                         },
                     ) {
                         FilledIconButton(
