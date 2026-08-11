@@ -1091,6 +1091,23 @@ private fun AssistantLocalToolContent(
                     )
                 }
             )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_shizuku_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_shizuku_desc))
+                },
+                trailingContent = {
+                    // No permission flags here on purpose: the Shizuku permission is only ever
+                    // requested from an explicit tap on Settings -> Shizuku, never from this
+                    // toggle. Flipping this switch only adds/removes the tool from the assistant.
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.Shizuku),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Shizuku, it) },
+                    )
+                }
+            )
         }
 
         Text(

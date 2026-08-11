@@ -552,6 +552,10 @@ class RouteActivity : ComponentActivity() {
                                 me.rerere.rikkahub.ui.pages.setting.termux.SettingTermuxPage()
                             }
 
+                            entry<Screen.SettingShizuku> {
+                                me.rerere.rikkahub.ui.pages.setting.shizuku.SettingShizukuPage()
+                            }
+
                             entry<Screen.ScheduledJobDetail> { key ->
                                 me.rerere.rikkahub.ui.pages.setting.scheduledjobs.ScheduledJobDetailScreen(jobId = key.id)
                             }
@@ -820,6 +824,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingTermux : Screen
+
+    @Serializable
+    data object SettingShizuku : Screen
 
     @Serializable
     data class ScheduledJobDetail(val id: String) : Screen

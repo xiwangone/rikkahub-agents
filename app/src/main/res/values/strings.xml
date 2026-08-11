@@ -1514,6 +1514,8 @@
   <string name="assistant_page_local_tools_external_storage_desc">Lets file tools work on USB drives, SD cards, Downloads, and cloud storage. Each tree requires a one-time grant via the SAF picker.</string>
   <string name="assistant_page_local_tools_archive_title">Archive (zip)</string>
   <string name="assistant_page_local_tools_archive_desc">Create and extract .zip archives directly. No password support in v1. Works on file:// and content:// URIs.</string>
+  <string name="assistant_page_local_tools_shizuku_title">Shizuku</string>
+  <string name="assistant_page_local_tools_shizuku_desc">Run shell commands with Shizuku\'s privileges (the shell UID, no root). Requires the Shizuku app installed and running; grant permission from Settings → Shizuku. Approval required per call.</string>
   <string name="assistant_page_local_tools_section_keyboard">Keyboard control</string>
   <string name="assistant_page_local_tools_keyboard_title">Keyboard control</string>
   <string name="assistant_page_local_tools_keyboard_desc">Drive the active text field through the co-signed agent-keyboard app: type, read, press keys, delete, move the cursor, and select text. 8 tools. Write tools require approval per call.</string>
@@ -1580,6 +1582,8 @@
   <string name="setting_browser_single_task_timeout_unit">minutes</string>
   <string name="setting_page_termux">Termux</string>
   <string name="setting_page_termux_desc">Shell commands, timeouts, and Termux integration.</string>
+  <string name="setting_page_shizuku">Shizuku</string>
+  <string name="setting_page_shizuku_desc">Grant permission and check status for shell commands run through Shizuku.</string>
   <string name="setting_termux_title">Termux</string>
   <string name="setting_termux_section_status">Status</string>
   <string name="setting_termux_status_app">Termux app</string>
@@ -1624,6 +1628,23 @@
   <string name="setting_termux_section_help">Setup help</string>
   <string name="setting_termux_help_allow_external_apps_title">How to enable allow-external-apps</string>
   <string name="setting_termux_help_allow_external_apps_body">In Termux, run:\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties\n\nThen force-stop Termux from Android App Info and reopen it. After that, tap the verify row above to confirm the link is working.</string>
+  <string name="setting_shizuku_title">Shizuku</string>
+  <string name="setting_shizuku_section_status">Status</string>
+  <string name="setting_shizuku_status_app">Shizuku app</string>
+  <string name="setting_shizuku_status_app_installed">Installed — tap to open</string>
+  <string name="setting_shizuku_status_app_missing">Not installed — tap to download</string>
+  <string name="setting_shizuku_status_service">Shizuku service</string>
+  <string name="setting_shizuku_status_service_running">Running</string>
+  <string name="setting_shizuku_status_service_not_running">Not running — start it from the Shizuku app</string>
+  <string name="setting_shizuku_status_permission">Permission</string>
+  <string name="setting_shizuku_status_permission_granted">Granted — tap to re-request</string>
+  <string name="setting_shizuku_status_permission_missing">Not granted — tap to request</string>
+  <string name="setting_shizuku_toast_permission_granted">Permission granted</string>
+  <string name="setting_shizuku_toast_permission_denied">Permission denied</string>
+  <string name="setting_shizuku_toast_service_not_running">Shizuku service is not running</string>
+  <string name="setting_shizuku_section_help">Setup help</string>
+  <string name="setting_shizuku_help_title">Setting up Shizuku</string>
+  <string name="setting_shizuku_help_body">Install Shizuku from shizuku.rikka.app, then start its service — from the Shizuku app on a rooted device, or by pairing wireless debugging on Android 11+ (Developer options → Wireless debugging → Pair device with pairing code, then run the start command Shizuku shows you). Once the service is running, tap Permission above to grant RikkaHub access.</string>
   <string name="browser_address_bar_close">Close browser</string>
   <string name="browser_address_bar_back">Browser back</string>
   <string name="browser_address_bar_forward">Browser forward</string>

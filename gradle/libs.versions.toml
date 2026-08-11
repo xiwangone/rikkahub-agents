@@ -65,6 +65,10 @@ media = "1.7.0"
 documentfile = "1.0.1"
 jsch = "0.2.21"
 cronUtils = "9.2.1"
+# Verified with `javap -p` against the published artifact: Shizuku.newProcess is PRIVATE in
+# this version, so shizuku_exec is built on Shizuku.bindUserService + our own AIDL service
+# instead (see ShizukuManager.kt).
+shizuku = "13.1.5"
 genaiPrompt = "1.0.0-beta2"
 # Pinned below 0.14.0 deliberately. 0.14.0 drops libLiteRtClGlAccelerator.so and moves
 # the GPU backend from OpenCL/GLES to Dawn/WebGPU-on-Vulkan, which Adreno 6xx rejects:
@@ -194,6 +198,8 @@ androidx-media = { group = "androidx.media", name = "media", version.ref = "medi
 androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 jsch = { module = "com.github.mwiede:jsch", version.ref = "jsch" }
 cron-utils = { module = "com.cronutils:cron-utils", version.ref = "cronUtils" }
+shizuku-api = { module = "dev.rikka.shizuku:api", version.ref = "shizuku" }
+shizuku-provider = { module = "dev.rikka.shizuku:provider", version.ref = "shizuku" }
 genai-prompt = { module = "com.google.mlkit:genai-prompt", version.ref = "genaiPrompt" }
 
 [plugins]

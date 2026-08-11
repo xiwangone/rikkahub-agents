@@ -1670,6 +1670,8 @@
   <string name="assistant_page_local_tools_external_storage_desc">يتيح لأدوات الملفات العمل على وحدات USB وبطاقات SD والتنزيلات والتخزين السحابي. تتطلب كل شجرة موافقة لمرة واحدة عبر منتقي SAF.</string>
   <string name="assistant_page_local_tools_archive_title">الأرشيف (zip)</string>
   <string name="assistant_page_local_tools_archive_desc">إنشاء واستخراج أرشيفات .zip مباشرةً. لا يوجد دعم لكمات المرور في الإصدار الأول. يعمل على المسارات file:// و content://.</string>
+  <string name="assistant_page_local_tools_shizuku_title">Shizuku</string>
+  <string name="assistant_page_local_tools_shizuku_desc">تشغيل أوامر سطر الأوامر بصلاحيات Shizuku (معرّف مستخدم shell، بدون root). يتطلب تثبيت تطبيق Shizuku وتشغيل خدمته، ومنح الإذن من الإعدادات ← Shizuku. يتطلب موافقة لكل استدعاء.</string>
   <string name="assistant_page_local_tools_section_keyboard">التحكم بلوحة المفاتيح</string>
   <string name="assistant_page_local_tools_keyboard_title">التحكم بلوحة المفاتيح</string>
   <string name="assistant_page_local_tools_keyboard_desc">قيادة حقل النص النشط عبر تطبيق agent-keyboard المساعد الموقّع مشتركًا: الكتابة والقراءة والضغط على المفاتيح والحذف وتحريك المؤشر وتحديد النص. 8 أدوات. تتطلب أدوات الكتابة موافقة لكل استدعاء.</string>
@@ -1683,6 +1685,8 @@
   <string name="setting_browser_single_task_timeout_unit">دقائق</string>
   <string name="setting_page_termux">بيئة Termux</string>
   <string name="setting_page_termux_desc">أوامر سطر الأوامر (Shell)، المهلات، والتكامل مع Termux.</string>
+  <string name="setting_page_shizuku">Shizuku</string>
+  <string name="setting_page_shizuku_desc">منح الإذن ومعرفة حالة الأوامر التي تُشغَّل عبر Shizuku.</string>
   <string name="setting_termux_title">Termux</string>
   <string name="setting_termux_section_status">الحالة</string>
   <string name="setting_termux_status_app">حالة التطبيق</string>
@@ -1727,6 +1731,23 @@
   <string name="setting_termux_section_help">المساعدة والتوثيق</string>
   <string name="setting_termux_help_allow_external_apps_title">كيفية تمكين allow-external-apps</string>
   <string name="setting_termux_help_allow_external_apps_body">لتسمح لـ RikkaHub بتشغيل الأوامر في Termux:\n\n1. افتح تطبيق Termux.\n2. قم بتعديل أو إضافة السطر التالي إلى ملف الخصائص:\n   echo \"allow-external-apps = true\" &gt;&gt; ~/.termux/termux.properties\n3. أعد تحميل التكوين:\n   termux-reload-settings</string>
+  <string name="setting_shizuku_title">Shizuku</string>
+  <string name="setting_shizuku_section_status">الحالة</string>
+  <string name="setting_shizuku_status_app">تطبيق Shizuku</string>
+  <string name="setting_shizuku_status_app_installed">مثبت — انقر للفتح</string>
+  <string name="setting_shizuku_status_app_missing">غير مثبت — انقر للتنزيل</string>
+  <string name="setting_shizuku_status_service">خدمة Shizuku</string>
+  <string name="setting_shizuku_status_service_running">قيد التشغيل</string>
+  <string name="setting_shizuku_status_service_not_running">غير مُشغَّلة — ابدأها من تطبيق Shizuku</string>
+  <string name="setting_shizuku_status_permission">الإذن</string>
+  <string name="setting_shizuku_status_permission_granted">ممنوح — انقر لإعادة الطلب</string>
+  <string name="setting_shizuku_status_permission_missing">غير ممنوح — انقر للطلب</string>
+  <string name="setting_shizuku_toast_permission_granted">تم منح الإذن</string>
+  <string name="setting_shizuku_toast_permission_denied">تم رفض الإذن</string>
+  <string name="setting_shizuku_toast_service_not_running">خدمة Shizuku غير مُشغَّلة</string>
+  <string name="setting_shizuku_section_help">المساعدة والتوثيق</string>
+  <string name="setting_shizuku_help_title">إعداد Shizuku</string>
+  <string name="setting_shizuku_help_body">ثبّت Shizuku من shizuku.rikka.app، ثم شغّل خدمته — من تطبيق Shizuku على جهاز به صلاحيات root، أو عبر إقران التصحيح اللاسلكي على أندرويد 11 فما فوق (خيارات المطور ← التصحيح اللاسلكي ← إقران جهاز برمز الإقران، ثم تشغيل أمر البدء الذي يعرضه Shizuku). بعد تشغيل الخدمة، انقر على الإذن أعلاه لمنح RikkaHub الوصول.</string>
   <string name="local_llm_vision_unavailable_caption">النموذج الحالي لا يمتلك قدرات معالجة الصور</string>
   <string name="local_llm_vision_retry">إعادة محاولة الرؤية</string>
   <string name="local_llm_perf_telemetry_format">الأداء: %1$.2f رمز/ثانية (التجهيز: %2$.2f رمز/ثانية)</string>

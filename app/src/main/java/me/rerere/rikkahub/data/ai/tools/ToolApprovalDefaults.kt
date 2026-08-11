@@ -33,6 +33,9 @@ object ToolApprovalDefaults {
         "transcribe_audio_file",  // shells out to whisper-cli via Termux; reads arbitrary audio files
         "eval_javascript",
 
+        // Shell via Shizuku (shell UID, no root)
+        "shizuku_exec",
+
         // Remote shell (SSH)
         "ssh_exec",
         "ssh_exec_saved",

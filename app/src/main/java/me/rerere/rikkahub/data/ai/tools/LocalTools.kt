@@ -178,6 +178,7 @@ sealed class LocalToolOption {
     @Serializable @SerialName("fingerprint")     data object Fingerprint    : LocalToolOption()
     @Serializable @SerialName("cron_jobs")       data object CronJobs       : LocalToolOption()
     @Serializable @SerialName("ssh")             data object Ssh            : LocalToolOption()
+    @Serializable @SerialName("shizuku")         data object Shizuku        : LocalToolOption()
     @Serializable @SerialName("telegram_bot")    data object TelegramBot    : LocalToolOption()
     @Serializable @SerialName("screen_automation") data object ScreenAutomation : LocalToolOption()
     @Serializable @SerialName("app_launcher")      data object AppLauncher       : LocalToolOption()
@@ -828,6 +829,9 @@ class LocalTools(
             tools.add(sshUploadTool(context, sshHostRepository))
             tools.add(sshDownloadTool(context, sshHostRepository))
             tools.add(forgetSshHostKeyTool(context))
+        }
+        if (options.contains(LocalToolOption.Shizuku)) {
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.shizukuExecTool(context))
         }
         if (options.contains(LocalToolOption.TelegramBot)) {
             tools.add(telegramSetTokenTool(telegramBotPreferences, telegramBotClient))

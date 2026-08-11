@@ -302,6 +302,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_page_termux)) },
                     )
                     item(
+                        onClick = { navController.navigate(Screen.SettingShizuku) },
+                        leadingContent = { Icon(HugeIcons.Console, null) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_shizuku_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_shizuku)) },
+                    )
+                    item(
                         onClick = { navController.navigate(Screen.SettingDoctor) },
                         leadingContent = { Icon(HugeIcons.Wrench01, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_doctor_desc)) },

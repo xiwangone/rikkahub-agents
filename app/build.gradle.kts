@@ -100,7 +100,8 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
-        // agent-keyboard IPC: IKeyboardApi.aidl + EditorInfoBundle.aidl in src/main/aidl.
+        // agent-keyboard IPC (IKeyboardApi.aidl + EditorInfoBundle.aidl) and the Shizuku
+        // user service (IShizukuUserService.aidl) both live in src/main/aidl.
         aidl = true
     }
     sourceSets {
@@ -331,6 +332,12 @@ dependencies {
 
     // Cron utilities (expression parsing & validation)
     implementation(libs.cron.utils)
+
+    // Shizuku client — lets shizuku_exec run a shell command with the shell UID's
+    // privileges without root. :api is the client SDK; :provider ships ShizukuProvider,
+    // the ContentProvider that receives the binder from the Shizuku app.
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
 
     // tests
     testImplementation(libs.junit)
