@@ -10,6 +10,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.MessageRole
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
@@ -470,6 +471,59 @@ class GoogleProviderMessageTest {
         val systemInstruction = request["systemInstruction"]!!.jsonObject
         val parts = systemInstruction["parts"]!!.jsonArray
         assertEquals(prompt, parts.single().jsonObject["text"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `Gemini 3 series models send the canonical uppercase thinkingLevel for each ReasoningLevel`() {
+        // The v1beta discovery document and both official SDKs (@google/genai, python-genai)
+        // serialize thinkingLevel as the uppercase proto enum name.
+        val expected = mapOf(
+            ReasoningLevel.OFF to "MINIMAL",
+            ReasoningLevel.LOW to "LOW",
+            ReasoningLevel.MEDIUM to "MEDIUM",
+            ReasoningLevel.HIGH to "HIGH",
+            ReasoningLevel.XHIGH to "HIGH",
+        )
+
+        for ((level, thinkingLevel) in expected) {
+            val messages = listOf(UIMessage.user("hello"))
+            val params = TextGenerationParams(
+                model = Model(
+                    modelId = "gemini-3-pro-preview",
+                    abilities = listOf(ModelAbility.REASONING)
+                ),
+                reasoningLevel = level,
+            )
+
+            val request = invokeBuildCompletionRequestBody(messages, params)
+            val thinkingConfig = request["generationConfig"]!!.jsonObject["thinkingConfig"]!!.jsonObject
+
+            assertEquals(
+                "ReasoningLevel.$level should map to thinkingLevel \"$thinkingLevel\"",
+                thinkingLevel,
+                thinkingConfig["thinkingLevel"]?.jsonPrimitive?.content
+            )
+        }
+    }
+
+    @Test
+    fun `AUTO reasoning level omits thinkingLevel for Gemini 3 series models`() {
+        val messages = listOf(UIMessage.user("hello"))
+        val params = TextGenerationParams(
+            model = Model(
+                modelId = "gemini-3-pro-preview",
+                abilities = listOf(ModelAbility.REASONING)
+            ),
+            reasoningLevel = ReasoningLevel.AUTO,
+        )
+
+        val request = invokeBuildCompletionRequestBody(messages, params)
+        val thinkingConfig = request["generationConfig"]!!.jsonObject["thinkingConfig"]!!.jsonObject
+
+        assertTrue(
+            "AUTO must not emit a thinkingLevel key",
+            !thinkingConfig.containsKey("thinkingLevel")
+        )
     }
 
     @Test
