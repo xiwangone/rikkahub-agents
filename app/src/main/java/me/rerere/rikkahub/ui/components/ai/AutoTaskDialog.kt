@@ -33,12 +33,14 @@ import me.rerere.rikkahub.R
  * 两种触发模式（RadioButton 单选二选一）：
  *  - 模式 0：可触发次数 —— 会话空闲时自动发送，达到设置次数或次数上限（[MAX_AUTO_TASK_TRIGGER_COUNT]）后自动停止
  *  - 模式 1：定时触发 —— 监听会话空闲，空闲达设定秒数后自动发送
+ *  - 模式 2：随机空闲 —— 空闲后 5-15 秒随机间隔自动发送
  */
 @Composable
 fun AutoTaskDialog(
     config: AutoTaskConfig,
     onDismiss: () -> Unit,
     onConfirm: (AutoTaskConfig) -> Unit,
+    onStop: (() -> Unit)? = null,
 ) {
     var currentMessage by remember { mutableStateOf(config.message) }
     var currentMode by remember { mutableIntStateOf(config.mode) }
@@ -137,6 +139,30 @@ fun AutoTaskDialog(
                     )
                 }
 
+                // 模式 C：随机空闲（5-15 秒随机）
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    RadioButton(
+                        selected = currentMode == 2,
+                        onClick = { currentMode = 2 },
+                    )
+                    Text(
+                        text = stringResource(R.string.auto_task_mode_random),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (currentMode == 2) {
+                    Text(
+                        text = stringResource(R.string.auto_task_random_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+
                 Spacer(modifier = Modifier.height(4.dp))
 
                 Text(
@@ -167,8 +193,24 @@ fun AutoTaskDialog(
             }
         },
         dismissButton = {
-            TextButton(onClick = { onDismiss() }) {
-                Text(stringResource(R.string.settings_cancel))
+            Row {
+                // 已有配置时显示「停止」按钮
+                if (onStop != null && config != AutoTaskConfig()) {
+                    TextButton(
+                        onClick = {
+                            onStop()
+                            onDismiss()
+                        },
+                    ) {
+                        Text(
+                            stringResource(R.string.auto_task_stop),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                }
+                TextButton(onClick = { onDismiss() }) {
+                    Text(stringResource(R.string.settings_cancel))
+                }
             }
         },
     )

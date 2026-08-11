@@ -24,7 +24,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -36,9 +35,8 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.ReasonixWebBridge
-import me.rerere.rikkahub.data.vault.CredentialVaultRepository
-import me.rerere.rikkahub.data.vault.SshKeyGenerator
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import me.rerere.rikkahub.ui.context.LocalSettings
 import org.koin.compose.koinInject
 
 /**
@@ -143,7 +141,7 @@ fun ReasonixProviderConfigure(
         },
     )
 
-    // ── Web 桥设置（手机 Web 服务反向隧道到 ECS，供 reasonix 调用手机能力）──
+    // ── Web 桥（反向隧道）──
     HorizontalDivider()
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -161,11 +159,12 @@ fun ReasonixProviderConfigure(
         )
     }
     Text(
-        text = "手机 Web 服务反向隧道到 ECS，供 Reasonix 调用手机能力",
+        text = "手机 Web 服务反向隧道到 ECS，供 Reasonix 调用手机能力。详细配置（ECS 地址/端口/私钥）请在 设置 → Web 桥 中统一配置，此处以全局为准。",
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
     if (provider.webBridgeEnabled) {
+<<<<<<< HEAD
         androidx.compose.material3.Surface(
             modifier = Modifier.fillMaxWidth(),
             shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
@@ -299,6 +298,9 @@ fun ReasonixProviderConfigure(
             visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
         )
 
+=======
+        val globalSettings = LocalSettings.current
+>>>>>>> ba3e505b (feat: 自动任务停止按钮 + 随机空闲模式 + Web 桥全局化)
         val webBridge: ReasonixWebBridge = koinInject()
         val scope = rememberCoroutineScope()
         val bridgeState by webBridge.state.collectAsState()
@@ -309,7 +311,7 @@ fun ReasonixProviderConfigure(
         ) {
             Text(
                 text = when {
-                    bridgeState.tunnelConnected -> "✅ 隧道已连接（ECS:${provider.webBridgeRemotePort} ← 手机:${provider.webBridgeLocalPort}）"
+                    bridgeState.tunnelConnected -> "✅ 隧道已连接（ECS:${globalSettings.webBridgeRemotePort} ← 手机:${globalSettings.webBridgeLocalPort}）"
                     bridgeState.webServerRunning -> "⏳ Web 服务已启动，隧道连接中…"
                     else -> "隧道状态：未连接"
                 },
@@ -338,13 +340,13 @@ fun ReasonixProviderConfigure(
                 onClick = {
                     scope.launch {
                         webBridge.start(
-                            ecsHost = provider.webBridgeEcsHost,
-                            ecsPort = provider.webBridgeEcsPort,
-                            ecsUser = provider.webBridgeEcsUser,
-                            remoteTunnelPort = provider.webBridgeRemotePort,
-                            localWebPort = provider.webBridgeLocalPort,
-                            privateKeyPath = provider.webBridgePrivateKeyPath,
-                            password = provider.webBridgePassword,
+                            ecsHost = globalSettings.webBridgeEcsHost,
+                            ecsPort = globalSettings.webBridgeEcsPort,
+                            ecsUser = globalSettings.webBridgeEcsUser,
+                            remoteTunnelPort = globalSettings.webBridgeRemotePort,
+                            localWebPort = globalSettings.webBridgeLocalPort,
+                            privateKeyPath = globalSettings.webBridgePrivateKeyPath,
+                            password = globalSettings.webBridgePassword,
                         )
                     }
                 },
@@ -359,8 +361,6 @@ fun ReasonixProviderConfigure(
                 enabled = bridgeState.webServerRunning || bridgeState.tunnelConnected,
             ) {
                 Text("停止")
-            }
-        }
             }
         }
     }

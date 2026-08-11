@@ -12,14 +12,14 @@ const val MAX_AUTO_TASK_TRIGGER_COUNT = 100
  * 自动任务配置：用户没空时 App 能自动发送消息激活会话继续任务。
  *
  * @param message 要自动发送的回复消息内容（如「继续」）
- * @param mode 触发模式：0 = 可触发次数，1 = 定时触发（会话空闲）
+ * @param mode 触发模式：0 = 可触发次数，1 = 定时触发（会话空闲），2 = 随机空闲（5-15 秒随机间隔）
  * @param triggerCount 可触发次数（仅 mode = 0 使用），上限 [MAX_AUTO_TASK_TRIGGER_COUNT]
  * @param intervalSeconds 定时触发模式下的会话空闲秒数（仅 mode = 1 使用）
  */
 @Stable
 data class AutoTaskConfig(
     val message: String = "继续",
-    val mode: Int = 0, // 0: 可触发次数, 1: 定时触发（会话空闲）
+    val mode: Int = 0, // 0: 可触发次数, 1: 定时触发, 2: 随机空闲（5-15s 随机）
     val triggerCount: Int = 1,
     val intervalSeconds: Int = 60,
 )

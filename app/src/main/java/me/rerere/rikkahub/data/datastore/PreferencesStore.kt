@@ -190,6 +190,9 @@ class SettingsStore(
         val WEB_BRIDGE_ECS_USER = stringPreferencesKey("web_bridge_ecs_user")
         val WEB_BRIDGE_ECS_PORT = intPreferencesKey("web_bridge_ecs_port")
         val WEB_BRIDGE_REMOTE_PORT = intPreferencesKey("web_bridge_remote_port")
+        val WEB_BRIDGE_LOCAL_PORT = intPreferencesKey("web_bridge_local_port")
+        val WEB_BRIDGE_PRIVATE_KEY_PATH = stringPreferencesKey("web_bridge_private_key_path")
+        val WEB_BRIDGE_PASSWORD = stringPreferencesKey("web_bridge_password")
 
         // AI logging
         val AI_LOG_LEVEL = stringPreferencesKey("ai_log_level")
@@ -318,6 +321,9 @@ class SettingsStore(
                 webBridgeEcsUser = preferences[WEB_BRIDGE_ECS_USER] ?: "root",
                 webBridgeEcsPort = preferences[WEB_BRIDGE_ECS_PORT] ?: 22,
                 webBridgeRemotePort = preferences[WEB_BRIDGE_REMOTE_PORT] ?: 8080,
+                webBridgeLocalPort = preferences[WEB_BRIDGE_LOCAL_PORT] ?: 8080,
+                webBridgePrivateKeyPath = preferences[WEB_BRIDGE_PRIVATE_KEY_PATH] ?: "",
+                webBridgePassword = preferences[WEB_BRIDGE_PASSWORD] ?: "",
                 webServerJwtEnabled = preferences[WEB_SERVER_JWT_ENABLED] == true,
                 webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD] ?: "",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
@@ -582,6 +588,9 @@ class SettingsStore(
             preferences[WEB_BRIDGE_ECS_USER] = settings.webBridgeEcsUser
             preferences[WEB_BRIDGE_ECS_PORT] = settings.webBridgeEcsPort
             preferences[WEB_BRIDGE_REMOTE_PORT] = settings.webBridgeRemotePort
+            preferences[WEB_BRIDGE_LOCAL_PORT] = settings.webBridgeLocalPort
+            preferences[WEB_BRIDGE_PRIVATE_KEY_PATH] = settings.webBridgePrivateKeyPath
+            preferences[WEB_BRIDGE_PASSWORD] = settings.webBridgePassword
             preferences[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
             preferences[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
             preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
@@ -772,6 +781,9 @@ data class Settings(
     val webBridgeEcsUser: String = "root",
     val webBridgeEcsPort: Int = 22,
     val webBridgeRemotePort: Int = 8080,
+    val webBridgeLocalPort: Int = 8080,
+    val webBridgePrivateKeyPath: String = "",
+    val webBridgePassword: String = "",
     val webServerJwtEnabled: Boolean = false,
     val webServerAccessPassword: String = "",
     val webServerLocalhostOnly: Boolean = false,

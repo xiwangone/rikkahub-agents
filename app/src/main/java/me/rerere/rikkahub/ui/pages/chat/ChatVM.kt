@@ -604,6 +604,30 @@ class ChatVM(
                             }
                         }
                     }
+
+                    2 -> {
+                        // 随机空闲：空闲后 5-15 秒随机间隔自动发送，持续触发（直到停止）
+                        while (isActive) {
+                            val job = conversationJob.value
+                            if (job != null && job.isActive) {
+                                try {
+                                    withTimeoutOrNull(300_000L) {
+                                        conversationJob.first { it == null || !it.isActive }
+                                    }
+                                } catch (_: Exception) {
+                                }
+                            }
+
+                            val randomDelay = (5L..15L).random() * 1000L
+                            delay(randomDelay)
+                            if (!isActive) break
+                            handleMessageSend(
+                                listOf(UIMessagePart.Text(config.message)),
+                                answer = true,
+                            )
+                        }
+                        writeAutoTaskConfig(context, AutoTaskConfig())
+                    }
                 }
             }
     }
