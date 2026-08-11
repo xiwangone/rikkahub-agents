@@ -15,6 +15,8 @@
 - **功能** 新增 mimo v3 / v3 pro / qwen-3.8-max 模型定义（cherry-pick 上游）（`0ea350ea`）
 - **修复** 过期会话惰性自动清理 — readSessions 过滤已过期，防 SESSIONS 无限增长（`97192302`）
 - **ci** 缓存 web-ui 依赖 — bun.lock key，避免每次全量 pnpm install，加速构建（`3b86e00a`）
+- **修复** 会话数硬上限 — MAX_SESSIONS=50，防短时大量签发膨胀 SESSIONS JSON（`1be07b09`）
+- **功能** 会话列表最新在前 — sortedByDescending createdAt，UI 展示更直观（`5a0cd7eb`）
 
 ## 2026-08-10
 
