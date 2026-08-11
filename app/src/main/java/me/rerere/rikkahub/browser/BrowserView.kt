@@ -3,6 +3,7 @@ package me.rerere.rikkahub.browser
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
 import android.util.Log
+import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
@@ -95,7 +96,9 @@ fun BrowserView(
                     )
                 }
                 WebViewHost(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
                     initialUrl = initialUrl,
                     onWebViewReady = onWebViewReady,
                     onUrlChange = onUrlChange,
@@ -141,6 +144,18 @@ private fun WebViewHost(
         // in release is a privacy posture choice the user never consented to.
         if (BuildConfig.DEBUG) WebView.setWebContentsDebuggingEnabled(true)
         WebView(ctx).apply {
+            // WebView derives its CSS viewport height (100vh/100dvh/percentage heights)
+            // from its LayoutParams, not from its actual measured/laid-out size. Without
+            // this, the default WRAP_CONTENT makes vh/% heights resolve to 0 even though
+            // Compose's AndroidView correctly sizes the view on screen (measured on
+            // device: innerHeight=774 but 100vh=0). HeadlessBrowserSession already sets
+            // its own fixed-size LayoutParams for the same reason; MATCH_PARENT here lets
+            // the real Compose-driven size flow through instead.
+            layoutParams = ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.MATCH_PARENT,
+            )
+
             // Shared with HeadlessBrowserSession — every render-related setting
             // (mixedContentMode, hardware layer, autoplay, UA strip, file:// access)
             // lives in configureWebViewForRikka so foreground + headless behave
