@@ -1995,6 +1995,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="auto_task_mode_idle">定时触发</string>
   <string name="auto_task_idle_label">空闲秒数</string>
   <string name="auto_task_idle_hint">会话空闲达到指定秒数后自动发送</string>
+  <string name="auto_task_mode_random">随机空闲</string>
+  <string name="auto_task_random_hint">空闲 5-15 秒随机间隔自动发送</string>
+  <string name="auto_task_stop">停止自动任务</string>
   <string name="auto_task_tip">提示：次数模式触发满设置次数后自动停止；定时模式触发后自动任务即清除。</string>
   <string name="stats_total_input">累计输入</string>
   <string name="stats_copy_total">复制累计统计</string>
@@ -2100,6 +2103,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="vault_session_copied">已复制</string>
   <string name="vault_session_issued_ttl">会话 token 已签发（30 分钟有效）</string>
   <string name="vault_session_issued_manual">会话 token 已签发（当场有效，会话结束/手动撤销失效）</string>
+  <string name="setting_web_bridge_switch">Web 桥总开关</string>
+  <string name="setting_web_bridge_switch_desc">为 Reasonix 启用 Web 桥</string>
+  <string name="setting_web_bridge_switch_desc_detail">开启：同步全局配置（主机/用户/端口）到 Reasonix provider 并启用。关闭：禁用。</string>
   <string name="setting_web_bridge_title">Web 桥</string>
   <string name="setting_web_bridge_desc">SSH 反向隧道到 ECS</string>
   <string name="setting_web_bridge_desc_detail">把手机 Web 服务映射到 ECS 远端端口，远端服务（Reasonix 等）可经隧道调用手机 API。</string>
@@ -2108,6 +2114,16 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_web_bridge_ssh_port">SSH 端口</string>
   <string name="setting_web_bridge_remote_port">远端端口</string>
   <string name="setting_web_bridge_remote_port_desc">ECS 上映射到手机 Web 服务的端口</string>
+  <string name="setting_web_bridge_local_port">本地端口</string>
+  <string name="setting_web_bridge_local_port_desc">手机 Web 服务端口（隧道源）</string>
+  <string name="setting_web_bridge_private_key">SSH 私钥路径</string>
+  <string name="setting_web_bridge_private_key_desc">可选，留空则使用密码</string>
+  <string name="setting_web_bridge_password">SSH 密码</string>
+  <string name="setting_web_bridge_password_desc">可选，留空则使用私钥</string>
+  <string name="setting_web_bridge_gen_key">生成 SSH 密钥</string>
+  <string name="setting_web_bridge_gen_key_desc">生成新密钥对，保存到密钥库并自动填写路径</string>
+  <string name="setting_web_bridge_gen_key_btn">生成新 SSH 密钥</string>
+
   <string name="vault_session_mode_ttl">30 分钟</string>
   <string name="vault_session_mode_manual">当场有效</string>
   <string name="vault_session_mode_ttl_desc">Token 30 分钟后自动过期，需重新指纹验证签发</string>

@@ -33,6 +33,7 @@ import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberDrawerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -64,6 +65,7 @@ import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -464,6 +466,9 @@ private fun ChatPageContent(
                     onMoreClick = {
                         showFilesSheet = true
                     },
+                    onSettingsClick = {
+                        navController.navigate(Screen.Setting)
+                    },
                     onAutoClick = {
                         autoTaskConfig = readAutoTaskConfig(context)
                         showAutoTaskDialog = true
@@ -576,6 +581,7 @@ private fun ChatPageContent(
                     writeAutoTaskConfig(context, AutoTaskConfig())
                     autoTaskConfig = AutoTaskConfig()
                 },
+                hasActiveTask = vm.autoTaskActive.collectAsState().value,
             )
         }
     }

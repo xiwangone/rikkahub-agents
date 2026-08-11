@@ -80,6 +80,8 @@ class ChatVM(
 
     // 自动任务调度 Job
     private var autoTaskJob: Job? = null
+    private val _autoTaskActive = kotlinx.coroutines.flow.MutableStateFlow(false)
+    val autoTaskActive: kotlinx.coroutines.flow.StateFlow<Boolean> = _autoTaskActive.asStateFlow()
 
     // 异步任务 (从ChatService获取，响应式)
     val conversationJob: StateFlow<Job?> =
@@ -536,6 +538,7 @@ class ChatVM(
      */
     fun scheduleAutoTask(config: AutoTaskConfig) {
         cancelAutoTask()
+        _autoTaskActive.value = true
 
         if (config.mode == 0 && config.triggerCount <= 0) return
         if (config.mode == 1 && config.intervalSeconds <= 0) return
@@ -638,5 +641,6 @@ class ChatVM(
     fun cancelAutoTask() {
         autoTaskJob?.cancel()
         autoTaskJob = null
+        _autoTaskActive.value = false
     }
 }

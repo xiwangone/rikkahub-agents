@@ -41,6 +41,7 @@ fun AutoTaskDialog(
     onDismiss: () -> Unit,
     onConfirm: (AutoTaskConfig) -> Unit,
     onStop: (() -> Unit)? = null,
+    hasActiveTask: Boolean = false,
 ) {
     var currentMessage by remember { mutableStateOf(config.message) }
     var currentMode by remember { mutableIntStateOf(config.mode) }
@@ -195,7 +196,7 @@ fun AutoTaskDialog(
         dismissButton = {
             Row {
                 // 已有配置时显示「停止」按钮
-                if (onStop != null && config != AutoTaskConfig()) {
+                if (onStop != null && hasActiveTask) {
                     TextButton(
                         onClick = {
                             onStop()
