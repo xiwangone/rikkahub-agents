@@ -2156,13 +2156,10 @@
   <string name="quota_credential_masked">Masked: %1$s</string>
   <string name="quota_credential_manage_title">凭证管理 — %1$s</string>
   <string name="quota_credential_auth_method">鉴权方式: %1$s</string>
-  <string name="quota_credential_saved">状态: 已保存</string>
-  <string name="quota_credential_masked">脱敏: %1$s</string>
   <string name="quota_credential_saved_time">保存时间: %1$s</string>
   <string name="quota_credential_not_saved">状态: 未保存凭证</string>
   <string name="quota_credential_capture_hint">请在控制台页面登录后点击 🔑 捕获</string>
   <string name="quota_open_console_login">打开控制台登录</string>
-  <string name="quota_clear_credential">清除凭证</string>
   <string name="quota_close">关闭</string>
   <string name="quota_label">标签</string>
   <string name="quota_console_url">控制台网址</string>
