@@ -1,6 +1,6 @@
 ---
 name: qr-code
-description: Generate a 512x512 QR code PNG for a given URL. Returns a base64-encoded image. Requires internet (loads qrcode.js from cdnjs).
+description: Generate a 512x512 QR code PNG for a given URL. Returns a base64-encoded image. Works fully offline.
 compatibility: js
 auto_load: false
 ---
