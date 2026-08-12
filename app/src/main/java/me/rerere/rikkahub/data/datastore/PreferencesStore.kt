@@ -29,6 +29,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
+import me.rerere.rikkahub.data.gemini.DENIED_MODEL_IDS
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_COMPRESS_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OCR_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_SUGGESTION_PROMPT
@@ -101,6 +102,18 @@ private fun decodeProvidersTolerant(raw: String): List<ProviderSetting> {
         }
     }
 }
+
+/**
+ * `models` transform for the GeminiOAuth normalization branch below: de-duplicate by id, then
+ * drop any entry whose modelId is in [DENIED_MODEL_IDS].
+ *
+ * The fetch-side filter in `GeminiProvider.fetchAvailableModels` only stops
+ * `gemini-3.1-pro-high` being re-added; a copy already persisted before that filter existed
+ * survives the merge in `mergeCodexModels` untouched. This runs on every settings load, so it
+ * evicts the stale entry read-side, without a migration or rewriting the persisted JSON.
+ */
+private fun dropDeniedGeminiOAuthModels(models: List<Model>): List<Model> =
+    models.distinctBy { model -> model.id }.filterNot { model -> model.modelId in DENIED_MODEL_IDS }
 
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
@@ -531,7 +544,7 @@ class SettingsStore(
                         )
 
                         is ProviderSetting.GeminiOAuth -> provider.copy(
-                            models = provider.models.distinctBy { model -> model.id }
+                            models = dropDeniedGeminiOAuthModels(provider.models)
                         )
                     }
                 },

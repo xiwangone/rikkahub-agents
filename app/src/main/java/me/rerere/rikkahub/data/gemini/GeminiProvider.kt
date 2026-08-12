@@ -12,6 +12,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -36,6 +37,7 @@ import me.rerere.ai.ui.MessageChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageChoice
 import me.rerere.ai.ui.handleMessageChunk
+import me.rerere.ai.util.HttpException
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
 import me.rerere.common.android.Logging
@@ -80,28 +82,7 @@ class GeminiProvider(
             if (response.code == 401) repository.markInvalid(account.id)
             error("Failed to list Gemini models: ${response.code} $body")
         }
-        val models = json.parseToJsonElement(body).jsonObject["models"]?.jsonObject
-            ?: return@withContext emptyList()
-        models.mapNotNull { (modelId, element) ->
-            val item = element as? JsonObject ?: return@mapNotNull null
-            if (item["isInternal"]?.jsonPrimitive?.booleanOrNull == true) return@mapNotNull null
-            val supportsImages = item["supportsImages"]?.jsonPrimitive?.booleanOrNull == true
-            Model(
-                modelId = modelId,
-                displayName = item["displayName"]?.jsonPrimitive?.contentOrNull ?: modelId,
-                inputModalities = if (supportsImages) {
-                    listOf(Modality.TEXT, Modality.IMAGE)
-                } else {
-                    listOf(Modality.TEXT)
-                },
-                abilities = buildList {
-                    add(ModelAbility.TOOL)
-                    if (item["supportsThinking"]?.jsonPrimitive?.booleanOrNull == true) {
-                        add(ModelAbility.REASONING)
-                    }
-                },
-            )
-        }
+        mapAvailableModels(body, json)
     }
 
     override suspend fun generateText(
@@ -230,14 +211,112 @@ class GeminiProvider(
 
 private const val TAG = "GeminiProvider"
 
+// Errors are small; this only bounds a pathological body, unlike PAYLOAD_LOG_LIMIT above which
+// bounds streamed candidate text. Caps the rendered error detail appended to the thrown message.
+private const val ERROR_DETAIL_LOG_LIMIT = 2000
+
 private fun parseErrorMessage(body: String?, json: Json): String? {
     if (body.isNullOrBlank()) return null
     return runCatching {
         val error = json.parseToJsonElement(body).jsonObject["error"]?.jsonObject
         val message = error?.get("message")?.jsonPrimitive?.contentOrNull ?: return null
         val code = error["code"]?.jsonPrimitive?.intOrNull
-        if (code != null) "Cloud Code Assist error ($code): $message" else message
+        val prefix = if (code != null) "Cloud Code Assist error ($code): $message" else message
+        prefix + formatErrorDetail(error).take(ERROR_DETAIL_LOG_LIMIT)
     }.getOrNull()
+}
+
+// gemini-3.1-pro-high is advertised by fetchAvailableModels but Antigravity's
+// v1internal streamGenerateContent endpoint rejects it as a model name at every
+// reasoning level (400, no fieldViolations to name the field). Confirmed on-device
+// 2026-08-12 and independently by five other projects; gemini-3.1-pro-low works fine on
+// the same endpoint, so this is scoped to the exact id rather than a `-high` suffix rule
+// (other suffixed models work). Re-test and drop this once upstream fixes it.
+//
+// internal rather than private: PreferencesStore's GeminiOAuth normalization branch also
+// filters on this set, to evict copies already persisted from before this filter existed.
+internal val DENIED_MODEL_IDS = setOf("gemini-3.1-pro-high")
+
+/**
+ * Parses the `fetchAvailableModels` response body's `models` object into the list of [Model]s the
+ * provider offers, filtering out internal-only entries and [DENIED_MODEL_IDS]. An absent or empty
+ * `models` object yields an empty list.
+ */
+private fun mapAvailableModels(body: String, json: Json): List<Model> {
+    val models = json.parseToJsonElement(body).jsonObject["models"]?.jsonObject
+        ?: return emptyList()
+    return models.mapNotNull { (modelId, element) ->
+        val item = element as? JsonObject ?: return@mapNotNull null
+        if (item["isInternal"]?.jsonPrimitive?.booleanOrNull == true) return@mapNotNull null
+        if (modelId in DENIED_MODEL_IDS) return@mapNotNull null
+        val supportsImages = item["supportsImages"]?.jsonPrimitive?.booleanOrNull == true
+        Model(
+            modelId = modelId,
+            displayName = item["displayName"]?.jsonPrimitive?.contentOrNull ?: modelId,
+            inputModalities = if (supportsImages) {
+                listOf(Modality.TEXT, Modality.IMAGE)
+            } else {
+                listOf(Modality.TEXT)
+            },
+            abilities = buildList {
+                add(ModelAbility.TOOL)
+                if (item["supportsThinking"]?.jsonPrimitive?.booleanOrNull == true) {
+                    add(ModelAbility.REASONING)
+                }
+            },
+        )
+    }
+}
+
+/**
+ * Renders `error.status` and a flattened `error.details[]` for appending after the existing
+ * `Cloud Code Assist error (code): message` prefix. `BadRequest` detail entries surface each
+ * `fieldViolations[]` entry's `field` and `description` - that is the whole point, since that is
+ * where Google names the invalid argument. Other detail entries render as their `@type` plus
+ * whatever scalar fields they carry. Any unexpected shape (wrong types, missing keys) is skipped
+ * rather than thrown, so a malformed body degrades to just the prefix.
+ */
+private fun formatErrorDetail(error: JsonObject): String {
+    val status = (error["status"] as? JsonPrimitive)?.contentOrNull
+    val details = (error["details"] as? JsonArray)
+        ?.mapNotNull { it as? JsonObject }
+        ?.mapNotNull(::formatDetailEntry)
+        .orEmpty()
+    val parts = buildList {
+        status?.let { add("status=$it") }
+        addAll(details)
+    }
+    if (parts.isEmpty()) return ""
+    return " (" + parts.joinToString("; ") + ")"
+}
+
+private fun formatDetailEntry(entry: JsonObject): String? {
+    val violations = (entry["fieldViolations"] as? JsonArray)
+        ?.mapNotNull { it as? JsonObject }
+        ?.mapNotNull { violation ->
+            val field = (violation["field"] as? JsonPrimitive)?.contentOrNull
+            val description = (violation["description"] as? JsonPrimitive)?.contentOrNull
+            if (field == null && description == null) {
+                null
+            } else {
+                "field=${field ?: "unknown"}, description=${description ?: "unknown"}"
+            }
+        }
+    if (!violations.isNullOrEmpty()) {
+        return violations.joinToString("; ")
+    }
+    val type = (entry["@type"] as? JsonPrimitive)?.contentOrNull
+    val scalars = entry.entries
+        .filter { it.key != "@type" && it.key != "fieldViolations" }
+        .mapNotNull { (key, value) -> (value as? JsonPrimitive)?.contentOrNull?.let { "$key=$it" } }
+    if (type == null && scalars.isEmpty()) return null
+    return buildString {
+        append(type ?: "unknown detail type")
+        if (scalars.isNotEmpty()) {
+            append(": ")
+            append(scalars.joinToString(", "))
+        }
+    }
 }
 
 /**
@@ -256,9 +335,10 @@ private fun resolveStreamFailureCause(
 ): Throwable {
     return try {
         val detail = readDetail()
-        t ?: IllegalStateException(
+        t ?: HttpException(
             parseErrorMessage(detail, json)
-                ?: "Cloud Code Assist request failed: $responseCode $detail"
+                ?: "Cloud Code Assist request failed: $responseCode $detail",
+            statusCode = responseCode,
         )
     } catch (e: Throwable) {
         // android.util.Log is unmocked in JVM unit tests (throws instead of logging), so this
