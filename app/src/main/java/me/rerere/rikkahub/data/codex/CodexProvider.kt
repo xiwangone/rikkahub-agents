@@ -1,14 +1,8 @@
 package me.rerere.rikkahub.data.codex
 
-import android.content.Context
 import android.os.Build
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.channels.Channel
-import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.buffer
-import kotlinx.coroutines.flow.callbackFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -18,13 +12,14 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
-import me.rerere.ai.core.TokenUsage
+import me.rerere.ai.provider.CustomBody
+import me.rerere.ai.provider.CustomHeader
 import me.rerere.ai.provider.ImageGenerationParams
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
@@ -32,53 +27,24 @@ import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.TextGenerationResult
 import me.rerere.ai.provider.providers.openai.ResponseAPI
 import me.rerere.ai.ui.ImageGenerationItem
-import me.rerere.ai.ui.MessageChunk
+import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.ui.UIMessageChoice
-import me.rerere.ai.ui.handleMessageChunk
-import me.rerere.ai.util.toHeaders
 import me.rerere.common.http.await
-import me.rerere.rikkahub.R
+import me.rerere.rikkahub.AppScope
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
-import okhttp3.Response
-import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.ResponseBody.Companion.asResponseBody
-import okhttp3.sse.EventSource
-import okhttp3.sse.EventSourceListener
-import okhttp3.sse.EventSources
 
 class CodexProvider(
-    private val context: Context,
     private val client: OkHttpClient,
     private val repository: CodexAccountRepository,
     private val json: Json,
+    private val scope: AppScope,
 ) : Provider<ProviderSetting.Codex> {
-    private val responseApi = ResponseAPI(client)
-    private val eventSourceClient by lazy {
-        client.newBuilder()
-            .addNetworkInterceptor { chain ->
-                val response = chain.proceed(chain.request())
-                if (response.isSuccessful && response.header("Content-Type") == null) {
-                    val body = response.body
-                    response.newBuilder()
-                        .header("Content-Type", "text/event-stream")
-                        .body(
-                            body.source().asResponseBody(
-                                contentType = "text/event-stream".toMediaType(),
-                                contentLength = body.contentLength(),
-                            )
-                        )
-                        .build()
-                } else {
-                    response
-                }
-            }
-            .build()
-    }
 
     override suspend fun listModels(providerSetting: ProviderSetting.Codex): List<Model> =
         withContext(Dispatchers.IO) {
@@ -133,25 +99,12 @@ class CodexProvider(
         providerSetting: ProviderSetting.Codex,
         messages: List<UIMessage>,
         params: TextGenerationParams,
-    ): MessageChunk {
-        var collected = listOf(UIMessage.assistant(""))
-        var usage: me.rerere.ai.core.TokenUsage? = null
-        streamText(providerSetting, messages, params).collect { chunk ->
-            collected = collected.handleMessageChunk(chunk, params.model)
-            usage = chunk.usage ?: usage
-        }
-        return MessageChunk(
-            id = "",
-            model = params.model.modelId,
-            choices = listOf(
-                UIMessageChoice(
-                    index = 0,
-                    delta = null,
-                    message = collected.last(),
-                    finishReason = "stop",
-                )
-            ),
-            usage = usage,
+    ): TextGenerationResult {
+        val account = repository.acquireAccount()
+        return responseApiFor(account).generateText(
+            providerSetting = syntheticSetting(providerSetting, account),
+            messages = withDefaultInstructions(messages),
+            params = withCodexParams(params, account, stream = false),
         )
     }
 
@@ -159,137 +112,14 @@ class CodexProvider(
         providerSetting: ProviderSetting.Codex,
         messages: List<UIMessage>,
         params: TextGenerationParams,
-    ): Flow<MessageChunk> = callbackFlow {
-        val reasoningEffort = params.model.abilities
-            .takeIf { it.contains(ModelAbility.REASONING) }
-            ?.let { codexReasoningEffort(params.reasoningLevel) }
+    ): Flow<StreamChunk> {
         val account = repository.acquireAccount()
-        val syntheticSetting = ProviderSetting.OpenAI(
-            id = providerSetting.id,
-            enabled = providerSetting.enabled,
-            name = providerSetting.name,
-            models = providerSetting.models,
-            baseUrl = "https://api.openai.com/v1",
-            useResponseApi = true,
+        return responseApiFor(account).streamText(
+            providerSetting = syntheticSetting(providerSetting, account),
+            messages = withDefaultInstructions(messages),
+            params = withCodexParams(params, account, stream = true),
         )
-        val baseRequestBody = responseApi.createRequestBody(
-            providerSetting = syntheticSetting,
-            messages = messages,
-            params = params,
-            stream = true,
-        )
-        val requestBody = buildJsonObject {
-            baseRequestBody.forEach { (key, value) -> put(key, value) }
-            if (baseRequestBody["instructions"]?.jsonPrimitive?.contentOrNull.isNullOrBlank()) {
-                put("instructions", DEFAULT_INSTRUCTIONS)
-            }
-            reasoningEffort?.let { effort ->
-                put("reasoning", buildJsonObject {
-                    put("effort", effort)
-                    put("summary", "auto")
-                })
-            }
-        }
-        val request = Request.Builder()
-            .url("$CODEX_API_BASE/responses")
-            .headers(params.customHeaders.toHeaders())
-            .codexHeaders(account)
-            .addHeader("Content-Type", "application/json")
-            .addHeader("Accept", "text/event-stream")
-            .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
-            .build()
-
-        val listener = object : EventSourceListener() {
-            override fun onOpen(eventSource: EventSource, response: Response) {
-                parseCodexUsage(response.headers)?.let { usage ->
-                    launch { repository.updateUsage(account.id, usage) }
-                }
-            }
-
-            override fun onEvent(
-                eventSource: EventSource,
-                id: String?,
-                type: String?,
-                data: String,
-            ) {
-                if (data == "[DONE]") {
-                    close()
-                    return
-                }
-                val payload = runCatching {
-                    json.parseToJsonElement(data).jsonObject
-                }.getOrElse {
-                    close(it)
-                    return
-                }
-                val eventType = payload["type"]?.jsonPrimitive?.contentOrNull ?: type
-                if (eventType in FINAL_RESPONSE_EVENTS) {
-                    parseTokenUsage(payload)?.let { usage ->
-                        trySend(
-                            MessageChunk(
-                                id = payload["response"]?.jsonObject
-                                    ?.get("id")?.jsonPrimitive?.contentOrNull.orEmpty(),
-                                model = params.model.modelId,
-                                choices = emptyList(),
-                                usage = usage,
-                            )
-                        )
-                    }
-                    if (eventType == "response.failed") {
-                        close(
-                            IllegalStateException(
-                                parseErrorMessage(payload)
-                                    ?: context.getString(R.string.codex_response_failed)
-                            )
-                        )
-                    } else if (eventType == "response.incomplete") {
-                        close(IllegalStateException(parseCodexIncompleteMessage(payload)))
-                    } else {
-                        close()
-                    }
-                    return
-                }
-                runCatching { responseApi.parseResponseDelta(payload) }
-                    .onSuccess { chunk ->
-                        if (chunk != null) trySend(chunk)
-                    }
-                    .onFailure { close(it) }
-                if (eventType == "error") {
-                    close(
-                        IllegalStateException(
-                            parseErrorMessage(payload)
-                                ?: context.getString(R.string.codex_response_failed)
-                        )
-                    )
-                }
-            }
-
-            override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
-                response?.let {
-                    parseCodexUsage(it.headers)?.let { usage ->
-                        launch { repository.updateUsage(account.id, usage) }
-                    }
-                    if (it.code == 401) {
-                        launch { repository.markInvalid(account.id) }
-                    }
-                }
-                val detail = response
-                    ?.takeUnless { it.isSuccessful }
-                    ?.body
-                    ?.string()
-                close(t ?: IllegalStateException("Codex request failed: ${response?.code} $detail"))
-            }
-
-            override fun onClosed(eventSource: EventSource) {
-                close()
-            }
-        }
-        val eventSource = EventSources.createFactory(eventSourceClient).newEventSource(request, listener)
-        awaitClose { eventSource.cancel() }
-        // trySend silently drops a delta when the buffer is full, dropping characters
-        // mid-reply (#1295), so the buffer must be unbounded — same fix as the other
-        // providers' streamText.
-    }.buffer(Channel.UNLIMITED)
+    }
 
     override suspend fun generateImage(
         providerSetting: ProviderSetting,
@@ -306,30 +136,93 @@ class CodexProvider(
             .header("User-Agent", CODEX_USER_AGENT)
     }
 
-    private fun parseTokenUsage(payload: JsonObject): TokenUsage? {
-        val usage = payload["usage"]?.jsonObject
-            ?: payload["response"]?.jsonObject?.get("usage")?.jsonObject
-            ?: return null
-        val input = usage["input_tokens"]?.jsonPrimitive?.intOrNull ?: 0
-        val output = usage["output_tokens"]?.jsonPrimitive?.intOrNull ?: 0
-        return TokenUsage(
-            promptTokens = input,
-            completionTokens = output,
-            totalTokens = usage["total_tokens"]?.jsonPrimitive?.intOrNull ?: input + output,
-            cachedTokens = usage["input_tokens_details"]?.jsonObject
-                ?.get("cached_tokens")?.jsonPrimitive?.intOrNull
-                ?: usage["cached_input_tokens"]?.jsonPrimitive?.intOrNull
-                ?: 0,
+    // apiKey = the account's own OAuth token, so ResponseAPI's normal "Authorization: Bearer
+    // <apiKey>" header lands on exactly the token codexHeaders used to set by hand.
+    private fun syntheticSetting(providerSetting: ProviderSetting.Codex, account: CodexAccount) =
+        ProviderSetting.OpenAI(
+            id = providerSetting.id,
+            enabled = providerSetting.enabled,
+            name = providerSetting.name,
+            models = providerSetting.models,
+            baseUrl = CODEX_API_BASE,
+            apiKey = account.accessToken,
+            useResponseApi = true,
+        )
+
+    // The Codex backend needs a system/instructions item to behave; fall back to a generic one
+    // when the caller didn't supply a system message, same as the request body used to do by
+    // hand via the `instructions` field.
+    private fun withDefaultInstructions(messages: List<UIMessage>): List<UIMessage> =
+        if (messages.any { it.role == MessageRole.SYSTEM }) {
+            messages
+        } else {
+            listOf(UIMessage.system(DEFAULT_INSTRUCTIONS)) + messages
+        }
+
+    private fun withCodexParams(
+        params: TextGenerationParams,
+        account: CodexAccount,
+        stream: Boolean,
+    ): TextGenerationParams {
+        val reasoningEffort = params.model.abilities
+            .takeIf { it.contains(ModelAbility.REASONING) }
+            ?.let { codexReasoningEffort(params.reasoningLevel) }
+        return params.copy(
+            customHeaders = params.customHeaders + buildList {
+                add(CustomHeader("ChatGPT-Account-Id", account.chatgptAccountId))
+                add(CustomHeader("OpenAI-Beta", "responses=experimental"))
+                add(CustomHeader("originator", "codex_cli_rs"))
+                add(CustomHeader("User-Agent", CODEX_USER_AGENT))
+                if (stream) add(CustomHeader("Accept", "text/event-stream"))
+            },
+            customBody = params.customBody + listOfNotNull(
+                reasoningEffort?.let { effort ->
+                    CustomBody(
+                        key = "reasoning",
+                        value = buildJsonObject {
+                            put("effort", effort)
+                            put("summary", "auto")
+                        },
+                    )
+                },
+            ),
         )
     }
 
-    private fun parseErrorMessage(payload: JsonObject): String? {
-        return runCatching {
-            payload["error"]?.jsonObject?.get("message")?.jsonPrimitive?.contentOrNull
-                ?: payload["response"]?.jsonObject
-                    ?.get("error")?.jsonObject
-                    ?.get("message")?.jsonPrimitive?.contentOrNull
-        }.getOrNull()
+    /**
+     * Wraps [client] with an account-scoped interceptor so the same response that carries the
+     * model reply also carries the account's rate-limit headers (quota tracking) and a 401
+     * (invalidated token) signal, without a second network round-trip. Also patches a missing
+     * Content-Type so OkHttp's SSE factory recognizes the stream - some Codex backend responses
+     * omit it.
+     */
+    private fun responseApiFor(account: CodexAccount): ResponseAPI {
+        val accountAwareClient = client.newBuilder()
+            .addNetworkInterceptor { chain ->
+                val response = chain.proceed(chain.request())
+                parseCodexUsage(response.headers)?.let { usage ->
+                    scope.launch { repository.updateUsage(account.id, usage) }
+                }
+                if (response.code == 401) {
+                    scope.launch { repository.markInvalid(account.id) }
+                }
+                if (response.isSuccessful && response.header("Content-Type") == null) {
+                    val body = response.body
+                    response.newBuilder()
+                        .header("Content-Type", "text/event-stream")
+                        .body(
+                            body.source().asResponseBody(
+                                contentType = "text/event-stream".toMediaType(),
+                                contentLength = body.contentLength(),
+                            )
+                        )
+                        .build()
+                } else {
+                    response
+                }
+            }
+            .build()
+        return ResponseAPI(accountAwareClient)
     }
 
     private companion object {
@@ -345,12 +238,6 @@ class CodexProvider(
             "codex_cli_rs/$CLIENT_VERSION (Android ${Build.VERSION.RELEASE}; " +
                 "${Build.SUPPORTED_ABIS.firstOrNull() ?: "arm64"})"
         const val DEFAULT_INSTRUCTIONS = "You are a helpful assistant."
-        val FINAL_RESPONSE_EVENTS = setOf(
-            "response.completed",
-            "response.done",
-            "response.incomplete",
-            "response.failed",
-        )
     }
 }
 

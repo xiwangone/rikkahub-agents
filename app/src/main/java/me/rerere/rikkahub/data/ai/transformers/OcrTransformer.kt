@@ -121,7 +121,7 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
             // should be allowed to reach the model again.
             return "[Image: could not be read — the OCR model did not respond in time]"
         }
-        val content = result.choices[0].message?.toText() ?: "[ERROR, OCR failed]"
+        val content = result.message.toText().ifBlank { "[ERROR, OCR failed]" }
         Log.i(TAG, "performOcr: $content")
         val ocrResult = """
             <image_file_ocr>

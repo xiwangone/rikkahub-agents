@@ -31,7 +31,6 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
-import me.rerere.ai.core.merge
 import me.rerere.ai.provider.CustomBody
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.Provider
@@ -43,7 +42,9 @@ import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
-import me.rerere.ai.ui.handleMessageChunk
+import me.rerere.ai.ui.StreamChunk
+import me.rerere.ai.ui.StreamChunkHandler
+import me.rerere.ai.ui.handleTextGenerationResult
 import me.rerere.ai.ui.limitContext
 import me.rerere.ai.util.HttpException
 import me.rerere.ai.util.redactSecrets
@@ -180,6 +181,23 @@ private fun retryStatusText(
 
 private fun clearRetryStatus(processingStatus: MutableStateFlow<String?>) {
     processingStatus.value = null
+}
+
+// Marks the retry loop's "meaningful output already arrived" flag. Only chunks that carry
+// actual model output (text/reasoning/tool/image content, or annotations) count - the bare
+// Start/End markers and Usage/Finish bookkeeping chunks don't, mirroring the old
+// choice.delta/message.parts.isNotEmpty() check against the pre-refactor chunk shape.
+private fun isMeaningfulStreamChunk(chunk: StreamChunk): Boolean = when (chunk) {
+    is StreamChunk.TextDelta,
+    is StreamChunk.ReasoningDelta,
+    is StreamChunk.ToolCallDelta,
+    is StreamChunk.ImageDelta,
+    is StreamChunk.ImageSnapshot,
+    is StreamChunk.ServerToolStart,
+    is StreamChunk.ServerToolInputDelta,
+    is StreamChunk.ServerToolEnd,
+    is StreamChunk.Annotations -> true
+    else -> false
 }
 
 private suspend fun <T> retryGenerationTransportRequest(
@@ -1166,6 +1184,7 @@ class GenerationHandler(
             )
             var receivedMeaningfulOutput = false
             var receivedAnyChunk = false
+            val streamChunkHandler = StreamChunkHandler(model)
             providerImpl.streamText(
                 providerSetting = provider,
                 messages = internalMessages,
@@ -1217,23 +1236,11 @@ class GenerationHandler(
                 shouldRetry
             }.collect {
                 receivedAnyChunk = true
-                if (it.choices.any { choice ->
-                    choice.delta?.parts?.isNotEmpty() == true ||
-                            choice.message?.parts?.isNotEmpty() == true
-                    }) {
+                if (isMeaningfulStreamChunk(it)) {
                     receivedMeaningfulOutput = true
                     clearRetryStatus(processingStatus)
                 }
-                messages = messages.handleMessageChunk(chunk = it, model = model)
-                it.usage?.let { usage ->
-                    messages = messages.mapIndexed { index, message ->
-                        if (index == messages.lastIndex) {
-                            message.copy(usage = message.usage.merge(usage))
-                        } else {
-                            message
-                        }
-                    }
-                }
+                messages = streamChunkHandler.handle(messages, it)
                 onUpdateMessages(messages)
             }
         } else {
@@ -1245,7 +1252,7 @@ class GenerationHandler(
                     stream = false
                 )
             )
-            val chunk = retryGenerationTransportRequest(
+            val result = retryGenerationTransportRequest(
                 maxRetries = params.maxStreamRetries,
                 onRetry = { retryNumber, failure ->
                     processingStatus.value = retryStatusText(
@@ -1262,18 +1269,7 @@ class GenerationHandler(
                     params = params,
                 )
             }
-            messages = messages.handleMessageChunk(chunk = chunk, model = model)
-            chunk.usage?.let { usage ->
-                messages = messages.mapIndexed { index, message ->
-                    if (index == messages.lastIndex) {
-                        message.copy(
-                            usage = message.usage.merge(usage)
-                        )
-                    } else {
-                        message
-                    }
-                }
-            }
+            messages = messages.handleTextGenerationResult(result = result, model = model)
             onUpdateMessages(messages)
         }
     }
@@ -1334,6 +1330,7 @@ class GenerationHandler(
 
             var messages = listOf(UIMessage.user(prompt))
             var translatedText = ""
+            val streamChunkHandler = StreamChunkHandler(model)
 
             providerHandler.streamText(
                 providerSetting = provider,
@@ -1344,7 +1341,7 @@ class GenerationHandler(
                     maxStreamRetries = settings.responseStreamMaxRetries,
                 ),
             ).collect { chunk ->
-                messages = messages.handleMessageChunk(chunk)
+                messages = streamChunkHandler.handle(messages, chunk)
                 translatedText = messages.lastOrNull()?.toText() ?: ""
 
                 if (translatedText.isNotBlank()) {
@@ -1355,7 +1352,7 @@ class GenerationHandler(
         } else {
             // Use Qwen MT model with special translation options
             val messages = listOf(UIMessage.user(sourceText))
-            val chunk = providerHandler.generateText(
+            val result = providerHandler.generateText(
                 providerSetting = provider,
                 messages = messages,
                 params = TextGenerationParams(
@@ -1376,7 +1373,7 @@ class GenerationHandler(
                     )
                 ),
             )
-            val translatedText = chunk.choices.firstOrNull()?.message?.toText() ?: ""
+            val translatedText = result.message.toText()
 
             if (translatedText.isNotBlank()) {
                 onStreamUpdate?.invoke(translatedText)

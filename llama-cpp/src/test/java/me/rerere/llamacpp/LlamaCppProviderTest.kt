@@ -4,8 +4,8 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.ui.UIMessagePart
 import org.json.JSONObject
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -89,9 +89,7 @@ class LlamaCppProviderTest {
             params = TextGenerationParams(model = Model(modelId = "test.gguf"), maxTokens = 64),
         ).toList()
 
-        val combined = chunks.joinToString("") { chunk ->
-            chunk.choices.firstOrNull()?.delta?.toText().orEmpty()
-        }
+        val combined = chunks.filterIsInstance<StreamChunk.TextDelta>().joinToString("") { it.text }
         assertTrue("expected the full reply, got '$combined'", combined.contains("Hello world"))
 
         runtime.unload()
@@ -108,7 +106,7 @@ class LlamaCppProviderTest {
             params = TextGenerationParams(model = Model(modelId = "test.gguf"), maxTokens = 64),
         )
 
-        val text = result.choices.firstOrNull()?.message?.toText().orEmpty()
+        val text = result.message.toText()
         assertTrue("expected the full reply, got '$text'", text.contains("Hello world"))
 
         runtime.unload()
@@ -463,7 +461,7 @@ class LlamaCppProviderTest {
                 params = TextGenerationParams(model = Model(modelId = "test.gguf"), maxTokens = 64),
             ).toList()
 
-            val combined = chunks.joinToString("") { chunk -> chunk.choices.firstOrNull()?.delta?.toText().orEmpty() }
+            val combined = chunks.filterIsInstance<StreamChunk.TextDelta>().joinToString("") { it.text }
 
             assertEquals("Hello Nice to meet you", combined)
 
@@ -493,7 +491,7 @@ class LlamaCppProviderTest {
             params = TextGenerationParams(model = Model(modelId = "test.gguf"), maxTokens = 64),
         ).toList()
 
-        val combined = chunks.joinToString("") { chunk -> chunk.choices.firstOrNull()?.delta?.toText().orEmpty() }
+        val combined = chunks.filterIsInstance<StreamChunk.TextDelta>().joinToString("") { it.text }
 
         assertEquals("Hello world Hello world!", combined)
 
@@ -521,12 +519,8 @@ class LlamaCppProviderTest {
                 params = TextGenerationParams(model = Model(modelId = "test.gguf"), maxTokens = 64),
             ).toList()
 
-            val combinedReasoning = chunks.joinToString("") { chunk ->
-                chunk.choices.firstOrNull()?.delta?.parts
-                    ?.filterIsInstance<UIMessagePart.Reasoning>()
-                    ?.joinToString("") { it.reasoning }
-                    .orEmpty()
-            }
+            val combinedReasoning = chunks.filterIsInstance<StreamChunk.ReasoningDelta>()
+                .joinToString("") { it.text }
 
             assertEquals("Thinking Almost there", combinedReasoning)
 
@@ -554,12 +548,8 @@ class LlamaCppProviderTest {
                 params = TextGenerationParams(model = Model(modelId = "test.gguf"), maxTokens = 64),
             ).toList()
 
-            val combinedReasoning = chunks.joinToString("") { chunk ->
-                chunk.choices.firstOrNull()?.delta?.parts
-                    ?.filterIsInstance<UIMessagePart.Reasoning>()
-                    ?.joinToString("") { it.reasoning }
-                    .orEmpty()
-            }
+            val combinedReasoning = chunks.filterIsInstance<StreamChunk.ReasoningDelta>()
+                .joinToString("") { it.text }
 
             assertEquals("Thinking about it Thinking about it!", combinedReasoning)
 

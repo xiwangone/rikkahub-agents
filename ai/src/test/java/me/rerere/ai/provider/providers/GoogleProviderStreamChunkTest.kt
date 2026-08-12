@@ -3,6 +3,7 @@ package me.rerere.ai.provider.providers
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.providers.google.GoogleProvider
 import me.rerere.ai.ui.UIMessagePart
 import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals

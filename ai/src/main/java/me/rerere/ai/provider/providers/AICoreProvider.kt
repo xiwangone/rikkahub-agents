@@ -17,6 +17,7 @@ import com.google.mlkit.genai.prompt.generateContentRequest
 import com.google.mlkit.genai.prompt.generationConfig
 import com.google.mlkit.genai.prompt.modelConfig
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
@@ -35,10 +36,10 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.TextGenerationResult
 import me.rerere.ai.ui.ImageGenerationItem
-import me.rerere.ai.ui.MessageChunk
+import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.ui.UIMessageChoice
 import me.rerere.ai.ui.UIMessagePart
 
 private const val TAG = "AICoreProvider"
@@ -65,7 +66,7 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
         providerSetting: ProviderSetting.AICore,
         messages: List<UIMessage>,
         params: TextGenerationParams,
-    ): Flow<MessageChunk> = flow {
+    ): Flow<StreamChunk> = flow {
         // Google policy: AICore inference only runs while the calling app is in the
         // foreground (otherwise throws ErrorCode 30). When a turn fires from the Telegram
         // bot, a cron job, or any path where RikkaHub is backgrounded, briefly bring our
@@ -110,6 +111,44 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
 
             val streamId = "aicore-${System.currentTimeMillis()}"
             val parser = ToolTagParser(params.tools)
+            var textId: String? = null
+            val openToolIds = linkedSetOf<String>()
+
+            suspend fun FlowCollector<StreamChunk>.emitParts(parts: List<UIMessagePart>) {
+                parts.forEach { part ->
+                    when (part) {
+                        is UIMessagePart.Text -> if (part.text.isNotEmpty()) {
+                            val id = textId ?: "$streamId:text".also {
+                                textId = it
+                                emit(StreamChunk.TextStart(it))
+                            }
+                            emit(StreamChunk.TextDelta(id, part.text))
+                        }
+                        // Emitted as a single self-contained Start/Delta/End sequence:
+                        // ToolTagParser only hands back a Tool part once its closing tag has
+                        // already been seen, so there is no partial input to stream deltas of.
+                        is UIMessagePart.Tool -> {
+                            if (openToolIds.add(part.toolCallId)) {
+                                emit(StreamChunk.ToolCallStart(part.toolCallId, part.toolName))
+                            }
+                            emit(StreamChunk.ToolCallDelta(part.toolCallId, inputDelta = part.input))
+                            emit(StreamChunk.ToolCallEnd(part.toolCallId))
+                            openToolIds.remove(part.toolCallId)
+                        }
+                        else -> Unit
+                    }
+                }
+            }
+
+            suspend fun FlowCollector<StreamChunk>.closeOpenParts() {
+                textId?.let {
+                    emit(StreamChunk.TextEnd(it))
+                    textId = null
+                }
+                openToolIds.toList().forEach { emit(StreamChunk.ToolCallEnd(it)) }
+                openToolIds.clear()
+            }
+
             try {
                 generativeModel.generateContentStream(request).collect { response ->
                     val candidate = response.candidates.firstOrNull()
@@ -117,48 +156,22 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
                     val rawFinish = candidate?.finishReason?.toString()
                     val parts = parser.feed(rawDelta)
                     if (parts.isNotEmpty()) {
-                        emit(
-                            MessageChunk(
-                                id = streamId,
-                                model = params.model.modelId,
-                                choices = listOf(
-                                    UIMessageChoice(
-                                        index = 0,
-                                        delta = UIMessage(
-                                            role = MessageRole.ASSISTANT,
-                                            parts = parts,
-                                        ),
-                                        message = null,
-                                        // If a tool tag was closed in this delta, signal
-                                        // tool_calls so the GenerationHandler dispatches the
-                                        // tool and resumes the conversation. Otherwise pass
-                                        // through whatever the model declared (usually null).
-                                        finishReason = parser.consumePendingFinishReason()
-                                            ?: rawFinish,
-                                    )
-                                ),
-                            )
-                        )
+                        emitParts(parts)
                     } else if (rawFinish != null) {
                         // No content in this chunk but stream closed. Flush any partial buffer
                         // as text so it isn't dropped.
-                        val flushed = parser.flushPending()
+                        emitParts(parser.flushPending())
+                    }
+                    if (rawFinish != null) {
+                        closeOpenParts()
+                        // If a tool tag was closed in this delta, signal tool_calls so the
+                        // GenerationHandler dispatches the tool and resumes the conversation.
+                        // Otherwise pass through whatever the model declared (usually null).
                         emit(
-                            MessageChunk(
-                                id = streamId,
+                            StreamChunk.Finish(
+                                finishReason = parser.consumePendingFinishReason() ?: rawFinish,
+                                responseId = streamId,
                                 model = params.model.modelId,
-                                choices = listOf(
-                                    UIMessageChoice(
-                                        index = 0,
-                                        delta = UIMessage(
-                                            role = MessageRole.ASSISTANT,
-                                            parts = flushed,
-                                        ),
-                                        message = null,
-                                        finishReason = parser.consumePendingFinishReason()
-                                            ?: rawFinish,
-                                    )
-                                ),
                             )
                         )
                     }
@@ -180,31 +193,24 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
         providerSetting: ProviderSetting.AICore,
         messages: List<UIMessage>,
         params: TextGenerationParams,
-    ): MessageChunk {
+    ): TextGenerationResult {
         val collected = StringBuilder()
         var finishReason: String? = null
         streamText(providerSetting, messages, params).collect { chunk ->
-            chunk.choices.firstOrNull()?.let { c ->
-                c.delta?.parts?.forEach { p ->
-                    if (p is UIMessagePart.Text) collected.append(p.text)
-                }
-                if (c.finishReason != null) finishReason = c.finishReason
+            when (chunk) {
+                is StreamChunk.TextDelta -> collected.append(chunk.text)
+                is StreamChunk.Finish -> chunk.finishReason?.let { finishReason = it }
+                else -> Unit
             }
         }
-        return MessageChunk(
+        return TextGenerationResult(
             id = "aicore-${System.currentTimeMillis()}",
             model = params.model.modelId,
-            choices = listOf(
-                UIMessageChoice(
-                    index = 0,
-                    delta = null,
-                    message = UIMessage(
-                        role = MessageRole.ASSISTANT,
-                        parts = listOf(UIMessagePart.Text(collected.toString())),
-                    ),
-                    finishReason = finishReason ?: "stop",
-                )
+            message = UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = listOf(UIMessagePart.Text(collected.toString())),
             ),
+            finishReason = finishReason ?: "stop",
         )
     }
 

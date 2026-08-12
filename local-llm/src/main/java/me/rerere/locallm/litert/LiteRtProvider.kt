@@ -10,10 +10,11 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.TextGenerationResult
 import me.rerere.ai.ui.ImageGenerationItem
-import me.rerere.ai.ui.MessageChunk
+import me.rerere.ai.ui.StreamChunk
+import me.rerere.ai.ui.StreamChunkHandler
 import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.ui.UIMessageChoice
 import me.rerere.ai.ui.UIMessagePart
 import android.content.Context
 import me.rerere.ai.util.audioBytes
@@ -144,31 +145,16 @@ class LiteRtProvider(
         providerSetting: ProviderSetting.LiteRtLocal,
         messages: List<UIMessage>,
         params: TextGenerationParams,
-    ): MessageChunk {
-        val collected = StringBuilder()
-        var finishReason: String? = null
+    ): TextGenerationResult {
+        var collected = listOf(UIMessage(role = MessageRole.ASSISTANT, parts = emptyList()))
+        val handler = StreamChunkHandler(params.model)
         streamText(providerSetting, messages, params).collect { chunk ->
-            chunk.choices.firstOrNull()?.let { c ->
-                c.delta?.parts?.forEach { p ->
-                    if (p is UIMessagePart.Text) collected.append(p.text)
-                }
-                if (c.finishReason != null) finishReason = c.finishReason
-            }
+            collected = handler.handle(collected, chunk)
         }
-        return MessageChunk(
+        return TextGenerationResult(
             id = "litert-${System.currentTimeMillis()}",
             model = params.model.modelId,
-            choices = listOf(
-                UIMessageChoice(
-                    index = 0,
-                    delta = null,
-                    message = UIMessage(
-                        role = MessageRole.ASSISTANT,
-                        parts = listOf(UIMessagePart.Text(collected.toString())),
-                    ),
-                    finishReason = finishReason ?: "stop",
-                )
-            ),
+            message = collected.last(),
         )
     }
 
@@ -176,7 +162,7 @@ class LiteRtProvider(
         providerSetting: ProviderSetting.LiteRtLocal,
         messages: List<UIMessage>,
         params: TextGenerationParams,
-    ): Flow<MessageChunk> = flow {
+    ): Flow<StreamChunk> = flow {
         val installed = prefs.installedModels(LocalRuntime.LiteRT)
         val modelPath = installed[params.model.modelId]
             ?: throw IllegalStateException("Model ${params.model.modelId} not installed")
@@ -448,6 +434,10 @@ class LiteRtProvider(
         // at end-of-stream (see the comment block right after the collect{} below for why
         // we do this once at the end rather than incrementally like AICoreProvider does).
         val streamId = "litert-${System.currentTimeMillis()}"
+        // One stable id for the whole turn's prose (the vision-dropped note, if any, plus
+        // every generation delta) so StreamChunkHandler appends them into a single Text part,
+        // matching the old positional-append merge behaviour.
+        val textId = "$streamId-text"
         var previousCumulative = ""
         val fullResponseBuilder = StringBuilder()
 
@@ -503,23 +493,7 @@ class LiteRtProvider(
                 "vision not live post-load for ${params.model.modelId}; dropped " +
                     "${userImageParts.size} image(s), noting it to the user",
             )
-            emit(
-                MessageChunk(
-                    id = streamId,
-                    model = params.model.modelId,
-                    choices = listOf(
-                        UIMessageChoice(
-                            index = 0,
-                            delta = UIMessage(
-                                role = MessageRole.ASSISTANT,
-                                parts = listOf(UIMessagePart.Text(VISION_DROPPED_NOTE)),
-                            ),
-                            message = null,
-                            finishReason = null,
-                        )
-                    ),
-                )
-            )
+            emit(StreamChunk.TextDelta(textId, VISION_DROPPED_NOTE))
         }
 
         var toolCallCount = 0
@@ -549,23 +523,7 @@ class LiteRtProvider(
                             fullResponseBuilder.append(cumulative)
 
                             if (delta.isNotEmpty()) {
-                                emit(
-                                    MessageChunk(
-                                        id = streamId,
-                                        model = params.model.modelId,
-                                        choices = listOf(
-                                            UIMessageChoice(
-                                                index = 0,
-                                                delta = UIMessage(
-                                                    role = MessageRole.ASSISTANT,
-                                                    parts = listOf(UIMessagePart.Text(delta)),
-                                                ),
-                                                message = null,
-                                                finishReason = null,
-                                            )
-                                        ),
-                                    )
-                                )
+                                emit(StreamChunk.TextDelta(textId, delta))
                             }
                         }
 
@@ -575,33 +533,12 @@ class LiteRtProvider(
                             // re-invokes this provider with the results in the history. The
                             // SDK gives no call id, so mint one that is unique within the
                             // stream. GenerationHandler matches parts by it.
-                            val parts = event.calls.map { call ->
+                            event.calls.forEach { call ->
                                 val id = "$streamId-tool-${toolCallCount++}"
                                 Log.i(TAG, "model requested tool '${call.name}' (id=$id)")
-                                UIMessagePart.Tool(
-                                    toolCallId = id,
-                                    toolName = call.name,
-                                    input = call.argumentsJson,
-                                    output = emptyList(),
-                                )
+                                emit(StreamChunk.ToolCallStart(id = id, toolName = call.name))
+                                emit(StreamChunk.ToolCallDelta(id = id, inputDelta = call.argumentsJson))
                             }
-                            emit(
-                                MessageChunk(
-                                    id = streamId,
-                                    model = params.model.modelId,
-                                    choices = listOf(
-                                        UIMessageChoice(
-                                            index = 0,
-                                            delta = UIMessage(
-                                                role = MessageRole.ASSISTANT,
-                                                parts = parts,
-                                            ),
-                                            message = null,
-                                            finishReason = null,
-                                        )
-                                    ),
-                                )
-                            )
                         }
                     }
                 }
@@ -651,23 +588,7 @@ class LiteRtProvider(
         // then calls back in with the results. Reporting "tool_calls" is what tells the
         // agent loop to do that; reporting "stop" would end the turn with the model's
         // request silently dropped.
-        emit(
-            MessageChunk(
-                id = streamId,
-                model = params.model.modelId,
-                choices = listOf(
-                    UIMessageChoice(
-                        index = 0,
-                        delta = UIMessage(
-                            role = MessageRole.ASSISTANT,
-                            parts = emptyList(),
-                        ),
-                        message = null,
-                        finishReason = if (toolCallCount > 0) "tool_calls" else "stop",
-                    )
-                ),
-            )
-        )
+        emit(StreamChunk.Finish(finishReason = if (toolCallCount > 0) "tool_calls" else "stop"))
     }
 
     /**

@@ -22,7 +22,7 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import me.rerere.ai.core.TokenUsage
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.ImageGenerationParams
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
@@ -30,13 +30,15 @@ import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
-import me.rerere.ai.provider.providers.CODE_ASSIST_SAFETY_CATEGORIES
-import me.rerere.ai.provider.providers.GoogleProvider
+import me.rerere.ai.provider.TextGenerationResult
+import me.rerere.ai.provider.providers.google.CODE_ASSIST_SAFETY_CATEGORIES
+import me.rerere.ai.provider.providers.google.GoogleProvider
 import me.rerere.ai.ui.ImageGenerationItem
 import me.rerere.ai.ui.MessageChunk
+import me.rerere.ai.ui.StreamChunk
+import me.rerere.ai.ui.StreamChunkHandler
 import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.ui.UIMessageChoice
-import me.rerere.ai.ui.handleMessageChunk
+import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.util.HttpException
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
@@ -89,25 +91,18 @@ class GeminiProvider(
         providerSetting: ProviderSetting.GeminiOAuth,
         messages: List<UIMessage>,
         params: TextGenerationParams,
-    ): MessageChunk {
-        var collected = listOf(UIMessage.assistant(""))
-        var usage: TokenUsage? = null
+    ): TextGenerationResult {
+        var collected = listOf(UIMessage(role = MessageRole.ASSISTANT, parts = emptyList()))
+        val handler = StreamChunkHandler(params.model)
         streamText(providerSetting, messages, params).collect { chunk ->
-            collected = collected.handleMessageChunk(chunk, params.model)
-            usage = chunk.usage ?: usage
+            collected = handler.handle(collected, chunk)
         }
-        return MessageChunk(
+        val message = collected.last()
+        return TextGenerationResult(
             id = "",
             model = params.model.modelId,
-            choices = listOf(
-                UIMessageChoice(
-                    index = 0,
-                    delta = null,
-                    message = collected.last(),
-                    finishReason = "stop",
-                )
-            ),
-            usage = usage,
+            message = message,
+            usage = message.usage,
         )
     }
 
@@ -115,7 +110,7 @@ class GeminiProvider(
         providerSetting: ProviderSetting.GeminiOAuth,
         messages: List<UIMessage>,
         params: TextGenerationParams,
-    ): Flow<MessageChunk> = callbackFlow {
+    ): Flow<StreamChunk> = callbackFlow {
         val account = repository.acquireAccount()
         val requestBody = buildJsonObject {
             put("project", account.projectId)
@@ -137,6 +132,8 @@ class GeminiProvider(
             .addHeader("Accept", "text/event-stream")
             .post(json.encodeToString(requestBody).toRequestBody(JSON_MEDIA_TYPE))
             .build()
+
+        val adapter = GeminiStreamChunkAdapter()
 
         val listener = object : EventSourceListener() {
             override fun onEvent(
@@ -166,8 +163,10 @@ class GeminiProvider(
                         return
                     }
                     val chunk = wire.parseStreamCandidates(inner, params.model) ?: return
-                    trySend(chunk).onFailure { e ->
-                        Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                    adapter.translate(chunk).forEach { streamChunk ->
+                        trySend(streamChunk).onFailure { e ->
+                            Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                        }
                     }
                 } catch (e: Exception) {
                     Log.w(TAG, "onEvent: failed to parse chunk, payload=${data.take(PAYLOAD_LOG_LIMIT)}", e)
@@ -186,6 +185,7 @@ class GeminiProvider(
             }
 
             override fun onClosed(eventSource: EventSource) {
+                trySend(adapter.finish())
                 close()
             }
         }
@@ -210,6 +210,97 @@ class GeminiProvider(
 }
 
 private const val TAG = "GeminiProvider"
+
+/**
+ * Adapts [GoogleProvider.parseStreamCandidates]'s legacy [MessageChunk] shape (see that
+ * function's doc for why it still exists) onto the app-wide [StreamChunk] event stream, so this
+ * provider can keep consuming Cloud Code Assist's per-event candidate parsing while still
+ * implementing the current [Provider] interface.
+ *
+ * Mirrors the merge rules the removed `List<UIMessage>.handleMessageChunk` used to apply: a part
+ * joins the previous part of the same kind, or starts a new one - just expressed as
+ * Start/Delta/End events instead of an eagerly merged [UIMessage]. One instance is stateful for
+ * exactly one stream and must not be reused across calls.
+ */
+private class GeminiStreamChunkAdapter {
+    private enum class OpenKind { TEXT, REASONING, IMAGE }
+
+    private var openKind: OpenKind? = null
+    private var openId: String = ""
+    private var nextId = 0
+
+    private fun startNew(kind: OpenKind): String {
+        openKind = kind
+        openId = "gemini-${nextId++}"
+        return openId
+    }
+
+    fun translate(chunk: MessageChunk): List<StreamChunk> {
+        val out = mutableListOf<StreamChunk>()
+        val choice = chunk.choices.getOrNull(0)
+        val delta = choice?.delta ?: choice?.message
+        if (delta != null) {
+            // Google never sends an explicit "thought finished" signal; infer it the same way
+            // the removed merge logic did - a delta with no reasoning part at all closes
+            // whatever reasoning run is currently open.
+            val hasReasoning = delta.parts.any { it is UIMessagePart.Reasoning }
+            if (openKind == OpenKind.REASONING && !hasReasoning && delta.parts.isNotEmpty()) {
+                out += StreamChunk.ReasoningEnd(openId)
+                openKind = null
+            }
+            delta.parts.forEach { part ->
+                when (part) {
+                    is UIMessagePart.Text -> {
+                        if (part.text.isNotEmpty()) {
+                            val id = if (openKind == OpenKind.TEXT) openId else startNew(OpenKind.TEXT)
+                            out += StreamChunk.TextDelta(id, part.text)
+                        }
+                    }
+
+                    is UIMessagePart.Reasoning -> {
+                        if (part.reasoning.isNotEmpty() || part.metadata != null) {
+                            val id =
+                                if (openKind == OpenKind.REASONING) openId else startNew(OpenKind.REASONING)
+                            out += StreamChunk.ReasoningDelta(
+                                id = id,
+                                text = part.reasoning,
+                                metadata = part.metadata,
+                            )
+                        }
+                    }
+
+                    is UIMessagePart.Image -> {
+                        val isNew = openKind != OpenKind.IMAGE
+                        val id = if (isNew) startNew(OpenKind.IMAGE) else openId
+                        // parseMessagePart already builds a full data URL; StreamChunk.ImageSnapshot
+                        // wants just the base64 payload and re-attaches its own prefix.
+                        val base64 = part.url.substringAfter(',', part.url)
+                        out += StreamChunk.ImageSnapshot(id = id, data = base64, metadata = part.metadata)
+                    }
+
+                    is UIMessagePart.Tool -> {
+                        // GoogleProvider assigns a fresh random id per functionCall part and Gemini
+                        // sends each call's name + args in a single event, so every Tool part here
+                        // is already complete - no cross-event merge is needed.
+                        openKind = null
+                        out += StreamChunk.ToolCallStart(id = part.toolCallId, toolName = part.toolName)
+                        out += StreamChunk.ToolCallDelta(id = part.toolCallId, inputDelta = part.input)
+                    }
+
+                    else -> Log.w(TAG, "translate: unsupported delta part $part")
+                }
+            }
+            if (delta.annotations.isNotEmpty()) {
+                out += StreamChunk.Annotations(delta.annotations)
+            }
+        }
+        chunk.usage?.let { out += StreamChunk.Usage(it) }
+        return out
+    }
+
+    /** Sent once, right before the underlying event source closes normally. */
+    fun finish(): StreamChunk = StreamChunk.Finish()
+}
 
 // Errors are small; this only bounds a pathological body, unlike PAYLOAD_LOG_LIMIT above which
 // bounds streamed candidate text. Caps the rendered error detail appended to the thrown message.

@@ -18,10 +18,11 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.provider.TextGenerationResult
 import me.rerere.ai.ui.ImageGenerationItem
-import me.rerere.ai.ui.MessageChunk
+import me.rerere.ai.ui.StreamChunk
+import me.rerere.ai.ui.StreamChunkHandler
 import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.ui.UIMessageChoice
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.locallm.LocalRuntime
 import me.rerere.locallm.LocalRuntimePreferences
@@ -113,7 +114,7 @@ class LlamaCppProvider(
         providerSetting: ProviderSetting.LlamaCppLocal,
         messages: List<UIMessage>,
         params: TextGenerationParams,
-    ): MessageChunk = loadMutex.withLock {
+    ): TextGenerationResult = loadMutex.withLock {
         ensureModelReady(messages, params)
         generateFromLoadedModel(runtime, messages, params)
     }
@@ -122,7 +123,7 @@ class LlamaCppProvider(
         providerSetting: ProviderSetting.LlamaCppLocal,
         messages: List<UIMessage>,
         params: TextGenerationParams,
-    ): Flow<MessageChunk> = flow {
+    ): Flow<StreamChunk> = flow {
         // loadMutex is held across the whole load-then-generate sequence, not just the load -
         // see the mutex's doc comment for why the generation itself must stay inside the lock.
         loadMutex.withLock {
@@ -253,36 +254,16 @@ class LlamaCppProvider(
             runtime: LlamaCppRuntime,
             messages: List<UIMessage>,
             params: TextGenerationParams,
-        ): MessageChunk {
-            val text = StringBuilder()
-            val reasoning = StringBuilder()
-            val toolCalls = mutableListOf<UIMessagePart.Tool>()
+        ): TextGenerationResult {
+            var collected = listOf(UIMessage(role = MessageRole.ASSISTANT, parts = emptyList()))
+            val handler = StreamChunkHandler(params.model)
             streamFromLoadedModel(runtime, messages, params).collect { chunk ->
-                chunk.choices.firstOrNull()?.delta?.parts?.forEach { part ->
-                    when (part) {
-                        is UIMessagePart.Text -> text.append(part.text)
-                        is UIMessagePart.Reasoning -> reasoning.append(part.reasoning)
-                        is UIMessagePart.Tool -> toolCalls += part
-                        else -> Unit
-                    }
-                }
+                collected = handler.handle(collected, chunk)
             }
-            val parts = buildList {
-                if (reasoning.isNotEmpty()) add(UIMessagePart.Reasoning(reasoning = reasoning.toString()))
-                if (text.isNotEmpty()) add(UIMessagePart.Text(text.toString()))
-                addAll(toolCalls)
-            }
-            return MessageChunk(
+            return TextGenerationResult(
                 id = "llamacpp-${System.currentTimeMillis()}",
                 model = params.model.modelId,
-                choices = listOf(
-                    UIMessageChoice(
-                        index = 0,
-                        delta = null,
-                        message = UIMessage(role = MessageRole.ASSISTANT, parts = parts),
-                        finishReason = "stop",
-                    )
-                ),
+                message = collected.last(),
             )
         }
 
@@ -297,9 +278,13 @@ class LlamaCppProvider(
             runtime: LlamaCppRuntime,
             messages: List<UIMessage>,
             params: TextGenerationParams,
-        ): Flow<MessageChunk> = callbackFlow {
+        ): Flow<StreamChunk> = callbackFlow {
             val streamId = "llamacpp-${System.currentTimeMillis()}"
-            val modelId = params.model.modelId
+            // One stable id per channel for the whole turn, so StreamChunkHandler appends
+            // every delta into a single Text / Reasoning part - mirrors the old positional
+            // append-only merge.
+            val textId = "$streamId-text"
+            val reasoningId = "$streamId-reasoning"
             // Trim history to the input half of the planned context before templating, so a
             // long conversation drops its oldest turns instead of overflowing the prompt.
             val trimmedMessages = ChatRequestMapper.trimToBudget(messages, runtime.inputBudgetBytes())
@@ -321,38 +306,34 @@ class LlamaCppProvider(
             // onPiece callback below needs no implicit-receiver resolution of its own. isFinal
             // marks the terminal (isPartial = false) call so a reset there can still be
             // forwarded - see ChannelWatermark's doc.
+            // Tracks whether a ReasoningDelta has been sent that a ReasoningEnd has not yet
+            // closed, so a later delta with text but no reasoning can close it - mirrors the
+            // old merge logic's "a delta with no reasoning part closes any open reasoning part".
+            var reasoningOpen = false
+
             val sendDelta: (ChatDelta, Boolean) -> Boolean = { delta, isFinal ->
                 val textDelta = textWatermark.advance(delta.textDelta, delta.textReset, isFinal)
                 val reasoningDelta = reasoningWatermark.advance(delta.reasoningDelta, delta.reasoningReset, isFinal)
-                val parts = buildList {
-                    if (reasoningDelta.isNotEmpty()) {
-                        add(UIMessagePart.Reasoning(reasoning = reasoningDelta))
-                    }
-                    if (textDelta.isNotEmpty()) {
-                        add(UIMessagePart.Text(textDelta))
-                    }
-                    delta.completedToolCalls.forEach { call ->
-                        add(UIMessagePart.Tool(toolCallId = call.id, toolName = call.name, input = call.arguments))
-                    }
+                var sentAny = false
+                var allOk = true
+                if (reasoningDelta.isNotEmpty()) {
+                    sentAny = true
+                    reasoningOpen = true
+                    allOk = trySend(StreamChunk.ReasoningDelta(reasoningId, reasoningDelta)).isSuccess && allOk
+                } else if (reasoningOpen && textDelta.isNotEmpty()) {
+                    reasoningOpen = false
+                    allOk = trySend(StreamChunk.ReasoningEnd(reasoningId)).isSuccess && allOk
                 }
-                if (parts.isEmpty()) {
-                    !isClosedForSend
-                } else {
-                    trySend(
-                        MessageChunk(
-                            id = streamId,
-                            model = modelId,
-                            choices = listOf(
-                                UIMessageChoice(
-                                    index = 0,
-                                    delta = UIMessage(role = MessageRole.ASSISTANT, parts = parts),
-                                    message = null,
-                                    finishReason = null,
-                                )
-                            ),
-                        )
-                    ).isSuccess
+                if (textDelta.isNotEmpty()) {
+                    sentAny = true
+                    allOk = trySend(StreamChunk.TextDelta(textId, textDelta)).isSuccess && allOk
                 }
+                delta.completedToolCalls.forEach { call ->
+                    sentAny = true
+                    allOk = trySend(StreamChunk.ToolCallStart(id = call.id, toolName = call.name)).isSuccess && allOk
+                    allOk = trySend(StreamChunk.ToolCallDelta(id = call.id, inputDelta = call.arguments)).isSuccess && allOk
+                }
+                if (sentAny) allOk else !isClosedForSend
             }
 
             val worker = launch(Dispatchers.IO) {
@@ -367,6 +348,7 @@ class LlamaCppProvider(
                     // were still settling when generation stopped (see ChatDeltaTracker.consume).
                     val finalParsed = runtime.parse(accumulated.toString(), false, appliedTemplateJson)
                     sendDelta(tracker.consume(finalParsed, isPartial = false), true)
+                    trySend(StreamChunk.Finish())
                 } finally {
                     finished.set(true)
                     close()

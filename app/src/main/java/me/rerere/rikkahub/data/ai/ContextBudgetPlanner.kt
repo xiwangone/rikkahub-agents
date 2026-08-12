@@ -128,6 +128,8 @@ object ContextBudgetPlanner {
         is UIMessagePart.Reasoning -> estimateTextTokens(part.reasoning)
         is UIMessagePart.Tool -> estimateTextTokens(part.toolName) +
             estimateTextTokens(part.input) + part.output.sumOf(::estimatePartTokens)
+        is UIMessagePart.ServerTool -> estimateTextTokens(part.toolName) +
+            estimateTextTokens(part.input.toString()) + estimateTextTokens(part.output.toString())
         is UIMessagePart.ToolCall -> estimateTextTokens(part.toolName) + estimateTextTokens(part.arguments)
         is UIMessagePart.ToolResult -> estimateTextTokens(part.toolName) +
             estimateTextTokens(part.arguments.toString()) + estimateTextTokens(part.content.toString())

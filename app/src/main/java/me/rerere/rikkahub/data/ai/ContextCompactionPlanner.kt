@@ -444,6 +444,13 @@ internal object ContextCompactionPlanner {
                 part.output.forEach { output -> appendPartForSummary(output) }
                 appendLine("[End completed tool execution record]")
             }
+            is UIMessagePart.ServerTool -> {
+                appendLine("[Completed tool execution record — must be retained in summary]")
+                appendLine("Tool: ${part.toolName}")
+                appendLine("Input: ${part.input}")
+                appendLine("Output: ${part.output}")
+                appendLine("[End completed tool execution record]")
+            }
             is UIMessagePart.ToolCall -> {
                 appendLine("[Tool call requested but no recorded result: ${part.toolName}]")
                 appendLine("Arguments: ${part.arguments}")
@@ -488,6 +495,15 @@ internal object ContextCompactionPlanner {
                 appendLine("Arguments: ${part.arguments}")
                 appendLine("Content:")
                 appendLine(previewForMap(part.content.toString()))
+                appendLine("[End completed tool execution record]")
+            }
+
+            is UIMessagePart.ServerTool -> {
+                appendLine("[Completed tool execution record — must be retained in summary]")
+                appendLine("Tool: ${part.toolName}")
+                appendLine("Input: ${part.input}")
+                appendLine("Output:")
+                appendLine(previewForMap(part.output.toString()))
                 appendLine("[End completed tool execution record]")
             }
 
