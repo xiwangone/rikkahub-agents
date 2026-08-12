@@ -49,6 +49,12 @@ Each of those is a one-line setup.
 
 Tap, swipe, scroll, type, take screenshots, open apps, adjust brightness/volume, post notifications, check battery/WiFi/signal/location/sensors, read contacts & SMS, send SMS, set wallpaper, read/write NFC tags, sign and encrypt data with the Android Keystore, access external storage and SD cards, and manage ZIP archives. **80+ tools**, all built into Android. Each one stays off until you flip it on.
 
+### Shizuku
+
+Install [Shizuku](https://github.com/RikkaApps/Shizuku/releases/latest) and the assistant can run shell commands at a higher privilege level than a normal app, without root and without Termux. Useful for the things Android normally refuses: granting permissions, poking at system settings, inspecting other packages. Settings shows live status so you can tell whether Shizuku is installed, running, and authorized.
+
+Off by default on every assistant, behind Local Tools, Privileged tools. Enabling it takes effect on new conversations, so start a fresh chat after switching it on. Commands still pass the HARDLINE floor below, so the genuinely destructive ones stay blocked no matter how they are invoked.
+
 ### Workflows & Schedules
 
 **Workflows** — Describe a trigger and action in plain language: *"when I get home, turn the ringer off."* 19 triggers (WiFi, Bluetooth, headphones, geofence, app launch, notifications, time, charging, screen state, and more) and 14 conditions (battery thresholds, sunrise/sunset, day-of-week, foreground app, screen state) decide when each fires. Receivers register only when needed — battery drain stays minimal.
@@ -100,13 +106,15 @@ Drop a Markdown skill file and the AI gains a new playbook. A bundled catalog sh
 
 For long tasks, the main assistant dispatches focused sub-agents into clean side-contexts, optionally on smaller, cheaper models: name a model when you dispatch and that sub-agent runs on it, so cheap work does not have to share the main model. Run multiple in parallel. Each result comes back as a single summary. `/stop` cascades cancellation through every active child in one tick.
 
+Define a sub-agent once and reuse it: a profile pairs a name with its own system prompt and model, and the assistant dispatches to it by name instead of respelling the setup every time. Manage profiles in Settings.
+
 ### Context Compaction
 
 Long agent runs fill the context window and eventually fail. Compaction summarizes older turns automatically when usage crosses a threshold you set, keeping recent tool calls and their results so the assistant does not lose the thread. Summaries are written alongside the conversation rather than over it, so the original messages stay readable. Can also be triggered by hand.
 
 ### Doctor
 
-A built-in health checkup. Runs a full audit of permissions, background services, database integrity, network, Termux, and diagnostics. Tap auto-fix to grant permissions, restart services, or rebuild search indexes. Also available remotely via `/doctor` on Telegram.
+A built-in health checkup. Runs a full audit of permissions, background services, database integrity, network, Termux, and diagnostics, plus Shizuku, MCP servers, sub-agent profiles, skills, the image gallery, workspaces, the Telegram proxy, and context compaction. Tap auto-fix to grant permissions, restart services, or rebuild search indexes. Also available remotely via `/doctor` on Telegram.
 
 ### MCP Servers
 
@@ -175,7 +183,9 @@ If you don't turn anything on, the app behaves exactly like vanilla RikkaHub.
 
 ## Languages
 
-The interface ships in **English, 简体中文, 繁體中文, 日本語, 한국어, Русский, and العربية**. The app follows your system language and falls back to English. RTL languages (Arabic, Persian, Urdu) render correctly in chat — code blocks stay LTR.
+The interface ships in **English, 简体中文, 繁體中文, 日本語, 한국어, Русский, and العربية**. The app follows your system language and falls back to English. RTL languages (Arabic, Persian, Urdu) render correctly in chat — code blocks stay LTR. Arabic now covers the full interface rather than a subset.
+
+Screen readers are supported throughout: icon-only buttons, attachment chips, and the media and speech controls carry spoken labels, so the app is navigable with TalkBack.
 
 ---
 
