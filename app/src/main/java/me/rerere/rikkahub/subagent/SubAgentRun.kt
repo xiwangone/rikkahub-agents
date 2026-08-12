@@ -76,7 +76,7 @@ data class SubAgentRequest(
     val task: String,
     val modelId: String? = null,
     /**
-     * Task 5 (#36): name of a configured [SubAgentProfile], resolved case-insensitively by
+     * #36: name of a configured [SubAgentProfile], resolved case-insensitively by
      * [SubAgentProfileResolver]. `modelId` above wins over the profile's model when both are
      * given; see [SubAgentEngine.executeRun].
      */
@@ -138,7 +138,7 @@ object SubAgentRequestValidator {
 }
 
 /**
- * Task 5 (#36): a named, reusable sub-agent configuration - a name, description, custom system
+ * #36: a named, reusable sub-agent configuration - a name, description, custom system
  * prompt and model, defined once in settings so the dispatching model can pick a specialist by
  * NAME instead of memorizing a model uuid. Resolved by [SubAgentProfileResolver]. `modelId` null
  * means the profile itself defers to the parent's model, mirroring the "null = inherit"

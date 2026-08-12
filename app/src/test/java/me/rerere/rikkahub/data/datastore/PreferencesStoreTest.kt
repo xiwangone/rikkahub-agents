@@ -45,7 +45,7 @@ class PreferencesStoreTest {
     }
 
     /**
-     * Task 5 (#36): `subAgents` is a new field on [Settings]. An install that predates it wrote
+     * #36: `subAgents` is a new field on [Settings]. An install that predates it wrote
      * JSON with no "subAgents" key at all - reproduced here by stripping the key from a fresh
      * encode - and it MUST still decode, defaulting to an empty list, the same way the
      * `mcpServers` / `assistants` list fields already do.

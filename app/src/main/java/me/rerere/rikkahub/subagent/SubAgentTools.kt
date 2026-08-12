@@ -50,7 +50,7 @@ fun subagentDispatchTool(
     engine: SubAgentEngine,
     callerContext: me.rerere.rikkahub.data.ai.tools.ToolInvocationContext =
         me.rerere.rikkahub.data.ai.tools.ToolInvocationContext.EMPTY,
-    // Task 5 (#36): named sub-agent profiles, passed in fresh at tool-construction time (the
+    // #36: named sub-agent profiles, passed in fresh at tool-construction time (the
     // caller reads them from current settings) so the description below - and whether `agent`
     // is offered as a parameter at all - always reflects what's configured right now.
     profiles: List<SubAgentProfile> = emptyList(),

@@ -9,7 +9,7 @@ import org.junit.Test
 import kotlin.uuid.Uuid
 
 /**
- * Task 3 (#28): subagent_dispatch's model_id used to be parsed, stored and echoed back but
+ * #28: subagent_dispatch's model_id used to be parsed, stored and echoed back but
  * never read - the sub-agent silently inherited the parent's model regardless of what was
  * passed. These tests pin the resolver's contract: uuid / modelId / displayName lookup, and
  * loud failure (not silent inheritance) on ambiguous or unknown input.

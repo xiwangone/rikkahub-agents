@@ -75,7 +75,7 @@ import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 
 /**
- * Task 5 (#36): named sub-agent profiles - a name, description, custom system prompt and model,
+ * #36: named sub-agent profiles - a name, description, custom system prompt and model,
  * so `subagent_dispatch` can be given a profile NAME instead of a model uuid. List/add/edit/
  * delete, mirroring the Lorebook/ModeInjection tabs in PromptPage. Model selection reuses the
  * shared [ModelSelector] component rather than a new picker.

@@ -338,7 +338,7 @@ class SettingsStore(
                         emptyList()
                     }
                 } ?: emptyList(),
-                // Task 5 (#36): key absent -> emptyList(), exactly like mcpServers above - the
+                // #36: key absent -> emptyList(), exactly like mcpServers above - the
                 // whole migration for an existing install that predates this field.
                 subAgents = preferences[SUB_AGENTS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<SubAgentProfile>>(raw) }.getOrElse {
@@ -861,7 +861,7 @@ data class Settings(
     val enableWebFetchTools: Boolean = true,
     val mcpServers: List<McpServerConfig> = emptyList(),
     /**
-     * Task 5 (#36): named sub-agent profiles the model can dispatch to by name via
+     * #36: named sub-agent profiles the model can dispatch to by name via
      * `subagent_dispatch`'s `agent` parameter. MUST default to an empty list so an install
      * that predates this field decodes cleanly - see [SettingsStore.settingsFlowRaw].
      */

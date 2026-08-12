@@ -7,7 +7,7 @@ import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**
- * Task 3 (#28) persistence guard: [Conversation] gained a nullable, defaulted `chatModelId`
+ * #28 persistence guard: [Conversation] gained a nullable, defaulted `chatModelId`
  * field. A Conversation JSON payload from before this field existed must still decode, with
  * chatModelId landing on null rather than failing or silently picking some other model.
  */

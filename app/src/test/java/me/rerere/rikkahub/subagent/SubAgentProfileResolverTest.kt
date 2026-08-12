@@ -6,7 +6,7 @@ import org.junit.Test
 import kotlin.uuid.Uuid
 
 /**
- * Task 5 (#36): subagent_dispatch's `agent` parameter resolves a named [SubAgentProfile] by
+ * #36: subagent_dispatch's `agent` parameter resolves a named [SubAgentProfile] by
  * name. Pins the resolver's contract: exact / case-insensitive match, loud failure (never
  * silent parent-model inheritance) on an unknown or disabled name, and that disabled profiles
  * are invisible to resolution - the same discipline [SubAgentModelResolver] applies to

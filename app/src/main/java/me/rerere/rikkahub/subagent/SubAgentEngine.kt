@@ -49,7 +49,7 @@ internal suspend fun finishSubAgentWait(completed: Boolean, stop: suspend () -> 
 
 /**
  * Resolves subagent_dispatch's `model_id` (uuid, provider model id, or display name) against
- * the CHAT-type models of ENABLED providers. Task 3 (#28): `model_id` was parsed, stored and
+ * the CHAT-type models of ENABLED providers. #28: `model_id` was parsed, stored and
  * echoed back but never used to pick a model - the sub-agent silently inherited the parent's.
  * That silent fallback is the bug; this resolver fails loudly instead.
  */
@@ -111,11 +111,11 @@ internal object SubAgentModelResolver {
 }
 
 /**
- * Task 5 (#36): resolves subagent_dispatch's `agent` (a [SubAgentProfile] name) against the
+ * #36: resolves subagent_dispatch's `agent` (a [SubAgentProfile] name) against the
  * user's configured profiles. Mirrors [SubAgentModelResolver]'s contract: no input is not an
  * error (nothing was requested), an unknown or disabled name fails loudly with the list of
  * valid names rather than silently falling back to the parent's model - the same
- * silent-inheritance bug `model_id` had before Task 3 (#28).
+ * silent-inheritance bug `model_id` had before #28 fixed it.
  */
 internal object SubAgentProfileResolver {
     sealed class Result {
@@ -166,13 +166,14 @@ internal object SubAgentProfileResolver {
 }
 
 /**
- * Task 5 (#36): combines `model_id`'s resolution with an `agent` profile's model - `model_id`
+ * #36: combines `model_id`'s resolution with an `agent` profile's model - `model_id`
  * always wins when it resolved to something (or failed - a bad explicit model_id must surface,
  * not be papered over by falling back to the profile's model). Only when `model_id` was never
  * given ([SubAgentModelResolver.Result.Inherit]) does the profile's model get a chance, and only
  * if [profile] is non-null and its `modelId` is set - otherwise this is a no-op, exactly
- * preserving pre-Task-5 behavior when no agent was requested. Split out as a pure function (same
- * rationale as [finishSubAgentWait]) so the precedence rule is unit-testable without a live
+ * preserving the behavior before named sub-agent profiles when no agent was requested. Split
+ * out as a pure function (same rationale as [finishSubAgentWait]) so the precedence rule is
+ * unit-testable without a live
  * [SubAgentEngine].
  */
 internal fun resolveSubAgentModel(
@@ -370,7 +371,7 @@ class SubAgentEngine(
                 return
             }
         val settings = settingsStore.settingsFlow.first()
-        // Task 5 (#36): resolve `agent` before `model_id` so model_id's own resolution can
+        // #36: resolve `agent` before `model_id` so model_id's own resolution can
         // fall back to the profile's model when model_id is absent - `model_id` still wins
         // when both are given (see SubAgentTools' parameter description).
         val profileResolution = SubAgentProfileResolver.resolve(request.agentName, settings.subAgents)
