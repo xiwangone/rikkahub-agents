@@ -45,6 +45,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.handleMessageChunk
 import me.rerere.ai.ui.limitContext
+import me.rerere.ai.util.HttpException
 import me.rerere.ai.util.redactSecrets
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
@@ -82,6 +83,12 @@ private val USER_CANCELLATION_MARKERS = listOf(
     "user_cancelled",
 )
 
+// A deterministic 4xx will not succeed on retry, so retrying it just burns quota and delay for
+// an outcome that was never going to change. These four are the exceptions: they signal a
+// transient condition (timeout, conflict, precondition, rate limit) rather than a request that
+// is permanently invalid.
+private val RETRYABLE_4XX_STATUS_CODES = setOf(408, 409, 425, 429)
+
 private fun isCancellationFailure(failure: Throwable): Boolean =
     generateSequence(failure) { it.cause }
         .take(8)
@@ -114,9 +121,25 @@ internal fun shouldRetryGenerationStreamFailure(
     if (failure is ResponseStreamErrorException || isContextLimitFailure(failure)) {
         return false
     }
+    if (isNonRetryableClientError(failure)) {
+        return false
+    }
     // Retry provider, parsing, and local processing failures alike. Cancellation is kept
     // out of the retry loop so stop-generation and parent-scope cancellation propagate.
     return !isCancellationFailure(failure)
+}
+
+// A 4xx other than the RETRYABLE_4XX_STATUS_CODES exceptions is deterministic: the same
+// request will fail the same way on every retry. 5xx and failures with no known status code
+// (most providers don't attach one) keep the existing retry behaviour.
+private fun isNonRetryableClientError(failure: Throwable): Boolean {
+    val statusCode = generateSequence(failure) { it.cause }
+        .take(8)
+        .filterIsInstance<HttpException>()
+        .firstOrNull()
+        ?.statusCode
+        ?: return false
+    return statusCode in 400..499 && statusCode !in RETRYABLE_4XX_STATUS_CODES
 }
 
 private fun isContextLimitFailure(failure: Throwable): Boolean =

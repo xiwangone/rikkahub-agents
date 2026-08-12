@@ -8,7 +8,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
 
 class HttpException(
-    message: String
+    message: String,
+    val statusCode: Int? = null,
 ) : RuntimeException(message)
 
 fun JsonElement.parseErrorDetail(): HttpException {
