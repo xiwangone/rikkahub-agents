@@ -27,12 +27,14 @@ enum class ConnectionState {
 /**
  * Reasonix SSE 客户端 — 连接 /events 端点，实时接收服务端推送的消息流。
  *
- * 健壮性（2026-08-13 吸收 Reasonix Agents 思路）：
- * - **热流**（MutableSharedFlow）：单连接多消费者，turn_done 短超时收尾关键（保留）
- * - **断线自动重连**：网络错误/流中断 → 指数退避重建连接（1s→2s→4s…封顶 [maxReconnectDelayMs]）；
- *   HTTP 错误（非 2xx）不重连；[reconnectEnabled] 可关
- * - **连接状态**：[connectionState] 暴露 DISCONNECTED/CONNECTING/CONNECTED/RECONNECTING——上层可显示状态点
- * - 重连后继续 emit 到同一热流——消费者无感（无需重建 collect）
+ * 来源（2026-08-13 合规标注修正）：
+ * - 基础 SSE/EventSource 模式：通用实现（早期参考 DeepSeek-Reasonix-android——该仓库无 LICENSE，
+ *   已在本轮重写中剥离其独有逻辑）
+ * - 热流 + turn_done 多轮收尾：自研（4ec3fb79）
+ * - 断线重连/连接状态（健壮化）：吸收 Reasonix Agents（MIT）思路自行重写（c5a143fc）
+ *
+ * 健壮性：热流单连接多消费者；网络错误指数退避重连（1s→2s→4s…封顶 30s）；HTTP 错误不重连；
+ * 连接状态经 [connectionState] 暴露（可驱动顶栏状态点）。
  */
 class ReasonixSseClient(
     private val baseUrl: String,
