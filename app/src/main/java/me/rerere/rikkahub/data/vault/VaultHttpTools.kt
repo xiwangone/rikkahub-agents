@@ -31,8 +31,9 @@ import java.util.concurrent.TimeUnit
 object SecretMasker {
     private const val MASK = "***"
 
-    // 值短于此长度不做替换（密码类凭证短值也可能敏感——取较小阈值 4）
-    private const val MIN_LEN = 4
+    // 值短于此长度不做替换（短值如 chat_id/用户名等非敏感——不掩以减少对工具输出的干扰；
+    // 2026-08-14 从 4 调到 9——只掩 ≥9 的真敏感值）
+    private const val MIN_LEN = 9
 
     // 缓存：凭证表版本（max updatedAt）→ 值字典
     @Volatile
