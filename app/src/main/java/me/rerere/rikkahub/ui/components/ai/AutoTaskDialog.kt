@@ -54,7 +54,7 @@ fun AutoTaskDialog(
     var currentTasks by remember { mutableStateOf(config.tasks.joinToString("\n")) }
 
     /** 任务列表模式默认预设（reasonix 风格——用户可改） */
-    private val DEFAULT_AUTO_TASK_LIST = listOf(
+    val DEFAULT_AUTO_TASK_LIST = listOf(
         "查 CI 状态并汇报",
         "更新 CHANGELOG 与文档",
         "备份 kb 到 ECS",
@@ -63,7 +63,7 @@ fun AutoTaskDialog(
     )
 
     /** AI 预设任务列表（2026-08-14：一键应用——AI 维护/日常维护清单） */
-    private val AI_PRESET_TASK_LIST = listOf(
+    val AI_PRESET_TASK_LIST = listOf(
         "检查 CI 与仓库状态并汇报",
         "自查待办与挂起事项，按优先级推进",
         "更新 CHANGELOG/文档/知识库（三处同步）",

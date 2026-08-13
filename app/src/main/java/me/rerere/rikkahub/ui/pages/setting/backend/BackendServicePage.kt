@@ -36,7 +36,7 @@ import me.rerere.rikkahub.data.model.BackendTypes
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
-import org.koin.androidx.compose.koinInject
+import org.koin.compose.koinInject
 
 /**
  * 后端服务页（连接管理中枢——2026-08-14 通用化）。
