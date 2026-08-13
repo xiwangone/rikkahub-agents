@@ -36,7 +36,6 @@ import me.rerere.rikkahub.web.routes.eventsRoutes
 import me.rerere.rikkahub.web.routes.filesRoutes
 import me.rerere.rikkahub.web.routes.folderRoutes
 import me.rerere.rikkahub.web.routes.settingsRoutes
-import me.rerere.rikkahub.web.routes.vaultRoutes
 import java.security.MessageDigest
 import java.util.Date
 import java.util.UUID
@@ -170,8 +169,9 @@ fun Application.configureWebApi(
 
             aiIconRoutes(context)
 
-            // Vault 解密 API：独立会话 token 鉴权（不依赖 JWT 密码体系）
-            vaultRoutes(vaultRepository, vaultSessionManager)
+            // Vault 解密 API 已退役（2026-08-14）：凭证通道迁出 Web 完成——
+            // App 内 AI 走 vault_* 直通（不经 Web）；沙箱 vault-get 改用 load-creds.sh 备用。
+            // Web 服务恢复纯能力面（chat/files/settings——不含凭证）。
 
             if (jwtEnabled) {
                 authenticate("auth-jwt") {
