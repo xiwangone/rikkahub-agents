@@ -2016,6 +2016,11 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="auto_task_reply_placeholder">自动任务中。自主判断并执行当前需要做什么。</string>
   <string name="auto_task_default_message">自动任务中。自主判断并执行当前需要做什么。</string>
   <string name="setting_page_ssh_hosts">SSH 主机</string>
+  <string name="setting_page_backend_service">后端服务</string>
+  <string name="setting_page_backend_service_desc">Reasonix / ECS / PC 执行后端</string>
+  <string name="backend_service_title">后端服务</string>
+  <string name="backend_service_about_title">什么是后端？</string>
+  <string name="backend_service_about_desc">后端是执行通道（不是聊天模型）：AI 用模型思考、通过后端执行（Reasonix 任务 / SSH 主机 / 自建服务）。默认本机执行；重活可切换到远程后端。</string>
   <string name="setting_page_ssh_hosts_desc">管理 SSH 主机；AI 可按名连接</string>
   <string name="setting_shizuku_title">Shizuku</string>
   <string name="setting_page_shizuku">Shizuku</string>

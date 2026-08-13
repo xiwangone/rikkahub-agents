@@ -438,6 +438,9 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.SettingShizuku> {
                                 SettingShizukuPage()
                             }
+                            entry<Screen.BackendService> {
+                                me.rerere.rikkahub.ui.pages.setting.backend.BackendServicePage()
+                            }
 
                             entry<Screen.Vault> {
                                 VaultPage()
@@ -753,6 +756,8 @@ sealed interface Screen : NavKey {
     data object SettingSshHosts : Screen
     @Serializable
     data object SettingShizuku : Screen
+    @Serializable
+    data object BackendService : Screen
 
     @Serializable
     data object Vault : Screen
