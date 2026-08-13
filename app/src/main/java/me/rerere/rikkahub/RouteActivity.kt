@@ -122,6 +122,8 @@ import me.rerere.rikkahub.ui.pages.setting.SettingPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
 import me.rerere.rikkahub.ui.pages.setting.SettingQuotaPage
+import me.rerere.rikkahub.ui.pages.setting.SettingSshHostsPage
+import me.rerere.rikkahub.ui.pages.setting.shizuku.SettingShizukuPage
 import me.rerere.rikkahub.ui.pages.setting.VaultCredentialsPage
 import me.rerere.rikkahub.ui.pages.setting.VaultPage
 import me.rerere.rikkahub.ui.pages.setting.QuotaConsolePage
@@ -429,6 +431,18 @@ class RouteActivity : ComponentActivity() {
 
                             entry<Screen.SettingQuota> {
                                 SettingQuotaPage()
+                            }
+                            entry<Screen.SettingSshHosts> {
+                                SettingSshHostsPage()
+                            }
+                            entry<Screen.SshTerminal> {
+                                me.rerere.rikkahub.ui.pages.setting.SshTerminalPage(it.hostName)
+                            }
+                            entry<Screen.SettingShizuku> {
+                                SettingShizukuPage()
+                            }
+                            entry<Screen.BackendService> {
+                                me.rerere.rikkahub.ui.pages.setting.backend.BackendServicePage()
                             }
 
                             entry<Screen.Vault> {
@@ -741,6 +755,14 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingQuota : Screen
+    @Serializable
+    data object SettingSshHosts : Screen
+    @Serializable
+    data class SshTerminal(val hostName: String = "") : Screen
+    @Serializable
+    data object SettingShizuku : Screen
+    @Serializable
+    data object BackendService : Screen
 
     @Serializable
     data object Vault : Screen
@@ -874,6 +896,7 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data class WorkspaceTerminal(val id: String) : Screen
+    @Serializable
     data class WorkspaceFileEditor(val id: String, val area: String, val path: String) : Screen
 
     @Serializable

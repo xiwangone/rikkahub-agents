@@ -177,6 +177,7 @@ sealed class LocalToolOption {
     @Serializable @SerialName("fingerprint")     data object Fingerprint    : LocalToolOption()
     @Serializable @SerialName("cron_jobs")       data object CronJobs       : LocalToolOption()
     @Serializable @SerialName("ssh")             data object Ssh            : LocalToolOption()
+    @Serializable @SerialName("shizuku")         data object Shizuku        : LocalToolOption()
     @Serializable @SerialName("telegram_bot")    data object TelegramBot    : LocalToolOption()
     @Serializable @SerialName("screen_automation") data object ScreenAutomation : LocalToolOption()
     @Serializable @SerialName("app_launcher")      data object AppLauncher       : LocalToolOption()
@@ -191,6 +192,7 @@ sealed class LocalToolOption {
     @Serializable @SerialName("workflows")           data object Workflows          : LocalToolOption()
     @Serializable @SerialName("skill_import")        data object SkillImport        : LocalToolOption()
     @Serializable @SerialName("js_skills")           data object JsSkills           : LocalToolOption()
+    @Serializable @SerialName("vault_tools")         data object VaultTools         : LocalToolOption()
     @Serializable @SerialName("system_intents")      data object SystemIntents      : LocalToolOption()
     @Serializable @SerialName("browser")             data object Browser            : LocalToolOption()
     @Serializable @SerialName("web_fetch")           data object WebFetch           : LocalToolOption()
@@ -352,6 +354,7 @@ class LocalTools(
     private val skillManager: me.rerere.rikkahub.data.files.SkillManager,
     private val jsSkillRunner: me.rerere.rikkahub.skills.js.JsSkillRunner,
     private val skillSecretsStore: me.rerere.rikkahub.skills.js.SkillSecretsStore,
+    private val vaultRepository: me.rerere.rikkahub.data.vault.CredentialVaultRepository,
     // Browser per-tool toggle store. Pass 2 reads a [snapshotBlocking] of the map so each
     // tool factory gates its own registration on whether the user has flipped it on. Master
     // toggle ([LocalToolOption.Browser]) acts as the group on/off; per-tool toggles act as
@@ -824,9 +827,9 @@ class LocalTools(
             tools.add(saveSshHostTool(sshHostRepository))
             tools.add(listSshHostsTool(sshHostRepository))
             tools.add(deleteSshHostTool(sshHostRepository))
-            tools.add(sshExecSavedTool(context, sshHostRepository))
-            tools.add(sshUploadTool(context, sshHostRepository))
-            tools.add(sshDownloadTool(context, sshHostRepository))
+            tools.add(sshExecSavedTool(context, sshHostRepository, vaultRepository))
+            tools.add(sshUploadTool(context, sshHostRepository, vaultRepository))
+            tools.add(sshDownloadTool(context, sshHostRepository, vaultRepository))
             tools.add(forgetSshHostKeyTool(context))
         }
         if (options.contains(LocalToolOption.TelegramBot)) {
@@ -958,6 +961,16 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.skills.js.runJsTool(
                 context, skillManager, jsSkillRunner, skillSecretsStore,
             ))
+        }
+        if (options.contains(LocalToolOption.VaultTools)) {
+            tools.add(me.rerere.rikkahub.data.vault.vaultCredentialNamesTool(vaultRepository))
+            tools.add(me.rerere.rikkahub.data.vault.vaultCredentialPrepareTool(vaultRepository))
+            tools.add(me.rerere.rikkahub.data.vault.vaultGenKeyTool(context, vaultRepository))
+            tools.add(me.rerere.rikkahub.data.vault.vaultSshExecTool(context, vaultRepository))
+            tools.add(me.rerere.rikkahub.data.vault.vaultHttpExecTool(context, vaultRepository))
+        }
+        if (options.contains(LocalToolOption.Shizuku)) {
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.shizukuExecTool(context))
         }
         if (options.contains(LocalToolOption.SystemIntents)) {
             tools.add(me.rerere.rikkahub.data.ai.tools.local.createCalendarEventTool(context, invocationContext, interactiveToolStreamer))

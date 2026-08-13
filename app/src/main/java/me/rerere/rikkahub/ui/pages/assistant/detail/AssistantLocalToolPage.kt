@@ -1075,6 +1075,34 @@ private fun AssistantLocalToolContent(
             )
             item(
                 headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_shizuku_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_shizuku_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.Shizuku),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Shizuku, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_vault_tools_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_vault_tools_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.VaultTools),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.VaultTools, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_nfc_title))
                 },
                 supportingContent = {

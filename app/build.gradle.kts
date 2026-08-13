@@ -19,8 +19,8 @@ android {
         applicationId = "excp.rikkahub.agents"
         minSdk = 26
         targetSdk = 37
-        versionCode = 176
-        versionName = "2.45.7"
+        versionCode = 186
+        versionName = "2.45.7.4"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -167,6 +167,8 @@ dependencies {
     implementation(libs.androidx.profileinstaller)
     implementation(libs.termux.terminal.view)
     implementation(libs.guava.listenablefuture)
+    implementation(libs.shizuku.api)
+    implementation(libs.shizuku.provider)
 
     // Compose
     implementation(libs.androidx.activity.compose)
@@ -319,7 +321,7 @@ dependencies {
     implementation(kotlin("reflect"))
 
     // SSH client (Mwiede fork — maintained, Android-friendly)
-    implementation("com.github.mwiede:jsch:0.2.21")
+    implementation("com.github.mwiede:jsch:2.28.6")
 
     // Cron utilities (expression parsing & validation)
     implementation("com.cronutils:cron-utils:9.2.1")

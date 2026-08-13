@@ -108,7 +108,8 @@ object AgentOverlay : KoinComponent {
             QuotaStatus.GREEN -> Color.rgb(34, 197, 94)
             QuotaStatus.YELLOW -> Color.rgb(234, 179, 8)
             QuotaStatus.RED -> Color.rgb(239, 68, 68)
-            else -> Color.WHITE // 未登录/未捕获/未知 → 白线
+            // 未登录/未捕获/未知 → 灰色（白底主题下白色不可见，改用 Grey 600）
+            else -> Color.rgb(117, 117, 117)
         }
 
     /** 贴边竖条尺寸（dp）。 */
@@ -116,28 +117,10 @@ object AgentOverlay : KoinComponent {
     private const val BAR_HEIGHT_DP = 100f
 
     /**
-     * 根据位置调整 dot 形态：贴边 → 竖条状态线；未贴边 → 工作 pill。
-     * 在拖动/吸附后调用。
+     * 记录贴边状态（供展开卡片定位参考）。常态始终为小圆点，
+     * 不再切换 pill/竖条形态——状态色圆点 + 卡片动画展开即是全部交互。
      */
     private fun applyDockShape(app: Context, x: Int, isDocked: Boolean) {
-        val dot = dotView ?: return
-        val density = app.resources.displayMetrics.density
-        val lp = dot.layoutParams
-        if (isDocked) {
-            // 贴边：竖条（隐藏文字，只留状态色）
-            lp.width = (BAR_WIDTH_DP * density).toInt()
-            lp.height = (BAR_HEIGHT_DP * density).toInt()
-            (dot as TextView).text = ""
-            (dot.background as? GradientDrawable)?.cornerRadius = (4 * density)
-        } else {
-            // 未贴边：pill（显示工作状态文字）
-            lp.width = WindowManager.LayoutParams.WRAP_CONTENT
-            lp.height = WindowManager.LayoutParams.WRAP_CONTENT
-            (dot as TextView).text = latestText
-            (dot.background as? GradientDrawable)?.cornerRadius = 100f
-        }
-        dot.layoutParams = lp
-        // 记录贴边状态，供后续展开卡片定位参考
         latestDocked = isDocked
     }
 
@@ -157,19 +140,19 @@ object AgentOverlay : KoinComponent {
             orientation = LinearLayout.VERTICAL
         }
 
-        // 状态线 dot（可拖动主体）
+        // 状态圆点 dot（可拖动主体）——常态固定小圆点，状态色标识
+        val dotSize = (18 * density).toInt()
         val dot = TextView(app).apply {
-            text = latestText
+            text = ""
             setTextColor(Color.WHITE)
             setTextSize(TypedValue.COMPLEX_UNIT_SP, 14f)
-            val pad = (16 * density).toInt()
-            val padV = (10 * density).toInt()
-            setPadding(pad, padV, pad, padV)
             background =
                 GradientDrawable().apply {
-                    cornerRadius = 100f
+                    shape = GradientDrawable.OVAL
+                    cornerRadius = (dotSize / 2).toFloat()
                     setColor(statusColor(latestQuota))
                 }
+            layoutParams = LinearLayout.LayoutParams(dotSize, dotSize)
         }
         root.addView(dot)
         dotView = dot
@@ -251,10 +234,19 @@ object AgentOverlay : KoinComponent {
                         kotlin.math.abs(event.rawX - initialTouchX) > 10 ||
                             kotlin.math.abs(event.rawY - initialTouchY) > 10
                     if (!moved && duration < 300) {
-                        // 短按：切换展开/收起
-                        isExpanded = !isExpanded
-                        expanded.visibility = if (isExpanded) View.VISIBLE else View.GONE
-                        refreshExpanded()
+                        // 短按：切换展开/收起（卡片动画：缩放 + 淡入淡出，锚点=圆点）
+                        if (isExpanded) {
+                            animateCollapse(expanded)
+                            isExpanded = false
+                        } else {
+                            expanded.visibility = View.VISIBLE
+                            expanded.alpha = 0f
+                            expanded.scaleX = 0.6f
+                            expanded.scaleY = 0.6f
+                            refreshExpanded()
+                            animateExpand(expanded)
+                            isExpanded = true
+                        }
                     } else if (duration > 800 && !moved) {
                         // 长按：关闭悬浮窗
                         hideInternal(app)
@@ -282,6 +274,29 @@ object AgentOverlay : KoinComponent {
         } catch (t: Throwable) {
             Log.w(TAG, "addView failed", t)
         }
+    }
+
+    /** 展开动画：缩放 + 淡入（以圆点为锚，卡片从圆点下方弹出）。 */
+    private fun animateExpand(view: View) {
+        view.animate()
+            .scaleX(1f)
+            .scaleY(1f)
+            .alpha(1f)
+            .setDuration(220)
+            .setInterpolator(android.view.animation.OvershootInterpolator(1.2f))
+            .start()
+    }
+
+    /** 收起动画：缩小 + 淡出，结束后 GONE。 */
+    private fun animateCollapse(view: View) {
+        view.animate()
+            .scaleX(0.6f)
+            .scaleY(0.6f)
+            .alpha(0f)
+            .setDuration(180)
+            .setInterpolator(android.view.animation.DecelerateInterpolator())
+            .withEndAction { view.visibility = View.GONE }
+            .start()
     }
 
     /** 刷新展开卡片内容（额度明细 + 工作状态）。 */

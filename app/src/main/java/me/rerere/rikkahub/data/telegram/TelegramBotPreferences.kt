@@ -1,8 +1,11 @@
 package me.rerere.rikkahub.data.telegram
 
 import android.content.Context
+import androidx.datastore.preferences.core.MutablePreferences
+import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -10,6 +13,36 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 private val Context.telegramDataStore by preferencesDataStore(name = "telegram_bot")
+
+// Top-level (not class members) so TelegramProxyConfigTest can round-trip a hand-built
+// Preferences map directly — TelegramBotPreferences itself needs a real Context-backed
+// DataStore to construct, which this project has no Robolectric/Mockito seam to fake.
+private val K_PROXY_ENABLED = booleanPreferencesKey("proxy_enabled")
+private val K_PROXY_TYPE = stringPreferencesKey("proxy_type")
+private val K_PROXY_HOST = stringPreferencesKey("proxy_host")
+private val K_PROXY_PORT = intPreferencesKey("proxy_port")
+private val K_PROXY_USERNAME = stringPreferencesKey("proxy_username")
+private val K_PROXY_PASSWORD = stringPreferencesKey("proxy_password")
+
+internal fun readTelegramProxyConfig(p: Preferences): TelegramBotConfig =
+    TelegramBotConfig(
+        // proxyEnabled defaults false, so absence must read as false — p[K] == true.
+        proxyEnabled = p[K_PROXY_ENABLED] == true,
+        proxyType = p[K_PROXY_TYPE] ?: "SOCKS5",
+        proxyHost = p[K_PROXY_HOST].orEmpty(),
+        proxyPort = p[K_PROXY_PORT] ?: 0,
+        proxyUsername = p[K_PROXY_USERNAME].orEmpty(),
+        proxyPassword = p[K_PROXY_PASSWORD].orEmpty(),
+    )
+
+internal fun writeTelegramProxyConfig(p: MutablePreferences, cfg: TelegramBotConfig) {
+    p[K_PROXY_ENABLED] = cfg.proxyEnabled
+    p[K_PROXY_TYPE] = cfg.proxyType
+    p[K_PROXY_HOST] = cfg.proxyHost
+    p[K_PROXY_PORT] = cfg.proxyPort
+    p[K_PROXY_USERNAME] = cfg.proxyUsername
+    p[K_PROXY_PASSWORD] = cfg.proxyPassword
+}
 
 class TelegramBotPreferences(private val context: Context) {
     private val store = context.telegramDataStore
@@ -47,11 +80,13 @@ class TelegramBotPreferences(private val context: Context) {
                 p[K_CUSTOM_COMMANDS] = serializeCustomCommands(next.customCommands)
             } else p.remove(K_CUSTOM_COMMANDS)
             p[K_STREAM_SCREENSHOTS] = next.streamScreenshots
+            writeTelegramProxyConfig(p, next)
         }
     }
 
-    private fun readConfig(p: androidx.datastore.preferences.core.Preferences): TelegramBotConfig =
-        TelegramBotConfig(
+    private fun readConfig(p: Preferences): TelegramBotConfig {
+        val proxy = readTelegramProxyConfig(p)
+        return TelegramBotConfig(
             token = p[K_TOKEN].orEmpty(),
             enabled = p[K_ENABLED] == true,
             defaultChatId = p[K_DEFAULT_CHAT_ID],
@@ -61,7 +96,14 @@ class TelegramBotPreferences(private val context: Context) {
             // Default to true — preference key absent on first launch means "stream on",
             // matching the default in TelegramBotConfig.
             streamScreenshots = p[K_STREAM_SCREENSHOTS] != false,
+            proxyEnabled = proxy.proxyEnabled,
+            proxyType = proxy.proxyType,
+            proxyHost = proxy.proxyHost,
+            proxyPort = proxy.proxyPort,
+            proxyUsername = proxy.proxyUsername,
+            proxyPassword = proxy.proxyPassword,
         )
+    }
 
     /** Last update_id confirmed to Telegram. The next getUpdates pass uses this + 1
      *  so server-cached updates from before a process restart don't replay. */

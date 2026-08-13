@@ -15,6 +15,29 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.repository.SshHostRepository
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+
+/**
+ * 从主机条目解析可用认证：
+ * - vaultCredentialRef 非空 → 从 Vault 解密私钥（不明文存 Room）
+ * - 否则回退明文 password/privateKey（旧数据兼容）
+ * 返回 null 表示引用失效或无可用凭证。
+ */
+internal suspend fun resolveHostAuth(
+    h: SshHostEntity,
+    vaultRepository: CredentialVaultRepository,
+): SshAuth? {
+    if (h.vaultCredentialRef != null) {
+        val entry = vaultRepository.getByName(h.vaultCredentialRef)
+        val secret = entry?.let { vaultRepository.decryptValue(it) }
+        if (secret != null) {
+            return SshAuth(password = null, privateKey = secret, passphrase = h.passphrase)
+        }
+        return null
+    }
+    return SshAuth(password = h.password, privateKey = h.privateKey, passphrase = h.passphrase)
+        .takeIf { it.isUsable() }
+}
 
 /**
  * Save an SSH host so it can be referenced by name in subsequent calls instead of passing
@@ -38,6 +61,7 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
                 put("password", buildJsonObject { put("type", "string"); put("description", "Password (use only if no private_key)") })
                 put("private_key", buildJsonObject { put("type", "string"); put("description", "Full PEM/OpenSSH private key contents") })
                 put("passphrase", buildJsonObject { put("type", "string"); put("description", "Optional passphrase for the private key") })
+                put("vault_credential", buildJsonObject { put("type", "string"); put("description", "Optional Vault credential name holding the SSH private key (preferred over private_key — the key is never stored in plaintext). See vault_credential_names.") })
             },
             required = listOf("name", "host", "user")
         )
@@ -51,14 +75,18 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
         val password = p["password"]?.jsonPrimitive?.contentOrNull
         val privateKey = p["private_key"]?.jsonPrimitive?.contentOrNull
         val passphrase = p["passphrase"]?.jsonPrimitive?.contentOrNull
-        if (password.isNullOrBlank() && privateKey.isNullOrBlank()) {
+        val vaultCredential = p["vault_credential"]?.jsonPrimitive?.contentOrNull
+        if (password.isNullOrBlank() && privateKey.isNullOrBlank() && vaultCredential.isNullOrBlank()) {
             return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "must provide password or private_key") }.toString()
+                buildJsonObject { put("error", "must provide password, private_key or vault_credential") }.toString()
             ))
         }
         repo.upsert(SshHostEntity(
             name = name, host = host, port = port, user = user,
-            password = password, privateKey = privateKey, passphrase = passphrase,
+            password = if (vaultCredential.isNullOrBlank()) password else null,
+            privateKey = if (vaultCredential.isNullOrBlank()) privateKey else null,
+            passphrase = passphrase,
+            vaultCredentialRef = vaultCredential,
             createdAtMs = System.currentTimeMillis(),
         ))
         listOf(UIMessagePart.Text(buildJsonObject {
@@ -151,7 +179,11 @@ fun forgetSshHostKeyTool(context: Context): Tool = Tool(
 )
 
 /** Run a command on a saved host without re-passing credentials. */
-fun sshExecSavedTool(context: Context, repo: SshHostRepository): Tool = Tool(
+fun sshExecSavedTool(
+    context: Context,
+    repo: SshHostRepository,
+    vaultRepository: CredentialVaultRepository,
+): Tool = Tool(
     name = "ssh_exec_saved",
     description = """
         Run a shell command on a previously-saved SSH host (looked up by name). Returns
@@ -181,10 +213,10 @@ fun sshExecSavedTool(context: Context, repo: SshHostRepository): Tool = Tool(
             ?: return@Tool listOf(UIMessagePart.Text(
                 buildJsonObject { put("error", "no saved host: $name") }.toString()
             ))
-        val auth = SshAuth(password = h.password, privateKey = h.privateKey, passphrase = h.passphrase)
-        if (!auth.isUsable()) {
+        val auth = resolveHostAuth(h, vaultRepository)
+        if (auth == null) {
             return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "saved host has no usable credentials") }.toString()
+                buildJsonObject { put("error", "saved host has no usable credentials (vault ref: ${h.vaultCredentialRef ?: "none"})") }.toString()
             ))
         }
         if (background && stdin != null) {

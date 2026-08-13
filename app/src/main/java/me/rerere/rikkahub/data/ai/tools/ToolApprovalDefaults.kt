@@ -42,6 +42,9 @@ object ToolApprovalDefaults {
         "save_ssh_host",
         "delete_ssh_host",
 
+        // Shizuku-privileged shell (shell UID, adb-shell level)
+        "shizuku_exec",
+
         // Filesystem / network writes
         "write_text_file",
         "download_file",

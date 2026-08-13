@@ -46,6 +46,9 @@ import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.handleMessageChunk
 import me.rerere.ai.ui.limitContext
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.SecretMasker
+import org.koin.java.KoinJavaComponent.getKoin
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.MessageTransformer
 import me.rerere.rikkahub.data.ai.transformers.OutputMessageTransformer
@@ -366,14 +369,17 @@ class GenerationHandler(
                     }
                     buildMemoryTools(
                         json = json,
-                        onCreation = { content ->
-                            memoryRepo.addMemory(memoryAssistantId, content)
+                        onCreation = { content, tier ->
+                            memoryRepo.addMemory(memoryAssistantId, content, tier)
                         },
-                        onUpdate = { id, content ->
-                            memoryRepo.updateContent(id, content)
+                        onUpdate = { id, content, tier ->
+                            memoryRepo.updateContent(id, content, tier)
                         },
                         onDelete = { id ->
                             memoryRepo.deleteMemory(id)
+                        },
+                        onSearch = { keyword ->
+                            memoryRepo.searchConditionalMemories(keyword)
                         }
                     ).let(this::addAll)
                 }
@@ -807,11 +813,16 @@ class GenerationHandler(
                             // and replaced with a preview + read/grep instructions so the
                             // model can pull the full payload on demand instead of burning
                             // the context window.
+                            // Upstream tool-output masking (P0 统一出口)：所有工具输出进 LLM
+                            // 上下文前先过密钥库掩码，防止 shell/web 等任意工具输出夹带凭证明文。
+                            // 在 maybeTruncateToolOutput 之前执行——截断会把值切半，掩码须先于截断，
+                            // 且大输出 spill 落盘前已无明文。
                             val hasShellAccess = toolsInternal.any { it.name == "workspace_shell" }
+                            val maskedResult = maskToolOutput(result)
                             executedTools += markedTool.copy(
                                 output = maybeTruncateToolOutput(
                                     tool.toolCallId,
-                                    result,
+                                    maskedResult,
                                     hasShellAccess,
                                     settings.toolOutputMaxChars
                                 )
@@ -980,6 +991,9 @@ class GenerationHandler(
                 buildRecentChatsPrompt(assistant, conversationRepo)
             } else ""
             val toolPrompts = tools.map { tool -> tool.systemPrompt(model, messages) }
+            // 执行后端（P4 连接中枢 MVP）：注入当前后端信息，AI 知道用哪个通道执行
+            val backendNote = "当前执行后端：${settings.executionBackend}（local=本机；reasonix=Reasonix 任务/带 MCP；ecs=ECS 远程）。需要执行任务时按后端选择对应通道（reasonix run / ssh_exec_saved / 本机工具）。"
+            val effectiveAddendum = if (systemAddendum.isNullOrBlank()) backendNote else "$systemAddendum\n$backendNote"
             // 对照版（test/extv-style）：ExTV 写法——SystemPromptBuilder stable/volatile 分段，
             // volatile（memory/recentChats/addendum）在 SYSTEM 内。保留单行 addAll 修复。
             val (stableSystem, volatileSystem) = systemPromptBuilder.buildSections(
@@ -987,7 +1001,7 @@ class GenerationHandler(
                 memoryPrompt = memoryPrompt,
                 recentChatsPrompt = recentChatsPrompt,
                 toolPrompts = toolPrompts,
-                systemAddendum = systemAddendum,
+                systemAddendum = effectiveAddendum,
             )
             val systemParts = buildList {
                 if (stableSystem.isNotBlank()) add(UIMessagePart.Text(stableSystem))
@@ -1079,6 +1093,24 @@ class GenerationHandler(
                 }
             }
             onUpdateMessages(messages)
+        }
+    }
+
+    /** 工具输出统一掩码（P0 统一出口）：所有工具结果进 LLM 上下文前，Text 部分过密钥库掩码。 */
+    private suspend fun maskToolOutput(parts: List<UIMessagePart>): List<UIMessagePart> {
+        val vaultRepo = runCatching { getKoin().get<CredentialVaultRepository>() }.getOrNull()
+            ?: return parts
+        try {
+            SecretMasker.refresh(vaultRepo)
+        } catch (_: Exception) {
+            // 掩码失败不阻断工具结果（安全兜底降级为原样输出）
+        }
+        return parts.map { part ->
+            if (part is UIMessagePart.Text) {
+                UIMessagePart.Text(SecretMasker.mask(part.text))
+            } else {
+                part
+            }
         }
     }
 

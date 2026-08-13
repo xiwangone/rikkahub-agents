@@ -41,6 +41,7 @@ import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.Lock
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.quota.QuotaAuthType
 import me.rerere.rikkahub.data.quota.QuotaCredentialManager
 import me.rerere.rikkahub.data.quota.QuotaPlatform
@@ -57,6 +58,7 @@ import org.koin.compose.koinInject
 fun SettingQuotaPage() {
     val navController = LocalNavController.current
     val quotaPreferences: QuotaPreferences = koinInject()
+    val context = androidx.compose.ui.platform.LocalContext.current
     val credentialManager: QuotaCredentialManager = koinInject()
     val scope = rememberCoroutineScope()
 
@@ -66,6 +68,7 @@ fun SettingQuotaPage() {
 
     // 当前正在编辑的 provider index
     var editingIndex by remember { mutableStateOf<Int?>(null) }
+    val listState = androidx.compose.foundation.lazy.rememberLazyListState()
     // 凭证管理对话框
     var credentialDialogIndex by remember { mutableStateOf<Int?>(null) }
     var maskedValue by remember { mutableStateOf("") }
@@ -81,6 +84,7 @@ fun SettingQuotaPage() {
         containerColor = CustomColors.topBarColors.containerColor,
     ) { innerPadding ->
         LazyColumn(
+            state = listState,
             modifier =
                 Modifier
                     .fillMaxSize()
@@ -130,7 +134,10 @@ fun SettingQuotaPage() {
                     providers.forEachIndexed { index, provider ->
                         // 主条目：点击展开编辑
                         item(
-                            onClick = { editingIndex = if (editingIndex == index) null else index },
+                            onClick = {
+                                me.rerere.rikkahub.data.log.AppLog.d("Quota", "provider 行点击 index=$index label=${provider.label}")
+                                editingIndex = if (editingIndex == index) null else index
+                            },
                             leadingContent = {
                                 Text(
                                     text = (index + 1).toString(),
@@ -150,7 +157,7 @@ fun SettingQuotaPage() {
                                     )
                                     if (provider.credential != null) {
                                         Text(
-                                            text = "🔐 凭证已保存 (${provider.authType.displayName})",
+                                            text = stringResource(R.string.quota_saved_credential_display, provider.authType.displayName),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.primary,
                                         )
@@ -175,49 +182,56 @@ fun SettingQuotaPage() {
                             },
                         )
 
-                        // 展开：编辑表单
+                        // 展开：编辑表单（必须经 item() 包裹，否则渲染位置错乱）
                         if (editingIndex == index) {
-                            ProviderEditSection(
-                                provider = provider,
-                                onUpdate = { updated ->
-                                    scope.launch {
-                                        quotaPreferences.setProviders(
-                                            providers.toMutableList().also { it[index] = updated },
-                                        )
-                                    }
-                                },
-                                onOpenConsole = {
-                                    navController.navigate(Screen.QuotaConsole(provider.id))
-                                },
-                                onDelete = {
-                                    scope.launch {
-                                        quotaPreferences.setProviders(
-                                            providers.toMutableList().also { it.removeAt(index) },
-                                        )
-                                        editingIndex = null
-                                    }
-                                },
-                                onManageCredential = {
-                                    credentialDialogIndex = index
-                                    scope.launch {
-                                        maskedValue = credentialManager.getMaskedValue(provider.id)
-                                    }
-                                },
-                                onClearCredential = {
-                                    scope.launch {
-                                        credentialManager.clearCredential(provider.id)
-                                        maskedValue = ""
-                                    }
-                                },
-                            )
+                            item {
+                                ProviderEditSection(
+                                    provider = provider,
+                                    onUpdate = { updated ->
+                                        scope.launch {
+                                            quotaPreferences.setProviders(
+                                                providers.toMutableList().also { it[index] = updated },
+                                            )
+                                        }
+                                    },
+                                    onOpenConsole = {
+                                        navController.navigate(Screen.QuotaConsole(provider.id))
+                                    },
+                                    onDelete = {
+                                        scope.launch {
+                                            quotaPreferences.setProviders(
+                                                providers.toMutableList().also { it.removeAt(index) },
+                                            )
+                                            editingIndex = null
+                                        }
+                                    },
+                                    onManageCredential = {
+                                        credentialDialogIndex = index
+                                        scope.launch {
+                                            maskedValue = credentialManager.getMaskedValue(provider.id)
+                                        }
+                                    },
+                                    onClearCredential = {
+                                        scope.launch {
+                                            credentialManager.clearCredential(provider.id)
+                                            maskedValue = ""
+                                        }
+                                    },
+                                )
+                            }
                         }
                     }
 
                     // 添加按钮
                     item(
                         onClick = {
+                            me.rerere.rikkahub.data.log.AppLog.d("Quota", "添加按钮点击，当前 providers=${providers.size}")
                             scope.launch {
                                 quotaPreferences.setProviders(providers + QuotaProviderConfig())
+                                val newIndex = providers.size
+                                editingIndex = newIndex
+                                listState.animateScrollToItem(1)
+                                android.widget.Toast.makeText(context, context.getString(R.string.quota_added_feedback), android.widget.Toast.LENGTH_SHORT).show()
                             }
                         },
                         leadingContent = { Icon(HugeIcons.AddCircle, null, tint = MaterialTheme.colorScheme.primary) },
@@ -240,6 +254,7 @@ fun SettingQuotaPage() {
                     QuotaPlatform.entries.forEach { platform ->
                         item(
                             onClick = {
+                                me.rerere.rikkahub.data.log.AppLog.d("Quota", "预设模板点击: ${platform.label}")
                                 scope.launch {
                                     val existing = providers.find { it.label == platform.label }
                                     if (existing != null) {
@@ -267,6 +282,10 @@ fun SettingQuotaPage() {
                                                     regexPattern = platform.regexPattern,
                                                 ),
                                         )
+                                        val newIndex = providers.size
+                                        editingIndex = newIndex
+                                        listState.animateScrollToItem(1)
+                                        android.widget.Toast.makeText(context, context.getString(R.string.quota_added_feedback_with_name, platform.label), android.widget.Toast.LENGTH_SHORT).show()
                                     }
                                 }
                             },
@@ -442,11 +461,11 @@ private fun ProviderEditSection(
                 label = {
                     Text(
                         when (provider.authType) {
-                            QuotaAuthType.BEARER -> "Header 名 (默认 Authorization)"
-                            QuotaAuthType.BASIC -> "Header 名 (默认 Authorization)"
-                            QuotaAuthType.CUSTOM_HEADER -> "Header 名 (如 X-API-Key)"
-                            QuotaAuthType.QUERY_PARAM -> "参数名 (如 api_key)"
-                            else -> "键名"
+                            QuotaAuthType.BEARER -> stringResource(R.string.quota_header_default)
+                            QuotaAuthType.BASIC -> stringResource(R.string.quota_header_default)
+                            QuotaAuthType.CUSTOM_HEADER -> stringResource(R.string.quota_header_custom)
+                            QuotaAuthType.QUERY_PARAM -> stringResource(R.string.quota_param_name)
+                            else -> stringResource(R.string.quota_key_name)
                         },
                     )
                 },

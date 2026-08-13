@@ -5,7 +5,46 @@
 
 ---
 
-## 2026-08-11
+## 2026-08-14
+
+- **功能** 后端连接通用化 — 通用后端连接保存/切换/删除（名称/类型/地址/凭证引用）+ 后端服务页完整化；**凭证通道迁出 Web**（移除 Web 凭证端点，App 内直通，Web 恢复纯能力面）；自动任务列表模式（逐步执行自动停止）+ AI 预设列表；输出掩码优化（`c036c2cf`）
+- **修复** 凭证值掩码防误伤 — MIN_LEN 4→9（只掩 ≥9 的真敏感值），保留全局工具输出掩码（maskToolOutput）作为 AI 疏忽兜底；密钥库短值（如 8 字符 alias）不再参与掩码，包名/目录名不再被连累（`90261925`）
+
+---
+
+## 2026-08-13（2.45.7.4）
+
+- **功能** 多工作区命令通用 — workspace_shell 加 workspace 参数（目标工作区 rootfs 执行）+ workspace_list 工具（id/name/状态）（`cbbd8d3c` / `6bedc1ec`）
+- **修复** 工作区删除防孤儿 — 先删文件后删 DB（失败不删 DB 可重试）（`4f411c54`）
+- **功能** vault_http_exec — 凭证代理 HTTP 调用（App 进程内解密注入请求头，AI 只见掩码后响应，审批+审计）（`096ffd17`）
+- **功能** 统一输出掩码 SecretMasker — 只掩密钥库值（按名称索引、随加随掩、缓存化、MIN_LEN=4），GenerationHandler 工具结果统一出口（先掩后截防落盘明文）（`e1da19e8` / `c2bb349b`）
+- **功能** shizuku_exec（ExTV 移植）— shell-UID 提权执行 + Shizuku 设置页（状态/授权/帮助）+ AIDL + keep 规则 + 审批门（`74879b82` / `eb3da2a3`）
+- **功能** SSH 主机凭证走 Vault 引用 — resolveHostAuth 连接层解析 vaultCredentialRef + save_ssh_host 支持 vault_credential（数据库不存明文）（`86d77438`）
+- **功能** CredentialImporter 多行值支持 — SSH 私钥 PEM 批量导入（`1f900aa0`）
+- **修复** SSH 私钥选择器只显示 SSH 组 + 列表可滚动（`e3cbe13f`）
+- **修复** Screen.SettingShizuku 补 @Serializable — Navigation3 序列化闪退（`dd4c2d4d`）
+- **修复** 助手本地工具补 Shizuku/VaultTools 开关条目（UI 漏渲染）（`21b2037a`）
+- **构建** JSch 0.2.21→2.28.6 — 支持 ed25519 OPENSSH 私钥（`2f2db614`）
+- **功能** 记忆分层注入（发版后追加）— core 常驻 + conditional 按需 memory_search 检索 + Room v32（`e5807a40` 起，CI #457）
+- **文档** 环境手册更新 fork 链（本仓库 = ExTV fork）+ AI 工具面机制 + 远端 CLI 凭证不落盘纪律
+
+---
+
+## 2026-08-12
+
+- **修复** Web 桥 SSH auth fail 终极根因 — SshKeyGenerator 密钥编码 bug（sshString 长度前缀误用于 DER → 私钥无效/公钥非标准），新增 bytes() 裸字节修复（`e8b559e7`）
+- **功能** 沙箱直连 App Vault — proot 共享 loopback，`127.0.0.1:8080` 直连 Vault API 零隧道依赖；vault-get 默认地址同步；Web 桥重新定位为「后端服务暴露」（凭证不再走隧道）
+- **功能** Vault 端点补齐 — `/vault/resolve` 批量解密 + `/vault/status` 条目列表 + `/vault/audit` 审计查询；vault-get 多 key/--list/--audit（`a4fff5bb`）
+- **功能** 打开安全凭证库指纹门禁 — biometricEnabled 时进入先验证，未通过显示锁屏占位不渲染敏感内容（`b10df83c`）
+- **功能** Vault SSH 工具三件套 — `vault_credential_names` / `vault_gen_key`（生成密钥对存库+公钥条目 NAME_PUB）/ `vault_ssh_exec`（JSch 字节加载私钥不落盘 + host key 首次记录/后续校验 + Dispatchers.IO 防 ANR）（`1a8f18f5` / `f00be5a9` / `642e21e5`）
+- **功能** 对话界面 Vault 授权按钮 — 齿轮改 key 图标，三块结构（授权主按钮自动签发写沙箱 / 授权时间短期-一直 / 跳转密钥库），可撤销（`2c117b42` / `59cac1c2`）
+- **功能** 自动任务改造 — 次数触发+空闲时间结合（1-60 分钟），随机空闲按区间随机（X 分钟 → [(X-1)*60+30, X*60] 秒），空闲时间共用（`3334b351`）
+- **功能** 压缩升级 — ContextBudgetPlanner 移植（usage 优先 + 中英区分）+ 工具历史保留标记块（`73c38786` / `6599a4a4`）
+- **功能** TG 代理（cherry-pick extv `d2cb485c`）— SOCKS5/HTTP 代理支持
+- **功能** 设置页 Web 能力入口移至安全凭证库下方；Web 服务默认 localhost-only（安全）；Web 桥文案 ECS→服务器通用化（`8d45d872` / `6421199d` / `06ccb33b` 等）
+- **修复** Web 桥连接前校验私钥文件（不存在/为空明确提示）（`5cfd2c46`）
+- **文档** 凭证命名规范与迁移（7 个改名 + 索引表）、装包验证清单、压缩改善设计 T10-T12
+
 
 - **功能** Vault 会话多会话 — 独立 token（id.expiry.HMAC）+ label + 自定义 TTL（30min/7d/30d/当场）+ 单会话撤销 + 会话列表 UI（`7c0fdec5` / `95b62736`）
 - **功能** Vault 会话作用域 — `decrypt` scope 校验，`/vault/decrypt` 要求 scope，为 Web 桥 JWT 预留（`1b9069c0`）
@@ -20,27 +59,19 @@
 
 ## 2026-08-10
 
-- **修复** Room 迁移链断裂导致 2.45.6 闪退 — v29 迁移误判「v28 未发布」只写 `AutoMigration(27→29)`，而 v28 已随 2.45.5（Vault MVP）发布；已装 2.45.5 的用户升级 2.45.6 时 Room 找不到 28→29 迁移路径抛 IllegalStateException。新增手写 `Migration_28_29`（建 `vault_audit_log` 表 + 2 索引），与 27→29 并存，Room 按设备版本自动选路径
+- **修复** Room 迁移链断裂导致 2.45.6 闪退 — v29 迁移误判「v28 未发布」只写 `AutoMigration(27→29)`，而 v28 已随 2.45.5（Vault MVP）发布；已装 2.45.5 的用户升级 2.45.6 时 Room 找不到 28→29 迁移路径抛 IllegalStateException。新增手写 `Migration_28_29`（建 `vault_audit_log` 表 + 2 索引），与 27→29 并存，Room 按设备版本自动选路径（`198a8d85`）
+- **功能** Vault 会话双模式 — 「30min TTL / 当场有效」持久化回显（退出重进不丢模式选择）+ `getSessionMode/hasSession` 读取方法（`90206b0c`）
+- **功能** 聊天输入框全局设置快捷入口 — ⚡ 闪电旁新增齿轮图标，免切出设置 tab（`20ac3857`）
+- **功能** Web 桥公钥一键复制按钮 — 生成密钥后可直接复制 ssh-rsa 公钥，杜绝截图 OCR 错误（`1f3c65e3`）
+- **修复** Web 桥 SSH 私钥文件权限 0600 — `setReadable(false)` 误移除权限致 JSch `EACCES Permission denied`（`d86be0f5`）
+- **修复** Web 桥隧道成功后清空上次失败红字 — 避免「✅已连接 + auth fail」矛盾显示（`90206b0c`）
+- **功能** 悬浮窗小圆点常态 + 卡片动画展开收起 — 18dp 状态色圆点（绿/黄/红/灰），点击以圆点为锚 scale+淡入展开，收起反向动画；UNKNOWN 状态色白→灰（`7f157343`）
+- **修复** 额度页 ProviderEditSection 未包 item() — 违反 CardGroup DSL 致展开表单不渲染 + 条目点击失效（`e342a4bf`）
+- **chore** 版本号由发版控制 — build-apk.yml 纯编译（去 bump/发版/release_tag），release.yml 发版时 bump versionName→release_tag；新增 release.yml 发版专用工作流；删除 reasonix-review.yml 审查工作流（`0999dcde` / `54281400`）
+- **ci** 构建加速 — Gradle 构建缓存 + 配置缓存 + ktlint 固定版本 + 缓存 key 精准化（`e3267654` / `ad5e2c7d`）
+- **ci** 缓存防堆积 — 依赖缓存(libs 指纹) + 构建缓存固定 key，不再每构建存全量快照（`6078e671`）
+- **ci** 统一 APK 命名 `RikkaHub-Agents-版本号-架构-release`（`29e6b809`）
 - **chore** versionName 2.45.6 → 2.45.7（versionCode 176）
-
-## 2026-08-09
-
-- **功能** 密钥库凭证体系 MVP（Credential Vault）— 设置页「Credential Vault」入口 + 密钥列表三级页（分组展示/小眼睛显隐/新增/编辑/删除）+ SAF 文件导入 load-creds.sh + AES-GCM 密文入库（AndroidKeyStore 托管密钥）（`3b933718` / `bea70707`）
-- **修复** VaultCredentialDao `ORDER BY group` — `group` 为 SQLite 保留字，KSP 编译失败；先后尝试反引号转义（KSP 报 No property named value），最终改为非保留字列名 `grp`（`09cf384d` / `bea70707`）
-- **功能** 安全凭证库统一命名 + 多语言（中/繁/英）+ 设置入口移至模型与服务第一项 + 页面文本全部资源化（`fd230859`）
-- **功能** 加回 OCR 模型设置与提示词选项（对照官方，OcrPrompt.kt + SettingModelPage/SettingModelPromptPage）+ 硬编码资源化第一批（AutoTaskDialog/ChatInput/NerdLine 11 处）（`07a084ad`）
-- **功能** Doctor 诊断页资源化 — label/FixAction 改 @StringRes + 三语言资源包 150 key（`bad1417e`）
-- **功能** Vault 指纹门禁 — 查看凭证明文前 BiometricPrompt 验证（复用 ToolHostActivity 承载）+ 开关偏好（`dc2a0e04`）
-- **功能** Vault 导出 — 口令加密 .vault 包（PBKDF2-HMAC-SHA256 20 万次 + AES-GCM）+ SAF 保存 + 导出前指纹门禁（`bc9e4590`）
-- **功能** Vault 密钥分组下拉选择/新建 + 加密备份恢复（.vault 含分组）（`33f27bb7`）
-- **功能** 密钥调用审计日志 — 每次查看/导出/备份留痕 + 双上限清理（500 条 / 30 天）（`58865775`）
-- **功能** 日志页三级分类 — 请求/文本/应用 Tab 切换 + 文本搜索 + 入口更名「日志」（`e2e5a870`）
-- **功能** Vault 阶段 2 — 会话 token（HMAC-SHA256，30 分钟 TTL）+ 解密 API（POST /api/vault/decrypt）+ 解锁会话 UI（`b375d990`）
-- **功能** 累计 token 行双指标 — 本轮命中率 + 平均命中率（UI 中文/复制英文）（`bc45e614` / `c6b695e5`）
-- **功能** Web 设置页分两区（正常 Web + Web 桥全局配置）+ 提供商编辑页隐藏类型切换（去掉其他配置里的 Reasonix 选项）（`d0db6eac`）
-- **chore** 清理 90 个孤儿资源 key（doctor_ detail/工具名 + vault_/log_，三语言同步）+ 更新 3 处过时注释（`5667946e`）
-- **chore** versionName 2.45.3 → 2.45.5（versionCode 174）
-
 ## 2026-08-06
 
 - **功能** 缓存命中优化（目标 50%→90%+）：`limitContext` 改「保前缀、只从末尾回收」（`c378dd4`）；tool schema 规范化排序保证跨轮前缀字节稳定（`8fd0645` / `7613917`）

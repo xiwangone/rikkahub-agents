@@ -22,6 +22,7 @@ import java.io.OutputStream
 class WorkspaceDetailVM(
     private val id: String,
     private val repository: WorkspaceRepository,
+    private val context: android.app.Application,
 ) : ViewModel() {
     private val _state = MutableStateFlow(WorkspaceDetailState())
     val state = _state.asStateFlow()
@@ -87,7 +88,7 @@ class WorkspaceDetailVM(
                     it.copy(
                         entries = emptyList(),
                         loading = false,
-                        error = error.message ?: "加载工作区文件失败",
+                        error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_load),
                     )
                 }
             }
@@ -106,7 +107,7 @@ class WorkspaceDetailVM(
             }.onSuccess {
                 refresh()
             }.onFailure { error ->
-                _state.update { it.copy(error = error.message ?: "删除失败") }
+                _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_delete)) }
             }
         }
     }
@@ -127,7 +128,7 @@ class WorkspaceDetailVM(
             }.onSuccess {
                 refresh()
             }.onFailure { error ->
-                _state.update { it.copy(error = error.message ?: "导入文件失败") }
+                _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_import)) }
             }
         }
     }
@@ -145,7 +146,7 @@ class WorkspaceDetailVM(
                     outputStream = outputStream,
                 )
             }.onFailure { error ->
-                _state.update { it.copy(error = error.message ?: "导出文件失败") }
+                _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_export)) }
             }
         }
     }
@@ -173,7 +174,7 @@ class WorkspaceDetailVM(
                 }
                 file
             }.onSuccess(onReady).onFailure { error ->
-                _state.update { it.copy(error = error.message ?: "导出文件失败") }
+                _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_export)) }
             }
         }
     }
@@ -203,7 +204,7 @@ class WorkspaceDetailVM(
             } catch (e: CancellationException) {
                 throw e
             } catch (error: Throwable) {
-                _installError.value = error.message ?: "Rootfs 安装失败"
+                _installError.value = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_rootfs_install)
             } finally {
                 _installProgress.value = null
             }

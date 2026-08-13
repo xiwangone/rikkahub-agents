@@ -1177,8 +1177,8 @@ private fun FishAudioTTSConfiguration(
     var modelExpanded by remember { mutableStateOf(false) }
     val models =
         listOf(
-            "s2.1-pro" to "S2.1-Pro (推荐)",
-            "s2.1-pro-free" to "S2.1-Pro Free (免费)",
+            "s2.1-pro" to stringResource(R.string.tts_label_1),
+            "s2.1-pro-free" to stringResource(R.string.tts_label_2),
             "s2-pro" to "S2-Pro",
             "s1" to "S1",
         )
@@ -1306,10 +1306,10 @@ private fun StepTTSConfiguration(
     var modelExpanded by remember { mutableStateOf(false) }
     val models =
         listOf(
-            "step-tts-mini" to "step-tts-mini (轻量, 便宜)",
-            "step-tts-vivid" to "step-tts-vivid (情感丰富)",
-            "stepaudio-2.5-tts" to "stepaudio-2.5-tts (语境感知, 支持 instruction)",
-            "step-tts-2" to "step-tts-2 (上一代)",
+            "step-tts-mini" to stringResource(R.string.tts_label_3),
+            "step-tts-vivid" to stringResource(R.string.tts_label_4),
+            "stepaudio-2.5-tts" to stringResource(R.string.tts_label_5),
+            "step-tts-2" to stringResource(R.string.tts_label_6),
         )
 
     FormItem(
@@ -1356,37 +1356,37 @@ private fun StepTTSConfiguration(
     // https://platform.stepfun.com/docs/zh/guides/developer/tts
     val voices =
         listOf(
-            "elegantgentle-female" to "气质温婉 (elegantgentle-female)",
-            "livelybreezy-female" to "活力轻快 (livelybreezy-female)",
-            "energeticconfident-female" to "活力自信 (energeticconfident-female)",
-            "jingdiannvsheng" to "经典女声 (jingdiannvsheng)",
-            "wenroushunv" to "温柔熟女 (wenroushunv)",
-            "tianmeinvsheng" to "甜美女声 (tianmeinvsheng)",
-            "qingchunshaonv" to "清纯少女 (qingchunshaonv)",
-            "wenrounvsheng" to "温柔女声 (wenrounvsheng)",
-            "ruanmengnvsheng" to "软萌女生 (ruanmengnvsheng)",
-            "youyanvsheng" to "优雅女生 (youyanvsheng)",
-            "lengyanyujie" to "冷艳御姐 (lengyanyujie)",
-            "shuangkuaijiejie" to "爽快姐姐 (shuangkuaijiejie)",
-            "wenjingxuejie" to "文静学姐 (wenjingxuejie)",
-            "linjiajiejie" to "邻家姐姐 (linjiajiejie)",
-            "linjiameimei" to "邻家妹妹 (linjiameimei)",
-            "zhixingjiejie" to "知性姐姐 (zhixingjiejie)",
-            "cixingnansheng" to "磁性男声 (cixingnansheng)",
-            "wenrounansheng" to "温柔男声 (wenrounansheng)",
-            "yuanqinansheng" to "元气男声 (yuanqinansheng)",
-            "zhengpaiqingnian" to "正派青年 (zhengpaiqingnian)",
-            "ruyananshi" to "儒雅男士 (ruyananshi)",
-            "boyinnansheng" to "播音男声 (boyinnansheng)",
-            "shenchennanyin" to "深沉男音 (shenchennanyin)",
-            "shuangkuainansheng" to "爽快男声 (shuangkuainansheng)",
-            "ganliannvsheng" to "干练女声 (ganliannvsheng)",
-            "qinhenvsheng" to "亲切女声 (qinhenvsheng)",
-            "huolinvsheng" to "活力女声 (huolinvsheng)",
-            "jilingshaonv" to "机灵少女 (jilingshaonv)",
-            "yuanqishaonv" to "元气少女 (yuanqishaonv)",
-            "wenrougongzi" to "温柔公子 (wenrougongzi)",
-            "qingniandaxuesheng" to "青年大学生 (qingniandaxuesheng)",
+            "elegantgentle-female" to stringResource(R.string.tts_label_7),
+            "livelybreezy-female" to stringResource(R.string.tts_label_8),
+            "energeticconfident-female" to stringResource(R.string.tts_label_9),
+            "jingdiannvsheng" to stringResource(R.string.tts_label_10),
+            "wenroushunv" to stringResource(R.string.tts_label_11),
+            "tianmeinvsheng" to stringResource(R.string.tts_label_12),
+            "qingchunshaonv" to stringResource(R.string.tts_label_13),
+            "wenrounvsheng" to stringResource(R.string.tts_label_14),
+            "ruanmengnvsheng" to stringResource(R.string.tts_label_15),
+            "youyanvsheng" to stringResource(R.string.tts_label_16),
+            "lengyanyujie" to stringResource(R.string.tts_label_17),
+            "shuangkuaijiejie" to stringResource(R.string.tts_label_18),
+            "wenjingxuejie" to stringResource(R.string.tts_label_19),
+            "linjiajiejie" to stringResource(R.string.tts_label_20),
+            "linjiameimei" to stringResource(R.string.tts_label_21),
+            "zhixingjiejie" to stringResource(R.string.tts_label_22),
+            "cixingnansheng" to stringResource(R.string.tts_label_23),
+            "wenrounansheng" to stringResource(R.string.tts_label_24),
+            "yuanqinansheng" to stringResource(R.string.tts_label_25),
+            "zhengpaiqingnian" to stringResource(R.string.tts_label_26),
+            "ruyananshi" to stringResource(R.string.tts_label_27),
+            "boyinnansheng" to stringResource(R.string.tts_label_28),
+            "shenchennanyin" to stringResource(R.string.tts_label_29),
+            "shuangkuainansheng" to stringResource(R.string.tts_label_30),
+            "ganliannvsheng" to stringResource(R.string.tts_label_31),
+            "qinhenvsheng" to stringResource(R.string.tts_label_32),
+            "huolinvsheng" to stringResource(R.string.tts_label_33),
+            "jilingshaonv" to stringResource(R.string.tts_label_34),
+            "yuanqishaonv" to stringResource(R.string.tts_label_35),
+            "wenrougongzi" to stringResource(R.string.tts_label_36),
+            "qingniandaxuesheng" to stringResource(R.string.tts_label_37),
         )
 
     FormItem(

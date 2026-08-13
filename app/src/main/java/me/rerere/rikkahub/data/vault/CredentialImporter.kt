@@ -20,6 +20,7 @@ object CredentialImporter {
         "通知" to "Notification",
         "Reasonix" to "Reasonix",
         "网络" to "Network",
+        "SSH" to "SSH",
     )
 
     data class ParsedEntry(
@@ -33,8 +34,9 @@ object CredentialImporter {
         val result = mutableListOf<ParsedEntry>()
         var currentGroup = "Other"
         var pendingComment: String? = null
-
-        content.lineSequence().forEach { rawLine ->
+        val lines = content.lineSequence().iterator()
+        while (lines.hasNext()) {
+            val rawLine = lines.next()
             val line = rawLine.trim()
             when {
                 line.isEmpty() -> Unit
@@ -54,14 +56,23 @@ object CredentialImporter {
                     }
                 }
 
-                // export KEY="value"
+                // export KEY="value"（支持多行值：引号未闭合时收集后续行——私钥 PEM 等）
                 line.startsWith("export ") -> {
                     val export = line.removePrefix("export ").trim()
                     val eq = export.indexOf('=')
-                    if (eq <= 0) return@forEach
+                    if (eq <= 0) continue
                     val name = export.substring(0, eq).trim()
-                    val value = unquote(export.substring(eq + 1).trim())
-                    if (name.isEmpty() || value.isEmpty()) return@forEach
+                    var rawValue = export.substring(eq + 1).trim()
+                    if (rawValue.startsWith("\"") && !isQuotedClosed(rawValue)) {
+                        val sb = StringBuilder(rawValue)
+                        while (lines.hasNext()) {
+                            sb.append('\n').append(lines.next())
+                            if (isQuotedClosed(sb.toString())) break
+                        }
+                        rawValue = sb.toString()
+                    }
+                    val value = unquote(rawValue)
+                    if (name.isEmpty() || value.isEmpty()) continue
                     result += ParsedEntry(
                         name = name,
                         value = value,
@@ -73,6 +84,12 @@ object CredentialImporter {
             }
         }
         return result
+    }
+
+    /** 判断双引号值是否已闭合（值以未转义的 " 结尾）。 */
+    private fun isQuotedClosed(s: String): Boolean {
+        val trimmed = s.trimEnd()
+        return trimmed.endsWith("\"") && !trimmed.endsWith("\\\"")
     }
 
     /** 从分组注释文本识别组名 */

@@ -20,5 +20,9 @@ data class SshHostEntity(
     val password: String? = null,
     val privateKey: String? = null,
     val passphrase: String? = null,
+    /** 引用 Vault 密钥凭证名（连接时从 Vault 读私钥，不明文存 Room） */
+    val vaultCredentialRef: String? = null,
+    /** 来源服务器样板名（可选，用于追溯） */
+    val templateRef: String? = null,
     val createdAtMs: Long,
 )

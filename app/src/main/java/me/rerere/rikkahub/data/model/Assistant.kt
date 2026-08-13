@@ -82,6 +82,8 @@ data class QuickMessage(
 data class AssistantMemory(
     val id: Int,
     val content: String = "",
+    /** 记忆分层（2026-08-13）：core = 常驻注入（纪律/决策/指针）；conditional = 按需检索（场景细节） */
+    val tier: String = "core",
 )
 
 @Serializable

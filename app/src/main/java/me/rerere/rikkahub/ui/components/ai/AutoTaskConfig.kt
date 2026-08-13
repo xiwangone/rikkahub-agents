@@ -11,24 +11,33 @@ const val MAX_AUTO_TASK_TRIGGER_COUNT = 100
 /**
  * 自动任务配置：用户没空时 App 能自动发送消息激活会话继续任务。
  *
- * @param message 要自动发送的回复消息内容（如「继续」）
- * @param mode 触发模式：0 = 可触发次数，1 = 定时触发（会话空闲），2 = 随机空闲（5-15 秒随机间隔）
+ * @param message 固定回复消息内容（默认自动任务指令）
+ * @param randomMessages 随机补充池（每行一条，触发时随机追加一条到固定内容后；空则仅用固定内容）
+ * @param mode 触发模式：0 = 定时×次数（会话空闲 N 分钟后触发，共 M 次），1 = 随机空闲（空闲后 1 分钟内随机触发，持续直到停止）
  * @param triggerCount 可触发次数（仅 mode = 0 使用），上限 [MAX_AUTO_TASK_TRIGGER_COUNT]
- * @param intervalSeconds 定时触发模式下的会话空闲秒数（仅 mode = 1 使用）
+ * @param intervalSeconds 定时触发模式下的会话空闲秒数（仅 mode = 0 使用；UI 以分钟填写，存储秒，默认 1 分钟）
  */
 @Stable
 data class AutoTaskConfig(
-    val message: String = "继续",
-    val mode: Int = 0, // 0: 可触发次数, 1: 定时触发, 2: 随机空闲（5-15s 随机）
+    val message: String = "",
+    val randomMessages: List<String> = emptyList(),
+    val mode: Int = 0, // 0: 定时×次数, 1: 随机空闲（1 分钟内随机）, 2: 随机空闲（5-15 秒随机）, 3: 任务列表（逐步执行，完成自动停止）
     val triggerCount: Int = 1,
-    val intervalSeconds: Int = 60,
+    val intervalSeconds: Int = 60, // 默认 1 分钟
+    /** 任务列表模式（mode=2）：每行一个任务，触发时按顺序执行，列表跑完自动停止 */
+    val tasks: List<String> = emptyList(),
+    /** 任务列表模式：当前已执行到的序号（触发后递增；达到 tasks.size 停止） */
+    val taskIndex: Int = 0,
 )
 
 // ---- SharedPreferences keys ----
 private const val PREF_AUTO_TASK_MESSAGE = "auto_task_message"
+private const val PREF_AUTO_TASK_RANDOM_MESSAGES = "auto_task_random_messages"
 private const val PREF_AUTO_TASK_MODE = "auto_task_mode"
 private const val PREF_AUTO_TASK_TRIGGER_COUNT = "auto_task_trigger_count"
 private const val PREF_AUTO_TASK_INTERVAL = "auto_task_interval"
+private const val PREF_AUTO_TASK_TASKS = "auto_task_tasks"
+private const val PREF_AUTO_TASK_TASK_INDEX = "auto_task_task_index"
 
 /**
  * 从 SharedPreferences 读取已保存的自动任务配置。
@@ -37,10 +46,28 @@ private const val PREF_AUTO_TASK_INTERVAL = "auto_task_interval"
 fun readAutoTaskConfig(context: Context): AutoTaskConfig {
     val prefs = context.getSharedPreferences("rikkahub.preferences", Context.MODE_PRIVATE)
     return AutoTaskConfig(
-        message = prefs.getString(PREF_AUTO_TASK_MESSAGE, "继续") ?: "继续",
+        message = prefs.getString(PREF_AUTO_TASK_MESSAGE, context.getString(me.rerere.rikkahub.R.string.auto_task_default_message))
+                ?: context.getString(me.rerere.rikkahub.R.string.auto_task_default_message),
+        randomMessages =
+            prefs
+                .getString(PREF_AUTO_TASK_RANDOM_MESSAGES, "")
+                .orEmpty()
+                .lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toList(),
         mode = prefs.getInt(PREF_AUTO_TASK_MODE, 0),
         triggerCount = prefs.getInt(PREF_AUTO_TASK_TRIGGER_COUNT, 1).coerceIn(1, MAX_AUTO_TASK_TRIGGER_COUNT),
-        intervalSeconds = prefs.getInt(PREF_AUTO_TASK_INTERVAL, 60),
+        intervalSeconds = prefs.getInt(PREF_AUTO_TASK_INTERVAL, 300).coerceAtLeast(60),
+        tasks =
+            prefs
+                .getString(PREF_AUTO_TASK_TASKS, "")
+                .orEmpty()
+                .lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toList(),
+        taskIndex = prefs.getInt(PREF_AUTO_TASK_TASK_INDEX, 0),
     )
 }
 
@@ -55,8 +82,21 @@ fun writeAutoTaskConfig(
         .getSharedPreferences("rikkahub.preferences", Context.MODE_PRIVATE)
         .edit()
         .putString(PREF_AUTO_TASK_MESSAGE, config.message)
+        .putString(PREF_AUTO_TASK_RANDOM_MESSAGES, config.randomMessages.joinToString("\n"))
         .putInt(PREF_AUTO_TASK_MODE, config.mode)
         .putInt(PREF_AUTO_TASK_TRIGGER_COUNT, config.triggerCount.coerceIn(1, MAX_AUTO_TASK_TRIGGER_COUNT))
-        .putInt(PREF_AUTO_TASK_INTERVAL, config.intervalSeconds)
+        .putInt(PREF_AUTO_TASK_INTERVAL, config.intervalSeconds.coerceAtLeast(60))
+        .putString(PREF_AUTO_TASK_TASKS, config.tasks.joinToString("\n"))
+        .putInt(PREF_AUTO_TASK_TASK_INDEX, config.taskIndex.coerceAtLeast(0))
         .apply()
+}
+
+/** 解析本次触发的消息：任务列表模式（mode=3）返回当前任务（带进度前缀）；否则固定内容 + 随机池追加。 */
+fun resolveAutoTaskMessage(config: AutoTaskConfig): String {
+    if (config.mode == 3 && config.tasks.isNotEmpty()) {
+        val idx = config.taskIndex.coerceIn(0, config.tasks.lastIndex)
+        return "【任务 ${idx + 1}/${config.tasks.size}】${config.tasks[idx]}"
+    }
+    val random = config.randomMessages.randomOrNull()
+    return if (random != null) "${config.message} $random" else config.message
 }

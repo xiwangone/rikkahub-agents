@@ -17,6 +17,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.repository.SshHostRepository
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
 
@@ -37,6 +38,7 @@ private fun openSftp(session: Session): ChannelSftp {
 private suspend fun withSavedHostSession(
     context: Context,
     repo: SshHostRepository,
+    vaultRepository: CredentialVaultRepository,
     name: String,
     timeoutMs: Int,
     sessionRef: AtomicReference<Session?>,
@@ -44,9 +46,9 @@ private suspend fun withSavedHostSession(
 ): JsonObject {
     val h = repo.getByName(name)
         ?: return buildJsonObject { put("error", "no saved host: $name") }
-    val auth = SshAuth(password = h.password, privateKey = h.privateKey, passphrase = h.passphrase)
-    if (!auth.isUsable()) {
-        return buildJsonObject { put("error", "saved host has no usable credentials") }
+    val auth = resolveHostAuth(h, vaultRepository)
+    if (auth == null) {
+        return buildJsonObject { put("error", "saved host has no usable credentials (vault ref: ${h.vaultCredentialRef ?: "none"})") }
     }
     // Same probe-then-bind path the exec tool uses. Without this, SFTP traffic is left to
     // Android's default-network selection, which on adaptive-routing devices routes the
@@ -75,7 +77,11 @@ private suspend fun withSavedHostSession(
 }
 
 /** Upload a local file to a saved-host's remote path via SFTP. */
-fun sshUploadTool(context: Context, repo: SshHostRepository): Tool = Tool(
+fun sshUploadTool(
+    context: Context,
+    repo: SshHostRepository,
+    vaultRepository: CredentialVaultRepository,
+): Tool = Tool(
     name = "ssh_upload",
     description = """
         Upload a local file from the device to a remote path on a saved SSH host using SFTP.
@@ -105,7 +111,7 @@ fun sshUploadTool(context: Context, repo: SshHostRepository): Tool = Tool(
             ))
         }
         val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
-            withSavedHostSession(context, repo, name, timeoutSec * 1000, sessionRef) { session ->
+            withSavedHostSession(context, repo, vaultRepository, name, timeoutSec * 1000, sessionRef) { session ->
                 val sftp = openSftp(session)
                 try {
                     localFile.inputStream().use { input -> sftp.put(input, remotePath) }
@@ -126,7 +132,11 @@ fun sshUploadTool(context: Context, repo: SshHostRepository): Tool = Tool(
 )
 
 /** Download a remote file from a saved host to a local path via SFTP. */
-fun sshDownloadTool(context: Context, repo: SshHostRepository): Tool = Tool(
+fun sshDownloadTool(
+    context: Context,
+    repo: SshHostRepository,
+    vaultRepository: CredentialVaultRepository,
+): Tool = Tool(
     name = "ssh_download",
     description = """
         Download a remote file from a saved SSH host to a local path on the device using SFTP.
@@ -154,7 +164,7 @@ fun sshDownloadTool(context: Context, repo: SshHostRepository): Tool = Tool(
         // Ensure the local parent directory exists.
         try { localFile.parentFile?.mkdirs() } catch (_: Throwable) {}
         val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
-            withSavedHostSession(context, repo, name, timeoutSec * 1000, sessionRef) { session ->
+            withSavedHostSession(context, repo, vaultRepository, name, timeoutSec * 1000, sessionRef) { session ->
                 val sftp = openSftp(session)
                 var ok = false
                 try {

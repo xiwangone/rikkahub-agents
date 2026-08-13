@@ -712,8 +712,11 @@ data class Settings(
     val displaySetting: DisplaySetting = DisplaySetting(),
     val favoriteModels: List<Uuid> = emptyList(),
     val chatModelId: Uuid = Uuid.random(),
-    val fastModelId: Uuid = Uuid.random(),
-    val titleModelId: Uuid? = null,
+    /** 执行后端（P4 连接中枢 MVP）：local（默认本机）/ reasonix / ecs 等——AI 执行通道 */
+    val executionBackend: String = "local",
+    /** 后端连接列表（2026-08-14 通用化）：可保存/切换/删除——reasonix/SSH/自定义统一 */
+    val backendConnections: List<me.rerere.rikkahub.data.model.BackendConnection> = emptyList(),
+    val fastModelId: Uuid = Uuid.random(),    val titleModelId: Uuid? = null,
     val imageGenerationModelId: Uuid = Uuid.random(),
     val titlePrompt: String = DEFAULT_TITLE_PROMPT,
     val translateModeId: Uuid = Uuid.random(),
@@ -786,7 +789,7 @@ data class Settings(
     val webBridgePassword: String = "",
     val webServerJwtEnabled: Boolean = false,
     val webServerAccessPassword: String = "",
-    val webServerLocalhostOnly: Boolean = false,
+    val webServerLocalhostOnly: Boolean = true,
     val aiLogLevel: AiLogLevel = AiLogLevel.INFO,
     val backupReminderConfig: BackupReminderConfig = BackupReminderConfig(),
     val launchCount: Int = 0,
