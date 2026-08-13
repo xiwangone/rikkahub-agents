@@ -107,7 +107,7 @@ fun SettingSshHostsPage() {
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     TextButton(
                                         onClick = {
-                                            navController.navigate(me.rerere.rikkahub.RouteActivity.Screen.SshTerminal(host.name))
+                                            navController.navigate(me.rerere.rikkahub.Screen.SshTerminal(host.name))
                                         },
                                     ) {
                                         Text(stringResource(R.string.setting_ssh_host_connect), color = MaterialTheme.colorScheme.primary)
