@@ -91,11 +91,11 @@ fun writeAutoTaskConfig(
         .apply()
 }
 
-/** 解析本次触发的消息：任务列表模式（mode=3）返回当前任务；否则固定内容 + 随机池追加。 */
+/** 解析本次触发的消息：任务列表模式（mode=3）返回当前任务（带进度前缀）；否则固定内容 + 随机池追加。 */
 fun resolveAutoTaskMessage(config: AutoTaskConfig): String {
     if (config.mode == 3 && config.tasks.isNotEmpty()) {
         val idx = config.taskIndex.coerceIn(0, config.tasks.lastIndex)
-        return config.tasks[idx]
+        return "【任务 ${idx + 1}/${config.tasks.size}】${config.tasks[idx]}"
     }
     val random = config.randomMessages.randomOrNull()
     return if (random != null) "${config.message} $random" else config.message

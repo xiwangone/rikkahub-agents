@@ -2123,6 +2123,7 @@
   <string name="auto_task_tasks_label">Tasks (one per line)</string>
   <string name="auto_task_tasks_hint">Executed in order on each trigger; auto-stops when the list is done.</string>
   <string name="auto_task_tasks_default">Use default list</string>
+  <string name="auto_task_tasks_ai_preset">Apply AI preset</string>
   <string name="auto_task_mode_random_hint">Triggers at a random idle time inside the configured window (1 min = 30-60s, 2 min = 60-120s…), continues until stopped.</string>
   <string name="auto_task_stop">Stop auto task</string>
   <string name="auto_task_tip">Note: count mode stops after reaching the set count; random-idle keeps triggering until manually stopped.</string>
