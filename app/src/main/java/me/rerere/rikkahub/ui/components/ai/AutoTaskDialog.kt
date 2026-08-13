@@ -51,6 +51,16 @@ fun AutoTaskDialog(
         mutableStateOf(config.triggerCount.coerceIn(1, MAX_AUTO_TASK_TRIGGER_COUNT).toString())
     }
     var currentInterval by remember { mutableStateOf((config.intervalSeconds / 60).toString()) }
+    var currentTasks by remember { mutableStateOf(config.tasks.joinToString("\n")) }
+
+    /** 任务列表模式默认预设（reasonix 风格——用户可改） */
+    private val DEFAULT_AUTO_TASK_LIST = listOf(
+        "查 CI 状态并汇报",
+        "更新 CHANGELOG 与文档",
+        "备份 kb 到 ECS",
+        "清理临时文件",
+        "回顾待办清单",
+    )
 
     AlertDialog(
         onDismissRequest = { onDismiss() },
@@ -148,6 +158,36 @@ fun AutoTaskDialog(
                     )
                 }
 
+                // 模式 C：任务列表（逐步执行，完成自动停止——借鉴 reasonix 任务模式）
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    RadioButton(
+                        selected = currentMode == 3,
+                        onClick = { currentMode = 3 },
+                    )
+                    Text(
+                        text = stringResource(R.string.auto_task_mode_tasks),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (currentMode == 3) {
+                    OutlinedTextField(
+                        value = currentTasks,
+                        onValueChange = { currentTasks = it },
+                        label = { Text(stringResource(R.string.auto_task_tasks_label)) },
+                        supportingText = { Text(stringResource(R.string.auto_task_tasks_hint)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        minLines = 4,
+                        maxLines = 8,
+                    )
+                    TextButton(onClick = { currentTasks = DEFAULT_AUTO_TASK_LIST.joinToString("\n") }) {
+                        Text(stringResource(R.string.auto_task_tasks_default))
+                    }
+                }
+
                 // ③ 空闲时间设置（定时/随机共用）
                 OutlinedTextField(
                     value = currentInterval,
@@ -185,6 +225,8 @@ fun AutoTaskDialog(
                             mode = currentMode,
                             triggerCount = count,
                             intervalSeconds = intervalMin * 60,
+                            tasks = if (currentMode == 3) currentTasks.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList() else config.tasks,
+                            taskIndex = if (currentMode == 3) 0 else config.taskIndex,
                         ),
                     )
                     onDismiss()

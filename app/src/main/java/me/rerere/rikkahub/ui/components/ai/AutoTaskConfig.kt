@@ -21,9 +21,13 @@ const val MAX_AUTO_TASK_TRIGGER_COUNT = 100
 data class AutoTaskConfig(
     val message: String = "",
     val randomMessages: List<String> = emptyList(),
-    val mode: Int = 0, // 0: 定时×次数, 1: 随机空闲（1 分钟内随机）
+    val mode: Int = 0, // 0: 定时×次数, 1: 随机空闲（1 分钟内随机）, 2: 随机空闲（5-15 秒随机）, 3: 任务列表（逐步执行，完成自动停止）
     val triggerCount: Int = 1,
     val intervalSeconds: Int = 60, // 默认 1 分钟
+    /** 任务列表模式（mode=2）：每行一个任务，触发时按顺序执行，列表跑完自动停止 */
+    val tasks: List<String> = emptyList(),
+    /** 任务列表模式：当前已执行到的序号（触发后递增；达到 tasks.size 停止） */
+    val taskIndex: Int = 0,
 )
 
 // ---- SharedPreferences keys ----
@@ -32,6 +36,8 @@ private const val PREF_AUTO_TASK_RANDOM_MESSAGES = "auto_task_random_messages"
 private const val PREF_AUTO_TASK_MODE = "auto_task_mode"
 private const val PREF_AUTO_TASK_TRIGGER_COUNT = "auto_task_trigger_count"
 private const val PREF_AUTO_TASK_INTERVAL = "auto_task_interval"
+private const val PREF_AUTO_TASK_TASKS = "auto_task_tasks"
+private const val PREF_AUTO_TASK_TASK_INDEX = "auto_task_task_index"
 
 /**
  * 从 SharedPreferences 读取已保存的自动任务配置。
@@ -53,6 +59,15 @@ fun readAutoTaskConfig(context: Context): AutoTaskConfig {
         mode = prefs.getInt(PREF_AUTO_TASK_MODE, 0),
         triggerCount = prefs.getInt(PREF_AUTO_TASK_TRIGGER_COUNT, 1).coerceIn(1, MAX_AUTO_TASK_TRIGGER_COUNT),
         intervalSeconds = prefs.getInt(PREF_AUTO_TASK_INTERVAL, 300).coerceAtLeast(60),
+        tasks =
+            prefs
+                .getString(PREF_AUTO_TASK_TASKS, "")
+                .orEmpty()
+                .lineSequence()
+                .map { it.trim() }
+                .filter { it.isNotEmpty() }
+                .toList(),
+        taskIndex = prefs.getInt(PREF_AUTO_TASK_TASK_INDEX, 0),
     )
 }
 
@@ -71,11 +86,17 @@ fun writeAutoTaskConfig(
         .putInt(PREF_AUTO_TASK_MODE, config.mode)
         .putInt(PREF_AUTO_TASK_TRIGGER_COUNT, config.triggerCount.coerceIn(1, MAX_AUTO_TASK_TRIGGER_COUNT))
         .putInt(PREF_AUTO_TASK_INTERVAL, config.intervalSeconds.coerceAtLeast(60))
+        .putString(PREF_AUTO_TASK_TASKS, config.tasks.joinToString("\n"))
+        .putInt(PREF_AUTO_TASK_TASK_INDEX, config.taskIndex.coerceAtLeast(0))
         .apply()
 }
 
-/** 解析本次触发的消息：固定内容 + 随机池追加（若配置了随机池）。 */
+/** 解析本次触发的消息：任务列表模式（mode=3）返回当前任务；否则固定内容 + 随机池追加。 */
 fun resolveAutoTaskMessage(config: AutoTaskConfig): String {
+    if (config.mode == 3 && config.tasks.isNotEmpty()) {
+        val idx = config.taskIndex.coerceIn(0, config.tasks.lastIndex)
+        return config.tasks[idx]
+    }
     val random = config.randomMessages.randomOrNull()
     return if (random != null) "${config.message} $random" else config.message
 }
