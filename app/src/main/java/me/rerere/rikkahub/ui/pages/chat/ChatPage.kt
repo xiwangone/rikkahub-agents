@@ -456,6 +456,11 @@ private fun ChatPageContent(
                     onUpdateTitle = {
                         vm.updateTitle(it)
                     },
+                    onBackendChange = { backend ->
+                        vm.updateSettings(
+                            setting.copy(executionBackend = backend),
+                        )
+                    },
                 )
             },
             bottomBar = {
@@ -1005,9 +1010,11 @@ private fun TopBar(
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
     onUpdateTitle: (String) -> Unit,
+    onBackendChange: (String) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
+    var backendMenuOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     val titleState =
         useEditState<String> {
             onUpdateTitle(it)
@@ -1068,6 +1075,18 @@ private fun TopBar(
             }
         },
         actions = {
+            // 执行后端（P4）：local/reasonix/ecs——AI 执行通道
+            androidx.compose.material3.TextButton(onClick = { backendMenuOpen = true }) {
+                Text("⚙ ${settings.executionBackend}")
+            }
+            androidx.compose.material3.DropdownMenu(expanded = backendMenuOpen, onDismissRequest = { backendMenuOpen = false }) {
+                listOf("local", "reasonix", "ecs").forEach { b ->
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text(b) },
+                        onClick = { onBackendChange(b); backendMenuOpen = false },
+                    )
+                }
+            }
             IconButton(
                 onClick = {
                     onClickMenu()

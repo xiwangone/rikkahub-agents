@@ -712,8 +712,9 @@ data class Settings(
     val displaySetting: DisplaySetting = DisplaySetting(),
     val favoriteModels: List<Uuid> = emptyList(),
     val chatModelId: Uuid = Uuid.random(),
-    val fastModelId: Uuid = Uuid.random(),
-    val titleModelId: Uuid? = null,
+    /** 执行后端（P4 连接中枢 MVP）：local（默认本机）/ reasonix / ecs 等——AI 执行通道 */
+    val executionBackend: String = "local",
+    val fastModelId: Uuid = Uuid.random(),    val titleModelId: Uuid? = null,
     val imageGenerationModelId: Uuid = Uuid.random(),
     val titlePrompt: String = DEFAULT_TITLE_PROMPT,
     val translateModeId: Uuid = Uuid.random(),

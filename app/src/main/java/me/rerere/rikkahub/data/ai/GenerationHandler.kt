@@ -991,6 +991,9 @@ class GenerationHandler(
                 buildRecentChatsPrompt(assistant, conversationRepo)
             } else ""
             val toolPrompts = tools.map { tool -> tool.systemPrompt(model, messages) }
+            // 执行后端（P4 连接中枢 MVP）：注入当前后端信息，AI 知道用哪个通道执行
+            val backendNote = "当前执行后端：${settings.executionBackend}（local=本机；reasonix=Reasonix 任务/带 MCP；ecs=ECS 远程）。需要执行任务时按后端选择对应通道（reasonix run / ssh_exec_saved / 本机工具）。"
+            val effectiveAddendum = if (systemAddendum.isNullOrBlank()) backendNote else "$systemAddendum\n$backendNote"
             // 对照版（test/extv-style）：ExTV 写法——SystemPromptBuilder stable/volatile 分段，
             // volatile（memory/recentChats/addendum）在 SYSTEM 内。保留单行 addAll 修复。
             val (stableSystem, volatileSystem) = systemPromptBuilder.buildSections(
@@ -998,7 +1001,7 @@ class GenerationHandler(
                 memoryPrompt = memoryPrompt,
                 recentChatsPrompt = recentChatsPrompt,
                 toolPrompts = toolPrompts,
-                systemAddendum = systemAddendum,
+                systemAddendum = effectiveAddendum,
             )
             val systemParts = buildList {
                 if (stableSystem.isNotBlank()) add(UIMessagePart.Text(stableSystem))
