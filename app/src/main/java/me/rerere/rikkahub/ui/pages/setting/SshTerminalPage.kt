@@ -44,6 +44,7 @@ import me.rerere.rikkahub.data.ai.tools.local.SshAuth
 fun SshTerminalPage(hostName: String) {
     val hostRepo: SshHostRepository = koinInject()
     val vaultRepo: CredentialVaultRepository = koinInject()
+    val appContext = androidx.compose.ui.platform.LocalContext.current
     val scope = rememberCoroutineScope()
 
     var connected by remember { mutableStateOf(false) }
@@ -59,7 +60,7 @@ fun SshTerminalPage(hostName: String) {
             val auth = resolveHostAuth(host, vaultRepo)
             if (auth == null) { connectError = "无可用凭证（vault ref: ${host.vaultCredentialRef ?: "none"}）"; return@withContext }
             try {
-                val jsch = newJSch(androidx.compose.ui.platform.LocalContext.current)
+                val jsch = newJSch(appContext)
                 val session = jsch.getSession(host.user, host.host, host.port)
                 session.setConfig("StrictHostKeyChecking", "no")
                 session.setConfig("ServerAliveInterval", "30")

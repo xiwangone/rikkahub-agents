@@ -110,7 +110,7 @@ fun BackendServicePage() {
                                     append("\nWeb 桥: ").append(if (reasonix.webBridgeEnabled) "已启用" else "未启用")
                                 }
                             }
-                        },
+                        )},
                     ),
                 )
             }
