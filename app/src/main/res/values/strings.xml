@@ -2019,6 +2019,7 @@
   <string name="backend_service_title">Backend services</string>
   <string name="backend_service_about_title">What is a backend?</string>
   <string name="backend_service_about_desc">Backends are execution channels (not chat models): the AI thinks with a model and executes through a backend (Reasonix tasks / SSH hosts / self-hosted services). Default is local; switch to a remote backend for heavy work.</string>
+  <string name="backend_service_add">Add backend</string>
   <string name="setting_page_ssh_hosts_desc">Manage SSH hosts; AI can connect by name</string>
   <string name="setting_shizuku_title">Shizuku</string>
   <string name="setting_page_shizuku">Shizuku</string>
