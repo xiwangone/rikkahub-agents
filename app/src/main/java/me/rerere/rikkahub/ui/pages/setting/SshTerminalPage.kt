@@ -29,7 +29,7 @@ import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.theme.CustomColors
-import org.koin.androidx.compose.koinInject
+import org.koin.compose.koinInject
 import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuth
 import me.rerere.rikkahub.data.ai.tools.local.newJSch
 import me.rerere.rikkahub.data.ai.tools.local.SshAuth

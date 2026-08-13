@@ -43,7 +43,6 @@ import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalSettings
-import me.rerere.rikkahub.RouteActivity.Screen
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
@@ -108,7 +107,7 @@ fun SettingSshHostsPage() {
                                 Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
                                     TextButton(
                                         onClick = {
-                                            navController.navigate(Screen.SshTerminal(host.name))
+                                            navController.navigate(me.rerere.rikkahub.RouteActivity.Screen.SshTerminal(host.name))
                                         },
                                     ) {
                                         Text(stringResource(R.string.setting_ssh_host_connect), color = MaterialTheme.colorScheme.primary)

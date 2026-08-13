@@ -27,7 +27,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
-import org.koin.androidx.compose.koinInject
+import org.koin.compose.koinInject
 
 /**
  * 后端服务页（连接管理中枢 P2 落地）。
