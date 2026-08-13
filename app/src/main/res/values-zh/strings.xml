@@ -2043,6 +2043,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_shizuku_help_body">从 GitHub releases 安装 Shizuku，然后启动服务：已 root 设备从 Shizuku 应用启动；Android 11+ 用无线调试配对（开发者选项 → 无线调试 → 使用配对码配对，然后运行 Shizuku 显示的启动命令）。服务运行后，点击上方「权限」授予 RikkaHub 访问权限。</string>
   <string name="setting_ssh_hosts_title">SSH 主机</string>
   <string name="setting_ssh_host_delete">删除</string>
+  <string name="setting_ssh_host_connect">连接</string>
   <string name="setting_ssh_host_add">添加主机</string>
   <string name="setting_ssh_host_hint">AI 可按名称引用已保存主机（ssh_exec_saved / vault_ssh_exec）。凭证本地存储；Vault 加密为后续增强。</string>
   <string name="setting_ssh_host_edit">编辑主机</string>

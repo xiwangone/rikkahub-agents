@@ -102,15 +102,25 @@ fun SettingSshHostsPage() {
                             headlineContent = { Text(host.name) },
                             supportingContent = { Text("${host.user}@${host.host}:${host.port}") },
                             trailingContent = {
-                                TextButton(
-                                    onClick = {
-                                        scope.launch {
-                                            sshHostRepository.deleteByName(host.name)
-                                            reload()
-                                        }
-                                    },
-                                ) {
-                                    Text(stringResource(R.string.setting_ssh_host_delete), color = MaterialTheme.colorScheme.error)
+                                Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    TextButton(
+                                        onClick = {
+                                            me.rerere.rikkahub.ui.context.LocalNavController.current
+                                                .navigate(me.rerere.rikkahub.RouteActivity.Screen.SshTerminal(host.name))
+                                        },
+                                    ) {
+                                        Text(stringResource(R.string.setting_ssh_host_connect), color = MaterialTheme.colorScheme.primary)
+                                    }
+                                    TextButton(
+                                        onClick = {
+                                            scope.launch {
+                                                sshHostRepository.deleteByName(host.name)
+                                                reload()
+                                            }
+                                        },
+                                    ) {
+                                        Text(stringResource(R.string.setting_ssh_host_delete), color = MaterialTheme.colorScheme.error)
+                                    }
                                 }
                             },
                         )

@@ -435,6 +435,9 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.SettingSshHosts> {
                                 SettingSshHostsPage()
                             }
+                            entry<Screen.SshTerminal> {
+                                me.rerere.rikkahub.ui.pages.setting.SshTerminalPage(it.hostName)
+                            }
                             entry<Screen.SettingShizuku> {
                                 SettingShizukuPage()
                             }
@@ -754,6 +757,8 @@ sealed interface Screen : NavKey {
     data object SettingQuota : Screen
     @Serializable
     data object SettingSshHosts : Screen
+    @Serializable
+    data class SshTerminal(val hostName: String = "") : Screen
     @Serializable
     data object SettingShizuku : Screen
     @Serializable

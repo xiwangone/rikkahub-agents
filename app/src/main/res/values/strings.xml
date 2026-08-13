@@ -2041,6 +2041,7 @@
   <string name="setting_shizuku_help_body">Install Shizuku from its GitHub releases page, then start its service: from the Shizuku app on a rooted device, or by pairing wireless debugging on Android 11+ (Developer options → Wireless debugging → Pair device with pairing code, then run the start command Shizuku shows you). Once the service is running, tap Permission above to grant RikkaHub access.</string>
   <string name="setting_ssh_hosts_title">SSH hosts</string>
   <string name="setting_ssh_host_delete">Delete</string>
+  <string name="setting_ssh_host_connect">Connect</string>
   <string name="setting_ssh_host_add">Add host</string>
   <string name="setting_ssh_host_hint">AI can reference saved hosts by name via ssh_exec_saved / vault_ssh_exec. Credentials are stored locally; Vault encryption is planned.</string>
   <string name="setting_ssh_host_edit">Edit host</string>
