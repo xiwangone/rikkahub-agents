@@ -124,17 +124,58 @@ private fun AssistantMemoryContent(
                 Text(stringResource(R.string.assistant_page_manage_memory_title))
             },
             text = {
-                TextField(
-                    value = memory.content,
-                    onValueChange = {
-                        update(memory.copy(content = it))
-                    },
-                    label = {
-                        Text(stringResource(R.string.assistant_page_manage_memory_title))
-                    },
-                    minLines = 2,
-                    maxLines = 8,
-                )
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextField(
+                        value = memory.content,
+                        onValueChange = {
+                            update(memory.copy(content = it))
+                        },
+                        label = {
+                            Text(stringResource(R.string.assistant_page_manage_memory_title))
+                        },
+                        minLines = 2,
+                        maxLines = 8,
+                    )
+                    // 记忆分层：core（常驻）/ conditional（按需检索）
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.assistant_page_memory_tier),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                        TextButton(
+                            onClick = { update(memory.copy(tier = me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CORE)) },
+                        ) {
+                            Text(
+                                text = stringResource(R.string.assistant_page_memory_tier_core),
+                                color = if (memory.tier == me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CORE) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        }
+                        TextButton(
+                            onClick = { update(memory.copy(tier = me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CONDITIONAL)) },
+                        ) {
+                            Text(
+                                text = stringResource(R.string.assistant_page_memory_tier_conditional),
+                                color = if (memory.tier == me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CONDITIONAL) {
+                                    MaterialTheme.colorScheme.primary
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        }
+                    }
+                    Text(
+                        text = stringResource(R.string.assistant_page_memory_tier_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             },
             confirmButton = {
                 TextButton(
@@ -339,6 +380,19 @@ private fun MemoryItem(
                 Text(
                     text = "#${memory.id}",
                     style = MaterialTheme.typography.titleMediumEmphasized,
+                )
+                Text(
+                    text = if (memory.tier == me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CONDITIONAL) {
+                        stringResource(R.string.assistant_page_memory_tier_conditional_short)
+                    } else {
+                        stringResource(R.string.assistant_page_memory_tier_core_short)
+                    },
+                    style = MaterialTheme.typography.labelSmall,
+                    color = if (memory.tier == me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CONDITIONAL) {
+                        MaterialTheme.colorScheme.secondary
+                    } else {
+                        MaterialTheme.colorScheme.primary
+                    },
                 )
                 Text(
                     text = memory.content,

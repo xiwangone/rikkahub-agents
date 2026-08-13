@@ -7,10 +7,12 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +25,8 @@ import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -30,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.data.ai.ReasonixWebBridge
 import me.rerere.rikkahub.data.vault.SshKeyGenerator
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import org.koin.compose.koinInject
@@ -127,7 +132,7 @@ fun SettingWebBridgePage() {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = PaddingValues(8.dp),
+            contentPadding = innerPadding + PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             // 总开关：开启时同步全局配置到 Reasonix provider 并启用
@@ -281,31 +286,46 @@ fun SettingWebBridgePage() {
                     ) {
                         androidx.compose.material3.OutlinedButton(
                             onClick = {
-                                val key = SshKeyGenerator.generate()
                                 scope.launch {
                                     runCatching {
-                                        val dir = java.io.File(context.filesDir, "ssh_keys").apply { mkdirs() }
-                                        val file = java.io.File(dir, "web_bridge_rsa")
-                                        if (file.exists()) file.delete()
-                                        file.writeText(key.privateKeyPem)
-                                        file.setReadable(true, true)
-                                        file.setWritable(true, true)
-                                        file.setExecutable(false)
-                                        webBridgePrivateKeyPath = file.absolutePath
-                                        settingsStore.update { s -> s.copy(webBridgePrivateKeyPath = file.absolutePath) }
-                                        if (saveToVault) {
-                                            vaultRepo.save(
-                                                name = "WEB_BRIDGE_SSH_KEY",
-                                                value = key.privateKeyPem,
-                                                description = "Web 桥 SSH 私钥（全局，${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())} 生成；私钥路径：${file.absolutePath}）",
-                                                group = "SSH",
-                                            )
-                                            keyInfo = "✅ 已生成并保存到密钥库（分组：SSH）\n已写私钥路径：${file.absolutePath}\n公钥请添加到 ECS ~/.ssh/authorized_keys：\n${key.publicKeyLine}"
-                                        } else {
-                                            keyInfo = "✅ 已生成到 ${file.absolutePath}\n公钥请添加到 ECS ~/.ssh/authorized_keys：\n${key.publicKeyLine}"
+                                        val generated = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                                            val key = SshKeyGenerator.generate()
+                                            val dir = java.io.File(context.filesDir, "ssh_keys").apply { mkdirs() }
+                                            val file = java.io.File(dir, "web_bridge_rsa")
+                                            if (file.exists()) file.delete()
+                                            file.writeText(key.privateKeyPem)
+                                            file.setReadable(true, true)
+                                            file.setWritable(true, true)
+                                            file.setExecutable(false)
+                                            if (saveToVault) {
+                                                vaultRepo.save(
+                                                    name = "WEB_BRIDGE_SSH_KEY",
+                                                    value = key.privateKeyPem,
+                                                    description = "Web 桥 SSH 私钥（全局，${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())} 生成；私钥路径：${file.absolutePath}）",
+                                                    group = "SSH",
+                                                )
+                                            }
+                                            Triple(key, file.absolutePath, saveToVault)
                                         }
+                                        val (key, path, toVault) = generated
+                                        webBridgePrivateKeyPath = path
+                                        settingsStore.update { s -> s.copy(webBridgePrivateKeyPath = path) }
+                                        keyInfo =
+                                            if (toVault) {
+                                                context.getString(
+                                                    R.string.setting_web_bridge_gen_success_vault,
+                                                    path,
+                                                    key.publicKeyLine,
+                                                )
+                                            } else {
+                                                context.getString(
+                                                    R.string.setting_web_bridge_gen_success,
+                                                    path,
+                                                    key.publicKeyLine,
+                                                )
+                                            }
                                     }.onFailure { e ->
-                                        keyInfo = "❌ 生成失败: ${e.message}"
+                                        keyInfo = context.getString(R.string.setting_web_bridge_gen_failed, e.message ?: "")
                                     }
                                 }
                             },
@@ -314,7 +334,7 @@ fun SettingWebBridgePage() {
                             Text(stringResource(R.string.setting_web_bridge_gen_key_btn))
                         }
                         Text(
-                            "保存到密钥库",
+                            stringResource(R.string.setting_web_bridge_save_to_vault),
                             style = MaterialTheme.typography.bodySmall,
                         )
                         Switch(
@@ -335,11 +355,91 @@ fun SettingWebBridgePage() {
                                     val pub = info.substringAfter("ssh-rsa").substringBefore("\n").let { "ssh-rsa$it" }
                                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
                                     clipboard.setPrimaryClip(android.content.ClipData.newPlainText("web-bridge-public-key", pub))
-                                    keyInfo = "✅ 公钥已复制！请粘贴发给我/添加到 ECS ~/.ssh/authorized_keys\n$pub"
+                                    keyInfo = context.getString(R.string.setting_web_bridge_copy_success, pub)
                                 },
                                 modifier = Modifier.fillMaxWidth(),
                             ) {
                                 Text(stringResource(R.string.web_bridge_copy_public_key))
+                            }
+                        }
+                    }
+                }
+            }
+
+            // 连接状态与操作（全局唯一控制点；provider 页只留引用开关）
+            item {
+                val webBridge: ReasonixWebBridge = koinInject()
+                val bridgeState by webBridge.state.collectAsState()
+                CardGroup(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp),
+                    title = { Text(stringResource(R.string.web_bridge_connection)) },
+                ) {
+                    item(
+                        headlineContent = {
+                            Text(
+                                text =
+                                    when {
+                                        bridgeState.tunnelConnected ->
+                                            stringResource(
+                                                R.string.web_bridge_state_connected,
+                                                settings.webBridgeRemotePort,
+                                                settings.webBridgeLocalPort,
+                                            )
+                                        bridgeState.webServerRunning ->
+                                            stringResource(R.string.web_bridge_state_connecting)
+                                        else -> stringResource(R.string.web_bridge_state_disconnected)
+                                    },
+                                color =
+                                    when {
+                                        bridgeState.tunnelConnected -> Color(0xFF22C55E)
+                                        bridgeState.webServerRunning -> Color(0xFFF59E0B)
+                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                            )
+                        },
+                    )
+                    if (bridgeState.message.isNotBlank()) {
+                        item {
+                            Text(
+                                text = bridgeState.message,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
+                    }
+                    item {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        webBridge.start(
+                                            ecsHost = settings.webBridgeEcsHost,
+                                            ecsPort = settings.webBridgeEcsPort,
+                                            ecsUser = settings.webBridgeEcsUser,
+                                            remoteTunnelPort = settings.webBridgeRemotePort,
+                                            localWebPort = settings.webBridgeLocalPort,
+                                            privateKeyPath = settings.webBridgePrivateKeyPath,
+                                            password = settings.webBridgePassword,
+                                        )
+                                    }
+                                },
+                                enabled = !bridgeState.tunnelConnected,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(stringResource(R.string.web_bridge_connect))
+                            }
+                            androidx.compose.material3.OutlinedButton(
+                                onClick = { webBridge.stop() },
+                                enabled = bridgeState.webServerRunning || bridgeState.tunnelConnected,
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(stringResource(R.string.web_bridge_disconnect))
                             }
                         }
                     }

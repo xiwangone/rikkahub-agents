@@ -65,14 +65,15 @@ fun QuotaConsolePage(providerId: String) {
         Scaffold(
             topBar = {
                 TopAppBar(
-                    title = { Text("Provider not found") },
+                    title = { Text(stringResource(R.string.quota_page_title)) },
                     navigationIcon = { BackButton() },
                 )
             },
-        ) {
+            containerColor = CustomColors.topBarColors.containerColor,
+        ) { padding ->
             Text(
-                "Provider not found",
-                modifier = Modifier.padding(it),
+                stringResource(R.string.quota_provider_not_found),
+                modifier = Modifier.padding(padding).padding(16.dp),
                 style = MaterialTheme.typography.bodyLarge,
             )
         }
@@ -140,7 +141,7 @@ fun QuotaConsolePage(providerId: String) {
                                 }
                             }
                         }) {
-                            Icon(HugeIcons.Key01, contentDescription = "捕获凭证")
+                            Icon(HugeIcons.Key01, contentDescription = stringResource(R.string.quota_capture_credential))
                         }
                     }
                     IconButton(onClick = { webViewState.reload() }) {
@@ -202,14 +203,14 @@ fun QuotaConsolePage(providerId: String) {
             // 凭证状态提示条
             if (credentialGrabbed) {
                 Text(
-                    text = "✓ 凭证已保存，下次自动登录",
+                    text = stringResource(R.string.quota_saved_auto_login),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
                 )
             } else if (provider.authType != QuotaAuthType.NONE) {
                 Text(
-                    text = "请在 WebView 中登录平台，然后点击 🔑 捕获凭证",
+                    text = stringResource(R.string.quota_login_capture),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
@@ -238,13 +239,16 @@ fun QuotaConsolePage(providerId: String) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Text(
-                            text = "解析结果",
+                            text = stringResource(R.string.quota_parse_result),
                             style = MaterialTheme.typography.titleSmall,
                             modifier = Modifier.weight(1f),
                         )
                         Button(
                             onClick = {
-                                webViewState.webView?.let { webView ->
+                                val webView = webViewState.webView
+                                if (webView == null) {
+                                    lastError = context.getString(R.string.quota_webview_not_ready)
+                                } else {
                                     lastError = null
                                     parseQuota(webView, provider) { snap ->
                                         snapshot = snap
@@ -301,10 +305,10 @@ fun QuotaConsolePage(providerId: String) {
                                 Text(stringResource(R.string.quota_console_status), fontWeight = FontWeight.Bold)
                                 Text(
                                     when (snap.status) {
-                                        QuotaStatus.GREEN -> "🟢 充足"
-                                        QuotaStatus.YELLOW -> "🟡 紧张"
-                                        QuotaStatus.RED -> "🔴 危险"
-                                        QuotaStatus.UNKNOWN -> "⚫ 未知"
+                                        QuotaStatus.GREEN -> stringResource(R.string.quota_status_green)
+                                        QuotaStatus.YELLOW -> stringResource(R.string.quota_status_yellow)
+                                        QuotaStatus.RED -> stringResource(R.string.quota_status_red)
+                                        QuotaStatus.UNKNOWN -> stringResource(R.string.quota_status_unknown)
                                     },
                                     color = statusColor,
                                 )
@@ -312,7 +316,7 @@ fun QuotaConsolePage(providerId: String) {
                         }
                     } ?: lastError?.let {
                         Text(
-                            text = "解析失败: $it",
+                            text = stringResource(R.string.quota_parse_failed, it),
                             color = MaterialTheme.colorScheme.error,
                             modifier = Modifier.padding(top = 8.dp),
                         )

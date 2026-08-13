@@ -39,15 +39,15 @@ object SshKeyGenerator {
     private fun encodePkcs1(key: RSAPrivateCrtKey): String {
         val der = encodeDer(
             listOf(
-                bigInt(0),
-                bigInt(key.modulus),
-                bigInt(key.publicExponent),
-                bigInt(key.privateExponent),
-                bigInt(key.primeP),
-                bigInt(key.primeQ),
-                bigInt(key.primeExponentP),
-                bigInt(key.primeExponentQ),
-                bigInt(key.crtCoefficient),
+                bytes(java.math.BigInteger.ZERO),
+                bytes(key.modulus),
+                bytes(key.publicExponent),
+                bytes(key.privateExponent),
+                bytes(key.primeP),
+                bytes(key.primeQ),
+                bytes(key.primeExponentP),
+                bytes(key.primeExponentQ),
+                bytes(key.crtCoefficient),
             )
         )
         val b64 = Base64.getEncoder().encodeToString(der).chunked(64).joinToString("\n")
@@ -55,10 +55,16 @@ object SshKeyGenerator {
     }
 
     /** 编码 OpenSSH 公钥格式（ssh-rsa 类型 + e + n）。 */
-    private fun encodeSshRsa(pub: RSAPublicKey): ByteArray {
-        val e = bigInt(pub.publicExponent)
-        val n = bigInt(pub.modulus)
-        return sshString("ssh-rsa".encodeToByteArray()) + sshString(e) + sshString(n)
+    private fun encodeSshRsa(pub: RSAPublicKey): ByteArray =
+        sshString("ssh-rsa".encodeToByteArray()) +
+            sshString(bytes(pub.publicExponent)) +
+            sshString(bytes(pub.modulus))
+
+    /** BigInteger → 裸字节（去多余前导 0）。DER 与 sshString 共用。 */
+    private fun bytes(v: java.math.BigInteger): ByteArray {
+        var bytes = v.toByteArray()
+        if (bytes.size > 1 && bytes[0] == 0.toByte()) bytes = bytes.copyOfRange(1, bytes.size)
+        return bytes
     }
 
     private fun sshString(bytes: ByteArray): ByteArray =
@@ -71,13 +77,6 @@ object SshKeyGenerator {
         bytes[2] = ((v shr 8) and 0xFF).toByte()
         bytes[3] = (v and 0xFF).toByte()
         return bytes
-    }
-
-    private fun bigInt(v: java.math.BigInteger): ByteArray {
-        var bytes = v.toByteArray()
-        // 去掉多余的前导 0
-        if (bytes.size > 1 && bytes[0] == 0.toByte()) bytes = bytes.copyOfRange(1, bytes.size)
-        return bigInt(bytes.size.toLong()) + bytes
     }
 
     private operator fun ByteArray.plus(other: ByteArray): ByteArray {

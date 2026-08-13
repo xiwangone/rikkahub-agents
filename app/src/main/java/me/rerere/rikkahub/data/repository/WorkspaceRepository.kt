@@ -56,6 +56,9 @@ class WorkspaceRepository(
 
     suspend fun getById(id: String): WorkspaceEntity? = dao.getById(id)
 
+    /** 所有工作区（按创建顺序）。授权写沙箱 token 时取第一个（主工作区）。 */
+    suspend fun getAll(): List<WorkspaceEntity> = dao.getAll()
+
     suspend fun create(name: String): WorkspaceEntity {
         val id = Uuid.random().toString()
         val now = System.currentTimeMillis()
@@ -279,8 +282,11 @@ class WorkspaceRepository(
         cwd: String = "",
         timeoutMillis: Long = WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS,
         stdin: ByteArray? = null,
+        targetId: String? = null,
     ): WorkspaceCommandResult {
-        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
+        // 多工作区：targetId 指定时在目标工作区 rootfs 执行（默认当前工作区）
+        val executeRoot = if (targetId != null) (dao.getById(targetId) ?: error("Target workspace not found: $targetId")).root else id
+        val workspace = dao.getById(executeRoot) ?: error("Workspace not found: $executeRoot")
         // runInterruptible 让协程取消转化为线程中断，从而打断阻塞的 Process.waitFor 并杀掉进程
         return runInterruptible(Dispatchers.IO) {
             manager.ensureWorkspace(workspace.root)
@@ -290,10 +296,12 @@ class WorkspaceRepository(
 
     suspend fun delete(id: String): Boolean {
         val workspace = dao.getById(id) ?: return false
-        dao.deleteById(id)
-        withContext(Dispatchers.IO) {
+        // 先删文件再删 DB：文件删除失败则不删 DB（UI 可重试），避免孤儿目录残留
+        val fileDeleted = withContext(Dispatchers.IO) {
             manager.deleteWorkspace(workspace.root)
         }
+        if (!fileDeleted) return false
+        dao.deleteById(id)
         cleanupAssistantReferences(id)
         return true
     }

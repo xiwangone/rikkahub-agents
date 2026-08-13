@@ -85,6 +85,7 @@ val viewModelModule =
             WorkspaceDetailVM(
                 id = it.get(),
                 repository = get(),
+                context = get(),
             )
         }
         viewModelOf(::FavoriteVM)

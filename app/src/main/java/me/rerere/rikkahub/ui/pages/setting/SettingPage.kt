@@ -218,6 +218,12 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_page_vault)) },
                     )
                     item(
+                        onClick = { navController.navigate(Screen.SettingWeb) },
+                        leadingContent = { Icon(HugeIcons.ServerStack01, null) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_web_capability)) },
+                    )
+                    item(
                         onClick = { navController.navigate(Screen.SettingModels) },
                         leadingContent = { Icon(HugeIcons.AiMagic, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_default_model_desc)) },
@@ -248,12 +254,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         headlineContent = { Text(stringResource(R.string.setting_page_mcp)) },
                     )
                     item(
-                        onClick = { navController.navigate(Screen.SettingWeb) },
-                        leadingContent = { Icon(HugeIcons.ServerStack01, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_web_server)) },
-                    )
-                    item(
                         onClick = { navController.navigate(Screen.SettingTelegram) },
                         leadingContent = { Icon(HugeIcons.Telegram, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_telegram_desc)) },
@@ -282,6 +282,18 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         leadingContent = { Icon(HugeIcons.CoinsDollar, null) },
                         supportingContent = { Text(stringResource(R.string.setting_page_quota_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_quota)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingSshHosts) },
+                        leadingContent = { Icon(HugeIcons.Console, null) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_ssh_hosts_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_ssh_hosts)) },
+                    )
+                    item(
+                        onClick = { navController.navigate(Screen.SettingShizuku) },
+                        leadingContent = { Icon(HugeIcons.Console, null) },
+                        supportingContent = { Text(stringResource(R.string.setting_page_shizuku_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_page_shizuku)) },
                     )
                     item(
                         onClick = { navController.navigate(Screen.SettingTermux) },

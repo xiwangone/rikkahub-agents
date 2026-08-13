@@ -84,6 +84,20 @@ fun VaultPage() {
     val vaultSessionManager: VaultSessionManager = koinInject()
     val biometricEnabled by vaultPreferences.biometricEnabled.collectAsState(initial = true)
 
+    // ── 打开凭证库指纹门禁：开关开启时进入页面先验证，通过才展示敏感内容 ──
+    val biometricBuffer: BiometricResultBuffer = koinInject()
+    var unlocked by remember { mutableStateOf(!biometricEnabled) }
+    LaunchedEffect(biometricEnabled) {
+        if (biometricEnabled && !unlocked) {
+            val ok = VaultBiometric.authenticate(
+                context = context,
+                buffer = biometricBuffer,
+                title = context.getString(R.string.vault_biometric_open_title),
+            )
+            unlocked = ok
+        }
+    }
+
     // 会话列表（页面级 state，签发/撤销后刷新）
     var sessionListState by remember { mutableStateOf<List<me.rerere.rikkahub.data.vault.VaultSessionInfo>>(emptyList()) }
     fun refreshSessionList() {
@@ -105,7 +119,6 @@ fun VaultPage() {
     refreshAudit()
 
     // 备份：整个库（含分组）加密导出 .vault
-    val biometricBuffer: BiometricResultBuffer = koinInject()
     val backupExportLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
             if (uri != null && backupPassword.isNotBlank()) {
@@ -233,6 +246,7 @@ fun VaultPage() {
             )
         },
     ) { padding ->
+        if (unlocked) {
         LazyColumn(
             modifier = Modifier.fillMaxSize().padding(padding),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -675,6 +689,34 @@ fun VaultPage() {
                         }
                     }
                 }
+            }
+        }
+        } else {
+            // 锁屏占位：指纹未通过不展示任何敏感内容
+            Column(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Text("🔒", style = MaterialTheme.typography.displayLarge)
+                Text(
+                    text = stringResource(R.string.vault_biometric_locked_hint),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+                Button(
+                    onClick = {
+                        scope.launch {
+                            val ok = VaultBiometric.authenticate(
+                                context = context,
+                                buffer = biometricBuffer,
+                                title = context.getString(R.string.vault_biometric_open_title),
+                            )
+                            unlocked = ok
+                        }
+                    },
+                ) { Text(stringResource(R.string.vault_biometric_unlock)) }
             }
         }
     }

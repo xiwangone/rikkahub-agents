@@ -30,6 +30,8 @@ class WebServerService : Service() {
         const val ACTION_STOP = "me.rerere.rikkahub.action.WEB_SERVER_STOP"
         const val EXTRA_PORT = "port"
         const val EXTRA_LOCALHOST_ONLY = "localhost_only"
+        /** Web 桥停止时携带：仅停服务，不改 webServerEnabled（避免误关用户独立的 Web 服务器开关） */
+        const val EXTRA_STOP_FROM_BRIDGE = "stop_from_bridge"
         const val NOTIFICATION_ID = 2001
     }
 
@@ -59,9 +61,14 @@ class WebServerService : Service() {
             }
 
             ACTION_STOP -> {
+                val fromBridge = intent?.getBooleanExtra(EXTRA_STOP_FROM_BRIDGE, false) ?: false
                 webServerManager.stop()
-                serviceScope.launch {
-                    settingsStore.update { it.copy(webServerEnabled = false) }
+                // 仅非 Web 桥来源的停止才同步关闭 Web 服务器开关；
+                // Web 桥停止只断隧道，不影响用户独立的 Web 服务器设置
+                if (!fromBridge) {
+                    serviceScope.launch {
+                        settingsStore.update { it.copy(webServerEnabled = false) }
+                    }
                 }
                 // 不立即 stopSelf，等状态流检测到停止后再结束
             }

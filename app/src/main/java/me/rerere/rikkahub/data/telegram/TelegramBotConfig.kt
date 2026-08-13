@@ -29,6 +29,19 @@ data class TelegramBotConfig(
      * each read this flag at send-time and short-circuit when false.
      */
     val streamScreenshots: Boolean = true,
+    /**
+     * Outbound proxy for the bot's own two OkHttp clients ONLY (shortClient, pollClient in
+     * TelegramBotClient) — never the shared app-wide client. Accepted proxyType values:
+     * "SOCKS5", "HTTP". SOCKS5 credentials are intentionally unsupported: OkHttp/the JDK
+     * route them through the process-global java.net.Authenticator, which can't be scoped to
+     * one client. proxyUsername/proxyPassword are only honored for HTTP proxy basic auth.
+     */
+    val proxyEnabled: Boolean = false,
+    val proxyType: String = "SOCKS5",
+    val proxyHost: String = "",
+    val proxyPort: Int = 0,
+    val proxyUsername: String = "",
+    val proxyPassword: String = "",
 ) {
     val isUsable: Boolean get() = token.isNotBlank() && enabled
 }

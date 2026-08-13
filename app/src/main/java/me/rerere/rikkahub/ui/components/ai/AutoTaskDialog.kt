@@ -43,12 +43,14 @@ fun AutoTaskDialog(
     onStop: (() -> Unit)? = null,
     hasActiveTask: Boolean = false,
 ) {
+    val defaultAutoTaskMsg = stringResource(R.string.auto_task_default_message)
     var currentMessage by remember { mutableStateOf(config.message) }
+    var currentRandomMessages by remember { mutableStateOf(config.randomMessages.joinToString("\n")) }
     var currentMode by remember { mutableIntStateOf(config.mode) }
     var currentCount by remember {
         mutableStateOf(config.triggerCount.coerceIn(1, MAX_AUTO_TASK_TRIGGER_COUNT).toString())
     }
-    var currentInterval by remember { mutableStateOf(config.intervalSeconds.toString()) }
+    var currentInterval by remember { mutableStateOf((config.intervalSeconds / 60).toString()) }
 
     AlertDialog(
         onDismissRequest = { onDismiss() },
@@ -74,6 +76,19 @@ fun AutoTaskDialog(
                     placeholder = { Text(stringResource(R.string.auto_task_reply_placeholder)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
+                )
+
+                // 随机补充池（可选，每行一条）
+                OutlinedTextField(
+                    value = currentRandomMessages,
+                    onValueChange = { currentRandomMessages = it },
+                    label = { Text(stringResource(R.string.auto_task_random_label)) },
+                    supportingText = {
+                        Text(stringResource(R.string.auto_task_random_hint))
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 5,
                 )
 
                 // 模式 A：可触发次数
@@ -109,7 +124,7 @@ fun AutoTaskDialog(
                     )
                 }
 
-                // 模式 B：定时触发（会话空闲）
+                // 模式 B：随机空闲（持续触发，直到停止）
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     modifier = Modifier.fillMaxWidth(),
@@ -119,50 +134,34 @@ fun AutoTaskDialog(
                         onClick = { currentMode = 1 },
                     )
                     Text(
-                        text = stringResource(R.string.auto_task_mode_idle),
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f),
-                    )
-                }
-                if (currentMode == 1) {
-                    OutlinedTextField(
-                        value = currentInterval,
-                        onValueChange = { value ->
-                            if (value.isEmpty() || value.matches(Regex("^\\d+$"))) {
-                                currentInterval = value
-                            }
-                        },
-                        label = { Text(stringResource(R.string.auto_task_idle_label)) },
-                        supportingText = { Text(stringResource(R.string.auto_task_idle_hint)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-                }
-
-                // 模式 C：随机空闲（5-15 秒随机）
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    RadioButton(
-                        selected = currentMode == 2,
-                        onClick = { currentMode = 2 },
-                    )
-                    Text(
                         text = stringResource(R.string.auto_task_mode_random),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f),
                     )
                 }
-                if (currentMode == 2) {
+                if (currentMode == 1) {
                     Text(
-                        text = stringResource(R.string.auto_task_random_hint),
+                        text = stringResource(R.string.auto_task_mode_random_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+
+                // ③ 空闲时间设置（定时/随机共用）
+                OutlinedTextField(
+                    value = currentInterval,
+                    onValueChange = { value ->
+                        if (value.isEmpty() || value.matches(Regex("^\\d+$"))) {
+                            currentInterval = value
+                        }
+                    },
+                    label = { Text(stringResource(R.string.auto_task_idle_label)) },
+                    supportingText = { Text(stringResource(R.string.auto_task_idle_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                )
 
                 Spacer(modifier = Modifier.height(4.dp))
 
@@ -178,13 +177,14 @@ fun AutoTaskDialog(
                 onClick = {
                     val count =
                         currentCount.toIntOrNull()?.coerceIn(1, MAX_AUTO_TASK_TRIGGER_COUNT) ?: 1
-                    val interval = currentInterval.toIntOrNull()?.coerceAtLeast(1) ?: 60
+                    val intervalMin = currentInterval.toIntOrNull()?.coerceIn(1, 60) ?: 5
                     onConfirm(
                         AutoTaskConfig(
-                            message = currentMessage.ifBlank { "继续" },
+                            message = currentMessage.ifBlank { defaultAutoTaskMsg },
+                            randomMessages = currentRandomMessages.lineSequence().map { it.trim() }.filter { it.isNotEmpty() }.toList(),
                             mode = currentMode,
                             triggerCount = count,
-                            intervalSeconds = interval,
+                            intervalSeconds = intervalMin * 60,
                         ),
                     )
                     onDismiss()

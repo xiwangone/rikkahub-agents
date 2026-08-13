@@ -19,9 +19,10 @@ import java.time.LocalDate
 
 fun buildMemoryTools(
     json: Json,
-    onCreation: suspend (String) -> AssistantMemory,
-    onUpdate: suspend (Int, String) -> AssistantMemory,
-    onDelete: suspend (Int) -> Unit
+    onCreation: suspend (String, String) -> AssistantMemory,
+    onUpdate: suspend (Int, String, String) -> AssistantMemory,
+    onDelete: suspend (Int) -> Unit,
+    onSearch: suspend (String) -> List<AssistantMemory>,
 ): List<Tool> = listOf(
     Tool(
         name = "memory_tool",
@@ -32,6 +33,8 @@ fun buildMemoryTools(
             - Existing relevant record: `edit` + `id` + `content`
             - Outdated/irrelevant record: `delete` + `id`
             Memories will automatically appear in the <memories> tag in later conversations.
+            **tier 分层（2026-08-13）**: core（默认）= 常驻注入（纪律/决策/指针，每轮都在）；conditional = 按需检索（场景细节，默认不注入，任务涉及相关场景时先调 memory_search 检索再使用）。
+            **注意**: 需要环境/场景细节（PC/ECS/凭证/MCP/Reasonix 等）时，先调用 memory_search 检索相关记忆——不要假设记忆里没有。
             Do not store sensitive information (e.g., ethnicity, religion, sexual orientation, political views, sex life, criminal records).
             You may store: preferred name, preferences, plans, work-related notes, chat style preferences, first chat time, etc.
             Do not show memory content directly in the conversation unless the user explicitly asks.
@@ -66,6 +69,17 @@ fun buildMemoryTools(
                         put("type", "string")
                         put("description", "The content of the memory record (required for create/edit)")
                     })
+                    put("tier", buildJsonObject {
+                        put("type", "string")
+                        put(
+                            "enum",
+                            buildJsonArray {
+                                add("core")
+                                add("conditional")
+                            }
+                        )
+                        put("description", "Memory tier: core (default, always injected) or conditional (retrieved on demand via memory_search)")
+                    })
                 },
                 required = listOf("action")
             )
@@ -73,16 +87,17 @@ fun buildMemoryTools(
         execute = {
             val params = it.jsonObject
             val action = params["action"]?.jsonPrimitive?.contentOrNull ?: error("action is required")
+            val tier = params["tier"]?.jsonPrimitive?.contentOrNull ?: "core"
             val payload = when (action) {
                 "create" -> {
                     val content = params["content"]?.jsonPrimitive?.contentOrNull ?: error("content is required")
-                    json.encodeToJsonElement(AssistantMemory.serializer(), onCreation(content))
+                    json.encodeToJsonElement(AssistantMemory.serializer(), onCreation(content, tier))
                 }
 
                 "edit" -> {
                     val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
                     val content = params["content"]?.jsonPrimitive?.contentOrNull ?: error("content is required")
-                    json.encodeToJsonElement(AssistantMemory.serializer(), onUpdate(id, content))
+                    json.encodeToJsonElement(AssistantMemory.serializer(), onUpdate(id, content, tier))
                 }
 
                 "delete" -> {
@@ -98,5 +113,43 @@ fun buildMemoryTools(
             }
             listOf(UIMessagePart.Text(payload.toString()))
         }
-    )
+    ),
+    Tool(
+        name = "memory_search",
+        description = """
+            Search conditional memories (tier=conditional, not injected by default) by keyword.
+            Use this when a task involves a specific environment / scenario (PC / ECS / credentials /
+            MCP / Reasonix / deployment details / past decisions) and you need the related memory —
+            it is NOT in the always-injected <memories> tag. Returns matching memory entries (id, tier, content).
+            Also usable to look up any memory across conversations.
+        """.trimIndent(),
+        parameters = {
+            InputSchema.Obj(
+                properties = buildJsonObject {
+                    put("keyword", buildJsonObject {
+                        put("type", "string")
+                        put("description", "Keyword to search memory content (e.g. 'PC', 'ECS', '凭证', 'Reasonix')")
+                    })
+                },
+                required = listOf("keyword")
+            )
+        },
+        execute = {
+            val keyword = it.jsonObject["keyword"]?.jsonPrimitive?.contentOrNull ?: error("keyword is required")
+            val results = onSearch(keyword)
+            val payload = buildJsonObject {
+                put("keyword", keyword)
+                put("results", buildJsonArray {
+                    results.forEach { m ->
+                        add(buildJsonObject {
+                            put("id", m.id)
+                            put("tier", m.tier)
+                            put("content", m.content)
+                        })
+                    }
+                })
+            }
+            listOf(UIMessagePart.Text(payload.toString()))
+        }
+    ),
 )

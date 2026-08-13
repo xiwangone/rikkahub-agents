@@ -16,6 +16,7 @@
     android:maxSdkVersion="28" />
   <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
   <uses-permission android:name="android.permission.POST_PROMOTED_NOTIFICATIONS" />
+  <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
   <uses-permission android:name="android.permission.ACCESS_WIFI_STATE" />
   <uses-permission android:name="android.permission.CHANGE_WIFI_MULTICAST_STATE" />
   <!-- Android 17 (API 37) gates all local-network sockets behind this runtime
@@ -122,6 +123,9 @@
     <!-- Android 11+ package visibility: required so KeyboardApiClient can bindService into
          the agent-keyboard package. Without this the bind silently fails on API 30+. -->
     <package android:name="dev.patrickgold.florisboard" />
+    <!-- Android 11+ package visibility: required so ShizukuManager.isInstalled can see the
+         Shizuku app (moe.shizuku.privileged.api) without QUERY_ALL_PACKAGES. -->
+    <package android:name="moe.shizuku.privileged.api" />
     <!-- Resolve the home launcher so screen-time can exclude it. -->
     <intent>
       <action android:name="android.intent.action.MAIN" />
@@ -379,6 +383,15 @@
         android:name="android.support.FILE_PROVIDER_PATHS"
         android:resource="@xml/file_paths" />
     </provider>
+    <!-- Required by Shizuku: receives the binder handed off from the Shizuku app / service.
+         Declaration matches the library's documented setup (Shizuku-API demo manifest). -->
+    <provider
+      android:name="rikka.shizuku.ShizukuProvider"
+      android:authorities="${applicationId}.shizuku"
+      android:enabled="true"
+      android:exported="true"
+      android:multiprocess="false"
+      android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
     <provider
       android:name=".data.provider.WorkspaceDocumentsProvider"
       android:authorities="${applicationId}.documents"

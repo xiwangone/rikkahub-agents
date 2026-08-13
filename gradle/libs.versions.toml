@@ -63,6 +63,7 @@ jmdns = "3.6.3"
 slf4j = "2.0.18"
 sqlite-android = "-SNAPSHOT"
 termux = "0.118.0"
+shizuku = "13.1.5"
 diffutils = "4.17"
 
 [libraries]
@@ -177,6 +178,10 @@ slf4j-android = { module = "uk.uuid.slf4j:slf4j-android", version = "2.0.17-0" }
 sqlite-android = { module = "com.github.rikkahub:sqlite-android", version.ref = "sqlite-android" }
 termux-terminal-view = { module = "com.termux.termux-app:terminal-view", version.ref = "termux" }
 guava-listenablefuture = { module = "com.google.guava:listenablefuture", version = "9999.0-empty-to-avoid-conflict-with-guava" }
+# Shizuku (shizuku_exec): shell-UID privileges without root. 13.1.5 — Shizuku.newProcess is
+# PRIVATE in this version, so shizuku_exec uses bindUserService + our own AIDL service.
+shizuku-api = { module = "dev.rikka.shizuku:api", version.ref = "shizuku" }
+shizuku-provider = { module = "dev.rikka.shizuku:provider", version.ref = "shizuku" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }

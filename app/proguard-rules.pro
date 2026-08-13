@@ -94,3 +94,10 @@
 -keep class * implements org.slf4j.spi.SLF4JServiceProvider
 -keepclassmembers class * implements org.slf4j.spi.SLF4JServiceProvider { <init>(); }
 -keep class uk.uuid.slf4j.android.** { *; }
+
+# Shizuku (shizuku_exec): ShizukuUserService's no-arg constructor is called reflectively by
+# Shizuku's server in the process it spawns for the service, not by any code of ours R8 can
+# see. Without this rule R8 can strip the constructor on release and the bind fails.
+-keepclassmembers class me.rerere.rikkahub.shizuku.ShizukuUserService {
+    public <init>(...);
+}

@@ -30,6 +30,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.costguards.TokenBudgetTracker
+import me.rerere.rikkahub.data.ai.ContextBudgetPlanner
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -46,6 +47,7 @@ import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.ui.components.ai.AutoTaskConfig
 import me.rerere.rikkahub.ui.components.ai.MAX_AUTO_TASK_TRIGGER_COUNT
+import me.rerere.rikkahub.ui.components.ai.resolveAutoTaskMessage
 import me.rerere.rikkahub.ui.components.ai.writeAutoTaskConfig
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
@@ -254,7 +256,7 @@ class ChatVM(
             }
         }
 
-    /** 当前模式的累计检测值：模式A = 估算 token（文本字符数 1:1），模式B = 会话累计 totalTokens */
+    /** 当前模式的累计检测值：模式A = ContextBudgetPlanner 精确估算（usage 优先 + ASCII 3:1/中文 1:1 + 媒体/工具计入），模式B = 会话累计 totalTokens */
     private fun autoCompressCurrentValue(): Long =
         when (settings.value.autoCompressMode) {
             1 -> {
@@ -262,8 +264,8 @@ class ChatVM(
             }
 
             else -> {
-                conversation.value.currentMessages
-                    .sumOf { it.toText().length }
+                ContextBudgetPlanner
+                    .estimateContextTokens(conversation.value.currentMessages)
                     .toLong()
             }
         }
@@ -538,6 +540,7 @@ class ChatVM(
      *  - 模式 1（定时触发）：会话空闲达设定秒数后自动发送一次，触发后清除（一次性触发）
      */
     fun scheduleAutoTask(config: AutoTaskConfig) {
+        me.rerere.rikkahub.data.log.AppLog.d("AutoTask", "调度: mode=${config.mode} count=${config.triggerCount} interval=${config.intervalSeconds}")
         cancelAutoTask()
         _autoTaskActive.value = true
 
@@ -548,7 +551,7 @@ class ChatVM(
             viewModelScope.launch {
                 when (config.mode) {
                     0 -> {
-                        // 可触发次数：等待会话空闲后自动发送，到达设置次数或次数上限（100）后自动停止触发
+                        // 次数触发：每次会话空闲达设定秒数后自动发送，到达设置次数或上限（100）后自动停止
                         val limit = config.triggerCount.coerceIn(1, MAX_AUTO_TASK_TRIGGER_COUNT)
                         var triggered = 0
                         while (triggered < limit && isActive) {
@@ -562,20 +565,33 @@ class ChatVM(
                                 } catch (_: Exception) {
                                 }
                             }
-                            // 短暂冷却，避免上一轮回复刚结束立即连发
-                            delay(1_000L)
+                            // 会话空闲计时：空闲达设定秒数后触发
+                            var idleSeconds = 0
+                            while (idleSeconds < config.intervalSeconds && isActive) {
+                                delay(1_000L)
+                                val currentJob = conversationJob.value
+                                if (currentJob != null && currentJob.isActive) {
+                                    idleSeconds = 0
+                                    break
+                                }
+                                idleSeconds++
+                            }
                             if (!isActive) break
+                            me.rerere.rikkahub.data.log.AppLog.d("AutoTask", "触发 #${triggered + 1}")
                             handleMessageSend(
-                                listOf(UIMessagePart.Text(config.message)),
+                                listOf(UIMessagePart.Text(resolveAutoTaskMessage(config))),
                                 answer = true,
                             )
                             triggered++
                         }
                         writeAutoTaskConfig(context, AutoTaskConfig())
+                        _autoTaskActive.value = false
                     }
 
                     1 -> {
-                        // 定时触发：监听会话空闲状态，空闲达设定秒数后自动发送（原不定时逻辑）
+                        // 随机空闲：会话空闲达「随机延迟」后触发（持续直到手动停止）。
+                        // 延迟区间：设置 X 分钟 → 触发在 [(X-1)*60+30, X*60] 秒随机
+                        // （1 分钟 = 30-60s 随机；2 分钟 = 60-120s 随机；以此类推）
                         while (isActive) {
                             val job = conversationJob.value
                             if (job != null && job.isActive) {
@@ -587,26 +603,29 @@ class ChatVM(
                                 }
                             }
 
-                            var idleSeconds = 0
-                            while (idleSeconds < config.intervalSeconds && isActive) {
+                            val minDelayMs = maxOf(30_000L, (config.intervalSeconds - 60L).coerceAtLeast(0L) * 1000L)
+                            val maxDelayMs = (config.intervalSeconds * 1000L).coerceAtLeast(minDelayMs)
+                            val targetMs = (minDelayMs..maxDelayMs).random()
+                            var idleMs = 0L
+                            while (idleMs < targetMs && isActive) {
                                 delay(1_000L)
                                 val currentJob = conversationJob.value
                                 if (currentJob != null && currentJob.isActive) {
-                                    idleSeconds = 0
+                                    idleMs = 0
                                     break
                                 }
-                                idleSeconds++
+                                idleMs += 1_000L
                             }
 
-                            if (idleSeconds >= config.intervalSeconds && isActive) {
+                            if (idleMs >= targetMs && isActive) {
                                 handleMessageSend(
-                                    listOf(UIMessagePart.Text(config.message)),
+                                    listOf(UIMessagePart.Text(resolveAutoTaskMessage(config))),
                                     answer = true,
                                 )
-                                writeAutoTaskConfig(context, AutoTaskConfig())
-                                break
                             }
                         }
+                        writeAutoTaskConfig(context, AutoTaskConfig())
+                        _autoTaskActive.value = false
                     }
 
                     2 -> {

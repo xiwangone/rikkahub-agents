@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools
 
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.JsonObjectBuilder
@@ -45,6 +46,7 @@ suspend fun createWorkspaceTools(
     val shellCwd = cwd?.removePrefix("/workspace/")?.removePrefix("/workspace")
 
     return listOf(
+        createListTool(workspaceRepository),
         createReadFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createWriteFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createEditFileTool(workspaceId, ::needsApproval, workspaceRepository),
@@ -240,6 +242,10 @@ private fun createShellTool(
                         "Command timeout in seconds. Defaults to 30, max $SHELL_TIMEOUT_MAX_SECONDS."
                     )
                 })
+                put("workspace", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional target workspace id (UUID). When set, runs the command in that workspace's rootfs instead of the current one. Use workspace_list to see available workspace ids.")
+                })
             },
             required = listOf("command"),
         )
@@ -254,7 +260,8 @@ private fun createShellTool(
             ?.coerceIn(1L, SHELL_TIMEOUT_MAX_SECONDS)
             ?.times(1_000L)
             ?: WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS
-        val result = workspaceRepository.executeCommand(workspaceId, command, cwd, timeoutMillis)
+        val targetWorkspace = params.string("workspace")
+        val result = workspaceRepository.executeCommand(workspaceId, command, cwd, timeoutMillis, targetId = targetWorkspace)
         listOf(
             UIMessagePart.Text(
                 buildJsonObject {
@@ -263,6 +270,45 @@ private fun createShellTool(
                     put("stderr", result.stderr)
                     put("timedOut", result.timedOut)
                     if (result.truncated) put("truncated", true)
+                }.toString()
+            )
+        )
+    },
+)
+
+private fun createListTool(
+    workspaceRepository: WorkspaceRepository,
+): Tool = Tool(
+    name = "workspace_list",
+    description = buildString {
+        append("List all available workspaces with their id, name and shell status. ")
+        append("Use a workspace id as the 'workspace' parameter of workspace_shell / workspace_read_file / workspace_write_file / workspace_edit_file ")
+        append("to run commands or access files in that workspace instead of the current one.")
+    },
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {},
+            required = emptyList(),
+        )
+    },
+    needsApproval = { false },
+    execute = {
+        val workspaces = workspaceRepository.getAll()
+        listOf(
+            UIMessagePart.Text(
+                buildJsonObject {
+                    put("workspaces", buildJsonArray {
+                        workspaces.forEach { w ->
+                            add(
+                                buildJsonObject {
+                                    put("id", w.id)
+                                    put("name", w.name)
+                                    put("shellStatus", w.shellStatus)
+                                    w.lastAccessAt?.let { put("lastAccessAt", it) }
+                                }
+                            )
+                        }
+                    })
                 }.toString()
             )
         )

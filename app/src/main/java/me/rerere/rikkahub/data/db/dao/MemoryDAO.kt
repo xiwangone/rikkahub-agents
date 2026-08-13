@@ -15,6 +15,12 @@ interface MemoryDAO {
     @Query("SELECT * FROM memoryentity WHERE assistant_id = :assistantId")
     suspend fun getMemoriesOfAssistant(assistantId: String): List<MemoryEntity>
 
+    @Query("SELECT * FROM memoryentity WHERE assistant_id = :assistantId AND tier = 'core'")
+    suspend fun getCoreMemoriesOfAssistant(assistantId: String): List<MemoryEntity>
+
+    @Query("SELECT * FROM memoryentity WHERE assistant_id = :assistantId AND tier = 'core'")
+    fun getCoreMemoriesOfAssistantFlow(assistantId: String): Flow<List<MemoryEntity>>
+
     @Query("SELECT * FROM memoryentity")
     fun getAllMemoriesFlow(): Flow<List<MemoryEntity>>
 
@@ -23,6 +29,10 @@ interface MemoryDAO {
 
     @Query("SELECT * FROM memoryentity WHERE id = :id")
     suspend fun getMemoryById(id: Int): MemoryEntity?
+
+    /** 记忆检索（按需注入用）：跨全局 + 助手，匹配 conditional 记忆。 */
+    @Query("SELECT * FROM memoryentity WHERE tier = 'conditional' AND content LIKE '%' || :keyword || '%' ORDER BY id DESC")
+    suspend fun searchConditionalMemories(keyword: String): List<MemoryEntity>
 
     @Insert
     suspend fun insertMemory(memory: MemoryEntity): Long

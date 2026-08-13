@@ -166,6 +166,7 @@ class ChatService(
     private val toolApprovalPreferences: me.rerere.rikkahub.data.preferences.ToolApprovalPreferences,
     private val workspaceRepository: WorkspaceRepository,
     private val folderRepository: FolderRepository,
+    private val compressedArchiveDao: me.rerere.rikkahub.data.db.dao.CompressedArchiveDao,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
     private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
@@ -963,9 +964,10 @@ class ChatService(
                     workspaceCwd = conversation.workspaceCwd,
                     memories =
                         if (assistant.useGlobalMemory) {
-                            memoryRepository.getGlobalMemories()
+                            // 记忆分层（2026-08-13）：只注入 core 常驻；conditional 由 AI 用 memory_search 按需检索
+                            memoryRepository.getCoreMemoriesOfAssistant(me.rerere.rikkahub.data.repository.MemoryRepository.GLOBAL_MEMORY_ID)
                         } else {
-                            memoryRepository.getMemoriesOfAssistant(assistant.id.toString())
+                            memoryRepository.getCoreMemoriesOfAssistant(assistant.id.toString())
                         },
                     inputTransformers =
                         buildList {
@@ -1143,17 +1145,22 @@ class ChatService(
             // path) survive a process restart. Without this, the failure path only
             // updates memory and the persisted DB row keeps the stale Pending state
             // forever — replay would re-run the loop against unrecoverable shape.
-            runCatching {
-                val final = getConversationFlow(conversationId).value
-                saveConversation(conversationId, final)
-            }.onFailure { saveErr ->
-                AppLog.w(TAG, "handleMessageComplete: failure-path save failed", saveErr)
-            }
+            // 修复：取消传播会令 onFailure 里的 suspend（saveConversation/addError）立即
+            // 抛 JobCancellationException → 停止生成/自动任务取消时消息状态丢失。
+            // 用 NonCancellable 保证取消时仍完成落盘。
+            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
+                runCatching {
+                    val final = getConversationFlow(conversationId).value
+                    saveConversation(conversationId, final)
+                }.onFailure { saveErr ->
+                    AppLog.w(TAG, "handleMessageComplete: failure-path save failed", saveErr)
+                }
 
-            it.printStackTrace()
-            addError(it, conversationId, title = context.getString(R.string.error_title_generation))
-            Logging.log(TAG, "handleMessageComplete: $it")
-            Logging.log(TAG, it.stackTraceToString())
+                it.printStackTrace()
+                addError(it, conversationId, title = context.getString(R.string.error_title_generation))
+                Logging.log(TAG, "handleMessageComplete: $it")
+                Logging.log(TAG, it.stackTraceToString())
+            }
         }.onSuccess {
             val finalConversation = getConversationFlow(conversationId).value
             saveConversation(conversationId, finalConversation)
@@ -1433,6 +1440,7 @@ class ChatService(
 
             val maxMessagesPerChunk = 256
             val allMessages = conversation.currentMessages
+            AppLog.d(TAG, "压缩开始: total=${allMessages.size} targetTokens=$targetTokens keepRecent=$keepRecentMessages model=${model.id}")
 
             // Split messages into those to compress and those to keep
             val messagesToCompress: List<UIMessage>
@@ -1449,16 +1457,32 @@ class ChatService(
                 messagesToKeep = emptyList()
             }
 
+            // T11: 按 token 预算分块（复用 ContextBudgetPlanner.estimateMessageTokens），
+            // 大工具输出块不再因固定 256 消息/块超压缩模型窗口
             fun splitMessages(messages: List<UIMessage>): List<List<UIMessage>> {
                 if (messages.size <= maxMessagesPerChunk) return listOf(messages)
-                val mid = messages.size / 2
-                val left = splitMessages(messages.subList(0, mid))
-                val right = splitMessages(messages.subList(mid, messages.size))
-                return left + right
+                val targetBlockTokens = 6000L
+                val chunks = mutableListOf<List<UIMessage>>()
+                var current = mutableListOf<UIMessage>()
+                var currentTokens = 0L
+                for (msg in messages) {
+                    val msgTokens = me.rerere.rikkahub.data.ai.ContextBudgetPlanner.estimateMessageTokens(msg)
+                    if (current.isNotEmpty() && currentTokens + msgTokens > targetBlockTokens) {
+                        chunks.add(current)
+                        current = mutableListOf()
+                        currentTokens = 0L
+                    }
+                    current.add(msg)
+                    currentTokens += msgTokens
+                }
+                if (current.isNotEmpty()) chunks.add(current)
+                return chunks
             }
 
             suspend fun compressMessages(messages: List<UIMessage>): String {
-                val contentToCompress = messages.joinToString("\n\n") { it.summaryAsText(maxLength = 2000) }
+                val contentToCompress =
+                    messages.joinToString("\n\n") { it.summaryAsText(maxLength = 2000) } +
+                        toolHistoryBlock(messages)
                 val prompt =
                     settings.compressPrompt.applyPlaceholders(
                         "content" to contentToCompress,
@@ -1486,12 +1510,15 @@ class ChatService(
                     ?: throw IllegalStateException("Failed to generate compressed summary")
             }
 
+            val chunks = splitMessages(messagesToCompress)
+            AppLog.d(TAG, "压缩分块: messagesToCompress=${messagesToCompress.size} 块数=${chunks.size}（token 预算 6000/块）")
             val compressedSummaries =
                 coroutineScope {
-                    splitMessages(messagesToCompress)
+                    chunks
                         .map { chunk -> async { compressMessages(chunk) } }
                         .awaitAll()
                 }
+            AppLog.d(TAG, "压缩完成: 摘要数=${compressedSummaries.size} 保留=${messagesToKeep.size}")
 
             // Create new conversation with compressed history as multiple user messages + kept messages
             val newMessageNodes =
@@ -1499,7 +1526,7 @@ class ChatService(
                     compressedSummaries.forEach { summary ->
                         add(UIMessage.user(summary).toMessageNode())
                     }
-                    addAll(messagesToKeep.map { it.toMessageNode() })
+                    addAll(messagesToKeep.map { truncateKeptToolOutput(it, settings.toolOutputMaxChars).toMessageNode() })
                 }
             val newConversation =
                 conversation.copy(
@@ -1507,8 +1534,88 @@ class ChatService(
                     chatSuggestions = emptyList(),
                 )
 
+            // T10: 压缩前归档原始消息（可追溯；UI 回看后续可选）
+            runCatching {
+                val archiveJson =
+                    kotlinx.serialization.json.Json.encodeToString(
+                        kotlinx.serialization.builtins.ListSerializer(UIMessage.serializer()),
+                        messagesToCompress,
+                    )
+                compressedArchiveDao.insert(
+                    me.rerere.rikkahub.data.db.entity.CompressedArchiveEntity(
+                        conversationId = conversationId.toString(),
+                        compressedAtMs = System.currentTimeMillis(),
+                        archiveJson = archiveJson,
+                    )
+                )
+                AppLog.d(TAG, "压缩归档成功: json=${archiveJson.length} chars")
+            }.onFailure { e ->
+                AppLog.w(TAG, "归档压缩历史失败: ${e.message}")
+            }
+
             saveConversation(conversationId, newConversation)
         }
+
+    /** T12: 保留区消息的工具输出超过 toolOutputMaxChars 时截断为预览（完整输出走 /tool_outputs/ 落盘机制）。 */
+    private fun truncateKeptToolOutput(message: UIMessage, maxChars: Int): UIMessage {
+        if (maxChars <= 0) return message
+        return message.copy(
+            parts =
+                message.parts.map { part ->
+                    if (part is UIMessagePart.Tool) {
+                        val textParts = part.output.filterIsInstance<UIMessagePart.Text>()
+                        val totalLen = textParts.sumOf { it.text.length }
+                        if (totalLen > maxChars) {
+                            me.rerere.rikkahub.data.log.AppLog.d(TAG, "T12 截断工具输出: tool=${part.toolName} ${totalLen}→$maxChars chars")
+                            var remaining = maxChars
+                            val truncated =
+                                part.output.mapNotNull { p ->
+                                    val t = (p as? UIMessagePart.Text)?.text
+                                    if (t == null) {
+                                        p
+                                    } else if (remaining > 0) {
+                                        val take = minOf(t.length, remaining)
+                                        remaining -= take
+                                        if (take == t.length) UIMessagePart.Text(t) else UIMessagePart.Text(t.take(take) + "\n…[truncated]")
+                                    } else {
+                                        null
+                                    }
+                                }
+                            part.copy(output = truncated)
+                        } else {
+                            part
+                        }
+                    } else {
+                        part
+                    }
+                },
+        )
+    }
+
+    /** 提取消息中的工具执行历史（调用+结果），作为标记块附加到压缩摘要，避免压缩后 AI 重复调用已完成工具。 */
+    private fun toolHistoryBlock(messages: List<UIMessage>): String {        val records =
+            buildList {
+                messages.forEach { msg ->
+                    msg.parts.forEach { part ->
+                        when (part) {
+                            is UIMessagePart.Tool -> {
+                                val outputPreview =
+                                    part.output
+                                        .joinToString(" ") { p -> (p as? UIMessagePart.Text)?.text?.take(500).orEmpty() }
+                                        .take(500)
+                                add("Tool ${part.toolName}: in=${part.input.take(200)} out=$outputPreview")
+                            }
+                            is UIMessagePart.ToolResult -> {
+                                add("ToolResult ${part.toolName}: ${part.content.toString().take(500)}")
+                            }
+                            else -> Unit
+                        }
+                    }
+                }
+            }
+        if (records.isEmpty()) return ""
+        return "\n\n[Tool execution history — retained context]\n" + records.joinToString("\n") + "\n[End tool execution history]"
+    }
 
     // ---- 通知 ----
 

@@ -6,8 +6,11 @@ import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
@@ -330,6 +333,84 @@ private fun ChatPageContent(
     val toaster = LocalToaster.current
     val context = LocalContext.current
     val workspaceRepository: WorkspaceRepository = koinInject()
+    // Vault 授权（对话输入框 🔑）
+    val vaultSessionManager: me.rerere.rikkahub.data.vault.VaultSessionManager = koinInject()
+    val biometricBuffer: me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer = koinInject()
+    var showVaultAuthDialog by remember { mutableStateOf(false) }
+    // 授权时长选择（rememberSaveable：跨弹窗开合/页面重建记忆）
+    var vaultAuthForever by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    var vaultAuthorized by remember { mutableStateOf(false) }
+    var vaultAuthMsg by remember { mutableStateOf<String?>(null) }
+
+    fun checkVaultAuth() {
+        scope.launch {
+            runCatching {
+                val ws = workspaceRepository.getAll().firstOrNull() ?: return@launch
+                // 读沙箱 token（LINUX 区/rootfs——授权用 importFile(LINUX) 写入，writeText 的 FILES 区沙箱不可见）
+                val token =
+                    runCatching { workspaceRepository.readText(ws.id, "credentials/vault-token") }.getOrDefault("")
+                // 真校验：格式/过期/签名/会话存在（比只查文件存在准确——文件残留/过期 token 不再误报已授权）
+                vaultAuthorized = token.isNotBlank() && vaultSessionManager.verifyToken(token)
+            }
+        }
+    }
+    fun doVaultAuthorize(ttlMs: Long) {
+        scope.launch {
+            me.rerere.rikkahub.data.log.AppLog.d("VaultAuth", "授权点击：ttlMs=$ttlMs")
+            val ok = me.rerere.rikkahub.data.vault.VaultBiometric.authenticate(
+                context, biometricBuffer, context.getString(R.string.vault_authorize_title),
+            )
+            if (!ok) {
+                vaultAuthMsg = context.getString(R.string.vault_authorize_cancelled)
+                me.rerere.rikkahub.data.log.AppLog.d("VaultAuth", "指纹取消/失败")
+                return@launch
+            }
+            runCatching {
+                val token = vaultSessionManager.issueSessionToken(ttlMs = ttlMs)
+                me.rerere.rikkahub.data.log.AppLog.d("VaultAuth", "token 签发成功 len=${token.length}")
+                val ws = workspaceRepository.getAll().firstOrNull() ?: error("no workspace")
+                val written = workspaceRepository.writeText(ws.id, "credentials/vault-token", token, overwrite = true)
+                me.rerere.rikkahub.data.log.AppLog.d("VaultAuth", "写沙箱成功 ws.id=${ws.id} path=${written.path}")
+                vaultAuthorized = true
+                vaultAuthMsg = context.getString(R.string.vault_authorize_success)
+            }.onFailure { e ->
+                me.rerere.rikkahub.data.log.AppLog.d("VaultAuth", "授权失败: ${e.message}")
+                vaultAuthMsg = "授权失败: ${e.message}"
+            }
+        }
+    }
+    fun doVaultRevoke() {
+        scope.launch {
+            runCatching {
+                vaultSessionManager.revokeAll()
+                val ws = workspaceRepository.getAll().firstOrNull()
+                if (ws != null) {
+                    val deleted =
+                        runCatching {
+                            workspaceRepository.deleteFile(
+                                ws.id,
+                                me.rerere.workspace.WorkspaceStorageArea.FILES,
+                                "credentials/vault-token",
+                                false,
+                            )
+                        }
+                    me.rerere.rikkahub.data.log.AppLog.d(
+                        "VaultRevoke",
+                        "deleteFile FILES 结果=${deleted.getOrNull()} 异常=${deleted.exceptionOrNull()?.message} ws.id=${ws.id} root=${ws.root}",
+                    )
+                } else {
+                    me.rerere.rikkahub.data.log.AppLog.d("VaultRevoke", "ws 为 null——未执行 deleteFile")
+                }
+                vaultAuthorized = false
+                vaultAuthMsg = context.getString(R.string.vault_authorize_revoked)
+            }.onFailure { e ->
+                me.rerere.rikkahub.data.log.AppLog.d("VaultRevoke", "撤销失败: ${e.message}")
+                vaultAuthMsg = "撤销失败: ${e.message}"
+            }
+        }
+    }
+    // 进入对话页时检查沙箱授权状态（token 文件是否存在）
+    LaunchedEffect(Unit) { checkVaultAuth() }
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
     val assistant = setting.getCurrentAssistant()
@@ -466,8 +547,9 @@ private fun ChatPageContent(
                     onMoreClick = {
                         showFilesSheet = true
                     },
-                    onSettingsClick = {
-                        navController.navigate(Screen.Setting)
+                    onVaultAuthorizeClick = {
+                        checkVaultAuth()
+                        showVaultAuthDialog = true
                     },
                     onAutoClick = {
                         autoTaskConfig = readAutoTaskConfig(context)
@@ -582,6 +664,74 @@ private fun ChatPageContent(
                     autoTaskConfig = AutoTaskConfig()
                 },
                 hasActiveTask = vm.autoTaskActive.collectAsState().value,
+            )
+        }
+
+        // Vault 授权弹窗：①授权（自动签发写沙箱）②授权时间 ③跳转凭证入口
+        if (showVaultAuthDialog) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { showVaultAuthDialog = false },
+                title = { Text(stringResource(R.string.vault_authorize_dialog_title)) },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        vaultAuthMsg?.let {
+                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        }
+                        // 授权状态
+                        Text(
+                            text =
+                                when {
+                                    vaultAuthorized && vaultAuthForever -> stringResource(R.string.vault_authorize_status_on_forever)
+                                    vaultAuthorized -> stringResource(R.string.vault_authorize_status_on)
+                                    else -> stringResource(R.string.vault_authorize_status_off)
+                                },
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        // ② 授权时间选择
+                        androidx.compose.foundation.layout.Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                androidx.compose.material3.RadioButton(selected = !vaultAuthForever, onClick = { vaultAuthForever = false })
+                                Text(stringResource(R.string.vault_authorize_short), style = MaterialTheme.typography.bodyMedium)
+                            }
+                            Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                                androidx.compose.material3.RadioButton(selected = vaultAuthForever, onClick = { vaultAuthForever = true })
+                                Text(stringResource(R.string.vault_authorize_forever), style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                    }
+                },
+                confirmButton = {
+                    // ① 主授权按钮：未授权=授权；已授权=重新授权（按当前时长选择，直接覆盖旧 token）
+                    TextButton(
+                        onClick = {
+                            doVaultAuthorize(if (vaultAuthForever) Long.MAX_VALUE else 30L * 60 * 1000)
+                            showVaultAuthDialog = false
+                        },
+                    ) {
+                        Text(
+                            stringResource(
+                                if (vaultAuthorized) R.string.vault_authorize_renew else R.string.vault_authorize_confirm,
+                            ),
+                        )
+                    }
+                },
+                dismissButton = {
+                    Row {
+                        if (vaultAuthorized) {
+                            TextButton(onClick = { doVaultRevoke(); showVaultAuthDialog = false }) {
+                                Text(stringResource(R.string.vault_authorize_revoke), color = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                        // ③ 跳转凭证相关入口
+                        TextButton(
+                            onClick = {
+                                showVaultAuthDialog = false
+                                navController.navigate(me.rerere.rikkahub.Screen.Vault)
+                            },
+                        ) { Text(stringResource(R.string.vault_authorize_open_vault)) }
+                        TextButton(onClick = { showVaultAuthDialog = false }) { Text(stringResource(R.string.settings_cancel)) }
+                    }
+                },
             )
         }
     }

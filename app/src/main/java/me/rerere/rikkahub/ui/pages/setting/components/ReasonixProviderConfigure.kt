@@ -16,30 +16,22 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.ai.ReasonixWebBridge
-import me.rerere.rikkahub.data.vault.CredentialVaultRepository
-import me.rerere.rikkahub.data.vault.SshKeyGenerator
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
-import org.koin.compose.koinInject
 
 /**
  * Reasonix Provider 配置页。
@@ -72,7 +64,7 @@ fun ReasonixProviderConfigure(
 
     // 连接方式选择
     Text(
-        text = "连接方式",
+        text = stringResource(R.string.reasonix_connection_mode),
         style = MaterialTheme.typography.titleSmall,
         color = MaterialTheme.colorScheme.primary,
     )
@@ -80,7 +72,7 @@ fun ReasonixProviderConfigure(
         modifier = Modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        listOf("serve" to "serve（HTTP/SSE 直连）", "ssh" to "SSH 反向隧道").forEach { (mode, label) ->
+        listOf("serve" to stringResource(R.string.reasonix_mode_serve), "ssh" to stringResource(R.string.reasonix_mode_ssh)).forEach { (mode, label) ->
             androidx.compose.material3.FilterChip(
                 selected = provider.connectionMode == mode,
                 onClick = { onEdit(provider.copy(connectionMode = mode)) },
@@ -91,9 +83,9 @@ fun ReasonixProviderConfigure(
     Text(
         text =
             if (provider.connectionMode == "serve") {
-                "直连 Reasonix serve 的 HTTP API，需填写 baseUrl + Basic Auth 用户名/密码。"
+                stringResource(R.string.reasonix_mode_serve_desc)
             } else {
-                "通过 SSH 反向隧道访问手机 Web 服务（开发中，需配合 Web 桥）。"
+                stringResource(R.string.reasonix_mode_ssh_desc)
             },
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -143,7 +135,7 @@ fun ReasonixProviderConfigure(
         },
     )
 
-    // ── Web 桥设置（手机 Web 服务反向隧道到 ECS，供 reasonix 调用手机能力）──
+    // ── Web 桥（反向隧道）──
     HorizontalDivider()
     Row(
         modifier = Modifier.fillMaxWidth(),
@@ -151,7 +143,7 @@ fun ReasonixProviderConfigure(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Text(
-            text = "Web 桥（反向隧道）",
+            text = stringResource(R.string.reasonix_web_bridge_section),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -161,209 +153,10 @@ fun ReasonixProviderConfigure(
         )
     }
     Text(
-        text = "手机 Web 服务反向隧道到 ECS，供 Reasonix 调用手机能力",
+        text = stringResource(R.string.reasonix_web_bridge_desc),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
-    if (provider.webBridgeEnabled) {
-        androidx.compose.material3.Surface(
-            modifier = Modifier.fillMaxWidth(),
-            shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-            color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-        ) {
-            Column(
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                modifier = Modifier.padding(10.dp),
-            ) {
-        Text(
-            text = "启动后自动：① 打开手机 Web 服务（:${provider.webBridgeLocalPort}）② 通过 SSH 反向隧道把手机端口映射到 ECS。切换 Reasonix 会话即自动连接。",
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        OutlinedTextField(
-            value = provider.webBridgeEcsHost,
-            onValueChange = { onEdit(provider.copy(webBridgeEcsHost = it.trim())) },
-            label = { Text("ECS 地址") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-        )
-        OutlinedTextField(
-            value = provider.webBridgeEcsUser,
-            onValueChange = { onEdit(provider.copy(webBridgeEcsUser = it.trim())) },
-            label = { Text("ECS 用户名（默认 root）") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-        )
-        OutlinedTextField(
-            value = provider.webBridgeEcsPort.toString(),
-            onValueChange = { v ->
-                v.toIntOrNull()?.let { onEdit(provider.copy(webBridgeEcsPort = it)) }
-            },
-            label = { Text("ECS SSH 端口") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-        )
-        OutlinedTextField(
-            value = provider.webBridgeRemotePort.toString(),
-            onValueChange = { v ->
-                v.toIntOrNull()?.let { onEdit(provider.copy(webBridgeRemotePort = it)) }
-            },
-            label = { Text("ECS 侧隧道端口（reasonix 访问端口）") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-        )
-        OutlinedTextField(
-            value = provider.webBridgeLocalPort.toString(),
-            onValueChange = { v ->
-                v.toIntOrNull()?.let { onEdit(provider.copy(webBridgeLocalPort = it)) }
-            },
-            label = { Text("手机 Web 服务端口") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-        )
-        OutlinedTextField(
-            value = provider.webBridgePrivateKeyPath,
-            onValueChange = { onEdit(provider.copy(webBridgePrivateKeyPath = it.trim())) },
-            label = { Text("SSH 私钥路径（可选，留空则需密码）") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-        )
-        // 生成新 SSH 密钥
-        var generatedKeyInfo by remember { mutableStateOf<String?>(null) }
-        var saveToVault by remember { mutableStateOf(true) }
-        val genScope = rememberCoroutineScope()
-        val genContext = LocalContext.current
-        val vaultRepo: CredentialVaultRepository = koinInject()
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            androidx.compose.material3.OutlinedButton(
-                onClick = {
-                    val key = SshKeyGenerator.generate()
-                    genScope.launch {
-                        runCatching {
-                            if (saveToVault) {
-                                // 保存到密钥库：分组 SSH + 描述
-                                vaultRepo.save(
-                                    name = "WEB_BRIDGE_SSH_KEY",
-                                    value = key.privateKeyPem,
-                                    description = "Web 桥 SSH 私钥（${provider.name}，${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())} 生成）",
-                                    group = "SSH",
-                                )
-                                generatedKeyInfo = "✅ 已生成并保存到密钥库（分组：SSH）\n公钥请添加到 ECS ~/.ssh/authorized_keys：\n${key.publicKeyLine}"
-                            } else {
-                                // 保存到 App 文件目录
-                                val dir = java.io.File(genContext.filesDir, "ssh_keys").apply { mkdirs() }
-                                val file = java.io.File(dir, "web_bridge_rsa")
-                                file.writeText(key.privateKeyPem)
-                                file.setReadable(false, true)
-                                file.setWritable(false, true)
-                                onEdit(provider.copy(webBridgePrivateKeyPath = file.absolutePath))
-                                generatedKeyInfo = "✅ 已生成到 ${file.absolutePath}\n公钥请添加到 ECS ~/.ssh/authorized_keys：\n${key.publicKeyLine}"
-                            }
-                        }.onFailure { e ->
-                            generatedKeyInfo = "❌ 生成失败: ${e.message}"
-                        }
-                    }
-                },
-                modifier = Modifier.weight(1f),
-            ) {
-                Text("生成新 SSH 密钥")
-            }
-            Text(
-                "保存到密钥库",
-                style = MaterialTheme.typography.bodySmall,
-                modifier = Modifier.weight(1f),
-            )
-            androidx.compose.material3.Switch(
-                checked = saveToVault,
-                onCheckedChange = { saveToVault = it },
-            )
-        }
-        generatedKeyInfo?.let {
-            Text(
-                text = it,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        }
-        OutlinedTextField(
-            value = provider.webBridgePassword,
-            onValueChange = { onEdit(provider.copy(webBridgePassword = it)) },
-            label = { Text("SSH 密码（可选，留空则用私钥）") },
-            modifier = Modifier.fillMaxWidth(),
-            singleLine = true,
-            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-        )
-
-        val webBridge: ReasonixWebBridge = koinInject()
-        val scope = rememberCoroutineScope()
-        val bridgeState by webBridge.state.collectAsState()
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(
-                text = when {
-                    bridgeState.tunnelConnected -> "✅ 隧道已连接（ECS:${provider.webBridgeRemotePort} ← 手机:${provider.webBridgeLocalPort}）"
-                    bridgeState.webServerRunning -> "⏳ Web 服务已启动，隧道连接中…"
-                    else -> "隧道状态：未连接"
-                },
-                style = MaterialTheme.typography.bodySmall,
-                color =
-                    if (bridgeState.tunnelConnected) {
-                        MaterialTheme.colorScheme.primary
-                    } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
-                    },
-                modifier = Modifier.weight(1f),
-            )
-        }
-        if (bridgeState.message.isNotBlank()) {
-            Text(
-                text = bridgeState.message,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.error,
-            )
-        }
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            androidx.compose.material3.Button(
-                onClick = {
-                    scope.launch {
-                        webBridge.start(
-                            ecsHost = provider.webBridgeEcsHost,
-                            ecsPort = provider.webBridgeEcsPort,
-                            ecsUser = provider.webBridgeEcsUser,
-                            remoteTunnelPort = provider.webBridgeRemotePort,
-                            localWebPort = provider.webBridgeLocalPort,
-                            privateKeyPath = provider.webBridgePrivateKeyPath,
-                            password = provider.webBridgePassword,
-                        )
-                    }
-                },
-                modifier = Modifier.weight(1f),
-                enabled = !bridgeState.tunnelConnected,
-            ) {
-                Text(stringResource(R.string.reasonix_start_web_bridge))
-            }
-            androidx.compose.material3.OutlinedButton(
-                onClick = { webBridge.stop() },
-                modifier = Modifier.weight(1f),
-                enabled = bridgeState.webServerRunning || bridgeState.tunnelConnected,
-            ) {
-                Text(stringResource(R.string.reasonix_stop_web_bridge))
-            }
-        }
-            }
-        }
-    }
 
     // 分隔：Web 桥区块与下方「是否启用」（整个提供商开关）之间加间距，避免视觉拥挤
     Spacer(Modifier.height(8.dp))
@@ -383,8 +176,7 @@ fun ReasonixProviderConfigure(
     }
 
     Text(
-        text = "Reasonix 会话由服务端管理（自动压缩/缓存优化继承）。" +
-            "关闭本开关即继续使用原客户端，互不影响。",
+        text = stringResource(R.string.reasonix_session_server_managed),
         style = MaterialTheme.typography.bodySmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
