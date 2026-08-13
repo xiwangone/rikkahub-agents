@@ -866,6 +866,10 @@
   <string name="setting_page_mcp_desc">Configure MCP Servers</string>
   <string name="setting_page_message_display_settings">Message Display</string>
   <string name="setting_page_model_and_services">Models &amp; Services</string>
+  <string name="setting_page_section_model">Model &amp; Content</string>
+  <string name="setting_page_section_connection">Connection &amp; Backend</string>
+  <string name="setting_page_section_security">Security &amp; Credentials</string>
+  <string name="setting_page_section_automation">Automation &amp; Diagnostics</string>
   <string name="setting_page_no_share_app">No sharing app found</string>
   <string name="setting_page_providers">Providers</string>
   <string name="setting_page_providers_desc">Configure AI providers</string>
