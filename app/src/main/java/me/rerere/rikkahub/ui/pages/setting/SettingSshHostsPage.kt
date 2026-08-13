@@ -68,11 +68,27 @@ fun SettingSshHostsPage() {
 
     // 加载主机列表
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        hosts = sshHostRepository.getAll()
+        runCatching {
+            sshHostRepository.getAll()
+        }.onSuccess { list ->
+            me.rerere.rikkahub.data.log.AppLog.d("SshHostsPage", "加载主机列表: ${list.size} 个 ${list.map { it.name }}")
+            hosts = list
+        }.onFailure { e ->
+            me.rerere.rikkahub.data.log.AppLog.w("SshHostsPage", "加载主机列表失败: ${e.message}")
+        }
     }
 
     fun reload() {
-        scope.launch { hosts = sshHostRepository.getAll() }
+        scope.launch {
+            runCatching {
+                sshHostRepository.getAll()
+            }.onSuccess { list ->
+                me.rerere.rikkahub.data.log.AppLog.d("SshHostsPage", "刷新主机列表: ${list.size} 个")
+                hosts = list
+            }.onFailure { e ->
+                me.rerere.rikkahub.data.log.AppLog.w("SshHostsPage", "刷新主机列表失败: ${e.message}")
+            }
+        }
     }
 
     Scaffold(
