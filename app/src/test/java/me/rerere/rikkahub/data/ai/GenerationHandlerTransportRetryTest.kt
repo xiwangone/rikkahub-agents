@@ -168,6 +168,49 @@ class GenerationHandlerTransportRetryTest {
     }
 
     @Test
+    fun `does not retry a 429 resource exhausted quota error`() {
+        assertFalse(
+            shouldRetryGenerationStreamFailure(
+                failure = HttpException(
+                    "RESOURCE_EXHAUSTED: Quota exceeded",
+                    statusCode = 429,
+                ),
+                retryAttempt = 0,
+                maxRetries = 5,
+                receivedMeaningfulOutput = false,
+            )
+        )
+    }
+
+    @Test
+    fun `does not retry a 429 whose cause chain reports resource has been exhausted`() {
+        val wrapped = RuntimeException(
+            "wrapper",
+            HttpException("The resource has been exhausted", statusCode = 429),
+        )
+        assertFalse(
+            shouldRetryGenerationStreamFailure(
+                failure = wrapped,
+                retryAttempt = 0,
+                maxRetries = 5,
+                receivedMeaningfulOutput = false,
+            )
+        )
+    }
+
+    @Test
+    fun `still retries a plain 429 rate limit message`() {
+        assertTrue(
+            shouldRetryGenerationStreamFailure(
+                failure = HttpException("Rate limit exceeded, please slow down", statusCode = 429),
+                retryAttempt = 0,
+                maxRetries = 5,
+                receivedMeaningfulOutput = false,
+            )
+        )
+    }
+
+    @Test
     fun `a deterministic 4xx still yields to max-retries and cancellation precedence`() {
         assertFalse(
             "receivedMeaningfulOutput still wins",

@@ -125,6 +125,9 @@ internal fun shouldRetryGenerationStreamFailure(
     if (isNonRetryableClientError(failure)) {
         return false
     }
+    if (isQuotaExhaustedFailure(failure)) {
+        return false
+    }
     // Retry provider, parsing, and local processing failures alike. Cancellation is kept
     // out of the retry loop so stop-generation and parent-scope cancellation propagate.
     return !isCancellationFailure(failure)
@@ -141,6 +144,34 @@ private fun isNonRetryableClientError(failure: Throwable): Boolean {
         ?.statusCode
         ?: return false
     return statusCode in 400..499 && statusCode !in RETRYABLE_4XX_STATUS_CODES
+}
+
+// 429 is normally in RETRYABLE_4XX_STATUS_CODES because it usually signals ordinary rate
+// limiting, which is worth retrying. But a 429 that also carries a RESOURCE_EXHAUSTED marker
+// means the account is quota-blocked server-side (CCA returns this instantly): the same
+// request will fail the same way on every retry, so retrying just burns time and requests.
+private val QUOTA_EXHAUSTED_MARKERS = listOf(
+    "resource exhausted",
+    "resource has been exhausted",
+)
+
+private fun isQuotaExhaustedFailure(failure: Throwable): Boolean {
+    val statusCode = generateSequence(failure) { it.cause }
+        .take(8)
+        .filterIsInstance<HttpException>()
+        .firstOrNull()
+        ?.statusCode
+    if (statusCode != 429) {
+        return false
+    }
+    return generateSequence(failure) { it.cause }
+        .take(8)
+        .any { cause ->
+            val text = (cause.message.orEmpty() + " " + cause.toString())
+                .lowercase()
+                .replace('_', ' ')
+            QUOTA_EXHAUSTED_MARKERS.any { marker -> marker in text }
+        }
 }
 
 private fun isContextLimitFailure(failure: Throwable): Boolean =
