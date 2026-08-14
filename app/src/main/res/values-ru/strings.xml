@@ -247,6 +247,8 @@
   <string name="chat_message_tool_deny_dialog_title">Отклонить выполнение инструмента</string>
   <string name="chat_message_tool_edit_memory">Обновлена память</string>
   <string name="chat_message_tool_get_time">Получить информацию о времени</string>
+  <string name="chat_message_tool_rerun">Повторить</string>
+  <string name="chat_message_tool_rerun_failed">Не удалось повторно выполнить инструмент: %1$s</string>
   <string name="chat_message_tool_scrape_prefix">Собрать данные с сайта: %1$s</string>
   <string name="chat_message_tool_scrape_web">Собрать данные со страницы</string>
   <string name="chat_message_tool_search_prefix">Поиск: %1$s</string>

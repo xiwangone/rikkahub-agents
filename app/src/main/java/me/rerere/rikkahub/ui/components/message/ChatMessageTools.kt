@@ -7,12 +7,14 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
@@ -30,12 +32,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import com.dokar.sonner.ToastType
+import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -50,6 +55,7 @@ import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Refresh03
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
@@ -58,6 +64,7 @@ import me.rerere.rikkahub.ui.components.message.tools.ToolUIRegistry
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.components.ui.DotLoading
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
@@ -104,8 +111,13 @@ fun ChainOfThoughtScope.ChatMessageServerToolStep(tool: UIMessagePart.ServerTool
 fun ChainOfThoughtScope.ChatMessageToolStep(
     tool: UIMessagePart.Tool,
     loading: Boolean = false,
+    // Whether a generation is running anywhere in this conversation, independent of
+    // `loading` (which is already narrowed to false for an executed tool and can't
+    // answer that question - see the rerun-button gate below).
+    generationActive: Boolean = loading,
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
+    onRerunTool: (suspend (toolCallId: String) -> me.rerere.rikkahub.service.ChatService.RerunToolResult)? = null,
 ) {
     // ask_user 是交互式问答流程, 不走注册式渲染框架
     if (tool.toolName == ASK_USER_TOOL_NAME) {
@@ -410,10 +422,91 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             ),
             onDismissRequest = { showResult = false },
             content = {
-                renderer.Preview(
-                    context = context,
-                    onDismissRequest = { showResult = false },
-                )
+                Column {
+                    renderer.Preview(
+                        context = context,
+                        onDismissRequest = { showResult = false },
+                    )
+                    // Only offer a re-run once the first attempt has produced output, and
+                    // never while a generation is in flight for this message - rerunTool
+                    // itself refuses that case, but hiding the button keeps a click from
+                    // spinning up just to be told no.
+                    if (tool.isExecuted && !generationActive && onRerunTool != null) {
+                        val rerunScope = rememberCoroutineScope()
+                        val toaster = LocalToaster.current
+                        // "context" in this scope is the ToolUIContext passed to renderer.Preview
+                        // above, not an android Context - resolve the failure toast's android
+                        // Context separately.
+                        val androidContext = androidx.compose.ui.platform.LocalContext.current
+                        var rerunInFlight by remember(tool.toolCallId) { mutableStateOf(false) }
+                        // The sonner toast host lives in the activity window, below the sheet's
+                        // own dialog window, so a toast fired while this sheet is open is never
+                        // seen. Surface the failure in-sheet too (toast still fires for the
+                        // moment right after dismissal).
+                        var rerunError by remember(tool.toolCallId) { mutableStateOf<String?>(null) }
+                        // navigationBarsPadding on this wrapper (not just the button) keeps the
+                        // whole action row - button and error text - out of the gesture-nav inset
+                        // band on edge-to-edge devices; without it the row rendered flush against
+                        // the bottom edge and taps landing there never reached the button.
+                        Column(modifier = Modifier.navigationBarsPadding()) {
+                            rerunError?.let { message ->
+                                Text(
+                                    text = message,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                                )
+                            }
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                            ) {
+                                TextButton(
+                                    onClick = {
+                                        if (rerunInFlight) return@TextButton
+                                        rerunInFlight = true
+                                        rerunError = null
+                                        rerunScope.launch {
+                                            val result = onRerunTool(tool.toolCallId)
+                                            rerunInFlight = false
+                                            if (result is me.rerere.rikkahub.service.ChatService.RerunToolResult.Failure) {
+                                                val message = androidContext.getString(
+                                                    R.string.chat_message_tool_rerun_failed,
+                                                    result.message,
+                                                )
+                                                rerunError = message
+                                                toaster.show(
+                                                    message = message,
+                                                    type = ToastType.Error,
+                                                )
+                                            }
+                                        }
+                                    },
+                                    enabled = !rerunInFlight,
+                                ) {
+                                    if (rerunInFlight) {
+                                        CircularProgressIndicator(
+                                            modifier = Modifier.size(16.dp),
+                                            strokeWidth = 2.dp,
+                                        )
+                                    } else {
+                                        Icon(
+                                            imageVector = HugeIcons.Refresh03,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                    }
+                                    Text(
+                                        text = stringResource(R.string.chat_message_tool_rerun),
+                                        modifier = Modifier.padding(start = 6.dp),
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             },
         )
     }

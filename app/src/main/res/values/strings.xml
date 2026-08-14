@@ -249,6 +249,8 @@
   <string name="chat_message_tool_deny_dialog_title">Deny Tool Execution</string>
   <string name="chat_message_tool_edit_memory">Updated memory</string>
   <string name="chat_message_tool_get_time">Get time info</string>
+  <string name="chat_message_tool_rerun">Re-run</string>
+  <string name="chat_message_tool_rerun_failed">Tool re-run failed: %1$s</string>
   <string name="chat_message_tool_scrape_prefix">Scrape website: %1$s</string>
   <string name="chat_message_tool_scrape_web">Scrape web page</string>
   <string name="chat_message_tool_search_prefix">Search: %1$s</string>

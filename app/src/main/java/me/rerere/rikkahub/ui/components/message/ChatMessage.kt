@@ -108,6 +108,11 @@ fun ChatMessage(
         ?: UIMessage.assistant(""),
     modifier: Modifier = Modifier,
     loading: Boolean = false,
+    // Whether a generation is running anywhere in this conversation, independent of
+    // `loading` (which the caller narrows to this node being the last message) - see the
+    // rerun-button gate in ChatMessageToolStep, which must not show while any generation
+    // is in flight, not just one on this exact message.
+    generationActive: Boolean = loading,
     model: Model? = null,
     assistant: Assistant? = null,
     lastMessage: Boolean = false,
@@ -123,6 +128,7 @@ fun ChatMessage(
     onClearTranslation: (UIMessage) -> Unit = {},
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
+    onRerunTool: (suspend (toolCallId: String) -> me.rerere.rikkahub.service.ChatService.RerunToolResult)? = null,
 ) {
     // node.selectIndex can be stale (e.g. after a branch/message was removed) or the
     // node can be empty; degrade to the last message, or render nothing, instead of
@@ -176,9 +182,11 @@ fun ChatMessage(
                 parts = message.parts,
                 annotations = message.annotations,
                 loading = loading,
+                generationActive = generationActive,
                 model = model,
                 onToolApproval = onToolApproval,
                 onToolAnswer = onToolAnswer,
+                onRerunTool = onRerunTool,
                 onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
             )
 
@@ -281,8 +289,10 @@ private fun MessagePartsBlock(
     parts: List<UIMessagePart>,
     annotations: List<UIMessageAnnotation>,
     loading: Boolean,
+    generationActive: Boolean = loading,
     onToolApproval: ((toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String) -> Unit)? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
+    onRerunTool: (suspend (toolCallId: String) -> me.rerere.rikkahub.service.ChatService.RerunToolResult)? = null,
     onUserMessageClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
@@ -369,8 +379,10 @@ private fun MessagePartsBlock(
                                     ChatMessageToolStep(
                                         tool = step.tool,
                                         loading = loading && !step.tool.isExecuted,
+                                        generationActive = generationActive,
                                         onToolApproval = onToolApproval,
                                         onToolAnswer = onToolAnswer,
+                                        onRerunTool = onRerunTool,
                                     )
                                 }
                             }

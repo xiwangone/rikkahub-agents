@@ -247,6 +247,8 @@
   <string name="chat_message_tool_deny_dialog_title">ツール実行を拒否</string>
   <string name="chat_message_tool_edit_memory">記憶を更新しました</string>
   <string name="chat_message_tool_get_time">時刻情報を取得</string>
+  <string name="chat_message_tool_rerun">再実行</string>
+  <string name="chat_message_tool_rerun_failed">ツールの再実行に失敗しました: %1$s</string>
   <string name="chat_message_tool_scrape_prefix">ウェブサイトをスクレイピング: %1$s</string>
   <string name="chat_message_tool_scrape_web">ウェブページを取得</string>
   <string name="chat_message_tool_search_prefix">検索: %1$s</string>

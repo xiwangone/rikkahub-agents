@@ -249,6 +249,8 @@
   <string name="chat_message_tool_deny_dialog_title">拒绝工具执行</string>
   <string name="chat_message_tool_edit_memory">更新了记忆</string>
   <string name="chat_message_tool_get_time">获取时间信息</string>
+  <string name="chat_message_tool_rerun">重新运行</string>
+  <string name="chat_message_tool_rerun_failed">工具重新运行失败：%1$s</string>
   <string name="chat_message_tool_scrape_prefix">抓取网站：%1$s</string>
   <string name="chat_message_tool_scrape_web">抓取网页</string>
   <string name="chat_message_tool_search_prefix">搜索: %1$s</string>

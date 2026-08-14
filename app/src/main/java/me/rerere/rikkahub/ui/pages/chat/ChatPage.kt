@@ -481,6 +481,9 @@ private fun ChatPageContent(
                 onToolAnswer = { toolCallId, answer ->
                     vm.handleToolAnswer(toolCallId, answer)
                 },
+                onRerunTool = { toolCallId ->
+                    vm.rerunTool(toolCallId)
+                },
                 onToggleFavorite = { node ->
                     vm.toggleMessageFavorite(node)
                 },

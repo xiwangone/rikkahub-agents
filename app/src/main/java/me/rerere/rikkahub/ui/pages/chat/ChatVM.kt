@@ -245,6 +245,9 @@ class ChatVM(
         chatService.handleToolApproval(_conversationId, toolCallId, approved = true, answer = answer)
     }
 
+    suspend fun rerunTool(toolCallId: String): me.rerere.rikkahub.service.ChatService.RerunToolResult =
+        chatService.rerunTool(_conversationId, toolCallId)
+
     fun stopGeneration() {
         viewModelScope.launch {
             chatService.stopGeneration(_conversationId)

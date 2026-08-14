@@ -181,6 +181,60 @@ internal fun backgroundTextGenerationParams(
 internal fun compactionContextLength(settings: Settings, model: Model): Int? =
     settings.getCompactionContextLength(model)
 
+/**
+ * Locates the [UIMessagePart.Tool] with [toolCallId] anywhere in [conversation]'s message
+ * nodes, across every message version in each node (not just the currently-selected
+ * branch) - the same scope [ChatService.handleToolApproval] mutates. Returns null if no
+ * such part exists.
+ */
+internal fun findToolCallPart(conversation: Conversation, toolCallId: String): UIMessagePart.Tool? =
+    conversation.messageNodes.asSequence()
+        .flatMap { it.messages.asSequence() }
+        .flatMap { it.parts.asSequence() }
+        .filterIsInstance<UIMessagePart.Tool>()
+        .firstOrNull { it.toolCallId == toolCallId }
+
+/**
+ * Returns [conversation] with the [UIMessagePart.Tool] matching [toolCallId] replaced by
+ * [transform]'s result, wherever it appears (see [findToolCallPart]). Returns [conversation]
+ * unchanged if no matching part exists.
+ */
+internal fun replaceToolCallPart(
+    conversation: Conversation,
+    toolCallId: String,
+    transform: (UIMessagePart.Tool) -> UIMessagePart.Tool,
+): Conversation {
+    var found = false
+    val updatedNodes = conversation.messageNodes.map { node ->
+        node.copy(
+            messages = node.messages.map { msg ->
+                msg.copy(
+                    parts = msg.parts.map { part ->
+                        if (part is UIMessagePart.Tool && part.toolCallId == toolCallId) {
+                            found = true
+                            transform(part)
+                        } else part
+                    }
+                )
+            }
+        )
+    }
+    return if (found) conversation.copy(messageNodes = updatedNodes) else conversation
+}
+
+/**
+ * A turn "stalled" when it ended without producing text the user can read: a hard failure
+ * (any error, including retry exhaustion), or a success whose final assistant message carries
+ * only reasoning/tool parts (or a blank text part) with no non-blank [UIMessagePart.Text].
+ * Deliberate non-goal: detecting mid-sentence truncation of a turn that DID produce text -
+ * there is no reliable signal for that, so it is treated as not stalled.
+ */
+internal fun isStalledTurn(succeeded: Boolean, lastMessage: UIMessage?): Boolean {
+    if (!succeeded) return true
+    if (lastMessage == null || lastMessage.role != MessageRole.ASSISTANT) return false
+    return lastMessage.parts.filterIsInstance<UIMessagePart.Text>().none { it.text.isNotBlank() }
+}
+
 data class ChatError(
     val id: Uuid = Uuid.random(),
     val title: String? = null,
@@ -932,6 +986,210 @@ class ChatService(
             }
         } else {
             toolApprovalPreferences.grantAlways(toolName)
+        }
+    }
+
+    /** Outcome of [rerunTool]. [Failure.message] is a short, non-localized diagnostic
+     *  meant to be interpolated into a localized wrapper string in the UI, matching
+     *  DirectModeActionRunner.StepResult.Failed's error strings. */
+    sealed class RerunToolResult {
+        data object Success : RerunToolResult()
+        data class Failure(val message: String) : RerunToolResult()
+    }
+
+    /**
+     * Re-executes the already-executed [UIMessagePart.Tool] identified by [toolCallId] in
+     * [conversationId] and replaces its output in place. Modeled on the two existing
+     * outside-the-generation-loop precedents: tryFastPathRoute's tool lookup + execute
+     * above, and DirectModeActionRunner's guard + 60s timeout wrapping.
+     *
+     * Refuses while a generation job is active for the conversation so this can't race the
+     * normal loop's own read-modify-write of the same message (same class of race
+     * handleToolApproval's priorGenerationJob comment documents).
+     *
+     * Runs on [appScope] rather than the caller's coroutine - like sendMessage,
+     * handleToolApproval, and regenerateAtMessage - so the up-to-60s tool.execute() and the
+     * persist step below survive the caller (the sheet's button scope) being cancelled by a
+     * dismiss/navigate-away instead of losing the result silently.
+     */
+    suspend fun rerunTool(conversationId: Uuid, toolCallId: String): RerunToolResult =
+        appScope.async { rerunToolInternal(conversationId, toolCallId) }.await()
+
+    private suspend fun rerunToolInternal(conversationId: Uuid, toolCallId: String): RerunToolResult {
+        val session = getOrCreateSession(conversationId)
+        if (session.isGenerating) {
+            return RerunToolResult.Failure("a generation is already running for this conversation")
+        }
+        // Pin the session for the rest of this function. handleToolApproval keeps its
+        // session alive across its own async work by setting the generation job
+        // (isGenerating implies isInUse); rerunTool must NOT do that - setting a job would
+        // flip `loading`/`isGenerating` for the whole conversation just because a tool is
+        // being re-run, hiding regenerate buttons and other rerun buttons for no reason.
+        // acquire()/release() pins the same way addConversationReference does (refCount),
+        // without touching isGenerating. Without this, the 5s idle-eviction timer
+        // (ConversationSession.IDLE_TIMEOUT_MS) can remove the session out from under the
+        // up-to-60s tool.execute() below the moment the user navigates away (that drops
+        // ChatVM's reference), and the write-back at the end would silently land in a
+        // freshly-recreated blank session instead. The fallback below still covers the
+        // remaining edge case where the session is gone anyway (e.g. dropSession(), which
+        // explicitly ignores refcount).
+        session.acquire()
+        try {
+            // Only the fast lookup/validation below runs under the mutex - matching the
+            // class doc's "persist boundaries only" contract. tool.execute() (up to 60s)
+            // below runs UNLOCKED so a concurrent handleToolApproval/stopGeneration on this
+            // conversation doesn't block on this rerun.
+            val (toolPart, tool) = mutexFor(conversationId).withLock {
+                // Re-resolve the session under the lock instead of trusting `session`
+                // pinned above: dropSession() (e.g. /new) removes it from the map
+                // regardless of refcount, so a racing caller could have dropped it and
+                // had a fresh session recreated for the same conversationId while we
+                // waited for this lock. Checking/reading through the stale object would
+                // miss a generation that started on the replacement session.
+                val liveSession = getOrCreateSession(conversationId)
+                if (liveSession.isGenerating) {
+                    return RerunToolResult.Failure("a generation is already running for this conversation")
+                }
+
+                ensureHydrated(conversationId)
+                val conversation = liveSession.state.value
+                val toolPart = findToolCallPart(conversation, toolCallId)
+                    ?: return RerunToolResult.Failure("tool call not found")
+                if (!toolPart.isExecuted) {
+                    return RerunToolResult.Failure("tool has not completed its first run yet")
+                }
+
+                val hardlineReason = me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
+                    .checkTool(toolPart.toolName, toolPart.input)
+                if (hardlineReason != null) {
+                    return RerunToolResult.Failure("blocked: $hardlineReason")
+                }
+
+                val settings = settingsStore.settingsFlow.first()
+                val assistant = settings.getAssistantById(conversation.assistantId) ?: settings.getCurrentAssistant()
+                val model = settings.findModelById(
+                    conversation.chatModelId ?: assistant.chatModelId ?: settings.chatModelId
+                ) ?: return RerunToolResult.Failure("no chat model selected")
+
+                val tools = buildToolsForRerun(assistant, conversationId, conversation, model, settings)
+                val tool = tools.firstOrNull { it.name == toolPart.toolName }
+                    ?: return RerunToolResult.Failure("tool '${toolPart.toolName}' is not available")
+
+                toolPart to tool
+            }
+
+            val startedAt = System.currentTimeMillis()
+            val output = try {
+                withTimeoutOrNull(60_000L) { tool.execute(toolPart.inputAsJson()) }
+                    ?: return RerunToolResult.Failure("timed out after 60s")
+            } catch (c: CancellationException) {
+                throw c
+            } catch (t: Throwable) {
+                Log.w(TAG, "rerunTool: tool=${toolPart.toolName} threw", t)
+                return RerunToolResult.Failure("${t::class.simpleName}: ${t.message.orEmpty()}".take(500))
+            }
+
+            // Apply against the LATEST state, not the pre-execute snapshot captured above -
+            // sendMessage/handleToolApproval etc. can mutate the conversation during the
+            // up-to-60s tool.execute() call. updateConversationState's atomic
+            // StateFlow.update re-applies replaceToolCallPart against whatever is current
+            // at write time, so a concurrent write in the meantime isn't silently reverted
+            // the way overwriting with this function's stale `conversation` snapshot would.
+            var applied = false
+            val toolReplacer: (UIMessagePart.Tool) -> UIMessagePart.Tool = {
+                applied = true
+                it.copy(output = output, executionStartedAt = startedAt)
+            }
+            val sessionStillTracked = mutexFor(conversationId).withLock {
+                if (!sessions.containsKey(conversationId)) return@withLock false
+                updateConversationState(conversationId) { current ->
+                    replaceToolCallPart(current, toolCallId, toolReplacer)
+                }
+                true
+            }
+            if (sessionStillTracked) {
+                if (!applied) {
+                    return RerunToolResult.Failure("tool call not found")
+                }
+                // Re-resolve the session rather than reading through `session` pinned at
+                // the top of this function: updateConversationState() above applied the
+                // update to whatever session is CURRENTLY in the map, which can be a
+                // different object than `session` if dropSession() replaced it
+                // mid-execute. Saving the old object's state here would silently revert
+                // the update just made.
+                saveConversation(conversationId, getOrCreateSession(conversationId).state.value)
+            } else {
+                // The session is gone despite the pin above (e.g. an explicit
+                // dropSession() elsewhere ignores refcount). updateConversationState
+                // would silently recreate a blank one and drop this result into it, so
+                // instead apply straight to the repository-loaded conversation and
+                // persist it there - mirrors renameConversation's sync-memory-then-persist
+                // rule - so a completed re-run is never discarded.
+                val stored = conversationRepo.getConversationById(conversationId)
+                    ?: return RerunToolResult.Failure("conversation no longer exists")
+                val updated = replaceToolCallPart(stored, toolCallId, toolReplacer)
+                if (!applied) {
+                    return RerunToolResult.Failure("tool call not found")
+                }
+                saveConversation(conversationId, updated)
+            }
+            return RerunToolResult.Success
+        } finally {
+            session.release()
+        }
+    }
+
+    /**
+     * Builds the tool list available to [assistant] in [conversationId]/[conversation] for
+     * [rerunTool], outside the generation loop. Mirrors the components handleMessageComplete's
+     * inline tool assembly uses (local tools, workspace tools, skill tools, namespaced MCP
+     * tools) rather than duplicating that list literal. Unlike that inline assembly, an
+     * MCP server with an invalid name is simply skipped here (no addError/abort - a rerun
+     * targeting such a tool just reports "not available" like any other missing tool, since
+     * this path never sends tool schemas to a model).
+     */
+    private suspend fun buildToolsForRerun(
+        assistant: Assistant,
+        conversationId: Uuid,
+        conversation: Conversation,
+        model: Model,
+        settings: Settings,
+    ): List<Tool> = buildList {
+        if (assistant.enableWebSearch) {
+            addAll(createSearchTools(settings))
+        }
+        val invocationCtx = me.rerere.rikkahub.data.ai.tools.ToolInvocationContext(
+            callerAssistantId = assistant.id.toString(),
+            callerConversationId = conversationId.toString(),
+            isHeadless = me.rerere.rikkahub.data.ai.tools.HeadlessConversations.isHeadless(conversationId),
+            modelCanSeeImages = Modality.IMAGE in model.inputModalities,
+        )
+        addAll(localTools.getTools(assistant.localTools, invocationCtx))
+        addAll(createWorkspaceToolsIfReady(assistant.workspaceId?.toString(), conversation.workspaceCwd))
+        if (assistant.enabledSkills.isNotEmpty()) {
+            addAll(
+                createSkillTools(
+                    enabledSkills = assistant.enabledSkills,
+                    allSkills = skillManager.listSkills(),
+                    skillManager = skillManager,
+                )
+            )
+        }
+        mcpManager.getAllAvailableTools().forEach { (serverId, serverName, mcpTool) ->
+            val serverSlug = serverId.toString().take(8).replace("-", "")
+            val mcpToolName = "mcp__" + serverSlug + "_" + serverName + "__" + mcpTool.name
+            add(
+                Tool(
+                    name = mcpToolName,
+                    description = mcpTool.description ?: "",
+                    parameters = { mcpTool.inputSchema },
+                    needsApproval = {
+                        me.rerere.rikkahub.data.ai.tools
+                            .ToolApprovalDefaults.requiresApproval(mcpToolName) || mcpTool.needsApproval
+                    },
+                    execute = { mcpManager.callTool(serverId, mcpTool.name, it.jsonObject) },
+                )
+            )
         }
     }
 

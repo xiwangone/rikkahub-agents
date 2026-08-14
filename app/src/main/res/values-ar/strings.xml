@@ -336,6 +336,8 @@
   <string name="setting_page_tool_approvals_yolo_dialog_cancel">إبقاء الموافقات مُفعَّلة</string>
   <string name="chat_message_tool_edit_memory">تم تحديث ذاكرة</string>
   <string name="chat_message_tool_get_time">الحصول على معلومات الوقت</string>
+  <string name="chat_message_tool_rerun">إعادة التشغيل</string>
+  <string name="chat_message_tool_rerun_failed">فشلت إعادة تشغيل الأداة: %1$s</string>
   <string name="chat_message_tool_scrape_prefix">كشط الموقع: %1$s</string>
   <string name="chat_message_tool_scrape_web">كشط صفحة ويب</string>
   <string name="chat_message_tool_search_prefix">بحث: %1$s</string>

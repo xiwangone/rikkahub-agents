@@ -247,6 +247,8 @@
   <string name="chat_message_tool_deny_dialog_title">도구 실행 거부</string>
   <string name="chat_message_tool_edit_memory">기억 업데이트됨</string>
   <string name="chat_message_tool_get_time">시간 정보 가져오기</string>
+  <string name="chat_message_tool_rerun">다시 실행</string>
+  <string name="chat_message_tool_rerun_failed">도구 재실행 실패: %1$s</string>
   <string name="chat_message_tool_scrape_prefix">웹사이트 긁어오기: %1$s</string>
   <string name="chat_message_tool_scrape_web">웹 페이지 긁어오기</string>
   <string name="chat_message_tool_search_prefix">검색: %1$s</string>
