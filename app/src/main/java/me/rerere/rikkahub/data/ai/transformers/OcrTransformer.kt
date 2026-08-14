@@ -23,7 +23,6 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import java.io.File
-import kotlin.time.Duration.Companion.days
 
 private const val TAG = "OcrTransformer"
 
@@ -32,6 +31,23 @@ private const val TAG = "OcrTransformer"
 // On Telegram that wedges the per-chat mutex, so every later message queues until the user
 // sends /new — the symptom this bound exists to prevent.
 private const val OCR_TIMEOUT_MS = 60_000L
+
+/**
+ * Which `file:` image urls in [messages] still need OCR, i.e. are not covered by
+ * [isCached]. Pure so the "should we even show a status / do any work" decision can be
+ * unit-tested without a real cache.
+ */
+internal fun selectUncachedImageUrls(
+    messages: List<UIMessage>,
+    isCached: (String) -> Boolean,
+): List<String> = messages
+    .asSequence()
+    .flatMap { it.parts.asSequence() }
+    .filterIsInstance<UIMessagePart.Image>()
+    .map { it.url }
+    .filter { it.startsWith("file:") }
+    .filterNot(isCached)
+    .toList()
 
 object OcrTransformer : InputMessageTransformer, KoinComponent {
     private val cache by lazy {
@@ -44,11 +60,10 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
             json = json
         )
         LruCache(
-            capacity = 64,
+            capacity = 256,
             store = store,
             deleteOnEvict = true,
             preloadFromStore = true,
-            expireAfterWriteMillis = 3.days.inWholeMilliseconds,
         )
     }
 
@@ -67,7 +82,21 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
 
         return withContext(Dispatchers.IO) {
             try {
-                ctx.processingStatus.value = ctx.context.getString(R.string.ocr_status_recognizing)
+                val uncachedUrls = selectUncachedImageUrls(messages) { cache.get(it) != null }
+                if (uncachedUrls.isNotEmpty()) {
+                    val uncachedSet = uncachedUrls.toSet()
+                    val triggers = messages.flatMap { message ->
+                        message.parts
+                            .filterIsInstance<UIMessagePart.Image>()
+                            .filter { it.url in uncachedSet }
+                            .map { "${message.role}:${it.url}" }
+                    }
+                    Log.i(
+                        TAG,
+                        "transform: ${triggers.size} uncached image(s) trigger OCR: ${triggers.take(3)}"
+                    )
+                    ctx.processingStatus.value = ctx.context.getString(R.string.ocr_status_recognizing)
+                }
                 messages.map { message ->
                     message.copy(
                         parts = message.parts.map { part ->
