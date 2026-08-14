@@ -422,7 +422,6 @@ private fun TextInputRow(
     onSendMessage: () -> Unit,
 ) {
     val settings = LocalSettings.current
-    val filesManager: FilesManager = koinInject()
     val assistant = settings.getCurrentAssistant()
     val quickMessages = remember(settings.quickMessages, assistant.quickMessageIds) {
         settings.getQuickMessagesOfAssistant(assistant)
@@ -457,42 +456,7 @@ private fun TextInputRow(
         var isFocused by remember { mutableStateOf(false) }
         var isFullScreen by remember { mutableStateOf(false) }
         var completionList by remember { mutableStateOf<ChatCompletionList?>(null) }
-        val receiveContentListener = remember(
-            settings.displaySetting.pasteLongTextAsFile, settings.displaySetting.pasteLongTextThreshold
-        ) {
-            ReceiveContentListener { transferableContent ->
-                when {
-                    transferableContent.hasMediaType(MediaType.Image) -> {
-                        transferableContent.consume { item ->
-                            val uri = item.uri
-                            if (uri != null) {
-                                state.addImages(
-                                    filesManager.createChatFilesByContents(
-                                        listOf(uri)
-                                    )
-                                )
-                            }
-                            uri != null
-                        }
-                    }
-
-                    settings.displaySetting.pasteLongTextAsFile && transferableContent.hasMediaType(MediaType.Text) -> {
-                        transferableContent.consume { item ->
-                            val text = item.text?.toString()
-                            if (text != null && text.length > settings.displaySetting.pasteLongTextThreshold) {
-                                val document = filesManager.createChatTextFile(text)
-                                state.addFiles(listOf(document))
-                                true
-                            } else {
-                                false
-                            }
-                        }
-                    }
-
-                    else -> transferableContent
-                }
-            }
-        }
+        val receiveContentListener = rememberPasteLongTextAsFileListener(state)
 
         LaunchedEffect(completionProviders, isFocused) {
             if (!isFocused || completionProviders.isEmpty()) {
@@ -590,6 +554,50 @@ private fun TextInputRow(
         if (isFullScreen) {
             FullScreenEditor(state = state) {
                 isFullScreen = false
+            }
+        }
+    }
+}
+
+// Note: keyboard clipboard-chip insertions go through commitText, which bypasses
+// Compose's content receiver; only long-press Paste and Ctrl+V trigger this listener.
+@Composable
+private fun rememberPasteLongTextAsFileListener(state: ChatInputState): ReceiveContentListener {
+    val settings = LocalSettings.current
+    val filesManager: FilesManager = koinInject()
+    return remember(
+        settings.displaySetting.pasteLongTextAsFile, settings.displaySetting.pasteLongTextThreshold
+    ) {
+        ReceiveContentListener { transferableContent ->
+            when {
+                transferableContent.hasMediaType(MediaType.Image) -> {
+                    transferableContent.consume { item ->
+                        val uri = item.uri
+                        if (uri != null) {
+                            state.addImages(
+                                filesManager.createChatFilesByContents(
+                                    listOf(uri)
+                                )
+                            )
+                        }
+                        uri != null
+                    }
+                }
+
+                settings.displaySetting.pasteLongTextAsFile && transferableContent.hasMediaType(MediaType.Text) -> {
+                    transferableContent.consume { item ->
+                        val text = item.text?.toString()
+                        if (text != null && text.length > settings.displaySetting.pasteLongTextThreshold) {
+                            val document = filesManager.createChatTextFile(text)
+                            state.addFiles(listOf(document))
+                            true
+                        } else {
+                            false
+                        }
+                    }
+                }
+
+                else -> transferableContent
             }
         }
     }
@@ -764,11 +772,13 @@ private fun FullScreenEditor(
                             Text(stringResource(R.string.chat_page_save))
                         }
                     }
+                    val receiveContentListener = rememberPasteLongTextAsFileListener(state)
                     TextField(
                         state = state.textContent,
                         modifier = Modifier
                             .padding(bottom = 2.dp)
-                            .fillMaxSize(),
+                            .fillMaxSize()
+                            .contentReceiver(receiveContentListener),
                         shape = RoundedCornerShape(32.dp),
                         placeholder = {
                             Text(stringResource(R.string.chat_input_placeholder))
