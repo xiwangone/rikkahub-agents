@@ -1272,6 +1272,7 @@
   <string name="chat_select_model_first">Сначала выберите модель</string>
   <string name="chat_stop_generation_before_delete">Сначала остановите генерацию, прежде чем удалять сообщения</string>
   <string name="image_preview_saved">Изображение сохранено</string>
+  <string name="attachment_open_failed">Не удалось открыть этот файл</string>
   <string name="image_preview_saving">Сохранение…</string>
   <string name="local_llm_accelerator_label">Ускоритель: %1$s</string>
   <string name="local_llm_catalog_install">Установить</string>

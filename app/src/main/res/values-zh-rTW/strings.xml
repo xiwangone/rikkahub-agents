@@ -1271,6 +1271,7 @@
   <string name="chat_select_model_first">請先選擇模型</string>
   <string name="chat_stop_generation_before_delete">請先停止產生再刪除訊息</string>
   <string name="image_preview_saved">圖片已儲存</string>
+  <string name="attachment_open_failed">無法開啟此檔案</string>
   <string name="image_preview_saving">正在儲存…</string>
   <string name="local_llm_accelerator_label">加速器：%1$s</string>
   <string name="local_llm_catalog_install">安裝</string>

@@ -1479,6 +1479,7 @@
   <string name="chat_select_model_first">من فضلك اختر نموذجًا أولًا</string>
   <string name="image_preview_saving">جارٍ الحفظ…</string>
   <string name="image_preview_saved">تم حفظ الصورة</string>
+  <string name="attachment_open_failed">يتعذر فتح هذا الملف</string>
   <string name="chat_drawer_statistics">الإحصائيات</string>
   <string name="translator_error_generic">خطأ</string>
   <string name="translator_paste_text">لصق نص</string>

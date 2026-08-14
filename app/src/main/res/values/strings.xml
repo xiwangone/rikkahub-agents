@@ -1744,6 +1744,7 @@
   <string name="chat_select_model_first">Please select a model first</string>
   <string name="image_preview_saving">Saving…</string>
   <string name="image_preview_saved">Image saved</string>
+  <string name="attachment_open_failed">Cannot open this file</string>
   <string name="chat_drawer_statistics">Statistics</string>
   <string name="translator_error_generic">Error</string>
   <string name="translator_paste_text">Paste text</string>

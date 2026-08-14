@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.ai
 
+import android.content.Intent
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -22,17 +23,23 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
+import androidx.core.content.FileProvider
+import androidx.core.net.toFile
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
+import com.dokar.sonner.ToastType
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
@@ -40,6 +47,8 @@ import me.rerere.hugeicons.stroke.Files02
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.data.files.FilesManager
+import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import org.koin.compose.koinInject
 import androidx.compose.ui.res.stringResource
@@ -50,6 +59,8 @@ internal fun MediaFileInputRow(
     state: ChatInputState,
 ) {
     val filesManager: FilesManager = koinInject()
+    val context = LocalContext.current
+    val toaster = LocalToaster.current
     val managedFiles by filesManager.observe().collectAsState(initial = emptyList())
     val displayNameByRelativePath = remember(managedFiles) {
         managedFiles.associate { it.relativePath to it.displayName }
@@ -58,10 +69,33 @@ internal fun MediaFileInputRow(
         managedFiles.associate { it.relativePath.substringAfterLast('/') to it.displayName }
     }
 
+    var previewImageIndex by remember { mutableStateOf<Int?>(null) }
+    val imageUrls = remember(state.messageContent) {
+        state.messageContent.filterIsInstance<UIMessagePart.Image>().map { it.url }
+    }
+
     fun removePart(part: UIMessagePart, url: String) {
         state.messageContent = state.messageContent.filterNot { it == part }
         if (state.shouldDeleteFileOnRemove(part)) {
             filesManager.deleteChatFiles(listOf(url.toUri()))
+        }
+    }
+
+    fun openWithSystemChooser(url: String) {
+        runCatching {
+            val intent = Intent(Intent.ACTION_VIEW)
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            intent.data = FileProvider.getUriForFile(
+                context,
+                "${context.packageName}.fileprovider",
+                url.toUri().toFile()
+            )
+            context.startActivity(Intent.createChooser(intent, null))
+        }.onFailure {
+            toaster.show(
+                message = context.getString(R.string.attachment_open_failed),
+                type = ToastType.Error,
+            )
         }
     }
 
@@ -96,7 +130,8 @@ internal fun MediaFileInputRow(
                                 )
                             }
                         },
-                        onRemove = { removePart(part, part.url) }
+                        onRemove = { removePart(part, part.url) },
+                        onClick = { previewImageIndex = imageUrls.indexOf(part.url).coerceAtLeast(0) }
                     )
                 }
 
@@ -109,7 +144,8 @@ internal fun MediaFileInputRow(
                             displayNameByFileName = displayNameByFileName
                         ),
                         leading = { AttachmentLeadingIcon(icon = HugeIcons.Video01) },
-                        onRemove = { removePart(part, part.url) }
+                        onRemove = { removePart(part, part.url) },
+                        onClick = { openWithSystemChooser(part.url) }
                     )
                 }
 
@@ -122,7 +158,8 @@ internal fun MediaFileInputRow(
                             displayNameByFileName = displayNameByFileName
                         ),
                         leading = { AttachmentLeadingIcon(icon = HugeIcons.MusicNote03) },
-                        onRemove = { removePart(part, part.url) }
+                        onRemove = { removePart(part, part.url) },
+                        onClick = { openWithSystemChooser(part.url) }
                     )
                 }
 
@@ -135,13 +172,22 @@ internal fun MediaFileInputRow(
                             displayNameByFileName = displayNameByFileName
                         ),
                         leading = { AttachmentLeadingIcon(icon = HugeIcons.Files02) },
-                        onRemove = { removePart(part, part.url) }
+                        onRemove = { removePart(part, part.url) },
+                        onClick = { openWithSystemChooser(part.url) }
                     )
                 }
 
                 else -> Unit
             }
         }
+    }
+
+    previewImageIndex?.let { index ->
+        ImagePreviewDialog(
+            images = imageUrls,
+            initialPage = index,
+            onDismissRequest = { previewImageIndex = null }
+        )
     }
 }
 
@@ -150,14 +196,9 @@ private fun AttachmentChip(
     title: String,
     leading: @Composable () -> Unit,
     onRemove: () -> Unit,
+    onClick: (() -> Unit)? = null,
 ) {
-    Surface(
-        shape = RoundedCornerShape(18.dp),
-        tonalElevation = 1.dp,
-        shadowElevation = 0.dp,
-        color = MaterialTheme.colorScheme.surface,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f))
-    ) {
+    val content: @Composable () -> Unit = {
         Row(
             modifier = Modifier
                 .height(44.dp)
@@ -188,6 +229,26 @@ private fun AttachmentChip(
                 )
             }
         }
+    }
+    if (onClick != null) {
+        Surface(
+            onClick = onClick,
+            shape = RoundedCornerShape(18.dp),
+            tonalElevation = 1.dp,
+            shadowElevation = 0.dp,
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            content = content
+        )
+    } else {
+        Surface(
+            shape = RoundedCornerShape(18.dp),
+            tonalElevation = 1.dp,
+            shadowElevation = 0.dp,
+            color = MaterialTheme.colorScheme.surface,
+            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.35f)),
+            content = content
+        )
     }
 }
 

@@ -1301,6 +1301,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_select_model_first">请先选择模型</string>
   <string name="chat_stop_generation_before_delete">请先停止生成再删除消息</string>
   <string name="image_preview_saved">图片已保存</string>
+  <string name="attachment_open_failed">无法打开此文件</string>
   <string name="image_preview_saving">正在保存…</string>
   <string name="local_llm_accelerator_label">加速器：%1$s</string>
   <string name="local_llm_catalog_install">安装</string>

@@ -33,11 +33,12 @@ import org.koin.compose.koinInject
 @Composable
 fun ImagePreviewDialog(
     images: List<String>,
+    initialPage: Int = 0,
     onDismissRequest: () -> Unit,
 ) {
     val context = LocalContext.current
     val filesManager: FilesManager = koinInject()
-    val state = rememberZoomablePagerState { images.size }
+    val state = rememberZoomablePagerState(initialPage = initialPage) { images.size }
     val toaster = LocalToaster.current
     val lifecycleOwner = LocalLifecycleOwner.current
     Dialog(
