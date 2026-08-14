@@ -387,6 +387,7 @@
   <string name="chat_page_yesterday">أمس</string>
   <string name="chat_size_dialog_content">عدد الرسائل الحالي: %1$d. قد يتسبب هذا في تعطل التطبيق أو بطئه، أو حتى فقدان بيانات هذه المحادثة. من فضلك أنشئ محادثة جديدة في أقرب وقت ممكن لمتابعة الدردشة.</string>
   <string name="chat_size_dialog_title">بيانات هذه المحادثة كبيرة جدًا</string>
+  <string name="chat_suggestion_continue">متابعة</string>
   <string name="citations_count">%1$d استشهادات</string>
   <string name="code_block_collapse">طي</string>
   <string name="code_block_copy">نسخ الشيفرة</string>

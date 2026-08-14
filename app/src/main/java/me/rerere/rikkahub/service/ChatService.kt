@@ -32,6 +32,7 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
@@ -1649,7 +1650,12 @@ class ChatService(
             // updates memory and the persisted DB row keeps the stale Pending state
             // forever — replay would re-run the loop against unrecoverable shape.
             runCatching {
-                val final = getConversationFlow(conversationId).value
+                // A failed turn is always "stalled" (see isStalledTurn) - surface the continue
+                // chip via the same chatSuggestions field generateSuggestion writes, so
+                // ChatSuggestionsRow shows it even when enableSuggestion is off.
+                val final = getConversationFlow(conversationId).value.copy(
+                    chatSuggestions = listOf(context.getString(R.string.chat_suggestion_continue))
+                )
                 saveConversation(conversationId, final)
             }.onFailure { saveErr ->
                 Log.w(TAG, "handleMessageComplete: failure-path save failed", saveErr)
@@ -1661,13 +1667,25 @@ class ChatService(
             Logging.log(TAG, it.stackTraceToString())
         }.onSuccess {
             val finalConversation = getConversationFlow(conversationId).value
-            saveConversation(conversationId, finalConversation)
+
+            if (isStalledTurn(succeeded = true, lastMessage = finalConversation.currentMessages.lastOrNull())) {
+                // A stalled success (reasoning/tool-only turn) needs a way forward, not topic
+                // suggestions - set the continue chip directly and skip generateSuggestion.
+                saveConversation(
+                    conversationId,
+                    finalConversation.copy(
+                        chatSuggestions = listOf(context.getString(R.string.chat_suggestion_continue))
+                    )
+                )
+            } else {
+                saveConversation(conversationId, finalConversation)
+                launchWithConversationReference(conversationId) {
+                    generateSuggestion(conversationId, finalConversation)
+                }
+            }
 
             launchWithConversationReference(conversationId) {
                 generateTitle(conversationId, finalConversation)
-            }
-            launchWithConversationReference(conversationId) {
-                generateSuggestion(conversationId, finalConversation)
             }
         }
     }
