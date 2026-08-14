@@ -2307,6 +2307,18 @@ class ChatService(
     }
 
     /**
+     * 重命名会话。若该会话当前有活跃 session，先同步内存态再落库：
+     * 否则仅改数据库标题，内存里那份 Conversation 仍是旧标题，
+     * 后续任意 saveConversation(id, state.value) 会用整对象把标题覆盖回旧值，导致重命名丢失。
+     */
+    suspend fun renameConversation(conversationId: Uuid, title: String) {
+        if (sessions.containsKey(conversationId)) {
+            updateConversationState(conversationId) { it.copy(title = title) }
+        }
+        conversationRepo.renameConversation(conversationId, title)
+    }
+
+    /**
      * 文件夹内是否存在正在生成回复的会话。
      * 仅活跃 session 可能在生成；内存态 folderId 为权威（移动会先同步内存态）。
      */

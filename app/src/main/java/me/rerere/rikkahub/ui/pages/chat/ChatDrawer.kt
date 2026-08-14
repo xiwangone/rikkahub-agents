@@ -157,6 +157,7 @@ fun ChatDrawerContent(
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var folderToRename by remember { mutableStateOf<Folder?>(null) }
     var folderToDelete by remember { mutableStateOf<Folder?>(null) }
+    var conversationToRename by remember { mutableStateOf<Conversation?>(null) }
 
     // Menu popup 状态
     var showMenuPopup by remember { mutableStateOf(false) }
@@ -256,8 +257,8 @@ fun ChatDrawerContent(
                 onClick = {
                     navigateToChatPage(navController, it.id)
                 },
-                onRegenerateTitle = {
-                    vm.generateTitle(it, true)
+                onRename = {
+                    conversationToRename = it
                 },
                 onDelete = {
                     scope.launch {
@@ -595,6 +596,49 @@ fun ChatDrawerContent(
             },
             dismissButton = {
                 TextButton(onClick = { folderToRename = null }) {
+                    Text(stringResource(R.string.chat_page_cancel))
+                }
+            }
+        )
+    }
+
+    // 重命名会话对话框
+    conversationToRename?.let { conversation ->
+        var title by remember(conversation.id) { mutableStateOf(conversation.title) }
+        AlertDialog(
+            onDismissRequest = { conversationToRename = null },
+            title = { Text(stringResource(R.string.chat_page_rename_chat)) },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    TextButton(
+                        onClick = {
+                            vm.generateTitle(conversation, true)
+                            conversationToRename = null
+                        }
+                    ) {
+                        Text(stringResource(R.string.chat_page_regenerate_title))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        drawerVm.renameConversation(conversation.id, title)
+                        conversationToRename = null
+                    },
+                    enabled = title.isNotBlank()
+                ) { Text(stringResource(R.string.chat_page_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { conversationToRename = null }) {
                     Text(stringResource(R.string.chat_page_cancel))
                 }
             }

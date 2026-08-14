@@ -5,8 +5,8 @@ import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.Forward02
 import me.rerere.hugeicons.stroke.Pin
 import me.rerere.hugeicons.stroke.PinOff
-import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.PencilEdit01
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -80,7 +80,7 @@ fun ColumnScope.ConversationList(
     modifier: Modifier = Modifier,
     onClick: (Conversation) -> Unit = {},
     onDelete: (Conversation) -> Unit = {},
-    onRegenerateTitle: (Conversation) -> Unit = {},
+    onRename: (Conversation) -> Unit = {},
     onPin: (Conversation) -> Unit = {},
     onMoveToAssistant: (Conversation) -> Unit = {},
     onMoveToFolder: (Conversation) -> Unit = {}
@@ -156,7 +156,7 @@ fun ColumnScope.ConversationList(
                         loading = item.conversation.id in conversationJobs,
                         onClick = onClick,
                         onDelete = onDelete,
-                        onRegenerateTitle = onRegenerateTitle,
+                        onRename = onRename,
                         onPin = onPin,
                         onMoveToAssistant = onMoveToAssistant,
                         onMoveToFolder = onMoveToFolder,
@@ -227,7 +227,7 @@ private fun ConversationItem(
     loading: Boolean,
     modifier: Modifier = Modifier,
     onDelete: (Conversation) -> Unit = {},
-    onRegenerateTitle: (Conversation) -> Unit = {},
+    onRename: (Conversation) -> Unit = {},
     onPin: (Conversation) -> Unit = {},
     onMoveToAssistant: (Conversation) -> Unit = {},
     onMoveToFolder: (Conversation) -> Unit = {},
@@ -313,14 +313,14 @@ private fun ConversationItem(
 
                 DropdownMenuItem(
                     text = {
-                        Text(stringResource(id = R.string.chat_page_regenerate_title))
+                        Text(stringResource(id = R.string.chat_page_rename_chat))
                     },
                     onClick = {
-                        onRegenerateTitle(conversation)
+                        onRename(conversation)
                         showDropdownMenu = false
                     },
                     leadingIcon = {
-                        Icon(HugeIcons.Refresh01, null)
+                        Icon(HugeIcons.PencilEdit01, null)
                     }
                 )
 

@@ -35,7 +35,7 @@ import kotlin.uuid.Uuid
 class ChatDrawerVM(
     private val context: Application,
     private val settingsStore: SettingsStore,
-    conversationRepo: ConversationRepository,
+    private val conversationRepo: ConversationRepository,
     private val folderRepo: FolderRepository,
     private val chatService: ChatService,
     private val savedStateHandle: SavedStateHandle,
@@ -180,6 +180,15 @@ class ChatDrawerVM(
         viewModelScope.launch {
             // 经 ChatService 移动：活跃会话会先同步内存态，避免后续整对象保存覆盖 folder_id
             chatService.moveConversationToFolder(conversationId, folderId)
+        }
+    }
+
+    fun renameConversation(conversationId: Uuid, title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isEmpty()) return
+        viewModelScope.launch {
+            // 经 ChatService 重命名：活跃会话会先同步内存态，避免后续整对象保存覆盖标题
+            chatService.renameConversation(conversationId, trimmed)
         }
     }
 

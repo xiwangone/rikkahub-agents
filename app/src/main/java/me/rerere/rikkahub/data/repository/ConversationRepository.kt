@@ -488,6 +488,16 @@ class ConversationRepository(
         )
     }
 
+    /**
+     * 单列更新会话标题。刻意不走 [updateConversation]：抽屉列表项来自
+     * [LightConversationEntity] 投影，messageNodes 为空，若传入 updateConversation
+     * 会把消息节点全部删除重建，等于清空聊天记录。
+     */
+    suspend fun renameConversation(conversationId: Uuid, title: String) {
+        conversationDAO.updateTitle(conversationId.toString(), title)
+        messageFtsManager.updateConversationTitle(conversationId.toString(), title)
+    }
+
     private fun conversationSummaryToConversation(entity: LightConversationEntity): Conversation {
         return Conversation(
             id = Uuid.parse(entity.id),

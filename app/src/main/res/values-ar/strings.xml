@@ -377,6 +377,7 @@
   <string name="chat_page_nickname_placeholder">من فضلك أدخل الكنية</string>
   <string name="chat_page_no_conversations">لا توجد محادثات</string>
   <string name="chat_page_regenerate_title">إعادة توليد العنوان</string>
+  <string name="chat_page_rename_chat">إعادة تسمية</string>
   <string name="chat_page_save">حفظ</string>
   <string name="chat_page_scroll_to_bottom">التمرير إلى الأسفل</string>
   <string name="chat_page_search_chats">البحث في الدردشات</string>
