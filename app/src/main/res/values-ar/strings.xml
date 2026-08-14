@@ -976,6 +976,9 @@
   <string name="setting_tts_page_voice_name_description">اسم الصوت</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
   <string name="settings">الإعدادات</string>
+  <string name="settings_search_no_results">لا توجد نتائج</string>
+  <string name="settings_search_page_title">البحث في الإعدادات</string>
+  <string name="settings_search_placeholder">ابحث في الإعدادات…</string>
   <string name="share">مشاركة</string>
   <string name="share_handler_page_title">اختيار مساعد</string>
   <string name="shortcut_take_picture">التقاط صورة والسؤال</string>

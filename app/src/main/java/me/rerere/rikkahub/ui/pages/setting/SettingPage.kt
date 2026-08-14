@@ -137,6 +137,13 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     BackButton()
                 },
                 actions = {
+                    IconButton(
+                        onClick = {
+                            navController.navigate(Screen.SettingsSearch)
+                        }
+                    ) {
+                        Icon(HugeIcons.GlobalSearch, stringResource(R.string.accessibility_search))
+                    }
                     if(settings.developerMode) {
                         IconButton(
                             onClick = {
@@ -154,6 +161,8 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor
     ) { innerPadding ->
+        // NOTE: SettingsSearchIndex.kt keeps a hand-written mirror of the rows below for the
+        // settings search page. Add/remove/rename a row here -> update that file too.
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = innerPadding + PaddingValues(8.dp),

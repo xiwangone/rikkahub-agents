@@ -989,6 +989,9 @@
   <string name="setting_tts_page_voice_name_description">Название голоса</string>
   <string name="setting_tts_page_voice_name_placeholder">Коре</string>
   <string name="settings">Настройки</string>
+  <string name="settings_search_no_results">Нет результатов</string>
+  <string name="settings_search_page_title">Поиск по настройкам</string>
+  <string name="settings_search_placeholder">Поиск по настройкам…</string>
   <string name="share">Поделиться</string>
   <string name="share_handler_page_title">Выбрать ассистента</string>
   <string name="shortcut_take_picture">Сделать фото и спросить</string>

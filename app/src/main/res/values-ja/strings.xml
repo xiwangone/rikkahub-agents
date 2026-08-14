@@ -989,6 +989,9 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_tts_page_voice_name_description">音声の名前</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
   <string name="settings">設定</string>
+  <string name="settings_search_no_results">結果なし</string>
+  <string name="settings_search_page_title">設定を検索</string>
+  <string name="settings_search_placeholder">設定を検索…</string>
   <string name="share">共有</string>
   <string name="share_handler_page_title">共有を処理するアシスタントを選択</string>
   <string name="shortcut_take_picture">写真で質問</string>

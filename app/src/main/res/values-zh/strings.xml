@@ -1025,6 +1025,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_tts_page_voice_name_description">语音的名称</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
   <string name="settings">设置</string>
+  <string name="settings_search_no_results">没有结果</string>
+  <string name="settings_search_page_title">搜索设置</string>
+  <string name="settings_search_placeholder">搜索设置…</string>
   <string name="share">分享</string>
   <string name="share_handler_page_title">选择一个助手处理分享</string>
   <string name="shortcut_take_picture">拍照提问</string>
