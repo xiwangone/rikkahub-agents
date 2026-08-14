@@ -1805,6 +1805,7 @@
   <string name="workspace_detail_tool_read_file">قراءة الملفات</string>
   <string name="workspace_detail_tool_write_file">كتابة الملفات</string>
   <string name="workspace_detail_tool_edit_file">تعديل الملفات</string>
+  <string name="workspace_detail_tool_create_folder">إنشاء المجلدات</string>
   <string name="workspace_detail_tool_delete_file">حذف الملفات</string>
   <string name="workspace_detail_tool_move_file">نقل الملفات</string>
   <string name="workspace_detail_tool_shell">تشغيل الأوامر</string>
@@ -1816,6 +1817,8 @@
   <string name="workspace_detail_area_files">دليل الملفات</string>
   <string name="workspace_detail_area_rootfs">بيئة Rootfs</string>
   <string name="workspace_detail_empty_directory">الدليل فارغ</string>
+  <string name="workspace_detail_folder_export_success">تم تصدير %1$s</string>
+  <string name="workspace_detail_folder_export_partial">تم تصدير %1$s مع %2$d حالة فشل</string>
   <string name="workspace_detail_shell_disabled">معطّل</string>
   <string name="workspace_detail_shell_installing">جارٍ تثبيت Rootfs...</string>
   <string name="workspace_detail_shell_ready">جاهز ومفعّل</string>
@@ -1996,6 +1999,8 @@
   <string name="accessibility_navigate_up_directory">الانتقال للمستوى الأعلى</string>
   <string name="accessibility_refresh_workspace">تحديث مساحة العمل</string>
   <string name="accessibility_open_terminal">فتح المحطة الطرفية</string>
+  <string name="accessibility_expand_folder">توسيع المجلد</string>
+  <string name="accessibility_collapse_folder">طَي المجلد</string>
   <string name="accessibility_more_options">خيارات إضافية</string>
   <string name="accessibility_clear_text">مسح النص</string>
   <string name="accessibility_toggle_token_visibility">تبديل إظهار الرمز</string>

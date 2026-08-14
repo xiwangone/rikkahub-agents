@@ -1656,6 +1656,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="workspace_detail_tool_read_file">读取文件</string>
   <string name="workspace_detail_tool_write_file">写入文件</string>
   <string name="workspace_detail_tool_edit_file">编辑文件</string>
+  <string name="workspace_detail_tool_create_folder">创建文件夹</string>
   <string name="workspace_detail_tool_delete_file">删除文件</string>
   <string name="workspace_detail_tool_move_file">移动文件</string>
   <string name="workspace_detail_tool_shell">执行命令</string>
@@ -1667,6 +1668,10 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="workspace_detail_area_files">文件</string>
   <string name="workspace_detail_area_rootfs">Rootfs</string>
   <string name="workspace_detail_empty_directory">空目录</string>
+  <string name="workspace_detail_folder_export_success">已导出 %1$s</string>
+  <string name="workspace_detail_folder_export_partial">已导出 %1$s，%2$d 个文件失败</string>
+  <string name="accessibility_expand_folder">展开文件夹</string>
+  <string name="accessibility_collapse_folder">折叠文件夹</string>
   <string name="workspace_detail_shell_disabled">禁用</string>
   <string name="workspace_detail_shell_installing">安装中</string>
   <string name="workspace_detail_shell_ready">就绪</string>

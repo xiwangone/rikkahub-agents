@@ -78,6 +78,8 @@ private fun buildWorkspacePrompt(workspace: WorkspaceEntity, cwd: String? = null
     appendLine("- Available tools:")
     appendLine("  - `workspace_read_file`: read file contents.")
     appendLine("  - `workspace_write_file` / `workspace_edit_file`: create files, or make precise edits to existing files.")
+    appendLine("  - `workspace_create_folder`: create a directory (and missing parents).")
+    appendLine("  - `workspace_read_folder`: recursively list a directory as an indented tree.")
     appendLine("  - `workspace_shell`: run shell commands (the files area is mounted at /workspace).")
     appendLine("  - `workspace_run_background`: start a long-running command that persists across tool calls and survives after the call returns (dev servers, long installs, file watchers, batch jobs); returns a task id. The command runs in the FOREGROUND of its own persistent process, so do NOT append `&`.")
     appendLine("  - `workspace_background_status`: check status and recent output of background tasks (all, or one by task id).")
@@ -97,7 +99,7 @@ private fun buildWorkspacePrompt(workspace: WorkspaceEntity, cwd: String? = null
  */
 private fun buildWorkspaceNotReadyPrompt(workspace: WorkspaceEntity): String = buildString {
     appendLine("<workspace-setup>")
-    appendLine("A workspace named \"${workspace.name}\" is bound to this assistant, but its Linux shell is not ready (status: ${workspace.shellStatus}), so the workspace tools (workspace_read_file, workspace_write_file, workspace_edit_file, workspace_shell, workspace_run_background, workspace_background_status, workspace_background_kill) are NOT available right now.")
+    appendLine("A workspace named \"${workspace.name}\" is bound to this assistant, but its Linux shell is not ready (status: ${workspace.shellStatus}), so the workspace tools (workspace_read_file, workspace_write_file, workspace_edit_file, workspace_create_folder, workspace_read_folder, workspace_shell, workspace_run_background, workspace_background_status, workspace_background_kill) are NOT available right now.")
     val howto = when (workspace.shellStatus) {
         WorkspaceShellStatus.INSTALLING.name ->
             "the rootfs is currently installing; ask them to wait for the install to finish, then send a new message."
@@ -116,7 +118,7 @@ private fun buildWorkspaceNotReadyPrompt(workspace: WorkspaceEntity): String = b
  */
 private fun buildWorkspaceUnboundPrompt(): String = buildString {
     appendLine("<workspace-setup>")
-    appendLine("The user has a workspace, but none is bound to this assistant, so the workspace tools (workspace_read_file, workspace_write_file, workspace_edit_file, workspace_shell, workspace_run_background, workspace_background_status, workspace_background_kill) are NOT available.")
+    appendLine("The user has a workspace, but none is bound to this assistant, so the workspace tools (workspace_read_file, workspace_write_file, workspace_edit_file, workspace_create_folder, workspace_read_folder, workspace_shell, workspace_run_background, workspace_background_status, workspace_background_kill) are NOT available.")
     appendLine("If the user asks to save files or run shell / Linux commands in a workspace, explain in the user's language how to enable it:")
     appendLine("1. Tap the + button in the chat input bar and select a workspace to bind it to this assistant.")
     appendLine("2. If that workspace's shell is not Ready yet, open Extensions > Workspace, open the workspace, and install its rootfs until the shell status shows Ready.")

@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.extensions.workspace
 import android.content.Intent
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
+import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,6 +13,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -41,6 +43,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,9 +56,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
+import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.ArrowTurnBackward
 import me.rerere.hugeicons.stroke.Bash
 import me.rerere.hugeicons.stroke.ComputerTerminal01
@@ -94,6 +100,7 @@ fun WorkspaceDetailPage(id: String) {
     val state by vm.state.collectAsStateWithLifecycle()
     val installProgress by vm.installProgress.collectAsStateWithLifecycle()
     val installError by vm.installError.collectAsStateWithLifecycle()
+    val folderExportResult by vm.folderExportResult.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
@@ -122,9 +129,29 @@ fun WorkspaceDetailPage(id: String) {
         val outputStream = context.contentResolver.openOutputStream(uri) ?: return@rememberLauncherForActivityResult
         vm.exportFile(entry, outputStream)
     }
+    var folderExportTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
+    val folderExportLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocumentTree(),
+    ) { uri ->
+        val entry = folderExportTarget.also { folderExportTarget = null } ?: return@rememberLauncherForActivityResult
+        if (uri == null) return@rememberLauncherForActivityResult
+        val destinationTree = DocumentFile.fromTreeUri(context, uri) ?: return@rememberLauncherForActivityResult
+        vm.exportFolder(entry, destinationTree) { docUri -> context.contentResolver.openOutputStream(docUri) }
+    }
 
     BackHandler(enabled = pagerState.currentPage == 1 && state.path.isNotBlank()) {
         vm.goUp()
+    }
+
+    LaunchedEffect(folderExportResult) {
+        val result = folderExportResult ?: return@LaunchedEffect
+        val message = if (result.failures > 0) {
+            context.getString(R.string.workspace_detail_folder_export_partial, result.folderName, result.failures)
+        } else {
+            context.getString(R.string.workspace_detail_folder_export_success, result.folderName)
+        }
+        Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
+        vm.dismissFolderExportResult()
     }
 
     Scaffold(
@@ -196,6 +223,7 @@ fun WorkspaceDetailPage(id: String) {
                     contentPadding = PaddingValues(),
                     onSelectArea = vm::selectArea,
                     onGoUp = vm::goUp,
+                    onToggleExpand = vm::toggleExpand,
                     onOpen = { entry ->
                         when {
                             entry.isDirectory -> vm.open(entry)
@@ -233,8 +261,13 @@ fun WorkspaceDetailPage(id: String) {
                     },
                     onDelete = { deleteTarget = it },
                     onExport = { entry ->
-                        exportTarget = entry
-                        exportLauncher.launch(entry.name)
+                        if (entry.isDirectory) {
+                            folderExportTarget = entry
+                            folderExportLauncher.launch(null)
+                        } else {
+                            exportTarget = entry
+                            exportLauncher.launch(entry.name)
+                        }
                     },
                     onShare = { entry ->
                         vm.exportToCacheFile(entry, context.cacheDir) { file ->
@@ -464,6 +497,8 @@ private fun workspaceToolApprovalItems() = listOf(
     "workspace_read_file" to stringResource(R.string.workspace_detail_tool_read_file),
     "workspace_write_file" to stringResource(R.string.workspace_detail_tool_write_file),
     "workspace_edit_file" to stringResource(R.string.workspace_detail_tool_edit_file),
+    "workspace_create_folder" to stringResource(R.string.workspace_detail_tool_create_folder),
+    "workspace_read_folder" to stringResource(R.string.workspace_detail_tool_list_files),
     "workspace_shell" to stringResource(R.string.workspace_detail_tool_shell),
     "workspace_run_background" to stringResource(R.string.workspace_detail_tool_run_background),
     "workspace_background_status" to stringResource(R.string.workspace_detail_tool_background_status),
@@ -586,11 +621,16 @@ private fun WorkspaceFilesPage(
     contentPadding: PaddingValues,
     onSelectArea: (WorkspaceStorageArea) -> Unit,
     onGoUp: () -> Unit,
+    onToggleExpand: (WorkspaceFileEntry) -> Unit,
     onOpen: (WorkspaceFileEntry) -> Unit,
     onDelete: (WorkspaceFileEntry) -> Unit,
     onExport: (WorkspaceFileEntry) -> Unit,
     onShare: (WorkspaceFileEntry) -> Unit,
 ) {
+    val rows = remember(state.entries, state.expandedPaths, state.childrenCache) {
+        flattenWorkspaceTree(state.entries, state.expandedPaths, state.childrenCache)
+    }
+
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = contentPadding + PaddingValues(16.dp),
@@ -623,13 +663,16 @@ private fun WorkspaceFilesPage(
             }
         }
 
-        items(state.entries, key = { "${state.area.name}:${it.path}" }) { entry ->
+        items(rows, key = { "${state.area.name}:${it.entry.path}" }) { row ->
             WorkspaceFileCard(
-                entry = entry,
-                onOpen = { onOpen(entry) },
-                onDelete = { onDelete(entry) },
-                onExport = { onExport(entry) },
-                onShare = { onShare(entry) },
+                entry = row.entry,
+                depth = row.depth,
+                expanded = row.entry.path in state.expandedPaths,
+                onOpen = { onOpen(row.entry) },
+                onToggleExpand = { onToggleExpand(row.entry) },
+                onDelete = { onDelete(row.entry) },
+                onExport = { onExport(row.entry) },
+                onShare = { onShare(row.entry) },
             )
         }
     }
@@ -688,7 +731,10 @@ private fun WorkspacePathBar(
 @Composable
 private fun WorkspaceFileCard(
     entry: WorkspaceFileEntry,
+    depth: Int,
+    expanded: Boolean,
     onOpen: () -> Unit,
+    onToggleExpand: () -> Unit,
     onDelete: () -> Unit,
     onExport: () -> Unit,
     onShare: () -> Unit,
@@ -704,9 +750,26 @@ private fun WorkspaceFileCard(
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
+                .padding(start = 16.dp + (depth * 20).dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (entry.isDirectory) {
+                IconButton(
+                    onClick = onToggleExpand,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Icon(
+                        imageVector = if (expanded) HugeIcons.ArrowDown01 else HugeIcons.ArrowRight01,
+                        contentDescription = stringResource(
+                            if (expanded) R.string.accessibility_collapse_folder else R.string.accessibility_expand_folder
+                        ),
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            } else {
+                Spacer(modifier = Modifier.size(28.dp))
+            }
             Icon(
                 imageVector = if (entry.isDirectory) HugeIcons.Folder01 else HugeIcons.File02,
                 contentDescription = null,
@@ -745,20 +808,20 @@ private fun WorkspaceFileCard(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
                 ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.common_export)) },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = HugeIcons.FileImport,
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onExport()
+                        },
+                    )
                     if (!entry.isDirectory) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.common_export)) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = HugeIcons.FileImport,
-                                    contentDescription = null,
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onExport()
-                            },
-                        )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.common_share)) },
                             leadingIcon = {

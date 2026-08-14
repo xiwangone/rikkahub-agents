@@ -153,6 +153,12 @@ class WorkspaceManager(
         outputStream.use { out -> file.inputStream().use { it.copyTo(out) } }
     }
 
+    /** 按 Rootfs 内绝对路径递归列出目录树, 支持 /workspace、bind mount 与 Rootfs 内部路径 */
+    fun rootfsTree(root: String, path: String, maxDepth: Int = 10): WorkspaceTreeResult {
+        val location = resolveRootfsPath(root, path)
+        return fileSystem.tree(location.rootDir, location.relativePath, maxDepth)
+    }
+
     private fun resolveRootfsFile(root: String, path: String): File {
         val location = resolveRootfsPath(root, path)
         return fileSystem.resolve(location.rootDir, location.relativePath)

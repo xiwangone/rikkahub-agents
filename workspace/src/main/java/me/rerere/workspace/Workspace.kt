@@ -57,6 +57,20 @@ data class WorkspaceSearchMatch(
     val text: String,
 )
 
+/** 递归目录树的一个条目, [depth] 相对于树的起点目录, 直接子项为 1 */
+data class WorkspaceTreeEntry(
+    val path: String,
+    val name: String,
+    val isDirectory: Boolean,
+    val sizeBytes: Long,
+    val depth: Int,
+)
+
+data class WorkspaceTreeResult(
+    val entries: List<WorkspaceTreeEntry>,
+    val truncated: Boolean,
+)
+
 data class WorkspaceCommandResult(
     val exitCode: Int,
     val stdout: String,

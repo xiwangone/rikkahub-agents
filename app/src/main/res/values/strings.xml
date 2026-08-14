@@ -1790,6 +1790,7 @@
   <string name="workspace_detail_tool_read_file">Read File</string>
   <string name="workspace_detail_tool_write_file">Write File</string>
   <string name="workspace_detail_tool_edit_file">Edit File</string>
+  <string name="workspace_detail_tool_create_folder">Create Folder</string>
   <string name="workspace_detail_tool_delete_file">Delete File</string>
   <string name="workspace_detail_tool_move_file">Move File</string>
   <string name="workspace_detail_tool_shell">Execute Command</string>
@@ -1801,6 +1802,8 @@
   <string name="workspace_detail_area_files">Files</string>
   <string name="workspace_detail_area_rootfs">Rootfs</string>
   <string name="workspace_detail_empty_directory">Empty directory</string>
+  <string name="workspace_detail_folder_export_success">Exported %1$s</string>
+  <string name="workspace_detail_folder_export_partial">Exported %1$s with %2$d failure(s)</string>
   <string name="workspace_detail_shell_disabled">Disabled</string>
   <string name="workspace_detail_shell_installing">Installing</string>
   <string name="workspace_detail_shell_ready">Ready</string>
@@ -1998,6 +2001,8 @@
   <string name="accessibility_navigate_up_directory">Go up one level</string>
   <string name="accessibility_refresh_workspace">Refresh workspace</string>
   <string name="accessibility_open_terminal">Open terminal</string>
+  <string name="accessibility_expand_folder">Expand folder</string>
+  <string name="accessibility_collapse_folder">Collapse folder</string>
   <string name="accessibility_more_options">More options</string>
   <string name="accessibility_clear_text">Clear text</string>
   <string name="accessibility_toggle_token_visibility">Toggle token visibility</string>

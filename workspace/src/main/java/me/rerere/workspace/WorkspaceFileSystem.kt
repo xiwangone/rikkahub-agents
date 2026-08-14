@@ -119,6 +119,49 @@ class WorkspaceFileSystem(
         return targetFile.toEntry(root)
     }
 
+    /**
+     * 递归列出目录内容为一棵树 (目录优先, 同级按名称排序, 与 [list] 一致)。
+     * 条目数达到 [WorkspaceConfig.maxListEntries] 或深度超过 [maxDepth] 时截断,
+     * 通过 [WorkspaceTreeResult.truncated] 显式告知调用方。
+     */
+    fun tree(root: File, path: String = "", maxDepth: Int = 10): WorkspaceTreeResult {
+        val start = resolvePath(root, path)
+        require(start.exists()) { "Path does not exist: $path" }
+        require(start.isDirectory) { "Path is not a directory: $path" }
+
+        val entries = mutableListOf<WorkspaceTreeEntry>()
+        var truncated = false
+
+        fun walkDir(dir: File, depth: Int) {
+            if (depth > maxDepth) {
+                truncated = true
+                return
+            }
+            val children = dir.listFiles()
+                .orEmpty()
+                .filter { !it.name.startsWith(".l2s.") }
+                .sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
+            for (child in children) {
+                if (entries.size >= config.maxListEntries) {
+                    truncated = true
+                    return
+                }
+                entries += WorkspaceTreeEntry(
+                    path = child.relativePath(start),
+                    name = child.name,
+                    isDirectory = child.isDirectory,
+                    sizeBytes = if (child.isFile) child.length() else 0L,
+                    depth = depth,
+                )
+                if (child.isDirectory) walkDir(child, depth + 1)
+                if (truncated) return
+            }
+        }
+        walkDir(start, 1)
+
+        return WorkspaceTreeResult(entries = entries, truncated = truncated)
+    }
+
     fun glob(root: File, pattern: String, path: String = ""): List<WorkspaceFileEntry> {
         require(pattern.isNotBlank()) { "Glob pattern is required" }
         val start = resolvePath(root, path)

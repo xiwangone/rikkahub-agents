@@ -19,6 +19,7 @@ import me.rerere.workspace.BackgroundStatus
 import me.rerere.workspace.WorkspaceCommandResult
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceManager
+import me.rerere.workspace.WorkspaceTreeResult
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
 
@@ -29,6 +30,8 @@ val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(
     "workspace_read_file" to false,
     "workspace_write_file" to false,
     "workspace_edit_file" to false,
+    "workspace_create_folder" to false,
+    "workspace_read_folder" to false,
     "workspace_shell" to true,
     "workspace_run_background" to true,
     "workspace_background_status" to false,
@@ -53,6 +56,8 @@ suspend fun createWorkspaceTools(
         createReadFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createWriteFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createEditFileTool(workspaceId, ::needsApproval, workspaceRepository),
+        createCreateFolderTool(workspaceId, ::needsApproval, workspaceRepository),
+        createReadFolderTool(workspaceId, ::needsApproval, workspaceRepository),
         createShellTool(workspaceId, ::needsApproval, workspaceRepository, shellCwd),
         createRunBackgroundTool(workspaceId, ::needsApproval, workspaceRepository, shellCwd),
         createBackgroundStatusTool(workspaceId, ::needsApproval, workspaceRepository),
@@ -205,6 +210,60 @@ private fun createEditFileTool(
                 metadata = diff?.let { d -> DiffMetadata(diff = d).toMetadata() },
             )
         )
+    },
+)
+
+private fun createCreateFolderTool(
+    workspaceId: String,
+    needsApproval: (String) -> Boolean,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_create_folder",
+    description = """
+        Create a directory (and any missing parent directories) using the assistant's bound workspace Rootfs.
+        Paths must be absolute inside Rootfs. Use /workspace for the workspace files area.
+        Does nothing (succeeds) if the directory already exists.
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                putPathProperty(required = true)
+            },
+            required = listOf("path"),
+        )
+    },
+    needsApproval = { needsApproval("workspace_create_folder") || it.pathOutsideWritableRoots("path") },
+    execute = {
+        val path = it.jsonObject.absolutePath("path")
+        val entry = workspaceRepository.createFolderInRootfs(workspaceId, path)
+        listOf(UIMessagePart.Text(entry.toJson().toString()))
+    },
+)
+
+private fun createReadFolderTool(
+    workspaceId: String,
+    needsApproval: (String) -> Boolean,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_read_folder",
+    description = """
+        Recursively list a directory using the assistant's bound workspace Rootfs, as an indented tree.
+        Paths must be absolute inside Rootfs. Use /workspace for the workspace files area.
+        The listing is capped in entry count and depth; a truncation notice is included when a cap is hit.
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                putPathProperty(required = true)
+            },
+            required = listOf("path"),
+        )
+    },
+    needsApproval = { needsApproval("workspace_read_folder") },
+    execute = {
+        val path = it.jsonObject.absolutePath("path")
+        val result = workspaceRepository.readFolderTree(workspaceId, path)
+        listOf(UIMessagePart.Text(formatWorkspaceTree(path, result)))
     },
 )
 
@@ -493,6 +552,26 @@ private suspend fun WorkspaceRepository.writeTextInRootfs(
     return result.stdout.parseRootfsEntry()
 }
 
+private suspend fun WorkspaceRepository.createFolderInRootfs(
+    workspaceId: String,
+    path: String,
+): WorkspaceFileEntry {
+    val pathArg = path.shellQuote()
+    val result = runRootfsCommand(
+        workspaceId = workspaceId,
+        action = "Create folder",
+        command = """
+            if [ -e $pathArg ] && [ ! -d $pathArg ]; then
+              printf '%s\n' ${"Path already exists and is not a directory: $path".shellQuote()} >&2
+              exit 1
+            fi
+            mkdir -p -- $pathArg || exit 1
+            ${statEntryCommand(path)}
+        """.trimIndent(),
+    )
+    return result.stdout.parseRootfsEntry()
+}
+
 private suspend fun WorkspaceRepository.runRootfsCommand(
     workspaceId: String,
     action: String,
@@ -565,8 +644,10 @@ private fun kotlinx.serialization.json.JsonElement.pathOutsideWritableRoots(name
         jsonObject.absolutePath(name).isOutsideWritableRoots()
     }.getOrDefault(true)
 
-private fun String.isOutsideWritableRoots(): Boolean {
+internal fun String.isOutsideWritableRoots(): Boolean {
     val normalized = trimEnd('/').ifBlank { "/" }
+    // 拒绝任何包含 ".." 段的路径, 防止 /workspace/../etc/x 这类字面前缀匹配绕过审批
+    if (normalized.split('/').any { it == ".." }) return true
     return WRITABLE_ROOT_PREFIXES.none { prefix ->
         normalized == prefix || normalized.startsWith("$prefix/")
     }
@@ -592,6 +673,31 @@ private fun JsonObjectBuilder.putPathProperty(required: Boolean) {
             }
         )
     })
+}
+
+/**
+ * 纯函数: 把递归目录树格式化为紧凑的缩进文本 (面向模型), 命中截断上限时显式提示。
+ */
+internal fun formatWorkspaceTree(rootPath: String, result: WorkspaceTreeResult): String = buildString {
+    append(rootPath.trimEnd('/').ifEmpty { "/" }).append('/')
+    if (result.entries.isEmpty()) {
+        append(if (result.truncated) " (empty, truncated)" else " (empty)")
+        return@buildString
+    }
+    result.entries.forEach { entry ->
+        append('\n')
+        append("  ".repeat(entry.depth))
+        append(entry.name)
+        if (entry.isDirectory) {
+            append('/')
+        } else {
+            append(" (").append(entry.sizeBytes).append(" bytes)")
+        }
+    }
+    if (result.truncated) {
+        append('\n')
+        append("... (truncated: showing ${result.entries.size} entries; narrow the path for a complete listing)")
+    }
 }
 
 private fun WorkspaceFileEntry.toJson() = buildJsonObject {

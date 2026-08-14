@@ -1626,6 +1626,7 @@
   <string name="workspace_detail_tool_read_file">讀取檔案</string>
   <string name="workspace_detail_tool_write_file">寫入檔案</string>
   <string name="workspace_detail_tool_edit_file">編輯檔案</string>
+  <string name="workspace_detail_tool_create_folder">建立資料夾</string>
   <string name="workspace_detail_tool_delete_file">刪除檔案</string>
   <string name="workspace_detail_tool_move_file">移動檔案</string>
   <string name="workspace_detail_tool_shell">執行命令</string>
@@ -1637,6 +1638,10 @@
   <string name="workspace_detail_area_files">檔案</string>
   <string name="workspace_detail_area_rootfs">Rootfs</string>
   <string name="workspace_detail_empty_directory">空目錄</string>
+  <string name="workspace_detail_folder_export_success">已匯出 %1$s</string>
+  <string name="workspace_detail_folder_export_partial">已匯出 %1$s，%2$d 個檔案失敗</string>
+  <string name="accessibility_expand_folder">展開資料夾</string>
+  <string name="accessibility_collapse_folder">摺疊資料夾</string>
   <string name="workspace_detail_shell_disabled">已停用</string>
   <string name="workspace_detail_shell_installing">正在安裝</string>
   <string name="workspace_detail_shell_ready">就緒</string>
