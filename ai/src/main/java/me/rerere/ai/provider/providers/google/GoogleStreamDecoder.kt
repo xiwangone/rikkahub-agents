@@ -72,7 +72,14 @@ internal class GoogleStreamDecoder(
         part.containsKey("text") -> {
             val text = part["text"]?.jsonPrimitive?.contentOrNull ?: ""
             if (part["thought"]?.jsonPrimitive?.booleanOrNull == true) {
-                UIMessagePart.Reasoning(text, Clock.System.now(), null)
+                val thoughtSignature = part["thoughtSignature"]?.jsonPrimitive?.contentOrNull
+                UIMessagePart.Reasoning(
+                    reasoning = text,
+                    createdAt = Clock.System.now(),
+                    metadata = thoughtSignature?.let {
+                        GoogleThoughtMetadata(thoughtSignature = it).toMetadata()
+                    },
+                )
             } else {
                 UIMessagePart.Text(text)
             }

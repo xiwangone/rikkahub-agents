@@ -222,7 +222,7 @@ private const val TAG = "GeminiProvider"
  * Start/Delta/End events instead of an eagerly merged [UIMessage]. One instance is stateful for
  * exactly one stream and must not be reused across calls.
  */
-private class GeminiStreamChunkAdapter {
+internal class GeminiStreamChunkAdapter {
     private enum class OpenKind { TEXT, REASONING, IMAGE }
 
     private var openKind: OpenKind? = null
@@ -283,8 +283,16 @@ private class GeminiStreamChunkAdapter {
                         // sends each call's name + args in a single event, so every Tool part here
                         // is already complete - no cross-event merge is needed.
                         openKind = null
-                        out += StreamChunk.ToolCallStart(id = part.toolCallId, toolName = part.toolName)
-                        out += StreamChunk.ToolCallDelta(id = part.toolCallId, inputDelta = part.input)
+                        out += StreamChunk.ToolCallStart(
+                            id = part.toolCallId,
+                            toolName = part.toolName,
+                            metadata = part.metadata,
+                        )
+                        out += StreamChunk.ToolCallDelta(
+                            id = part.toolCallId,
+                            inputDelta = part.input,
+                            metadata = part.metadata,
+                        )
                     }
 
                     else -> Log.w(TAG, "translate: unsupported delta part $part")
