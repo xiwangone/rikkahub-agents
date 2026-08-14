@@ -75,6 +75,7 @@ import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
 import me.rerere.rikkahub.data.ai.tools.createSkillTools
 import me.rerere.rikkahub.data.ai.tools.createWorkspaceTools
+import me.rerere.rikkahub.data.preferences.isWorkspaceToolName
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -805,7 +806,7 @@ class ChatService(
                     when (scope) {
                         ApprovalScope.ChatScope -> me.rerere.rikkahub.data.ai.tools
                             .ToolApprovalAllowList.grantForChat(conversationId, toolName)
-                        ApprovalScope.Always -> toolApprovalPreferences.grantAlways(toolName)
+                        ApprovalScope.Always -> grantAlwaysScope(conversationId, toolName)
                         ApprovalScope.Once -> Unit
                     }
                 }.onFailure { Log.w(TAG, "approval grant write failed", it) }
@@ -902,6 +903,36 @@ class ChatService(
         }
 
         session.setJob(job)
+    }
+
+    /** Always-scope grant for [toolName]. Workspace tools (the "workspace_" prefix,
+     *  reserved by createWorkspaceTools) must NOT land in the global always-allow set -
+     *  that set is checked in every workspace, so a global grant would silently override
+     *  each workspace's own per-tool toggle. Route those through a per-workspace override
+     *  instead, resolving the workspace the same way createWorkspaceToolsIfReady does
+     *  (via the conversation's assistant). Fall back to a ChatScope-style grant (this
+     *  conversation only) when no workspace is resolvable, never the global set. */
+    private suspend fun grantAlwaysScope(conversationId: Uuid, toolName: String) {
+        if (isWorkspaceToolName(toolName)) {
+            val conversation = conversationRepo.getConversationById(conversationId)
+            val assistant = conversation?.let {
+                settingsStore.settingsFlow.first().getAssistantById(it.assistantId)
+            }
+            val workspaceId = assistant?.workspaceId?.toString()
+            val granted = workspaceId != null &&
+                workspaceRepository.setToolApproval(workspaceId, toolName, needsApproval = false)
+            if (!granted) {
+                // Workspace row missing (delete/grant race) or unresolvable - fall back to
+                // the chat-scoped grant so the user's Always tap never silently does nothing.
+                if (workspaceId != null) {
+                    Log.w(TAG, "setToolApproval found no workspace row for '$workspaceId', falling back to chat-scoped grant for '$toolName'")
+                }
+                me.rerere.rikkahub.data.ai.tools
+                    .ToolApprovalAllowList.grantForChat(conversationId, toolName)
+            }
+        } else {
+            toolApprovalPreferences.grantAlways(toolName)
+        }
     }
 
     // ---- 处理消息补全 ----
@@ -1032,7 +1063,12 @@ class ChatService(
                                 .shouldAutoApprove(conversationId) ||
                             me.rerere.rikkahub.data.ai.tools.ToolApprovalAllowList
                                 .isAllowedForChat(conversationId, toolName) ||
-                            toolApprovalPreferences.current().contains(toolName)
+                            // The global always-allow set must never auto-approve a
+                            // workspace tool (it is per-app, not per-workspace) - this
+                            // guard also covers any stale "workspace_" entry left over
+                            // from before ToolApprovalPreferences started filtering them.
+                            (!isWorkspaceToolName(toolName) &&
+                                toolApprovalPreferences.current().contains(toolName))
                     }
                 },
                 onAfterToolExecution = { generatedMessages ->
