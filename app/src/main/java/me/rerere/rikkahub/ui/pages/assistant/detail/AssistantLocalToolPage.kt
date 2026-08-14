@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.assistant.detail
 
 import android.Manifest
 import android.os.Build
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -46,6 +47,7 @@ import me.rerere.rikkahub.data.ai.tools.local.PermissionHelper
 import me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
+import me.rerere.rikkahub.shizuku.ShizukuManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -54,6 +56,9 @@ import me.rerere.rikkahub.utils.writeClipboardText
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
+import rikka.shizuku.Shizuku
+
+private const val TAG = "AssistantLocalToolPage"
 
 @Composable
 fun AssistantLocalToolPage(id: String) {
@@ -129,6 +134,21 @@ private fun AssistantLocalToolContent(
     // rather than letting the user enable a tool that would only ever error.
     val hasNfc = remember {
         ctx.packageManager.hasSystemFeature(android.content.pm.PackageManager.FEATURE_NFC)
+    }
+
+    // Shizuku's permission result arrives asynchronously via this listener, not an Activity
+    // callback (see ShizukuManager.requestPermission), so requestPermission() below needs one
+    // registered to satisfy that contract. This page doesn't surface the result in its own UI
+    // (Settings -> Shizuku owns the status display); it just logs the outcome.
+    DisposableEffect(Unit) {
+        val permissionResult = Shizuku.OnRequestPermissionResultListener { _, grantResult ->
+            val granted = grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED
+            Log.d(TAG, "Shizuku permission request result: granted=$granted")
+        }
+        ShizukuManager.addRequestPermissionResultListener(permissionResult)
+        onDispose {
+            ShizukuManager.removeRequestPermissionResultListener(permissionResult)
+        }
     }
 
     var showTermuxPostGrantDialog by remember { mutableStateOf(false) }
@@ -1099,12 +1119,35 @@ private fun AssistantLocalToolContent(
                     Text(stringResource(R.string.assistant_page_local_tools_shizuku_desc))
                 },
                 trailingContent = {
-                    // No permission flags here on purpose: the Shizuku permission is only ever
-                    // requested from an explicit tap on Settings -> Shizuku, never from this
-                    // toggle. Flipping this switch only adds/removes the tool from the assistant.
+                    // Turning this on fires Shizuku's own consent flow immediately (mirrors the
+                    // request made from Settings -> Shizuku), so the app registers in the
+                    // Shizuku manager's Application list and the user sees the dialog right when
+                    // they express intent, instead of only after visiting that settings page. A
+                    // dead binder means there is nothing to request; Settings -> Shizuku owns the
+                    // setup guidance for that case. Always request when the binder is alive,
+                    // without gating on isPermissionGranted() first: on some devices/manager
+                    // versions checkSelfPermission() reports GRANTED even though the Shizuku
+                    // manager app has never actually seen this app, which made that gate skip the
+                    // request entirely. Shizuku no-ops the dialog when genuinely granted, so this
+                    // is harmless in the healthy case.
                     PermissionedSwitch(
                         checked = assistant.localTools.contains(LocalToolOption.Shizuku),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Shizuku, it) },
+                        onCheckedChange = { enabled ->
+                            toggleLocalTool(LocalToolOption.Shizuku, enabled)
+                            if (enabled && ShizukuManager.isBinderAlive()) {
+                                val selfPermission = runCatching { Shizuku.checkSelfPermission() }
+                                    .getOrElse { "error: ${it.message}" }
+                                val rationale = runCatching { Shizuku.shouldShowRequestPermissionRationale() }
+                                    .getOrElse { "error: ${it.message}" }
+                                Log.d(
+                                    TAG,
+                                    "Shizuku permission request: binderAlive=true, " +
+                                        "checkSelfPermission=$selfPermission, " +
+                                        "shouldShowRequestPermissionRationale=$rationale"
+                                )
+                                ShizukuManager.requestPermission()
+                            }
+                        },
                     )
                 }
             )

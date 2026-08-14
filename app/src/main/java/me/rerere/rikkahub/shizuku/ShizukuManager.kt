@@ -93,8 +93,8 @@ object ShizukuManager {
      * [Shizuku.OnRequestPermissionResultListener], not an Activity callback: callers must
      * register one (see [addRequestPermissionResultListener]) before calling this.
      *
-     * Only ever called from an explicit tap on the Settings -> Shizuku screen, never at app
-     * start or on first chat.
+     * Called from an explicit tap on the Settings -> Shizuku screen, and from the assistant's
+     * Shizuku local-tool toggle when it's switched on, never at app start or on first chat.
      */
     fun requestPermission() {
         if (!isBinderAlive()) return
