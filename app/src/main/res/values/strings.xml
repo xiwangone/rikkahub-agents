@@ -1600,7 +1600,7 @@
   <string name="setting_termux_toast_permission_granted">Permission granted</string>
   <string name="setting_termux_status_permission_missing">Not granted — tap to request</string>
   <string name="setting_termux_status_verify">allow-external-apps</string>
-  <string name="setting_termux_status_verify_ok">Verified OK in this session</string>
+  <string name="setting_termux_status_verify_ok">Verified OK</string>
   <string name="setting_termux_status_verify_unknown">Not yet verified — tap to run smoke test</string>
   <string name="setting_termux_verify_ok">Termux verified OK.</string>
   <string name="setting_termux_verify_not_installed">Termux is not installed.</string>

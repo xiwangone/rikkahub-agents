@@ -1567,19 +1567,19 @@ private fun TermuxStatusRowSubtitle(enabled: Boolean) {
     var verifying by remember { mutableStateOf(false) }
     var lastVerifyError by remember { mutableStateOf<String?>(null) }
 
-    // Reads the process-scoped timestamp from TermuxIntegration so a successful verify
-    // earlier in this session keeps the dot green even after the user navigates off the
-    // page and returns. resumeTick triggers a recompute on every onResume.
+    // Reads the process-scoped timestamp from TermuxIntegration, backed by TermuxPreferences
+    // so a successful verify keeps the dot green across app restarts too, not just navigation
+    // within this session (GitHub #14). No recency window: matches SettingTermuxPage's rule.
+    // resumeTick triggers a recompute on every onResume.
     val lastVerifiedOkAt = remember(resumeTick) { TermuxIntegration.lastVerifiedOkAtMs }
-    val verifiedRecently = lastVerifiedOkAt > 0 &&
-        (System.currentTimeMillis() - lastVerifiedOkAt) < 60L * 60 * 1000
+    val verified = lastVerifiedOkAt > 0
 
     val (dotColor, label) = when {
         staticState == TermuxIntegration.State.NOT_INSTALLED ->
             androidx.compose.ui.graphics.Color(0xFFEF4444) to stringResource(R.string.assistant_page_local_tools_termux_status_not_installed)
         staticState == TermuxIntegration.State.NO_PERMISSION ->
             androidx.compose.ui.graphics.Color(0xFFF59E0B) to stringResource(R.string.assistant_page_local_tools_termux_status_no_permission)
-        verifiedRecently ->
+        verified ->
             androidx.compose.ui.graphics.Color(0xFF22C55E) to stringResource(R.string.assistant_page_local_tools_termux_status_ok)
         lastVerifyError != null ->
             androidx.compose.ui.graphics.Color(0xFFEF4444) to (lastVerifyError ?: "")
@@ -1633,7 +1633,8 @@ private fun TermuxStatusRowSubtitle(enabled: Boolean) {
                             toaster.show(lastVerifyError ?: "", type = ToastType.Error)
                         }
                         is TermuxIntegration.VerifyResult.OtherError -> {
-                            TermuxIntegration.clearVerified()
+                            // Transient failure (Termux killed, timeout, etc), not proof the
+                            // setup is wrong: don't erase a previously-verified state over it.
                             resumeTick++
                             lastVerifyError = result.message
                             toaster.show(result.message, type = ToastType.Error)
@@ -1649,7 +1650,7 @@ private fun TermuxStatusRowSubtitle(enabled: Boolean) {
         }
         Text(
             text = if (verifying) verifyingHint
-                   else if (canVerify && !verifiedRecently) "$label · $verifyHint"
+                   else if (canVerify && !verified) "$label · $verifyHint"
                    else label,
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

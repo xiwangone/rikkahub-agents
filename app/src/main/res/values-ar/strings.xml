@@ -1703,7 +1703,7 @@
   <string name="setting_termux_toast_permission_granted">الإذن ممنوح</string>
   <string name="setting_termux_status_permission_missing">غير ممنوح — انقر للطلب</string>
   <string name="setting_termux_status_verify">التحقق من الاتصال</string>
-  <string name="setting_termux_status_verify_ok">تم التحقق بنجاح في هذه الجلسة</string>
+  <string name="setting_termux_status_verify_ok">تم التحقق بنجاح</string>
   <string name="setting_termux_status_verify_unknown">لم يتم التحقق بعد — انقر لتشغيل الاختبار</string>
   <string name="setting_termux_verify_ok">تم التحقق من Termux بنجاح.</string>
   <string name="setting_termux_verify_not_installed">التحقق فشل: تطبيق Termux غير مثبت</string>
