@@ -127,7 +127,8 @@ internal fun buildShowImageEnvelope(
             "The image is now displayed to the user, but the current model has no " +
                 "vision capability — you cannot see its contents. Do not describe or " +
                 "guess what the image shows. To read it, OCR or otherwise process the " +
-                "file at `path` (e.g. `tesseract <path> stdout` via termux_run_command).",
+                "file at `path` (e.g. `tesseract <path> stdout` via termux_run_command, if " +
+                "the Termux tools are enabled).",
         )
     }
 }.toString()
