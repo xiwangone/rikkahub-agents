@@ -134,6 +134,8 @@ private fun LocalToolOption.shortName(): String = when (this) {
     LocalToolOption.ExternalStorage -> "External storage"
     LocalToolOption.Archive -> "Archive (zip)"
     LocalToolOption.Shizuku -> "Shizuku"
+    LocalToolOption.AppLauncher -> "App launcher"
+    LocalToolOption.KeyboardControl -> "Agent keyboard"
     else -> this::class.simpleName ?: "?"
 }
 
@@ -178,14 +180,15 @@ class DoctorChecks(
         // Aggregate enabled tools across every assistant. A tool is "in use" if at least
         // one assistant has its LocalToolOption switched on. The Doctor uses this to
         // decide whether a missing capability is actually a problem worth flagging.
-        val enabled: Set<LocalToolOption> = runCatching {
-            settingsStore.settingsFlow.first().assistants.flatMap { it.localTools }.toSet()
-        }.getOrDefault(emptySet())
+        val settings = runCatching { settingsStore.settingsFlow.first() }.getOrNull()
+        val assistants = settings?.assistants.orEmpty()
+        val enabled: Set<LocalToolOption> = assistants.flatMap { it.localTools }.toSet()
 
         buildList {
             addAll(permissionChecks(enabled))
             addAll(serviceChecks(enabled))
             addAll(assistantChecks())
+            addAll(toolGroupChecks(enabled, assistants))
             addAll(databaseChecks(enabled))
             addAll(networkChecks())
             addAll(termuxChecks(enabled))
@@ -558,22 +561,29 @@ class DoctorChecks(
         // AccessibilityService binding — only flagged if a tool that needs it is enabled.
         val accNeeders = requirersOf(Capability.Accessibility, enabled)
         if (accNeeders.isNotEmpty()) {
+            val bound = AccessibilityServiceHandle.isRunning()
+            // The post-action screen state depends on getWindows() returning real data; a
+            // service bound with a pre-update config (missing flagRetrieveInteractiveWindows)
+            // reports bound=true but windows stays empty.
+            val windowsOk = bound && me.rerere.rikkahub.service.RikkaAccessibilityService.instance
+                ?.let { runCatching { it.windows.isNotEmpty() }.getOrDefault(false) } == true
             add(
                 DoctorCheck(
                     id = "service.accessibility_bound",
                     category = DoctorCategory.Services,
                     label = "AccessibilityService bound",
-                    detail = if (AccessibilityServiceHandle.isRunning())
-                        "Service object is alive — ${accNeeders.joinToString(", ") { it.shortName() }} can run."
-                    else if (PermissionHelper.hasAccessibilityService(context))
-                        "Enabled in settings but not bound (Android killed the service or it hasn't started yet). Toggle it off and on again."
-                    else
-                        "Not enabled. Required by: ${accNeeders.joinToString(", ") { it.shortName() }}.",
-                    severity = when {
-                        AccessibilityServiceHandle.isRunning() -> Severity.OK
-                        else -> Severity.WARN
+                    detail = when {
+                        bound && windowsOk ->
+                            "Service object is alive — ${accNeeders.joinToString(", ") { it.shortName() }} can run."
+                        bound ->
+                            "Service is bound but window retrieval returns nothing. It is likely running with a pre-update configuration; toggle the accessibility service off and on."
+                        PermissionHelper.hasAccessibilityService(context) ->
+                            "Enabled in settings but not bound (Android killed the service or it hasn't started yet). Toggle it off and on again."
+                        else ->
+                            "Not enabled. Required by: ${accNeeders.joinToString(", ") { it.shortName() }}."
                     },
-                    fix = if (!AccessibilityServiceHandle.isRunning()) FixAction.OpenIntent(
+                    severity = if (bound && windowsOk) Severity.OK else Severity.WARN,
+                    fix = if (!bound || !windowsOk) FixAction.OpenIntent(
                         label = "Open settings",
                         intent = PermissionHelper.accessibilitySettingsIntent(),
                     ) else null,
@@ -714,6 +724,210 @@ class DoctorChecks(
                 )
             )
         }
+    }
+
+    // ----- Tool groups -------------------------------------------------------------------
+
+    /**
+     * One row per backend-dependent tool group: enabled where, what it relies on, and
+     * whether that backend is ready. Disabled groups are INFO with no fix (disabling is
+     * a user choice); enabled groups with a missing backend are WARN with the fix.
+     */
+    private fun toolGroupChecks(
+        enabled: Set<LocalToolOption>,
+        assistants: List<me.rerere.rikkahub.data.model.Assistant>,
+    ): List<DoctorCheck> = buildList {
+        fun enabledBy(option: LocalToolOption): String {
+            val names = assistants.filter { option in it.localTools }.map { it.name.ifBlank { "Unnamed" } }
+            return when {
+                names.isEmpty() -> "Disabled for every assistant."
+                names.size <= 3 -> "Enabled for: ${names.joinToString(", ")}."
+                else -> "Enabled for ${names.size} of ${assistants.size} assistants."
+            }
+        }
+
+        fun groupRow(
+            id: String,
+            option: LocalToolOption,
+            label: String,
+            reliesOn: String,
+            backendReady: Boolean?,
+            backendDetail: String,
+            fix: FixAction?,
+        ): DoctorCheck {
+            val on = option in enabled
+            val severity = when {
+                !on -> Severity.INFO
+                backendReady == false -> Severity.WARN
+                else -> Severity.OK
+            }
+            val detail = buildString {
+                append(enabledBy(option))
+                append(" Relies on: ").append(reliesOn).append(".")
+                if (on) append(" ").append(backendDetail)
+            }
+            return DoctorCheck(
+                id = id,
+                category = DoctorCategory.ToolGroups,
+                label = label,
+                detail = detail,
+                severity = severity,
+                fix = if (on && backendReady == false) fix else null,
+            )
+        }
+
+        val accBound = AccessibilityServiceHandle.isRunning()
+        add(
+            groupRow(
+                id = "tools.screen_automation",
+                option = LocalToolOption.ScreenAutomation,
+                label = "Screen automation",
+                reliesOn = "accessibility service (required), overlay permission (optional banner)",
+                backendReady = accBound,
+                backendDetail = if (accBound) "Accessibility service is bound."
+                else "Accessibility service is NOT bound; every gesture/read tool will fail.",
+                fix = FixAction.OpenAppRoute("Open app permissions", AppRouteKey.SettingPermissions),
+            )
+        )
+        add(
+            groupRow(
+                id = "tools.app_launcher",
+                option = LocalToolOption.AppLauncher,
+                label = "App launcher",
+                reliesOn = "nothing (standalone); uses the accessibility service only to verify the app reached the foreground when it happens to be on",
+                backendReady = true,
+                backendDetail = if (accBound) "Foreground verification available."
+                else "Works, but launch results are best-effort without the accessibility service.",
+                fix = null,
+            )
+        )
+        val kbInstalled = me.rerere.rikkahub.data.keyboard.KeyboardApiClient(context).isKeyboardInstalled()
+        val kbIme = me.rerere.rikkahub.data.keyboard.KeyboardApiClient.isEnabledAsIme(context)
+        add(
+            groupRow(
+                id = "tools.keyboard",
+                option = LocalToolOption.KeyboardControl,
+                label = "Agent keyboard",
+                reliesOn = "the co-signed agent-keyboard app, installed and enabled as an IME",
+                backendReady = kbInstalled && kbIme,
+                backendDetail = when {
+                    !kbInstalled -> "agent-keyboard is not installed."
+                    !kbIme -> "Installed but not enabled in the system keyboard list."
+                    else -> "Installed and enabled as an IME."
+                },
+                fix = FixAction.OpenIntent(
+                    "Open keyboard settings",
+                    android.content.Intent(android.provider.Settings.ACTION_INPUT_METHOD_SETTINGS),
+                ),
+            )
+        )
+        // Notification listener / Termux / Shizuku / Files / Browser rows reuse the
+        // readiness probes the existing category checks already compute, rather than
+        // duplicating logic inline.
+        add(
+            groupRow(
+                id = "tools.notification_listener",
+                option = LocalToolOption.NotificationListener,
+                label = "Notification listener",
+                reliesOn = "Notification Listener access, granted in system settings",
+                backendReady = PermissionHelper.hasNotificationListener(context),
+                backendDetail = if (PermissionHelper.hasNotificationListener(context))
+                    "Listener access is granted."
+                else
+                    "Listener access is not granted; notification tools will fail.",
+                fix = FixAction.OpenIntent(
+                    "Open settings",
+                    PermissionHelper.notificationListenerSettingsIntent(),
+                ),
+            )
+        )
+        val termuxInstalled = isTermuxInstalled()
+        add(
+            groupRow(
+                id = "tools.termux",
+                option = LocalToolOption.Termux,
+                label = "Termux",
+                reliesOn = "the Termux app installed, with the RUN_COMMAND permission granted",
+                backendReady = termuxInstalled,
+                backendDetail = if (termuxInstalled) "Termux is installed."
+                else "Termux is not installed; shell commands will fail.",
+                fix = null,
+            )
+        )
+        val shizukuStatus = ShizukuManager.status(context)
+        add(
+            groupRow(
+                id = "tools.shizuku",
+                option = LocalToolOption.Shizuku,
+                label = "Shizuku",
+                reliesOn = "Shizuku (or Sui) installed, running, with permission granted",
+                backendReady = shizukuStatus == ShizukuStatus.READY,
+                backendDetail = when (shizukuStatus) {
+                    ShizukuStatus.READY -> "Shizuku is ready."
+                    ShizukuStatus.NOT_INSTALLED -> "Shizuku is not installed."
+                    ShizukuStatus.NOT_RUNNING -> "Shizuku is installed but not running."
+                    ShizukuStatus.PERMISSION_DENIED -> "Shizuku is running but permission is not granted."
+                },
+                fix = if (shizukuStatus != ShizukuStatus.READY)
+                    FixAction.OpenAppRoute("Open Shizuku settings", AppRouteKey.SettingShizuku)
+                else null,
+            )
+        )
+        val filesReady = Build.VERSION.SDK_INT < Build.VERSION_CODES.R || PermissionHelper.hasAllFilesAccess(context)
+        add(
+            groupRow(
+                id = "tools.files",
+                option = LocalToolOption.Files,
+                label = "Files",
+                reliesOn = "all-files access on Android 11+ to reach arbitrary paths",
+                backendReady = filesReady,
+                backendDetail = if (filesReady) "File tools can reach any path."
+                else "All-files access is not granted; file tools are restricted to scoped storage.",
+                fix = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R)
+                    FixAction.OpenIntent("Open settings", PermissionHelper.allFilesAccessIntent(context))
+                else null,
+            )
+        )
+        val browserReady = isBrowserProfileDirReady()
+        add(
+            groupRow(
+                id = "tools.browser",
+                option = LocalToolOption.Browser,
+                label = "Browser",
+                reliesOn = "a writable profile directory to persist cookies and localStorage",
+                backendReady = browserReady,
+                backendDetail = if (browserReady) "Profile directory exists and is writable."
+                else "Profile directory is missing or not writable; cookies won't persist.",
+                fix = FixAction.AutoFix(
+                    label = "Create directory",
+                    run = {
+                        val dir = browserProfileDir()
+                        val created = runCatching { dir.mkdirs() }.getOrDefault(false)
+                        val nowOk = dir.exists() && dir.canWrite()
+                        AutoFixResult(
+                            ok = nowOk,
+                            message = if (nowOk) "Created ${dir.absolutePath}."
+                            else if (created) "Directory created but still not writable, check storage permission."
+                            else "mkdirs() returned false; underlying storage may be read-only.",
+                        )
+                    },
+                ),
+            )
+        )
+    }
+
+    /** Shared with [termuxChecks] so the "is Termux installed" probe is computed once. */
+    private fun isTermuxInstalled(): Boolean =
+        runCatching { context.packageManager.getPackageInfo("com.termux", 0); true }.getOrDefault(false)
+
+    /** Shared with [browserChecks] so the profile-directory path is defined once. */
+    private fun browserProfileDir(): File = File(context.filesDir, "browser-profile")
+
+    /** Shared with [browserChecks] so the readiness probe is computed once. */
+    private fun isBrowserProfileDirReady(): Boolean {
+        val dir = browserProfileDir()
+        val exists = runCatching { dir.exists() && dir.isDirectory }.getOrDefault(false)
+        return exists && runCatching { dir.canWrite() }.getOrDefault(false)
     }
 
     // ----- Database --------------------------------------------------------------------
@@ -1054,8 +1268,7 @@ class DoctorChecks(
         // Doctor screen focused on what the user actually configured.
         if (needers.isEmpty()) return@buildList
 
-        val pm = context.packageManager
-        val termuxInstalled = runCatching { pm.getPackageInfo("com.termux", 0); true }.getOrDefault(false)
+        val termuxInstalled = isTermuxInstalled()
         add(
             DoctorCheck(
                 id = "termux.installed",
@@ -1463,7 +1676,7 @@ class DoctorChecks(
         val browserNeeded = needers.isNotEmpty()
 
         // Row 1: profile dir writable (with AutoFix to mkdirs).
-        val profileDir = File(context.filesDir, "browser-profile")
+        val profileDir = browserProfileDir()
         val exists = runCatching { profileDir.exists() && profileDir.isDirectory }.getOrDefault(false)
         val writable = exists && runCatching { profileDir.canWrite() }.getOrDefault(false)
         val ok = exists && writable

@@ -33,6 +33,7 @@ enum class DoctorCategory(val displayName: String) {
     Permissions("Permissions"),
     Services("Background services"),
     AssistantInfo("Active assistant"),
+    ToolGroups("Tool groups"),
     Database("Database"),
     Network("Network & providers"),
     Termux("Termux integration"),

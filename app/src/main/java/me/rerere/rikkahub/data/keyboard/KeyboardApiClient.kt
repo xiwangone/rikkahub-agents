@@ -246,6 +246,13 @@ class KeyboardApiClient(private val context: Context) {
         const val BIND_ACTION = "dev.patrickgold.florisboard.api.action.BIND"
         private const val BIND_TIMEOUT_MS = 5_000L
         private const val CALL_TIMEOUT_MS = 5_000L
+
+        /** True if agent-keyboard is enabled in the system IME list (not necessarily selected). */
+        fun isEnabledAsIme(context: Context): Boolean = runCatching {
+            val imm = context.getSystemService(Context.INPUT_METHOD_SERVICE)
+                as android.view.inputmethod.InputMethodManager
+            imm.enabledInputMethodList.any { it.packageName == KEYBOARD_PACKAGE }
+        }.getOrDefault(false)
         private const val SENTINEL_NULL = " __keyboard_api_null__"
     }
 }
