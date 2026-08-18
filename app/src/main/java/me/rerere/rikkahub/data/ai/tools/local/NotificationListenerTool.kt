@@ -173,8 +173,9 @@ fun notificationActionClickTool(): Tool = Tool(
         Fire one of a notification's action buttons (e.g. Reply, Mark as read). Pass either
         action_index (0-based) or action_title (case-insensitive exact match). If the action
         requires text input (e.g. WhatsApp Reply with RemoteInput), returns
-        {error: requires_input} - in that case fall back to launch_app + set_text via the
-        screen automation tools.
+        {error: requires_input} - if the app launcher and screen automation tools are enabled,
+        open the app with launch_app and drive the input UI with set_text + click_node;
+        otherwise tell the user this notification needs manual input.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -230,7 +231,7 @@ fun notificationActionClickTool(): Tool = Tool(
                 is RikkaNotificationListenerService.TriggerResult.RequiresInput -> buildJsonObject {
                     put("error", "requires_input")
                     put("action_title", res.actionTitle)
-                    put("recovery", "This action takes user input (e.g. typing a reply). Use launch_app + set_text + click_node from the screen automation tools to drive the input UI directly.")
+                    put("recovery", "This action takes user input (e.g. typing a reply). If the app launcher and screen automation tools are enabled, open the app with launch_app and drive the input UI with set_text + click_node; otherwise tell the user this notification needs manual input.")
                 }
                 is RikkaNotificationListenerService.TriggerResult.SendFailed -> buildJsonObject {
                     put("error", "send_failed")
@@ -249,8 +250,10 @@ fun notificationReplyTool(): Tool = Tool(
         (RemoteInput) with text and fires it — works for WhatsApp / Messages / Telegram and
         any app exposing an inline reply. Pass notification_key (from a notifications list
         call) and text. Returns {error: no_action} if the notification has no reply action
-        (fall back to launch_app + set_text via screen automation), {error: not_found} if
-        the notification is no longer active.
+        (if the app launcher and screen automation tools are enabled, open the app with
+        launch_app and drive the input UI with set_text + click_node; otherwise tell the user
+        this notification needs manual input), {error: not_found} if the notification is no
+        longer active.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -296,13 +299,13 @@ fun notificationReplyTool(): Tool = Tool(
                 }
                 RikkaNotificationListenerService.TriggerResult.NoAction -> buildJsonObject {
                     put("error", "no_action")
-                    put("recovery", "This notification has no direct-reply action. Use launch_app + set_text + click_node from the screen automation tools.")
+                    put("recovery", "This notification has no direct-reply action. If the app launcher and screen automation tools are enabled, open the app with launch_app and drive the input UI with set_text + click_node; otherwise tell the user this notification needs manual input.")
                 }
                 is RikkaNotificationListenerService.TriggerResult.RequiresInput -> buildJsonObject {
                     // triggerReplyAction never returns RequiresInput, but the sealed class
                     // demands exhaustiveness — treat it as a no-action fallback.
                     put("error", "no_action")
-                    put("recovery", "Use launch_app + set_text + click_node from the screen automation tools.")
+                    put("recovery", "If the app launcher and screen automation tools are enabled, open the app with launch_app and drive the input UI with set_text + click_node; otherwise tell the user this notification needs manual input.")
                 }
                 is RikkaNotificationListenerService.TriggerResult.SendFailed -> buildJsonObject {
                     put("error", "send_failed")
