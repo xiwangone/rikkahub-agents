@@ -10,14 +10,13 @@ import android.os.HandlerThread
 import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.Executors
-import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 
 private const val TAG = "RikkaAccService"
@@ -45,13 +44,16 @@ class RikkaAccessibilityService : AccessibilityService() {
     private val _lastActions = MutableStateFlow<List<ActionLogEntry>>(emptyList())
     val lastActions = _lastActions.asStateFlow()
 
-    // Serialise overlapping gesture-dispatch callers. Each caller takes a ticket; the
-    // shared current-counter advances when a caller's `finally` runs. Both fields are
-    // INSTANCE-scoped (was a companion-static AtomicInteger pair previously) so a
-    // service-process restart resets them — without this, an aborted caller leaving its
-    // ticket unconsumed would deadlock every subsequent caller in the next bind cycle.
-    private val serializeGate = AtomicInteger(0)
-    private val gateCurrent = AtomicInteger(0)
+    // Uptime of the last window state/content change event. ScreenState.awaitQuiet polls
+    // this to detect UI settle after an action.
+    @Volatile
+    var lastWindowEventUptime: Long = 0L
+        private set
+
+    // Serialises overlapping gesture-dispatch callers (the OS rejects overlapping
+    // dispatchGesture calls). Mutex.withLock releases correctly when a waiter is
+    // cancelled mid-wait, which the previous ticket counter did not.
+    private val gestureMutex = Mutex()
 
     override fun onServiceConnected() {
         super.onServiceConnected()
@@ -77,6 +79,11 @@ class RikkaAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // The service config only subscribes to typeWindowStateChanged|typeWindowContentChanged,
+        // so any event delivery means the UI moved.
+        if (event != null) {
+            lastWindowEventUptime = android.os.SystemClock.uptimeMillis()
+        }
         // Phase 12 — feed foreground-app transitions to the workflow trigger dispatcher.
         // We only care about TYPE_WINDOW_STATE_CHANGED and only when the package name is
         // present. The dispatcher itself de-dupes (skips no-op transitions) and dispatches
@@ -101,21 +108,10 @@ class RikkaAccessibilityService : AccessibilityService() {
 
     /**
      * Dispatches a gesture and suspends until it completes / cancels / times out (5s).
-     * Serializes through a single-thread executor so concurrent calls queue behind each other
-     * (the OS rejects overlapping dispatchGesture calls).
      */
-    suspend fun dispatchGestureAsync(gesture: GestureDescription): Boolean {
-        val gate = serializeGate.incrementAndGet()
-        try {
-            // Wait for our turn in the queue (serializes overlapping callers). The
-            // ensureActive() inside the spin lets `stopGeneration` actually break us out
-            // of a wait — without it, a caller stuck waiting for a never-arriving prior
-            // gate would ignore cancellation and burn power until the service died.
-            while (gateCurrent.get() != gate - 1) {
-                currentCoroutineContext().ensureActive()
-                kotlinx.coroutines.delay(10)
-            }
-            val ok = withTimeoutOrNull(GESTURE_TIMEOUT_MS) {
+    suspend fun dispatchGestureAsync(gesture: GestureDescription): Boolean =
+        gestureMutex.withLock {
+            withTimeoutOrNull(GESTURE_TIMEOUT_MS) {
                 suspendCancellableCoroutine<Boolean> { cont ->
                     val callback = object : GestureResultCallback() {
                         override fun onCompleted(d: GestureDescription) {
@@ -129,11 +125,7 @@ class RikkaAccessibilityService : AccessibilityService() {
                     if (!dispatched && cont.isActive) cont.resume(false)
                 }
             } ?: false
-            return ok
-        } finally {
-            gateCurrent.set(gate)
         }
-    }
 
     fun buildTapPath(x: Float, y: Float): Path = Path().apply { moveTo(x, y) }
 
@@ -143,36 +135,61 @@ class RikkaAccessibilityService : AccessibilityService() {
     }
 
     /**
-     * Walk the active window's node tree depth-first. `filter` decides whether to emit a node;
-     * traversal stops once `cap` nodes have been emitted. Returns (emitted, totalSeen, truncated).
+     * Walk the active window's node tree depth-first (preorder, children in order).
+     * `filter` decides whether to emit a node; traversal stops once `cap` nodes have been
+     * emitted. traversalIndex counts every node seen (1-based), independent of the filter.
+     * Depth is capped at 60 to survive pathological trees (deep WebView/Compose nesting).
+     *
+     * recycle=true recycles every visited non-root node on API < 33 after its subtree is
+     * done (a no-op on 33+ where nodes are not pooled). Callers passing recycle=true MUST
+     * NOT retain nodes past the emit callback; serialise or copy inside emit.
+     *
+     * Returns (emitted, totalSeen, truncated).
      */
     fun traverseTree(
         root: AccessibilityNodeInfo,
         filter: (AccessibilityNodeInfo, depth: Int) -> Boolean,
         cap: Int,
         emit: (AccessibilityNodeInfo, depth: Int, traversalIndex: Int) -> Unit,
+        recycle: Boolean = false,
     ): Triple<Int, Int, Boolean> {
+        val maxDepth = 60
         var emitted = 0
         var seen = 0
         var truncated = false
-        fun walk(n: AccessibilityNodeInfo, depth: Int) {
-            if (truncated) return
+        val canRecycle = recycle && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
+        val stack = ArrayDeque<Pair<AccessibilityNodeInfo, Int>>()
+        stack.addLast(root to 0)
+        while (stack.isNotEmpty()) {
+            val (n, depth) = stack.removeLast()
             seen++
             if (filter(n, depth)) {
                 emit(n, depth, seen)
                 emitted++
-                if (emitted >= cap) {
-                    truncated = true
-                    return
+                if (emitted >= cap) truncated = true
+            }
+            if (!truncated && depth < maxDepth) {
+                for (i in n.childCount - 1 downTo 0) {
+                    val child = n.getChild(i) ?: continue
+                    stack.addLast(child to depth + 1)
                 }
             }
-            for (i in 0 until n.childCount) {
-                if (truncated) return
-                val child = n.getChild(i) ?: continue
-                walk(child, depth + 1)
+            if (canRecycle && n !== root) {
+                @Suppress("DEPRECATION")
+                n.recycle()
+            }
+            if (truncated) break
+        }
+        if (canRecycle) {
+            // Drain children queued but never visited (truncation / depth-cap leftovers).
+            while (stack.isNotEmpty()) {
+                val (n, _) = stack.removeLast()
+                if (n !== root) {
+                    @Suppress("DEPRECATION")
+                    n.recycle()
+                }
             }
         }
-        walk(root, 0)
         return Triple(emitted, seen, truncated)
     }
 

@@ -4,7 +4,10 @@ import android.accessibilityservice.GestureDescription
 import android.graphics.Path
 import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -58,10 +61,11 @@ fun scrollTool(
 ): Tool = Tool(
     name = "scroll",
     description = """
-        Scroll the active window in the given direction (up/down/left/right). If x and y are
-        provided, scrolls the scrollable container at that point; otherwise scrolls the first
-        scrollable container found. Falls back to a swipe gesture if no scrollable container
-        can be located. Returns {success: bool, reason?: string}.
+        Scroll the active window (up/down/left/right). With x/y, scrolls the container at that
+        point; otherwise the first scrollable container. Uses real horizontal scroll actions for
+        left/right and falls back to a direction-true swipe. success=true means the scroll was
+        accepted; after.screen_changed is the ground truth, and a note is added when the scroll
+        was accepted but nothing moved (usually end of list).
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -80,7 +84,8 @@ fun scrollTool(
     },
     execute = { input ->
         AgentTurnTracker.recordAutomationAction()
-        me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
+        val wakeOk = me.rerere.rikkahub.service.RikkaAccessibilityService.instance
+            ?.let { wakeScreenIfNeeded(it) } ?: true
         val direction = input.jsonObject["direction"]?.jsonPrimitive?.contentOrNull
         if (direction == null || direction !in ALLOWED_DIRECTIONS) {
             return@Tool listOf(
@@ -95,59 +100,96 @@ fun scrollTool(
         val anchorY = input.jsonObject["y"]?.jsonPrimitive?.doubleOrNull?.takeIf { it.isFinite() }
 
         val payload = AccessibilityServiceHandle.withService { svc ->
-            val root = svc.rootInActiveWindow
-                ?: return@withService buildJsonObject { put("error", "no_active_window") }
+            withActionEnvelope(svc) { _ ->
+                val root = svc.rootInActiveWindow
+                    ?: return@withActionEnvelope buildJsonObject { put("error", "no_active_window") }
 
-            val target = if (anchorX != null && anchorY != null) {
-                findScrollableAt(root, anchorX.toInt(), anchorY.toInt())
-            } else {
-                findFirstScrollable(root)
-            }
-
-            val ok = if (target != null) {
-                val action = when (direction) {
-                    "down", "right" -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
-                    "up", "left" -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
-                    else -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                val target = if (anchorX != null && anchorY != null) {
+                    findScrollableAt(root, anchorX.toInt(), anchorY.toInt())
+                } else {
+                    findFirstScrollable(root)
                 }
-                target.performAction(action)
-            } else {
-                // Fallback: dispatch a swipe gesture across the screen center
-                val rect = Rect()
-                root.getBoundsInScreen(rect)
-                val cx = (rect.left + rect.right) / 2f
-                val cy = (rect.top + rect.bottom) / 2f
-                val w = (rect.width() / 3f).coerceAtLeast(100f)
-                val h = (rect.height() / 3f).coerceAtLeast(100f)
-                val (sx, sy, ex, ey) = when (direction) {
-                    "down" -> floatArrayOf(cx, cy + h, cx, cy - h)
-                    "up" -> floatArrayOf(cx, cy - h, cx, cy + h)
-                    "right" -> floatArrayOf(cx + w, cy, cx - w, cy)
-                    else /* left */ -> floatArrayOf(cx - w, cy, cx + w, cy)
-                }.let { arr -> Quadruple(arr[0], arr[1], arr[2], arr[3]) }
-                val path = Path().apply { moveTo(sx, sy); lineTo(ex, ey) }
-                svc.dispatchGestureAsync(
-                    GestureDescription.Builder()
-                        .addStroke(GestureDescription.StrokeDescription(path, 0L, SCROLL_GESTURE_MS))
-                        .build()
+
+                var usedFallback = false
+                val ok = if (target != null) {
+                    val action = when (direction) {
+                        "down" -> AccessibilityNodeInfo.ACTION_SCROLL_FORWARD
+                        "up" -> AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD
+                        "right" -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_RIGHT.id
+                        else /* left */ -> AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_LEFT.id
+                    }
+                    val supported = target.actionList.any { it.id == action }
+                    if (supported) {
+                        target.performAction(action)
+                    } else {
+                        // Container does not support this axis; fall back to a direction-true swipe.
+                        usedFallback = true
+                        dispatchFallbackSwipe(svc, root, direction)
+                    }
+                } else {
+                    usedFallback = true
+                    dispatchFallbackSwipe(svc, root, direction)
+                }
+                svc.appendLog(
+                    ActionLogEntry(
+                        type = "scroll",
+                        paramsSummary = "$direction" + (if (!usedFallback) " (node)" else " (fallback swipe)"),
+                        success = ok,
+                        timestampMs = System.currentTimeMillis(),
+                    )
                 )
-            }
-            svc.appendLog(
-                ActionLogEntry(
-                    type = "scroll",
-                    paramsSummary = "$direction" + (if (target != null) " (node)" else " (fallback swipe)"),
-                    success = ok,
-                    timestampMs = System.currentTimeMillis(),
-                )
-            )
-            buildJsonObject {
-                put("success", ok)
-                if (!ok) put("reason", "no_scroll_action_accepted")
+                buildJsonObject {
+                    put("success", ok)
+                    if (!ok) put("reason", "no_scroll_action_accepted")
+                    if (!wakeOk) put("wake_failed", true)
+                }
             }
         }
+        val finalPayload = run {
+            val after = payload["after"] as? JsonObject
+            val changed = (after?.get("screen_changed") as? JsonPrimitive)?.booleanOrNull
+            val succeeded = (payload["success"] as? JsonPrimitive)?.booleanOrNull == true
+            if (succeeded && changed == false) {
+                JsonObject(
+                    payload + ("note" to JsonPrimitive(
+                        "scroll accepted but the screen did not change; likely already at the end"
+                    ))
+                )
+            } else payload
+        }
         streamer.streamIfHeadless(invocationContext, "Scroll $direction")
-        listOf(UIMessagePart.Text(payload.toString()))
+        listOf(UIMessagePart.Text(finalPayload.toString()))
     }
 )
+
+/**
+ * Swipe-based fallback when no scrollable node was found (or the node doesn't support the
+ * requested axis). Shared by both the node and no-node paths so left/right and up/down
+ * behave identically whichever way scroll() reaches them.
+ */
+private suspend fun dispatchFallbackSwipe(
+    svc: RikkaAccessibilityService,
+    root: AccessibilityNodeInfo,
+    direction: String,
+): Boolean {
+    val rect = Rect()
+    root.getBoundsInScreen(rect)
+    val cx = (rect.left + rect.right) / 2f
+    val cy = (rect.top + rect.bottom) / 2f
+    val w = (rect.width() / 3f).coerceAtLeast(100f)
+    val h = (rect.height() / 3f).coerceAtLeast(100f)
+    val (sx, sy, ex, ey) = when (direction) {
+        "down" -> floatArrayOf(cx, cy + h, cx, cy - h)
+        "up" -> floatArrayOf(cx, cy - h, cx, cy + h)
+        "right" -> floatArrayOf(cx + w, cy, cx - w, cy)
+        else /* left */ -> floatArrayOf(cx - w, cy, cx + w, cy)
+    }.let { arr -> Quadruple(arr[0], arr[1], arr[2], arr[3]) }
+    val path = Path().apply { moveTo(sx, sy); lineTo(ex, ey) }
+    return svc.dispatchGestureAsync(
+        GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0L, SCROLL_GESTURE_MS))
+            .build()
+    )
+}
 
 private data class Quadruple<A, B, C, D>(val a: A, val b: B, val c: C, val d: D)

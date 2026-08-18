@@ -54,7 +54,8 @@ fun launchAppTool(
         Open an installed app on the device by its package name (e.g. com.termux, com.android.settings).
         Returns {success: true} if the launch intent was dispatched. If you do not know the package name,
         first call list_installed_apps to discover available packages. The app is brought to the
-        foreground; screen-automation tools (tap, swipe, read_window_tree) can then drive its UI.
+        foreground; if the screen automation tools are enabled, they can then drive its UI
+        (tap, swipe, read_window_tree).
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -118,7 +119,7 @@ fun launchAppTool(
                             put("current_foreground", finalForeground.orEmpty())
                             put(
                                 "recovery",
-                                "The launch intent was dispatched but the OS did not move ${pkg} to the foreground within 2.5s. The user is likely actively viewing another app (often RikkaHub itself) — do NOT pass package_name to read_window_tree on this turn. Either ask the user to switch to ${pkg}, or call read_window_tree with no package_name guard so you can see whatever IS currently on screen."
+                                "The launch intent was dispatched but the OS did not move ${pkg} to the foreground within 2.5s. The user is likely actively viewing another app (often RikkaHub itself) — If the screen automation tools are enabled: do NOT pass package_name to read_window_tree on this turn. Either ask the user to switch to ${pkg}, or call read_window_tree with no package_name guard so you can see whatever IS currently on screen; otherwise ask the user to switch to the app manually."
                             )
                             if (wasOff) put("woke_screen", woke)
                         }.toString()
@@ -143,6 +144,9 @@ fun launchAppTool(
                                 if (keySecure) {
                                     put("warn", "Screen is woken but PIN/biometric keyguard is up. The user must unlock for the launched app to be visible and drivable.")
                                 }
+                            }
+                            RikkaAccessibilityService.instance?.let { svc ->
+                                put("after", screenStateJson(svc, screenChanged = null))
                             }
                         }.toString()
                     )
@@ -298,7 +302,7 @@ fun openUrlTool(
     description = """
         Open a URL in the system's default handler app (browser for http/https, dialer for
         tel:, maps for geo:, mailto: for email, etc.). Strongly preferred over
-        launch_app + screen automation when the user asks you to "search X in chrome",
+        launch_app + screen automation (when those tools are enabled) when the user asks you to "search X in chrome",
         "open google.com", "call this number", "show me this address on a map", or any
         request that maps cleanly to a URL — typing into a browser URL bar via accessibility
         is unreliable and slow. Optionally pass package_name to force a specific app
@@ -587,6 +591,9 @@ fun launchActivityTool(
                                 put("warn", "Screen is woken but PIN/biometric keyguard is up. The user must unlock before this screen is visible.")
                             }
                         }
+                        RikkaAccessibilityService.instance?.let { svc ->
+                            put("after", screenStateJson(svc, screenChanged = null))
+                        }
                     }.toString()
                 )
             )
@@ -598,7 +605,7 @@ fun launchActivityTool(
                         put("package", pkg)
                         put("activity", activity)
                         put("reason", e.message ?: "SecurityException")
-                        put("recovery", "Android only allows launching activities declared exported=true. Call list_app_activities with exported_only=true and pick one of those, or use launch_app and navigate with screen automation.")
+                        put("recovery", "Android only allows launching activities declared exported=true. Call list_app_activities with exported_only=true and pick one of those, or use launch_app and, if the screen automation tools are enabled, navigate from there.")
                     }.toString()
                 )
             )

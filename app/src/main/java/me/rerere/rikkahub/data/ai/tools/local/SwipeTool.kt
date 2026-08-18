@@ -27,7 +27,9 @@ fun swipeTool(
     description = """
         Swipe between two absolute screen coordinates. Default duration is 300ms; provide
         duration_ms (>= 50, <= 5000) to override. Returns {success: bool, reason?: string} or
-        the standard service-not-active envelope.
+        the standard service-not-active envelope. The result carries an "after" object
+        (foreground surface, shade_open, screen_changed); check it to verify the swipe did
+        what you intended before acting again.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -46,7 +48,8 @@ fun swipeTool(
     },
     execute = { input ->
         AgentTurnTracker.recordAutomationAction()
-        me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
+        val wakeOk = me.rerere.rikkahub.service.RikkaAccessibilityService.instance
+            ?.let { wakeScreenIfNeeded(it) } ?: true
         val sx = numOrNull(input, "start_x")
         val sy = numOrNull(input, "start_y")
         val ex = numOrNull(input, "end_x")
@@ -71,22 +74,37 @@ fun swipeTool(
             )
         }
         val payload = AccessibilityServiceHandle.withService { svc ->
-            val path = svc.buildSwipePath(sx.toFloat(), sy.toFloat(), ex.toFloat(), ey.toFloat())
-            val gesture = GestureDescription.Builder()
-                .addStroke(GestureDescription.StrokeDescription(path, 0L, duration))
-                .build()
-            val ok = svc.dispatchGestureAsync(gesture)
-            svc.appendLog(
-                ActionLogEntry(
-                    type = "swipe",
-                    paramsSummary = "(${sx.toInt()},${sy.toInt()})->(${ex.toInt()},${ey.toInt()}) ${duration}ms",
-                    success = ok,
-                    timestampMs = System.currentTimeMillis(),
+            withActionEnvelope(svc) { _ ->
+                val dm = svc.resources.displayMetrics
+                if (coordsOutOfBounds(sx, sy, dm.widthPixels, dm.heightPixels) ||
+                    coordsOutOfBounds(ex, ey, dm.widthPixels, dm.heightPixels)
+                ) {
+                    return@withActionEnvelope buildJsonObject {
+                        put("error", "out_of_bounds")
+                        put("display", buildJsonObject {
+                            put("w", dm.widthPixels)
+                            put("h", dm.heightPixels)
+                        })
+                    }
+                }
+                val path = svc.buildSwipePath(sx.toFloat(), sy.toFloat(), ex.toFloat(), ey.toFloat())
+                val gesture = GestureDescription.Builder()
+                    .addStroke(GestureDescription.StrokeDescription(path, 0L, duration))
+                    .build()
+                val ok = svc.dispatchGestureAsync(gesture)
+                svc.appendLog(
+                    ActionLogEntry(
+                        type = "swipe",
+                        paramsSummary = "(${sx.toInt()},${sy.toInt()})->(${ex.toInt()},${ey.toInt()}) ${duration}ms",
+                        success = ok,
+                        timestampMs = System.currentTimeMillis(),
+                    )
                 )
-            )
-            buildJsonObject {
-                put("success", ok)
-                if (!ok) put("reason", "gesture_cancelled_or_timeout")
+                buildJsonObject {
+                    put("success", ok)
+                    if (!ok) put("reason", "gesture_cancelled_or_timeout")
+                    if (!wakeOk) put("wake_failed", true)
+                }
             }
         }
         streamer.streamIfHeadless(invocationContext, "Swipe (${sx.toInt()},${sy.toInt()})->(${ex.toInt()},${ey.toInt()}) ${duration}ms")

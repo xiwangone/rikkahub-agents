@@ -31,9 +31,10 @@ fun globalActionTool(
 ): Tool = Tool(
     name = "global_action",
     description = """
-        Perform an Android system-level action: back / home / recents / notifications /
-        quick_settings / lock_screen / power_dialog. Routed through
-        AccessibilityService.performGlobalAction. Returns {success: bool}.
+        Perform an Android system action: back / home / recents / notifications / quick_settings /
+        lock_screen / power_dialog. success only means the OS accepted the action; verify the
+        outcome via the returned "after" object (e.g. after home, confirm shade_open is absent
+        and the launcher package is foreground before assuming you are on the home screen).
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -49,7 +50,8 @@ fun globalActionTool(
     },
     execute = { input ->
         AgentTurnTracker.recordAutomationAction()
-        me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
+        val wakeOk = me.rerere.rikkahub.service.RikkaAccessibilityService.instance
+            ?.let { wakeScreenIfNeeded(it) } ?: true
         val action = input.jsonObject["action"]?.jsonPrimitive?.contentOrNull
         val code = action?.let { ACTION_MAP[it] }
         if (action == null || code == null) {
@@ -62,18 +64,21 @@ fun globalActionTool(
             )
         }
         val payload = AccessibilityServiceHandle.withService { svc ->
-            val ok = svc.performGlobalAction(code)
-            svc.appendLog(
-                ActionLogEntry(
-                    type = "global_action",
-                    paramsSummary = action,
-                    success = ok,
-                    timestampMs = System.currentTimeMillis(),
+            withActionEnvelope(svc) { _ ->
+                val ok = svc.performGlobalAction(code)
+                svc.appendLog(
+                    ActionLogEntry(
+                        type = "global_action",
+                        paramsSummary = action,
+                        success = ok,
+                        timestampMs = System.currentTimeMillis(),
+                    )
                 )
-            )
-            buildJsonObject {
-                put("success", ok)
-                if (!ok) put("reason", "rejected_by_os")
+                buildJsonObject {
+                    put("success", ok)
+                    if (!ok) put("reason", "rejected_by_os")
+                    if (!wakeOk) put("wake_failed", true)
+                }
             }
         }
         streamer.streamIfHeadless(invocationContext, "GlobalAction $action")

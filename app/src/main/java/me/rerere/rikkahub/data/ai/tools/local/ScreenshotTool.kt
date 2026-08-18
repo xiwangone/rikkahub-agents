@@ -37,7 +37,7 @@ private fun pruneOldCacheScreenshots(dir: File) {
 
 fun takeScreenshotTool(context: Context): Tool = Tool(
     name = "take_screenshot",
-    description = "Capture the current display via AccessibilityService and return it as a vision attachment. PNG also saved to Pictures/RikkaHub/Screenshots/ — gallery_path in the result is the on-device absolute path. Secure surfaces (banking, DRM, password fields) error gracefully. OS-rate-limited to ~1/sec.",
+    description = "Capture the current display via AccessibilityService and return it as a vision attachment. PNG also saved to Pictures/RikkaHub/Screenshots/ — gallery_path in the result is the on-device absolute path. Secure surfaces (banking, DRM, password fields) error gracefully. OS-rate-limited to ~1/sec. The result includes screen_state (foreground package, shade_open, display size). For \"did my action work\" checks prefer the \"after\" object that action tools already return; screenshot only when you need visual detail.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -112,6 +112,7 @@ fun takeScreenshotTool(context: Context): Tool = Tool(
                         put("file_path", cacheFile.absolutePath)
                         put("gallery_path", galleryPath ?: "(gallery_save_failed)")
                         put("saved_to", "Pictures/$PICTURES_SUBDIR")
+                        put("screen_state", screenStateJson(svc, screenChanged = null))
                     }
                 }
             }

@@ -59,7 +59,7 @@ fun readWindowTreeTool(
     streamer: InteractiveToolStreamer = InteractiveToolStreamer.NoOp,
 ): Tool = Tool(
     name = "read_window_tree",
-    description = "Snapshot of the active window's a11y node tree. Default filters to visible nodes that are clickable / scrollable / editable / have text or content_description. verbose=true skips the filter (use sparingly). max_nodes caps result (default 500, max 2000). package_name optionally restricts + errors if the foreground app doesn't match.",
+    description = "Snapshot of the active window's a11y node tree. Default filters to visible nodes that are clickable / scrollable / editable / have text or content_description. verbose=true skips the filter (use sparingly). max_nodes caps result (default 500, max 2000). package_name optionally restricts + errors if the foreground app doesn't match. Every node carries a node_id you can pass directly to click_node / set_text (preferred over by/value or coordinates). The result includes screen_state identifying the current surface (package, shade_open, ime_visible, display size).",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -140,6 +140,7 @@ fun readWindowTreeTool(
                 put("total_seen", seen)
                 put("package", pkg)
                 root.window?.title?.toString()?.let { put("window_title", it) } ?: put("window_title", "")
+                put("screen_state", screenStateJson(svc, screenChanged = null))
             }
         }
         streamer.streamIfHeadless(invocationContext, "ReadWindowTree")

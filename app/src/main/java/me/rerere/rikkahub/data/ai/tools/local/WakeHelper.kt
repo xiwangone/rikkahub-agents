@@ -9,20 +9,20 @@ import android.content.Context
  *
  * Delegates to [ScreenWaker.wakeIfOff], which already lives in WakeScreenTool.kt and is
  * idempotent (no-op when the screen is already on). Safe to call from any coroutine
- * context; never throws — the catch swallows silently. Intentionally NO `android.util.Log`
- * call here: JVM unit tests with NULL_CONTEXT reach this helper through validation paths
- * and Log.w would throw "method not mocked", masking the assertion the test is actually
- * checking. Logging during failure here would be noise anyway.
+ * context; never throws. Returns true on success, false on failure (and logs a warning,
+ * guarded so JVM unit tests with a NULL_CONTEXT that reach this helper through validation
+ * paths don't hit "method not mocked" from android.util.Log).
  */
-fun wakeScreenIfNeeded(context: Context) {
-    try {
+fun wakeScreenIfNeeded(context: Context): Boolean {
+    return try {
         if (!ScreenWaker.isInteractive(context)) {
             ScreenWaker.wakeIfOff(context)
         }
-    } catch (_: Throwable) {
-        // Silent. The screen-wake is best-effort; any failure (no PowerManager, NPE on
-        // unsafe-allocated test context, security exception) is recoverable — the
-        // calling tool will still attempt its action against a dark screen, which is
-        // strictly no worse than skipping the helper entirely.
+        true
+    } catch (t: Throwable) {
+        // Log guarded: JVM unit tests reach this helper on validation paths where
+        // android.util.Log would throw "not mocked".
+        runCatching { android.util.Log.w("WakeHelper", "wake failed: ${t.message}") }
+        false
     }
 }
