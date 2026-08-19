@@ -8,6 +8,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 
 @Composable
@@ -24,7 +27,9 @@ fun ToggleSurface(
         onClick = onClick,
         color = Color.Transparent,
         contentColor = contentColor,
-        modifier = modifier,
+        modifier = modifier.semantics {
+            toggleableState = ToggleableState(checked)
+        },
         shape = shape,
         tonalElevation = 0.dp,
         shadowElevation = 0.dp

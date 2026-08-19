@@ -392,7 +392,7 @@ private class ChainOfThoughtScopeImpl : ChainOfThoughtScope {
                 } else if (hasContent) {
                     Icon(
                         imageVector = if (expanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
-                        contentDescription = null,
+                        contentDescription = stringResource(if (expanded) R.string.code_block_collapse else R.string.code_block_expand),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
