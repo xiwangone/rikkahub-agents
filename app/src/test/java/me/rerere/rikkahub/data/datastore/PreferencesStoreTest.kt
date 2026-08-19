@@ -1,7 +1,10 @@
 package me.rerere.rikkahub.data.datastore
 
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
+import me.rerere.ai.core.ReasoningLevel
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.utils.JsonInstant
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -60,5 +63,25 @@ class PreferencesStoreTest {
         val decoded = JsonInstant.decodeFromString<Settings>(withoutSubAgents.toString())
 
         assertTrue(decoded.subAgents.isEmpty())
+    }
+
+    /**
+     * Upstream RikkaHub added `MAX` (@SerialName "max") to `ReasoningLevel` on 2026-08-14. An
+     * assistant JSON exported by upstream (or by this app after the level was added) carries
+     * that literal string, so it MUST decode back to [ReasoningLevel.MAX] instead of failing
+     * with an unknown-enum-constant error.
+     */
+    @Test
+    fun `assistant decodes a reasoningLevel of max, as exported by upstream RikkaHub`() {
+        val fullJson = JsonInstant.encodeToString(Assistant())
+        val withMaxReasoning = JsonObject(
+            JsonInstant.parseToJsonElement(fullJson).jsonObject.toMutableMap().apply {
+                put("reasoningLevel", JsonPrimitive("max"))
+            }
+        )
+
+        val decoded = JsonInstant.decodeFromString<Assistant>(withMaxReasoning.toString())
+
+        assertEquals(ReasoningLevel.MAX, decoded.reasoningLevel)
     }
 }

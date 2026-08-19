@@ -447,7 +447,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                                 when (params.reasoningLevel) {
                                     ReasoningLevel.LOW -> put("thinkingLevel", "LOW")
                                     ReasoningLevel.MEDIUM -> put("thinkingLevel", "MEDIUM")
-                                    else -> put("thinkingLevel", "HIGH") // HIGH, XHIGH
+                                    else -> put("thinkingLevel", "HIGH") // HIGH, XHIGH, MAX
                                 }
                             } else {
                                 put("thinkingBudget", params.reasoningLevel.budgetTokens)

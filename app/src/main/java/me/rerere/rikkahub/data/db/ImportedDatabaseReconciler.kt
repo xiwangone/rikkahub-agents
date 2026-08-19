@@ -23,8 +23,13 @@ import java.io.File
  * This step runs once, right after the restore writes `rikka_hub.db`, on the raw file before
  * Room touches it:
  *  - It creates any of the fork-only tables that are missing, empty, with the exact schema
- *    Room expects (copied verbatim from app/schemas/.../28.json), so the file looks like a
+ *    Room expects (copied verbatim from app/schemas/.../30.json), so the file looks like a
  *    clean agent install for those tables.
+ *  - It backfills the indices and columns that Room would normally add via the auto-migrations
+ *    between the restored version and [EXPECTED_VERSION] (see [BACKFILL_INDEX_DDL] and the
+ *    `chat_model_id` column below). Those auto-migrations never run on the "already current"
+ *    path, since it jumps straight to [EXPECTED_VERSION] instead of walking the chain, so
+ *    anything they would have added has to be recreated here too (issue #60).
  *  - If the file is already at the fork's current schema (stamped at the matching version, or
  *    an upstream file whose shared tables already carry every modern column), it stamps Room's
  *    user_version and identity row to the fork's current values so Room opens the file with no
@@ -33,9 +38,10 @@ import java.io.File
  *    because the fork tracks upstream's schema, so trusting the hash is sound.
  *
  * If the backup is at an older version that is not yet schema-complete, Room runs its normal
- * migrations up to current and sets the identity itself; pre-creating the tables just lets
- * those migrations find them. Backups newer than the app are left untouched (Room reports the
- * downgrade).
+ * migrations up to current and sets the identity itself; pre-creating the tables/indices just
+ * lets those migrations find them (all statements are `IF NOT EXISTS`, matching how Room's own
+ * generated auto-migration SQL creates indices, so replaying them causes no conflict). Backups
+ * newer than the app are left untouched (Room reports the downgrade).
  *
  * Best-effort: any failure here is logged and swallowed so a restore never half-breaks. The
  * worst case is the same pre-existing crash on next open, never data loss: there is no
@@ -48,14 +54,15 @@ object ImportedDatabaseReconciler {
 
     /**
      * Room's schema version and identity hash for [AppDatabase]. Both are copied verbatim
-     * from app/schemas/me.rerere.rikkahub.data.db.AppDatabase/28.json (the identity hash also
+     * from app/schemas/me.rerere.rikkahub.data.db.AppDatabase/30.json (the identity hash also
      * appears in the generated AppDatabase_Impl RoomOpenDelegate). When the schema version is
      * bumped, update BOTH constants (and the table DDL below if the fork-only tables changed,
-     * and MODERN_COLUMN_SENTINELS if newer conversation columns were added) or this
-     * reconciliation will silently stop matching.
+     * BACKFILL_INDEX_DDL if any entity gained/lost an index, and MODERN_COLUMN_SENTINELS if
+     * newer *shared* conversation columns were added) or this reconciliation will silently stop
+     * matching. `internal` so a JVM test can assert these stay in sync with the schema export.
      */
-    private const val EXPECTED_VERSION = 28
-    private const val EXPECTED_IDENTITY_HASH = "d3949c752e5a34360f2dd618bfbc40cd"
+    internal const val EXPECTED_VERSION = 30
+    internal const val EXPECTED_IDENTITY_HASH = "4969a8576be916e3bd22e4a9a48a272d"
 
     /**
      * Columns that a restored file must already have for its shared schema to be considered
@@ -88,6 +95,25 @@ object ImportedDatabaseReconciler {
         "CREATE INDEX IF NOT EXISTS `idx_runs_kind_dom` ON `agent_runs` (`kind`, `domain_id`)",
         "CREATE INDEX IF NOT EXISTS `idx_runs_parent` ON `agent_runs` (`parent_run_id`)",
         "CREATE INDEX IF NOT EXISTS `idx_runs_updated_at` ON `agent_runs` (`updated_at_ms`)",
+    )
+
+    /**
+     * Indices the fork's 27->28 auto-migration adds on tables that already exist before that
+     * step (`ConversationEntity`, `MemoryEntity`) or that [FORK_ONLY_DDL] just created fresh
+     * (`scheduled_jobs`, `scheduled_job_runs`). That migration is a pure schema diff compiled
+     * from app/schemas/.../27.json and 28.json, so it never runs on the "already current" path
+     * below, which stamps the file straight to [EXPECTED_VERSION]: the indices would otherwise
+     * be silently missing (issue #60, `Found: indices = {}` on `ConversationEntity`). Every
+     * statement is `IF NOT EXISTS`, so running this against a database that already has the
+     * indices - including a genuine backup already on v30 - is a safe no-op that touches no data.
+     */
+    internal val BACKFILL_INDEX_DDL: List<String> = listOf(
+        "CREATE INDEX IF NOT EXISTS `index_ConversationEntity_assistant_id_is_pinned_update_at` ON `ConversationEntity` (`assistant_id`, `is_pinned`, `update_at`)",
+        "CREATE INDEX IF NOT EXISTS `index_ConversationEntity_is_pinned_update_at` ON `ConversationEntity` (`is_pinned`, `update_at`)",
+        "CREATE INDEX IF NOT EXISTS `index_MemoryEntity_assistant_id` ON `MemoryEntity` (`assistant_id`)",
+        "CREATE INDEX IF NOT EXISTS `index_scheduled_jobs_enabled` ON `scheduled_jobs` (`enabled`)",
+        "CREATE INDEX IF NOT EXISTS `index_scheduled_job_runs_jobId_startedAtMs` ON `scheduled_job_runs` (`jobId`, `startedAtMs`)",
+        "CREATE INDEX IF NOT EXISTS `index_scheduled_job_runs_jobId_outcome` ON `scheduled_job_runs` (`jobId`, `outcome`)",
     )
 
     /**
@@ -133,12 +159,20 @@ object ImportedDatabaseReconciler {
                 db.beginTransaction()
                 try {
                     FORK_ONLY_DDL.forEach(db::execSQL)
+                    BACKFILL_INDEX_DDL.forEach(db::execSQL)
 
                     if (version == EXPECTED_VERSION || alreadyCurrent) {
-                        // v28 adds this table through Room's 27->28 auto-migration. Imported
-                        // upstream databases and genuine v27 fork databases are stamped straight
-                        // to v28 here, so create the table before installing the v28 identity.
+                        // v29 adds this table and v30 adds the chat_model_id column below,
+                        // both through Room auto-migrations. Imported upstream databases and
+                        // genuine v27/v28 fork databases are stamped straight to
+                        // EXPECTED_VERSION here, so create/add them before installing the
+                        // identity for EXPECTED_VERSION.
                         db.execSQL(CONTEXT_COMPACTION_DDL)
+                        if (!hasColumn(db, "ConversationEntity", "chat_model_id")) {
+                            db.execSQL(
+                                "ALTER TABLE `ConversationEntity` ADD COLUMN `chat_model_id` TEXT NOT NULL DEFAULT ''"
+                            )
+                        }
                         // No migration should run: the file is either already stamped at the
                         // fork's version, or it is an upstream file whose shared schema already
                         // matches it. Point Room's identity row and user_version at the fork so

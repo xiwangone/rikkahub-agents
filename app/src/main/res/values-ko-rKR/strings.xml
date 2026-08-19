@@ -543,6 +543,7 @@
   <string name="reasoning_picker_hint">모든 모델이 깊이 조정을 지원하는 것은 아닙니다. 모델 및 제공자 문서를 참조하세요.</string>
   <string name="reasoning_picker_title">모델 사고 깊이 조정</string>
   <string name="reasoning_xhigh">XHigh</string>
+  <string name="reasoning_max">최대</string>
   <string name="regenerate">다시 생성</string>
   <string name="regenerate_confirm_message">이 메시지를 다시 생성하시겠습니까?</string>
   <string name="render_with_webview">WebView로 렌더링</string>

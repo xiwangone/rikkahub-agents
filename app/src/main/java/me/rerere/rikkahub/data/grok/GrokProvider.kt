@@ -277,5 +277,6 @@ internal fun grokReasoningEffort(level: ReasoningLevel): String? {
         ReasoningLevel.MEDIUM -> "medium"
         ReasoningLevel.HIGH -> "high"
         ReasoningLevel.XHIGH -> "high"
+        ReasoningLevel.MAX -> "high"
     }
 }

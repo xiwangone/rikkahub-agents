@@ -1095,6 +1095,7 @@
   <string name="web_search_enabled">البحث في الويب مُمكَّن</string>
   <string name="setting_provider_page_import_service_account_json">استيراد JSON لحساب الخدمة</string>
   <string name="reasoning_xhigh">عالٍ جدًا</string>
+  <string name="reasoning_max">الأقصى</string>
   <string name="reasoning_picker_title">ضبط عمق تفكير النموذج</string>
   <string name="reasoning_picker_hint">لا تدعم جميع النماذج ضبط العمق. راجع وثائق النموذج والمزوّد.</string>
   <string name="assistant_page_local_tools_section_personal_data">البيانات الشخصية</string>
