@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -591,6 +592,59 @@ fun browserClickTool(): Tool = Tool(
     },
 )
 
+/**
+ * Build the JS payload browser_type dispatches. Setting `el.value = ...` directly (the
+ * previous approach) is invisible to React (and other frameworks that patch the DOM
+ * property): React installs its OWN setter on the *instance* to track "last known value"
+ * so its synthetic onChange only fires when a value changes through a path React
+ * observes. A direct assignment bypasses that tracker entirely, so React never sees the
+ * write and the rendered input silently keeps its old value even though `el.value` (and
+ * this tool's own success:true) says otherwise.
+ *
+ * Fix: fetch the *native* value setter off the element's prototype
+ * (`HTMLInputElement.prototype` / `HTMLTextAreaElement.prototype` — whichever
+ * `Object.getPrototypeOf(el)` resolves to) and invoke it directly, bypassing React's
+ * instance-level override, then dispatch a real `input` event. Because the setter call
+ * itself didn't go through React's tracker, React's own event handler (attached at the
+ * document root) sees the DOM value change and fires onChange normally. Falls back to
+ * plain `el.value = ...` when the prototype has no descriptor with a setter (custom
+ * elements, exotic hosts) — same behavior as before this fix for those cases.
+ *
+ * Pure string builder so it stays unit-testable without a WebView, same pattern as
+ * [buildWaitForPredicate].
+ */
+internal fun buildTypeScript(selector: String, text: String, clear: Boolean): String {
+    val sel = jsString(selector)
+    val txt = jsString(text)
+    val clearFlag = if (clear) "true" else "false"
+    return """(function(){
+        try {
+            var el = document.querySelector($sel);
+            if (!el) return JSON.stringify({error:'selector_not_found', selector:$sel});
+            el.focus();
+            function setNativeValue(node, value) {
+                var proto = Object.getPrototypeOf(node);
+                var desc = proto ? Object.getOwnPropertyDescriptor(proto, 'value') : null;
+                if (desc && typeof desc.set === 'function') {
+                    desc.set.call(node, value);
+                    return true;
+                }
+                return false;
+            }
+            if ('value' in el) {
+                var next = ($clearFlag ? '' : (el.value || '')) + $txt;
+                if (!setNativeValue(el, next)) { el.value = next; }
+            } else if (el.isContentEditable) {
+                if ($clearFlag) el.textContent = '';
+                el.textContent = (el.textContent || '') + $txt;
+            }
+            el.dispatchEvent(new Event('input', {bubbles:true}));
+            el.dispatchEvent(new Event('change', {bubbles:true}));
+            return JSON.stringify({typed:true});
+        } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
+    })()"""
+}
+
 fun browserTypeTool(): Tool = Tool(
     name = BrowserToolDefaults.TYPE,
     description = "Type text into an input/textarea/contenteditable matching a CSS selector. Focuses, optionally clears, sets the value + dispatches an 'input' event so SPA frameworks observe the change. Returns the diff between the page before and after by default; pass full:true to skip the diff. {success, [diff]}.$TELEGRAM_HEADLESS_CUE",
@@ -613,25 +667,7 @@ fun browserTypeTool(): Tool = Tool(
             else -> withTimeoutOrNull(toolTimeoutMs) {
                 BrowserControllerHandle.withController {
                     withDiff(full) {
-                        // Use both 'input' and 'change' events to satisfy frameworks that listen
-                        // to either; React's synthetic event layer needs the native value setter
-                        // path which we don't replicate here — covers ~90% of real inputs.
-                        val js = """(function(){
-                            try {
-                                var el = document.querySelector(${jsString(selector)});
-                                if (!el) return JSON.stringify({error:'selector_not_found', selector:${jsString(selector)}});
-                                el.focus();
-                                if (${if (clear) "true" else "false"}) {
-                                    if ('value' in el) el.value = '';
-                                    else if (el.isContentEditable) el.textContent = '';
-                                }
-                                if ('value' in el) el.value = (el.value || '') + ${jsString(text)};
-                                else if (el.isContentEditable) el.textContent = (el.textContent || '') + ${jsString(text)};
-                                el.dispatchEvent(new Event('input', {bubbles:true}));
-                                el.dispatchEvent(new Event('change', {bubbles:true}));
-                                return JSON.stringify({typed:true});
-                            } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
-                        })()"""
+                        val js = buildTypeScript(selector, text, clear)
                         val res = parseJsResult(webView.evaluateJavascriptAsync(js))
                         if (res.containsKey("error")) return@withDiff res
                         BrowserController.appendAction("Typed into $selector")
@@ -863,16 +899,37 @@ fun browserEvalJsTool(): Tool = Tool(
         } else {
             withTimeoutOrNull(toolTimeoutMs) {
                 BrowserControllerHandle.withController {
-                    val raw = webView.evaluateJavascriptAsync(code, toolTimeoutMs - 1_000L)
-                    BrowserController.appendAction("Run JS")
-                    // Clamp the raw result before it enters the envelope. evaluateJavascript
-                    // returns whatever the page's last expression serialised to — a model that
-                    // evals e.g. `document.body.outerHTML` can dump megabytes into the turn.
-                    // Reuse the 64 KB cap the read tools (runGetText / runReadHelper) apply.
-                    val (clipped, truncated) = clipText(raw ?: "null", EVAL_JS_MAX_RESULT_CHARS)
-                    buildJsonObject {
-                        put("result", clipped)
-                        if (truncated) put("truncated", true)
+                    // Unlike every other tool's JS payload, the LLM's `code` here runs
+                    // unwrapped — no `(function(){try{...}catch(e){...}})()` shell — since
+                    // eval_js's whole point is running arbitrary script verbatim.
+                    // evaluateJavascriptAsync already catches a throw from the
+                    // evaluateJavascript() call itself, but wrap the rest of the dispatch
+                    // (appendAction, clipping) too so ANY unexpected failure here reports
+                    // an honest {error:"eval_dispatch_failed"} envelope instead of
+                    // propagating uncaught and surfacing as an opaque tool_failed upstream.
+                    runCatching {
+                        val raw = webView.evaluateJavascriptAsync(code, toolTimeoutMs - 1_000L)
+                        BrowserController.appendAction("Run JS")
+                        // Clamp the raw result before it enters the envelope. evaluateJavascript
+                        // returns whatever the page's last expression serialised to — a model that
+                        // evals e.g. `document.body.outerHTML` can dump megabytes into the turn.
+                        // Reuse the 64 KB cap the read tools (runGetText / runReadHelper) apply.
+                        val (clipped, truncated) = clipText(raw ?: "null", EVAL_JS_MAX_RESULT_CHARS)
+                        buildJsonObject {
+                            put("result", clipped)
+                            if (truncated) put("truncated", true)
+                        }
+                    }.getOrElse {
+                        // Don't swallow cancellation: a withTimeoutOrNull timeout (or scope
+                        // cancellation) throws CancellationException from inside this block, and
+                        // catching it here would let this normal-looking envelope stand in for
+                        // the timeout instead of letting withTimeoutOrNull return null.
+                        if (it is CancellationException) throw it
+                        android.util.Log.w("BrowserTools", "browser_eval_js: dispatch threw", it)
+                        buildJsonObject {
+                            put("error", "eval_dispatch_failed")
+                            put("detail", (it.message ?: it.javaClass.simpleName).take(200))
+                        }
                     }
                 }
             } ?: timeoutEnvelope(BrowserToolDefaults.EVAL_JS)
@@ -1312,21 +1369,104 @@ private fun clipText(text: String, maxChars: Int): Pair<String, Boolean> =
     if (text.length <= maxChars) text to false
     else text.substring(0, maxChars) to true
 
+/**
+ * How [runHistoryNav] should carry out a back/forward request, decided from state read off
+ * the live WebView. Extracted as a pure function so the decision (issue #59: Chromium's
+ * history-manipulation intervention marks gesture-less navigations skippable, making
+ * `canGoBack()`/`canGoForward()` false even though a real entry exists) unit-tests without
+ * Robolectric.
+ */
+internal enum class HistoryNavMethod { NATIVE, OFFSET, NONE }
+
+/**
+ * NATIVE when the native canGoBack()/canGoForward() check already agrees. Otherwise OFFSET
+ * when [copyBackForwardList]'s index proves a real entry exists in that direction (back:
+ * not already at the oldest entry; forward: not already at the newest) — `goBackOrForward`
+ * maps to `NavigationController::GoToOffset`, which does not honor Chromium's skippable-entry
+ * flag the way `canGoBack`/`goBack` do. NONE when there's genuinely nowhere to go.
+ */
+internal fun resolveHistoryNav(
+    forward: Boolean,
+    canNative: Boolean,
+    currentIndex: Int,
+    size: Int,
+): HistoryNavMethod = when {
+    canNative -> HistoryNavMethod.NATIVE
+    forward && currentIndex < size - 1 -> HistoryNavMethod.OFFSET
+    !forward && currentIndex > 0 -> HistoryNavMethod.OFFSET
+    else -> HistoryNavMethod.NONE
+}
+
 private suspend fun runHistoryNav(toolName: String, forward: Boolean): JsonObject {
     val out = withTimeoutOrNull(toolTimeoutMs) {
         BrowserControllerHandle.withController {
-            val ok = withContext(Dispatchers.Main) {
-                if (forward) {
-                    if (webView.canGoForward()) { webView.goForward(); true } else false
-                } else {
-                    if (webView.canGoBack()) { webView.goBack(); true } else false
+            // Native canGoBack()/goBack() aren't wrapped in a try/catch JS shell the way
+            // every other tool's evaluateJavascript payload is (`(function(){try{...}
+            // catch(e){...}})()`), so an exception here (e.g. the WebView torn down out
+            // from under an in-flight dispatch) would otherwise propagate uncaught out of
+            // this whole withController block. Catch it explicitly so a transient WebView
+            // hiccup reports an honest {success:false, error:...} instead of surfacing as
+            // an opaque tool_failed — the session itself is untouched either way; this
+            // only affects what THIS call reports.
+            val navResult = runCatching {
+                withContext(Dispatchers.Main) {
+                    val list = webView.copyBackForwardList()
+                    val canBack = webView.canGoBack()
+                    val canForward = webView.canGoForward()
+                    android.util.Log.i(
+                        "BrowserNav",
+                        "wv=${System.identityHashCode(webView)} dir=${if (forward) "forward" else "back"} " +
+                            "bfl=${list.size}/${list.currentIndex} canBack=$canBack canFwd=$canForward",
+                    )
+                    when (resolveHistoryNav(forward, if (forward) canForward else canBack, list.currentIndex, list.size)) {
+                        HistoryNavMethod.NATIVE -> {
+                            if (forward) webView.goForward() else webView.goBack()
+                            true to false
+                        }
+                        HistoryNavMethod.OFFSET -> {
+                            // goBackOrForward(offset) proved inert on device: this WebView build's
+                            // GoToOffset honors the skippable flag too, so it silently no-ops. Load
+                            // the target history item's URL directly instead — a fresh load can't be
+                            // suppressed, at the cost of appending a new forward entry rather than
+                            // moving the index.
+                            val target = list.getItemAtIndex(list.currentIndex + (if (forward) 1 else -1))
+                            android.util.Log.i(
+                                "BrowserNav",
+                                "runHistoryNav: native nav refused, falling back to explicit history-item load: " +
+                                    target.url.take(120),
+                            )
+                            webView.loadUrl(target.url)
+                            true to true
+                        }
+                        HistoryNavMethod.NONE -> false to false
+                    }
                 }
             }
+            navResult.onFailure {
+                // Same reasoning as browser_eval_js's dispatch runCatching: a timeout/scope
+                // cancellation surfaces here as CancellationException too, and must propagate
+                // rather than be reported as a normal {success:false} nav failure.
+                if (it is CancellationException) throw it
+                android.util.Log.w("BrowserTools", "runHistoryNav: WebView navigation threw", it)
+            }
+            val ok = navResult.getOrNull()?.first ?: false
+            val usedOffsetFallback = navResult.getOrNull()?.second ?: false
             if (ok) webView.awaitReadyState(8_000L)
             BrowserController.appendAction(if (forward) "Forward" else "Back")
+            val currentUrl = runCatching { webView.url }.getOrNull().orEmpty()
             buildJsonObject {
                 put("success", ok)
-                put("current_url", webView.url.orEmpty())
+                put("current_url", currentUrl)
+                if (ok && usedOffsetFallback) {
+                    put("method", "history_load_fallback")
+                }
+                if (navResult.isFailure) {
+                    put("error", "nav_failed")
+                    put(
+                        "detail",
+                        (navResult.exceptionOrNull()?.message ?: "webview navigation threw").take(200),
+                    )
+                }
             }
         }
     } ?: timeoutEnvelope(toolName)

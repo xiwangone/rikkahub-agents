@@ -180,7 +180,9 @@ object BrowserController {
      * MUST `unbindHeadless` before the foreground Activity binds.
      */
     fun bindForeground(webView: WebView) {
-        mode = Mode.Foreground(WeakReference(webView))
+        synchronized(bindLock) {
+            mode = Mode.Foreground(WeakReference(webView))
+        }
         if (!bindDeferred.isCompleted) {
             bindDeferred.complete(Unit)
         }
@@ -191,19 +193,37 @@ object BrowserController {
         runCatching { BrowserCacheSweeper.sweep(webView.context.applicationContext) }
     }
 
-    /** Activity calls this in onDestroy. Only clears if the live ref still points at the same WebView. */
+    /**
+     * Activity calls this in onDestroy. Only clears if [mode] is still [Mode.Foreground] AND
+     * the live ref still points at the same WebView (or has already been GC'd).
+     *
+     * **Bug fix.** The previous check was `(mode as? Mode.Foreground)?.activityRef?.get()`
+     * then `current === webView || current == null`. That collapses two very different
+     * cases into the same `current == null` branch: a genuinely GC'd Foreground ref, AND
+     * `mode` not being [Mode.Foreground] at all (e.g. a live [Mode.Headless] session, or an
+     * already-[Mode.Idle] controller). A stray/late `onDestroy` call — the Activity is
+     * recreated then immediately torn down, or races a headless session taking over the
+     * slot — would silently reset an unrelated live binding to Idle, handing every
+     * subsequent tool call a false `browser_not_open` until the next `browser_open`. Guard
+     * on `mode is Mode.Foreground` explicitly so this can only ever clear a foreground
+     * binding it actually owns (or one that's already gone).
+     */
     fun unbindForeground(webView: WebView) {
-        val current = (mode as? Mode.Foreground)?.activityRef?.get()
-        if (current === webView || current == null) {
-            mode = Mode.Idle
-            // Reset task timer + action log when the visible Activity is torn down. Headless
-            // mode has its own teardown via [unbindHeadless]; this branch is foreground-only.
-            currentTaskStartedAt = null
-            _recentActions.value = emptyList()
-            // Swap in a fresh deferred so the NEXT browser_open's awaitBind blocks correctly
-            // until the next bind() — without this, a stale "completed" deferred from the
-            // prior session would let awaitBind return immediately on a dead WebView.
-            bindDeferred = CompletableDeferred()
+        synchronized(bindLock) {
+            val m = mode
+            if (m !is Mode.Foreground) return
+            val current = m.activityRef.get()
+            if (current === webView || current == null) {
+                mode = Mode.Idle
+                // Reset task timer + action log when the visible Activity is torn down. Headless
+                // mode has its own teardown via [unbindHeadless]; this branch is foreground-only.
+                currentTaskStartedAt = null
+                _recentActions.value = emptyList()
+                // Swap in a fresh deferred so the NEXT browser_open's awaitBind blocks correctly
+                // until the next bind() — without this, a stale "completed" deferred from the
+                // prior session would let awaitBind return immediately on a dead WebView.
+                bindDeferred = CompletableDeferred()
+            }
         }
     }
 
