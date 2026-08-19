@@ -19,6 +19,36 @@ import java.io.FileOutputStream
 import java.lang.ref.WeakReference
 
 /**
+ * Kind of AI-driven browser action recorded in the trail. Each value has a paired
+ * localized template (`browser_ai_action_<kind lowercase>`) that `BrowserAiStripe`
+ * resolves at render time from [BrowserAiAction.kind] + [BrowserAiAction.detail] — the
+ * human-readable sentence is built only in the UI layer so it localizes, and (for
+ * [BrowserAiActionOutcome.FAILED] entries) can be wrapped in the `browser_ai_action_failed`
+ * prefix template.
+ */
+enum class BrowserAiActionKind {
+    OPEN, CLICK, TYPE, SCROLL, SUBMIT, SELECT, KEY, JS, SCREENSHOT, READ, BACK, FORWARD, DONE, STOPPED
+}
+
+/** Lifecycle state of a [BrowserAiAction]. */
+enum class BrowserAiActionOutcome { RUNNING, OK, FAILED }
+
+/**
+ * One entry in the AI action trail (newest first in [BrowserController.recentActionsFlow]).
+ * [detail] carries only what's safe to render verbatim — a URL or CSS selector, never typed
+ * text or select values (see the call sites in `BrowserTools.kt` for the per-kind rule); the
+ * localized sentence is composed at render time from [kind] + [detail].
+ */
+data class BrowserAiAction(
+    val id: Long,
+    val kind: BrowserAiActionKind,
+    val detail: String?,
+    val outcome: BrowserAiActionOutcome,
+    val atMs: Long,
+    val step: Int,
+)
+
+/**
  * Singleton bridge between the LLM browser tools and the live WebView.
  * Mirrors the [me.rerere.rikkahub.service.RikkaAccessibilityService.instance] pattern: the
  * Activity (or headless session host) publishes itself in on bind and clears on unbind.
@@ -163,10 +193,70 @@ object BrowserController {
 
     private val streamDedupe = mutableMapOf<String, StreamMark>()
 
-    private val _recentActions = MutableStateFlow<List<String>>(emptyList())
+    private val _recentActions = MutableStateFlow<List<BrowserAiAction>>(emptyList())
 
     /** Compose-friendly observable of the last [MAX_RECENT_ACTIONS] AI actions, newest first. */
-    fun recentActionsFlow(): StateFlow<List<String>> = _recentActions.asStateFlow()
+    fun recentActionsFlow(): StateFlow<List<BrowserAiAction>> = _recentActions.asStateFlow()
+
+    /**
+     * True while an AI-driven task is in flight (from [startTaskWindow] to [clearTaskWindow]
+     * / [stopCurrentTask]). UI-only signal for [BrowserAiStripe]'s spinner + Stop button —
+     * [currentTaskStartedAt] stays the authoritative source for the timeout check itself.
+     */
+    private val _taskActive = MutableStateFlow(false)
+    fun taskActiveFlow(): StateFlow<Boolean> = _taskActive.asStateFlow()
+
+    /** Guards [nextActionId] / [nextActionStep] and the read-modify-write of [_recentActions]. */
+    private val actionLock = Any()
+    private var nextActionId = 0L
+    private var nextActionStep = 0
+
+    /**
+     * Append a RUNNING [BrowserAiAction] to the trail and return its id. Pair with
+     * [completeAction] — ideally in a `try/finally` — so a thrown exception or a
+     * `withTimeoutOrNull` cancellation can't leave the entry RUNNING forever.
+     */
+    fun beginAction(kind: BrowserAiActionKind, detail: String? = null): Long {
+        val trimmedDetail = detail?.trim()?.takeIf { it.isNotEmpty() }
+        synchronized(actionLock) {
+            val id = ++nextActionId
+            val step = ++nextActionStep
+            val action = BrowserAiAction(
+                id = id,
+                kind = kind,
+                detail = trimmedDetail,
+                outcome = BrowserAiActionOutcome.RUNNING,
+                atMs = System.currentTimeMillis(),
+                step = step,
+            )
+            _recentActions.value = (listOf(action) + _recentActions.value).take(MAX_RECENT_ACTIONS)
+            return id
+        }
+    }
+
+    /** Flip the [id] entry to OK/FAILED. A no-op if [id] isn't in the current trail (e.g. it aged out). */
+    fun completeAction(id: Long, ok: Boolean) {
+        synchronized(actionLock) {
+            val current = _recentActions.value
+            val idx = current.indexOfFirst { it.id == id }
+            if (idx < 0) return
+            val outcome = if (ok) BrowserAiActionOutcome.OK else BrowserAiActionOutcome.FAILED
+            _recentActions.value = current.toMutableList().also { it[idx] = it[idx].copy(outcome = outcome) }
+        }
+    }
+
+    /** One-shot convenience for actions that don't have a meaningful RUNNING phase (DONE, STOPPED). */
+    fun recordAction(kind: BrowserAiActionKind, detail: String? = null, ok: Boolean = true) {
+        completeAction(beginAction(kind, detail), ok)
+    }
+
+    /** Clears the action trail and resets the per-task step counter (NOT the monotonic id counter). */
+    private fun resetActionTrail() {
+        synchronized(actionLock) {
+            _recentActions.value = emptyList()
+            nextActionStep = 0
+        }
+    }
 
     /** Returns the current execution mode. */
     fun currentMode(): Mode = mode
@@ -218,7 +308,8 @@ object BrowserController {
                 // Reset task timer + action log when the visible Activity is torn down. Headless
                 // mode has its own teardown via [unbindHeadless]; this branch is foreground-only.
                 currentTaskStartedAt = null
-                _recentActions.value = emptyList()
+                _taskActive.value = false
+                resetActionTrail()
                 // Swap in a fresh deferred so the NEXT browser_open's awaitBind blocks correctly
                 // until the next bind() — without this, a stale "completed" deferred from the
                 // prior session would let awaitBind return immediately on a dead WebView.
@@ -322,7 +413,8 @@ object BrowserController {
             if (m is Mode.Headless && m.callerConvId == callerConvId) {
                 mode = Mode.Idle
                 currentTaskStartedAt = null
-                _recentActions.value = emptyList()
+                _taskActive.value = false
+                resetActionTrail()
                 bindDeferred = CompletableDeferred()
             }
             // Drop the conversation's de-dupe memory regardless of which mode is live, so a
@@ -351,7 +443,8 @@ object BrowserController {
             if (m is Mode.Headless && m.callerConvId == callerConvId) {
                 mode = Mode.Idle
                 currentTaskStartedAt = null
-                _recentActions.value = emptyList()
+                _taskActive.value = false
+                resetActionTrail()
                 bindDeferred = CompletableDeferred()
             }
             streamDedupe.remove(callerConvId)
@@ -370,18 +463,6 @@ object BrowserController {
     fun currentTitle(): String? = activeWebView()?.title
 
     /**
-     * Append a one-line description of an AI-driven action to the recent-actions log.
-     * The BrowserAiStripe observes the resulting flow and renders the trail.
-     */
-    fun appendAction(label: String) {
-        val trimmed = label.trim()
-        if (trimmed.isEmpty()) return
-        val current = _recentActions.value
-        val next = (listOf(trimmed) + current).take(MAX_RECENT_ACTIONS)
-        _recentActions.value = next
-    }
-
-    /**
      * Cancel the in-flight tool dispatch (if any) and clear the single-task timer. Wired
      * to the Activity's "Stop AI" kebab item; the cancelled coroutine surfaces as a normal
      * CancellationException inside the tool's withTimeoutOrNull and the LLM gets a clean
@@ -391,7 +472,8 @@ object BrowserController {
         pendingTaskJob?.cancel()
         pendingTaskJob = null
         currentTaskStartedAt = null
-        appendAction("AI task stopped by user")
+        _taskActive.value = false
+        recordAction(BrowserAiActionKind.STOPPED)
     }
 
     /**
@@ -399,14 +481,24 @@ object BrowserController {
      * navigation; once a task starts, every browser_* call after the window expires gets
      * [taskTimeoutEnvelope] until browser_done fires (which clears the timer). The window
      * length is [singleTaskTimeoutMs] — user-configurable in Settings → Browser.
+     *
+     * **Task scoping.** Only a genuinely NEW task (no window currently in flight) clears the
+     * action trail + step counter — a mid-task re-arm (e.g. the model calling browser_open
+     * again to navigate elsewhere in the same task) must not wipe the trail the user is
+     * watching.
      */
     fun startTaskWindow() {
+        if (currentTaskStartedAt == null) {
+            resetActionTrail()
+        }
         currentTaskStartedAt = System.currentTimeMillis()
+        _taskActive.value = true
     }
 
-    /** browser_done clears the task window (and stops the in-flight job log). */
+    /** browser_done clears the task window (and stops the in-flight job log). The action trail is left intact — the DONE entry [recordAction] adds stays visible as the stripe's headline. */
     fun clearTaskWindow() {
         currentTaskStartedAt = null
+        _taskActive.value = false
     }
 
     /**
@@ -583,7 +675,7 @@ object BrowserControllerHandle {
 
     /**
      * Scope passed into [withController]'s block. Carries the controller (for
-     * appendAction / startTaskWindow) and the live WebView. Helpers that need the main
+     * beginAction/completeAction / startTaskWindow) and the live WebView. Helpers that need the main
      * thread should use [me.rerere.rikkahub.browser.evaluateJavascriptAsync] which posts
      * onto the WebView's looper directly.
      */

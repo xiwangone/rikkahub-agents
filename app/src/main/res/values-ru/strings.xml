@@ -1811,5 +1811,23 @@
   <string name="setting_model_page_response_stream_retries">Повторные попытки потока Response API</string>
   <string name="setting_model_page_response_stream_retries_desc">Если поток Response API закрывается до завершения, повторить запрос указанное число раз. Установите 0, чтобы отключить автоматические повторы.</string>
   <string name="setting_model_page_response_stream_retries_input">Максимальное число повторов</string>
+
+  <!-- BrowserAiStripe redesign: outcome-aware, localized action trail -->
+  <string name="browser_ai_stripe_stop">Стоп</string>
+  <string name="browser_ai_action_open">Открытие %1$s</string>
+  <string name="browser_ai_action_click">Нажато %1$s</string>
+  <string name="browser_ai_action_type">Ввод в %1$s</string>
+  <string name="browser_ai_action_scroll">Прокручено %1$s</string>
+  <string name="browser_ai_action_submit">Отправлено %1$s</string>
+  <string name="browser_ai_action_select">Выбран вариант в %1$s</string>
+  <string name="browser_ai_action_key">Нажата клавиша %1$s</string>
+  <string name="browser_ai_action_js">Выполнен JavaScript</string>
+  <string name="browser_ai_action_screenshot">Сделан снимок экрана</string>
+  <string name="browser_ai_action_read">Прочитано %1$s</string>
+  <string name="browser_ai_action_back">Назад</string>
+  <string name="browser_ai_action_forward">Вперёд</string>
+  <string name="browser_ai_action_done">Готово: %1$s</string>
+  <string name="browser_ai_action_stopped">Остановлено пользователем</string>
+  <string name="browser_ai_action_failed">Ошибка: %1$s</string>
 </resources>
 

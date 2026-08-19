@@ -1815,4 +1815,22 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_model_page_response_stream_retries">Response API 流重试次数</string>
   <string name="setting_model_page_response_stream_retries_desc">Response API 流在完成前意外关闭时，自动重试请求此次数。设为 0 可禁用自动重试。</string>
   <string name="setting_model_page_response_stream_retries_input">最大重试次数</string>
+
+  <!-- BrowserAiStripe redesign: outcome-aware, localized action trail -->
+  <string name="browser_ai_stripe_stop">停止</string>
+  <string name="browser_ai_action_open">正在打开 %1$s</string>
+  <string name="browser_ai_action_click">已点击 %1$s</string>
+  <string name="browser_ai_action_type">正在输入到 %1$s</string>
+  <string name="browser_ai_action_scroll">已滚动 %1$s</string>
+  <string name="browser_ai_action_submit">已提交 %1$s</string>
+  <string name="browser_ai_action_select">已在 %1$s 中选择选项</string>
+  <string name="browser_ai_action_key">已按下 %1$s</string>
+  <string name="browser_ai_action_js">已运行 JavaScript</string>
+  <string name="browser_ai_action_screenshot">已截图</string>
+  <string name="browser_ai_action_read">已读取 %1$s</string>
+  <string name="browser_ai_action_back">已后退</string>
+  <string name="browser_ai_action_forward">已前进</string>
+  <string name="browser_ai_action_done">已完成：%1$s</string>
+  <string name="browser_ai_action_stopped">已被用户停止</string>
+  <string name="browser_ai_action_failed">失败：%1$s</string>
 </resources>

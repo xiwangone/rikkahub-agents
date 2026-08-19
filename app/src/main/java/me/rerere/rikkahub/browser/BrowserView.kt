@@ -79,7 +79,7 @@ fun BrowserView(
             )
         },
         bottomBar = {
-            BrowserAiStripe()
+            BrowserAiStripe(onStopAi = onStopAi)
         },
         containerColor = MaterialTheme.colorScheme.surface,
     ) { innerPadding ->

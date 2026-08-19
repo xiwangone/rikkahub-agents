@@ -2078,4 +2078,22 @@
   <string name="setting_sub_agents_page_delete">حذف</string>
   <string name="setting_sub_agents_page_cancel">إلغاء</string>
   <string name="setting_sub_agents_page_confirm">حفظ</string>
+
+  <!-- BrowserAiStripe redesign: outcome-aware, localized action trail -->
+  <string name="browser_ai_stripe_stop">إيقاف</string>
+  <string name="browser_ai_action_open">فتح %1$s</string>
+  <string name="browser_ai_action_click">تم النقر على %1$s</string>
+  <string name="browser_ai_action_type">الكتابة في %1$s</string>
+  <string name="browser_ai_action_scroll">تم التمرير %1$s</string>
+  <string name="browser_ai_action_submit">تم إرسال %1$s</string>
+  <string name="browser_ai_action_select">تم اختيار خيار في %1$s</string>
+  <string name="browser_ai_action_key">تم الضغط على %1$s</string>
+  <string name="browser_ai_action_js">تم تشغيل جافاسكريبت</string>
+  <string name="browser_ai_action_screenshot">تم أخذ لقطة شاشة</string>
+  <string name="browser_ai_action_read">تمت قراءة %1$s</string>
+  <string name="browser_ai_action_back">تم الرجوع</string>
+  <string name="browser_ai_action_forward">تم التقدم للأمام</string>
+  <string name="browser_ai_action_done">انتهى: %1$s</string>
+  <string name="browser_ai_action_stopped">تم الإيقاف بواسطة المستخدم</string>
+  <string name="browser_ai_action_failed">فشل: %1$s</string>
 </resources>

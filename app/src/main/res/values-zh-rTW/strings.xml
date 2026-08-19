@@ -1810,5 +1810,23 @@
   <string name="setting_model_page_response_stream_retries">Response API 串流重試次數</string>
   <string name="setting_model_page_response_stream_retries_desc">Response API 串流在完成前意外關閉時，自動重試請求此次數。設為 0 可停用自動重試。</string>
   <string name="setting_model_page_response_stream_retries_input">最大重試次數</string>
+
+  <!-- BrowserAiStripe redesign: outcome-aware, localized action trail -->
+  <string name="browser_ai_stripe_stop">停止</string>
+  <string name="browser_ai_action_open">正在開啟 %1$s</string>
+  <string name="browser_ai_action_click">已點擊 %1$s</string>
+  <string name="browser_ai_action_type">正在輸入到 %1$s</string>
+  <string name="browser_ai_action_scroll">已捲動 %1$s</string>
+  <string name="browser_ai_action_submit">已送出 %1$s</string>
+  <string name="browser_ai_action_select">已在 %1$s 中選擇選項</string>
+  <string name="browser_ai_action_key">已按下 %1$s</string>
+  <string name="browser_ai_action_js">已執行 JavaScript</string>
+  <string name="browser_ai_action_screenshot">已擷取螢幕截圖</string>
+  <string name="browser_ai_action_read">已讀取 %1$s</string>
+  <string name="browser_ai_action_back">已返回</string>
+  <string name="browser_ai_action_forward">已前進</string>
+  <string name="browser_ai_action_done">已完成：%1$s</string>
+  <string name="browser_ai_action_stopped">已由使用者停止</string>
+  <string name="browser_ai_action_failed">失敗：%1$s</string>
 </resources>
 

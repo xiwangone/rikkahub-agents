@@ -1811,5 +1811,23 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_model_page_response_stream_retries">Response API 스트림 재시도 횟수</string>
   <string name="setting_model_page_response_stream_retries_desc">Response API 스트림이 완료 전에 끊기면 이 횟수만큼 요청을 자동 재시도합니다. 0으로 설정하면 자동 재시도를 끕니다.</string>
   <string name="setting_model_page_response_stream_retries_input">최대 재시도 횟수</string>
+
+  <!-- BrowserAiStripe redesign: outcome-aware, localized action trail -->
+  <string name="browser_ai_stripe_stop">중지</string>
+  <string name="browser_ai_action_open">%1$s 여는 중</string>
+  <string name="browser_ai_action_click">%1$s 클릭함</string>
+  <string name="browser_ai_action_type">%1$s에 입력 중</string>
+  <string name="browser_ai_action_scroll">%1$s 스크롤함</string>
+  <string name="browser_ai_action_submit">%1$s 제출함</string>
+  <string name="browser_ai_action_select">%1$s에서 옵션 선택함</string>
+  <string name="browser_ai_action_key">%1$s 누름</string>
+  <string name="browser_ai_action_js">JavaScript 실행함</string>
+  <string name="browser_ai_action_screenshot">스크린샷 촬영함</string>
+  <string name="browser_ai_action_read">%1$s 읽음</string>
+  <string name="browser_ai_action_back">뒤로 감</string>
+  <string name="browser_ai_action_forward">앞으로 감</string>
+  <string name="browser_ai_action_done">완료: %1$s</string>
+  <string name="browser_ai_action_stopped">사용자에 의해 중지됨</string>
+  <string name="browser_ai_action_failed">실패: %1$s</string>
 </resources>
 

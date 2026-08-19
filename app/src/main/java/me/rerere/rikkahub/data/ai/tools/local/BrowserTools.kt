@@ -23,6 +23,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.browser.BrowserAiActionKind
 import me.rerere.rikkahub.browser.BrowserController
 import me.rerere.rikkahub.browser.BrowserControllerHandle
 import me.rerere.rikkahub.browser.BrowserDiffHelper
@@ -127,6 +128,40 @@ private fun textPart(obj: JsonObject): List<UIMessagePart> =
  */
 private fun jsString(s: String): String = JsonPrimitive(s).toString()
 
+/**
+ * Wrap a tool's dispatch with a RUNNING -> OK/FAILED [me.rerere.rikkahub.browser.BrowserAiAction]
+ * entry. [beginAction] fires before [block] runs (so the stripe's spinner covers the actual
+ * WebView work, not just the instant the envelope is built); [ok] reads the outcome off
+ * [block]'s returned envelope — by convention `success == true`. The `try/finally` guarantees
+ * the entry never sticks at RUNNING: a thrown exception or a `withTimeoutOrNull` cancellation
+ * still marks it FAILED via the `finally`, then rethrows/propagates normally (a `finally` never
+ * swallows the in-flight `CancellationException`).
+ */
+private suspend fun <T> trackAction(
+    kind: BrowserAiActionKind,
+    detail: String?,
+    ok: (T) -> Boolean,
+    block: suspend () -> T,
+): T {
+    val id = BrowserController.beginAction(kind, detail)
+    var completed = false
+    try {
+        val result = block()
+        BrowserController.completeAction(id, ok(result))
+        completed = true
+        return result
+    } finally {
+        if (!completed) BrowserController.completeAction(id, false)
+    }
+}
+
+/** [trackAction] specialised for the common case: outcome is the envelope's `success` field. */
+private suspend fun trackJsonAction(
+    kind: BrowserAiActionKind,
+    detail: String?,
+    block: suspend () -> JsonObject,
+): JsonObject = trackAction(kind, detail, ok = { it["success"]?.jsonPrimitive?.booleanOrNull == true }, block = block)
+
 // ---- Read tools ---------------------------------------------------------------------------
 
 fun browserOpenTool(context: Context, invocationContext: ToolInvocationContext? = null): Tool = Tool(
@@ -199,14 +234,15 @@ fun browserOpenTool(context: Context, invocationContext: ToolInvocationContext? 
                         return@withTimeoutOrNull BrowserController.bindBusyEnvelope()
                     }
                     BrowserController.startTaskWindow()
-                    BrowserController.appendAction("Open: $url")
-                    val result = BrowserControllerHandle.withController {
-                        withContext(Dispatchers.Main) { webView.loadUrl(url) }
-                        webView.awaitReadyState(8_000L)
-                        buildJsonObject {
-                            put("success", true)
-                            put("current_url", webView.url ?: url)
-                            put("title", webView.title.orEmpty())
+                    val result = trackJsonAction(BrowserAiActionKind.OPEN, url) {
+                        BrowserControllerHandle.withController {
+                            withContext(Dispatchers.Main) { webView.loadUrl(url) }
+                            webView.awaitReadyState(8_000L)
+                            buildJsonObject {
+                                put("success", true)
+                                put("current_url", webView.url ?: url)
+                                put("title", webView.title.orEmpty())
+                            }
                         }
                     }
                     // Stream the landing-page screenshot so the user sees we arrived.
@@ -234,20 +270,21 @@ fun browserOpenTool(context: Context, invocationContext: ToolInvocationContext? 
                     }
                     // (Re)start the 5-minute task window on every browser_open.
                     BrowserController.startTaskWindow()
-                    BrowserController.appendAction("Open: $url")
-                    BrowserControllerHandle.withController {
-                        // When the Activity was just freshly launched, the URL was already
-                        // passed as EXTRA_INITIAL_URL and the WebView began loading it
-                        // before bind() returned. Skip a redundant second loadUrl — it
-                        // would abort the in-flight load and restart from the top.
-                        if (wasAlreadyBound) {
-                            withContext(Dispatchers.Main) { webView.loadUrl(url) }
-                        }
-                        webView.awaitReadyState(8_000L)
-                        buildJsonObject {
-                            put("success", true)
-                            put("current_url", webView.url ?: url)
-                            put("title", webView.title.orEmpty())
+                    trackJsonAction(BrowserAiActionKind.OPEN, url) {
+                        BrowserControllerHandle.withController {
+                            // When the Activity was just freshly launched, the URL was already
+                            // passed as EXTRA_INITIAL_URL and the WebView began loading it
+                            // before bind() returned. Skip a redundant second loadUrl — it
+                            // would abort the in-flight load and restart from the top.
+                            if (wasAlreadyBound) {
+                                withContext(Dispatchers.Main) { webView.loadUrl(url) }
+                            }
+                            webView.awaitReadyState(8_000L)
+                            buildJsonObject {
+                                put("success", true)
+                                put("current_url", webView.url ?: url)
+                                put("title", webView.title.orEmpty())
+                            }
                         }
                     }
                 }
@@ -305,34 +342,35 @@ fun browserScreenshotTool(context: Context): Tool = Tool(
         val parts = mutableListOf<UIMessagePart>()
         val out = withTimeoutOrNull(toolTimeoutMs) {
             BrowserControllerHandle.withController {
-                val (path, w, h) = withContext(Dispatchers.Main) {
-                    val width = webView.width.coerceAtLeast(1)
-                    val height = webView.height.coerceAtLeast(1).coerceAtMost(MAX_SCREENSHOT_HEIGHT_PX)
-                    val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-                    val canvas = Canvas(bitmap)
-                    webView.draw(canvas)
-                    val cacheDir = File(context.cacheDir, SCREENSHOT_CACHE_SUBDIR).apply { mkdirs() }
-                    val out = File(cacheDir, "screenshot-${System.currentTimeMillis()}.png")
-                    // Recycle unconditionally in a finally block so the bitmap is freed
-                    // exactly once regardless of whether compress() succeeds or throws.
-                    // The prior pattern called recycle() in onFailure AND then again
-                    // unconditionally — a double-recycle causes IllegalStateException.
-                    try {
-                        FileOutputStream(out).use { os ->
-                            bitmap.compress(Bitmap.CompressFormat.PNG, 100, os)
+                trackJsonAction(BrowserAiActionKind.SCREENSHOT, null) {
+                    val (path, w, h) = withContext(Dispatchers.Main) {
+                        val width = webView.width.coerceAtLeast(1)
+                        val height = webView.height.coerceAtLeast(1).coerceAtMost(MAX_SCREENSHOT_HEIGHT_PX)
+                        val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+                        val canvas = Canvas(bitmap)
+                        webView.draw(canvas)
+                        val cacheDir = File(context.cacheDir, SCREENSHOT_CACHE_SUBDIR).apply { mkdirs() }
+                        val out = File(cacheDir, "screenshot-${System.currentTimeMillis()}.png")
+                        // Recycle unconditionally in a finally block so the bitmap is freed
+                        // exactly once regardless of whether compress() succeeds or throws.
+                        // The prior pattern called recycle() in onFailure AND then again
+                        // unconditionally — a double-recycle causes IllegalStateException.
+                        try {
+                            FileOutputStream(out).use { os ->
+                                bitmap.compress(Bitmap.CompressFormat.PNG, 100, os)
+                            }
+                        } finally {
+                            bitmap.recycle()
                         }
-                    } finally {
-                        bitmap.recycle()
+                        Triple(out.absolutePath, width, height)
                     }
-                    Triple(out.absolutePath, width, height)
-                }
-                BrowserController.appendAction("Screenshot")
-                buildJsonObject {
-                    put("success", true)
-                    put("file_path", path)
-                    put("width", w)
-                    put("height", h)
-                    if (fullPage) put("viewport_only", true)
+                    buildJsonObject {
+                        put("success", true)
+                        put("file_path", path)
+                        put("width", w)
+                        put("height", h)
+                        if (fullPage) put("viewport_only", true)
+                    }
                 }
             }
         } ?: timeoutEnvelope(BrowserToolDefaults.SCREENSHOT)
@@ -560,24 +598,25 @@ fun browserClickTool(): Tool = Tool(
         } else {
             withTimeoutOrNull(toolTimeoutMs) {
                 BrowserControllerHandle.withController {
-                    withDiff(full) {
-                        val js = """(function(){
-                            try {
-                                var el = document.querySelector(${jsString(selector)});
-                                if (!el) return JSON.stringify({error:'selector_not_found', selector:${jsString(selector)}});
-                                el.scrollIntoView({block:'center', inline:'center'});
-                                el.click();
-                                return JSON.stringify({clicked:true});
-                            } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
-                        })()"""
-                        val raw = webView.evaluateJavascriptAsync(js)
-                        val res = parseJsResult(raw)
-                        if (res.containsKey("error")) return@withDiff res
-                        webView.awaitReadyState(8_000L)
-                        BrowserController.appendAction("Click: $selector")
-                        buildJsonObject {
-                            put("success", true)
-                            put("post_click_url", webView.url.orEmpty())
+                    trackJsonAction(BrowserAiActionKind.CLICK, selector) {
+                        withDiff(full) {
+                            val js = """(function(){
+                                try {
+                                    var el = document.querySelector(${jsString(selector)});
+                                    if (!el) return JSON.stringify({error:'selector_not_found', selector:${jsString(selector)}});
+                                    el.scrollIntoView({block:'center', inline:'center'});
+                                    el.click();
+                                    return JSON.stringify({clicked:true});
+                                } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
+                            })()"""
+                            val raw = webView.evaluateJavascriptAsync(js)
+                            val res = parseJsResult(raw)
+                            if (res.containsKey("error")) return@withDiff res
+                            webView.awaitReadyState(8_000L)
+                            buildJsonObject {
+                                put("success", true)
+                                put("post_click_url", webView.url.orEmpty())
+                            }
                         }
                     }
                 }
@@ -666,12 +705,13 @@ fun browserTypeTool(): Tool = Tool(
             text == null -> missingArgEnvelope("text", "text is required (use empty string to clear)")
             else -> withTimeoutOrNull(toolTimeoutMs) {
                 BrowserControllerHandle.withController {
-                    withDiff(full) {
-                        val js = buildTypeScript(selector, text, clear)
-                        val res = parseJsResult(webView.evaluateJavascriptAsync(js))
-                        if (res.containsKey("error")) return@withDiff res
-                        BrowserController.appendAction("Typed into $selector")
-                        buildJsonObject { put("success", true) }
+                    trackJsonAction(BrowserAiActionKind.TYPE, selector) {
+                        withDiff(full) {
+                            val js = buildTypeScript(selector, text, clear)
+                            val res = parseJsResult(webView.evaluateJavascriptAsync(js))
+                            if (res.containsKey("error")) return@withDiff res
+                            buildJsonObject { put("success", true) }
+                        }
                     }
                 }
             } ?: timeoutEnvelope(BrowserToolDefaults.TYPE)
@@ -703,23 +743,24 @@ fun browserScrollTool(): Tool = Tool(
         } else {
             withTimeoutOrNull(toolTimeoutMs) {
                 BrowserControllerHandle.withController {
-                    val js = """(function(){
-                        try {
-                            switch (${jsString(direction)}) {
-                                case 'up': window.scrollBy(0, -$amount); break;
-                                case 'down': window.scrollBy(0, $amount); break;
-                                case 'top': window.scrollTo(0, 0); break;
-                                case 'bottom': window.scrollTo(0, document.body.scrollHeight); break;
-                            }
-                            return JSON.stringify({scroll_y: Math.round(window.scrollY)});
-                        } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
-                    })()"""
-                    val res = parseJsResult(webView.evaluateJavascriptAsync(js))
-                    if (res.containsKey("error")) return@withController res
-                    BrowserController.appendAction("Scroll $direction")
-                    buildJsonObject {
-                        put("success", true)
-                        put("scroll_y", res["scroll_y"]?.jsonPrimitive?.intOrNull ?: 0)
+                    trackJsonAction(BrowserAiActionKind.SCROLL, direction) {
+                        val js = """(function(){
+                            try {
+                                switch (${jsString(direction)}) {
+                                    case 'up': window.scrollBy(0, -$amount); break;
+                                    case 'down': window.scrollBy(0, $amount); break;
+                                    case 'top': window.scrollTo(0, 0); break;
+                                    case 'bottom': window.scrollTo(0, document.body.scrollHeight); break;
+                                }
+                                return JSON.stringify({scroll_y: Math.round(window.scrollY)});
+                            } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
+                        })()"""
+                        val res = parseJsResult(webView.evaluateJavascriptAsync(js))
+                        if (res.containsKey("error")) return@trackJsonAction res
+                        buildJsonObject {
+                            put("success", true)
+                            put("scroll_y", res["scroll_y"]?.jsonPrimitive?.intOrNull ?: 0)
+                        }
                     }
                 }
             } ?: timeoutEnvelope(BrowserToolDefaults.SCROLL)
@@ -750,29 +791,30 @@ fun browserSubmitTool(): Tool = Tool(
         } else {
             withTimeoutOrNull(toolTimeoutMs) {
                 BrowserControllerHandle.withController {
-                    withDiff(full) {
-                        val js = """(function(){
-                            try {
-                                var el = document.querySelector(${jsString(selector)});
-                                if (!el) return JSON.stringify({error:'selector_not_found', selector:${jsString(selector)}});
-                                if (el.tagName === 'BUTTON' && (el.type === 'submit' || el.type === '')) {
-                                    el.click();
-                                    return JSON.stringify({submitted:true, via:'button_click'});
-                                }
-                                var form = el.closest('form');
-                                if (!form) return JSON.stringify({error:'no_enclosing_form'});
-                                if (typeof form.requestSubmit === 'function') form.requestSubmit();
-                                else form.submit();
-                                return JSON.stringify({submitted:true, via:'form_submit'});
-                            } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
-                        })()"""
-                        val res = parseJsResult(webView.evaluateJavascriptAsync(js))
-                        if (res.containsKey("error")) return@withDiff res
-                        webView.awaitReadyState(8_000L)
-                        BrowserController.appendAction("Submit: $selector")
-                        buildJsonObject {
-                            put("success", true)
-                            put("post_submit_url", webView.url.orEmpty())
+                    trackJsonAction(BrowserAiActionKind.SUBMIT, selector) {
+                        withDiff(full) {
+                            val js = """(function(){
+                                try {
+                                    var el = document.querySelector(${jsString(selector)});
+                                    if (!el) return JSON.stringify({error:'selector_not_found', selector:${jsString(selector)}});
+                                    if (el.tagName === 'BUTTON' && (el.type === 'submit' || el.type === '')) {
+                                        el.click();
+                                        return JSON.stringify({submitted:true, via:'button_click'});
+                                    }
+                                    var form = el.closest('form');
+                                    if (!form) return JSON.stringify({error:'no_enclosing_form'});
+                                    if (typeof form.requestSubmit === 'function') form.requestSubmit();
+                                    else form.submit();
+                                    return JSON.stringify({submitted:true, via:'form_submit'});
+                                } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
+                            })()"""
+                            val res = parseJsResult(webView.evaluateJavascriptAsync(js))
+                            if (res.containsKey("error")) return@withDiff res
+                            webView.awaitReadyState(8_000L)
+                            buildJsonObject {
+                                put("success", true)
+                                put("post_submit_url", webView.url.orEmpty())
+                            }
                         }
                     }
                 }
@@ -804,21 +846,22 @@ fun browserSelectTool(): Tool = Tool(
             value == null -> missingArgEnvelope("value", "value is required")
             else -> withTimeoutOrNull(toolTimeoutMs) {
                 BrowserControllerHandle.withController {
-                    withDiff(full) {
-                        val js = """(function(){
-                            try {
-                                var el = document.querySelector(${jsString(selector)});
-                                if (!el) return JSON.stringify({error:'selector_not_found', selector:${jsString(selector)}});
-                                if (el.tagName !== 'SELECT') return JSON.stringify({error:'not_a_select'});
-                                el.value = ${jsString(value)};
-                                el.dispatchEvent(new Event('change', {bubbles:true}));
-                                return JSON.stringify({selected:true});
-                            } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
-                        })()"""
-                        val res = parseJsResult(webView.evaluateJavascriptAsync(js))
-                        if (res.containsKey("error")) return@withDiff res
-                        BrowserController.appendAction("Select: $selector=$value")
-                        buildJsonObject { put("success", true) }
+                    trackJsonAction(BrowserAiActionKind.SELECT, selector) {
+                        withDiff(full) {
+                            val js = """(function(){
+                                try {
+                                    var el = document.querySelector(${jsString(selector)});
+                                    if (!el) return JSON.stringify({error:'selector_not_found', selector:${jsString(selector)}});
+                                    if (el.tagName !== 'SELECT') return JSON.stringify({error:'not_a_select'});
+                                    el.value = ${jsString(value)};
+                                    el.dispatchEvent(new Event('change', {bubbles:true}));
+                                    return JSON.stringify({selected:true});
+                                } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
+                            })()"""
+                            val res = parseJsResult(webView.evaluateJavascriptAsync(js))
+                            if (res.containsKey("error")) return@withDiff res
+                            buildJsonObject { put("success", true) }
+                        }
                     }
                 }
             } ?: timeoutEnvelope(BrowserToolDefaults.SELECT)
@@ -852,21 +895,22 @@ fun browserPressKeyTool(): Tool = Tool(
         } else {
             withTimeoutOrNull(toolTimeoutMs) {
                 BrowserControllerHandle.withController {
-                    withDiff(full) {
-                        val js = """(function(){
-                            try {
-                                var el = document.activeElement || document.body;
-                                var down = new KeyboardEvent('keydown', {key:${jsString(key)}, bubbles:true, cancelable:true});
-                                var up = new KeyboardEvent('keyup', {key:${jsString(key)}, bubbles:true, cancelable:true});
-                                el.dispatchEvent(down);
-                                el.dispatchEvent(up);
-                                return JSON.stringify({pressed:true});
-                            } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
-                        })()"""
-                        val res = parseJsResult(webView.evaluateJavascriptAsync(js))
-                        if (res.containsKey("error")) return@withDiff res
-                        BrowserController.appendAction("Press key: $key")
-                        buildJsonObject { put("success", true) }
+                    trackJsonAction(BrowserAiActionKind.KEY, key) {
+                        withDiff(full) {
+                            val js = """(function(){
+                                try {
+                                    var el = document.activeElement || document.body;
+                                    var down = new KeyboardEvent('keydown', {key:${jsString(key)}, bubbles:true, cancelable:true});
+                                    var up = new KeyboardEvent('keyup', {key:${jsString(key)}, bubbles:true, cancelable:true});
+                                    el.dispatchEvent(down);
+                                    el.dispatchEvent(up);
+                                    return JSON.stringify({pressed:true});
+                                } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
+                            })()"""
+                            val res = parseJsResult(webView.evaluateJavascriptAsync(js))
+                            if (res.containsKey("error")) return@withDiff res
+                            buildJsonObject { put("success", true) }
+                        }
                     }
                 }
             } ?: timeoutEnvelope(BrowserToolDefaults.PRESS_KEY)
@@ -899,36 +943,37 @@ fun browserEvalJsTool(): Tool = Tool(
         } else {
             withTimeoutOrNull(toolTimeoutMs) {
                 BrowserControllerHandle.withController {
-                    // Unlike every other tool's JS payload, the LLM's `code` here runs
-                    // unwrapped — no `(function(){try{...}catch(e){...}})()` shell — since
-                    // eval_js's whole point is running arbitrary script verbatim.
-                    // evaluateJavascriptAsync already catches a throw from the
-                    // evaluateJavascript() call itself, but wrap the rest of the dispatch
-                    // (appendAction, clipping) too so ANY unexpected failure here reports
-                    // an honest {error:"eval_dispatch_failed"} envelope instead of
-                    // propagating uncaught and surfacing as an opaque tool_failed upstream.
-                    runCatching {
-                        val raw = webView.evaluateJavascriptAsync(code, toolTimeoutMs - 1_000L)
-                        BrowserController.appendAction("Run JS")
-                        // Clamp the raw result before it enters the envelope. evaluateJavascript
-                        // returns whatever the page's last expression serialised to — a model that
-                        // evals e.g. `document.body.outerHTML` can dump megabytes into the turn.
-                        // Reuse the 64 KB cap the read tools (runGetText / runReadHelper) apply.
-                        val (clipped, truncated) = clipText(raw ?: "null", EVAL_JS_MAX_RESULT_CHARS)
-                        buildJsonObject {
-                            put("result", clipped)
-                            if (truncated) put("truncated", true)
-                        }
-                    }.getOrElse {
-                        // Don't swallow cancellation: a withTimeoutOrNull timeout (or scope
-                        // cancellation) throws CancellationException from inside this block, and
-                        // catching it here would let this normal-looking envelope stand in for
-                        // the timeout instead of letting withTimeoutOrNull return null.
-                        if (it is CancellationException) throw it
-                        android.util.Log.w("BrowserTools", "browser_eval_js: dispatch threw", it)
-                        buildJsonObject {
-                            put("error", "eval_dispatch_failed")
-                            put("detail", (it.message ?: it.javaClass.simpleName).take(200))
+                    trackAction(BrowserAiActionKind.JS, detail = null, ok = { !it.containsKey("error") }) {
+                        // Unlike every other tool's JS payload, the LLM's `code` here runs
+                        // unwrapped — no `(function(){try{...}catch(e){...}})()` shell — since
+                        // eval_js's whole point is running arbitrary script verbatim.
+                        // evaluateJavascriptAsync already catches a throw from the
+                        // evaluateJavascript() call itself, but wrap the rest of the dispatch
+                        // (clipping) too so ANY unexpected failure here reports an honest
+                        // {error:"eval_dispatch_failed"} envelope instead of propagating
+                        // uncaught and surfacing as an opaque tool_failed upstream.
+                        runCatching {
+                            val raw = webView.evaluateJavascriptAsync(code, toolTimeoutMs - 1_000L)
+                            // Clamp the raw result before it enters the envelope. evaluateJavascript
+                            // returns whatever the page's last expression serialised to — a model that
+                            // evals e.g. `document.body.outerHTML` can dump megabytes into the turn.
+                            // Reuse the 64 KB cap the read tools (runGetText / runReadHelper) apply.
+                            val (clipped, truncated) = clipText(raw ?: "null", EVAL_JS_MAX_RESULT_CHARS)
+                            buildJsonObject {
+                                put("result", clipped)
+                                if (truncated) put("truncated", true)
+                            }
+                        }.getOrElse {
+                            // Don't swallow cancellation: a withTimeoutOrNull timeout (or scope
+                            // cancellation) throws CancellationException from inside this block, and
+                            // catching it here would let this normal-looking envelope stand in for
+                            // the timeout instead of letting withTimeoutOrNull return null.
+                            if (it is CancellationException) throw it
+                            android.util.Log.w("BrowserTools", "browser_eval_js: dispatch threw", it)
+                            buildJsonObject {
+                                put("error", "eval_dispatch_failed")
+                                put("detail", (it.message ?: it.javaClass.simpleName).take(200))
+                            }
                         }
                     }
                 }
@@ -991,71 +1036,72 @@ fun browserClickAndReadTool(): Tool = Tool(
         } else {
             withTimeoutOrNull(toolTimeoutMs) {
                 BrowserControllerHandle.withController {
-                    val before = if (mode == "diff") captureBodyText() else ""
-                    val titleBefore = withContext(Dispatchers.Main) { webView.title.orEmpty() }
-                    val clickJs = """(function(){
-                        try {
-                            var el = document.querySelector(${jsString(selector)});
-                            if (!el) return JSON.stringify({error:'selector_not_found', selector:${jsString(selector)}});
-                            el.scrollIntoView({block:'center', inline:'center'});
-                            el.click();
-                            return JSON.stringify({clicked:true});
-                        } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
-                    })()"""
-                    val clickRes = parseJsResult(webView.evaluateJavascriptAsync(clickJs))
-                    if (clickRes.containsKey("error")) return@withController clickRes
-                    webView.awaitReadyState(8_000L)
-                    BrowserController.appendAction("Click+read: $selector")
-                    val postUrl = withContext(Dispatchers.Main) { webView.url.orEmpty() }
-                    val postTitle = withContext(Dispatchers.Main) { webView.title.orEmpty() }
-                    @Suppress("UNUSED_VARIABLE")
-                    val unused = titleBefore // documents that we considered showing diff of titles
-                    when (mode) {
-                        "diff" -> {
-                            val after = captureBodyText()
-                            buildJsonObject {
-                                put("success", true)
-                                put("post_click_url", postUrl)
-                                put("page_title", postTitle)
-                                put("diff", BrowserDiffHelper.computeDiff(before, after))
-                            }
-                        }
-                        else -> {
-                            val text = when (mode) {
-                                "readability" -> webView.runReadability()
-                                "auto" -> webView.runReadability()?.takeIf { it.length >= READABILITY_MIN_CHARS }
-                                else -> null
-                            }
-                            val (resolved, extractMode) = if (!text.isNullOrEmpty()) {
-                                text to "readability"
-                            } else if (mode == "readability") {
-                                // Forced mode + null result → surface the error envelope.
-                                return@withController buildJsonObject {
-                                    put("success", false)
+                    trackJsonAction(BrowserAiActionKind.READ, selector) {
+                        val before = if (mode == "diff") captureBodyText() else ""
+                        val titleBefore = withContext(Dispatchers.Main) { webView.title.orEmpty() }
+                        val clickJs = """(function(){
+                            try {
+                                var el = document.querySelector(${jsString(selector)});
+                                if (!el) return JSON.stringify({error:'selector_not_found', selector:${jsString(selector)}});
+                                el.scrollIntoView({block:'center', inline:'center'});
+                                el.click();
+                                return JSON.stringify({clicked:true});
+                            } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
+                        })()"""
+                        val clickRes = parseJsResult(webView.evaluateJavascriptAsync(clickJs))
+                        if (clickRes.containsKey("error")) return@trackJsonAction clickRes
+                        webView.awaitReadyState(8_000L)
+                        val postUrl = withContext(Dispatchers.Main) { webView.url.orEmpty() }
+                        val postTitle = withContext(Dispatchers.Main) { webView.title.orEmpty() }
+                        @Suppress("UNUSED_VARIABLE")
+                        val unused = titleBefore // documents that we considered showing diff of titles
+                        when (mode) {
+                            "diff" -> {
+                                val after = captureBodyText()
+                                buildJsonObject {
+                                    put("success", true)
                                     put("post_click_url", postUrl)
                                     put("page_title", postTitle)
-                                    put("error", "readability_failed")
+                                    put("diff", BrowserDiffHelper.computeDiff(before, after))
                                 }
-                            } else {
-                                // Fall back to selector-based body innerText.
-                                val rawJs = """(function(){
-                                    try {
-                                        var t = (document.body.innerText || document.body.textContent || '').replace(/\s+/g,' ').trim();
-                                        return JSON.stringify({text:t});
-                                    } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
-                                })()"""
-                                val rawRes = parseJsResult(webView.evaluateJavascriptAsync(rawJs))
-                                val rawText = rawRes["text"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                                rawText to (if (mode == "auto") "raw_fallback" else "raw")
                             }
-                            val (clipped, truncated) = clipText(resolved, maxChars)
-                            buildJsonObject {
-                                put("success", true)
-                                put("post_click_url", postUrl)
-                                put("page_title", postTitle)
-                                put("text", clipped)
-                                put("truncated", truncated)
-                                put("extract_mode", extractMode)
+                            else -> {
+                                val text = when (mode) {
+                                    "readability" -> webView.runReadability()
+                                    "auto" -> webView.runReadability()?.takeIf { it.length >= READABILITY_MIN_CHARS }
+                                    else -> null
+                                }
+                                val (resolved, extractMode) = if (!text.isNullOrEmpty()) {
+                                    text to "readability"
+                                } else if (mode == "readability") {
+                                    // Forced mode + null result → surface the error envelope.
+                                    return@trackJsonAction buildJsonObject {
+                                        put("success", false)
+                                        put("post_click_url", postUrl)
+                                        put("page_title", postTitle)
+                                        put("error", "readability_failed")
+                                    }
+                                } else {
+                                    // Fall back to selector-based body innerText.
+                                    val rawJs = """(function(){
+                                        try {
+                                            var t = (document.body.innerText || document.body.textContent || '').replace(/\s+/g,' ').trim();
+                                            return JSON.stringify({text:t});
+                                        } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
+                                    })()"""
+                                    val rawRes = parseJsResult(webView.evaluateJavascriptAsync(rawJs))
+                                    val rawText = rawRes["text"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                                    rawText to (if (mode == "auto") "raw_fallback" else "raw")
+                                }
+                                val (clipped, truncated) = clipText(resolved, maxChars)
+                                buildJsonObject {
+                                    put("success", true)
+                                    put("post_click_url", postUrl)
+                                    put("page_title", postTitle)
+                                    put("text", clipped)
+                                    put("truncated", truncated)
+                                    put("extract_mode", extractMode)
+                                }
                             }
                         }
                     }
@@ -1093,7 +1139,7 @@ fun browserDoneTool(invocationContext: ToolInvocationContext? = null): Tool = To
         val out = if (summary == null) {
             missingArgEnvelope("summary", "summary is required")
         } else {
-            BrowserController.appendAction("Done: $summary")
+            BrowserController.recordAction(BrowserAiActionKind.DONE, summary)
             BrowserController.clearTaskWindow()
             // Pass 3 design originally released the headless WebView here. Live-test feedback
             // (2026-05-08): users want the session to persist across LLM turns so a follow-up
@@ -1398,74 +1444,76 @@ internal fun resolveHistoryNav(
 }
 
 private suspend fun runHistoryNav(toolName: String, forward: Boolean): JsonObject {
+    val kind = if (forward) BrowserAiActionKind.FORWARD else BrowserAiActionKind.BACK
     val out = withTimeoutOrNull(toolTimeoutMs) {
         BrowserControllerHandle.withController {
-            // Native canGoBack()/goBack() aren't wrapped in a try/catch JS shell the way
-            // every other tool's evaluateJavascript payload is (`(function(){try{...}
-            // catch(e){...}})()`), so an exception here (e.g. the WebView torn down out
-            // from under an in-flight dispatch) would otherwise propagate uncaught out of
-            // this whole withController block. Catch it explicitly so a transient WebView
-            // hiccup reports an honest {success:false, error:...} instead of surfacing as
-            // an opaque tool_failed — the session itself is untouched either way; this
-            // only affects what THIS call reports.
-            val navResult = runCatching {
-                withContext(Dispatchers.Main) {
-                    val list = webView.copyBackForwardList()
-                    val canBack = webView.canGoBack()
-                    val canForward = webView.canGoForward()
-                    android.util.Log.i(
-                        "BrowserNav",
-                        "wv=${System.identityHashCode(webView)} dir=${if (forward) "forward" else "back"} " +
-                            "bfl=${list.size}/${list.currentIndex} canBack=$canBack canFwd=$canForward",
-                    )
-                    when (resolveHistoryNav(forward, if (forward) canForward else canBack, list.currentIndex, list.size)) {
-                        HistoryNavMethod.NATIVE -> {
-                            if (forward) webView.goForward() else webView.goBack()
-                            true to false
+            trackJsonAction(kind, detail = null) {
+                // Native canGoBack()/goBack() aren't wrapped in a try/catch JS shell the way
+                // every other tool's evaluateJavascript payload is (`(function(){try{...}
+                // catch(e){...}})()`), so an exception here (e.g. the WebView torn down out
+                // from under an in-flight dispatch) would otherwise propagate uncaught out of
+                // this whole withController block. Catch it explicitly so a transient WebView
+                // hiccup reports an honest {success:false, error:...} instead of surfacing as
+                // an opaque tool_failed — the session itself is untouched either way; this
+                // only affects what THIS call reports.
+                val navResult = runCatching {
+                    withContext(Dispatchers.Main) {
+                        val list = webView.copyBackForwardList()
+                        val canBack = webView.canGoBack()
+                        val canForward = webView.canGoForward()
+                        android.util.Log.i(
+                            "BrowserNav",
+                            "wv=${System.identityHashCode(webView)} dir=${if (forward) "forward" else "back"} " +
+                                "bfl=${list.size}/${list.currentIndex} canBack=$canBack canFwd=$canForward",
+                        )
+                        when (resolveHistoryNav(forward, if (forward) canForward else canBack, list.currentIndex, list.size)) {
+                            HistoryNavMethod.NATIVE -> {
+                                if (forward) webView.goForward() else webView.goBack()
+                                true to false
+                            }
+                            HistoryNavMethod.OFFSET -> {
+                                // goBackOrForward(offset) proved inert on device: this WebView build's
+                                // GoToOffset honors the skippable flag too, so it silently no-ops. Load
+                                // the target history item's URL directly instead — a fresh load can't be
+                                // suppressed, at the cost of appending a new forward entry rather than
+                                // moving the index.
+                                val target = list.getItemAtIndex(list.currentIndex + (if (forward) 1 else -1))
+                                android.util.Log.i(
+                                    "BrowserNav",
+                                    "runHistoryNav: native nav refused, falling back to explicit history-item load: " +
+                                        target.url.take(120),
+                                )
+                                webView.loadUrl(target.url)
+                                true to true
+                            }
+                            HistoryNavMethod.NONE -> false to false
                         }
-                        HistoryNavMethod.OFFSET -> {
-                            // goBackOrForward(offset) proved inert on device: this WebView build's
-                            // GoToOffset honors the skippable flag too, so it silently no-ops. Load
-                            // the target history item's URL directly instead — a fresh load can't be
-                            // suppressed, at the cost of appending a new forward entry rather than
-                            // moving the index.
-                            val target = list.getItemAtIndex(list.currentIndex + (if (forward) 1 else -1))
-                            android.util.Log.i(
-                                "BrowserNav",
-                                "runHistoryNav: native nav refused, falling back to explicit history-item load: " +
-                                    target.url.take(120),
-                            )
-                            webView.loadUrl(target.url)
-                            true to true
-                        }
-                        HistoryNavMethod.NONE -> false to false
                     }
                 }
-            }
-            navResult.onFailure {
-                // Same reasoning as browser_eval_js's dispatch runCatching: a timeout/scope
-                // cancellation surfaces here as CancellationException too, and must propagate
-                // rather than be reported as a normal {success:false} nav failure.
-                if (it is CancellationException) throw it
-                android.util.Log.w("BrowserTools", "runHistoryNav: WebView navigation threw", it)
-            }
-            val ok = navResult.getOrNull()?.first ?: false
-            val usedOffsetFallback = navResult.getOrNull()?.second ?: false
-            if (ok) webView.awaitReadyState(8_000L)
-            BrowserController.appendAction(if (forward) "Forward" else "Back")
-            val currentUrl = runCatching { webView.url }.getOrNull().orEmpty()
-            buildJsonObject {
-                put("success", ok)
-                put("current_url", currentUrl)
-                if (ok && usedOffsetFallback) {
-                    put("method", "history_load_fallback")
+                navResult.onFailure {
+                    // Same reasoning as browser_eval_js's dispatch runCatching: a timeout/scope
+                    // cancellation surfaces here as CancellationException too, and must propagate
+                    // rather than be reported as a normal {success:false} nav failure.
+                    if (it is CancellationException) throw it
+                    android.util.Log.w("BrowserTools", "runHistoryNav: WebView navigation threw", it)
                 }
-                if (navResult.isFailure) {
-                    put("error", "nav_failed")
-                    put(
-                        "detail",
-                        (navResult.exceptionOrNull()?.message ?: "webview navigation threw").take(200),
-                    )
+                val ok = navResult.getOrNull()?.first ?: false
+                val usedOffsetFallback = navResult.getOrNull()?.second ?: false
+                if (ok) webView.awaitReadyState(8_000L)
+                val currentUrl = runCatching { webView.url }.getOrNull().orEmpty()
+                buildJsonObject {
+                    put("success", ok)
+                    put("current_url", currentUrl)
+                    if (ok && usedOffsetFallback) {
+                        put("method", "history_load_fallback")
+                    }
+                    if (navResult.isFailure) {
+                        put("error", "nav_failed")
+                        put(
+                            "detail",
+                            (navResult.exceptionOrNull()?.message ?: "webview navigation threw").take(200),
+                        )
+                    }
                 }
             }
         }

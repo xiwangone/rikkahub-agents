@@ -2080,4 +2080,22 @@
   <string name="setting_sub_agents_page_delete">Delete</string>
   <string name="setting_sub_agents_page_cancel">Cancel</string>
   <string name="setting_sub_agents_page_confirm">Save</string>
+
+  <!-- BrowserAiStripe redesign: outcome-aware, localized action trail -->
+  <string name="browser_ai_stripe_stop">Stop</string>
+  <string name="browser_ai_action_open">Opening %1$s</string>
+  <string name="browser_ai_action_click">Clicked %1$s</string>
+  <string name="browser_ai_action_type">Typing into %1$s</string>
+  <string name="browser_ai_action_scroll">Scrolled %1$s</string>
+  <string name="browser_ai_action_submit">Submitted %1$s</string>
+  <string name="browser_ai_action_select">Picked an option in %1$s</string>
+  <string name="browser_ai_action_key">Pressed %1$s</string>
+  <string name="browser_ai_action_js">Ran JavaScript</string>
+  <string name="browser_ai_action_screenshot">Took a screenshot</string>
+  <string name="browser_ai_action_read">Read %1$s</string>
+  <string name="browser_ai_action_back">Went back</string>
+  <string name="browser_ai_action_forward">Went forward</string>
+  <string name="browser_ai_action_done">Finished: %1$s</string>
+  <string name="browser_ai_action_stopped">Stopped by user</string>
+  <string name="browser_ai_action_failed">Failed: %1$s</string>
 </resources>
