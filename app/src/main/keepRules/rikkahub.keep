@@ -21,6 +21,7 @@
 # members the generated serializers read and write.
 -keep @kotlinx.serialization.Serializable class * {*;}
 
+<<<<<<< HEAD
 # auth0/jackson: TypeReference subclasses rely on runtime generic signatures.
 # R8 strips Signature/InnerClasses/EnclosingMethod by default, and its class
 # merging/inlining optimizations can destroy the anonymous class hierarchy that

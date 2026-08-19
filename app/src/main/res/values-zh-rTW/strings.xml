@@ -599,7 +599,7 @@
   <string name="send">發送</string>
   <string name="setting_asr_configure_api_key">API 金鑰</string>
   <string name="setting_asr_configure_dashscope_api_key_desc">DashScope API 金鑰</string>
-  <string name="setting_asr_configure_dashscope_vad_desc">伺服器 VAD 靈敏度，設為 0 可停用 VAD</string>
+  <string name="setting_asr_configure_dashscope_vad_desc">伺服器端 VAD 偵測閾值。建議值：0.0；範圍：-1 到 1。</string>
   <string name="setting_asr_configure_dashscope_websocket_desc">DashScope 即時 websocket 端點</string>
   <string name="setting_asr_configure_language">語言</string>
   <string name="setting_asr_configure_language_code_desc">選填的語言代碼，例如 zh-CN、en-US、ja-JP</string>
@@ -1809,5 +1809,18 @@
   <string name="setting_model_page_response_stream_retries">Response API 串流重試次數</string>
   <string name="setting_model_page_response_stream_retries_desc">Response API 串流在完成前意外關閉時，自動重試請求此次數。設為 0 可停用自動重試。</string>
   <string name="setting_model_page_response_stream_retries_input">最大重試次數</string>
+  <string name="search_picker_local_title">本機搜尋</string>
+  <string name="search_picker_local_description">連線至各種第三方搜尋提供者</string>
+  <string name="search_picker_model_title">模型搜尋</string>
+  <string name="search_picker_model_description">模型提供者內建的雲端搜尋</string>
+  <string name="search_picker_select_provider">選擇搜尋提供者</string>
+  <string name="search_picker_turn_off">關閉搜尋</string>
+  <string name="setting_update_reminder_enabled">更新提醒已啟用</string>
+  <string name="setting_update_reminder_paused_until">已暫停至 %1$s</string>
+  <string name="setting_update_reminder_pause_title">暫停更新提醒</string>
+  <string name="setting_update_reminder_pause_description">選擇暫停更新提醒的時長。它們會自動恢復。</string>
+  <string name="setting_update_reminder_pause_days">%1$d 天</string>
+  <string name="setting_update_reminder_resume_now">立即恢復</string>
+  <string name="reasoning_max">最大</string>
 </resources>
 

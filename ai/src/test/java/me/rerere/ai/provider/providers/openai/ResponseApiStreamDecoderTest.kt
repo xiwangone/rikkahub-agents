@@ -197,11 +197,9 @@ class ResponseApiStreamDecoderTest {
             reasoningItem["summary"]?.jsonArray?.single()?.jsonObject
                 ?.get("text")?.jsonPrimitive?.content,
         )
-        assertEquals(
-            "raw",
-            reasoningItem["content"]?.jsonArray?.single()?.jsonObject
-                ?.get("text")?.jsonPrimitive?.content,
-        )
+        // Encrypted content is present, so the raw plaintext must not be replayed alongside it
+        // (avoid replaying encrypted reasoning plaintext, #1719).
+        assertEquals(null, reasoningItem["content"])
     }
 
     @Test

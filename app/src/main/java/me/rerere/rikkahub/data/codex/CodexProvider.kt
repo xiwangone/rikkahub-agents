@@ -248,6 +248,7 @@ internal fun codexReasoningEffort(level: ReasoningLevel): String? {
         ReasoningLevel.MEDIUM -> "medium"
         ReasoningLevel.HIGH -> "high"
         ReasoningLevel.XHIGH -> "xhigh"
+        ReasoningLevel.MAX -> "max"
         ReasoningLevel.OFF -> "none"
     }
 }
