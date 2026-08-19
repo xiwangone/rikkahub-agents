@@ -46,6 +46,16 @@ class ModelRegistryTest {
         assertTrue(ModelRegistry.CLAUDE_SERIES.match("claude-sonnet-4-20250929"))
         assertTrue(ModelRegistry.CLAUDE_SERIES.match("claude-4-sonnet"))
         assertTrue(ModelRegistry.CLAUDE_SERIES.match("claude-3.5-sonnet"))
+        assertTrue(ModelRegistry.CLAUDE_SERIES.match("claude-sonnet-5"))
+        assertTrue(ModelRegistry.CLAUDE_SERIES.match("claude-opus-5"))
+        assertEquals(
+            listOf(Modality.TEXT, Modality.IMAGE),
+            ModelRegistry.MODEL_INPUT_MODALITIES.getData("claude-sonnet-5")
+        )
+        assertEquals(
+            listOf(ModelAbility.TOOL, ModelAbility.REASONING),
+            ModelRegistry.MODEL_ABILITIES.getData("claude-opus-5")
+        )
     }
 
     @Test
@@ -88,6 +98,18 @@ class ModelRegistryTest {
             listOf(ModelAbility.TOOL, ModelAbility.REASONING),
             ModelRegistry.MODEL_ABILITIES.getData("minimax-m2.5")
         )
+    }
+
+    @Test
+    fun testMuseSparkAndGlimmer() {
+        val visionInput = listOf(Modality.TEXT, Modality.IMAGE)
+        val toolReasoning = listOf(ModelAbility.TOOL, ModelAbility.REASONING)
+        assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("muse-spark"))
+        assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("muse-spark-1.2"))
+        assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("muse-glimmer"))
+        assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("muse-glimmer-30b"))
+        assertEquals(toolReasoning, ModelRegistry.MODEL_ABILITIES.getData("muse-spark"))
+        assertEquals(toolReasoning, ModelRegistry.MODEL_ABILITIES.getData("muse-glimmer-30b"))
     }
 
     @Test

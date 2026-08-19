@@ -48,6 +48,7 @@ interface SearchService<T : SearchServiceOptions> {
                 is SearchServiceOptions.TavilyOptions -> TavilySearchService
                 is SearchServiceOptions.ExaOptions -> ExaSearchService
                 is SearchServiceOptions.ZhipuOptions -> ZhipuSearchService
+                is SearchServiceOptions.DoubaoOptions -> DoubaoSearchService
                 is SearchServiceOptions.BingLocalOptions -> BingSearchService
                 is SearchServiceOptions.DuckDuckGoOptions -> DuckDuckGoSearchService
                 is SearchServiceOptions.SearXNGOptions -> SearXNGService
@@ -170,6 +171,7 @@ sealed class SearchServiceOptions {
             DuckDuckGoOptions::class to "Built-in",
             RikkaHubOptions::class to "RikkaHub",
             ZhipuOptions::class to "智谱",
+            DoubaoOptions::class to "豆包",
             TavilyOptions::class to "Tavily",
             ExaOptions::class to "Exa",
             SearXNGOptions::class to "SearXNG",
@@ -205,6 +207,14 @@ sealed class SearchServiceOptions {
     data class ZhipuOptions(
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
+    ) : SearchServiceOptions()
+
+    @Serializable
+    @SerialName("doubao")
+    data class DoubaoOptions(
+        override val id: Uuid = Uuid.random(),
+        val apiKey: String = "",
+        val mode: DoubaoSearchMode = DoubaoSearchMode.CUSTOM,
     ) : SearchServiceOptions()
 
     @Serializable
@@ -371,6 +381,15 @@ function search(query, resultSize) {
 }"""
         }
     }
+}
+
+@Serializable
+enum class DoubaoSearchMode {
+    @SerialName("global")
+    GLOBAL,
+
+    @SerialName("custom")
+    CUSTOM,
 }
 
 internal suspend fun Call.await(): Response {

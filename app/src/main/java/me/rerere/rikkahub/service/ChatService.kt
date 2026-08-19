@@ -38,6 +38,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Modality
+import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderManager
@@ -234,6 +235,10 @@ internal fun isStalledTurn(succeeded: Boolean, lastMessage: UIMessage?): Boolean
     if (!succeeded) return true
     if (lastMessage == null || lastMessage.role != MessageRole.ASSISTANT) return false
     return lastMessage.parts.filterIsInstance<UIMessagePart.Text>().none { it.text.isNotBlank() }
+}
+
+internal fun shouldUseExternalWebSearch(assistant: Assistant, model: Model): Boolean {
+    return assistant.enableWebSearch && BuiltInTools.Search !in model.tools
 }
 
 data class ChatError(
@@ -1239,6 +1244,7 @@ class ChatService(
         } else {
             model.displayName
         }
+        val useExternalWebSearch = shouldUseExternalWebSearch(assistant, model)
 
         val generationResult = runCatching {
             // reset suggestions
@@ -1246,7 +1252,7 @@ class ChatService(
 
             // memory tool
             if (!model.abilities.contains(ModelAbility.TOOL)) {
-                if (assistant.enableWebSearch || mcpManager.getAllAvailableTools().isNotEmpty()) {
+                if (useExternalWebSearch || mcpManager.getAllAvailableTools().isNotEmpty()) {
                     addError(
                         IllegalStateException(context.getString(R.string.tools_warning)),
                         conversationId,
@@ -1401,7 +1407,7 @@ class ChatService(
                 },
                 outputTransformers = outputTransformers,
                 tools = buildList {
-                    if (assistant.enableWebSearch) {
+                    if (useExternalWebSearch) {
                         addAll(createSearchTools(settings))
                     }
                     // Pass the caller context so context-aware tools (subagent_dispatch

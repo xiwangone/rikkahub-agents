@@ -547,12 +547,12 @@
   <string name="reasoning_light_desc">The model will use a small amount of reasoning to answer questions.</string>
   <string name="reasoning_medium">Medium</string>
   <string name="reasoning_medium_desc">The model will use more reasoning to answer questions.</string>
+  <string name="reasoning_max">Max</string>
   <string name="reasoning_off">Off</string>
   <string name="reasoning_off_desc">Turn off reasoning functionality, the model will directly answer questions.</string>
   <string name="reasoning_picker_hint">Not all models support depth adjustment. Refer to the model and provider documentation.</string>
   <string name="reasoning_picker_title">Adjust Model Thinking Depth</string>
   <string name="reasoning_xhigh">XHigh</string>
-  <string name="reasoning_max">Max</string>
   <string name="regenerate">Regenerate</string>
   <string name="regenerate_confirm_message">Are you sure you want to regenerate this message?</string>
   <string name="render_with_webview">Render with WebView</string>
@@ -605,11 +605,17 @@
   <string name="search_page_title">Search Messages</string>
   <string name="search_page_untitled">Untitled</string>
   <string name="search_picker_title">Search Settings</string>
+  <string name="search_picker_local_title">Local Search</string>
+  <string name="search_picker_local_description">Connect to various third-party search providers</string>
+  <string name="search_picker_model_title">Model Search</string>
+  <string name="search_picker_model_description">Cloud search built into the model provider</string>
+  <string name="search_picker_select_provider">Select search provider</string>
+  <string name="search_picker_turn_off">Turn off search</string>
   <string name="select_and_copy">Select and Copy</string>
   <string name="send">Send</string>
   <string name="setting_asr_configure_api_key">API Key</string>
   <string name="setting_asr_configure_dashscope_api_key_desc">DashScope API key</string>
-  <string name="setting_asr_configure_dashscope_vad_desc">Server VAD sensitivity, set 0 to disable VAD</string>
+  <string name="setting_asr_configure_dashscope_vad_desc">Server VAD detection threshold. Recommended: 0.0; range: -1 to 1.</string>
   <string name="setting_asr_configure_dashscope_websocket_desc">DashScope realtime websocket endpoint</string>
   <string name="setting_asr_configure_language">Language</string>
   <string name="setting_asr_configure_language_code_desc">Optional language code, e.g. zh-CN, en-US, ja-JP</string>
@@ -2098,4 +2104,10 @@
   <string name="browser_ai_action_done">Finished: %1$s</string>
   <string name="browser_ai_action_stopped">Stopped by user</string>
   <string name="browser_ai_action_failed">Failed: %1$s</string>
+  <string name="setting_update_reminder_enabled">Update reminders are enabled</string>
+  <string name="setting_update_reminder_paused_until">Paused until %1$s</string>
+  <string name="setting_update_reminder_pause_title">Pause update reminders</string>
+  <string name="setting_update_reminder_pause_description">Choose how long to pause update reminders. They will resume automatically.</string>
+  <string name="setting_update_reminder_pause_days">%1$d days</string>
+  <string name="setting_update_reminder_resume_now">Resume now</string>
 </resources>

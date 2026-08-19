@@ -233,6 +233,20 @@ object ModelRegistry {
         toolReasoningAbility()
     }
 
+    private val CLAUDE_SONNET_5 = defineModel {
+        tokens("claude", "sonnet", "5")
+        notTokens("claude", "sonnet", "4")
+        visionInput()
+        toolReasoningAbility()
+    }
+
+    private val CLAUDE_OPUS_5 = defineModel {
+        tokens("claude", "opus", "5")
+        notTokens("claude", "opus", "4")
+        visionInput()
+        toolReasoningAbility()
+    }
+
     val CLAUDE_SERIES = defineGroup {
         add(
             CLAUDE_SONNET_3_5,
@@ -242,7 +256,9 @@ object ModelRegistry {
             CLAUDE_SONNET_4_6,
             CLAUDE_OPUS_4_6,
             CLAUDE_OPUS_4_7,
-            CLAUDE_OPUS_4_8
+            CLAUDE_OPUS_4_8,
+            CLAUDE_SONNET_5,
+            CLAUDE_OPUS_5
         )
     }
 
@@ -509,6 +525,18 @@ object ModelRegistry {
         toolReasoningAbility()
     }
 
+    private val MUSE_SPARK = defineModel {
+        tokens("muse", "spark")
+        visionInput()
+        toolReasoningAbility()
+    }
+
+    private val MUSE_GLIMMER = defineModel {
+        tokens("muse", "glimmer")
+        visionInput()
+        toolReasoningAbility()
+    }
+
     val QWEN_MT = defineModel {
         tokens("qwen", "mt")
     }
@@ -549,6 +577,8 @@ object ModelRegistry {
         CLAUDE_OPUS_4_6,
         CLAUDE_OPUS_4_7,
         CLAUDE_OPUS_4_8,
+        CLAUDE_SONNET_5,
+        CLAUDE_OPUS_5,
         DEEPSEEK_V3_MODEL,
         DEEPSEEK_CHAT,
         DEEPSEEK_R1_MODEL,
@@ -596,6 +626,8 @@ object ModelRegistry {
         XIAOMI_MIMO_V3_PRO,
         HY3,
         LONGCAT_2,
+        MUSE_SPARK,
+        MUSE_GLIMMER,
         QWEN_MT
     )
 

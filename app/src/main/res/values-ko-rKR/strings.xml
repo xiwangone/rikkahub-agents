@@ -543,7 +543,6 @@
   <string name="reasoning_picker_hint">모든 모델이 깊이 조정을 지원하는 것은 아닙니다. 모델 및 제공자 문서를 참조하세요.</string>
   <string name="reasoning_picker_title">모델 사고 깊이 조정</string>
   <string name="reasoning_xhigh">XHigh</string>
-  <string name="reasoning_max">최대</string>
   <string name="regenerate">다시 생성</string>
   <string name="regenerate_confirm_message">이 메시지를 다시 생성하시겠습니까?</string>
   <string name="render_with_webview">WebView로 렌더링</string>
@@ -599,7 +598,7 @@
   <string name="send">전송</string>
   <string name="setting_asr_configure_api_key">API 키</string>
   <string name="setting_asr_configure_dashscope_api_key_desc">DashScope API 키</string>
-  <string name="setting_asr_configure_dashscope_vad_desc">서버 VAD 민감도, 0으로 설정 시 VAD 비활성화</string>
+  <string name="setting_asr_configure_dashscope_vad_desc">서버 VAD 감지 임계값. 권장: 0.0; 범위: -1 ~ 1.</string>
   <string name="setting_asr_configure_dashscope_websocket_desc">DashScope 실시간 웹소켓 엔드포인트</string>
   <string name="setting_asr_configure_language">언어</string>
   <string name="setting_asr_configure_language_code_desc">선택 언어 코드, 예: zh-CN, en-US, ja-JP</string>
@@ -1829,5 +1828,18 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="browser_ai_action_done">완료: %1$s</string>
   <string name="browser_ai_action_stopped">사용자에 의해 중지됨</string>
   <string name="browser_ai_action_failed">실패: %1$s</string>
+  <string name="search_picker_local_title">로컬 검색</string>
+  <string name="search_picker_local_description">다양한 타사 검색 제공업체에 연결합니다.</string>
+  <string name="search_picker_model_title">모델 내장 검색</string>
+  <string name="search_picker_model_description">모델 제공자에 내장된 클라우드 검색</string>
+  <string name="search_picker_select_provider">검색 제공자 선택</string>
+  <string name="search_picker_turn_off">검색 끄기</string>
+  <string name="setting_update_reminder_enabled">업데이트 알림이 사용 설정되어 있습니다.</string>
+  <string name="setting_update_reminder_paused_until">%1$s까지 일시 중지됨</string>
+  <string name="setting_update_reminder_pause_title">업데이트 알림 일시중지</string>
+  <string name="setting_update_reminder_pause_description">업데이트 알림을 얼마나 오랫동안 일시 중지할지 선택하세요. 자동으로 다시 시작됩니다.</string>
+  <string name="setting_update_reminder_pause_days">%1$d일</string>
+  <string name="setting_update_reminder_resume_now">지금 재개</string>
+  <string name="reasoning_max">최대</string>
 </resources>
 

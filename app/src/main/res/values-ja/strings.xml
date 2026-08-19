@@ -543,7 +543,6 @@
   <string name="reasoning_picker_hint">すべてのモデルが深さ調整に対応しているわけではありません。モデルおよびプロバイダーのドキュメントを参照してください。</string>
   <string name="reasoning_picker_title">モデルの思考深度を調整</string>
   <string name="reasoning_xhigh">XHigh</string>
-  <string name="reasoning_max">最大</string>
   <string name="regenerate">再生成</string>
   <string name="regenerate_confirm_message">このメッセージを再生成してもよろしいですか？</string>
   <string name="render_with_webview">WebViewで表示</string>
@@ -599,7 +598,7 @@
   <string name="send">送信</string>
   <string name="setting_asr_configure_api_key">APIキー</string>
   <string name="setting_asr_configure_dashscope_api_key_desc">DashScope APIキー</string>
-  <string name="setting_asr_configure_dashscope_vad_desc">サーバーVAD感度、0でVAD無効</string>
+  <string name="setting_asr_configure_dashscope_vad_desc">サーバーVAD検出しきい値。推奨値: 0.0。範囲: -1〜1。</string>
   <string name="setting_asr_configure_dashscope_websocket_desc">DashScopeリアルタイムWebSocketエンドポイント</string>
   <string name="setting_asr_configure_language">言語</string>
   <string name="setting_asr_configure_language_code_desc">オプションの言語コード、例: zh-CN、en-US、ja-JP</string>
@@ -1829,4 +1828,17 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="browser_ai_action_done">完了：%1$s</string>
   <string name="browser_ai_action_stopped">ユーザーによって停止されました</string>
   <string name="browser_ai_action_failed">失敗：%1$s</string>
+  <string name="search_picker_local_title">ローカル検索</string>
+  <string name="search_picker_local_description">各種サードパーティの検索プロバイダーに接続します</string>
+  <string name="search_picker_model_title">モデル内蔵検索</string>
+  <string name="search_picker_model_description">モデルプロバイダー内蔵のクラウド検索</string>
+  <string name="search_picker_select_provider">検索プロバイダを選択</string>
+  <string name="search_picker_turn_off">検索をオフにする</string>
+  <string name="setting_update_reminder_enabled">アップデート通知が有効になっています</string>
+  <string name="setting_update_reminder_paused_until">%1$sまで一時停止</string>
+  <string name="setting_update_reminder_pause_title">更新リマインダーを一時停止</string>
+  <string name="setting_update_reminder_pause_description">更新リマインダーを一時停止する期間を選択してください。自動的に再開されます。</string>
+  <string name="setting_update_reminder_pause_days">%1$d日間</string>
+  <string name="setting_update_reminder_resume_now">今すぐ再開</string>
+  <string name="reasoning_max">最大</string>
 </resources>
