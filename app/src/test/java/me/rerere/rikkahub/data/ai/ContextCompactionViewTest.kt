@@ -6,6 +6,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.ConversationCompaction
 import me.rerere.rikkahub.data.model.MessageNode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -177,5 +178,108 @@ class ContextCompactionViewTest {
             assertEquals("result-$index", (retained.output.single() as UIMessagePart.Text).text)
         }
         assertTrue(view.messages.first().toText().contains("completed_tool_calls=55"))
+    }
+
+    @Test
+    fun `build falls back to sourceEndIndex plus one when tailStartNodeId is missing`() {
+        val nodes = listOf("one", "two", "three").map { text ->
+            MessageNode(messages = listOf(UIMessage.user(text)))
+        }
+        val conversation = Conversation(
+            assistantId = Uuid.random(),
+            messageNodes = nodes,
+        )
+        val compaction = ConversationCompaction(
+            conversationId = conversation.id,
+            summary = "summary of one",
+            tailStartNodeId = Uuid.random(), // not present in the conversation
+            sourceEndNodeId = nodes[0].id,
+            summaryModelId = Uuid.random(),
+            isAuto = true,
+            sourceTokenEstimate = 100,
+            createdAt = Instant.now(),
+        )
+
+        val view = ContextCompactionView.build(conversation, compaction)
+
+        assertEquals(compaction, view.compaction)
+        assertEquals(1, view.rawTailStartIndex)
+        assertEquals(listOf("summary of one", "two", "three"), view.messages.map { it.toText() })
+    }
+
+    @Test
+    fun `compactedPrefixUnchanged is true for mutations confined to the raw tail`() {
+        val nodes = listOf("one", "two", "three").map { text ->
+            MessageNode(messages = listOf(UIMessage.user(text)))
+        }
+        val conversation = Conversation(
+            assistantId = Uuid.random(),
+            messageNodes = nodes,
+        )
+        val compaction = ConversationCompaction(
+            conversationId = conversation.id,
+            summary = "summary",
+            tailStartNodeId = nodes[1].id,
+            sourceEndNodeId = nodes[0].id,
+            summaryModelId = Uuid.random(),
+            isAuto = true,
+            sourceTokenEstimate = 100,
+            createdAt = Instant.now(),
+        )
+
+        // tail node edited: a new selected message on nodes[1]
+        val tailEdited = nodes.toMutableList().apply {
+            this[1] = nodes[1].copy(
+                messages = nodes[1].messages + UIMessage.user("two edited"),
+                selectIndex = 1,
+            )
+        }
+        assertTrue(ContextCompactionView.compactedPrefixUnchanged(compaction, nodes, tailEdited))
+
+        // tail node deleted
+        val tailDeleted = listOf(nodes[0], nodes[2])
+        assertTrue(ContextCompactionView.compactedPrefixUnchanged(compaction, nodes, tailDeleted))
+
+        // nodes appended
+        val appended = nodes + MessageNode(messages = listOf(UIMessage.user("four")))
+        assertTrue(ContextCompactionView.compactedPrefixUnchanged(compaction, nodes, appended))
+    }
+
+    @Test
+    fun `compactedPrefixUnchanged is false when the compacted prefix itself changes`() {
+        val nodes = listOf("zero", "one", "two", "three").map { text ->
+            MessageNode(messages = listOf(UIMessage.user(text)))
+        }
+        val conversation = Conversation(
+            assistantId = Uuid.random(),
+            messageNodes = nodes,
+        )
+        val compaction = ConversationCompaction(
+            conversationId = conversation.id,
+            summary = "summary",
+            tailStartNodeId = nodes[2].id,
+            sourceEndNodeId = nodes[1].id,
+            summaryModelId = Uuid.random(),
+            isAuto = true,
+            sourceTokenEstimate = 100,
+            createdAt = Instant.now(),
+        )
+
+        // prefix node's selected message changes (source-end node itself)
+        val prefixEdited = nodes.toMutableList().apply {
+            this[1] = nodes[1].copy(
+                messages = nodes[1].messages + UIMessage.user("one edited"),
+                selectIndex = 1,
+            )
+        }
+        assertFalse(ContextCompactionView.compactedPrefixUnchanged(compaction, nodes, prefixEdited))
+
+        // a prefix node other than the source-end node is deleted
+        val prefixDeleted = listOf(nodes[0], nodes[1], nodes[2], nodes[3]).filterNot { it.id == nodes[0].id }
+        assertFalse(ContextCompactionView.compactedPrefixUnchanged(compaction, nodes, prefixDeleted))
+
+        // source-end node absent from after
+        val sourceEndGone = listOf(nodes[0], nodes[2], nodes[3])
+        assertFalse(ContextCompactionView.compactedPrefixUnchanged(compaction, nodes, sourceEndGone))
     }
 }

@@ -105,6 +105,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.ConversationCompaction
+import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.model.toMessageNode
@@ -797,16 +798,27 @@ class ChatService(
                     Log.w(TAG, "regenerateAtMessage: node for message ${message.id} not in conversation; skipping")
                     return@launch
                 }
-                conversationRepo.clearCompaction(conversationId)
                 if (message.role == MessageRole.USER) {
                     // 如果是用户消息，则截止到当前消息
                     val newConversation = conversation.copy(
                         messageNodes = conversation.messageNodes.subList(0, indexAt + 1)
                     )
+                    clearCompactionIfPrefixChanged(
+                        conversationId,
+                        before = conversation.messageNodes,
+                        after = newConversation.messageNodes,
+                        reason = "regenerate from user message",
+                    )
                     saveConversation(conversationId, newConversation)
                     handleMessageComplete(conversationId)
                 } else {
                     if (regenerateAssistantMsg) {
+                        clearCompactionIfPrefixChanged(
+                            conversationId,
+                            before = conversation.messageNodes,
+                            after = conversation.messageNodes.take(indexAt),
+                            reason = "regenerate assistant message",
+                        )
                         handleMessageComplete(conversationId, messageRange = 0..<indexAt)
                     } else {
                         saveConversation(conversationId, conversation)
@@ -1750,7 +1762,12 @@ class ChatService(
         messagesNodes = messagesNodes.filter { it.messages.isNotEmpty() }
 
         if (messagesNodes != conversation.messageNodes) {
-            conversationRepo.clearCompaction(conversationId)
+            clearCompactionIfPrefixChanged(
+                conversationId,
+                before = conversation.messageNodes,
+                after = messagesNodes,
+                reason = "invalid message repair",
+            )
             // Persist the repair before the model request starts. If the process is killed again
             // during the continuation, the historical tool call remains visible and replayable.
             saveConversation(conversationId, conversation.copy(messageNodes = messagesNodes))
@@ -2023,9 +2040,31 @@ class ChatService(
             )
         val view = ContextCompactionView.build(conversation, compaction)
         if (view.compaction == null) {
+            Log.w(
+                TAG,
+                "Compaction for ${conversation.id} no longer resolves " +
+                    "(sourceEnd=${compaction.sourceEndNodeId}, tailStart=${compaction.tailStartNodeId}, " +
+                    "nodes=${conversation.messageNodes.size}); clearing",
+            )
             conversationRepo.clearCompaction(conversation.id)
         }
         return view
+    }
+
+    /**
+     * Drops the stored compaction only when [after] no longer carries the compacted prefix
+     * that [before] had. Mutations confined to the raw tail keep the compaction.
+     */
+    private suspend fun clearCompactionIfPrefixChanged(
+        conversationId: Uuid,
+        before: List<MessageNode>,
+        after: List<MessageNode>,
+        reason: String,
+    ) {
+        val compaction = conversationRepo.getCompaction(conversationId) ?: return
+        if (ContextCompactionView.compactedPrefixUnchanged(compaction, before, after)) return
+        Log.i(TAG, "Clearing compaction for $conversationId: compacted prefix changed ($reason)")
+        conversationRepo.clearCompaction(conversationId)
     }
 
     private suspend fun createAutomaticCompaction(
@@ -2866,7 +2905,12 @@ class ChatService(
 
         if (!edited) return
 
-        conversationRepo.clearCompaction(conversationId)
+        clearCompactionIfPrefixChanged(
+            conversationId,
+            before = currentConversation.messageNodes,
+            after = updatedNodes,
+            reason = "edit message",
+        )
         saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
     }
 
@@ -2935,7 +2979,12 @@ class ChatService(
             }
         }
 
-        conversationRepo.clearCompaction(conversationId)
+        clearCompactionIfPrefixChanged(
+            conversationId,
+            before = currentConversation.messageNodes,
+            after = updatedNodes,
+            reason = "select branch",
+        )
         saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
     }
 
@@ -2954,7 +3003,12 @@ class ChatService(
             return
         }
 
-        conversationRepo.clearCompaction(conversationId)
+        clearCompactionIfPrefixChanged(
+            conversationId,
+            before = currentConversation.messageNodes,
+            after = updatedConversation.messageNodes,
+            reason = "delete message",
+        )
         saveConversation(conversationId, updatedConversation)
     }
 
