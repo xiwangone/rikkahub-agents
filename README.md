@@ -49,6 +49,10 @@ Each of those is a one-line setup.
 
 Tap, swipe, scroll, type, take screenshots, open apps, adjust brightness/volume, post notifications, check battery/WiFi/signal/location/sensors, read contacts & SMS, send SMS, set wallpaper, read/write NFC tags, sign and encrypt data with the Android Keystore, access external storage and SD cards, and manage ZIP archives. **80+ tools**, all built into Android. Each one stays off until you flip it on.
 
+### Chat
+
+When a reply ends in an error or comes back with no visible text, a continue chip appears among the suggestions so you can nudge it forward with one tap. Tap any tool call in a message to open its details and re-run it with the same arguments, without spending a new turn. Tap a composer attachment before sending to preview it: images open in a swipeable viewer, other files open through the system chooser.
+
 ### Shizuku
 
 Install [Shizuku](https://github.com/RikkaApps/Shizuku/releases/latest) and the assistant can run shell commands at a higher privilege level than a normal app, without root and without Termux. Useful for the things Android normally refuses: granting permissions, poking at system settings, inspecting other packages. Settings shows live status so you can tell whether Shizuku is installed, running, and authorized.
@@ -67,7 +71,7 @@ Talk to your assistant from anywhere. Send a question, photo, PDF, or voice note
 
 ### In-App Browser
 
-A real browser built into the app. The AI clicks through cookie banners, fills search boxes, scrolls, and reads pages back to you. Streams fresh screenshots to your chat after every step. Floating chat pill lets you keep talking to the AI without leaving the page. Built-in article extraction and diff-after-action keep token costs low.
+A real browser built into the app. The AI clicks through cookie banners, fills search boxes, scrolls, and reads pages back to you. A live action trail above the page shows each step and whether it succeeded or failed, with a Stop button to interrupt the run mid-task. Streams fresh screenshots to your chat after every step. Floating chat pill lets you keep talking to the AI without leaving the page. Built-in article extraction and diff-after-action keep token costs low.
 
 ### Web Search & Fetch
 
@@ -86,7 +90,7 @@ Find files, read them, save new ones, copy, move, rename, delete. *"Find every P
 
 ### Workspace
 
-A real Linux environment on the phone. The AI runs shell commands, reads, writes, and patches files in it, and browses the result in a built-in file manager with a text editor and image/video preview. Copy files in from anywhere on the device through the system file picker.
+A real Linux environment on the phone. The AI runs shell commands, reads, writes, and patches files in it, creates folders, and browses the tree in a built-in file manager with a text editor and image/video preview. Copy files in from anywhere on the device through the system file picker (up to 256 MiB), or export a whole folder back out to a location you pick.
 
 Long-running work survives across turns: `workspace_run_background` starts a dev server, install, or file watcher and hands back a task id, `workspace_background_status` polls its recent output, and `workspace_background_kill` stops it. Task ids are scoped to their workspace, and deleting a workspace kills everything it started.
 
@@ -114,7 +118,7 @@ Long agent runs fill the context window and eventually fail. Compaction summariz
 
 ### Doctor
 
-A built-in health checkup. Runs a full audit of permissions, background services, database integrity, network, Termux, and diagnostics, plus Shizuku, MCP servers, sub-agent profiles, skills, the image gallery, workspaces, the Telegram proxy, and context compaction. Tap auto-fix to grant permissions, restart services, or rebuild search indexes. Also available remotely via `/doctor` on Telegram.
+A built-in health checkup. Runs a full audit of permissions, background services, database integrity, network, Termux, and diagnostics, plus Shizuku, MCP servers, sub-agent profiles, skills, the image gallery, workspaces, the Telegram proxy, and context compaction. A tool-groups overview shows, per backend-dependent group (screen automation, app launcher, agent keyboard, notification listener, Termux, Shizuku, files, browser), whether it's in use and whether its backend is ready. Tap auto-fix to grant permissions, restart services, or rebuild search indexes. Also available remotely via `/doctor` on Telegram.
 
 ### MCP Servers
 
@@ -160,7 +164,7 @@ Download the latest `*-release.apk` from [Releases](https://github.com/ExTV/rikk
 
 **Settings → Assistants → tap your assistant → Local Tools** — flip the categories you want enabled.
 
-If you don't turn anything on, the app behaves exactly like vanilla RikkaHub.
+If you don't turn anything on, the app behaves exactly like vanilla RikkaHub. Can't find a toggle? Tap the search icon in Settings' top bar to search every page by name.
 
 ### 4. (Optional) Telegram Bot
 
