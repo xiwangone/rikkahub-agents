@@ -517,7 +517,7 @@ private fun ColumnScope.ModelList(
                             ) {
                                 Icon(
                                     HeartIcon,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(R.string.chat_message_remove_favorite),
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
@@ -602,14 +602,14 @@ private fun ColumnScope.ModelList(
                             if (favorite) {
                                 Icon(
                                     HeartIcon,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(R.string.chat_message_remove_favorite),
                                     modifier = Modifier.size(20.dp),
                                     tint = MaterialTheme.colorScheme.primary,
                                 )
                             } else {
                                 Icon(
                                     imageVector = HugeIcons.Favourite,
-                                    contentDescription = null,
+                                    contentDescription = stringResource(R.string.chat_message_add_favorite),
                                     modifier = Modifier.size(20.dp)
                                 )
                             }
