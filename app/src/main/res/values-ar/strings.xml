@@ -1155,7 +1155,7 @@
   <string name="assistant_page_local_tools_sub_agents_title">الوكلاء الفرعيون</string>
   <string name="assistant_page_local_tools_sub_agents_desc">السماح للمساعد بإرسال مهام فرعية مركّزة (بحث، عمل متعدد الخطوات) كعمليات تشغيل مستقلة للنموذج اللغوي في الخلفية. كل تشغيل يخضع للموافقة، ومحدود (افتراضيًا 3 متزامنة لكل مساعد، 16 عالميًا)، وتظل HARDLINE سارية بداخله.</string>
   <string name="assistant_page_local_tools_cost_guards_title">حُرّاس التكلفة</string>
-  <string name="assistant_page_local_tools_cost_guards_desc">السماح للمساعد بفحص إجمالي رموزه الجارية مقابل الحدود الناعمة / الصارمة لكل مساعد والتحكم الذاتي. للقراءة فقط — سيأتي تكامل الإيقاف التلقائي مع خط أنابيب البث في تحديث لاحق.</string>
+  <string name="assistant_page_local_tools_cost_guards_desc">السماح للمساعد بفحص إجمالي الرموز (Tokens) المستهلكة مقابل الحدود المرنة / الصارمة الخاصة بكل مساعد والتحكم الذاتي في السرعة. للقراءة فقط — سيتم توفير الإيقاف التلقائي للبث في تحديث لاحق.</string>
   <string name="setting_page_accessibility">إمكانية الوصول</string>
   <string name="setting_page_accessibility_desc">الحالة والإجراءات الأخيرة وتشخيصات لقطات الشاشة لخدمة أتمتة الشاشة.</string>
   <string name="setting_page_accessibility_status_section">الحالة</string>
@@ -1308,10 +1308,10 @@
   <string name="relative_time_hours_ago">قبل %1$d س</string>
   <string name="relative_time_days_ago">قبل %1$d ي</string>
   <string name="setting_page_browser">المتصفح</string>
-  <string name="setting_page_browser_desc">متصفح ويب مدفوع بالذكاء الاصطناعي وعارض مهارات.</string>
+  <string name="setting_page_browser_desc">متصفح ويب مدعوم بالذكاء الاصطناعي وعارض مهارات.</string>
   <string name="assistant_page_local_tools_section_browser">المتصفح</string>
   <string name="assistant_page_local_tools_browser_title">المتصفح</string>
-  <string name="assistant_page_local_tools_browser_desc">متصفح ويب مدفوع بالذكاء الاصطناعي. 17 أداة قابلة للتفعيل بشكل فردي — كوّن وصول القراءة/الكتابة في الإعدادات → المتصفح.</string>
+  <string name="assistant_page_local_tools_browser_desc">متصفح ويب مدعوم بالذكاء الاصطناعي. 17 أداة قابلة للتفعيل بشكل فردي — كوّن وصول القراءة/الكتابة في الإعدادات ← المتصفح.</string>
   <string name="setting_browser_title">المتصفح</string>
   <string name="setting_browser_section_browser">المتصفح</string>
   <string name="setting_browser_open">فتح المتصفح</string>
@@ -1690,7 +1690,7 @@
   <string name="assistant_page_local_tools_keyboard_status_installed">تم تثبيت agent-keyboard — عيّنه كلوحة المفاتيح النشطة لاستخدام هذه الأدوات</string>
   <string name="setting_browser_per_tool_timeout_desc">الحد الأقصى لزمن انتظار استجابة أداة المتصفح الواحدة بالثواني</string>
   <string name="setting_browser_per_tool_timeout_unit">ثواني</string>
-  <string name="setting_browser_single_task_timeout_desc">الحد الأقصى لزمن مهمة المتصفح المستمرة بالدقائق</string>
+  <string name="setting_browser_single_task_timeout_desc">حد أقصى صارم لزمن مهمة المتصفح المدعومة بالذكاء الاصطناعي لمنع الحلقات غير المنتهية. النطاق من 1 إلى 60 دقيقة.</string>
   <string name="setting_browser_single_task_timeout_unit">دقائق</string>
   <string name="setting_page_termux">بيئة Termux</string>
   <string name="setting_page_termux_desc">أوامر سطر الأوامر (Shell)، المهلات، والتكامل مع Termux.</string>
@@ -1915,9 +1915,9 @@
   <string name="codex_monthly_limit">الحد الشهري</string>
   <string name="codex_oauth_ports_unavailable">تعذر بدء تسجيل الدخول لـ Codex لأن منافذ الاستدعاء المحلي قيد الاستخدام. أغلق التطبيق الذي يستخدمها وحاول مجددًا.</string>
   <string name="gemini_provider_description">يستخدم تدفق Google OAuth الخاص بـ Antigravity لـ Gemini Code Assist.</string>
-  <string name="gemini_provider_short_description">مزوّد Google OAuth المباشر</string>
-  <string name="gemini_ban_warning_title">إخلاء مسؤولية مخاطر الحظر</string>
-  <string name="gemini_ban_warning_body">يسجل هذا المزوّد الدخول باستخدام اعتماديات Antigravity الخاصة بـ OAuth ويستدعي نقطة نهاية Google خاصة من تطبيق لم تنشره Google. تسمح شروط Google لهم بتعليق الحسابات أو إنهائها للوصول إلى خدماتهم عبر عملاء غير معتمدين، ولا توجد آلية استئناف إذا تم حظر حسابك. استخدم هذا المزوّد بحذر وعلى مسؤوليتك الخاصة.</string>
+  <string name="gemini_provider_short_description">تسجيل الدخول بحساب Google - اقرأ تحذير الحظر أولاً</string>
+  <string name="gemini_ban_warning_title">هذا الإجراء قد يؤدي إلى حظر حسابك في Google</string>
+  <string name="gemini_ban_warning_body">يسجل هذا المزوّد الدخول باستخدام اعتماديات Antigravity الخاصة بـ OAuth ويستدعي نقطة نهاية خاصة من تطبيق لم تنشره Google. تسمح شروط Google بتعليق أو إنهاء الحسابات التي تصل إلى خدماتها عبر عملاء غير معتمدين، ولا يوجد مسار لتقديم التماس. استخدم حساب Google بديل/وهمي يمكنك تحمل فقدانه، ولا تستخدم أبداً حسابك المرتبط ببريدك الإلكتروني، أو صورك، أو مشترياتك، أو عملك.</string>
   <string name="gemini_sign_in">تسجيل الدخول عبر Google OAuth</string>
   <string name="gemini_enable">تمكين Gemini (Antigravity)</string>
   <string name="gemini_round_robin_description">استخدام الحسابات الممكنة بالتناوب (Round-Robin).</string>
@@ -1995,7 +1995,7 @@
   <string name="assistant_page_context_message_limit_desc">يحدد الحد الأقصى لعدد الرسائل الأخيرة المرسلة للنموذج. عند تجاوز الحد، يتم تقليص السياق إلى النصف تقريباً في خطوة واحدة بدلاً من حذف رسالة واحدة بكل دور.</string>
   <string name="assistant_page_context_message_limit_count">حد رسائل السياق: %d</string>
   <string name="assistant_page_context_message_limit_unlimited">رسائل سياق غير محدودة</string>
-  <string name="assistant_page_context_message_limit_warning">تقييد السياق يلغي الذاكرة المؤقتة للتوجيهات (Prompt Cache) في كل مرة يقتطع فيها السياق.</string>
+  <string name="assistant_page_context_message_limit_warning">تقييد السياق يُبطل الذاكرة المؤقتة للتوجيهات (Prompt Cache) في كل مرة يُقتطع فيها السياق. الحد الأكبر يقلل من مرات الاقتطاع؛ بينما خيار "بلا حد" يمنع الاقتطاع تماماً ويحافظ على الذاكرة المؤقتة سليمة بالكامل.</string>
   <string name="accessibility_hide_password">إخفاء كلمة المرور</string>
   <string name="accessibility_show_password">إظهار كلمة المرور</string>
   <string name="accessibility_remove_attachment">إزالة المرفق</string>
