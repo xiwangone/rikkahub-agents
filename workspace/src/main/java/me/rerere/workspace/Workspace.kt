@@ -39,6 +39,7 @@ data class RootfsInstallProgress(
 data class WorkspaceConfig(
     val maxReadBytes: Long = 512 * 1024,
     val maxWriteBytes: Long = 2 * 1024 * 1024,
+    val maxImportBytes: Long = 256L * 1024 * 1024,
     val maxListEntries: Int = 500,
     val maxSearchResults: Int = 100,
 )

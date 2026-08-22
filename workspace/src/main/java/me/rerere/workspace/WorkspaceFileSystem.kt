@@ -66,7 +66,7 @@ class WorkspaceFileSystem(
                         val read = input.read(buffer)
                         if (read < 0) break
                         total += read
-                        require(total <= config.maxWriteBytes) { "Content is too large to write: $total bytes" }
+                        require(total <= config.maxImportBytes) { "File is too large to import: more than ${config.maxImportBytes} bytes" }
                         output.write(buffer, 0, read)
                     }
                 }
