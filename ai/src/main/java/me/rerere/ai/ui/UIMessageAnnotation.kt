@@ -48,6 +48,6 @@ sealed class UIMessageAnnotation {
     @SerialName("ask_request")
     data class AskRequest(
         val id: String,
-        val questions: List<StreamChunk.AskQuestion> = emptyList(),
+        val questions: List<AskQuestion> = emptyList(),
     ) : UIMessageAnnotation()
 }
