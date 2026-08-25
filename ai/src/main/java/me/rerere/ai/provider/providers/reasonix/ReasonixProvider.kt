@@ -53,6 +53,7 @@ class ReasonixProvider(
     private val clientFactory: (ProviderSetting.Reasonix) -> ReasonixApi,
     private val httpClient: OkHttpClient = OkHttpClient(),
     private val cliExecutor: CliCommandExecutor? = null,
+    private val interactionHandler: ReasonixInteractionHandler = ReasonixInteractionHandler.NOOP,
 ) : Provider<ProviderSetting.Reasonix> {
 
     constructor(cliExecutor: CliCommandExecutor? = null) : this(
@@ -399,27 +400,32 @@ class ReasonixProvider(
 
                 "approval_request" -> {
                     val a = event.approval
-                    if (a != null) emit(StreamChunk.ApprovalRequest(a.id, a.tool, a.subject))
+                    if (a != null) {
+                        interactionHandler.onApprovalRequest(providerSetting, a.id, a.tool, a.subject)
+                        emit(StreamChunk.ApprovalRequest(a.id, a.tool, a.subject))
+                    }
                 }
 
                 "ask_request" -> {
                     val q = event.ask
                     if (q != null) {
+                        val questions =
+                            q.questions.map { question ->
+                                AskQuestion(
+                                    id = question.id,
+                                    prompt = question.prompt,
+                                    multi = question.multi,
+                                    options =
+                                        question.options.map { opt ->
+                                            AskOption(opt.label, opt.description)
+                                        },
+                                )
+                            }
+                        interactionHandler.onAskRequest(providerSetting, q.id, questions)
                         emit(
                             StreamChunk.AskRequest(
                                 id = q.id,
-                                questions =
-                                    q.questions.map { question ->
-                                        AskQuestion(
-                                            id = question.id,
-                                            prompt = question.prompt,
-                                            multi = question.multi,
-                                            options =
-                                                question.options.map { opt ->
-                                                    AskOption(opt.label, opt.description)
-                                                },
-                                        )
-                                    },
+                                questions = questions,
                             )
                         )
                     }

@@ -5,9 +5,11 @@ import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -94,6 +96,40 @@ class ReasonixApi(
     // ── 压缩对话 ──
     suspend fun compact() = withContext(Dispatchers.IO) {
         post("/compact")
+    }
+
+    // ── 回应工具审批（approval_request 事件）──
+    suspend fun approve(
+        id: String,
+        allow: Boolean,
+        session: Boolean = false,
+        persist: Boolean = false,
+        scope: String = "",
+    ) = withContext(Dispatchers.IO) {
+        post(
+            "/approve",
+            buildJsonObject {
+                put("id", JsonPrimitive(id))
+                put("allow", JsonPrimitive(allow))
+                put("session", JsonPrimitive(session))
+                put("persist", JsonPrimitive(persist))
+                put("scope", JsonPrimitive(scope))
+            },
+        )
+    }
+
+    // ── 回答提问卡片（ask_request 事件）──
+    suspend fun answer(
+        id: String,
+        answers: List<JsonObject>,
+    ) = withContext(Dispatchers.IO) {
+        post(
+            "/answer",
+            buildJsonObject {
+                put("id", JsonPrimitive(id))
+                put("answers", JsonArray(answers))
+            },
+        )
     }
 
     // ── 内部 HTTP 辅助 ──

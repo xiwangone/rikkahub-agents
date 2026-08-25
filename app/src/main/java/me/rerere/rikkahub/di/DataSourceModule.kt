@@ -413,6 +413,18 @@ val dataSourceModule =
                         scope = get<AppScope>(),
                     ),
                 )
+                // 覆盖默认 reasonix provider：注入交互桥，使 Ask/Approval 走通知闭环
+                pm.registerProvider(
+                    "reasonix",
+                    me.rerere.ai.provider.providers.reasonix.ReasonixProvider(
+                        cliExecutor = TermuxCliCommandExecutor(
+                            context = get(),
+                            sshHostRepository = get(),
+                            vaultRepository = get(),
+                        ),
+                        interactionHandler = get<me.rerere.rikkahub.data.ai.reasonix.ReasonixInteractionNotifier>(),
+                    ),
+                )
             }
         }
 

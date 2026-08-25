@@ -273,6 +273,12 @@ val appModule =
         }
 
         single {
+            me.rerere.rikkahub.data.ai.reasonix.ReasonixInteractionNotifier(
+                context = get(),
+            )
+        }
+
+        single {
             UpdateChecker(get())
         }
 
