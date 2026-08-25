@@ -35,6 +35,10 @@ enum class ConnectionState {
  *
  * 健壮性：热流单连接多消费者；网络错误指数退避重连（1s→2s→4s…封顶 30s）；HTTP 错误不重连；
  * 连接状态经 [connectionState] 暴露（可驱动顶栏状态点）。
+ *
+ * 断流补拉：重连恢复（onOpen 且 attempt>0）后调用 [historyLoader] 拉取服务端 /history，
+ * 对比本地已渲染的 text/reasoning 累计做差值补发（差值事件写回同一热流）——
+ * 弥合断流窗口丢掉的尾部内容；无 loader 或无可补内容时安静跳过。
  */
 class ReasonixSseClient(
     private val baseUrl: String,
@@ -43,6 +47,7 @@ class ReasonixSseClient(
     private val token: String = "",
     private val reconnectEnabled: Boolean = true,
     private val maxReconnectDelayMs: Long = 30_000L,
+    private val historyLoader: (() -> List<HistoryMessage>)? = null,
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(120, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -50,6 +55,11 @@ class ReasonixSseClient(
         .build(),
 ) {
     private val json = Json { ignoreUnknownKeys = true }
+
+    // ── 断流补拉：本地已发事件累计（跨线程访问，用 lock 保护）──
+    private val lock = Any()
+    private val localText = StringBuilder()
+    private val localReasoning = StringBuilder()
 
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
@@ -85,6 +95,10 @@ class ReasonixSseClient(
                     response: Response,
                 ) {
                     _connectionState.value = ConnectionState.CONNECTED
+                    // 重连恢复（非首次连接）：异步补拉 /history 差值，弥合断流窗口丢失内容
+                    if (attempt > 0) {
+                        Thread { runCatching { backfill(destination) } }.start()
+                    }
                 }
 
                 override fun onEvent(
@@ -95,6 +109,15 @@ class ReasonixSseClient(
                 ) {
                     try {
                         val event = json.decodeFromString<SseEvent>(data)
+                        // 维护本地累计（差值补拉的去重基准）；turn_done 视为单 turn 边界，重置累计
+                        when (event.kind) {
+                            "text" -> event.text?.let { synchronized(lock) { localText.append(it) } }
+                            "reasoning" -> event.reasoning?.let { synchronized(lock) { localReasoning.append(it) } }
+                            "turn_done" -> synchronized(lock) {
+                                localText.clear()
+                                localReasoning.clear()
+                            }
+                        }
                         destination.tryEmit(event)
                     } catch (_: Exception) {
                         // 解析失败则忽略
@@ -153,6 +176,60 @@ class ReasonixSseClient(
             }
             startConnect(destination, attempt + 1)
         }.start()
+    }
+
+    /**
+     * 断流补拉：取 /history 最后一条非空 assistant 消息，与本地已渲染累计
+     * 做前缀差值比较——服务端已生成而本地未收到的尾部文本/推理补发为差值事件。
+     * 前缀匹配失败（本地累计已被 turn_done 重置、或内容错位）时不补，保证不重复渲染。
+     */
+    private fun backfill(destination: MutableSharedFlow<SseEvent>) {
+        val loader = historyLoader ?: return
+        val history = runCatching { loader() }.getOrNull() ?: return
+        val last =
+            history.lastOrNull { h ->
+                h.role == "assistant" && (!h.content.isNullOrBlank() || !h.reasoning.isNullOrBlank())
+            } ?: return
+
+        val hText = last.content ?: ""
+        val hReasoning = last.reasoning ?: ""
+
+        // 快照本地累计（跨线程用 lock 保护）
+        val (locText, locReasoning) =
+            synchronized(lock) { localText.toString() to localReasoning.toString() }
+
+        // text 差值补发：history 完整文本以本地累计为前缀且更长 → 缺失尾部补发。
+        // 二次确认：快照后无新事件推进累计才补，避免与实时流内容重叠造成重复渲染。
+        val textDiff =
+            synchronized(lock) {
+                val cur = localText.toString()
+                if (cur != locText) {
+                    null
+                } else if (hText.length > cur.length && hText.startsWith(cur)) {
+                    hText.substring(cur.length).also { localText.append(it) }
+                } else {
+                    null
+                }
+            }
+        if (!textDiff.isNullOrEmpty()) {
+            destination.tryEmit(SseEvent(kind = "text", text = textDiff))
+        }
+
+        // reasoning 差值补发（同理）
+        val reasoningDiff =
+            synchronized(lock) {
+                val cur = localReasoning.toString()
+                if (cur != locReasoning) {
+                    null
+                } else if (hReasoning.length > cur.length && hReasoning.startsWith(cur)) {
+                    hReasoning.substring(cur.length).also { localReasoning.append(it) }
+                } else {
+                    null
+                }
+            }
+        if (!reasoningDiff.isNullOrEmpty()) {
+            destination.tryEmit(SseEvent(kind = "reasoning", reasoning = reasoningDiff))
+        }
     }
 
     private fun Request.Builder.applyAuth(): Request.Builder {

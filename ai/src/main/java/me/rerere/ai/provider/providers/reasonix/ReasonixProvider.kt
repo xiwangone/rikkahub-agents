@@ -5,6 +5,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -250,6 +251,8 @@ class ReasonixProvider(
                 username = providerSetting.username,
                 password = providerSetting.password,
                 token = providerSetting.token,
+                // 断流重连恢复时补拉 /history 差值，弥合断流窗口丢失的文本/推理
+                historyLoader = { runBlocking { api.getHistory() } },
             )
         val events = sse.connect()
 
