@@ -93,6 +93,9 @@ class RikkaHubApp : Application() {
         // Start WebServer if enabled in settings
         startWebServerIfEnabled()
 
+        // Start local MCP Server if enabled in settings (Reasonix tool source)
+        startMcpServerIfEnabled()
+
         // Eagerly construct ChatService on the main thread. Its constructor calls
         // LifecycleRegistry.addObserver which throws if it runs off-main, and the Telegram
         // bot service runs on Dispatchers.IO — without this priming, the first inbound bot
@@ -464,6 +467,21 @@ class RikkaHubApp : Application() {
                 }
             }.onFailure {
                 Log.e(TAG, "startWebServerIfEnabled failed", it)
+            }
+        }
+    }
+
+    private fun startMcpServerIfEnabled() {
+        get<AppScope>().launch {
+            runCatching {
+                delay(500)
+                val settings = get<SettingsStore>().settingsFlowRaw.first()
+                if (settings.localMcpServerEnabled) {
+                    val manager = get<me.rerere.rikkahub.data.ai.mcp.server.LocalMcpServerManager>()
+                    manager.start()
+                }
+            }.onFailure {
+                Log.e(TAG, "startMcpServerIfEnabled failed", it)
             }
         }
     }

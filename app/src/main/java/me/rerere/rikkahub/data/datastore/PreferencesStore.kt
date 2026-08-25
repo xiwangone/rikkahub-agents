@@ -185,6 +185,7 @@ class SettingsStore(
         // Web Server
         val WEB_SERVER_ENABLED = booleanPreferencesKey("web_server_enabled")
         val WEB_SERVER_PORT = intPreferencesKey("web_server_port")
+        val LOCAL_MCP_SERVER_ENABLED = booleanPreferencesKey("local_mcp_server_enabled")
         val WEB_SERVER_JWT_ENABLED = booleanPreferencesKey("web_server_jwt_enabled")
         val WEB_SERVER_ACCESS_PASSWORD = stringPreferencesKey("web_server_access_password")
         val WEB_SERVER_LOCALHOST_ONLY = booleanPreferencesKey("web_server_localhost_only")
@@ -327,6 +328,7 @@ class SettingsStore(
                 } ?: emptyList(),
                 webServerEnabled = preferences[WEB_SERVER_ENABLED] == true,
                 webServerPort = preferences[WEB_SERVER_PORT] ?: 8080,
+                localMcpServerEnabled = preferences[LOCAL_MCP_SERVER_ENABLED] == true,
                 webBridgeEcsHost = preferences[WEB_BRIDGE_ECS_HOST] ?: "",
                 webBridgeEcsUser = preferences[WEB_BRIDGE_ECS_USER] ?: "root",
                 webBridgeEcsPort = preferences[WEB_BRIDGE_ECS_PORT] ?: 22,
@@ -604,6 +606,7 @@ class SettingsStore(
             preferences[QUICK_MESSAGES] = JsonInstant.encodeToString(settings.quickMessages)
             preferences[WEB_SERVER_ENABLED] = settings.webServerEnabled
             preferences[WEB_SERVER_PORT] = settings.webServerPort
+            preferences[LOCAL_MCP_SERVER_ENABLED] = settings.localMcpServerEnabled
             preferences[WEB_BRIDGE_ECS_HOST] = settings.webBridgeEcsHost
             preferences[WEB_BRIDGE_ECS_USER] = settings.webBridgeEcsUser
             preferences[WEB_BRIDGE_ECS_PORT] = settings.webBridgeEcsPort
@@ -804,6 +807,8 @@ data class Settings(
     val quickMessages: List<QuickMessage> = emptyList(),
     val webServerEnabled: Boolean = false,
     val webServerPort: Int = 8080,
+    /** 本地 MCP Server（供 Reasonix serve 挂载设备工具）开关 */
+    val localMcpServerEnabled: Boolean = false,
     /** Web 桥全局配置：SSH 反向隧道到 ECS（手机 web 服务映射到远端端口） */
     val webBridgeEcsHost: String = "",
     val webBridgeEcsUser: String = "root",

@@ -265,6 +265,14 @@ val appModule =
         }
 
         single {
+            me.rerere.rikkahub.data.ai.mcp.server.LocalMcpServerManager(
+                context = get(),
+                settingsStore = get(),
+                localTools = get(),
+            )
+        }
+
+        single {
             UpdateChecker(get())
         }
 
