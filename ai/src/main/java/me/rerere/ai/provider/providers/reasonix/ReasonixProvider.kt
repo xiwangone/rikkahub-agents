@@ -56,7 +56,10 @@ class ReasonixProvider(
     private val interactionHandler: ReasonixInteractionHandler = ReasonixInteractionHandler.NOOP,
 ) : Provider<ProviderSetting.Reasonix> {
 
-    constructor(cliExecutor: CliCommandExecutor? = null) : this(
+    constructor(
+        cliExecutor: CliCommandExecutor? = null,
+        interactionHandler: ReasonixInteractionHandler = ReasonixInteractionHandler.NOOP,
+    ) : this(
         clientFactory = { setting ->
             ReasonixApi(
                 baseUrl = setting.baseUrl,
@@ -66,6 +69,7 @@ class ReasonixProvider(
             )
         },
         cliExecutor = cliExecutor,
+        interactionHandler = interactionHandler,
     )
 
     // custom 类型复用 OpenAI 兼容协议（baseUrl + token 作为 apiKey）

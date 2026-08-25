@@ -19,7 +19,7 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import me.rerere.ai.provider.providers.reasonix.ProviderSetting
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.providers.reasonix.ReasonixApi
 import me.rerere.ai.provider.providers.reasonix.ReasonixInteractionHandler
 import me.rerere.ai.ui.AskQuestion
