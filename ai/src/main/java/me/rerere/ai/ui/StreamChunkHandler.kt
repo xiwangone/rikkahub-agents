@@ -294,6 +294,30 @@ class StreamChunkHandler(private val model: Model? = null) {
                 imagePartIndexes.clear()
                 serverToolInputBuffers.clear()
             }
+
+            // ── 服务端富事件（渲染增强）：承载为 UIMessageAnnotation，供附属区渲染 ──
+            is StreamChunk.TurnStarted -> this
+
+            is StreamChunk.Phase ->
+                if (chunk.label.isBlank()) this
+                else copy(annotations = (annotations + UIMessageAnnotation.PhaseIndicator(chunk.label)).distinct())
+
+            is StreamChunk.Notice ->
+                if (chunk.text.isBlank()) this
+                else copy(annotations = (annotations + UIMessageAnnotation.Notice(chunk.text, chunk.level)).distinct())
+
+            is StreamChunk.CompactionStarted ->
+                copy(annotations = annotations + UIMessageAnnotation.CompactionNotice(chunk.trigger))
+
+            is StreamChunk.CompactionDone -> this
+
+            is StreamChunk.ToolProgress -> this
+
+            is StreamChunk.ApprovalRequest ->
+                copy(annotations = annotations + UIMessageAnnotation.ApprovalRequest(chunk.id, chunk.tool, chunk.subject))
+
+            is StreamChunk.AskRequest ->
+                copy(annotations = annotations + UIMessageAnnotation.AskRequest(chunk.id, chunk.questions))
         }
     }
 

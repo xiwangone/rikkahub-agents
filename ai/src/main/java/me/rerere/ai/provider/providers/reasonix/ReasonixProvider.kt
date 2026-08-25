@@ -6,7 +6,10 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.Model
@@ -18,6 +21,8 @@ import me.rerere.ai.provider.providers.openai.ChatCompletionsAPI
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.TextGenerationResult
+import me.rerere.ai.ui.AskOption
+import me.rerere.ai.ui.AskQuestion
 import me.rerere.ai.ui.ImageGenerationItem
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.ServerToolStatus
@@ -268,9 +273,10 @@ class ReasonixProvider(
         while (true) {
             val event =
                 kotlinx.coroutines.withTimeoutOrNull(
-                    if (turnDone) TURN_DONE_IDLE_TIMEOUT_MS else Long.MAX_VALUE
+                    if (turnDone) TURN_DONE_IDLE_TIMEOUT_MS else FIRST_CONTENT_TIMEOUT_MS
                 ) {
-                    events.first()
+                    // 事件异常兜底：流异常时返回 null → 由外层 break 优雅收尾，而不是让整个 flow 崩溃。
+                    runCatching { events.first() }.getOrNull()
                 } ?: break
 
             val isContent =
@@ -310,6 +316,7 @@ class ReasonixProvider(
                                 id = tool.id,
                                 toolName = tool.name,
                                 input = parseJsonOrNull(tool.args ?: tool.arguments),
+                                metadata = toolMetadata(tool),
                             )
                         )
                     }
@@ -330,6 +337,7 @@ class ReasonixProvider(
                                     } else {
                                         ServerToolStatus.FAILED
                                     },
+                                metadata = toolMetadata(tool),
                             )
                         )
                     }
@@ -366,8 +374,59 @@ class ReasonixProvider(
                     // 有新内容则继续，无则 withTimeoutOrNull 返回 null → break 收尾。
                 }
 
+                "turn_started" -> emit(StreamChunk.TurnStarted())
+
+                "phase" -> {
+                    val label = event.detail ?: event.code ?: event.text ?: ""
+                    if (label.isNotBlank()) emit(StreamChunk.Phase(label))
+                }
+
+                "notice", "message" -> {
+                    val text = event.text ?: event.detail ?: ""
+                    if (text.isNotBlank()) emit(StreamChunk.Notice(text, event.level))
+                }
+
+                "tool_progress" -> {
+                    val tool = event.tool
+                    if (tool != null) {
+                        val text = tool.output ?: tool.err ?: ""
+                        if (text.isNotBlank()) emit(StreamChunk.ToolProgress(tool.id, text))
+                    }
+                }
+
+                "approval_request" -> {
+                    val a = event.approval
+                    if (a != null) emit(StreamChunk.ApprovalRequest(a.id, a.tool, a.subject))
+                }
+
+                "ask_request" -> {
+                    val q = event.ask
+                    if (q != null) {
+                        emit(
+                            StreamChunk.AskRequest(
+                                id = q.id,
+                                questions =
+                                    q.questions.map { question ->
+                                        AskQuestion(
+                                            id = question.id,
+                                            prompt = question.prompt,
+                                            multi = question.multi,
+                                            options =
+                                                question.options.map { opt ->
+                                                    AskOption(opt.label, opt.description)
+                                                },
+                                        )
+                                    },
+                            )
+                        )
+                    }
+                }
+
+                "compaction_started" -> emit(StreamChunk.CompactionStarted(event.compaction?.trigger))
+                "compaction_done" -> emit(StreamChunk.CompactionDone(event.compaction?.trigger))
+
                 else -> {
-                    // notice/phase/approval_request/ask_request 等非内容事件：忽略
+                    // 其他未识别的非内容事件：忽略
                 }
             }
         }
@@ -403,6 +462,22 @@ class ReasonixProvider(
     /** 工具输出优先解析为 JSON；自由文本回退为 JsonPrimitive。 */
     private fun parseJsonOrText(s: String): JsonElement =
         runCatching { json.parseToJsonElement(s) }.getOrElse { JsonPrimitive(s) }
+
+    /**
+     * 把工具的执行细节（readOnly/truncated/subject/durationMs）包装进 metadata，
+     * 供 UI 渲染只读/截断等标记；全部默认值时返回 null 避免多余 JSON。
+     */
+    private fun toolMetadata(tool: ToolPayload): JsonObject? {
+        val hasDetail =
+            tool.readOnly || tool.truncated || !tool.subject.isNullOrBlank() || tool.durationMs > 0
+        if (!hasDetail) return null
+        return buildJsonObject {
+            put("readOnly", JsonPrimitive(tool.readOnly))
+            put("truncated", JsonPrimitive(tool.truncated))
+            tool.subject?.takeIf { it.isNotBlank() }?.let { put("subject", JsonPrimitive(it)) }
+            if (tool.durationMs > 0) put("durationMs", JsonPrimitive(tool.durationMs))
+        }
+    }
 }
 
 // turn_done 后的静默判定窗口：超过该时长无任何事件 → 任务真正完成 → 结束 flow。
@@ -410,5 +485,8 @@ class ReasonixProvider(
 // 持久化明显滞后；多 turn 任务实测 turn_done→turn_started 为即时连续，
 // 5s 对轮次间隙留足余量又不至于让收尾体感迟钝。
 private const val TURN_DONE_IDLE_TIMEOUT_MS = 5_000L
+// 非 turn_done 阶段的整体兜底超时：正常 SSE 流式下事件持续推送，此值仅用于
+// 防止异常场景（连接挂起但无任何事件）无限转圈。补充 runCatching 异常兜底。
+private const val FIRST_CONTENT_TIMEOUT_MS = 300_000L
 private const val TEXT_ID = "text"
 private const val REASONING_ID = "reasoning"

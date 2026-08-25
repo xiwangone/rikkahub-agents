@@ -411,6 +411,10 @@ class StreamTraceReplayTest {
                         put("title", annotation.title)
                         put("url", annotation.url)
                     })
+
+                    else -> {
+                        // 阶段/通知等富事件注解不导出到 trace 序列化
+                    }
                 }
             }
         }

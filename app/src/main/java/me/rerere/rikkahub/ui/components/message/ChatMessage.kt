@@ -707,6 +707,25 @@ private fun MessagePartsBlock(
                                         )
                                     }
                                 }
+
+                                is UIMessageAnnotation.PhaseIndicator ->
+                                    Text(text = "⏳ ${annotation.label}")
+
+                                is UIMessageAnnotation.Notice ->
+                                    Text(text = annotation.level?.let { "[$it] ${annotation.text}" } ?: annotation.text)
+
+                                is UIMessageAnnotation.CompactionNotice ->
+                                    Text(text = "上下文已压缩" + (annotation.trigger?.let { "（$it）" } ?: ""))
+
+                                is UIMessageAnnotation.ApprovalRequest ->
+                                    Text(text = "待审批：${annotation.tool}")
+
+                                is UIMessageAnnotation.AskRequest ->
+                                    Text(text = "待回答：" + annotation.questions.joinToString("；") { it.prompt })
+
+                                else -> {
+                                    // 其他未知注解类型：忽略
+                                }
                             }
                         }
                     }

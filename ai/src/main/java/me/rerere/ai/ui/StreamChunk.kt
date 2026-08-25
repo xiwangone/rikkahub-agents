@@ -146,4 +146,66 @@ sealed class StreamChunk {
         val responseId: String? = null,
         val model: String? = null,
     ) : StreamChunk()
+
+    /** 一个 turn 开始（多 turn 自动任务的轮次边界）。 */
+    @Serializable
+    @SerialName("turn_started")
+    data class TurnStarted(val metadata: JsonObject? = null) : StreamChunk()
+
+    /** 阶段指示（reasoning/planning/coding…），驱动对话顶栏/附属区阶段标签。 */
+    @Serializable
+    @SerialName("phase")
+    data class Phase(val label: String) : StreamChunk()
+
+    /** 服务端系统级通知/消息（如「开始工作」「任务完成」）。 */
+    @Serializable
+    @SerialName("notice")
+    data class Notice(val text: String, val level: String? = null) : StreamChunk()
+
+    /** 上下文压缩开始/结束。 */
+    @Serializable
+    @SerialName("compaction_started")
+    data class CompactionStarted(val trigger: String? = null) : StreamChunk()
+
+    @Serializable
+    @SerialName("compaction_done")
+    data class CompactionDone(val trigger: String? = null) : StreamChunk()
+
+    /** 长工具的分步进度增量（与 ServerToolInputDelta 区分：这是工具执行中的人类可读进度）。 */
+    @Serializable
+    @SerialName("tool_progress")
+    data class ToolProgress(val id: String, val message: String) : StreamChunk()
+
+    /** 服务端向用户发起的提问（AskCard）。 */
+    @Serializable
+    @SerialName("ask_request")
+    data class AskRequest(
+        val id: String,
+        val questions: List<AskQuestion> = emptyList(),
+    ) : StreamChunk()
+
+    /** 服务端请求工具执行审批。 */
+    @Serializable
+    @SerialName("approval_request")
+    data class ApprovalRequest(
+        val id: String,
+        val tool: String = "",
+        val subject: String? = null,
+    ) : StreamChunk()
 }
+
+/** 提问卡片中的一个问题条目（provider-independent）。 */
+@Serializable
+data class AskQuestion(
+    val id: String = "",
+    val prompt: String = "",
+    val multi: Boolean = false,
+    val options: List<AskOption> = emptyList(),
+)
+
+/** 提问选项。 */
+@Serializable
+data class AskOption(
+    val label: String = "",
+    val description: String? = null,
+)
