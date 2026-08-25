@@ -69,9 +69,10 @@ fun SettingToolApprovalsPage() {
     val settingsStore: SettingsStore = koinInject()
     val granted by prefs.alwaysAllowFlow.collectAsStateWithLifecycle(initialValue = emptySet())
     val yolo by prefs.globalYoloFlow.collectAsStateWithLifecycle(initialValue = false)
-    val mcpServerEnabled by settingsStore.settingsFlow.collectAsStateWithLifecycle(
+    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle(
         initialValue = settingsStore.settingsFlow.value,
     )
+    val mcpServerEnabled = settings.localMcpServerEnabled
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scope = rememberCoroutineScope()
 
@@ -200,6 +201,7 @@ fun SettingToolApprovalsPage() {
             // 127.0.0.1:8788 (Streamable HTTP). Toggling on starts the foreground
             // service immediately; toggling off stops it and persists the switch.
             item {
+                val context = LocalContext.current
                 val onContainer = MaterialTheme.colorScheme.onSurfaceVariant
                 Row(
                     modifier =
@@ -240,7 +242,6 @@ fun SettingToolApprovalsPage() {
                                 scope.launch {
                                     settingsStore.update { it.copy(localMcpServerEnabled = true) }
                                 }
-                                val context = LocalContext.current
                                 context.startForegroundService(
                                     Intent(context, LocalMcpServerService::class.java).apply {
                                         action = LocalMcpServerService.ACTION_START
@@ -250,7 +251,6 @@ fun SettingToolApprovalsPage() {
                                 scope.launch {
                                     settingsStore.update { it.copy(localMcpServerEnabled = false) }
                                 }
-                                val context = LocalContext.current
                                 context.startService(
                                     Intent(context, LocalMcpServerService::class.java).apply {
                                         action = LocalMcpServerService.ACTION_STOP
