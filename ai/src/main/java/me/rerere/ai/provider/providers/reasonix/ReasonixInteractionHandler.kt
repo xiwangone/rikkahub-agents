@@ -1,5 +1,6 @@
 package me.rerere.ai.provider.providers.reasonix
 
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.AskQuestion
 
 /**
