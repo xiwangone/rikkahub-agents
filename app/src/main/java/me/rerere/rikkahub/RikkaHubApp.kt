@@ -32,6 +32,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.ai.tools.HeadlessConversations
 import me.rerere.rikkahub.service.WebServerService
+import me.rerere.rikkahub.service.LocalMcpServerService
 import me.rerere.rikkahub.utils.CrashHandler
 import me.rerere.rikkahub.utils.DatabaseUtil
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
@@ -477,8 +478,10 @@ class RikkaHubApp : Application() {
                 delay(500)
                 val settings = get<SettingsStore>().settingsFlowRaw.first()
                 if (settings.localMcpServerEnabled) {
-                    val manager = get<me.rerere.rikkahub.data.ai.mcp.server.LocalMcpServerManager>()
-                    manager.start()
+                    val intent = Intent(this@RikkaHubApp, LocalMcpServerService::class.java).apply {
+                        action = LocalMcpServerService.ACTION_START
+                    }
+                    startForegroundService(intent)
                 }
             }.onFailure {
                 Log.e(TAG, "startMcpServerIfEnabled failed", it)

@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import android.content.Intent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -32,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -41,6 +43,8 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.preferences.ToolApprovalPreferences
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.service.LocalMcpServerService
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -62,8 +66,12 @@ import org.koin.compose.koinInject
 @Composable
 fun SettingToolApprovalsPage() {
     val prefs: ToolApprovalPreferences = koinInject()
+    val settingsStore: SettingsStore = koinInject()
     val granted by prefs.alwaysAllowFlow.collectAsStateWithLifecycle(initialValue = emptySet())
     val yolo by prefs.globalYoloFlow.collectAsStateWithLifecycle(initialValue = false)
+    val mcpServerEnabled by settingsStore.settingsFlow.collectAsStateWithLifecycle(
+        initialValue = settingsStore.settingsFlow.value,
+    )
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scope = rememberCoroutineScope()
 
@@ -184,6 +192,72 @@ fun SettingToolApprovalsPage() {
                             } else {
                                 SwitchDefaults.colors()
                             },
+                    )
+                }
+            }
+
+            // Local MCP Server toggle: exposes device tools to Reasonix via
+            // 127.0.0.1:8788 (Streamable HTTP). Toggling on starts the foreground
+            // service immediately; toggling off stops it and persists the switch.
+            item {
+                val onContainer = MaterialTheme.colorScheme.onSurfaceVariant
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 8.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(MaterialTheme.colorScheme.surfaceVariant)
+                            .padding(horizontal = 16.dp, vertical = 12.dp),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(
+                        modifier = Modifier.weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(2.dp),
+                    ) {
+                        Text(
+                            text = "本地 MCP Server（供 Reasonix 使用）",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                            color = onContainer,
+                        )
+                        Text(
+                            text =
+                                if (mcpServerEnabled) {
+                                    "运行中：127.0.0.1:8788"
+                                } else {
+                                    "已关闭：Reasonix 无法调用设备工具"
+                                },
+                            style = MaterialTheme.typography.bodySmall,
+                            color = onContainer,
+                        )
+                    }
+                    Switch(
+                        checked = mcpServerEnabled,
+                        onCheckedChange = { wantOn ->
+                            if (wantOn) {
+                                scope.launch {
+                                    settingsStore.update { it.copy(localMcpServerEnabled = true) }
+                                }
+                                val context = LocalContext.current
+                                context.startForegroundService(
+                                    Intent(context, LocalMcpServerService::class.java).apply {
+                                        action = LocalMcpServerService.ACTION_START
+                                    },
+                                )
+                            } else {
+                                scope.launch {
+                                    settingsStore.update { it.copy(localMcpServerEnabled = false) }
+                                }
+                                val context = LocalContext.current
+                                context.startService(
+                                    Intent(context, LocalMcpServerService::class.java).apply {
+                                        action = LocalMcpServerService.ACTION_STOP
+                                    },
+                                )
+                            }
+                        },
                     )
                 }
             }
