@@ -1,4 +1,4 @@
-package me.rerere.ai.provider.providers.reasonix
+package me.rerere.ai.provider.providers.backend
 
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -17,11 +17,11 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 
 /**
- * Reasonix REST API — 对应 serve 端点的 HTTP 客户端。
- * 移植自 DeepSeek-Reasonix-android `ReasonixApi.kt`（Gson → kotlinx.serialization），
+ * Backend REST API — 对应 serve 端点的 HTTP 客户端。
+ * 移植自 DeepSeek-Backend-android `BackendApi.kt`（Gson → kotlinx.serialization），
  * 增加 Basic Auth / Bearer 认证支持（nginx Basic Auth 前置）。
  */
-class ReasonixApi(
+class BackendApi(
     private val baseUrl: String,
     private val username: String = "",
     private val password: String = "",
@@ -81,10 +81,10 @@ class ReasonixApi(
     }
 
     // ── 运行时模型列表 ──
-    suspend fun getModels(): List<ReasonixModelInfo> = withContext(Dispatchers.IO) {
+    suspend fun getModels(): List<BackendModelInfo> = withContext(Dispatchers.IO) {
         val body = get("/models") ?: return@withContext emptyList()
         runCatching {
-            json.decodeFromString<ReasonixModelsResponse>(body).models
+            json.decodeFromString<BackendModelsResponse>(body).models
         }.getOrElse { emptyList() }
     }
 

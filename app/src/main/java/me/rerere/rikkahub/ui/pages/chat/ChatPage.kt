@@ -60,6 +60,7 @@ import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.android.appTempFolder
 import me.rerere.hugeicons.HugeIcons
@@ -1073,15 +1074,19 @@ private fun TopBar(
             }
         },
         actions = {
-            // 执行后端（P4）：local/reasonix/ecs——AI 执行通道
+            // 执行后端（AI 执行通道）：本机 local / 后端服务 provider
             androidx.compose.material3.TextButton(onClick = { backendMenuOpen = true }) {
-                Text("⚙ ${settings.executionBackend}")
+                Text("⚙ ${if (settings.executionBackend.isBlank() || settings.executionBackend == "local") "本机" else settings.providers.firstOrNull { it.id.toString() == settings.executionBackend }?.name?.ifBlank { "后端服务" } ?: settings.executionBackend}")
             }
             androidx.compose.material3.DropdownMenu(expanded = backendMenuOpen, onDismissRequest = { backendMenuOpen = false }) {
-                listOf("local", "reasonix", "ecs").forEach { b ->
+                androidx.compose.material3.DropdownMenuItem(
+                    text = { Text("本机") },
+                    onClick = { onBackendChange("local"); backendMenuOpen = false },
+                )
+                settings.providers.filter { it is ProviderSetting.Backend }.forEach { p ->
                     androidx.compose.material3.DropdownMenuItem(
-                        text = { Text(b) },
-                        onClick = { onBackendChange(b); backendMenuOpen = false },
+                        text = { Text(p.name.ifBlank { "后端服务" }) },
+                        onClick = { onBackendChange(p.id.toString()); backendMenuOpen = false },
                     )
                 }
             }

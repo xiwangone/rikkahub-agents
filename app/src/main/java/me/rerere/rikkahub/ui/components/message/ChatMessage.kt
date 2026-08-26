@@ -743,7 +743,7 @@ private fun MessagePartsBlock(
 }
 
 /**
- * 服务端工具的折叠 step —— Reasonix 直连产生的 [UIMessagePart.ServerTool] 以链式
+ * 服务端工具的折叠 step —— Backend 直连产生的 [UIMessagePart.ServerTool] 以链式
  * 思考块呈现：默认折叠，点击展开查看输入/输出。与思考卡片统一收纳在
  * Chain-of-Thought 折叠区内，避免与正文平铺混杂。
  */

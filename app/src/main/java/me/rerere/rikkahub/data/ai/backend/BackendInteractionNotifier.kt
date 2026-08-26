@@ -1,4 +1,4 @@
-package me.rerere.rikkahub.data.ai.reasonix
+package me.rerere.rikkahub.data.ai.backend
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
@@ -20,39 +20,39 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.provider.ProviderSetting
-import me.rerere.ai.provider.providers.reasonix.ReasonixApi
-import me.rerere.ai.provider.providers.reasonix.ReasonixInteractionHandler
+import me.rerere.ai.provider.providers.backend.BackendApi
+import me.rerere.ai.provider.providers.backend.BackendInteractionHandler
 import me.rerere.ai.ui.AskQuestion
 import me.rerere.rikkahub.R
 
 /**
- * Reasonix 富事件的交互桥：把 serve 的 approval_request / ask_request 转成系统通知，
- * 用户在通知栏批准/拒绝（或文本回答）后，通过 [ReasonixApi.approve] / [ReasonixApi.answer]
- * 把决策回传 serve，使 Ask/Approval 在 Reasonix 直连路径上形成完整闭环。
+ * Backend 富事件的交互桥：把 serve 的 approval_request / ask_request 转成系统通知，
+ * 用户在通知栏批准/拒绝（或文本回答）后，通过 [BackendApi.approve] / [BackendApi.answer]
+ * 把决策回传 serve，使 Ask/Approval 在 Backend 直连路径上形成完整闭环。
  *
  * 与对话卡片中的展示态渲染（UIMessageAnnotation）互补：卡片负责展示，本桥负责交互。
  * 应答状态存在进程内存（进程被杀则交互失效），与 MCP 审批桥同一模式。
  */
-class ReasonixInteractionNotifier(private val context: Context) : ReasonixInteractionHandler {
+class BackendInteractionNotifier(private val context: Context) : BackendInteractionHandler {
 
     private companion object {
-        const val TAG = "ReasonixInteraction"
-        const val CHANNEL_ID = "reasonix_interactions"
-        const val CHANNEL_NAME = "Reasonix 提问与审批"
-        const val ACTION_APPROVE = "me.rerere.rikkahub.action.REASONIX_APPROVE"
-        const val ACTION_DENY = "me.rerere.rikkahub.action.REASONIX_DENY"
+        const val TAG = "BackendInteraction"
+        const val CHANNEL_ID = "backend_interactions"
+        const val CHANNEL_NAME = "Backend 提问与审批"
+        const val ACTION_APPROVE = "me.rerere.rikkahub.action.BACKEND_APPROVE"
+        const val ACTION_DENY = "me.rerere.rikkahub.action.BACKEND_DENY"
         const val EXTRA_REQUEST_ID = "request_id"
         const val EXTRA_APPROVED = "approved"
         const val KEY_REPLY = "reply_text"
     }
 
     private data class PendingApproval(
-        val setting: ProviderSetting.Reasonix,
+        val setting: ProviderSetting.Backend,
         val tool: String,
     )
 
     private data class PendingAsk(
-        val setting: ProviderSetting.Reasonix,
+        val setting: ProviderSetting.Backend,
         val questions: List<AskQuestion>,
     )
 
@@ -107,7 +107,7 @@ class ReasonixInteractionNotifier(private val context: Context) : ReasonixIntera
     }
 
     override fun onApprovalRequest(
-        setting: ProviderSetting.Reasonix,
+        setting: ProviderSetting.Backend,
         id: String,
         tool: String,
         subject: String?,
@@ -141,11 +141,11 @@ class ReasonixInteractionNotifier(private val context: Context) : ReasonixIntera
                 denyIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
-        val body = subject?.takeIf { it.isNotBlank() } ?: "Reasonix 请求执行工具 $tool"
+        val body = subject?.takeIf { it.isNotBlank() } ?: "Backend 请求执行工具 $tool"
         val notification =
             NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.small_icon)
-                .setContentTitle("Reasonix 工具待批准：$tool")
+                .setContentTitle("Backend 工具待批准：$tool")
                 .setContentText(body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -158,7 +158,7 @@ class ReasonixInteractionNotifier(private val context: Context) : ReasonixIntera
     }
 
     override fun onAskRequest(
-        setting: ProviderSetting.Reasonix,
+        setting: ProviderSetting.Backend,
         id: String,
         questions: List<AskQuestion>,
     ) {
@@ -175,7 +175,7 @@ class ReasonixInteractionNotifier(private val context: Context) : ReasonixIntera
             }
         val replyIntent =
             Intent().apply {
-                action = "me.rerere.rikkahub.action.REASONIX_ASK_REPLY"
+                action = "me.rerere.rikkahub.action.BACKEND_ASK_REPLY"
                 setPackage(context.packageName)
                 putExtra(EXTRA_REQUEST_ID, id)
             }
@@ -190,7 +190,7 @@ class ReasonixInteractionNotifier(private val context: Context) : ReasonixIntera
         val notification =
             NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.small_icon)
-                .setContentTitle("Reasonix 提问")
+                .setContentTitle("Backend 提问")
                 .setContentText(questions.firstOrNull()?.prompt ?: "请回答")
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
@@ -206,8 +206,8 @@ class ReasonixInteractionNotifier(private val context: Context) : ReasonixIntera
         notify(id, notification)
     }
 
-    private fun api(setting: ProviderSetting.Reasonix) =
-        ReasonixApi(
+    private fun api(setting: ProviderSetting.Backend) =
+        BackendApi(
             baseUrl = setting.baseUrl,
             username = setting.username,
             password = setting.password,
@@ -222,7 +222,7 @@ class ReasonixInteractionNotifier(private val context: Context) : ReasonixIntera
                 IntentFilter().apply {
                     addAction(ACTION_APPROVE)
                     addAction(ACTION_DENY)
-                    addAction("me.rerere.rikkahub.action.REASONIX_ASK_REPLY")
+                    addAction("me.rerere.rikkahub.action.BACKEND_ASK_REPLY")
                 }
             ContextCompat.registerReceiver(
                 context,

@@ -380,7 +380,7 @@
       android:foregroundServiceType="specialUse">
       <property
         android:name="android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE"
-        android:value="local MCP server exposing device tools to Reasonix" />
+        android:value="local MCP server exposing device tools to Backend" />
     </service>
 
     <provider

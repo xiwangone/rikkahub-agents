@@ -1,4 +1,4 @@
-package me.rerere.ai.provider.providers.reasonix
+package me.rerere.ai.provider.providers.backend
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -36,9 +36,9 @@ import java.util.UUID
 import kotlin.uuid.Uuid
 
 /**
- * Reasonix Provider — RikkaHub 直连 Reasonix serve（阶段5融合）。
+ * Backend Provider — RikkaHub 直连 Backend serve（阶段5融合）。
  *
- * 架构：RikkaHub 作为 Reasonix 的「远程 UI」——会话由服务端管理（历史/压缩/checkpoint
+ * 架构：RikkaHub 作为 Backend 的「远程 UI」——会话由服务端管理（历史/压缩/checkpoint
  * 全部继承），每次对话开始 POST /new，streamText 只发增量（最后一条用户消息）→ POST /submit，
  * 然后监听 GET /events SSE 事件流并映射为 [StreamChunk]。
  *
@@ -49,19 +49,19 @@ import kotlin.uuid.Uuid
  * - usage       → Usage
  * - turn_done   → Finish（该 turn 响应结束；多 turn 自动任务继续流，下一 turn 重新开始事件）
  */
-class ReasonixProvider(
-    private val clientFactory: (ProviderSetting.Reasonix) -> ReasonixApi,
+class BackendProvider(
+    private val clientFactory: (ProviderSetting.Backend) -> BackendApi,
     private val httpClient: OkHttpClient = OkHttpClient(),
     private val cliExecutor: CliCommandExecutor? = null,
-    private val interactionHandler: ReasonixInteractionHandler = ReasonixInteractionHandler.NOOP,
-) : Provider<ProviderSetting.Reasonix> {
+    private val interactionHandler: BackendInteractionHandler = BackendInteractionHandler.NOOP,
+) : Provider<ProviderSetting.Backend> {
 
     constructor(
         cliExecutor: CliCommandExecutor? = null,
-        interactionHandler: ReasonixInteractionHandler = ReasonixInteractionHandler.NOOP,
+        interactionHandler: BackendInteractionHandler = BackendInteractionHandler.NOOP,
     ) : this(
         clientFactory = { setting ->
-            ReasonixApi(
+            BackendApi(
                 baseUrl = setting.baseUrl,
                 username = setting.username,
                 password = setting.password,
@@ -75,12 +75,12 @@ class ReasonixProvider(
     // custom 类型复用 OpenAI 兼容协议（baseUrl + token 作为 apiKey）
     private val chatCompletionsAPI = ChatCompletionsAPI(client = httpClient, keyRoulette = KeyRoulette.default())
 
-    private fun api(setting: ProviderSetting.Reasonix): ReasonixApi = clientFactory(setting)
+    private fun api(setting: ProviderSetting.Backend): BackendApi = clientFactory(setting)
 
-    override suspend fun listModels(providerSetting: ProviderSetting.Reasonix): List<Model> {
+    override suspend fun listModels(providerSetting: ProviderSetting.Backend): List<Model> {
         val models = api(providerSetting).getModels()
         if (models.isEmpty()) {
-            // 无法拉取时给一个默认占位（Reasonix 默认模型）
+            // 无法拉取时给一个默认占位（Backend 默认模型）
             return listOf(defaultModel())
         }
         return models.mapIndexed { index, info ->
@@ -96,7 +96,7 @@ class ReasonixProvider(
     }
 
     override suspend fun generateText(
-        providerSetting: ProviderSetting.Reasonix,
+        providerSetting: ProviderSetting.Backend,
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): TextGenerationResult {
@@ -176,15 +176,15 @@ class ReasonixProvider(
         providerSetting: ProviderSetting,
         params: ImageGenerationParams,
     ): Flow<ImageGenerationItem> {
-        error("Image generation is not supported by Reasonix")
+        error("Image generation is not supported by Backend")
     }
 
     override suspend fun streamText(
-        providerSetting: ProviderSetting.Reasonix,
+        providerSetting: ProviderSetting.Backend,
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): Flow<StreamChunk> = flow {
-        // 协议分发（方案 B）：reasonix 走专有 SSE；custom 走 OpenAI 兼容；cli 后续实现
+        // 协议分发（方案 B）：backend 走专有 SSE；custom 走 OpenAI 兼容；cli 后续实现
         when (providerSetting.backendType) {
             "custom" -> {
                 // 自定义 HTTP 后端：复用 OpenAI 兼容协议（baseUrl + token 作为 apiKey）
@@ -251,7 +251,7 @@ class ReasonixProvider(
         // 先建立 SSE 连接再 POST /new + /submit:连接就绪后提交,
         // 避免服务端早期事件(turn_started/usage 等)在订阅前发出而丢失。
         val sse =
-            ReasonixSseClient(
+            BackendSseClient(
                 baseUrl = providerSetting.baseUrl,
                 username = providerSetting.username,
                 password = providerSetting.password,
@@ -270,7 +270,7 @@ class ReasonixProvider(
         var textStarted = false
         var reasoningStarted = false
 
-        // reasonix serve 的 /events 是长连接（keep-alive），不会自然关流。
+        // backend serve 的 /events 是长连接（keep-alive），不会自然关流。
         // 多 turn 自动任务（工具调用循环）会在同一热流里连续发：
         //   turn_started → tool → tool_result → ... → turn_done → turn_started → ...
         // 收尾策略：内容事件刷新 idle；turn_done 后超过 TURN_DONE_IDLE_TIMEOUT_MS

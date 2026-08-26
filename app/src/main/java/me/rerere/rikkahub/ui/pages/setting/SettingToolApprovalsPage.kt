@@ -197,7 +197,7 @@ fun SettingToolApprovalsPage() {
                 }
             }
 
-            // Local MCP Server toggle: exposes device tools to Reasonix via
+            // Local MCP Server toggle: exposes device tools to Backend via
             // 127.0.0.1:8788 (Streamable HTTP). Toggling on starts the foreground
             // service immediately; toggling off stops it and persists the switch.
             item {
@@ -219,7 +219,7 @@ fun SettingToolApprovalsPage() {
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
-                            text = "本地 MCP Server（供 Reasonix 使用）",
+                            text = "本地 MCP Server（供 Backend 使用）",
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = onContainer,
@@ -229,7 +229,7 @@ fun SettingToolApprovalsPage() {
                                 if (mcpServerEnabled) {
                                     "运行中：127.0.0.1:8788"
                                 } else {
-                                    "已关闭：Reasonix 无法调用设备工具"
+                                    "已关闭：Backend 无法调用设备工具"
                                 },
                             style = MaterialTheme.typography.bodySmall,
                             color = onContainer,

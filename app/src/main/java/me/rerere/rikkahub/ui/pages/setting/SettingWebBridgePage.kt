@@ -34,7 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import kotlinx.coroutines.launch
-import me.rerere.rikkahub.data.ai.ReasonixWebBridge
+import me.rerere.rikkahub.data.ai.BackendWebBridge
 import me.rerere.rikkahub.data.vault.SshKeyGenerator
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import org.koin.compose.koinInject
@@ -64,7 +64,7 @@ import org.koin.compose.koinInject
  * Web 桥三级页（反向隧道到 ECS）。
  *
  * 全局配置：ECS 主机/用户名/SSH 端口/远程隧道端口。
- * 供 Reasonix 等 provider 选择「使用全局 Web 桥配置」复用（后续接入其他后端）。
+ * 供 Backend 等 provider 选择「使用全局 Web 桥配置」复用（后续接入其他后端）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -96,11 +96,11 @@ fun SettingWebBridgePage() {
         mutableStateOf(settings.webBridgePassword)
     }
 
-    /** 全局开关开启：把全局配置同步到所有 Reasonix provider 并启用（改一次即可）。 */
-    fun syncToReasonixProviders(settings: Settings, enabled: Boolean): Settings {
+    /** 全局开关开启：把全局配置同步到所有 Backend provider 并启用（改一次即可）。 */
+    fun syncToBackendProviders(settings: Settings, enabled: Boolean): Settings {
         val newProviders =
             settings.providers.map { p ->
-                if (p is ProviderSetting.Reasonix) {
+                if (p is ProviderSetting.Backend) {
                     p.copy(
                         webBridgeEnabled = enabled,
                         webBridgeEcsHost = settings.webBridgeEcsHost,
@@ -135,7 +135,7 @@ fun SettingWebBridgePage() {
             contentPadding = innerPadding + PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // 总开关：开启时同步全局配置到 Reasonix provider 并启用
+            // 总开关：开启时同步全局配置到 Backend provider 并启用
             item {
                 CardGroup(
                     modifier =
@@ -149,10 +149,10 @@ fun SettingWebBridgePage() {
                         supportingContent = { Text(stringResource(R.string.setting_web_bridge_switch_desc_detail)) },
                         trailingContent = {
                             Switch(
-                                checked = settings.providers.any { it is ProviderSetting.Reasonix && it.webBridgeEnabled },
+                                checked = settings.providers.any { it is ProviderSetting.Backend && it.webBridgeEnabled },
                                 onCheckedChange = { enabled ->
                                     scope.launch {
-                                        settingsStore.update { s -> syncToReasonixProviders(s, enabled) }
+                                        settingsStore.update { s -> syncToBackendProviders(s, enabled) }
                                     }
                                 },
                             )
@@ -368,7 +368,7 @@ fun SettingWebBridgePage() {
 
             // 连接状态与操作（全局唯一控制点；provider 页只留引用开关）
             item {
-                val webBridge: ReasonixWebBridge = koinInject()
+                val webBridge: BackendWebBridge = koinInject()
                 val bridgeState by webBridge.state.collectAsState()
                 CardGroup(
                     modifier =

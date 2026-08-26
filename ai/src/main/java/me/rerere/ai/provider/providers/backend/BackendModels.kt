@@ -1,11 +1,11 @@
-package me.rerere.ai.provider.providers.reasonix
+package me.rerere.ai.provider.providers.backend
 
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Reasonix serve HTTP/SSE 数据模型。
- * 移植自 DeepSeek-Reasonix-android `Models.kt`（Gson → kotlinx.serialization）。
+ * Backend serve HTTP/SSE 数据模型。
+ * 移植自 DeepSeek-Backend-android `Models.kt`（Gson → kotlinx.serialization）。
  * 对应服务端 `internal/eventwire` 的 JSON 契约。
  */
 
@@ -200,15 +200,15 @@ data class CheckpointInfo(
 // ── /models 端点（运行时模型切换） ──
 
 @Serializable
-data class ReasonixModelsResponse(
+data class BackendModelsResponse(
     val current: String = "",
     val default: String = "",
     val label: String = "",
-    val models: List<ReasonixModelInfo> = emptyList(),
+    val models: List<BackendModelInfo> = emptyList(),
 )
 
 @Serializable
-data class ReasonixModelInfo(
+data class BackendModelInfo(
     val ref: String = "",
     val provider: String = "",
     val model: String = "",

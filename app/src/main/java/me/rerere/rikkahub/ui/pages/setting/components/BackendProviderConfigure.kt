@@ -34,15 +34,15 @@ import me.rerere.rikkahub.R
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
- * Reasonix Provider 配置页。
- * - baseUrl：Reasonix serve 入口（nginx Basic Auth 或直连 token）
- * - username/password：nginx Basic Auth（与 reasonix-android 客户端一致）
- * - token：Reasonix serve token 模式（留空则走 Basic Auth）
+ * Backend Provider 配置页。
+ * - baseUrl：Backend serve 入口（nginx Basic Auth 或直连 token）
+ * - username/password：nginx Basic Auth（与 backend-android 客户端一致）
+ * - token：Backend serve token 模式（留空则走 Basic Auth）
  */
 @Composable
-fun ReasonixProviderConfigure(
-    provider: ProviderSetting.Reasonix,
-    onEdit: (ProviderSetting.Reasonix) -> Unit,
+fun BackendProviderConfigure(
+    provider: ProviderSetting.Backend,
+    onEdit: (ProviderSetting.Backend) -> Unit,
 ) {
     provider.description()
 
@@ -53,7 +53,7 @@ fun ReasonixProviderConfigure(
         modifier = Modifier.fillMaxWidth(),
     )
 
-    // 后端类型选择（reasonix / openclaw / custom / cli）
+    // 后端类型选择（backend / openclaw / custom / cli）
     Text(
         text = stringResource(R.string.backend_type),
         style = MaterialTheme.typography.titleSmall,
@@ -64,7 +64,7 @@ fun ReasonixProviderConfigure(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         listOf(
-            "reasonix" to "Reasonix",
+            "backend" to "Backend",
             "custom" to stringResource(R.string.backend_type_custom),
             "cli" to "CLI",
         ).forEach { (type, label) ->
@@ -76,14 +76,14 @@ fun ReasonixProviderConfigure(
         }
     }
 
-    // baseUrl：reasonix/custom 显示；cli 类型改用命令
+    // baseUrl：backend/custom 显示；cli 类型改用命令
     if (provider.backendType != "cli") {
         OutlinedTextField(
             value = provider.baseUrl,
             onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
             label = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.reasonix_base_url_example)) },
+            placeholder = { Text(stringResource(R.string.backend_base_url_example)) },
             isError = provider.baseUrl.isNotBlank() && provider.baseUrl.toHttpUrlOrNull() == null,
         )
     }
@@ -106,11 +106,11 @@ fun ReasonixProviderConfigure(
         )
     }
 
-    // reasonix 专用：连接方式 + Basic Auth（其他后端类型不显示）
-    if (provider.backendType == "reasonix") {
+    // backend 专用：连接方式 + Basic Auth（其他后端类型不显示）
+    if (provider.backendType == "backend") {
         // 连接方式选择
         Text(
-            text = stringResource(R.string.reasonix_connection_mode),
+            text = stringResource(R.string.backend_connection_mode),
             style = MaterialTheme.typography.titleSmall,
             color = MaterialTheme.colorScheme.primary,
         )
@@ -118,7 +118,7 @@ fun ReasonixProviderConfigure(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            listOf("serve" to stringResource(R.string.reasonix_mode_serve), "ssh" to stringResource(R.string.reasonix_mode_ssh)).forEach { (mode, label) ->
+            listOf("serve" to stringResource(R.string.backend_mode_serve), "ssh" to stringResource(R.string.backend_mode_ssh)).forEach { (mode, label) ->
                 androidx.compose.material3.FilterChip(
                     selected = provider.connectionMode == mode,
                     onClick = { onEdit(provider.copy(connectionMode = mode)) },
@@ -129,9 +129,9 @@ fun ReasonixProviderConfigure(
         Text(
             text =
                 if (provider.connectionMode == "serve") {
-                    stringResource(R.string.reasonix_mode_serve_desc)
+                    stringResource(R.string.backend_mode_serve_desc)
                 } else {
-                    stringResource(R.string.reasonix_mode_ssh_desc)
+                    stringResource(R.string.backend_mode_ssh_desc)
                 },
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -140,7 +140,7 @@ fun ReasonixProviderConfigure(
         OutlinedTextField(
             value = provider.username,
             onValueChange = { onEdit(provider.copy(username = it.trim())) },
-            label = { Text(stringResource(R.string.reasonix_username_basic)) },
+            label = { Text(stringResource(R.string.backend_username_basic)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
         )
@@ -149,7 +149,7 @@ fun ReasonixProviderConfigure(
         OutlinedTextField(
             value = provider.password,
             onValueChange = { onEdit(provider.copy(password = it)) },
-            label = { Text(stringResource(R.string.reasonix_password_basic)) },
+            label = { Text(stringResource(R.string.backend_password_basic)) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
             visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -168,7 +168,7 @@ fun ReasonixProviderConfigure(
     OutlinedTextField(
         value = provider.token,
         onValueChange = { onEdit(provider.copy(token = it.trim())) },
-        label = { Text(stringResource(R.string.reasonix_token_serve)) },
+        label = { Text(stringResource(R.string.backend_token_serve)) },
         modifier = Modifier.fillMaxWidth(),
         maxLines = 3,
         visualTransformation = if (tokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
@@ -183,8 +183,8 @@ fun ReasonixProviderConfigure(
     )
 
     // ── Web 桥（反向隧道）──
-    // reasonix 专用：Web 桥（其他后端类型不显示）
-    if (provider.backendType == "reasonix") {
+    // backend 专用：Web 桥（其他后端类型不显示）
+    if (provider.backendType == "backend") {
         HorizontalDivider()
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -192,7 +192,7 @@ fun ReasonixProviderConfigure(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(R.string.reasonix_web_bridge_section),
+                text = stringResource(R.string.backend_web_bridge_section),
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.primary,
             )
@@ -202,7 +202,7 @@ fun ReasonixProviderConfigure(
             )
         }
         Text(
-            text = stringResource(R.string.reasonix_web_bridge_desc),
+            text = stringResource(R.string.backend_web_bridge_desc),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -225,10 +225,10 @@ fun ReasonixProviderConfigure(
         )
     }
 
-    // reasonix 专用：服务端会话说明
-    if (provider.backendType == "reasonix") {
+    // backend 专用：服务端会话说明
+    if (provider.backendType == "backend") {
         Text(
-            text = stringResource(R.string.reasonix_session_server_managed),
+            text = stringResource(R.string.backend_session_server_managed),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )

@@ -40,3 +40,9 @@ app/google-services.json
 /app/src/release/generated/
 # Synaptic 图谱产物(本机生成,不入库)
 /synaptic-out/
+
+# agent-tools 子项目构建产物(嵌套路径,/build 不匹配,需单独忽略)
+agent-tools/build/
+# 备份文件不入库(*.bak 及 *.bak-日期 命名)
+*.bak
+*.bak-*

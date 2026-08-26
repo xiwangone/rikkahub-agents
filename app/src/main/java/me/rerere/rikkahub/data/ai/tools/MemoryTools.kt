@@ -34,7 +34,7 @@ fun buildMemoryTools(
             - Outdated/irrelevant record: `delete` + `id`
             Memories will automatically appear in the <memories> tag in later conversations.
             **tier 分层（2026-08-13）**: core（默认）= 常驻注入（纪律/决策/指针，每轮都在）；conditional = 按需检索（场景细节，默认不注入，任务涉及相关场景时先调 memory_search 检索再使用）。
-            **注意**: 需要环境/场景细节（PC/ECS/凭证/MCP/Reasonix 等）时，先调用 memory_search 检索相关记忆——不要假设记忆里没有。
+            **注意**: 需要环境/场景细节（PC/ECS/凭证/MCP/Backend 等）时，先调用 memory_search 检索相关记忆——不要假设记忆里没有。
             Do not store sensitive information (e.g., ethnicity, religion, sexual orientation, political views, sex life, criminal records).
             You may store: preferred name, preferences, plans, work-related notes, chat style preferences, first chat time, etc.
             Do not show memory content directly in the conversation unless the user explicitly asks.
@@ -119,7 +119,7 @@ fun buildMemoryTools(
         description = """
             Search conditional memories (tier=conditional, not injected by default) by keyword.
             Use this when a task involves a specific environment / scenario (PC / ECS / credentials /
-            MCP / Reasonix / deployment details / past decisions) and you need the related memory —
+            MCP / Backend / deployment details / past decisions) and you need the related memory —
             it is NOT in the always-injected <memories> tag. Returns matching memory entries (id, tier, content).
             Also usable to look up any memory across conversations.
         """.trimIndent(),
@@ -128,7 +128,7 @@ fun buildMemoryTools(
                 properties = buildJsonObject {
                     put("keyword", buildJsonObject {
                         put("type", "string")
-                        put("description", "Keyword to search memory content (e.g. 'PC', 'ECS', '凭证', 'Reasonix')")
+                        put("description", "Keyword to search memory content (e.g. 'PC', 'ECS', '凭证', 'Backend')")
                     })
                 },
                 required = listOf("keyword")

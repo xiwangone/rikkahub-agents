@@ -18,7 +18,7 @@ object CredentialImporter {
         "MCP" to "MCP",
         "消息通知" to "Notification",
         "通知" to "Notification",
-        "Reasonix" to "Reasonix",
+        "Backend" to "Backend",
         "网络" to "Network",
         "SSH" to "SSH",
     )

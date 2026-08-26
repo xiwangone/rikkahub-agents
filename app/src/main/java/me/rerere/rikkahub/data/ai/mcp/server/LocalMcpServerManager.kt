@@ -5,6 +5,7 @@ import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -19,7 +20,7 @@ data class LocalMcpServerState(
 /**
  * 本地 MCP Server 生命周期管理（Koin single）。
  *
- * 启动时把 [LocalTools] 的设备工具注册为 MCP 工具，绑定 127.0.0.1 供 Reasonix serve
+ * 启动时把 [LocalTools] 的设备工具注册为 MCP 工具，绑定 127.0.0.1 供 Backend serve
  * 经 `[[plugins]] type="http"` 挂载。开关见 [SettingsStore.localMcpServerEnabled]。
  */
 class LocalMcpServerManager(
@@ -33,7 +34,7 @@ class LocalMcpServerManager(
         const val DEFAULT_PORT = 8788
 
         /**
-         * 暴露给 Reasonix 的设备工具子集：覆盖设备操作、文件、媒体、通信与自动化基础。
+         * 暴露给 Backend 的设备工具子集：覆盖设备操作、文件、媒体、通信与自动化基础。
          *
          * 有意排除需要交互界面/会话归属/高风险的组（ask_user、javascript_engine、
          * telegram_bot、cron_jobs、workflows、sub_agents、vault_tools、mcp_control、
@@ -95,12 +96,12 @@ class LocalMcpServerManager(
     @Volatile
     private var server: LocalMcpServer? = null
 
-    fun start(port: Int = DEFAULT_PORT) {
+    fun start(port: Int = DEFAULT_PORT, tools: List<LocalToolOption> = MCP_EXPOSED_TOOLS) {
         if (server != null) {
             Log.w(TAG, "MCP server already running")
             return
         }
-        registry.sync(MCP_EXPOSED_TOOLS)
+        registry.sync(tools)
         val toolCount = registry.size()
         val candidate = LocalMcpServer(port, registry, approvalBridge)
         runCatching {
@@ -113,6 +114,10 @@ class LocalMcpServerManager(
         server = candidate
         _state.value = LocalMcpServerState(isRunning = true, toolCount = toolCount, port = port, error = null)
         Log.i(TAG, "MCP server started on 127.0.0.1:$port with $toolCount tools")
+    }
+
+    fun start(profile: LocalMcpProfile) {
+        start(profile.port, profile.allowedTools)
     }
 
     fun stop() {

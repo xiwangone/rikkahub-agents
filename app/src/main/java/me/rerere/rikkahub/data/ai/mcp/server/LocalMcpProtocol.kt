@@ -7,7 +7,7 @@ import kotlinx.serialization.json.JsonElement
 /**
  * 本地 MCP Server 的 JSON-RPC 2.0 报文模型与 MCP 错误码。
  *
- * 供 Reasonix serve 的 `[[plugins]]`（type = "http", Streamable HTTP）作为一个标准
+ * 供 Backend serve 的 `[[plugins]]`（type = "http", Streamable HTTP）作为一个标准
  * MCP 工具源挂载。报文格式对齐 MCP 2024-11-05 基础协议：单 POST 端点承载
  * `initialize` / `notifications/initialized` / `tools/list` / `tools/call` / `ping`。
  */

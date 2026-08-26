@@ -17,18 +17,18 @@ import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.service.WebServerService
 
 /**
- * Reasonix Web 桥 — 把 RikkaHub 手机端 Web 服务反向隧道到 ECS，供 reasonix serve/run 访问。
+ * Backend Web 桥 — 把 RikkaHub 手机端 Web 服务反向隧道到 ECS，供 backend serve/run 访问。
  *
  * 原理：手机主动出站 SSH 到 ECS（阿里云公网可达），建立反向隧道
  *   `ssh -R <remotePort>:localhost:<localPort> root@<ECS>`，
- *   ECS 上 reasonix 即可通过 `http://127.0.0.1:<remotePort>` 访问手机 Web API。
+ *   ECS 上 backend 即可通过 `http://127.0.0.1:<remotePort>` 访问手机 Web API。
  *
  * 生命周期：
  * - [start]：启动 Web 服务 + 建立反向隧道（前台服务持有，防止被杀）
  * - [stop]：断开隧道 + 停止 Web 服务
  * - 状态通过 [state] 暴露（用于配置页展示）
  */
-class ReasonixWebBridge(
+class BackendWebBridge(
     private val context: Context,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
@@ -138,7 +138,7 @@ class ReasonixWebBridge(
 
             // 反向隧道：ECS 的 remoteTunnelPort → 手机的 localhost:localWebPort
             // 4 参数重载：setPortForwardingR(bind_address, bind_port, host, port)
-            // bind_address 留空 = 监听 ECS 所有接口（reasonix 在本机访问 127.0.0.1 也可）
+            // bind_address 留空 = 监听 ECS 所有接口（backend 在本机访问 127.0.0.1 也可）
             sshSession = session
             session.setPortForwardingR("", remoteTunnelPort, "127.0.0.1", localWebPort)
             AppLog.i(TAG, "SSH reverse tunnel established: ECS:$remoteTunnelPort -> local:$localWebPort")
@@ -176,6 +176,6 @@ class ReasonixWebBridge(
     }
 
     companion object {
-        private const val TAG = "ReasonixWebBridge"
+        private const val TAG = "BackendWebBridge"
     }
 }

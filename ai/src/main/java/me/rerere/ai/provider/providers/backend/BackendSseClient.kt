@@ -1,4 +1,4 @@
-package me.rerere.ai.provider.providers.reasonix
+package me.rerere.ai.provider.providers.backend
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -25,13 +25,13 @@ enum class ConnectionState {
 }
 
 /**
- * Reasonix SSE 客户端 — 连接 /events 端点，实时接收服务端推送的消息流。
+ * Backend SSE 客户端 — 连接 /events 端点，实时接收服务端推送的消息流。
  *
  * 来源（2026-08-13 合规标注修正）：
- * - 基础 SSE/EventSource 模式：通用实现（早期参考 DeepSeek-Reasonix-android——该仓库无 LICENSE，
+ * - 基础 SSE/EventSource 模式：通用实现（早期参考 DeepSeek-Backend-android——该仓库无 LICENSE，
  *   已在本轮重写中剥离其独有逻辑）
  * - 热流 + turn_done 多轮收尾：自研（4ec3fb79）
- * - 断线重连/连接状态（健壮化）：吸收 Reasonix Agents（MIT）思路自行重写（c5a143fc）
+ * - 断线重连/连接状态（健壮化）：吸收 Backend Agents（MIT）思路自行重写（c5a143fc）
  *
  * 健壮性：热流单连接多消费者；网络错误指数退避重连（1s→2s→4s…封顶 30s）；HTTP 错误不重连；
  * 连接状态经 [connectionState] 暴露（可驱动顶栏状态点）。
@@ -40,7 +40,7 @@ enum class ConnectionState {
  * 对比本地已渲染的 text/reasoning 累计做差值补发（差值事件写回同一热流）——
  * 弥合断流窗口丢掉的尾部内容；无 loader 或无可补内容时安静跳过。
  */
-class ReasonixSseClient(
+class BackendSseClient(
     private val baseUrl: String,
     private val username: String = "",
     private val password: String = "",

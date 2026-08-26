@@ -937,7 +937,7 @@ class DoctorChecks(
                             is me.rerere.ai.provider.ProviderSetting.Grok -> p.enabled // OAuth, no API key
 
                             // Basic Auth / Bearer token, no API key
-                            is me.rerere.ai.provider.ProviderSetting.Reasonix -> p.enabled
+                            is me.rerere.ai.provider.ProviderSetting.Backend -> p.enabled
 
                             is me.rerere.ai.provider.ProviderSetting.GeminiOAuth -> p.enabled
 

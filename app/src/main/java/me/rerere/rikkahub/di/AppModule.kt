@@ -273,7 +273,7 @@ val appModule =
         }
 
         single {
-            me.rerere.rikkahub.data.ai.reasonix.ReasonixInteractionNotifier(
+            me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier(
                 context = get(),
             )
         }
@@ -352,7 +352,7 @@ val appModule =
         }
 
         single {
-            me.rerere.rikkahub.data.ai.ReasonixWebBridge(
+            me.rerere.rikkahub.data.ai.BackendWebBridge(
                 context = get(),
             )
         }

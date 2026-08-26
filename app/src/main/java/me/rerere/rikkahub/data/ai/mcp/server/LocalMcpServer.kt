@@ -26,7 +26,7 @@ import me.rerere.ai.core.Tool
 /**
  * 本地 MCP Server（Streamable HTTP，单 POST 端点）。
  *
- * 监听 127.0.0.1，作为 Reasonix serve `[[plugins]]` type="http" 的工具源：
+ * 监听 127.0.0.1，作为 Backend serve `[[plugins]]` type="http" 的工具源：
  * `initialize` / `notifications/initialized` / `tools/list` / `tools/call` / `ping`。
  * 工具执行走 [LocalToolRegistry] + [LocalApprovalBridge]（审批在 App 进程内）。
  */

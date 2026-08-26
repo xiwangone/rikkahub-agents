@@ -438,6 +438,14 @@ internal object LoopGuard {
     }
 }
 
+/** 按 executionBackend 解析执行 provider + 模型：local/空→模型自动；否则→指定 provider(取该 provider 默认模型)。 */
+private fun resolveBackendProvider(executionBackend: String, model: Model, providers: List<ProviderSetting>): Pair<ProviderSetting, Model>? =
+    if (executionBackend.isBlank() || executionBackend == "local") {
+        model.findProvider(providers)?.let { it to model }
+    } else {
+        providers.firstOrNull { it.id.toString() == executionBackend }?.let { p -> p to (p.models.firstOrNull() ?: model) }
+    }
+
 class GenerationHandler(
     private val context: Context,
     private val providerManager: ProviderManager,
@@ -484,7 +492,9 @@ class GenerationHandler(
         conversationLorebookIds: Set<Uuid> = emptySet(),
         workspaceCwd: String? = null,
     ): Flow<GenerationChunk> = flow {
-        val provider = model.findProvider(settings.providers) ?: error("Provider not found")
+        val resolvedExecution = resolveBackendProvider(settings.executionBackend, model, settings.providers) ?: error("Provider not found")
+        val provider = resolvedExecution.first
+        val execModel = resolvedExecution.second
         val providerImpl = providerManager.getProviderByType(provider)
 
         // Replay safety: scan the input messages for tools that were Approved + began
@@ -1305,10 +1315,10 @@ class GenerationHandler(
                 providerImpl.generateText(
                     providerSetting = provider,
                     messages = internalMessages,
-                    params = params,
+                    params = params.copy(model = (resolveBackendProvider(settings.executionBackend, model, settings.providers)?.second ?: model)),
                 )
             }
-            messages = messages.handleTextGenerationResult(result = result, model = model)
+            messages = messages.handleTextGenerationResult(result = result, model = (resolveBackendProvider(settings.executionBackend, model, settings.providers)?.second ?: model))
             onUpdateMessages(messages)
         }
     }

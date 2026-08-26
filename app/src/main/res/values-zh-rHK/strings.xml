@@ -1324,7 +1324,7 @@
   <string name="vault_import_desc">支援 load-creds.sh 格式（export KEY="value" + # 註解分組）。選擇手機上的憑證檔案即可批次匯入。</string>
   <string name="vault_import_button">選擇檔案匯入</string>
   <string name="vault_export_title">應急匯出 / 解鎖會話（開發中）</string>
-  <string name="vault_export_desc">後續：口令加密匯出 .vault 包、短時解鎖會話供沙箱/ECS 遠端請求解密。</string>
+  <string name="vault_export_desc">後續：口令加密匯出 .vault 包、短時解鎖會話供沙箱/伺服器 遠端請求解密。</string>
   <string name="vault_danger_zone">危險區</string>
   <string name="vault_clear_all">清空全部憑證</string>
   <string name="vault_clear_confirm_title">清空全部憑證？</string>
@@ -1448,7 +1448,7 @@
   <string name="log_tab_app">應用</string>
   <string name="log_page_search_hint">搜尋…</string>
   <string name="vault_session_title">解鎖會話</string>
-  <string name="vault_session_desc">指紋驗證後簽發 30 分鐘會話 token，供沙箱/ECS 經 Web 橋遠端解密憑證。</string>
+  <string name="vault_session_desc">指紋驗證後簽發 30 分鐘會話 token，供沙箱/伺服器 經 Web 橋遠端解密憑證。</string>
   <string name="vault_session_issue">簽發會話 token</string>
   <string name="vault_session_issued">會話 token 已簽發（30 分鐘有效）</string>
   <string name="vault_session_cancelled">已取消（指紋驗證未通過）</string>
@@ -1458,13 +1458,13 @@
   <string name="vault_session_issued_ttl">會話 token 已簽發（30 分鐘有效）</string>
   <string name="vault_session_issued_manual">會話 token 已簽發（当场有效，会话结束/手动撤销失效）</string>
   <string name="setting_web_bridge_title">Web 橋</string>
-  <string name="setting_web_bridge_desc">SSH 反向隧道到 ECS</string>
-  <string name="setting_web_bridge_desc_detail">把手機 Web 服務映射到 ECS 遠端埠，遠端服務（Reasonix 等）可經隧道呼叫手機 API。</string>
-  <string name="setting_web_bridge_ecs_host">ECS 主機</string>
-  <string name="setting_web_bridge_ecs_user">ECS 使用者</string>
+  <string name="setting_web_bridge_desc">SSH 反向隧道到 伺服器</string>
+  <string name="setting_web_bridge_desc_detail">把手機 Web 服務映射到 伺服器 遠端埠，遠端服務（後端服務 等）可經隧道呼叫手機 API。</string>
+  <string name="setting_web_bridge_ecs_host">伺服器 主機</string>
+  <string name="setting_web_bridge_ecs_user">伺服器 使用者</string>
   <string name="setting_web_bridge_ssh_port">SSH 埠</string>
   <string name="setting_web_bridge_remote_port">遠端埠</string>
-  <string name="setting_web_bridge_remote_port_desc">ECS 上映射到手機 Web 服務的埠</string>
+  <string name="setting_web_bridge_remote_port_desc">伺服器 上映射到手機 Web 服務的埠</string>
   <string name="vault_session_mode_ttl">30 分鐘</string>
   <string name="vault_session_mode_manual">當場有效</string>
   <string name="vault_session_mode_ttl_desc">Token 30 分鐘後自動過期，需重新指紋驗證簽發</string>

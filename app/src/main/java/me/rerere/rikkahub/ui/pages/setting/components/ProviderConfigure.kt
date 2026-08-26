@@ -100,7 +100,7 @@ fun ProviderConfigure(
         modifier = modifier,
     ) {
         // 类型切换仅「添加提供商」时显示（新建可选类型）；
-        // 编辑已有 provider 时不显示，避免在 OpenAI 配置页误切到 Reasonix 等丢配置
+        // 编辑已有 provider 时不显示，避免在 OpenAI 配置页误切到 Backend 等丢配置
         if (showTypeSwitcher && !provider.builtIn) {
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
                 ProviderSetting.Types.forEachIndexed { index, type ->
@@ -112,7 +112,7 @@ fun ProviderConfigure(
                             ),
                         label = {
                             Text(
-                                if (type == ProviderSetting.Reasonix::class) stringResource(R.string.backend_service) else type.simpleName ?: ""
+                                if (type == ProviderSetting.Backend::class) stringResource(R.string.backend_service) else type.simpleName ?: ""
                             )
                         },
                         selected = provider::class == type,
@@ -151,8 +151,8 @@ fun ProviderConfigure(
                 Unit
             }
 
-            is ProviderSetting.Reasonix -> {
-                ReasonixProviderConfigure(
+            is ProviderSetting.Backend -> {
+                BackendProviderConfigure(
                     provider = provider,
                     onEdit = onEdit,
                 )
@@ -192,7 +192,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             is ProviderSetting.Grok -> "" // OAuth, no API key
 
             // Basic Auth / Bearer, no API key
-            is ProviderSetting.Reasonix -> ""
+            is ProviderSetting.Backend -> ""
             is ProviderSetting.GeminiOAuth -> ""
             is ProviderSetting.LlamaCppLocal -> ""
         }
@@ -216,7 +216,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             is ProviderSetting.Grok -> "" // OAuth, no base URL
 
             // Basic Auth / Bearer, no base URL
-            is ProviderSetting.Reasonix -> ""
+            is ProviderSetting.Backend -> ""
             is ProviderSetting.GeminiOAuth -> ""
             is ProviderSetting.LlamaCppLocal -> ""
         }
@@ -227,7 +227,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             ProviderSetting.Claude::class -> ProviderSetting.Claude().baseUrl
             ProviderSetting.AICore::class -> ""
             ProviderSetting.LiteRtLocal::class -> ""
-            ProviderSetting.Reasonix::class -> ProviderSetting.Reasonix().baseUrl
+            ProviderSetting.Backend::class -> ProviderSetting.Backend().baseUrl
             else -> error("Unsupported provider type: $type")
         }
     val convertedBaseUrl = sourceBaseUrl.convertToTargetBaseUrl(targetDefaultBaseUrl)
@@ -304,8 +304,8 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             )
         }
 
-        ProviderSetting.Reasonix::class -> {
-            ProviderSetting.Reasonix(
+        ProviderSetting.Backend::class -> {
+            ProviderSetting.Backend(
                 id = this.id,
                 enabled = this.enabled,
                 name = this.name,
@@ -346,7 +346,7 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
             is ProviderSetting.Grok -> return "" // OAuth, no base URL
 
             // Basic Auth / Bearer, base URL is required
-            is ProviderSetting.Reasonix -> return ""
+            is ProviderSetting.Backend -> return ""
             is ProviderSetting.GeminiOAuth -> return ""
             is ProviderSetting.LlamaCppLocal -> return ""
         }
@@ -359,7 +359,7 @@ internal fun ProviderSetting.defaultBaseUrlForReset(): String {
         is ProviderSetting.LiteRtLocal -> ""
         is ProviderSetting.Codex -> ""
         is ProviderSetting.Grok -> ""
-        is ProviderSetting.Reasonix -> ProviderSetting.Reasonix().baseUrl
+        is ProviderSetting.Backend -> ProviderSetting.Backend().baseUrl
         is ProviderSetting.GeminiOAuth -> ""
         is ProviderSetting.LlamaCppLocal -> ""
     }
@@ -386,7 +386,7 @@ internal fun ProviderSetting.resetBaseUrlToDefault(): ProviderSetting {
         is ProviderSetting.Grok -> this // no base URL to reset
 
         // Basic Auth / Bearer, reset to default
-        is ProviderSetting.Reasonix -> this.copy(baseUrl = defaultBaseUrl)
+        is ProviderSetting.Backend -> this.copy(baseUrl = defaultBaseUrl)
 
         // no base URL to reset
         is ProviderSetting.GeminiOAuth -> this
@@ -417,7 +417,7 @@ internal fun ProviderSetting.isUsingDefaultBaseUrl(): Boolean {
             is ProviderSetting.Grok -> return true // no base URL concept
 
             // Basic Auth / Bearer, has base URL
-            is ProviderSetting.Reasonix -> this.baseUrl
+            is ProviderSetting.Backend -> this.baseUrl
 
             // no base URL concept
             is ProviderSetting.GeminiOAuth -> return true

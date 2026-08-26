@@ -3,7 +3,7 @@ package me.rerere.rikkahub.data.ai
 import android.content.Context
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
-import me.rerere.ai.provider.providers.reasonix.CliCommandExecutor
+import me.rerere.ai.provider.providers.backend.CliCommandExecutor
 import me.rerere.rikkahub.data.ai.tools.local.CaptureResult
 import me.rerere.rikkahub.data.ai.tools.local.execOneShot
 import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuth

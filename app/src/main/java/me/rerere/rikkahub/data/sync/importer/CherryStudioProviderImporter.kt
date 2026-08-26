@@ -130,7 +130,7 @@ object CherryStudioProviderImporter {
             is ProviderSetting.LiteRtLocal -> "local_litert|${provider.id}"
             is ProviderSetting.Codex -> "codex|${provider.id}"
             is ProviderSetting.Grok -> "grok|${provider.id}"
-            is ProviderSetting.Reasonix -> "reasonix|${provider.id}"
+            is ProviderSetting.Backend -> "backend|${provider.id}"
             is ProviderSetting.GeminiOAuth -> "gemini_oauth|${provider.id}"
             is ProviderSetting.LlamaCppLocal -> "llamacpp|${provider.id}"
         }

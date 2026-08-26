@@ -94,7 +94,7 @@ class RikkaHubApp : Application() {
         // Start WebServer if enabled in settings
         startWebServerIfEnabled()
 
-        // Start local MCP Server if enabled in settings (Reasonix tool source)
+        // Start local MCP Server if enabled in settings (Backend tool source)
         startMcpServerIfEnabled()
 
         // Eagerly construct ChatService on the main thread. Its constructor calls
