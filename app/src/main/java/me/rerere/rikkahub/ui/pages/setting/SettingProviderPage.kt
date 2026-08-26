@@ -85,6 +85,10 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
+import me.rerere.rikkahub.ui.pages.setting.components.convertTo
+import androidx.compose.foundation.layout.Box
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderRequirement
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.ImageUtils
@@ -503,12 +507,33 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
             onAdd(it)
         }
 
-    IconButton(
-        onClick = {
-            dialogState.open(ProviderSetting.OpenAI())
-        },
-    ) {
-        Icon(HugeIcons.Add01, "Add")
+    var showTypeMenu by remember { mutableStateOf(false) }
+    Box {
+        IconButton(
+            onClick = {
+                showTypeMenu = true
+            },
+        ) {
+            Icon(HugeIcons.Add01, "Add")
+        }
+        DropdownMenu(
+            expanded = showTypeMenu,
+            onDismissRequest = { showTypeMenu = false },
+        ) {
+            ProviderSetting.Types.forEach { type ->
+                DropdownMenuItem(
+                    text = {
+                        Text(
+                            if (type == ProviderSetting.Backend::class) stringResource(R.string.backend_service) else type.simpleName ?: "",
+                        )
+                    },
+                    onClick = {
+                        showTypeMenu = false
+                        dialogState.open(ProviderSetting.OpenAI().convertTo(type))
+                    },
+                )
+            }
+        }
     }
 
     if (dialogState.isEditing) {
@@ -528,7 +553,7 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
                                 .heightIn(max = 420.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        ProviderConfigure(it, showTypeSwitcher = true) { newState ->
+                        ProviderConfigure(it, showTypeSwitcher = false) { newState ->
                             dialogState.currentState = newState
                         }
                     }

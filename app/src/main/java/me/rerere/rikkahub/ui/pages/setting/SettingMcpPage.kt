@@ -40,6 +40,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Switch
+import android.content.Intent
+import me.rerere.rikkahub.service.LocalMcpServerService
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -98,7 +101,12 @@ import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.McpCommonOptions
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
+import me.rerere.rikkahub.data.ai.tools.LocalToolOption
+import androidx.compose.material3.FilterChip
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
 import me.rerere.rikkahub.data.ai.mcp.McpTool
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -143,6 +151,9 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                 ),
             )
         }
+    val localMcpProfiles = settings.localMcpProfiles
+    var showProfileDialog by remember { mutableStateOf(false) }
+    var editingProfile by remember { mutableStateOf<LocalMcpProfile?>(null) }
     var showImportDialog by remember { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
@@ -206,6 +217,27 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                         bottom = innerPadding.calculateBottomPadding() + 16.dp,
                     ),
             ) {
+                item(key = "local_mcp") {
+                    val ctx = LocalContext.current
+                    LocalMcpServerSection(
+                        profiles = localMcpProfiles,
+                        activeId = settings.activeLocalMcpProfileId,
+                        enabled = settings.localMcpServerEnabled,
+                        onEnable = { en ->
+                            ctx.startService(
+                                Intent(ctx, LocalMcpServerService::class.java).apply {
+                                    action = if (en) LocalMcpServerService.ACTION_START else LocalMcpServerService.ACTION_STOP
+                                },
+                            )
+                            vm.updateSettings(settings.copy(localMcpServerEnabled = en))
+                        },
+                        onAdd = { editingProfile = LocalMcpProfile(id = "local-mcp-${System.currentTimeMillis()}", name = ""); showProfileDialog = true },
+                        onEdit = { p -> editingProfile = p; showProfileDialog = true },
+                        onDelete = { p -> vm.updateSettings(settings.copy(localMcpProfiles = localMcpProfiles.filter { it.id != p.id })) },
+                        onSetActive = { p -> vm.updateSettings(settings.copy(activeLocalMcpProfileId = p.id)) },
+                    )
+                }
+
                 items(mcpConfigs, key = { it.id }) { mcpConfig ->
                     McpServerItem(
                         item = mcpConfig,
@@ -241,6 +273,28 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
     }
     McpServerConfigModal(creationState)
     McpServerConfigModal(editState)
+    if (showProfileDialog) {
+        LocalMcpProfileModal(
+            initial = editingProfile,
+            onConfirm = { p ->
+                val cur = settings.localMcpProfiles
+                val updated =
+                    if (cur.any { it.id == p.id }) {
+                        cur.map { if (it.id == p.id) p else it }
+                    } else {
+                        cur + p
+                    }
+                vm.updateSettings(
+                    settings.copy(
+                        localMcpProfiles = updated,
+                        activeLocalMcpProfileId = settings.activeLocalMcpProfileId ?: p.id,
+                    ),
+                )
+                showProfileDialog = false
+            },
+            onDismiss = { showProfileDialog = false },
+        )
+    }
     if (showImportDialog) {
         McpImportModal(
             onDismiss = { showImportDialog = false },
@@ -257,6 +311,128 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
         )
     }
 }
+
+@Composable
+private fun LocalMcpServerSection(
+    profiles: List<LocalMcpProfile>,
+    activeId: String?,
+    enabled: Boolean,
+    onEnable: (Boolean) -> Unit,
+    onAdd: () -> Unit,
+    onEdit: (LocalMcpProfile) -> Unit,
+    onDelete: (LocalMcpProfile) -> Unit,
+    onSetActive: (LocalMcpProfile) -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("本地 MCP Server", style = MaterialTheme.typography.titleMedium)
+                    Text("127.0.0.1:8788 · 供 Backend 使用", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                Switch(checked = enabled, onCheckedChange = onEnable)
+            }
+            profiles.forEach { p ->
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(Modifier.weight(1f)) {
+                        Text(if (p.id == activeId) "当前 · ${p.name.ifBlank { "未命名" }}" else p.name.ifBlank { "未命名" })
+                        Text("端口 ${p.port} · ${p.allowedTools.size} 工具", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    if (p.id != activeId) {
+                        TextButton(onClick = { onSetActive(p) }) { Text("设为当前") }
+                    }
+                    TextButton(onClick = { onEdit(p) }) { Text("编辑") }
+                    TextButton(onClick = { onDelete(p) }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+                }
+            }
+            TextButton(onClick = onAdd) { Text("+ 添加配置") }
+        }
+    }
+}
+
+private val ALL_LOCAL_TOOLS: List<LocalToolOption> =
+    listOf(
+        LocalToolOption.JavascriptEngine, LocalToolOption.TimeInfo, LocalToolOption.Clipboard, LocalToolOption.Tts, LocalToolOption.AskUser,
+        LocalToolOption.Battery, LocalToolOption.AudioInfo, LocalToolOption.TelephonyInfo, LocalToolOption.WifiInfo, LocalToolOption.Sensors,
+        LocalToolOption.StorageInfo, LocalToolOption.Toast, LocalToolOption.Notification, LocalToolOption.Share, LocalToolOption.Torch,
+        LocalToolOption.Vibrate, LocalToolOption.Brightness, LocalToolOption.Volume, LocalToolOption.MediaPlayer, LocalToolOption.MediaScanner,
+        LocalToolOption.Download, LocalToolOption.Location, LocalToolOption.Contacts, LocalToolOption.CallLog, LocalToolOption.SmsInbox,
+        LocalToolOption.CameraPhoto, LocalToolOption.MicRecorder, LocalToolOption.SpeechToText, LocalToolOption.Fingerprint, LocalToolOption.CronJobs,
+        LocalToolOption.Ssh, LocalToolOption.Shizuku, LocalToolOption.TelegramBot, LocalToolOption.ScreenAutomation, LocalToolOption.AppLauncher,
+        LocalToolOption.Termux, LocalToolOption.NotificationListener, LocalToolOption.Files, LocalToolOption.McpControl, LocalToolOption.ExternalAutomation,
+        LocalToolOption.Reliability, LocalToolOption.SubAgents, LocalToolOption.CostGuards, LocalToolOption.Workflows, LocalToolOption.SkillImport,
+        LocalToolOption.JsSkills, LocalToolOption.VaultTools, LocalToolOption.VaultExportEnv, LocalToolOption.SystemIntents, LocalToolOption.Browser,
+        LocalToolOption.WebFetch, LocalToolOption.SmsSend, LocalToolOption.Wallpaper, LocalToolOption.Keystore, LocalToolOption.Nfc,
+        LocalToolOption.ExternalStorage, LocalToolOption.Archive, LocalToolOption.KeyboardControl,
+    )
+
+@Composable
+private fun LocalMcpProfileModal(
+    initial: LocalMcpProfile?,
+    onConfirm: (LocalMcpProfile) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf(initial?.name ?: "") }
+    var port by remember { mutableStateOf(initial?.port?.toString() ?: "8788") }
+    var selected by remember { mutableStateOf(initial?.allowedTools ?: emptyList()) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (initial == null) "添加本地 MCP 配置" else "编辑本地 MCP 配置") },
+        text = {
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState()),
+            ) {
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("名称") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text("端口") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("暴露的工具（默认全部未选）", style = MaterialTheme.typography.labelLarge)
+                        Row {
+                            TextButton(onClick = { selected = ALL_LOCAL_TOOLS }) { Text("全选") }
+                            TextButton(onClick = { selected = emptyList() }) { Text("清空") }
+                        }
+                    }
+                FlowRow {
+                    ALL_LOCAL_TOOLS.forEach { tool ->
+                        val checked = tool in selected
+                        FilterChip(
+                            selected = checked,
+                            onClick = { selected = if (checked) selected - tool else selected + tool },
+                            label = { Text(toolName(tool)) },
+                            modifier = Modifier.padding(4.dp),
+                        )
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    val base = initial ?: LocalMcpProfile(id = "local-mcp-${System.currentTimeMillis()}", name = "")
+                    onConfirm(
+                        base.copy(
+                            name = name.ifBlank { "未命名" },
+                            port = port.toIntOrNull() ?: 8788,
+                            allowedTools = selected,
+                        ),
+                    )
+                },
+            ) { Text("保存") }
+        },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+    )
+}
+
+private fun toolName(t: LocalToolOption): String = t::class.simpleName ?: ""
 
 @Composable
 private fun McpServerItem(

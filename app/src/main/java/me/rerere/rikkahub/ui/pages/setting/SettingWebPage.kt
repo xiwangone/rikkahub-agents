@@ -34,7 +34,7 @@ import org.koin.compose.koinInject
  *
  * 两个入口分别进入三级页：
  * - Web 服务：手机本地 Web 服务（端口/JWT/密码/地址）
- * - Web 桥：反向隧道到 ECS（供 Reasonix 等访问手机能力）
+ * - Web 桥：反向隧道到 ECS（供 Backend 等访问手机能力）
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

@@ -42,7 +42,7 @@ import org.koin.compose.koinInject
 /**
  * 后端服务页（连接管理中枢——2026-08-14 通用化）。
  *
- * 后端连接可保存/切换/删除：reasonix（执行后端）/ SSH / 自定义统一模型。
+ * 后端连接可保存/切换/删除：backend（执行后端）/ SSH / 自定义统一模型。
  * 对话页 executionBackend 引用后端连接 id（local 内置）。
  */
 @Composable
@@ -54,7 +54,7 @@ fun BackendServicePage() {
     var showAddDialog by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<BackendConnection?>(null) }
 
-    // 添加/编辑 reasonix 后端弹窗
+    // 添加/编辑 backend 后端弹窗
     if (showAddDialog || editing != null) {
         val initial = editing
         BackendEditDialog(
@@ -149,7 +149,7 @@ fun BackendServicePage() {
                             Text(
                                 buildString {
                                     append(when (conn.type) {
-                                        BackendTypes.REASONIX -> "Reasonix 执行后端"
+                                        BackendTypes.BACKEND -> "后端服务"
                                         BackendTypes.SSH -> "SSH 后端"
                                         else -> "自定义后端"
                                     })
@@ -182,14 +182,14 @@ fun BackendServicePage() {
                 }
             }
 
-            // 添加 reasonix 后端
+            // 添加 backend 后端
             CardGroup {
                 item(
                     onClick = { showAddDialog = true },
                     headlineContent = {
                         Text(stringResource(R.string.backend_service_add), color = MaterialTheme.colorScheme.primary)
                     },
-                    supportingContent = { Text("添加 Reasonix / SSH / 自定义后端连接") },
+                    supportingContent = { Text("添加 Backend / SSH / 自定义后端连接") },
                 )
             }
 
@@ -214,7 +214,7 @@ private fun BackendEditDialog(
     onDelete: (BackendConnection) -> Unit,
 ) {
     var name by remember { mutableStateOf(initial?.name ?: "") }
-    var type by remember { mutableStateOf(initial?.type ?: BackendTypes.REASONIX) }
+    var type by remember { mutableStateOf(initial?.type ?: BackendTypes.BACKEND) }
     var endpoint by remember { mutableStateOf(initial?.endpoint ?: "") }
     var authRef by remember { mutableStateOf(initial?.authRef ?: "") }
 
@@ -223,9 +223,9 @@ private fun BackendEditDialog(
         title = { Text(if (initial == null) "添加后端连接" else "编辑后端连接") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("名称（如 reasonix-ecs）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("类型（reasonix/ssh/custom）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, label = { Text("地址（reasonix baseUrl / SSH host:port）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("名称（如 backend-ecs）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("类型（backend/ssh/custom）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, label = { Text("地址（backend baseUrl / SSH host:port）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = authRef, onValueChange = { authRef = it }, label = { Text("Vault 凭证引用（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
             }
         },
@@ -237,7 +237,7 @@ private fun BackendEditDialog(
                         BackendConnection(
                             id = initial?.id ?: "backend-${System.currentTimeMillis()}",
                             name = name.trim(),
-                            type = type.trim().ifBlank { BackendTypes.REASONIX },
+                            type = type.trim().ifBlank { BackendTypes.BACKEND },
                             endpoint = endpoint.trim(),
                             authRef = authRef.trim().ifBlank { null },
                             createdAt = initial?.createdAt ?: System.currentTimeMillis(),

@@ -517,8 +517,8 @@ sealed class ProviderSetting {
     }
 
     @Serializable
-    @SerialName("reasonix")
-    data class Reasonix(
+    @SerialName("backend")
+    data class Backend(
         override var id: Uuid = Uuid.random(),
         override var enabled: Boolean = false,
         override var name: String = "后端服务",
@@ -527,8 +527,8 @@ sealed class ProviderSetting {
         @Transient override val builtIn: Boolean = false,
         @Transient override val description: @Composable (() -> Unit) = {},
         @Transient override val shortDescription: @Composable (() -> Unit) = {},
-        // ── 后端类型：reasonix（专有 SSE）| custom（自定义 HTTP）| cli（命令行）──
-        var backendType: String = "reasonix",
+        // ── 后端类型：backend（专有 SSE）| custom（自定义 HTTP）| cli（命令行）──
+        var backendType: String = "backend",
         // ── CLI 后端（backendType=cli）：命令行模板，{prompt} 为提示词占位符 ──
         var cliCommand: String = "",
         // ── CLI 后端：SSH 主机名（SshHostRepository 的 name）；空 = 本地 Termux 执行 ──
@@ -539,7 +539,7 @@ sealed class ProviderSetting {
         var token: String = "",
         // ── 连接方式：serve（HTTP/SSE 直连）| ssh（SSH 反向隧道）──
         var connectionMode: String = "serve",
-        // ── Web 桥（手机 Web 服务反向隧道到 ECS，供 reasonix 访问）──
+        // ── Web 桥（手机 Web 服务反向隧道到 ECS，供 backend 访问）──
         var webBridgeEnabled: Boolean = false,
         var webBridgeEcsHost: String = "",
         var webBridgeEcsPort: Int = 22,
@@ -607,7 +607,7 @@ sealed class ProviderSetting {
                 OpenAI::class,
                 Google::class,
                 Claude::class,
-                Reasonix::class,
+                Backend::class,
             )
         }
     }

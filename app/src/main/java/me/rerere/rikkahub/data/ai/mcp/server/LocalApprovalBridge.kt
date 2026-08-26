@@ -25,7 +25,7 @@ import kotlinx.serialization.json.jsonPrimitive
  * MCP 工具执行前的审批桥：`tool.needsApproval(input) == true` 时挂起执行，
  * 通过系统通知（批准 / 拒绝 action）把决策交还用户，超时自动拒绝。
  *
- * 与对话消息流中的审批 UI 相互独立——MCP 调用由 Reasonix serve 发起，App 内没有
+ * 与对话消息流中的审批 UI 相互独立——MCP 调用由 Backend serve 发起，App 内没有
  * 对应的 UIMessage 上下文，因此用通知 + 动态广播接收器作为审批通道。
  */
 class LocalApprovalBridge(private val context: Context) {
@@ -97,7 +97,7 @@ class LocalApprovalBridge(private val context: Context) {
                 "MCP 工具审批",
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
-                description = "Reasonix 通过本地 MCP 调用设备工具时的批准/拒绝"
+                description = "Backend 通过本地 MCP 调用设备工具时的批准/拒绝"
             }
             nm.createNotificationChannel(channel)
         }
@@ -168,6 +168,6 @@ class LocalApprovalBridge(private val context: Context) {
         } catch (e: Exception) {
             input.toString().take(200)
         }
-        return "Reasonix 请求调用设备工具 ${tool.name}。\n参数：$args\n\n批准后将在本机执行。"
+        return "Backend 请求调用设备工具 ${tool.name}。\n参数：$args\n\n批准后将在本机执行。"
     }
 }

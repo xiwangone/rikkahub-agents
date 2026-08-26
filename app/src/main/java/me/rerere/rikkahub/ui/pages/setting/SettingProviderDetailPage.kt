@@ -131,7 +131,7 @@ import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomHeaders
 import me.rerere.rikkahub.ui.pages.setting.components.CodexProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.GrokProviderConfigure
-import me.rerere.rikkahub.ui.pages.setting.components.ReasonixProviderConfigure
+import me.rerere.rikkahub.ui.pages.setting.components.BackendProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConnectionTester
 import me.rerere.rikkahub.ui.pages.setting.components.SettingProviderBalanceOption
@@ -251,7 +251,7 @@ fun SettingProviderDetailPage(
                     } else if (
                         provider !is ProviderSetting.Codex &&
                         provider !is ProviderSetting.Grok &&
-                        provider !is ProviderSetting.Reasonix
+                        provider !is ProviderSetting.Backend
                     ) {
                         val shareSheetState = rememberShareSheetState()
                         ShareSheet(shareSheetState)
@@ -352,7 +352,7 @@ private fun SettingProviderConfigPage(
         )
         return
     }
-    if (provider is ProviderSetting.Reasonix) {
+    if (provider is ProviderSetting.Backend) {
         Column(
             modifier =
                 Modifier
@@ -362,7 +362,7 @@ private fun SettingProviderConfigPage(
                     .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            ReasonixProviderConfigure(
+            BackendProviderConfigure(
                 provider = provider,
                 onEdit = onEdit,
             )

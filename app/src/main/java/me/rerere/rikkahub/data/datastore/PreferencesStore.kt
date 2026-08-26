@@ -29,6 +29,7 @@ import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.AppScope
+import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_COMPRESS_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_SUGGESTION_PROMPT
@@ -186,6 +187,8 @@ class SettingsStore(
         val WEB_SERVER_ENABLED = booleanPreferencesKey("web_server_enabled")
         val WEB_SERVER_PORT = intPreferencesKey("web_server_port")
         val LOCAL_MCP_SERVER_ENABLED = booleanPreferencesKey("local_mcp_server_enabled")
+        val LOCAL_MCP_PROFILES = stringPreferencesKey("local_mcp_profiles")
+        val LOCAL_MCP_ACTIVE_PROFILE_ID = stringPreferencesKey("local_mcp_active_profile_id")
         val WEB_SERVER_JWT_ENABLED = booleanPreferencesKey("web_server_jwt_enabled")
         val WEB_SERVER_ACCESS_PASSWORD = stringPreferencesKey("web_server_access_password")
         val WEB_SERVER_LOCALHOST_ONLY = booleanPreferencesKey("web_server_localhost_only")
@@ -329,6 +332,8 @@ class SettingsStore(
                 webServerEnabled = preferences[WEB_SERVER_ENABLED] == true,
                 webServerPort = preferences[WEB_SERVER_PORT] ?: 8080,
                 localMcpServerEnabled = preferences[LOCAL_MCP_SERVER_ENABLED] == true,
+                localMcpProfiles = preferences[LOCAL_MCP_PROFILES]?.let { JsonInstant.decodeFromString<List<LocalMcpProfile>>(it) } ?: emptyList(),
+                activeLocalMcpProfileId = preferences[LOCAL_MCP_ACTIVE_PROFILE_ID],
                 webBridgeEcsHost = preferences[WEB_BRIDGE_ECS_HOST] ?: "",
                 webBridgeEcsUser = preferences[WEB_BRIDGE_ECS_USER] ?: "root",
                 webBridgeEcsPort = preferences[WEB_BRIDGE_ECS_PORT] ?: 22,
@@ -469,7 +474,7 @@ class SettingsStore(
                             models = provider.models.distinctBy { model -> model.id }
                         )
 
-                        is ProviderSetting.Reasonix -> provider.copy(
+                        is ProviderSetting.Backend -> provider.copy(
                             models = provider.models.distinctBy { model -> model.id }
                         )
 
@@ -607,6 +612,8 @@ class SettingsStore(
             preferences[WEB_SERVER_ENABLED] = settings.webServerEnabled
             preferences[WEB_SERVER_PORT] = settings.webServerPort
             preferences[LOCAL_MCP_SERVER_ENABLED] = settings.localMcpServerEnabled
+            preferences[LOCAL_MCP_PROFILES] = JsonInstant.encodeToString(settings.localMcpProfiles)
+            settings.activeLocalMcpProfileId?.let { preferences[LOCAL_MCP_ACTIVE_PROFILE_ID] = it }
             preferences[WEB_BRIDGE_ECS_HOST] = settings.webBridgeEcsHost
             preferences[WEB_BRIDGE_ECS_USER] = settings.webBridgeEcsUser
             preferences[WEB_BRIDGE_ECS_PORT] = settings.webBridgeEcsPort
@@ -738,9 +745,9 @@ data class Settings(
     val networkSetting: NetworkSetting = NetworkSetting(),
     val favoriteModels: List<Uuid> = emptyList(),
     val chatModelId: Uuid = Uuid.random(),
-    /** 执行后端（P4 连接中枢 MVP）：local（默认本机）/ reasonix / ecs 等——AI 执行通道 */
+    /** 执行后端（P4 连接中枢 MVP）：local（默认本机）/ backend / ecs 等——AI 执行通道 */
     val executionBackend: String = "local",
-    /** 后端连接列表（2026-08-14 通用化）：可保存/切换/删除——reasonix/SSH/自定义统一 */
+    /** 后端连接列表（2026-08-14 通用化）：可保存/切换/删除——backend/SSH/自定义统一 */
     val backendConnections: List<me.rerere.rikkahub.data.model.BackendConnection> = emptyList(),
     val fastModelId: Uuid = Uuid.random(),    val titleModelId: Uuid? = null,
     val imageGenerationModelId: Uuid = Uuid.random(),
@@ -807,8 +814,12 @@ data class Settings(
     val quickMessages: List<QuickMessage> = emptyList(),
     val webServerEnabled: Boolean = false,
     val webServerPort: Int = 8080,
-    /** 本地 MCP Server（供 Reasonix serve 挂载设备工具）开关 */
+    /** 本地 MCP Server（供 Backend serve 挂载设备工具）开关 */
     val localMcpServerEnabled: Boolean = false,
+    /** 本地 MCP Server 可配置的多 profile（默认空；用户自填 + 勾选工具） */
+    val localMcpProfiles: List<LocalMcpProfile> = emptyList(),
+    /** 当前生效的本地 MCP profile id */
+    val activeLocalMcpProfileId: String? = null,
     /** Web 桥全局配置：SSH 反向隧道到 ECS（手机 web 服务映射到远端端口） */
     val webBridgeEcsHost: String = "",
     val webBridgeEcsUser: String = "root",

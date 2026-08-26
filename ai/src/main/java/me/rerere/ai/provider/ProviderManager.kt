@@ -5,8 +5,8 @@ import me.rerere.ai.provider.providers.AICoreProvider
 import me.rerere.ai.provider.providers.claude.ClaudeProvider
 import me.rerere.ai.provider.providers.google.GoogleProvider
 import me.rerere.ai.provider.providers.openai.OpenAIProvider
-import me.rerere.ai.provider.providers.reasonix.CliCommandExecutor
-import me.rerere.ai.provider.providers.reasonix.ReasonixProvider
+import me.rerere.ai.provider.providers.backend.CliCommandExecutor
+import me.rerere.ai.provider.providers.backend.BackendProvider
 import okhttp3.OkHttpClient
 
 /**
@@ -26,7 +26,7 @@ class ProviderManager(
         registerProvider("google", GoogleProvider(client, context))
         registerProvider("claude", ClaudeProvider(client, context))
         registerProvider("aicore", AICoreProvider(context))
-        registerProvider("reasonix", ReasonixProvider(cliExecutor))
+        registerProvider("backend", BackendProvider(cliExecutor))
     }
 
     /**
@@ -67,7 +67,7 @@ class ProviderManager(
             is ProviderSetting.Codex -> getProvider("codex")
             is ProviderSetting.Grok -> getProvider("grok")
             is ProviderSetting.GeminiOAuth -> getProvider("gemini_oauth")
-            is ProviderSetting.Reasonix -> getProvider("reasonix")
+            is ProviderSetting.Backend -> getProvider("backend")
         } as Provider<T>
     }
 }

@@ -17,6 +17,7 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.server.LocalMcpServerManager
@@ -26,7 +27,7 @@ import org.koin.android.ext.android.inject
 private const val TAG = "LocalMcpServerService"
 
 /**
- * 承载本地 MCP Server 的前台服务：App 退到后台仍保持 Reasonix 可用的工具源。
+ * 承载本地 MCP Server 的前台服务：App 退到后台仍保持 Backend 可用的工具源。
  *
  * 开关状态由设置（[SettingsStore.localMcpServerEnabled]）维护，本服务只负责生命周期：
  * ACTION_START → 前台通知 + [LocalMcpServerManager].start()；ACTION_STOP → stop()。
@@ -61,7 +62,7 @@ class LocalMcpServerService : Service() {
                     return START_NOT_STICKY
                 }
                 startObservingState()
-                manager.start()
+                startWithActiveProfile()
             }
 
             ACTION_STOP -> {
@@ -79,7 +80,7 @@ class LocalMcpServerService : Service() {
                     val settings = settingsStore.settingsFlowRaw.first()
                     if (settings.localMcpServerEnabled) {
                         startObservingState()
-                        manager.start()
+                        startWithActiveProfile()
                     } else {
                         stopSelf()
                     }
@@ -87,6 +88,15 @@ class LocalMcpServerService : Service() {
             }
         }
         return START_NOT_STICKY
+    }
+
+    private fun startWithActiveProfile() {
+        val profile =
+            runBlocking {
+                val s = settingsStore.settingsFlowRaw.first()
+                s.activeLocalMcpProfileId?.let { id -> s.localMcpProfiles.firstOrNull { it.id == id } }
+            }
+        if (profile != null) manager.start(profile) else manager.start()
     }
 
     override fun onDestroy() {
@@ -168,7 +178,7 @@ class LocalMcpServerService : Service() {
             .Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.small_icon)
             .setContentTitle("本地 MCP Server 启动中")
-            .setContentText("Reasonix 设备工具源")
+            .setContentText("Backend 设备工具源")
             .setContentIntent(buildLaunchPendingIntent())
             .setOngoing(true)
             .setOnlyAlertOnce(true)

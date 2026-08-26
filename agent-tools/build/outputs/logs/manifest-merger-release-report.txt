@@ -1,0 +1,16 @@
+-- Merging decision tree log ---
+manifest
+ADDED from A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\tmp\ProcessLibraryManifest\release\tempAndroidManifest6440784653925601216.xml:2:13-83
+INJECTED from A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\tmp\ProcessLibraryManifest\release\tempAndroidManifest6440784653925601216.xml:2:13-83
+	package
+		INJECTED from A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\tmp\ProcessLibraryManifest\release\tempAndroidManifest6440784653925601216.xml
+	xmlns:android
+		ADDED from A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\tmp\ProcessLibraryManifest\release\tempAndroidManifest6440784653925601216.xml:2:23-81
+uses-sdk
+INJECTED from A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\tmp\ProcessLibraryManifest\release\tempAndroidManifest6440784653925601216.xml reason: use-sdk injection requested
+INJECTED from A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\tmp\ProcessLibraryManifest\release\tempAndroidManifest6440784653925601216.xml
+INJECTED from A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\tmp\ProcessLibraryManifest\release\tempAndroidManifest6440784653925601216.xml
+	android:targetSdkVersion
+		INJECTED from A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\tmp\ProcessLibraryManifest\release\tempAndroidManifest6440784653925601216.xml
+	android:minSdkVersion
+		INJECTED from A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\tmp\ProcessLibraryManifest\release\tempAndroidManifest6440784653925601216.xml
