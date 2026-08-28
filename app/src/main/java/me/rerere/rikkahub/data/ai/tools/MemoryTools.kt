@@ -129,7 +129,7 @@ fun buildMemoryTools(
                     }
                 }
 
-                else -> error("unknown action: $action, must be one of [create, edit, delete]")
+                else -> error("unknown action: $action, must be one of [create, edit, delete, list]")
             }
             listOf(UIMessagePart.Text(payload.toString()))
         }
