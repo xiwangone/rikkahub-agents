@@ -115,6 +115,8 @@ object EpubParser {
 
     private fun parseXhtml(inputStream: InputStream): String =
         try {
+            val xml = escapeUnresolvableEntities(inputStream.bufferedReader(Charsets.UTF_8).readText())
+
             val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = false
             val parser = factory.newPullParser()
