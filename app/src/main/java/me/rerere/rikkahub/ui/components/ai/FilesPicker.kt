@@ -71,9 +71,6 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.datastore.getCompactionContextLength
-import me.rerere.rikkahub.data.datastore.getContextCompactionTargetTokens
-import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
@@ -369,11 +366,7 @@ internal fun FilesPicker(
 
     // Compress Context Dialog
     if (showCompressDialog) {
-        CompressContextDialog(
-            defaultTargetTokens = settings.getContextCompactionTargetTokens(
-                settings.getCompactionContextLength(settings.getCurrentChatModel()),
-            ),
-            onDismiss = {
+        CompressContextDialog(onDismiss = {
             onShowCompressDialogChange(false)
             onDismiss()
         }, onConfirm = { additionalPrompt, targetTokens, keepRecentMessages ->
