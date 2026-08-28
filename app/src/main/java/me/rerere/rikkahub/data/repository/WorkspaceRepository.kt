@@ -11,7 +11,6 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.utils.JsonInstant
-import me.rerere.workspace.BackgroundStatus
 import me.rerere.workspace.RootfsInstallProgress
 import me.rerere.workspace.RootfsInstaller
 import me.rerere.workspace.WorkspaceCommandResult
@@ -19,7 +18,6 @@ import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.workspace.WorkspaceStorageArea
-import me.rerere.workspace.WorkspaceTreeResult
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
@@ -254,16 +252,6 @@ class WorkspaceRepository(
         manager.exportRootfsFile(workspace.root, path, outputStream)
     }
 
-    /** 按 Rootfs 内绝对路径递归列出目录树, 支持 /workspace、bind mount 与 Rootfs 内部路径 */
-    suspend fun readFolderTree(
-        id: String,
-        path: String,
-    ): WorkspaceTreeResult = withContext(Dispatchers.IO) {
-        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
-        manager.ensureWorkspace(workspace.root)
-        manager.rootfsTree(workspace.root, path)
-    }
-
     suspend fun deleteFile(
         id: String,
         area: WorkspaceStorageArea,
@@ -303,44 +291,6 @@ class WorkspaceRepository(
         return runInterruptible(Dispatchers.IO) {
             manager.ensureWorkspace(workspace.root)
             manager.executeCommand(workspace.root, command, cwd, timeoutMillis, stdin)
-        }
-    }
-
-    suspend fun startBackground(
-        id: String,
-        command: String,
-        cwd: String = "",
-    ): BackgroundStatus {
-        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
-        // 与 executeCommand 用 runInterruptible 相反: 那里取消即意味着杀掉前台进程, 这里
-        // 进程是要在工具调用结束后继续跑的后台任务, 取消(例如外层 withTimeoutOrNull 的共享
-        // turn 预算到期)绝不能打断启动或丢弃刚拿到的 id, 否则进程已经起来(端口已绑定/名额
-        // 已占用), 但调用方永远拿不到 id 去查询或杀掉它。NonCancellable 让启动+注册这一步
-        // 不可被取消、结果不会被丢弃；Dispatchers.IO 仍然只是把阻塞的进程启动挪到后台线程。
-        return withContext(NonCancellable + Dispatchers.IO) {
-            manager.ensureWorkspace(workspace.root)
-            manager.startBackground(workspace.root, command, cwd)
-        }
-    }
-
-    suspend fun backgroundStatus(id: String, taskId: String): BackgroundStatus? {
-        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
-        return withContext(Dispatchers.IO) {
-            manager.backgroundStatus(workspace.root, taskId)
-        }
-    }
-
-    suspend fun listBackground(id: String): List<BackgroundStatus> {
-        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
-        return withContext(Dispatchers.IO) {
-            manager.listBackground(workspace.root)
-        }
-    }
-
-    suspend fun killBackground(id: String, taskId: String): Boolean {
-        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
-        return withContext(Dispatchers.IO) {
-            manager.killBackground(workspace.root, taskId)
         }
     }
 

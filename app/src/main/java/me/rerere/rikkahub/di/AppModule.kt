@@ -385,27 +385,3 @@ val appModule =
             me.rerere.rikkahub.data.quota.QuotaCredentialManager(get())
         }
     }
-
-    single {
-        me.rerere.rikkahub.ui.pages.setting.doctor.DoctorChecks(
-            context = get(),
-            settingsStore = get(),
-            telegramPrefs = get(),
-            workflowRepository = get(),
-            scheduledJobRepository = get(),
-            scheduledJobRunRepository = get(),
-            conversationRepository = get(),
-            database = get(),
-            // Pass 3: surface the browser write-tools-enabled INFO row + profile-dir AutoFix.
-            browserPreferences = get(),
-            // Phase 25: surface the SAF granted-directories live count.
-            storageVolumeGrantStore = get(),
-            // LiteRT accelerator status row in the Doctor: shows the persisted backend
-            // decision so a silent GPU -> CPU fallback is visible.
-            localRuntimePreferences = get(),
-            // Doctor refresh: skills.* and service.mcp_servers rows.
-            skillManager = get(),
-            mcpManager = get(),
-        )
-    }
-}
