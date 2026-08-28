@@ -560,6 +560,9 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.SettingShizuku> {
                                 me.rerere.rikkahub.ui.pages.setting.shizuku.SettingShizukuPage()
                             }
+                            entry<Screen.SettingPreferencesNetwork> {
+                                me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNetworkPage()
+                            }
                             entry<Screen.SettingQuota> {
                                 me.rerere.rikkahub.ui.pages.setting.SettingQuotaPage()
                             }
@@ -853,6 +856,7 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingShizuku : Screen
+    data object SettingPreferencesNetwork : Screen
     data object SettingQuota : Screen
     data object SettingSshHosts : Screen
     data class SshTerminal(val hostName: String) : Screen
