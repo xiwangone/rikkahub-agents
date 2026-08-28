@@ -105,18 +105,8 @@ import kotlin.time.Duration.Companion.milliseconds
 @Composable
 fun ChatMessage(
     node: MessageNode,
-    // Tolerant default: node.currentMessage throws when selectIndex is stale, and a default
-    // argument is evaluated before the body runs, so the guard below could never catch it.
-    displayMessage: UIMessage = node.messages.getOrNull(node.selectIndex)
-        ?: node.messages.lastOrNull()
-        ?: UIMessage.assistant(""),
     modifier: Modifier = Modifier,
     loading: Boolean = false,
-    // Whether a generation is running anywhere in this conversation, independent of
-    // `loading` (which the caller narrows to this node being the last message) - see the
-    // rerun-button gate in ChatMessageToolStep, which must not show while any generation
-    // is in flight, not just one on this exact message.
-    generationActive: Boolean = loading,
     model: Model? = null,
     assistant: Assistant? = null,
     lastMessage: Boolean = false,
@@ -142,12 +132,7 @@ fun ChatMessage(
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
     sessionTotals: TokenBudgetTracker.Totals? = null,
 ) {
-    // node.selectIndex can be stale (e.g. after a branch/message was removed) or the
-    // node can be empty; degrade to the last message, or render nothing, instead of
-    // crashing with an IndexOutOfBoundsException.
-    if (node.messages.isEmpty()) return
-    val message = displayMessage
-    val actionMessage = node.messages.getOrNull(node.selectIndex) ?: node.messages.last()
+    val message = node.messages[node.selectIndex]
     val settings = LocalSettings.current.displaySetting
     val chatFontFamily = LocalChatFontFamily.current ?: rememberChatFontFamily(settings)
     val textStyle =
@@ -196,11 +181,9 @@ fun ChatMessage(
                 parts = message.parts,
                 annotations = message.annotations,
                 loading = loading,
-                generationActive = generationActive,
                 model = model,
                 onToolApproval = onToolApproval,
                 onToolAnswer = onToolAnswer,
-                onRerunTool = onRerunTool,
                 onUserMessageClick = if (message.role == MessageRole.USER) onEdit else null,
             )
 
@@ -228,7 +211,7 @@ fun ChatMessage(
                 modifier = Modifier.animateContentSize(),
             ) {
                 ChatMessageActionButtons(
-                    message = actionMessage,
+                    message = message,
                     onRegenerate = onRegenerate,
                     node = node,
                     onUpdate = onUpdate,
@@ -255,7 +238,7 @@ fun ChatMessage(
     }
     if (showActionsSheet) {
         ChatMessageActionsSheet(
-            message = actionMessage,
+            message = message,
             onEdit = onEdit,
             onDelete = onDelete,
             onShare = onShare,
@@ -318,7 +301,6 @@ private fun MessagePartsBlock(
         ) -> Unit
     )? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
-    onRerunTool: (suspend (toolCallId: String) -> me.rerere.rikkahub.service.ChatService.RerunToolResult)? = null,
     onUserMessageClick: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
@@ -420,10 +402,8 @@ private fun MessagePartsBlock(
                                     ChatMessageToolStep(
                                         tool = step.tool,
                                         loading = loading && !step.tool.isExecuted,
-                                        generationActive = generationActive,
                                         onToolApproval = onToolApproval,
                                         onToolAnswer = onToolAnswer,
-                                        onRerunTool = onRerunTool,
                                     )
                                 }
                             }

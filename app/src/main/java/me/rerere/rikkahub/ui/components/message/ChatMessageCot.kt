@@ -4,7 +4,7 @@ import androidx.compose.ui.util.fastForEachIndexed
 import me.rerere.ai.ui.UIMessagePart
 
 /**
- * 思考步骤类型，用于分组 Reasoning、客户端 Tool 和 ServerTool
+ * 思考步骤类型，用于分组 Reasoning 和 Tool
  */
 sealed interface ThinkingStep {
     data class ReasoningStep(
@@ -82,10 +82,6 @@ fun List<UIMessagePart>.groupMessageParts(): List<MessagePartBlock> {
             is UIMessagePart.ServerTool -> {
                 flushReasoning()
                 pendingTools.add(ThinkingStep.ServerToolStep(part))
-            }
-
-            is UIMessagePart.ServerTool -> {
-                currentThinkingSteps.add(ThinkingStep.ServerToolStep(part))
             }
 
             else -> {
