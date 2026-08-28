@@ -22,23 +22,137 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.io.InputStream
+import java.nio.charset.Charset
 
 private const val WEB_FETCH_TIMEOUT_MS = 30_000L
-private const val WEB_FETCH_BODY_CAP = 8 * 1024  // 8 KB
+internal const val WEB_FETCH_BODY_CAP = 8 * 1024  // 8 KB
+
+/** Cap for extracted prose. Higher than the raw cap because prose is all signal. */
+internal const val WEB_FETCH_EXTRACT_CAP = 32 * 1024
+
+internal enum class FetchExtract { RAW, ARTICLE, TEXT, LINKS, METADATA }
+
+internal fun parseExtractModeOrNull(raw: String?): FetchExtract? = when (raw?.trim()?.lowercase()) {
+    null, "", "raw" -> FetchExtract.RAW
+    "article" -> FetchExtract.ARTICLE
+    "text" -> FetchExtract.TEXT
+    "links" -> FetchExtract.LINKS
+    "metadata" -> FetchExtract.METADATA
+    else -> null
+}
+
+internal fun parseExtractMode(raw: String?): FetchExtract =
+    parseExtractModeOrNull(raw) ?: FetchExtract.RAW
+
+private fun FetchExtract.toExtractMode(): ExtractMode = when (this) {
+    FetchExtract.ARTICLE -> ExtractMode.ARTICLE
+    FetchExtract.TEXT -> ExtractMode.TEXT
+    FetchExtract.LINKS -> ExtractMode.LINKS
+    FetchExtract.METADATA -> ExtractMode.METADATA
+    FetchExtract.RAW -> ExtractMode.TEXT // unreachable; RAW never reaches the extractor
+}
+
+/**
+ * Build the response envelope for an extraction-mode fetch. An extraction that yields no
+ * text is an error, not a 200 with an empty string: a silent empty body is exactly how a
+ * caller ends up believing it read a page it never read.
+ *
+ * [bodyTruncated] means the raw HTML itself hit the read cap before it was fully read; it
+ * forces `truncated` true (and surfaces `body_truncated`) so a partial read is never
+ * reported as a complete one, even when the extracted-text window was not exhausted.
+ */
+internal fun buildExtractEnvelope(
+    status: Int,
+    ok: Boolean,
+    finalUrl: String,
+    html: String,
+    contentType: String?,
+    mode: FetchExtract,
+    maxChars: Int,
+    startIndex: Int,
+    bodyTruncated: Boolean,
+    headers: Map<String, String>?,
+): String {
+    val page = WebExtractor.extract(
+        html = html,
+        baseUrl = finalUrl,
+        mode = mode.toExtractMode(),
+        maxChars = maxChars,
+        startIndex = startIndex,
+    )
+
+    val nothingUseful = mode != FetchExtract.METADATA &&
+        mode != FetchExtract.LINKS &&
+        page.text.isBlank() &&
+        startIndex == 0
+
+    if (nothingUseful) {
+        return buildJsonObject {
+            put("error", "empty_extraction")
+            put("status", status)
+            put("final_url", finalUrl)
+            put(
+                "detail",
+                "The page was fetched but no article text could be extracted from it.",
+            )
+            put(
+                "recovery",
+                "Retry with extract_mode='raw' to inspect the markup, or open the page with " +
+                    "the browser tools if it renders its content with JavaScript.",
+            )
+        }.toString()
+    }
+
+    return buildJsonObject {
+        put("status", status)
+        put("ok", ok)
+        put("final_url", finalUrl)
+        put("extract_mode", mode.name.lowercase())
+        page.title?.let { put("title", it) }
+        page.siteName?.let { put("site_name", it) }
+        page.description?.let { put("description", it) }
+        page.language?.let { put("language", it) }
+        if (mode == FetchExtract.LINKS) {
+            put("links", buildJsonArray {
+                page.links.forEach { link ->
+                    add(buildJsonObject {
+                        put("href", link.href)
+                        put("text", link.text)
+                    })
+                }
+            })
+        } else {
+            put("text", page.text)
+        }
+        put("truncated", page.truncated || bodyTruncated)
+        put("body_truncated", bodyTruncated)
+        page.nextStartIndex?.let { put("next_start_index", it) }
+        headers?.let { h ->
+            put("headers", buildJsonObject { h.forEach { (k, v) -> put(k, v) } })
+        }
+    }.toString()
+}
 
 /**
  * Lightweight HTTP GET/POST tool so workflows / the LLM can fetch a URL without driving the
  * full in-app browser or shelling out to Termux+curl. Backed by the DI [OkHttpClient]
- * singleton (already NetworkChangeMonitor-registered). 30 s hard timeout via
- * [withTimeoutOrNull]; the response body is capped at 8 KB and the cap flagged.
+ * singleton (already NetworkChangeMonitor-registered), rebuilt per call with [withEgressGuard]
+ * so private / loopback / link-local targets are refused, whether named by hostname or IP
+ * literal, on every redirect hop. 30 s hard timeout via [withTimeoutOrNull]. Optionally
+ * extracts readable content instead of raw body.
  */
 fun webFetchTool(client: OkHttpClient): Tool = Tool(
     name = "web_fetch",
     description = """
-        Fetch a URL over HTTP(S). method is GET (default) or POST. Optionally pass headers
-        (object of name->value) and a body string (POST only). Hard 30s timeout. The response
-        body is capped at 8192 bytes; body_truncated=true when the response was longer.
-        Returns {status, ok, headers, body, body_truncated} or {error, detail, recovery}.
+        Fetch a URL over HTTP(S) and optionally extract readable content from it.
+        extract_mode: 'raw' (default, unprocessed body), 'article' (main prose, use this to
+        read a page), 'text' (all body text), 'links', or 'metadata'. Raw returns markup that
+        is mostly not content, so pass 'article' when you want to read a page. max_chars caps
+        the returned text (default 32768 when extracting, 8192 for raw); when truncated=true
+        pass next_start_index back as start_index to continue. method is GET (default) or
+        POST. Response headers are omitted unless include_headers=true. Private, loopback and
+        link-local addresses are refused. Returns {status, ok, final_url, extract_mode, title,
+        text, truncated, next_start_index} or {error, detail, recovery}.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -158,31 +272,79 @@ fun webFetchTool(client: OkHttpClient): Tool = Tool(
             )
         }
 
+        // Guarded client: refuses private / loopback / link-local targets on every hop,
+        // whether named by hostname or IP literal.
+        val guarded = client.withEgressGuard()
+
         val result = withTimeoutOrNull(WEB_FETCH_TIMEOUT_MS) {
             try {
-                client.newCall(request).execute().use { resp ->
+                guarded.newCall(request).execute().use { resp ->
                     // Read the body through a bounded buffer instead of resp.body.bytes(),
                     // which would pull the whole (possibly multi-GB) response into memory.
                     // Read at most CAP+1 bytes: the extra byte tells us more remained.
-                    val (raw, truncated) = readBounded(resp.body.byteStream(), WEB_FETCH_BODY_CAP)
-                    val bodyText = String(
-                        raw, 0, minOf(raw.size, WEB_FETCH_BODY_CAP), Charsets.UTF_8,
+                    // Raw is capped tight; extraction reads much more markup than the prose it
+                    // yields (roughly 8x), so it gets a larger byte budget before it truncates.
+                    val (raw, bodyTruncated) = readBounded(
+                        resp.body.byteStream(),
+                        if (mode == FetchExtract.RAW) WEB_FETCH_BODY_CAP else WEB_FETCH_EXTRACT_CAP * 8,
                     )
-                    buildJsonObject {
-                        put("status", resp.code)
-                        put("ok", resp.isSuccessful)
-                        put("headers", buildJsonObject {
-                            resp.headers.forEach { (n, v) -> put(n, v) }
-                        })
-                        put("body", bodyText)
-                        put("body_truncated", truncated)
-                    }.toString()
+                    val contentType = resp.header("Content-Type")
+                    val decoded = decodeBody(raw, raw.size, contentType)
+                    val headerMap = if (includeHeaders) {
+                        resp.headers.associate { (n, v) -> n to v }
+                    } else {
+                        null
+                    }
+
+                    if (mode == FetchExtract.RAW) {
+                        buildJsonObject {
+                            put("status", resp.code)
+                            put("ok", resp.isSuccessful)
+                            put("final_url", resp.request.url.toString())
+                            put("extract_mode", "raw")
+                            put("body", decoded)
+                            put("body_truncated", bodyTruncated)
+                            headerMap?.let { h ->
+                                put("headers", buildJsonObject { h.forEach { (k, v) -> put(k, v) } })
+                            }
+                        }.toString()
+                    } else {
+                        buildExtractEnvelope(
+                            status = resp.code,
+                            ok = resp.isSuccessful,
+                            finalUrl = resp.request.url.toString(),
+                            html = decoded,
+                            contentType = contentType,
+                            mode = mode,
+                            maxChars = maxChars,
+                            startIndex = startIndex,
+                            bodyTruncated = bodyTruncated,
+                            headers = headerMap,
+                        )
+                    }
                 }
-            } catch (e: IOException) {
+            } catch (e: java.io.InterruptedIOException) {
+                // OkHttp's callTimeout (set in withEgressGuard) fires this when a call, including
+                // a trickling read, runs past the advertised 30s limit; withTimeoutOrNull cannot
+                // catch this itself since the blocking execute() call has no suspension point.
                 buildJsonObject {
-                    put("error", "network_error")
+                    put("error", "timeout")
+                    put("detail", "Request exceeded the 30s limit.")
+                    put("recovery", "The host is slow or unreachable; try a smaller request or a different URL.")
+                }.toString()
+            } catch (e: IOException) {
+                val blocked = e.message?.contains("blocked_private_address") == true
+                buildJsonObject {
+                    put("error", if (blocked) "blocked_address" else "network_error")
                     put("detail", e.message ?: e::class.java.simpleName)
-                    put("recovery", "Check connectivity and that the host is reachable, then retry.")
+                    put(
+                        "recovery",
+                        if (blocked) {
+                            "This tool refuses private, loopback and link-local addresses. Use a public URL."
+                        } else {
+                            "Check connectivity and that the host is reachable, then retry."
+                        },
+                    )
                 }.toString()
             }
         } ?: buildJsonObject {
