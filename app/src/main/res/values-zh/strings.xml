@@ -314,7 +314,6 @@
   <string name="chat_page_compress_target_tokens">目标Token大小</string>
   <string name="chat_page_compress_warning">压缩只会更新发送给模型的上下文摘要，原始消息会保留。</string>
   <string name="chat_page_compressing">正在压缩...</string>
-  <string name="chat_page_retrying">正在重试（第 %1$d/%2$d 次）。上次失败原因：%3$s</string>
   <string name="chat_page_conversation_system_prompt">对话系统提示</string>
   <string name="chat_page_conversation_system_prompt_clear">清除</string>
   <string name="chat_page_conversation_system_prompt_hint">覆盖此对话的助手系统提示</string>
@@ -2528,5 +2527,4 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_update_reminder_pause_description">选择暂停更新提醒的时长。它们会自动恢复。</string>
   <string name="setting_update_reminder_pause_days">%1$d 天</string>
   <string name="setting_update_reminder_resume_now">立即恢复</string>
-  <string name="reasoning_max">最大</string>
 </resources>
