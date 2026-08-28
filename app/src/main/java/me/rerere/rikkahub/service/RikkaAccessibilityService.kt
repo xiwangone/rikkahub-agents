@@ -170,10 +170,14 @@ class RikkaAccessibilityService : AccessibilityService() {
         filter: (AccessibilityNodeInfo, depth: Int) -> Boolean,
         cap: Int,
         emit: (AccessibilityNodeInfo, depth: Int, traversalIndex: Int) -> Unit,
+        recycle: Boolean = false,
     ): Triple<Int, Int, Boolean> {
         var emitted = 0
         var seen = 0
         var truncated = false
+
+        // recycle=true 时在 API < 33 上回收每个已访问的非根节点（33+ 节点不池化，no-op）
+        val canRecycle = recycle && Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU
 
         fun walk(
             n: AccessibilityNodeInfo,
@@ -193,6 +197,9 @@ class RikkaAccessibilityService : AccessibilityService() {
                 if (truncated) return
                 val child = n.getChild(i) ?: continue
                 walk(child, depth + 1)
+                if (canRecycle && child !== root) {
+                    child.recycle()
+                }
             }
         }
         walk(root, 0)
