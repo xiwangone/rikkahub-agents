@@ -2502,8 +2502,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="export_import_session">导入会话</string>
   <string name="export_import_desc">从 JSON 文件导入对话记录</string>
   <string name="asr_hotwords_placeholder">热词1, 热词2, 热词3</string>
-</resources>
-
   <!-- BrowserAiStripe redesign: outcome-aware, localized action trail -->
   <string name="browser_ai_stripe_stop">停止</string>
   <string name="browser_ai_action_open">正在打开 %1$s</string>
