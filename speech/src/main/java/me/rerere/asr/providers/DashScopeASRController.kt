@@ -253,14 +253,6 @@ class DashScopeASRController(
                 } finally {
                     releaseRecorder()
                 }
-            } catch (e: Exception) {
-                if (isActive) {
-                    Log.e(TAG, "Audio recording failed", e)
-                    setError(e.message ?: "Audio recording failed")
-                }
-            } finally {
-                releaseRecorder()
-            }
     }
 
     private fun handleServerEvent(text: String) {
