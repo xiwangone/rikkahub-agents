@@ -65,4 +65,24 @@ class SkillPathsTest {
             root.deleteRecursively()
         }
     }
+
+    // Backup-restore reuses resolveSkillFile to guard the images folder against zip-slip too
+    // (issue #39): a malicious backup entry like "images/../../databases/rikka_hub.db" must
+    // not escape, mirroring the upload-restore guard above.
+    @Test
+    fun `resolve file rejects absolute and deep traversal (images-restore zip-slip)`() {
+        val root = Files.createTempDirectory("images-root").toFile()
+        val imagesDir = File(root, "images").apply { mkdirs() }
+
+        try {
+            val safeName = "images/foo.png".substringAfter("images/")
+            val traversalName = "images/../../databases/rikka_hub.db".substringAfter("images/")
+
+            assertEquals(File(imagesDir, "foo.png").canonicalFile, SkillPaths.resolveSkillFile(imagesDir, safeName))
+            assertNull(SkillPaths.resolveSkillFile(imagesDir, traversalName))
+            assertNull(SkillPaths.resolveSkillFile(imagesDir, "/data/local/tmp/evil"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
 }

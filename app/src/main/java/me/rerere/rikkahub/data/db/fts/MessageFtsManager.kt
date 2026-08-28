@@ -88,6 +88,18 @@ class MessageFtsManager(private val database: AppDatabase) {
         db.execSQL("DELETE FROM message_fts WHERE conversation_id = ?", arrayOf(conversationId))
     }
 
+    /**
+     * Narrow update of the denormalized `title` column for a rename, without touching the
+     * indexed message rows. Use this instead of [indexConversation] when only the title
+     * changed, so a title-only rename doesn't require deleting/reinserting every message.
+     */
+    suspend fun updateConversationTitle(conversationId: String, title: String) = withContext(Dispatchers.IO) {
+        db.execSQL(
+            "UPDATE message_fts SET title = ? WHERE conversation_id = ?",
+            arrayOf(title, conversationId)
+        )
+    }
+
     suspend fun deleteAll() = withContext(Dispatchers.IO) {
         db.execSQL("DELETE FROM message_fts")
     }

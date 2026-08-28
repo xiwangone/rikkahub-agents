@@ -8,6 +8,8 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import java.util.concurrent.ConcurrentHashMap
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -39,6 +41,14 @@ private const val TAG = "CronJobWorker"
 internal const val REPLAY_WINDOW_MS = 10L * 60_000L
 
 /**
+ * Prepended to every cron LLM-mode prompt. Models otherwise treat a `post_notification`
+ * call as "done" and leave a terse chat reply, but the reply IS what the user reads when
+ * they tap that notification (it deep-links back to this conversation), so it has to
+ * carry the full result, not the notification.
+ */
+private const val CRON_DELIVERY_DIRECTIVE = "[System] Your full text reply to this task is saved to a conversation the user can open in the app, including by tapping any notification you post (the notification deep-links to this conversation). ALWAYS write your complete result as your reply here. If you also call post_notification, keep the notification a short alert and still include the full content in your reply. Do not rely on writing files or external channels for the user to read the result: your reply in this conversation is the record."
+
+/**
  * Wait for the ChatService generation job on [flow] to terminate (transition to null)
  * within a wall-clock [timeoutMs] cap. Returns `true` on natural completion, `false` if
  * the cap fired first.
@@ -59,6 +69,28 @@ internal suspend fun awaitGenerationTerminal(
             Unit
         }
     return completed != null
+}
+
+/**
+ * Turn an [awaitGenerationTerminal] result into the LLM-mode run outcome, stopping the
+ * still-running generation on timeout via [stop]. Left uncalled, a timed-out generation
+ * keeps burning tokens indefinitely, and a later fire of the same job can start a second
+ * parallel generation while the first is still going. [stop] is responsible for its own
+ * failure handling (see the call site in [CronJobWorker.runLlm]) — this function only
+ * guarantees it is invoked before the timeout is reported. Split out (like
+ * [awaitGenerationTerminal]) so a JVM test can pin the stop-on-timeout contract without a
+ * live ChatService.
+ */
+internal suspend fun finishRunLlm(
+    completed: Boolean,
+    convId: Uuid,
+    stop: suspend () -> Unit,
+): Triple<String, String?, Uuid?> {
+    if (!completed) {
+        stop()
+        return Triple("timed_out", "llm turn exceeded 15min", convId)
+    }
+    return Triple("success", null, convId)
 }
 
 /**
@@ -90,6 +122,25 @@ internal fun shouldSuppressAsReplay(
     if (priorRow.outcome == "concurrent_skip" || priorRow.outcome == "skipped_catchup") return false
     return priorRow.startedAtMs >= nowMs - windowMs
 }
+
+/**
+ * Ceiling on how many run-history rows a single job's max_runs can force [trim] to retain.
+ * schedule_job only validates max_runs >= 1 (ScheduleJobValidator), so without this cap
+ * historyRetentionFor scales with an unbounded max_runs and trim(keep=...) would retain the
+ * job's run history essentially forever — the same class of unbounded-row-growth bug
+ * [CatchupPlanner.SKIPPED_ROWS_CAP] bounds on the catchup side.
+ */
+internal const val MAX_HISTORY_RETENTION = 1000
+
+/**
+ * How many run-history rows [ScheduledJobRunDao.trim] must retain for max_runs enforcement
+ * to stay correct. boundsExpired() derives the job's progress from
+ * [ScheduledJobRunRepository.countSuccessful], which only sees rows that survived trim() —
+ * trimming below [maxRuns] silently caps the achievable success count at the trim floor, so
+ * a job configured for e.g. 150 runs would fire forever once history reaches 100 rows.
+ */
+internal fun historyRetentionFor(maxRuns: Int?, baseline: Int = 100): Int =
+    maxOf(baseline, maxRuns ?: 0).coerceAtMost(MAX_HISTORY_RETENTION)
 
 /**
  * Tracks which jobs currently have a worker actively running. Prevents two

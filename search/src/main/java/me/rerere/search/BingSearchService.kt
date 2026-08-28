@@ -7,10 +7,19 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.search.SearchResult.SearchResultItem
+import me.rerere.search.SearchService.Companion.httpClient
+import me.rerere.search.extract.ExtractMode
+import me.rerere.search.extract.ScrapeSchema
+import me.rerere.search.extract.WebExtractor
+import me.rerere.search.net.hostIsBlockedLiteral
+import me.rerere.search.net.withEgressGuard
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import okhttp3.Request
 import org.jsoup.Jsoup
 import java.net.URLEncoder
 import java.util.Locale
@@ -38,7 +47,20 @@ object BingSearchService : SearchService<SearchServiceOptions.BingLocalOptions> 
             required = listOf("query"),
         )
 
-    override fun scrapingParameters(options: SearchServiceOptions.BingLocalOptions): InputSchema? = null
+    override fun scrapingParameters(options: SearchServiceOptions.BingLocalOptions): InputSchema? =
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("url", buildJsonObject {
+                    put("type", "string")
+                    put("description", ScrapeSchema.URL_DESCRIPTION)
+                })
+                put("mode", buildJsonObject {
+                    put("type", "string")
+                    put("description", ScrapeSchema.MODE_DESCRIPTION)
+                })
+            },
+            required = listOf("url"),
+        )
 
     override suspend fun search(
         params: JsonObject,

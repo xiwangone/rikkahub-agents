@@ -144,6 +144,10 @@ fun clickNodeTool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
+                put("node_id", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Node handle from read_window_tree/find_node (\"windowId:index\"). Preferred over by/value; on a stale id you get stale_node_id and should re-read the tree.")
+                })
                 put("by", buildJsonObject {
                     put("type", "string")
                     put("enum", buildJsonArray { add("text"); add("content_description"); add("view_id_resource_name") })
@@ -254,6 +258,10 @@ fun setTextTool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
+                put("node_id", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Node handle from read_window_tree/find_node (\"windowId:index\"). Preferred over by/value; on a stale id you get stale_node_id and should re-read the tree.")
+                })
                 put("by", buildJsonObject {
                     put("type", "string")
                     put("enum", buildJsonArray { add("text"); add("content_description"); add("view_id_resource_name") })

@@ -77,6 +77,11 @@ class RikkaAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        // The service config only subscribes to typeWindowStateChanged|typeWindowContentChanged,
+        // so any event delivery means the UI moved.
+        if (event != null) {
+            lastWindowEventUptime = android.os.SystemClock.uptimeMillis()
+        }
         // Phase 12 — feed foreground-app transitions to the workflow trigger dispatcher.
         // We only care about TYPE_WINDOW_STATE_CHANGED and only when the package name is
         // present. The dispatcher itself de-dupes (skips no-op transitions) and dispatches

@@ -34,6 +34,7 @@ import me.rerere.rikkahub.workflow.model.WorkflowJson
  * just lightly marked up.
  */
 object WorkflowApprovalRenderer {
+
     /** True if the tool is one of ours and should use this renderer (not the JSON dump). */
     fun isWorkflowTool(toolName: String): Boolean = toolName in WORKFLOW_TOOL_NAMES
 

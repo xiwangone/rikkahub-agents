@@ -187,6 +187,18 @@ class S3Sync(
                 } else {
                     Log.w(TAG, "prepareBackupFile: Fonts folder does not exist or is not a directory")
                 }
+
+                val imagesFolder = File(context.filesDir, FileFolders.IMAGES)
+                if (imagesFolder.exists() && imagesFolder.isDirectory) {
+                    Log.i(TAG, "prepareBackupFile: Backing up images from ${imagesFolder.absolutePath}")
+                    imagesFolder.listFiles()?.forEach { file ->
+                        if (file.isFile) {
+                            addFileToZip(zipOut, file, "${FileFolders.IMAGES}/${file.name}")
+                        }
+                    }
+                } else {
+                    Log.w(TAG, "prepareBackupFile: Images folder does not exist or is not a directory")
+                }
             }
         }
 
@@ -262,9 +274,10 @@ class S3Sync(
                                         TAG,
                                         "restoreFromBackupFile: Restoring ${zipEntry.name} to ${targetFile.absolutePath}"
                                     )
-                                    targetFile.parentFile?.mkdirs()
-                                    FileOutputStream(targetFile).use { outputStream ->
-                                        zipIn.copyTo(outputStream)
+                                    extractEntryAtomically(zipIn, targetFile)
+                                    when (zipEntry.name) {
+                                        "rikka_hub-wal" -> restoredWal = true
+                                        "rikka_hub-shm" -> restoredShm = true
                                     }
                                     when (zipEntry.name) {
                                         "rikka_hub-wal" -> restoredWal = true
@@ -334,6 +347,42 @@ class S3Sync(
                                         "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
                                     )
                                 }
+                            } else if (config.items.contains(S3Config.BackupItem.FILES) &&
+                                zipEntry.name.startsWith("${FileFolders.IMAGES}/")
+                            ) {
+                                val fileName = zipEntry.name.substringAfter("${FileFolders.IMAGES}/")
+                                if (fileName.isNotEmpty()) {
+                                    val imagesFolder = File(context.filesDir, FileFolders.IMAGES)
+                                    if (!imagesFolder.exists()) {
+                                        imagesFolder.mkdirs()
+                                        Log.i(TAG, "restoreFromBackupFile: Created images directory")
+                                    }
+
+                                    // Guard against zip-slip: reject entries that resolve
+                                    // outside the images folder (e.g. "../../databases/...").
+                                    val targetFile = SkillPaths.resolveSkillFile(imagesFolder, fileName)
+                                    if (targetFile == null) {
+                                        Log.w(TAG, "restoreFromBackupFile: Rejected unsafe images entry ${zipEntry.name}")
+                                    } else {
+                                        Log.i(
+                                            TAG,
+                                            "restoreFromBackupFile: Restoring file ${zipEntry.name} to ${targetFile.absolutePath}"
+                                        )
+                                        targetFile.parentFile?.mkdirs()
+                                        try {
+                                            FileOutputStream(targetFile).use { outputStream ->
+                                                zipIn.copyTo(outputStream)
+                                            }
+                                            Log.i(
+                                                TAG,
+                                                "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
+                                            )
+                                        } catch (e: Exception) {
+                                            Log.e(TAG, "restoreFromBackupFile: Failed to restore file ${zipEntry.name}", e)
+                                            throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")
+                                        }
+                                    }
+                                }
                             } else {
                                 Log.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
                             }
@@ -359,6 +408,33 @@ class S3Sync(
         }
 
         Log.i(TAG, "restoreFromBackupFile: Restore completed successfully")
+    }
+
+    /**
+     * Extract one zip entry to [targetFile] atomically: write to a temp file in the SAME
+     * directory, then rename over the target. Used for rikka_hub.db/-wal/-shm, which used to
+     * be written straight to their live path: a process kill mid-copy left a torn database
+     * file; a rename is atomic on the same filesystem.
+     */
+    private fun extractEntryAtomically(zipIn: ZipInputStream, targetFile: File) {
+        targetFile.parentFile?.mkdirs()
+        val tmp = File(targetFile.parentFile, "${targetFile.name}.restore-${System.nanoTime()}")
+        try {
+            FileOutputStream(tmp).use { outputStream ->
+                zipIn.copyTo(outputStream)
+            }
+            if (!tmp.renameTo(targetFile)) {
+                // Some filesystems won't rename onto an existing target; delete + retry.
+                targetFile.delete()
+                if (!tmp.renameTo(targetFile)) {
+                    tmp.delete()
+                    throw java.io.IOException("Failed to place restored file at ${targetFile.absolutePath}")
+                }
+            }
+        } catch (e: Throwable) {
+            tmp.delete()
+            throw e
+        }
     }
 
     private fun checkpointDatabase() {

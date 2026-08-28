@@ -36,6 +36,7 @@ private const val TAG = "MediaPlaybackSvc"
  * State can be read from [MediaPlaybackService.Companion.getStatus].
  */
 class MediaPlaybackService : Service() {
+
     companion object {
         const val CHANNEL_ID = "rikkahub_media_playback"
         const val NOTIFICATION_ID = 7001
@@ -640,4 +641,31 @@ class MediaPlaybackService : Service() {
             // player is mid-teardown — caught as Exception.
             positionMs
         }
+    }
+}
+
+/**
+ * Keeps a single listener and a single request instance stable across repeated
+ * [requestFocus] calls, building each lazily on first use and reusing both thereafter
+ * (including after [abandon]). Generic over the concrete listener/request types purely so
+ * the stable-identity contract can be unit-tested without the Android framework — see #30.
+ */
+internal class AudioFocusHolder<Listener, Request>(
+    private val createListener: () -> Listener,
+    private val createRequest: (Listener) -> Request,
+    private val doRequest: (Request) -> Boolean,
+    private val doAbandon: (Request) -> Unit,
+) {
+    private var listener: Listener? = null
+    private var request: Request? = null
+
+    fun requestFocus(): Boolean {
+        val stableListener = listener ?: createListener().also { listener = it }
+        val stableRequest = request ?: createRequest(stableListener).also { request = it }
+        return doRequest(stableRequest)
+    }
+
+    fun abandon() {
+        request?.let { doAbandon(it) }
+    }
 }

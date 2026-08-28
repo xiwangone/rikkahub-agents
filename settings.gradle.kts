@@ -1,4 +1,6 @@
 pluginManagement {
+    includeBuild("build-logic")
+
     repositories {
         google {
             content {
@@ -9,14 +11,6 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
-        maven("https://repo.itextsupport.com/android")
-    }
-    resolutionStrategy {
-        eachPlugin {
-            if (requested.id.id == "io.objectbox") {
-                useModule("io.objectbox:objectbox-gradle-plugin:${requested.version}")
-            }
-        }
     }
 }
 plugins {
@@ -28,7 +22,6 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven("https://jitpack.io")
-        mavenLocal()
     }
 }
 
@@ -37,6 +30,7 @@ include(":app")
 include(":highlight")
 include(":ai")
 include(":local-llm")
+include(":llama-cpp")
 include(":search")
 include(":speech")
 include(":common")

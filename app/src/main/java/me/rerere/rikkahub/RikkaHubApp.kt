@@ -22,6 +22,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import me.rerere.common.android.Logging
 import me.rerere.common.android.appTempFolder
 import com.whl.quickjs.android.QuickJSLoader
 import me.rerere.rikkahub.di.appModule
@@ -52,6 +53,11 @@ const val WEB_SERVER_NOTIFICATION_CHANNEL_ID = "web_server"
 class RikkaHubApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        // :ai (and other sub-:app modules) have no BuildConfig of their own, so this is
+        // how their provider code learns whether it's running a debug build — needed to
+        // gate full request/response body logging the same way HttpLoggingInterceptor
+        // is already gated behind BuildConfig.DEBUG in DataSourceModule.
+        Logging.setDebugLoggingEnabled(BuildConfig.DEBUG)
         startKoin {
             androidLogger()
             androidContext(this@RikkaHubApp)
@@ -114,6 +120,14 @@ class RikkaHubApp : Application() {
         // sandbox for `.learnings/`, scratch files, and skill state without scoped-
         // storage friction. Termux-style: private, persistent, OS-blessed.
         me.rerere.rikkahub.data.ai.tools.local.AgentWorkspace.init(this)
+
+        // TermuxPreferences is already constructed transitively via eagerlyInitChatService()
+        // above (ChatService -> LocalTools -> TermuxPreferences), which runs its init{}
+        // restore + persister wiring for TermuxIntegration.lastVerifiedOkAtMs (GitHub #14).
+        // This explicit touch is a decoupled safety net so that persistence still initializes
+        // if that construction chain is later refactored or throws before reaching
+        // termuxPreferences.
+        eagerlyInitTermuxPreferences()
 
         // Copy any default skills bundled in assets/default-skills/* into the user's skills
         // dir on first launch. SkillManager guards via a per-skill .seeded sentinel so this
@@ -348,6 +362,16 @@ class RikkaHubApp : Application() {
             get<me.rerere.rikkahub.service.ChatService>()
         } catch (t: Throwable) {
             Log.e(TAG, "eagerlyInitChatService failed", t)
+        }
+    }
+
+    // Decoupled safety net: normally a no-op since eagerlyInitChatService() already
+    // constructed TermuxPreferences transitively; kept independent in case that chain changes.
+    private fun eagerlyInitTermuxPreferences() {
+        try {
+            get<me.rerere.rikkahub.data.preferences.TermuxPreferences>()
+        } catch (t: Throwable) {
+            Log.e(TAG, "eagerlyInitTermuxPreferences failed", t)
         }
     }
 

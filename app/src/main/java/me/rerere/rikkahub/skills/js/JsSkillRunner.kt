@@ -281,6 +281,26 @@ class JsSkillRunner(private val context: Context) {
         const val DEFAULT_TIMEOUT_MS = 60_000L
         const val MAX_TIMEOUT_MS = 5 * 60_000L
         const val MAX_DATA_LENGTH = 64 * 1024  // 64KB cap on the data payload
+
+        /**
+         * Per-skill virtual origin host: `<slug>-<8 hex>.appassets.androidplatform.net`.
+         * Deterministic per skill-directory name so a skill keeps its DOM storage across runs;
+         * the hash keeps hosts distinct when two names sanitize to the same slug; the slug
+         * keeps URLs readable in logs. Label stays within DNS limits (24 + 1 + 8 chars).
+         */
+        internal fun skillOriginHost(skillDirName: String): String {
+            val slug = skillDirName.lowercase()
+                .replace(Regex("[^a-z0-9]+"), "-")
+                .trim('-')
+                .take(24)
+                .trimEnd('-')
+                .ifEmpty { "skill" }
+            val hash = java.security.MessageDigest.getInstance("SHA-256")
+                .digest(skillDirName.toByteArray(Charsets.UTF_8))
+                .take(4)
+                .joinToString("") { "%02x".format(it) }
+            return "$slug-$hash.$ASSET_DOMAIN"
+        }
     }
 }
 

@@ -10,7 +10,6 @@
        permission) but declaring is required. -->
   <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
   <uses-permission android:name="android.permission.CAMERA" />
-  <uses-permission android:name="android.permission.RECORD_AUDIO" />
   <uses-permission
     android:name="android.permission.WRITE_EXTERNAL_STORAGE"
     android:maxSdkVersion="28" />
@@ -92,6 +91,12 @@
        agent-keyboard's KeyboardApiService and drive the active text field over AIDL. -->
   <uses-permission android:name="dev.patrickgold.florisboard.permission.AGENT_KEYBOARD_API" />
 
+  <!-- Shizuku's documented setup: gates the pre-v11 (API 23) provider handshake path some
+       older Shizuku server builds still use. Also merged in automatically from the
+       dev.rikka.shizuku:provider artifact's own manifest; declared here too per the
+       library's setup instructions. -->
+  <uses-permission android:name="moe.shizuku.manager.permission.API_V23" />
+
   <uses-feature
     android:name="android.hardware.nfc"
     android:required="false" />
@@ -165,7 +170,7 @@
       android:theme="@style/Theme.Rikkahub" />
     <activity
       android:name=".RouteActivity"
-      android:configChanges="keyboardHidden|orientation|screenSize"
+      android:configChanges="keyboardHidden|orientation|screenSize|uiMode|screenLayout|smallestScreenSize|density"
       android:exported="true"
       android:importantForAutofill="noExcludeDescendants"
       android:theme="@style/Theme.Rikkahub"
@@ -220,6 +225,22 @@
 
         <data
           android:host="codex"
+          android:path="/oauth"
+          android:scheme="rikkahub" />
+      </intent-filter>
+    </activity>
+    <activity
+      android:name=".ui.activity.GeminiOAuthRedirectActivity"
+      android:exported="true"
+      android:theme="@android:style/Theme.Translucent.NoTitleBar">
+      <intent-filter>
+        <action android:name="android.intent.action.VIEW" />
+
+        <category android:name="android.intent.category.DEFAULT" />
+        <category android:name="android.intent.category.BROWSABLE" />
+
+        <data
+          android:host="gemini"
           android:path="/oauth"
           android:scheme="rikkahub" />
       </intent-filter>
@@ -411,6 +432,15 @@
         <action android:name="android.content.action.DOCUMENTS_PROVIDER" />
       </intent-filter>
     </provider>
+    <!-- Required by Shizuku: receives the binder handed off from the Shizuku app / service.
+         Declaration matches the library's documented setup (Shizuku-API demo manifest). -->
+    <provider
+      android:name="rikka.shizuku.ShizukuProvider"
+      android:authorities="${applicationId}.shizuku"
+      android:enabled="true"
+      android:exported="true"
+      android:multiprocess="false"
+      android:permission="android.permission.INTERACT_ACROSS_USERS_FULL" />
     <provider
       android:name="androidx.startup.InitializationProvider"
       android:authorities="${applicationId}.androidx-startup"

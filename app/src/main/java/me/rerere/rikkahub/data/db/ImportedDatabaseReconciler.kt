@@ -67,6 +67,9 @@ object ImportedDatabaseReconciler {
      */
     private val MODERN_COLUMN_SENTINELS = listOf("custom_system_prompt", "workspace_cwd", "folder_id")
 
+    private const val CONTEXT_COMPACTION_DDL =
+        "CREATE TABLE IF NOT EXISTS `conversation_compaction` (`conversation_id` TEXT NOT NULL, `summary` TEXT NOT NULL, `tail_start_node_id` TEXT, `source_end_node_id` TEXT NOT NULL, `summary_model_id` TEXT NOT NULL, `is_auto` INTEGER NOT NULL, `source_token_estimate` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`conversation_id`), FOREIGN KEY(`conversation_id`) REFERENCES `ConversationEntity`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
+
     /**
      * Fork-only tables absent from an upstream backup, with their exact v25 create + index
      * statements. Every statement is IF NOT EXISTS so running it against a genuine agent
@@ -85,6 +88,25 @@ object ImportedDatabaseReconciler {
         "CREATE INDEX IF NOT EXISTS `idx_runs_kind_dom` ON `agent_runs` (`kind`, `domain_id`)",
         "CREATE INDEX IF NOT EXISTS `idx_runs_parent` ON `agent_runs` (`parent_run_id`)",
         "CREATE INDEX IF NOT EXISTS `idx_runs_updated_at` ON `agent_runs` (`updated_at_ms`)",
+    )
+
+    /**
+     * Indices the fork's 27->28 auto-migration adds on tables that already exist before that
+     * step (`ConversationEntity`, `MemoryEntity`) or that [FORK_ONLY_DDL] just created fresh
+     * (`scheduled_jobs`, `scheduled_job_runs`). That migration is a pure schema diff compiled
+     * from app/schemas/.../27.json and 28.json, so it never runs on the "already current" path
+     * below, which stamps the file straight to [EXPECTED_VERSION]: the indices would otherwise
+     * be silently missing (issue #60, `Found: indices = {}` on `ConversationEntity`). Every
+     * statement is `IF NOT EXISTS`, so running this against a database that already has the
+     * indices - including a genuine backup already on v30 - is a safe no-op that touches no data.
+     */
+    internal val BACKFILL_INDEX_DDL: List<String> = listOf(
+        "CREATE INDEX IF NOT EXISTS `index_ConversationEntity_assistant_id_is_pinned_update_at` ON `ConversationEntity` (`assistant_id`, `is_pinned`, `update_at`)",
+        "CREATE INDEX IF NOT EXISTS `index_ConversationEntity_is_pinned_update_at` ON `ConversationEntity` (`is_pinned`, `update_at`)",
+        "CREATE INDEX IF NOT EXISTS `index_MemoryEntity_assistant_id` ON `MemoryEntity` (`assistant_id`)",
+        "CREATE INDEX IF NOT EXISTS `index_scheduled_jobs_enabled` ON `scheduled_jobs` (`enabled`)",
+        "CREATE INDEX IF NOT EXISTS `index_scheduled_job_runs_jobId_startedAtMs` ON `scheduled_job_runs` (`jobId`, `startedAtMs`)",
+        "CREATE INDEX IF NOT EXISTS `index_scheduled_job_runs_jobId_outcome` ON `scheduled_job_runs` (`jobId`, `outcome`)",
     )
 
     /**

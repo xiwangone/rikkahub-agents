@@ -27,6 +27,7 @@ import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
+import androidx.annotation.VisibleForTesting
 import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
@@ -72,7 +73,7 @@ fun ChatMessageNerdLine(
                         icon = {
                             Icon(
                                 imageVector = HugeIcons.Upload02,
-                                contentDescription = "Input",
+                                contentDescription = stringResource(R.string.accessibility_input_tokens),
                                 tint = color,
                                 modifier = Modifier.size(12.dp),
                             )

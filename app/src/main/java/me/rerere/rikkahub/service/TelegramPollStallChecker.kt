@@ -36,6 +36,7 @@ class TelegramPollStallChecker(
     private val checkIntervalMs: Long = CHECK_INTERVAL_MS,
     private val stallThresholdMs: Long = TelegramPollStallTracker.DEFAULT_STALL_THRESHOLD_MS,
 ) {
+
     /** What the checker should do on a given tick. */
     enum class Action {
         /** Poll loop is healthy — nothing to do. */

@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface WorkflowDao {
+
     @Query("SELECT * FROM workflows ORDER BY name COLLATE NOCASE ASC")
     fun observeAll(): Flow<List<WorkflowEntity>>
 

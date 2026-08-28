@@ -7,6 +7,14 @@ import java.util.concurrent.TimeUnit
 
 interface WorkspaceShellRunner {
     fun execute(context: WorkspaceShellContext): WorkspaceCommandResult
+
+    /**
+     * Launch [context.command] as a live process for background use. The returned
+     * Process is NOT waited on and NOT timed out; the caller owns draining and
+     * lifecycle. [context.timeoutMillis] and [context.stdin] are ignored.
+     * Throws IllegalStateException on setup failure (rootfs / proot / loader missing).
+     */
+    fun start(context: WorkspaceShellContext): Process
 }
 
 data class WorkspaceShellContext(

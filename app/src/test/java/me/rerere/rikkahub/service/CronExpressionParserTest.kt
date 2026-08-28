@@ -128,6 +128,23 @@ class CronExpressionParserTest {
     }
 
     @Test
+    fun `rejects out-of-range @every Nm and Nh instead of silently clamping`() {
+        // Previously coerceAtMost(59) / coerceAtMost(23) silently rewrote these to
+        // */59 * * * * and 0 */23 * * *, so the job ran on the WRONG schedule with no
+        // indication anything was off. Now they must fail validation instead.
+        listOf("@every 90m", "@every 60m", "@every 25h").forEach {
+            val r = CronExpressionParser.parse(it)
+            assertTrue("$it must return failure, not a silently clamped schedule", r.isFailure)
+        }
+    }
+
+    @Test
+    fun `accepts @every Nm and Nh at the boundary of the valid range`() {
+        assertTrue(CronExpressionParser.parse("@every 59m").isSuccess)
+        assertTrue(CronExpressionParser.parse("@every 23h").isSuccess)
+    }
+
+    @Test
     fun `nextExecution does not throw on never-firing expression`() {
         // Some impossible expressions parse but never fire (e.g. Feb 30).
         // We just want no exception leaking.

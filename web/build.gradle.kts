@@ -1,7 +1,7 @@
 import org.apache.tools.ant.taskdefs.condition.Os
 
 plugins {
-    alias(libs.plugins.android.library)
+    id("rikkahub.android.library")
 }
 
 val webUiDir = rootProject.layout.projectDirectory.dir("web-ui")
@@ -21,6 +21,7 @@ val installWebUiDeps = tasks.register<Exec>("installWebUiDeps") {
 
     inputs.files(
         webUiDir.file("package.json"),
+        webUiDir.file("pnpm-lock.yaml"),
         webUiDir.file("bun.lock")
     )
     outputs.dir(webUiDir.dir("node_modules"))
@@ -56,30 +57,6 @@ val buildWebUi = tasks.register<Exec>("buildWebUi") {
 
 android {
     namespace = "me.rerere.rikkahub.web"
-    compileSdk {
-        version = release(37)
-    }
-
-    defaultConfig {
-        minSdk = 24
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        consumerProguardFiles("consumer-rules.pro")
-    }
-
-    buildTypes {
-        release {
-            isMinifyEnabled = false
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_11
-        targetCompatibility = JavaVersion.VERSION_11
-    }
 }
 
 tasks.named("preBuild") {

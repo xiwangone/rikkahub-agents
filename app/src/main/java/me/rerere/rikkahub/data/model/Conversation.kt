@@ -25,6 +25,10 @@ data class Conversation(
     @Serializable(with = InstantSerializer::class)
     val updateAt: Instant = Instant.now(),
     val customSystemPrompt: String? = null,
+    // Set only by SubAgentEngine when subagent_dispatch resolves an explicit model_id.
+    // Null (the default, and what every persisted conversation decodes to) means "use the
+    // assistant/settings default" - see ChatService.handleMessageComplete.
+    val chatModelId: Uuid? = null,
     val modeInjectionIds: Set<Uuid> = emptySet(),
     val lorebookIds: Set<Uuid> = emptySet(),
     // Absolute path inside the workspace rootfs

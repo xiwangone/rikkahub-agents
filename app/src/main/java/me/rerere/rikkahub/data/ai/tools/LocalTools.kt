@@ -120,6 +120,7 @@ import me.rerere.rikkahub.data.ai.tools.local.batchCopyTool
 import me.rerere.rikkahub.data.ai.tools.local.batchMoveTool
 import me.rerere.rikkahub.data.ai.tools.local.batchDeleteTool
 import me.rerere.rikkahub.data.ai.tools.local.webFetchTool
+import me.rerere.rikkahub.data.ai.tools.local.webExtractTool
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.utils.readClipboardText
@@ -875,6 +876,8 @@ class LocalTools(
         if (options.contains(LocalToolOption.AppLauncher)) {
             tools.add(me.rerere.rikkahub.data.ai.tools.local.launchAppTool(context, invocationContext, interactiveToolStreamer))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.listInstalledAppsTool(context))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.listAppActivitiesTool(context))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.launchActivityTool(context, invocationContext, interactiveToolStreamer))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.openUrlTool(context, invocationContext, interactiveToolStreamer))
         }
         if (options.contains(LocalToolOption.Termux)) {

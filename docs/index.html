@@ -622,6 +622,17 @@
       line-height: 1.65;
     }
 
+    .feature-card ul {
+      margin: 0;
+      padding-left: 1.1rem;
+      font-size: 0.94rem;
+      color: var(--text-dim);
+      line-height: 1.65;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+
     .feature-card.span-2 h3 { font-size: 1.22rem; }
     .feature-card.span-2 p  { font-size: 0.99rem; }
 
@@ -635,6 +646,19 @@
     }
 
     .feature-card strong { color: var(--text); font-weight: 600; }
+
+    .warn-note {
+      margin-top: 0.4rem;
+      padding: 0.75rem 0.9rem;
+      border-left: 3px solid var(--yellow);
+      border-radius: 6px;
+      background: rgba(224, 175, 104, 0.07);
+      font-size: 0.88rem;
+      color: var(--text-dim);
+      line-height: 1.6;
+    }
+
+    .warn-note strong { color: var(--yellow); font-weight: 600; }
 
     @media (max-width: 900px) {
       .features-grid { grid-template-columns: repeat(2, 1fr); }
@@ -1036,6 +1060,7 @@
   </a>
   <ul class="nav-links">
     <li><a href="#features">Features</a></li>
+    <li><a href="#providers">Models</a></li>
     <li><a href="#quickstart">Quick start</a></li>
     <li><a href="#faq">FAQ</a></li>
     <li><a href="https://github.com/ExTV/rikkahub-agent">GitHub</a></li>
@@ -1076,6 +1101,7 @@
       <span class="sep">/</span>
       <span>No telemetry</span>
     </div>
+
   </div>
 
 </section>
@@ -1432,6 +1458,7 @@
       <h4>Built on</h4>
       <ul>
         <li><a href="https://github.com/rikkahub/rikkahub">RikkaHub (upstream)</a></li>
+        <li><a href="https://github.com/termux/termux-app">Termux</a></li>
         <li><a href="https://github.com/mwiede/jsch">JSch · SSH</a></li>
         <li><a href="https://github.com/jmrozanec/cron-utils">cron-utils</a></li>
         <li><a href="https://github.com/ggerganov/whisper.cpp">whisper.cpp</a></li>
@@ -1442,6 +1469,7 @@
       <h4>Author</h4>
       <ul>
         <li><a href="https://github.com/ExTV">@ExTV on GitHub</a></li>
+        <li><a href="https://github.com/ExTV/agent-keyboard">agent-keyboard</a></li>
         <li><a href="https://github.com/ExTV/Podroid">Podroid</a></li>
       </ul>
     </div>

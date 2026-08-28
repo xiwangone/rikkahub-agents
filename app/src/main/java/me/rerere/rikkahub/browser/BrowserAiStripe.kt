@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -79,6 +80,14 @@ fun BrowserAiStripe() {
                     overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f),
                 )
+                if (showStop) {
+                    TextButton(onClick = onStopAi) {
+                        Text(
+                            text = stringResource(R.string.browser_ai_stripe_stop),
+                            style = MaterialTheme.typography.labelSmall,
+                        )
+                    }
+                }
                 Text(
                     text = if (expanded) {
                         stringResource(R.string.browser_ai_stripe_collapse)
@@ -110,5 +119,75 @@ fun BrowserAiStripe() {
                 }
             }
         }
+    }
+}
+
+/** Small outcome glyph for the expanded list — a spinner while RUNNING, check/cross otherwise. */
+@Composable
+private fun ActionOutcomeIcon(outcome: BrowserAiActionOutcome, modifier: Modifier = Modifier) {
+    when (outcome) {
+        BrowserAiActionOutcome.RUNNING -> CircularProgressIndicator(
+            modifier = modifier,
+            strokeWidth = 1.5.dp,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        BrowserAiActionOutcome.OK -> Icon(
+            imageVector = HugeIcons.CheckmarkCircle01,
+            contentDescription = null,
+            modifier = modifier,
+            tint = MaterialTheme.colorScheme.primary,
+        )
+        BrowserAiActionOutcome.FAILED -> Icon(
+            imageVector = HugeIcons.CancelCircle,
+            contentDescription = null,
+            modifier = modifier,
+            tint = MaterialTheme.colorScheme.error,
+        )
+    }
+}
+
+/**
+ * Localize a [BrowserAiAction] into a human sentence. [BrowserAiAction.detail] is truncated
+ * to 80 chars before it's spliced into the template (the plan's render-time cap — the
+ * underlying stored detail is untouched so a longer detail isn't lost, just not fully shown).
+ * FAILED entries are additionally wrapped in [R.string.browser_ai_action_failed].
+ */
+@Composable
+private fun actionSentence(action: BrowserAiAction): String {
+    val detail = action.detail?.take(80).orEmpty()
+    val base = when (action.kind) {
+        BrowserAiActionKind.OPEN -> stringResource(R.string.browser_ai_action_open, detail)
+        BrowserAiActionKind.CLICK -> stringResource(R.string.browser_ai_action_click, detail)
+        BrowserAiActionKind.TYPE -> stringResource(R.string.browser_ai_action_type, detail)
+        BrowserAiActionKind.SCROLL -> stringResource(R.string.browser_ai_action_scroll, detail)
+        BrowserAiActionKind.SUBMIT -> stringResource(R.string.browser_ai_action_submit, detail)
+        BrowserAiActionKind.SELECT -> stringResource(R.string.browser_ai_action_select, detail)
+        BrowserAiActionKind.KEY -> stringResource(R.string.browser_ai_action_key, detail)
+        BrowserAiActionKind.JS -> stringResource(R.string.browser_ai_action_js)
+        BrowserAiActionKind.SCREENSHOT -> stringResource(R.string.browser_ai_action_screenshot)
+        BrowserAiActionKind.READ -> stringResource(R.string.browser_ai_action_read, detail)
+        BrowserAiActionKind.BACK -> stringResource(R.string.browser_ai_action_back)
+        BrowserAiActionKind.FORWARD -> stringResource(R.string.browser_ai_action_forward)
+        BrowserAiActionKind.DONE -> stringResource(R.string.browser_ai_action_done, detail)
+        BrowserAiActionKind.STOPPED -> stringResource(R.string.browser_ai_action_stopped)
+    }
+    return if (action.outcome == BrowserAiActionOutcome.FAILED) {
+        stringResource(R.string.browser_ai_action_failed, base)
+    } else {
+        base
+    }
+}
+
+/**
+ * Compact, unlocalized relative-time badge ("12s", "3m", "1h") for an action's [atMs] against
+ * [nowMs] (defaults to now; parameterised so it's a pure function for unit tests). Pure
+ * top-level fun — no Compose/Android dependency — so it stays JVM-testable.
+ */
+internal fun formatRelativeActionTime(atMs: Long, nowMs: Long = System.currentTimeMillis()): String {
+    val deltaSec = ((nowMs - atMs) / 1000).coerceAtLeast(0)
+    return when {
+        deltaSec < 60 -> "${deltaSec}s"
+        deltaSec < 3600 -> "${deltaSec / 60}m"
+        else -> "${deltaSec / 3600}h"
     }
 }

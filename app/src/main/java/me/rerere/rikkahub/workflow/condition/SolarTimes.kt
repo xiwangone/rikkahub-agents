@@ -25,6 +25,7 @@ import kotlin.math.tan
  * SolarTimesTest pin two known locations to ±2 min.
  */
 object SolarTimes {
+
     /** Solar zenith angle for "civil" sunrise/sunset; standard refraction-corrected value. */
     private const val ZENITH_DEG = 90.833
 

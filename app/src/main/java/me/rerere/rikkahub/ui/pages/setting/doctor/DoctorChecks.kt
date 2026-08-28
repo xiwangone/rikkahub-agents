@@ -1365,3 +1365,93 @@ class DoctorChecks(
         }
     }
 }
+
+/**
+ * Pure decision logic backing the "net.llamacpp_models" row: given the filename ->
+ * absolute-path map from [me.rerere.locallm.LocalRuntimePreferences.installedModels],
+ * report the total installed count and which filenames' backing file is no longer on
+ * disk. Extracted to a top-level function (rather than left inline) so it's unit-testable
+ * on the JVM without an Android Context — [DoctorChecks] itself needs one for every other
+ * check, which rules out constructing it directly in a plain JUnit test.
+ */
+internal data class LlamaCppModelStatus(val total: Int, val missing: List<String>)
+
+internal fun llamaCppModelStatus(installed: Map<String, String>): LlamaCppModelStatus =
+    LlamaCppModelStatus(
+        total = installed.size,
+        missing = installed.filterValues { path -> !File(path).exists() }.keys.sorted(),
+    )
+
+/**
+ * Pure decision logic backing the "storage.gallery_orphans" row: given the resolved
+ * absolute paths of every generated-image DB record, report the total and how many no
+ * longer have a backing file on disk (the #39 bug class). Mirrors [llamaCppModelStatus]'s
+ * shape so both are unit-testable on the JVM without a Context.
+ */
+internal data class GalleryOrphanStatus(val total: Int, val orphanCount: Int)
+
+internal fun galleryOrphanStatus(absolutePaths: List<String>): GalleryOrphanStatus =
+    GalleryOrphanStatus(
+        total = absolutePaths.size,
+        orphanCount = absolutePaths.count { path -> !File(path).exists() },
+    )
+
+/**
+ * Pure decision logic backing the "assistant.subagent_profiles" row: which configured
+ * [SubAgentProfile]s have a `modelId` that no longer resolves to a chat model of an
+ * enabled provider (the #28 failure class; it used to fail silently at dispatch time).
+ * Reuses [SubAgentModelResolver.resolve] itself rather than re-deriving model lookup; a
+ * profile's `modelId` is already a resolved [kotlin.uuid.Uuid], so it's passed through as
+ * the resolver's string input, exactly like a `subagent_dispatch` caller would.
+ */
+internal data class SubAgentProfileStatus(val total: Int, val broken: List<String>)
+
+internal fun subAgentProfileStatus(
+    profiles: List<SubAgentProfile>,
+    providers: List<ProviderSetting>,
+): SubAgentProfileStatus = SubAgentProfileStatus(
+    total = profiles.size,
+    broken = profiles.filter { profile ->
+        val modelId = profile.modelId ?: return@filter false
+        SubAgentModelResolver.resolve(modelId.toString(), providers) is SubAgentModelResolver.Result.Failed
+    }.map { it.name },
+)
+
+/**
+ * Pure decision logic backing the "service.mcp_servers" row: given each configured
+ * server's (name, enabled, connected) triple, report the configured/enabled/connected
+ * counts and which enabled servers are not currently connected.
+ */
+internal data class McpServerSummary(
+    val configured: Int,
+    val enabled: Int,
+    val connected: Int,
+    val enabledNotConnected: List<String>,
+)
+
+internal fun mcpServerSummary(servers: List<Triple<String, Boolean, Boolean>>): McpServerSummary =
+    McpServerSummary(
+        configured = servers.size,
+        enabled = servers.count { (_, enabled, _) -> enabled },
+        connected = servers.count { (_, _, connected) -> connected },
+        enabledNotConnected = servers.filter { (_, enabled, connected) -> enabled && !connected }
+            .map { (name, _, _) -> name },
+    )
+
+/**
+ * Pure decision logic backing the "skills.seed" row: a bundled skill's on-disk
+ * `.core-bundled-hash` sentinel is stale when it's missing, unreadable, or doesn't match
+ * the hash of what the app would currently seed. Non-bundled (user-added) entries are
+ * never flagged: [isBundled] gates them out entirely, mirroring
+ * [me.rerere.rikkahub.data.files.decideSeedAction]'s "never touch a directory we didn't
+ * create" rule.
+ */
+internal data class SkillSeedEntry(
+    val name: String,
+    val isBundled: Boolean,
+    val storedHash: String?,
+    val currentHash: String?,
+)
+
+internal fun staleSeedSkillNames(entries: List<SkillSeedEntry>): List<String> =
+    entries.filter { it.isBundled && it.storedHash != it.currentHash }.map { it.name }

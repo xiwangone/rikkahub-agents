@@ -1,23 +1,36 @@
 package me.rerere.rikkahub.ui.components.ai
 
+import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.IntrinsicSize
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.itemsIndexed
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.SheetValue
@@ -28,41 +41,48 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.launch
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
-import me.rerere.ai.registry.ModelRegistry
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AiSearch02
+import me.rerere.hugeicons.stroke.ArrowLeft01
+import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.CheckmarkCircle02
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.ToggleSurface
 import me.rerere.rikkahub.ui.context.LocalNavController
-import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.pages.setting.SearchAbilityTagLine
-import me.rerere.search.SearchServiceOptions
-import org.koin.compose.koinInject
+
+enum class SearchMode {
+    OFF,
+    LOCAL,
+    BUILT_IN,
+}
 
 @Composable
 fun SearchPickerButton(
     enableSearch: Boolean,
     settings: Settings,
     modifier: Modifier = Modifier,
-    onToggleSearch: (Boolean) -> Unit,
+    onUpdateSearchMode: (SearchMode) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     model: Model?,
 ) {
@@ -172,6 +192,9 @@ private fun SearchPicker(
             (ModelRegistry.GEMINI_SERIES.match(model.modelId) || model.modelId.contains("gpt-"))
     // 模型是否已开启内置搜索（可能是不支持的模型残留的孤儿状态）
     val hasBuiltInSearchEnabled = model?.tools?.contains(BuiltInTools.Search) == true
+    // 模型支持内置搜索，或已开启内置搜索（后者保证残留状态也能被关闭）时显示模型搜索卡片
+    val showModelSearch = model != null && (supportsBuiltInSearch || hasBuiltInSearchEnabled)
+    val isLocalSearchSelected = enableSearch && !hasBuiltInSearchEnabled
 
     // 模型支持内置搜索，或已开启内置搜索（后者保证残留状态也能被关闭）时显示开关
     if (model != null && (supportsBuiltInSearch || hasBuiltInSearchEnabled)) {
@@ -237,14 +260,13 @@ private fun AppSearchSettings(
                     navBackStack.navigate(Screen.SettingSearch)
                 },
             ) {
-                Icon(HugeIcons.Settings03, null)
+                Icon(HugeIcons.Settings03, contentDescription = null)
             }
             Switch(
                 checked = enableSearch,
                 onCheckedChange = onToggleSearch,
             )
         }
-    }
 
     LazyVerticalGrid(
         modifier = modifier.fillMaxSize(),
@@ -276,7 +298,11 @@ private fun AppSearchSettings(
                         contentColor = textColor.value,
                     ),
                 onClick = {
-                    onUpdateSearchService(index)
+                    if (isLocalSearchSelected) {
+                        onUpdateSearchMode(SearchMode.OFF)
+                    } else {
+                        onUpdateSearchMode(SearchMode.LOCAL)
+                    }
                 },
                 shape = MaterialTheme.shapes.large,
             ) {
@@ -305,6 +331,22 @@ private fun AppSearchSettings(
                         )
                     }
                 }
+                TextButton(
+                    onClick = { onUpdateSearchMode(SearchMode.OFF) },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Cancel01,
+                        contentDescription = null,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        text = stringResource(R.string.search_picker_turn_off),
+                        modifier = Modifier.padding(start = 4.dp)
+                    )
+                }
             }
         }
     }
@@ -329,11 +371,12 @@ private fun BuiltInSearchSetting(model: Model) {
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = stringResource(R.string.built_in_search_title),
+                    text = title,
                     style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold
                 )
                 Text(
-                    text = stringResource(R.string.built_in_search_description),
+                    text = description,
                     style = MaterialTheme.typography.bodySmall,
                     color = LocalContentColor.current.copy(alpha = 0.8f),
                 )

@@ -41,6 +41,7 @@ class TriggerRegistry(
     private val appScope: AppScope,
     private val workflowRepository: WorkflowRepository,
 ) {
+
     private val triggerScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val syncMutex = Mutex()
 

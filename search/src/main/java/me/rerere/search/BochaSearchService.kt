@@ -1,5 +1,6 @@
 package me.rerere.search
 
+import android.util.Log
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -21,6 +22,8 @@ import me.rerere.search.SearchService.Companion.json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+
+private const val TAG = "BochaSearchService"
 
 object BochaSearchService : SearchService<SearchServiceOptions.BochaOptions> {
     override val name: String = "Bocha"

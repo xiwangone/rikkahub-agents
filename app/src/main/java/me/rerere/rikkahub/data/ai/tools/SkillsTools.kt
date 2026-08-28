@@ -20,6 +20,13 @@ import me.rerere.rikkahub.data.files.SkillMetadata
 fun createSkillTools(
     enabledSkills: Set<String>,
     allSkills: List<SkillMetadata>,
+    /**
+     * Optional disk helper: supplies the mtime-aware read cache the per-turn auto-load
+     * path uses, and backs the read-only `skill_get_content` tool. Everything needed for
+     * correctness already lives on [SkillMetadata], so when this is absent the files are
+     * read straight from the skill's own directory. Same result, just uncached, and the
+     * content tool is not offered.
+     */
     skillManager: SkillManager? = null,
 ): List<Tool> {
     val available = allSkills.filter { it.name in enabledSkills }

@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.assistant.detail
 
 import android.Manifest
 import android.os.Build
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
@@ -49,6 +50,7 @@ import me.rerere.rikkahub.data.ai.tools.local.PermissionHelper
 import me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
+import me.rerere.rikkahub.shizuku.ShizukuManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -57,6 +59,9 @@ import me.rerere.rikkahub.utils.writeClipboardText
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
+import rikka.shizuku.Shizuku
+
+private const val TAG = "AssistantLocalToolPage"
 
 @Composable
 fun AssistantLocalToolPage(id: String) {
@@ -486,6 +491,15 @@ private fun AssistantLocalToolContent(
                     )
                 },
             )
+        }
+
+        // Device info section
+        Text(
+            text = stringResource(R.string.assistant_page_local_tools_section_device_info),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp)
+        )
+        CardGroup {
             item(
                 headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_audio_info_title))

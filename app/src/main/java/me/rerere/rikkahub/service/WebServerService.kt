@@ -33,6 +33,25 @@ class WebServerService : Service() {
         /** Web 桥停止时携带：仅停服务，不改 webServerEnabled（避免误关用户独立的 Web 服务器开关） */
         const val EXTRA_STOP_FROM_BRIDGE = "stop_from_bridge"
         const val NOTIFICATION_ID = 2001
+
+        /**
+         * Whether the state observer should stop the service for a terminal error.
+         *
+         * [startId] is the id carried on the emitted state; [baselineStartId] is the id
+         * that was already current when this observer subscribed. WebServerManager is a
+         * Koin single, so its StateFlow keeps a failed attempt's terminal state (error set,
+         * isLoading false) around after the service instance that saw it is gone, and a
+         * fresh ACTION_START's collector replays that stale value as its first emission.
+         * Comparing ids - not "did this collector observe an isLoading=true emission
+         * first" - is required because WebServerManager.start()'s isLoading=true write and
+         * its terminal error/success write happen back to back with no suspension point
+         * between them, so on a shared Main-dispatcher StateFlow the collector can be
+         * scheduled only after both writes have happened and never see the intermediate
+         * isLoading=true state at all (StateFlow conflates); the id still changes on the
+         * final emission regardless.
+         */
+        fun shouldStopOnError(error: String?, isLoading: Boolean, startId: Long, baselineStartId: Long): Boolean =
+            error != null && !isLoading && startId != baselineStartId
     }
 
     private val webServerManager: WebServerManager by inject()

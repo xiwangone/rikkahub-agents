@@ -7,12 +7,9 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -167,7 +164,16 @@ fun ReasoningPicker(
                 )
             }
 
-            Column(
+            Slider(
+                value = sliderValue,
+                onValueChange = { sliderValue = it },
+                onValueChangeFinished = {
+                    val snappedIndex = sliderValue.roundToInt().coerceIn(0, levelCount - 1)
+                    sliderValue = snappedIndex.toFloat()
+                    onUpdateReasoningLevel(levels[snappedIndex])
+                },
+                valueRange = 0f..(levelCount - 1).toFloat(),
+                steps = levelCount - 2,
                 modifier = Modifier.fillMaxWidth(),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
@@ -280,8 +286,15 @@ private fun ReasoningScale(
                             color = labelColor,
                         )
                     }
+                },
+                track = { sliderState ->
+                    SliderDefaults.Track(
+                        sliderState = sliderState,
+                        drawStopIndicator = null,
+                        thumbTrackGapSize = 0.dp,
+                    )
                 }
-            }
+            )
         }
     }
 }

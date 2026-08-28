@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
@@ -9,6 +11,11 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.net.hostIsBlockedLiteral
+import me.rerere.rikkahub.data.ai.net.withEgressGuard
+import me.rerere.search.extract.ExtractMode
+import me.rerere.search.extract.WebExtractor
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -39,6 +46,22 @@ fun webFetchTool(client: OkHttpClient): Tool = Tool(
                 put("url", buildJsonObject {
                     put("type", "string")
                     put("description", "The http:// or https:// URL to fetch")
+                })
+                put("extract_mode", buildJsonObject {
+                    put("type", "string")
+                    put("description", "raw (default), article (main prose, use to read a page), text, links, or metadata")
+                })
+                put("max_chars", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Maximum characters of text to return")
+                })
+                put("start_index", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Resume offset; pass next_start_index from a truncated result")
+                })
+                put("include_headers", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Include HTTP response headers (default false)")
                 })
                 put("method", buildJsonObject {
                     put("type", "string")
@@ -71,6 +94,23 @@ fun webFetchTool(client: OkHttpClient): Tool = Tool(
                 }.toString()
             )
         }
+        // OkHttp routes a literal-IP host straight to the socket without consulting the
+        // GuardedDns wrapper, so refuse a private/loopback/link-local literal deterministically
+        // here; the interceptor in withEgressGuard still covers literal redirect hops.
+        url.toHttpUrlOrNull()?.host?.let { host ->
+            if (hostIsBlockedLiteral(host)) {
+                return@Tool fmTextPart(
+                    buildJsonObject {
+                        put("error", "blocked_address")
+                        put("detail", "blocked_private_address: $host")
+                        put(
+                            "recovery",
+                            "This tool refuses private, loopback and link-local addresses. Use a public URL.",
+                        )
+                    }.toString()
+                )
+            }
+        }
         val method = obj["method"]?.jsonPrimitive?.contentOrNull?.trim()?.uppercase() ?: "GET"
         if (method != "GET" && method != "POST") {
             return@Tool fmTextPart(
@@ -82,6 +122,20 @@ fun webFetchTool(client: OkHttpClient): Tool = Tool(
             )
         }
         val bodyStr = obj["body"]?.jsonPrimitive?.contentOrNull
+
+        val modeRaw = obj["extract_mode"]?.jsonPrimitive?.contentOrNull
+        val mode = parseExtractModeOrNull(modeRaw)
+            ?: return@Tool fmTextPart(
+                fmErrEnvelope(
+                    "bad_extract_mode",
+                    "extract_mode must be one of raw, article, text, links, metadata",
+                ),
+            )
+        val includeHeaders = obj["include_headers"]?.jsonPrimitive?.contentOrNull?.toBoolean() ?: false
+        val startIndex = obj["start_index"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
+        val defaultCap = if (mode == FetchExtract.RAW) WEB_FETCH_BODY_CAP else WEB_FETCH_EXTRACT_CAP
+        val maxChars = obj["max_chars"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+            ?.coerceIn(1, defaultCap) ?: defaultCap
 
         val request = try {
             val builder = Request.Builder().url(url)
@@ -162,4 +216,19 @@ internal fun readBounded(ins: InputStream, cap: Int): Pair<ByteArray, Boolean> {
     }
     val bytes = out.toByteArray()
     return bytes to (bytes.size > cap)
+}
+
+private val CHARSET_RE = Regex("""charset\s*=\s*["']?([^"';\s]+)""", RegexOption.IGNORE_CASE)
+
+/**
+ * Decode the first [len] bytes of [raw] using the charset declared in [contentType],
+ * falling back to UTF-8 when it is absent, malformed, or unsupported on this device.
+ * Decoding everything as UTF-8 mangles every non-UTF-8 page.
+ */
+internal fun decodeBody(raw: ByteArray, len: Int, contentType: String?): String {
+    val charset = contentType
+        ?.let { CHARSET_RE.find(it)?.groupValues?.getOrNull(1) }
+        ?.let { name -> runCatching { Charset.forName(name.trim()) }.getOrNull() }
+        ?: Charsets.UTF_8
+    return String(raw, 0, minOf(len, raw.size), charset)
 }
