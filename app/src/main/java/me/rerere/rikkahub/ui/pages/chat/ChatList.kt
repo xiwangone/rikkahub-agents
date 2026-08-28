@@ -142,7 +142,6 @@ fun ChatList(
         ) -> Unit
     )? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
-    onRerunTool: (suspend (toolCallId: String) -> me.rerere.rikkahub.service.ChatService.RerunToolResult)? = null,
     onToggleFavorite: ((MessageNode) -> Unit)? = null,
     onConversationSystemPromptChange: ((String?) -> Unit)? = null,
     sessionTotals: TokenBudgetTracker.Totals? = null,
@@ -186,7 +185,6 @@ fun ChatList(
                 animatedVisibilityScope = this@AnimatedContent,
                 onToolApproval = onToolApproval,
                 onToolAnswer = onToolAnswer,
-                onRerunTool = onRerunTool,
                 onToggleFavorite = onToggleFavorite,
                 onConversationSystemPromptChange = onConversationSystemPromptChange,
                 sessionTotals = sessionTotals,
@@ -226,7 +224,6 @@ private fun ChatListNormal(
         ) -> Unit
     )? = null,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)? = null,
-    onRerunTool: (suspend (toolCallId: String) -> me.rerere.rikkahub.service.ChatService.RerunToolResult)? = null,
     onToggleFavorite: ((MessageNode) -> Unit)? = null,
     onConversationSystemPromptChange: ((String?) -> Unit)? = null,
     sessionTotals: TokenBudgetTracker.Totals? = null,
@@ -311,11 +308,8 @@ private fun ChatListNormal(
                     // println("is bottom = ${visibleItemsInfo.isAtBottom()}, scroll = ${state.isScrollInProgress}, can_scroll = ${state.canScrollForward}, loading = $loading")
                     if (!state.isScrollInProgress && loadingState) {
                         if (visibleItemsInfo.isAtBottom()) {
-                            val latestGroupIndex = conversationUpdated.messageNodes
-                                .groupAutomaticCompactionMessages()
-                                .lastIndex
-                            state.requestScrollToItem(latestGroupIndex + 10)
-                            // Log.i(TAG, "ChatList: scroll to $latestGroupIndex")
+                            state.requestScrollToItem(conversationUpdated.messageNodes.lastIndex + 10)
+                            // Log.i(TAG, "ChatList: scroll to ${conversationUpdated.messageNodes.lastIndex}")
                         }
                     }
                 }
