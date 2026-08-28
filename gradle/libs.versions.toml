@@ -83,6 +83,7 @@ genaiPrompt = "1.0.0-beta2"
 dom4j = "2.2.0"
 
 profileinstaller = "1.4.1"
+leakcanary = "2.14"
 [libraries]
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 kotlin-compose-gradle-plugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
