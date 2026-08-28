@@ -45,7 +45,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.Alert01
-import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Book01
 import me.rerere.hugeicons.stroke.Book03
 import me.rerere.hugeicons.stroke.Bookshelf01
@@ -66,11 +65,7 @@ import me.rerere.hugeicons.stroke.LookTop
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.Megaphone01
 import me.rerere.hugeicons.stroke.Package
-import me.rerere.hugeicons.stroke.Connect
-import me.rerere.hugeicons.stroke.Robot01
 import me.rerere.hugeicons.stroke.ServerStack01
-import me.rerere.hugeicons.stroke.Shield01
-import me.rerere.hugeicons.stroke.Telegram
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Share04
 import me.rerere.hugeicons.stroke.Shield01
@@ -134,8 +129,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor,
     ) { innerPadding ->
-        // NOTE: SettingsSearchIndex.kt keeps a hand-written mirror of the rows below for the
-        // settings search page. Add/remove/rename a row here -> update that file too.
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = innerPadding + PaddingValues(8.dp),
@@ -302,72 +295,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text(stringResource(R.string.setting_page_termux_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_termux)) },
                     )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingTelegram) },
-                        leadingContent = { Icon(HugeIcons.Telegram, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_telegram_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_telegram)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingWorkflows) },
-                        leadingContent = { Icon(HugeIcons.Connect, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_workflows_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_workflows)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingScheduledJobs) },
-                        leadingContent = { Icon(HugeIcons.Clock02, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_scheduled_jobs_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_scheduled_jobs)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingBrowser) },
-                        leadingContent = { Icon(HugeIcons.Earth, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_browser_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_browser)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingTermux) },
-                        leadingContent = { Icon(HugeIcons.Console, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_termux_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_termux)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingShizuku) },
-                        leadingContent = { Icon(HugeIcons.Console, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_shizuku_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_shizuku)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingDoctor) },
-                        leadingContent = { Icon(HugeIcons.Wrench01, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_doctor_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_doctor)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingToolApprovals) },
-                        leadingContent = { Icon(HugeIcons.Tick01, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_tool_approvals_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_tool_approvals)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingAccessibility) },
-                        leadingContent = { Icon(HugeIcons.SmartPhone01, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_accessibility_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_accessibility)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingNotifications) },
-                        leadingContent = { Icon(HugeIcons.Alert01, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_notifications_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_notifications)) },
-                    )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingPermissions) },
-                        leadingContent = { Icon(HugeIcons.Shield01, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_permissions_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_permissions)) },
-                    )
                 }
 
                 CardGroup(
@@ -484,21 +411,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),
                             ) {
-                                var showQQGroupSheet by remember { mutableStateOf(false) }
-                                IconButton(
-                                    onClick = { showQQGroupSheet = true }
-                                ) {
-                                    Icon(
-                                        imageVector = TencentQQIcon,
-                                        contentDescription = stringResource(R.string.accessibility_qq),
-                                        tint = MaterialTheme.colorScheme.secondary
-                                    )
-                                }
-                                if (showQQGroupSheet) {
-                                    QQGroupBottomSheet(
-                                        onDismiss = { showQQGroupSheet = false }
-                                    )
-                                }
                                 IconButton(
                                     onClick = {
                                         context.openUrl("https://discord.gg/9weBqxe5c4")
