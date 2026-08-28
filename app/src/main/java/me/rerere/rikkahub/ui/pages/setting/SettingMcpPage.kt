@@ -1307,7 +1307,7 @@ private fun McpToolCard(
 private fun isValidMcpName(name: String): Boolean =
     name.isEmpty() ||
         name.all {
-            it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9'
+            it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '_' || it == '-'
         }
 
 private fun parseMcpServersFromJson(json: String): List<McpServerConfig> {

@@ -1028,7 +1028,13 @@ class ChatService(
                                             .distinct()
                                             .filter { name ->
                                                 name.isEmpty() ||
-                                                    !name.all { it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' }
+                                                    !name.all {
+                                                        it in 'a'..'z' ||
+                                                            it in 'A'..'Z' ||
+                                                            it in '0'..'9' ||
+                                                            it == '_' ||
+                                                            it == '-'
+                                                    }
                                             }
                                     if (invalidNames.isNotEmpty()) {
                                         addError(
