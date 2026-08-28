@@ -166,7 +166,7 @@ fun S3Tab(
                                         HugeIcons.View
                                     }
                                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(imageVector = image, contentDescription = stringResource(if (passwordVisible) R.string.accessibility_hide_password else R.string.accessibility_show_password))
+                                    Icon(imageVector = image, contentDescription = null)
                                 }
                             },
                             singleLine = true,
