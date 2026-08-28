@@ -68,6 +68,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
+import me.rerere.ai.ui.AskQuestion
 import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyUIMessage
@@ -717,11 +718,22 @@ private fun MessagePartsBlock(
                                 is UIMessageAnnotation.CompactionNotice ->
                                     Text(text = "上下文已压缩" + (annotation.trigger?.let { "（$it）" } ?: ""))
 
-                                is UIMessageAnnotation.ApprovalRequest ->
-                                    Text(text = "待审批：${annotation.tool}")
+                                is UIMessageAnnotation.ApprovalRequest -> {
+                                    BackendApprovalCard(
+                                        requestId = annotation.id,
+                                        tool = annotation.tool,
+                                        subject = annotation.subject,
+                                        onToolApproval = onToolApproval,
+                                    )
+                                }
 
-                                is UIMessageAnnotation.AskRequest ->
-                                    Text(text = "待回答：" + annotation.questions.joinToString("；") { it.prompt })
+                                is UIMessageAnnotation.AskRequest -> {
+                                    BackendAskCard(
+                                        requestId = annotation.id,
+                                        questions = annotation.questions,
+                                        onToolAnswer = onToolAnswer,
+                                    )
+                                }
 
                                 else -> {
                                     // 其他未知注解类型：忽略
@@ -822,4 +834,104 @@ private fun ChainOfThoughtScope.ChatMessageServerToolStep(
             }
         },
     )
+}
+
+/**
+ * Backend 直连路径的服务端审批卡：展示待审批工具 + 批准/拒绝按钮。
+ * 复用 [ChatMessage] 传入的 onToolApproval 回调（toolCallId = 服务端 requestId）。
+ */
+@Composable
+private fun BackendApprovalCard(
+    requestId: String,
+    tool: String,
+    subject: String?,
+    onToolApproval: (
+        (
+            toolCallId: String,
+            approved: Boolean,
+            reason: String,
+            scope: me.rerere.rikkahub.service.ChatService.ApprovalScope,
+            toolName: String,
+        ) -> Unit
+    )?,
+) {
+    var inFlight by remember(requestId) { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Text(
+            text = "待审批：$tool${subject?.let { "\n$it" } ?: ""}",
+            style = MaterialTheme.typography.labelMedium,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TextButton(
+                enabled = !inFlight,
+                onClick = {
+                    inFlight = true
+                    onToolApproval?.invoke(
+                        requestId,
+                        true,
+                        "",
+                        me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
+                        tool,
+                    )
+                },
+            ) {
+                Text(stringResource(R.string.chat_message_tool_approve))
+            }
+            TextButton(
+                enabled = !inFlight,
+                onClick = {
+                    inFlight = true
+                    onToolApproval?.invoke(
+                        requestId,
+                        false,
+                        "",
+                        me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
+                        tool,
+                    )
+                },
+            ) {
+                Text(stringResource(R.string.chat_message_tool_deny))
+            }
+        }
+    }
+}
+
+/**
+ * Backend 直连路径的服务端提问卡：渲染每个问题的选项/文本输入 + 提交。
+ * 复用 [ChatMessage] 传入的 onToolAnswer 回调（toolCallId = 服务端 requestId）。
+ */
+@Composable
+private fun BackendAskCard(
+    requestId: String,
+    questions: List<me.rerere.ai.ui.AskQuestion>,
+    onToolAnswer: ((toolCallId: String, answer: String) -> Unit)?,
+) {
+    var submitted by remember(requestId) { mutableStateOf(false) }
+    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        Text(
+            text = "待回答",
+            style = MaterialTheme.typography.labelMedium,
+        )
+        questions.forEach { q ->
+            Text(
+                text = q.prompt,
+                style = MaterialTheme.typography.labelMedium,
+            )
+            if (q.options.isNotEmpty()) {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    q.options.forEach { opt ->
+                        TextButton(
+                            enabled = !submitted,
+                            onClick = {
+                                submitted = true
+                                onToolAnswer?.invoke(requestId, opt.label)
+                            },
+                        ) {
+                            Text(opt.label)
+                        }
+                    }
+                }
+            }
+        }
+    }
 }
