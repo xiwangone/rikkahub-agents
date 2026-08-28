@@ -53,6 +53,11 @@ class RikkaAccessibilityService : AccessibilityService() {
     private val serializeGate = AtomicInteger(0)
     private val gateCurrent = AtomicInteger(0)
 
+    // Last accessibility event uptime, used by ScreenState (ExTV merge) to settle
+    // between capture and comparison. Kept on the master baseline service by adding
+    // this single field instead of adopting the whole ExTV service variant.
+    var lastWindowEventUptime: Long = 0L
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
@@ -77,6 +82,7 @@ class RikkaAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        lastWindowEventUptime = android.os.SystemClock.uptimeMillis()
         // Phase 12 — feed foreground-app transitions to the workflow trigger dispatcher.
         // We only care about TYPE_WINDOW_STATE_CHANGED and only when the package name is
         // present. The dispatcher itself de-dupes (skips no-op transitions) and dispatches

@@ -31,7 +31,6 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
-import me.rerere.rikkahub.data.gemini.DENIED_MODEL_IDS
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_COMPRESS_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_SUGGESTION_PROMPT
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TITLE_PROMPT
@@ -41,8 +40,6 @@ import me.rerere.asr.ASRProviderSetting
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV1Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV2Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV3Migration
-import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV4Migration
-import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV5Migration
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.InjectionPosition
@@ -51,7 +48,6 @@ import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.data.sync.s3.S3Config
-import me.rerere.rikkahub.subagent.SubAgentProfile
 import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.PresetThemes
 import me.rerere.rikkahub.utils.JsonInstant
@@ -63,14 +59,6 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import kotlin.uuid.Uuid
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OCR_PROMPT
-
-enum class AutoCompactionThresholdMode {
-    PERCENT,
-    TOKENS,
-}
-
-/** Default automatic compaction summary target as a percentage of the active context. */
-const val DEFAULT_CONTEXT_COMPACTION_TARGET_PERCENT = 1
 
 private const val TAG = "PreferencesStore"
 
@@ -105,27 +93,13 @@ private fun decodeProvidersTolerant(raw: String): List<ProviderSetting> {
     }
 }
 
-/**
- * `models` transform for the GeminiOAuth normalization branch below: de-duplicate by id, then
- * drop any entry whose modelId is in [DENIED_MODEL_IDS].
- *
- * The fetch-side filter in `GeminiProvider.fetchAvailableModels` only stops
- * `gemini-3.1-pro-high` being re-added; a copy already persisted before that filter existed
- * survives the merge in `mergeCodexModels` untouched. This runs on every settings load, so it
- * evicts the stale entry read-side, without a migration or rewriting the persisted JSON.
- */
-private fun dropDeniedGeminiOAuthModels(models: List<Model>): List<Model> =
-    models.distinctBy { model -> model.id }.filterNot { model -> model.modelId in DENIED_MODEL_IDS }
-
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
     produceMigrations = { context ->
         listOf(
             PreferenceStoreV1Migration(),
             PreferenceStoreV2Migration(),
-            PreferenceStoreV3Migration(),
-            PreferenceStoreV4Migration(),
-            PreferenceStoreV5Migration(),
+            PreferenceStoreV3Migration()
         )
     }
 )
@@ -190,13 +164,9 @@ class SettingsStore(
         val SEARCH_SERVICES = stringPreferencesKey("search_services")
         val SEARCH_COMMON = stringPreferencesKey("search_common")
         val SEARCH_SELECTED = intPreferencesKey("search_selected")
-        val ENABLE_WEB_FETCH_TOOLS = booleanPreferencesKey("enable_web_fetch_tools")
 
         // MCP
         val MCP_SERVERS = stringPreferencesKey("mcp_servers")
-
-        // 子代理
-        val SUB_AGENTS = stringPreferencesKey("sub_agents")
 
         // WebDAV
         val WEBDAV_CONFIG = stringPreferencesKey("webdav_config")
@@ -261,18 +231,15 @@ class SettingsStore(
             }
         }.map { preferences ->
             Settings(
-                favoriteModels = preferences[FAVORITE_MODELS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<Uuid>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode favoriteModels, using default", it)
-                        emptyList()
-                    }
+                favoriteModels = preferences[FAVORITE_MODELS]?.let {
+                    JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
-                chatModelId = preferences[SELECT_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+                chatModelId = preferences[SELECT_MODEL]?.let { Uuid.parse(it) }
                     ?: DEFAULT_AUTO_MODEL_ID,
-                fastModelId = preferences[FAST_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+                fastModelId = preferences[FAST_MODEL]?.let { Uuid.parse(it) }
                     ?: DEFAULT_AUTO_MODEL_ID,
-                titleModelId = preferences[TITLE_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() },
-                translateModeId = preferences[TRANSLATE_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+                titleModelId = preferences[TITLE_MODEL]?.let { Uuid.parse(it) },
+                translateModeId = preferences[TRANSLATE_MODEL]?.let { Uuid.parse(it) }
                     ?: DEFAULT_AUTO_MODEL_ID,
                 enableSuggestion = preferences[ENABLE_SUGGESTION] != false,
                 responseStreamMaxRetries = preferences[RESPONSE_STREAM_MAX_RETRIES] ?: 5,
@@ -285,7 +252,7 @@ class SettingsStore(
                 ocrModelId = preferences[OCR_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
                 ocrLocalEnabled = preferences[OCR_LOCAL_ENABLED] ?: true,
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
-                compressModelId = preferences[COMPRESS_MODEL]?.let { runCatching { Uuid.parse(it) }.getOrNull() } ?: DEFAULT_AUTO_MODEL_ID,
+                compressModelId = preferences[COMPRESS_MODEL]?.let { Uuid.parse(it) } ?: DEFAULT_AUTO_MODEL_ID,
                 compressPrompt = preferences[COMPRESS_PROMPT] ?: DEFAULT_COMPRESS_PROMPT,
                 autoCompressEnabled = preferences[AUTO_COMPRESS_ENABLED] ?: false,
                 autoCompressThreshold = preferences[AUTO_COMPRESS_THRESHOLD] ?: 80,
@@ -296,25 +263,8 @@ class SettingsStore(
                 toolOutputMaxChars = preferences[TOOL_OUTPUT_MAX_CHARS] ?: 5 * 1000,
                 assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
                     ?: DEFAULT_ASSISTANT_ID,
-                enableAutoCompaction = preferences[ENABLE_AUTO_COMPACTION] == true,
-                autoCompactionThresholdMode = preferences[AUTO_COMPACTION_THRESHOLD_MODE]
-                    ?.let { value -> runCatching { AutoCompactionThresholdMode.valueOf(value) }.getOrNull() }
-                    ?: AutoCompactionThresholdMode.PERCENT,
-                autoCompactionThresholdPercent = (preferences[AUTO_COMPACTION_THRESHOLD_PERCENT] ?: 80)
-                    .coerceIn(5, 95),
-                autoCompactionThresholdTokensK = (preferences[AUTO_COMPACTION_THRESHOLD_TOKENS_K] ?: 8)
-                    .coerceIn(1, Int.MAX_VALUE / 1_000),
-                autoCompactionKeepRecentToolCalls =
-                    (preferences[AUTO_COMPACTION_KEEP_RECENT_TOOL_CALLS] ?: 5).coerceIn(0, 1_000),
-                contextCompactionTargetTokensK = preferences[CONTEXT_COMPACTION_TARGET_TOKENS_K]
-                    ?.coerceIn(1, Int.MAX_VALUE / 1_000),
-                responseStreamMaxRetries = (preferences[RESPONSE_STREAM_MAX_RETRIES] ?: 5)
-                    .coerceIn(0, 10),
-                assistantTags = preferences[ASSISTANT_TAGS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<Tag>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode assistantTags, using default", it)
-                        emptyList()
-                    }
+                assistantTags = preferences[ASSISTANT_TAGS]?.let {
+                    JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
                 providers = decodeProvidersTolerant(
                     preferences[PROVIDERS]?.let { raw ->
@@ -334,11 +284,8 @@ class SettingsStore(
                 assistants = JsonInstant.decodeFromString(preferences[ASSISTANTS] ?: "[]"),
                 dynamicColor = preferences[DYNAMIC_COLOR] != false,
                 themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
-                customThemes = preferences[CUSTOM_THEMES]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<CustomTheme>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode customThemes, using default", it)
-                        emptyList()
-                    }
+                customThemes = preferences[CUSTOM_THEMES]?.let {
+                    JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
                 developerMode = preferences[DEVELOPER_MODE] == true,
                 displaySetting = JsonInstant.decodeFromString(preferences[DISPLAY_SETTING] ?: "{}"),
@@ -350,73 +297,37 @@ class SettingsStore(
                 searchServices = preferences[SEARCH_SERVICES]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: listOf(SearchServiceOptions.DEFAULT),
-                searchCommonOptions = preferences[SEARCH_COMMON]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<SearchCommonOptions>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode searchCommonOptions, using default", it)
-                        SearchCommonOptions()
-                    }
+                searchCommonOptions = preferences[SEARCH_COMMON]?.let {
+                    JsonInstant.decodeFromString(it)
                 } ?: SearchCommonOptions(),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
-                enableWebFetchTools = preferences[ENABLE_WEB_FETCH_TOOLS] != false,
-                mcpServers = preferences[MCP_SERVERS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<McpServerConfig>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode mcpServers, using default", it)
-                        emptyList()
-                    }
+                mcpServers = preferences[MCP_SERVERS]?.let {
+                    JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
-                // #36: key absent -> emptyList(), exactly like mcpServers above - the
-                // whole migration for an existing install that predates this field.
-                subAgents = preferences[SUB_AGENTS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<SubAgentProfile>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode subAgents, using default", it)
-                        emptyList()
-                    }
-                } ?: emptyList(),
-                webDavConfig = preferences[WEBDAV_CONFIG]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<WebDavConfig>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode webDavConfig, using default", it)
-                        WebDavConfig()
-                    }
+                webDavConfig = preferences[WEBDAV_CONFIG]?.let {
+                    JsonInstant.decodeFromString(it)
                 } ?: WebDavConfig(),
-                s3Config = preferences[S3_CONFIG]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<S3Config>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode s3Config, using default", it)
-                        S3Config()
-                    }
+                s3Config = preferences[S3_CONFIG]?.let {
+                    JsonInstant.decodeFromString(it)
                 } ?: S3Config(),
-                ttsProviders = preferences[TTS_PROVIDERS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<TTSProviderSetting>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode ttsProviders, using default", it)
-                        emptyList()
-                    }
+                ttsProviders = preferences[TTS_PROVIDERS]?.let {
+                    JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
-                selectedTTSProviderId = preferences[SELECTED_TTS_PROVIDER]?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+                selectedTTSProviderId = preferences[SELECTED_TTS_PROVIDER]?.let { Uuid.parse(it) }
                     ?: DEFAULT_SYSTEM_TTS_ID,
                 defaultTTSPlaybackSpeed = preferences[DEFAULT_TTS_PLAYBACK_SPEED]?.coerceIn(0.5f, 2.0f) ?: 1.0f,
-                asrProviders = preferences[ASR_PROVIDERS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<ASRProviderSetting>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode asrProviders, using default", it)
-                        emptyList()
-                    }
+                asrProviders = preferences[ASR_PROVIDERS]?.let {
+                    JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
-                selectedASRProviderId = preferences[SELECTED_ASR_PROVIDER]?.let { runCatching { Uuid.parse(it) }.getOrNull() },
-                modeInjections = preferences[MODE_INJECTIONS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<PromptInjection.ModeInjection>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode modeInjections, using default", it)
-                        emptyList()
-                    }
+                selectedASRProviderId = preferences[SELECTED_ASR_PROVIDER]?.let { Uuid.parse(it) },
+                modeInjections = preferences[MODE_INJECTIONS]?.let {
+                    JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
-                lorebooks = preferences[LOREBOOKS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<Lorebook>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode lorebooks, using default", it)
-                        emptyList()
-                    }
+                lorebooks = preferences[LOREBOOKS]?.let {
+                    JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
-                quickMessages = preferences[QUICK_MESSAGES]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<QuickMessage>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode quickMessages, using default", it)
-                        emptyList()
-                    }
+                quickMessages = preferences[QUICK_MESSAGES]?.let {
+                    JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
                 webServerEnabled = preferences[WEB_SERVER_ENABLED] == true,
                 webServerPort = preferences[WEB_SERVER_PORT] ?: 8080,
@@ -467,15 +378,6 @@ class SettingsStore(
                             // Insert right after AICore, or at 0 if AICore is absent.
                             // indexOfFirst returns -1 when absent; -1 + 1 = 0, so insert at 0.
                             val insertAt = providers.indexOfFirst { it is ProviderSetting.AICore } + 1
-                            providers.add(insertAt, defaultProvider.copyProvider())
-                        }
-                        is ProviderSetting.LlamaCppLocal -> {
-                            // Insert right after LiteRtLocal, so it groups with the other
-                            // on-device provider instead of appending after every remote
-                            // provider below. Falls back to right after AICore, or 0, if
-                            // LiteRtLocal is absent - same absent-index fallback as above.
-                            val insertAt = providers.indexOfFirst { it is ProviderSetting.LiteRtLocal }
-                                .let { if (it >= 0) it + 1 else providers.indexOfFirst { p -> p is ProviderSetting.AICore } + 1 }
                             providers.add(insertAt, defaultProvider.copyProvider())
                         }
                         else -> providers.add(defaultProvider.copyProvider())
@@ -564,10 +466,6 @@ class SettingsStore(
                             models = provider.models.distinctBy { model -> model.id }
                         )
 
-                        is ProviderSetting.LlamaCppLocal -> provider.copy(
-                            models = provider.models.distinctBy { model -> model.id }
-                        )
-
                         is ProviderSetting.Codex -> provider.copy(
                             models = provider.models.distinctBy { model -> model.id }
                         )
@@ -635,19 +533,7 @@ class SettingsStore(
             Log.w(TAG, "Cannot update dummy settings")
             return
         }
-        transformLock.withLock {
-            updateInternal(settings)
-        }
-    }
-
-    /**
-     * Unlocked write path: every caller must already hold [transformLock]. Writes disk
-     * before memory: if `dataStore.edit` throws (IOException, disk full, a serialization
-     * bug), `settingsFlow` must still match what's actually on disk rather than a value
-     * that was never persisted, or observers would react to a change that silently rolls
-     * back on the next app launch.
-     */
-    private suspend fun updateInternal(settings: Settings) {
+        settingsFlow.value = settings
         dataStore.edit { preferences ->
             preferences[DYNAMIC_COLOR] = settings.dynamicColor
             preferences[THEME_ID] = settings.themeId
@@ -709,7 +595,6 @@ class SettingsStore(
                 settings.searchServiceSelected.coerceIn(0, maxOf(0, settings.searchServices.size - 1))
 
             preferences[MCP_SERVERS] = JsonInstant.encodeToString(settings.mcpServers)
-            preferences[SUB_AGENTS] = JsonInstant.encodeToString(settings.subAgents)
             preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settings.webDavConfig)
             preferences[S3_CONFIG] = JsonInstant.encodeToString(settings.s3Config)
             preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(settings.ttsProviders)
@@ -746,7 +631,6 @@ class SettingsStore(
             preferences[EXECUTION_BACKEND] = settings.executionBackend
             preferences[BACKEND_CONNECTIONS] = JsonInstant.encodeToString(settings.backendConnections)
         }
-        settingsFlow.value = settings
     }
 
     /** Serialises rapid-fire transform-based updates so concurrent callers don't race
@@ -917,14 +801,7 @@ data class Settings(
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),
     val searchServiceSelected: Int = 0,
-    val enableWebFetchTools: Boolean = true,
     val mcpServers: List<McpServerConfig> = emptyList(),
-    /**
-     * #36: named sub-agent profiles the model can dispatch to by name via
-     * `subagent_dispatch`'s `agent` parameter. MUST default to an empty list so an install
-     * that predates this field decodes cleanly - see [SettingsStore.settingsFlowRaw].
-     */
-    val subAgents: List<SubAgentProfile> = emptyList(),
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val s3Config: S3Config = S3Config(),
     val ttsProviders: List<TTSProviderSetting> = DEFAULT_TTS_PROVIDERS,
@@ -1014,7 +891,7 @@ data class DisplaySetting(
     val showTokenUsage: Boolean = true,
     val showThinkingContent: Boolean = true,
     val autoCloseThinking: Boolean = true,
-    val updateCheckDisabledUntilEpochMillis: Long = 0L,
+    val showUpdates: Boolean = true,
     val showMessageJumper: Boolean = true,
     val messageJumperOnLeft: Boolean = false,
     val fontSizeRatio: Float = 1.0f,
@@ -1119,39 +996,6 @@ fun List<ProviderSetting>.findModelById(uuid: Uuid): Model? {
 fun Settings.getCurrentChatModel(): Model? {
     return findModelById(this.getCurrentAssistant().chatModelId ?: this.chatModelId)
 }
-
-private const val FALLBACK_CONTEXT_COMPACTION_TARGET_TOKENS = 2_000
-
-/** Returns the configured summary target, defaulting to 1% of the active context. */
-fun Settings.getContextCompactionTargetTokens(contextLength: Int?): Int {
-    val configured = contextCompactionTargetTokensK
-        ?.toLong()
-        ?.coerceAtLeast(1L)
-        ?.times(1_000L)
-    if (configured != null) {
-        return configured.coerceAtMost(Int.MAX_VALUE.toLong()).toInt()
-    }
-    return contextLength
-        ?.takeIf { it > 0 }
-        ?.let { length ->
-            (length.toLong() * DEFAULT_CONTEXT_COMPACTION_TARGET_PERCENT / 100L)
-                .coerceAtLeast(1L)
-                .coerceAtMost(Int.MAX_VALUE.toLong())
-                .toInt()
-        }
-        ?: FALLBACK_CONTEXT_COMPACTION_TARGET_TOKENS
-}
-
-/** Uses the token-threshold setting as the model context ceiling when that mode is active. */
-fun Settings.getCompactionContextLength(model: Model?): Int? =
-    autoCompactionThresholdTokensK
-        .takeIf { autoCompactionThresholdMode == AutoCompactionThresholdMode.TOKENS }
-        ?.toLong()
-        ?.coerceAtLeast(1L)
-        ?.times(1_000L)
-        ?.coerceAtMost(Int.MAX_VALUE.toLong())
-        ?.toInt()
-        ?: model?.contextLength
 
 fun Settings.getCurrentAssistant(): Assistant {
     return this.assistants.find { it.id == assistantId } ?: this.assistants.first()
