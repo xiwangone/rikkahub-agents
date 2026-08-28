@@ -28,6 +28,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
@@ -104,21 +105,21 @@ fun WebViewPage(
                 },
                 actions = {
                     IconButton(onClick = { state.reload() }) {
-                        Icon(HugeIcons.Refresh01, contentDescription = "Refresh")
+                        Icon(HugeIcons.Refresh01, contentDescription = stringResource(R.string.accessibility_refresh_page))
                     }
 
                     IconButton(
                         onClick = { state.goForward() },
                         enabled = state.canGoForward,
                     ) {
-                        Icon(HugeIcons.ArrowRight01, contentDescription = "Forward")
+                        Icon(HugeIcons.ArrowRight01, contentDescription = stringResource(R.string.accessibility_forward))
                     }
 
                     val urlHandler = LocalUriHandler.current
                     IconButton(
                         onClick = { showDropdown = true },
                     ) {
-                        Icon(HugeIcons.MoreVertical, contentDescription = "More options")
+                        Icon(HugeIcons.MoreVertical, contentDescription = stringResource(R.string.accessibility_more_options))
 
                         DropdownMenu(
                             expanded = showDropdown,

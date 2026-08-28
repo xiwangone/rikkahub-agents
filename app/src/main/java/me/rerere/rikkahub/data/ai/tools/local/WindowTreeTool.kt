@@ -140,6 +140,7 @@ fun readWindowTreeTool(
                 put("total_seen", seen)
                 put("package", pkg)
                 root.window?.title?.toString()?.let { put("window_title", it) } ?: put("window_title", "")
+                put("screen_state", screenStateJson(svc, screenChanged = null))
             }
         }
         streamer.streamIfHeadless(invocationContext, "ReadWindowTree")

@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.repository
 
 import android.database.sqlite.SQLiteBlobTooBigException
+import android.util.Log
 import androidx.paging.Pager
 import androidx.paging.PagingConfig
 import androidx.paging.PagingData
@@ -11,16 +12,20 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import me.rerere.ai.ui.UIMessage
+import me.rerere.common.android.Logging
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.fts.MessageFtsManager
 import me.rerere.rikkahub.data.db.fts.MessageSearchSort
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
+import me.rerere.rikkahub.data.db.dao.ConversationCompactionDAO
 import me.rerere.rikkahub.data.db.dao.FavoriteDAO
 import me.rerere.rikkahub.data.db.dao.MessageNodeDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
+import me.rerere.rikkahub.data.db.entity.ConversationCompactionEntity
 import me.rerere.rikkahub.data.db.entity.MessageNodeEntity
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.ConversationCompaction
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.utils.JsonInstant
 import java.time.Instant
@@ -28,6 +33,7 @@ import kotlin.uuid.Uuid
 
 class ConversationRepository(
     private val conversationDAO: ConversationDAO,
+    private val conversationCompactionDAO: ConversationCompactionDAO,
     private val messageNodeDAO: MessageNodeDAO,
     private val favoriteDAO: FavoriteDAO,
     private val database: AppDatabase,
@@ -35,6 +41,7 @@ class ConversationRepository(
     private val messageFtsManager: MessageFtsManager,
 ) {
     companion object {
+        private const val TAG = "ConversationRepository"
         private const val PAGE_SIZE = 20
         private const val INITIAL_LOAD_SIZE = 40
     }
@@ -283,17 +290,58 @@ class ConversationRepository(
         return conversationDAO.countAll()
     }
 
-    suspend fun insertConversation(conversation: Conversation) {
+    suspend fun getCompaction(conversationId: Uuid): ConversationCompaction? =
+        conversationCompactionDAO.getByConversationId(conversationId.toString())?.let { entity ->
+            ConversationCompaction(
+                conversationId = Uuid.parse(entity.conversationId),
+                summary = entity.summary,
+                tailStartNodeId = entity.tailStartNodeId?.let(Uuid::parse),
+                sourceEndNodeId = Uuid.parse(entity.sourceEndNodeId),
+                summaryModelId = Uuid.parse(entity.summaryModelId),
+                isAuto = entity.isAuto,
+                sourceTokenEstimate = entity.sourceTokenEstimate,
+                createdAt = Instant.ofEpochMilli(entity.createdAt),
+            )
+        }
+
+    suspend fun upsertCompaction(compaction: ConversationCompaction) {
+        conversationCompactionDAO.upsert(
+            ConversationCompactionEntity(
+                conversationId = compaction.conversationId.toString(),
+                summary = compaction.summary,
+                tailStartNodeId = compaction.tailStartNodeId?.toString(),
+                sourceEndNodeId = compaction.sourceEndNodeId.toString(),
+                summaryModelId = compaction.summaryModelId.toString(),
+                isAuto = compaction.isAuto,
+                sourceTokenEstimate = compaction.sourceTokenEstimate,
+                createdAt = compaction.createdAt.toEpochMilli(),
+            )
+        )
+    }
+
+    suspend fun clearCompaction(conversationId: Uuid) {
+        conversationCompactionDAO.deleteByConversationId(conversationId.toString())
+    }
+
+    suspend fun insertConversation(
+        conversation: Conversation,
+        updateSearchIndex: Boolean = true,
+    ) {
         database.withTransaction {
             conversationDAO.insert(
                 conversationToConversationEntity(conversation)
             )
             saveMessageNodes(conversation.id.toString(), conversation.messageNodes)
         }
-        messageFtsManager.indexConversation(conversation)
+        if (updateSearchIndex) {
+            messageFtsManager.indexConversation(conversation)
+        }
     }
 
-    suspend fun updateConversation(conversation: Conversation) {
+    suspend fun updateConversation(
+        conversation: Conversation,
+        updateSearchIndex: Boolean = true,
+    ) {
         database.withTransaction {
             conversationDAO.update(
                 conversationToConversationEntity(conversation)
@@ -302,7 +350,9 @@ class ConversationRepository(
             messageNodeDAO.deleteByConversation(conversation.id.toString())
             saveMessageNodes(conversation.id.toString(), conversation.messageNodes)
         }
-        messageFtsManager.indexConversation(conversation)
+        if (updateSearchIndex) {
+            messageFtsManager.indexConversation(conversation)
+        }
     }
 
     suspend fun deleteConversation(conversation: Conversation) {
@@ -312,13 +362,17 @@ class ConversationRepository(
         } else {
             conversation
         }
-        messageFtsManager.deleteConversation(conversation.id.toString())
         database.withTransaction {
             // message_node 会通过 CASCADE 自动删除
             conversationDAO.delete(
                 conversationToConversationEntity(conversation)
             )
         }
+        // message_fts is a derived index over the same rows: only touch it after the
+        // authoritative delete has committed, so a failed/rolled-back transaction can't
+        // leave the conversation still present but unsearchable (matches insert/update,
+        // which already index only after their transaction completes).
+        messageFtsManager.deleteConversation(conversation.id.toString())
         filesManager.deleteChatFiles(fullConversation.files)
     }
 
@@ -382,6 +436,7 @@ class ConversationRepository(
             lorebookIds = JsonInstant.encodeToString(conversation.lorebookIds),
             workspaceCwd = conversation.workspaceCwd ?: "",
             folderId = conversation.folderId?.toString() ?: "",
+            chatModelId = encodeChatModelId(conversation.chatModelId),
         )
     }
 
@@ -403,6 +458,7 @@ class ConversationRepository(
             lorebookIds = JsonInstant.decodeFromString(conversationEntity.lorebookIds),
             workspaceCwd = conversationEntity.workspaceCwd.ifEmpty { null },
             folderId = conversationEntity.folderId.ifEmpty { null }?.let { Uuid.parse(it) },
+            chatModelId = decodeChatModelId(conversationEntity.chatModelId),
         )
     }
 
@@ -432,6 +488,16 @@ class ConversationRepository(
         )
     }
 
+    /**
+     * 单列更新会话标题。刻意不走 [updateConversation]：抽屉列表项来自
+     * [LightConversationEntity] 投影，messageNodes 为空，若传入 updateConversation
+     * 会把消息节点全部删除重建，等于清空聊天记录。
+     */
+    suspend fun renameConversation(conversationId: Uuid, title: String) {
+        conversationDAO.updateTitle(conversationId.toString(), title)
+        messageFtsManager.updateConversationTitle(conversationId.toString(), title)
+    }
+
     private fun conversationSummaryToConversation(entity: LightConversationEntity): Conversation {
         return Conversation(
             id = Uuid.parse(entity.id),
@@ -453,33 +519,62 @@ class ConversationRepository(
 
         return database.withTransaction {
             val nodes = mutableListOf<MessageNode>()
+
+            fun toMessageNode(entity: MessageNodeEntity): MessageNode {
+                val messages = JsonInstant.decodeFromString<List<UIMessage>>(entity.messages)
+                val nodeId = Uuid.parse(entity.id)
+                return MessageNode(
+                    id = nodeId,
+                    messages = messages,
+                    selectIndex = entity.selectIndex,
+                    isFavorite = favoriteNodeIds.contains(nodeId)
+                )
+            }
+
+            // Fallback for when a whole pageSize-row page fails to decode (a corrupt blob or
+            // bad cursor state somewhere in the window): retry one row at a time so only the
+            // row(s) that actually can't be read are dropped, instead of silently discarding
+            // the entire page like the old `offset += pageSize; continue` did. Returns the
+            // number of node_index positions consumed, always pageSize unless the
+            // conversation's data ends inside the window, which the caller MUST use to
+            // advance its OFFSET-based pagination; advancing by the recovered count instead
+            // would re-read rows already added to `nodes` on the next iteration.
+            suspend fun recoverPageRowByRow(offset: Int, pageSize: Int): Int {
+                for (i in 0 until pageSize) {
+                    val rowOffset = offset + i
+                    val row = try {
+                        messageNodeDAO.getNodesOfConversationPaged(conversationId, 1, rowOffset)
+                    } catch (e: SQLiteBlobTooBigException) {
+                        Log.e(TAG, "loadMessageNodes: dropping unreadable node (conversationId=$conversationId, position=$rowOffset)", e)
+                        continue
+                    } catch (e: IllegalStateException) {
+                        Log.e(TAG, "loadMessageNodes: dropping unreadable node (conversationId=$conversationId, position=$rowOffset)", e)
+                        continue
+                    }
+                    if (row.isEmpty()) return i
+                    nodes.add(toMessageNode(row.single()))
+                }
+                return pageSize
+            }
+
             var offset = 0
             val pageSize = 64
             while (true) {
                 val page = try {
                     messageNodeDAO.getNodesOfConversationPaged(conversationId, pageSize, offset)
                 } catch (e: SQLiteBlobTooBigException) {
-                    e.printStackTrace()
-                    offset += pageSize
-                    continue
+                    Log.e(TAG, "loadMessageNodes: page failed to decode (conversationId=$conversationId, offset=$offset, pageSize=$pageSize); retrying row-by-row", e)
+                    val consumed = recoverPageRowByRow(offset, pageSize)
+                    offset += consumed
+                    if (consumed < pageSize) break else continue
                 } catch (e: IllegalStateException) {
-                    e.printStackTrace()
-                    offset += pageSize
-                    continue
+                    Log.e(TAG, "loadMessageNodes: page failed to decode (conversationId=$conversationId, offset=$offset, pageSize=$pageSize); retrying row-by-row", e)
+                    val consumed = recoverPageRowByRow(offset, pageSize)
+                    offset += consumed
+                    if (consumed < pageSize) break else continue
                 }
                 if (page.isEmpty()) break
-                page.forEach { entity ->
-                    val messages = JsonInstant.decodeFromString<List<UIMessage>>(entity.messages)
-                    val nodeId = Uuid.parse(entity.id)
-                    nodes.add(
-                        MessageNode(
-                            id = nodeId,
-                            messages = messages,
-                            selectIndex = entity.selectIndex,
-                            isFavorite = favoriteNodeIds.contains(nodeId)
-                        )
-                    )
-                }
+                page.forEach { entity -> nodes.add(toMessageNode(entity)) }
                 offset += page.size
             }
             nodes
@@ -497,6 +592,32 @@ class ConversationRepository(
             )
         }
         messageNodeDAO.insertAll(entities)
+    }
+}
+
+private const val CONVERSATION_REPOSITORY_TAG = "ConversationRepository"
+
+/**
+ * Encodes [Conversation.chatModelId] for the `chat_model_id` column. `null` (no override)
+ * stores as the empty string, matching the `folder_id` convention.
+ */
+internal fun encodeChatModelId(chatModelId: Uuid?): String = chatModelId?.toString() ?: ""
+
+/**
+ * Decodes the `chat_model_id` column back to [Conversation.chatModelId]. A blank column means
+ * "no override". A malformed stored value must not throw - a corrupt row would otherwise make
+ * the conversation unopenable - so it decodes to `null` with a warning naming the bad value.
+ */
+internal fun decodeChatModelId(stored: String): Uuid? {
+    if (stored.isEmpty()) return null
+    return try {
+        Uuid.parse(stored)
+    } catch (e: IllegalArgumentException) {
+        // android.util.Log is unmocked in JVM unit tests (throws instead of logging), so this
+        // testable top-level function uses the Logging facade instead - see the identical note
+        // in GeminiProvider.kt's resolveStreamFailureCause.
+        Logging.log(CONVERSATION_REPOSITORY_TAG, "Malformed chat_model_id \"$stored\" in conversation row; treating as unset: ${e.message}")
+        null
     }
 }
 

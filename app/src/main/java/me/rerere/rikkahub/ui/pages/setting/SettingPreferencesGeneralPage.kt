@@ -6,12 +6,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextField
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -22,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
@@ -276,6 +280,9 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                                 )
                             },
                             supportingContent = {
+                                var thresholdText by remember(displaySetting.pasteLongTextThreshold) {
+                                    mutableStateOf(displaySetting.pasteLongTextThreshold.toString())
+                                }
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     verticalAlignment = Alignment.CenterVertically,
@@ -291,7 +298,6 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                                         valueRange = 100f..10000f,
                                         modifier = Modifier.weight(1f),
                                     )
-                                    Text(text = "${displaySetting.pasteLongTextThreshold}")
                                 }
                             },
                         )
@@ -407,4 +413,14 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
             }
         }
     }
+}
+
+/**
+ * Parses the paste-long-text-as-file threshold field. Returns null for text that is not a
+ * valid integer within the persisted 100..10000 range, so the caller can keep showing what
+ * the user typed without writing an invalid value to the store.
+ */
+internal fun parsePasteLongTextThreshold(text: String): Int? {
+    val value = text.toIntOrNull() ?: return null
+    return value.takeIf { it in 100..10000 }
 }

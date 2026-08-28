@@ -61,7 +61,17 @@ android {
                     storePassword = storePasswordValue
                     keyAlias = keyAliasValue
                     keyPassword = keyPasswordValue
+                } else {
+                    val missing = buildList {
+                        if (storeFilePath == null) add("storeFile")
+                        if (storePasswordValue == null) add("storePassword")
+                        if (keyAliasValue == null) add("keyAlias")
+                        if (keyPasswordValue == null) add("keyPassword")
+                    }
+                    logger.warn("Signing config: local.properties is missing $missing, release build will be unsigned")
                 }
+            } else {
+                logger.warn("Signing config: local.properties not found, release build will be unsigned")
             }
         }
     }
@@ -186,6 +196,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.viewmodel.navigation3)
     implementation(libs.androidx.material3.adaptive.navigation3)
 
+
     // DataStore
     implementation(libs.androidx.datastore.preferences)
 
@@ -196,7 +207,7 @@ dependencies {
     // Haze (background blur)
     implementation(libs.haze)
     implementation(libs.haze.blur)
-    implementation(libs.haze.blur.materials)
+    implementation(libs.haze.blur.material3)
 
     // koin
     implementation(platform(libs.koin.bom))
@@ -309,6 +320,7 @@ dependencies {
     // modules
     implementation(project(":ai"))
     implementation(project(":local-llm"))
+    implementation(project(":llama-cpp"))
     implementation(project(":web"))
     implementation(project(":document"))
     implementation(project(":highlight"))

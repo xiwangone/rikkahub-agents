@@ -44,6 +44,7 @@ private const val ACTIVE_LIST_CACHE_TTL_MS = 1_000L
  * The companion singleton lets tool factories reach the live instance synchronously.
  */
 class RikkaNotificationListenerService : NotificationListenerService() {
+
     private val whitelistPrefs: NotificationListenerPreferences by inject()
     private val telegramPrefs: TelegramBotPreferences by inject()
     private val telegramClient: TelegramBotClient by inject()

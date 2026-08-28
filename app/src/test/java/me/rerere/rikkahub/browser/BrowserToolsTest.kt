@@ -10,6 +10,7 @@ import me.rerere.rikkahub.data.ai.tools.local.browserClickTool
 import me.rerere.rikkahub.data.ai.tools.local.browserCurrentUrlTool
 import me.rerere.rikkahub.data.ai.tools.local.browserDoneTool
 import me.rerere.rikkahub.data.ai.tools.local.browserEvalJsTool
+import me.rerere.rikkahub.data.ai.tools.local.browserForwardTool
 import me.rerere.rikkahub.data.ai.tools.local.browserGetTextTool
 import me.rerere.rikkahub.data.ai.tools.local.browserOpenTool
 import me.rerere.rikkahub.data.ai.tools.local.browserPressKeyTool
@@ -143,10 +144,34 @@ class BrowserToolsTest {
             execText(browserCurrentUrlTool(), "{}"),
             execText(browserGetTextTool(), """{"selector":"body"}"""),
             execText(browserBackTool(), "{}"),
+            execText(browserForwardTool(), "{}"),
             execText(browserWaitForTool(), """{"selector":".loaded"}"""),
         )) {
             assertTrue("expected browser_not_open, got: $out", out.contains("browser_not_open"))
         }
+    }
+
+    @Test fun `browser_back and browser_forward not_open envelope carries no stray nav_failed key`() {
+        // runHistoryNav's honest-error hardening (fix for GH #59) adds an "error":"nav_failed"
+        // key ONLY on the bound path when the native canGoBack/goBack call itself throws.
+        // withController's not-open short-circuit fires BEFORE that code runs, so the
+        // envelope on an unbound controller must stay the plain not-open shape — asserting
+        // this pins the ordering (activeWebView() check happens first) so a future change
+        // to runHistoryNav can't accidentally start dispatching before the bind check.
+        val back = execText(browserBackTool(), "{}")
+        val forward = execText(browserForwardTool(), "{}")
+        assertTrue(back.contains("browser_not_open"))
+        assertTrue(forward.contains("browser_not_open"))
+        assertTrue("must not carry the bound-path nav_failed key", !back.contains("nav_failed"))
+        assertTrue("must not carry the bound-path nav_failed key", !forward.contains("nav_failed"))
+    }
+
+    @Test fun `browser_eval_js not_open envelope carries no stray eval_dispatch_failed key`() {
+        // Mirrors the browser_back/forward assertion above for eval_js's own honest-error
+        // hardening: the eval_dispatch_failed envelope only exists on the bound path.
+        val out = execText(browserEvalJsTool(), """{"code":"1+1"}""")
+        assertTrue(out.contains("browser_not_open"))
+        assertTrue("must not carry the bound-path eval_dispatch_failed key", !out.contains("eval_dispatch_failed"))
     }
 
     @Test fun `write tools short-circuit to not_open when controller unbound`() {

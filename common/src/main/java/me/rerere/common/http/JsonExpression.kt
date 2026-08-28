@@ -485,6 +485,7 @@ private class Evaluator(
             is JsonObject, is JsonArray -> {
                 Value.Str(elem.toString())
             }
+            is JsonObject, is JsonArray -> Value.Str(elem.toString())
         }
     }
 

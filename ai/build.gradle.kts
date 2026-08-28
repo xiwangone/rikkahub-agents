@@ -1,20 +1,14 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    alias(libs.plugins.android.library)
+    id("rikkahub.android.library.compose")
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.kotlin.compose)
 }
 
 android {
     namespace = "me.rerere.ai"
-    compileSdk = 37
 
     defaultConfig {
-        minSdk = 26
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
-        consumerProguardFiles("consumer-rules.pro")
 //        externalNativeBuild {
 //            cmake {
 //                cppFlags += listOf("-DANDROID_SUPPORT_FLEXIBLE_PAGE_SIZES=ON")
@@ -45,6 +39,13 @@ android {
 //            version = "3.22.1"
 //        }
 //    }
+    testOptions {
+        // Return default values for Android framework calls in JVM unit tests instead of
+        // throwing "not mocked". The provider parse paths log through android.util.Log, so
+        // without this any test that decodes a real response payload dies in Log.i rather
+        // than on its own assertion. Same reason and same setting as :local-llm.
+        unitTests.isReturnDefaultValues = true
+    }
     tasks.withType<KotlinCompile>().configureEach {
         compilerOptions.optIn.add("kotlin.uuid.ExperimentalUuidApi")
         compilerOptions.optIn.add("kotlin.time.ExperimentalTime")

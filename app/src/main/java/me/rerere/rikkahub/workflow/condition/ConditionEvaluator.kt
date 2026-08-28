@@ -19,6 +19,7 @@ import java.time.ZonedDateTime
  * in the row's last-run status.
  */
 object ConditionEvaluator {
+
     /** Returns [Result.Pass] if every condition passes, else [Result.FailedAt(idx, reason)]. */
     fun evaluateAll(
         conditions: List<ConditionSpec>,

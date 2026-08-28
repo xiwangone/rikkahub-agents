@@ -9,6 +9,7 @@ import me.rerere.ai.core.TokenUsage
 import me.rerere.rikkahub.data.agentrun.AgentRun
 import me.rerere.rikkahub.data.agentrun.AgentRunDao
 import me.rerere.rikkahub.data.db.dao.ConversationDAO
+import me.rerere.rikkahub.data.db.dao.ConversationCompactionDAO
 import me.rerere.rikkahub.data.db.dao.FavoriteDAO
 import me.rerere.rikkahub.data.db.dao.FolderDAO
 import me.rerere.rikkahub.data.db.dao.GenMediaDAO
@@ -24,6 +25,7 @@ import me.rerere.rikkahub.data.db.dao.CompressedArchiveDao
 import me.rerere.rikkahub.data.db.dao.VaultCredentialDao
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.ConversationEntity
+import me.rerere.rikkahub.data.db.entity.ConversationCompactionEntity
 import me.rerere.rikkahub.data.db.entity.FavoriteEntity
 import me.rerere.rikkahub.data.db.entity.FolderEntity
 import me.rerere.rikkahub.data.db.entity.GenMediaEntity
@@ -52,6 +54,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
 @Database(
     entities = [
         ConversationEntity::class,
+        ConversationCompactionEntity::class,
         MemoryEntity::class,
         GenMediaEntity::class,
         MessageNodeEntity::class,
@@ -116,6 +119,8 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
 @TypeConverters(TokenUsageConverter::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun conversationDao(): ConversationDAO
+
+    abstract fun conversationCompactionDao(): ConversationCompactionDAO
 
     abstract fun memoryDao(): MemoryDAO
 

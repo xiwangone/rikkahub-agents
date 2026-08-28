@@ -26,6 +26,40 @@ import java.util.UUID
 
 private const val TAG = "TtsController"
 
+// A transient synthesis failure (one flaky network call) used to drop that chunk from the
+// read-aloud text forever: awaitOrCreate never retried, and the failed Deferred stayed cached,
+// so even a manual replay of the same chunk id would just replay the same old failure.
+private const val MAX_SYNTHESIS_ATTEMPTS = 2
+
+/**
+ * Retries a cached suspending computation up to [maxAttempts] times, evicting the failed
+ * [kotlinx.coroutines.Deferred] from [cache] before each retry so a fresh attempt (or a later
+ * replay of the same [key]) actually resynthesizes instead of replaying the same cached
+ * failure. Pulled out of [TtsController.awaitOrCreate] as a plain, generic helper - it touches
+ * only the map and the Deferred it's given, never Context or Dispatchers.Main - so the
+ * retry/eviction bookkeeping itself is unit testable without the Android runtime.
+ */
+internal suspend fun <K : Any, V> awaitWithRetry(
+    cache: java.util.concurrent.ConcurrentMap<K, kotlinx.coroutines.Deferred<V>>,
+    key: K,
+    maxAttempts: Int,
+    create: () -> kotlinx.coroutines.Deferred<V>
+): V {
+    var lastError: Throwable? = null
+    repeat(maxAttempts) {
+        val deferred = cache.computeIfAbsent(key) { create() }
+        try {
+            return deferred.await()
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            lastError = e
+            cache.remove(key, deferred)
+        }
+    }
+    throw lastError ?: IllegalStateException("Synthesis retries exhausted for key $key")
+}
+
 /**
  * TTS 控制器（重构版）
  * - 负责文本分片、预取合成、排队播放与状态上报
@@ -192,8 +226,9 @@ class TtsController(
 
     /** 跳过下一段（不打断当前正在播放） */
     fun skipNext() {
-        if (queue.isNotEmpty()) {
-            queue.poll()
+        val skipped = queue.poll()
+        if (skipped != null) {
+            cache.remove(skipped.id)
             _totalChunks.update { queue.size }
         }
     }
@@ -319,4 +354,11 @@ class TtsController(
         }
     }
     // endregion
+
+    // skipNext's cache.remove(skipped.id) and the playback finally block's cache.remove(chunk.id)
+    // (both above) are one-line evictions against this controller's own live queue/cache/audio
+    // pipeline; exercising them meaningfully needs a real Context, TTSManager and ExoPlayer, none
+    // of which this JVM-only module can construct without Robolectric or mockk (neither is a
+    // dependency here). They stay covered by the awaitWithRetry test only insofar as that proves
+    // the eviction primitive itself is correct; the call sites are not separately unit tested.
 }

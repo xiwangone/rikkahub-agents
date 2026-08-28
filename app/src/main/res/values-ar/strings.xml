@@ -336,6 +336,8 @@
   <string name="setting_page_tool_approvals_yolo_dialog_cancel">إبقاء الموافقات مُفعَّلة</string>
   <string name="chat_message_tool_edit_memory">تم تحديث ذاكرة</string>
   <string name="chat_message_tool_get_time">الحصول على معلومات الوقت</string>
+  <string name="chat_message_tool_rerun">إعادة التشغيل</string>
+  <string name="chat_message_tool_rerun_failed">فشلت إعادة تشغيل الأداة: %1$s</string>
   <string name="chat_message_tool_scrape_prefix">كشط الموقع: %1$s</string>
   <string name="chat_message_tool_scrape_web">كشط صفحة ويب</string>
   <string name="chat_message_tool_search_prefix">بحث: %1$s</string>
@@ -377,6 +379,7 @@
   <string name="chat_page_nickname_placeholder">من فضلك أدخل الكنية</string>
   <string name="chat_page_no_conversations">لا توجد محادثات</string>
   <string name="chat_page_regenerate_title">إعادة توليد العنوان</string>
+  <string name="chat_page_rename_chat">إعادة تسمية</string>
   <string name="chat_page_save">حفظ</string>
   <string name="chat_page_scroll_to_bottom">التمرير إلى الأسفل</string>
   <string name="chat_page_search_chats">البحث في الدردشات</string>
@@ -384,6 +387,7 @@
   <string name="chat_page_yesterday">أمس</string>
   <string name="chat_size_dialog_content">عدد الرسائل الحالي: %1$d. قد يتسبب هذا في تعطل التطبيق أو بطئه، أو حتى فقدان بيانات هذه المحادثة. من فضلك أنشئ محادثة جديدة في أقرب وقت ممكن لمتابعة الدردشة.</string>
   <string name="chat_size_dialog_title">بيانات هذه المحادثة كبيرة جدًا</string>
+  <string name="chat_suggestion_continue">متابعة</string>
   <string name="citations_count">%1$d استشهادات</string>
   <string name="code_block_collapse">طي</string>
   <string name="code_block_copy">نسخ الشيفرة</string>
@@ -760,6 +764,9 @@
   <string name="setting_model_page_compress_model">نموذج الضغط</string>
   <string name="setting_model_page_compress_model_desc">نموذج لضغط سجل المحادثة</string>
   <string name="setting_model_page_compress_prompt_vars">المتغيرات: {content}، {target_tokens}، {additional_context}</string>
+  <string name="setting_model_page_ocr_model">نموذج التعرف الضوئي على الحروف</string>
+  <string name="setting_model_page_ocr_model_desc">النموذج المُستخدم للتعرف الضوئي على الحروف في الصور</string>
+  <string name="setting_model_page_ocr_prompt_vars">المتغيرات: بيانات الصورة: {images}</string>
   <string name="setting_model_page_prompt">التوجيه</string>
   <string name="setting_model_page_reset_to_default">إعادة التعيين إلى الافتراضي</string>
   <string name="setting_model_page_suggestion_model">نموذج اقتراحات الدردشة</string>
@@ -972,6 +979,9 @@
   <string name="setting_tts_page_voice_name_description">اسم الصوت</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
   <string name="settings">الإعدادات</string>
+  <string name="settings_search_no_results">لا توجد نتائج</string>
+  <string name="settings_search_page_title">البحث في الإعدادات</string>
+  <string name="settings_search_placeholder">ابحث في الإعدادات…</string>
   <string name="share">مشاركة</string>
   <string name="share_handler_page_title">اختيار مساعد</string>
   <string name="shortcut_take_picture">التقاط صورة والسؤال</string>
@@ -1085,6 +1095,7 @@
   <string name="web_search_enabled">البحث في الويب مُمكَّن</string>
   <string name="setting_provider_page_import_service_account_json">استيراد JSON لحساب الخدمة</string>
   <string name="reasoning_xhigh">عالٍ جدًا</string>
+  <string name="reasoning_max">الأقصى</string>
   <string name="reasoning_picker_title">ضبط عمق تفكير النموذج</string>
   <string name="reasoning_picker_hint">لا تدعم جميع النماذج ضبط العمق. راجع وثائق النموذج والمزوّد.</string>
   <string name="assistant_page_local_tools_section_personal_data">البيانات الشخصية</string>
@@ -1472,6 +1483,7 @@
   <string name="chat_select_model_first">من فضلك اختر نموذجًا أولًا</string>
   <string name="image_preview_saving">جارٍ الحفظ…</string>
   <string name="image_preview_saved">تم حفظ الصورة</string>
+  <string name="attachment_open_failed">يتعذر فتح هذا الملف</string>
   <string name="chat_drawer_statistics">الإحصائيات</string>
   <string name="translator_error_generic">خطأ</string>
   <string name="translator_paste_text">لصق نص</string>

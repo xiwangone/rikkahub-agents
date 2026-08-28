@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.service
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import me.rerere.ai.core.Tool
@@ -7,6 +8,7 @@ import me.rerere.ai.ui.UIMessagePart
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.fail
 import org.junit.Test
 
 /**
@@ -64,5 +66,28 @@ class DirectModeActionRunnerRunTest {
         assertTrue("error names the missing tool", err.contains("send_sms"))
         assertTrue("error uses the tool_unavailable code", err.contains("tool_unavailable"))
         assertTrue("error points at action index 1", err.contains("action 1"))
+    }
+
+    /**
+     * A cancelled tool must unwind the run as a real cancellation, not get turned into a
+     * `failed` SequenceResult. WorkflowActionRunner already re-throws CancellationException
+     * for this exact reason (see its `run()`); DirectModeActionRunner did not.
+     */
+    @Test
+    fun `cancellation from a tool propagates instead of becoming a Failed outcome`() = runBlocking {
+        val runner = DirectModeActionRunner(kotlinx.serialization.json.Json)
+        val cancellingTool = Tool(
+            name = "boom",
+            description = "fake",
+            execute = { throw CancellationException("run cancelled") },
+        )
+        var caught: CancellationException? = null
+        try {
+            runner.run(actions = listOf(action("boom")), availableTools = listOf(cancellingTool))
+            fail("expected CancellationException to propagate, not be swallowed into a SequenceResult")
+        } catch (c: CancellationException) {
+            caught = c
+        }
+        assertTrue("must be the real CancellationException, not a converted Failed step", caught != null)
     }
 }

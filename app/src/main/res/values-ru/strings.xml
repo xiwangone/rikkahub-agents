@@ -251,6 +251,8 @@
   <string name="chat_message_tool_deny_dialog_title">Отклонить выполнение инструмента</string>
   <string name="chat_message_tool_edit_memory">Обновлена память</string>
   <string name="chat_message_tool_get_time">Получить информацию о времени</string>
+  <string name="chat_message_tool_rerun">Повторить</string>
+  <string name="chat_message_tool_rerun_failed">Не удалось повторно выполнить инструмент: %1$s</string>
   <string name="chat_message_tool_scrape_prefix">Собрать данные с сайта: %1$s</string>
   <string name="chat_message_tool_scrape_web">Собрать данные со страницы</string>
   <string name="chat_message_tool_search_prefix">Поиск: %1$s</string>
@@ -268,7 +270,7 @@
   <string name="chat_page_compress_keep_recent">Сохранять недавние сообщения</string>
   <string name="chat_page_compress_not_enough_messages">Недостаточно сообщений для сжатия. Уменьшите количество сохраняемых сообщений или добавьте больше сообщений.</string>
   <string name="chat_page_compress_target_tokens">Целевой размер токенов</string>
-  <string name="chat_page_compress_warning">⚠️ Сжатие контекста приведёт к сбросу всех сообщений в текущем диалоге</string>
+  <string name="chat_page_compress_warning">Сжатие обновляет только сводку контекста для модели; исходные сообщения сохраняются.</string>
   <string name="chat_page_compressing">Сжатие...</string>
   <string name="chat_page_conversation_system_prompt">Системный запрос для беседы</string>
   <string name="chat_page_conversation_system_prompt_clear">Очистить</string>
@@ -297,6 +299,7 @@
   <string name="chat_page_nickname_placeholder">Введите никнейм</string>
   <string name="chat_page_no_conversations">Нет бесед</string>
   <string name="chat_page_regenerate_title">Сгенерировать заголовок заново</string>
+  <string name="chat_page_rename_chat">Переименовать</string>
   <string name="chat_page_save">Сохранить</string>
   <string name="chat_page_scroll_to_bottom">Прокрутить вниз</string>
   <string name="chat_page_search_chats">Поиск чатов</string>
@@ -304,6 +307,7 @@
   <string name="chat_page_yesterday">Вчера</string>
   <string name="chat_size_dialog_content">Текущее количество сообщений: %1$d. Это может привести к вылету или зависанию приложения, а также к потере данных этой беседы. Пожалуйста, создайте новый чат как можно скорее, чтобы продолжить общение.</string>
   <string name="chat_size_dialog_title">Данные этого разговора слишком большие</string>
+  <string name="chat_suggestion_continue">Продолжить</string>
   <string name="citations_count">%1$d цитирований</string>
   <string name="code_block_collapse">Свернуть</string>
   <string name="code_block_copy">Копировать код</string>
@@ -598,7 +602,7 @@
   <string name="send">Отправить</string>
   <string name="setting_asr_configure_api_key">Ключ API</string>
   <string name="setting_asr_configure_dashscope_api_key_desc">Ключ API DashScope</string>
-  <string name="setting_asr_configure_dashscope_vad_desc">Чувствительность VAD на сервере, установите 0 для отключения VAD</string>
+  <string name="setting_asr_configure_dashscope_vad_desc">Серверный порог обнаружения VAD. Рекомендуемое значение: 0.0; диапазон: от -1 до 1.</string>
   <string name="setting_asr_configure_dashscope_websocket_desc">Конечная точка веб-сокета DashScope в реальном времени</string>
   <string name="setting_asr_configure_language">Язык</string>
   <string name="setting_asr_configure_language_code_desc">Необязательный код языка, например zh-CN, en-US, ja-JP</string>
@@ -983,6 +987,9 @@
   <string name="setting_tts_page_voice_name_description">Название голоса</string>
   <string name="setting_tts_page_voice_name_placeholder">Коре</string>
   <string name="settings">Настройки</string>
+  <string name="settings_search_no_results">Нет результатов</string>
+  <string name="settings_search_page_title">Поиск по настройкам</string>
+  <string name="settings_search_placeholder">Поиск по настройкам…</string>
   <string name="share">Поделиться</string>
   <string name="share_handler_page_title">Выбрать ассистента</string>
   <string name="shortcut_take_picture">Сделать фото и спросить</string>
@@ -1266,6 +1273,7 @@
   <string name="chat_select_model_first">Сначала выберите модель</string>
   <string name="chat_stop_generation_before_delete">Сначала остановите генерацию, прежде чем удалять сообщения</string>
   <string name="image_preview_saved">Изображение сохранено</string>
+  <string name="attachment_open_failed">Не удалось открыть этот файл</string>
   <string name="image_preview_saving">Сохранение…</string>
   <string name="local_llm_accelerator_label">Ускоритель: %1$s</string>
   <string name="local_llm_catalog_install">Установить</string>
@@ -1624,14 +1632,22 @@
   <string name="workspace_detail_tool_read_file">Читать файл</string>
   <string name="workspace_detail_tool_write_file">Записать файл</string>
   <string name="workspace_detail_tool_edit_file">Редактировать файл</string>
+  <string name="workspace_detail_tool_create_folder">Создать папку</string>
   <string name="workspace_detail_tool_delete_file">Удалить файл</string>
   <string name="workspace_detail_tool_move_file">Переместить файл</string>
   <string name="workspace_detail_tool_shell">Выполнить команду</string>
+  <string name="workspace_detail_tool_run_background">Запустить в фоне</string>
+  <string name="workspace_detail_tool_background_status">Статус фоновой задачи</string>
+  <string name="workspace_detail_tool_background_kill">Остановить фоновую задачу</string>
   <string name="workspace_detail_install_rootfs_desc">Загрузит tar.gz и распакует в каталог Linux %s.</string>
   <string name="workspace_detail_download_url">URL для скачивания tar.gz</string>
   <string name="workspace_detail_area_files">Файлы</string>
   <string name="workspace_detail_area_rootfs">Корневая ФС</string>
   <string name="workspace_detail_empty_directory">Пустая директория</string>
+  <string name="workspace_detail_folder_export_success">Экспортировано: %1$s</string>
+  <string name="workspace_detail_folder_export_partial">Экспортировано: %1$s, ошибок: %2$d</string>
+  <string name="accessibility_expand_folder">Развернуть папку</string>
+  <string name="accessibility_collapse_folder">Свернуть папку</string>
   <string name="workspace_detail_shell_disabled">Отключено</string>
   <string name="workspace_detail_shell_installing">Установка</string>
   <string name="workspace_detail_shell_ready">Готово</string>
@@ -1777,5 +1793,51 @@
   <string name="assistant_page_context_message_limit_count">Лимит сообщений контекста: %d</string>
   <string name="assistant_page_context_message_limit_unlimited">Неограниченные сообщения контекста</string>
   <string name="assistant_page_context_message_limit_warning">Ограничение контекста аннулирует кэш промпта каждый раз, когда контекст усекается. Больший лимит усекает реже; безлимитный не усекает никогда и сохраняет кэш полностью нетронутым.</string>
+  <string name="setting_model_page_enable_auto_compaction">Включить автоматическое сжатие контекста</string>
+  <string name="setting_model_page_enable_auto_compaction_desc">Автоматически суммировать старые сообщения, когда диалог приближается к лимиту контекста модели</string>
+  <string name="setting_model_page_auto_compaction_threshold">Порог сжатия</string>
+  <string name="setting_model_page_auto_compaction_threshold_desc">Выберите порог контекста. Автоматическое сжатие начинается, когда оценка достигает выбранного процента или количества токенов.</string>
+  <string name="setting_model_page_auto_compaction_mode_percent">Процент</string>
+  <string name="setting_model_page_auto_compaction_mode_tokens">Количество токенов</string>
+  <string name="setting_model_page_auto_compaction_tokens">Порог токенов</string>
+  <string name="setting_model_page_auto_compaction_tokens_desc">Введите порог в тысячах токенов. Например, 8k означает 8 000 токенов.</string>
+  <string name="setting_model_page_context_compaction_target">Цель сжатия</string>
+  <string name="setting_model_page_context_compaction_target_desc">Укажите целевой размер сводки в тысячах токенов. Оставьте пустым, чтобы использовать 1% текущего контекста (например, 3k для контекста 300k).</string>
+  <string name="setting_model_page_auto_compaction_keep_tool_calls">Сохранять последние вызовы инструментов</string>
+  <string name="setting_model_page_auto_compaction_keep_tool_calls_desc">Автоматическое сжатие сохраняет исходные входные данные и результаты этих вызовов. Установите 0, чтобы сжать весь текущий контекст.</string>
+  <string name="setting_model_page_response_stream_retries">Повторные попытки потока Response API</string>
+  <string name="setting_model_page_response_stream_retries_desc">Если поток Response API закрывается до завершения, повторить запрос указанное число раз. Установите 0, чтобы отключить автоматические повторы.</string>
+  <string name="setting_model_page_response_stream_retries_input">Максимальное число повторов</string>
+
+  <!-- BrowserAiStripe redesign: outcome-aware, localized action trail -->
+  <string name="browser_ai_stripe_stop">Стоп</string>
+  <string name="browser_ai_action_open">Открытие %1$s</string>
+  <string name="browser_ai_action_click">Нажато %1$s</string>
+  <string name="browser_ai_action_type">Ввод в %1$s</string>
+  <string name="browser_ai_action_scroll">Прокручено %1$s</string>
+  <string name="browser_ai_action_submit">Отправлено %1$s</string>
+  <string name="browser_ai_action_select">Выбран вариант в %1$s</string>
+  <string name="browser_ai_action_key">Нажата клавиша %1$s</string>
+  <string name="browser_ai_action_js">Выполнен JavaScript</string>
+  <string name="browser_ai_action_screenshot">Сделан снимок экрана</string>
+  <string name="browser_ai_action_read">Прочитано %1$s</string>
+  <string name="browser_ai_action_back">Назад</string>
+  <string name="browser_ai_action_forward">Вперёд</string>
+  <string name="browser_ai_action_done">Готово: %1$s</string>
+  <string name="browser_ai_action_stopped">Остановлено пользователем</string>
+  <string name="browser_ai_action_failed">Ошибка: %1$s</string>
+  <string name="search_picker_local_title">Локальный поиск</string>
+  <string name="search_picker_local_description">Подключение к различным сторонним поисковым провайдерам</string>
+  <string name="search_picker_model_title">Поиск через модель</string>
+  <string name="search_picker_model_description">Облачный поиск, встроенный в провайдера моделей</string>
+  <string name="search_picker_select_provider">Выберите провайдера поиска</string>
+  <string name="search_picker_turn_off">Отключить поиск</string>
+  <string name="setting_update_reminder_enabled">Напоминания об обновлениях включены</string>
+  <string name="setting_update_reminder_paused_until">Приостановлено до %1$s</string>
+  <string name="setting_update_reminder_pause_title">Приостановить напоминания об обновлениях</string>
+  <string name="setting_update_reminder_pause_description">Выберите, как долго приостановить напоминания об обновлениях. Они возобновятся автоматически.</string>
+  <string name="setting_update_reminder_pause_days">%1$d дн.</string>
+  <string name="setting_update_reminder_resume_now">Возобновить сейчас</string>
+  <string name="reasoning_max">Максимум</string>
 </resources>
 

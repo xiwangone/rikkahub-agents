@@ -112,6 +112,7 @@ fun takeScreenshotTool(context: Context): Tool = Tool(
                         put("file_path", cacheFile.absolutePath)
                         put("gallery_path", galleryPath ?: "(gallery_save_failed)")
                         put("saved_to", "Pictures/$PICTURES_SUBDIR")
+                        put("screen_state", screenStateJson(svc, screenChanged = null))
                     }
                 }
             }

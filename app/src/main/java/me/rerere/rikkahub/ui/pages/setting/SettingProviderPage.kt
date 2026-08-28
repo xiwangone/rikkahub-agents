@@ -1,6 +1,16 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import android.net.Uri
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.rikkahub.ui.pages.setting.components.ProviderRequirement
+import me.rerere.hugeicons.stroke.Camera01
+import me.rerere.hugeicons.stroke.DragDropHorizontal
+import me.rerere.hugeicons.stroke.Image02
+import me.rerere.hugeicons.stroke.FileImport
+import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.Search01
+import me.rerere.hugeicons.stroke.Sparkles
+import me.rerere.hugeicons.stroke.Cancel01
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
@@ -179,7 +189,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(HugeIcons.Cancel01, contentDescription = "Clear")
+                            Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.accessibility_clear_text))
                         }
                     }
                 },
@@ -246,6 +256,47 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 }
             }
         }
+
+        providerToDelete?.let { target ->
+            AlertDialog(
+                onDismissRequest = { providerToDelete = null },
+                title = { Text(stringResource(R.string.setting_provider_delete_title)) },
+                text = {
+                    Text(stringResource(R.string.setting_provider_delete_body, target.name))
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            vm.updateSettings(
+                                settings.copy(
+                                    providers = settings.providers.filter { it.id != target.id },
+                                    // If the user removed a built-in default, remember the
+                                    // intent so the re-seed pass on settings load doesn't
+                                    // resurrect it. Without this gate the row just bobs to
+                                    // the bottom of the list on next reload.
+                                    deletedBuiltInProviderIds =
+                                        if (target.builtIn) settings.deletedBuiltInProviderIds + target.id
+                                        else settings.deletedBuiltInProviderIds,
+                                )
+                            )
+                            providerToDelete = null
+                        }
+                    ) {
+                        Text(
+                            text = stringResource(R.string.setting_provider_delete_confirm),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { providerToDelete = null }) {
+                        Text(stringResource(R.string.setting_provider_delete_cancel))
+                    }
+                },
+            )
+        }
+    }
+}
 
         providerToDelete?.let { target ->
             AlertDialog(
@@ -534,6 +585,8 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
                 )
             }
         }
+    ) {
+        Icon(HugeIcons.Add01, stringResource(R.string.accessibility_add_provider))
     }
 
     if (dialogState.isEditing) {

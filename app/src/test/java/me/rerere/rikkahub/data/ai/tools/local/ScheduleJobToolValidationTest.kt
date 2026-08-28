@@ -165,6 +165,29 @@ class ScheduleJobToolValidationTest {
     }
 
     @Test
+    fun `max_runs above the history retention ceiling rejected`() {
+        // Without this, trim(keep = historyRetentionFor(maxRuns)) caps retention at
+        // MAX_HISTORY_RETENTION while max_runs itself keeps climbing, so the job's
+        // configured stop point becomes permanently unreachable via countSuccessful().
+        val r = ScheduleJobValidator.validate(buildJsonObject {
+            put("name", "x"); put("mode", "llm"); put("prompt", "p")
+            put("schedule_type", "cron"); put("cron_expression", "@hourly")
+            put("max_runs", me.rerere.rikkahub.service.MAX_HISTORY_RETENTION + 1)
+        }, knownTools)
+        assertEquals("max_runs_invalid", r!!.code)
+    }
+
+    @Test
+    fun `max_runs at the history retention ceiling accepted`() {
+        val r = ScheduleJobValidator.validate(buildJsonObject {
+            put("name", "x"); put("mode", "llm"); put("prompt", "p")
+            put("schedule_type", "cron"); put("cron_expression", "@hourly")
+            put("max_runs", me.rerere.rikkahub.service.MAX_HISTORY_RETENTION)
+        }, knownTools)
+        assertNull(r)
+    }
+
+    @Test
     fun `bad catchup value rejected`() {
         val r = ScheduleJobValidator.validate(buildJsonObject {
             put("name", "x"); put("mode", "llm"); put("prompt", "p")

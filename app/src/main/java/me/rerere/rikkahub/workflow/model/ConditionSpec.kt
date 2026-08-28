@@ -19,6 +19,7 @@ import kotlinx.serialization.Serializable
  */
 @Serializable
 sealed class ConditionSpec {
+
     /** When true, the evaluator negates this condition's result. Default false = unchanged. */
     abstract val invert: Boolean
 

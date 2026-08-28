@@ -19,6 +19,36 @@ import java.io.FileOutputStream
 import java.lang.ref.WeakReference
 
 /**
+ * Kind of AI-driven browser action recorded in the trail. Each value has a paired
+ * localized template (`browser_ai_action_<kind lowercase>`) that `BrowserAiStripe`
+ * resolves at render time from [BrowserAiAction.kind] + [BrowserAiAction.detail] — the
+ * human-readable sentence is built only in the UI layer so it localizes, and (for
+ * [BrowserAiActionOutcome.FAILED] entries) can be wrapped in the `browser_ai_action_failed`
+ * prefix template.
+ */
+enum class BrowserAiActionKind {
+    OPEN, CLICK, TYPE, SCROLL, SUBMIT, SELECT, KEY, JS, SCREENSHOT, READ, BACK, FORWARD, DONE, STOPPED
+}
+
+/** Lifecycle state of a [BrowserAiAction]. */
+enum class BrowserAiActionOutcome { RUNNING, OK, FAILED }
+
+/**
+ * One entry in the AI action trail (newest first in [BrowserController.recentActionsFlow]).
+ * [detail] carries only what's safe to render verbatim — a URL or CSS selector, never typed
+ * text or select values (see the call sites in `BrowserTools.kt` for the per-kind rule); the
+ * localized sentence is composed at render time from [kind] + [detail].
+ */
+data class BrowserAiAction(
+    val id: Long,
+    val kind: BrowserAiActionKind,
+    val detail: String?,
+    val outcome: BrowserAiActionOutcome,
+    val atMs: Long,
+    val step: Int,
+)
+
+/**
  * Singleton bridge between the LLM browser tools and the live WebView.
  * Mirrors the [me.rerere.rikkahub.service.RikkaAccessibilityService.instance] pattern: the
  * Activity (or headless session host) publishes itself in on bind and clears on unbind.

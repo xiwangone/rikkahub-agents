@@ -33,6 +33,9 @@ object ToolApprovalDefaults {
         "transcribe_audio_file",  // shells out to whisper-cli via Termux; reads arbitrary audio files
         "eval_javascript",
 
+        // Shell via Shizuku (shell UID, no root)
+        "shizuku_exec",
+
         // Remote shell (SSH)
         "ssh_exec",
         "ssh_exec_saved",
@@ -67,6 +70,7 @@ object ToolApprovalDefaults {
         "click_node",
         "global_action",
         "launch_app",
+        "launch_activity",   // launches a specific activity, same trust footprint as launch_app
         "open_url",          // can dial tel:, draft mailto:, hand a URI to any app
         "open_file",         // ACTION_VIEW on a user-supplied path — same surface as launch_app
         "wake_screen",       // acquires wake lock, turns screen on at night
@@ -218,6 +222,9 @@ object ToolApprovalDefaults {
         // anything the LLM puts in the URL / body / headers, so it gets the same
         // approval gate as every other outbound call.
         "web_fetch",
+        // web_extract performs the same outbound GET as web_fetch, so it carries the same
+        // trust footprint and inherits the same approval gate.
+        "web_extract",
 
         // Phase 25 — Phase 3 second cut. Every mutating tool is approval-gated; the
         // read-only tools (keystore_verify, keystore_list_keys, list_storage_volumes,

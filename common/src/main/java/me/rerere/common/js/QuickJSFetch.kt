@@ -11,8 +11,17 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import okhttp3.Response
+import java.io.ByteArrayOutputStream
+import java.util.concurrent.TimeUnit
 
 private val json = Json { ignoreUnknownKeys = true }
+
+// A custom search/scrape script's fetch() can hit any endpoint the user configures (including
+// a self-hosted one), so this bounds only the failure modes that are never a legitimate
+// response shape: a call that never finishes, and a body that never ends.
+private const val FETCH_CALL_TIMEOUT_SECONDS = 30L
+private const val FETCH_BODY_CAP_BYTES = 256 * 1024
 
 @Serializable
 private data class HttpResponseDto(
@@ -119,4 +128,25 @@ fun QuickJSContext.injectFetch(httpClient: OkHttpClient) {
     )
 
     evaluate(FETCH_POLYFILL)
+}
+
+/**
+ * Read at most [capBytes] from [response]'s body, mirroring me.rerere.search.boundedBody so a
+ * huge or unbounded response can't be dragged fully into memory (and then into the JS engine's
+ * own heap as a string) just because fetch() has to return the whole body synchronously.
+ */
+internal fun readBoundedBody(response: Response, capBytes: Int): String {
+    val charset = response.body.contentType()?.charset() ?: Charsets.UTF_8
+    val ins = response.body.byteStream()
+    val out = ByteArrayOutputStream(minOf(capBytes, 8 * 1024))
+    val buf = ByteArray(8192)
+    var total = 0
+    while (total < capBytes) {
+        val want = minOf(buf.size, capBytes - total)
+        val read = ins.read(buf, 0, want)
+        if (read < 0) break
+        out.write(buf, 0, read)
+        total += read
+    }
+    return String(out.toByteArray(), charset)
 }

@@ -293,6 +293,8 @@
   <string name="chat_message_tool_deny_dialog_title">拒绝工具执行</string>
   <string name="chat_message_tool_edit_memory">更新了记忆</string>
   <string name="chat_message_tool_get_time">获取时间信息</string>
+  <string name="chat_message_tool_rerun">重新运行</string>
+  <string name="chat_message_tool_rerun_failed">工具重新运行失败：%1$s</string>
   <string name="chat_message_tool_scrape_prefix">抓取网站：%1$s</string>
   <string name="chat_message_tool_scrape_web">抓取网页</string>
   <string name="chat_message_tool_search_prefix">搜索: %1$s</string>
@@ -310,8 +312,9 @@
   <string name="chat_page_compress_keep_recent">保留最近的消息</string>
   <string name="chat_page_compress_not_enough_messages">消息数量不足，无法压缩。请减少保留的消息数量或添加更多消息。</string>
   <string name="chat_page_compress_target_tokens">目标Token大小</string>
-  <string name="chat_page_compress_warning">⚠️ 压缩上下文将重置当前对话中的所有消息</string>
+  <string name="chat_page_compress_warning">压缩只会更新发送给模型的上下文摘要，原始消息会保留。</string>
   <string name="chat_page_compressing">正在压缩...</string>
+  <string name="chat_page_retrying">正在重试（第 %1$d/%2$d 次）。上次失败原因：%3$s</string>
   <string name="chat_page_conversation_system_prompt">对话系统提示</string>
   <string name="chat_page_conversation_system_prompt_clear">清除</string>
   <string name="chat_page_conversation_system_prompt_hint">覆盖此对话的助手系统提示</string>
@@ -344,6 +347,7 @@
   <string name="chat_page_nickname_placeholder">请输入昵称</string>
   <string name="chat_page_no_conversations">没有对话记录</string>
   <string name="chat_page_regenerate_title">重新生成标题</string>
+  <string name="chat_page_rename_chat">重命名</string>
   <string name="chat_page_save">保存</string>
   <string name="chat_page_scroll_to_bottom">滚动到底部</string>
   <string name="chat_page_search_chats">搜索聊天</string>
@@ -351,6 +355,7 @@
   <string name="chat_page_yesterday">昨天</string>
   <string name="chat_size_dialog_content">当前消息数：%1$d。这可能导致应用崩溃或卡顿，甚至丢失本次对话数据。请尽快新建对话以继续聊天。</string>
   <string name="chat_size_dialog_title">此对话数据过大</string>
+  <string name="chat_suggestion_continue">继续</string>
   <string name="citations_count">%1$d 条引用</string>
   <string name="code_block_collapse">折叠</string>
   <string name="code_block_copy">复制代码</string>
@@ -643,11 +648,17 @@
   <string name="search_page_title">搜索消息</string>
   <string name="search_page_untitled">无标题</string>
   <string name="search_picker_title">搜索设置</string>
+  <string name="search_picker_local_title">本地搜索</string>
+  <string name="search_picker_local_description">接入各种三方搜索提供商</string>
+  <string name="search_picker_model_title">模型搜索</string>
+  <string name="search_picker_model_description">模型提供商云端自带搜索</string>
+  <string name="search_picker_select_provider">选择搜索服务商</string>
+  <string name="search_picker_turn_off">关闭搜索</string>
   <string name="select_and_copy">选择复制</string>
   <string name="send">发送</string>
   <string name="setting_asr_configure_api_key">API密钥</string>
   <string name="setting_asr_configure_dashscope_api_key_desc">DashScope API密钥</string>
-  <string name="setting_asr_configure_dashscope_vad_desc">服务器 VAD 灵敏度，设为 0 可禁用 VAD</string>
+  <string name="setting_asr_configure_dashscope_vad_desc">服务器VAD检测阈值。推荐值：0.0；范围：-1到1。</string>
   <string name="setting_asr_configure_dashscope_websocket_desc">DashScope 实时 WebSocket 端点</string>
   <string name="setting_asr_configure_language">语言</string>
   <string name="setting_asr_configure_language_code_desc">可选语言代码，例如 zh-CN、en-US、ja-JP</string>
@@ -1079,6 +1090,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_tts_page_voice_name_description">语音的名称</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
   <string name="settings">设置</string>
+  <string name="settings_search_no_results">没有结果</string>
+  <string name="settings_search_page_title">搜索设置</string>
+  <string name="settings_search_placeholder">搜索设置…</string>
   <string name="share">分享</string>
   <string name="share_handler_page_title">选择一个助手处理分享</string>
   <string name="shortcut_take_picture">拍照提问</string>
@@ -1396,6 +1410,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="chat_select_model_first">请先选择模型</string>
   <string name="chat_stop_generation_before_delete">请先停止生成再删除消息</string>
   <string name="image_preview_saved">图片已保存</string>
+  <string name="attachment_open_failed">无法打开此文件</string>
   <string name="image_preview_saving">正在保存…</string>
   <string name="local_llm_accelerator_label">加速器：%1$s</string>
   <string name="local_llm_catalog_install">安装</string>
@@ -1765,14 +1780,22 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="workspace_detail_tool_read_file">读取文件</string>
   <string name="workspace_detail_tool_write_file">写入文件</string>
   <string name="workspace_detail_tool_edit_file">编辑文件</string>
+  <string name="workspace_detail_tool_create_folder">创建文件夹</string>
   <string name="workspace_detail_tool_delete_file">删除文件</string>
   <string name="workspace_detail_tool_move_file">移动文件</string>
   <string name="workspace_detail_tool_shell">执行命令</string>
+  <string name="workspace_detail_tool_run_background">后台运行</string>
+  <string name="workspace_detail_tool_background_status">后台任务状态</string>
+  <string name="workspace_detail_tool_background_kill">停止后台任务</string>
   <string name="workspace_detail_install_rootfs_desc">将下载 tar.gz 并解压到 %s 的 Linux 目录。</string>
   <string name="workspace_detail_download_url">tar.gz 下载链接</string>
   <string name="workspace_detail_area_files">文件</string>
   <string name="workspace_detail_area_rootfs">Rootfs</string>
   <string name="workspace_detail_empty_directory">空目录</string>
+  <string name="workspace_detail_folder_export_success">已导出 %1$s</string>
+  <string name="workspace_detail_folder_export_partial">已导出 %1$s，%2$d 个文件失败</string>
+  <string name="accessibility_expand_folder">展开文件夹</string>
+  <string name="accessibility_collapse_folder">折叠文件夹</string>
   <string name="workspace_detail_shell_disabled">禁用</string>
   <string name="workspace_detail_shell_installing">安装中</string>
   <string name="workspace_detail_shell_ready">就绪</string>
@@ -2482,3 +2505,28 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="asr_hotwords_placeholder">热词1, 热词2, 热词3</string>
 </resources>
 
+  <!-- BrowserAiStripe redesign: outcome-aware, localized action trail -->
+  <string name="browser_ai_stripe_stop">停止</string>
+  <string name="browser_ai_action_open">正在打开 %1$s</string>
+  <string name="browser_ai_action_click">已点击 %1$s</string>
+  <string name="browser_ai_action_type">正在输入到 %1$s</string>
+  <string name="browser_ai_action_scroll">已滚动 %1$s</string>
+  <string name="browser_ai_action_submit">已提交 %1$s</string>
+  <string name="browser_ai_action_select">已在 %1$s 中选择选项</string>
+  <string name="browser_ai_action_key">已按下 %1$s</string>
+  <string name="browser_ai_action_js">已运行 JavaScript</string>
+  <string name="browser_ai_action_screenshot">已截图</string>
+  <string name="browser_ai_action_read">已读取 %1$s</string>
+  <string name="browser_ai_action_back">已后退</string>
+  <string name="browser_ai_action_forward">已前进</string>
+  <string name="browser_ai_action_done">已完成：%1$s</string>
+  <string name="browser_ai_action_stopped">已被用户停止</string>
+  <string name="browser_ai_action_failed">失败：%1$s</string>
+  <string name="setting_update_reminder_enabled">更新提醒已启用</string>
+  <string name="setting_update_reminder_paused_until">已暂停至 %1$s</string>
+  <string name="setting_update_reminder_pause_title">暂停更新提醒</string>
+  <string name="setting_update_reminder_pause_description">选择暂停更新提醒的时长。它们会自动恢复。</string>
+  <string name="setting_update_reminder_pause_days">%1$d 天</string>
+  <string name="setting_update_reminder_resume_now">立即恢复</string>
+  <string name="reasoning_max">最大</string>
+</resources>

@@ -218,8 +218,20 @@ class ChatVM(
     }
 
     // Update checker
-    val updateState =
-        updateChecker.checkUpdate().stateIn(viewModelScope, SharingStarted.Eagerly, UiState.Loading)
+    val updateState = settingsStore.settingsFlow
+        .map { settings ->
+            !settings.init &&
+                settings.displaySetting.updateCheckDisabledUntilEpochMillis <= System.currentTimeMillis()
+        }
+        .distinctUntilChanged()
+        .flatMapLatest { enabled ->
+            if (enabled) updateChecker.checkUpdate() else flowOf(UiState.Loading)
+        }
+        .stateIn(
+            viewModelScope,
+            SharingStarted.WhileSubscribed(stopTimeoutMillis = 5_000),
+            UiState.Loading,
+        )
 
     /**
      * 处理消息发送
@@ -429,6 +441,9 @@ class ChatVM(
     ) {
         chatService.handleToolApproval(_conversationId, toolCallId, approved = true, answer = answer)
     }
+
+    suspend fun rerunTool(toolCallId: String): me.rerere.rikkahub.service.ChatService.RerunToolResult =
+        chatService.rerunTool(_conversationId, toolCallId)
 
     fun stopGeneration() {
         viewModelScope.launch {

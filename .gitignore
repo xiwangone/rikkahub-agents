@@ -46,3 +46,5 @@ agent-tools/build/
 # 备份文件不入库(*.bak 及 *.bak-日期 命名)
 *.bak
 *.bak-*
+# bun.lock is generated from the tracked pnpm-lock.yaml on clean checkouts
+/web-ui/bun.lock

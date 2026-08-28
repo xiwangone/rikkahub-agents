@@ -60,6 +60,7 @@ import com.dokar.sonner.rememberToasterState
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.DEFAULT_CODEX_PROVIDER_ID
+import me.rerere.rikkahub.data.datastore.DEFAULT_GEMINI_OAUTH_PROVIDER_ID
 import me.rerere.rikkahub.data.db.DatabaseMigrationTracker
 import me.rerere.rikkahub.data.db.MigrationState
 import me.rerere.rikkahub.data.event.AppEvent
@@ -143,6 +144,7 @@ import me.rerere.rikkahub.ui.pages.webview.WebViewPage
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
+import me.rerere.rikkahub.utils.resolveInitialChatStack
 import okhttp3.OkHttpClient
 import org.koin.android.ext.android.inject
 import org.koin.compose.koinInject
@@ -153,6 +155,7 @@ private const val TAG = "RouteActivity"
 class RouteActivity : ComponentActivity() {
     companion object {
         const val EXTRA_OPEN_CODEX_SETTINGS = "open_codex_settings"
+        const val EXTRA_OPEN_GEMINI_SETTINGS = "open_gemini_settings"
     }
 
     private val okHttpClient by inject<OkHttpClient>()
@@ -296,6 +299,18 @@ class RouteActivity : ComponentActivity() {
                 if (backStack.lastOrNull() != destination) backStack.add(destination)
                 intent.removeExtra(EXTRA_OPEN_CODEX_SETTINGS)
             }
+            if (intent.getBooleanExtra(EXTRA_OPEN_GEMINI_SETTINGS, false)) {
+                val destination =
+                    Screen.SettingProviderDetail(DEFAULT_GEMINI_OAUTH_PROVIDER_ID.toString())
+                if (backStack.lastOrNull() != destination) backStack.add(destination)
+                intent.removeExtra(EXTRA_OPEN_GEMINI_SETTINGS)
+            }
+            // Deep link was already consumed into the initial back stack above; clear it so a
+            // future recreation with the same Intent doesn't re-push it (mirrors how
+            // EXTRA_OPEN_CODEX_SETTINGS is cleared above).
+            if (deepLinkConversationId != null) {
+                intent.removeExtra("conversationId")
+            }
         }
 
         ShareHandler(backStack)
@@ -418,6 +433,10 @@ class RouteActivity : ComponentActivity() {
                                 SettingPage()
                             }
 
+                            entry<Screen.SettingsSearch> {
+                                SettingsSearchPage()
+                            }
+
                             entry<Screen.Backup> {
                                 BackupPage()
                             }
@@ -523,6 +542,13 @@ class RouteActivity : ComponentActivity() {
                                 SettingMcpPage()
                             }
 
+                            entry<Screen.SettingSubAgents> {
+                                SettingSubAgentsPage()
+                            }
+
+                            entry<Screen.SettingDonate> {
+                                SettingDonatePage()
+                            }
 
                             entry<Screen.SettingFiles> {
                                 SettingFilesPage()
@@ -562,6 +588,10 @@ class RouteActivity : ComponentActivity() {
 
                             entry<Screen.SettingTermux> {
                                 me.rerere.rikkahub.ui.pages.setting.termux.SettingTermuxPage()
+                            }
+
+                            entry<Screen.SettingShizuku> {
+                                me.rerere.rikkahub.ui.pages.setting.shizuku.SettingShizukuPage()
                             }
 
                             entry<Screen.ScheduledJobDetail> { key ->
@@ -750,6 +780,9 @@ sealed interface Screen : NavKey {
     data object Setting : Screen
 
     @Serializable
+    data object SettingsSearch : Screen
+
+    @Serializable
     data object Backup : Screen
 
     @Serializable
@@ -826,6 +859,11 @@ sealed interface Screen : NavKey {
     @Serializable
     data object SettingMcp : Screen
 
+    @Serializable
+    data object SettingSubAgents : Screen
+
+    @Serializable
+    data object SettingDonate : Screen
 
     @Serializable
     data object SettingFiles : Screen
@@ -856,6 +894,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingTermux : Screen
+
+    @Serializable
+    data object SettingShizuku : Screen
 
     @Serializable
     data class ScheduledJobDetail(val id: String) : Screen
@@ -904,6 +945,7 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data class WorkspaceTerminal(val id: String) : Screen
+
     @Serializable
     data class WorkspaceFileEditor(val id: String, val area: String, val path: String) : Screen
 

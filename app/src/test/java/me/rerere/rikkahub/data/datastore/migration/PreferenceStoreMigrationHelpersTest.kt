@@ -139,4 +139,22 @@ class PreferenceStoreMigrationHelpersTest {
         assertEquals(bad, migratedAssistants)
         assertTrue(extracted.isEmpty())
     }
+
+    @Test
+    fun `settings json migration keeps the percentage default unset`() {
+        val migrated = JsonInstant.parseToJsonElement(
+            SettingsJsonMigrator.migrate("{\"contextCompactionTargetTokensK\":null}")
+        ).jsonObject
+
+        assertTrue(migrated["contextCompactionTargetTokensK"] is JsonNull)
+    }
+
+    @Test
+    fun `settings json migration removes the old fixed two thousand token default`() {
+        val migrated = JsonInstant.parseToJsonElement(
+            SettingsJsonMigrator.migrate("{\"contextCompactionTargetTokensK\":2}")
+        ).jsonObject
+
+        assertTrue(migrated["contextCompactionTargetTokensK"] is JsonNull)
+    }
 }

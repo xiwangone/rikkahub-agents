@@ -59,6 +59,7 @@ import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
@@ -85,6 +86,7 @@ import me.rerere.rikkahub.ui.components.ai.ChatInput
 import me.rerere.rikkahub.ui.components.ai.providerDisplayName
 
 import me.rerere.rikkahub.ui.components.ai.FilesPicker
+import me.rerere.rikkahub.ui.components.ai.SearchMode
 import me.rerere.rikkahub.ui.components.ai.completion.WorkspaceCompletionProvider
 import me.rerere.rikkahub.ui.components.ai.readAutoTaskConfig
 import me.rerere.rikkahub.ui.components.ai.useCropLauncher
@@ -476,6 +478,7 @@ private fun ChatPageContent(
                     sessionTotals = sessionTotals,
                     onToggleSearch = {
                         val current = setting.getCurrentAssistant()
+                        val model = setting.getCurrentChatModel()
                         vm.updateSettings(
                             setting.copy(
                                 assistants =
@@ -631,6 +634,9 @@ private fun ChatPageContent(
                 },
                 onToolAnswer = { toolCallId, answer ->
                     vm.handleToolAnswer(toolCallId, answer)
+                },
+                onRerunTool = { toolCallId ->
+                    vm.rerunTool(toolCallId)
                 },
                 onToggleFavorite = { node ->
                     vm.toggleMessageFavorite(node)
@@ -1028,7 +1034,7 @@ private fun TopBar(
                         scope.launch { drawerState.open() }
                     },
                 ) {
-                    Icon(HugeIcons.Menu03, "Messages")
+                    Icon(HugeIcons.Menu03, stringResource(R.string.accessibility_messages))
                 }
             }
         },
@@ -1095,7 +1101,7 @@ private fun TopBar(
                     onClickMenu()
                 },
             ) {
-                Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, "Chat Options")
+                Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, stringResource(R.string.accessibility_chat_options))
             }
 
             IconButton(
@@ -1103,7 +1109,7 @@ private fun TopBar(
                     onNewChat()
                 },
             ) {
-                Icon(HugeIcons.MessageAdd01, "New Message")
+                Icon(HugeIcons.MessageAdd01, stringResource(R.string.chat_page_new_message))
             }
         },
     )

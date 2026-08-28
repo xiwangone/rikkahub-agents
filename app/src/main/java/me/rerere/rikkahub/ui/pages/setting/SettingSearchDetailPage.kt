@@ -214,7 +214,7 @@ private fun SearchServiceOptionsEditor(
         }
 
         is SearchServiceOptions.BingLocalOptions -> {}
-
+        is SearchServiceOptions.DuckDuckGoOptions -> {}
         is SearchServiceOptions.FirecrawlOptions -> {
             FirecrawlOptions(options) { onUpdateOptions(it) }
         }

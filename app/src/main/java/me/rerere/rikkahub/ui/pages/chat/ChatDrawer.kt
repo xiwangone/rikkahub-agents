@@ -159,9 +159,26 @@ fun ChatDrawerContent(
     var showCreateFolderDialog by remember { mutableStateOf(false) }
     var folderToRename by remember { mutableStateOf<Folder?>(null) }
     var folderToDelete by remember { mutableStateOf<Folder?>(null) }
+    var conversationToRename by remember { mutableStateOf<Conversation?>(null) }
 
     // Menu popup 状态
     var showMenuPopup by remember { mutableStateOf(false) }
+
+    val updateCheckDisabledUntil = settings.displaySetting.updateCheckDisabledUntilEpochMillis
+    var updateChecksEnabled by remember(updateCheckDisabledUntil) {
+        mutableStateOf(updateCheckDisabledUntil <= System.currentTimeMillis())
+    }
+    LaunchedEffect(updateCheckDisabledUntil) {
+        while (true) {
+            val remaining = updateCheckDisabledUntil - System.currentTimeMillis()
+            if (remaining <= 0) {
+                updateChecksEnabled = true
+                break
+            }
+            updateChecksEnabled = false
+            delay(minOf(remaining, 60 * 60 * 1_000L))
+        }
+    }
 
     ModalDrawerSheet(
         modifier = Modifier.width(300.dp),
@@ -170,7 +187,7 @@ fun ChatDrawerContent(
             modifier = Modifier.padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (settings.displaySetting.showUpdates && !isPlayStore) {
+            if (updateChecksEnabled && !isPlayStore) {
                 UpdateCard(vm)
             }
 
@@ -267,8 +284,8 @@ fun ChatDrawerContent(
                 onClick = {
                     navigateToChatPage(navController, it.id)
                 },
-                onRegenerateTitle = {
-                    vm.generateTitle(it, true)
+                onRename = {
+                    conversationToRename = it
                 },
                 onDelete = {
                     scope.launch {
@@ -345,7 +362,7 @@ fun ChatDrawerContent(
                 Box {
                     DrawerAction(
                         icon = {
-                            Icon(HugeIcons.Sparkles, "Menu")
+                            Icon(HugeIcons.Sparkles, stringResource(R.string.menu))
                         },
                         label = {
                             Text(stringResource(R.string.menu))
@@ -617,6 +634,49 @@ fun ChatDrawerContent(
                     Text(stringResource(R.string.chat_page_cancel))
                 }
             },
+        )
+    }
+
+    // 重命名会话对话框
+    conversationToRename?.let { conversation ->
+        var title by remember(conversation.id) { mutableStateOf(conversation.title) }
+        AlertDialog(
+            onDismissRequest = { conversationToRename = null },
+            title = { Text(stringResource(R.string.chat_page_rename_chat)) },
+            text = {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    OutlinedTextField(
+                        value = title,
+                        onValueChange = { title = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    TextButton(
+                        onClick = {
+                            vm.generateTitle(conversation, true)
+                            conversationToRename = null
+                        }
+                    ) {
+                        Text(stringResource(R.string.chat_page_regenerate_title))
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        drawerVm.renameConversation(conversation.id, title)
+                        conversationToRename = null
+                    },
+                    enabled = title.isNotBlank()
+                ) { Text(stringResource(R.string.chat_page_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = { conversationToRename = null }) {
+                    Text(stringResource(R.string.chat_page_cancel))
+                }
+            }
         )
     }
 

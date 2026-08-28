@@ -5,6 +5,8 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.migrateToolNodes
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 
@@ -66,6 +68,48 @@ internal fun migrateMessagesElement(element: JsonElement): JsonElement {
         }
     )
     return if (migratedArray == rootArray) element else migratedArray
+}
+
+/**
+ * One `message_node` row as loaded for Migration_15_16's tool-node merge.
+ */
+internal data class ToolNodeMigrationRow(
+    val id: String,
+    val messages: List<UIMessage>,
+    val selectIndex: Int,
+)
+
+/**
+ * Pure decision function behind Migration_15_16: given one conversation's ordered rows
+ * (already parsed), decide what (if anything) should be written back.
+ *
+ * Returns null when nothing should be persisted for this conversation, which covers every
+ * case that must NOT delete-then-reinsert:
+ *  - [rows] is empty (nothing to do).
+ *  - [hasUnparsableRow] is true: at least one row in this conversation failed to parse and was
+ *    excluded from [rows]. migrateToolNodes never sees that row, so writing back its output
+ *    would delete every row for the conversation and reinsert only the parsed subset:
+ *    silently dropping the unparsable row's messages forever. Leaving the whole conversation
+ *    untouched is the only choice that can't lose data; the caller is expected to also guard
+ *    the migrateToolNodes call itself, since it runs inside one big transaction shared by
+ *    every conversation and a single throw must not roll back everything already migrated.
+ *  - migrateToolNodes made no change to the parsed rows.
+ */
+internal fun migrateConversationNodes(
+    rows: List<ToolNodeMigrationRow>,
+    hasUnparsableRow: Boolean,
+): List<ToolNodeMigrationRow>? {
+    if (rows.isEmpty() || hasUnparsableRow) return null
+
+    val migrated = rows.migrateToolNodes(
+        getMessages = { it.messages },
+        setMessages = { row, msgs -> row.copy(messages = msgs) }
+    )
+
+    val changed = migrated.size != rows.size ||
+        migrated.zip(rows).any { (a, b) -> a.messages != b.messages }
+
+    return if (changed) migrated else null
 }
 
 internal fun migratePartsArray(partsElement: JsonArray): JsonArray {

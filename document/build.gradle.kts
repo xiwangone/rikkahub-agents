@@ -1,15 +1,11 @@
 plugins {
-    alias(libs.plugins.android.library)
+    id("rikkahub.android.library")
 }
 
 android {
     namespace = "me.rerere.document"
-    compileSdk = 37
 
     defaultConfig {
-        minSdk = 26
-
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }
 

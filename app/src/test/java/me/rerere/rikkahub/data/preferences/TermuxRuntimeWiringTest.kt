@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.preferences
 
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
@@ -87,6 +88,66 @@ class TermuxRuntimeWiringTest {
         } finally {
             me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits.turnBudgetMs = prev
         }
+    }
+
+    // --- Issue #14: lastVerifiedOkAtMs persistence wiring -------------------------------
+    //
+    // Same rationale as the class doc: DataStore itself needs an Android runtime, so we pin
+    // the pure-JVM part of the contract instead — TermuxIntegration.markVerifiedOk() /
+    // clearVerified() / restoreVerifiedAt() must mutate lastVerifiedOkAtMs and drive the
+    // persister callback exactly as TermuxPreferences.init wires it. If that composes
+    // correctly, the DataStore write on the other end of the persister is just
+    // setLastVerifiedMs(it), already covered by the clamped-write pattern used elsewhere in
+    // this file.
+
+    private var origLastVerifiedOkAtMs: Long = 0L
+    private var origPersister: ((Long) -> Unit)? = null
+
+    @Before
+    fun saveVerifiedState() {
+        origLastVerifiedOkAtMs = me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.lastVerifiedOkAtMs
+        origPersister = me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.persister
+    }
+
+    @After
+    fun restoreVerifiedState() {
+        me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.restoreVerifiedAt(origLastVerifiedOkAtMs)
+        me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.persister = origPersister
+    }
+
+    @Test
+    fun markVerifiedOk_setsTimestamp_andInvokesPersister() {
+        val persisted = mutableListOf<Long>()
+        me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.persister = { persisted.add(it) }
+
+        me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.markVerifiedOk()
+
+        val nowMs = me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.lastVerifiedOkAtMs
+        assertTrue(nowMs > 0L)
+        assertEquals(listOf(nowMs), persisted)
+    }
+
+    @Test
+    fun clearVerified_resetsTimestamp_andInvokesPersisterWithZero() {
+        val persisted = mutableListOf<Long>()
+        me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.markVerifiedOk()
+        me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.persister = { persisted.add(it) }
+
+        me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.clearVerified()
+
+        assertEquals(0L, me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.lastVerifiedOkAtMs)
+        assertEquals(listOf(0L), persisted)
+    }
+
+    @Test
+    fun restoreVerifiedAt_setsTimestamp_withoutInvokingPersister() {
+        val persisted = mutableListOf<Long>()
+        me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.persister = { persisted.add(it) }
+
+        me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.restoreVerifiedAt(1_700_000_000_000L)
+
+        assertEquals(1_700_000_000_000L, me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration.lastVerifiedOkAtMs)
+        assertTrue(persisted.isEmpty())
     }
 
     @Test

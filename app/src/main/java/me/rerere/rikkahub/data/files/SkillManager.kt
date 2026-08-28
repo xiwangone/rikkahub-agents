@@ -198,6 +198,23 @@ class SkillManager(
 
     fun getSkillDir(skillName: String): File? = resolveSkillDir(skillName)
 
+    /**
+     * Doctor support, read-only: the skill names currently bundled in
+     * `assets/default-skills/`, so the Doctor can tell a "bundled" skill directory
+     * (seeded from assets) apart from a user-added one without duplicating the seeding
+     * logic in [seedDefaultSkillsIfNeeded].
+     */
+    fun bundledSkillNames(): Set<String> = runCatching {
+        context.assets.list("default-skills").orEmpty().toSet()
+    }.getOrDefault(emptySet())
+
+    /**
+     * Doctor support, read-only: hash [skillName]'s currently-bundled assets the same
+     * way [seedDefaultSkillsIfNeeded] does, so the Doctor can compare it against the
+     * on-disk `.core-bundled-hash` sentinel without re-deriving the hashing algorithm.
+     */
+    fun bundledSkillAssetHash(skillName: String): String = computeBundledSkillHash("default-skills", skillName)
+
     fun saveSkillFile(skillName: String, relativePath: String, content: String): Boolean {
         val skillDir = resolveSkillDir(skillName) ?: return false
         val target = SkillPaths.resolveSkillFile(skillDir, relativePath) ?: return false
@@ -444,6 +461,35 @@ class SkillManager(
     }
 }
 
+internal enum class SeedDecision { SKIP, SEED }
+
+/**
+ * Pure decision for whether a bundled skill directory should be (re)written from assets.
+ * Shared by both the core (`auto_load: true`) and non-core seeding branches of
+ * [SkillManager.seedDefaultSkillsIfNeeded] so they cannot drift apart, and extracted out of
+ * [SkillManager] itself so it is testable without a [android.content.Context] /
+ * `AssetManager`.
+ *
+ * @param ownedByUs whether this directory is ours to overwrite: always `true` for core
+ * skills (they are unconditionally ours to manage), or `sentinel.exists()` for non-core
+ * skills (a directory that exists with no `.seeded` sentinel was never created by us and is
+ * user-owned).
+ * @param targetDirNonEmpty ignored when [ownedByUs] is `true`.
+ */
+internal fun decideSeedAction(
+    ownedByUs: Boolean,
+    targetDirExists: Boolean,
+    targetDirNonEmpty: Boolean,
+    bundledHash: String,
+    storedHash: String,
+): SeedDecision {
+    if (!ownedByUs) {
+        // Never touch a directory we did not create ourselves.
+        return if (targetDirExists && targetDirNonEmpty) SeedDecision.SKIP else SeedDecision.SEED
+    }
+    return if (bundledHash == storedHash) SeedDecision.SKIP else SeedDecision.SEED
+}
+
 /**
  * @property autoLoad If true, the skill's body (or [autoLoadPath] file if set) is injected
  * directly into the system prompt every turn instead of being lazy-loaded via the `use_skill`
@@ -486,3 +532,4 @@ data class SkillContent(
     val contentMd: String,
     val argsSchema: kotlinx.serialization.json.JsonObject? = null,
 )
+

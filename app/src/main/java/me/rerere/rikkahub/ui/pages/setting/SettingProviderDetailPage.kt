@@ -133,6 +133,9 @@ import me.rerere.rikkahub.ui.pages.setting.components.CodexProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.GrokProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.BackendProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
+import me.rerere.rikkahub.ui.pages.setting.components.CodexProviderConfigure
+import me.rerere.rikkahub.ui.pages.setting.components.GeminiProviderConfigure
+import me.rerere.rikkahub.ui.pages.setting.components.GrokProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConnectionTester
 import me.rerere.rikkahub.ui.pages.setting.components.SettingProviderBalanceOption
 import me.rerere.rikkahub.ui.pages.setting.components.isUsingDefaultBaseUrl
@@ -1573,6 +1576,8 @@ private fun ModelCard(
                     ) {
                         Icon(HugeIcons.Tools, stringResource(R.string.provider_action_edit))
                     }
+                ) {
+                    Icon(HugeIcons.Tools, stringResource(R.string.accessibility_edit_model))
                 }
             }
         }
@@ -1751,7 +1756,8 @@ private fun ProviderOverrideSettings(
         }
 
         // Provider configuration modal
-        if (showProviderConfig && editingProvider != null) {
+        val currentEditingProvider = editingProvider
+        if (showProviderConfig && currentEditingProvider != null) {
             ModalBottomSheet(
                 onDismissRequest = {
                     showProviderConfig = false
@@ -1763,7 +1769,7 @@ private fun ProviderOverrideSettings(
                         enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
                     ),
             ) {
-                var internalProvider by remember(editingProvider) { mutableStateOf(editingProvider!!) }
+                var internalProvider by remember(currentEditingProvider) { mutableStateOf(currentEditingProvider) }
 
                 Column(
                     modifier =

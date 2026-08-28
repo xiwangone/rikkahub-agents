@@ -58,6 +58,7 @@ class WorkflowEngine(
     private val contextProvider: ContextProvider,
     private val actionRunner: WorkflowActionRunner,
 ) {
+
     /**
      * [LocalTools] is resolved lazily via Koin to break the construction cycle:
      *   - [LocalTools] constructor takes a [WorkflowEngine] (so workflow_run can fire)

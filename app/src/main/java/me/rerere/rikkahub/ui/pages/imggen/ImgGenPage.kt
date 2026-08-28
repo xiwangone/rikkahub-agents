@@ -634,6 +634,13 @@ private fun ImageGalleryScreen(vm: ImgGenVM) {
                                         IconButton(
                                             onClick = {
                                                 scope.launch {
+                                                    if (!File(it.filePath).exists()) {
+                                                        toaster.show(
+                                                            message = context.getString(R.string.imggen_page_image_missing),
+                                                            type = ToastType.Error
+                                                        )
+                                                        return@launch
+                                                    }
                                                     try {
                                                         filesManager.saveMessageImage(context, "file://${it.filePath}")
                                                         toaster.show(

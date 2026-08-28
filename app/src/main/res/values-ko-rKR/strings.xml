@@ -251,6 +251,8 @@
   <string name="chat_message_tool_deny_dialog_title">도구 실행 거부</string>
   <string name="chat_message_tool_edit_memory">기억 업데이트됨</string>
   <string name="chat_message_tool_get_time">시간 정보 가져오기</string>
+  <string name="chat_message_tool_rerun">다시 실행</string>
+  <string name="chat_message_tool_rerun_failed">도구 재실행 실패: %1$s</string>
   <string name="chat_message_tool_scrape_prefix">웹사이트 긁어오기: %1$s</string>
   <string name="chat_message_tool_scrape_web">웹 페이지 긁어오기</string>
   <string name="chat_message_tool_search_prefix">검색: %1$s</string>
@@ -268,7 +270,7 @@
   <string name="chat_page_compress_keep_recent">최근 메시지 유지</string>
   <string name="chat_page_compress_not_enough_messages">압축할 메시지가 부족합니다. 유지할 메시지 수를 줄이거나 더 많은 메시지를 추가하세요.</string>
   <string name="chat_page_compress_target_tokens">대상 토큰 크기</string>
-  <string name="chat_page_compress_warning">⚠️ 문맥 압축 시 현재 대화의 모든 메시지가 초기화됩니다</string>
+  <string name="chat_page_compress_warning">압축은 모델에 전송되는 컨텍스트 요약만 업데이트하며 원본 메시지는 유지됩니다.</string>
   <string name="chat_page_compressing">압축 중...</string>
   <string name="chat_page_conversation_system_prompt">대화 시스템 프롬프트</string>
   <string name="chat_page_conversation_system_prompt_clear">지우기</string>
@@ -304,6 +306,7 @@
   <string name="chat_page_nickname_placeholder">이름을 입력하세요</string>
   <string name="chat_page_no_conversations">대화 없음</string>
   <string name="chat_page_regenerate_title">제목 다시 생성</string>
+  <string name="chat_page_rename_chat">이름 변경</string>
   <string name="chat_page_save">저장</string>
   <string name="chat_page_scroll_to_bottom">맨 아래로 스크롤</string>
   <string name="chat_page_search_chats">채팅 검색</string>
@@ -311,6 +314,7 @@
   <string name="chat_page_yesterday">어제</string>
   <string name="chat_size_dialog_content">현재 메시지 수: %1$d. 이로 인해 앱이 강제 종료되거나 느려질 수 있으며, 대화 데이터가 손실될 수도 있습니다. 계속 대화하려면 새 대화를 만들어 주세요.</string>
   <string name="chat_size_dialog_title">이 대화 데이터가 너무 큽니다</string>
+  <string name="chat_suggestion_continue">계속</string>
   <string name="citations_count">%1$d 출처</string>
   <string name="code_block_collapse">접기</string>
   <string name="code_block_copy">코드 복사</string>
@@ -605,7 +609,7 @@
   <string name="send">전송</string>
   <string name="setting_asr_configure_api_key">API 키</string>
   <string name="setting_asr_configure_dashscope_api_key_desc">DashScope API 키</string>
-  <string name="setting_asr_configure_dashscope_vad_desc">서버 VAD 민감도, 0으로 설정 시 VAD 비활성화</string>
+  <string name="setting_asr_configure_dashscope_vad_desc">서버 VAD 감지 임계값. 권장: 0.0; 범위: -1 ~ 1.</string>
   <string name="setting_asr_configure_dashscope_websocket_desc">DashScope 실시간 웹소켓 엔드포인트</string>
   <string name="setting_asr_configure_language">언어</string>
   <string name="setting_asr_configure_language_code_desc">선택 언어 코드, 예: zh-CN, en-US, ja-JP</string>
@@ -990,6 +994,9 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_tts_page_voice_name_description">음성의 이름</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
   <string name="settings">설정</string>
+  <string name="settings_search_no_results">결과 없음</string>
+  <string name="settings_search_page_title">설정 검색</string>
+  <string name="settings_search_placeholder">설정 검색…</string>
   <string name="share">공유</string>
   <string name="share_handler_page_title">어시스턴트 선택</string>
   <string name="shortcut_take_picture">사진 찍고 질문하기</string>
@@ -1270,6 +1277,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="chat_select_model_first">먼저 모델을 선택하세요</string>
   <string name="chat_stop_generation_before_delete">메시지를 삭제하기 전에 생성을 중지하세요</string>
   <string name="image_preview_saved">이미지가 저장됨</string>
+  <string name="attachment_open_failed">이 파일을 열 수 없습니다</string>
   <string name="image_preview_saving">저장 중…</string>
   <string name="local_llm_accelerator_label">가속기: %1$s</string>
   <string name="local_llm_catalog_install">설치</string>
@@ -1628,14 +1636,22 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="workspace_detail_tool_read_file">파일 읽기</string>
   <string name="workspace_detail_tool_write_file">파일 쓰기</string>
   <string name="workspace_detail_tool_edit_file">파일 편집</string>
+  <string name="workspace_detail_tool_create_folder">폴더 만들기</string>
   <string name="workspace_detail_tool_delete_file">파일 삭제</string>
   <string name="workspace_detail_tool_move_file">파일 이동</string>
   <string name="workspace_detail_tool_shell">명령 실행</string>
+  <string name="workspace_detail_tool_run_background">백그라운드에서 실행</string>
+  <string name="workspace_detail_tool_background_status">백그라운드 작업 상태</string>
+  <string name="workspace_detail_tool_background_kill">백그라운드 작업 중지</string>
   <string name="workspace_detail_install_rootfs_desc">%s의 linux 디렉터리에 tar.gz를 다운로드하여 압축을 풉니다.</string>
   <string name="workspace_detail_download_url">tar.gz 다운로드 URL</string>
   <string name="workspace_detail_area_files">파일</string>
   <string name="workspace_detail_area_rootfs">루트 파일 시스템</string>
   <string name="workspace_detail_empty_directory">빈 디렉토리</string>
+  <string name="workspace_detail_folder_export_success">%1$s 내보내기 완료</string>
+  <string name="workspace_detail_folder_export_partial">%1$s 내보내기 완료 (%2$d개 실패)</string>
+  <string name="accessibility_expand_folder">폴더 펼치기</string>
+  <string name="accessibility_collapse_folder">폴더 접기</string>
   <string name="workspace_detail_shell_disabled">비활성화됨</string>
   <string name="workspace_detail_shell_installing">설치 중</string>
   <string name="workspace_detail_shell_ready">준비됨</string>
@@ -1781,5 +1797,51 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="assistant_page_context_message_limit_count">컨텍스트 메시지 한도: %d</string>
   <string name="assistant_page_context_message_limit_unlimited">무제한 컨텍스트 메시지</string>
   <string name="assistant_page_context_message_limit_warning">컨텍스트 제한 시 컨텍스트가 정리될 때마다 프롬프트 캐시가 무효화됩니다. 제한이 클수록 정리 빈도가 낮아지며, 무제한일 경우 정리되지 않아 캐시가 완전히 보존됩니다.</string>
+  <string name="setting_model_page_enable_auto_compaction">자동 컨텍스트 압축 사용</string>
+  <string name="setting_model_page_enable_auto_compaction_desc">대화가 모델의 컨텍스트 한도에 가까워지면 이전 메시지를 자동으로 요약합니다</string>
+  <string name="setting_model_page_auto_compaction_threshold">압축 임계값</string>
+  <string name="setting_model_page_auto_compaction_threshold_desc">컨텍스트 임계값을 선택합니다. 추정값이 선택한 백분율 또는 토큰 수에 도달하면 자동 압축을 시작합니다.</string>
+  <string name="setting_model_page_auto_compaction_mode_percent">백분율</string>
+  <string name="setting_model_page_auto_compaction_mode_tokens">토큰 수</string>
+  <string name="setting_model_page_auto_compaction_tokens">토큰 임계값</string>
+  <string name="setting_model_page_auto_compaction_tokens_desc">천 토큰 단위로 임계값을 입력하세요. 예: 8k는 8,000토큰을 의미합니다.</string>
+  <string name="setting_model_page_context_compaction_target">압축 대상</string>
+  <string name="setting_model_page_context_compaction_target_desc">요약 목표 크기를 천 Token 단위로 설정합니다. 비워 두면 현재 컨텍스트의 1%를 사용합니다(컨텍스트가 300k이면 3k).</string>
+  <string name="setting_model_page_auto_compaction_keep_tool_calls">최근 도구 호출 유지</string>
+  <string name="setting_model_page_auto_compaction_keep_tool_calls_desc">자동 압축은 해당 도구 호출의 원본 입력과 출력을 유지합니다. 0으로 설정하면 현재 컨텍스트 전체를 압축합니다.</string>
+  <string name="setting_model_page_response_stream_retries">Response API 스트림 재시도 횟수</string>
+  <string name="setting_model_page_response_stream_retries_desc">Response API 스트림이 완료 전에 끊기면 이 횟수만큼 요청을 자동 재시도합니다. 0으로 설정하면 자동 재시도를 끕니다.</string>
+  <string name="setting_model_page_response_stream_retries_input">최대 재시도 횟수</string>
+
+  <!-- BrowserAiStripe redesign: outcome-aware, localized action trail -->
+  <string name="browser_ai_stripe_stop">중지</string>
+  <string name="browser_ai_action_open">%1$s 여는 중</string>
+  <string name="browser_ai_action_click">%1$s 클릭함</string>
+  <string name="browser_ai_action_type">%1$s에 입력 중</string>
+  <string name="browser_ai_action_scroll">%1$s 스크롤함</string>
+  <string name="browser_ai_action_submit">%1$s 제출함</string>
+  <string name="browser_ai_action_select">%1$s에서 옵션 선택함</string>
+  <string name="browser_ai_action_key">%1$s 누름</string>
+  <string name="browser_ai_action_js">JavaScript 실행함</string>
+  <string name="browser_ai_action_screenshot">스크린샷 촬영함</string>
+  <string name="browser_ai_action_read">%1$s 읽음</string>
+  <string name="browser_ai_action_back">뒤로 감</string>
+  <string name="browser_ai_action_forward">앞으로 감</string>
+  <string name="browser_ai_action_done">완료: %1$s</string>
+  <string name="browser_ai_action_stopped">사용자에 의해 중지됨</string>
+  <string name="browser_ai_action_failed">실패: %1$s</string>
+  <string name="search_picker_local_title">로컬 검색</string>
+  <string name="search_picker_local_description">다양한 타사 검색 제공업체에 연결합니다.</string>
+  <string name="search_picker_model_title">모델 내장 검색</string>
+  <string name="search_picker_model_description">모델 제공자에 내장된 클라우드 검색</string>
+  <string name="search_picker_select_provider">검색 제공자 선택</string>
+  <string name="search_picker_turn_off">검색 끄기</string>
+  <string name="setting_update_reminder_enabled">업데이트 알림이 사용 설정되어 있습니다.</string>
+  <string name="setting_update_reminder_paused_until">%1$s까지 일시 중지됨</string>
+  <string name="setting_update_reminder_pause_title">업데이트 알림 일시중지</string>
+  <string name="setting_update_reminder_pause_description">업데이트 알림을 얼마나 오랫동안 일시 중지할지 선택하세요. 자동으로 다시 시작됩니다.</string>
+  <string name="setting_update_reminder_pause_days">%1$d일</string>
+  <string name="setting_update_reminder_resume_now">지금 재개</string>
+  <string name="reasoning_max">최대</string>
 </resources>
 
