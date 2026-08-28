@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
@@ -23,7 +22,6 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.rikkahub.browser.BrowserAiActionKind
 import me.rerere.rikkahub.browser.BrowserController
 import me.rerere.rikkahub.browser.BrowserControllerHandle
 import me.rerere.rikkahub.browser.BrowserDiffHelper
@@ -127,40 +125,6 @@ private fun textPart(obj: JsonObject): List<UIMessagePart> =
  * (also valid JS string syntax).
  */
 private fun jsString(s: String): String = JsonPrimitive(s).toString()
-
-/**
- * Wrap a tool's dispatch with a RUNNING -> OK/FAILED [me.rerere.rikkahub.browser.BrowserAiAction]
- * entry. [beginAction] fires before [block] runs (so the stripe's spinner covers the actual
- * WebView work, not just the instant the envelope is built); [ok] reads the outcome off
- * [block]'s returned envelope — by convention `success == true`. The `try/finally` guarantees
- * the entry never sticks at RUNNING: a thrown exception or a `withTimeoutOrNull` cancellation
- * still marks it FAILED via the `finally`, then rethrows/propagates normally (a `finally` never
- * swallows the in-flight `CancellationException`).
- */
-private suspend fun <T> trackAction(
-    kind: BrowserAiActionKind,
-    detail: String?,
-    ok: (T) -> Boolean,
-    block: suspend () -> T,
-): T {
-    val id = BrowserController.beginAction(kind, detail)
-    var completed = false
-    try {
-        val result = block()
-        BrowserController.completeAction(id, ok(result))
-        completed = true
-        return result
-    } finally {
-        if (!completed) BrowserController.completeAction(id, false)
-    }
-}
-
-/** [trackAction] specialised for the common case: outcome is the envelope's `success` field. */
-private suspend fun trackJsonAction(
-    kind: BrowserAiActionKind,
-    detail: String?,
-    block: suspend () -> JsonObject,
-): JsonObject = trackAction(kind, detail, ok = { it["success"]?.jsonPrimitive?.booleanOrNull == true }, block = block)
 
 // ---- Read tools ---------------------------------------------------------------------------
 
@@ -626,59 +590,6 @@ fun browserClickTool(): Tool = Tool(
         textPart(out)
     },
 )
-
-/**
- * Build the JS payload browser_type dispatches. Setting `el.value = ...` directly (the
- * previous approach) is invisible to React (and other frameworks that patch the DOM
- * property): React installs its OWN setter on the *instance* to track "last known value"
- * so its synthetic onChange only fires when a value changes through a path React
- * observes. A direct assignment bypasses that tracker entirely, so React never sees the
- * write and the rendered input silently keeps its old value even though `el.value` (and
- * this tool's own success:true) says otherwise.
- *
- * Fix: fetch the *native* value setter off the element's prototype
- * (`HTMLInputElement.prototype` / `HTMLTextAreaElement.prototype` — whichever
- * `Object.getPrototypeOf(el)` resolves to) and invoke it directly, bypassing React's
- * instance-level override, then dispatch a real `input` event. Because the setter call
- * itself didn't go through React's tracker, React's own event handler (attached at the
- * document root) sees the DOM value change and fires onChange normally. Falls back to
- * plain `el.value = ...` when the prototype has no descriptor with a setter (custom
- * elements, exotic hosts) — same behavior as before this fix for those cases.
- *
- * Pure string builder so it stays unit-testable without a WebView, same pattern as
- * [buildWaitForPredicate].
- */
-internal fun buildTypeScript(selector: String, text: String, clear: Boolean): String {
-    val sel = jsString(selector)
-    val txt = jsString(text)
-    val clearFlag = if (clear) "true" else "false"
-    return """(function(){
-        try {
-            var el = document.querySelector($sel);
-            if (!el) return JSON.stringify({error:'selector_not_found', selector:$sel});
-            el.focus();
-            function setNativeValue(node, value) {
-                var proto = Object.getPrototypeOf(node);
-                var desc = proto ? Object.getOwnPropertyDescriptor(proto, 'value') : null;
-                if (desc && typeof desc.set === 'function') {
-                    desc.set.call(node, value);
-                    return true;
-                }
-                return false;
-            }
-            if ('value' in el) {
-                var next = ($clearFlag ? '' : (el.value || '')) + $txt;
-                if (!setNativeValue(el, next)) { el.value = next; }
-            } else if (el.isContentEditable) {
-                if ($clearFlag) el.textContent = '';
-                el.textContent = (el.textContent || '') + $txt;
-            }
-            el.dispatchEvent(new Event('input', {bubbles:true}));
-            el.dispatchEvent(new Event('change', {bubbles:true}));
-            return JSON.stringify({typed:true});
-        } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
-    })()"""
-}
 
 fun browserTypeTool(): Tool = Tool(
     name = BrowserToolDefaults.TYPE,
