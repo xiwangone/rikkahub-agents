@@ -17,7 +17,6 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -38,8 +37,6 @@ import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.hooks.CustomTtsState
 import me.rerere.tts.model.PlaybackState
 import me.rerere.tts.model.PlaybackStatus
-import androidx.compose.ui.res.stringResource
-import me.rerere.rikkahub.R
 
 @Composable
 fun TTSController() {
@@ -84,7 +81,7 @@ fun TTSController() {
                 ) {
                     Icon(
                         imageVector = HugeIcons.Cancel01,
-                        contentDescription = stringResource(R.string.accessibility_tts_close),
+                        contentDescription = null,
                     )
                 }
 
@@ -106,7 +103,7 @@ fun TTSController() {
                 ) {
                     Icon(
                         imageVector = if (expand) HugeIcons.ArrowLeft01 else HugeIcons.ArrowRight01,
-                        contentDescription = stringResource(if (expand) R.string.accessibility_tts_collapse else R.string.accessibility_tts_expand),
+                        contentDescription = null,
                     )
                 }
             }
@@ -123,7 +120,7 @@ private fun FastForwardButton(ttsState: CustomTtsState) {
     ) {
         Icon(
             imageVector = HugeIcons.Forward02,
-            contentDescription = stringResource(R.string.accessibility_tts_fast_forward),
+            contentDescription = null,
         )
     }
 }
