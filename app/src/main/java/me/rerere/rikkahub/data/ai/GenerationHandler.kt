@@ -564,7 +564,10 @@ class GenerationHandler(
                         },
                         onSearch = { keyword ->
                             memoryRepo.searchConditionalMemories(keyword)
-                        }
+                        },
+                        onListAll = {
+                            memoryRepo.getMemoriesOfAssistant(memoryAssistantId)
+                        },
                     ).let(this::addAll)
                 }
                 addAll(tools)

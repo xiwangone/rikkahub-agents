@@ -23,15 +23,17 @@ fun buildMemoryTools(
     onUpdate: suspend (Int, String, String) -> AssistantMemory,
     onDelete: suspend (Int) -> Unit,
     onSearch: suspend (String) -> List<AssistantMemory>,
+    onListAll: suspend () -> List<AssistantMemory>,
 ): List<Tool> = listOf(
     Tool(
         name = "memory_tool",
         description = """
             The memory tool stores long-term information across conversations.
-            Use `action` to control the operation: `create` (add), `edit` (update), `delete` (remove).
+            Use `action` to control the operation: `create` (add), `edit` (update), `delete` (remove), `list` (list all).
             - No relevant record: `create` + `content`
             - Existing relevant record: `edit` + `id` + `content`
             - Outdated/irrelevant record: `delete` + `id`
+            - Need to see what memories exist (both core and conditional): `list` — returns every memory entry of the current assistant.
             Memories will automatically appear in the <memories> tag in later conversations.
             **tier 分层（2026-08-13）**: core（默认）= 常驻注入（纪律/决策/指针，每轮都在）；conditional = 按需检索（场景细节，默认不注入，任务涉及相关场景时先调 memory_search 检索再使用）。
             **注意**: 需要环境/场景细节（PC/ECS/凭证/MCP/Backend 等）时，先调用 memory_search 检索相关记忆——不要假设记忆里没有。
@@ -45,6 +47,7 @@ fun buildMemoryTools(
             {"action":"create","content":"User prefers brief replies and is more active on weekends."}
             {"action":"edit","id":12,"content":"User’s preferred name updated to “A-Xing”, prefers Chinese replies."}
             {"action":"delete","id":7}
+            {"action":"list"}
         """.trimIndent(),
         parameters = {
             InputSchema.Obj(
@@ -57,9 +60,10 @@ fun buildMemoryTools(
                                 add("create")
                                 add("edit")
                                 add("delete")
+                                add("list")
                             }
                         )
-                        put("description", "Operation to perform: create, edit, or delete")
+                        put("description", "Operation to perform: create, edit, delete, or list")
                     })
                     put("id", buildJsonObject {
                         put("type", "integer")
@@ -89,6 +93,22 @@ fun buildMemoryTools(
             val action = params["action"]?.jsonPrimitive?.contentOrNull ?: error("action is required")
             val tier = params["tier"]?.jsonPrimitive?.contentOrNull ?: "core"
             val payload = when (action) {
+                "list" -> {
+                    val memories = onListAll()
+                    buildJsonObject {
+                        put("action", "list")
+                        put("count", memories.size)
+                        put("memories", buildJsonArray {
+                            memories.forEach { m ->
+                                add(buildJsonObject {
+                                    put("id", m.id)
+                                    put("tier", m.tier)
+                                    put("content", m.content)
+                                })
+                            }
+                        })
+                    }
+                }
                 "create" -> {
                     val content = params["content"]?.jsonPrimitive?.contentOrNull ?: error("content is required")
                     json.encodeToJsonElement(AssistantMemory.serializer(), onCreation(content, tier))
