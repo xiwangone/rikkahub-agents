@@ -23,7 +23,6 @@ import me.rerere.rikkahub.skills.SkillUrlImporter
 import me.rerere.rikkahub.skills.SkillZipError
 import me.rerere.rikkahub.skills.SkillZipImporter
 import me.rerere.rikkahub.skills.loadCatalogFromAssets
-import java.util.LinkedHashMap
 import org.json.JSONArray
 import java.io.File
 import java.net.HttpURLConnection
@@ -37,7 +36,6 @@ class SkillsVM(
     private val skillManager: SkillManager,
     private val urlImporter: SkillUrlImporter,
 ) : ViewModel() {
-
     companion object {
         private const val TAG = "SkillsVM"
         private const val MAX_MD_BYTES = 1L * 1024 * 1024 // 1 MB cap on local .md
@@ -193,95 +191,6 @@ class SkillsVM(
                     onResult(false, t.message ?: "skill_import_unsupported_file_type")
                 }
             }
-        }
-    }
-
-    /**
-     * Phase 19D — install a skill from a [CatalogEntry].
-     *
-     * If the entry is `is_bundled = true`, this is a no-op (the skill is already on disk
-     * via [SkillManager.seedDefaultSkillsIfNeeded]) and we return success immediately so
-     * the UI flips its row to "Installed". Otherwise [CatalogEntry.sourceUrl] is fetched
-     * via [SkillUrlImporter.importFromUrl] under a 30-second hard timeout — same surface
-     * as the existing GitHub-URL import path, including HTML guard + format detector.
-     */
-    fun installFromCatalog(entry: CatalogEntry, onResult: (success: Boolean, message: String) -> Unit) {
-        viewModelScope.launch(Dispatchers.IO) {
-            if (entry.isBundled) {
-                _skills.value = skillManager.listSkills()
-                withContext(Dispatchers.Main) { onResult(true, entry.name) }
-                return@launch
-            }
-            val url = entry.sourceUrl
-            if (url.isNullOrBlank()) {
-                withContext(Dispatchers.Main) { onResult(false, "skill_catalog_install_failed") }
-                return@launch
-            }
-            val result = withTimeoutOrNull(30_000) {
-                urlImporter.importFromUrl(url)
-            }
-            val (ok, msg) = when (result) {
-                null -> false to "skill_catalog_install_failed"
-                is SkillUrlImporter.Result.Ok -> true to result.metadata.name
-                is SkillUrlImporter.Result.Err -> false to result.detail
-            }
-            _skills.value = skillManager.listSkills()
-            withContext(Dispatchers.Main) { onResult(ok, msg) }
-        }
-    }
-
-    private enum class LocalFileType { Markdown, Zip, Unsupported }
-
-    private fun detectFileType(uri: Uri): LocalFileType {
-        val mime = context.contentResolver.getType(uri)?.lowercase()
-        if (mime != null) {
-            if (mime == "text/markdown" || mime == "text/x-markdown" || mime == "text/plain") {
-                return LocalFileType.Markdown
-            }
-            if (mime == "application/zip" || mime == "application/x-zip-compressed") {
-                return LocalFileType.Zip
-            }
-        }
-        // Fall back to the displayed filename. Some pickers (e.g. Files by Google) don't
-        // attach a MIME type for `.md` and surface it as `application/octet-stream`.
-        val name = queryDisplayName(uri)?.lowercase().orEmpty()
-        return when {
-            name.endsWith(".md") || name.endsWith(".markdown") -> LocalFileType.Markdown
-            name.endsWith(".zip") -> LocalFileType.Zip
-            else -> LocalFileType.Unsupported
-        }
-    }
-
-    private fun queryDisplayName(uri: Uri): String? {
-        return runCatching {
-            context.contentResolver.query(uri, arrayOf("_display_name"), null, null, null)?.use { c ->
-                if (c.moveToFirst()) c.getString(0) else null
-            }
-        }.getOrNull()
-    }
-
-    private fun importLocalMarkdown(uri: Uri): Pair<Boolean, String> {
-        val bytes = context.contentResolver.openInputStream(uri)?.use { input ->
-            // Read up to MAX_MD_BYTES + 1 to detect overflow without materialising the
-            // whole stream blindly.
-            val out = java.io.ByteArrayOutputStream()
-            val buf = ByteArray(8 * 1024)
-            var total = 0L
-            while (true) {
-                val n = input.read(buf)
-                if (n <= 0) break
-                total += n
-                if (total > MAX_MD_BYTES) {
-                    // Use the markdown-specific cap error, not the zip cap key.
-                    return false to "skill_import_md_too_large"
-                }
-                out.write(buf, 0, n)
-            }
-            out.toByteArray()
-        } ?: return false to "skill_import_unsupported_file_type"
-        val text = bytes.toString(Charsets.UTF_8)
-        if (text.isBlank()) {
-            return false to "skill_import_empty_file"
         }
     }
 

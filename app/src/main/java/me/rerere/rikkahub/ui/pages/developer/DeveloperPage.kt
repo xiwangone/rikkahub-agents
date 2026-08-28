@@ -1,7 +1,5 @@
 package me.rerere.rikkahub.ui.pages.developer
 
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.FileScript
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues

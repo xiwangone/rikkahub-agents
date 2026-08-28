@@ -560,6 +560,12 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.SettingShizuku> {
                                 me.rerere.rikkahub.ui.pages.setting.shizuku.SettingShizukuPage()
                             }
+                            entry<Screen.Vault> {
+                                me.rerere.rikkahub.ui.pages.setting.VaultPage()
+                            }
+                            entry<Screen.VaultCredentials> {
+                                me.rerere.rikkahub.ui.pages.setting.VaultCredentialsPage()
+                            }
 
                             entry<Screen.ScheduledJobDetail> { key ->
                                 me.rerere.rikkahub.ui.pages.setting.scheduledjobs.ScheduledJobDetailScreen(jobId = key.id)
@@ -835,6 +841,8 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingShizuku : Screen
+    data object Vault : Screen
+    data object VaultCredentials : Screen
 
     @Serializable
     data class ScheduledJobDetail(val id: String) : Screen
