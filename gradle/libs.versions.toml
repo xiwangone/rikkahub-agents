@@ -80,6 +80,8 @@ genaiPrompt = "1.0.0-beta2"
 # it. 0.13.1 has an identical public API (same classes, same tool-calling surface,
 # getTokenCount/getBenchmarkInfo/cancelProcess all present) and a working GPU path.
 
+dom4j = "2.2.0"
+
 [libraries]
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 kotlin-compose-gradle-plugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
