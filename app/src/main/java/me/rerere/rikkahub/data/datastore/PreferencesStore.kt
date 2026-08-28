@@ -112,6 +112,14 @@ class SettingsStore(
         // 版本号
         val VERSION = intPreferencesKey("data_version")
 
+        // 自动压缩与响应重试（合并自 ExTV；V4 迁移引用）
+        val ENABLE_AUTO_COMPACTION = booleanPreferencesKey("enable_auto_compaction")
+        val AUTO_COMPACTION_THRESHOLD_MODE = stringPreferencesKey("auto_compaction_threshold_mode")
+        val AUTO_COMPACTION_THRESHOLD_PERCENT = intPreferencesKey("auto_compaction_threshold_percent")
+        val AUTO_COMPACTION_THRESHOLD_TOKENS_K = intPreferencesKey("auto_compaction_threshold_tokens_k")
+        val AUTO_COMPACTION_KEEP_RECENT_TOOL_CALLS = intPreferencesKey("auto_compaction_keep_recent_tool_calls")
+        val RESPONSE_STREAM_MAX_RETRIES = intPreferencesKey("response_stream_max_retries")
+
         // UI设置
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
         val THEME_ID = stringPreferencesKey("theme_id")
