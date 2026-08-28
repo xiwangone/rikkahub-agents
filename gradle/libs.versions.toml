@@ -71,7 +71,6 @@ cronUtils = "9.2.1"
 # Verified with `javap -p` against the published artifact: Shizuku.newProcess is PRIVATE in
 # this version, so shizuku_exec is built on Shizuku.bindUserService + our own AIDL service
 # instead (see ShizukuManager.kt).
-shizuku = "13.1.5"
 genaiPrompt = "1.0.0-beta2"
 # Pinned below 0.14.0 deliberately. 0.14.0 drops libLiteRtClGlAccelerator.so and moves
 # the GPU backend from OpenCL/GLES to Dawn/WebGPU-on-Vulkan, which Adreno 6xx rejects:
@@ -80,7 +79,6 @@ genaiPrompt = "1.0.0-beta2"
 # SIGSEGVs. That is unrecoverable from Kotlin, so the accelerator fallback cannot catch
 # it. 0.13.1 has an identical public API (same classes, same tool-calling surface,
 # getTokenCount/getBenchmarkInfo/cancelProcess all present) and a working GPU path.
-litertlm = "0.13.1"
 
 [libraries]
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
@@ -130,7 +128,6 @@ androidx-datastore-preferences = { group = "androidx.datastore", name = "datasto
 androidx-work-runtime-ktx = { module = "androidx.work:work-runtime-ktx", version.ref = "workmanager" }
 jetbrains-markdown = { module = "com.github.rikkahub:markdown", version.ref = "markdown" }
 metadata-extractor = { module = "com.drewnoakes:metadata-extractor", version.ref = "metadataExtractor" }
-litertlm-android = { group = "com.google.ai.edge.litertlm", name = "litertlm-android", version.ref = "litertlm" }
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-sse = { group = "com.squareup.okhttp3", name = "okhttp-sse", version.ref = "okhttp" }
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
