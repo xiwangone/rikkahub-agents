@@ -32,13 +32,17 @@ data class WorkspaceShellContext(
 
 class HostShellRunner : WorkspaceShellRunner {
     override fun execute(context: WorkspaceShellContext): WorkspaceCommandResult {
-        val process =
-            ProcessBuilder(defaultShell(), "-c", context.command)
-                .directory(context.workingDir)
-                .redirectErrorStream(false)
-                .start()
+        val process = newProcessBuilder(context).start()
         return process.readResult(context.timeoutMillis, context.stdin)
     }
+
+    override fun start(context: WorkspaceShellContext): Process =
+        newProcessBuilder(context).start()
+
+    private fun newProcessBuilder(context: WorkspaceShellContext): ProcessBuilder =
+        ProcessBuilder(defaultShell(), "-c", context.command)
+            .directory(context.workingDir)
+            .redirectErrorStream(false)
 
     private fun defaultShell(): String = if (File("/system/bin/sh").exists()) "/system/bin/sh" else "/bin/sh"
 }
