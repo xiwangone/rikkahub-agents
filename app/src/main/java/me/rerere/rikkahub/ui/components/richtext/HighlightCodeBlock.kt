@@ -131,8 +131,6 @@ fun HighlightCodeBlock(
                     } catch (e: Exception) {
                         Log.e(TAG, "HighlightCodeBlock: failed to save code to document", e)
                     }
-                } catch (e: Exception) {
-                    Log.e(TAG, "HighlightCodeBlock: failed to save code to document", e)
                 }
             }
         }
@@ -457,7 +455,7 @@ private fun HighlightCodeActions(
             if (canInlinePreview) {
                 Icon(
                     imageVector = if (previewMode) HugeIcons.Code else HugeIcons.View,
-                    contentDescription = if (previewMode) stringResource(id = R.string.accessibility_code_view) else stringResource(id = R.string.code_block_preview),
+                    contentDescription = if (previewMode) "Code" else stringResource(id = R.string.code_block_preview),
                     tint = iconTint,
                     modifier =
                         Modifier
@@ -547,10 +545,6 @@ class HighlightCodeVisualTransformation(
                 Log.e(TAG, "HighlightCodeVisualTransformation: failed to highlight code", e)
                 AnnotatedString(text.text)
             }
-        } catch (e: Exception) {
-            Log.e(TAG, "HighlightCodeVisualTransformation: failed to highlight code", e)
-            AnnotatedString(text.text)
-        }
 
         return TransformedText(
             text = annotatedString,
