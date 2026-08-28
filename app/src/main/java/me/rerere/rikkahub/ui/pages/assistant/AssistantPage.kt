@@ -175,7 +175,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                 trailingIcon = {
                     if (searchQuery.isNotBlank()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.accessibility_clear_text))
+                            Icon(HugeIcons.Cancel01, contentDescription = null)
                         }
                     }
                 },
