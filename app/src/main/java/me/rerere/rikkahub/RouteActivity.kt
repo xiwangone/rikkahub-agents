@@ -97,9 +97,9 @@ import me.rerere.rikkahub.ui.pages.extensions.QuickMessagesPage
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillDetailPage
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillsPage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailPage
+import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceFileEditorPage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspacePage
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalPage
-import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceFileEditorPage
 import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.rikkahub.ui.pages.favorite.FavoritePage
 import me.rerere.rikkahub.ui.pages.history.HistoryPage
@@ -114,29 +114,23 @@ import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesThemePage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNotificationPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesGeneralPage
-import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNetworkPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesUIPage
 import me.rerere.rikkahub.ui.pages.setting.SettingThemePage
+import me.rerere.rikkahub.ui.pages.setting.SettingDonatePage
 import me.rerere.rikkahub.ui.pages.setting.SettingFilesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderPage
-import me.rerere.rikkahub.ui.pages.setting.SettingQuotaPage
-import me.rerere.rikkahub.ui.pages.setting.SettingSshHostsPage
-import me.rerere.rikkahub.ui.pages.setting.shizuku.SettingShizukuPage
-import me.rerere.rikkahub.ui.pages.setting.VaultCredentialsPage
-import me.rerere.rikkahub.ui.pages.setting.VaultPage
-import me.rerere.rikkahub.ui.pages.setting.QuotaConsolePage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchDetailPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSearchPage
+import me.rerere.rikkahub.ui.pages.setting.SettingsSearchPage
 import me.rerere.rikkahub.ui.pages.setting.SettingTTSPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSpeechPage
+import me.rerere.rikkahub.ui.pages.setting.SettingSubAgentsPage
 import me.rerere.rikkahub.ui.pages.setting.SettingTelegramPage
-import me.rerere.rikkahub.ui.pages.setting.SettingWebBridgePage
 import me.rerere.rikkahub.ui.pages.setting.SettingWebPage
-import me.rerere.rikkahub.ui.pages.setting.SettingWebServerPage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.stats.StatsPage
 import me.rerere.rikkahub.ui.pages.translator.TranslatorPage
@@ -255,9 +249,17 @@ class RouteActivity : ComponentActivity() {
             }
             intent.removeExtra(EXTRA_OPEN_CODEX_SETTINGS)
         }
+        if (intent.getBooleanExtra(EXTRA_OPEN_GEMINI_SETTINGS, false)) {
+            val destination = Screen.SettingProviderDetail(DEFAULT_GEMINI_OAUTH_PROVIDER_ID.toString())
+            navStack?.let { stack ->
+                if (stack.lastOrNull() != destination) stack.add(destination)
+            }
+            intent.removeExtra(EXTRA_OPEN_GEMINI_SETTINGS)
+        }
         // Navigate to the chat screen if a conversation ID is provided
         intent.getStringExtra("conversationId")?.let { text ->
             navStack?.add(Screen.Chat(text))
+            intent.removeExtra("conversationId")
         }
     }
 
@@ -279,18 +281,23 @@ class RouteActivity : ComponentActivity() {
         }
         val migrationState by DatabaseMigrationTracker.state.collectAsStateWithLifecycle()
 
-        val startScreen = Screen.Chat(
-            id = if (readBooleanPreference("create_new_conversation_on_start", true)) {
-                Uuid.random().toString()
-            } else {
-                readStringPreference(
-                    "lastConversationId",
-                    Uuid.random().toString()
-                ) ?: Uuid.random().toString()
-            }
-        )
+        // Resolve once per composition (not on every recomposition) so a later removeExtra()
+        // of "conversationId" can't flip which rememberNavBackStack() branch below gets called.
+        val deepLinkConversationId = remember { intent?.getStringExtra("conversationId") }
+        val initialChatIds = remember {
+            resolveInitialChatStack(
+                deepLinkConversationId = deepLinkConversationId,
+                createNewOnStart = readBooleanPreference("create_new_conversation_on_start", true),
+                lastConversationId = readStringPreference("lastConversationId", null),
+                newId = { Uuid.random().toString() },
+            )
+        }
 
-        val backStack = rememberNavBackStack(startScreen)
+        val backStack = if (initialChatIds.size > 1) {
+            rememberNavBackStack(Screen.Chat(initialChatIds[0]), Screen.Chat(initialChatIds[1]))
+        } else {
+            rememberNavBackStack(Screen.Chat(initialChatIds[0]))
+        }
         SideEffect { this@RouteActivity.navStack = backStack }
 
         LaunchedEffect(backStack) {
@@ -449,34 +456,6 @@ class RouteActivity : ComponentActivity() {
                                 WebViewPage(key.url, key.contentId)
                             }
 
-                            entry<Screen.SettingQuota> {
-                                SettingQuotaPage()
-                            }
-                            entry<Screen.SettingSshHosts> {
-                                SettingSshHostsPage()
-                            }
-                            entry<Screen.SshTerminal> {
-                                me.rerere.rikkahub.ui.pages.setting.SshTerminalPage(it.hostName)
-                            }
-                            entry<Screen.SettingShizuku> {
-                                SettingShizukuPage()
-                            }
-                            entry<Screen.BackendService> {
-                                me.rerere.rikkahub.ui.pages.setting.backend.BackendServicePage()
-                            }
-
-                            entry<Screen.Vault> {
-                                VaultPage()
-                            }
-
-                            entry<Screen.VaultCredentials> {
-                                VaultCredentialsPage()
-                            }
-
-                            entry<Screen.QuotaConsole> { key ->
-                                QuotaConsolePage(key.providerId)
-                            }
-
                             entry<Screen.SettingTheme> {
                                 SettingThemePage()
                             }
@@ -499,10 +478,6 @@ class RouteActivity : ComponentActivity() {
 
                             entry<Screen.SettingPreferencesUI> {
                                 SettingPreferencesUIPage()
-                            }
-
-                            entry<Screen.SettingPreferencesNetwork> {
-                                SettingPreferencesNetworkPage()
                             }
 
                             entry<Screen.SettingProvider> {
@@ -556,14 +531,6 @@ class RouteActivity : ComponentActivity() {
 
                             entry<Screen.SettingWeb> {
                                 SettingWebPage()
-                            }
-
-                            entry<Screen.SettingWebServer> {
-                                SettingWebServerPage()
-                            }
-
-                            entry<Screen.SettingWebBridge> {
-                                SettingWebBridgePage()
                             }
 
                             entry<Screen.SettingTelegram> {
@@ -792,26 +759,6 @@ sealed interface Screen : NavKey {
     data class WebView(val url: String = "", val contentId: String = "") : Screen
 
     @Serializable
-    data object SettingQuota : Screen
-    @Serializable
-    data object SettingSshHosts : Screen
-    @Serializable
-    data class SshTerminal(val hostName: String = "") : Screen
-    @Serializable
-    data object SettingShizuku : Screen
-    @Serializable
-    data object BackendService : Screen
-
-    @Serializable
-    data object Vault : Screen
-
-    @Serializable
-    data object VaultCredentials : Screen
-
-    @Serializable
-    data class QuotaConsole(val providerId: String) : Screen
-
-    @Serializable
     data object SettingTheme : Screen
 
     @Serializable
@@ -828,9 +775,6 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingPreferencesUI : Screen
-
-    @Serializable
-    data object SettingPreferencesNetwork : Screen
 
     @Serializable
     data object SettingProvider : Screen
@@ -870,12 +814,6 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingWeb : Screen
-
-    @Serializable
-    data object SettingWebServer : Screen
-
-    @Serializable
-    data object SettingWebBridge : Screen
 
     @Serializable
     data object SettingTelegram : Screen
