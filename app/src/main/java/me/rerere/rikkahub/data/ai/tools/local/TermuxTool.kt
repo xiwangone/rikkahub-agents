@@ -70,17 +70,6 @@ internal object TermuxIntegration {
 
     fun clearVerified() {
         lastVerifiedOkAtMs = 0L
-        persister?.invoke(lastVerifiedOkAtMs)
-    }
-
-    /**
-     * Restore a timestamp persisted in a previous process, called once from
-     * [me.rerere.rikkahub.data.preferences.TermuxPreferences]'s init block before any user
-     * interaction. Does not invoke [persister] — the value already came from disk, so there
-     * is nothing new to write back.
-     */
-    fun restoreVerifiedAt(ms: Long) {
-        lastVerifiedOkAtMs = ms
     }
 
     fun state(ctx: Context): State {
