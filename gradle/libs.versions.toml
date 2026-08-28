@@ -52,7 +52,7 @@ appcompat = "1.7.1"
 material = "1.14.0"
 ucrop = "2.2.11-native"
 floatingx = "2.3.7"
-haze = "2.0.0-alpha05"
+haze = "2.0.0-alpha03"
 ktor = "3.5.2"
 sqlite-vector = "0.9.92"
 jmdns = "3.6.3"
@@ -171,7 +171,7 @@ floatingx = { group = "io.github.petterpx", name = "floatingx", version.ref = "f
 floatingx-compose = { group = "io.github.petterpx", name = "floatingx-compose", version.ref = "floatingx" }
 haze = { module = "dev.chrisbanes.haze:haze", version.ref = "haze" }
 haze-blur = { module = "dev.chrisbanes.haze:haze-blur", version.ref = "haze" }
-haze-blur-material3 = { module = "dev.chrisbanes.haze:haze-blur-material3", version.ref = "haze" }
+haze-blur-materials = { module = "dev.chrisbanes.haze:haze-blur-materials", version.ref = "haze" }
 ktor-client-core = { module = "io.ktor:ktor-client-core", version.ref = "ktor" }
 ktor-client-okhttp = { module = "io.ktor:ktor-client-okhttp", version.ref = "ktor" }
 ktor-client-content-negotiation = { module = "io.ktor:ktor-client-content-negotiation", version.ref = "ktor" }
