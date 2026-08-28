@@ -118,7 +118,7 @@ class SettingsStore(
         val AUTO_COMPACTION_THRESHOLD_PERCENT = intPreferencesKey("auto_compaction_threshold_percent")
         val AUTO_COMPACTION_THRESHOLD_TOKENS_K = intPreferencesKey("auto_compaction_threshold_tokens_k")
         val AUTO_COMPACTION_KEEP_RECENT_TOOL_CALLS = intPreferencesKey("auto_compaction_keep_recent_tool_calls")
-        val RESPONSE_STREAM_MAX_RETRIES = intPreferencesKey("response_stream_max_retries")
+        val CONTEXT_COMPACTION_TARGET_TOKENS_K = intPreferencesKey("context_compaction_target_tokens_k")
 
         // UI设置
         val DYNAMIC_COLOR = booleanPreferencesKey("dynamic_color")
