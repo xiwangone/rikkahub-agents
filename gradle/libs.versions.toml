@@ -82,6 +82,7 @@ genaiPrompt = "1.0.0-beta2"
 
 dom4j = "2.2.0"
 
+profileinstaller = "1.4.1"
 [libraries]
 android-gradle-plugin = { module = "com.android.tools.build:gradle", version.ref = "agp" }
 kotlin-compose-gradle-plugin = { module = "org.jetbrains.kotlin:compose-compiler-gradle-plugin", version.ref = "kotlin" }
@@ -199,6 +200,8 @@ guava-listenablefuture = { module = "com.google.guava:listenablefuture", version
 # PRIVATE in this version, so shizuku_exec uses bindUserService + our own AIDL service.
 shizuku-api = { module = "dev.rikka.shizuku:api", version.ref = "shizuku" }
 shizuku-provider = { module = "dev.rikka.shizuku:provider", version.ref = "shizuku" }
+androidx-profileinstaller = { group = "androidx.profileinstaller", name = "profileinstaller", version.ref = "profileinstaller" }
+leakcanary-android = { module = "com.squareup.leakcanary:leakcanary-android", version.ref = "leakcanary" }
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
