@@ -30,21 +30,16 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.coroutines.withTimeout
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Modality
-import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderManager
@@ -56,7 +51,6 @@ import me.rerere.ai.ui.canResumeToolExecution
 import me.rerere.ai.ui.finishPendingTools
 import me.rerere.ai.ui.finishReasoning
 import me.rerere.ai.ui.isEmptyInputMessage
-import me.rerere.ai.ui.limitContext
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID
@@ -65,18 +59,12 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
-import me.rerere.rikkahub.data.ai.ContextBudgetPlanner
-import me.rerere.rikkahub.data.ai.ContextCompactionPlanner
-import me.rerere.rikkahub.data.ai.ContextCompactionPresentation
-import me.rerere.rikkahub.data.ai.CompactedMessageView
-import me.rerere.rikkahub.data.ai.ContextCompactionView
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
 import me.rerere.rikkahub.data.ai.tools.createSkillTools
 import me.rerere.rikkahub.data.ai.tools.createWorkspaceTools
 import me.rerere.rikkahub.data.preferences.isWorkspaceToolName
-import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
 import me.rerere.rikkahub.data.ai.transformers.OcrTransformer
@@ -88,13 +76,9 @@ import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.WorkspaceReminderTransformer
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.datastore.AutoCompactionThresholdMode
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getAssistantById
-import me.rerere.rikkahub.data.datastore.getCompactionContextLength
-import me.rerere.rikkahub.data.datastore.getContextCompactionTargetTokens
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.event.AppEvent
@@ -103,9 +87,6 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.Conversation
-import me.rerere.rikkahub.data.model.ConversationCompaction
-import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.replaceRegexes
@@ -123,51 +104,9 @@ import me.rerere.workspace.WorkspaceShellStatus
 import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.atomic.AtomicInteger
-import java.util.concurrent.atomic.AtomicLong
 import kotlin.uuid.Uuid
 
 private const val TAG = "ChatService"
-private const val COMPACTION_REQUEST_TIMEOUT_MS = 3 * 60_000L
-private const val COMPACTION_TOTAL_TIMEOUT_MS = 8 * 60_000L
-private const val COMPACTION_MAX_REQUEST_OUTPUT_TOKENS = 16_384
-private const val MAX_PARALLEL_COMPACTION_REQUESTS = 4
-private const val MAX_FULL_CONTEXT_MAP_GROUPS = 8
-/**
- * Streaming chunks can arrive once per token. Persisting every chunk rewrites all message nodes
- * and can throttle the provider, while persisting only at the end loses the visible response when
- * the user changes screens or the process is killed. Keep the durable snapshot reasonably fresh
- * without turning Room into the stream's bottleneck.
- */
-private const val STREAMING_PERSIST_INTERVAL_MS = 500L
-
-private fun Throwable.isContextLimitError(): Boolean {
-    val markers = listOf(
-        "context length",
-        "context window",
-        "maximum context",
-        "max context",
-        "context length exceeded",
-        "maximum tokens",
-        "prompt is too long",
-        "prompt too long",
-        "too many tokens",
-        "token limit",
-        "input is too long",
-        "exceeds the model",
-        "exceed.*context",
-    )
-    return generateSequence(this) { it.cause }
-        .take(8)
-        .any { cause ->
-            val text = (cause.message.orEmpty() + " " + cause.toString())
-                .lowercase()
-                .replace('_', ' ')
-            markers.any { marker ->
-                if (marker.contains(".*")) Regex(marker).containsMatchIn(text) else marker in text
-            }
-        }
-}
 
 internal fun backgroundTextGenerationParams(
     model: Model,
@@ -179,72 +118,6 @@ internal fun backgroundTextGenerationParams(
         customHeaders = model.customHeaders,
         customBody = model.customBodies,
     )
-
-/**
- * Resolve the compression model's usable context ceiling. The token-threshold setting is an
- * explicit user-controlled limit when that mode is selected, which also covers providers such
- * as Codex whose model list does not publish context metadata.
- */
-internal fun compactionContextLength(settings: Settings, model: Model): Int? =
-    settings.getCompactionContextLength(model)
-
-/**
- * Locates the [UIMessagePart.Tool] with [toolCallId] anywhere in [conversation]'s message
- * nodes, across every message version in each node (not just the currently-selected
- * branch) - the same scope [ChatService.handleToolApproval] mutates. Returns null if no
- * such part exists.
- */
-internal fun findToolCallPart(conversation: Conversation, toolCallId: String): UIMessagePart.Tool? =
-    conversation.messageNodes.asSequence()
-        .flatMap { it.messages.asSequence() }
-        .flatMap { it.parts.asSequence() }
-        .filterIsInstance<UIMessagePart.Tool>()
-        .firstOrNull { it.toolCallId == toolCallId }
-
-/**
- * Returns [conversation] with the [UIMessagePart.Tool] matching [toolCallId] replaced by
- * [transform]'s result, wherever it appears (see [findToolCallPart]). Returns [conversation]
- * unchanged if no matching part exists.
- */
-internal fun replaceToolCallPart(
-    conversation: Conversation,
-    toolCallId: String,
-    transform: (UIMessagePart.Tool) -> UIMessagePart.Tool,
-): Conversation {
-    var found = false
-    val updatedNodes = conversation.messageNodes.map { node ->
-        node.copy(
-            messages = node.messages.map { msg ->
-                msg.copy(
-                    parts = msg.parts.map { part ->
-                        if (part is UIMessagePart.Tool && part.toolCallId == toolCallId) {
-                            found = true
-                            transform(part)
-                        } else part
-                    }
-                )
-            }
-        )
-    }
-    return if (found) conversation.copy(messageNodes = updatedNodes) else conversation
-}
-
-/**
- * A turn "stalled" when it ended without producing text the user can read: a hard failure
- * (any error, including retry exhaustion), or a success whose final assistant message carries
- * only reasoning/tool parts (or a blank text part) with no non-blank [UIMessagePart.Text].
- * Deliberate non-goal: detecting mid-sentence truncation of a turn that DID produce text -
- * there is no reliable signal for that, so it is treated as not stalled.
- */
-internal fun isStalledTurn(succeeded: Boolean, lastMessage: UIMessage?): Boolean {
-    if (!succeeded) return true
-    if (lastMessage == null || lastMessage.role != MessageRole.ASSISTANT) return false
-    return lastMessage.parts.filterIsInstance<UIMessagePart.Text>().none { it.text.isNotBlank() }
-}
-
-internal fun shouldUseExternalWebSearch(assistant: Assistant, model: Model): Boolean {
-    return assistant.enableWebSearch && BuiltInTools.Search !in model.tools
-}
 
 data class ChatError(
     val id: Uuid = Uuid.random(),
@@ -431,11 +304,6 @@ class ChatService(
             // was previously missing this cleanup, causing a slow leak on heavy-use
             // sessions where many conversations cycle in and out of memory.
             sessionMutexes.remove(conversationId)
-            compactionMutexes.remove(conversationId)
-            if (!pendingStreamingPersistence.containsKey(conversationId)) {
-                persistenceMutexes.remove(conversationId)
-                lastStreamingPersistAt.remove(conversationId)
-            }
             _sessionsVersion.value++
             AppLog.i(TAG, "removeSession: $conversationId (remaining: ${sessions.size})")
         }
@@ -517,10 +385,6 @@ class ChatService(
             updateConversation(conversationId, conversation)
             settingsStore.updateAssistant(conversation.assistantId)
         } else {
-            // A send can race this asynchronous initialization for a brand-new conversation.
-            // Once the session already contains a user message, never replace it with the
-            // assistant preset that was computed from the stale empty snapshot.
-            if (getConversationFlow(conversationId).value.messageNodes.isNotEmpty()) return
             // 新建对话, 并添加预设消息
             val currentSettings = settingsStore.settingsFlowRaw.first()
             val assistant = currentSettings.getCurrentAssistant()
@@ -546,7 +410,6 @@ class ChatService(
 
         val session = getOrCreateSession(conversationId)
         val previousJob = session.getJob()
-        val previousGenerationWasActive = previousJob?.isActive == true
         previousJob?.cancel()
 
         val job =
@@ -972,246 +835,11 @@ class ChatService(
         session.setJob(job)
     }
 
-    /** Always-scope grant for [toolName]. Workspace tools (the "workspace_" prefix,
-     *  reserved by createWorkspaceTools) must NOT land in the global always-allow set -
-     *  that set is checked in every workspace, so a global grant would silently override
-     *  each workspace's own per-tool toggle. Route those through a per-workspace override
-     *  instead, resolving the workspace the same way createWorkspaceToolsIfReady does
-     *  (via the conversation's assistant). Fall back to a ChatScope-style grant (this
-     *  conversation only) when no workspace is resolvable, never the global set. */
-    private suspend fun grantAlwaysScope(conversationId: Uuid, toolName: String) {
-        if (isWorkspaceToolName(toolName)) {
-            val conversation = conversationRepo.getConversationById(conversationId)
-            val assistant = conversation?.let {
-                settingsStore.settingsFlow.first().getAssistantById(it.assistantId)
-            }
-            val workspaceId = assistant?.workspaceId?.toString()
-            val granted = workspaceId != null &&
-                workspaceRepository.setToolApproval(workspaceId, toolName, needsApproval = false)
-            if (!granted) {
-                // Workspace row missing (delete/grant race) or unresolvable - fall back to
-                // the chat-scoped grant so the user's Always tap never silently does nothing.
-                if (workspaceId != null) {
-                    Log.w(TAG, "setToolApproval found no workspace row for '$workspaceId', falling back to chat-scoped grant for '$toolName'")
-                }
-                me.rerere.rikkahub.data.ai.tools
-                    .ToolApprovalAllowList.grantForChat(conversationId, toolName)
-            }
-        } else {
-            toolApprovalPreferences.grantAlways(toolName)
-        }
-    }
-
-    /** Outcome of [rerunTool]. [Failure.message] is a short, non-localized diagnostic
-     *  meant to be interpolated into a localized wrapper string in the UI, matching
-     *  DirectModeActionRunner.StepResult.Failed's error strings. */
-    sealed class RerunToolResult {
-        data object Success : RerunToolResult()
-        data class Failure(val message: String) : RerunToolResult()
-    }
-
-    /**
-     * Re-executes the already-executed [UIMessagePart.Tool] identified by [toolCallId] in
-     * [conversationId] and replaces its output in place. Modeled on the two existing
-     * outside-the-generation-loop precedents: tryFastPathRoute's tool lookup + execute
-     * above, and DirectModeActionRunner's guard + 60s timeout wrapping.
-     *
-     * Refuses while a generation job is active for the conversation so this can't race the
-     * normal loop's own read-modify-write of the same message (same class of race
-     * handleToolApproval's priorGenerationJob comment documents).
-     *
-     * Runs on [appScope] rather than the caller's coroutine - like sendMessage,
-     * handleToolApproval, and regenerateAtMessage - so the up-to-60s tool.execute() and the
-     * persist step below survive the caller (the sheet's button scope) being cancelled by a
-     * dismiss/navigate-away instead of losing the result silently.
-     */
-    suspend fun rerunTool(conversationId: Uuid, toolCallId: String): RerunToolResult =
-        appScope.async { rerunToolInternal(conversationId, toolCallId) }.await()
-
-    private suspend fun rerunToolInternal(conversationId: Uuid, toolCallId: String): RerunToolResult {
-        val session = getOrCreateSession(conversationId)
-        if (session.isGenerating) {
-            return RerunToolResult.Failure("a generation is already running for this conversation")
-        }
-        // Pin the session for the rest of this function. handleToolApproval keeps its
-        // session alive across its own async work by setting the generation job
-        // (isGenerating implies isInUse); rerunTool must NOT do that - setting a job would
-        // flip `loading`/`isGenerating` for the whole conversation just because a tool is
-        // being re-run, hiding regenerate buttons and other rerun buttons for no reason.
-        // acquire()/release() pins the same way addConversationReference does (refCount),
-        // without touching isGenerating. Without this, the 5s idle-eviction timer
-        // (ConversationSession.IDLE_TIMEOUT_MS) can remove the session out from under the
-        // up-to-60s tool.execute() below the moment the user navigates away (that drops
-        // ChatVM's reference), and the write-back at the end would silently land in a
-        // freshly-recreated blank session instead. The fallback below still covers the
-        // remaining edge case where the session is gone anyway (e.g. dropSession(), which
-        // explicitly ignores refcount).
-        session.acquire()
-        try {
-            // Only the fast lookup/validation below runs under the mutex - matching the
-            // class doc's "persist boundaries only" contract. tool.execute() (up to 60s)
-            // below runs UNLOCKED so a concurrent handleToolApproval/stopGeneration on this
-            // conversation doesn't block on this rerun.
-            val (toolPart, tool) = mutexFor(conversationId).withLock {
-                // Re-resolve the session under the lock instead of trusting `session`
-                // pinned above: dropSession() (e.g. /new) removes it from the map
-                // regardless of refcount, so a racing caller could have dropped it and
-                // had a fresh session recreated for the same conversationId while we
-                // waited for this lock. Checking/reading through the stale object would
-                // miss a generation that started on the replacement session.
-                val liveSession = getOrCreateSession(conversationId)
-                if (liveSession.isGenerating) {
-                    return RerunToolResult.Failure("a generation is already running for this conversation")
-                }
-
-                ensureHydrated(conversationId)
-                val conversation = liveSession.state.value
-                val toolPart = findToolCallPart(conversation, toolCallId)
-                    ?: return RerunToolResult.Failure("tool call not found")
-                if (!toolPart.isExecuted) {
-                    return RerunToolResult.Failure("tool has not completed its first run yet")
-                }
-
-                val hardlineReason = me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
-                    .checkTool(toolPart.toolName, toolPart.input)
-                if (hardlineReason != null) {
-                    return RerunToolResult.Failure("blocked: $hardlineReason")
-                }
-
-                val settings = settingsStore.settingsFlow.first()
-                val assistant = settings.getAssistantById(conversation.assistantId) ?: settings.getCurrentAssistant()
-                val model = settings.findModelById(
-                    conversation.chatModelId ?: assistant.chatModelId ?: settings.chatModelId
-                ) ?: return RerunToolResult.Failure("no chat model selected")
-
-                val tools = buildToolsForRerun(assistant, conversationId, conversation, model, settings)
-                val tool = tools.firstOrNull { it.name == toolPart.toolName }
-                    ?: return RerunToolResult.Failure("tool '${toolPart.toolName}' is not available")
-
-                toolPart to tool
-            }
-
-            val startedAt = System.currentTimeMillis()
-            val output = try {
-                withTimeoutOrNull(60_000L) { tool.execute(toolPart.inputAsJson()) }
-                    ?: return RerunToolResult.Failure("timed out after 60s")
-            } catch (c: CancellationException) {
-                throw c
-            } catch (t: Throwable) {
-                Log.w(TAG, "rerunTool: tool=${toolPart.toolName} threw", t)
-                return RerunToolResult.Failure("${t::class.simpleName}: ${t.message.orEmpty()}".take(500))
-            }
-
-            // Apply against the LATEST state, not the pre-execute snapshot captured above -
-            // sendMessage/handleToolApproval etc. can mutate the conversation during the
-            // up-to-60s tool.execute() call. updateConversationState's atomic
-            // StateFlow.update re-applies replaceToolCallPart against whatever is current
-            // at write time, so a concurrent write in the meantime isn't silently reverted
-            // the way overwriting with this function's stale `conversation` snapshot would.
-            var applied = false
-            val toolReplacer: (UIMessagePart.Tool) -> UIMessagePart.Tool = {
-                applied = true
-                it.copy(output = output, executionStartedAt = startedAt)
-            }
-            val sessionStillTracked = mutexFor(conversationId).withLock {
-                if (!sessions.containsKey(conversationId)) return@withLock false
-                updateConversationState(conversationId) { current ->
-                    replaceToolCallPart(current, toolCallId, toolReplacer)
-                }
-                true
-            }
-            if (sessionStillTracked) {
-                if (!applied) {
-                    return RerunToolResult.Failure("tool call not found")
-                }
-                // Re-resolve the session rather than reading through `session` pinned at
-                // the top of this function: updateConversationState() above applied the
-                // update to whatever session is CURRENTLY in the map, which can be a
-                // different object than `session` if dropSession() replaced it
-                // mid-execute. Saving the old object's state here would silently revert
-                // the update just made.
-                saveConversation(conversationId, getOrCreateSession(conversationId).state.value)
-            } else {
-                // The session is gone despite the pin above (e.g. an explicit
-                // dropSession() elsewhere ignores refcount). updateConversationState
-                // would silently recreate a blank one and drop this result into it, so
-                // instead apply straight to the repository-loaded conversation and
-                // persist it there - mirrors renameConversation's sync-memory-then-persist
-                // rule - so a completed re-run is never discarded.
-                val stored = conversationRepo.getConversationById(conversationId)
-                    ?: return RerunToolResult.Failure("conversation no longer exists")
-                val updated = replaceToolCallPart(stored, toolCallId, toolReplacer)
-                if (!applied) {
-                    return RerunToolResult.Failure("tool call not found")
-                }
-                saveConversation(conversationId, updated)
-            }
-            return RerunToolResult.Success
-        } finally {
-            session.release()
-        }
-    }
-
-    /**
-     * Builds the tool list available to [assistant] in [conversationId]/[conversation] for
-     * [rerunTool], outside the generation loop. Mirrors the components handleMessageComplete's
-     * inline tool assembly uses (local tools, workspace tools, skill tools, namespaced MCP
-     * tools) rather than duplicating that list literal. Unlike that inline assembly, an
-     * MCP server with an invalid name is simply skipped here (no addError/abort - a rerun
-     * targeting such a tool just reports "not available" like any other missing tool, since
-     * this path never sends tool schemas to a model).
-     */
-    private suspend fun buildToolsForRerun(
-        assistant: Assistant,
-        conversationId: Uuid,
-        conversation: Conversation,
-        model: Model,
-        settings: Settings,
-    ): List<Tool> = buildList {
-        if (assistant.enableWebSearch) {
-            addAll(createSearchTools(settings))
-        }
-        val invocationCtx = me.rerere.rikkahub.data.ai.tools.ToolInvocationContext(
-            callerAssistantId = assistant.id.toString(),
-            callerConversationId = conversationId.toString(),
-            isHeadless = me.rerere.rikkahub.data.ai.tools.HeadlessConversations.isHeadless(conversationId),
-            modelCanSeeImages = Modality.IMAGE in model.inputModalities,
-        )
-        addAll(localTools.getTools(assistant.localTools, invocationCtx))
-        addAll(createWorkspaceToolsIfReady(assistant.workspaceId?.toString(), conversation.workspaceCwd))
-        if (assistant.enabledSkills.isNotEmpty()) {
-            addAll(
-                createSkillTools(
-                    enabledSkills = assistant.enabledSkills,
-                    allSkills = skillManager.listSkills(),
-                    skillManager = skillManager,
-                )
-            )
-        }
-        mcpManager.getAllAvailableTools().forEach { (serverId, serverName, mcpTool) ->
-            val serverSlug = serverId.toString().take(8).replace("-", "")
-            val mcpToolName = "mcp__" + serverSlug + "_" + serverName + "__" + mcpTool.name
-            add(
-                Tool(
-                    name = mcpToolName,
-                    description = mcpTool.description ?: "",
-                    parameters = { mcpTool.inputSchema },
-                    needsApproval = {
-                        me.rerere.rikkahub.data.ai.tools
-                            .ToolApprovalDefaults.requiresApproval(mcpToolName) || mcpTool.needsApproval
-                    },
-                    execute = { mcpManager.callTool(serverId, mcpTool.name, it.jsonObject) },
-                )
-            )
-        }
-    }
-
     // ---- 处理消息补全 ----
 
     private suspend fun handleMessageComplete(
         conversationId: Uuid,
         messageRange: ClosedRange<Int>? = null,
-        allowContextRetry: Boolean = true,
     ) {
         val settings = settingsStore.settingsFlow.first()
         // Resolve the assistant from this conversation's own assistantId — the global
@@ -1245,7 +873,6 @@ class ChatService(
                     "Re-enable it in Settings → Providers, or pick a different model with /model.",
             )
         }
-        val useExternalWebSearch = shouldUseExternalWebSearch(assistant, model)
 
         val senderName =
             if (assistant.useAssistantAvatar) {
@@ -1260,7 +887,7 @@ class ChatService(
 
             // memory tool
             if (!model.abilities.contains(ModelAbility.TOOL)) {
-                if (useExternalWebSearch || mcpManager.getAllAvailableTools().isNotEmpty()) {
+                if (assistant.enableWebSearch || mcpManager.getAllAvailableTools().isNotEmpty()) {
                     addError(
                         IllegalStateException(context.getString(R.string.tools_warning)),
                         conversationId,
@@ -1550,25 +1177,13 @@ class ChatService(
             }
         }.onSuccess {
             val finalConversation = getConversationFlow(conversationId).value
-
-            if (isStalledTurn(succeeded = true, lastMessage = finalConversation.currentMessages.lastOrNull())) {
-                // A stalled success (reasoning/tool-only turn) needs a way forward, not topic
-                // suggestions - set the continue chip directly and skip generateSuggestion.
-                saveConversation(
-                    conversationId,
-                    finalConversation.copy(
-                        chatSuggestions = listOf(context.getString(R.string.chat_suggestion_continue))
-                    )
-                )
-            } else {
-                saveConversation(conversationId, finalConversation)
-                launchWithConversationReference(conversationId) {
-                    generateSuggestion(conversationId, finalConversation)
-                }
-            }
+            saveConversation(conversationId, finalConversation)
 
             launchWithConversationReference(conversationId) {
                 generateTitle(conversationId, finalConversation)
+            }
+            launchWithConversationReference(conversationId) {
+                generateSuggestion(conversationId, finalConversation)
             }
         }
     }
@@ -1620,7 +1235,7 @@ class ChatService(
 
     // ---- 检查无效消息 ----
 
-    private suspend fun checkInvalidMessages(conversationId: Uuid) {
+    private fun checkInvalidMessages(conversationId: Uuid) {
         val conversation = getConversationFlow(conversationId).value
         var messagesNodes = conversation.messageNodes
 
@@ -1668,17 +1283,7 @@ class ChatService(
         // 移除无效消息
         messagesNodes = messagesNodes.filter { it.messages.isNotEmpty() }
 
-        if (messagesNodes != conversation.messageNodes) {
-            clearCompactionIfPrefixChanged(
-                conversationId,
-                before = conversation.messageNodes,
-                after = messagesNodes,
-                reason = "invalid message repair",
-            )
-            // Persist the repair before the model request starts. If the process is killed again
-            // during the continuation, the historical tool call remains visible and replayable.
-            saveConversation(conversationId, conversation.copy(messageNodes = messagesNodes))
-        }
+        updateConversation(conversationId, conversation.copy(messageNodes = messagesNodes))
     }
 
     private fun cancelToolByUser(tool: UIMessagePart.Tool): UIMessagePart.Tool =
@@ -1691,19 +1296,6 @@ class ChatService(
                 ),
             approvalState = ToolApprovalState.Denied("Generation cancelled by user"),
         )
-
-    private fun cancelToolByRecovery(tool: UIMessagePart.Tool): UIMessagePart.Tool {
-        return tool.copy(
-            output = listOf(
-                UIMessagePart.Text(
-                    """{"status":"interrupted","error":"The previous generation ended before this tool completed. No tool execution was resumed automatically."}"""
-                )
-            ),
-            approvalState = ToolApprovalState.Denied(
-                "Previous generation interrupted before tool execution completed"
-            )
-        )
-    }
 
     private suspend fun finishInterruptedPendingTools(conversationId: Uuid) {
         val currentConversation = getConversationFlow(conversationId).value
@@ -1856,223 +1448,6 @@ class ChatService(
     }
 
     // ---- 压缩对话历史 ----
-
-    private suspend fun prepareMessagesForGeneration(
-        conversation: Conversation,
-        settings: Settings,
-        assistant: Assistant,
-        model: Model,
-        processingStatus: MutableStateFlow<String?>,
-        force: Boolean = false,
-        compactEntireContext: Boolean = false,
-    ): CompactedMessageView {
-        var view = loadCompactedMessageView(conversation)
-        if (!settings.enableAutoCompaction) {
-            return if (view.compaction?.isAuto == true) {
-                ContextCompactionView.build(conversation, null)
-            } else {
-                view
-            }
-        }
-
-        // Automatic compaction is deliberately driven by provider-reported usage after a
-        // tool result, or by an actual context-limit error. Do not estimate the history here
-        // and compact before the model has had a chance to execute its tools.
-        if (!force) return view
-
-        Log.i(
-            TAG,
-            "Auto compaction starting for ${conversation.id}: " +
-                "provider usage reached the configured threshold or context limit, " +
-                "modelContext=${model.contextLength}",
-        )
-        processingStatus.value = context.getString(R.string.chat_page_compressing)
-        try {
-            var newlyCreatedAutoCompaction: ConversationCompaction? = null
-            val compaction = compactionMutexFor(conversation.id).withLock {
-                val latestConversation = getConversationFlow(conversation.id).value
-                view = loadCompactedMessageView(latestConversation)
-                // A previous compaction may already cover every raw message. This can
-                // happen when the provider reports another boundary before a new message
-                // is appended. There is no further source material to summarize, so keep
-                // the existing summary and continue with the compacted request view.
-                if (
-                    view.compaction != null &&
-                    view.rawTailStartIndex >= latestConversation.messageNodes.size
-                ) {
-                    Log.i(TAG, "Auto compaction skipped: no new raw messages after existing summary")
-                    view.compaction
-                } else {
-                    val targetTokens = settings.getContextCompactionTargetTokens(
-                        compactionContextLength(settings, model),
-                    )
-                    val firstCompaction = createAutomaticCompaction(
-                        conversation = latestConversation,
-                        currentView = view,
-                        settings = settings,
-                        targetTokens = targetTokens,
-                        // A provider-reported context overflow means the local estimate missed
-                        // provider overhead (often a very large tool result or schema). Drop the
-                        // raw tail for this recovery pass so the continuation cannot immediately
-                        // submit the same oversized request again. The deterministic tool ledger
-                        // and the prose summary preserve the completed execution history, while
-                        // the original messages remain stored in the conversation.
-                        keepRecentToolCalls = if (compactEntireContext) {
-                            0
-                        } else {
-                            settings.autoCompactionKeepRecentToolCalls
-                        },
-                    )
-                    val firstView = ContextCompactionView.build(latestConversation, firstCompaction)
-                    val triggerTokens = automaticCompactionTriggerTokens(settings, model)
-                    if (
-                        triggerTokens != null &&
-                        firstView.rawTailStartIndex < latestConversation.messageNodes.size &&
-                        ContextBudgetPlanner.estimateContextTokens(firstView.messages) >= triggerTokens
-                    ) {
-                        Log.i(
-                            TAG,
-                            "Automatic compaction tail still exceeds threshold; compacting the full active context",
-                        )
-                        createAutomaticCompaction(
-                            conversation = latestConversation,
-                            currentView = firstView,
-                            settings = settings,
-                            targetTokens = targetTokens,
-                            keepRecentToolCalls = 0,
-                        )
-                    } else {
-                        firstCompaction
-                    }.also { newlyCreatedAutoCompaction = it }
-                }
-            }
-            val latestConversation = getConversationFlow(conversation.id).value
-            return ContextCompactionView.build(latestConversation, compaction).copy(
-                newlyCreatedAutoCompaction = newlyCreatedAutoCompaction,
-            )
-        } finally {
-            processingStatus.value = null
-        }
-    }
-
-    private suspend fun loadCompactedMessageView(conversation: Conversation): CompactedMessageView {
-        val compaction = conversationRepo.getCompaction(conversation.id)
-            ?: return CompactedMessageView(
-                messages = conversation.currentMessages,
-                compaction = null,
-                rawTailStartIndex = 0,
-            )
-        val view = ContextCompactionView.build(conversation, compaction)
-        if (view.compaction == null) {
-            Log.w(
-                TAG,
-                "Compaction for ${conversation.id} no longer resolves " +
-                    "(sourceEnd=${compaction.sourceEndNodeId}, tailStart=${compaction.tailStartNodeId}, " +
-                    "nodes=${conversation.messageNodes.size}); clearing",
-            )
-            conversationRepo.clearCompaction(conversation.id)
-        }
-        return view
-    }
-
-    /**
-     * Drops the stored compaction only when [after] no longer carries the compacted prefix
-     * that [before] had. Mutations confined to the raw tail keep the compaction.
-     */
-    private suspend fun clearCompactionIfPrefixChanged(
-        conversationId: Uuid,
-        before: List<MessageNode>,
-        after: List<MessageNode>,
-        reason: String,
-    ) {
-        val compaction = conversationRepo.getCompaction(conversationId) ?: return
-        if (ContextCompactionView.compactedPrefixUnchanged(compaction, before, after)) return
-        Log.i(TAG, "Clearing compaction for $conversationId: compacted prefix changed ($reason)")
-        conversationRepo.clearCompaction(conversationId)
-    }
-
-    private suspend fun createAutomaticCompaction(
-        conversation: Conversation,
-        currentView: CompactedMessageView,
-        settings: Settings,
-        targetTokens: Int,
-        keepRecentToolCalls: Int,
-    ): ConversationCompaction {
-        if (conversation.messageNodes.size < 2) {
-            throw IllegalStateException(context.getString(R.string.chat_page_compress_not_enough_messages))
-        }
-
-        val rawTailStartIndex = ContextCompactionPlanner.automaticTailStartIndex(
-            messages = conversation.currentMessages,
-            rawTailStartIndex = currentView.rawTailStartIndex,
-            keepRecentToolCalls = keepRecentToolCalls,
-        )
-
-        // A subsequent compaction may legitimately consume the final raw tail message,
-        // leaving the persisted summary as the only request-context prefix. The summary
-        // entity uses a null tailStartNodeId to represent this boundary at messageNodes.size.
-        if (rawTailStartIndex !in 1..conversation.messageNodes.size) {
-            throw IllegalStateException(context.getString(R.string.chat_page_compress_not_enough_messages))
-        }
-        check(rawTailStartIndex > currentView.rawTailStartIndex) {
-            "No new messages available for automatic compaction"
-        }
-
-        val messagesToCompress = buildList {
-            currentView.compaction?.let { add(UIMessage.user(it.summary)) }
-            addAll(
-                conversation.currentMessages.subList(
-                    currentView.rawTailStartIndex,
-                    rawTailStartIndex,
-                )
-            )
-        }
-        return generateAndStoreCompaction(
-            conversation = conversation,
-            settings = settings,
-            messagesToCompress = messagesToCompress,
-            rawTailStartIndex = rawTailStartIndex,
-            additionalPrompt = "",
-            targetTokens = targetTokens.coerceAtLeast(1),
-            isAuto = true,
-        )
-    }
-
-    private fun automaticCompactionTriggerTokens(settings: Settings, model: Model): Int? =
-        when (settings.autoCompactionThresholdMode) {
-            AutoCompactionThresholdMode.PERCENT -> model.contextLength
-                ?.takeIf { it > 0 }
-                ?.let { length ->
-                    (length.toLong() * settings.autoCompactionThresholdPercent
-                        .coerceIn(5, 95) / 100L)
-                        .coerceAtLeast(1L)
-                        .toInt()
-                }
-            AutoCompactionThresholdMode.TOKENS ->
-                (settings.autoCompactionThresholdTokensK
-                    .coerceAtLeast(1)
-                    .toLong() * 1_000L)
-                    .coerceAtMost(Int.MAX_VALUE.toLong())
-                    .toInt()
-        }
-
-    /**
-     * Keep the persisted compaction summary request-only, but show the user the automatic
-     * compression as an executed tool on the assistant message that triggered it.
-     */
-    private fun attachAutomaticCompactionPresentation(
-        conversationId: Uuid,
-        messageId: Uuid,
-        compaction: ConversationCompaction,
-    ) {
-        updateConversationState(conversationId) { current ->
-            ContextCompactionPresentation.attachToMessage(
-                conversation = current,
-                messageId = messageId,
-                tool = ContextCompactionPresentation.createTool(compaction),
-            )
-        }
-    }
 
     suspend fun compressConversation(
         conversationId: Uuid,
@@ -2467,18 +1842,6 @@ class ChatService(
     }
 
     /**
-     * 重命名会话。若该会话当前有活跃 session，先同步内存态再落库：
-     * 否则仅改数据库标题，内存里那份 Conversation 仍是旧标题，
-     * 后续任意 saveConversation(id, state.value) 会用整对象把标题覆盖回旧值，导致重命名丢失。
-     */
-    suspend fun renameConversation(conversationId: Uuid, title: String) {
-        if (sessions.containsKey(conversationId)) {
-            updateConversationState(conversationId) { it.copy(title = title) }
-        }
-        conversationRepo.renameConversation(conversationId, title)
-    }
-
-    /**
      * 文件夹内是否存在正在生成回复的会话。
      * 仅活跃 session 可能在生成；内存态 folderId 为权威（移动会先同步内存态）。
      */
@@ -2521,21 +1884,7 @@ class ChatService(
     ) {
         val exists = conversationRepo.existsConversationById(conversation.id)
         if (!exists && conversation.title.isBlank() && conversation.messageNodes.isEmpty()) {
-            return false // 新会话且为空时不保存
-        }
-        // Refuse to overwrite a non-empty stored row with an empty in-memory snapshot.
-        // This is the silent-data-loss guard: handleToolApproval / stopGeneration / etc.
-        // could be called against an unhydrated session (post-restart), build an empty
-        // updatedConversation, and call saveConversation. Without this guard we'd wipe
-        // the Pending tool the user was trying to approve.
-        if (exists && conversation.messageNodes.isEmpty()) {
-            val storedHasContent = runCatching {
-                conversationRepo.getConversationById(conversation.id)?.messageNodes?.isNotEmpty() == true
-            }.getOrDefault(false)
-            if (storedHasContent) {
-                Log.w(TAG, "saveConversation: refusing to overwrite non-empty $conversationId with empty snapshot — likely an unhydrated session")
-                return false
-            }
+            return // 新会话且为空时不保存
         }
         // Refuse to overwrite a non-empty stored row with an empty in-memory snapshot.
         // This is the silent-data-loss guard: handleToolApproval / stopGeneration / etc.
@@ -2560,17 +1909,10 @@ class ChatService(
         updateConversation(conversationId, updatedConversation)
 
         if (!exists) {
-            conversationRepo.insertConversation(
-                conversation = conversation,
-                updateSearchIndex = updateSearchIndex,
-            )
+            conversationRepo.insertConversation(updatedConversation)
         } else {
-            conversationRepo.updateConversation(
-                conversation = conversation,
-                updateSearchIndex = updateSearchIndex,
-            )
+            conversationRepo.updateConversation(updatedConversation)
         }
-        return true
     }
 
     // ---- 翻译消息 ----
@@ -2679,12 +2021,6 @@ class ChatService(
 
         if (!edited) return
 
-        clearCompactionIfPrefixChanged(
-            conversationId,
-            before = currentConversation.messageNodes,
-            after = updatedNodes,
-            reason = "edit message",
-        )
         saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
     }
 
@@ -2760,12 +2096,6 @@ class ChatService(
                 }
             }
 
-        clearCompactionIfPrefixChanged(
-            conversationId,
-            before = currentConversation.messageNodes,
-            after = updatedNodes,
-            reason = "select branch",
-        )
         saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
     }
 
@@ -2784,12 +2114,6 @@ class ChatService(
             return
         }
 
-        clearCompactionIfPrefixChanged(
-            conversationId,
-            before = currentConversation.messageNodes,
-            after = updatedConversation.messageNodes,
-            reason = "delete message",
-        )
         saveConversation(conversationId, updatedConversation)
     }
 
