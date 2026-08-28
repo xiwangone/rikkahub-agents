@@ -80,11 +80,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
 import com.dokar.sonner.ToastType
-import dev.chrisbanes.haze.HazeInput
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.blur.HazeBlurStyle
-import dev.chrisbanes.haze.blur.hazeBlur
-import dev.chrisbanes.haze.blur.material3.Material3
+import dev.chrisbanes.haze.blur.blurEffect
+import dev.chrisbanes.haze.blur.materials.HazeMaterials
+import dev.chrisbanes.haze.hazeEffect
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.launch
@@ -171,9 +170,7 @@ fun ChatInput(
         }
     }
     val hazeTintColor = MaterialTheme.colorScheme.surfaceContainerLow
-    val inputHazeStyle = HazeBlurStyle.Material3 {
-        blurRadius(12.dp)
-    }
+    val inputHazeStyle = HazeMaterials.thin(containerColor = hazeTintColor)
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
@@ -807,50 +804,6 @@ keyboardOptions =
     }
 }
 
-// Note: keyboard clipboard-chip insertions go through commitText, which bypasses
-// Compose's content receiver; only long-press Paste and Ctrl+V trigger this listener.
-@Composable
-private fun rememberPasteLongTextAsFileListener(state: ChatInputState): ReceiveContentListener {
-    val settings = LocalSettings.current
-    val filesManager: FilesManager = koinInject()
-    return remember(
-        settings.displaySetting.pasteLongTextAsFile, settings.displaySetting.pasteLongTextThreshold
-    ) {
-        ReceiveContentListener { transferableContent ->
-            when {
-                transferableContent.hasMediaType(MediaType.Image) -> {
-                    transferableContent.consume { item ->
-                        val uri = item.uri
-                        if (uri != null) {
-                            state.addImages(
-                                filesManager.createChatFilesByContents(
-                                    listOf(uri)
-                                )
-                            )
-                        }
-                        uri != null
-                    }
-                }
-
-                settings.displaySetting.pasteLongTextAsFile && transferableContent.hasMediaType(MediaType.Text) -> {
-                    transferableContent.consume { item ->
-                        val text = item.text?.toString()
-                        if (text != null && text.length > settings.displaySetting.pasteLongTextThreshold) {
-                            val document = filesManager.createChatTextFile(text)
-                            state.addFiles(listOf(document))
-                            true
-                        } else {
-                            false
-                        }
-                    }
-                }
-
-                else -> transferableContent
-            }
-        }
-    }
-}
-
 @Composable
 private fun CompletionPopup(
     completionList: ChatCompletionList,
@@ -1027,7 +980,6 @@ private fun FullScreenEditor(
                             Text(stringResource(R.string.chat_page_save))
                         }
                     }
-                    val receiveContentListener = rememberPasteLongTextAsFileListener(state)
                     TextField(
                         state = state.textContent,
                         modifier =
