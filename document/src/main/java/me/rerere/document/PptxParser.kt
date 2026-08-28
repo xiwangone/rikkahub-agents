@@ -458,9 +458,8 @@ object PptxParser {
     private fun extractShapeText(
         parser: XmlPullParser,
         result: StringBuilder,
+        shapeStartDepth: Int,
     ) {
-        val shapeStartDepth = parser.depth
-
         while (parser.next() != XmlPullParser.END_DOCUMENT) {
             when (parser.eventType) {
                 XmlPullParser.START_TAG -> {
