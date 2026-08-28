@@ -1,21 +1,13 @@
 package me.rerere.rikkahub.ui.pages.extensions.workspace
 
-import android.net.Uri
-import android.util.Log
-import androidx.documentfile.provider.DocumentFile
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.InputStream
-import java.io.OutputStream
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.RootfsInstallProgress
@@ -43,9 +35,6 @@ class WorkspaceDetailVM(
 
     private val _installError = MutableStateFlow<String?>(null)
     val installError = _installError.asStateFlow()
-
-    private val _folderExportResult = MutableStateFlow<WorkspaceFolderExportResult?>(null)
-    val folderExportResult = _folderExportResult.asStateFlow()
 
     init {
         loadWorkspace()
@@ -85,8 +74,7 @@ class WorkspaceDetailVM(
 
     fun refresh() {
         viewModelScope.launch {
-            // 重新加载当前目录时, 已展开子树的缓存可能与新数据不一致 (文件被删除/新增等), 一并清空
-            _state.update { it.copy(loading = true, error = null, expandedPaths = emptySet(), childrenCache = emptyMap()) }
+            _state.update { it.copy(loading = true, error = null) }
             runCatching {
                 repository.listFiles(
                     id = id,
@@ -101,32 +89,6 @@ class WorkspaceDetailVM(
                         entries = emptyList(),
                         loading = false,
                         error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_load),
-                    )
-                }
-            }
-        }
-    }
-
-    /** 展开/折叠一个目录条目的树形子节点; 展开时若尚未缓存过子项则加载一次并缓存 */
-    fun toggleExpand(entry: WorkspaceFileEntry) {
-        if (!entry.isDirectory) return
-        val path = entry.path
-        if (path in state.value.expandedPaths) {
-            _state.update { it.copy(expandedPaths = it.expandedPaths - path) }
-            return
-        }
-        _state.update { it.copy(expandedPaths = it.expandedPaths + path) }
-        if (path in state.value.childrenCache) return
-        viewModelScope.launch {
-            runCatching {
-                repository.listFiles(id = id, area = state.value.area, path = path)
-            }.onSuccess { children ->
-                _state.update { it.copy(childrenCache = it.childrenCache + (path to children)) }
-            }.onFailure { error ->
-                _state.update {
-                    it.copy(
-                        expandedPaths = it.expandedPaths - path,
-                        error = error.message ?: "加载工作区文件失败",
                     )
                 }
             }
@@ -305,10 +267,6 @@ class WorkspaceDetailVM(
             _state.update { it.copy(workspace = workspace) }
         }
     }
-
-    companion object {
-        private const val TAG = "WorkspaceDetailVM"
-    }
 }
 
 data class WorkspaceDetailState(
@@ -318,10 +276,6 @@ data class WorkspaceDetailState(
     val entries: List<WorkspaceFileEntry> = emptyList(),
     val loading: Boolean = false,
     val error: String? = null,
-    // 树形视图: 已展开的目录路径集合 + 已加载子项缓存 (path -> 子项列表), 两者都以
-    // area-relative 路径为 key, 折叠不清缓存, 只有 refresh() 会一并清空 (见 refresh())
-    val expandedPaths: Set<String> = emptySet(),
-    val childrenCache: Map<String, List<WorkspaceFileEntry>> = emptyMap(),
 )
 
 data class WorkspaceTerminalState(
@@ -342,67 +296,4 @@ sealed interface WorkspaceTerminalEntry {
     data class Error(
         val message: String,
     ) : WorkspaceTerminalEntry
-}
-
-data class WorkspaceFolderExportResult(
-    val folderName: String,
-    val failures: Int,
-)
-
-/** 树形视图里的一行: 条目本身 + 相对于当前根列表的缩进深度 (根条目为 0) */
-data class WorkspaceTreeRow(
-    val entry: WorkspaceFileEntry,
-    val depth: Int,
-)
-
-/**
- * 纯函数: 把「根条目列表 + 展开集合 + 子项缓存」压平为树形视图要渲染的行序列。
- * 未展开或尚未加载出子项的目录不会展开更深一层。
- */
-internal fun flattenWorkspaceTree(
-    entries: List<WorkspaceFileEntry>,
-    expandedPaths: Set<String>,
-    childrenCache: Map<String, List<WorkspaceFileEntry>>,
-    depth: Int = 0,
-): List<WorkspaceTreeRow> = entries.flatMap { entry ->
-    val row = WorkspaceTreeRow(entry, depth)
-    if (entry.isDirectory && entry.path in expandedPaths) {
-        val children = childrenCache[entry.path].orEmpty()
-        listOf(row) + flattenWorkspaceTree(children, expandedPaths, childrenCache, depth + 1)
-    } else {
-        listOf(row)
-    }
-}
-
-/** 文件夹导出计划里的一项: 相对于导出根目录的来源信息, 用于驱动 SAF DocumentFile 创建 */
-internal data class WorkspaceExportPlanEntry(
-    val sourcePath: String,
-    val parentPath: String,
-    val name: String,
-    val isDirectory: Boolean,
-)
-
-/**
- * 纯函数: 根据一份「目录路径 -> 直接子项」的递归清单快照, 枚举出文件夹导出所需的相对路径计划,
- * 父目录总是排在其子项之前, 便于按序在 SAF 目标树里逐一创建目录/文件。
- */
-internal fun planWorkspaceFolderExport(
-    rootPath: String,
-    listing: Map<String, List<WorkspaceFileEntry>>,
-): List<WorkspaceExportPlanEntry> {
-    val plan = mutableListOf<WorkspaceExportPlanEntry>()
-    fun walk(path: String) {
-        val children = listing[path].orEmpty()
-        for (child in children) {
-            plan += WorkspaceExportPlanEntry(
-                sourcePath = child.path,
-                parentPath = path,
-                name = child.name,
-                isDirectory = child.isDirectory,
-            )
-            if (child.isDirectory) walk(child.path)
-        }
-    }
-    walk(rootPath)
-    return plan
 }
