@@ -8,6 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.browser.BrowserPreferences

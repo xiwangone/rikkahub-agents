@@ -129,6 +129,8 @@ import me.rerere.rikkahub.ui.pages.setting.SettingTTSPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSpeechPage
 import me.rerere.rikkahub.ui.pages.setting.SettingSubAgentsPage
 import me.rerere.rikkahub.ui.pages.setting.SettingTelegramPage
+import me.rerere.rikkahub.ui.pages.setting.SettingWebServerPage
+import me.rerere.rikkahub.ui.pages.setting.SettingWebBridgePage
 import me.rerere.rikkahub.ui.pages.setting.SettingWebPage
 import me.rerere.rikkahub.ui.pages.share.handler.ShareHandlerPage
 import me.rerere.rikkahub.ui.pages.stats.StatsPage
