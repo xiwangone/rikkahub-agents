@@ -28,6 +28,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.rikkahub.subagent.SubAgentProfile
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
@@ -176,6 +177,9 @@ class SettingsStore(
         // MCP
         val MCP_SERVERS = stringPreferencesKey("mcp_servers")
 
+        // 子代理
+        val SUB_AGENTS = stringPreferencesKey("sub_agents")
+
         // WebDAV
         val WEBDAV_CONFIG = stringPreferencesKey("webdav_config")
 
@@ -311,6 +315,12 @@ class SettingsStore(
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
                 mcpServers = preferences[MCP_SERVERS]?.let {
                     JsonInstant.decodeFromString(it)
+                } ?: emptyList(),
+subAgents = preferences[SUB_AGENTS]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<SubAgentProfile>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode subAgents, using default", it)
+                        emptyList()
+                    }
                 } ?: emptyList(),
                 webDavConfig = preferences[WEBDAV_CONFIG]?.let {
                     JsonInstant.decodeFromString(it)
@@ -603,6 +613,7 @@ class SettingsStore(
                 settings.searchServiceSelected.coerceIn(0, maxOf(0, settings.searchServices.size - 1))
 
             preferences[MCP_SERVERS] = JsonInstant.encodeToString(settings.mcpServers)
+            preferences[SUB_AGENTS] = JsonInstant.encodeToString(settings.subAgents)
             preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settings.webDavConfig)
             preferences[S3_CONFIG] = JsonInstant.encodeToString(settings.s3Config)
             preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(settings.ttsProviders)
@@ -810,6 +821,10 @@ data class Settings(
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),
     val searchServiceSelected: Int = 0,
     val mcpServers: List<McpServerConfig> = emptyList(),
+    /**
+     * 命名子代理配置：subagent_dispatch 按名分发，默认空列表。
+     */
+    val subAgents: List<SubAgentProfile> = emptyList(),
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val s3Config: S3Config = S3Config(),
     val ttsProviders: List<TTSProviderSetting> = DEFAULT_TTS_PROVIDERS,

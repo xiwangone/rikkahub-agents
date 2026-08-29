@@ -58,25 +58,6 @@ class SettingLocalLlmViewModel(
     private val _errorMessage = MutableStateFlow<String?>(null)
     val errorMessage: StateFlow<String?> = _errorMessage.asStateFlow()
 
-    private val _hfSearchResults = MutableStateFlow<List<HfModelSearchResult>>(emptyList())
-    val hfSearchResults: StateFlow<List<HfModelSearchResult>> = _hfSearchResults.asStateFlow()
-
-    private val _hfSearchInProgress = MutableStateFlow(false)
-    val hfSearchInProgress: StateFlow<Boolean> = _hfSearchInProgress.asStateFlow()
-
-    /** Repo id the user tapped into, or null when the tile is showing search results.
-     *  Non-null with [hfSelectedRepoFiles] still null means the file listing is loading. */
-    private val _hfSelectedRepoId = MutableStateFlow<String?>(null)
-    val hfSelectedRepoId: StateFlow<String?> = _hfSelectedRepoId.asStateFlow()
-
-    private val _hfSelectedRepoFiles = MutableStateFlow<HuggingFaceModelSearch.FilesResult?>(null)
-    val hfSelectedRepoFiles: StateFlow<HuggingFaceModelSearch.FilesResult?> = _hfSelectedRepoFiles.asStateFlow()
-
-    // Tracks the in-flight coroutine for searchHuggingFace/selectHuggingFaceRepo so a stale
-    // response from a superseded call can't land after a newer one and overwrite its result.
-    private var hfSearchJob: Job? = null
-    private var hfSelectRepoJob: Job? = null
-
     private val _accelerator = MutableStateFlow<String?>(null)
     val accelerator: StateFlow<String?> = _accelerator.asStateFlow()
 
@@ -398,53 +379,6 @@ class SettingLocalLlmViewModel(
         }
         _errorMessage.value = null
         viewModelScope.launch { executeDownload(normalizedUrl) }
-    }
-
-    /**
-     * Search the public HuggingFace model API for GGUF repos matching [query]. Clears any
-     * previously selected repo's file listing, since it belongs to the old search.
-     */
-    fun searchHuggingFace(query: String) {
-        _errorMessage.value = null
-        _hfSelectedRepoId.value = null
-        _hfSelectedRepoFiles.value = null
-        hfSearchJob?.cancel()
-        hfSearchJob = viewModelScope.launch {
-            _hfSearchInProgress.value = true
-            HuggingFaceModelSearch.search(hfApi, query)
-                .onSuccess { _hfSearchResults.value = it }
-                .onFailure {
-                    _hfSearchResults.value = emptyList()
-                    _errorMessage.value = context.getString(
-                        R.string.local_llm_hf_search_failed_format,
-                        it.message ?: it::class.simpleName ?: "",
-                    )
-                }
-            _hfSearchInProgress.value = false
-        }
-    }
-
-    /** List [repoId]'s `.gguf` files. A gated or private repo lands in [hfSelectedRepoFiles]
-     *  as [HuggingFaceModelSearch.FilesResult.RequiresAccess]; see that type's doc for why
-     *  this never shows up as a failed or hanging download instead. */
-    fun selectHuggingFaceRepo(repoId: String) {
-        _hfSelectedRepoId.value = repoId
-        _hfSelectedRepoFiles.value = null
-        hfSelectRepoJob?.cancel()
-        hfSelectRepoJob = viewModelScope.launch {
-            _hfSelectedRepoFiles.value = HuggingFaceModelSearch.listGgufFiles(hfApi, repoId)
-        }
-    }
-
-    fun clearHuggingFaceSelection() {
-        _hfSelectedRepoId.value = null
-        _hfSelectedRepoFiles.value = null
-    }
-
-    /** Install a file found via HuggingFace search through the same [startManualDownload]
-     *  path a pasted URL uses: [ModelInstall.download] already resumes and validates. */
-    fun installFromHuggingFace(repoId: String, fileName: String) {
-        startManualDownload(HuggingFaceModelSearch.resolveUrl(repoId, fileName))
     }
 
     /**

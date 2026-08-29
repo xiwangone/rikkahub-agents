@@ -18,6 +18,9 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelType
+import me.rerere.ai.provider.ProviderSetting
 import kotlin.uuid.Uuid
 
 private const val TAG = "SubAgentEngine"
@@ -43,6 +46,33 @@ private const val TAG = "SubAgentEngine"
  *  - Both enforced at dispatch entry — over-cap requests fail fast (background) or block
  *    up to 30s waiting for a slot before failing (foreground, per spec).
  */
+    internal object SubAgentModelResolver {
+    sealed class Result {
+        data object Inherit : Result()
+        data class Resolved(val modelId: Uuid) : Result()
+        data class Failed(val message: String) : Result()
+    }
+
+    fun resolve(modelIdInput: String?, providers: List<ProviderSetting>): Result {
+        if (modelIdInput.isNullOrBlank()) return Result.Inherit
+        val chatModels: List<Pair<ProviderSetting, Model>> = providers
+            .filter { it.enabled }
+            .flatMap { provider -> provider.models.filter { it.type == ModelType.CHAT }.map { provider to it } }
+        val asUuid = runCatching { Uuid.parse(modelIdInput) }.getOrNull()
+        if (asUuid != null) {
+            chatModels.firstOrNull { (_, model) -> model.id == asUuid }
+                ?.let { (_, model) -> return Result.Resolved(model.id) }
+        }
+        val byModelId = chatModels.filter { (_, model) -> model.modelId.equals(modelIdInput, ignoreCase = true) }
+        if (byModelId.size == 1) return Result.Resolved(byModelId[0].second.id)
+        if (byModelId.size > 1) return Result.Failed("模型 ID \"" + modelIdInput + "\" 匹配多个，请用 UUID 重试")
+        val byDisplayName = chatModels.filter { (_, model) -> model.displayName.equals(modelIdInput, ignoreCase = true) }
+        if (byDisplayName.size == 1) return Result.Resolved(byDisplayName[0].second.id)
+        if (byDisplayName.size > 1) return Result.Failed("模型名 \"" + modelIdInput + "\" 匹配多个，请用 UUID 重试")
+        return Result.Failed("未找到模型 \"" + modelIdInput + "\"")
+    }
+}
+
 class SubAgentEngine(
     private val registry: SubAgentRegistry,
     private val conversationRepo: ConversationRepository,
