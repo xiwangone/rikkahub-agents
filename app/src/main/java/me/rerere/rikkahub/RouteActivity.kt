@@ -116,7 +116,6 @@ import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNotificationPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesGeneralPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPreferencesUIPage
 import me.rerere.rikkahub.ui.pages.setting.SettingThemePage
-import me.rerere.rikkahub.ui.pages.setting.SettingDonatePage
 import me.rerere.rikkahub.ui.pages.setting.SettingFilesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
@@ -521,16 +520,15 @@ class RouteActivity : ComponentActivity() {
                                 SettingSubAgentsPage()
                             }
 
-                            entry<Screen.SettingDonate> {
-                                SettingDonatePage()
-                            }
-
-                            entry<Screen.SettingFiles> {
-                                SettingFilesPage()
-                            }
 
                             entry<Screen.SettingWeb> {
-                                SettingWebPage()
+                            }
+                            entry<Screen.SettingWebServer> {
+                                SettingWebServerPage()
+                            }
+
+                            entry<Screen.SettingWebBridge> {
+                                SettingWebBridgePage()
                             }
 
                             entry<Screen.SettingTelegram> {
@@ -564,7 +562,9 @@ class RouteActivity : ComponentActivity() {
                                 me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNetworkPage()
                             }
                             entry<Screen.SettingQuota> {
-                                me.rerere.rikkahub.ui.pages.setting.SettingQuotaPage()
+                            }
+                            entry<Screen.QuotaConsole> { key ->
+                                me.rerere.rikkahub.ui.pages.setting.QuotaConsolePage(key.providerId)
                             }
                             entry<Screen.SettingSshHosts> {
                                 me.rerere.rikkahub.ui.pages.setting.SettingSshHostsPage()
@@ -827,14 +827,17 @@ sealed interface Screen : NavKey {
     @Serializable
     data object SettingSubAgents : Screen
 
-    @Serializable
-    data object SettingDonate : Screen
 
     @Serializable
     data object SettingFiles : Screen
 
     @Serializable
     data object SettingWeb : Screen
+    @Serializable
+    data object SettingWebServer : Screen
+
+    @Serializable
+    data object SettingWebBridge : Screen
 
     @Serializable
     data object SettingTelegram : Screen
@@ -858,6 +861,8 @@ sealed interface Screen : NavKey {
     data object SettingShizuku : Screen
     data object SettingPreferencesNetwork : Screen
     data object SettingQuota : Screen
+    @Serializable
+    data class QuotaConsole(val providerId: String) : Screen
     data object SettingSshHosts : Screen
     data class SshTerminal(val hostName: String) : Screen
     data object BackendService : Screen
@@ -925,3 +930,4 @@ sealed interface Screen : NavKey {
     data object Stats : Screen
 
 }
+

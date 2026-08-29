@@ -23,6 +23,8 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.ScheduledJobRepository
 import me.rerere.rikkahub.data.repository.ScheduledJobRunRepository
 import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
+import me.rerere.rikkahub.subagent.SubAgentModelResolver
+import me.rerere.rikkahub.subagent.SubAgentProfile
 import me.rerere.rikkahub.service.TelegramBotService
 import me.rerere.rikkahub.workflow.repository.WorkflowRepository
 import java.io.File

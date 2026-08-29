@@ -1,14 +1,5 @@
 package me.rerere.rikkahub.ui.pages.setting
 
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Tick01
-import me.rerere.hugeicons.stroke.StopCircle
-import me.rerere.hugeicons.stroke.DragDropHorizontal
-import me.rerere.hugeicons.stroke.PencilEdit01
-import me.rerere.hugeicons.stroke.Add01
-import me.rerere.hugeicons.stroke.Tools
-import me.rerere.hugeicons.stroke.Delete01
-import me.rerere.hugeicons.stroke.VolumeHigh
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues

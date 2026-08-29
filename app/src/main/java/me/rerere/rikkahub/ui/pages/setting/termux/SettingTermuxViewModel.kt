@@ -14,7 +14,6 @@ import me.rerere.rikkahub.data.preferences.TermuxRuntimeConfig
 class SettingTermuxViewModel(
     private val prefs: TermuxPreferences,
 ) : ViewModel() {
-
     /**
      * Combined settings state. Nested [combine] calls stay within the 5-argument typed
      * overloads to avoid the intersection-type warning from the vararg overload.
@@ -67,11 +66,6 @@ class SettingTermuxViewModel(
     /** [minutes] is the UI display unit for turn budget. Clamping in [TermuxPreferences]. */
     fun setTurnBudgetMinutes(minutes: Long) {
         viewModelScope.launch { prefs.setTurnBudgetMs(minutes * 60_000L) }
-    }
-
-    /** Tool-call iterations allowed in one turn (issue #22). Clamping in [TermuxPreferences]. */
-    fun setMaxToolSteps(steps: Long) {
-        viewModelScope.launch { prefs.setMaxToolSteps(steps.toInt()) }
     }
 
     /** [seconds] is the UI display unit for verify timeout. */

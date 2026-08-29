@@ -19,17 +19,8 @@ class SettingVM(
             .stateIn(viewModelScope, SharingStarted.Lazily, Settings(init = true, providers = emptyList()))
 
     fun updateSettings(settings: Settings) {
-        // Settings edits must survive leaving the settings screen immediately. Using the
-        // application scope prevents a ViewModel cancellation from dropping the DataStore edit
-        // while the user exits or navigates away after typing.
-        appScope.launch {
+        viewModelScope.launch {
             settingsStore.update(settings)
-        }
-    }
-
-    fun updateSettings(transform: (Settings) -> Settings) {
-        appScope.launch {
-            settingsStore.update(transform)
         }
     }
 }
