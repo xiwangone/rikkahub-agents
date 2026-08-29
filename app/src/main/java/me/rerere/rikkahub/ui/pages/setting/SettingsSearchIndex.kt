@@ -180,13 +180,6 @@ fun settingsSearchIndex(developerMode: Boolean): List<SettingsSearchEntry> {
             groupRes = R.string.setting_page_about,
             route = Screen.Log,
         ),
-        SettingsSearchEntry(
-            titleRes = R.string.setting_page_donate,
-            descriptionRes = R.string.setting_page_donate_desc,
-            groupRes = R.string.setting_page_about,
-            route = Screen.SettingDonate,
-        ),
-
         // Preferences sub-pages
         SettingsSearchEntry(
             titleRes = R.string.setting_page_preferences_theme,
