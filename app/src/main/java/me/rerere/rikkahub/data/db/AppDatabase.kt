@@ -73,7 +73,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         VaultAuditLogEntity::class,
         CompressedArchiveEntity::class,
     ],
-    version = 32,
+    version = 33,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
