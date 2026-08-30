@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.extensions.workspace
 
+import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.imePadding
@@ -108,7 +109,7 @@ fun WorkspaceFileEditorPage(
                             },
                             enabled = !saving,
                         ) {
-                            Text("Save")
+                            Text(stringResource(R.string.workspace_file_editor_save))
                         }
                     }
                 },

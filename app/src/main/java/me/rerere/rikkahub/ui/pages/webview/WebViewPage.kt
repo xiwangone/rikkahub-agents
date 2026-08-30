@@ -127,7 +127,7 @@ fun WebViewPage(
                             onDismissRequest = { showDropdown = false },
                         ) {
                             DropdownMenuItem(
-                                text = { Text("Open in Browser") },
+                                text = { Text(stringResource(R.string.webview_open_in_browser)) },
                                 leadingIcon = { Icon(HugeIcons.Earth, contentDescription = null) },
                                 onClick = {
                                     showDropdown = false
@@ -139,7 +139,7 @@ fun WebViewPage(
                                 },
                             )
                             DropdownMenuItem(
-                                text = { Text("Console Logs") },
+                                text = { Text(stringResource(R.string.webview_console_logs)) },
                                 leadingIcon = { Icon(HugeIcons.Bug01, contentDescription = null) },
                                 onClick = {
                                     showDropdown = false

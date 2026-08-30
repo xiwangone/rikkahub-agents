@@ -2613,4 +2613,17 @@
   <string name="setting_sub_agents_page_delete">Delete</string>
   <string name="setting_sub_agents_page_cancel">Cancel</string>
   <string name="setting_sub_agents_page_confirm">Save</string>
+  <string name="webview_open_in_browser">Open in Browser</string>
+  <string name="webview_console_logs">Console Logs</string>
+  <string name="workspace_file_editor_save">Save</string>
+  <string name="search_detail_mode">Mode</string>
+  <string name="tts_language_type">Language Type</string>
+  <string name="tts_language_type_desc">Language type for TTS synthesis</string>
+  <string name="tts_language">Language</string>
+  <string name="tts_response_format">Response Format</string>
+  <string name="tts_volume">Volume</string>
+  <string name="tts_sample_rate">Sample Rate</string>
+  <string name="tts_instruction">Instruction</string>
+  <string name="asr_optional">Optional</string>
+  <string name="chain_of_thought">Chain of thought</string>
 </resources>

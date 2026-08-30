@@ -733,8 +733,8 @@ private fun QwenTTSConfiguration(
     val languageTypes = listOf("Auto", "Chinese", "English", "Japanese", "Korean")
 
     FormItem(
-        label = { Text("Language Type") },
-        description = { Text("Language type for TTS synthesis") },
+        label = { Text(stringResource(R.string.tts_language_type)) },
+        description = { Text(stringResource(R.string.tts_language_type_desc)) },
     ) {
         ExposedDropdownMenuBox(
             expanded = languageExpanded,
@@ -974,7 +974,7 @@ private fun XAITTSConfiguration(
         )
 
     FormItem(
-        label = { Text("Language") },
+        label = { Text(stringResource(R.string.tts_language)) },
     ) {
         ExposedDropdownMenuBox(
             expanded = languageExpanded,
@@ -1433,7 +1433,7 @@ private fun StepTTSConfiguration(
     val formats = listOf("mp3", "wav", "pcm", "opus", "flac")
 
     FormItem(
-        label = { Text("Response Format") },
+        label = { Text(stringResource(R.string.tts_response_format)) },
         description = { Text(stringResource(R.string.tts_audio_format_desc)) },
     ) {
         ExposedDropdownMenuBox(
@@ -1489,7 +1489,7 @@ private fun StepTTSConfiguration(
 
     // Volume
     FormItem(
-        label = { Text("Volume") },
+        label = { Text(stringResource(R.string.tts_volume)) },
         description = { Text(stringResource(R.string.tts_volume_desc)) },
     ) {
         OutlinedNumberInput(
@@ -1509,7 +1509,7 @@ private fun StepTTSConfiguration(
     val sampleRates = listOf(8000, 16000, 22050, 24000)
 
     FormItem(
-        label = { Text("Sample Rate") },
+        label = { Text(stringResource(R.string.tts_sample_rate)) },
         description = { Text(stringResource(R.string.tts_sample_rate_desc)) },
     ) {
         ExposedDropdownMenuBox(
@@ -1547,7 +1547,7 @@ private fun StepTTSConfiguration(
 
     // Instruction (仅 stepaudio-2.5-tts 生效)
     FormItem(
-        label = { Text("Instruction") },
+        label = { Text(stringResource(R.string.tts_instruction)) },
         description = { Text(stringResource(R.string.tts_global_instruction_desc)) },
     ) {
         OutlinedTextField(

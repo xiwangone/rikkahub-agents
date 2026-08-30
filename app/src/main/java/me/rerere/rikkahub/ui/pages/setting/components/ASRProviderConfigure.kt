@@ -129,7 +129,7 @@ private fun OpenAIRealtimeASRConfiguration(
             onValueChange = { onValueChange(setting.copy(prompt = it)) },
             modifier = Modifier.fillMaxWidth(),
             minLines = 2,
-            placeholder = { Text("Optional") },
+            placeholder = { Text(stringResource(R.string.asr_optional)) },
         )
     }
 
