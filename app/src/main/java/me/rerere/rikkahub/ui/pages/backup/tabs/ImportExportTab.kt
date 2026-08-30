@@ -131,28 +131,36 @@ fun ImportExportTab(
                                 val tempFile =
                                     File(context.cacheDir, "temp_chatbox_${System.currentTimeMillis()}.json")
 
+                            // 清理临时文件
+                            tempFile.delete()
+                        }
+
+                        "chatbox" -> {
+                            // Chatbox Backup v2：处理 ZIP 文件
+                            val tempFile =
+                                File(context.cacheDir, "temp_chatbox_${System.currentTimeMillis()}.zip")
+
+                            try {
                                 context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
                                     FileOutputStream(tempFile).use { outputStream ->
                                         inputStream.copyTo(outputStream)
                                     }
                                 }
 
-                                // 从Chatbox文件恢复
                                 vm.restoreFromChatBox(tempFile)
-
-                                // 清理临时文件
+                            } finally {
                                 tempFile.delete()
                             }
+                        }
 
-                            "cherry" -> {
-                                // Cherry Studio导入：处理zip文件
-                                val tempFile =
-                                    File(context.cacheDir, "temp_cherry_${System.currentTimeMillis()}.zip")
+                        "cherry" -> {
+                            // Cherry Studio导入：处理zip文件
+                            val tempFile =
+                                File(context.cacheDir, "temp_cherry_${System.currentTimeMillis()}.zip")
 
-                                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                                    FileOutputStream(tempFile).use { outputStream ->
-                                        inputStream.copyTo(outputStream)
-                                    }
+                            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                                FileOutputStream(tempFile).use { outputStream ->
+                                    inputStream.copyTo(outputStream)
                                 }
 
                                 // 从Cherry Studio备份恢复
@@ -301,15 +309,12 @@ fun ImportExportTab(
         item {
             CardGroup {
                 item(
-                    onClick =
-                        if (!isRestoring) {
-                            {
-                                importType = "chatbox"
-                                openDocumentLauncher.launch(arrayOf("application/json"))
-                            }
-                        } else {
-                            null
-                        },
+                    onClick = if (!isRestoring) {
+                        {
+                            importType = "chatbox"
+                            openDocumentLauncher.launch(arrayOf("application/zip"))
+                        }
+                    } else null,
                     headlineContent = { Text(stringResource(R.string.backup_page_import_from_chatbox)) },
                     supportingContent = { Text(stringResource(R.string.backup_page_import_chatbox_desc)) },
                     leadingContent = {
