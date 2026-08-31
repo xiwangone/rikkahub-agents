@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -72,7 +73,10 @@ fun SshKeyPairDialog(
         title = { Text(if (savedName == null) "生成 SSH 密钥对" else "密钥已保存") },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (savedName == null) {
@@ -114,22 +118,21 @@ fun SshKeyPairDialog(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
-                    // 第二步：显示公钥（可复制）
+                    // 第二步：显示公钥（可复制/可选中）
                     Text(
                         "私钥已保存到凭证库「$savedName」。将以下公钥添加到目标服务器的 authorized_keys：",
                         style = MaterialTheme.typography.bodySmall,
                     )
-                    Text(
-                        publicKey ?: "",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.primary,
-                        maxLines = 6,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .padding(8.dp)
-                            .verticalScroll(rememberScrollState()),
-                    )
+                    androidx.compose.foundation.text.selection.SelectionContainer {
+                        Text(
+                            publicKey ?: "",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(8.dp),
+                        )
+                    }
                     OutlinedButton(
                         onClick = {
                             clipboard.setText(androidx.compose.ui.text.AnnotatedString(publicKey ?: ""))
