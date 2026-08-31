@@ -61,6 +61,7 @@ fun SshKeyPairDialog(
 
     var name by remember { mutableStateOf(credentialName.ifBlank { "ssh-key-${System.currentTimeMillis() % 100000}" }) }
     var group by remember { mutableStateOf(defaultGroup.ifBlank { "SSH" }) }
+    var keyType by remember { mutableStateOf(SshKeyGenerator.KeyType.RSA) }
     var generating by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var publicKey by remember { mutableStateOf<String?>(null) }
@@ -75,7 +76,7 @@ fun SshKeyPairDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (savedName == null) {
-                    // 第一步：输入凭证名 → 生成
+                    // 第一步：输入凭证名 → 选择算法 → 生成
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
@@ -90,11 +91,25 @@ fun SshKeyPairDialog(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    // 算法选择（三选一）
+                    Text("算法类型", style = MaterialTheme.typography.labelMedium)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        SshKeyGenerator.KeyType.entries.forEach { t ->
+                            OutlinedButton(
+                                onClick = { keyType = t },
+                                enabled = !generating,
+                                border = androidx.compose.foundation.BorderStroke(
+                                    if (keyType == t) 2.dp else 0.dp,
+                                    if (keyType == t) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                ),
+                            ) { Text(t.label) }
+                        }
+                    }
                     if (error != null) {
                         Text(error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                     Text(
-                        "将生成 RSA-2048 密钥对：私钥加密存入凭证库，公钥用于配置服务器 authorized_keys。",
+                        "私钥将加密存入凭证库；公钥用于配置服务器 authorized_keys。Ed25519 需 Android 14+。",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -138,18 +153,22 @@ fun SshKeyPairDialog(
                         error = null
                         scope.launch {
                             val result = withContext(Dispatchers.Default) {
-                                runCatching { SshKeyGenerator.generate() }
+                                runCatching { SshKeyGenerator.generate(keyType) }
                             }
                             result.onSuccess { pair ->
                                 try {
-                                    repository.save(name.trim(), pair.privateKeyPem, "SSH 密钥对（生成于 RikkaHub Agents）", group.trim().ifBlank { "SSH" })
+                                    repository.save(name.trim(), pair.privateKeyPem, "SSH 密钥对（生成于 RikkaHub Agents, $keyType）", group.trim().ifBlank { "SSH" })
                                     publicKey = pair.publicKeyLine
                                     savedName = name.trim()
                                 } catch (e: Throwable) {
                                     error = "保存凭证失败: ${e.message}"
                                 }
                             }.onFailure { e ->
-                                error = "生成密钥失败: ${e.message}"
+                                error = if (e is java.security.NoSuchAlgorithmException) {
+                                    "当前系统不支持 ${keyType.label}（需 Android 14+ 支持 Ed25519），请换 RSA 或 ECDSA"
+                                } else {
+                                    "生成密钥失败: ${e.message}"
+                                }
                             }
                             generating = false
                         }
