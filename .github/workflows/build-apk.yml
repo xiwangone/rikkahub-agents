@@ -80,14 +80,14 @@ jobs:
         id: pick
         run: |
           if [ "${{ github.event_name }}" = "push" ]; then
-            echo "task=debug" >> $GITHUB_OUTPUT
-            echo "触发方式: push → assembleDebug（快速编译验证，5-10 分钟，不开 R8）"
+            echo "task=release" >> $GITHUB_OUTPUT
+            echo "触发方式: push → assembleRelease（正式签名 R8 全量编译）"
           else
             echo "task=${{ inputs.build_type }}" >> $GITHUB_OUTPUT
             echo "触发方式: workflow_dispatch → ${{ inputs.build_type }}"
           fi
 
-      - name: 编译（push=debug 快速验证 / 手动可选 release）
+      - name: 编译（push=正式签名 release / 手动可选 debug）
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
