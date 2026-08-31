@@ -860,15 +860,23 @@ sealed interface Screen : NavKey {
     data object SettingTermux : Screen
 
     @Serializable
+    @Serializable
     data object SettingShizuku : Screen
+    @Serializable
     data object SettingPreferencesNetwork : Screen
+    @Serializable
     data object SettingQuota : Screen
     @Serializable
     data class QuotaConsole(val providerId: String) : Screen
+    @Serializable
     data object SettingSshHosts : Screen
+    @Serializable
     data class SshTerminal(val hostName: String) : Screen
+    @Serializable
     data object BackendService : Screen
+    @Serializable
     data object Vault : Screen
+    @Serializable
     data object VaultCredentials : Screen
 
     @Serializable
