@@ -27,14 +27,14 @@ object VaultFormats {
      * 未定义的环境变量保留原样（不报错），以便导入后手动补。
      */
     fun interpolateEnv(value: String): String {
-        // ${VAR} 形式
-        var result = Regex("\\$\\{([A-Za-z_][A-Za-z0-9_]*)\\}").replace(value) { m ->
+        // ${VAR} 形式（raw string，避免 Kotlin 模板/转义问题）
+        var result = Regex("""\$\{([A-Za-z_][A-Za-z0-9_]*)\}""").replace(value) { m ->
             System.getenv(m.groupValues[1]) ?: m.value
         }
         // $VAR 形式（非 ${} 的）
-        result = Regex("\\$([A-Za-z_][A-Za-z0-9_]*)").replace(result) { m ->
+        result = Regex("""\$([A-Za-z_][A-Za-z0-9_]*)""").replace(result) { m ->
             // 跳过已被 ${} 处理的部分：$ 后紧跟 { 的不处理
-            if (m.value.startsWith("${")) m.value
+            if (m.value.length > 1 && m.value[1] == '{') m.value
             else System.getenv(m.groupValues[1]) ?: m.value
         }
         return result
