@@ -2,7 +2,7 @@ package me.rerere.rikkahub.ui.components.setting
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
@@ -103,9 +103,12 @@ fun SshKeyPairDialog(
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
-                    // 算法选择（三选一）
+                    // 算法选择（三选一，FlowRow 换行防止按钮溢出屏幕）
                     Text("算法类型", style = MaterialTheme.typography.labelMedium)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    androidx.compose.foundation.layout.FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
                         SshKeyGenerator.KeyType.entries.forEach { t ->
                             OutlinedButton(
                                 onClick = { keyType = t },
