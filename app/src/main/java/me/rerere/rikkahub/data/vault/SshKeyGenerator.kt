@@ -89,6 +89,8 @@ object SshKeyGenerator {
 
     private fun generateEd25519(): SshKeyPair {
         val gen = KeyPairGenerator.getInstance("Ed25519")
+        // 部分 Provider（Conscrypt）必须显式 initialize，否则 generateKeyPair 报 Not initialized
+        gen.initialize(255)
         val pair = gen.generateKeyPair()
         val pubBytes = (pair.public as java.security.interfaces.EdECPublicKey).point.y.toByteArray()
             .let { y ->

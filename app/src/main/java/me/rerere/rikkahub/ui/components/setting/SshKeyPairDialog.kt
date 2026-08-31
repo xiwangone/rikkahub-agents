@@ -62,6 +62,7 @@ fun SshKeyPairDialog(
 
     var name by remember { mutableStateOf(credentialName.ifBlank { "ssh-key-${System.currentTimeMillis() % 100000}" }) }
     var group by remember { mutableStateOf(defaultGroup.ifBlank { "SSH" }) }
+    var description by remember { mutableStateOf("SSH 密钥对（生成于 RikkaHub Agents）") }
     var keyType by remember { mutableStateOf(SshKeyGenerator.KeyType.RSA) }
     var generating by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -92,6 +93,13 @@ fun SshKeyPairDialog(
                         value = group,
                         onValueChange = { group = it },
                         label = { Text("凭证分组（如 SSH）") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    OutlinedTextField(
+                        value = description,
+                        onValueChange = { description = it },
+                        label = { Text("描述（可选）") },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -160,7 +168,12 @@ fun SshKeyPairDialog(
                             }
                             result.onSuccess { pair ->
                                 try {
-                                    repository.save(name.trim(), pair.privateKeyPem, "SSH 密钥对（生成于 RikkaHub Agents, $keyType）", group.trim().ifBlank { "SSH" })
+                                    repository.save(
+                                        name = name.trim(),
+                                        value = pair.privateKeyPem,
+                                        description = description.trim().ifBlank { "SSH 密钥对（生成于 RikkaHub Agents, $keyType）" },
+                                        group = group.trim().ifBlank { "SSH" },
+                                    )
                                     publicKey = pair.publicKeyLine
                                     savedName = name.trim()
                                 } catch (e: Throwable) {
