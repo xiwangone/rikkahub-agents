@@ -860,7 +860,6 @@ sealed interface Screen : NavKey {
     data object SettingTermux : Screen
 
     @Serializable
-    @Serializable
     data object SettingShizuku : Screen
     @Serializable
     data object SettingPreferencesNetwork : Screen
