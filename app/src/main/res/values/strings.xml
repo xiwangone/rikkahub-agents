@@ -2101,10 +2101,10 @@
   <string name="vault_fingerprint_desc">Require fingerprint / screen lock when opening the vault</string>
   <string name="vault_fingerprint_plan">Planned: BiometricPrompt + CryptoObject bound to the Keystore key, releasing decryption only after fingerprint passes.</string>
   <string name="vault_import_title">Import from file</string>
-  <string name="vault_import_desc">Supports load-creds.sh format (export KEY="value" + # comment groups). Pick a credential file on your phone to batch-import.</string>
+  <string name="vault_import_desc">Supports load-creds.sh (export KEY="value"), CSV (name,value,description,group) and Bitwarden JSON formats. Auto-detected.</string>
   <string name="vault_import_button">Choose file to import</string>
   <string name="vault_export_title">Emergency export / unlock session (planned)</string>
-  <string name="vault_export_desc">Later: password-encrypted .vault export, short-lived unlock sessions for sandbox/ECS remote decryption.</string>
+  <string name="vault_export_desc">Export credentials as encrypted .vault (password-protected), plaintext CSV, or Bitwarden JSON. Plain formats interpolate ${VAR} from environment variables.</string>
   <string name="vault_danger_zone">Danger zone</string>
   <string name="vault_clear_all">Clear all credentials</string>
   <string name="vault_clear_confirm_title">Clear all credentials?</string>
@@ -2332,7 +2332,7 @@
   <string name="vault_export_button">Export .vault package</string>
   <string name="vault_export_password_required">Enter an export password</string>
   <string name="vault_export_cancelled">Cancelled (biometric not verified)</string>
-  <string name="vault_export_success">Exported %1$d credentials to .vault package</string>
+  <string name="vault_export_success">Exported %1$d credentials to %2$s format</string>
   <string name="vault_export_failed">Export failed: %1$s</string>
   <string name="vault_import_success">Imported %1$d credentials (%2$d parsed)</string>
   <string name="vault_import_failed">Import failed: %1$s</string>

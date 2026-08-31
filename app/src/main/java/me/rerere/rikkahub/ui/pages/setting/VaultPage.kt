@@ -76,6 +76,7 @@ fun VaultPage() {
     var showClearDialog by remember { mutableStateOf(false) }
     var exportPassword by remember { mutableStateOf("") }
     var exportResult by remember { mutableStateOf<String?>(null) }
+    var exportFormat by remember { mutableStateOf(VaultFormats.FORMAT_VAULT) }
     var backupPassword by remember { mutableStateOf("") }
     var backupResult by remember { mutableStateOf<String?>(null) }
     var auditLogs by remember { mutableStateOf<List<VaultAuditLogEntity>>(emptyList()) }
@@ -180,17 +181,21 @@ fun VaultPage() {
             }
         }
 
-    // 导出：加密 .vault 包写入用户选择的位置
+    // 导出：加密 .vault / 明文 CSV / Bitwarden JSON，写入用户选择的位置
     val exportLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-            if (uri != null && exportPassword.isNotBlank()) {
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
+            if (uri != null) {
                 val titleStr = context.getString(R.string.vault_biometric_export_title)
                 val cancelledStr = context.getString(R.string.vault_export_cancelled)
                 val successStr = context.getString(R.string.vault_export_success)
                 val failedStr = context.getString(R.string.vault_export_failed)
                 scope.launch {
                     runCatching {
-                        if (biometricEnabled) {
+                        if (exportFormat == VaultFormats.FORMAT_VAULT && exportPassword.isBlank()) {
+                            exportResult = context.getString(R.string.vault_export_password_required)
+                            return@launch
+                        }
+                        if (biometricEnabled && exportFormat == VaultFormats.FORMAT_VAULT) {
                             val ok = VaultBiometric.authenticate(context, biometricBuffer, titleStr)
                             if (!ok) {
                                 exportResult = cancelledStr
@@ -200,16 +205,20 @@ fun VaultPage() {
                         val entries = repository.getAll()
                         val plaintexts =
                             entries.mapNotNull { e ->
-                                repository.decryptValue(e)?.let { Triple(e.name, it, e.description) }
+                                repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp) }
                             }
-                        val vaultJson = VaultExporter.export(exportPassword, plaintexts)
+                        val output = when (exportFormat) {
+                            VaultFormats.FORMAT_CSV -> VaultFormats.toCsv(plaintexts)
+                            VaultFormats.FORMAT_BITWARDEN -> VaultFormats.toBitwarden(plaintexts)
+                            else -> VaultExporter.exportWithGroups(exportPassword, plaintexts)
+                        }
                         context.contentResolver.openOutputStream(uri)?.use { out ->
-                            out.write(vaultJson.encodeToByteArray())
+                            out.write(output.encodeToByteArray())
                         }
-                        plaintexts.forEach { (name, _, _) ->
-                            repository.logAccess(name, "export", "export")
+                        plaintexts.forEach { q ->
+                            repository.logAccess(q.name, "export", "export-$exportFormat")
                         }
-                        exportResult = successStr.format(plaintexts.size)
+                        exportResult = successStr.format(plaintexts.size, exportFormat)
                     }.onFailure { e ->
                         exportResult = failedStr.format(e.message ?: "")
                     }
@@ -217,7 +226,7 @@ fun VaultPage() {
             }
         }
 
-    // SAF 文件选择：导入 load-creds.sh
+    // SAF 文件选择：导入 load-creds.sh / CSV / Bitwarden JSON（自动识别）
     val importLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null) {
@@ -227,7 +236,14 @@ fun VaultPage() {
                             context.contentResolver.openInputStream(uri)?.use { input ->
                                 BufferedReader(InputStreamReader(input)).readText()
                             } ?: ""
-                        val parsed = CredentialImporter.parse(content)
+                        // 自动识别格式
+                        val parsed = when {
+                            content.trimStart().startsWith("{") && content.contains("\"items\"") ->
+                                VaultFormats.fromBitwarden(content).map { CredentialImporter.ParsedEntry(it.name, it.plaintext, it.description, it.group) }
+                            content.trimStart().startsWith("name,") ->
+                                VaultFormats.fromCsv(content).map { CredentialImporter.ParsedEntry(it.name, it.plaintext, it.description, it.group) }
+                            else -> CredentialImporter.parse(content)
+                        }
                         val imported = repository.importEntries(parsed)
                         importResult = context.getString(R.string.vault_import_success, imported, parsed.size)
                     }.onFailure { e ->
@@ -591,22 +607,55 @@ fun VaultPage() {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        OutlinedTextField(
-                            value = exportPassword,
-                            onValueChange = { exportPassword = it },
-                            label = { Text(stringResource(R.string.vault_export_password_label)) },
-                            singleLine = true,
-                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
-                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        // 导出格式选择
+                        Text("导出格式", style = MaterialTheme.typography.labelMedium)
+                        androidx.compose.foundation.layout.FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            listOf(
+                                VaultFormats.FORMAT_VAULT to ".vault（加密，口令保护）",
+                                VaultFormats.FORMAT_CSV to "CSV（明文）",
+                                VaultFormats.FORMAT_BITWARDEN to "Bitwarden JSON（明文）",
+                            ).forEach { (fmt, label) ->
+                                OutlinedButton(
+                                    onClick = { exportFormat = fmt; exportResult = null },
+                                    border = androidx.compose.foundation.BorderStroke(
+                                        if (exportFormat == fmt) 2.dp else 0.dp,
+                                        if (exportFormat == fmt) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                    ),
+                                ) { Text(label) }
+                            }
+                        }
+                        if (exportFormat == VaultFormats.FORMAT_VAULT) {
+                            OutlinedTextField(
+                                value = exportPassword,
+                                onValueChange = { exportPassword = it },
+                                label = { Text(stringResource(R.string.vault_export_password_label)) },
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                                visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        } else {
+                            Text(
+                                "明文格式：值中的 \${VAR} 将替换为环境变量值（未定义的保留原样）。",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         OutlinedButton(
                             onClick = {
-                                if (exportPassword.isBlank()) {
+                                if (exportFormat == VaultFormats.FORMAT_VAULT && exportPassword.isBlank()) {
                                     exportResult = context.getString(R.string.vault_export_password_required)
                                     return@OutlinedButton
                                 }
-                                exportLauncher.launch("RikkaHub-Vault-${System.currentTimeMillis()}.vault")
+                                val suffix = when (exportFormat) {
+                                    VaultFormats.FORMAT_CSV -> ".csv"
+                                    VaultFormats.FORMAT_BITWARDEN -> ".json"
+                                    else -> ".vault"
+                                }
+                                exportLauncher.launch("RikkaHub-Vault-${System.currentTimeMillis()}$suffix")
                             },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
