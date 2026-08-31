@@ -1793,51 +1793,14 @@
   <string name="assistant_page_context_message_limit_count">Лимит сообщений контекста: %d</string>
   <string name="assistant_page_context_message_limit_unlimited">Неограниченные сообщения контекста</string>
   <string name="assistant_page_context_message_limit_warning">Ограничение контекста аннулирует кэш промпта каждый раз, когда контекст усекается. Больший лимит усекает реже; безлимитный не усекает никогда и сохраняет кэш полностью нетронутым.</string>
-  <string name="setting_model_page_enable_auto_compaction">Включить автоматическое сжатие контекста</string>
-  <string name="setting_model_page_enable_auto_compaction_desc">Автоматически суммировать старые сообщения, когда диалог приближается к лимиту контекста модели</string>
-  <string name="setting_model_page_auto_compaction_threshold">Порог сжатия</string>
-  <string name="setting_model_page_auto_compaction_threshold_desc">Выберите порог контекста. Автоматическое сжатие начинается, когда оценка достигает выбранного процента или количества токенов.</string>
-  <string name="setting_model_page_auto_compaction_mode_percent">Процент</string>
-  <string name="setting_model_page_auto_compaction_mode_tokens">Количество токенов</string>
-  <string name="setting_model_page_auto_compaction_tokens">Порог токенов</string>
-  <string name="setting_model_page_auto_compaction_tokens_desc">Введите порог в тысячах токенов. Например, 8k означает 8 000 токенов.</string>
-  <string name="setting_model_page_context_compaction_target">Цель сжатия</string>
-  <string name="setting_model_page_context_compaction_target_desc">Укажите целевой размер сводки в тысячах токенов. Оставьте пустым, чтобы использовать 1% текущего контекста (например, 3k для контекста 300k).</string>
-  <string name="setting_model_page_auto_compaction_keep_tool_calls">Сохранять последние вызовы инструментов</string>
-  <string name="setting_model_page_auto_compaction_keep_tool_calls_desc">Автоматическое сжатие сохраняет исходные входные данные и результаты этих вызовов. Установите 0, чтобы сжать весь текущий контекст.</string>
-  <string name="setting_model_page_response_stream_retries">Повторные попытки потока Response API</string>
-  <string name="setting_model_page_response_stream_retries_desc">Если поток Response API закрывается до завершения, повторить запрос указанное число раз. Установите 0, чтобы отключить автоматические повторы.</string>
-  <string name="setting_model_page_response_stream_retries_input">Максимальное число повторов</string>
 
   <!-- BrowserAiStripe redesign: outcome-aware, localized action trail -->
-  <string name="browser_ai_stripe_stop">Стоп</string>
-  <string name="browser_ai_action_open">Открытие %1$s</string>
-  <string name="browser_ai_action_click">Нажато %1$s</string>
-  <string name="browser_ai_action_type">Ввод в %1$s</string>
-  <string name="browser_ai_action_scroll">Прокручено %1$s</string>
-  <string name="browser_ai_action_submit">Отправлено %1$s</string>
-  <string name="browser_ai_action_select">Выбран вариант в %1$s</string>
-  <string name="browser_ai_action_key">Нажата клавиша %1$s</string>
-  <string name="browser_ai_action_js">Выполнен JavaScript</string>
-  <string name="browser_ai_action_screenshot">Сделан снимок экрана</string>
-  <string name="browser_ai_action_read">Прочитано %1$s</string>
-  <string name="browser_ai_action_back">Назад</string>
-  <string name="browser_ai_action_forward">Вперёд</string>
-  <string name="browser_ai_action_done">Готово: %1$s</string>
-  <string name="browser_ai_action_stopped">Остановлено пользователем</string>
-  <string name="browser_ai_action_failed">Ошибка: %1$s</string>
   <string name="search_picker_local_title">Локальный поиск</string>
   <string name="search_picker_local_description">Подключение к различным сторонним поисковым провайдерам</string>
   <string name="search_picker_model_title">Поиск через модель</string>
   <string name="search_picker_model_description">Облачный поиск, встроенный в провайдера моделей</string>
   <string name="search_picker_select_provider">Выберите провайдера поиска</string>
   <string name="search_picker_turn_off">Отключить поиск</string>
-  <string name="setting_update_reminder_enabled">Напоминания об обновлениях включены</string>
-  <string name="setting_update_reminder_paused_until">Приостановлено до %1$s</string>
-  <string name="setting_update_reminder_pause_title">Приостановить напоминания об обновлениях</string>
-  <string name="setting_update_reminder_pause_description">Выберите, как долго приостановить напоминания об обновлениях. Они возобновятся автоматически.</string>
-  <string name="setting_update_reminder_pause_days">%1$d дн.</string>
-  <string name="setting_update_reminder_resume_now">Возобновить сейчас</string>
   <string name="reasoning_max">Максимум</string>
 </resources>
 
