@@ -2082,6 +2082,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="vault_empty_title">还没有凭证</string>
   <string name="vault_empty_desc">点右上角 + 新建，或回上一页「从文件导入」批量导入 load-creds.sh。</string>
   <string name="vault_new">新建凭证</string>
+  <string name="vault_new_key">生成 SSH 密钥</string>
   <string name="vault_delete_confirm_title">删除 %1$s？</string>
   <string name="vault_delete_confirm_text">将从密钥库移除该凭证。此操作不可撤销。</string>
   <string name="vault_delete">删除</string>

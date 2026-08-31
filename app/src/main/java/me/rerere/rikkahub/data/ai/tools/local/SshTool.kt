@@ -248,6 +248,14 @@ internal fun SshAuth.isUsable() = !password.isNullOrBlank() || !privateKey.isNul
  * the connect to fail (MITM protection).
  */
 internal fun newJSch(context: Context): JSch {
+    // 兼容老 SSH 服务端（如小米路由 dropbear 2017.75 只提供 ssh-rsa host key）：
+    // 把 ssh-rsa 追加到 server_host_key 候选列表末尾，新算法优先、老设备也能连。
+    // JSch.setConfig 是全局配置，对所有后续 newJSch() 实例生效。
+    JSch.setConfig(
+        "server_host_key",
+        "ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521," +
+            "rsa-sha2-512,rsa-sha2-256,ssh-rsa"
+    )
     val jsch = JSch()
     val knownHosts = knownHostsFile(context)
     if (!knownHosts.exists()) {

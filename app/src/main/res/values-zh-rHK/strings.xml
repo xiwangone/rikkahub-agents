@@ -1851,6 +1851,7 @@
   <string name="vault_empty_title">還沒有憑證</string>
   <string name="vault_empty_desc">點右上角 + 新建，或回上一頁「從檔案匯入」批次匯入 load-creds.sh。</string>
   <string name="vault_new">新建憑證</string>
+  <string name="vault_new_key">生成 SSH 金鑰</string>
   <string name="vault_delete_confirm_title">刪除 %1$s？</string>
   <string name="vault_delete_confirm_text">將從憑證庫移除該憑證。此操作不可撤銷。</string>
   <string name="vault_delete">刪除</string>

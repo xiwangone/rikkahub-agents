@@ -53,6 +53,16 @@ const val WEB_SERVER_NOTIFICATION_CHANNEL_ID = "web_server"
 class RikkaHubApp : Application() {
     override fun onCreate() {
         super.onCreate()
+        // 兼容老 SSH 服务端（如小米路由 dropbear 2017.75 只提供 ssh-rsa host key）：
+        // 全局放宽 JSch 的 server_host_key 候选，ssh-rsa 追加在末尾（新算法优先）。
+        // 覆盖所有裸 new JSch() 实例（SSH 工具/终端/后端隧道/Vault SSH）。
+        try {
+            com.jcraft.jsch.JSch.setConfig(
+                "server_host_key",
+                "ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521," +
+                    "rsa-sha2-512,rsa-sha2-256,ssh-rsa"
+            )
+        } catch (_: Throwable) {}
         // :ai (and other sub-:app modules) have no BuildConfig of their own, so this is
         // how their provider code learns whether it's running a debug build — needed to
         // gate full request/response body logging the same way HttpLoggingInterceptor

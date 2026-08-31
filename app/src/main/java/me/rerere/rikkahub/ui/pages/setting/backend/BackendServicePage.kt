@@ -34,8 +34,10 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.BackendConnection
 import me.rerere.rikkahub.data.model.BackendTypes
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
 
@@ -213,10 +215,17 @@ private fun BackendEditDialog(
     onSave: (BackendConnection) -> Unit,
     onDelete: (BackendConnection) -> Unit,
 ) {
+    val vaultRepo: CredentialVaultRepository = koinInject()
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var type by remember { mutableStateOf(initial?.type ?: BackendTypes.BACKEND) }
     var endpoint by remember { mutableStateOf(initial?.endpoint ?: "") }
     var authRef by remember { mutableStateOf(initial?.authRef ?: "") }
+    var credentialNames by remember { mutableStateOf<List<String>>(emptyList()) }
+
+    // 加载凭证库名称，供下拉选择
+    LaunchedEffect(Unit) {
+        credentialNames = runCatching { vaultRepo.getAll().map { it.name } }.getOrDefault(emptyList())
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -227,6 +236,18 @@ private fun BackendEditDialog(
                 OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("类型（backend/ssh/custom）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, label = { Text("地址（backend baseUrl / SSH host:port）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = authRef, onValueChange = { authRef = it }, label = { Text("Vault 凭证引用（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                // 凭证库下拉快捷选择：点击填入 authRef
+                if (credentialNames.isNotEmpty()) {
+                    Select(
+                        options = credentialNames,
+                        selectedOption = credentialNames.firstOrNull() ?: "",
+                        onOptionSelected = { authRef = it },
+                        optionToString = { it },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                } else {
+                    Text("（凭证库为空，可手动输入凭证名）", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
             }
         },
         confirmButton = {

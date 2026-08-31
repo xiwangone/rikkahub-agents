@@ -40,6 +40,7 @@ import me.rerere.hugeicons.stroke.Edit02
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.hugeicons.stroke.Key01
+import me.rerere.hugeicons.stroke.Key01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
@@ -47,6 +48,7 @@ import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultBiometric
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.SshKeyPairDialog
 import me.rerere.rikkahub.ui.components.ui.Select
 import org.koin.compose.koinInject
 
@@ -63,6 +65,7 @@ fun VaultCredentialsPage() {
     var revealedNames by remember { mutableStateOf<Set<String>>(emptySet()) }
     var showEditor by remember { mutableStateOf<EditorMode?>(null) }
     var deleteTarget by remember { mutableStateOf<VaultCredentialEntity?>(null) }
+    var showKeyGen by remember { mutableStateOf(false) }
 
     suspend fun refresh() {
         entries = repository.getAll()
@@ -83,6 +86,9 @@ fun VaultCredentialsPage() {
                 title = { Text(stringResource(R.string.vault_list_title, entries.size)) },
                 navigationIcon = { BackButton() },
                 actions = {
+                    IconButton(onClick = { showKeyGen = true }) {
+                        Icon(HugeIcons.Key01, stringResource(R.string.vault_new_key))
+                    }
                     IconButton(onClick = { showEditor = EditorMode.Create() }) {
                         Icon(HugeIcons.AddCircle, stringResource(R.string.vault_new))
                     }
@@ -170,6 +176,19 @@ fun VaultCredentialsPage() {
                 ) { Text(stringResource(R.string.vault_delete), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = { TextButton(onClick = { deleteTarget = null }) { Text(stringResource(R.string.vault_cancel)) } },
+        )
+    }
+
+    // 生成 SSH 密钥对（私钥存凭证库 + 显示公钥）
+    if (showKeyGen) {
+        SshKeyPairDialog(
+            credentialName = "",
+            defaultGroup = "SSH",
+            onDismiss = { showKeyGen = false },
+            onSaved = { _ ->
+                showKeyGen = false
+                scope.launch { refresh() }
+            },
         )
     }
 }

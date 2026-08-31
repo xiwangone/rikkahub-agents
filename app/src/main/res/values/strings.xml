@@ -2115,6 +2115,7 @@
   <string name="vault_empty_title">No credentials yet</string>
   <string name="vault_empty_desc">Tap + to create one, or go back to import a load-creds.sh file.</string>
   <string name="vault_new">New credential</string>
+  <string name="vault_new_key">New SSH key</string>
   <string name="vault_delete_confirm_title">Delete %1$s?</string>
   <string name="vault_delete_confirm_text">Remove this credential from the vault. This cannot be undone.</string>
   <string name="vault_delete">Delete</string>
