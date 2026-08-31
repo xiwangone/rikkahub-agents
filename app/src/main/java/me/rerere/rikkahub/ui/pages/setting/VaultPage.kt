@@ -47,6 +47,7 @@ import me.rerere.rikkahub.data.vault.CredentialImporter
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultBiometric
 import me.rerere.rikkahub.data.vault.VaultExporter
+import me.rerere.rikkahub.data.vault.VaultFormats
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.data.vault.VaultSessionManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
