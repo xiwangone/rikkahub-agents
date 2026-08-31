@@ -1,13 +1,16 @@
-name: 编译 APK · Release
+name: 编译 APK · CI 验证
 
 on:
   workflow_dispatch:
     inputs:
-      nothing:
-        description: '手动触发编译（不发版；发版走 release.yml 工作流，版本号由发版输入控制）'
-        required: false
-        type: boolean
-        default: false
+      build_type:
+        description: '编译类型：debug（快速验证，默认） / release（R8 全量，慢）'
+        required: true
+        type: choice
+        options:
+          - debug
+          - release
+        default: debug
   push:
     branches: [master]
     paths-ignore:
@@ -73,28 +76,47 @@ jobs:
           key: webui-${{ hashFiles('bun.lock') }}
           restore-keys: webui-
 
-      - name: 固定签名构建 (overwrite-install)
+      - name: 选择编译类型
+        id: pick
+        run: |
+          if [ "${{ github.event_name }}" = "push" ]; then
+            echo "task=debug" >> $GITHUB_OUTPUT
+            echo "触发方式: push → assembleDebug（快速编译验证，5-10 分钟，不开 R8）"
+          else
+            echo "task=${{ inputs.build_type }}" >> $GITHUB_OUTPUT
+            echo "触发方式: workflow_dispatch → ${{ inputs.build_type }}"
+          fi
+
+      - name: 编译（push=debug 快速验证 / 手动可选 release）
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          KEYSTORE="$HOME/rikkahub.jks"
-          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
-          echo "storeFile=$KEYSTORE" >> local.properties
-          echo "storePassword=$KEYSTORE_PASSWORD" >> local.properties
-          echo "keyAlias=$KEY_ALIAS" >> local.properties
-          echo "keyPassword=$KEY_PASSWORD" >> local.properties
-          chmod +x gradlew
-          # --build-cache 复用本地构建缓存；--configuration-cache 增量配置解析
-          ./gradlew assembleRelease --parallel --build-cache --configuration-cache
+          TASK="${{ steps.pick.outputs.task }}"
+          if [ "$TASK" = "release" ]; then
+            KEYSTORE="$HOME/rikkahub.jks"
+            echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
+            echo "storeFile=$KEYSTORE" >> local.properties
+            echo "storePassword=$KEYSTORE_PASSWORD" >> local.properties
+            echo "keyAlias=$KEY_ALIAS" >> local.properties
+            echo "keyPassword=$KEY_PASSWORD" >> local.properties
+            chmod +x gradlew
+            ./gradlew assembleRelease --parallel --build-cache --configuration-cache
+          else
+            chmod +x gradlew
+            # debug 不签名不发版，仅验证编译通过
+            ./gradlew assembleDebug --parallel --build-cache --configuration-cache
+          fi
 
       - name: 编译单元测试（验证测试代码可编译，不执行）
+        if: ${{ steps.pick.outputs.task == 'release' }}
         run: |
           ./gradlew compileDebugUnitTestKotlin --parallel --build-cache --configuration-cache || true
 
-      - name: 重命名 APK（统一命名：RikkaHub-Agents-版本号-架构-release）
+      - name: 重命名 APK（release 才保留产物）
+        if: ${{ steps.pick.outputs.task == 'release' }}
         run: |
           cd app/build/outputs/apk/release
           VER=$(awk -F'\"' '/versionName/{print $2; exit}' ../../../../../app/build.gradle.kts || echo 0.0)
@@ -109,8 +131,8 @@ jobs:
           ls -la
           echo "版本号: ${VER}"
 
-      - name: 上传 APK (artifact)
-        # 先保产物：发版（下一步）失败也不丢 APK；artifact 永远存在供下载实测
+      - name: 上传 APK (artifact, release 才上传)
+        if: ${{ steps.pick.outputs.task == 'release' }}
         uses: actions/upload-artifact@v4
         with:
           name: rikkahub-agents-release
