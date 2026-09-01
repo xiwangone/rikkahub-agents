@@ -48,3 +48,20 @@ agent-tools/build/
 *.bak-*
 # bun.lock is generated from the tracked pnpm-lock.yaml on clean checkouts
 /web-ui/bun.lock
+
+# PC 本地构建辅助脚本/日志(不入库)
+/build.cmd
+/build.ps1
+/run-build.bat
+/clean_lint.py
+/build*.log
+/build.log
+/build.done
+/build.err
+/*.err
+/hs_err_pid*.log
+/replay_pid*.log
+/release-build.*
+/build.release.*
+/sub.log
+/sub.err

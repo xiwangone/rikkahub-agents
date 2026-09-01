@@ -1,9 +1,0 @@
-me.rerere.agenttools.agent-tools-pngs-0 A:\workspace\repos\rikkahub-agents\agent-tools\build\generated\res\pngs\release
-me.rerere.agenttools.agent-tools-updated_navigation_xml-1 A:\workspace\repos\rikkahub-agents\agent-tools\build\generated\updated_navigation_xml\release
-me.rerere.agenttools.agent-tools-mergeReleaseResources-2 A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\incremental\release\mergeReleaseResources\merged.dir
-me.rerere.agenttools.agent-tools-mergeReleaseResources-3 A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\incremental\release\mergeReleaseResources\stripped.dir
-me.rerere.agenttools.agent-tools-release-4 A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\merged_res\release\mergeReleaseResources
-me.rerere.agenttools.agent-tools-release-5 A:\workspace\repos\rikkahub-agents\agent-tools\build\intermediates\packaged_res\release\packageReleaseResources
-me.rerere.agenttools.agent-tools-main-6 A:\workspace\repos\rikkahub-agents\agent-tools\src\main\res
-me.rerere.agenttools.agent-tools-release-7 A:\workspace\repos\rikkahub-agents\agent-tools\src\release\res
-gradleHome-0 A:\workspace\tools\gradle-cache
