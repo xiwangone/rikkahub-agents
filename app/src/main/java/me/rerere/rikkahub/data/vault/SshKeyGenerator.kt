@@ -88,23 +88,16 @@ object SshKeyGenerator {
     // ================= Ed25519 =================
 
     private fun generateEd25519(): SshKeyPair {
-        // Android 14+ 上 "Ed25519" 同时被 AndroidKeyStore 与 Conscrypt 注册，
-        // 无 provider 时默认解析到 AndroidKeyStore——它强制要求 KeyGenParameterSpec
-        // 初始化且密钥不可导出（不适合 SSH）。必须显式用软件实现 Conscrypt。
-        val gen = newExportableEd25519Generator()
-        // 部分 Provider（Conscrypt）必须显式 initialize，否则 generateKeyPair 报 Not initialized
-        gen.initialize(255)
-        val pair = gen.generateKeyPair()
-        val pubBytes = (pair.public as java.security.interfaces.EdECPublicKey).point.y.toByteArray()
-            .let { y ->
-                val out = ByteArray(32)
-                val src = if (y.size > 32) y.copyOfRange(y.size - 32, y.size) else y
-                System.arraycopy(src, 0, out, 32 - src.size, src.size)
-                out
-            }
-        // 私钥：从 PKCS#8 提取 32 字节 seed
-        val pkcs8 = pair.private.encoded
-        val seed = extractEd25519SeedFromPkcs8(pkcs8)
+        // 用 Bouncy Castle 生成（软件实现，密钥可导出）——Android 上 getInstance("Ed25519")
+        // 默认解析到 AndroidKeyStore（强制 KeyGenParameterSpec 且密钥不可导出，不适合 SSH），
+        // 且不同 ROM 的 Conscrypt provider 名/支持不一，直接绕开系统 provider 最可靠。
+        val keyPair = org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator().apply {
+            init(org.bouncycastle.crypto.params.Ed25519KeyGenerationParameters(java.security.SecureRandom()))
+        }.generateKeyPair()
+        val priv = keyPair.private as org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
+        val pub = keyPair.public as org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+        val seed = priv.getEncoded() // 32 字节 seed
+        val pubBytes = pub.getEncoded() // 32 字节公钥
         return SshKeyPair(
             privateKeyPem = encodeOpenSshKeyV1(
                 keyType = "ssh-ed25519",
@@ -118,36 +111,7 @@ object SshKeyGenerator {
     }
 
     /**
-     * 获取可导出的 Ed25519 KeyPairGenerator。
-     *
-     * Android 14+ 上默认 provider 可能是 AndroidKeyStore（密钥不可导出、强制
-     * KeyGenParameterSpec）。这里优先显式指定 "Conscrypt"（软件实现，可导出）；
-     * 若设备无 Conscrypt，则遍历全部 provider 挑一个非 AndroidKeyStore 且支持
-     * Ed25519 的实现。SSH 私钥必须可导出，AndroidKeyStore 密钥永远不适用。
-     */
-    private fun newExportableEd25519Generator(): KeyPairGenerator {
-        // 1) 显式 Conscrypt（Android 系统内置 JCE provider）
-        try {
-            return KeyPairGenerator.getInstance("Ed25519", "Conscrypt")
-        } catch (_: java.security.NoSuchProviderException) {
-            // 设备无 Conscrypt，继续 fallback
-        } catch (_: java.security.NoSuchAlgorithmException) {
-            // 设备不支持 Ed25519（Android < 14 走这里）
-        }
-        // 2) 遍历所有 provider，挑一个非 AndroidKeyStore 且支持 Ed25519 的
-        java.security.Security.getProviders().forEach { provider ->
-            if (provider.name.equals("AndroidKeyStore", ignoreCase = true)) return@forEach
-            try {
-                return KeyPairGenerator.getInstance("Ed25519", provider)
-            } catch (_: Exception) {
-                // 该 provider 不支持，尝试下一个
-            }
-        }
-        // 3) 最后兜底：不带 provider（老设备可能只有唯一实现，恰好可用）
-        return KeyPairGenerator.getInstance("Ed25519")
-    }
-
-    /** 从 PKCS#8 DER 提取 Ed25519 私钥 seed（OCTET STRING 内嵌 32 字节）。 */
+     * 从 PKCS#8 DER 提取 Ed25519 私钥 seed（OCTET STRING 内嵌 32 字节）。 */
     private fun extractEd25519SeedFromPkcs8(pkcs8: ByteArray): ByteArray {
         // PKCS#8: SEQUENCE { version, AlgorithmIdentifier, OCTET STRING { seed } }
         // 简单扫描：找最后一个 OCTET STRING 头（0x04 0x20）后的 32 字节
