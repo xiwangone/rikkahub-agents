@@ -11,15 +11,6 @@ on:
           - debug
           - release
         default: debug
-  push:
-    branches: [master]
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - '.github/workflows/*.yml'
-      - '.github/dependabot.yml'
-      - '.github/scripts/**'
-      - '.github/ISSUE_TEMPLATE/**'
 
 permissions:
   contents: write
@@ -27,6 +18,7 @@ permissions:
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
         with:
@@ -76,25 +68,14 @@ jobs:
           key: webui-${{ hashFiles('bun.lock') }}
           restore-keys: webui-
 
-      - name: 选择编译类型
-        id: pick
-        run: |
-          if [ "${{ github.event_name }}" = "push" ]; then
-            echo "task=release" >> $GITHUB_OUTPUT
-            echo "触发方式: push → assembleRelease（正式签名 R8 全量编译）"
-          else
-            echo "task=${{ inputs.build_type }}" >> $GITHUB_OUTPUT
-            echo "触发方式: workflow_dispatch → ${{ inputs.build_type }}"
-          fi
-
-      - name: 编译（push=正式签名 release / 手动可选 debug）
+      - name: 编译（debug=快速验证 / release=R8 全量正式签名）
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
-          TASK="${{ steps.pick.outputs.task }}"
+          TASK="${{ inputs.build_type }}"
           if [ "$TASK" = "release" ]; then
             KEYSTORE="$HOME/rikkahub.jks"
             echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
@@ -111,12 +92,12 @@ jobs:
           fi
 
       - name: 编译单元测试（验证测试代码可编译，不执行）
-        if: ${{ steps.pick.outputs.task == 'release' }}
+        if: ${{ inputs.build_type == 'release' }}
         run: |
           ./gradlew compileDebugUnitTestKotlin --parallel --build-cache --configuration-cache || true
 
       - name: 重命名 APK（release 才保留产物）
-        if: ${{ steps.pick.outputs.task == 'release' }}
+        if: ${{ inputs.build_type == 'release' }}
         run: |
           cd app/build/outputs/apk/release
           VER=$(awk -F'\"' '/versionName/{print $2; exit}' ../../../../../app/build.gradle.kts || echo 0.0)
@@ -132,9 +113,8 @@ jobs:
           echo "版本号: ${VER}"
 
       - name: 上传 APK (artifact, release 才上传)
-        if: ${{ steps.pick.outputs.task == 'release' }}
+        if: ${{ inputs.build_type == 'release' }}
         uses: actions/upload-artifact@v4
         with:
           name: rikkahub-agents-release
           path: app/build/outputs/apk/release/*.apk
-
