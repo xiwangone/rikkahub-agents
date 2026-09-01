@@ -175,7 +175,7 @@ object SshKeyGenerator {
         val comment = ByteArray(0)
         val noPadding = check + check + privateBlob + sshString(comment)
         val padLen = (8 - (noPadding.size % 8)) % 8
-        val padding = ByteArray(if (padLen == 0) 8 else padLen) { padLen.toByte() }
+        val padding = ByteArray(if (padLen == 0) 8 else padLen) { (it + 1).toByte() }
         val privateSection = noPadding + padding
 
         val blob =
