@@ -70,16 +70,59 @@ object SshKeyGenerator {
         // 用 Bouncy Castle 生成（软件实现，密钥可导出）——Android 上 getInstance("Ed25519")
         // 默认解析到 AndroidKeyStore（强制 KeyGenParameterSpec 且密钥不可导出，不适合 SSH），
         // 且不同 ROM 的 Conscrypt provider 名/支持不一，直接绕开系统 provider 最可靠。
+        //
+        // 注意：Ed25519 私钥用 OpenSSH 格式（openssh-key-v1）而非 PKCS#8——
+        // OpenSSH 9.x 的 ssh/ssh-keygen 拒绝加载 PKCS#8 格式的 Ed25519 私钥
+        // （RSA/ECDSA 的 PKCS#8 没问题，唯独 Ed25519 强制 OpenSSH 格式）。
         val keyPair = org.bouncycastle.crypto.generators.Ed25519KeyPairGenerator().apply {
             init(org.bouncycastle.crypto.params.Ed25519KeyGenerationParameters(SecureRandom()))
         }.generateKeyPair()
         val priv = keyPair.private as org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters
         val pub = keyPair.public as org.bouncycastle.crypto.params.Ed25519PublicKeyParameters
+        val seed = priv.getEncoded() // 32 字节 seed
         val pubBytes = pub.getEncoded() // 32 字节公钥
         return SshKeyPair(
-            privateKeyPem = toPkcs8Pem(priv),
+            privateKeyPem = encodeOpenSshKeyV1(
+                keyType = "ssh-ed25519",
+                publicBlob = sshString("ssh-ed25519".encodeToByteArray()) + sshString(pubBytes),
+                privateBlob = sshString("ssh-ed25519".encodeToByteArray()) +
+                    sshString(pubBytes) +
+                    sshString(seed + pubBytes),
+            ),
             publicKeyLine = "ssh-ed25519 ${b64(sshString("ssh-ed25519".encodeToByteArray()) + sshString(pubBytes))} generated@rikkahub-agents",
         )
+    }
+
+    // ================= OpenSSH 私钥格式 (openssh-key-v1) =================
+
+    /**
+     * 编码 OpenSSH 私钥文件（"BEGIN OPENSSH PRIVATE KEY"）。
+     * 无加密（none cipher）。仅 Ed25519 使用（OpenSSH 强制要求该格式）。
+     * padding 按规范递增（1,2,3,...）。
+     */
+    private fun encodeOpenSshKeyV1(keyType: String, publicBlob: ByteArray, privateBlob: ByteArray): String {
+        val rand = SecureRandom()
+        val check = ByteArray(4)
+        rand.nextBytes(check)
+
+        // private section = checkint + checkint + privateBlob + comment + padding
+        val comment = ByteArray(0)
+        val noPadding = check + check + privateBlob + sshString(comment)
+        val padLen = (8 - (noPadding.size % 8)) % 8
+        val padding = ByteArray(if (padLen == 0) 8 else padLen) { (it + 1).toByte() }
+        val privateSection = noPadding + padding
+
+        val blob =
+            "openssh-key-v1\u0000".encodeToByteArray() +
+                sshString("none".encodeToByteArray()) +
+                sshString("none".encodeToByteArray()) +
+                sshString(ByteArray(0)) +
+                bigInt(1) +
+                sshString(publicBlob) +
+                sshString(privateSection)
+
+        val b64 = Base64.getEncoder().encodeToString(blob).chunked(70).joinToString("\n")
+        return "-----BEGIN OPENSSH PRIVATE KEY-----\n$b64\n-----END OPENSSH PRIVATE KEY-----\n"
     }
 
     // ================= ECDSA (secp256r1) =================
@@ -121,13 +164,6 @@ object SshKeyGenerator {
      */
     private fun toPkcs8Pem(key: java.security.PrivateKey): String {
         val der = key.encoded
-        val b64 = Base64.getEncoder().encodeToString(der).chunked(64).joinToString("\n")
-        return "-----BEGIN PRIVATE KEY-----\n$b64\n-----END PRIVATE KEY-----\n"
-    }
-
-    /** BC Ed25519 私钥参数 → PKCS#8 PEM（"BEGIN PRIVATE KEY"）。 */
-    private fun toPkcs8Pem(key: org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters): String {
-        val der = org.bouncycastle.crypto.util.PrivateKeyInfoFactory.createPrivateKeyInfo(key).encoded
         val b64 = Base64.getEncoder().encodeToString(der).chunked(64).joinToString("\n")
         return "-----BEGIN PRIVATE KEY-----\n$b64\n-----END PRIVATE KEY-----\n"
     }
