@@ -35,6 +35,7 @@ class CredentialVaultRepository(
         value: String,
         description: String,
         group: String,
+        publicKey: String = "",
     ) {
         val existing = dao.getByName(name)
         if (existing != null && value.isBlank()) {
@@ -44,11 +45,12 @@ class CredentialVaultRepository(
                 existing.copy(
                     description = description,
                     grp = group,
+                    publicKey = publicKey,
                     updatedAt = now,
                 )
             )
         } else {
-            upsertEntry(name, value, description, group)
+            upsertEntry(name, value, description, group, publicKey)
         }
     }
 
@@ -66,6 +68,7 @@ class CredentialVaultRepository(
         value: String,
         description: String,
         group: String,
+        publicKey: String = "",
     ) {
         val now = System.currentTimeMillis()
         val encrypted = ProviderCredentialCipher.encrypt(value)
@@ -75,6 +78,7 @@ class CredentialVaultRepository(
                 existing.copy(
                     description = description.ifEmpty { existing.description },
                     grp = group.ifEmpty { existing.grp },
+                    publicKey = publicKey.ifEmpty { existing.publicKey },
                     valueEncrypted = encrypted,
                     valueLength = value.length,
                     updatedAt = now,
@@ -86,6 +90,7 @@ class CredentialVaultRepository(
                     name = name,
                     description = description,
                     grp = group,
+                    publicKey = publicKey,
                     valueEncrypted = encrypted,
                     valueLength = value.length,
                     createdAt = now,

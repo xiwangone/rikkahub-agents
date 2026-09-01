@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
@@ -148,9 +149,9 @@ fun VaultCredentialsPage() {
             mode = mode,
             existingGroups = (entries.map { it.grp } + "Other").distinct().sorted(),
             onDismiss = { showEditor = null },
-            onSave = { name, value, description, group ->
+            onSave = { name, value, description, group, publicKey ->
                 scope.launch {
-                    repository.save(name, value, description, group)
+                    repository.save(name, value, description, group, publicKey)
                     showEditor = null
                     refresh()
                 }
@@ -212,6 +213,7 @@ private fun CredentialRow(
     val vaultPreferences: VaultPreferences = koinInject()
     val biometricBuffer: BiometricResultBuffer = koinInject()
     val context = androidx.compose.ui.platform.LocalContext.current
+    val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     var plaintext by remember(entry.id) { mutableStateOf<String?>(null) }
     var biometricEnabled by remember { mutableStateOf(true) }
@@ -267,6 +269,22 @@ private fun CredentialRow(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
+                // SSH 公钥（明文，公开信息，直接展示；可长按复制）
+                if (entry.publicKey.isNotBlank()) {
+                    Text(
+                        entry.publicKey,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .padding(top = 2.dp)
+                            .clickable {
+                                clipboard.setText(androidx.compose.ui.text.AnnotatedString(entry.publicKey))
+                                android.widget.Toast.makeText(context, "公钥已复制", android.widget.Toast.LENGTH_SHORT).show()
+                            },
+                    )
+                }
                 Text(
                     if (revealed && plaintext != null) plaintext!! else CredentialVaultRepository.mask(entry.valueLength.takeIf { it > 0 }?.let { "x".repeat(it) } ?: "******"),
                     style = MaterialTheme.typography.bodyMedium,
@@ -292,12 +310,13 @@ private fun CredentialEditorDialog(
     mode: EditorMode,
     existingGroups: List<String>,
     onDismiss: () -> Unit,
-    onSave: (name: String, value: String, description: String, group: String) -> Unit,
+    onSave: (name: String, value: String, description: String, group: String, publicKey: String) -> Unit,
 ) {
     val repository: CredentialVaultRepository = koinInject()
     var name by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.name ?: (mode as? EditorMode.Create)?.initialName ?: "") }
     var value by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.let { repository.decryptValue(it) } ?: "") }
     var description by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.description ?: "") }
+    var publicKey by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.publicKey ?: "") }
     var group by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.grp ?: "Other") }
     var showGroupInput by remember { mutableStateOf(false) }
     var nameError by remember { mutableStateOf(false) }
@@ -337,6 +356,13 @@ private fun CredentialEditorDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                OutlinedTextField(
+                    value = publicKey,
+                    onValueChange = { publicKey = it },
+                    label = { Text("SSH 公钥（可选，明文）") },
+                    singleLine = false,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 if (showGroupInput) {
                     OutlinedTextField(
                         value = group,
@@ -371,7 +397,7 @@ private fun CredentialEditorDialog(
                     if (name.isBlank()) { nameError = true; return@Button }
                     if (!isEdit && value.isBlank()) { valueError = true; return@Button }
                     // 编辑模式：value 留空 = 保留原值（在 onSave 里处理）
-                    onSave(name, value, description, group)
+                    onSave(name, value, description, group, publicKey)
                 },
             ) { Text(stringResource(R.string.vault_save)) }
         },

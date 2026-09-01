@@ -176,6 +176,7 @@ fun SshKeyPairDialog(
                                         value = pair.privateKeyPem,
                                         description = description.trim().ifBlank { "SSH 密钥对（生成于 RikkaHub Agents, $keyType）" },
                                         group = group.trim().ifBlank { "SSH" },
+                                        publicKey = pair.publicKeyLine,
                                     )
                                     publicKey = pair.publicKeyLine
                                     savedName = name.trim()

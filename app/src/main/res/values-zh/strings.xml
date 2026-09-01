@@ -1826,6 +1826,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="common_delete">删除</string>
   <string name="common_rename">重命名</string>
   <string name="common_export">导出</string>
+  <string name="common_preview">预览</string>
+  <string name="common_open_with">打开方式</string>
   <string name="common_share">分享</string>
   <string name="tool_ui_edit_file">编辑：%s</string>
   <string name="tool_ui_edit_file_default">编辑文件</string>

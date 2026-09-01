@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 
@@ -20,6 +21,9 @@ data class VaultCredentialEntity(
     val name: String,
     /** 简单描述，如「DeepSeek 官方 API Key」 */
     val description: String = "",
+    /** SSH 公钥（可选，明文存储；仅 SSH 私钥条目使用，非密钥类条目留空）。公钥本身公开可明文。 */
+    @ColumnInfo(defaultValue = "")
+    val publicKey: String = "",
     /** 分组：Git / AI / ECS / MCP / Notification / Other */
     val grp: String = "Other",
     /** AES-GCM 密文：Base64(IV(12B) + ciphertext) */

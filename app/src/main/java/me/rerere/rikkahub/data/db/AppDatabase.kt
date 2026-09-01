@@ -73,7 +73,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         VaultAuditLogEntity::class,
         CompressedArchiveEntity::class,
     ],
-    version = 33,
+    version = 34,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -114,6 +114,9 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // 非最终版需要 31.json（从未导出），故一步到 32（tier 列纯新增可自动推断）。
         AutoMigration(from = 27, to = 32),
         // v32: 记忆分层——memoryentity 加 tier 列（手写 Migration_31_32 覆盖 v31→v32 路径）
+        // v33: 子代理自选模型 + 上下文压缩归档（手写 Migration_32_33 覆盖）
+        // v34: 密钥库 SSH 公钥字段（手写 Migration_33_34 覆盖；纯加列默认空串可自动迁移）
+        AutoMigration(from = 33, to = 34),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)

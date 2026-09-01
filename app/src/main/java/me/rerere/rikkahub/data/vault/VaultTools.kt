@@ -123,19 +123,13 @@ fun vaultGenKeyTool(
             value = key.privateKeyPem,
             description = "AI 生成 SSH 私钥（${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())}）",
             group = group,
-        )
-        // 公钥条目：可公开，便于密钥库内查看/复制（配置服务器 authorized_keys）
-        repository.save(
-            name = "${name}_PUB",
-            value = key.publicKeyLine,
-            description = "SSH 公钥（对应 $name，可公开，配置服务器 authorized_keys 用）",
-            group = group,
+            publicKey = key.publicKeyLine,
         )
         repository.logAccess(name, "ai-tool", "gen_key")
         listOf(
             UIMessagePart.Text(
                 "✅ 密钥对已生成并保存到凭证库（$name）\n" +
-                    "私钥已在 App 内存中存入 Vault（未落盘明文）\n" +
+                    "私钥已在 App 内存中存入 Vault（未落盘明文），公钥存于同条目 publicKey 字段（明文）\n" +
                     "请将以下公钥配置到服务器 ~/.ssh/authorized_keys：\n${key.publicKeyLine}",
             ),
         )
