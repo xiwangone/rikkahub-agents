@@ -33,6 +33,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.contentOrNull
@@ -43,7 +44,10 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Share08
+import me.rerere.hugeicons.stroke.View
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceStorageArea
@@ -76,6 +80,7 @@ internal fun EditedFilesList(
     if (editedFiles.isEmpty()) return
 
     val context = LocalContext.current
+    val navController = LocalNavController.current
     val scope = rememberCoroutineScope()
     val workspaceRepository: WorkspaceRepository = koinInject()
 
@@ -193,6 +198,88 @@ internal fun EditedFilesList(
                         )
                         Text(
                             text = stringResource(R.string.common_export),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                }
+                Card(
+                    onClick = {
+                        val p = selectedPath ?: return@Card
+                        selectedPath = null
+                        val (area, relativePath) = resolveWorkspacePath(p)
+                        navController.navigate(
+                            Screen.WorkspaceFileEditor(workspaceId, area.name, relativePath),
+                        )
+                    },
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier =
+                            Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.View,
+                            contentDescription = null,
+                            modifier = Modifier.padding(4.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.common_preview),
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                    }
+                }
+                Card(
+                    onClick = {
+                        val p = selectedPath ?: return@Card
+                        selectedPath = null
+                        scope.launch {
+                            runCatching {
+                                val (area, relativePath) = resolveWorkspacePath(p)
+                                val dir = File(context.cacheDir, "workspace_preview").apply { mkdirs() }
+                                val file = File(dir, p.substringAfterLast("/"))
+                                file.outputStream().use { output ->
+                                    workspaceRepository.exportFile(workspaceId, area, relativePath, output)
+                                }
+                                val uri =
+                                    FileProvider.getUriForFile(
+                                        context,
+                                        "${context.packageName}.fileprovider",
+                                        file,
+                                    )
+                                val mime =
+                                    MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase())
+                                        ?: "application/octet-stream"
+                                val intent =
+                                    Intent(Intent.ACTION_VIEW).apply {
+                                        setDataAndType(uri, mime)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                                        addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+                                    }
+                                context.startActivity(intent)
+                            }
+                        }
+                    },
+                    shape = MaterialTheme.shapes.medium,
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(16.dp),
+                        modifier =
+                            Modifier
+                                .padding(16.dp)
+                                .fillMaxWidth(),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.FileImport,
+                            contentDescription = null,
+                            modifier = Modifier.padding(4.dp),
+                        )
+                        Text(
+                            text = stringResource(R.string.common_open_with),
                             style = MaterialTheme.typography.titleMedium,
                         )
                     }
