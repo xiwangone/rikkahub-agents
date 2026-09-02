@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       build_type:
-        description: '编译类型：debug（快速验证，默认） / release（R8 全量，慢）'
+        description: '编译类型：debug（快速验证，默认） / release（R8 全量正式签名出包，慢）'
         required: true
         type: choice
         options:
@@ -50,7 +50,7 @@ jobs:
 
       - name: 缓存 Gradle 构建缓存（固定 key，不堆积）
         uses: actions/cache@v4
-        with:
+        gith:
           path: ~/.gradle/caches/build-cache-1
           key: ${{ runner.os }}-gradle-buildcache
           save-always: true
@@ -68,7 +68,7 @@ jobs:
           key: webui-${{ hashFiles('bun.lock') }}
           restore-keys: webui-
 
-      - name: 编译（debug=快速验证 / release=R8 全量正式签名）
+      - name: 编译（debug=快速验证 / release=R8 正式签名出包）
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
@@ -80,7 +80,6 @@ jobs:
             KEYSTORE="$HOME/rikkahub.jks"
             echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
             echo "storeFile=$KEYSTORE" >> local.properties
-            echo "storePassword=$KEYSTORE_PASSWORD" >> local.properties
             echo "keyAlias=$KEY_ALIAS" >> local.properties
             echo "keyPassword=$KEY_PASSWORD" >> local.properties
             chmod +x gradlew
@@ -91,28 +90,7 @@ jobs:
             ./gradlew assembleDebug --parallel --build-cache --configuration-cache
           fi
 
-      - name: 编译单元测试（验证测试代码可编译，不执行）
-        if: ${{ inputs.build_type == 'release' }}
-        run: |
-          ./gradlew compileDebugUnitTestKotlin --parallel --build-cache --configuration-cache || true
-
-      - name: 重命名 APK（release 才保留产物）
-        if: ${{ inputs.build_type == 'release' }}
-        run: |
-          cd app/build/outputs/apk/release
-          VER=$(awk -F'\"' '/versionName/{print $2; exit}' ../../../../../app/build.gradle.kts || echo 0.0)
-          for apk in *.apk; do
-            case "$apk" in
-              *arm64*) arch="arm64-v8a" ;;
-              *universal*) arch="universal" ;;
-              *) arch="$(basename "$apk" .apk)" ;;
-            esac
-            mv "$apk" "RikkaHub-Agents-${VER}-${arch}-release.apk"
-          done
-          ls -la
-          echo "版本号: ${VER}"
-
-      - name: 上传 APK (artifact, release 才上传)
+      - name: 上传 APK (artifact, 供下载安装测试；release 才产出)
         if: ${{ inputs.build_type == 'release' }}
         uses: actions/upload-artifact@v4
         with:
