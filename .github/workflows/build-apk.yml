@@ -95,4 +95,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: rikkahub-agents-release
-          path: app/build/outputs/apk/release/*.apk
+          path: app/build/outputs/apk/*/release/*.apk

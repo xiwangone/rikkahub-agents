@@ -92,8 +92,9 @@ jobs:
       - name: 重命名 APK（RikkaHub-Agents-版本号-架构命名）
         run: |
           VER="${{ inputs.release_tag }}"
-          cd app/build/outputs/apk/release
-          for apk in *.apk; do
+          cd app/build/outputs/apk
+          for apk in */release/*.apk; do
+            [ -f "$apk" ] || continue
             case "$apk" in
               *arm64*) arch="arm64-v8a" ;;
               *universal*) arch="universal" ;;
@@ -119,8 +120,9 @@ jobs:
           else
             echo "Release $TAG 已存在，仅刷新资产"
           fi
-          cd app/build/outputs/apk/release
-          for apk in *.apk; do
+          cd app/build/outputs/apk
+          for apk in */release/*.apk; do
+            [ -f "$apk" ] || continue
             gh release upload "$TAG" "$apk" --clobber
           done
         env:
