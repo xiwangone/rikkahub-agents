@@ -73,7 +73,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         VaultAuditLogEntity::class,
         CompressedArchiveEntity::class,
     ],
-    version = 35,
+    version = 36,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -119,6 +119,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         AutoMigration(from = 33, to = 34),
         // v35: ssh_hosts fallback/jump 字段（手写 Migration_34_35 覆盖；纯加列默认空可自动迁移）
         AutoMigration(from = 34, to = 35),
+        AutoMigration(from = 35, to = 36),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)

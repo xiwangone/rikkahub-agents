@@ -331,6 +331,8 @@ internal fun openSshSession(
     auth: SshAuth,
     timeoutMs: Int,
     network: Network? = null,
+    /** 自定义 ssh 选项文本（每行 "键 值"），覆盖默认 setConfig 属性 */
+    extraOptions: String? = null,
 ): Session {
     if (!auth.privateKey.isNullOrBlank()) {
         val keyBytes = auth.privateKey.ensureTrailingNewline().toByteArray(Charsets.UTF_8)
@@ -353,6 +355,15 @@ internal fun openSshSession(
         // accept-new: trust on first use, fail if a known host's key changes
         setProperty("StrictHostKeyChecking", "accept-new")
         setProperty("PreferredAuthentications", "publickey,keyboard-interactive,password")
+        // 自定义选项最后应用，可覆盖默认值（每行 "键 值"，# 开头为注释）
+        extraOptions?.lineSequence()?.forEach { line ->
+            val trimmed = line.trim()
+            if (trimmed.isEmpty() || trimmed.startsWith("#")) return@forEach
+            val sp = trimmed.indexOf(' ')
+            if (sp > 0) {
+                setProperty(trimmed.substring(0, sp), trimmed.substring(sp + 1).trim())
+            }
+        }
     })
     // Always install our custom socket factory so JSch's internal sockets get a bounded
     // connect timeout. When [network] is non-null we ALSO bind sockets to that specific
@@ -741,6 +752,8 @@ internal suspend fun execOneShot(
     stdin: String? = null,
     /** 跳板（saved host 名已在 SshHostsTool 解析为 JumpSpec）。非空时目标经跳板隧道连 */
     jump: JumpSpec? = null,
+    /** 自定义 ssh 选项（每行 "键 值"），透传 openSshSession */
+    extraOptions: String? = null,
 ): JsonObject {
     // Stage 1 (suspend): low-level reachability probe in parallel across every transport.
     // JSch's connect timeout fires at the END of the SSH handshake, so when the network is
@@ -797,7 +810,7 @@ internal suspend fun execOneShot(
                         target.setProxy(tunnel)
                         connected = target
                     } else {
-                        connected = openSshSession(jsch, host, port, user, auth, timeoutMs, network = outcome.winningNetwork)
+                        connected = openSshSession(jsch, host, port, user, auth, timeoutMs, network = outcome.winningNetwork, extraOptions = extraOptions)
                     }
                     if (connected != null) {
                         // 直连/跳板统一在此 connect（openSshSession 内部已连；跳板 target 需显式连）
