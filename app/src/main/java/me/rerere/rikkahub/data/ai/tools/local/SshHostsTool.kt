@@ -110,6 +110,8 @@ internal suspend fun resolveHostAuth(
  */
 internal fun isFallbackEligible(errorJson: String): Boolean {
     val e = errorJson.lowercase()
+    // 跳板隧道失败（jump host 不可达）属连接类，可换 fallback
+    if (e.contains("jump") || e.contains("tunnel") || e.contains("proxy")) return true
     if (e.contains("auth") || e.contains("authentication") || e.contains("host key") ||
         e.contains("hostkey") || e.contains("userauth") || e.contains("permission denied")
     ) return false
@@ -344,6 +346,15 @@ fun sshExecSavedTool(
             }
         }
 
+        // 跳板解析：主 host 的 jumpHost 名 → 跳板实体 + 凭证。跳板自身不再递归跳板（一层足够）。
+        suspend fun resolveJump(cand: SshHostEntity): JumpSpec? {
+            val jh = cand.jumpHost ?: return null
+            if (jh == cand.name) return null
+            val jEntity = repo.getByName(jh) ?: return null
+            val jAuth = resolveHostAuth(jEntity, vaultRepository) ?: return null
+            return JumpSpec(host = jEntity.host, port = jEntity.port, user = jEntity.user, auth = jAuth)
+        }
+
         // 主 host 参数（用于 background 路径的 detached 包装——命令与 host 无关，取第一候选即可）
         val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(finalCommand) else (finalCommand to null)
         val effectiveCommand = detachedCmd
@@ -358,8 +369,9 @@ fun sshExecSavedTool(
                 tried.add(cand.name)
                 continue
             }
+            val jumpSpec = resolveJump(cand)
             val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
-                execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin)
+                execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec)
             }
             tried.add(cand.name)
             val err = payload["error"]?.jsonPrimitive?.contentOrNull

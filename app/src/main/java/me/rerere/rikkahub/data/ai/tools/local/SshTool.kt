@@ -6,8 +6,10 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import android.util.Log
+import com.jcraft.jsch.ChannelDirectTCPIP
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.JSch
+import com.jcraft.jsch.Proxy
 import com.jcraft.jsch.Session
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
@@ -284,6 +286,14 @@ internal data class SshAuth(
 
 internal fun SshAuth.isUsable() = !password.isNullOrBlank() || !privateKey.isNullOrBlank()
 
+/** 跳板主机描述：连上它之后经它直达目标。由 SshHostsTool 从 jumpHost 名解析而来。 */
+internal data class JumpSpec(
+    val host: String,
+    val port: Int,
+    val user: String,
+    val auth: SshAuth,
+)
+
 /**
  * Construct a JSch instance pre-loaded with the app's persistent known_hosts file. New host
  * keys are automatically appended ("StrictHostKeyChecking=accept-new"); changed keys cause
@@ -359,6 +369,59 @@ internal fun openSshSession(
     session.connect(timeoutMs)
     return session
 }
+
+/**
+ * 跳板（bastion/jump host）隧道。经一个已连的 JSch 会话（如 PC）开
+ * direct-tcpip 通道直达目标 host:port，把通道的流包装成 JSch [Proxy] 喂给
+ * 目标 Session——目标 SSH 握手的所有字节都走这条隧道，对上层完全透明。
+ * 纯 JSch 级联，无需本地 ssh 二进制（Android 无 ssh 也可用）。
+ *
+ * 生命周期：跳板 Session 与 Channel 由调用方持有，用毕必须 [close]。
+ * [Proxy.connect] 由 JSch 在目标 session.connect() 时调用一次。
+ */
+internal class JumpTunnelProxy(
+    private val jumpSession: Session,
+    private val targetHost: String,
+    private val targetPort: Int,
+) : Proxy {
+    private var channel: ChannelDirectTCPIP? = null
+    private var input: java.io.InputStream? = null
+    private var output: java.io.OutputStream? = null
+
+    override fun connect() {
+        // JSch 会先调 setSocketFactory? 否——Proxy 直接走 connect()。开隧道通道。
+        val ch = jumpSession.openChannel("direct-tcpip") as ChannelDirectTCPIP
+        ch.setHost(targetHost)
+        ch.setPort(targetPort)
+        ch.connect(30_000)
+        channel = ch
+        input = ch.inputStream
+        output = ch.outputStream
+    }
+
+    override fun getInputStream(): java.io.InputStream = input ?: error("jump proxy not connected")
+    override fun getOutputStream(): java.io.OutputStream = output ?: error("jump proxy not connected")
+    override fun getSocket(): java.net.Socket = error("jump proxy has no raw socket")
+
+    fun close() {
+        runCatching { channel?.disconnect() }
+        runCatching { jumpSession.disconnect() }
+    }
+}
+
+/**
+ * 建立到跳板主机的会话（用于 JumpTunnelProxy）。跳板自身的认证与 keepalive
+ * 走与直连相同的 openSshSession 逻辑，network 绑定同一传输。
+ */
+internal fun openJumpSession(
+    jsch: JSch,
+    host: String,
+    port: Int,
+    user: String,
+    auth: SshAuth,
+    timeoutMs: Int,
+    network: Network? = null,
+): Session = openSshSession(jsch, host, port, user, auth, timeoutMs, network)
 
 /**
  * JSch SocketFactory with two responsibilities:
@@ -675,21 +738,31 @@ internal suspend fun execOneShot(
     timeoutMs: Int,
     sessionRef: AtomicReference<Session?>,
     stdin: String? = null,
+    /** 跳板（saved host 名已在 SshHostsTool 解析为 JumpSpec）。非空时目标经跳板隧道连 */
+    jump: JumpSpec? = null,
 ): JsonObject {
     // Stage 1 (suspend): low-level reachability probe in parallel across every transport.
     // JSch's connect timeout fires at the END of the SSH handshake, so when the network is
     // silently broken the LLM sees a 30s "timeout" with no clue why. Probing with a raw
     // java.net.Socket first lets us tell the model exactly which layer is failing, AND
     // pick the working network for JSch to bind to.
-    val outcome = probeReachability(context, host, port)
+    // 跳板场景：探测目标是跳板主机（隧道由跳板代达），而非目标本身——目标可能只在
+    // 跳板的内网可达，直连探测必然失败会误报 unreachable。
+    val outcome = if (jump != null) {
+        probeReachability(context, jump.host, jump.port)
+    } else {
+        probeReachability(context, host, port)
+    }
     if (outcome.winningNetwork == null && outcome.failures.isNotEmpty()) {
-        return unreachableEnvelope(host, port, outcome)
+        return unreachableEnvelope(if (jump != null) jump.host else host, if (jump != null) jump.port else port, outcome)
     }
 
     // Stage 2 (blocking IO, interruptible): JSch handshake + exec.
     return runInterruptible(Dispatchers.IO) {
         val jsch = newJSch(context)
         val handshakeStart = System.currentTimeMillis()
+        // 跳板隧道代理：先连跳板，隧道对象在目标 connect 时被 JSch 使用
+        var tunnel: JumpTunnelProxy? = null
         val session = try {
             // 连接重试（2026-08-14）：认证失败/主机密钥变化不重试（重试无意义），
             // 超时/网络类错误自动重试 1 次（间隔 800ms），抗网络抖动
@@ -698,7 +771,37 @@ internal suspend fun execOneShot(
             while (connected == null && attempt < 2) {
                 attempt++
                 try {
-                    connected = openSshSession(jsch, host, port, user, auth, timeoutMs, network = outcome.winningNetwork)
+                    if (jump != null) {
+                        // 连跳板
+                        val jumpSession = openSshSession(
+                            jsch, jump.host, jump.port, jump.user, jump.auth,
+                            timeoutMs, network = outcome.winningNetwork,
+                        )
+                        // 隧道：目标 host:port 经跳板直达
+                        tunnel = JumpTunnelProxy(jumpSession, host, port)
+                        val target = jsch.getSession(user, host, port)
+                        if (host != target.host) target.setHostKeyAlias(host) // 已知主机按目标名比对
+                        if (!auth.password.isNullOrBlank()) target.setPassword(auth.password)
+                        target.setConfig(Properties().apply {
+                            setProperty("StrictHostKeyChecking", "accept-new")
+                            setProperty("PreferredAuthentications", "publickey,keyboard-interactive,password")
+                        })
+                        if (!auth.privateKey.isNullOrBlank()) {
+                            val keyBytes = auth.privateKey.ensureTrailingNewline().toByteArray(Charsets.UTF_8)
+                            val passBytes = auth.passphrase?.toByteArray(Charsets.UTF_8)
+                            jsch.addIdentity("rikkahub-ssh-key-${System.nanoTime()}", keyBytes, null, passBytes)
+                        }
+                        target.serverAliveInterval = SERVER_ALIVE_INTERVAL_MS
+                        target.serverAliveCountMax = SERVER_ALIVE_COUNT_MAX
+                        target.setProxy(tunnel)
+                        connected = target
+                    } else {
+                        connected = openSshSession(jsch, host, port, user, auth, timeoutMs, network = outcome.winningNetwork)
+                    }
+                    if (connected != null) {
+                        // 直连/跳板统一在此 connect（openSshSession 内部已连；跳板 target 需显式连）
+                        if (jump != null) connected.connect(timeoutMs)
+                    }
                 } catch (e: Throwable) {
                     val retryable = !isAuthFailure(e.message) && !isHostKeyChange(e.message)
                     if (attempt < 2 && retryable) {
@@ -712,6 +815,7 @@ internal suspend fun execOneShot(
             checkNotNull(connected) { "ssh connect failed after retries" }
         } catch (e: Throwable) {
             Log.w(TAG_SSH, "ssh handshake failed in ${System.currentTimeMillis() - handshakeStart}ms", e)
+            tunnel?.close()
             return@runInterruptible wrapConnectError(host, e)
         }
         sessionRef.set(session)
@@ -723,6 +827,7 @@ internal suspend fun execOneShot(
         } finally {
             sessionRef.set(null)
             try { session.disconnect() } catch (_: Throwable) {}
+            tunnel?.close()
         }
     }
 }
