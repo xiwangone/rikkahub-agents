@@ -157,6 +157,38 @@ internal fun wrapDetachedCommand(command: String): String =
     "nohup sh -c ${shellSingleQuote(command)} >/dev/null 2>&1 </dev/null & echo \"rikkahub_bg_pid=\$!\""
 
 /**
+ * 按命令特征选 detached 包装：pwsh/Windows 命令 → Start-Process 后台 + 日志落盘；
+ * 否则 POSIX nohup。解决 Windows 上无 nohup/sh 导致 background 失效问题。
+ * 返回 (detachedCommand, logPath)：logPath 供后续轮询读取（Windows 才有，POSIX 为 null）。
+ */
+internal fun wrapDetachedCommandSmart(command: String): Pair<String, String?> {
+    val looksWindows = command.startsWith("powershell") || command.startsWith("pwsh") ||
+        command.startsWith("PowerShell") || command.contains("PowerShell -") ||
+        command.contains("powershell -") || command.contains(":\\") || command.contains("cmd /c")
+    if (!looksWindows) return wrapDetachedCommand(command) to null
+
+    // Windows：外层 EncodedCommand 脚本内 Start-Process 全脱钩（-WindowStyle Hidden），
+    // 输出重定向日志文件。命令本身若已是 powershell 前缀，去掉再包（防嵌套）。
+    val inner = command
+        .replace(Regex("^\\s*(powershell|pwsh|PowerShell)\\s+"), "")
+        .replace(Regex("(?i)\\s+-NoProfile\\s+"), " ")
+        .replace(Regex("(?i)^\\s*-Command\\s+"), "")
+        .trim()
+    val logPath = "C:\\Users\\Public\\rikkahub_bg_${System.currentTimeMillis()}.log"
+    val errPath = logPath.substringBeforeLast(".log") + "-err.log"
+    val script = "[Console]::OutputEncoding=[Text.Encoding]::UTF8; " +
+        "Start-Process -FilePath powershell -ArgumentList @('-NoProfile','-NonInteractive','-Command',$(-f ${shellQuoteWin(inner)})) " +
+        "-RedirectStandardOutput '$logPath' -RedirectStandardError '$errPath' -WindowStyle Hidden"
+    val b64 = android.util.Base64.encodeToString(
+        script.toByteArray(Charsets.UTF_16LE), android.util.Base64.NO_WRAP
+    )
+    return "powershell -NoProfile -NonInteractive -EncodedCommand $b64" to logPath
+}
+
+/** PowerShell 单引号字符串转义（内嵌单引号翻倍）。 */
+internal fun shellQuoteWin(s: String): String = "'" + s.replace("'", "''") + "'"
+
+/**
  * Resolves [host] to an IPv4 address string. JSch's `Socket(addr, port)` does NOT implement
  * Happy Eyeballs — it sits on the IPv6 SYN until the connect timeout fires, even when the
  * server only listens on IPv4. Termux's OpenSSH races both stacks in parallel and never
@@ -571,11 +603,15 @@ fun sshExecTool(context: Context): Tool = Tool(
                 buildJsonObject { put("error", "stdin and background are mutually exclusive (a detached command reads from /dev/null)") }.toString()
             ))
         }
-        val effectiveCommand = if (background) wrapDetachedCommand(command) else command
+        val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(command) else (command to null)
+        val effectiveCommand = detachedCmd
         val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
             execOneShot(context, host, port, user, auth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin)
         }
-        listOf(UIMessagePart.Text(payload.toString()))
+        val finalPayload = if (bgLogPath != null) {
+            payload.toString() + "\n[bg_log_path] $bgLogPath"
+        } else payload.toString()
+        listOf(UIMessagePart.Text(finalPayload))
     }
 )
 

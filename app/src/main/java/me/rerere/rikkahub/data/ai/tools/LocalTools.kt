@@ -93,6 +93,7 @@ import me.rerere.rikkahub.data.ai.tools.local.telegramSetTokenTool
 import me.rerere.rikkahub.data.ai.tools.local.telegramStatusTool
 import me.rerere.rikkahub.data.ai.tools.local.saveSshHostTool
 import me.rerere.rikkahub.data.ai.tools.local.sshPresetsTool
+import me.rerere.rikkahub.data.ai.tools.local.sshJobPollTool
 import me.rerere.rikkahub.data.ai.tools.local.sshDownloadTool
 import me.rerere.rikkahub.data.ai.tools.local.sshExecSavedTool
 import me.rerere.rikkahub.data.ai.tools.local.sshExecTool
@@ -832,6 +833,7 @@ class LocalTools(
             tools.add(deleteSshHostTool(sshHostRepository))
             tools.add(sshExecSavedTool(context, sshHostRepository, vaultRepository))
             tools.add(sshPresetsTool())
+            tools.add(sshJobPollTool(context, sshHostRepository, vaultRepository))
             tools.add(sshUploadTool(context, sshHostRepository, vaultRepository))
             tools.add(sshDownloadTool(context, sshHostRepository, vaultRepository))
             tools.add(forgetSshHostKeyTool(context))

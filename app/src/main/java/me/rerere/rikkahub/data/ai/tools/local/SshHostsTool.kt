@@ -311,11 +311,16 @@ fun sshExecSavedTool(
                 buildJsonObject { put("error", "stdin and background are mutually exclusive (a detached command reads from /dev/null)") }.toString()
             ))
         }
-        val effectiveCommand = if (background) wrapDetachedCommand(finalCommand) else finalCommand
+        val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(finalCommand) else (finalCommand to null)
+        val effectiveCommand = detachedCmd
         val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
             execOneShot(context, h.host, h.port, h.user, auth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin)
         }
-        listOf(UIMessagePart.Text(payload.toString()))
+        // background 时附日志路径供轮询（Windows Start-Process 场景；追加文本行，AI 可读）
+        val finalPayload = if (bgLogPath != null) {
+            payload.toString() + "\n[bg_log_path] $bgLogPath"
+        } else payload.toString()
+        listOf(UIMessagePart.Text(finalPayload))
     }
 )
 
