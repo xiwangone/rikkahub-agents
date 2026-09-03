@@ -40,11 +40,17 @@ object SecretMasker {
     // 非敏感短值下限：名称不含敏感词且短于此长度不掩（chat_id/alias 等，防包名式误伤）
     private const val MIN_LEN = 9
 
-    // 敏感名称词：命中即无条件掩（无视长度——6 位密码也掩，解决"短密码明文进上下文"）
+    // 敏感名称词：命中即掩。但"无条件"只适用于高熵秘密（长随机值）；alias/短标识
+    // （如签名 alias = "rikkahub" 品牌名）全文替换会误伤文档/包名里的同串。
+    // 故：名称命中敏感词 + 值 ≥ MIN_LEN → 掩；值短于 MIN_LEN → 仍需掩（短密码 6 位），
+    // 但仅当值像秘密（非纯品牌词：含大小写混合/数字/符号，或不在常见词表）。
     private val SENSITIVE_WORDS = listOf(
         "PASSWORD", "PWD", "PASS", "TOKEN", "SECRET", "APIKEY", "API_KEY",
         "AUTH", "PRIVATE", "KEY",
     )
+    // 品牌/项目名等低熵词：出现在 alias/路径/注释里，全文替换会误伤文档与代码包名。
+    // 命中这些词的值若短且无高熵特征，不收为精确替换规则（结构层 PEM 正则仍兜私钥）。
+    private val BRAND_WORDS = listOf("rikkahub", "reasonix")
 
     // PEM 私钥结构：BEGIN..END PRIVATE KEY 块（DOTALL 容忍 base64 折行，兜住字典精确匹配漏网）
     private val PEM_PRIVATE_KEY = Regex(
@@ -90,10 +96,29 @@ object SecretMasker {
         if (value.contains("PRIVATE KEY-----")) {
             return SecretRule(value, exact = false)
         }
-        if (SENSITIVE_WORDS.any { it in n }) {
+        val looksSensitiveName = SENSITIVE_WORDS.any { it in n }
+        if (looksSensitiveName) {
+            // 名称像敏感（KEY/PASS/TOKEN...）但值是低熵品牌词/短标识时，全文精确替换会
+            // 误伤文档与包名（如 alias=rikkahub → 把 rikkahub-agents/package 里的 rikkahub
+            // 全掩成 ***）。判定：值含品牌词且整体低熵（无长数字/符号混合）→ 不收精确规则；
+            // 高熵短值（如 6 位随机密码）→ 仍收。
+            val isBrandish = BRAND_WORDS.any { value.lowercase().contains(it) } &&
+                !hasHighEntropy(value)
+            if (isBrandish) return null
             return SecretRule(value, exact = true)
         }
         return if (value.length >= MIN_LEN) SecretRule(value, exact = true) else null
+    }
+
+    /** 高熵粗判：含 ≥2 组数字/符号或长度 ≥ MIN_LEN 且非纯字母词。低熵品牌词（纯字母/短）返回 false。 */
+    private fun hasHighEntropy(v: String): Boolean {
+        if (v.length >= MIN_LEN) {
+            // 长值默认视为高熵（真秘密）；纯小写单词/常见品牌名除外（仍低熵）
+            val alphaOnly = v.all { it.isLetter() || it == '-' || it == '_' || it == '.' }
+            return !alphaOnly || v.any { it.isUpperCase() }
+        }
+        // 短值（< MIN_LEN）：含数字或符号才算高熵（密码常有），纯字母短词视为低熵
+        return v.any { it.isDigit() } || v.any { !it.isLetterOrDigit() }
     }
 
     /** 掩码文本（同步；调用方需先 refresh 保证规则最新）。 */
