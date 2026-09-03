@@ -96,6 +96,7 @@ import me.rerere.rikkahub.data.ai.tools.local.sshPresetsTool
 import me.rerere.rikkahub.data.ai.tools.local.sshJobPollTool
 import me.rerere.rikkahub.data.ai.tools.local.sshDownloadTool
 import me.rerere.rikkahub.data.ai.tools.local.sshExecSavedTool
+import me.rerere.rikkahub.data.ai.tools.local.vaultDeployKeyTool
 import me.rerere.rikkahub.data.ai.tools.local.sshExecTool
 import me.rerere.rikkahub.data.ai.tools.local.sshUploadTool
 import me.rerere.rikkahub.data.ai.tools.local.writeTextFileTool
@@ -837,6 +838,7 @@ class LocalTools(
             tools.add(sshUploadTool(context, sshHostRepository, vaultRepository))
             tools.add(sshDownloadTool(context, sshHostRepository, vaultRepository))
             tools.add(forgetSshHostKeyTool(context))
+            tools.add(vaultDeployKeyTool(context, sshHostRepository, vaultRepository))
         }
         if (options.contains(LocalToolOption.TelegramBot)) {
             tools.add(telegramSetTokenTool(telegramBotPreferences, telegramBotClient))
