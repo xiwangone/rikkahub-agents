@@ -30,15 +30,18 @@ object SshKeyGenerator {
         ECDSA("ECDSA (nistp256)"),
     }
 
-    /** 生成指定类型的密钥对。 */
-    fun generate(type: KeyType): SshKeyPair = when (type) {
-        KeyType.RSA -> generateRsa()
-        KeyType.ED25519 -> generateEd25519()
-        KeyType.ECDSA -> generateEcdsa()
+    /** 生成指定类型的密钥对。comment 作为公钥行尾注释，缺省带 RikkaHub Agents 标识。 */
+    fun generate(type: KeyType, comment: String = DEFAULT_COMMENT): SshKeyPair = when (type) {
+        KeyType.RSA -> generateRsa(comment)
+        KeyType.ED25519 -> generateEd25519(comment)
+        KeyType.ECDSA -> generateEcdsa(comment)
     }
 
     /** 默认生成 RSA-2048（兼容旧调用）。 */
     fun generate(): SshKeyPair = generate(KeyType.RSA)
+
+    /** 公钥行尾默认注释：标识生成方，便于服务器 authorized_keys 溯源。 */
+    const val DEFAULT_COMMENT = "generated@rikkahub-agents"
 
     data class SshKeyPair(
         val privateKeyPem: String,
@@ -47,14 +50,14 @@ object SshKeyGenerator {
 
     // ================= RSA =================
 
-    private fun generateRsa(): SshKeyPair {
+    private fun generateRsa(comment: String): SshKeyPair {
         val gen = KeyPairGenerator.getInstance("RSA")
         gen.initialize(2048)
         val pair = gen.generateKeyPair()
         val pub = pair.public as RSAPublicKey
         return SshKeyPair(
             privateKeyPem = toPkcs8Pem(pair.private),
-            publicKeyLine = "ssh-rsa ${b64(encodeSshRsa(pub))} generated@rikkahub-agents",
+            publicKeyLine = "ssh-rsa ${b64(encodeSshRsa(pub))} $comment",
         )
     }
 
@@ -66,7 +69,7 @@ object SshKeyGenerator {
 
     // ================= Ed25519 =================
 
-    private fun generateEd25519(): SshKeyPair {
+    private fun generateEd25519(comment: String): SshKeyPair {
         // 用 Bouncy Castle 生成（软件实现，密钥可导出）——Android 上 getInstance("Ed25519")
         // 默认解析到 AndroidKeyStore（强制 KeyGenParameterSpec 且密钥不可导出，不适合 SSH），
         // 且不同 ROM 的 Conscrypt provider 名/支持不一，直接绕开系统 provider 最可靠。
@@ -89,7 +92,7 @@ object SshKeyGenerator {
                     sshString(pubBytes) +
                     sshString(seed + pubBytes),
             ),
-            publicKeyLine = "ssh-ed25519 ${b64(sshString("ssh-ed25519".encodeToByteArray()) + sshString(pubBytes))} generated@rikkahub-agents",
+            publicKeyLine = "ssh-ed25519 ${b64(sshString("ssh-ed25519".encodeToByteArray()) + sshString(pubBytes))} $comment",
         )
     }
 
@@ -127,7 +130,7 @@ object SshKeyGenerator {
 
     // ================= ECDSA (secp256r1) =================
 
-    private fun generateEcdsa(): SshKeyPair {
+    private fun generateEcdsa(comment: String): SshKeyPair {
         val gen = KeyPairGenerator.getInstance("EC")
         gen.initialize(ECGenParameterSpec("secp256r1"))
         val pair = gen.generateKeyPair()
@@ -144,7 +147,7 @@ object SshKeyGenerator {
 
         return SshKeyPair(
             privateKeyPem = toPkcs8Pem(pair.private),
-            publicKeyLine = "ecdsa-sha2-nistp256 ${b64(pubBlob)} generated@rikkahub-agents",
+            publicKeyLine = "ecdsa-sha2-nistp256 ${b64(pubBlob)} $comment",
         )
     }
 
@@ -196,5 +199,27 @@ object SshKeyGenerator {
         System.arraycopy(this, 0, out, 0, size)
         System.arraycopy(other, 0, out, size, other.size)
         return out
+    }
+
+    /**
+     * 计算 OpenSSH 公钥行的 SHA256 指纹（格式 "SHA256:xxxx"）。
+     * 与 ssh-keygen -lf 输出一致。公钥行格式：`<type> <b64blob> [comment]`。
+     * 解析失败返回 null（非标准公钥行）。
+     */
+    fun fingerprint(publicKeyLine: String): String? {
+        val parts = publicKeyLine.trim().split(Regex("\\s+"))
+        if (parts.size < 2) return null
+        val blob = try {
+            Base64.getDecoder().decode(parts[1])
+        } catch (e: IllegalArgumentException) {
+            return null
+        }
+        val digest = try {
+            java.security.MessageDigest.getInstance("SHA-256").digest(blob)
+        } catch (e: Exception) {
+            return null
+        }
+        return "SHA256:" + Base64.getEncoder().encodeToString(digest).trimEnd('=')
+            .replace('+', '-').replace('/', '_')
     }
 }

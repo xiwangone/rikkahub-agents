@@ -29,8 +29,10 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
     name = "vault_credential_names",
     description =
         "List credentials stored in the vault (names only, never values). " +
-            "Supports optional keyword search (matches name / description, case-insensitive) and " +
-            "optional group filter. Results are sorted by group then name. " +
+            "Supports optional keyword search (matches name / description, case-insensitive), " +
+            "optional group filter, and sorting. SSH key entries show their public-key SHA256 fingerprint. " +
+            "Pass duplicates=true to also report suspicious same-group-same-length duplicates (read-only hint). " +
+            "Results are sorted by group then name by default. " +
             "Use to discover which credential names are available before calling vault_ssh_exec / vault_http_exec.",
     parameters = {
         InputSchema.Obj(
@@ -39,6 +41,7 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
                     put("group", buildJsonObject { put("type", "string"); put("description", "Filter by group: Git/AI/ECS/MCP/Notification/SSH/Other") })
                     put("keyword", buildJsonObject { put("type", "string"); put("description", "Optional search keyword (matches name or description, case-insensitive)") })
                     put("sort", buildJsonObject { put("type", "string"); put("description", "Sort order: name / group / length (default group-then-name)") })
+                    put("duplicates", buildJsonObject { put("type", "boolean"); put("description", "When true, also report suspicious duplicates (same group + same value length) as a read-only hint") })
                 },
         )
     },
@@ -46,8 +49,10 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
         val group = params.jsonObject["group"]?.jsonPrimitive?.contentOrNull
         val keyword = params.jsonObject["keyword"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase()
         val sort = params.jsonObject["sort"]?.jsonPrimitive?.contentOrNull
+        val showDupes = params.jsonObject["duplicates"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+        val all = repository.getAll()
         val filtered =
-            repository.getAll()
+            all
                 .filter { e -> group == null || e.grp == group }
                 .filter { e -> keyword == null || e.name.lowercase().contains(keyword) || e.description.lowercase().contains(keyword) }
         val entries =
@@ -56,12 +61,34 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
                 "group" -> filtered.sortedWith(compareBy({ it.grp }, { it.name.lowercase() }))
                 "length" -> filtered.sortedBy { it.valueLength }
                 else -> filtered.sortedWith(compareBy({ it.grp }, { it.name.lowercase() }))
-            }.map { e -> "${e.name}  [${e.grp}] len=${e.valueLength}  ${e.description}" }
-        listOf(
-            UIMessagePart.Text(
-                if (entries.isEmpty()) "（凭证库为空，或无匹配条目）" else "凭证库条目（${entries.size}）：\n" + entries.joinToString("\n"),
-            ),
-        )
+            }
+        val sb = StringBuilder()
+        if (showDupes) {
+            // 疑似重复检测：同分组 + 值长度相同（无法比对明文，故只提示可疑项，不自动合并）
+            val dupGroups =
+                all.groupBy { it.grp to it.valueLength }
+                    .filter { (_, items) -> items.size > 1 }
+                    .filter { (_, items) -> items.any { it.valueLength > 0 } }
+            if (dupGroups.isEmpty()) {
+                sb.append("（未发现疑似重复条目）\n")
+            } else {
+                sb.append("⚠️ 疑似重复（同分组同长度，AI 无法比对明文，请人工确认）：\n")
+                dupGroups.forEach { (key, items) ->
+                    sb.append("  [${key.first}] len=${key.second}: ${items.joinToString(" / ") { it.name }}\n")
+                }
+                sb.append("\n")
+            }
+        }
+        if (entries.isEmpty()) {
+            sb.append("（凭证库为空，或无匹配条目）")
+        } else {
+            sb.append("凭证库条目（${entries.size}）：\n")
+            entries.forEach { e ->
+                val fp = if (e.publicKey.isNotBlank()) " fp=${SshKeyGenerator.fingerprint(e.publicKey) ?: "?"}" else ""
+                sb.append("${e.name}  [${e.grp}] len=${e.valueLength}$fp  ${e.description}\n")
+            }
+        }
+        listOf(UIMessagePart.Text(sb.toString().trimEnd()))
     },
 )
 
@@ -79,6 +106,7 @@ fun vaultCredentialPrepareTool(repository: CredentialVaultRepository): Tool = To
                     put("name", buildJsonObject { put("type", "string"); put("description", "Credential name, e.g. NEW_SERVER_API_KEY") })
                     put("description", buildJsonObject { put("type", "string"); put("description", "What this credential is for") })
                     put("group", buildJsonObject { put("type", "string"); put("description", "Vault group: Git/AI/ECS/MCP/Notification/SSH/Other") })
+                    put("public_key", buildJsonObject { put("type", "string"); put("description", "Optional SSH public key line (plaintext, for SSH key entries; helps AI identify the key later)") })
                 },
             required = listOf("name"),
         )
@@ -91,17 +119,20 @@ fun vaultCredentialPrepareTool(repository: CredentialVaultRepository): Tool = To
         } else {
             val desc = o["description"]?.jsonPrimitive?.contentOrNull ?: ""
             val group = o["group"]?.jsonPrimitive?.contentOrNull ?: "Other"
+            val pub = o["public_key"]?.jsonPrimitive?.contentOrNull ?: ""
             repository.save(
                 name = name,
                 value = "", // 占位：值留空，用户稍后填写
                 description = desc,
                 group = group,
+                publicKey = pub,
             )
             repository.logAccess(name, "ai-tool", "prepare")
             listOf(
                 UIMessagePart.Text(
                     "✅ 已创建凭证占位条目：$name [${group}]\n" +
-                        "值尚未填写。请用户到 安全凭证库 → $name 编辑，填入实际 key/token。",
+                        "值尚未填写。请用户到 安全凭证库 → $name 编辑，填入实际 key/token。" +
+                        if (pub.isNotBlank()) "\n公钥已记录（AI 可据此识别该密钥）。" else "",
                 ),
             )
         }
@@ -117,24 +148,44 @@ fun vaultGenKeyTool(
     description =
         "Generate an SSH key pair, store the private key in the vault, and return the public key " +
             "for the user to configure on a server (e.g. ~/.ssh/authorized_keys). " +
-            "Use before vault_ssh_exec when the server is new and has no key yet.",
+            "Use before vault_ssh_exec when the server is new and has no key yet. " +
+            "The public key line carries a comment identifying the purpose and RikkaHub Agents as generator.",
     parameters = {
         InputSchema.Obj(
             properties =
                 buildJsonObject {
                     put("name", buildJsonObject { put("type", "string"); put("description", "Credential name (default WEB_SSH_KEY)") })
                     put("group", buildJsonObject { put("type", "string"); put("description", "Vault group (default SSH)") })
+                    put("comment", buildJsonObject { put("type", "string"); put("description", "Public key comment suffix, e.g. 'pc-main@rikkahub-agents'. Default 'generated@rikkahub-agents'. Always include purpose + @rikkahub-agents for traceability.") })
+                    put("type", buildJsonObject { put("type", "string"); put("description", "Key type: ED25519 (recommended) / RSA / ECDSA (default RSA for backward compat)") })
                 },
         )
     },
     execute = { params ->
         val name = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "WEB_SSH_KEY"
         val group = params.jsonObject["group"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "SSH"
-        val key = SshKeyGenerator.generate()
+        val rawComment = params.jsonObject["comment"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val typeStr = params.jsonObject["type"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val keyType =
+            when (typeStr?.uppercase()) {
+                "ED25519" -> SshKeyGenerator.KeyType.ED25519
+                "ECDSA" -> SshKeyGenerator.KeyType.ECDSA
+                "RSA", null -> SshKeyGenerator.KeyType.RSA
+                else -> return@Tool listOf(UIMessagePart.Text("❌ 不支持的 type: $typeStr（可选 ED25519 / RSA / ECDSA）"))
+            }
+        // 强制注释带 RikkaHub Agents 标识便于溯源；未指定时默认用途注释
+        val comment =
+            when {
+                rawComment == null -> SshKeyGenerator.DEFAULT_COMMENT
+                "@rikkahub-agents" in rawComment || "@rikkahub" in rawComment -> rawComment
+                else -> "$rawComment@rikkahub-agents"
+            }
+        val key = SshKeyGenerator.generate(keyType, comment)
+        val fp = SshKeyGenerator.fingerprint(key.publicKeyLine) ?: "?"
         repository.save(
             name = name,
             value = key.privateKeyPem,
-            description = "AI 生成 SSH 私钥（${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())}）",
+            description = "AI 生成 SSH ${keyType.label} 密钥（${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())}）",
             group = group,
             publicKey = key.publicKeyLine,
         )
@@ -142,6 +193,7 @@ fun vaultGenKeyTool(
         listOf(
             UIMessagePart.Text(
                 "✅ 密钥对已生成并保存到凭证库（$name）\n" +
+                    "类型：${keyType.label} | 指纹：$fp\n" +
                     "私钥已在 App 内存中存入 Vault（未落盘明文），公钥存于同条目 publicKey 字段（明文）\n" +
                     "请将以下公钥配置到服务器 ~/.ssh/authorized_keys：\n${key.publicKeyLine}",
             ),
@@ -381,6 +433,7 @@ fun vaultCredentialUpdateTool(
                     put("new_name", buildJsonObject { put("type", "string"); put("description", "Optional new name (rename)") })
                     put("description", buildJsonObject { put("type", "string"); put("description", "Optional new description") })
                     put("group", buildJsonObject { put("type", "string"); put("description", "Optional new group: Git/AI/ECS/MCP/Notification/SSH/Other") })
+                    put("public_key", buildJsonObject { put("type", "string"); put("description", "Optional SSH public key line (plaintext). Empty string clears it; omit to keep unchanged.") })
                 },
             required = listOf("name"),
         )
@@ -403,6 +456,8 @@ fun vaultCredentialUpdateTool(
                     val newName = o["new_name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
                     val desc = o["description"]?.jsonPrimitive?.contentOrNull
                     val group = o["group"]?.jsonPrimitive?.contentOrNull
+                    val pubParam = o["public_key"]?.jsonPrimitive?.contentOrNull
+                    val newPub = pubParam?.let { it.trim() }
                     val changed = mutableListOf<String>()
                     val targetName = newName ?: name
                     if (newName != null && newName != name) {
@@ -413,6 +468,7 @@ fun vaultCredentialUpdateTool(
                     }
                     if (desc != null && desc != existing.description) changed += "描述"
                     if (group != null && group != existing.grp) changed += "分组"
+                    if (pubParam != null && newPub != existing.publicKey) changed += if (newPub.isEmpty()) "公钥(清空)" else "公钥"
                     if (changed.isEmpty()) {
                         listOf(UIMessagePart.Text("ℹ️ 没有需要更新的字段（当前已是最新）"))
                     } else {
@@ -422,7 +478,7 @@ fun vaultCredentialUpdateTool(
                             value = value,
                             description = desc ?: existing.description,
                             group = group ?: existing.grp,
-                            publicKey = existing.publicKey,
+                            publicKey = newPub ?: existing.publicKey,
                         )
                         if (targetName != name) {
                             repository.delete(existing)
@@ -481,6 +537,93 @@ fun vaultCredentialDeleteTool(
                     listOf(UIMessagePart.Text("🗑️ 已删除凭证: $name"))
                 }
             }
+        }
+    },
+)
+
+/** 查询单条凭证的完整元数据（含公钥全文与指纹；值永不明文返回）。 */
+fun vaultCredentialMetaTool(repository: CredentialVaultRepository): Tool = Tool(
+    name = "vault_credential_meta",
+    description =
+        "Show one credential entry's full metadata: name / group / description / value length / " +
+            "created & updated time / SSH public key (full line + SHA256 fingerprint). " +
+            "The secret VALUE is never returned. Public keys are plaintext by design so the AI " +
+            "can match them against server authorized_keys to identify which key is which.",
+    parameters = {
+        InputSchema.Obj(
+            properties =
+                buildJsonObject {
+                    put("name", buildJsonObject { put("type", "string"); put("description", "Credential name") })
+                },
+            required = listOf("name"),
+        )
+    },
+    execute = { params ->
+        val name = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        if (name == null) {
+            listOf(UIMessagePart.Text("❌ name 必填"))
+        } else {
+            val entry = repository.getByName(name)
+            if (entry == null) {
+                listOf(UIMessagePart.Text("❌ 凭证不存在: $name（用 vault_credential_names 查看可用名称）"))
+            } else {
+                val fp = if (entry.publicKey.isNotBlank()) (SshKeyGenerator.fingerprint(entry.publicKey) ?: "(解析失败)") else "(无公钥)"
+                val created = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(entry.createdAt))
+                val updated = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(entry.updatedAt))
+                listOf(
+                    UIMessagePart.Text(
+                        buildString {
+                            append("凭证: ${entry.name}  [${entry.grp}]\n")
+                            append("描述: ${entry.description.ifEmpty { "(空)" }}\n")
+                            append("值长度: ${entry.valueLength}（已加密存储，AI 不可见）\n")
+                            append("创建: $created | 更新: $updated\n")
+                            append("公钥指纹: $fp\n")
+                            if (entry.publicKey.isNotBlank()) append("公钥全文:\n${entry.publicKey}\n")
+                        },
+                    ),
+                )
+            }
+        }
+    },
+)
+
+/** 查询密钥使用审计记录（谁在何时调用了哪些凭证）。只读，无需授权。 */
+fun vaultCredentialAuditTool(repository: CredentialVaultRepository): Tool = Tool(
+    name = "vault_credential_audit",
+    description =
+        "Query vault audit log: who called which credential and when (view/export/ssh_exec/gen_key/" +
+            "update/delete/env_inject etc). Read-only; values never shown. " +
+            "Use to trace suspicious usage or answer 'which key is used by whom'.",
+    parameters = {
+        InputSchema.Obj(
+            properties =
+                buildJsonObject {
+                    put("name", buildJsonObject { put("type", "string"); put("description", "Optional filter: only show entries for this credential name") })
+                    put("limit", buildJsonObject { put("type", "integer"); put("description", "Max rows to return (default 50, max 200)") })
+                },
+        )
+    },
+    execute = { params ->
+        val name = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val limit = (params.jsonObject["limit"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 50).coerceIn(1, 200)
+        val logs = repository.recentAudit(limit)
+            .filter { name == null || it.credentialName == name }
+            .sortedByDescending { it.tsMs }
+            .take(limit)
+        if (logs.isEmpty()) {
+            listOf(UIMessagePart.Text(if (name != null) "（$name 无审计记录）" else "（审计记录为空）"))
+        } else {
+            val fmt = java.text.SimpleDateFormat("MM-dd HH:mm:ss", java.util.Locale.getDefault())
+            listOf(
+                UIMessagePart.Text(
+                    buildString {
+                        append("密钥调用记录（最近 ${logs.size} 条${if (name != null) "，凭证: $name" else ""}）：\n")
+                        logs.forEach { l ->
+                            append("${fmt.format(java.util.Date(l.tsMs))} | ${l.caller} | ${l.action} | ${l.credentialName}\n")
+                        }
+                    },
+                ),
+            )
         }
     },
 )
