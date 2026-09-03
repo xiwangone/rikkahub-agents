@@ -157,15 +157,21 @@ internal fun wrapDetachedCommand(command: String): String =
     "nohup sh -c ${shellSingleQuote(command)} >/dev/null 2>&1 </dev/null & echo \"rikkahub_bg_pid=\$!\""
 
 /**
- * 按命令特征选 detached 包装：pwsh/Windows 命令 → Start-Process 后台 + 日志落盘；
- * 否则 POSIX nohup。解决 Windows 上无 nohup/sh 导致 background 失效问题。
- * 返回 (detachedCommand, logPath)：logPath 供后续轮询读取（Windows 才有，POSIX 为 null）。
+ * 平台自适应 detached 包装（POSIX 与 Windows 统一），返回 (detachedCommand, logPath)：
+ * - POSIX：nohup 落 /tmp/rikkahub_bg_<ts>.log（不再丢 /dev/null），返回 logPath 供轮询
+ * - Windows/pwsh：Start-Process 全脱钩 + 输出重定向日志，返回 logPath
+ * 两者都让 background=true 的任务可被 ssh_job_poll 尾读进度——任何主机类型通用。
  */
 internal fun wrapDetachedCommandSmart(command: String): Pair<String, String?> {
     val looksWindows = command.startsWith("powershell") || command.startsWith("pwsh") ||
         command.startsWith("PowerShell") || command.contains("PowerShell -") ||
         command.contains("powershell -") || command.contains(":\\") || command.contains("cmd /c")
-    if (!looksWindows) return wrapDetachedCommand(command) to null
+    if (!looksWindows) {
+        // POSIX：nohup + 日志落盘（/tmp 通用可写），输出与错误都进同一日志
+        val logPath = "/tmp/rikkahub_bg_${System.currentTimeMillis()}.log"
+        val wrapped = "nohup sh -c ${shellSingleQuote(command)} >$logPath 2>&1 </dev/null & echo \"rikkahub_bg_pid=\$!\""
+        return wrapped to logPath
+    }
 
     // Windows：外层 EncodedCommand 脚本内 Start-Process 全脱钩（-WindowStyle Hidden），
     // 输出重定向日志文件。命令本身若已是 powershell 前缀，去掉再包（防嵌套）。
