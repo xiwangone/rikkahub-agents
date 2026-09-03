@@ -1445,7 +1445,10 @@ class GenerationHandler(
         }
         return parts.map { part ->
             if (part is UIMessagePart.Text) {
-                UIMessagePart.Text(SecretMasker.mask(part.text))
+                UIMessagePart.Text(
+                    text = SecretMasker.mask(part.text),
+                    metadata = part.metadata, // 保留 metadata（如 DiffMetadata 存 diff 供 UI 渲染红绿）
+                )
             } else {
                 part
             }
