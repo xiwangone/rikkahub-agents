@@ -2081,6 +2081,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="vault_clear">清空</string>
   <string name="vault_cancel">取消</string>
   <string name="vault_list_title">密钥列表（%1$d）</string>
+  <string name="vault_search_hint">搜索名称 / 描述 / 分组</string>
   <string name="vault_empty_title">还没有凭证</string>
   <string name="vault_empty_desc">点右上角 + 新建，或回上一页「从文件导入」批量导入 load-creds.sh。</string>
   <string name="vault_new">新建凭证</string>
