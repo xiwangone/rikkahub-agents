@@ -403,7 +403,7 @@ internal class JumpTunnelProxy(
     override fun getOutputStream(): java.io.OutputStream = output ?: error("jump proxy not connected")
     override fun getSocket(): java.net.Socket = error("jump proxy has no raw socket")
 
-    fun close() {
+    override fun close() {
         runCatching { channel?.disconnect() }
         runCatching { jumpSession.disconnect() }
     }
