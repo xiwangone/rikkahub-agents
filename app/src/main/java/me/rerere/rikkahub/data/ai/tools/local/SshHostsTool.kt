@@ -8,6 +8,7 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -101,6 +102,21 @@ internal suspend fun resolveHostAuth(
 }
 
 /**
+ * Whether a connection error warrants trying the next fallback host. Auth failures and
+ * host-key changes are excluded: they are host-specific (wrong credentials / identity),
+ * so switching to a different host would not help and would only burn round-trips.
+ * Everything else (timeout, unreachable, handshake failure) is network/transport level
+ * and worth failing over.
+ */
+internal fun isFallbackEligible(errorJson: String): Boolean {
+    val e = errorJson.lowercase()
+    if (e.contains("auth") || e.contains("authentication") || e.contains("host key") ||
+        e.contains("hostkey") || e.contains("userauth") || e.contains("permission denied")
+    ) return false
+    return true
+}
+
+/**
  * Save an SSH host so it can be referenced by name in subsequent calls instead of passing
  * credentials every time. Replaces any existing host with the same name.
  */
@@ -123,6 +139,8 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
                 put("private_key", buildJsonObject { put("type", "string"); put("description", "Full PEM/OpenSSH private key contents") })
                 put("passphrase", buildJsonObject { put("type", "string"); put("description", "Optional passphrase for the private key") })
                 put("vault_credential", buildJsonObject { put("type", "string"); put("description", "Optional Vault credential name holding the SSH private key (preferred over private_key — the key is never stored in plaintext). See vault_credential_names.") })
+                put("fallback_hosts", buildJsonObject { put("type", "array"); put("description", "Optional array of saved-host names tried in order when this host is unreachable (connection-level failures only). Items are resolved at call time.") })
+                put("jump_host", buildJsonObject { put("type", "string"); put("description", "Optional saved-host name used as a jump/bastion host. Reserved; connectivity via jump is not yet wired end-to-end.") })
             },
             required = listOf("name", "host", "user")
         )
@@ -137,6 +155,8 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
         val privateKey = p["private_key"]?.jsonPrimitive?.contentOrNull
         val passphrase = p["passphrase"]?.jsonPrimitive?.contentOrNull
         val vaultCredential = p["vault_credential"]?.jsonPrimitive?.contentOrNull
+        val fallbackHosts = p["fallback_hosts"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
+        val jumpHost = p["jump_host"]?.jsonPrimitive?.contentOrNull
         if (password.isNullOrBlank() && privateKey.isNullOrBlank() && vaultCredential.isNullOrBlank()) {
             return@Tool listOf(UIMessagePart.Text(
                 buildJsonObject { put("error", "must provide password, private_key or vault_credential") }.toString()
@@ -148,6 +168,9 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
             privateKey = if (vaultCredential.isNullOrBlank()) privateKey else null,
             passphrase = passphrase,
             vaultCredentialRef = vaultCredential,
+            fallbackHostsJson = fallbackHosts?.takeIf { it.isNotEmpty() }
+                ?.let { buildJsonArray { it.forEach { f -> add(f) } }.toString() },
+            jumpHost = jumpHost,
             createdAtMs = System.currentTimeMillis(),
         ))
         listOf(UIMessagePart.Text(buildJsonObject {
@@ -174,6 +197,8 @@ fun listSshHostsTool(repo: SshHostRepository): Tool = Tool(
                         put("user", h.user)
                         put("has_password", !h.password.isNullOrBlank())
                         put("has_private_key", !h.privateKey.isNullOrBlank())
+                        put("fallback_hosts", h.fallbackHostsJson ?: "")
+                        put("jump_host", h.jumpHost ?: "")
                     }
                 }
             })
@@ -300,26 +325,65 @@ fun sshExecSavedTool(
             ?: return@Tool listOf(UIMessagePart.Text(
                 buildJsonObject { put("error", "no saved host: $name") }.toString()
             ))
-        val auth = resolveHostAuth(h, vaultRepository)
-        if (auth == null) {
-            return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "saved host has no usable credentials (vault ref: ${h.vaultCredentialRef ?: "none"})") }.toString()
-            ))
-        }
         if (background && stdin != null) {
             return@Tool listOf(UIMessagePart.Text(
                 buildJsonObject { put("error", "stdin and background are mutually exclusive (a detached command reads from /dev/null)") }.toString()
             ))
         }
+
+        // 候选链：主 host → fallbackHostsJson 里的备用 host（按序）。连接类失败才沿链
+        // 尝试（认证失败/主机密钥变化不换 host——换了也没用）。全部失败报聚合错误。
+        val candidates = buildList {
+            add(h)
+            val fb = h.fallbackHostsJson?.let { raw ->
+                try { kotlinx.serialization.json.Json.parseToJsonElement(raw).jsonArray.mapNotNull { it.jsonPrimitive.contentOrNull } }
+                catch (_: Throwable) { emptyList() }
+            }.orEmpty()
+            fb.forEach { fname ->
+                if (fname != name) repo.getByName(fname)?.let { add(it) }
+            }
+        }
+
+        // 主 host 参数（用于 background 路径的 detached 包装——命令与 host 无关，取第一候选即可）
         val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(finalCommand) else (finalCommand to null)
         val effectiveCommand = detachedCmd
-        val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
-            execOneShot(context, h.host, h.port, h.user, auth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin)
+
+        var lastError: String? = null
+        val tried = mutableListOf<String>()
+        var result: JsonObject? = null
+        for ((idx, cand) in candidates.withIndex()) {
+            val candAuth = resolveHostAuth(cand, vaultRepository)
+            if (candAuth == null) {
+                lastError = "saved host '${cand.name}' has no usable credentials (vault ref: ${cand.vaultCredentialRef ?: "none"})"
+                tried.add(cand.name)
+                continue
+            }
+            val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
+                execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin)
+            }
+            tried.add(cand.name)
+            val err = payload["error"]?.jsonPrimitive?.contentOrNull
+            if (err == null) { result = payload; break }
+            lastError = err
+            // 连接类错误才继续试 fallback；认证/密钥类直接停（换 host 无意义）
+            if (idx < candidates.size - 1 && isFallbackEligible(err)) {
+                continue
+            }
+            // 非连接类错误或已是最后候选：终止
+            result = payload
+            break
         }
-        // background 时附日志路径供轮询（Windows Start-Process 场景；追加文本行，AI 可读）
-        val finalPayload = if (bgLogPath != null) {
-            payload.toString() + "\n[bg_log_path] $bgLogPath"
-        } else payload.toString()
+
+        val finalPayload = if (result != null) {
+            if (bgLogPath != null) result.toString() + "\n[bg_log_path] $bgLogPath"
+            else result.toString()
+        } else {
+            buildJsonObject {
+                put("error", lastError ?: "unknown failure")
+                put("tried_hosts", tried.toString())
+                put("hint", "primary host and all fallbacks failed")
+            }.toString()
+        }
         listOf(UIMessagePart.Text(finalPayload))
     }
 )
