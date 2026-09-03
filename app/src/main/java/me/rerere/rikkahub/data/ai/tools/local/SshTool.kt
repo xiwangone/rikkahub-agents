@@ -388,12 +388,13 @@ internal class JumpTunnelProxy(
     private var input: java.io.InputStream? = null
     private var output: java.io.OutputStream? = null
 
-    override fun connect() {
-        // JSch 会先调 setSocketFactory? 否——Proxy 直接走 connect()。开隧道通道。
+    /** JSch 在目标 session.connect() 时调用。socketFactory/host/port 由 Proxy 语义传入，
+     *  但隧道已固定到 targetHost:targetPort，故忽略形参，只开 direct-tcpip 通道。 */
+    override fun connect(socketFactory: com.jcraft.jsch.SocketFactory?, host: String, port: Int, connectTimeout: Int) {
         val ch = jumpSession.openChannel("direct-tcpip") as ChannelDirectTCPIP
         ch.setHost(targetHost)
         ch.setPort(targetPort)
-        ch.connect(30_000)
+        ch.connect(connectTimeout.coerceAtLeast(10_000))
         channel = ch
         input = ch.inputStream
         output = ch.outputStream
