@@ -257,7 +257,7 @@ private fun createShellTool(
                             "mapping envVarName -> vaultCredentialName. Values are decrypted in-process and " +
                             "injected ONLY into this command's process environment — never written to disk, " +
                             "never shown to the AI. Requires an active vault authorization. " +
-                            "Example: {\"GITHUB_TOKEN\": \"GITHUB_TOKEN\"} makes the token available as $GITHUB_TOKEN inside the command."
+                            "Example: {\"GITHUB_TOKEN\": \"GITHUB_TOKEN\"} makes the token available as \$GITHUB_TOKEN inside the command."
                     )
                 })
             },

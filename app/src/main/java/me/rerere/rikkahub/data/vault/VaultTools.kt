@@ -457,7 +457,7 @@ fun vaultCredentialUpdateTool(
                     val desc = o["description"]?.jsonPrimitive?.contentOrNull
                     val group = o["group"]?.jsonPrimitive?.contentOrNull
                     val pubParam = o["public_key"]?.jsonPrimitive?.contentOrNull
-                    val newPub = pubParam?.let { it.trim() }
+                    val newPub: String? = pubParam?.trim()
                     val changed = mutableListOf<String>()
                     val targetName = newName ?: name
                     if (newName != null && newName != name) {
@@ -468,7 +468,7 @@ fun vaultCredentialUpdateTool(
                     }
                     if (desc != null && desc != existing.description) changed += "描述"
                     if (group != null && group != existing.grp) changed += "分组"
-                    if (pubParam != null && newPub != existing.publicKey) changed += if (newPub.isEmpty()) "公钥(清空)" else "公钥"
+                    if (pubParam != null && newPub != existing.publicKey) changed += if (newPub.isNullOrEmpty()) "公钥(清空)" else "公钥"
                     if (changed.isEmpty()) {
                         listOf(UIMessagePart.Text("ℹ️ 没有需要更新的字段（当前已是最新）"))
                     } else {
