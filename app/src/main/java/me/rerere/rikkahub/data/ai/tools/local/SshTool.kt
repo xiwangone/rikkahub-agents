@@ -425,8 +425,42 @@ internal fun unreachableEnvelope(host: String, port: Int, outcome: ProbeOutcome)
             "RikkaHub Agents → Mobile data & Wi-Fi (enable Background data and Unrestricted data usage).")
     }
 
+/**
+ * PowerShell 引号/编码根治（2026-09-03）：
+ * 把命令转成 pwsh -EncodedCommand <base64>——base64 只含 [A-Za-z0-9+/=]，
+ * 穿透 SSH exec 通道/远端 shell 零转义需求；脚本内先强制 UTF-8 输出编码，
+ * 远端输出字节流确定为 UTF-8（解决 PowerShell 默认 GBK/ANSI 导致的乱码）。
+ *
+ * 触发条件：命令含非 ASCII（中文等）或 PowerShell 需管道/复杂引号——此时
+ * 逐层转义易错，EncodedCommand 是唯一零转义保真路径。纯 ASCII 简单命令
+ * （ls/dir/git status）不加壳，保持原样兼容非 pwsh 远端（Linux/华硕等）。
+ */
+internal fun preparePowerShellCommand(command: String): String {
+    val isPowerShell = command.startsWith("powershell") || command.startsWith("pwsh") ||
+        command.startsWith("PowerShell") || command.contains("PowerShell -") ||
+        command.contains("powershell -")
+    if (!isPowerShell) return command // 非 pwsh：保持原样（Linux 远端等）
+
+    // 剥掉用户已写的前缀 powershell/-NoProfile/-Command，取实际脚本
+    val script = command
+        .replace(Regex("^\\s*(powershell|pwsh|PowerShell)\\s+"), "")
+        .replace(Regex("(?i)\\s+-NoProfile\\s+"), " ")
+        .replace(Regex("(?i)\\s+-NonInteractive\\s+"), " ")
+        .replace(Regex("(?i)^\\s*-Command\\s+"), "")
+        .trim()
+
+    // 前置 UTF-8 输出编码 + 脚本本体
+    val fullScript = "[Console]::OutputEncoding=[Text.Encoding]::UTF8; $script"
+    val b64 = android.util.Base64.encodeToString(
+        fullScript.toByteArray(Charsets.UTF_16LE), android.util.Base64.NO_WRAP
+    )
+    return "powershell -NoProfile -NonInteractive -EncodedCommand $b64"
+}
+
 /** Run a single command on an open session. Returns a JSON object with exit_code/stdout/stderr. */
 internal fun runOnSession(session: Session, command: String, timeoutMs: Int, stdin: String? = null): JsonObject {
+    // 引号/编码根治：pwsh 命令自动转 EncodedCommand + UTF-8 前缀（见 preparePowerShellCommand）
+    val effectiveCommand = preparePowerShellCommand(command)
     // Bounded sinks: cap peak memory at a few KB regardless of how much the remote command
     // emits, so a high-throughput command can't OOM the app before we truncate. See
     // [BoundedOutputStream].
@@ -435,7 +469,7 @@ internal fun runOnSession(session: Session, command: String, timeoutMs: Int, std
     val channel = session.openChannel("exec") as ChannelExec
     var hitDeadline = false
     try {
-        channel.setCommand(command)
+        channel.setCommand(effectiveCommand)
         channel.outputStream = stdout
         channel.setErrStream(stderr)
         // Feed stdin then EOF. Real `ssh host 'cmd'` closes stdin when there's no piped input,
