@@ -979,6 +979,8 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.VaultExportEnv)) {
             tools.add(me.rerere.rikkahub.data.vault.vaultExportEnvTool(context, vaultRepository))
+            tools.add(me.rerere.rikkahub.data.vault.vaultExportLoadCredsTool(context, vaultRepository))
+            tools.add(me.rerere.rikkahub.data.vault.vaultImportLoadCredsTool(context, vaultRepository))
         }
         if (options.contains(LocalToolOption.Shizuku)) {
             tools.add(me.rerere.rikkahub.data.ai.tools.local.shizukuExecTool(context))

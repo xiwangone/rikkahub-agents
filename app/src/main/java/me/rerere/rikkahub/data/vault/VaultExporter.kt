@@ -52,6 +52,7 @@ object VaultExporter {
         val ct: String,
         val desc: String = "",
         val group: String = "",
+        val publicKey: String = "",
     )
 
     @Serializable
@@ -85,6 +86,7 @@ object VaultExporter {
                 ct = Base64.getEncoder().encodeToString(ct),
                 desc = e.description,
                 group = e.group,
+                publicKey = e.publicKey,
             )
         }
         val bundle = VaultBundle(
@@ -112,7 +114,7 @@ object VaultExporter {
             val ct = Base64.getDecoder().decode(entry.ct)
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_LENGTH, iv))
             val plaintext = cipher.doFinal(ct).decodeToString()
-            Quad(name, plaintext, entry.desc, entry.group)
+            Quad(name, plaintext, entry.desc, entry.group, entry.publicKey)
         }
     }
 
@@ -122,6 +124,7 @@ object VaultExporter {
         val plaintext: String,
         val description: String,
         val group: String,
+        val publicKey: String = "",
     )
 
     private fun deriveKey(password: String, salt: ByteArray): javax.crypto.SecretKey {
@@ -129,4 +132,40 @@ object VaultExporter {
         val factory = SecretKeyFactory.getInstance("PBKDF2WithHmacSHA256")
         return SecretKeySpec(factory.generateSecret(spec).encoded, "AES")
     }
+
+    // ================= load-creds.sh 导出 =================
+
+    /**
+     * 生成 load-creds.sh 风格导出（与 [me.rerere.rikkahub.data.vault.CredentialImporter.parse] 完全对称）：
+     * - 分组头注释 `# ============ 分组名 ============`
+     * - 描述注释 `# 描述`（在 export 前一行）
+     * - 公钥注释 `# SSH公钥: ssh-ed25519 ...`（在描述前，公开信息）
+     * - export KEY="多行值"（PEM 等长值原样保留）
+     * 往返（导入→导出）不丢 description/group/publicKey。
+     */
+    fun toLoadCreds(entries: List<Quad>): String {
+        val sb = StringBuilder()
+        sb.append("#!/bin/bash\n")
+        sb.append("# load-creds.sh — 由 RikkaHub Agents 凭证库导出（vault_export_loadcreds / UI），可与凭证库往返导入\n")
+        sb.append("# 格式：分组头注释 + 描述注释 + 公钥注释 + export 变量。修改后重新导入即可同步密钥库。\n")
+        val byGroup = entries.groupBy { it.group.ifBlank { "Other" } }
+        val sortedGroups = byGroup.keys.sorted()
+        var first = true
+        for (group in sortedGroups) {
+            if (!first) sb.append('\n')
+            first = false
+            sb.append("# ============ $group ============\n")
+            byGroup.getValue(group).sortedBy { it.name }.forEach { e ->
+                if (e.description.isNotBlank()) sb.append("# ${e.description}\n")
+                if (e.publicKey.isNotBlank()) sb.append("# SSH公钥: ${e.publicKey}\n")
+                val quoted = shellDoubleQuote(e.plaintext)
+                sb.append("export ${e.name}=\"$quoted\"\n")
+            }
+        }
+        return sb.toString()
+    }
+
+    /** 双引号转义 + 保留多行（shell 双引号内换行合法）。 */
+    private fun shellDoubleQuote(s: String): String =
+        s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\$", "\\\$").replace("`", "\\`")
 }

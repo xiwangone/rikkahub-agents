@@ -140,7 +140,7 @@ fun VaultPage() {
                         val entries = repository.getAll()
                         val plaintexts =
                             entries.mapNotNull { e ->
-                                repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp) }
+                                repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp, e.publicKey) }
                             }
                         val vaultJson = VaultExporter.exportWithGroups(backupPassword, plaintexts)
                         context.contentResolver.openOutputStream(uri)?.use { out ->
@@ -171,7 +171,7 @@ fun VaultPage() {
                             } ?: ""
                         val restored = VaultExporter.import(content, backupPassword)
                         restored.forEach { q ->
-                            repository.save(q.name, q.plaintext, q.description, q.group.ifEmpty { "Other" })
+                            repository.save(q.name, q.plaintext, q.description, q.group.ifEmpty { "Other" }, q.publicKey)
                         }
                         backupResult = restoreSuccessStr.format(restored.size)
                     }.onFailure { e ->
@@ -206,7 +206,7 @@ fun VaultPage() {
                         val entries = repository.getAll()
                         val plaintexts =
                             entries.mapNotNull { e ->
-                                repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp) }
+                                repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp, e.publicKey) }
                             }
                         val output = when (exportFormat) {
                             VaultFormats.FORMAT_CSV -> VaultFormats.toCsv(plaintexts)

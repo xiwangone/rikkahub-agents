@@ -627,3 +627,104 @@ fun vaultCredentialAuditTool(repository: CredentialVaultRepository): Tool = Tool
         }
     },
 )
+
+/** 将凭证库导出为 load-creds.sh 风格脚本（含分组/描述/公钥注释，与导入格式对称）。 */
+fun vaultExportLoadCredsTool(
+    context: android.content.Context,
+    repository: CredentialVaultRepository,
+): Tool = Tool(
+    name = "vault_export_loadcreds",
+    description =
+        "Export the whole vault as a load-creds.sh style shell script and write it to the workspace " +
+            "at /workspace/tmp/load-creds-export.sh. The script carries group headers, description comments, " +
+            "SSH public key comments and export lines — fully symmetric with the importer, so editing the " +
+            "script and importing it back loses nothing (value / description / group / public key). " +
+            "Requires active vault authorization. Plaintext secrets appear ONLY inside the generated file " +
+            "on the workspace; delete it after use.",
+    parameters = { InputSchema.Obj(properties = buildJsonObject {}, required = emptyList()) },
+    needsApproval = { true },
+    execute = { params ->
+        val sessionManager = VaultSessionManager(context)
+        if (!sessionManager.hasActiveAuthorization()) {
+            listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+        } else {
+            val entries = repository.getAll()
+            val quads =
+                entries.mapNotNull { e ->
+                    repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp, e.publicKey) }
+                }
+            if (quads.isEmpty()) {
+                listOf(UIMessagePart.Text("❌ 凭证库为空，无可导出条目"))
+            } else {
+                val script = VaultExporter.toLoadCreds(quads)
+                val wsRepository =
+                    runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
+                        ?: return@Tool listOf(UIMessagePart.Text("❌ 工作区不可用"))
+                val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ 无工作区"))
+                runCatching { wsRepository.writeText(ws.id, "tmp/load-creds-export.sh", script, overwrite = true) }.getOrNull()
+                    ?: return@Tool listOf(UIMessagePart.Text("❌ 写工作区文件失败"))
+                quads.forEach { q -> repository.logAccess(q.name, "ai-tool", "export_loadcreds") }
+                listOf(
+                    UIMessagePart.Text(
+                        "✅ 已导出 ${quads.size} 条凭证到 /workspace/tmp/load-creds-export.sh\n" +
+                            "含分组/描述/SSH公钥注释。修改后可用 vault_import_loadcreds 或 UI 导入同步。\n" +
+                            "⚠️ 该文件含明文密钥，用完请删除。",
+                    ),
+                )
+            }
+        }
+    },
+)
+
+/** 从工作区 load-creds.sh 导入（解析含公钥/描述/分组），供 AI 全流程维护凭证库。 */
+fun vaultImportLoadCredsTool(
+    context: android.content.Context,
+    repository: CredentialVaultRepository,
+): Tool = Tool(
+    name = "vault_import_loadcreds",
+    description =
+        "Import credentials from a load-creds.sh style script already written in the workspace " +
+            "(e.g. /workspace/tmp/load-creds-export.sh or a user-provided script). Parses group headers, " +
+            "description comments, SSH public key comments and export lines, then upserts into the vault " +
+            "(blank value on existing entry keeps the old secret; blank public key keeps the old key). " +
+            "Returns how many entries were imported/updated.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("path", buildJsonObject { put("type", "string"); put("description", "Workspace path of the script, default /workspace/tmp/load-creds-export.sh") })
+            },
+            required = emptyList(),
+        )
+    },
+    needsApproval = { true },
+    execute = { params ->
+        val sessionManager = VaultSessionManager(context)
+        if (!sessionManager.hasActiveAuthorization()) {
+            listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+        } else {
+            val path = params.jsonObject["path"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "/workspace/tmp/load-creds-export.sh"
+            val wsRepository =
+                runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
+                    ?: return@Tool listOf(UIMessagePart.Text("❌ 工作区不可用"))
+            val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ 无工作区"))
+            val content =
+                runCatching {
+                    val buf = java.io.ByteArrayOutputStream()
+                    wsRepository.exportRootfsFile(ws.id, path.removePrefix("/workspace/"), buf)
+                    buf.toString(Charsets.UTF_8.name())
+                }.getOrNull()
+            if (content == null) {
+                listOf(UIMessagePart.Text("❌ 读取文件失败: $path"))
+            } else {
+                val parsed = CredentialImporter.parse(content)
+                if (parsed.isEmpty()) {
+                    listOf(UIMessagePart.Text("❌ 未解析到任何条目（格式不符 load-creds.sh？）"))
+                } else {
+                    val imported = repository.importEntries(parsed)
+                    parsed.forEach { p -> repository.logAccess(p.name, "ai-tool", "import_loadcreds") }
+                    listOf(UIMessagePart.Text("✅ 已导入/更新 $imported 条凭证（解析 ${parsed.size} 条）"))
+                }
+            }
+        }
+    },
+)

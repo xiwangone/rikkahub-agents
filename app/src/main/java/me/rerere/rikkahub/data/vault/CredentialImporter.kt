@@ -28,12 +28,14 @@ object CredentialImporter {
         val value: String,
         val description: String,
         val group: String,
+        val publicKey: String = "",
     )
 
     fun parse(content: String): List<ParsedEntry> {
         val result = mutableListOf<ParsedEntry>()
         var currentGroup = "Other"
         var pendingComment: String? = null
+        var pendingPublicKey: String? = null
         val lines = content.lineSequence().iterator()
         while (lines.hasNext()) {
             val rawLine = lines.next()
@@ -46,6 +48,14 @@ object CredentialImporter {
                     val keyword = line.removePrefix("#").removePrefix("=").trim()
                     currentGroup = detectGroup(keyword)
                     pendingComment = null
+                }
+
+                // 公钥注释：如 "# SSH公钥: ssh-ed25519 AAAA... comment"（公钥公开，非机密）
+                line.startsWith("#") && (line.contains("SSH公钥") || line.contains("公钥:") || line.startsWith("# pub:")) -> {
+                    val pub = line.substringAfter(':').trim()
+                    if (pub.startsWith("ssh-") || pub.startsWith("ecdsa-") || pub.startsWith("sk-")) {
+                        pendingPublicKey = pub
+                    }
                 }
 
                 // 普通注释：作为下一条 export 的描述
@@ -78,8 +88,10 @@ object CredentialImporter {
                         value = value,
                         description = pendingComment ?: "",
                         group = currentGroup,
+                        publicKey = pendingPublicKey ?: "",
                     )
                     pendingComment = null
+                    pendingPublicKey = null
                 }
             }
         }
