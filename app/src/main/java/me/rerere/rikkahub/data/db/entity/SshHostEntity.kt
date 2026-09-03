@@ -24,5 +24,9 @@ data class SshHostEntity(
     val vaultCredentialRef: String? = null,
     /** 来源服务器样板名（可选，用于追溯） */
     val templateRef: String? = null,
+    /** 备用主机名列表（JSON 数组字符串，如 ["cc-louxia","局域网"]）。主 host 连不上时按序尝试 */
+    val fallbackHostsJson: String? = null,
+    /** 跳板主机名（saved host 名）。非空时先连跳板再经它连目标（ProxyJump 语义，预留） */
+    val jumpHost: String? = null,
     val createdAtMs: Long,
 )
