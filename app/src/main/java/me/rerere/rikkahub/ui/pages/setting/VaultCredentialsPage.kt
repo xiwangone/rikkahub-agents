@@ -151,9 +151,17 @@ fun VaultCredentialsPage() {
             mode = mode,
             existingGroups = (entries.map { it.grp } + "Other").distinct().sorted(),
             onDismiss = { showEditor = null },
-            onSave = { name, value, description, group, publicKey ->
+            onSave = { oldName, name, value, description, group, publicKey ->
                 scope.launch {
-                    repository.save(name, value, description, group, publicKey)
+                    if (oldName != null && oldName != name) {
+                        // 编辑模式改名：先删旧条目再按新名保存（值来自解密后的编辑框，留空=丢弃旧值需确认）
+                        repository.delete(repository.getByName(oldName) ?: return@launch)
+                        repository.logAccess(oldName, "manual", "rename_from")
+                        repository.save(name, value, description, group, publicKey)
+                        repository.logAccess(name, "manual", "rename_to")
+                    } else {
+                        repository.save(name, value, description, group, publicKey)
+                    }
                     showEditor = null
                     refresh()
                 }
@@ -312,7 +320,7 @@ private fun CredentialEditorDialog(
     mode: EditorMode,
     existingGroups: List<String>,
     onDismiss: () -> Unit,
-    onSave: (name: String, value: String, description: String, group: String, publicKey: String) -> Unit,
+    onSave: (oldName: String?, name: String, value: String, description: String, group: String, publicKey: String) -> Unit,
 ) {
     val repository: CredentialVaultRepository = koinInject()
     var name by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.name ?: (mode as? EditorMode.Create)?.initialName ?: "") }
@@ -339,12 +347,11 @@ private fun CredentialEditorDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = {
-                        name = it.uppercase().replace(Regex("[^A-Z0-9_]"), "_")
+                        name = it.uppercase().replace(Regex("[^A-Z0-9_ ]"), "_").replace(" ", "_")
                         nameError = false
                     },
                     label = { Text(stringResource(R.string.vault_editor_name_label)) },
                     singleLine = true,
-                    enabled = !isEdit, // 编辑模式不改变量名（唯一键）
                     isError = nameError,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -400,12 +407,13 @@ private fun CredentialEditorDialog(
         },
         confirmButton = {
             Button(
-                onClick = {
-                    if (name.isBlank()) { nameError = true; return@Button }
-                    if (!isEdit && value.isBlank()) { valueError = true; return@Button }
-                    // 编辑模式：value 留空 = 保留原值（在 onSave 里处理）
-                    onSave(name, value, description, group, publicKey)
-                },
+        onClick = {
+            if (name.isBlank()) { nameError = true; return@Button }
+            if (!isEdit && value.isBlank()) { valueError = true; return@Button }
+            // 编辑模式：value 留空 = 保留原值（在 onSave 里处理）；改名传旧名
+            val oldName = (mode as? EditorMode.Edit)?.entry?.name
+            onSave(oldName, name, value, description, group, publicKey)
+        },
             ) { Text(stringResource(R.string.vault_save)) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.vault_cancel)) } },
