@@ -54,10 +54,27 @@ class CredentialVaultRepository(
         }
     }
 
-    /** 批量导入（解析结果 → 逐条 upsert，返回导入条数） */
+    /** 批量导入（解析结果 → 逐条 upsert，返回导入条数）。 */
     suspend fun importEntries(entries: List<CredentialImporter.ParsedEntry>): Int {
         entries.forEach { e ->
-            upsertEntry(e.name, e.value, e.description, e.group)
+            val existing = dao.getByName(e.name)
+            // 导入留空 = 保留原值（与 save 语义一致：避免重导清空已存密钥）
+            val keepValue = existing != null && e.value.isBlank()
+            // 导入公钥留空 = 保留原公钥（防重导清空已存公钥）
+            val keepPub = existing != null && e.publicKey.isBlank()
+            if (keepValue) {
+                // 只更新元数据
+                dao.update(
+                    existing!!.copy(
+                        description = e.description.ifEmpty { existing.description },
+                        grp = if (e.group.isBlank()) existing.grp else e.group,
+                        publicKey = if (keepPub) existing.publicKey else e.publicKey,
+                        updatedAt = System.currentTimeMillis(),
+                    )
+                )
+            } else {
+                upsertEntry(e.name, e.value, e.description, e.group, e.publicKey, keepPub = keepPub)
+            }
         }
         return entries.size
     }
@@ -69,6 +86,7 @@ class CredentialVaultRepository(
         description: String,
         group: String,
         publicKey: String = "",
+        keepPub: Boolean = false,
     ) {
         val now = System.currentTimeMillis()
         val encrypted = ProviderCredentialCipher.encrypt(value)
@@ -78,7 +96,7 @@ class CredentialVaultRepository(
                 existing.copy(
                     description = description.ifEmpty { existing.description },
                     grp = group.ifEmpty { existing.grp },
-                    publicKey = publicKey.ifEmpty { existing.publicKey },
+                    publicKey = if (keepPub) existing.publicKey else publicKey.ifEmpty { existing.publicKey },
                     valueEncrypted = encrypted,
                     valueLength = value.length,
                     updatedAt = now,
@@ -89,7 +107,7 @@ class CredentialVaultRepository(
                 VaultCredentialEntity(
                     name = name,
                     description = description,
-                    grp = group,
+                    grp = group.ifEmpty { "Other" },
                     publicKey = publicKey,
                     valueEncrypted = encrypted,
                     valueLength = value.length,

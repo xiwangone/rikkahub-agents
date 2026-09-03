@@ -91,6 +91,7 @@ object SshKeyGenerator {
                 privateBlob = sshString("ssh-ed25519".encodeToByteArray()) +
                     sshString(pubBytes) +
                     sshString(seed + pubBytes),
+                comment = comment,
             ),
             publicKeyLine = "ssh-ed25519 ${b64(sshString("ssh-ed25519".encodeToByteArray()) + sshString(pubBytes))} $comment",
         )
@@ -103,14 +104,14 @@ object SshKeyGenerator {
      * 无加密（none cipher）。仅 Ed25519 使用（OpenSSH 强制要求该格式）。
      * padding 按规范递增（1,2,3,...）。
      */
-    private fun encodeOpenSshKeyV1(keyType: String, publicBlob: ByteArray, privateBlob: ByteArray): String {
+    private fun encodeOpenSshKeyV1(keyType: String, publicBlob: ByteArray, privateBlob: ByteArray, comment: String = ""): String {
         val rand = SecureRandom()
         val check = ByteArray(4)
         rand.nextBytes(check)
 
         // private section = checkint + checkint + privateBlob + comment + padding
-        val comment = ByteArray(0)
-        val noPadding = check + check + privateBlob + sshString(comment)
+        val commentBytes = comment.encodeToByteArray()
+        val noPadding = check + check + privateBlob + sshString(commentBytes)
         val padLen = (8 - (noPadding.size % 8)) % 8
         val padding = ByteArray(if (padLen == 0) 8 else padLen) { (it + 1).toByte() }
         val privateSection = noPadding + padding
