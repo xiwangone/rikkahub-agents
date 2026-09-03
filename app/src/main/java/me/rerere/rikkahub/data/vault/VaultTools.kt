@@ -29,24 +29,37 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
     name = "vault_credential_names",
     description =
         "List credentials stored in the vault (names only, never values). " +
-            "Use to discover which credential names are available before calling vault_ssh_exec.",
+            "Supports optional keyword search (matches name / description, case-insensitive) and " +
+            "optional group filter. Results are sorted by group then name. " +
+            "Use to discover which credential names are available before calling vault_ssh_exec / vault_http_exec.",
     parameters = {
         InputSchema.Obj(
             properties =
                 buildJsonObject {
                     put("group", buildJsonObject { put("type", "string"); put("description", "Filter by group: Git/AI/ECS/MCP/Notification/SSH/Other") })
+                    put("keyword", buildJsonObject { put("type", "string"); put("description", "Optional search keyword (matches name or description, case-insensitive)") })
+                    put("sort", buildJsonObject { put("type", "string"); put("description", "Sort order: name / group / length (default group-then-name)") })
                 },
         )
     },
     execute = { params ->
         val group = params.jsonObject["group"]?.jsonPrimitive?.contentOrNull
-        val entries =
+        val keyword = params.jsonObject["keyword"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase()
+        val sort = params.jsonObject["sort"]?.jsonPrimitive?.contentOrNull
+        val filtered =
             repository.getAll()
-                .filter { group == null || it.grp == group }
-                .map { e -> "${e.name}  [${e.grp}] len=${e.valueLength}  ${e.description}" }
+                .filter { e -> group == null || e.grp == group }
+                .filter { e -> keyword == null || e.name.lowercase().contains(keyword) || e.description.lowercase().contains(keyword) }
+        val entries =
+            when (sort) {
+                "name" -> filtered.sortedBy { it.name.lowercase() }
+                "group" -> filtered.sortedWith(compareBy({ it.grp }, { it.name.lowercase() }))
+                "length" -> filtered.sortedBy { it.valueLength }
+                else -> filtered.sortedWith(compareBy({ it.grp }, { it.name.lowercase() }))
+            }.map { e -> "${e.name}  [${e.grp}] len=${e.valueLength}  ${e.description}" }
         listOf(
             UIMessagePart.Text(
-                if (entries.isEmpty()) "（凭证库为空，或该分组无条目）" else "凭证库条目（${entries.size}）：\n" + entries.joinToString("\n"),
+                if (entries.isEmpty()) "（凭证库为空，或无匹配条目）" else "凭证库条目（${entries.size}）：\n" + entries.joinToString("\n"),
             ),
         )
     },
@@ -348,3 +361,126 @@ private suspend fun runVaultSshExec(
 
 /** OPENSSH 私钥末尾换行标准化：缺末尾换行时补上（否则 JSch 认证失败）。 */
 internal fun String.ensureTrailingNewline(): String = if (endsWith("\n")) this else "$this\n"
+
+/** 更新凭证条目的元数据（名称/描述/分组），值不可被 AI 修改。改名=复制 value 密文到新名后删旧条目。 */
+fun vaultCredentialUpdateTool(
+    context: android.content.Context,
+    repository: CredentialVaultRepository,
+): Tool = Tool(
+    name = "vault_credential_update",
+    description =
+        "Update a credential entry's metadata (rename / change description / change group). " +
+            "The secret VALUE is never readable or writable by the AI — this tool only touches " +
+            "name/description/group fields. Rename copies the existing encrypted value to the new name. " +
+            "Pass only the fields you want to change; omitted fields stay unchanged.",
+    parameters = {
+        InputSchema.Obj(
+            properties =
+                buildJsonObject {
+                    put("name", buildJsonObject { put("type", "string"); put("description", "Current credential name (required)") })
+                    put("new_name", buildJsonObject { put("type", "string"); put("description", "Optional new name (rename)") })
+                    put("description", buildJsonObject { put("type", "string"); put("description", "Optional new description") })
+                    put("group", buildJsonObject { put("type", "string"); put("description", "Optional new group: Git/AI/ECS/MCP/Notification/SSH/Other") })
+                },
+            required = listOf("name"),
+        )
+    },
+    needsApproval = { true },
+    execute = { params ->
+        val o = params.jsonObject
+        val name = o["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        if (name == null) {
+            listOf(UIMessagePart.Text("❌ name 必填"))
+        } else {
+            val sessionManager = VaultSessionManager(context)
+            if (!sessionManager.hasActiveAuthorization()) {
+                listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+            } else {
+                val existing = repository.getByName(name)
+                if (existing == null) {
+                    listOf(UIMessagePart.Text("❌ 凭证不存在: $name（用 vault_credential_names 查看可用名称）"))
+                } else {
+                    val newName = o["new_name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+                    val desc = o["description"]?.jsonPrimitive?.contentOrNull
+                    val group = o["group"]?.jsonPrimitive?.contentOrNull
+                    val changed = mutableListOf<String>()
+                    val targetName = newName ?: name
+                    if (newName != null && newName != name) {
+                        if (repository.getByName(newName) != null) {
+                            return@Tool listOf(UIMessagePart.Text("❌ 目标名称已存在: $newName（改名冲突，请选其他名称）"))
+                        }
+                        changed += "名称: $name → $newName"
+                    }
+                    if (desc != null && desc != existing.description) changed += "描述"
+                    if (group != null && group != existing.grp) changed += "分组"
+                    if (changed.isEmpty()) {
+                        listOf(UIMessagePart.Text("ℹ️ 没有需要更新的字段（当前已是最新）"))
+                    } else {
+                        val value = repository.decryptValue(existing) ?: ""
+                        repository.save(
+                            name = targetName,
+                            value = value,
+                            description = desc ?: existing.description,
+                            group = group ?: existing.grp,
+                            publicKey = existing.publicKey,
+                        )
+                        if (targetName != name) {
+                            repository.delete(existing)
+                            repository.logAccess(name, "ai-tool", "rename_from")
+                            repository.logAccess(targetName, "ai-tool", "rename_to")
+                        } else {
+                            repository.logAccess(name, "ai-tool", "update")
+                        }
+                        listOf(
+                            UIMessagePart.Text(
+                                "✅ 已更新凭证元数据：${targetName}\n变更：${changed.joinToString("；")}\n（值未改动，AI 不可读写密钥值）",
+                            ),
+                        )
+                    }
+                }
+            }
+        }
+    },
+)
+
+/** AI 删除凭证条目。值不可见，仅按名称删除；删除不可逆，故强制审批。 */
+fun vaultCredentialDeleteTool(
+    context: android.content.Context,
+    repository: CredentialVaultRepository,
+): Tool = Tool(
+    name = "vault_credential_delete",
+    description =
+        "Delete a credential entry from the vault by name. The secret value is never shown to the AI. " +
+            "Deletion is IRREVERSIBLE — requires explicit user approval. " +
+            "Use vault_credential_names first to confirm the exact name.",
+    parameters = {
+        InputSchema.Obj(
+            properties =
+                buildJsonObject {
+                    put("name", buildJsonObject { put("type", "string"); put("description", "Credential name to delete") })
+                },
+            required = listOf("name"),
+        )
+    },
+    needsApproval = { true },
+    execute = { params ->
+        val name = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        if (name == null) {
+            listOf(UIMessagePart.Text("❌ name 必填"))
+        } else {
+            val sessionManager = VaultSessionManager(context)
+            if (!sessionManager.hasActiveAuthorization()) {
+                listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+            } else {
+                val existing = repository.getByName(name)
+                if (existing == null) {
+                    listOf(UIMessagePart.Text("❌ 凭证不存在: $name（用 vault_credential_names 查看可用名称）"))
+                } else {
+                    repository.delete(existing)
+                    repository.logAccess(name, "ai-tool", "delete")
+                    listOf(UIMessagePart.Text("🗑️ 已删除凭证: $name"))
+                }
+            }
+        }
+    },
+)

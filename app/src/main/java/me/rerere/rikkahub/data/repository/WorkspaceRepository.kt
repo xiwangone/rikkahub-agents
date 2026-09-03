@@ -283,6 +283,7 @@ class WorkspaceRepository(
         timeoutMillis: Long = WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS,
         stdin: ByteArray? = null,
         targetId: String? = null,
+        env: Map<String, String> = emptyMap(),
     ): WorkspaceCommandResult {
         // 多工作区：targetId 指定时在目标工作区 rootfs 执行（默认当前工作区）
         val executeRoot = if (targetId != null) (dao.getById(targetId) ?: error("Target workspace not found: $targetId")).root else id
@@ -290,7 +291,7 @@ class WorkspaceRepository(
         // runInterruptible 让协程取消转化为线程中断，从而打断阻塞的 Process.waitFor 并杀掉进程
         return runInterruptible(Dispatchers.IO) {
             manager.ensureWorkspace(workspace.root)
-            manager.executeCommand(workspace.root, command, cwd, timeoutMillis, stdin)
+            manager.executeCommand(workspace.root, command, cwd, timeoutMillis, stdin, env)
         }
     }
 
