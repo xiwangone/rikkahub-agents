@@ -43,7 +43,8 @@ import me.rerere.hugeicons.stroke.Edit02
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.hugeicons.stroke.Key01
-import me.rerere.hugeicons.stroke.Key01
+import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
@@ -69,6 +70,7 @@ fun VaultCredentialsPage() {
     var showEditor by remember { mutableStateOf<EditorMode?>(null) }
     var deleteTarget by remember { mutableStateOf<VaultCredentialEntity?>(null) }
     var showKeyGen by remember { mutableStateOf(false) }
+    var searchQuery by remember { mutableStateOf("") }
 
     suspend fun refresh() {
         entries = repository.getAll()
@@ -120,25 +122,57 @@ fun VaultCredentialsPage() {
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                // 按组展示
-                val grouped = entries.groupBy { it.grp }
-                grouped.forEach { (group, list) ->
+                // 搜索框（名称/描述/分组过滤）
+                item(key = "search") {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(stringResource(R.string.vault_search_hint)) },
+                        leadingIcon = { Icon(HugeIcons.Search01, null) },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) { Icon(HugeIcons.Cancel01, null) }
+                            }
+                        },
+                        singleLine = true,
+                    )
+                }
+
+                // 按组展示：固定组序 + 组内名称排序 + 搜索过滤
+                val groupOrder = listOf("Git", "AI", "SSH", "Network", "MCP", "Notification", "Other")
+                val query = searchQuery.trim().lowercase()
+                val filtered = entries.filter {
+                    query.isEmpty() ||
+                        it.name.lowercase().contains(query) ||
+                        it.description.lowercase().contains(query) ||
+                        it.grp.lowercase().contains(query)
+                }
+                val grouped = filtered.groupBy { it.grp }
+                val orderedGroups = grouped.keys.sortedBy { g ->
+                    val idx = groupOrder.indexOf(g)
+                    if (idx < 0) groupOrder.size else idx
+                }
+                // 拍平：组头 item + 组内条目（组内按 name 排序）
+                orderedGroups.forEach { group ->
                     item(key = "group_$group") {
                         Text(
-                            group,
+                            group + " (${grouped[group]!!.size})",
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                         )
                     }
-                    items(list, key = { it.id }) { entry ->
-                        CredentialRow(
-                            entry = entry,
-                            revealed = entry.name in revealedNames,
-                            onRevealToggle = { toggleReveal(entry) },
-                            onEdit = { showEditor = EditorMode.Edit(entry) },
-                            onDelete = { deleteTarget = entry },
-                        )
+                    grouped[group]!!.sortedBy { it.name.lowercase() }.forEach { entry ->
+                        item(key = entry.id) {
+                            CredentialRow(
+                                entry = entry,
+                                revealed = entry.name in revealedNames,
+                                onRevealToggle = { toggleReveal(entry) },
+                                onEdit = { showEditor = EditorMode.Edit(entry) },
+                                onDelete = { deleteTarget = entry },
+                            )
+                        }
                     }
                 }
             }

@@ -104,10 +104,14 @@ object SecretMasker {
         var out = text
         // 1) 结构层：私钥块全掩（容忍折行/多行，兜住精确匹配漏网）
         out = PEM_PRIVATE_KEY.replace(out, MASK)
-        // 2) 精确层：exact 规则全量替换（敏感类无条件，含 6 位短密码）
-        rules.filter { it.exact }.forEach { rule ->
-            out = out.replace(rule.value, MASK)
-        }
+        // 2) 精确层：逐条 replace（classify 已只收真机密条目——公钥/非敏感短值已排除，
+        //    字典量≈机密数；长值优先防短值截断长值错掩）。当前 58 条量级 replace 开销可忽略。
+        rules.asSequence()
+            .filter { it.exact }
+            .map { it.value }
+            .distinct()
+            .sortedByDescending { it.length }
+            .forEach { secret -> out = out.replace(secret, MASK) }
         return out
     }
 }

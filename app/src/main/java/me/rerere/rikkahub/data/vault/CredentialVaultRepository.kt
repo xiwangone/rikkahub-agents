@@ -37,6 +37,10 @@ class CredentialVaultRepository(
         group: String,
         publicKey: String = "",
     ) {
+        // 命名规范校验（大写蛇形）。存量脏名改到此名时同样拦截；导入路径见 importEntries
+        require(validateCredentialName(name)) {
+            "凭证名不合规范：$name（须大写蛇形如 GITHUB_TOKEN；禁止小写/连字符/空格）"
+        }
         val existing = dao.getByName(name)
         if (existing != null && value.isBlank()) {
             // 编辑留空 = 保留原值，仅更新描述/分组
@@ -56,8 +60,11 @@ class CredentialVaultRepository(
 
     /** 批量导入（解析结果 → 逐条 upsert，返回导入条数）。 */
     suspend fun importEntries(entries: List<CredentialImporter.ParsedEntry>): Int {
+        var imported = 0
         entries.forEach { e ->
             val existing = dao.getByName(e.name)
+            // 命名规范：新名称必须合规才导入（存量脏名已存在则放行，不阻断旧数据回导）
+            if (existing == null && !validateCredentialName(e.name)) return@forEach
             // 导入留空 = 保留原值（与 save 语义一致：避免重导清空已存密钥）
             val keepValue = existing != null && e.value.isBlank()
             // 导入公钥留空 = 保留原公钥（防重导清空已存公钥）
@@ -75,8 +82,9 @@ class CredentialVaultRepository(
             } else {
                 upsertEntry(e.name, e.value, e.description, e.group, e.publicKey, keepPub = keepPub)
             }
+            imported++
         }
-        return entries.size
+        return imported
     }
 
     /** 新增/覆盖写入：加密后 upsert（同名单覆盖，描述/分组用传入值）。 */
@@ -158,5 +166,16 @@ class CredentialVaultRepository(
             if (value.length <= 6) return "*".repeat(value.length)
             return value.take(3) + "***" + value.takeLast(3)
         }
+
+        /**
+         * 凭证命名规范（2026-09-03 定稿写死）：大写蛇形。
+         * 规则：^[A-Z][A-Z0-9_]*$ —— 首字符大写字母，仅大写字母/数字/下划线。
+         * 语义后缀（建议非强制）：_TOKEN / _API_KEY / _KEY / _PUB / _PWD / _PASS / _PATH / _ACCOUNT。
+         */
+        private val NAME_REGEX = Regex("^[A-Z][A-Z0-9_]*$")
+
+        /** 校验凭证名是否合规。空名/小写/连字符/空格/中文均不合规。 */
+        fun validateCredentialName(name: String): Boolean =
+            name.isNotBlank() && NAME_REGEX.matches(name)
     }
 }
