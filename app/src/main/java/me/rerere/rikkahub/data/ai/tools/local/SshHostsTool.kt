@@ -440,3 +440,111 @@ fun sshPresetsTool(): Tool = Tool(
         listOf(UIMessagePart.Text(out.toString()))
     }
 )
+
+/**
+ * vault_deploy_ssh_key — 把 vault 中某 SSH 密钥的公钥部署到 saved host 的
+ * authorized_keys（幂等：已存在则跳过），并验证可登录。完成"生成→分发→验证"
+ * 生命周期闭环，AI 全程不见私钥明文（只读 vault 条目的 publicKey 字段）。
+ */
+fun vaultDeployKeyTool(
+    context: Context,
+    repo: SshHostRepository,
+    vaultRepository: CredentialVaultRepository,
+): Tool = Tool(
+    name = "vault_deploy_ssh_key",
+    description =
+        "Deploy a vault SSH key's PUBLIC key to a saved host's ~/.ssh/authorized_keys " +
+            "(idempotent: skips if already present), then verifies the host accepts it. " +
+            "Completes the key lifecycle: vault_gen_key -> deploy -> connect. The private key " +
+            "never leaves the vault; only the public key line is read and written.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("credential_name", buildJsonObject { put("type", "string"); put("description", "Vault credential name of the SSH key pair (must have a publicKey). See vault_credential_names.") })
+                put("host_name", buildJsonObject { put("type", "string"); put("description", "Saved host name to deploy to (see list_ssh_hosts). The host's own credential is used to log in and append the key.") })
+                put("remote_user", buildJsonObject { put("type", "string"); put("description", "Remote username whose authorized_keys to append to. Defaults to the saved host's user.") })
+            },
+            required = listOf("credential_name", "host_name"),
+        )
+    },
+    needsApproval = { true },
+    execute = { input ->
+        val p = input.jsonObject
+        val fail: (String) -> List<UIMessagePart> = { msg ->
+            listOf(UIMessagePart.Text(buildJsonObject { put("error", msg) }.toString()))
+        }
+        val credName = p["credential_name"]?.jsonPrimitive?.contentOrNull ?: return@Tool fail("credential_name is required")
+        val hostName = p["host_name"]?.jsonPrimitive?.contentOrNull ?: return@Tool fail("host_name is required")
+        val remoteUser = p["remote_user"]?.jsonPrimitive?.contentOrNull
+
+        // 1. 读 vault 条目的公钥（明文；私钥不解密）
+        val entry = vaultRepository.getByName(credName)
+        if (entry == null) return@Tool fail("no vault credential: $credName")
+        val pubKey = entry.publicKey?.trim()
+        if (pubKey.isNullOrBlank()) {
+            return@Tool fail("vault credential '$credName' has no stored public key — generate one with vault_gen_key or add the public key first")
+        }
+        val h = repo.getByName(hostName) ?: return@Tool fail("no saved host: $hostName")
+        val targetUser = remoteUser ?: h.user
+        vaultRepository.logAccess(credName, "ai-tool", "deploy_key")
+
+        // 2. 用 host 自身凭证连接，幂等追加公钥 + 收紧权限
+        val deployCmd =
+            "umask 077; mkdir -p ~/.ssh; touch ~/.ssh/authorized_keys; " +
+                "if ! grep -qF -- '$pubKey' ~/.ssh/authorized_keys; then echo '$pubKey' >> ~/.ssh/authorized_keys; echo ADDED; else echo EXISTS; fi; " +
+                "chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys"
+        val deployResult = kotlinx.coroutines.runBlocking {
+            val auth = resolveHostAuth(h, vaultRepository) ?: return@runBlocking buildJsonObject { put("error", "saved host '$hostName' has no usable credentials") }
+            val jsch = newJSch(context)
+            try {
+                val session = openSshSession(jsch, h.host, h.port, targetUser, auth, 30_000, extraOptions = h.sshOptions)
+                try {
+                    runOnSession(session, deployCmd, 30_000, null)
+                } finally {
+                    try { session.disconnect() } catch (_: Throwable) {}
+                }
+            } catch (e: Throwable) {
+                buildJsonObject { put("error", "connect failed: ${e.message ?: "unknown"}") }
+            }
+        }
+        val deployErr = deployResult["error"]?.jsonPrimitive?.contentOrNull
+        if (deployErr != null) return@Tool fail(deployErr)
+        val deployOut = deployResult["stdout"]?.jsonPrimitive?.contentOrNull.orEmpty() +
+            deployResult["stderr"]?.jsonPrimitive?.contentOrNull.orEmpty()
+
+        // 3. 验证：用刚部署的公钥（私钥在 vault）试连执行 whoami
+        val verify = kotlinx.coroutines.runBlocking {
+            val secret = vaultRepository.decryptValue(entry)
+            val auth = if (secret != null) SshAuth(password = null, privateKey = secret.ensureTrailingNewline(), passphrase = null)
+                else return@runBlocking buildJsonObject { put("error", "credential decrypt failed") }
+            val jsch = newJSch(context)
+            try {
+                val session = openSshSession(jsch, h.host, h.port, targetUser, auth, 30_000, extraOptions = h.sshOptions)
+                try {
+                    runOnSession(session, "whoami", 15_000, null)
+                } finally {
+                    try { session.disconnect() } catch (_: Throwable) {}
+                }
+            } catch (e: Throwable) {
+                buildJsonObject { put("error", "verify connect failed: ${e.message ?: "unknown"}") }
+            }
+        }
+        val verifyErr = verify["error"]?.jsonPrimitive?.contentOrNull
+        val verifyOut = verify["stdout"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
+
+        listOf(UIMessagePart.Text(buildJsonObject {
+            put("credential", credName)
+            put("host", hostName)
+            put("remote_user", targetUser)
+            put("action", if ("ADDED" in deployOut) "added" else if ("EXISTS" in deployOut) "already_present" else "unknown")
+            put("deploy_output", deployOut.take(500))
+            if (verifyErr != null) {
+                put("verify", "failed")
+                put("verify_error", verifyErr)
+            } else {
+                put("verify", "ok")
+                put("verify_whoami", verifyOut)
+            }
+        }.toString()))
+    },
+)
