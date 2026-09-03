@@ -728,3 +728,101 @@ fun vaultImportLoadCredsTool(
         }
     },
 )
+
+/** 凭证库与 load-creds.sh 文件核对（哈希比对，AI 不见值明文）。 */
+fun vaultCompareLoadCredsTool(
+    context: android.content.Context,
+    repository: CredentialVaultRepository,
+): Tool = Tool(
+    name = "vault_compare_loadcreds",
+    description =
+        "Compare the vault against a load-creds.sh style file in the workspace (default " +
+            "/workspace/tmp/load-creds.sh). Reports: names only in vault / only in file / in both; " +
+            "for shared names, value equality is checked via SHA-256 hash (the AI only sees 'same' or " +
+            "'different', never the plaintext value); description/group/public-key differences are shown " +
+            "as plaintext (public keys are public). Use before import/export to know what changed; " +
+            "the fix direction (file-wins or vault-wins) must be decided by the user since values are " +
+            "never revealed.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("path", buildJsonObject { put("type", "string"); put("description", "Workspace path of the script, default /workspace/tmp/load-creds.sh") })
+            },
+            required = emptyList(),
+        )
+    },
+    execute = { params ->
+        val sessionManager = VaultSessionManager(context)
+        if (!sessionManager.hasActiveAuthorization()) {
+            listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+        } else {
+            val path = params.jsonObject["path"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "/workspace/tmp/load-creds.sh"
+            val wsRepository =
+                runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
+                    ?: return@Tool listOf(UIMessagePart.Text("❌ 工作区不可用"))
+            val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ 无工作区"))
+            val content =
+                runCatching {
+                    val buf = java.io.ByteArrayOutputStream()
+                    wsRepository.exportRootfsFile(ws.id, path.removePrefix("/workspace/"), buf)
+                    buf.toString(Charsets.UTF_8.name())
+                }.getOrNull()
+            if (content == null) {
+                listOf(UIMessagePart.Text("❌ 读取文件失败: $path（先上传或 vault_export_loadcreds 生成）"))
+            } else {
+                val fileEntries = CredentialImporter.parse(content).associateBy { it.name }
+                if (fileEntries.isEmpty()) {
+                    listOf(UIMessagePart.Text("❌ 文件未解析到任何条目（格式不符 load-creds.sh？）"))
+                } else {
+                    val vaultEntries = repository.getAll().associateBy { it.name }
+                    val sha = java.security.MessageDigest.getInstance("SHA-256")
+                    fun hash(s: String): String =
+                        java.util.Base64.getEncoder().encodeToString(sha.digest(s.encodeToByteArray()))
+                    fun vaultValueHash(name: String): String? =
+                        vaultEntries[name]?.let { repository.decryptValue(it) }?.let { hash(it) }
+                    val fileValueHash = { e: CredentialImporter.ParsedEntry -> hash(e.value) }
+
+                    val onlyVault = vaultEntries.keys - fileEntries.keys
+                    val onlyFile = fileEntries.keys - vaultEntries.keys
+                    val shared = vaultEntries.keys intersect fileEntries.keys
+
+                    val sameValues = mutableListOf<String>()
+                    val diffValues = mutableListOf<String>()
+                    val diffMeta = mutableListOf<String>()
+                    shared.sorted().forEach { name ->
+                        val fe = fileEntries.getValue(name)
+                        val ve = vaultEntries.getValue(name)
+                        val fh = fileValueHash(fe)
+                        val vh = vaultValueHash(name)
+                        if (fh != null && fh == vh) {
+                            sameValues += name
+                        } else {
+                            diffValues += "$name（值不同）"
+                        }
+                        val metaDiff = mutableListOf<String>()
+                        if (fe.description != ve.description) metaDiff += "描述"
+                        if (fe.group != ve.grp) metaDiff += "分组"
+                        if (fe.publicKey != ve.publicKey) metaDiff += "公钥"
+                        if (metaDiff.isNotEmpty()) diffMeta += "$name（${metaDiff.joinToString("/")}）"
+                    }
+
+                    val sb = StringBuilder()
+                    sb.append("核对报告（vault ↔ $path）\n")
+                    sb.append("文件条目 ${fileEntries.size} | vault 条目 ${vaultEntries.size}\n")
+                    if (onlyVault.isNotEmpty()) sb.append("🔹 仅 vault 有（${onlyVault.size}）：${onlyVault.sorted().joinToString(", ")}\n")
+                    if (onlyFile.isNotEmpty()) sb.append("🔹 仅文件有（${onlyFile.size}）：${onlyFile.sorted().joinToString(", ")}\n")
+                    sb.append("✅ 值一致（${sameValues.size}）：${sameValues.take(30).joinToString(", ")}${if (sameValues.size > 30) "…" else ""}\n")
+                    if (diffValues.isNotEmpty()) sb.append("⚠️ 值不同（${diffValues.size}）：${diffValues.joinToString("; ")}\n")
+                    if (diffMeta.isNotEmpty()) sb.append("ℹ️ 元数据不同（${diffMeta.size}）：${diffMeta.joinToString("; ")}\n")
+                    if (onlyVault.isEmpty() && onlyFile.isEmpty() && diffValues.isEmpty()) {
+                        sb.append("🎉 值完全一致。")
+                        if (diffMeta.isEmpty()) sb.append("描述/分组/公钥也一致。")
+                    } else {
+                        sb.append("\n修正方向需用户确认：文件为准→vault_import_loadcreds；vault 为准→vault_export_loadcreds 覆盖文件。")
+                    }
+                    listOf(UIMessagePart.Text(sb.toString()))
+                }
+            }
+        }
+    },
+)
