@@ -28,6 +28,7 @@ data class WorkspaceShellContext(
     val timeoutMillis: Long,
     val stdin: ByteArray? = null,
     val bindMounts: List<WorkspaceBindMount> = emptyList(),
+    val env: Map<String, String> = emptyMap(),
 )
 
 class HostShellRunner : WorkspaceShellRunner {
@@ -43,6 +44,9 @@ class HostShellRunner : WorkspaceShellRunner {
         ProcessBuilder(defaultShell(), "-c", context.command)
             .directory(context.workingDir)
             .redirectErrorStream(false)
+            .apply {
+                context.env.forEach { (k, v) -> environment()[k] = v }
+            }
 
     private fun defaultShell(): String = if (File("/system/bin/sh").exists()) "/system/bin/sh" else "/bin/sh"
 }

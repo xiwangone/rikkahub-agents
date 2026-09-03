@@ -249,6 +249,17 @@ private fun createShellTool(
                     put("type", "string")
                     put("description", "Optional target workspace id (UUID). When set, runs the command in that workspace's rootfs instead of the current one. Use workspace_list to see available workspace ids.")
                 })
+                put("env", buildJsonObject {
+                    put("type", "object")
+                    put(
+                        "description",
+                        "Optional vault credentials to inject into the command's environment as variables, " +
+                            "mapping envVarName -> vaultCredentialName. Values are decrypted in-process and " +
+                            "injected ONLY into this command's process environment — never written to disk, " +
+                            "never shown to the AI. Requires an active vault authorization. " +
+                            "Example: {\"GITHUB_TOKEN\": \"GITHUB_TOKEN\"} makes the token available as $GITHUB_TOKEN inside the command."
+                    )
+                })
             },
             required = listOf("command"),
         )
@@ -264,7 +275,42 @@ private fun createShellTool(
             ?.times(1_000L)
             ?: WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS
         val targetWorkspace = params.string("workspace")
-        val result = workspaceRepository.executeCommand(workspaceId, command, cwd, timeoutMillis, targetId = targetWorkspace)
+
+        // env: { 环境变量名: vault凭证名 } —— 进程内解密注入，不落盘、AI 不见明文
+        var injectedEnv: Map<String, String> = emptyMap()
+        val envObj = params.jsonObject["env"]?.jsonObject
+        if (envObj != null && envObj.isNotEmpty()) {
+            val vaultRepository =
+                runCatching { getKoin().get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>() }.getOrNull()
+                    ?: return@Tool listOf(UIMessagePart.Text("❌ env 注入失败：凭证库不可用"))
+            val context = runCatching { getKoin().get<android.content.Context>() }.getOrNull()
+            val sessionManager = context?.let { me.rerere.rikkahub.data.vault.VaultSessionManager(it) }
+            val authorized = sessionManager?.hasActiveAuthorization() == true
+            if (!authorized) {
+                return@Tool listOf(UIMessagePart.Text("❌ env 注入需要 Vault 授权：请先在会话中完成 Vault 授权（30 分钟或一直有效）"))
+            }
+            val resolved = mutableMapOf<String, String>()
+            for ((envName, credNameJson) in envObj) {
+                val credName = credNameJson.jsonPrimitive.contentOrNull
+                if (credName.isNullOrBlank()) continue
+                val entry = vaultRepository.getByName(credName)
+                if (entry == null) {
+                    return@Tool listOf(UIMessagePart.Text("❌ env 注入失败：凭证不存在: $credName（用 vault_credential_names 查看可用名称）"))
+                }
+                val value = vaultRepository.decryptValue(entry)
+                if (value == null) {
+                    return@Tool listOf(UIMessagePart.Text("❌ env 注入失败：凭证解密失败: $credName"))
+                }
+                resolved[envName] = value
+                vaultRepository.logAccess(credName, "ai-tool", "env_inject")
+            }
+            injectedEnv = resolved
+        }
+
+        val result = workspaceRepository.executeCommand(
+            workspaceId, command, cwd, timeoutMillis,
+            targetId = targetWorkspace, env = injectedEnv,
+        )
         listOf(
             UIMessagePart.Text(
                 buildJsonObject {

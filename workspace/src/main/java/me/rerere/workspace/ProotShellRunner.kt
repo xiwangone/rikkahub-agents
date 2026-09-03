@@ -51,6 +51,7 @@ class ProotShellRunner(
                     environment()["PROOT_LOADER"] = loader.absolutePath
                     environment()["PROOT_TMP_DIR"] = context.tempDir.absolutePath
                     environment()["TMPDIR"] = context.tempDir.absolutePath
+                    context.env.forEach { (k, v) -> environment()[k] = v }
                 }.start()
 
         return process.readResult(context.timeoutMillis, context.stdin)
@@ -79,6 +80,7 @@ class ProotShellRunner(
                 environment()["PROOT_LOADER"] = loader.absolutePath
                 environment()["PROOT_TMP_DIR"] = context.tempDir.absolutePath
                 environment()["TMPDIR"] = context.tempDir.absolutePath
+                context.env.forEach { (k, v) -> environment()[k] = v }
             }.start()
     }
 
