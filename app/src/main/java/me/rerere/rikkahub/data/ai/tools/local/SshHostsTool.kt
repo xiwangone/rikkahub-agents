@@ -56,7 +56,7 @@ internal object SshPresets {
             "系统信息" to "powershell -NoProfile -Command \"Get-ComputerInfo | Select-Object CsName,WindowsProductName,WindowsVersion,OsArchitecture | Format-List\"",
             "磁盘" to "powershell -NoProfile -Command \"Get-PSDrive -PSProvider FileSystem | Select-Object Name,Used,Free | Format-Table -AutoSize\"",
             "进程" to "powershell -NoProfile -Command \"Get-Process | Sort-Object CPU -Descending | Select-Object -First 15 Name,Id,CPU | Format-Table -AutoSize\"",
-            "服务列表" to "powershell -NoProfile -Command \"Get-Service | Where-Object {$_.Status -eq 'Running'} | Select-Object -First 20 Name,Status | Format-Table -AutoSize\"",
+            "服务列表" to "powershell -NoProfile -Command \"Get-Service | Where-Object {\$_.Status -eq 'Running'} | Select-Object -First 20 Name,Status | Format-Table -AutoSize\"",
         ),
     )
 
