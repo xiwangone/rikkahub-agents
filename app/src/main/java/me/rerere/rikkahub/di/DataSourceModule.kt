@@ -50,6 +50,7 @@ import me.rerere.rikkahub.data.db.migrations.Migration_31_32
 import me.rerere.rikkahub.data.db.migrations.Migration_32_33
 import me.rerere.rikkahub.data.db.migrations.Migration_33_34
 import me.rerere.rikkahub.data.db.migrations.Migration_34_35
+import me.rerere.rikkahub.data.db.migrations.Migration_35_36
 import me.rerere.rikkahub.data.db.migrations.Migration_6_7
 import me.rerere.rikkahub.data.grok.GrokAccountRepository
 import me.rerere.rikkahub.data.grok.GrokCredentialStore
@@ -94,6 +95,7 @@ val dataSourceModule =
                     Migration_32_33,
                     Migration_33_34,
                     Migration_34_35,
+                    Migration_35_36,
                 ).addCallback(
                     object : RoomDatabase.Callback() {
                         override fun onOpen(db: SupportSQLiteDatabase) {

@@ -28,5 +28,7 @@ data class SshHostEntity(
     val fallbackHostsJson: String? = null,
     /** 跳板主机名（saved host 名）。非空时先连跳板再经它连目标（ProxyJump 语义，预留） */
     val jumpHost: String? = null,
+    /** 自定义 ssh 选项，每行一个 "键 值"（如 "ConnectTimeout 5"），透传 JSch setConfig */
+    val sshOptions: String? = null,
     val createdAtMs: Long,
 )

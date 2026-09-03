@@ -144,6 +144,7 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
                 put("vault_credential", buildJsonObject { put("type", "string"); put("description", "Optional Vault credential name holding the SSH private key (preferred over private_key — the key is never stored in plaintext). See vault_credential_names.") })
                 put("fallback_hosts", buildJsonObject { put("type", "array"); put("description", "Optional array of saved-host names tried in order when this host is unreachable (connection-level failures only). Items are resolved at call time.") })
                 put("jump_host", buildJsonObject { put("type", "string"); put("description", "Optional saved-host name used as a jump/bastion host. Reserved; connectivity via jump is not yet wired end-to-end.") })
+                put("ssh_options", buildJsonObject { put("type", "string"); put("description", "Optional custom ssh config, one 'key value' per line (e.g. ConnectTimeout 5 / Ciphers ...). Applied as JSch config overrides for this host; # starts a comment line.") })
             },
             required = listOf("name", "host", "user")
         )
@@ -160,6 +161,7 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
         val vaultCredential = p["vault_credential"]?.jsonPrimitive?.contentOrNull
         val fallbackHosts = p["fallback_hosts"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
         val jumpHost = p["jump_host"]?.jsonPrimitive?.contentOrNull
+        val sshOptions = p["ssh_options"]?.jsonPrimitive?.contentOrNull
         if (password.isNullOrBlank() && privateKey.isNullOrBlank() && vaultCredential.isNullOrBlank()) {
             return@Tool listOf(UIMessagePart.Text(
                 buildJsonObject { put("error", "must provide password, private_key or vault_credential") }.toString()
@@ -174,6 +176,7 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
             fallbackHostsJson = fallbackHosts?.takeIf { it.isNotEmpty() }
                 ?.let { buildJsonArray { it.forEach { f -> add(f) } }.toString() },
             jumpHost = jumpHost,
+            sshOptions = sshOptions,
             createdAtMs = System.currentTimeMillis(),
         ))
         listOf(UIMessagePart.Text(buildJsonObject {
@@ -202,6 +205,7 @@ fun listSshHostsTool(repo: SshHostRepository): Tool = Tool(
                         put("has_private_key", !h.privateKey.isNullOrBlank())
                         put("fallback_hosts", h.fallbackHostsJson ?: "")
                         put("jump_host", h.jumpHost ?: "")
+                        put("ssh_options", h.sshOptions ?: "")
                     }
                 }
             })
@@ -372,7 +376,7 @@ fun sshExecSavedTool(
             }
             val jumpSpec = resolveJump(cand)
             val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
-                execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec)
+                execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec, extraOptions = cand.sshOptions)
             }
             tried.add(cand.name)
             val err = payload["error"]?.jsonPrimitive?.contentOrNull
