@@ -175,11 +175,15 @@ internal fun wrapDetachedCommandSmart(command: String): Pair<String, String?> {
 
     // Windows：外层 EncodedCommand 脚本内 Start-Process 全脱钩（-WindowStyle Hidden），
     // 输出重定向日志文件。命令本身若已是 powershell 前缀，去掉再包（防嵌套）。
+    // 剥除需容忍参数落行首（剥 powershell 后 -NoProfile 变行首），且 -Command "..." 
+    // 的外层引号是语法分隔需一并剥掉，否则 Start-Process 会收到字面引号串。
     val inner = command
-        .replace(Regex("^\\s*(powershell|pwsh|PowerShell)\\s+"), "")
-        .replace(Regex("(?i)\\s+-NoProfile\\s+"), " ")
-        .replace(Regex("(?i)^\\s*-Command\\s+"), "")
+        .replace(Regex("^\\s*(powershell|pwsh|PowerShell)\\s+"), " ")
+        .replace(Regex("(?i)\\s*-NoProfile\\s*"), " ")
+        .replace(Regex("(?i)\\s*-NonInteractive\\s*"), " ")
+        .replace(Regex("(?i)\\s*-Command\\s*"), " ")
         .trim()
+        .let { if (it.length >= 2 && it.startsWith("\"") && it.endsWith("\"")) it.substring(1, it.length - 1) else it }
     val logPath = "C:\\Users\\Public\\rikkahub_bg_${System.currentTimeMillis()}.log"
     val errPath = logPath.substringBeforeLast(".log") + "-err.log"
     val script = "[Console]::OutputEncoding=[Text.Encoding]::UTF8; " +
@@ -479,13 +483,18 @@ internal fun preparePowerShellCommand(command: String): String {
         command.contains("powershell -")
     if (!isPowerShell) return command // 非 pwsh：保持原样（Linux 远端等）
 
-    // 剥掉用户已写的前缀 powershell/-NoProfile/-Command，取实际脚本
+    // 剥掉用户已写的前缀 powershell/-NoProfile/-Command，取实际脚本。
+    // 关键：剥掉 "powershell" 后，后续参数会落在行首（无前导空白），
+    // 因此参数剥除正则必须同时容忍行首与中间（用 \s* 而非 \s+ 前缀）。
     val script = command
-        .replace(Regex("^\\s*(powershell|pwsh|PowerShell)\\s+"), "")
-        .replace(Regex("(?i)\\s+-NoProfile\\s+"), " ")
-        .replace(Regex("(?i)\\s+-NonInteractive\\s+"), " ")
-        .replace(Regex("(?i)^\\s*-Command\\s+"), "")
+        .replace(Regex("^\\s*(powershell|pwsh|PowerShell)\\s+"), " ")
+        .replace(Regex("(?i)\\s*-NoProfile\\s*"), " ")
+        .replace(Regex("(?i)\\s*-NonInteractive\\s*"), " ")
+        .replace(Regex("(?i)\\s*-Command\\s*"), " ")
         .trim()
+        // -Command "..." 的引号是语法分隔（剥 -Command 后残留），不是脚本内容；
+        // 不剥会导致 EncodedCommand 执行整段引号字符串=不执行只输出。
+        .let { if (it.length >= 2 && it.startsWith("\"") && it.endsWith("\"")) it.substring(1, it.length - 1) else it }
 
     // 前置 UTF-8 输出编码 + 脚本本体
     val fullScript = "[Console]::OutputEncoding=[Text.Encoding]::UTF8; $script"
