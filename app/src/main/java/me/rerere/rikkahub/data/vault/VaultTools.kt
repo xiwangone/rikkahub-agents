@@ -390,7 +390,7 @@ private suspend fun runVaultSshExec(
         }
         val exit = channel.exitStatus
         session.disconnect()
-        val allSecrets = allVaultValues(repository)
+        val allSecrets = allVaultSecrets(repository)
         val stdout = SecretMasker.mask(outBuf.toString("UTF-8").trim(), allSecrets)
         val stderr = SecretMasker.mask(errBuf.toString("UTF-8").trim(), allSecrets)
         val fingerprintNote =
@@ -710,7 +710,7 @@ fun vaultImportLoadCredsTool(
             val content =
                 runCatching {
                     val buf = java.io.ByteArrayOutputStream()
-                    wsRepository.exportRootfsFile(ws.id, path.removePrefix("/workspace/"), buf)
+                    wsRepository.exportRootfsFile(ws.id, path, buf)
                     buf.toString(Charsets.UTF_8.name())
                 }.getOrNull()
             if (content == null) {
@@ -764,7 +764,7 @@ fun vaultCompareLoadCredsTool(
             val content =
                 runCatching {
                     val buf = java.io.ByteArrayOutputStream()
-                    wsRepository.exportRootfsFile(ws.id, path.removePrefix("/workspace/"), buf)
+                    wsRepository.exportRootfsFile(ws.id, path, buf)
                     buf.toString(Charsets.UTF_8.name())
                 }.getOrNull()
             if (content == null) {

@@ -28,45 +28,95 @@ import java.util.concurrent.TimeUnit
  *
  * 安全：掩码发生在 App 进程内、内存态，解密值不落盘、不进 AI 上下文。
  */
+/** 一条凭证对应的掩码规则。exact=true 按完整值精确替换；私钥类(exact=false)靠 PEM 结构正则兜底。 */
+data class SecretRule(
+    val value: String,
+    val exact: Boolean,
+)
+
 object SecretMasker {
     private const val MASK = "***"
 
-    // 值短于此长度不做替换（短值如 chat_id/用户名等非敏感——不掩以减少对工具输出的干扰；
-    // 2026-08-14 从 4 调到 9——只掩 ≥9 的真敏感值）
+    // 非敏感短值下限：名称不含敏感词且短于此长度不掩（chat_id/alias 等，防包名式误伤）
     private const val MIN_LEN = 9
 
-    // 缓存：凭证表版本（max updatedAt）→ 值字典
+    // 敏感名称词：命中即无条件掩（无视长度——6 位密码也掩，解决"短密码明文进上下文"）
+    private val SENSITIVE_WORDS = listOf(
+        "PASSWORD", "PWD", "PASS", "TOKEN", "SECRET", "APIKEY", "API_KEY",
+        "AUTH", "PRIVATE", "KEY",
+    )
+
+    // PEM 私钥结构：BEGIN..END PRIVATE KEY 块（DOTALL 容忍 base64 折行，兜住字典精确匹配漏网）
+    private val PEM_PRIVATE_KEY = Regex(
+        "-----BEGIN [A-Z0-9 ]*PRIVATE KEY-----.*?-----END [A-Z0-9 ]*PRIVATE KEY-----",
+        setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE),
+    )
+
+    // 公钥值形态：以这些开头的是公钥（可公开，不掩——authorized_keys 本就公开贴）
+    private val PUBLIC_KEY_PREFIX = listOf(
+        "ssh-rsa ", "ssh-ed25519 ", "ecdsa-sha2-", "ssh-dss ",
+        "sk-ssh-ed25519 ", "sk-ssh-ecdsa-",
+    )
+
+    // 缓存：凭证表版本（max updatedAt）→ 掩码规则
     @Volatile
     private var cachedVersion: Long = -1
 
     @Volatile
-    private var cachedValues: List<String> = emptyList()
+    internal var cachedRules: List<SecretRule> = emptyList()
 
-    /** 刷新掩码字典（suspend）。凭证未变更时走缓存。 */
+    /** 刷新掩码规则（suspend）。凭证未变更时走缓存。 */
     suspend fun refresh(repository: CredentialVaultRepository) {
         val entries = repository.getAll()
         val version = entries.maxOfOrNull { it.updatedAt } ?: 0L
         if (version == cachedVersion) return
         cachedVersion = version
-        cachedValues = entries.mapNotNull { repository.decryptValue(it) }
+        cachedRules = entries.mapNotNull { e ->
+            val v = repository.decryptValue(e)?.trim() ?: return@mapNotNull null
+            classify(e.name, v)
+        }
     }
 
-    /** 掩码文本（同步；调用方需先 refresh 保证字典最新）。 */
-    fun mask(text: String): String = mask(text, cachedValues)
+    /**
+     * 分类（元数据 + 结构 + 长度三层）：
+     * - 公钥值（ssh-rsa/ed25519/ecdsa 开头单行）→ null（不掩，非机密）
+     * - 私钥（值含 PRIVATE KEY 头尾）→ exact=false（靠结构正则，容忍折行）
+     * - 名称命中敏感词（PWD/TOKEN/KEY/...）→ exact=true，无条件掩（无视长度）
+     * - 其余：长度 ≥ MIN_LEN 才掩（保底，防包名式误伤 chat_id/alias）
+     */
+    internal fun classify(name: String, value: String): SecretRule? {
+        val n = name.uppercase()
+        if (PUBLIC_KEY_PREFIX.any { value.startsWith(it) }) return null
+        if (value.contains("PRIVATE KEY-----")) {
+            return SecretRule(value, exact = false)
+        }
+        if (SENSITIVE_WORDS.any { it in n }) {
+            return SecretRule(value, exact = true)
+        }
+        return if (value.length >= MIN_LEN) SecretRule(value, exact = true) else null
+    }
 
-    /** 掩码文本：把其中出现的任意 activeSecrets 值替换为 ***。 */
-    fun mask(text: String, activeSecrets: Collection<String>): String {
+    /** 掩码文本（同步；调用方需先 refresh 保证规则最新）。 */
+    fun mask(text: String): String = mask(text, cachedRules)
+
+    /** 掩码文本：PEM 私钥结构正则 + 精确值替换。公钥/非敏感短值不受影响。 */
+    fun mask(text: String, rules: Collection<SecretRule>): String {
         var out = text
-        activeSecrets.filter { it.length >= MIN_LEN }.forEach { secret ->
-            out = out.replace(secret, MASK)
+        // 1) 结构层：私钥块全掩（容忍折行/多行，兜住精确匹配漏网）
+        out = PEM_PRIVATE_KEY.replace(out, MASK)
+        // 2) 精确层：exact 规则全量替换（敏感类无条件，含 6 位短密码）
+        rules.filter { it.exact }.forEach { rule ->
+            out = out.replace(rule.value, MASK)
         }
         return out
     }
 }
 
-/** 密钥库全部凭证的明文值（按名称索引；随加随掩——每次调用取最新）。内存态，用完即弃。 */
-internal suspend fun allVaultValues(repository: CredentialVaultRepository): List<String> =
-    repository.getAll().mapNotNull { repository.decryptValue(it) }
+/** 密钥库全部凭证的掩码规则（随加随掩；复用 refresh 缓存避免重复解密）。内存态，用完即弃。 */
+internal suspend fun allVaultSecrets(repository: CredentialVaultRepository): List<SecretRule> {
+    SecretMasker.refresh(repository)
+    return SecretMasker.cachedRules
+}
 
 /**
  * vault_http_exec — 带 Vault 凭证调用 HTTP(S) API（P1）。
@@ -189,7 +239,7 @@ private suspend fun runVaultHttpExec(
                 val rawBody = resp.body?.string() ?: ""
                 val truncated = rawBody.length > MAX_RESPONSE_BODY
                 val bodyOut = if (truncated) rawBody.take(MAX_RESPONSE_BODY) + "\n...[截断 ${rawBody.length - MAX_RESPONSE_BODY} chars]" else rawBody
-                val maskedBody = SecretMasker.mask(bodyOut, allVaultValues(repository))
+                val maskedBody = SecretMasker.mask(bodyOut, allVaultSecrets(repository))
                 val contentType = resp.header("Content-Type") ?: ""
                 listOf(
                     UIMessagePart.Text(
