@@ -332,7 +332,7 @@ fun WebDavTab(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            WebDavConfig.BackupItem.entries.forEach { item ->
+                            WebDavConfig.BackupItem.entries.filter { it != WebDavConfig.BackupItem.FILES }.forEach { item ->
                                 FilterChip(
                                     selected = item in webDavConfig.items,
                                     onClick = {

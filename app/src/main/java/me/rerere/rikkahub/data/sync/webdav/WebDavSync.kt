@@ -46,6 +46,7 @@ class WebDavSync(
     }
 
     suspend fun backup(config: WebDavConfig) = withContext(Dispatchers.IO) {
+        val config = config.withLegacyExpanded()
         val file = prepareBackupFile(config)
         val client = getClient(config)
 
@@ -87,6 +88,7 @@ class WebDavSync(
     }
 
     suspend fun restore(config: WebDavConfig, item: WebDavBackupItem) = withContext(Dispatchers.IO) {
+        val config = config.withLegacyExpanded()
         val client = getClient(config)
         // item.displayName is server-supplied (WebDavClient already reduces it to a bare
         // basename, but a malicious/misbehaving server is the whole point of not trusting
@@ -134,6 +136,7 @@ class WebDavSync(
     }
 
     suspend fun restoreFromLocalFile(file: File, config: WebDavConfig) = withContext(Dispatchers.IO) {
+        val config = config.withLegacyExpanded()
         Log.i(TAG, "restoreFromLocalFile: Starting restore from ${file.absolutePath}")
 
         if (!file.exists()) {
@@ -154,6 +157,7 @@ class WebDavSync(
     }
 
     suspend fun prepareBackupFile(config: WebDavConfig): File = withContext(Dispatchers.IO) {
+        val config = config.withLegacyExpanded()
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
         val backupFile = File(context.cacheDir, "backup_$timestamp.zip")
 

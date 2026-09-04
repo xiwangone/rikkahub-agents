@@ -47,6 +47,7 @@ class S3Sync(
     }
 
     suspend fun backupToS3(config: S3Config) = withContext(Dispatchers.IO) {
+        val config = config.withLegacyExpanded()
         val file = prepareBackupFile(config)
         val client = getS3Client(config)
         val key = "rikkahub_backups/${file.name}"
@@ -84,6 +85,7 @@ class S3Sync(
     }
 
     suspend fun restoreFromS3(config: S3Config, item: S3BackupItem) = withContext(Dispatchers.IO) {
+        val config = config.withLegacyExpanded()
         val client = getS3Client(config)
         val backupFile = File(context.cacheDir, item.displayName)
 
@@ -112,6 +114,7 @@ class S3Sync(
     }
 
     suspend fun prepareBackupFile(config: S3Config): File = withContext(Dispatchers.IO) {
+        val config = config.withLegacyExpanded()
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
         val backupFile = File(context.cacheDir, "backup_$timestamp.zip")
 
