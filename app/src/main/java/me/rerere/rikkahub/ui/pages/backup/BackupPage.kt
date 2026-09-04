@@ -91,9 +91,6 @@ fun BackupPage(vm: BackupVM = koinViewModel()) {
                 )
             }
 
-                )
-            }
-
             BackupEncryptionSection(
                 vm = vm,
                 modifier = Modifier.padding(horizontal = 4.dp),
