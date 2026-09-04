@@ -898,15 +898,15 @@ data class Settings(
      * 优先 activeWebDavConfigId 命中；否则列表非空取首个；否则回退旧单配置 [webDavConfig]。
      */
     fun activeWebDavConfig(): WebDavConfig =
-        webDavConfigs.firstOrNull { it.id == activeWebDavConfigId }
+        (webDavConfigs.firstOrNull { it.id == activeWebDavConfigId }
             ?: webDavConfigs.firstOrNull()
-            ?: webDavConfig
+            ?: webDavConfig).withLegacyExpanded()
 
     /** 当前生效的 S3 配置（同 [activeWebDavConfig] 逻辑）。 */
     fun activeS3Config(): S3Config =
-        s3Configs.firstOrNull { it.id == activeS3ConfigId }
+        (s3Configs.firstOrNull { it.id == activeS3ConfigId }
             ?: s3Configs.firstOrNull()
-            ?: s3Config
+            ?: s3Config).withLegacyExpanded()
 
     companion object {
         // 构造一个用于初始化的settings, 但它不能用于保存，防止使用初始值存储
@@ -1039,6 +1039,28 @@ data class WebDavConfig(
 ) {
     val displayName: String
         get() = name.ifBlank { if (url.isBlank()) "未命名" else url.removePrefix("https://").removePrefix("http://").substringBefore('/') }
+
+    /**
+     * 展开旧聚合项 FILES 为细分项（SKILLS+CHAT_FILES+FONTS_IMAGES）。
+     * 旧版配置勾 FILES = 全选文件大头；细分项成熟后 UI 不再展示 FILES，
+     * 但存量配置可能仍含 FILES，执行前展开避免漏带或误导。
+     */
+    fun withLegacyExpanded(): WebDavConfig {
+        if (FILES !in items) return this
+        val expanded =
+            buildList {
+                items.forEach {
+                    if (it == FILES) {
+                        add(BackupItem.SKILLS)
+                        add(BackupItem.CHAT_FILES)
+                        add(BackupItem.FONTS_IMAGES)
+                    } else {
+                        add(it)
+                    }
+                }
+            }.distinct()
+        return copy(items = expanded)
+    }
 
     @Serializable
     enum class BackupItem {

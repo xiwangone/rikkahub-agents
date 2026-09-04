@@ -41,6 +41,27 @@ data class S3Config(
         }
     }
 
+    /**
+     * 展开旧聚合项 FILES 为细分项（SKILLS+CHAT_FILES+FONTS_IMAGES）。
+     * 细分项成熟后 UI 不再展示 FILES，存量配置含 FILES 时执行前展开。
+     */
+    fun withLegacyExpanded(): S3Config {
+        if (FILES !in items) return this
+        val expanded =
+            buildList {
+                items.forEach {
+                    if (it == FILES) {
+                        add(BackupItem.SKILLS)
+                        add(BackupItem.CHAT_FILES)
+                        add(BackupItem.FONTS_IMAGES)
+                    } else {
+                        add(it)
+                    }
+                }
+            }.distinct()
+        return copy(items = expanded)
+    }
+
     @Serializable
     enum class BackupItem {
         /** 聊天/记忆/设置数据库（rikka_hub.db，含 vault 密文、SSH 主机、调度任务） */

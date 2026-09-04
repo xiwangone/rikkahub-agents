@@ -336,7 +336,7 @@ fun S3Tab(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            S3Config.BackupItem.entries.forEach { item ->
+                            S3Config.BackupItem.entries.filter { it != S3Config.BackupItem.FILES }.forEach { item ->
                                 FilterChip(
                                     selected = item in s3Config.items,
                                     onClick = {
