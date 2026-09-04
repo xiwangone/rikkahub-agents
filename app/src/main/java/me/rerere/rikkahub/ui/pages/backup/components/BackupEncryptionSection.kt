@@ -28,7 +28,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Lock
-import me.rerere.hugeicons.stroke.Unlock
+import me.rerere.hugeicons.stroke.LockKey
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 
@@ -49,40 +49,37 @@ fun BackupEncryptionSection(
     Surface(
         modifier = modifier
             .fillMaxWidth()
-            .padding(horizontal = 16.dp, vertical = 4.dp)
+            .padding(horizontal = 16.dp, vertical = 2.dp)
             .clickable { showDialog = true },
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.small,
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Icon(
-                imageVector = if (enabled) HugeIcons.Lock else HugeIcons.Unlock,
+                imageVector = if (enabled) HugeIcons.Lock else HugeIcons.LockKey,
                 contentDescription = null,
                 tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(18.dp),
+                modifier = Modifier.size(16.dp),
             )
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.backup_page_encryption_title),
-                    style = MaterialTheme.typography.labelLarge,
-                )
-                Text(
-                    text =
-                        if (enabled && hasPassword) {
-                            stringResource(R.string.backup_page_encryption_locked)
-                        } else if (enabled) {
-                            stringResource(R.string.backup_page_encryption_not_remembered)
-                        } else {
-                            stringResource(R.string.backup_page_encryption_unlocked)
-                        },
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            Text(
+                text = stringResource(R.string.backup_page_encryption_title),
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text =
+                    when {
+                        enabled && hasPassword -> stringResource(R.string.backup_page_encryption_locked)
+                        enabled -> stringResource(R.string.backup_page_encryption_not_remembered)
+                        else -> stringResource(R.string.backup_page_encryption_unlocked)
+                    },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 
