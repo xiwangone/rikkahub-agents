@@ -163,11 +163,18 @@ class WebDavSync(
 
         // Create zip file and backup data
         ZipOutputStream(FileOutputStream(backupFile)).use { zipOut ->
-            addVirtualFileToZip(
-                zipOut = zipOut,
-                name = "settings.json",
-                content = json.encodeToString(settingsStore.settingsFlow.value)
-            )
+            // settings.json —— 仅在勾选 SETTINGS（或兼容旧行为：未显式排除 SETTINGS 的老配置）时打包
+            val wantSettings =
+                config.items.contains(WebDavConfig.BackupItem.SETTINGS) ||
+                    // 旧配置 items 只含 DATABASE/FILES（不含新枚举）时默认仍带 settings，避免升级后丢设置
+                    config.items.none { it in NEW_ITEM_KINDS }
+            if (wantSettings) {
+                addVirtualFileToZip(
+                    zipOut = zipOut,
+                    name = "settings.json",
+                    content = json.encodeToString(settingsStore.settingsFlow.value)
+                )
+            }
 
             // Backup database files
             if (config.items.contains(WebDavConfig.BackupItem.DATABASE)) {
@@ -191,56 +198,47 @@ class WebDavSync(
                 }
             }
 
-            // Backup app files
-            if (config.items.contains(WebDavConfig.BackupItem.FILES)) {
-                val uploadFolder = File(context.filesDir, FileFolders.UPLOAD)
-                if (uploadFolder.exists() && uploadFolder.isDirectory) {
-                    Log.i(TAG, "prepareBackupFile: Backing up files from ${uploadFolder.absolutePath}")
-                    uploadFolder.listFiles()?.forEach { file ->
-                        if (file.isFile) {
-                            addFileToZip(zipOut, file, "${FileFolders.UPLOAD}/${file.name}")
-                        }
-                    }
-                } else {
-                    Log.w(TAG, "prepareBackupFile: Upload folder does not exist or is not a directory")
+            // 头像（独立小目录，与聊天图分离）——勾选 AVATARS 或旧 FILES 时都带（体积小）
+            if (config.items.any {
+                    it == WebDavConfig.BackupItem.AVATARS || it == WebDavConfig.BackupItem.FILES
                 }
+            ) {
+                addFolderFilesToZip(zipOut, FileFolders.AVATARS, flat = true)
+            }
 
-                val skillsFolder = File(context.filesDir, FileFolders.SKILLS)
-                if (skillsFolder.exists() && skillsFolder.isDirectory) {
-                    Log.i(TAG, "prepareBackupFile: Backing up skills from ${skillsFolder.absolutePath}")
-                    addDirectoryToZip(
-                        zipOut = zipOut,
-                        rootDir = skillsFolder,
-                        currentDir = skillsFolder,
-                        entryPrefix = "${FileFolders.SKILLS}/"
-                    )
-                } else {
-                    Log.w(TAG, "prepareBackupFile: Skills folder does not exist or is not a directory")
+            // 聊天图片/附件 upload/（大头，仅显式勾 CHAT_FILES；FILES 兼容旧聚合也带）
+            if (config.items.any {
+                    it == WebDavConfig.BackupItem.CHAT_FILES || it == WebDavConfig.BackupItem.FILES
                 }
+            ) {
+                addFolderFilesToZip(zipOut, FileFolders.UPLOAD, flat = true)
+            }
 
-                val fontsFolder = File(context.filesDir, FileFolders.FONTS)
-                if (fontsFolder.exists() && fontsFolder.isDirectory) {
-                    Log.i(TAG, "prepareBackupFile: Backing up fonts from ${fontsFolder.absolutePath}")
-                    fontsFolder.listFiles()?.forEach { file ->
-                        if (file.isFile) {
-                            addFileToZip(zipOut, file, "${FileFolders.FONTS}/${file.name}")
-                        }
-                    }
-                } else {
-                    Log.w(TAG, "prepareBackupFile: Fonts folder does not exist or is not a directory")
+            // 技能（递归）
+            if (config.items.any {
+                    it == WebDavConfig.BackupItem.SKILLS || it == WebDavConfig.BackupItem.FILES
                 }
+            ) {
+                addFolderRecursiveToZip(zipOut, FileFolders.SKILLS)
+            }
 
-                val imagesFolder = File(context.filesDir, FileFolders.IMAGES)
-                if (imagesFolder.exists() && imagesFolder.isDirectory) {
-                    Log.i(TAG, "prepareBackupFile: Backing up images from ${imagesFolder.absolutePath}")
-                    imagesFolder.listFiles()?.forEach { file ->
-                        if (file.isFile) {
-                            addFileToZip(zipOut, file, "${FileFolders.IMAGES}/${file.name}")
-                        }
-                    }
-                } else {
-                    Log.w(TAG, "prepareBackupFile: Images folder does not exist or is not a directory")
+            // 字体/贴图（顶层）
+            if (config.items.any {
+                    it == WebDavConfig.BackupItem.FONTS_IMAGES || it == WebDavConfig.BackupItem.FILES
                 }
+            ) {
+                addFolderFilesToZip(zipOut, FileFolders.FONTS, flat = true)
+                addFolderFilesToZip(zipOut, FileFolders.IMAGES, flat = true)
+            }
+
+            // 工具输出缓存
+            if (config.items.contains(WebDavConfig.BackupItem.TOOL_OUTPUTS)) {
+                addFolderRecursiveToZip(zipOut, FileFolders.TOOL_OUTPUTS)
+            }
+
+            // 工作区文档层：files/workspaces/<root>/files/ 下排除 linux/tmp/.git/大件，递归打包
+            if (config.items.contains(WebDavConfig.BackupItem.WORKSPACE_DOCS)) {
+                backupWorkspaceDocs(zipOut)
             }
         }
 
@@ -249,6 +247,113 @@ class WebDavSync(
             "prepareBackupFile: Created backup file ${backupFile.name} (${backupFile.length().fileSizeToString()})"
         )
         backupFile
+    }
+
+    private suspend fun backupWorkspaceDocs(zipOut: ZipOutputStream) {
+        val workspacesRoot = File(context.filesDir, "workspaces")
+        if (!workspacesRoot.exists() || !workspacesRoot.isDirectory) {
+            Log.w(TAG, "backupWorkspaceDocs: workspaces root missing: ${workspacesRoot.absolutePath}")
+            return
+        }
+        workspacesRoot.listFiles().orEmpty().forEach { wsDir ->
+            if (!wsDir.isDirectory) return@forEach
+            val filesLayer = File(wsDir, "files")
+            if (!filesLayer.exists() || !filesLayer.isDirectory) return@forEach
+            val wsName = wsDir.name
+            filesLayer.listFiles().orEmpty().forEach { top ->
+                if (!top.exists()) return@forEach
+                val name = top.name
+                // 排除：系统层/临时/仓库对象库/体积过大目录
+                if (name == "tmp" || name == "linux" || name == ".git" || name == "node_modules" ||
+                    name == "local-models" || name == "cache" || name == ".gradle" || name == "build"
+                ) {
+                    Log.i(TAG, "backupWorkspaceDocs: skip workspace top-level $wsName/$name")
+                    return@forEach
+                }
+                if (top.isFile) {
+                    addFileToZip(zipOut, top, "workspaces/$wsName/files/$name")
+                } else {
+                    addDirectoryToZipWithExcludes(
+                        zipOut = zipOut,
+                        rootDir = top,
+                        currentDir = top,
+                        entryPrefix = "workspaces/$wsName/files/$name/",
+                        excludeNames = WORKSPACE_EXCLUDE_DIRS,
+                    )
+                }
+            }
+        }
+    }
+
+    private fun addFolderFilesToZip(zipOut: ZipOutputStream, folder: String, flat: Boolean) {
+        val dir = File(context.filesDir, folder)
+        if (!dir.exists() || !dir.isDirectory) return
+        dir.listFiles().orEmpty().forEach { file ->
+            if (file.isFile) {
+                addFileToZip(zipOut, file, "$folder/${file.name}")
+            } else if (!flat && file.isDirectory) {
+                addDirectoryToZip(
+                    zipOut = zipOut,
+                    rootDir = file,
+                    currentDir = file,
+                    entryPrefix = "$folder/${file.name}/",
+                )
+            }
+        }
+    }
+
+    private fun addFolderRecursiveToZip(zipOut: ZipOutputStream, folder: String) {
+        val dir = File(context.filesDir, folder)
+        if (!dir.exists() || !dir.isDirectory) return
+        addDirectoryToZip(
+            zipOut = zipOut,
+            rootDir = dir,
+            currentDir = dir,
+            entryPrefix = "$folder/",
+        )
+    }
+
+    private fun addDirectoryToZipWithExcludes(
+        zipOut: ZipOutputStream,
+        rootDir: File,
+        currentDir: File,
+        entryPrefix: String,
+        excludeNames: Set<String>,
+    ) {
+        currentDir.listFiles().orEmpty().forEach { file ->
+            val name = file.name
+            if (name in excludeNames) return@forEach
+            if (file.isDirectory) {
+                addDirectoryToZipWithExcludes(
+                    zipOut = zipOut,
+                    rootDir = rootDir,
+                    currentDir = file,
+                    entryPrefix = entryPrefix + name + "/",
+                    excludeNames = excludeNames,
+                )
+            } else if (file.isFile) {
+                addFileToZip(zipOut, file, entryPrefix + name)
+            }
+        }
+    }
+
+    companion object {
+        /** 新拆分的枚举项（旧配置不含），用于兼容判断 */
+        private val NEW_ITEM_KINDS = setOf(
+            WebDavConfig.BackupItem.SETTINGS,
+            WebDavConfig.BackupItem.AVATARS,
+            WebDavConfig.BackupItem.WORKSPACE_DOCS,
+            WebDavConfig.BackupItem.SKILLS,
+            WebDavConfig.BackupItem.CHAT_FILES,
+            WebDavConfig.BackupItem.FONTS_IMAGES,
+            WebDavConfig.BackupItem.TOOL_OUTPUTS,
+        )
+
+        /** workspace files 层递归打包时排除的目录名（可重建/巨大/敏感） */
+        private val WORKSPACE_EXCLUDE_DIRS = setOf(
+            "node_modules", "local-models", "cache", ".gradle", "build",
+            ".git", "dist", ".next", ".venv",
+        )
     }
 
     private suspend fun restoreFromBackupFile(backupFile: File, config: WebDavConfig) = withContext(Dispatchers.IO) {
@@ -279,22 +384,31 @@ class WebDavSync(
                 entry?.let { zipEntry ->
                     Log.i(TAG, "restoreFromBackupFile: Processing entry ${zipEntry.name}")
 
-                    when (zipEntry.name) {
-                        "settings.json" -> {
-                            val settingsJson = zipIn.readBytes().toString(Charsets.UTF_8)
-                            Log.i(TAG, "restoreFromBackupFile: Restoring settings")
-                            try {
-                                val migratedJson = SettingsJsonMigrator.migrate(settingsJson)
-                                val settings = json.decodeFromString<Settings>(migratedJson)
-                                settingsStore.update(settings)
-                                Log.i(TAG, "restoreFromBackupFile: Settings restored successfully")
-                            } catch (e: Exception) {
-                                Log.e(TAG, "restoreFromBackupFile: Failed to restore settings", e)
-                                throw Exception("Failed to restore settings: ${e.message}")
+                    when {
+                        zipEntry.name == "settings.json" -> {
+                            // settings 恢复受 SETTINGS 控制；兼容旧包（老备份总是带 settings.json）
+                            if (config.items.contains(WebDavConfig.BackupItem.SETTINGS) ||
+                                config.items.none { it in NEW_ITEM_KINDS }
+                            ) {
+                                val settingsJson = zipIn.readBytes().toString(Charsets.UTF_8)
+                                Log.i(TAG, "restoreFromBackupFile: Restoring settings")
+                                try {
+                                    val migratedJson = SettingsJsonMigrator.migrate(settingsJson)
+                                    val settings = json.decodeFromString<Settings>(migratedJson)
+                                    settingsStore.update(settings)
+                                    Log.i(TAG, "restoreFromBackupFile: Settings restored successfully")
+                                } catch (e: Exception) {
+                                    Log.e(TAG, "restoreFromBackupFile: Failed to restore settings", e)
+                                    throw Exception("Failed to restore settings: ${e.message}")
+                                }
+                            } else {
+                                Log.i(TAG, "restoreFromBackupFile: Skipping settings.json (SETTINGS not selected)")
                             }
                         }
 
-                        "rikka_hub.db", "rikka_hub-wal", "rikka_hub-shm" -> {
+                        zipEntry.name == "rikka_hub.db" ||
+                            zipEntry.name == "rikka_hub-wal" ||
+                            zipEntry.name == "rikka_hub-shm" -> {
                             if (config.items.contains(WebDavConfig.BackupItem.DATABASE)) {
                                 val dbFile = when (zipEntry.name) {
                                     "rikka_hub.db" -> context.getDatabasePath("rikka_hub")
@@ -321,10 +435,6 @@ class WebDavSync(
                                         "rikka_hub-wal" -> restoredWal = true
                                         "rikka_hub-shm" -> restoredShm = true
                                     }
-                                    when (zipEntry.name) {
-                                        "rikka_hub-wal" -> restoredWal = true
-                                        "rikka_hub-shm" -> restoredShm = true
-                                    }
                                     Log.i(
                                         TAG,
                                         "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
@@ -333,101 +443,77 @@ class WebDavSync(
                             }
                         }
 
-                        else -> {
-                            if (config.items.contains(WebDavConfig.BackupItem.FILES) &&
-                                zipEntry.name.startsWith("${FileFolders.UPLOAD}/")
-                            ) {
-                                val fileName = zipEntry.name.substringAfter("${FileFolders.UPLOAD}/")
-                                if (fileName.isNotEmpty()) {
-                                    val uploadFolder = File(context.filesDir, FileFolders.UPLOAD)
-                                    if (!uploadFolder.exists()) {
-                                        uploadFolder.mkdirs()
-                                        Log.i(TAG, "restoreFromBackupFile: Created upload directory")
-                                    }
-
-                                    // Guard against zip-slip: reject entries that resolve
-                                    // outside the upload folder (e.g. "../../databases/...").
-                                    val targetFile = SkillPaths.resolveSkillFile(uploadFolder, fileName)
-                                    if (targetFile == null) {
-                                        Log.w(TAG, "restoreFromBackupFile: Rejected unsafe upload entry ${zipEntry.name}")
-                                    } else {
-                                        Log.i(
-                                            TAG,
-                                            "restoreFromBackupFile: Restoring file ${zipEntry.name} to ${targetFile.absolutePath}"
-                                        )
-                                        targetFile.parentFile?.mkdirs()
-                                        try {
-                                            FileOutputStream(targetFile).use { outputStream ->
-                                                zipIn.copyTo(outputStream)
-                                            }
-                                            Log.i(
-                                                TAG,
-                                                "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
-                                            )
-                                        } catch (e: Exception) {
-                                            Log.e(TAG, "restoreFromBackupFile: Failed to restore file ${zipEntry.name}", e)
-                                            throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")
-                                        }
-                                    }
+                        // avatars/ —— AVATARS 或旧 FILES
+                        zipEntry.name.startsWith("${FileFolders.AVATARS}/") -> {
+                            if (config.items.any {
+                                    it == WebDavConfig.BackupItem.AVATARS ||
+                                        it == WebDavConfig.BackupItem.FILES
                                 }
-                            } else if (config.items.contains(WebDavConfig.BackupItem.FILES) &&
-                                zipEntry.name.startsWith("${FileFolders.SKILLS}/")
+                            ) {
+                                restoreFolderEntry(zipIn, zipEntry, FileFolders.AVATARS, allowNested = false)
+                            }
+                        }
+
+                        // upload/ —— CHAT_FILES 或旧 FILES
+                        zipEntry.name.startsWith("${FileFolders.UPLOAD}/") -> {
+                            if (config.items.any {
+                                    it == WebDavConfig.BackupItem.CHAT_FILES ||
+                                        it == WebDavConfig.BackupItem.FILES
+                                }
+                            ) {
+                                restoreFolderEntry(zipIn, zipEntry, FileFolders.UPLOAD, allowNested = false)
+                            }
+                        }
+
+                        // skills/ —— SKILLS 或旧 FILES
+                        zipEntry.name.startsWith("${FileFolders.SKILLS}/") -> {
+                            if (config.items.any {
+                                    it == WebDavConfig.BackupItem.SKILLS ||
+                                        it == WebDavConfig.BackupItem.FILES
+                                }
                             ) {
                                 restoreSkillEntry(zipIn, zipEntry.name)
-                            } else if (config.items.contains(WebDavConfig.BackupItem.FILES) &&
-                                zipEntry.name.startsWith("${FileFolders.FONTS}/")
-                            ) {
-                                val fileName = zipEntry.name.substringAfter("${FileFolders.FONTS}/")
-                                if (fileName.isNotEmpty() && !fileName.contains('/')) {
-                                    val fontsFolder = File(context.filesDir, FileFolders.FONTS).apply { mkdirs() }
-                                    val targetFile = File(fontsFolder, fileName)
-                                    FileOutputStream(targetFile).use { outputStream ->
-                                        zipIn.copyTo(outputStream)
-                                    }
-                                    Log.i(
-                                        TAG,
-                                        "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
-                                    )
-                                }
-                            } else if (config.items.contains(WebDavConfig.BackupItem.FILES) &&
-                                zipEntry.name.startsWith("${FileFolders.IMAGES}/")
-                            ) {
-                                val fileName = zipEntry.name.substringAfter("${FileFolders.IMAGES}/")
-                                if (fileName.isNotEmpty()) {
-                                    val imagesFolder = File(context.filesDir, FileFolders.IMAGES)
-                                    if (!imagesFolder.exists()) {
-                                        imagesFolder.mkdirs()
-                                        Log.i(TAG, "restoreFromBackupFile: Created images directory")
-                                    }
-
-                                    // Guard against zip-slip: reject entries that resolve
-                                    // outside the images folder (e.g. "../../databases/...").
-                                    val targetFile = SkillPaths.resolveSkillFile(imagesFolder, fileName)
-                                    if (targetFile == null) {
-                                        Log.w(TAG, "restoreFromBackupFile: Rejected unsafe images entry ${zipEntry.name}")
-                                    } else {
-                                        Log.i(
-                                            TAG,
-                                            "restoreFromBackupFile: Restoring file ${zipEntry.name} to ${targetFile.absolutePath}"
-                                        )
-                                        targetFile.parentFile?.mkdirs()
-                                        try {
-                                            FileOutputStream(targetFile).use { outputStream ->
-                                                zipIn.copyTo(outputStream)
-                                            }
-                                            Log.i(
-                                                TAG,
-                                                "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
-                                            )
-                                        } catch (e: Exception) {
-                                            Log.e(TAG, "restoreFromBackupFile: Failed to restore file ${zipEntry.name}", e)
-                                            throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")
-                                        }
-                                    }
-                                }
-                            } else {
-                                Log.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
                             }
+                        }
+
+                        // fonts/ —— FONTS_IMAGES 或旧 FILES
+                        zipEntry.name.startsWith("${FileFolders.FONTS}/") -> {
+                            if (config.items.any {
+                                    it == WebDavConfig.BackupItem.FONTS_IMAGES ||
+                                        it == WebDavConfig.BackupItem.FILES
+                                }
+                            ) {
+                                restoreFolderEntry(zipIn, zipEntry, FileFolders.FONTS, allowNested = false)
+                            }
+                        }
+
+                        // images/ —— FONTS_IMAGES 或旧 FILES
+                        zipEntry.name.startsWith("${FileFolders.IMAGES}/") -> {
+                            if (config.items.any {
+                                    it == WebDavConfig.BackupItem.FONTS_IMAGES ||
+                                        it == WebDavConfig.BackupItem.FILES
+                                }
+                            ) {
+                                restoreFolderEntry(zipIn, zipEntry, FileFolders.IMAGES, allowNested = false)
+                            }
+                        }
+
+                        // tool_outputs/ —— TOOL_OUTPUTS（递归）
+                        zipEntry.name.startsWith("${FileFolders.TOOL_OUTPUTS}/") -> {
+                            if (config.items.contains(WebDavConfig.BackupItem.TOOL_OUTPUTS)) {
+                                restoreFolderEntry(zipIn, zipEntry, FileFolders.TOOL_OUTPUTS, allowNested = true)
+                            }
+                        }
+
+                        // workspaces/<root>/files/... —— WORKSPACE_DOCS
+                        zipEntry.name.startsWith("workspaces/") -> {
+                            if (config.items.contains(WebDavConfig.BackupItem.WORKSPACE_DOCS)) {
+                                restoreWorkspaceEntry(zipIn, zipEntry)
+                            }
+                        }
+
+                        else -> {
+                            Log.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
                         }
                     }
 
@@ -519,6 +605,78 @@ class WebDavSync(
                 val relativePath = file.relativeTo(rootDir).invariantSeparatorsPath
                 addFileToZip(zipOut, file, "$entryPrefix$relativePath")
             }
+        }
+    }
+
+    /**
+     * 恢复一个普通文件夹条目（upload/avatars/fonts/images/tool_outputs）。
+     * [allowNested] 为 true 时保留子目录结构，否则仅恢复顶层文件（兼容旧打包只存顶层）。
+     */
+    private fun restoreFolderEntry(
+        zipIn: ZipInputStream,
+        zipEntry: ZipEntry,
+        folder: String,
+        allowNested: Boolean,
+    ) {
+        val relative = zipEntry.name.substringAfter("$folder/")
+        if (relative.isEmpty()) return
+        if (!allowNested && relative.contains('/')) {
+            Log.i(TAG, "restoreFolderEntry: Skipping nested $folder entry ${zipEntry.name}")
+            return
+        }
+        val folderRoot = File(context.filesDir, folder).apply { mkdirs() }
+        // zip-slip 防护：目标必须落在 folderRoot 内
+        val targetFile = SkillPaths.resolveSkillFile(folderRoot, relative)
+        if (targetFile == null) {
+            Log.w(TAG, "restoreFolderEntry: Rejected unsafe $folder entry ${zipEntry.name}")
+            return
+        }
+        targetFile.parentFile?.mkdirs()
+        try {
+            FileOutputStream(targetFile).use { outputStream ->
+                zipIn.copyTo(outputStream)
+            }
+            Log.i(TAG, "restoreFolderEntry: Restored ${zipEntry.name} (${targetFile.length()} bytes)")
+        } catch (e: Exception) {
+            Log.e(TAG, "restoreFolderEntry: Failed to restore ${zipEntry.name}", e)
+            throw Exception("Failed to restore ${zipEntry.name}: ${e.message}")
+        }
+    }
+
+    /**
+     * 恢复工作区文档条目 workspaces/<root>/files/<相对路径>。
+     * 目标 = <filesDir>/workspaces/<root>/files/<相对路径>，zip-slip 防护同上。
+     */
+    private fun restoreWorkspaceEntry(zipIn: ZipInputStream, zipEntry: ZipEntry) {
+        // workspaces/<root>/files/<rel>  或 workspaces/<root>/files/<rel>/... 
+        val segments = zipEntry.name.split('/')
+        if (segments.size < 4 || segments[0] != "workspaces" || segments[2] != "files") {
+            Log.w(TAG, "restoreWorkspaceEntry: Unexpected workspace entry ${zipEntry.name}")
+            return
+        }
+        val wsRoot = segments[1]
+        if (wsRoot.isBlank() || wsRoot == "." || wsRoot == ".." || wsRoot.contains('\\')) {
+            Log.w(TAG, "restoreWorkspaceEntry: Rejected unsafe workspace root in ${zipEntry.name}")
+            return
+        }
+        val relative = segments.drop(3).joinToString("/")
+        if (relative.isEmpty()) return
+        val wsDir = File(File(context.filesDir, "workspaces"), wsRoot)
+        val filesLayer = File(wsDir, "files").apply { mkdirs() }
+        val targetFile = SkillPaths.resolveSkillFile(filesLayer, relative)
+        if (targetFile == null) {
+            Log.w(TAG, "restoreWorkspaceEntry: Rejected unsafe workspace entry ${zipEntry.name}")
+            return
+        }
+        targetFile.parentFile?.mkdirs()
+        try {
+            FileOutputStream(targetFile).use { outputStream ->
+                zipIn.copyTo(outputStream)
+            }
+            Log.i(TAG, "restoreWorkspaceEntry: Restored ${zipEntry.name} (${targetFile.length()} bytes)")
+        } catch (e: Exception) {
+            Log.e(TAG, "restoreWorkspaceEntry: Failed to restore ${zipEntry.name}", e)
+            throw Exception("Failed to restore ${zipEntry.name}: ${e.message}")
         }
     }
 

@@ -6,6 +6,7 @@ import me.rerere.hugeicons.stroke.FileImport
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,10 +14,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.MultiChoiceSegmentedButtonRow
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -38,6 +37,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.StickyHeader
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
+import me.rerere.rikkahub.ui.pages.backup.backupItemLabel
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -194,32 +194,23 @@ fun ImportExportTab(
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_backup_items)) },
                     supportingContent = {
-                        MultiChoiceSegmentedButtonRow(
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            WebDavConfig.BackupItem.entries.forEachIndexed { index, item ->
-                                SegmentedButton(
-                                    shape = SegmentedButtonDefaults.itemShape(
-                                        index = index,
-                                        count = WebDavConfig.BackupItem.entries.size
-                                    ),
-                                    onCheckedChange = { checked ->
-                                        val newItems = if (checked) {
-                                            selectedBackupItems + item
-                                        } else {
+                            WebDavConfig.BackupItem.entries.forEach { item ->
+                                FilterChip(
+                                    selected = item in selectedBackupItems,
+                                    onClick = {
+                                        val newItems = if (item in selectedBackupItems) {
                                             selectedBackupItems - item
+                                        } else {
+                                            selectedBackupItems + item
                                         }
                                         vm.updateLocalBackupItems(newItems)
                                     },
-                                    checked = item in selectedBackupItems
-                                ) {
-                                    Text(
-                                        when (item) {
-                                            WebDavConfig.BackupItem.DATABASE -> stringResource(R.string.backup_page_chat_records)
-                                            WebDavConfig.BackupItem.FILES -> stringResource(R.string.backup_page_files)
-                                        }
-                                    )
-                                }
+                                    label = { Text(backupItemLabel(item)) },
+                                )
                             }
                         }
                     },

@@ -150,7 +150,7 @@ class S3Sync(
             }
 
             // Backup app files
-            if (config.items.contains(S3Config.BackupItem.FILES)) {
+            if (config.items.any { it.wantsFiles() }) {
                 val uploadFolder = File(context.filesDir, FileFolders.UPLOAD)
                 if (uploadFolder.exists() && uploadFolder.isDirectory) {
                     Log.i(TAG, "prepareBackupFile: Backing up files from ${uploadFolder.absolutePath}")
@@ -292,7 +292,7 @@ class S3Sync(
                         }
 
                         else -> {
-                            if (config.items.contains(S3Config.BackupItem.FILES) &&
+                            if (config.items.any { it.wantsFiles() } &&
                                 zipEntry.name.startsWith("${FileFolders.UPLOAD}/")
                             ) {
                                 val fileName = zipEntry.name.substringAfter("${FileFolders.UPLOAD}/")
@@ -328,11 +328,11 @@ class S3Sync(
                                         }
                                     }
                                 }
-                            } else if (config.items.contains(S3Config.BackupItem.FILES) &&
+                            } else if (config.items.any { it.wantsFiles() } &&
                                 zipEntry.name.startsWith("${FileFolders.SKILLS}/")
                             ) {
                                 restoreSkillEntry(zipIn, zipEntry.name)
-                            } else if (config.items.contains(S3Config.BackupItem.FILES) &&
+                            } else if (config.items.any { it.wantsFiles() } &&
                                 zipEntry.name.startsWith("${FileFolders.FONTS}/")
                             ) {
                                 val fileName = zipEntry.name.substringAfter("${FileFolders.FONTS}/")
@@ -347,7 +347,7 @@ class S3Sync(
                                         "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
                                     )
                                 }
-                            } else if (config.items.contains(S3Config.BackupItem.FILES) &&
+                            } else if (config.items.any { it.wantsFiles() } &&
                                 zipEntry.name.startsWith("${FileFolders.IMAGES}/")
                             ) {
                                 val fileName = zipEntry.name.substringAfter("${FileFolders.IMAGES}/")
