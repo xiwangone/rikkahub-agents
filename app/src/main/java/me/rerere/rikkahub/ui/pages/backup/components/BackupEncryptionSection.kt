@@ -102,16 +102,17 @@ private fun BackupEncryptionDialog(
     var pwd by remember { mutableStateOf("") }
     var pwdConfirm by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
+    val msgTooShort = stringResource(R.string.backup_page_encryption_password_short)
+    val msgMismatch = stringResource(R.string.backup_page_encryption_password_mismatch)
 
-    @Composable
     fun save() {
         error = null
         if (pwd.length < 6) {
-            error = stringResource(R.string.backup_page_encryption_password_short)
+            error = msgTooShort
             return
         }
         if (pwd != pwdConfirm) {
-            error = stringResource(R.string.backup_page_encryption_password_mismatch)
+            error = msgMismatch
             return
         }
         vm.setBackupEncryptionPassword(pwd)
