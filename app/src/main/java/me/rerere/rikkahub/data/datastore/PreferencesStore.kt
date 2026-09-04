@@ -182,9 +182,13 @@ class SettingsStore(
 
         // WebDAV
         val WEBDAV_CONFIG = stringPreferencesKey("webdav_config")
+        val WEBDAV_CONFIGS = stringPreferencesKey("webdav_configs")
+        val ACTIVE_WEBDAV_CONFIG_ID = stringPreferencesKey("active_webdav_config_id")
 
         // S3
         val S3_CONFIG = stringPreferencesKey("s3_config")
+        val S3_CONFIGS = stringPreferencesKey("s3_configs")
+        val ACTIVE_S3_CONFIG_ID = stringPreferencesKey("active_s3_config_id")
 
         // TTS
         val TTS_PROVIDERS = stringPreferencesKey("tts_providers")
@@ -328,6 +332,20 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 s3Config = preferences[S3_CONFIG]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: S3Config(),
+                webDavConfigs = preferences[WEBDAV_CONFIGS]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<WebDavConfig>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode webDavConfigs, using empty", it)
+                        emptyList()
+                    }
+                } ?: emptyList(),
+                activeWebDavConfigId = preferences[ACTIVE_WEBDAV_CONFIG_ID],
+                s3Configs = preferences[S3_CONFIGS]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<List<S3Config>>(raw) }.getOrElse {
+                        Log.w(TAG, "Failed to decode s3Configs, using empty", it)
+                        emptyList()
+                    }
+                } ?: emptyList(),
+                activeS3ConfigId = preferences[ACTIVE_S3_CONFIG_ID],
                 ttsProviders = preferences[TTS_PROVIDERS]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: emptyList(),
@@ -616,6 +634,14 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[SUB_AGENTS] = JsonInstant.encodeToString(settings.subAgents)
             preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settings.webDavConfig)
             preferences[S3_CONFIG] = JsonInstant.encodeToString(settings.s3Config)
+            preferences[WEBDAV_CONFIGS] = JsonInstant.encodeToString(settings.webDavConfigs)
+            settings.activeWebDavConfigId?.let {
+                preferences[ACTIVE_WEBDAV_CONFIG_ID] = it
+            } ?: preferences.remove(ACTIVE_WEBDAV_CONFIG_ID)
+            preferences[S3_CONFIGS] = JsonInstant.encodeToString(settings.s3Configs)
+            settings.activeS3ConfigId?.let {
+                preferences[ACTIVE_S3_CONFIG_ID] = it
+            } ?: preferences.remove(ACTIVE_S3_CONFIG_ID)
             preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(settings.ttsProviders)
             settings.selectedTTSProviderId?.let {
                 preferences[SELECTED_TTS_PROVIDER] = it.toString()
@@ -827,6 +853,14 @@ data class Settings(
     val subAgents: List<SubAgentProfile> = emptyList(),
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val s3Config: S3Config = S3Config(),
+    /** 多 WebDAV 配置（可保存/切换/删除）。空时回退用 [webDavConfig] 单配置（旧数据兼容）。 */
+    val webDavConfigs: List<WebDavConfig> = emptyList(),
+    /** 当前生效的 WebDAV 配置 id（空 = 用 [webDavConfig] / 列表首个） */
+    val activeWebDavConfigId: String? = null,
+    /** 多 S3 配置（可保存/切换/删除）。空时回退用 [s3Config] 单配置（旧数据兼容）。 */
+    val s3Configs: List<S3Config> = emptyList(),
+    /** 当前生效的 S3 配置 id（空 = 用 [s3Config] / 列表首个） */
+    val activeS3ConfigId: String? = null,
     val ttsProviders: List<TTSProviderSetting> = DEFAULT_TTS_PROVIDERS,
     val selectedTTSProviderId: Uuid = DEFAULT_SYSTEM_TTS_ID,
     val defaultTTSPlaybackSpeed: Float = 1.0f,
@@ -859,6 +893,21 @@ data class Settings(
     val launchCount: Int = 0,
     val sponsorAlertDismissedAt: Int = 0,
 ) {
+    /**
+     * 当前生效的 WebDAV 配置：
+     * 优先 activeWebDavConfigId 命中；否则列表非空取首个；否则回退旧单配置 [webDavConfig]。
+     */
+    fun activeWebDavConfig(): WebDavConfig =
+        webDavConfigs.firstOrNull { it.id == activeWebDavConfigId }
+            ?: webDavConfigs.firstOrNull()
+            ?: webDavConfig
+
+    /** 当前生效的 S3 配置（同 [activeWebDavConfig] 逻辑）。 */
+    fun activeS3Config(): S3Config =
+        s3Configs.firstOrNull { it.id == activeS3ConfigId }
+            ?: s3Configs.firstOrNull()
+            ?: s3Config
+
     companion object {
         // 构造一个用于初始化的settings, 但它不能用于保存，防止使用初始值存储
         fun dummy() = Settings(init = true)
@@ -974,6 +1023,8 @@ data class ChatInputButtons(
 
 @Serializable
 data class WebDavConfig(
+    val id: String = "",
+    val name: String = "",
     val url: String = "",
     val username: String = "",
     val password: String = "",
@@ -986,6 +1037,9 @@ data class WebDavConfig(
         BackupItem.SKILLS,
     ),
 ) {
+    val displayName: String
+        get() = name.ifBlank { if (url.isBlank()) "未命名" else url.removePrefix("https://").removePrefix("http://").substringBefore('/') }
+}
     @Serializable
     enum class BackupItem {
         /** 聊天/记忆/设置数据库（rikka_hub.db，含 vault 密文、SSH 主机、调度任务） */

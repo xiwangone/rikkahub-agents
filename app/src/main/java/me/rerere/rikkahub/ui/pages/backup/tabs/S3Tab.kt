@@ -20,6 +20,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -39,7 +44,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -50,7 +54,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
-import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.View
@@ -60,6 +63,7 @@ import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.pages.backup.BackupRunState
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.backup.backupItemLabel
 import me.rerere.rikkahub.utils.UiState
@@ -70,23 +74,68 @@ import me.rerere.rikkahub.utils.onSuccess
 import me.rerere.rikkahub.utils.toLocalDateTime
 import java.time.Instant
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun S3Tab(
     vm: BackupVM,
     onShowRestartDialog: () -> Unit,
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val s3Config = settings.s3Config
+    val s3Config = settings.activeS3Config()
+    val s3Configs = settings.s3Configs
     val backupItemsState by vm.s3BackupItems.collectAsStateWithLifecycle()
     val toaster = LocalToaster.current
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var showBackupFiles by remember { mutableStateOf(false) }
     var restoringItemId by remember { mutableStateOf<String?>(null) }
     var isBackingUp by remember { mutableStateOf(false) }
+    var configMenuExpanded by remember { mutableStateOf(false) }
 
+    /** 编辑当前配置：同步到列表与单字段兼容槽。 */
     fun updateS3Config(newConfig: S3Config) {
-        vm.updateSettings(settings.copy(s3Config = newConfig))
+        val cfgList = s3Configs
+        val effectiveId =
+            if (cfgList.isEmpty()) {
+                settings.s3Config.id.ifBlank { kotlin.uuid.Uuid.random().toString() }
+            } else {
+                newConfig.id.ifBlank { kotlin.uuid.Uuid.random().toString() }
+            }
+        val cfg = newConfig.copy(id = effectiveId)
+        val newList =
+            if (cfgList.any { it.id == effectiveId }) {
+                cfgList.map { if (it.id == effectiveId) cfg else it }
+            } else {
+                cfgList + cfg
+            }
+        vm.updateSettings(
+            settings.copy(
+                s3Config = cfg,
+                s3Configs = newList,
+                activeS3ConfigId = effectiveId,
+            ),
+        )
+    }
+
+    /** 切换当前配置。 */
+    fun selectS3Config(cfgId: String) {
+        vm.updateSettings(
+            settings.copy(
+                activeS3ConfigId = cfgId,
+                s3Config = s3Configs.firstOrNull { it.id == cfgId } ?: settings.s3Config,
+            ),
+        )
+    }
+
+    /** 新增配置并切换过去。 */
+    fun addS3Config() {
+        val newCfg = S3Config(id = kotlin.uuid.Uuid.random().toString())
+        vm.updateSettings(
+            settings.copy(
+                s3Config = newCfg,
+                s3Configs = s3Configs + newCfg,
+                activeS3ConfigId = newCfg.id,
+            ),
+        )
     }
 
     val lastBackupText =
@@ -126,7 +175,68 @@ fun S3Tab(
                 fileSummaryText = backupFileSummary,
             )
 
+            // 多配置：下拉切换 + 新增
+            val allConfigs = if (s3Configs.isEmpty()) listOf(s3Config) else s3Configs
             CardGroup {
+                item(
+                    headlineContent = { Text(stringResource(R.string.backup_page_select_config)) },
+                    supportingContent = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ExposedDropdownMenuBox(
+                                expanded = configMenuExpanded,
+                                onExpandedChange = { configMenuExpanded = it },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                OutlinedTextField(
+                                    value = s3Config.displayName,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = configMenuExpanded) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                                    singleLine = true,
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = configMenuExpanded,
+                                    onDismissRequest = { configMenuExpanded = false },
+                                ) {
+                                    allConfigs.forEach { cfg ->
+                                        DropdownMenuItem(
+                                            text = { Text(cfg.displayName) },
+                                            onClick = {
+                                                configMenuExpanded = false
+                                                selectS3Config(cfg.id.ifBlank { cfg.displayName })
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                            IconButton(onClick = { addS3Config() }) {
+                                Icon(HugeIcons.PlusSign, contentDescription = stringResource(R.string.backup_page_add_config))
+                            }
+                        }
+                    },
+                )
+            }
+
+            CardGroup {
+                item(
+                    headlineContent = { Text(stringResource(R.string.backup_page_config_name)) },
+                    supportingContent = {
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = s3Config.name,
+                            onValueChange = { updateS3Config(s3Config.copy(name = it.trim())) },
+                            placeholder = { Text(s3Config.displayName) },
+                            singleLine = true,
+                        )
+                    },
+                )
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_s3_endpoint)) },
                     supportingContent = {
@@ -199,13 +309,20 @@ fun S3Tab(
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_s3_region)) },
                     supportingContent = {
-                        OutlinedTextField(
-                            modifier = Modifier.fillMaxWidth(),
-                            value = s3Config.region,
-                            onValueChange = { updateS3Config(s3Config.copy(region = it.trim())) },
-                            placeholder = { Text("auto") },
-                            singleLine = true,
-                        )
+                        Column {
+                            OutlinedTextField(
+                                modifier = Modifier.fillMaxWidth(),
+                                value = s3Config.region,
+                                onValueChange = { updateS3Config(s3Config.copy(region = it.trim())) },
+                                placeholder = { Text("us-east-1") },
+                                singleLine = true,
+                            )
+                            Text(
+                                text = stringResource(R.string.backup_page_s3_region_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     },
                 )
             }
@@ -256,15 +373,13 @@ fun S3Tab(
         ) {
             OutlinedButton(
                 onClick = {
-                    scope.launch {
-                        try {
-                            vm.testS3()
+                    vm.runTestS3 { result ->
+                        result.onSuccess {
                             toaster.show(
                                 context.getString(R.string.backup_page_connection_success),
                                 type = ToastType.Success,
                             )
-                        } catch (e: Exception) {
-                            e.printStackTrace()
+                        }.onFailure { e ->
                             toaster.show(
                                 context.getString(
                                     R.string.backup_page_connection_failed,
@@ -289,23 +404,27 @@ fun S3Tab(
 
             Button(
                 onClick = {
-                    scope.launch {
-                        isBackingUp = true
-                        runCatching {
-                            vm.backupToS3()
-                            vm.loadS3BackupFileItems()
-                            toaster.show(
-                                context.getString(R.string.backup_page_backup_success),
-                                type = ToastType.Success,
-                            )
-                        }.onFailure {
-                            it.printStackTrace()
-                            toaster.show(
-                                it.message ?: context.getString(R.string.backup_page_unknown_error),
-                                type = ToastType.Error,
-                            )
+                    isBackingUp = true
+                    vm.runBackupToS3 { state ->
+                        when (state) {
+                            is BackupRunState.Running -> isBackingUp = true
+                            is BackupRunState.Success -> {
+                                isBackingUp = false
+                                toaster.show(
+                                    context.getString(R.string.backup_page_backup_success),
+                                    type = ToastType.Success,
+                                )
+                            }
+
+                            is BackupRunState.Failed -> {
+                                isBackingUp = false
+                                toaster.show(
+                                    state.error?.message
+                                        ?: context.getString(R.string.backup_page_unknown_error),
+                                    type = ToastType.Error,
+                                )
+                            }
                         }
-                        isBackingUp = false
                     }
                 },
                 enabled = !isBackingUp,
@@ -365,48 +484,54 @@ fun S3Tab(
                                     item = item,
                                     isRestoring = restoringItemId == item.displayName,
                                     onDelete = {
-                                        scope.launch {
-                                            runCatching {
-                                                vm.deleteS3BackupFile(item)
-                                                toaster.show(
-                                                    context.getString(R.string.backup_page_delete_success),
-                                                    type = ToastType.Success,
-                                                )
-                                                vm.loadS3BackupFileItems()
-                                            }.onFailure { err ->
-                                                err.printStackTrace()
-                                                toaster.show(
-                                                    context.getString(
-                                                        R.string.backup_page_delete_failed,
-                                                        err.message ?: "",
-                                                    ),
-                                                    type = ToastType.Error,
-                                                )
+                                        vm.runDeleteS3BackupFile(item) { state ->
+                                            when (state) {
+                                                is BackupRunState.Success -> {
+                                                    toaster.show(
+                                                        context.getString(R.string.backup_page_delete_success),
+                                                        type = ToastType.Success,
+                                                    )
+                                                }
+
+                                                is BackupRunState.Failed -> {
+                                                    toaster.show(
+                                                        context.getString(
+                                                            R.string.backup_page_delete_failed,
+                                                            state.error?.message ?: "",
+                                                        ),
+                                                        type = ToastType.Error,
+                                                    )
+                                                }
+
+                                                else -> {}
                                             }
                                         }
                                     },
                                     onRestore = { restoreItem ->
-                                        scope.launch {
-                                            restoringItemId = restoreItem.displayName
-                                            runCatching {
-                                                vm.restoreFromS3(item = restoreItem)
-                                                toaster.show(
-                                                    context.getString(R.string.backup_page_restore_success),
-                                                    type = ToastType.Success,
-                                                )
-                                                showBackupFiles = false
-                                                onShowRestartDialog()
-                                            }.onFailure { err ->
-                                                err.printStackTrace()
-                                                toaster.show(
-                                                    context.getString(
-                                                        R.string.backup_page_restore_failed,
-                                                        err.message ?: "",
-                                                    ),
-                                                    type = ToastType.Error,
-                                                )
+                                        restoringItemId = restoreItem.displayName
+                                        vm.runRestoreFromS3(restoreItem) { state ->
+                                            when (state) {
+                                                is BackupRunState.Running -> {
+                                                    restoringItemId = restoreItem.displayName
+                                                }
+
+                                                is BackupRunState.Success -> {
+                                                    restoringItemId = null
+                                                    showBackupFiles = false
+                                                    onShowRestartDialog()
+                                                }
+
+                                                is BackupRunState.Failed -> {
+                                                    restoringItemId = null
+                                                    toaster.show(
+                                                        context.getString(
+                                                            R.string.backup_page_restore_failed,
+                                                            state.error?.message ?: "",
+                                                        ),
+                                                        type = ToastType.Error,
+                                                    )
+                                                }
                                             }
-                                            restoringItemId = null
                                         }
                                     },
                                 )

@@ -225,6 +225,9 @@
   <string name="backup_page_item_tool_outputs_desc">Recent tool call cache</string>
   <string name="backup_page_item_legacy_files">Files (legacy)</string>
   <string name="backup_page_item_legacy_files_desc">Legacy aggregate: skills+chat+fonts</string>
+  <string name="backup_page_select_config">Profile</string>
+  <string name="backup_page_add_config">Add profile</string>
+  <string name="backup_page_config_name">Profile name</string>
   <string name="backup_page_backup_now">Backup Now</string>
   <string name="backup_page_backup_success">Backup successful</string>
   <string name="backup_page_chat_records">Chat Records</string>
@@ -275,6 +278,7 @@
   <string name="backup_page_s3_path_style">Path Style</string>
   <string name="backup_page_s3_path_style_desc">Use endpoint/bucket/object. Turn off to use bucket.endpoint/object.</string>
   <string name="backup_page_s3_region">Region</string>
+  <string name="backup_page_s3_region_desc">For AWS use your bucket region (e.g. us-east-1). For S3-compatible services (MinIO, 数据胶囊 etc.) use the region from their docs, commonly us-east-1 or cn-north-1.</string>
   <string name="backup_page_s3_secret_access_key">Secret Access Key</string>
   <string name="backup_page_test_connection">Test Connection</string>
   <string name="backup_page_title">Backup and Restore</string>

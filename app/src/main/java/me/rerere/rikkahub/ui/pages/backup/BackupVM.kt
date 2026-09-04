@@ -70,7 +70,7 @@ class BackupVM(
                             data =
                                 webDavSync
                                     .listBackupFiles(
-                                        config = settings.value.webDavConfig,
+                                        config = settings.value.activeWebDavConfig(),
                                     ).sortedByDescending { it.lastModified },
                         ),
                 )
@@ -81,7 +81,7 @@ class BackupVM(
     }
 
     suspend fun testWebDav() {
-        webDavSync.testConnection(settings.value.webDavConfig)
+        webDavSync.testConnection(settings.value.activeWebDavConfig())
     }
 
     // ── WebDAV 自驱动执行（viewModelScope，退页/切后台不取消，进程杀才停）──
@@ -90,7 +90,7 @@ class BackupVM(
     fun runTestWebDav(onResult: (Result<Unit>) -> Unit) {
         viewModelScope.launch {
             val r = runCatching {
-                webDavSync.testConnection(settings.value.webDavConfig)
+                webDavSync.testConnection(settings.value.activeWebDavConfig())
                 Unit
             }
             onResult(r)
@@ -102,7 +102,7 @@ class BackupVM(
         viewModelScope.launch {
             onState(BackupRunState.Running)
             val r = runCatching {
-                webDavSync.backup(settings.value.webDavConfig)
+                webDavSync.backup(settings.value.activeWebDavConfig())
                 recordBackupTime()
                 loadBackupFileItems()
             }
@@ -115,7 +115,7 @@ class BackupVM(
         viewModelScope.launch {
             onState(BackupRunState.Running)
             val r = runCatching {
-                webDavSync.restore(config = settings.value.webDavConfig, item = item)
+                webDavSync.restore(config = settings.value.activeWebDavConfig(), item = item)
             }
             onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
         }
@@ -125,7 +125,7 @@ class BackupVM(
     fun runDeleteBackupFile(item: WebDavBackupItem, onState: (BackupRunState) -> Unit) {
         viewModelScope.launch {
             val r = runCatching {
-                webDavSync.deleteBackupFile(settings.value.webDavConfig, item)
+                webDavSync.deleteBackupFile(settings.value.activeWebDavConfig(), item)
                 loadBackupFileItems()
             }
             onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
@@ -133,22 +133,22 @@ class BackupVM(
     }
 
     suspend fun backup() {
-        webDavSync.backup(settings.value.webDavConfig)
+        webDavSync.backup(settings.value.activeWebDavConfig())
         recordBackupTime()
     }
 
     suspend fun restore(item: WebDavBackupItem) {
-        webDavSync.restore(config = settings.value.webDavConfig, item = item)
+        webDavSync.restore(config = settings.value.activeWebDavConfig(), item = item)
     }
 
     suspend fun deleteWebDavBackupFile(item: WebDavBackupItem) {
-        webDavSync.deleteBackupFile(settings.value.webDavConfig, item)
+        webDavSync.deleteBackupFile(settings.value.activeWebDavConfig(), item)
     }
 
     suspend fun exportToFile(): File {
         val file =
             webDavSync.prepareBackupFile(
-                settings.value.webDavConfig.copy(items = localBackupItems.value),
+                settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
             )
         recordBackupTime()
         return file
@@ -157,7 +157,7 @@ class BackupVM(
     suspend fun restoreFromLocalFile(file: File) {
         webDavSync.restoreFromLocalFile(
             file,
-            settings.value.webDavConfig.copy(items = localBackupItems.value),
+            settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
         )
     }
 
@@ -249,7 +249,7 @@ class BackupVM(
                         UiState.Success(
                             data =
                                 s3Sync.listBackupFiles(
-                                    config = settings.value.s3Config,
+                                    config = settings.value.activeS3Config(),
                                 ),
                         ),
                 )
@@ -260,20 +260,64 @@ class BackupVM(
     }
 
     suspend fun testS3() {
-        s3Sync.testS3(settings.value.s3Config)
+        s3Sync.testS3(settings.value.activeS3Config())
+    }
+
+    // ── S3 自驱动执行（viewModelScope，退页/切后台不取消）──
+
+    fun runTestS3(onResult: (Result<Unit>) -> Unit) {
+        viewModelScope.launch {
+            val r = runCatching {
+                s3Sync.testS3(settings.value.activeS3Config())
+                Unit
+            }
+            onResult(r)
+        }
+    }
+
+    fun runBackupToS3(onState: (BackupRunState) -> Unit) {
+        viewModelScope.launch {
+            onState(BackupRunState.Running)
+            val r = runCatching {
+                s3Sync.backupToS3(settings.value.activeS3Config())
+                recordBackupTime()
+                loadS3BackupFileItems()
+            }
+            onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
+        }
+    }
+
+    fun runRestoreFromS3(item: S3BackupItem, onState: (BackupRunState) -> Unit) {
+        viewModelScope.launch {
+            onState(BackupRunState.Running)
+            val r = runCatching {
+                s3Sync.restoreFromS3(config = settings.value.activeS3Config(), item = item)
+            }
+            onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
+        }
+    }
+
+    fun runDeleteS3BackupFile(item: S3BackupItem, onState: (BackupRunState) -> Unit) {
+        viewModelScope.launch {
+            val r = runCatching {
+                s3Sync.deleteS3BackupFile(settings.value.activeS3Config(), item)
+                loadS3BackupFileItems()
+            }
+            onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
+        }
     }
 
     suspend fun backupToS3() {
-        s3Sync.backupToS3(settings.value.s3Config)
+        s3Sync.backupToS3(settings.value.activeS3Config())
         recordBackupTime()
     }
 
     suspend fun restoreFromS3(item: S3BackupItem) {
-        s3Sync.restoreFromS3(config = settings.value.s3Config, item = item)
+        s3Sync.restoreFromS3(config = settings.value.activeS3Config(), item = item)
     }
 
     suspend fun deleteS3BackupFile(item: S3BackupItem) {
-        s3Sync.deleteS3BackupFile(settings.value.s3Config, item)
+        s3Sync.deleteS3BackupFile(settings.value.activeS3Config(), item)
     }
 
     private suspend fun recordBackupTime() {

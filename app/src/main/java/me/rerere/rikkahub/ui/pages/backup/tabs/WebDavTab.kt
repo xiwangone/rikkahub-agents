@@ -20,6 +20,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularWavyProgressIndicator
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.ExposedDropdownMenuAnchorType
+import androidx.compose.material3.ExposedDropdownMenuBox
+import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,6 +53,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
+import kotlin.uuid.Uuid
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.View
@@ -68,22 +74,88 @@ import me.rerere.rikkahub.utils.onSuccess
 import me.rerere.rikkahub.utils.toLocalDateTime
 import java.time.Instant
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun WebDavTab(
     vm: BackupVM,
     onShowRestartDialog: () -> Unit,
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val webDavConfig = settings.webDavConfig
+    val webDavConfig = settings.activeWebDavConfig()
+    val webDavConfigs = settings.webDavConfigs
     val backupItemsState by vm.webDavBackupItems.collectAsStateWithLifecycle()
     val toaster = LocalToaster.current
     val context = LocalContext.current
     var showBackupFiles by remember { mutableStateOf(false) }
     var isBackingUp by remember { mutableStateOf(false) }
     var restoringItemId by remember { mutableStateOf<String?>(null) }
+    var showAddConfigDialog by remember { mutableStateOf(false) }
+    var showConfigMenuFor by remember { mutableStateOf<String?>(null) }
+    var configMenuExpanded by remember { mutableStateOf(false) }
 
+    /** 编辑当前配置：同步到列表（存在则更新，否则追加）与单字段兼容槽。 */
     fun updateWebDavConfig(newConfig: WebDavConfig) {
-        vm.updateSettings(settings.copy(webDavConfig = newConfig))
+        val cfgList = webDavConfigs
+        // 列表为空（旧单配置模式）→ 首次编辑进列表并分配稳定 id；否则沿用现有 id
+        val effectiveId =
+            if (cfgList.isEmpty()) {
+                settings.webDavConfig.id.ifBlank { Uuid.random().toString() }
+            } else {
+                newConfig.id.ifBlank { Uuid.random().toString() }
+            }
+        val cfg = newConfig.copy(id = effectiveId)
+        val newList =
+            if (cfgList.any { it.id == effectiveId }) {
+                cfgList.map { if (it.id == effectiveId) cfg else it }
+            } else {
+                cfgList + cfg
+            }
+        vm.updateSettings(
+            settings.copy(
+                webDavConfig = cfg,
+                webDavConfigs = newList,
+                activeWebDavConfigId = effectiveId,
+            ),
+        )
+    }
+
+    /** 切换当前配置。 */
+    fun selectWebDavConfig(cfgId: String) {
+        vm.updateSettings(
+            settings.copy(
+                activeWebDavConfigId = cfgId,
+                webDavConfig = webDavConfigs.firstOrNull { it.id == cfgId } ?: settings.webDavConfig,
+            ),
+        )
+    }
+
+    /** 新增配置：填入空表单并切换过去。 */
+    fun addWebDavConfig() {
+        val newCfg = WebDavConfig(
+            id = Uuid.random().toString(),
+            name = "",
+        )
+        vm.updateSettings(
+            settings.copy(
+                webDavConfig = newCfg,
+                webDavConfigs = webDavConfigs + newCfg,
+                activeWebDavConfigId = newCfg.id,
+            ),
+        )
+    }
+
+    /** 删除配置（保留至少一个）。 */
+    fun removeWebDavConfig(cfgId: String) {
+        if (webDavConfigs.size <= 1 && settings.webDavConfig.id == cfgId) return
+        val remaining = webDavConfigs.filterNot { it.id == cfgId }
+        val newActive = remaining.firstOrNull()?.id
+        vm.updateSettings(
+            settings.copy(
+                webDavConfigs = remaining,
+                activeWebDavConfigId = newActive,
+                webDavConfig = remaining.firstOrNull() ?: WebDavConfig(),
+            ),
+        )
     }
 
     val lastBackupText =
@@ -123,7 +195,68 @@ fun WebDavTab(
                 fileSummaryText = backupFileSummary,
             )
 
+            // 多配置：下拉切换 + 新增
+            val allConfigs = if (webDavConfigs.isEmpty()) listOf(webDavConfig) else webDavConfigs
             CardGroup {
+                item(
+                    headlineContent = { Text(stringResource(R.string.backup_page_select_config)) },
+                    supportingContent = {
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            ExposedDropdownMenuBox(
+                                expanded = configMenuExpanded,
+                                onExpandedChange = { configMenuExpanded = it },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                OutlinedTextField(
+                                    value = webDavConfig.displayName,
+                                    onValueChange = {},
+                                    readOnly = true,
+                                    trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = configMenuExpanded) },
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                                    singleLine = true,
+                                )
+                                ExposedDropdownMenu(
+                                    expanded = configMenuExpanded,
+                                    onDismissRequest = { configMenuExpanded = false },
+                                ) {
+                                    allConfigs.forEach { cfg ->
+                                        DropdownMenuItem(
+                                            text = { Text(cfg.displayName) },
+                                            onClick = {
+                                                configMenuExpanded = false
+                                                selectWebDavConfig(cfg.id.ifBlank { cfg.displayName })
+                                            },
+                                        )
+                                    }
+                                }
+                            }
+                            IconButton(onClick = { addWebDavConfig() }) {
+                                Icon(HugeIcons.PlusSign, contentDescription = stringResource(R.string.backup_page_add_config))
+                            }
+                        }
+                    },
+                )
+            }
+
+            CardGroup {
+                item(
+                    headlineContent = { Text(stringResource(R.string.backup_page_config_name)) },
+                    supportingContent = {
+                        OutlinedTextField(
+                            modifier = Modifier.fillMaxWidth(),
+                            value = webDavConfig.name,
+                            onValueChange = { updateWebDavConfig(webDavConfig.copy(name = it.trim())) },
+                            placeholder = { Text(webDavConfig.displayName) },
+                            singleLine = true,
+                        )
+                    },
+                )
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_webdav_server_address)) },
                     supportingContent = {

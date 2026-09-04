@@ -4,11 +4,13 @@ import kotlinx.serialization.Serializable
 
 @Serializable
 data class S3Config(
+    val id: String = "",
+    val name: String = "",
     val endpoint: String = "",
     val accessKeyId: String = "",
     val secretAccessKey: String = "",
     val bucket: String = "",
-    val region: String = "auto",
+    val region: String = "us-east-1",
     val pathStyle: Boolean = true,
     val items: List<BackupItem> = listOf(
         BackupItem.DATABASE,
@@ -18,6 +20,9 @@ data class S3Config(
         BackupItem.SKILLS,
     ),
 ) {
+    val displayName: String
+        get() = name.ifBlank { if (endpoint.isBlank()) "未命名" else endpoint.removePrefix("https://").removePrefix("http://").substringBefore('/') }
+
     val host: String
         get() = endpoint
             .removePrefix("https://")

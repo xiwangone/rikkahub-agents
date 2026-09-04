@@ -225,6 +225,9 @@
   <string name="backup_page_item_tool_outputs_desc">最近工具调用缓存</string>
   <string name="backup_page_item_legacy_files">文件（旧）</string>
   <string name="backup_page_item_legacy_files_desc">旧聚合项：技能+聊天图+字体</string>
+  <string name="backup_page_select_config">配置</string>
+  <string name="backup_page_add_config">新增配置</string>
+  <string name="backup_page_config_name">配置名称</string>
   <string name="backup_page_backup_now">立即备份</string>
   <string name="backup_page_backup_success">备份成功</string>
   <string name="backup_page_chat_records">聊天记录</string>
@@ -275,6 +278,7 @@
   <string name="backup_page_s3_path_style">路径样式</string>
   <string name="backup_page_s3_path_style_desc">使用 endpoint/bucket/object。关闭后使用 bucket.endpoint/object。</string>
   <string name="backup_page_s3_region">区域</string>
+  <string name="backup_page_s3_region_desc">AWS 填桶所在区域（如 us-east-1）；S3 兼容服务（MinIO、数据胶囊等）填其文档指定值，通常 us-east-1 或 cn-north-1。</string>
   <string name="backup_page_s3_secret_access_key">秘密访问密钥</string>
   <string name="backup_page_test_connection">测试连接</string>
   <string name="backup_page_title">备份与恢复</string>
