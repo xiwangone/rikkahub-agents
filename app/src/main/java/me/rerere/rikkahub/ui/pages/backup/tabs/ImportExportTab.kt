@@ -37,6 +37,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.StickyHeader
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
+import me.rerere.rikkahub.ui.pages.backup.BackupItemsSelector
 import me.rerere.rikkahub.ui.pages.backup.backupItemLabel
 import java.io.File
 import java.io.FileInputStream
@@ -194,25 +195,11 @@ fun ImportExportTab(
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_backup_items)) },
                     supportingContent = {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            WebDavConfig.BackupItem.entries.forEach { item ->
-                                FilterChip(
-                                    selected = item in selectedBackupItems,
-                                    onClick = {
-                                        val newItems = if (item in selectedBackupItems) {
-                                            selectedBackupItems - item
-                                        } else {
-                                            selectedBackupItems + item
-                                        }
-                                        vm.updateLocalBackupItems(newItems)
-                                    },
-                                    label = { Text(backupItemLabel(item)) },
-                                )
-                            }
-                        }
+                        BackupItemsSelector(
+                            allItems = WebDavConfig.BackupItem.entries.toList(),
+                            selectedItems = selectedBackupItems,
+                            onChange = { vm.updateLocalBackupItems(it) },
+                        )
                     },
                 )
                 item(

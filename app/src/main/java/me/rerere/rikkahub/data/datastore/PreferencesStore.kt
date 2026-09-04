@@ -228,6 +228,8 @@ class SettingsStore(
 
         // 备份提醒
         val BACKUP_REMINDER_CONFIG = stringPreferencesKey("backup_reminder_config")
+        val BACKUP_ENCRYPTION_ENABLED = booleanPreferencesKey("backup_encryption_enabled")
+        val BACKUP_ENCRYPTION_PASSWORD_ENC = stringPreferencesKey("backup_encryption_password_enc")
 
         // 统计
         val LAUNCH_COUNT = intPreferencesKey("launch_count")
@@ -384,6 +386,8 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 backupReminderConfig = preferences[BACKUP_REMINDER_CONFIG]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: BackupReminderConfig(),
+                backupEncryptionEnabled = preferences[BACKUP_ENCRYPTION_ENABLED] ?: false,
+                backupEncryptionPasswordEnc = preferences[BACKUP_ENCRYPTION_PASSWORD_ENC] ?: "",
                 launchCount = preferences[LAUNCH_COUNT] ?: 0,
                 sponsorAlertDismissedAt = preferences[SPONSOR_ALERT_DISMISSED_AT] ?: 0,
             )
@@ -671,6 +675,8 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
             preferences[AI_LOG_LEVEL] = settings.aiLogLevel.preferenceName
             preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
+            preferences[BACKUP_ENCRYPTION_ENABLED] = settings.backupEncryptionEnabled
+            preferences[BACKUP_ENCRYPTION_PASSWORD_ENC] = settings.backupEncryptionPasswordEnc
             preferences[LAUNCH_COUNT] = settings.launchCount
             preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
             preferences[EXECUTION_BACKEND] = settings.executionBackend
@@ -890,6 +896,10 @@ data class Settings(
     val webServerLocalhostOnly: Boolean = true,
     val aiLogLevel: AiLogLevel = AiLogLevel.INFO,
     val backupReminderConfig: BackupReminderConfig = BackupReminderConfig(),
+    /** 备份包整包口令加密总开关（WebDAV/S3/本地全通道生效；默认关=明文兼容旧包）。 */
+    val backupEncryptionEnabled: Boolean = false,
+    /** 记住的备份加密口令（AndroidKeyStore AES-GCM 密文，非明文）。空 = 未设置/未记住。 */
+    val backupEncryptionPasswordEnc: String = "",
     val launchCount: Int = 0,
     val sponsorAlertDismissedAt: Int = 0,
 ) {
@@ -1033,8 +1043,6 @@ data class WebDavConfig(
         BackupItem.DATABASE,
         BackupItem.SETTINGS,
         BackupItem.AVATARS,
-        BackupItem.WORKSPACE_DOCS,
-        BackupItem.SKILLS,
     ),
 ) {
     val displayName: String

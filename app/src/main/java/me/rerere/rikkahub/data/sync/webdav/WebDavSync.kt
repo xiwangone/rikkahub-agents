@@ -14,6 +14,8 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.datastore.migration.SettingsJsonMigrator
+import me.rerere.rikkahub.data.sync.BackupEncryptionManager
+import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
 import me.rerere.rikkahub.utils.fileSizeToString
 import java.io.File
 import java.io.FileInputStream
@@ -33,6 +35,7 @@ class WebDavSync(
     private val context: Context,
     private val httpClient: HttpClient,
     private val appDatabase: AppDatabase,
+    private val backupEncryptionManager: BackupEncryptionManager,
 ) {
     private fun getClient(config: WebDavConfig): WebDavClient {
         return WebDavClient(config, httpClient)
@@ -47,23 +50,27 @@ class WebDavSync(
 
     suspend fun backup(config: WebDavConfig) = withContext(Dispatchers.IO) {
         val config = config.withLegacyExpanded()
-        val file = prepareBackupFile(config)
+        val plainFile = prepareBackupFile(config)
+        val file = backupEncryptionManager.maybeEncrypt(plainFile)
         val client = getClient(config)
 
-        // Ensure the backup directory exists
-        client.ensureCollectionExists().getOrThrow()
+        try {
+            // Ensure the backup directory exists
+            client.ensureCollectionExists().getOrThrow()
 
-        // Upload the backup file
-        client.put(
-            path = file.name,
-            file = file,
-            contentType = "application/zip"
-        ).getOrThrow()
+            // Upload the backup file (加密时为 .zip.enc，明文时为原 .zip)
+            client.put(
+                path = file.name,
+                file = file,
+                contentType = "application/zip"
+            ).getOrThrow()
 
-        Log.i(TAG, "backup: Uploaded ${file.name} (${file.length().fileSizeToString()})")
-
-        // Clean up temp file
-        file.delete()
+            Log.i(TAG, "backup: Uploaded ${file.name} (${file.length().fileSizeToString()})")
+        } finally {
+            // Clean up temp files（明文 zip 与加密产物都清）
+            if (plainFile.exists()) plainFile.delete()
+            if (file != plainFile && file.exists()) file.delete()
+        }
     }
 
     suspend fun listBackupFiles(config: WebDavConfig): List<WebDavBackupItem> = withContext(Dispatchers.IO) {
@@ -75,7 +82,10 @@ class WebDavSync(
         val resources = client.list().getOrThrow()
 
         resources
-            .filter { !it.isCollection && it.displayName.startsWith("backup_") && it.displayName.endsWith(".zip") }
+            .filter {
+                !it.isCollection && it.displayName.startsWith("backup_") &&
+                    (it.displayName.endsWith(".zip") || it.displayName.endsWith(".enc"))
+            }
             .map { resource ->
                 WebDavBackupItem(
                     href = resource.href,
@@ -104,14 +114,36 @@ class WebDavSync(
 
             Log.i(TAG, "restore: Downloaded ${backupFile.length().fileSizeToString()}")
 
-            // Restore from backup file
-            restoreFromBackupFile(backupFile, config)
-        } finally {
-            // Clean up temp file
+            // 若为加密容器则用记住口令解密；缺口令/口令错 → 保留已下载文件并抛 NeedsPassword
+            val plainFile =
+                try {
+                    backupEncryptionManager.maybeDecrypt(backupFile)
+                } catch (e: Exception) {
+                    if (e is IllegalStateException || e is IllegalArgumentException) {
+                        throw BackupNeedsPasswordException(
+                            message = e.message ?: "Backup is encrypted",
+                            encFile = backupFile,
+                        )
+                    }
+                    throw e
+                }
+            try {
+                // Restore from backup file
+                restoreFromBackupFile(plainFile, config)
+            } finally {
+                // 解密产生的临时明文 zip 清理
+                if (plainFile != backupFile && plainFile.exists()) {
+                    plainFile.delete()
+                }
+            }
+            // 恢复成功后才清理下载的备份文件（NeedsPassword 场景保留供输口令后解密）
             if (backupFile.exists()) {
                 backupFile.delete()
                 Log.i(TAG, "restore: Cleaned up temporary backup file")
             }
+        } catch (e: BackupNeedsPasswordException) {
+            // 保留 backupFile（调用方输口令后用 restoreWithPassword 复用）；本处不再清理
+            throw e
         }
     }
 
@@ -127,6 +159,45 @@ class WebDavSync(
         val canonicalCacheDir = context.cacheDir.canonicalFile
         val candidate = File(canonicalCacheDir, baseName).canonicalFile
         return candidate.takeIf { it.parentFile == canonicalCacheDir }
+    }
+
+    /**
+     * 用显式口令恢复加密备份。
+     * [cachedEncFile] 为之前 restore() 抛 [BackupNeedsPasswordException] 时保留的已下载文件；
+     * 为空则重新走完整下载→解密。
+     */
+    suspend fun restoreWithPassword(
+        config: WebDavConfig,
+        item: WebDavBackupItem,
+        password: String,
+        cachedEncFile: File? = null,
+    ) = withContext(Dispatchers.IO) {
+        val config = config.withLegacyExpanded()
+        val client = getClient(config)
+        val backupFile =
+            cachedEncFile?.takeIf { it.exists() }
+                ?: (resolveCacheFile(item.displayName)
+                    ?: throw Exception("Unsafe backup file name: ${item.displayName}"))
+
+        try {
+            if (!backupFile.exists() || cachedEncFile == null) {
+                Log.i(TAG, "restoreWithPassword: Downloading ${item.displayName}")
+                client.downloadToFile(item.displayName, backupFile).getOrThrow()
+            }
+
+            val plainFile = backupEncryptionManager.maybeDecrypt(backupFile, password = password)
+            try {
+                restoreFromBackupFile(plainFile, config)
+            } finally {
+                if (plainFile != backupFile && plainFile.exists()) {
+                    plainFile.delete()
+                }
+            }
+        } finally {
+            if (backupFile.exists()) {
+                backupFile.delete()
+            }
+        }
     }
 
     suspend fun deleteBackupFile(config: WebDavConfig, item: WebDavBackupItem) = withContext(Dispatchers.IO) {
@@ -148,8 +219,15 @@ class WebDavSync(
         }
 
         try {
-            restoreFromBackupFile(file, config)
-            Log.i(TAG, "restoreFromLocalFile: Restore completed successfully")
+            val plainFile = backupEncryptionManager.maybeDecrypt(file)
+            try {
+                restoreFromBackupFile(plainFile, config)
+                Log.i(TAG, "restoreFromLocalFile: Restore completed successfully")
+            } finally {
+                if (plainFile != file && plainFile.exists()) {
+                    plainFile.delete()
+                }
+            }
         } catch (e: Exception) {
             Log.e(TAG, "restoreFromLocalFile: Failed to restore from local file", e)
             throw Exception("Restore failed: ${e.message}")

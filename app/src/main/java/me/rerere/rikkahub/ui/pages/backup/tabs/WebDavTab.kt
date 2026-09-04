@@ -65,7 +65,9 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupRunState
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
+import me.rerere.rikkahub.ui.pages.backup.BackupItemsSelector
 import me.rerere.rikkahub.ui.pages.backup.backupItemLabel
+import me.rerere.rikkahub.ui.pages.backup.components.PasswordPromptDialog
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.rikkahub.utils.onError
@@ -92,6 +94,10 @@ fun WebDavTab(
     var showAddConfigDialog by remember { mutableStateOf(false) }
     var showConfigMenuFor by remember { mutableStateOf<String?>(null) }
     var configMenuExpanded by remember { mutableStateOf(false) }
+    // 恢复加密备份：需输口令的待处理项
+    var pendingPasswordItem by remember { mutableStateOf<WebDavBackupItem?>(null) }
+    var pendingPasswordEncFile by remember { mutableStateOf<java.io.File?>(null) }
+    var pendingPasswordError by remember { mutableStateOf<String?>(null) }
 
     /** 编辑当前配置：同步到列表（存在则更新，否则追加）与单字段兼容槽。 */
     fun updateWebDavConfig(newConfig: WebDavConfig) {
@@ -327,27 +333,13 @@ fun WebDavTab(
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_backup_items)) },
                     supportingContent = {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            WebDavConfig.BackupItem.entries.filter { it != WebDavConfig.BackupItem.FILES }.forEach { item ->
-                                FilterChip(
-                                    selected = item in webDavConfig.items,
-                                    onClick = {
-                                        val newItems =
-                                            if (item in webDavConfig.items) {
-                                                webDavConfig.items - item
-                                            } else {
-                                                webDavConfig.items + item
-                                            }
-                                        updateWebDavConfig(webDavConfig.copy(items = newItems))
-                                    },
-                                    label = { Text(backupItemLabel(item)) },
-                                )
-                            }
-                        }
+                        BackupItemsSelector(
+                            allItems = WebDavConfig.BackupItem.entries.toList(),
+                            selectedItems = webDavConfig.items,
+                            onChange = { newItems ->
+                                updateWebDavConfig(webDavConfig.copy(items = newItems))
+                            },
+                        )
                     },
                 )
             }
@@ -510,6 +502,13 @@ fun WebDavTab(
                                                     onShowRestartDialog()
                                                 }
 
+                                                is BackupRunState.NeedsPassword -> {
+                                                    restoringItemId = null
+                                                    pendingPasswordItem = restoreItem
+                                                    pendingPasswordEncFile = state.encFile
+                                                    pendingPasswordError = null
+                                                }
+
                                                 is BackupRunState.Failed -> {
                                                     restoringItemId = null
                                                     toaster.show(
@@ -546,6 +545,55 @@ fun WebDavTab(
                     }
             }
         }
+    }
+
+    // 恢复加密备份需口令：弹输入框
+    pendingPasswordItem?.let { item ->
+        PasswordPromptDialog(
+            onDismiss = {
+                pendingPasswordItem = null
+                pendingPasswordEncFile = null
+                pendingPasswordError = null
+            },
+            onConfirm = { password ->
+                pendingPasswordError = null
+                restoringItemId = item.displayName
+                vm.runRestoreWithPassword(
+                    item = item,
+                    password = password,
+                    encFile = pendingPasswordEncFile,
+                ) { state ->
+                    when (state) {
+                        is BackupRunState.Running -> restoringItemId = item.displayName
+                        is BackupRunState.Success -> {
+                            restoringItemId = null
+                            pendingPasswordItem = null
+                            pendingPasswordEncFile = null
+                            showBackupFiles = false
+                            onShowRestartDialog()
+                        }
+                        is BackupRunState.NeedsPassword -> {
+                            restoringItemId = null
+                            pendingPasswordError =
+                                context.getString(R.string.backup_page_encryption_wrong_password)
+                        }
+                        is BackupRunState.Failed -> {
+                            restoringItemId = null
+                            pendingPasswordItem = null
+                            pendingPasswordEncFile = null
+                            toaster.show(
+                                context.getString(
+                                    R.string.backup_page_restore_failed,
+                                    state.error?.message ?: "",
+                                ),
+                                type = ToastType.Error,
+                            )
+                        }
+                    }
+                }
+            },
+            errorMessage = pendingPasswordError,
+        )
     }
 }
 

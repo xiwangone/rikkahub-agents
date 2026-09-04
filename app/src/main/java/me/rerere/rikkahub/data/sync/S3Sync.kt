@@ -34,6 +34,7 @@ class S3Sync(
     private val context: Context,
     private val httpClient: HttpClient,
     private val appDatabase: AppDatabase,
+    private val backupEncryptionManager: BackupEncryptionManager,
 ) {
     private fun getS3Client(config: S3Config): S3Client {
         return S3Client(config, httpClient)
@@ -48,20 +49,23 @@ class S3Sync(
 
     suspend fun backupToS3(config: S3Config) = withContext(Dispatchers.IO) {
         val config = config.withLegacyExpanded()
-        val file = prepareBackupFile(config)
+        val plainFile = prepareBackupFile(config)
+        val file = backupEncryptionManager.maybeEncrypt(plainFile)
         val client = getS3Client(config)
         val key = "rikkahub_backups/${file.name}"
 
-        client.putObject(
-            key = key,
-            file = file,
-            contentType = "application/zip"
-        ).getOrThrow()
+        try {
+            client.putObject(
+                key = key,
+                file = file,
+                contentType = "application/zip"
+            ).getOrThrow()
 
-        Log.i(TAG, "backupToS3: Uploaded ${file.name} (${file.length().fileSizeToString()})")
-
-        // Clean up temp file
-        file.delete()
+            Log.i(TAG, "backupToS3: Uploaded ${file.name} (${file.length().fileSizeToString()})")
+        } finally {
+            if (plainFile.exists()) plainFile.delete()
+            if (file != plainFile && file.exists()) file.delete()
+        }
     }
 
     suspend fun listBackupFiles(config: S3Config): List<S3BackupItem> = withContext(Dispatchers.IO) {
@@ -72,7 +76,10 @@ class S3Sync(
         ).getOrThrow()
 
         result.objects
-            .filter { it.key.startsWith("rikkahub_backups/backup_") && it.key.endsWith(".zip") }
+            .filter {
+                it.key.startsWith("rikkahub_backups/backup_") &&
+                    (it.key.endsWith(".zip") || it.key.endsWith(".enc"))
+            }
             .map { obj ->
                 S3BackupItem(
                     key = obj.key,
@@ -96,13 +103,68 @@ class S3Sync(
 
             Log.i(TAG, "restoreFromS3: Downloaded ${backupFile.length().fileSizeToString()}")
 
-            // Restore from backup file
-            restoreFromBackupFile(backupFile, config)
-        } finally {
-            // Clean up temp file
+            // 若为加密容器则用记住口令解密；缺口令/口令错 → 保留文件并抛 NeedsPassword
+            val plainFile =
+                try {
+                    backupEncryptionManager.maybeDecrypt(backupFile)
+                } catch (e: Exception) {
+                    if (e is IllegalStateException || e is IllegalArgumentException) {
+                        throw BackupNeedsPasswordException(
+                            message = e.message ?: "Backup is encrypted",
+                            encFile = backupFile,
+                        )
+                    }
+                    throw e
+                }
+            try {
+                // Restore from backup file
+                restoreFromBackupFile(plainFile, config)
+            } finally {
+                if (plainFile != backupFile && plainFile.exists()) {
+                    plainFile.delete()
+                }
+            }
+            // 恢复成功后才清理下载文件（NeedsPassword 场景保留供输口令后解密）
             if (backupFile.exists()) {
                 backupFile.delete()
                 Log.i(TAG, "restoreFromS3: Cleaned up temporary backup file")
+            }
+        } catch (e: BackupNeedsPasswordException) {
+            throw e
+        }
+    }
+
+    /**
+     * 用显式口令恢复 S3 加密备份。[cachedEncFile] 为之前 restoreFromS3 抛
+     * [BackupNeedsPasswordException] 时保留的已下载文件；为空则重新下载。
+     */
+    suspend fun restoreFromS3WithPassword(
+        config: S3Config,
+        item: S3BackupItem,
+        password: String,
+        cachedEncFile: File? = null,
+    ) = withContext(Dispatchers.IO) {
+        val config = config.withLegacyExpanded()
+        val client = getS3Client(config)
+        val backupFile = cachedEncFile?.takeIf { it.exists() } ?: File(context.cacheDir, item.displayName)
+
+        try {
+            if (!backupFile.exists() || cachedEncFile == null) {
+                Log.i(TAG, "restoreFromS3WithPassword: Downloading ${item.displayName}")
+                client.downloadObjectToFile(item.key, backupFile).getOrThrow()
+            }
+
+            val plainFile = backupEncryptionManager.maybeDecrypt(backupFile, password = password)
+            try {
+                restoreFromBackupFile(plainFile, config)
+            } finally {
+                if (plainFile != backupFile && plainFile.exists()) {
+                    plainFile.delete()
+                }
+            }
+        } finally {
+            if (backupFile.exists()) {
+                backupFile.delete()
             }
         }
     }
