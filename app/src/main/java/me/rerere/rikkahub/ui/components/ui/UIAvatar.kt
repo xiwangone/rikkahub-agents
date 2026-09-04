@@ -30,6 +30,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -48,6 +49,7 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.launch
 import me.rerere.common.android.appTempFolder
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Edit03
@@ -109,10 +111,12 @@ fun UIAvatar(
     var urlInput by remember { mutableStateOf("") }
     var preCropTempFile by remember { mutableStateOf<File?>(null) }
 
+    val scope = rememberCoroutineScope()
+
     fun saveAvatarImage(uri: Uri) {
-        val localUris = filesManager.createChatFilesByContents(listOf(uri))
-        localUris.firstOrNull()?.let { localUri ->
-            onUpdate?.invoke(Avatar.Image(localUri.toString()))
+        scope.launch {
+            val localUri = runCatching { filesManager.saveAvatarImage(uri) }.getOrNull()
+            localUri?.let { onUpdate?.invoke(Avatar.Image(it.toString())) }
         }
     }
 

@@ -72,7 +72,7 @@ fun SettingFilesPage(filesManager: FilesManager = koinInject()) {
     val gridState = rememberLazyStaggeredGridState()
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
-    val folders = remember { listOf(FileFolders.UPLOAD) }
+    val folders = remember { listOf(FileFolders.UPLOAD, FileFolders.AVATARS) }
 
     // 预先获取字符串资源
     val deletedToast = stringResource(R.string.setting_files_page_deleted_toast)
@@ -296,6 +296,7 @@ private fun FolderRow(
 private fun folderDisplayName(folder: String): String =
     when (folder) {
         FileFolders.UPLOAD -> stringResource(R.string.setting_files_page_folder_upload)
+        FileFolders.AVATARS -> stringResource(R.string.setting_files_page_folder_avatars)
         else -> folder
     }
 

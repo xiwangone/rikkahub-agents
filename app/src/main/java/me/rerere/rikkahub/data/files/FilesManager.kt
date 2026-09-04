@@ -89,6 +89,79 @@ class FilesManager(
         )
     }
 
+    /**
+     * 保存头像图片到独立 avatars 目录（与聊天图 upload/ 解耦）。
+     *
+     * 相比聊天图片，头像需要：
+     *  1. 独立目录 avatars/ —— 清理聊天图片时不会误删头像，备份时可单独归集；
+     *  2. 内容去重 —— 多次设置同一张图不重复落盘（按内容 SHA-256，已存在则复用），
+     *     避免反复导入导致 avatars/ 越积越大；
+     *  3. 自动清理 —— 返回前删除旧的头像文件（同目录、非本次新文件）。
+     *
+     * @param uri 待导入头像的 content/file uri
+     * @return 保存后的本地 file uri（可能复用已存在的同内容文件）
+     */
+    suspend fun saveAvatarImage(uri: Uri): Uri = withContext(Dispatchers.IO) {
+        val dir = File(context.filesDir, FileFolders.AVATARS).apply { mkdirs() }
+        val mime = getFileMimeType(uri) ?: guessMimeType(
+            runCatching { uri.toFile() }.getOrNull(),
+            getFileNameFromUri(uri) ?: "avatar",
+        )
+        val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
+            ?: error("Failed to read avatar source $uri")
+
+        // 内容去重：avatars 目录内已有同 SHA-256 文件则直接复用，不重复落盘
+        val digest = sha256(bytes)
+        val existing = dir.listFiles().orEmpty().firstOrNull { f ->
+            f.isFile && f.length() == bytes.size.toLong() && sha256(f.readBytes()) == digest
+        }
+        if (existing != null) {
+            trackManagedFile(
+                folder = FileFolders.AVATARS,
+                file = existing,
+                displayName = existing.name,
+                mimeType = mime,
+            )
+            return@withContext existing.toUri()
+        }
+
+        val avatarExt = android.webkit.MimeTypeMap.getSingleton()
+            .getExtensionFromMimeType(mime.lowercase()) ?: "jpg"
+        val fileName = FileUtils.buildUuidFileName(
+            displayName = "avatar.$avatarExt",
+            mimeType = mime,
+        )
+        val file = File(dir, fileName)
+        file.writeBytes(bytes)
+        trackManagedFile(
+            folder = FileFolders.AVATARS,
+            file = file,
+            displayName = file.name,
+            mimeType = mime,
+        )
+        file.toUri()
+    }
+
+    /** 删除磁盘上不再被引用的孤立头像文件（与 DB 记录同步清理）。 */
+    suspend fun cleanupAvatarFiles(): Int = withContext(Dispatchers.IO) {
+        val dir = File(context.filesDir, FileFolders.AVATARS)
+        if (!dir.exists()) return@withContext 0
+        val referenced = repository.listByFolder(FileFolders.AVATARS).first()
+            .mapNotNull { runCatching { getFile(it).canonicalFile.path }.getOrNull() }
+            .toSet()
+        var removed = 0
+        dir.listFiles().orEmpty().forEach { f ->
+            if (f.isFile && runCatching { f.canonicalFile.path }.getOrNull() !in referenced) {
+                if (f.delete()) removed += 1
+            }
+        }
+        removed
+    }
+
+    private fun sha256(bytes: ByteArray): String =
+        java.security.MessageDigest.getInstance("SHA-256")
+            .digest(bytes).joinToString("") { "%02x".format(it) }
+
     fun observe(folder: String = FileFolders.UPLOAD): Flow<List<ManagedFileEntity>> =
         repository.listByFolder(folder)
 
@@ -488,6 +561,7 @@ data class SyncResult(
 
 object FileFolders {
     const val UPLOAD = "upload"
+    const val AVATARS = "avatars"
     const val SKILLS = "skills"
     const val FONTS = "fonts"
     const val TOOL_OUTPUTS = "tool_outputs"
