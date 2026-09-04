@@ -4,12 +4,14 @@ import android.util.Log
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.WebDavConfig
@@ -33,6 +35,7 @@ class BackupVM(
     private val s3Sync: S3Sync,
     private val conversationRepository: ConversationRepository,
     private val filesManager: FilesManager,
+    private val appScope: AppScope,
 ) : ViewModel() {
     val settings =
         settingsStore.settingsFlow.stateIn(
@@ -84,11 +87,11 @@ class BackupVM(
         webDavSync.testConnection(settings.value.activeWebDavConfig())
     }
 
-    // ── WebDAV 自驱动执行（viewModelScope，退页/切后台不取消，进程杀才停）──
+    // ── WebDAV 自驱动执行（AppScope，退页/切后台不取消，进程杀才停）──
 
     /** 测试 WebDAV 连接。返回 Result 供 UI 展示。 */
     fun runTestWebDav(onResult: (Result<Unit>) -> Unit) {
-        viewModelScope.launch {
+        appScope.launch {
             val r = runCatching {
                 webDavSync.testConnection(settings.value.activeWebDavConfig())
                 Unit
@@ -99,7 +102,7 @@ class BackupVM(
 
     /** 执行云端备份（后台跑完；进程存活期间退出页面不打断）。 */
     fun runBackup(onState: (BackupRunState) -> Unit) {
-        viewModelScope.launch {
+        appScope.launch {
             onState(BackupRunState.Running)
             val r = runCatching {
                 webDavSync.backup(settings.value.activeWebDavConfig())
@@ -112,7 +115,7 @@ class BackupVM(
 
     /** 执行云端恢复（完成后需重启）。 */
     fun runRestore(item: WebDavBackupItem, onState: (BackupRunState) -> Unit) {
-        viewModelScope.launch {
+        appScope.launch {
             onState(BackupRunState.Running)
             val r = runCatching {
                 webDavSync.restore(config = settings.value.activeWebDavConfig(), item = item)
@@ -123,7 +126,7 @@ class BackupVM(
 
     /** 删除云端备份文件。 */
     fun runDeleteBackupFile(item: WebDavBackupItem, onState: (BackupRunState) -> Unit) {
-        viewModelScope.launch {
+        appScope.launch {
             val r = runCatching {
                 webDavSync.deleteBackupFile(settings.value.activeWebDavConfig(), item)
                 loadBackupFileItems()
@@ -263,10 +266,10 @@ class BackupVM(
         s3Sync.testS3(settings.value.activeS3Config())
     }
 
-    // ── S3 自驱动执行（viewModelScope，退页/切后台不取消）──
+    // ── S3 自驱动执行（AppScope，退页/切后台不取消）──
 
     fun runTestS3(onResult: (Result<Unit>) -> Unit) {
-        viewModelScope.launch {
+        appScope.launch {
             val r = runCatching {
                 s3Sync.testS3(settings.value.activeS3Config())
                 Unit
@@ -276,7 +279,7 @@ class BackupVM(
     }
 
     fun runBackupToS3(onState: (BackupRunState) -> Unit) {
-        viewModelScope.launch {
+        appScope.launch {
             onState(BackupRunState.Running)
             val r = runCatching {
                 s3Sync.backupToS3(settings.value.activeS3Config())
@@ -288,7 +291,7 @@ class BackupVM(
     }
 
     fun runRestoreFromS3(item: S3BackupItem, onState: (BackupRunState) -> Unit) {
-        viewModelScope.launch {
+        appScope.launch {
             onState(BackupRunState.Running)
             val r = runCatching {
                 s3Sync.restoreFromS3(config = settings.value.activeS3Config(), item = item)
@@ -298,7 +301,7 @@ class BackupVM(
     }
 
     fun runDeleteS3BackupFile(item: S3BackupItem, onState: (BackupRunState) -> Unit) {
-        viewModelScope.launch {
+        appScope.launch {
             val r = runCatching {
                 s3Sync.deleteS3BackupFile(settings.value.activeS3Config(), item)
                 loadS3BackupFileItems()
