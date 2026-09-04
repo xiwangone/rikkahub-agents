@@ -38,7 +38,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -49,7 +48,6 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
-import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.View
@@ -59,6 +57,7 @@ import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.pages.backup.BackupRunState
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.fileSizeToString
@@ -78,10 +77,9 @@ fun WebDavTab(
     val backupItemsState by vm.webDavBackupItems.collectAsStateWithLifecycle()
     val toaster = LocalToaster.current
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
     var showBackupFiles by remember { mutableStateOf(false) }
-    var restoringItemId by remember { mutableStateOf<String?>(null) }
     var isBackingUp by remember { mutableStateOf(false) }
+    var restoringItemId by remember { mutableStateOf<String?>(null) }
 
     fun updateWebDavConfig(newConfig: WebDavConfig) {
         vm.updateSettings(settings.copy(webDavConfig = newConfig))
@@ -247,15 +245,13 @@ fun WebDavTab(
         ) {
             OutlinedButton(
                 onClick = {
-                    scope.launch {
-                        try {
-                            vm.testWebDav()
+                    vm.runTestWebDav { result ->
+                        result.onSuccess {
                             toaster.show(
                                 context.getString(R.string.backup_page_connection_success),
                                 type = ToastType.Success,
                             )
-                        } catch (e: Exception) {
-                            e.printStackTrace()
+                        }.onFailure { e ->
                             toaster.show(
                                 context.getString(
                                     R.string.backup_page_connection_failed,
@@ -279,23 +275,27 @@ fun WebDavTab(
             }
             Button(
                 onClick = {
-                    scope.launch {
-                        isBackingUp = true
-                        runCatching {
-                            vm.backup()
-                            vm.loadBackupFileItems()
-                            toaster.show(
-                                context.getString(R.string.backup_page_backup_success),
-                                type = ToastType.Success,
-                            )
-                        }.onFailure {
-                            it.printStackTrace()
-                            toaster.show(
-                                it.message ?: context.getString(R.string.backup_page_unknown_error),
-                                type = ToastType.Error,
-                            )
+                    isBackingUp = true
+                    vm.runBackup { state ->
+                        when (state) {
+                            is BackupRunState.Running -> isBackingUp = true
+                            is BackupRunState.Success -> {
+                                isBackingUp = false
+                                toaster.show(
+                                    context.getString(R.string.backup_page_backup_success),
+                                    type = ToastType.Success,
+                                )
+                            }
+
+                            is BackupRunState.Failed -> {
+                                isBackingUp = false
+                                toaster.show(
+                                    state.error?.message
+                                        ?: context.getString(R.string.backup_page_unknown_error),
+                                    type = ToastType.Error,
+                                )
+                            }
                         }
-                        isBackingUp = false
                     }
                 },
                 enabled = !isBackingUp,
@@ -355,48 +355,54 @@ fun WebDavTab(
                                     item = item,
                                     isRestoring = restoringItemId == item.displayName,
                                     onDelete = {
-                                        scope.launch {
-                                            runCatching {
-                                                vm.deleteWebDavBackupFile(item)
-                                                toaster.show(
-                                                    context.getString(R.string.backup_page_delete_success),
-                                                    type = ToastType.Success,
-                                                )
-                                                vm.loadBackupFileItems()
-                                            }.onFailure { err ->
-                                                err.printStackTrace()
-                                                toaster.show(
-                                                    context.getString(
-                                                        R.string.backup_page_delete_failed,
-                                                        err.message ?: "",
-                                                    ),
-                                                    type = ToastType.Error,
-                                                )
+                                        vm.runDeleteBackupFile(item) { state ->
+                                            when (state) {
+                                                is BackupRunState.Success -> {
+                                                    toaster.show(
+                                                        context.getString(R.string.backup_page_delete_success),
+                                                        type = ToastType.Success,
+                                                    )
+                                                }
+
+                                                is BackupRunState.Failed -> {
+                                                    toaster.show(
+                                                        context.getString(
+                                                            R.string.backup_page_delete_failed,
+                                                            state.error?.message ?: "",
+                                                        ),
+                                                        type = ToastType.Error,
+                                                    )
+                                                }
+
+                                                else -> {}
                                             }
                                         }
                                     },
                                     onRestore = { restoreItem ->
-                                        scope.launch {
-                                            restoringItemId = restoreItem.displayName
-                                            runCatching {
-                                                vm.restore(item = restoreItem)
-                                                toaster.show(
-                                                    context.getString(R.string.backup_page_restore_success),
-                                                    type = ToastType.Success,
-                                                )
-                                                showBackupFiles = false
-                                                onShowRestartDialog()
-                                            }.onFailure { err ->
-                                                err.printStackTrace()
-                                                toaster.show(
-                                                    context.getString(
-                                                        R.string.backup_page_restore_failed,
-                                                        err.message ?: "",
-                                                    ),
-                                                    type = ToastType.Error,
-                                                )
+                                        restoringItemId = restoreItem.displayName
+                                        vm.runRestore(restoreItem) { state ->
+                                            when (state) {
+                                                is BackupRunState.Running -> {
+                                                    restoringItemId = restoreItem.displayName
+                                                }
+
+                                                is BackupRunState.Success -> {
+                                                    restoringItemId = null
+                                                    showBackupFiles = false
+                                                    onShowRestartDialog()
+                                                }
+
+                                                is BackupRunState.Failed -> {
+                                                    restoringItemId = null
+                                                    toaster.show(
+                                                        context.getString(
+                                                            R.string.backup_page_restore_failed,
+                                                            state.error?.message ?: "",
+                                                        ),
+                                                        type = ToastType.Error,
+                                                    )
+                                                }
                                             }
-                                            restoringItemId = null
                                         }
                                     },
                                 )

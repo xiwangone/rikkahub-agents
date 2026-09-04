@@ -84,6 +84,51 @@ class BackupVM(
         webDavSync.testConnection(settings.value.webDavConfig)
     }
 
+    // ── WebDAV 自驱动执行（viewModelScope，退页/切后台不取消，进程杀才停）──
+
+    /** 测试 WebDAV 连接。返回 Result 供 UI 展示。 */
+    fun runTestWebDav(onResult: (Result<Unit>) -> Unit) {
+        viewModelScope.launch {
+            val r = runCatching { webDavSync.testConnection(settings.value.webDavConfig) }
+            onResult(r)
+        }
+    }
+
+    /** 执行云端备份（后台跑完；进程存活期间退出页面不打断）。 */
+    fun runBackup(onState: (BackupRunState) -> Unit) {
+        viewModelScope.launch {
+            onState(BackupRunState.Running)
+            val r = runCatching {
+                webDavSync.backup(settings.value.webDavConfig)
+                recordBackupTime()
+                loadBackupFileItems()
+            }
+            onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
+        }
+    }
+
+    /** 执行云端恢复（完成后需重启）。 */
+    fun runRestore(item: WebDavBackupItem, onState: (BackupRunState) -> Unit) {
+        viewModelScope.launch {
+            onState(BackupRunState.Running)
+            val r = runCatching {
+                webDavSync.restore(config = settings.value.webDavConfig, item = item)
+            }
+            onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
+        }
+    }
+
+    /** 删除云端备份文件。 */
+    fun runDeleteBackupFile(item: WebDavBackupItem, onState: (BackupRunState) -> Unit) {
+        viewModelScope.launch {
+            val r = runCatching {
+                webDavSync.deleteBackupFile(settings.value.webDavConfig, item)
+                loadBackupFileItems()
+            }
+            onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
+        }
+    }
+
     suspend fun backup() {
         webDavSync.backup(settings.value.webDavConfig)
         recordBackupTime()
@@ -238,6 +283,13 @@ class BackupVM(
             )
         }
     }
+}
+
+/** 备份/恢复/删除的一次性运行状态（UI 据此显示进度与结果）。 */
+sealed class BackupRunState {
+    data object Running : BackupRunState()
+    data object Success : BackupRunState()
+    data class Failed(val error: Throwable?) : BackupRunState()
 }
 
 data class ChatboxRestoreResult(
