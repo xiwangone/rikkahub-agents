@@ -37,7 +37,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.StickyHeader
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
-import me.rerere.rikkahub.ui.pages.backup.BackupItemsSelector
+import me.rerere.rikkahub.ui.pages.backup.WebDavBackupItemsSelector
 import me.rerere.rikkahub.ui.pages.backup.backupItemLabel
 import java.io.File
 import java.io.FileInputStream
@@ -195,7 +195,7 @@ fun ImportExportTab(
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_backup_items)) },
                     supportingContent = {
-                        BackupItemsSelector(
+                        WebDavBackupItemsSelector(
                             allItems = WebDavConfig.BackupItem.entries.toList(),
                             selectedItems = selectedBackupItems,
                             onChange = { vm.updateLocalBackupItems(it) },
