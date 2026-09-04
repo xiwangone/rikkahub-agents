@@ -71,7 +71,7 @@ fun BackupItemChip(
  * [allItems] 全部可选项；[selectedItems] 当前勾选；[onChange] 更新勾选。
  */
 @Composable
-fun BackupItemsSelector(
+fun WebDavBackupItemsSelector(
     allItems: List<WebDavConfig.BackupItem>,
     selectedItems: List<WebDavConfig.BackupItem>,
     onChange: (List<WebDavConfig.BackupItem>) -> Unit,
@@ -92,7 +92,7 @@ fun BackupItemsSelector(
 }
 
 @Composable
-fun BackupItemsSelector(
+fun S3BackupItemsSelector(
     allItems: List<S3Config.BackupItem>,
     selectedItems: List<S3Config.BackupItem>,
     onChange: (List<S3Config.BackupItem>) -> Unit,

@@ -65,7 +65,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupRunState
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
-import me.rerere.rikkahub.ui.pages.backup.BackupItemsSelector
+import me.rerere.rikkahub.ui.pages.backup.S3BackupItemsSelector
 import me.rerere.rikkahub.ui.pages.backup.backupItemLabel
 import me.rerere.rikkahub.ui.pages.backup.components.PasswordPromptDialog
 import me.rerere.rikkahub.utils.UiState
@@ -337,7 +337,7 @@ fun S3Tab(
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_backup_items)) },
                     supportingContent = {
-                        BackupItemsSelector(
+                        S3BackupItemsSelector(
                             allItems = S3Config.BackupItem.entries.toList(),
                             selectedItems = s3Config.items,
                             onChange = { newItems ->
