@@ -80,6 +80,7 @@ jobs:
             KEYSTORE="$HOME/rikkahub.jks"
             echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
             echo "storeFile=$KEYSTORE" >> local.properties
+            echo "storePassword=$KEYSTORE_PASSWORD" >> local.properties
             echo "keyAlias=$KEY_ALIAS" >> local.properties
             echo "keyPassword=$KEY_PASSWORD" >> local.properties
             chmod +x gradlew
