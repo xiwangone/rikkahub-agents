@@ -18,6 +18,9 @@ import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.saveUploadFromBytes
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.data.sync.BackupEncryptionManager
+import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
+import me.rerere.rikkahub.data.sync.BackupPasswordCipher
 import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.S3Sync
 import me.rerere.rikkahub.data.sync.importer.ChatboxImporter
@@ -36,6 +39,7 @@ class BackupVM(
     private val conversationRepository: ConversationRepository,
     private val filesManager: FilesManager,
     private val appScope: AppScope,
+    private val backupEncryptionManager: BackupEncryptionManager,
 ) : ViewModel() {
     val settings =
         settingsStore.settingsFlow.stateIn(
@@ -46,7 +50,10 @@ class BackupVM(
 
     val webDavBackupItems = MutableStateFlow<UiState<List<WebDavBackupItem>>>(UiState.Idle)
     val s3BackupItems = MutableStateFlow<UiState<List<S3BackupItem>>>(UiState.Idle)
-    val localBackupItems = MutableStateFlow(WebDavConfig.BackupItem.entries.toList())
+    val localBackupItems =
+        MutableStateFlow(
+            WebDavConfig.BackupItem.entries.filter { it.isCoreItem() },
+        )
 
     init {
         loadBackupFileItems()
@@ -56,6 +63,38 @@ class BackupVM(
     fun updateSettings(settings: Settings) {
         viewModelScope.launch {
             settingsStore.update(settings)
+        }
+    }
+
+    // ── 备份加密（口令管理，全局开关）──
+
+    /** 当前是否开启备份加密。 */
+    val backupEncryptionEnabled: Boolean
+        get() = settings.value.backupEncryptionEnabled
+
+    /** 是否已在本机记住口令。 */
+    val hasBackupEncryptionPassword: Boolean
+        get() = settings.value.backupEncryptionPasswordEnc.isNotBlank()
+
+    /** 设置/修改口令并开启加密。明文口令仅在此方法内出现，随即加密入 Settings。 */
+    fun setBackupEncryptionPassword(password: String) {
+        viewModelScope.launch {
+            val enc = BackupPasswordCipher.encrypt(password)
+            settingsStore.update { s -> s.copy(backupEncryptionEnabled = true, backupEncryptionPasswordEnc = enc) }
+        }
+    }
+
+    /** 开启/关闭加密开关（关闭不清口令，重开即恢复自动加密）。 */
+    fun setBackupEncryptionEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            settingsStore.update { s -> s.copy(backupEncryptionEnabled = enabled) }
+        }
+    }
+
+    /** 关闭加密并清除记住的口令。 */
+    fun clearBackupEncryption() {
+        viewModelScope.launch {
+            settingsStore.update { s -> s.copy(backupEncryptionEnabled = false, backupEncryptionPasswordEnc = "") }
         }
     }
 
@@ -120,7 +159,44 @@ class BackupVM(
             val r = runCatching {
                 webDavSync.restore(config = settings.value.activeWebDavConfig(), item = item)
             }
-            onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
+            val ex = r.exceptionOrNull()
+            onState(
+                when {
+                    r.isSuccess -> BackupRunState.Success
+                    ex is BackupNeedsPasswordException -> BackupRunState.NeedsPassword(ex.encFile)
+                    else -> BackupRunState.Failed(ex)
+                },
+            )
+        }
+    }
+
+    /** 用用户输入的口令恢复加密备份（[encFile] 为已下载 .enc，可空=重新下载）。 */
+    fun runRestoreWithPassword(
+        item: WebDavBackupItem,
+        password: String,
+        encFile: java.io.File? = null,
+        onState: (BackupRunState) -> Unit,
+    ) {
+        appScope.launch {
+            onState(BackupRunState.Running)
+            val r = runCatching {
+                webDavSync.restoreWithPassword(
+                    config = settings.value.activeWebDavConfig(),
+                    item = item,
+                    password = password,
+                    cachedEncFile = encFile,
+                )
+            }
+            val ex = r.exceptionOrNull()
+            onState(
+                when {
+                    r.isSuccess -> BackupRunState.Success
+                    // 口令错误（GCM 校验失败）→ 保持弹框提示重输
+                    ex is IllegalArgumentException -> BackupRunState.NeedsPassword(encFile)
+                    ex is BackupNeedsPasswordException -> BackupRunState.NeedsPassword(ex.encFile)
+                    else -> BackupRunState.Failed(ex)
+                },
+            )
         }
     }
 
@@ -149,10 +225,15 @@ class BackupVM(
     }
 
     suspend fun exportToFile(): File {
-        val file =
+        val plainFile =
             webDavSync.prepareBackupFile(
                 settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
             )
+        val file = backupEncryptionManager.maybeEncrypt(plainFile)
+        // 加密时清理明文中间产物（调用方负责删返回的 .enc；明文模式返回原文件由调用方删）
+        if (file != plainFile && plainFile.exists()) {
+            plainFile.delete()
+        }
         recordBackupTime()
         return file
     }
@@ -296,7 +377,43 @@ class BackupVM(
             val r = runCatching {
                 s3Sync.restoreFromS3(config = settings.value.activeS3Config(), item = item)
             }
-            onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
+            val ex = r.exceptionOrNull()
+            onState(
+                when {
+                    r.isSuccess -> BackupRunState.Success
+                    ex is BackupNeedsPasswordException -> BackupRunState.NeedsPassword(ex.encFile)
+                    else -> BackupRunState.Failed(ex)
+                },
+            )
+        }
+    }
+
+    /** 用用户输入的口令恢复 S3 加密备份（[encFile] 为已下载 .enc，可空=重新下载）。 */
+    fun runRestoreFromS3WithPassword(
+        item: S3BackupItem,
+        password: String,
+        encFile: java.io.File? = null,
+        onState: (BackupRunState) -> Unit,
+    ) {
+        appScope.launch {
+            onState(BackupRunState.Running)
+            val r = runCatching {
+                s3Sync.restoreFromS3WithPassword(
+                    config = settings.value.activeS3Config(),
+                    item = item,
+                    password = password,
+                    cachedEncFile = encFile,
+                )
+            }
+            val ex = r.exceptionOrNull()
+            onState(
+                when {
+                    r.isSuccess -> BackupRunState.Success
+                    ex is IllegalArgumentException -> BackupRunState.NeedsPassword(encFile)
+                    ex is BackupNeedsPasswordException -> BackupRunState.NeedsPassword(ex.encFile)
+                    else -> BackupRunState.Failed(ex)
+                },
+            )
         }
     }
 
@@ -340,6 +457,9 @@ sealed class BackupRunState {
     data object Running : BackupRunState()
     data object Success : BackupRunState()
     data class Failed(val error: Throwable?) : BackupRunState()
+
+    /** 恢复遇到加密包且本机无口令/口令错误：UI 应弹框要求输入口令后重试。 */
+    data class NeedsPassword(val encFile: java.io.File?) : BackupRunState()
 }
 
 data class ChatboxRestoreResult(

@@ -16,8 +16,6 @@ data class S3Config(
         BackupItem.DATABASE,
         BackupItem.SETTINGS,
         BackupItem.AVATARS,
-        BackupItem.WORKSPACE_DOCS,
-        BackupItem.SKILLS,
     ),
 ) {
     val displayName: String

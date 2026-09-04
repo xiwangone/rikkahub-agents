@@ -56,6 +56,7 @@ import me.rerere.rikkahub.data.grok.GrokAccountRepository
 import me.rerere.rikkahub.data.grok.GrokCredentialStore
 import me.rerere.rikkahub.data.grok.GrokOAuthManager
 import me.rerere.rikkahub.data.grok.GrokProvider
+import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.S3Sync
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.search.SearchService
@@ -437,12 +438,19 @@ val dataSourceModule =
         }
 
         single {
+            BackupEncryptionManager(
+                settingsStore = get(),
+            )
+        }
+
+        single {
             WebDavSync(
                 settingsStore = get(),
                 json = get(),
                 context = get(),
                 httpClient = get(),
                 appDatabase = get(),
+                backupEncryptionManager = get(),
             )
         }
 
@@ -468,6 +476,7 @@ val dataSourceModule =
                 context = get(),
                 httpClient = get(),
                 appDatabase = get(),
+                backupEncryptionManager = get(),
             )
         }
 

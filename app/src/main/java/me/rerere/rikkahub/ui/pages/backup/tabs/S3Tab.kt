@@ -65,7 +65,10 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupRunState
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
+import me.rerere.rikkahub.ui.pages.backup.BackupItemsSelector
 import me.rerere.rikkahub.ui.pages.backup.backupItemLabel
+import me.rerere.rikkahub.ui.pages.backup.components.PasswordPromptDialog
+import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.rikkahub.utils.onError
@@ -88,6 +91,10 @@ fun S3Tab(
     val context = LocalContext.current
     var showBackupFiles by remember { mutableStateOf(false) }
     var restoringItemId by remember { mutableStateOf<String?>(null) }
+    // 恢复加密备份：需输口令的待处理项
+    var pendingPasswordItem by remember { mutableStateOf<S3BackupItem?>(null) }
+    var pendingPasswordEncFile by remember { mutableStateOf<java.io.File?>(null) }
+    var pendingPasswordError by remember { mutableStateOf<String?>(null) }
     var isBackingUp by remember { mutableStateOf(false) }
     var configMenuExpanded by remember { mutableStateOf(false) }
 
@@ -331,27 +338,13 @@ fun S3Tab(
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_backup_items)) },
                     supportingContent = {
-                        FlowRow(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            S3Config.BackupItem.entries.filter { it != S3Config.BackupItem.FILES }.forEach { item ->
-                                FilterChip(
-                                    selected = item in s3Config.items,
-                                    onClick = {
-                                        val newItems =
-                                            if (item in s3Config.items) {
-                                                s3Config.items - item
-                                            } else {
-                                                s3Config.items + item
-                                            }
-                                        updateS3Config(s3Config.copy(items = newItems))
-                                    },
-                                    label = { Text(backupItemLabel(item)) },
-                                )
-                            }
-                        }
+                        BackupItemsSelector(
+                            allItems = S3Config.BackupItem.entries.toList(),
+                            selectedItems = s3Config.items,
+                            onChange = { newItems ->
+                                updateS3Config(s3Config.copy(items = newItems))
+                            },
+                        )
                     },
                 )
             }
@@ -515,6 +508,13 @@ fun S3Tab(
                                                     onShowRestartDialog()
                                                 }
 
+                                                is BackupRunState.NeedsPassword -> {
+                                                    restoringItemId = null
+                                                    pendingPasswordItem = restoreItem
+                                                    pendingPasswordEncFile = state.encFile
+                                                    pendingPasswordError = null
+                                                }
+
                                                 is BackupRunState.Failed -> {
                                                     restoringItemId = null
                                                     toaster.show(
@@ -551,6 +551,55 @@ fun S3Tab(
                     }
             }
         }
+    }
+
+    // 恢复加密备份需口令：弹输入框
+    pendingPasswordItem?.let { item ->
+        PasswordPromptDialog(
+            onDismiss = {
+                pendingPasswordItem = null
+                pendingPasswordEncFile = null
+                pendingPasswordError = null
+            },
+            onConfirm = { password ->
+                pendingPasswordError = null
+                restoringItemId = item.displayName
+                vm.runRestoreFromS3WithPassword(
+                    item = item,
+                    password = password,
+                    encFile = pendingPasswordEncFile,
+                ) { state ->
+                    when (state) {
+                        is BackupRunState.Running -> restoringItemId = item.displayName
+                        is BackupRunState.Success -> {
+                            restoringItemId = null
+                            pendingPasswordItem = null
+                            pendingPasswordEncFile = null
+                            showBackupFiles = false
+                            onShowRestartDialog()
+                        }
+                        is BackupRunState.NeedsPassword -> {
+                            restoringItemId = null
+                            pendingPasswordError =
+                                context.getString(R.string.backup_page_encryption_wrong_password)
+                        }
+                        is BackupRunState.Failed -> {
+                            restoringItemId = null
+                            pendingPasswordItem = null
+                            pendingPasswordEncFile = null
+                            toaster.show(
+                                context.getString(
+                                    R.string.backup_page_restore_failed,
+                                    state.error?.message ?: "",
+                                ),
+                                type = ToastType.Error,
+                            )
+                        }
+                    }
+                }
+            },
+            errorMessage = pendingPasswordError,
+        )
     }
 }
 

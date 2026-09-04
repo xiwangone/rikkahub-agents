@@ -27,6 +27,7 @@ import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.pages.backup.components.BackupDialog
+import me.rerere.rikkahub.ui.pages.backup.components.BackupEncryptionSection
 import me.rerere.rikkahub.ui.pages.backup.tabs.ImportExportTab
 import me.rerere.rikkahub.ui.pages.backup.tabs.ReminderTab
 import me.rerere.rikkahub.ui.pages.backup.tabs.S3Tab
@@ -89,6 +90,14 @@ fun BackupPage(vm: BackupVM = koinViewModel()) {
                     text = { Text(stringResource(R.string.backup_page_reminder)) },
                 )
             }
+
+                )
+            }
+
+            BackupEncryptionSection(
+                vm = vm,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
 
             HorizontalPager(
                 state = pagerState,
