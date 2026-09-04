@@ -397,6 +397,7 @@ fun WebDavTab(
                                 )
                             }
 
+                            is BackupRunState.NeedsPassword -> isBackingUp = false
                             is BackupRunState.Failed -> {
                                 isBackingUp = false
                                 toaster.show(
