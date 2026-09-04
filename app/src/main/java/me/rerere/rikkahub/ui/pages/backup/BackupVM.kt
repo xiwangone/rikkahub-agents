@@ -89,7 +89,10 @@ class BackupVM(
     /** 测试 WebDAV 连接。返回 Result 供 UI 展示。 */
     fun runTestWebDav(onResult: (Result<Unit>) -> Unit) {
         viewModelScope.launch {
-            val r = runCatching { webDavSync.testConnection(settings.value.webDavConfig) }
+            val r = runCatching {
+                webDavSync.testConnection(settings.value.webDavConfig)
+                Unit
+            }
             onResult(r)
         }
     }

@@ -103,10 +103,12 @@ class FilesManager(
      */
     suspend fun saveAvatarImage(uri: Uri): Uri = withContext(Dispatchers.IO) {
         val dir = File(context.filesDir, FileFolders.AVATARS).apply { mkdirs() }
-        val mime = getFileMimeType(uri) ?: guessMimeType(
-            runCatching { uri.toFile() }.getOrNull(),
-            getFileNameFromUri(uri) ?: "avatar",
-        )
+        val sourceFile = runCatching { uri.toFile() }.getOrNull()
+        val mime = getFileMimeType(uri) ?: if (sourceFile != null) {
+            guessMimeType(sourceFile, getFileNameFromUri(uri) ?: sourceFile.name)
+        } else {
+            "image/jpeg"
+        }
         val bytes = context.contentResolver.openInputStream(uri)?.use { it.readBytes() }
             ?: error("Failed to read avatar source $uri")
 

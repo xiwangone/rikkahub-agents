@@ -59,6 +59,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupRunState
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
+import me.rerere.rikkahub.ui.pages.backup.backupItemLabel
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.rikkahub.utils.onError
@@ -215,17 +216,7 @@ fun WebDavTab(
                                     checked = item in webDavConfig.items,
                                 ) {
                                     Text(
-                                        when (item) {
-                                            WebDavConfig.BackupItem.DATABASE -> {
-                                                stringResource(
-                                                    R.string.backup_page_chat_records,
-                                                )
-                                            }
-
-                                            WebDavConfig.BackupItem.FILES -> {
-                                                stringResource(R.string.backup_page_files)
-                                            }
-                                        },
+                                        backupItemLabel(item),
                                     )
                                 }
                             }
