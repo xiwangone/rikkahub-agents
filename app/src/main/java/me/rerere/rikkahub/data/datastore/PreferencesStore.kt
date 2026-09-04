@@ -1046,11 +1046,11 @@ data class WebDavConfig(
      * 但存量配置可能仍含 FILES，执行前展开避免漏带或误导。
      */
     fun withLegacyExpanded(): WebDavConfig {
-        if (FILES !in items) return this
+        if (BackupItem.FILES !in items) return this
         val expanded =
             buildList {
                 items.forEach {
-                    if (it == FILES) {
+                    if (it == BackupItem.FILES) {
                         add(BackupItem.SKILLS)
                         add(BackupItem.CHAT_FILES)
                         add(BackupItem.FONTS_IMAGES)

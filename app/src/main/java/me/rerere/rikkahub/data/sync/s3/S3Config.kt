@@ -46,11 +46,11 @@ data class S3Config(
      * 细分项成熟后 UI 不再展示 FILES，存量配置含 FILES 时执行前展开。
      */
     fun withLegacyExpanded(): S3Config {
-        if (FILES !in items) return this
+        if (BackupItem.FILES !in items) return this
         val expanded =
             buildList {
                 items.forEach {
-                    if (it == FILES) {
+                    if (it == BackupItem.FILES) {
                         add(BackupItem.SKILLS)
                         add(BackupItem.CHAT_FILES)
                         add(BackupItem.FONTS_IMAGES)
