@@ -103,6 +103,7 @@ private fun BackupEncryptionDialog(
     var pwdConfirm by remember { mutableStateOf("") }
     var error by remember { mutableStateOf<String?>(null) }
 
+    @Composable
     fun save() {
         error = null
         if (pwd.length < 6) {

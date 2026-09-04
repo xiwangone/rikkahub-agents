@@ -68,7 +68,6 @@ import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.backup.BackupItemsSelector
 import me.rerere.rikkahub.ui.pages.backup.backupItemLabel
 import me.rerere.rikkahub.ui.pages.backup.components.PasswordPromptDialog
-import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.rikkahub.utils.onError
@@ -403,6 +402,7 @@ fun S3Tab(
                                 )
                             }
 
+                            is BackupRunState.NeedsPassword -> isBackingUp = false
                             is BackupRunState.Failed -> {
                                 isBackingUp = false
                                 toaster.show(
