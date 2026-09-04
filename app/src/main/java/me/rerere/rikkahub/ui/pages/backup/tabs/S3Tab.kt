@@ -26,16 +26,14 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenu
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.MultiChoiceSegmentedButtonRow
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -333,31 +331,25 @@ fun S3Tab(
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_backup_items)) },
                     supportingContent = {
-                        MultiChoiceSegmentedButtonRow(
+                        FlowRow(
                             modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            S3Config.BackupItem.entries.forEachIndexed { index, item ->
-                                SegmentedButton(
-                                    shape =
-                                        SegmentedButtonDefaults.itemShape(
-                                            index = index,
-                                            count = S3Config.BackupItem.entries.size,
-                                        ),
-                                    onCheckedChange = { checked ->
+                            S3Config.BackupItem.entries.forEach { item ->
+                                FilterChip(
+                                    selected = item in s3Config.items,
+                                    onClick = {
                                         val newItems =
-                                            if (checked) {
-                                                s3Config.items + item
-                                            } else {
+                                            if (item in s3Config.items) {
                                                 s3Config.items - item
+                                            } else {
+                                                s3Config.items + item
                                             }
                                         updateS3Config(s3Config.copy(items = newItems))
                                     },
-                                    checked = item in s3Config.items,
-                                ) {
-                                    Text(
-                                        backupItemLabel(item),
-                                    )
-                                }
+                                    label = { Text(backupItemLabel(item)) },
+                                )
                             }
                         }
                     },
