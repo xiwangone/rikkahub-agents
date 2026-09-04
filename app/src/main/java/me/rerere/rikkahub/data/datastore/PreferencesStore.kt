@@ -1039,7 +1039,7 @@ data class WebDavConfig(
 ) {
     val displayName: String
         get() = name.ifBlank { if (url.isBlank()) "未命名" else url.removePrefix("https://").removePrefix("http://").substringBefore('/') }
-}
+
     @Serializable
     enum class BackupItem {
         /** 聊天/记忆/设置数据库（rikka_hub.db，含 vault 密文、SSH 主机、调度任务） */
