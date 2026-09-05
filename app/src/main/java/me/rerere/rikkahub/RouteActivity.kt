@@ -522,6 +522,9 @@ class RouteActivity : ComponentActivity() {
                                 SettingSubAgentsPage()
                             }
 
+                            entry<Screen.SettingFiles> {
+                                SettingFilesPage()
+                            }
 
                             entry<Screen.SettingWeb> {
                             }
