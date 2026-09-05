@@ -986,6 +986,8 @@
   <string name="setting_tts_page_voice_name">Название голоса</string>
   <string name="setting_tts_page_voice_name_description">Название голоса</string>
   <string name="setting_tts_page_voice_name_placeholder">Коре</string>
+  <string name="setting_tts_page_default_playback_speed">Скорость воспроизведения по умолчанию</string>
+  <string name="setting_tts_page_default_playback_speed_description">Применяется локально к каждому TTS-провайдеру без изменения его настроек синтеза.</string>
   <string name="settings">Настройки</string>
   <string name="settings_search_no_results">Нет результатов</string>
   <string name="settings_search_page_title">Поиск по настройкам</string>

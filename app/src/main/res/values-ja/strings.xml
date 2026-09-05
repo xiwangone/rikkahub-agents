@@ -993,6 +993,8 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_tts_page_voice_name">音声名</string>
   <string name="setting_tts_page_voice_name_description">音声の名前</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
+  <string name="setting_tts_page_default_playback_speed">デフォルトの再生速度</string>
+  <string name="setting_tts_page_default_playback_speed_description">すべてのTTSプロバイダーにローカルで適用され、合成設定は変更されません。</string>
   <string name="settings">設定</string>
   <string name="settings_search_no_results">結果なし</string>
   <string name="settings_search_page_title">設定を検索</string>
