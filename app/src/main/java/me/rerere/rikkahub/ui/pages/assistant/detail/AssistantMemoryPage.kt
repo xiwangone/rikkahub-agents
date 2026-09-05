@@ -378,10 +378,6 @@ private fun MemoryItem(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text(
-                    text = "#${memory.id}",
-                    style = MaterialTheme.typography.titleMediumEmphasized,
-                )
-                Text(
                     text = if (memory.tier == me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CONDITIONAL) {
                         stringResource(R.string.assistant_page_memory_tier_conditional_short)
                     } else {
