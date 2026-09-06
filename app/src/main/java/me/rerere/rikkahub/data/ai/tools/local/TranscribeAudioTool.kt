@@ -378,12 +378,9 @@ private suspend fun findWhisperModelViaShell(context: Context): String? {
 fun whisperStatusTool(context: Context, settingsStore: SettingsStore): Tool = Tool(
     name = "whisper_status",
     description = """
-        Check whether whisper.cpp transcription is ready to use. Returns a structured
-        report: whether Termux is enabled in this assistant, whether the Termux app is
-        installed and reachable, whether whisper-cli is on disk, and whether a model
-        (.bin) file is present. Also returns install commands for anything missing.
-        Call this BEFORE calling transcribe_audio_file, especially when the user sends
-        an audio or voice note. Takes no parameters.
+        Check whisper.cpp transcription readiness (Termux enabled, app reachable,
+        whisper-cli + model present; returns install commands for gaps).
+        Call BEFORE transcribe_audio_file, especially on incoming voice notes.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(properties = buildJsonObject { })

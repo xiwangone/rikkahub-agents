@@ -144,15 +144,10 @@ internal fun buildExtractEnvelope(
 fun webFetchTool(client: OkHttpClient): Tool = Tool(
     name = "web_fetch",
     description = """
-        Fetch a URL over HTTP(S) and optionally extract readable content from it.
-        extract_mode: 'raw' (default, unprocessed body), 'article' (main prose, use this to
-        read a page), 'text' (all body text), 'links', or 'metadata'. Raw returns markup that
-        is mostly not content, so pass 'article' when you want to read a page. max_chars caps
-        the returned text (default 32768 when extracting, 8192 for raw); when truncated=true
-        pass next_start_index back as start_index to continue. method is GET (default) or
-        POST. Response headers are omitted unless include_headers=true. Private, loopback and
-        link-local addresses are refused. Returns {status, ok, final_url, extract_mode, title,
-        text, truncated, next_start_index} or {error, detail, recovery}.
+        Fetch a URL over HTTP(S), optionally extracting readable content. Default 'raw'
+        returns markup; use extract_mode='article' to read a page as prose. Truncated
+        results carry next_start_index — pass it back as start_index to page through.
+        Refuses private/loopback/link-local addresses.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

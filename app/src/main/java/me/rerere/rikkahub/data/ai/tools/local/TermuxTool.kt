@@ -272,15 +272,10 @@ internal suspend fun runCommandCapture(
 fun termuxRunCommandTool(context: Context): Tool = Tool(
     name = "termux_run_command",
     description = """
-        Execute a shell command in Termux. By default the command runs in the background and
-        its stdout / stderr / exit_code are returned to you so you can reason on the output
-        (e.g. check if a package is installed, read a file, run a script). Pass
-        interactive=true to instead open a visible Termux session - useful when the user
-        explicitly wants to watch output live or when the command needs an interactive prompt;
-        in that mode no output is returned. Termux must have allow-external-apps=true set in
-        ~/.termux/termux.properties (one-time setup). In command mode, apt/apt-get are
-        automatically wrapped with DEBIAN_FRONTEND=noninteractive and safe dpkg defaults;
-        do not add extra -y flags unless the user specifically asked for unattended upgrades.
+        Run a shell command in Termux and get stdout/stderr/exit_code back (background by
+        default). Use for Termux-only tools (pkg, termux-api). interactive=true opens a
+        visible live session instead (no output returned). Requires Termux +
+        allow-external-apps enabled.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

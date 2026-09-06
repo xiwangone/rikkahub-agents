@@ -15,8 +15,6 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.utils.toLocalString
-import java.time.LocalDate
-
 fun buildMemoryTools(
     json: Json,
     onCreation: suspend (String, String) -> AssistantMemory,
@@ -27,27 +25,10 @@ fun buildMemoryTools(
 ): List<Tool> = listOf(
     Tool(
         name = "memory_tool",
-        description = """
-            The memory tool stores long-term information across conversations.
-            Use `action` to control the operation: `create` (add), `edit` (update), `delete` (remove), `list` (list all).
-            - No relevant record: `create` + `content`
-            - Existing relevant record: `edit` + `id` + `content`
-            - Outdated/irrelevant record: `delete` + `id`
-            - Need to see what memories exist (both core and conditional): `list` — returns every memory entry of the current assistant.
-            Memories will automatically appear in the <memories> tag in later conversations.
-            **tier 分层（2026-08-13）**: core（默认）= 常驻注入（纪律/决策/指针，每轮都在）；conditional = 按需检索（场景细节，默认不注入，任务涉及相关场景时先调 memory_search 检索再使用）。
-            **注意**: 需要环境/场景细节（PC/ECS/凭证/MCP/Backend 等）时，先调用 memory_search 检索相关记忆——不要假设记忆里没有。
-            Do not store sensitive information (e.g., ethnicity, religion, sexual orientation, political views, sex life, criminal records).
-            You may store: preferred name, preferences, plans, work-related notes, chat style preferences, first chat time, etc.
-            Do not show memory content directly in the conversation unless the user explicitly asks.
-            Today is ${LocalDate.now().toLocalString(true)}.
-            Similar memories should be merged; prefer updating existing records.
-
-            Examples:
-            {"action":"create","content":"User prefers brief replies and is more active on weekends."}
-            {"action":"edit","id":12,"content":"User’s preferred name updated to “A-Xing”, prefers Chinese replies."}
-            {"action":"delete","id":7}
-            {"action":"list"}
+        description = """"
+            Store/retrieve long-term facts across conversations (create/edit/delete/list).
+            Prefer edit over create when a related record exists; merge similar entries.
+            Memories auto-appear in <memories> each turn; do not echo them back unless asked.
         """.trimIndent(),
         parameters = {
             InputSchema.Obj(

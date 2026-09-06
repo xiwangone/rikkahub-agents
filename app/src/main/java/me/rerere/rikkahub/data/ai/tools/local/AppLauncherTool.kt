@@ -299,14 +299,9 @@ fun openUrlTool(
 ): Tool = Tool(
     name = "open_url",
     description = """
-        Open a URL in the system's default handler app (browser for http/https, dialer for
-        tel:, maps for geo:, mailto: for email, etc.). Strongly preferred over
-        launch_app + screen automation when the user asks you to "search X in chrome",
-        "open google.com", "call this number", "show me this address on a map", or any
-        request that maps cleanly to a URL — typing into a browser URL bar via accessibility
-        is unreliable and slow. Optionally pass package_name to force a specific app
-        (e.g. com.android.chrome) when multiple handlers exist. Auto-wakes the screen if
-        it was off.
+        Open a URL in the system's default handler (browser/dialer/maps/mailto). Prefer
+        over launch_app + screen automation for "search X", "open site", "call number",
+        "show on map". Optional package_name forces a specific handler app.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

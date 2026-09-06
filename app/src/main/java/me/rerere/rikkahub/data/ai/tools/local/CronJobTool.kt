@@ -181,23 +181,11 @@ fun scheduleJobTool(
 ): Tool = Tool(
     name = "schedule_job",
     description = """
-        Schedule a recurring or one-shot job. Two modes: 'llm' (sends the prompt to an
-        assistant at fire time, model decides what to do) and 'direct' (runs a fixed list
-        of tool calls at fire time, no LLM, no tokens, deterministic).
-        Two timing types: 'once' (single absolute timestamp) and 'cron' (5-field cron
-        expression with aliases like @hourly, @daily, @every 30m).
-
-        Pick 'direct' when the action is a fixed side effect ('post good morning every
-        8am', 'screenshot every hour'). Free, fast, predictable.
-        Pick 'llm' when the action requires reasoning ('if battery is low, message me',
-        'summarize last hour of notifications').
-
-        Cron examples: '0 9 * * MON-FRI' (weekdays 9am), '*/15 * * * *' (every 15 min),
-        '@every 2h' (every 2h), '@daily' (midnight), '0 0 1 * *' (first of every month).
-        Timezone defaults to the device's; pass an IANA id to override.
-
-        catchup controls missed-window behavior on reboot/process kill: 'skip',
-        'fire_once' (DEFAULT), 'fire_all' (capped at 20).
+        Schedule a recurring or one-shot job. mode: 'direct' (fixed tool calls at fire
+        time — prefer for deterministic side effects) or 'llm' (prompts an assistant for
+        reasoning tasks). timing: 'once' or cron (5-field, aliases @hourly/@daily/@every 30m).
+        Timezone defaults to device; pass IANA id to override. catchup governs missed
+        windows after reboot/process kill: skip / fire_once / fire_all.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

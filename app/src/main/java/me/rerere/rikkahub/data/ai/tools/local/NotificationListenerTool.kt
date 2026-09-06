@@ -170,12 +170,9 @@ fun dismissNotificationTool(): Tool = Tool(
 fun notificationActionClickTool(): Tool = Tool(
     name = "notification_action_click",
     description = """
-        Fire one of a notification's action buttons (e.g. Reply, Mark as read). Pass either
-        action_index (0-based) or action_title (case-insensitive exact match). If the action
-        requires text input (e.g. WhatsApp Reply with RemoteInput), returns
-        {error: requires_input} - if the app launcher and screen automation tools are enabled,
-        open the app with launch_app and drive the input UI with set_text + click_node;
-        otherwise tell the user this notification needs manual input.
+        Fire one of a notification's action buttons (Reply, Mark-as-read...) by
+        action_index or action_title. Actions needing text input return requires_input —
+        fall back to launch_app + set_text/click_node when automation is available.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -246,14 +243,9 @@ fun notificationActionClickTool(): Tool = Tool(
 fun notificationReplyTool(): Tool = Tool(
     name = "notification_reply",
     description = """
-        Reply to a notification in one call. Fills the notification's direct-reply action
-        (RemoteInput) with text and fires it — works for WhatsApp / Messages / Telegram and
-        any app exposing an inline reply. Pass notification_key (from a notifications list
-        call) and text. Returns {error: no_action} if the notification has no reply action
-        (if the app launcher and screen automation tools are enabled, open the app with
-        launch_app and drive the input UI with set_text + click_node; otherwise tell the user
-        this notification needs manual input), {error: not_found} if the notification is no
-        longer active.
+        Reply to a notification's inline direct-reply action (RemoteInput) — works for
+        WhatsApp/Messages/Telegram. Pass notification_key + text. If it has no reply action,
+        fall back to launch_app + set_text/click_node when automation is available.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
