@@ -249,11 +249,9 @@ fun setTextTool(
 ): Tool = Tool(
     name = "set_text",
     description = """
-        Type or replace text in an editable input field on screen. Find the field by selector
-        (text / content_description / view_id_resource_name). Works for URL bars, search boxes,
-        form fields. Does NOT work for terminals like Termux that render natively - for Termux
-        run shell commands directly via termux_run_command. Returns {success, set_to, ...} or
-        a structured error.
+        Type/replace text in an on-screen editable field (URL bars, search, forms), located
+        by selector. NOT for native-rendered terminals (Termux) — run those via
+        termux_run_command.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

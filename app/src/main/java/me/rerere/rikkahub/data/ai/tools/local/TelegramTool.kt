@@ -406,11 +406,8 @@ fun telegramSendDocumentTool(prefs: TelegramBotPreferences, client: TelegramBotC
 fun telegramSetCommandsTool(prefs: TelegramBotPreferences, client: TelegramBotClient): Tool = Tool(
     name = "telegram_set_commands",
     description = """
-        Add custom commands to the Telegram /commands autocomplete menu. The built-in
-        commands (/start, /help, /new, /stop, /status, /model, /ratelimit) are ALWAYS
-        preserved — this tool merges your additions on top of them rather than replacing
-        the whole menu, so the user never loses their built-in surface. Entries whose
-        command name collides with a built-in are dropped (built-ins can't be shadowed).
+        Add custom commands to the Telegram /commands menu, merged on top of built-ins
+        (which are always preserved; colliding names are dropped, never shadowed).
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

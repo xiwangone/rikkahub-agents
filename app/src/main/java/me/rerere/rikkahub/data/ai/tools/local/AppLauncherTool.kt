@@ -51,10 +51,8 @@ fun launchAppTool(
 ): Tool = Tool(
     name = "launch_app",
     description = """
-        Open an installed app on the device by its package name (e.g. com.termux, com.android.settings).
-        Returns {success: true} if the launch intent was dispatched. If you do not know the package name,
-        first call list_installed_apps to discover available packages. The app is brought to the
-        foreground; screen-automation tools (tap, swipe, read_window_tree) can then drive its UI.
+        Open an installed app by package name (foreground). Unknown package? Call
+        list_installed_apps first; then drive its UI with tap/swipe/read_window_tree.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

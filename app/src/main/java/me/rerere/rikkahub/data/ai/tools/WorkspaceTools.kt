@@ -146,10 +146,9 @@ private fun createEditFileTool(
 ) = Tool(
     name = "workspace_edit_file",
     description = """
-        Edit a UTF-8 text file using the assistant's bound workspace Rootfs. Paths must be absolute inside Rootfs.
-        Use /workspace for the workspace files area.
-        Provide old_text and new_text. By default old_text must occur exactly once; set replace_all=true to replace every occurrence.
-        If no exact match is found, whitespace-tolerant line matching is attempted automatically.
+        Edit a UTF-8 file in the bound workspace (paths absolute, use /workspace).
+        Replace old_text (must occur once; replace_all=true for every occurrence);
+        whitespace-tolerant match attempted if no exact hit.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

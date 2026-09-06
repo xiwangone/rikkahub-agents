@@ -118,11 +118,9 @@ fun buildMemoryTools(
     Tool(
         name = "memory_search",
         description = """
-            Search conditional memories (tier=conditional, not injected by default) by keyword.
-            Use this when a task involves a specific environment / scenario (PC / ECS / credentials /
-            MCP / Backend / deployment details / past decisions) and you need the related memory —
-            it is NOT in the always-injected <memories> tag. Returns matching memory entries (id, tier, content).
-            Also usable to look up any memory across conversations.
+            Search conditional memories (scene details not injected every turn) by keyword —
+            use when a task needs environment specifics (PC/ECS/credentials/MCP/backend/
+            past decisions) absent from <memories>. Also finds any memory across conversations.
         """.trimIndent(),
         parameters = {
             InputSchema.Obj(

@@ -35,11 +35,9 @@ private fun NotificationEntry.toJson(): JsonObject = buildJsonObject {
 fun listRecentNotificationsTool(): Tool = Tool(
     name = "list_recent_notifications",
     description = """
-        Return notifications captured by the in-app listener since it was bound. Backed by a
-        100-entry ring buffer, ordered oldest -> newest. Use limit (default 50, max 100),
-        package_name (case-insensitive substring match against package or app label), and
-        since_unix_ms (only entries posted after this) to narrow the result. Returns
-        {error, recovery} if the listener is not bound.
+        Return notifications captured by the in-app listener (100-entry ring buffer, oldest
+        first). Narrow via limit / package_name (substring) / since_unix_ms. Returns
+        error+recovery if listener not bound.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

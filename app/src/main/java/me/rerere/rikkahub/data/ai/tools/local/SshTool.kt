@@ -646,11 +646,9 @@ internal fun runOnSession(session: Session, command: String, timeoutMs: Int, std
 fun sshExecTool(context: Context): Tool = Tool(
     name = "ssh_exec",
     description = """
-        Connect to a remote host via SSH and run a single shell command. Returns stdout, stderr,
-        and exit code. For destructive or system-level commands you should explicitly confirm
-        with the user before invoking. Pass either password OR private_key for authentication.
-        For hosts you'll use repeatedly, prefer save_ssh_host + ssh_exec_saved instead so
-        credentials don't appear in chat history every time.
+        SSH to a host and run one shell command; returns stdout/stderr/exit code. Confirm
+        with the user before destructive/system-level commands. For repeat hosts prefer
+        save_ssh_host + ssh_exec_saved so credentials never appear in chat history.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
