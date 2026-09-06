@@ -163,6 +163,9 @@ class SettingsStore(
         // IDs of built-in providers the user explicitly deleted; the re-seed pass
         // skips these so deletions are sticky across app restarts.
         val DELETED_BUILTIN_PROVIDER_IDS = stringPreferencesKey("deleted_builtin_provider_ids")
+        // Names of bundled default-on skills already seeded once; the re-seed pass
+        // skips these so a later user disable sticks across app restarts.
+        val AUTO_ENABLED_DEFAULT_SKILLS = stringPreferencesKey("auto_enabled_default_skills")
 
         // 助手
         val SELECT_ASSISTANT = stringPreferencesKey("select_assistant")
@@ -297,6 +300,12 @@ class SettingsStore(
                             JsonInstant.decodeFromString<Set<String>>(raw)
                                 .mapNotNull { runCatching { Uuid.parse(it) }.getOrNull() }
                                 .toSet()
+                        }.getOrNull()
+                    } ?: emptySet(),
+                autoEnabledDefaultSkills = preferences[AUTO_ENABLED_DEFAULT_SKILLS]
+                    ?.let { raw ->
+                        runCatching {
+                            JsonInstant.decodeFromString<Set<String>>(raw)
                         }.getOrNull()
                     } ?: emptySet(),
                 assistants = JsonInstant.decodeFromString(preferences[ASSISTANTS] ?: "[]"),
@@ -454,7 +463,14 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             // user who later disables one is not re-opted-in on the next launch. A brand-new
             // skill cannot have been deliberately disabled before it shipped, so the first add is
             // always safe.
-            val skillsToSeed = DEFAULT_AUTO_ENABLED_SKILLS - it.autoEnabledDefaultSkills
+            // 兼容存量安装：autoEnabledDefaultSkills 历史上未落盘（恒空），若某默认技能已存在于
+            // 任一默认助手的 enabledSkills 中，视为已 seed 过——避免升级后把用户已关掉的技能重新弹回。
+            val seededByAssistants = DEFAULT_AUTO_ENABLED_SKILLS.filter { candidate ->
+                assistants.any { a ->
+                    DEFAULT_ASSISTANTS.any { d -> d.id == a.id } && candidate in a.enabledSkills
+                }
+            }.toSet()
+            val skillsToSeed = DEFAULT_AUTO_ENABLED_SKILLS - it.autoEnabledDefaultSkills - seededByAssistants
             if (skillsToSeed.isNotEmpty()) {
                 assistants = assistants.map { assistant ->
                     if (DEFAULT_ASSISTANTS.any { d -> d.id == assistant.id }) {
@@ -619,6 +635,9 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             )
             preferences[DELETED_BUILTIN_PROVIDER_IDS] = JsonInstant.encodeToString(
                 settings.deletedBuiltInProviderIds.map { it.toString() }.toSet()
+            )
+            preferences[AUTO_ENABLED_DEFAULT_SKILLS] = JsonInstant.encodeToString(
+                settings.autoEnabledDefaultSkills
             )
 
             preferences[ASSISTANTS] = JsonInstant.encodeToString(settings.assistants)
