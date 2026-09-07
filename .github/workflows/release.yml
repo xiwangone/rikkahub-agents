@@ -100,7 +100,8 @@ jobs:
               *universal*) arch="universal" ;;
               *) arch="$(basename "$apk" .apk)" ;;
             esac
-            mv "$apk" "RikkaHub-Agents-${VER}-${arch}-release.apk"
+            # 保留在 */release/ 目录内重命名，使上传步骤的 */release/*.apk 仍能匹配到
+            mv "$apk" "$(dirname "$apk")/RikkaHub-Agents-${VER}-${arch}-release.apk"
           done
           ls -la
 
