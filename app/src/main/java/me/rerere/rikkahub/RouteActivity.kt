@@ -864,10 +864,6 @@ sealed interface Screen : NavKey {
     @Serializable
     data object SettingPreferencesNetwork : Screen
     @Serializable
-    @Serializable
-    @Serializable
-    data object SettingSshHosts : Screen
-    @Serializable
     data class SshTerminal(val hostName: String) : Screen
     @Serializable
     data object BackendService : Screen
