@@ -463,14 +463,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             // user who later disables one is not re-opted-in on the next launch. A brand-new
             // skill cannot have been deliberately disabled before it shipped, so the first add is
             // always safe.
-            // 兼容存量安装：autoEnabledDefaultSkills 历史上未落盘（恒空），若某默认技能已存在于
-            // 任一默认助手的 enabledSkills 中，视为已 seed 过——避免升级后把用户已关掉的技能重新弹回。
-            val seededByAssistants = DEFAULT_AUTO_ENABLED_SKILLS.filter { candidate ->
-                assistants.any { a ->
-                    DEFAULT_ASSISTANTS.any { d -> d.id == a.id } && candidate in a.enabledSkills
-                }
-            }.toSet()
-            val skillsToSeed = DEFAULT_AUTO_ENABLED_SKILLS - it.autoEnabledDefaultSkills - seededByAssistants
+            val skillsToSeed = DEFAULT_AUTO_ENABLED_SKILLS - it.autoEnabledDefaultSkills
             if (skillsToSeed.isNotEmpty()) {
                 assistants = assistants.map { assistant ->
                     if (DEFAULT_ASSISTANTS.any { d -> d.id == assistant.id }) {
@@ -478,7 +471,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                     } else assistant
                 }.toMutableList()
             }
-            val newAutoEnabled = it.autoEnabledDefaultSkills + DEFAULT_AUTO_ENABLED_SKILLS
+            val newAutoEnabled = it.autoEnabledDefaultSkills + skillsToSeed
             val ttsProviders = it.ttsProviders.ifEmpty { DEFAULT_TTS_PROVIDERS }.toMutableList()
             DEFAULT_TTS_PROVIDERS.forEach { defaultTTSProvider ->
                 if (ttsProviders.none { provider -> provider.id == defaultTTSProvider.id }) {

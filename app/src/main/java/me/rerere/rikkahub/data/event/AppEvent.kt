@@ -31,6 +31,5 @@ sealed class AppEvent {
         val contentPreview: String?,
     ) : AppEvent()
 
-    /** 额度刷新请求（悬浮窗「刷新」按钮触发）。 */
-    data object QuotaRefreshRequested : AppEvent()
+
 }

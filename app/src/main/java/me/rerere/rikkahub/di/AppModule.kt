@@ -377,11 +377,5 @@ val appModule =
             )
         }
 
-        single {
-            me.rerere.rikkahub.data.quota.QuotaPreferences(get())
-        }
 
-        single {
-            me.rerere.rikkahub.data.quota.QuotaCredentialManager(get())
-        }
     }

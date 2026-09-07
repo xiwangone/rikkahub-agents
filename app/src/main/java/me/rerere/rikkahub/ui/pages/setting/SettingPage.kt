@@ -236,12 +236,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                         supportingContent = { Text(stringResource(R.string.setting_page_tts_service_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_page_tts_service)) },
                     )
-                    item(
-                        onClick = { navController.navigate(Screen.SettingQuota) },
-                        leadingContent = { Icon(HugeIcons.CoinsDollar, null) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_quota_desc)) },
-                        headlineContent = { Text(stringResource(R.string.setting_page_quota)) },
-                    )
+
                 }
 
                 CardGroup(

@@ -126,12 +126,7 @@ class ChatVM(
         // 记住对话ID, 方便下次启动恢复
         context.writeStringPreference("lastConversationId", _conversationId.toString())
 
-        // 联动 Agent 工作悬浮窗：token 统计变化 → 更新悬浮窗展开卡片
-        viewModelScope.launch {
-            sessionTotals.collect { totals ->
-                me.rerere.rikkahub.service.AgentOverlay.updateTokenStats(totals)
-            }
-        }
+
     }
 
     override fun onCleared() {

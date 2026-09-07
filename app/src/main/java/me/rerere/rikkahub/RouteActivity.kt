@@ -527,6 +527,7 @@ class RouteActivity : ComponentActivity() {
                             }
 
                             entry<Screen.SettingWeb> {
+                                SettingWebPage()
                             }
                             entry<Screen.SettingWebServer> {
                                 SettingWebServerPage()
@@ -566,11 +567,7 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.SettingPreferencesNetwork> {
                                 me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNetworkPage()
                             }
-                            entry<Screen.SettingQuota> {
-                            }
-                            entry<Screen.QuotaConsole> { key ->
-                                me.rerere.rikkahub.ui.pages.setting.QuotaConsolePage(key.providerId)
-                            }
+
                             entry<Screen.SettingSshHosts> {
                                 me.rerere.rikkahub.ui.pages.setting.SettingSshHostsPage()
                             }
@@ -867,9 +864,7 @@ sealed interface Screen : NavKey {
     @Serializable
     data object SettingPreferencesNetwork : Screen
     @Serializable
-    data object SettingQuota : Screen
     @Serializable
-    data class QuotaConsole(val providerId: String) : Screen
     @Serializable
     data object SettingSshHosts : Screen
     @Serializable
