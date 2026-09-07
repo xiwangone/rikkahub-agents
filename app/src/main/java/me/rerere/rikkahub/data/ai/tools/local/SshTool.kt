@@ -558,6 +558,13 @@ internal fun preparePowerShellCommand(command: String): String {
         command.contains("powershell -")
     if (!isPowerShell) return command // 非 pwsh：保持原样（Linux 远端等）
 
+    // 已经是 EncodedCommand 形式（background 分支的 wrapDetachedCommandSmart 已生成完整
+    // "powershell ... -EncodedCommand <b64>"）：再包装会剥掉外层 powershell 前缀、把
+    // "-EncodedCommand <b64>" 当脚本本体重新 base64，导致远端收到
+    // "[Console]::OutputEncoding=UTF-8; -EncodedCommand <b64>" 而无 powershell 前缀，
+    // 报"无法将 -EncodedCommand 识别为 cmdlet"。识别到已编码形式则原样返回，避免二次包装。
+    if (command.contains("-EncodedCommand", ignoreCase = true)) return command
+
     // 剥掉用户已写的前缀 powershell/-NoProfile/-Command，取实际脚本。
     // 关键：剥掉 "powershell" 后，后续参数会落在行首（无前导空白），
     // 因此参数剥除正则必须同时容忍行首与中间（用 \s* 而非 \s+ 前缀）。
