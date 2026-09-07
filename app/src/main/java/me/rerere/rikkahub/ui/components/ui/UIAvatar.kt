@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import android.net.Uri
+import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -50,6 +51,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
 import kotlinx.coroutines.launch
+import me.rerere.common.android.Logging
 import me.rerere.common.android.appTempFolder
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Edit03
@@ -57,11 +59,14 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.ai.useCropLauncher
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
 import org.koin.compose.koinInject
 import java.io.File
 import java.security.MessageDigest
 import kotlin.math.abs
+
+private const val TAG = "UIAvatar"
 
 @Composable
 fun TextAvatar(
@@ -105,6 +110,7 @@ fun UIAvatar(
 ) {
     val filesManager: FilesManager = koinInject()
     val context = LocalContext.current
+    val toaster = LocalToaster.current
     var showPickOption by remember { mutableStateOf(false) }
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showUrlInput by remember { mutableStateOf(false) }
@@ -115,7 +121,17 @@ fun UIAvatar(
 
     fun saveAvatarImage(uri: Uri) {
         scope.launch {
-            val localUri = runCatching { filesManager.saveAvatarImage(uri) }.getOrNull()
+            val localUri =
+                try {
+                    filesManager.saveAvatarImage(uri)
+                } catch (t: Throwable) {
+                    // 失败不再静默（17168ab 曾用 getOrNull() 吞异常 → 头像静默换不了且无提示）。
+                    // 报错 + 完整堆栈日志，便于定位真正断点；同时 UI 提示用户。
+                    Log.e(TAG, "saveAvatarImage failed for $uri", t)
+                    Logging.log(TAG, "saveAvatarImage failed: ${t.message} | ${t.stackTraceToString()}")
+                    toaster.show(stringResource(R.string.avatar_save_failed))
+                    null
+                }
             localUri?.let { onUpdate?.invoke(Avatar.Image(it.toString())) }
         }
     }

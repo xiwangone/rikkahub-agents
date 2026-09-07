@@ -201,6 +201,7 @@
   <string name="avatar_pick_emoji">选择表情</string>
   <string name="avatar_pick_image">选择图片</string>
   <string name="avatar_reset">重置</string>
+  <string name="avatar_save_failed">头像保存失败，请查看日志。</string>
   <string name="avatar_url_confirm">确认</string>
   <string name="avatar_url_dialog_title">输入图片链接</string>
   <string name="avatar_url_hint">请输入图片链接</string>

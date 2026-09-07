@@ -118,7 +118,7 @@ class FilesManager(
             f.isFile && f.length() == bytes.size.toLong() && sha256(f.readBytes()) == digest
         }
         if (existing != null) {
-            trackManagedFile(
+            trackManagedFileAwait(
                 folder = FileFolders.AVATARS,
                 file = existing,
                 displayName = existing.name,
@@ -135,7 +135,7 @@ class FilesManager(
         )
         val file = File(dir, fileName)
         file.writeBytes(bytes)
-        trackManagedFile(
+        trackManagedFileAwait(
             folder = FileFolders.AVATARS,
             file = file,
             displayName = file.name,
@@ -501,6 +501,28 @@ class FilesManager(
             ManagedFileEntity(
                 folder = folder,
                 relativePath = buildRelativePath(folder, file),
+                displayName = displayName,
+                mimeType = mimeType,
+                sizeBytes = file.length(),
+                createdAt = now,
+                updatedAt = now,
+            )
+        )
+    }
+
+    /**
+     * 同步登记托管文件（await insert 完成）。头像保存用——fire-and-forget 的 trackManagedFile
+     * 不 await，导致 DB 可能在 saveAvatarImage 返回后仍未登记，文件管理页「头像」显示为空。
+     */
+    private suspend fun trackManagedFileAwait(folder: String, file: File, displayName: String, mimeType: String) {
+        val relativePath = buildRelativePath(folder, file)
+        val existing = repository.getByPath(relativePath)
+        if (existing != null) return
+        val now = System.currentTimeMillis()
+        repository.insert(
+            ManagedFileEntity(
+                folder = folder,
+                relativePath = relativePath,
                 displayName = displayName,
                 mimeType = mimeType,
                 sizeBytes = file.length(),

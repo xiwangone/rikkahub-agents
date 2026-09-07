@@ -201,6 +201,7 @@
   <string name="avatar_pick_emoji">Pick Emoji</string>
   <string name="avatar_pick_image">Pick Image</string>
   <string name="avatar_reset">Reset</string>
+  <string name="avatar_save_failed">Failed to save avatar. Check the log for details.</string>
   <string name="avatar_url_confirm">Confirm</string>
   <string name="avatar_url_dialog_title">Input Image URL</string>
   <string name="avatar_url_hint">Enter image URL</string>
