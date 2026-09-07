@@ -1356,6 +1356,13 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="assistant_page_local_tools_section_automation">自动化</string>
   <string name="assistant_page_local_tools_section_browser">浏览器</string>
   <string name="assistant_page_local_tools_section_device_info">设备信息</string>
+  <string name="assistant_page_local_tools_section_ai_diagnostics">AI 诊断</string>
+  <string name="assistant_page_local_tools_app_health_title">应用诊断</string>
+  <string name="assistant_page_local_tools_app_health_desc">运行内置 Doctor 检查并返回结构化健康快照（权限、服务、数据库、网络、维护）。</string>
+  <string name="assistant_page_local_tools_app_logs_title">日志读取</string>
+  <string name="assistant_page_local_tools_app_logs_desc">读取内存中的日志缓冲（按级别/关键字过滤），敏感值已脱敏。</string>
+  <string name="assistant_page_local_tools_model_testing_title">模型探测</string>
+  <string name="assistant_page_local_tools_model_testing_desc">探测模型端点（非流式/流式/工具调用支持）并缓存结果。</string>
   <string name="assistant_page_local_tools_section_existing">内置工具</string>
   <string name="assistant_page_local_tools_import_title">导入工具配置</string>
   <string name="assistant_page_local_tools_import_desc">从其他助手复制已开启的工具（一次性复制，不持续同步）</string>

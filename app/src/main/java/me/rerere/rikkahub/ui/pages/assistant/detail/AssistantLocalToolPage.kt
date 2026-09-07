@@ -391,6 +391,57 @@ private fun AssistantLocalToolContent(
             )
         }
 
+        // AI diagnostics section (first batch of self-diagnosis tools)
+        Text(
+            text = stringResource(R.string.assistant_page_local_tools_section_ai_diagnostics),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+        )
+        CardGroup {
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_app_health_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_app_health_desc))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.AppDiagnostics),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.AppDiagnostics, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_app_logs_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_app_logs_desc))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.AppLogs),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.AppLogs, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_model_testing_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_model_testing_desc))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.ModelTesting),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.ModelTesting, it) },
+                    )
+                },
+            )
+        }
+
         // Built-in tools section
         Text(
             text = stringResource(R.string.assistant_page_local_tools_section_existing),

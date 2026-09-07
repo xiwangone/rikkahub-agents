@@ -261,6 +261,8 @@ val appModule =
                 storageVolumeGrantStore = get(),
                 okHttpClient = get(),
                 keyboardApiClient = get(),
+                doctorChecks = get(),
+                providerManager = get(),
             )
         }
 

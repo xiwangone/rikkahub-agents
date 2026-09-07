@@ -1380,6 +1380,13 @@
   <string name="assistant_page_local_tools_perm_special_dialog_message">This tool needs system access. You\'ll be sent to the system settings page to grant it. Return here when done.</string>
   <string name="assistant_page_local_tools_perm_special_dialog_title">Permission needed</string>
   <string name="assistant_page_local_tools_section_device_info">Device info</string>
+  <string name="assistant_page_local_tools_section_ai_diagnostics">AI diagnostics</string>
+  <string name="assistant_page_local_tools_app_health_title">App health</string>
+  <string name="assistant_page_local_tools_app_health_desc">Run the built-in Doctor checks and return a structured health snapshot (permissions, services, database, network, maintenance).</string>
+  <string name="assistant_page_local_tools_app_logs_title">App logs</string>
+  <string name="assistant_page_local_tools_app_logs_desc">Read the in-memory log buffer (filterable by level/keyword) with sensitive values masked.</string>
+  <string name="assistant_page_local_tools_model_testing_title">Model testing</string>
+  <string name="assistant_page_local_tools_model_testing_desc">Probe a model endpoint (non-streaming / streaming / tool-call support) and cache the result.</string>
   <string name="assistant_page_local_tools_section_existing">Built-in tools</string>
   <string name="assistant_page_local_tools_import_title">Import tool config</string>
   <string name="assistant_page_local_tools_import_desc">Copy enabled tools from another assistant (one-shot, no live sync)</string>

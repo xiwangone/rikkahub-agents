@@ -41,7 +41,10 @@ import me.rerere.rikkahub.data.ai.tools.local.fingerprintTool
 import me.rerere.rikkahub.data.ai.tools.local.findNodeTool
 import me.rerere.rikkahub.data.ai.tools.local.getBrightnessTool
 import me.rerere.rikkahub.data.ai.tools.local.getVolumeTool
+import me.rerere.rikkahub.data.ai.tools.local.getAppHealthTool
 import me.rerere.rikkahub.data.ai.tools.local.globalActionTool
+import me.rerere.rikkahub.data.ai.tools.local.readAppLogsTool
+import me.rerere.rikkahub.data.ai.tools.local.testModelTool
 import me.rerere.rikkahub.data.ai.tools.local.listContactsTool
 import me.rerere.rikkahub.data.ai.tools.local.listSensorsTool
 import me.rerere.rikkahub.data.ai.tools.local.listSmsInboxTool
@@ -210,6 +213,9 @@ sealed class LocalToolOption {
     @Serializable @SerialName("external_storage")     data object ExternalStorage     : LocalToolOption()
     @Serializable @SerialName("archive")              data object Archive             : LocalToolOption()
     @Serializable @SerialName("keyboard_control")     data object KeyboardControl     : LocalToolOption()
+    @Serializable @SerialName("app_diagnostics")      data object AppDiagnostics      : LocalToolOption()
+    @Serializable @SerialName("app_logs")             data object AppLogs             : LocalToolOption()
+    @Serializable @SerialName("model_testing")        data object ModelTesting        : LocalToolOption()
 }
 
 /**
@@ -382,6 +388,9 @@ class LocalTools(
     private val okHttpClient: okhttp3.OkHttpClient,
     // agent-keyboard IPC client — backs the keyboard_* tools (drives the active text field).
     private val keyboardApiClient: me.rerere.rikkahub.data.keyboard.KeyboardApiClient,
+    // AI 自诊断/自管理工具（第一批）复用依赖。
+    private val doctorChecks: me.rerere.rikkahub.ui.pages.setting.doctor.DoctorChecks,
+    private val providerManager: me.rerere.ai.provider.ProviderManager,
 ) {
     val javascriptTool by lazy {
         Tool(
@@ -1080,6 +1089,16 @@ class LocalTools(
             tools.add(keyboardEditorInfoTool(keyboardApiClient))
             tools.add(keyboardSetCursorTool(keyboardApiClient))
             tools.add(keyboardSelectRangeTool(keyboardApiClient))
+        }
+        // AI 自诊断/自管理（第一批，纯读工具）。
+        if (options.contains(LocalToolOption.AppDiagnostics)) {
+            tools.add(getAppHealthTool(doctorChecks, context))
+        }
+        if (options.contains(LocalToolOption.AppLogs)) {
+            tools.add(readAppLogsTool(context))
+        }
+        if (options.contains(LocalToolOption.ModelTesting)) {
+            tools.add(testModelTool(providerManager, settingsStore, context))
         }
         // Centralised opt-in to needsApproval. Tool factories themselves don't have to know
         // whether their op is destructive — ToolApprovalDefaults is the single source of
