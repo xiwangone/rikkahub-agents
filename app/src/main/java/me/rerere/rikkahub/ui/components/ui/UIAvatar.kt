@@ -111,6 +111,8 @@ fun UIAvatar(
     val filesManager: FilesManager = koinInject()
     val context = LocalContext.current
     val toaster = LocalToaster.current
+    // 在 Composable 作用域解析（saveAvatarImage 的 coroutine 内不能调 stringResource）
+    val avatarSaveFailedText = stringResource(R.string.avatar_save_failed)
     var showPickOption by remember { mutableStateOf(false) }
     var showEmojiPicker by remember { mutableStateOf(false) }
     var showUrlInput by remember { mutableStateOf(false) }
@@ -129,7 +131,7 @@ fun UIAvatar(
                     // 报错 + 完整堆栈日志，便于定位真正断点；同时 UI 提示用户。
                     Log.e(TAG, "saveAvatarImage failed for $uri", t)
                     Logging.log(TAG, "saveAvatarImage failed: ${t.message} | ${t.stackTraceToString()}")
-                    toaster.show(stringResource(R.string.avatar_save_failed))
+                    toaster.show(avatarSaveFailedText)
                     null
                 }
             localUri?.let { onUpdate?.invoke(Avatar.Image(it.toString())) }
