@@ -1595,6 +1595,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_page_accessibility_status_section">状态</string>
   <string name="setting_page_browser">浏览器</string>
   <string name="setting_page_browser_desc">AI 驱动的网页浏览器和技能查看器。</string>
+  <string name="setting_page_agent_overlay_enabled_title">工作中悬浮提示</string>
+  <string name="setting_page_agent_overlay_enabled_desc">App 在后台运行显示「智能体正在工作」悬浮提示；前台聊天时不显示，避免遮挡顶部。</string>
   <string name="setting_page_doctor">诊断工具</string>
   <string name="setting_page_doctor_copy_report">复制报告</string>
   <string name="setting_page_doctor_desc">诊断并修复应用 — 权限、服务、数据库、网络、Termux。</string>

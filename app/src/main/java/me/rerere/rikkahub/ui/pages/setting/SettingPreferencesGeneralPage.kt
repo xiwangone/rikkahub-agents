@@ -31,6 +31,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.service.AgentOverlay
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -75,6 +76,10 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                     "create_new_conversation_on_start",
                     true,
                 )
+                var agentOverlayEnabled by rememberSharedPreferenceBoolean(
+                    AgentOverlay.PREF_ENABLED,
+                    true,
+                )
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
                 ) {
@@ -93,6 +98,24 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                             Switch(
                                 checked = createNewConversationOnStart,
                                 onCheckedChange = { createNewConversationOnStart = it },
+                            )
+                        },
+                    )
+                    item(
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.setting_page_agent_overlay_enabled_title),
+                            )
+                        },
+                        supportingContent = {
+                            Text(
+                                stringResource(R.string.setting_page_agent_overlay_enabled_desc),
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = agentOverlayEnabled,
+                                onCheckedChange = { agentOverlayEnabled = it },
                             )
                         },
                     )

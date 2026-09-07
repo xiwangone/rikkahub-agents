@@ -13,7 +13,10 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.TextView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.ProcessLifecycleOwner
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.hooks.readBooleanPreference
 
 /**
  * Lightweight top-of-screen pill that shows while a generation turn is active so the
@@ -29,10 +32,37 @@ object AgentOverlay {
 
     fun canShow(context: Context): Boolean = Settings.canDrawOverlays(context)
 
+    /** SharedPreferences key backing the "working overlay" master switch in Settings. */
+    const val PREF_ENABLED = "agent_overlay_enabled"
+
+    /** Whether the overlay is currently enabled by the user (Settings switch, default ON). */
+    private fun isEnabled(context: Context): Boolean =
+        context.applicationContext.readBooleanPreference(PREF_ENABLED, true)
+
+    /**
+     * Whether the process is currently in the foreground (an Activity the user is looking at).
+     * When the app is foreground, the chat UI already shows its own "working" indicator, so the
+     * pill is pure visual clutter over the top bar — we suppress it and only surface it once the
+     * app goes to the background (or a headless surface drives the phone).
+     */
+    private fun isForeground(): Boolean =
+        ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+
     fun show(context: Context, text: String = context.getString(R.string.agent_overlay_working)) {
         val app = context.applicationContext
         if (!canShow(app)) {
             Log.d(TAG, "show: SYSTEM_ALERT_WINDOW not granted, no-op")
+            return
+        }
+        if (!isEnabled(app)) {
+            Log.d(TAG, "show: overlay disabled by user, no-op")
+            return
+        }
+        if (isForeground()) {
+            // App is on screen; the chat UI has its own progress indicator. Drop the pill so it
+            // doesn't overlap the top bar. It will appear if a later turn leaves the app.
+            Log.d(TAG, "show: app in foreground, suppressing pill")
+            mainHandler.post { hideInternal(app) }
             return
         }
         mainHandler.post { showInternal(app, text) }

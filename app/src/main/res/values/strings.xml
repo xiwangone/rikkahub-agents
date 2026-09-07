@@ -1658,6 +1658,8 @@
   <string name="relative_time_days_ago">%1$dd ago</string>
   <string name="setting_page_browser">Browser</string>
   <string name="setting_page_browser_desc">AI-driven web browser and skill viewer.</string>
+  <string name="setting_page_agent_overlay_enabled_title">Working indicator</string>
+  <string name="setting_page_agent_overlay_enabled_desc">Show the "agent is working" floating pill when the app runs in the background. Hidden in the foreground chat to avoid overlapping the top bar.</string>
   <string name="assistant_page_local_tools_section_browser">Browser</string>
   <string name="assistant_page_local_tools_browser_title">Browser</string>
   <string name="assistant_page_local_tools_browser_desc">AI-driven web browser. 17 individually-togglable tools — configure read/write access in Settings → Browser.</string>
