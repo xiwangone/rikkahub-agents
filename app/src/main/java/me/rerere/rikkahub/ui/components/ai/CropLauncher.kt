@@ -55,12 +55,14 @@ internal fun useCropLauncher(
                     )
                 }
             }
-            cropOutputUri?.toFile()?.delete()
-            cropOutputUri = null
+            // 不在此处立即删除 cropOutputUri——onCroppedImageReady 的保存是异步读该文件，
+            // 立即 delete 会与读造成竞态（ENOENT）。改由下一次 launchCrop 开头清理残留。
             onCleanup?.invoke()
         }
 
     val launchCrop: (Uri) -> Unit = { sourceUri ->
+        // 清理上一次裁剪残留的临时文件（此时本次 saveAvatarImage 已读完，可安全删旧）
+        cropOutputUri?.toFile()?.delete()
         val outputFile = File(context.appTempFolder, "crop_output_${System.currentTimeMillis()}.jpg")
         cropOutputUri = Uri.fromFile(outputFile)
 
