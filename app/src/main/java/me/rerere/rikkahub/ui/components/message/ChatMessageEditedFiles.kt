@@ -37,7 +37,7 @@ import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
@@ -64,19 +64,14 @@ internal fun EditedFilesList(
     assistant: Assistant?,
 ) {
     val workspaceId = assistant?.workspaceId?.toString() ?: return
-    val editedFiles =
-        remember(parts) {
-            parts
-                .filterIsInstance<UIMessagePart.Tool>()
-                .filter { it.toolName in WORKSPACE_FILE_TOOL_NAMES && it.isExecuted }
-                .mapNotNull { tool ->
-                    tool
-                        .inputAsJson()
-                        .jsonObject["path"]
-                        ?.jsonPrimitive
-                        ?.contentOrNull
-                }.distinct()
-        }
+    val editedFiles = remember(parts) {
+        parts.filterIsInstance<UIMessagePart.Tool>()
+            .filter { it.toolName in WORKSPACE_FILE_TOOL_NAMES && it.isExecuted }
+            .mapNotNull { tool ->
+                (tool.inputAsJson() as? JsonObject)?.get("path")?.jsonPrimitive?.contentOrNull
+            }
+            .distinct()
+    }
     if (editedFiles.isEmpty()) return
 
     val context = LocalContext.current
