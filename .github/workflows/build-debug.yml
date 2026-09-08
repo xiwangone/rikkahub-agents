@@ -73,3 +73,12 @@ jobs:
       - name: 编译单元测试（验证测试代码可编译，不执行）
         run: |
           ./gradlew compileDebugUnitTestKotlin --parallel --build-cache --configuration-cache || true
+
+      - name: 上传 APK (artifact，debug 包与正式包共存，可做破坏性测试)
+        uses: actions/upload-artifact@v4
+        with:
+          name: rikkahub-agents-debug
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/*/debug/*.apk
+          retention-days: 14
