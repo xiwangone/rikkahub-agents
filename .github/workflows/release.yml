@@ -12,6 +12,11 @@ on:
         required: false
         type: boolean
         default: true
+      skip_bump:
+        description: '跳过版本号 bump 与推送（仅重新构建并刷新 Release 资产，用于验证构建配置）'
+        required: false
+        type: boolean
+        default: false
 
 permissions:
   contents: write
@@ -57,6 +62,8 @@ jobs:
 
       - name: 发版时 bump 版本号（versionName/versionCode → release_tag）
         # 版本号由发版输入控制：构建前把 versionName 设为 release_tag，versionCode 递增
+        # skip_bump=true 时跳过（仅重建资产，不动版本号、不推 master）
+        if: ${{ !inputs.skip_bump }}
         run: |
           TAG="${{ inputs.release_tag }}"
           OLD_CODE=$(awk '/versionCode = /{print $3; exit}' app/build.gradle.kts)
