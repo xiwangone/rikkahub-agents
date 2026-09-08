@@ -504,7 +504,7 @@ private fun handleImageQRCode(
 private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
     val dialogState =
         useEditState<ProviderSetting> {
-            onAdd(it)
+            onAdd(it.copyProvider(name = it.name.trim()))
         }
 
     var showTypeMenu by remember { mutableStateOf(false) }
@@ -532,8 +532,7 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
                         dialogState.open(ProviderSetting.OpenAI().convertTo(type))
                     },
                 )
-            }
-        }
+            }        }
     }
 
     if (dialogState.isEditing) {

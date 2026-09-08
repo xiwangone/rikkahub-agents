@@ -432,8 +432,9 @@ private fun SettingProviderConfigPage(
 
             Button(
                 onClick = {
-                    onEdit(internalProvider)
-                },
+                    val providerToSave: ProviderSetting = internalProvider
+                    onEdit(providerToSave.copyProvider(name = providerToSave.name.trim()))
+                }
             ) {
                 Text(stringResource(R.string.setting_provider_page_save))
             }
@@ -757,7 +758,7 @@ private fun ModelSettingsForm(
                         OutlinedTextField(
                             value = model.displayName,
                             onValueChange = {
-                                onModelChange(model.copy(displayName = it.trim()))
+                                onModelChange(model.copy(displayName = it))
                             },
                             label = {
                                 Text(
@@ -862,7 +863,9 @@ private fun AddModelButton(
     parentProvider: ProviderSetting,
     onUpdateProvider: (ProviderSetting) -> Unit,
 ) {
-    val dialogState = useEditState<Model> { onAddModel(it) }
+    val dialogState = useEditState<Model> {
+        onAddModel(it.copy(displayName = it.displayName.trim()))
+    }
     val scope = rememberCoroutineScope()
 
     Row(
@@ -1356,10 +1359,9 @@ private fun ModelCard(
     onToggleSelect: () -> Unit = {},
     onEnterMultiSelect: () -> Unit = {},
 ) {
-    val dialogState =
-        useEditState<Model> {
-            onEdit(it)
-        }
+    val dialogState = useEditState<Model> {
+        onEdit(it.copy(displayName = it.displayName.trim()))
+    }
     val swipeToDismissBoxState = rememberSwipeToDismissBoxState()
     val scope = rememberCoroutineScope()
 
@@ -1805,7 +1807,7 @@ private fun ProviderOverrideSettings(
                         }
                         TextButton(
                             onClick = {
-                                onUpdateProviderOverride(internalProvider)
+                                onUpdateProviderOverride(internalProvider.copyProvider(name = internalProvider.name.trim()))
                                 showProviderConfig = false
                                 editingProvider = null
                             },
