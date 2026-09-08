@@ -4,19 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       release_tag:
-        description: 'Release tag（必填，如 2.45.8 / 2.45.7.2）'
-        required: true
+        description: 'Release tag（如 2.45.8；留空=不升级版本，仅用当前版本号重建并刷新 Release 资产）'
+        required: false
         type: string
+        default: ''
       prerelease:
         description: '标记为预发布（默认 true；正式版取消勾选）'
         required: false
         type: boolean
         default: true
-      skip_bump:
-        description: '跳过版本号 bump 与推送（仅重新构建并刷新 Release 资产，用于验证构建配置）'
-        required: false
-        type: boolean
-        default: false
 
 permissions:
   contents: write
@@ -60,12 +56,26 @@ jobs:
           echo "$HOME/.bun/bin" >> $GITHUB_PATH
           npm install -g pnpm
 
-      - name: 发版时 bump 版本号（versionName/versionCode → release_tag）
-        # 版本号由发版输入控制：构建前把 versionName 设为 release_tag，versionCode 递增
-        # skip_bump=true 时跳过（仅重建资产，不动版本号、不推 master）
-        if: ${{ !inputs.skip_bump }}
+      - name: 解析版本号（填了=发新版；留空=刷新当前版本）
+        id: ver
         run: |
-          TAG="${{ inputs.release_tag }}"
+          CUR=$(awk -F'"' '/versionName = /{print $2; exit}' app/build.gradle.kts)
+          IN="${{ inputs.release_tag }}"
+          if [ -z "$IN" ]; then
+            echo "tag=$CUR" >> $GITHUB_OUTPUT
+            echo "mode=refresh" >> $GITHUB_OUTPUT
+            echo "未输入版本号 → 刷新模式（当前 versionName=$CUR，不 bump、不推 master）"
+          else
+            echo "tag=$IN" >> $GITHUB_OUTPUT
+            echo "mode=release" >> $GITHUB_OUTPUT
+            echo "输入版本号 $IN → 发版模式（bump 版本号并推送）"
+          fi
+
+      - name: 发版时 bump 版本号（versionName/versionCode → release_tag）
+        # 仅发版模式执行：构建前把 versionName 设为输入 tag，versionCode 递增
+        if: ${{ steps.ver.outputs.mode == 'release' }}
+        run: |
+          TAG="${{ steps.ver.outputs.tag }}"
           OLD_CODE=$(awk '/versionCode = /{print $3; exit}' app/build.gradle.kts)
           NEW_CODE=$((OLD_CODE + 1))
           sed -i "s/versionName = \"[^\"]*\"/versionName = \"$TAG\"/" app/build.gradle.kts
@@ -98,7 +108,7 @@ jobs:
 
       - name: 重命名 APK（RikkaHub-Agents-版本号-架构命名）
         run: |
-          VER="${{ inputs.release_tag }}"
+          VER="${{ steps.ver.outputs.tag }}"
           cd app/build/outputs/apk
           for apk in release/*.apk */release/*.apk; do
             [ -f "$apk" ] || continue
@@ -115,7 +125,7 @@ jobs:
 
       - name: 创建/更新 Release 并上传
         run: |
-          TAG="${{ inputs.release_tag }}"
+          TAG="${{ steps.ver.outputs.tag }}"
           PRERELEASE="${{ inputs.prerelease }}"
           echo "Release TAG: $TAG (prerelease=$PRERELEASE)"
           # Release 已存在则保留（只刷新资产）；不存在则创建
