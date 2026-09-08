@@ -97,6 +97,7 @@ jobs:
             [ -f "$apk" ] || continue
             case "$apk" in
               *arm64*) arch="arm64-v8a" ;;
+              *x86_64*|*x86-64*) arch="x86_64" ;;
               *universal*) arch="universal" ;;
               *) arch="$(basename "$apk" .apk)" ;;
             esac
