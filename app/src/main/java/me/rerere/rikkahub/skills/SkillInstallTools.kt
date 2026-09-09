@@ -22,10 +22,10 @@ private const val TAG = "SkillInstallTools"
  * `skill_install_from_*` call. Decoupled from the DataStore write so it can be unit-tested
  * against a plain in-memory `Set<String>` without an Android Context.
  *
- * @property autoEnabled true when the skill is enabled for the calling assistant after the
- * install (either freshly enabled, or already-enabled and left alone).
- * @property updatedEnabledSkills the new enabled-skills set to persist, or null when no
- * persistence is needed (already enabled, or preserved-disabled).
+ * @property autoEnabled true only when the skill was ALREADY enabled for the calling
+ * assistant before the install. Installs never enable a skill themselves — the user's
+ * toggle in Settings is the only thing that puts a name into enabledSkills.
+ * @property updatedEnabledSkills always null: installs never modify enabledSkills.
  */
 data class AutoEnableOutcome(
     val autoEnabled: Boolean,
@@ -34,14 +34,13 @@ data class AutoEnableOutcome(
 )
 
 /**
- * Decide what the auto-enable step should do, given the calling assistant's current
- * [enabledSkills] set, the freshly-installed [skillName], and whether that skill
- * [existedBefore] the install wrote to disk.
+ * Decide the enable state after an install. Skills are never auto-enabled: what the user
+ * toggles in Settings is authoritative, so an install only writes files to disk and reports
+ * whether the skill happens to be enabled already.
  *
  *  - Already enabled → no-op, stays enabled (idempotent re-install).
- *  - New skill (did not exist before) → enable it.
- *  - Existed before but not enabled → the user previously disabled it; respect that and
- *    leave it disabled.
+ *  - Not enabled (brand-new, or previously disabled) → left disabled, and the response
+ *    tells the user exactly where to turn it on.
  */
 fun decideAutoEnable(
     enabledSkills: Set<String>,
@@ -56,26 +55,28 @@ fun decideAutoEnable(
 
     existedBefore -> AutoEnableOutcome(
         autoEnabled = false,
-        detail = "Skill content was updated but it remains disabled (you previously disabled it). " +
-            "Re-enable in Settings > Assistants > Skills before calling use_skill.",
+        detail = "Skill content was updated. It is NOT auto-enabled — turn it on in " +
+            "Settings > Assistants > Skills before calling use_skill.",
         updatedEnabledSkills = null,
     )
 
     else -> AutoEnableOutcome(
-        autoEnabled = true,
-        detail = "Skill is now enabled for the active assistant and ready to use.",
-        updatedEnabledSkills = enabledSkills + skillName,
+        autoEnabled = false,
+        detail = "Skill installed to disk but NOT auto-enabled — turn it on in " +
+            "Settings > Assistants > Skills before calling use_skill.",
+        updatedEnabledSkills = null,
     )
 }
 
 /**
- * Run the auto-enable side effect for a freshly-installed [skillName]: resolve the calling
- * assistant, decide via [decideAutoEnable], and persist the updated enabled-skills set when
- * needed. Returns the outcome so the install tool can surface it in the response envelope.
+ * Report the enable state for a freshly-installed [skillName]: resolve the calling assistant
+ * and decide via [decideAutoEnable]. Never writes enabledSkills — installing a skill does not
+ * enable it. Returns the outcome so the install tool can surface it in the response envelope.
  *
- * A DataStore write failure (or any other unexpected error) is caught and reported as
- * `autoEnabled = false` with a recovery hint — the install itself already succeeded, so we
- * never fail the whole tool call over the auto-enable step.
+ * The guarded write block is kept for safety: [decideAutoEnable] always returns a null
+ * [AutoEnableOutcome.updatedEnabledSkills], so no persistence happens. A DataStore failure
+ * (or any unexpected error) is still reported as `autoEnabled = false` with a recovery hint —
+ * the install itself already succeeded, so we never fail the whole tool call over this step.
  */
 private suspend fun applyAutoEnable(
     settingsStore: SettingsStore,
@@ -123,10 +124,9 @@ private fun existingSkillNames(skillManager: SkillManager): Set<String> =
  * along with the assistant's full tool surface — the user must consent every single time
  * because the source URL is whatever the LLM said it was.
  *
- * Newly-installed skills are auto-enabled for the calling assistant so `use_skill` works on
- * the next turn without a manual toggle (Phase 16 audit fix). A re-install of a skill the
- * user previously disabled is left disabled — see `auto_enabled` / `auto_enabled_detail` in
- * the response.
+ * Skills are NEVER auto-enabled for the calling assistant: the user's toggle in Settings is
+ * the only thing that puts a name into enabledSkills. The response reports whether the skill
+ * happens to be enabled already — see `auto_enabled` / `auto_enabled_detail`.
  */
 fun skillInstallFromUrlTool(
     importer: SkillUrlImporter,
@@ -138,8 +138,10 @@ fun skillInstallFromUrlTool(
         Download and install a skill from a URL. Accepts native (RikkaHub markdown +
         frontmatter), openclaw markdown, or Hermes JSON formats. Tool names are best-effort
         transcoded to RikkaHub equivalents. The user reviews and approves the URL + final
-        skill name before save. Newly-installed skills are auto-enabled for the calling
-        assistant unless they previously existed and were disabled. Returns
+        skill name before save. Skills are NEVER auto-enabled — the user's toggle in
+        Settings is the only thing that enables a skill; if it is not already enabled,
+        `auto_enabled` is false and `auto_enabled_detail` tells where to turn it on.
+        Returns
         { ok, name, format, source_url, auto_enabled, auto_enabled_detail } on success.
     """.trimIndent().replace("\n", " "),
     parameters = {
@@ -195,7 +197,7 @@ fun skillInstallFromUrlTool(
  *
  * Same approval gate as `skill_install_from_url` — every install is reviewed individually
  * (NO_ALWAYS_ALLOW). Same format detect + tool-name transcode + persistence as the URL path,
- * and the same auto-enable behavior (Phase 16 audit fix).
+ * and the same no-auto-enable behavior: installing a skill never turns it on.
  */
 fun skillInstallFromTextTool(
     importer: SkillUrlImporter,
@@ -208,8 +210,9 @@ fun skillInstallFromTextTool(
         useful when the source is behind auth and was fetched via ssh_exec / termux_run_command /
         an MCP tool. Accepts the same three formats as skill_install_from_url (native /
         openclaw / Hermes). The user reviews + approves the source label + skill name.
-        Newly-installed skills are auto-enabled for the calling assistant unless they
-        previously existed and were disabled. Returns
+        Skills are NEVER auto-enabled — the user's toggle in Settings is the only thing
+        that enables a skill; if it is not already enabled, `auto_enabled` is false and
+        `auto_enabled_detail` tells where to turn it on. Returns
         { ok, name, format, source_label, auto_enabled, auto_enabled_detail } on success.
     """.trimIndent().replace("\n", " "),
     parameters = {

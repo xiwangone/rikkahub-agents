@@ -7,23 +7,27 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Phase 16 audit fix — covers [decideAutoEnable], the pure decision behind the auto-enable
- * side effect that rides along with a successful `skill_install_from_*` call. The DataStore
- * write itself ([applyAutoEnable]) is exercised on-device; this nails down the branching.
+ * Covers [decideAutoEnable], the pure decision behind the enable-state step that rides along
+ * with a successful `skill_install_from_*` call. The invariant under test: installs NEVER
+ * enable a skill — the user's toggle in Settings is the only thing that puts a name into
+ * enabledSkills. `updatedEnabledSkills` must therefore be null in every branch, so no DataStore
+ * write is ever needed. The DataStore path ([applyAutoEnable]) is exercised on-device; this
+ * nails down the branching.
  */
 class SkillAutoEnableTest {
 
     @Test
-    fun `new skill - auto-enabled and appended to the enabled set`() {
+    fun `new skill - installed but NOT auto-enabled, no write needed`() {
         val outcome = decideAutoEnable(
             enabledSkills = setOf("agent-core"),
             skillName = "zip-and-send",
             existedBefore = false,
         )
 
-        assertTrue(outcome.autoEnabled)
-        assertEquals(setOf("agent-core", "zip-and-send"), outcome.updatedEnabledSkills)
-        assertTrue(outcome.detail.contains("now enabled"))
+        assertFalse(outcome.autoEnabled)
+        assertNull(outcome.updatedEnabledSkills)
+        assertTrue(outcome.detail.contains("NOT auto-enabled"))
+        assertTrue(outcome.detail.contains("Settings > Assistants > Skills"))
     }
 
     @Test
@@ -51,19 +55,19 @@ class SkillAutoEnableTest {
 
         assertFalse(outcome.autoEnabled)
         assertNull(outcome.updatedEnabledSkills)
-        assertTrue(outcome.detail.contains("previously disabled"))
+        assertTrue(outcome.detail.contains("NOT auto-enabled"))
     }
 
     @Test
-    fun `new skill into an empty enabled set`() {
+    fun `new skill into an empty enabled set - still NOT auto-enabled`() {
         val outcome = decideAutoEnable(
             enabledSkills = emptySet(),
             skillName = "morning-briefing",
             existedBefore = false,
         )
 
-        assertTrue(outcome.autoEnabled)
-        assertEquals(setOf("morning-briefing"), outcome.updatedEnabledSkills)
+        assertFalse(outcome.autoEnabled)
+        assertNull(outcome.updatedEnabledSkills)
     }
 
     @Test
@@ -77,5 +81,20 @@ class SkillAutoEnableTest {
 
         assertTrue(outcome.autoEnabled)
         assertNull(outcome.updatedEnabledSkills)
+    }
+
+    @Test
+    fun `no branch ever returns a non-null enabled set`() {
+        // The whole point of the change: installing a skill can never modify
+        // enabledSkills, whatever the input combination.
+        for (enabled in listOf(emptySet(), setOf("agent-core"), setOf("zip-and-send"))) {
+            for (name in listOf("zip-and-send", "morning-briefing")) {
+                for (existedBefore in listOf(true, false)) {
+                    val outcome = decideAutoEnable(enabled, name, existedBefore)
+                    assertNull("non-null set for $enabled/$name/existedBefore=$existedBefore",
+                        outcome.updatedEnabledSkills)
+                }
+            }
+        }
     }
 }

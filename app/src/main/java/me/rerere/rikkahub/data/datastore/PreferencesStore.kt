@@ -449,29 +449,9 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                     assistants.add(defaultAssistant.copy())
                 }
             }
-            // One-shot upgrade for existing installs that pre-date the agent-core auto-load:
-            // if a default-IDed assistant has an empty enabledSkills, treat it as fresh and
-            // pin agent-core. Users who deliberately added other skills are untouched.
-            assistants = assistants.map { assistant ->
-                val isDefault = DEFAULT_ASSISTANTS.any { it.id == assistant.id }
-                if (isDefault && assistant.enabledSkills.isEmpty()) {
-                    assistant.copy(enabledSkills = setOf("agent-core"))
-                } else assistant
-            }.toMutableList()
-            // One-shot additive enable for newly-bundled default-on skills. Each name is added
-            // to every default assistant exactly once, tracked in autoEnabledDefaultSkills, so a
-            // user who later disables one is not re-opted-in on the next launch. A brand-new
-            // skill cannot have been deliberately disabled before it shipped, so the first add is
-            // always safe.
-            val skillsToSeed = DEFAULT_AUTO_ENABLED_SKILLS - it.autoEnabledDefaultSkills
-            if (skillsToSeed.isNotEmpty()) {
-                assistants = assistants.map { assistant ->
-                    if (DEFAULT_ASSISTANTS.any { d -> d.id == assistant.id }) {
-                        assistant.copy(enabledSkills = assistant.enabledSkills + skillsToSeed)
-                    } else assistant
-                }.toMutableList()
-            }
-            val newAutoEnabled = it.autoEnabledDefaultSkills + skillsToSeed
+            // Skills are never auto-enabled: Assistant.enabledSkills is authoritative. What the
+            // user toggles on/off — or deletes — in Settings is exactly what the runtime sees.
+            // No re-pinning of emptied sets, no additive seeding of bundled skills on upgrade.
             val ttsProviders = it.ttsProviders.ifEmpty { DEFAULT_TTS_PROVIDERS }.toMutableList()
             DEFAULT_TTS_PROVIDERS.forEach { defaultTTSProvider ->
                 if (ttsProviders.none { provider -> provider.id == defaultTTSProvider.id }) {
@@ -481,7 +461,6 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             it.copy(
                 providers = providers,
                 assistants = assistants,
-                autoEnabledDefaultSkills = newAutoEnabled,
                 ttsProviders = ttsProviders,
             )
         }
@@ -853,11 +832,10 @@ data class Settings(
     val deletedBuiltInProviderIds: Set<Uuid> = emptySet(),
     val assistants: List<Assistant> = DEFAULT_ASSISTANTS,
     /**
-     * Names of bundled default-on skills (see [DEFAULT_AUTO_ENABLED_SKILLS]) that have already
-     * been seeded into the default assistants' enabledSkills exactly once. Mirrors
-     * [deletedBuiltInProviderIds]: it lets a newly-shipped skill auto-enable on upgrade while
-     * still respecting a later deliberate user-disable - once a name is recorded here it is
-     * never re-added, so toggling it off sticks across launches.
+     * Legacy: names of bundled skills previously auto-seeded into the default assistants'
+     * enabledSkills. Kept only so existing user data still round-trips through read/write;
+     * skills are no longer ever auto-enabled (see the load pass above), so this set has no
+     * runtime effect and new installs store an empty set.
      */
     val autoEnabledDefaultSkills: Set<String> = emptySet(),
     val assistantTags: List<Tag> = emptyList(),
@@ -1182,14 +1160,6 @@ private fun Model.findModelProviderFromList(providers: List<ProviderSetting>): P
 
 internal val DEFAULT_ASSISTANT_ID = Uuid.parse("0950e2dc-9bd5-4801-afa3-aa887aa36b4e")
 
-/**
- * Bundled skills shipped enabled-by-default on top of agent-core. The behavioral
- * `autonomous-agent` skill is auto_load (injected every turn); `openclaw-converter` is lazy
- * (loaded on demand). Both are seeded to disk by [SkillManager.seedDefaultSkillsIfNeeded] and
- * added to the default assistants' enabledSkills once via [Settings.autoEnabledDefaultSkills].
- */
-internal val DEFAULT_AUTO_ENABLED_SKILLS = setOf("autonomous-agent", "openclaw-converter")
-
 internal val DEFAULT_ASSISTANTS = listOf(
     Assistant(
         id = DEFAULT_ASSISTANT_ID,
@@ -1199,7 +1169,7 @@ internal val DEFAULT_ASSISTANTS = listOf(
         // teaches every model "you are running on RikkaHub, here are the tools, here is how
         // to avoid loops". Auto-enabling it on default assistants means new users get an
         // agent-aware model out of the box without having to discover the skill toggle.
-        enabledSkills = setOf("agent-core") + DEFAULT_AUTO_ENABLED_SKILLS,
+        enabledSkills = setOf("agent-core"),
     ),
     Assistant(
         id = Uuid.parse("3d47790c-c415-4b90-9388-751128adb0a0"),
@@ -1219,7 +1189,7 @@ internal val DEFAULT_ASSISTANTS = listOf(
             - If the user does not specify a language, reply in the user's primary language.
             - Remember to use Markdown syntax for formatting, and use latex for mathematical expressions.
         """.trimIndent(),
-        enabledSkills = setOf("agent-core") + DEFAULT_AUTO_ENABLED_SKILLS,
+        enabledSkills = setOf("agent-core"),
     ),
 )
 
