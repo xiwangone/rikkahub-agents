@@ -5,22 +5,22 @@ compatibility: js
 auto_load: false
 ---
 
-# Interactive map
+# 交互地图
 
-## Examples
+## 示例
 
-- "Show [a place] on interactive map"
-- "Find [a place] on interactive map"
+- "在地图上显示[某个地点]"
+- "查找[某个地点]的交互地图"
 
-## Instructions
+## 操作说明
 
-Call the `run_js` tool with the following exact parameters:
+用以下精确参数调用 `run_js` 工具：
 
 - skill_name: `interactive-map`
 - script: `scripts/index.html`
-- data: A JSON string with the following field
-  - location: The location to show on the map.
+- data: 一个包含以下字段的 JSON 字符串
+  - location: 要在地图上显示的地点。
 
-## Attribution
+## 来源
 
-Ported from [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery) under the Apache-2.0 licence. Original copyright Google LLC.
+移植自 [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery)，Apache-2.0 许可。原始版权归 Google LLC 所有。

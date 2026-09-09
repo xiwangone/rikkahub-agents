@@ -4,104 +4,64 @@ description: 把 OpenClaw 技能（来自 ClawHub 或原始 markdown）转换成
 auto_load: false
 ---
 
-# OpenClaw to RikkaHub Skill Converter
+# OpenClaw → RikkaHub 技能转换器
 
-Convert OpenClaw skills from ClawHub (or raw markdown) into RikkaHub-compatible skills. Apply this whenever the user gives you an OpenClaw skill URL, a GitHub link to an OpenClaw skill, or raw OpenClaw skill markdown to convert.
+把 OpenClaw 技能（来自 ClawHub 或原始 markdown）转换成 RikkaHub 兼容的技能。只要用户给你一个 OpenClaw 技能地址、指向 OpenClaw 技能的 GitHub 链接，或要转换的 OpenClaw 技能 markdown，就应用本技能。
 
-## How to Fetch the Source
+## 如何获取源
 
-1. ClawHub URL (`https://clawhub.ai/<owner>/<slug>`): the page is a JS single-page app, so a plain fetch returns empty. Use the in-app browser instead: `browser_open` the URL, wait for content to render, extract the rendered SKILL.md text (cap around 16000 chars), then close the browser.
-2. GitHub raw URL: if you know the repo, try `https://raw.githubusercontent.com/<owner>/<repo>/main/SKILL.md`. Some skills live under `https://github.com/<owner>/<repo>/tree/main/skills/<name>`.
-3. Raw markdown from the user: if the user pastes the SKILL.md directly, use it as-is.
+1. ClawHub 地址（`https://clawhub.ai/<owner>/<slug>`）：页面是 JS 单页应用，普通 fetch 返回空。改用应用内浏览器：`browser_open` 打开地址，等内容渲染，提取渲染后的 SKILL.md 文本（上限约 16000 字符），然后关闭浏览器。
+2. GitHub raw 地址：如果知道仓库，试 `https://raw.githubusercontent.com/<owner>/<repo>/main/SKILL.md`。有些技能在 `https://github.com/<owner>/<repo>/tree/main/skills/<name>` 下。
+3. 用户给的原始 markdown：如果用户直接粘贴了 SKILL.md，原样使用。
 
-## Conversion Rules
+## 转换规则
 
-### Paths
+### 路径
 
 | OpenClaw | RikkaHub |
 |---|---|
 | `~/.openclaw/workspace/` | `~/` |
 | `~/.openclaw/workspace/.learnings/` | `~/learnings/` |
-| `~/.openclaw/skills/<name>/` | Installed via `skill_install_from_text`; files go to `~/` |
-| Any project-root `.learnings/` | `~/learnings/` |
+| `~/.openclaw/skills/<name>/` | 通过 `skill_install_from_text` 安装；文件放到 `~/` |
+| 任意项目根的 `.learnings/` | `~/learnings/` |
 
-### Tool references
+### 工具引用
 
-| OpenClaw tool / concept | RikkaHub equivalent | Notes |
+| OpenClaw 工具 / 概念 | RikkaHub 对应 | 备注 |
 |---|---|---|
-| `sessions_list` | Not available | Remove the section or note the limitation |
-| `sessions_history` | Not available | Remove the section or note the limitation |
-| `sessions_send` | `telegram_send_message` | Cross-session becomes cross-device notification |
-| `sessions_spawn` | `subagent_dispatch` | Only if the user has sub-agents enabled |
-| `clawdhub install <name>` | `skill_install_from_url` or `skill_install_from_text` | Replace install instructions |
-| `openclaw hooks enable` | `schedule_job` or `workflow_create` | Hooks become scheduled/workflow automation |
-| `memory` (OpenClaw) | `memory_tool` (create/edit/delete) | Same concept, different API |
-| Shell commands | `termux_run_command` | Prefix root commands with `su -c` |
-| File read/write | `write_text_file`, `read_file`, `list_files` | Same paths, adapted |
+| `sessions_list` | 不可用 | 删除该部分或注明限制 |
+| `sessions_history` | 不可用 | 删除该部分或注明限制 |
+| `sessions_send` | `telegram_send_message` | 跨会话变成跨设备通知 |
+| `sessions_spawn` | `subagent_dispatch` | 仅当用户已启用子代理时 |
+| `clawdhub install <name>` | `skill_install_from_url` 或 `skill_install_from_text` | 替换安装说明 |
+| `openclaw hooks enable` | `schedule_job` 或 `workflow_create` | Hooks 变成定时/工作流自动化 |
+| `memory`（OpenClaw） | `memory_tool`（create/edit/delete） | 概念相同，API 不同 |
+| Shell 命令 | `termux_run_command` | root 命令加 `su -c` 前缀 |
+| 文件读写 | `write_text_file`、`read_file`、`list_files` | 路径相同，做适配 |
 
-### Promotion targets
+### 升级目标
 
-| OpenClaw target | RikkaHub target |
+| OpenClaw 目标 | RikkaHub 目标 |
 |---|---|
-| `CLAUDE.md` | A project-level file (if the project exists) or `~/learnings/` |
-| `AGENTS.md` | A RikkaHub skill file or `memory_tool` |
-| `SOUL.md` | `memory_tool` for behavioral patterns |
-| `TOOLS.md` | Update the relevant skill's content |
+| `CLAUDE.md` | 项目级文件（如果项目存在）或 `~/learnings/` |
+| `AGENTS.md` | RikkaHub 技能文件或 `memory_tool` |
+| `SOUL.md` | 用 `memory_tool` 存行为模式 |
+| `TOOLS.md` | 更新相关技能的内容 |
 | `MEMORY.md` | `memory_tool` |
-| `.github/copilot-instructions.md` | Keep as-is for GitHub Copilot users |
+| `.github/copilot-instructions.md` | 保留原样，供 GitHub Copilot 用户使用 |
 
-### Sections to remove or replace
+### 要删除或替换的章节
 
-- "OpenClaw Setup" / "OpenClaw Workspace Structure": replace with RikkaHub workspace paths.
-- "Inter-Session Communication": remove `sessions_*` tools; if the concept is valuable, suggest `telegram_send_message` as a cross-session notification workaround.
-- "Hook Integration" / "Enable Hook": replace with RikkaHub workflows (`workflow_create`) or scheduled jobs (`schedule_job`).
-- "Claude Code / Codex Setup": remove entirely (other agent platforms).
-- Installation via `clawdhub` or `git clone`: replace with "install via `skill_install_from_url` or `skill_install_from_text`" and RikkaHub-compatible paths.
+- "OpenClaw Setup" / "OpenClaw Workspace Structure"：替换为 RikkaHub 工作区路径。
+- "Inter-Session Communication"：删除 `sessions_*` 工具；如果概念有价值，建议用 `telegram_send_message` 作为跨会话通知的变通方案。
+- "Hook Integration" / "Enable Hook"：替换为 RikkaHub 工作流（`workflow_create`）或定时任务（`schedule_job`）。
+- "Claude Code / Codex Setup"：整体删除（那是别的代理平台）。
+- 通过 `clawdhub` 或 `git clone` 安装：替换为"用 `skill_install_from_url` 或 `skill_install_from_text` 安装"以及 RikkaHub 兼容路径。
 
-### Sections to keep as-is
+### 原样保留的章节
 
-Logging formats (LEARNINGS.md / ERRORS.md structure), detection triggers, priority guidelines, area tags, best practices (unless they reference removed tools), and the core workflow / quick-reference table.
+日志格式（LEARNINGS.md / ERRORS.md 结构）、触发条件、优先级指南、领域标签、最佳实践（除非引用了已删除的工具）、以及核心工作流 / 速查表。
 
-### Format header
+### 格式头
 
-RikkaHub skills use a simple frontmatter block: `name`, `description`, and `auto_load`. Strip any OpenClaw YAML frontmatter and use the first `# Heading` as the title.
-
-### Naming
-
-Lowercase with hyphens, max 40 chars. Keep the original name when possible.
-
-## Post-Install Checklist
-
-After `skill_install_from_text` returns ok:
-1. Confirm the skill installed and auto-enabled.
-2. If the skill needs directories (e.g. `~/learnings/`), create them with `write_text_file`.
-3. If the skill references external tools (whisper, docker, etc.), note the dependencies.
-4. Log the conversion to `~/learnings/LEARNINGS.md` as a `best_practice`.
-
-## Example Conversion Flow
-
-```
-User: "fetch this skill and convert it https://clawhub.ai/owner/skill-name"
-
-1. browser_open(url)
-2. wait for the rendered article/markdown
-3. extract the page text (cap ~16000 chars)
-4. close the browser
-5. apply the conversion rules above to produce adapted markdown
-6. skill_install_from_text(content=adapted, name="skill-name",
-     source_label="Converted from <url> for RikkaHub")
-7. initialise any required directories
-8. confirm to the user
-```
-
-## Known Edge Cases
-
-- Minimal skills (a few paragraphs): only paths and tool names need changing.
-- Skills with hook scripts: the `scripts/` directory and hook setup are OpenClaw-specific; replace with RikkaHub workflows/scheduled jobs or remove.
-- Skills referencing `~/.openclaw/` paths: replace all with `~/` equivalents.
-- Skills with YAML frontmatter: strip the delimited block at the top.
-- Skills already installed: `skill_install_from_text` with the same name updates in place. Do not rename to force a new install; updating is preferred.
-
-## Triggers
-
-Apply this skill when the user gives you a ClawHub URL, says "convert this OpenClaw skill", says "make this work here" with OpenClaw skill content, pastes a raw OpenClaw SKILL.md to install, or asks to "fetch and convert" a skill from another agent platform.
+RikkaHub 技能使用简单的 frontmatter 块：`name`、`description` 和 `auto_load`。剥离任何 OpenClaw YAML frontmatter，用第一个 `# Heading` 作为标题。

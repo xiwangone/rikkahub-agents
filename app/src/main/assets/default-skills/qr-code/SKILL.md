@@ -5,15 +5,15 @@ compatibility: js
 auto_load: false
 ---
 
-# Instructions
+# 操作说明
 
-You MUST use the `run_js` tool with the following exact parameters:
+你必须用以下精确参数调用 `run_js` 工具：
 
 - skill_name: `qr-code`
 - script: `scripts/index.html`
-- data: A JSON string with the following fields:
-  - url: String - the url to create QR code for
+- data: 一个包含以下字段的 JSON 字符串：
+  - url: 字符串 - 要生成二维码的地址
 
-## Attribution
+## 来源
 
-Ported from [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery) under the Apache-2.0 licence. Original copyright Google LLC.
+移植自 [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery)，Apache-2.0 许可。原始版权归 Google LLC 所有。

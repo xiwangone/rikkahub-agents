@@ -4,44 +4,44 @@ description: 代表用户在任意聊天 App 中回复收到的消息。读取�
 allowed-tools: list_recent_notifications list_active_notifications launch_app read_window_tree find_node click_node set_text scroll global_action take_screenshot
 ---
 
-# Auto-reply
+# 自动回复
 
-Reply to an incoming message inside the originating chat app, without leaving the user's home loop.
+在原始聊天 App 内回复收到的消息，不必离开用户的主屏循环。
 
-## When to use
+## 何时使用
 
-The user says something like "reply to <person> for me", "send <person> 'on my way'", "draft a reply to the last message", or you spot an unread chat (Telegram / WhatsApp / Signal / Messages / Slack) in `list_recent_notifications` and the user has asked you to handle replies autonomously.
+用户说类似"替我回复<某人>"、"给<某人>发'我在路上'"、"起草对最后一条消息的回复"，或者你在 `list_recent_notifications` 里发现未读聊天（Telegram / WhatsApp / Signal / Messages / Slack），且用户已要求你自主处理回复。
 
-Do NOT use this skill if the user just asked you to send a brand-new message to someone you haven't surfaced yet — for that, use `telegram_send_message` (Telegram only) or open the app yourself.
+如果用户只是让你给某个还没浮出来的联系人发一条全新消息，**不要**用本技能——那种情况用 `telegram_send_message`（仅 Telegram）或自己打开 App。
 
-## Steps
+## 步骤
 
-1. **Identify the incoming chat.** Call `list_recent_notifications` and pick the most recent unread row whose package is the messaging app. Note `package_name`, `title` (usually the contact name), `text` (preview of the last message), `key`.
-2. **Open the app.** Use `notification_action_click` with the entry's primary action if available; otherwise `launch_app(package_name = "<x>")` and the app will land on the chats list.
-3. **Open the contact's thread.** Read `read_window_tree`, `find_node` for the contact name's text node, `click_node`. If the chat is already open, skip.
-4. **Read the visible context.** Call `read_window_tree` on the chat screen. Scroll up once with `scroll(direction = "up")` if the most recent few messages aren't visible. Pull the last 3-5 messages out of the tree as plain text.
-5. **Draft the reply.** Match the user's tone (you have memory; check `enableMemory`). Keep it short. If the incoming message is a question, answer it. If it's a status update, acknowledge it. If it's a request, decide whether the user can fulfil it now or needs to defer.
-6. **Send.** `find_node` for the message-input field, `set_text` with your draft, `find_node` for the send button (looks like a paper-plane / arrow), `click_node`.
-7. **Confirm.** Take a `take_screenshot` so the user can verify in the chat history.
-8. **Return home.** `global_action(action = "home")`.
+1. **识别进来的聊天。** 调用 `list_recent_notifications`，挑出包名为聊天 App 的最新未读行。记下 `package_name`、`title`（通常是联系人名）、`text`（最后一条消息的预览）、`key`。
+2. **打开 App。** 如果有主操作，用 `notification_action_click` 点击该条目；否则 `launch_app(package_name = "<x>")`，App 会落在聊天列表。
+3. **打开联系人的会话。** 读取 `read_window_tree`，用 `find_node` 找联系人名的文本节点，`click_node`。如果聊天已经打开，跳过。
+4. **读取可见上下文。** 在聊天界面调用 `read_window_tree`。如果最近几条消息不可见，用 `scroll(direction = "up")` 上滑一次。把最近 3-5 条消息从树中提取为纯文本。
+5. **起草回复。** 匹配用户的语气（你有记忆；检查 `enableMemory`）。保持简短。如果来的是问题，回答它；是状态更新，确认它；是请求，判断用户现在能否处理还是需要延后。
+6. **发送。** `find_node` 找到消息输入框，`set_text` 填入草稿，`find_node` 找发送按钮（像纸飞机/箭头），`click_node`。
+7. **确认。** 拍一张 `take_screenshot` 让用户能在聊天记录里核实。
+8. **返回主页。** `global_action(action = "home")`。
 
-## Tools used
+## 用到的工具
 
-- `list_recent_notifications`, `list_active_notifications`
-- `launch_app`, `notification_action_click`
-- `read_window_tree`, `find_node`, `click_node`, `set_text`, `scroll`
+- `list_recent_notifications`、`list_active_notifications`
+- `launch_app`、`notification_action_click`
+- `read_window_tree`、`find_node`、`click_node`、`set_text`、`scroll`
 - `take_screenshot`
 - `global_action`
 
-## Failure modes
+## 失败模式
 
-- **Cannot find input field.** Some apps render send-message in a dialog overlay. Try `read_window_tree` again after a brief delay; if still no luck, abort and tell the user "I opened the chat but couldn't locate the input field — please reply manually".
-- **Send button is greyed out.** The draft probably failed to set. Try `set_text` once more; if still greyed, abort.
-- **Wrong contact opened.** If `find_node` matched a different person than expected (common with similar names), back out with `global_action(action = "back")` and try the search field instead.
-- **Notification was already dismissed.** `list_recent_notifications` is a 100-entry ring buffer — older entries stay visible even after dismissal. Always re-check by opening the app rather than trusting that the chat is the topmost one.
+- **找不到输入框。** 有些 App 用弹层对话框渲染发送消息。稍等片刻再 `read_window_tree` 一次；还是没有就放弃，告诉用户"我打开了聊天但找不到输入框——请手动回复"。
+- **发送按钮是灰的。** 草稿多半没设置成功。再试一次 `set_text`；仍然灰色就放弃。
+- **打开的会话不对。** 如果 `find_node` 匹配到了别的人（相似名字常见），用 `global_action(action = "back")` 退出，改走搜索框。
+- **通知已经被划掉。** `list_recent_notifications` 是 100 条的环形缓冲——划掉后旧条目仍然可见。始终以打开 App 实际确认，而不是相信那条聊天在最顶上。
 
-## Don't
+## 不要
 
-- Don't reply on behalf of anyone in a group chat without explicit confirmation — too easy to embarrass.
-- Don't send anything that contains the user's real personal info (full name, phone, address) unless the user typed it themselves.
-- Don't summarise the conversation back to the user before sending unless they asked you to confirm the draft first.
+- 未经明确确认，不要在群聊里代表任何人回复——太容易尴尬。
+- 不要发送任何包含用户真实个人信息（全名、电话、地址）的内容，除非是用户自己输入的。
+- 发送前不要反过来向用户复述整段对话，除非用户要求先确认草稿。

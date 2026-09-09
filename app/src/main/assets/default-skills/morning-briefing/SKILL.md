@@ -4,43 +4,43 @@ description: 生成用户的晨间摘要——当前天气、今日日程、未�
 allowed-tools: get_time_info get_battery_status get_storage_info list_active_notifications list_recent_notifications get_jobs_history list_call_log get_location launch_app read_window_tree
 ---
 
-# Morning briefing
+# 晨间简报
 
-Produce a single short paragraph that tells the user everything they need to know to start their day.
+产出一个简短段落，告诉用户开始新一天所需知道的一切。
 
-## When to use
+## 何时使用
 
-The user asks "what's my day look like", "morning briefing", "good morning what's on the agenda", "summary please". Or, you're firing this from a workflow that runs every weekday at 7 AM.
+用户问 "我今天安排怎么样"、"晨间简报"、"早上好今天有什么日程"、"来份摘要"。或者你正从每周工作日早上 7 点运行的 workflow 中触发它。
 
-## Steps
+## 步骤
 
-Run all reads in parallel where the tool surface allows; assemble at the end.
+在工具允许的情况下并行执行所有读取，最后统一汇总。
 
-1. **Time anchor.** `get_time_info` — confirm the local date / weekday. The greeting depends on it ("Friday morning" vs "Saturday morning" vs holiday-named).
-2. **Device hygiene.**
-   - `get_battery_status` — call out only if level < 30% or charging is off when the user normally plugs in overnight.
-   - `get_storage_info` — call out only if free < 5%.
-3. **Communications.**
-   - `list_active_notifications` filtered to packages the user has whitelisted in `notification_listener` settings — group by package, count unread.
-   - `list_call_log(type = "missed", limit = 5)` — surface anyone the user missed since their last interaction.
-4. **Calendar / weather.** Both are app-driven. Pick whichever calendar app the user uses (`com.google.android.calendar`, `com.microsoft.office.outlook`, etc.) — `launch_app` + `read_window_tree` on the day view, pull today's events as text. Weather: same idea via the OEM weather app or the user's preferred (Pixel Weather, Google, AccuWeather).
-5. **Scheduled jobs.** `get_jobs_history(limit = 5, since_ms = <last 24h>)` — surface anything that failed overnight.
-6. **Compose the paragraph.** Lead with the greeting + date. Then the warnings (if any). Then the meetings (if any). Then the comms summary. End with a one-line "anything else?" so the user can chain.
+1. **时间锚点。** `get_time_info` — 确认本地日期/星期。问候语取决于它（"周五早上" vs "周六早上" vs 节假日称呼）。
+2. **设备健康。**
+   - `get_battery_status` — 仅在电量 < 30%，或用户平时夜间充电但现在没充时提示。
+   - `get_storage_info` — 仅在剩余空间 < 5% 时提示。
+3. **通讯。**
+   - `list_active_notifications` 过滤到用户在 `notification_listener` 设置里白名单的包——按包分组，统计未读。
+   - `list_call_log(type = "missed", limit = 5)` — 提示用户上次交互以来错过的来电。
+4. **日历 / 天气。** 两者都由 App 驱动。挑选用户使用的日历 App（`com.google.android.calendar`、`com.microsoft.office.outlook` 等）——用 `launch_app` + 在日视图上 `read_window_tree`，把今天的事件提取成文本。天气同理，用 OEM 天气 App 或用户偏好的（Pixel Weather、Google、AccuWeather）。
+5. **定时任务。** `get_jobs_history(limit = 5, since_ms = <过去24h>)` — 提示夜里失败的任务。
+6. **组织段落。** 以问候 + 日期开头。然后是告警（如有）。然后是会议（如有）。然后是通讯摘要。最后一行"还有别的吗？"方便用户继续。
 
-## Output shape
+## 输出形态
 
-- ≤4 sentences total. Don't pad.
-- Plain text — no markdown headers. The user is reading this on a phone or hearing it through TTS.
-- If everything is normal (battery fine, storage fine, no missed calls, no urgent notifications, calendar empty), say so in one sentence and stop.
+- 总计 ≤4 个句子。不要注水。
+- 纯文本——不要 markdown 标题。用户在手机上阅读，或通过 TTS 收听。
+- 如果一切正常（电量没问题、存储没问题、无未接来电、无紧急通知、日历为空），用一句话说明并停止。
 
-## Failure modes
+## 失败模式
 
-- **Calendar app not installed / accessibility view doesn't render structured text.** Skip the meetings section; mention "I couldn't read your calendar — open it yourself if you've got something today".
-- **Weather requires location and the user denied it.** Skip silently; don't bug the user about permissions in a briefing context.
-- **Notification listener disabled.** Mention it once: "By the way, your notification listener is off so I can't see app activity — turn it on in Settings if you want me to include that in tomorrow's briefing."
+- **日历 App 未安装 / 无障碍视图没有结构化文本。** 跳过会议部分；说明"我没能读取你的日历——如果今天有安排请自己打开看看"。
+- **天气需要定位但用户拒绝了。** 静默跳过；不要在简报场景里纠缠用户要权限。
+- **通知监听器被禁用。** 提一次："顺便说一下，你的通知监听器是关的，我看不到 App 动态——想要我把它纳入明天的简报，就到设置里打开它。"
 
-## Don't
+## 不要
 
-- Don't use this skill to read every notification verbatim. If there are 47 unread emails, say "47 unread email" not 47 lines.
-- Don't quote any message body — preview titles + senders only. Email previews regularly contain reset links, OTPs, and other things the user wouldn't want narrated.
-- Don't speculate about the user's day from calendar metadata ("looks busy!"). Stick to facts.
+- 不要用本技能逐条念通知。如果有 47 封未读邮件，说"47 封未读邮件"而不是列 47 行。
+- 不要引用任何消息正文——只显示标题预览 + 发件人。邮件预览经常包含重置链接、验证码等用户不想被朗读的内容。
+- 不要凭日历元数据猜测用户的一天（"看起来很忙！"）。只讲事实。

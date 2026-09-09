@@ -5,125 +5,125 @@ compatibility: js
 auto_load: false
 ---
 
-# Mood Tracker
+# 心情追踪
 
-## Instructions
+## 操作说明
 
-The `mood-tracker` skill helps you keep track of your daily emotional well-being. You can log your mood on a scale of 1 to 10 and add a short comment about how you're feeling.
+`mood-tracker` 技能帮你记录每日情绪状态。你可以按 1-10 打分记录心情，并附上一段简短评论说明感受。
 
-### Actions
+### 动作
 
-#### 1. Log Mood
-When a user wants to log their mood, call the `run_js` tool with:
+#### 1. 记录心情
+当用户想记录心情时，用以下参数调用 `run_js` 工具：
 - **script**: `scripts/index.html`
-- **data**: A JSON string with:
+- **data**: 一个包含以下内容的 JSON 字符串：
   - `action`: "log_mood"
-  - `score`: Number (1-10)
-  - `comment`: String (Optional)
-  - `date`: String. **IMPORTANT**: Identify the date for the entry.
-    - If user says "today", pass "today".
-    - If user says "yesterday", pass "yesterday".
-    - If user gives a specific date (e.g., "March 18"), format it as **YYYY-MM-DD** or pass the original date string.
-    - If no date is mentioned, default to "today".
+  - `score`: 数字（1-10）
+  - `comment`: 字符串（可选）
+  - `date`: 字符串。**重要**：确定该条记录的日期。
+    - 如果用户说"今天"，传 "today"。
+    - 如果用户说"昨天"，传 "yesterday"。
+    - 如果用户给了具体日期（如 "3月18日"），格式化为 **YYYY-MM-DD** 或传原始日期字符串。
+    - 如果没有提到日期，默认为 "today"。
 
-#### 2. Get Mood for a Specific Date
-When a user asks what their mood was on a specific date, call the `run_js` tool with:
+#### 2. 查询某天的心情
+当用户问某天的心情时，用以下参数调用 `run_js` 工具：
 - **script**: `scripts/index.html`
-- **data**: A JSON string with:
+- **data**: 一个包含以下内容的 JSON 字符串：
   - `action`: "get_mood"
-  - `date`: String (Identify the date from the user's request)
+  - `date`: 字符串（从用户请求中确定日期）
 
-#### 3. Get History / Show Dashboard
-When a user wants to see their mood history ("last week", "past 10 days") or the dashboard, call the `run_js` tool with:
+#### 3. 查看历史 / 显示仪表盘
+当用户想看心情历史（"上周"、"过去10天"）或仪表盘时，用以下参数调用 `run_js` 工具：
 - **script**: `scripts/index.html`
-- **data**: A JSON string with:
+- **data**: 一个包含以下内容的 JSON 字符串：
   - `action`: "get_history"
-  - `days`: Number (Optional, default 7. E.g., for "last week" use 7)
-  - `show_dashboard`: Boolean (Optional)
+  - `days`: 数字（可选，默认 7。例如"上周"用 7）
+  - `show_dashboard`: 布尔值（可选）
 
-#### 4. Plot Mood Trends (Line Chart)
-When a user wants to visualize their mood trends with a chart (e.g., "Plot my mood for 7 days"), call the `run_js` tool with:
+#### 4. 绘制心情趋势（折线图）
+当用户想用图表可视化心情趋势时（如 "绘制我 7 天的心情"），用以下参数调用 `run_js` 工具：
 - **script**: `scripts/index.html`
-- **data**: A JSON string with:
+- **data**: 一个包含以下内容的 JSON 字符串：
   - `action`: "get_history"
-  - `days`: Number (Optional, default 7)
+  - `days`: 数字（可选，默认 7）
   - `show_dashboard`: `true`
-  - **TIP**: This will trigger the plotting view in the dashboard.
+  - **提示**：这会触发仪表盘中的绘图视图。
 
-#### 5. Analyze Trends and Patterns
-When a user asks for an analysis of their mood (e.g., "Are there any trends?", "Am I feeling better?"), follow these steps:
-1. Call `run_js` with `action: "get_history"` and an appropriate `days` count (e.g., 30 for a monthly analysis).
-2. Once you receive the JSON history, analyze the scores and comments.
-3. Provide a thoughtful response to the user covering:
-   - General trend (improving, declining, stable).
-   - Any clusters of particularly good or bad days.
-   - Themes or patterns found in the comments.
+#### 5. 分析趋势与规律
+当用户要求分析心情时（如 "有什么趋势吗？"、"我是不是变好了？"），按以下步骤：
+1. 用 `action: "get_history"` 和合适的 `days` 数调用 `run_js`（例如 30 做月度分析）。
+2. 收到 JSON 历史后，分析评分和评论。
+3. 给用户一个有深度的回复，涵盖：
+   - 总体趋势（好转、变差、平稳）。
+   - 特别好或特别差的日期聚类。
+   - 评论中发现的主题或规律。
 
-#### 6. Delete Mood for a Specific Date
-When a user wants to delete only a single day's entry (e.g., "Delete my mood for today"), call the `run_js` tool with:
+#### 6. 删除某天的心情
+当用户想删除某一天的记录时（如 "删掉今天的心情"），用以下参数调用 `run_js` 工具：
 - **script**: `scripts/index.html`
-- **data**: A JSON string with:
+- **data**: 一个包含以下内容的 JSON 字符串：
   - `action`: "delete_mood"
-  - `date`: String (Identify the date)
+  - `date`: 字符串（确定日期）
 
-#### 7. Export Data (Backup)
-When a user wants to backup or export their data, call the `run_js` tool with:
+#### 7. 导出数据（备份）
+当用户想备份或导出数据时，用以下参数调用 `run_js` 工具：
 - **script**: `scripts/index.html`
-- **data**: A JSON string with:
+- **data**: 一个包含以下内容的 JSON 字符串：
   - `action`: "export_data"
 
-#### 8. Wipe All Data
-When a user wants to clear their entire mood history and start fresh, call the `run_js` tool with:
+#### 8. 清空所有数据
+当用户想清除全部心情历史重新开始时，用以下参数调用 `run_js` 工具：
 - **script**: `scripts/index.html`
-- **data**: A JSON string with:
+- **data**: 一个包含以下内容的 JSON 字符串：
   - `action`: "wipe_data"
 
-### Sample Commands
+### 示例命令
 
-You can use these samples to interact with the mood tracker:
+可以用这些示例与心情追踪交互：
 
-- **Logging Mood:**
-  - "Log my mood as 8 today, feeling great!"
-  - "Set my mood yesterday as a 2"
-  - "Set my mood on March 18, 2026 as a 1"
-  - "I'm feeling like a 5 today, a bit tired."
-  - "Last Friday I felt like a 7."
-  - "Record a mood of 9 for me."
+- **记录心情：**
+  - "把今天的心情记为 8，感觉超棒！"
+  - "把昨天的心情记为 2"
+  - "把 2026 年 3 月 18 日的心情记为 1"
+  - "今天感觉像 5 分，有点累。"
+  - "上周五感觉像 7 分。"
+  - "给我记一个 9 分的心情。"
 
-- **Viewing History:**
-  - "Show me my mood history."
-  - "Get my mood from last week."
-  - "How have I been feeling lately?"
-  - "Show my mood for the last 10 days."
-  - "Open the mood dashboard."
-  - "What was my mood on March 18?"
-  - "What was my mood yesterday?"
+- **查看历史：**
+  - "显示我的心情历史。"
+  - "看看我上周的心情。"
+  - "我最近感觉怎么样？"
+  - "显示我过去 10 天的心情。"
+  - "打开心情仪表盘。"
+  - "3 月 18 日我的心情是什么？"
+  - "昨天我的心情是什么？"
 
-- **Analyzing Trends:**
-  - "Analyze my mood for the last 30 days — are there any patterns?"
-  - "Am I generally feeling better or worse over time?"
-  - "Are there any clusters of bad days in my history?"
-  - "What do my recent comments suggest about my well-being?"
+- **分析趋势：**
+  - "分析我过去 30 天的心情——有什么规律吗？"
+  - "总体上我是在变好还是变差？"
+  - "我的历史里有哪几天特别差吗？"
+  - "我最近的评论说明了什么？"
 
-- **Wiping & Deleting:**
-  - "Delete my mood for today."
-  - "Remove my mood log for yesterday."
-  - "Delete the entry for March 18."
-  - "Clear my mood history." (Use `wipe_data` for this)
-  - "Wipe my data." (Use `wipe_data` for this)
+- **清空与删除：**
+  - "删掉我今天的心情。"
+  - "删除我昨天的记录。"
+  - "删除 3 月 18 日的记录。"
+  - "清空我的心情历史。"（用 `wipe_data`）
+  - "抹掉我的数据。"（用 `wipe_data`）
 
-- **Charting Trends:**
-  - "Plot my mood for the last 7 days."
-  - "Show me a chart of my mood this month."
-  - "Visualize my scores for the past 14 days."
-  - "Graph my mood progress."
+- **绘制图表：**
+  - "绘制我最近 7 天的心情。"
+  - "给我看这个月的心情图表。"
+  - "把过去 14 天的评分可视化。"
+  - "画一张我的心情进度图。"
 
-### Rules
-- **Privacy**: All data is stored locally on your device.
-- **No Entry**: If no mood entry exists for a specific date requested, explicitly inform the user that no entry was found for that date.
-- **Updates**: Logging a mood for a date that already has an entry will update that entry.
-- **Dashboard**: The dashboard is only shown when you explicitly ask to see your history or the dashboard itself.
+### 规则
+- **隐私**：所有数据都存储在设备本地。
+- **无记录**：如果某个日期没有心情记录，明确告知用户该日期没有找到记录。
+- **更新**：给已有记录的日期记心情会更新该记录。
+- **仪表盘**：只有当你明确要求查看历史或仪表盘时才会显示仪表盘。
 
-## Attribution
+## 来源
 
-Ported from [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery) under the Apache-2.0 licence. Original copyright Google LLC.
+移植自 [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery)，Apache-2.0 许可。原始版权归 Google LLC 所有。

@@ -5,19 +5,19 @@ compatibility: js
 auto_load: false
 ---
 
-# Query Wiki
+# 查询维基
 
-## Instructions
+## 操作说明
 
-Call the `run_js` tool using `script: scripts/index.html` and a JSON string for `data` with the following fields:
-- **topic**: Required. Extract ONLY the primary entity, person, or event (e.g., "2026 Oscars", "Albert Einstein"). You MUST REMOVE all specific question details, action words, or conversational text (e.g., do NOT include words like "winner", "best picture", "who won", "history of"). Search for the broad subject so the tool can return the main article.
-- **lang**: Required. The 2-letter language code. This code MUST match the language of the keywords you provided in the `topic` field. Use standard codes, e.g., "en" (English), "es" (Spanish), "zh" (Chinese), "fr" (French), "de" (German), "ja" (Japanese), "ko" (Korean), "it" (Italian), "pt" (Portuguese), "ru" (Russian), "ar" (Arabic), "hi" (Hindi).
+用 `script: scripts/index.html` 调用 `run_js` 工具，`data` 传入包含以下字段的 JSON 字符串：
+- **topic**: 必填。只提取主要的实体、人物或事件（例如 "2026 Oscars"、"Albert Einstein"）。你必须删除所有具体的提问细节、动作词或会话性文字（例如不要包含 "winner"、"best picture"、"who won"、"history of" 这类词）。搜索宽泛主题，让工具能返回主词条。
+- **lang**: 必填。2 字母语言代码。该代码必须与你在 `topic` 字段中给出的关键词语言一致。使用标准代码，如 "en"（英语）、"es"（西班牙语）、"zh"（中文）、"fr"（法语）、"de"（德语）、"ja"（日语）、"ko"（韩语）、"it"（意大利语）、"pt"（葡萄牙语）、"ru"（俄语）、"ar"（阿拉伯语）、"hi"（印地语）。
 
-**Constraints:**
-- Provide a concise summary (1-3 complete sentences) to conserve context. Always ensure your response ends with a finished sentence. your response MUST BE written in the SAME language as the user's original prompt.
-- For recurring events or time-sensitive facts, query the specific iteration (e.g., "2026 Oscars"). If the user omits the year, default to the current year.
-- If the exact answer to the user's question is not found in the extract, briefly state this, then proactively offer a related piece of information that *was* found in the text.
+**约束：**
+- 提供简洁的摘要（1-3 个完整句子）以节省上下文。始终确保回复以完整的句子结尾。你的回复必须使用与用户原始提问相同的语言。
+- 对于周期性事件或时效性事实，查询具体的那一届（例如 "2026 Oscars"）。如果用户省略年份，默认使用当前年份。
+- 如果在提取内容中没有找到用户问题的确切答案，简要说明这一点，然后主动提供文本中*确实*找到的相关信息。
 
-## Attribution
+## 来源
 
-Ported from [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery) under the Apache-2.0 licence. Original copyright Google LLC.
+移植自 [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery)，Apache-2.0 许可。原始版权归 Google LLC 所有。
