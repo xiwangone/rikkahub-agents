@@ -499,7 +499,7 @@ private fun kotlinx.serialization.json.JsonObject.absolutePath(name: String): St
 }
 
 // 免强制审批的可写安全区: 工作区文件目录, 以及临时目录 /tmp
-private val WRITABLE_ROOT_PREFIXES = listOf("/workspace", "/tmp")
+private val WRITABLE_ROOT_PREFIXES = listOf("/workspace", "/tmp", "/skills")
 
 private fun kotlinx.serialization.json.JsonElement.pathOutsideWritableRoots(name: String): Boolean =
     runCatching {
