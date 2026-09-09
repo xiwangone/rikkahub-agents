@@ -1819,4 +1819,5 @@
     <string name="error_kind_bad_request">Недопустимые параметры запроса</string>
     <string name="error_kind_unknown">Неизвестная ошибка</string>
     <string name="error_context_injected">Сбой генерации: %1$s. Исходный ответ: %2$s</string>
+    <string name="error_context_retry_succeeded">Повтор успешен. Предыдущая ошибка: %1$s. Исходный ответ: %2$s</string>
 </resources>

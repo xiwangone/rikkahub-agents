@@ -59,6 +59,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
+import me.rerere.rikkahub.data.ai.FailureDiagnosis
 import me.rerere.rikkahub.data.ai.diagnoseFailure
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
@@ -882,6 +883,8 @@ class ChatService(
                 model.displayName
             }
 
+        // 重试成功后末次失败诊断（V2：生成成功时注入上下文，AI 可见）
+        var retryDiagnosis: FailureDiagnosis? = null
         runCatching {
             // reset suggestions
             updateConversation(conversationId, initialConversation.copy(chatSuggestions = emptyList()))
@@ -908,6 +911,7 @@ class ChatService(
                     settings = settings,
                     model = model,
                     processingStatus = session.processingStatus,
+                    onRetryDiagnosed = { retryDiagnosis = it },
                     // Read once per call so the surface that wrote the addendum (Telegram bot,
                     // anything else) gets its runtime context into the system prompt without
                     // having to plumb a parameter all the way through sendMessage. Returns null
@@ -1198,6 +1202,24 @@ class ChatService(
                 Logging.log(TAG, it.stackTraceToString())
             }
         }.onSuccess {
+            // V2：重试成功后末次失败注入（AI 可见）——模型知道生成曾失败并恢复
+            val lastFailure = retryDiagnosis
+            if (lastFailure != null) {
+                val retryText =
+                    context.getString(
+                        me.rerere.rikkahub.R.string.error_context_retry_succeeded,
+                        lastFailure.label,
+                        lastFailure.raw,
+                    )
+                val withRetry =
+                    getConversationFlow(conversationId).value.copy(
+                        messageNodes =
+                            getConversationFlow(conversationId).value.messageNodes +
+                                UIMessage.system(retryText).toMessageNode()
+                    )
+                updateConversation(conversationId, withRetry)
+                saveConversation(conversationId, withRetry)
+            }
             val finalConversation = getConversationFlow(conversationId).value
             saveConversation(conversationId, finalConversation)
 

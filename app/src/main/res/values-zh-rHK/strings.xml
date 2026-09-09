@@ -2638,4 +2638,5 @@
     <string name="error_kind_bad_request">請求參數異常</string>
     <string name="error_kind_unknown">未知錯誤類型</string>
     <string name="error_context_injected">生成失敗：%1$s。返回原文：%2$s</string>
+    <string name="error_context_retry_succeeded">重試成功。之前失敗：%1$s。返回原文：%2$s</string>
 </resources>

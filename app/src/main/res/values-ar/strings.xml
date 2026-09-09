@@ -1512,4 +1512,5 @@
     <string name="error_kind_bad_request">معلمات الطلب غير صالحة</string>
     <string name="error_kind_unknown">خطأ غير معروف</string>
     <string name="error_context_injected">فشل التوليد: %1$s. الرد الأصلي: %2$s</string>
+    <string name="error_context_retry_succeeded">نجحت إعادة المحاولة. الخطأ السابق: %1$s. الرد الأصلي: %2$s</string>
 </resources>

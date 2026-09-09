@@ -202,11 +202,11 @@ private fun retryFailureReason(failure: Throwable): String =
         ?: failure.javaClass.simpleName
 
 /** 错误分类：根据失败原因与异常类型定位问题，命中→资源化标签，未命中→UNKNOWN（原文兜底）。 */
-internal enum class FailureKind {
+enum class FailureKind {
     CONTENT_SAFETY, AUTH, QUOTA, RATE_LIMIT, MODEL_NOT_FOUND, NETWORK, SERVER, CONTEXT_LENGTH, BAD_REQUEST, UNKNOWN,
 }
 
-internal fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
+fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
     val text = raw.lowercase() + " " + failure.javaClass.name.lowercase()
     return when {
         listOf("data_inspection_failed", "safetyerror", "content_filter", "inappropriate", "sensitive", "安全", "敏感").any { text.contains(it) } ->
@@ -231,9 +231,9 @@ internal fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
     }
 }
 
-internal data class FailureDiagnosis(val kind: FailureKind, val label: String, val raw: String)
+data class FailureDiagnosis(val kind: FailureKind, val label: String, val raw: String)
 
-internal fun diagnoseFailure(context: Context, failure: Throwable): FailureDiagnosis {
+fun diagnoseFailure(context: Context, failure: Throwable): FailureDiagnosis {
     val raw = retryFailureReason(failure)
     val kind = classifyFailureKind(failure, raw)
     val label = when (kind) {
@@ -522,6 +522,10 @@ class GenerationHandler(
         // evaluated per call, so a settings change takes effect on the next turn.
         maxSteps: Int = ToolRuntimeLimits.maxToolSteps,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
+        // Called on each retry after the failure has been diagnosed (label + raw text).
+        // ChatService uses it to persist the last failure into the conversation when a
+        // retry finally succeeds, so the model knows the generation recovered.
+        onRetryDiagnosed: ((FailureDiagnosis) -> Unit)? = null,
         // Called after a tool result has been emitted and persisted, before the next model
         // request is built. The callback may return a compacted request history; the returned
         // list is request-only and does not replace the conversation's original messages.
@@ -1207,6 +1211,10 @@ class GenerationHandler(
         memories: List<AssistantMemory>,
         stream: Boolean,
         processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
+        // Called on each retry after the failure has been diagnosed (label + raw text).
+        // ChatService uses it to persist the last failure into the conversation when a
+        // retry finally succeeds, so the model knows the generation recovered.
+        onRetryDiagnosed: ((FailureDiagnosis) -> Unit)? = null,
         conversationSystemPrompt: String? = null,
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
@@ -1361,6 +1369,7 @@ class GenerationHandler(
             val result = retryGenerationTransportRequest(
                 maxRetries = params.maxStreamRetries,
                 onRetry = { retryNumber, failure ->
+                    onRetryDiagnosed?.invoke(diagnoseFailure(context, failure))
                     processingStatus.value = retryStatusText(
                         context = context,
                         retryNumber = retryNumber,

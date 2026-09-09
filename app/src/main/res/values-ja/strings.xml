@@ -1826,4 +1826,5 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
     <string name="error_kind_bad_request">リクエストパラメータ不正</string>
     <string name="error_kind_unknown">不明なエラー種別</string>
     <string name="error_context_injected">生成失敗：%1$s。元の応答：%2$s</string>
+    <string name="error_context_retry_succeeded">再試行成功。以前の失敗：%1$s。元の応答：%2$s</string>
 </resources>

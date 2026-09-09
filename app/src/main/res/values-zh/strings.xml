@@ -2645,4 +2645,5 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
     <string name="error_kind_bad_request">Invalid request parameters</string>
     <string name="error_kind_unknown">未知错误类型</string>
     <string name="error_context_injected">生成失败：%1$s。返回原文：%2$s</string>
+    <string name="error_context_retry_succeeded">重试成功。之前失败：%1$s。返回原文：%2$s</string>
 </resources>

@@ -2642,4 +2642,5 @@
     <string name="error_kind_bad_request">请求参数异常</string>
     <string name="error_kind_unknown">Unknown error type</string>
     <string name="error_context_injected">Generation failed: %1$s. Raw response: %2$s</string>
+    <string name="error_context_retry_succeeded">Retry succeeded. Previous failure: %1$s. Raw response: %2$s</string>
 </resources>
