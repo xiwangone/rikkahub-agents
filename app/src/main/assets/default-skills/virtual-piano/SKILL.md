@@ -1,6 +1,6 @@
 ---
 name: virtual-piano
-description: Show a playable 88-key virtual piano with synthesized note audio inside a webview.
+description: 在 webview 里展示一台可弹奏的 88 键虚拟钢琴，音符由合成音频生成。
 compatibility: js
 auto_load: false
 ---

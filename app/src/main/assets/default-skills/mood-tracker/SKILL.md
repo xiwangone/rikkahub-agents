@@ -1,6 +1,6 @@
 ---
 name: mood-tracker
-description: Log a daily 1-10 mood score with comments and view trend dashboards. Stores history in WebView localStorage.
+description: 记录每日 1-10 的心情评分与备注，并查看趋势仪表盘。历史数据存在 WebView 的 localStorage 中。
 compatibility: js
 auto_load: false
 ---

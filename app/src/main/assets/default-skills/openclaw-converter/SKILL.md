@@ -1,6 +1,6 @@
 ---
 name: openclaw-converter
-description: Convert OpenClaw skills from ClawHub (or raw markdown) into RikkaHub-compatible skills. Use whenever the user gives you an OpenClaw skill URL, a GitHub link to an OpenClaw skill, or raw OpenClaw skill markdown to convert.
+description: 把 OpenClaw 技能（来自 ClawHub 或原始 markdown）转换成 RikkaHub 兼容的技能。只要用户给你一个 OpenClaw 技能地址、指向 OpenClaw 技能的 GitHub 链接，或要转换的 OpenClaw 技能 markdown，就用它。
 auto_load: false
 ---
 

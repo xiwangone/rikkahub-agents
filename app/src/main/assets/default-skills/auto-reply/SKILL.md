@@ -1,6 +1,6 @@
 ---
 name: auto-reply
-description: Reply to an incoming message in any chat app on behalf of the user. Reads the visible conversation, drafts a context-aware reply, and sends it. Composes the notification listener, the accessibility tap/scroll/read tools, and the back-to-home global action.
+description: 代表用户在任意聊天 App 中回复收到的消息。读取当前可见的对话内容，起草符合上下文的回复并发送。整合通知监听、无障碍点击/滚动/读取工具，以及返回主页的全局动作。
 allowed-tools: list_recent_notifications list_active_notifications launch_app read_window_tree find_node click_node set_text scroll global_action take_screenshot
 ---
 

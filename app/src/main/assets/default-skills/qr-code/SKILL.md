@@ -1,6 +1,6 @@
 ---
 name: qr-code
-description: Generate a 512x512 QR code PNG for a given URL. Returns a base64-encoded image. Works fully offline.
+description: 为给定地址生成 512x512 的二维码 PNG，返回 base64 编码的图片。完全离线可用。
 compatibility: js
 auto_load: false
 ---

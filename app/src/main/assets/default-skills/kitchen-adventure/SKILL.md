@@ -1,6 +1,6 @@
 ---
 name: kitchen-adventure
-description: Act as a dungeon master for a text-based adventure set in a world where everyone is a sentient kitchen appliance. Trigger when user says "start kitchen adventure".
+description: 扮演文字冒险游戏的地下城主（DM），世界设定里每个厨房电器都是有意识的角色。用户说「开始厨房冒险」时触发。
 compatibility: any
 auto_load: false
 ---

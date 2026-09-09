@@ -1,6 +1,6 @@
 ---
 name: interactive-map
-description: Show an interactive Google Maps embed for a location. Returns a webview URL the chat surface can render.
+description: 为某个地点展示可交互的 Google 地图嵌入。返回一个聊天界面可渲染的 webview 地址。
 compatibility: js
 auto_load: false
 ---

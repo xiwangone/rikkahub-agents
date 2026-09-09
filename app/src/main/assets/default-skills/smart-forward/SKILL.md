@@ -1,6 +1,6 @@
 ---
 name: smart-forward
-description: Catch a notification from one app and forward its content to a contact in another (typically Telegram), with a one-line summary the recipient can act on. Useful for sharing OTPs, package tracking updates, news alerts, or "did you see this" moments.
+description: 捕获某个 App 的通知，把内容转发给另一个（通常是 Telegram 里的）联系人，并附上一句摘要让接收方能直接行动。适合分享验证码、快递进度、新闻提醒，或「你看这个」的时刻。
 allowed-tools: list_recent_notifications notification_action_click launch_app read_window_tree find_node click_node set_text take_screenshot telegram_send_message global_action
 ---
 

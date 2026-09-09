@@ -1,6 +1,6 @@
 ---
 name: autonomous-agent
-description: Always-on operating doctrine for the RikkaHub agent. Be proactive (anticipate needs), persistent (survive context loss with a write-ahead log), and self-improving (log learnings and errors, then promote the useful ones). Complements agent-core's persona with how to behave over time.
+description: RikkaHub 智能体的常驻运行准则。要主动（预判需求）、要持久（用预写日志扛过上下文丢失）、要自我改进（记录经验与错误，把有用的提炼出来）。与 agent-core 的人格互补，说明长期该如何行为。
 ---
 
 # Autonomous Agent

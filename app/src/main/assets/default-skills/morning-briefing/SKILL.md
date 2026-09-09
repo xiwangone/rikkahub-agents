@@ -1,6 +1,6 @@
 ---
 name: morning-briefing
-description: Compose the user's morning summary — current weather, today's calendar, unread email count, scheduled jobs ahead, and any battery/storage warnings. Output one short paragraph so the user can read it in 10 seconds.
+description: 生成用户的晨间摘要——当前天气、今日日程、未读邮件数、接下来的定时任务，以及电池/存储告警。输出一个短段落，让用户 10 秒读完。
 allowed-tools: get_time_info get_battery_status get_storage_info list_active_notifications list_recent_notifications get_jobs_history list_call_log get_location launch_app read_window_tree
 ---
 

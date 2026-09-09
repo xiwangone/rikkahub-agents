@@ -1,6 +1,6 @@
 ---
 name: query-wikipedia
-description: Fuzzy-search Wikipedia for a topic and return the introduction plus infobox extract. Requires internet.
+description: 对维基百科做模糊搜索，返回词条引言与信息框摘要。需要联网。
 compatibility: js
 auto_load: false
 ---
