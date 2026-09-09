@@ -1811,5 +1811,16 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="setting_page_preferences_network_auto_retry">자동 재시도</string>
   <string name="setting_page_preferences_network_auto_retry_desc">네트워크 또는 서버 오류 시 모델 요청을 자동 재시도합니다</string>
   <string name="setting_page_preferences_network_auto_retry_count_desc">재시도 횟수: %1$d (0-10)</string>
+    <string name="chat_page_retrying">재시도 중(%1$d/%2$d). 오류 유형: %3$s. 원본 응답: %4$s</string>
+    <string name="error_kind_content_safety">콘텐츠 안전 검사 차단</string>
+    <string name="error_kind_auth">인증 실패(키 무효 또는 만료)</string>
+    <string name="error_kind_quota">계정 할당량 부족</string>
+    <string name="error_kind_rate_limit">속도 제한(요청 과다)</string>
+    <string name="error_kind_model_not_found">모델 없음 또는 사용 불가</string>
+    <string name="error_kind_network">네트워크 또는 엔드포인트 연결 불가</string>
+    <string name="error_kind_server">모델 서버 오류</string>
+    <string name="error_kind_context_length">컨텍스트 창 초과</string>
+    <string name="error_kind_bad_request">잘못된 요청 매개변수</string>
+    <string name="error_kind_unknown">알 수 없는 오류 유형</string>
+    <string name="error_context_injected">생성 실패: %1$s. 원본 응답: %2$s</string>
 </resources>
-

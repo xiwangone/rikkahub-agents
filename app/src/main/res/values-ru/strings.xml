@@ -1807,5 +1807,16 @@
   <string name="setting_page_preferences_network_auto_retry">Автоповтор</string>
   <string name="setting_page_preferences_network_auto_retry_desc">Автоматически повторять запросы модели при ошибках сети или сервера</string>
   <string name="setting_page_preferences_network_auto_retry_count_desc">Количество повторов: %1$d (0-10)</string>
+    <string name="chat_page_retrying">Повтор (%1$d/%2$d). Тип ошибки: %3$s. Исходный ответ: %4$s</string>
+    <string name="error_kind_content_safety">Блокировка проверкой безопасности</string>
+    <string name="error_kind_auth">Ошибка аутентификации</string>
+    <string name="error_kind_quota">Недостаточная квота</string>
+    <string name="error_kind_rate_limit">Лимит запросов</string>
+    <string name="error_kind_model_not_found">Модель не найдена</string>
+    <string name="error_kind_network">Сеть или конечная точка недоступны</string>
+    <string name="error_kind_server">Ошибка сервера модели</string>
+    <string name="error_kind_context_length">Превышено окно контекста</string>
+    <string name="error_kind_bad_request">Недопустимые параметры запроса</string>
+    <string name="error_kind_unknown">Неизвестная ошибка</string>
+    <string name="error_context_injected">Сбой генерации: %1$s. Исходный ответ: %2$s</string>
 </resources>
-

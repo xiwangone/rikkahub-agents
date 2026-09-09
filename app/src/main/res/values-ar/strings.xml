@@ -1500,4 +1500,16 @@
   <string name="setting_page_preferences_network_auto_retry">إعادة المحاولة تلقائيًا</string>
   <string name="setting_page_preferences_network_auto_retry_desc">إعادة طلب النموذج تلقائيًا عند حدوث أخطاء في الشبكة أو الخادم</string>
   <string name="setting_page_preferences_network_auto_retry_count_desc">عدد محاولات إعادة المحاولة: %1$d (0-10)</string>
+    <string name="chat_page_retrying">إعادة المحاولة (%1$d/%2$d). نوع الخطأ: %3$s. الرد الأصلي: %4$s</string>
+    <string name="error_kind_content_safety">تم حظر فحص أمان المحتوى</string>
+    <string name="error_kind_auth">فشل المصادقة</string>
+    <string name="error_kind_quota">رصيد الحساب غير كافٍ</string>
+    <string name="error_kind_rate_limit">تم تقييد الطلبات</string>
+    <string name="error_kind_model_not_found">النموذج غير موجود</string>
+    <string name="error_kind_network">الشبكة أو نقطة النهاية غير متاحة</string>
+    <string name="error_kind_server">خطأ في خادم النموذج</string>
+    <string name="error_kind_context_length">تجاوز نافذة السياق</string>
+    <string name="error_kind_bad_request">معلمات الطلب غير صالحة</string>
+    <string name="error_kind_unknown">خطأ غير معروف</string>
+    <string name="error_context_injected">فشل التوليد: %1$s. الرد الأصلي: %2$s</string>
 </resources>

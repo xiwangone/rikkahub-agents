@@ -268,7 +268,7 @@
   <string name="chat_page_compress_target_tokens">目標 Token 大小</string>
   <string name="chat_page_compress_warning">壓縮只會更新傳送給模型的上下文摘要，原始訊息會保留。</string>
   <string name="chat_page_compressing">正在壓縮...</string>
-  <string name="chat_page_retrying">正在重試（第 %1$d/%2$d 次）。上次失敗原因：%3$s</string>
+  <string name="chat_page_retrying">正在重試（第 %1$d/%2$d 次）。錯誤類型：%3$s。返回原文：%4$s</string>
   <string name="chat_page_conversation_system_prompt">對話系統提示</string>
   <string name="chat_page_conversation_system_prompt_clear">清除</string>
   <string name="chat_page_conversation_system_prompt_hint">覆蓋此對話的助理系統提示</string>
@@ -2627,4 +2627,15 @@
     <string name="tts_instruction">指令</string>
     <string name="asr_optional">可選</string>
     <string name="chain_of_thought">思維鏈</string>
+    <string name="error_kind_content_safety">內容安全檢查攔截</string>
+    <string name="error_kind_auth">鑑權失敗（金鑰無效或過期）</string>
+    <string name="error_kind_quota">帳戶額度不足</string>
+    <string name="error_kind_rate_limit">觸發限流（請求過頻）</string>
+    <string name="error_kind_model_not_found">模型不存在或已下線</string>
+    <string name="error_kind_network">網路或端點不可達</string>
+    <string name="error_kind_server">模型服務端故障</string>
+    <string name="error_kind_context_length">超出上下文視窗</string>
+    <string name="error_kind_bad_request">請求參數異常</string>
+    <string name="error_kind_unknown">未知錯誤類型</string>
+    <string name="error_context_injected">生成失敗：%1$s。返回原文：%2$s</string>
 </resources>

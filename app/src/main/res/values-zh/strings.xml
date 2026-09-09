@@ -26,7 +26,7 @@
   <string name="provider_action_edit">编辑</string>
   <string name="provider_action_edit_override">编辑覆盖</string>
   <string name="provider_action_remove_override">移除覆盖</string>
-  <string name="chat_page_retrying">正在重试（第 %1$d/%2$d 次）。上次失败原因：%3$s</string>
+  <string name="chat_page_retrying">正在重试（第 %1$d/%2$d 次）。错误类型：%3$s。返回原文：%4$s</string>
   <string name="chat_server_tool_title">工具</string>
   <string name="chat_server_tool_in_progress">执行中…</string>
   <string name="chat_server_tool_completed">完成</string>
@@ -2634,4 +2634,15 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_page_preferences_network_auto_retry">自动重试</string>
   <string name="setting_page_preferences_network_auto_retry_desc">网络或服务错误时自动重试模型请求</string>
   <string name="setting_page_preferences_network_auto_retry_count_desc">重试次数：%1$d（0-10）</string>
+    <string name="error_kind_content_safety">Content safety check blocked</string>
+    <string name="error_kind_auth">Auth failed (invalid or expired key)</string>
+    <string name="error_kind_quota">Insufficient account quota</string>
+    <string name="error_kind_rate_limit">Rate limited (too many requests)</string>
+    <string name="error_kind_model_not_found">Model not found or unavailable</string>
+    <string name="error_kind_network">Network or endpoint unreachable</string>
+    <string name="error_kind_server">Model server error</string>
+    <string name="error_kind_context_length">Context window exceeded</string>
+    <string name="error_kind_bad_request">Invalid request parameters</string>
+    <string name="error_kind_unknown">未知错误类型</string>
+    <string name="error_context_injected">生成失败：%1$s。返回原文：%2$s</string>
 </resources>

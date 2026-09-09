@@ -201,17 +201,71 @@ private fun retryFailureReason(failure: Throwable): String =
         ?.take(240)
         ?: failure.javaClass.simpleName
 
+/** 错误分类：根据失败原因与异常类型定位问题，命中→资源化标签，未命中→UNKNOWN（原文兜底）。 */
+internal enum class FailureKind {
+    CONTENT_SAFETY, AUTH, QUOTA, RATE_LIMIT, MODEL_NOT_FOUND, NETWORK, SERVER, CONTEXT_LENGTH, BAD_REQUEST, UNKNOWN,
+}
+
+internal fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
+    val text = raw.lowercase() + " " + failure.javaClass.name.lowercase()
+    return when {
+        listOf("data_inspection_failed", "safetyerror", "content_filter", "inappropriate", "sensitive", "安全", "敏感").any { text.contains(it) } ->
+            FailureKind.CONTENT_SAFETY
+        listOf("401", "invalid_api_key", "authentication", "unauthorized", "api key", "密钥", "鉴权").any { text.contains(it) } ->
+            FailureKind.AUTH
+        listOf("402", "insufficient_quota", "insufficientbalance", "余额", "额度", "quota", "billing").any { text.contains(it) } ->
+            FailureKind.QUOTA
+        listOf("429", "rate_limit", "toomanyrequests", "throttl", "限流").any { text.contains(it) } ->
+            FailureKind.RATE_LIMIT
+        listOf("model_not_found", "invalid_model", "modelnotfound", "not found", "404").any { text.contains(it) } ->
+            FailureKind.MODEL_NOT_FOUND
+        listOf("timeout", "sockettimeout", "connectexception", "unknownhost", "unreachable", "timed out", "超时", "网络").any { text.contains(it) } ->
+            FailureKind.NETWORK
+        listOf("500", "502", "503", "server_error", "internalerror", "internal error", "服务端").any { text.contains(it) } ->
+            FailureKind.SERVER
+        listOf("context_length", "token limit", "context_window", "maximum context", "上下文", "超长").any { text.contains(it) } ->
+            FailureKind.CONTEXT_LENGTH
+        listOf("400", "invalid_request", "bad_request", "invalid parameter", "参数").any { text.contains(it) } ->
+            FailureKind.BAD_REQUEST
+        else -> FailureKind.UNKNOWN
+    }
+}
+
+internal data class FailureDiagnosis(val kind: FailureKind, val label: String, val raw: String)
+
+internal fun diagnoseFailure(context: Context, failure: Throwable): FailureDiagnosis {
+    val raw = retryFailureReason(failure)
+    val kind = classifyFailureKind(failure, raw)
+    val label = when (kind) {
+        FailureKind.CONTENT_SAFETY -> context.getString(me.rerere.rikkahub.R.string.error_kind_content_safety)
+        FailureKind.AUTH -> context.getString(me.rerere.rikkahub.R.string.error_kind_auth)
+        FailureKind.QUOTA -> context.getString(me.rerere.rikkahub.R.string.error_kind_quota)
+        FailureKind.RATE_LIMIT -> context.getString(me.rerere.rikkahub.R.string.error_kind_rate_limit)
+        FailureKind.MODEL_NOT_FOUND -> context.getString(me.rerere.rikkahub.R.string.error_kind_model_not_found)
+        FailureKind.NETWORK -> context.getString(me.rerere.rikkahub.R.string.error_kind_network)
+        FailureKind.SERVER -> context.getString(me.rerere.rikkahub.R.string.error_kind_server)
+        FailureKind.CONTEXT_LENGTH -> context.getString(me.rerere.rikkahub.R.string.error_kind_context_length)
+        FailureKind.BAD_REQUEST -> context.getString(me.rerere.rikkahub.R.string.error_kind_bad_request)
+        FailureKind.UNKNOWN -> context.getString(me.rerere.rikkahub.R.string.error_kind_unknown)
+    }
+    return FailureDiagnosis(kind, label, raw)
+}
+
 private fun retryStatusText(
     context: Context,
     retryNumber: Long,
     maxRetries: Int,
     failure: Throwable,
-): String = context.getString(
-    me.rerere.rikkahub.R.string.chat_page_retrying,
-    retryNumber,
-    maxRetries,
-    retryFailureReason(failure),
-)
+): String {
+    val diag = diagnoseFailure(context, failure)
+    return context.getString(
+        me.rerere.rikkahub.R.string.chat_page_retrying,
+        retryNumber,
+        maxRetries,
+        diag.label,
+        diag.raw,
+    )
+}
 
 private fun clearRetryStatus(processingStatus: MutableStateFlow<String?>) {
     processingStatus.value = null

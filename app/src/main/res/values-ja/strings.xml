@@ -1814,4 +1814,16 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="setting_page_preferences_network_auto_retry">自動再試行</string>
   <string name="setting_page_preferences_network_auto_retry_desc">ネットワークまたはサーバーエラー時にモデルリクエストを自動再試行します</string>
   <string name="setting_page_preferences_network_auto_retry_count_desc">再試行回数：%1$d（0-10）</string>
+    <string name="chat_page_retrying">再試行中（%1$d/%2$d 回目）。エラー種別：%3$s。元の応答：%4$s</string>
+    <string name="error_kind_content_safety">コンテンツ安全検査でブロック</string>
+    <string name="error_kind_auth">認証失敗（キー無効または期限切れ）</string>
+    <string name="error_kind_quota">アカウントの割り当て不足</string>
+    <string name="error_kind_rate_limit">レート制限（リクエスト過多）</string>
+    <string name="error_kind_model_not_found">モデルが存在しないか利用不可</string>
+    <string name="error_kind_network">ネットワークまたはエンドポイントに到達不可</string>
+    <string name="error_kind_server">モデルサーバーエラー</string>
+    <string name="error_kind_context_length">コンテキストウィンドウ超過</string>
+    <string name="error_kind_bad_request">リクエストパラメータ不正</string>
+    <string name="error_kind_unknown">不明なエラー種別</string>
+    <string name="error_context_injected">生成失敗：%1$s。元の応答：%2$s</string>
 </resources>

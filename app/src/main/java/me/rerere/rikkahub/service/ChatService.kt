@@ -59,6 +59,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationHandler
+import me.rerere.rikkahub.data.ai.diagnoseFailure
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.createSearchTools
@@ -1165,7 +1166,28 @@ class ChatService(
             kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
                 runCatching {
                     val final = getConversationFlow(conversationId).value
-                    saveConversation(conversationId, final)
+                    // 错误诊断注入：最终失败（重试耗尽/非重试错误）持久化为一条 system 消息，
+                    // 进入对话上下文——AI 下一轮可读到并自然回应；用户侧可见（灰字 system 样式）。
+                    // 用户主动取消（CancellationException）不算失败，不注入。
+                    if (it !is kotlinx.coroutines.CancellationException) {
+                        val diag = diagnoseFailure(context, it)
+                        val errText =
+                            context.getString(
+                                me.rerere.rikkahub.R.string.error_context_injected,
+                                diag.label,
+                                diag.raw,
+                            )
+                        val withErr =
+                            final.copy(
+                                messageNodes =
+                                    final.messageNodes +
+                                        UIMessage.system(errText).toMessageNode()
+                            )
+                        updateConversation(conversationId, withErr)
+                        saveConversation(conversationId, withErr)
+                    } else {
+                        saveConversation(conversationId, final)
+                    }
                 }.onFailure { saveErr ->
                     AppLog.w(TAG, "handleMessageComplete: failure-path save failed", saveErr)
                 }
