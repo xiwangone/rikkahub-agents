@@ -2631,4 +2631,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="tts_instruction">指令</string>
   <string name="asr_optional">可选</string>
   <string name="chain_of_thought">思维链</string>
+  <string name="setting_page_preferences_network_auto_retry">自动重试</string>
+  <string name="setting_page_preferences_network_auto_retry_desc">网络或服务错误时自动重试模型请求</string>
+  <string name="setting_page_preferences_network_auto_retry_count_desc">重试次数：%1$d（0-10）</string>
 </resources>

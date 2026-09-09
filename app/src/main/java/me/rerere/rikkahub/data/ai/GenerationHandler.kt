@@ -1213,7 +1213,7 @@ class GenerationHandler(
             temperature = assistant.temperature,
             topP = assistant.topP,
             maxTokens = assistant.maxTokens,
-            maxStreamRetries = settings.responseStreamMaxRetries,
+            maxStreamRetries = if (settings.enableAutoRetry) settings.responseStreamMaxRetries else 0,
             tools = tools,
             reasoningLevel = assistant.reasoningLevel,
             customHeaders = buildList {
@@ -1390,7 +1390,7 @@ class GenerationHandler(
                 params = TextGenerationParams(
                     model = model,
                     reasoningLevel = ReasoningLevel.fromBudgetTokens(settings.translateThinkingBudget),
-                    maxStreamRetries = settings.responseStreamMaxRetries,
+                    maxStreamRetries = if (settings.enableAutoRetry) settings.responseStreamMaxRetries else 0,
                 ),
             ).collect { chunk ->
                 messages = streamChunkHandler.handle(messages, chunk)

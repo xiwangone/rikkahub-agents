@@ -1811,4 +1811,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="search_picker_select_provider">検索プロバイダを選択</string>
   <string name="search_picker_turn_off">検索をオフにする</string>
   <string name="reasoning_max">最大</string>
+  <string name="setting_page_preferences_network_auto_retry">自動再試行</string>
+  <string name="setting_page_preferences_network_auto_retry_desc">ネットワークまたはサーバーエラー時にモデルリクエストを自動再試行します</string>
+  <string name="setting_page_preferences_network_auto_retry_count_desc">再試行回数：%1$d（0-10）</string>
 </resources>

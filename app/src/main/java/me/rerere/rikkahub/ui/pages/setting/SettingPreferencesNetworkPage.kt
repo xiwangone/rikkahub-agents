@@ -54,6 +54,10 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
+import kotlin.math.roundToInt
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.koin.androidx.compose.koinViewModel
@@ -275,6 +279,53 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
             contentPadding = contentPadding + PaddingValues(8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            item {
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = {
+                        Text(stringResource(R.string.setting_page_preferences_network_auto_retry))
+                    },
+                ) {
+                    item(
+                        headlineContent = {
+                            Text(stringResource(R.string.setting_page_preferences_network_auto_retry_desc))
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = settings.enableAutoRetry,
+                                onCheckedChange = { enabled ->
+                                    vm.updateSettings(settings.copy(enableAutoRetry = enabled))
+                                },
+                            )
+                        },
+                    )
+                    if (settings.enableAutoRetry) {
+                        item(
+                            headlineContent = {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_page_preferences_network_auto_retry_count_desc,
+                                        settings.responseStreamMaxRetries,
+                                    )
+                                )
+                            },
+                            trailingContent = {
+                                Slider(
+                                    value = settings.responseStreamMaxRetries.toFloat(),
+                                    onValueChange = { v ->
+                                        vm.updateSettings(
+                                            settings.copy(responseStreamMaxRetries = v.roundToInt())
+                                        )
+                                    },
+                                    valueRange = 0f..10f,
+                                    steps = 9,
+                                    modifier = Modifier.width(180.dp),
+                                )
+                            },
+                        )
+                    }
+                }
+            }
             item {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),

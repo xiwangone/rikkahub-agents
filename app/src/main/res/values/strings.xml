@@ -2628,4 +2628,7 @@
   <string name="tts_instruction">Instruction</string>
   <string name="asr_optional">Optional</string>
   <string name="chain_of_thought">Chain of thought</string>
+  <string name="setting_page_preferences_network_auto_retry">Automatic retry</string>
+  <string name="setting_page_preferences_network_auto_retry_desc">Retry model requests when network or server errors occur.</string>
+  <string name="setting_page_preferences_network_auto_retry_count_desc">Retry count: %1$d (0-10)</string>
 </resources>

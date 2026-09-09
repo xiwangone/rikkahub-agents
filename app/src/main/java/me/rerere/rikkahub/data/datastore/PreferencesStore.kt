@@ -139,6 +139,7 @@ class SettingsStore(
         val TRANSLATE_MODEL = stringPreferencesKey("translate_model")
         val ENABLE_SUGGESTION = booleanPreferencesKey("enable_suggestion")
         val RESPONSE_STREAM_MAX_RETRIES = intPreferencesKey("response_stream_max_retries")
+        val ENABLE_AUTO_RETRY = booleanPreferencesKey("enable_auto_retry")
         val SUGGESTION_MODEL = stringPreferencesKey("suggestion_model")
         val IMAGE_GENERATION_MODEL = stringPreferencesKey("image_generation_model")
         val TITLE_PROMPT = stringPreferencesKey("title_prompt")
@@ -264,6 +265,7 @@ class SettingsStore(
                     ?: DEFAULT_AUTO_MODEL_ID,
                 enableSuggestion = preferences[ENABLE_SUGGESTION] != false,
                 responseStreamMaxRetries = preferences[RESPONSE_STREAM_MAX_RETRIES] ?: 5,
+                enableAutoRetry = preferences[ENABLE_AUTO_RETRY] != false,
                 suggestionModelId = preferences[SUGGESTION_MODEL]?.let { Uuid.parse(it) },
                 imageGenerationModelId = preferences[IMAGE_GENERATION_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
                 titlePrompt = preferences[TITLE_PROMPT] ?: DEFAULT_TITLE_PROMPT,
@@ -579,6 +581,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[TRANSLATE_MODEL] = settings.translateModeId.toString()
             preferences[ENABLE_SUGGESTION] = settings.enableSuggestion
             preferences[RESPONSE_STREAM_MAX_RETRIES] = settings.responseStreamMaxRetries.coerceIn(0, 10)
+            preferences[ENABLE_AUTO_RETRY] = settings.enableAutoRetry
             settings.suggestionModelId?.let {
                 preferences[SUGGESTION_MODEL] = it.toString()
             } ?: preferences.remove(SUGGESTION_MODEL)
@@ -800,6 +803,8 @@ data class Settings(
     val enableSuggestion: Boolean = true,
     /** 流式响应失败重试次数上限（0-10，默认 5） */
     val responseStreamMaxRetries: Int = 5,
+    /** 流式响应失败自动重试总开关（默认开） */
+    val enableAutoRetry: Boolean = true,
     val suggestionModelId: Uuid? = null,
     val suggestionPrompt: String = DEFAULT_SUGGESTION_PROMPT,
     val ocrModelId: Uuid = Uuid.random(),

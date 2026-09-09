@@ -1986,5 +1986,8 @@
   <string name="vault_session_mode_manual">當場有效</string>
   <string name="vault_session_mode_ttl_desc">Token 30 分鐘後自動過期，需重新指紋驗證簽發</string>
   <string name="vault_session_mode_manual_desc">Token 本次會話期間一直有效（App 結束/手動撤銷即失效）</string>
+  <string name="setting_page_preferences_network_auto_retry">自動重試</string>
+  <string name="setting_page_preferences_network_auto_retry_desc">網路或服務錯誤時自動重試模型請求</string>
+  <string name="setting_page_preferences_network_auto_retry_count_desc">重試次數：%1$d（0-10）</string>
 </resources>
 

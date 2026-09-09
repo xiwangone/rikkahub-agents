@@ -1808,5 +1808,8 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="search_picker_select_provider">검색 제공자 선택</string>
   <string name="search_picker_turn_off">검색 끄기</string>
   <string name="reasoning_max">최대</string>
+  <string name="setting_page_preferences_network_auto_retry">자동 재시도</string>
+  <string name="setting_page_preferences_network_auto_retry_desc">네트워크 또는 서버 오류 시 모델 요청을 자동 재시도합니다</string>
+  <string name="setting_page_preferences_network_auto_retry_count_desc">재시도 횟수: %1$d (0-10)</string>
 </resources>
 

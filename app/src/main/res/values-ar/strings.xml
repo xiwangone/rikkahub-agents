@@ -1497,4 +1497,7 @@
   <string name="skill_detail_save_failed">فشل الحفظ</string>
   <string name="update_download_description">جارٍ تنزيل التحديث…</string>
   <string name="chat_stop_generation_before_delete">من فضلك أوقف التوليد قبل حذف الرسائل</string>
+  <string name="setting_page_preferences_network_auto_retry">إعادة المحاولة تلقائيًا</string>
+  <string name="setting_page_preferences_network_auto_retry_desc">إعادة طلب النموذج تلقائيًا عند حدوث أخطاء في الشبكة أو الخادم</string>
+  <string name="setting_page_preferences_network_auto_retry_count_desc">عدد محاولات إعادة المحاولة: %1$d (0-10)</string>
 </resources>
