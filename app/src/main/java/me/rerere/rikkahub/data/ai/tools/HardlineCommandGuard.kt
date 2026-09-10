@@ -173,6 +173,16 @@ object HardlineCommandGuard {
                 checkCommand(input["command"]?.jsonPrimitive?.contentOrNull)
             toolName == "shizuku_exec" ->
                 checkCommand(input["command"]?.jsonPrimitive?.contentOrNull)
+            toolName == "app_force_stop" || toolName == "app_disable" || toolName == "app_enable" || toolName == "app_uninstall" -> {
+                val pkg = input["package"]?.jsonPrimitive?.contentOrNull
+                checkCommand("am force-stop $pkg") // 复用 checkCommand 的 shell 注入防护；包名本身由工具内 PACKAGE_REGEX 兜底
+            }
+            toolName == "appops_set" -> {
+                val pkg = input["package"]?.jsonPrimitive?.contentOrNull
+                val op = input["op"]?.jsonPrimitive?.contentOrNull
+                val mode = input["mode"]?.jsonPrimitive?.contentOrNull
+                checkCommand("appops set $pkg $op $mode")
+            }
             // Sub-agent dispatch — the spawned LLM gets the parent's full tool surface
             // headlessly, so a `task` / `prompt` containing a literal hardline-blocked
             // command (e.g. `rm -rf /`) shouldn't be authorised even if the parent

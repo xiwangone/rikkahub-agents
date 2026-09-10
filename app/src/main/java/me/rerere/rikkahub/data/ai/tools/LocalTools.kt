@@ -1000,6 +1000,12 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.Shizuku)) {
             tools.add(me.rerere.rikkahub.data.ai.tools.local.shizukuExecTool(context))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.appForceStopTool(context))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.appDisableTool(context))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.appEnableTool(context))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.appUninstallTool(context))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.appOpsGetTool(context))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.appOpsSetTool(context))
         }
         if (options.contains(LocalToolOption.SystemIntents)) {
             tools.add(me.rerere.rikkahub.data.ai.tools.local.createCalendarEventTool(context, invocationContext, interactiveToolStreamer))

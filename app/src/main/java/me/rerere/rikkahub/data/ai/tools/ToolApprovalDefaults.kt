@@ -47,6 +47,12 @@ object ToolApprovalDefaults {
 
         // Shizuku-privileged shell (shell UID, adb-shell level)
         "shizuku_exec",
+        // Shizuku 应用管理组（批次 A，写类全部审批；appops_get 纯读不在此列）
+        "app_force_stop",
+        "app_disable",
+        "app_enable",
+        "app_uninstall",
+        "appops_set",
 
         // Filesystem / network writes
         "write_text_file",
