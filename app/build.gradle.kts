@@ -238,6 +238,7 @@ dependencies {
     implementation(libs.okhttp.sse)
     implementation(libs.retrofit)
     implementation(libs.retrofit.serialization.json)
+    implementation(libs.gson)
 
     // ktor client
     implementation(libs.ktor.client.core)
