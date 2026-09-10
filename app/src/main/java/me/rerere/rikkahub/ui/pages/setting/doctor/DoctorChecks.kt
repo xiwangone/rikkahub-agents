@@ -122,27 +122,27 @@ private object Capability {
 }
 
 /** Friendly name for the row's "needed by:" subtitle. */
-private fun LocalToolOption.shortName(): String =
+private fun LocalToolOption.shortName(context: Context): String =
     when (this) {
-        LocalToolOption.Location -> "定位"
-        LocalToolOption.WifiInfo -> "WiFi 信息"
-        LocalToolOption.NotificationListener -> "通知监听"
-        LocalToolOption.ScreenAutomation -> "屏幕自动化"
+        LocalToolOption.Location -> context.getString(R.string.doctor_tool_location)
+        LocalToolOption.WifiInfo -> context.getString(R.string.doctor_tool_wifi)
+        LocalToolOption.NotificationListener -> context.getString(R.string.doctor_tool_nl)
+        LocalToolOption.ScreenAutomation -> context.getString(R.string.doctor_tool_screen)
         LocalToolOption.Termux -> "Termux"
-        LocalToolOption.SpeechToText -> "语音转文字"
+        LocalToolOption.SpeechToText -> context.getString(R.string.doctor_tool_stt)
         LocalToolOption.Ssh -> "SSH"
-        LocalToolOption.TelegramBot -> "Telegram 机器人"
-        LocalToolOption.CronJobs -> "定时任务"
-        LocalToolOption.Workflows -> "工作流"
-        LocalToolOption.Notification -> "通知"
-        LocalToolOption.Files -> "文件"
-        LocalToolOption.Browser -> "浏览器"
-        LocalToolOption.SmsSend -> "发送短信"
-        LocalToolOption.Wallpaper -> "壁纸"
-        LocalToolOption.Keystore -> "密钥库"
+        LocalToolOption.TelegramBot -> context.getString(R.string.doctor_tool_telegram)
+        LocalToolOption.CronJobs -> context.getString(R.string.doctor_tool_cron)
+        LocalToolOption.Workflows -> context.getString(R.string.doctor_tool_workflow)
+        LocalToolOption.Notification -> context.getString(R.string.doctor_tool_notification)
+        LocalToolOption.Files -> context.getString(R.string.doctor_tool_files)
+        LocalToolOption.Browser -> context.getString(R.string.doctor_tool_browser)
+        LocalToolOption.SmsSend -> context.getString(R.string.doctor_tool_sms)
+        LocalToolOption.Wallpaper -> context.getString(R.string.doctor_tool_wallpaper)
+        LocalToolOption.Keystore -> context.getString(R.string.doctor_tool_keystore)
         LocalToolOption.Nfc -> "NFC"
-        LocalToolOption.ExternalStorage -> "外部存储"
-        LocalToolOption.Archive -> "压缩文件 (zip)"
+        LocalToolOption.ExternalStorage -> context.getString(R.string.doctor_tool_ext_storage)
+        LocalToolOption.Archive -> context.getString(R.string.doctor_tool_archive)
         else -> this::class.simpleName ?: "?"
     }
 
@@ -231,8 +231,8 @@ class DoctorChecks(
                     granted =
                         Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU ||
                             PermissionHelper.hasRuntime(context, listOf(Manifest.permission.POST_NOTIFICATIONS)),
-                    grantedDetail = "已授予。",
-                    missingDetail = "前台服务通知、工具审批和工作流告警需要此权限。",
+                    grantedDetail = context.getString(R.string.doctor_msg_granted),
+                    missingDetail = context.getString(R.string.doctor_msg_notif_missing),
                     fix = FixAction.OpenAppRoute(R.string.doctor_perm_04, AppRouteKey.SettingPermissions),
                 ),
             )
@@ -244,8 +244,8 @@ class DoctorChecks(
                     cap = Capability.FineLocation,
                     enabled = enabled,
                     granted = PermissionHelper.hasRuntime(context, listOf(Manifest.permission.ACCESS_FINE_LOCATION)),
-                    grantedDetail = "已授予。",
-                    missingDetail = "Android 10+ 地理围栏触发和读取 WiFi SSID 需要此权限。",
+                    grantedDetail = context.getString(R.string.doctor_msg_granted),
+                    missingDetail = context.getString(R.string.doctor_msg_location_missing),
                     fix = FixAction.OpenAppRoute(R.string.doctor_perm_04, AppRouteKey.SettingPermissions),
                 ),
             )
@@ -257,8 +257,8 @@ class DoctorChecks(
                     cap = Capability.BatteryWhitelist,
                     enabled = enabled,
                     granted = PermissionHelper.ignoresBatteryOptimizations(context),
-                    grantedDetail = "应用已加入白名单 — 后台服务可稳定运行。",
-                    missingDetail = "Doze 省电模式可能会终止 Telegram 机器人、定时任务和工作流。",
+                    grantedDetail = context.getString(R.string.doctor_msg_battery_ok),
+                    missingDetail = context.getString(R.string.doctor_msg_battery_missing),
                     fix =
                         FixAction.OpenIntent(
                             labelRes = R.string.doctor_perm_10,
@@ -274,8 +274,8 @@ class DoctorChecks(
                     cap = Capability.NotificationListener,
                     enabled = enabled,
                     granted = PermissionHelper.hasNotificationListener(context),
-                    grantedDetail = "已授予 — 监听器可读取通知。",
-                    missingDetail = "未授予。通知触发器和通知工具将无法工作。",
+                    grantedDetail = context.getString(R.string.doctor_msg_nl_ok),
+                    missingDetail = context.getString(R.string.doctor_msg_nl_missing),
                     fix =
                         FixAction.OpenIntent(
                             labelRes = R.string.doctor_perm_14,
@@ -291,8 +291,8 @@ class DoctorChecks(
                     cap = Capability.Accessibility,
                     enabled = enabled,
                     granted = PermissionHelper.hasAccessibilityService(context),
-                    grantedDetail = "已在系统设置中启用。",
-                    missingDetail = "未启用。截图、滑动、滚动、点击和手势工具将无法工作。",
+                    grantedDetail = context.getString(R.string.doctor_msg_acc_ok),
+                    missingDetail = context.getString(R.string.doctor_msg_acc_missing),
                     fix =
                         FixAction.OpenIntent(
                             labelRes = R.string.doctor_perm_14,
@@ -309,8 +309,8 @@ class DoctorChecks(
                         cap = Capability.AllFiles,
                         enabled = enabled,
                         granted = PermissionHelper.hasAllFilesAccess(context),
-                        grantedDetail = "已授予 — 文件读写工具可访问任意路径。",
-                        missingDetail = "未授予。文件工具仅限于分区存储。",
+                        grantedDetail = context.getString(R.string.doctor_msg_files_ok),
+                        missingDetail = context.getString(R.string.doctor_msg_files_missing),
                         fix =
                             FixAction.OpenIntent(
                                 labelRes = R.string.doctor_perm_14,
@@ -328,7 +328,7 @@ class DoctorChecks(
                     cap = Capability.SendSms,
                     enabled = enabled,
                     granted = PermissionHelper.hasRuntime(context, listOf(Manifest.permission.SEND_SMS)),
-                    grantedDetail = "已授予。",
+                    grantedDetail = context.getString(R.string.doctor_msg_granted),
                     missingDetail = "send_sms tool needs this to send messages.",
                     fix = FixAction.OpenAppRoute(R.string.doctor_perm_04, AppRouteKey.SettingPermissions),
                 ),
@@ -344,8 +344,8 @@ class DoctorChecks(
                     cap = Capability.Overlay,
                     enabled = enabled,
                     granted = android.provider.Settings.canDrawOverlays(context),
-                    grantedDetail = "已授予。",
-                    missingDetail = "屏幕自动化期间无法显示「智能体工作中」悬浮提示。",
+                    grantedDetail = context.getString(R.string.doctor_msg_granted),
+                    missingDetail = context.getString(R.string.doctor_msg_overlay_missing),
                     fix = FixAction.OpenAppRoute(R.string.doctor_perm_04, AppRouteKey.SettingPermissions),
                 ),
             )
@@ -357,7 +357,7 @@ class DoctorChecks(
                     cap = Capability.WriteSettings,
                     enabled = enabled,
                     granted = PermissionHelper.hasWriteSettings(context),
-                    grantedDetail = "已授予。",
+                    grantedDetail = context.getString(R.string.doctor_msg_granted),
                     missingDetail = "set_brightness can't change screen brightness without it.",
                     fix = FixAction.OpenAppRoute(R.string.doctor_perm_04, AppRouteKey.SettingPermissions),
                 ),
@@ -371,8 +371,8 @@ class DoctorChecks(
                         cap = Capability.BluetoothConnect,
                         enabled = enabled,
                         granted = PermissionHelper.hasRuntime(context, listOf(Manifest.permission.BLUETOOTH_CONNECT)),
-                        grantedDetail = "已授予。",
-                        missingDetail = "工作流蓝牙触发器无法读取已配对设备状态。",
+                        grantedDetail = context.getString(R.string.doctor_msg_granted),
+                        missingDetail = context.getString(R.string.doctor_msg_bluetooth_missing),
                         fix = FixAction.OpenAppRoute(R.string.doctor_perm_04, AppRouteKey.SettingPermissions),
                     ),
                 )
@@ -386,8 +386,8 @@ class DoctorChecks(
                         cap = Capability.NearbyWifi,
                         enabled = enabled,
                         granted = PermissionHelper.hasRuntime(context, listOf(Manifest.permission.NEARBY_WIFI_DEVICES)),
-                        grantedDetail = "已授予。",
-                        missingDetail = "Android 13+ 上缺少此权限可能导致 WiFi 扫描/信息受限。",
+                        grantedDetail = context.getString(R.string.doctor_msg_granted),
+                        missingDetail = context.getString(R.string.doctor_msg_nearby_wifi_missing),
                         fix = FixAction.OpenAppRoute(R.string.doctor_perm_04, AppRouteKey.SettingPermissions),
                     ),
                 )
@@ -405,8 +405,8 @@ class DoctorChecks(
                                 context,
                                 listOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION),
                             ),
-                        grantedDetail = "已授予。",
-                        missingDetail = "应用关闭时地理围栏工作流触发器不会触发。",
+                        grantedDetail = context.getString(R.string.doctor_msg_granted),
+                        missingDetail = context.getString(R.string.doctor_msg_bg_location_missing),
                         fix = FixAction.OpenAppRoute(R.string.doctor_perm_04, AppRouteKey.SettingPermissions),
                     ),
                 )
@@ -423,7 +423,7 @@ class DoctorChecks(
                                 id = "perm.nfc_enabled",
                                 category = DoctorCategory.Permissions,
                                 labelRes = R.string.doctor_common_18,
-                                detail = "此设备无 NFC 硬件。",
+                                detail = context.getString(R.string.doctor_msg_nfc_no_hardware),
                                 severity = Severity.INFO,
                             ),
                         )
@@ -437,10 +437,10 @@ class DoctorChecks(
                                 labelRes = R.string.doctor_common_18,
                                 detail =
                                     if (nfcNeeders.isEmpty()) {
-                                        "NFC 已在系统设置中关闭。当前未启用任何需要它的工具。"
+                                        context.getString(R.string.doctor_msg_nfc_off)
                                     } else {
-                                        "NFC 已在系统设置中关闭。需求方: " +
-                                            nfcNeeders.joinToString(", ") { it.shortName() } + "."
+                                        context.getString(R.string.doctor_msg_nfc_off_needed) +
+                                            nfcNeeders.joinToString(", ") { it.shortName(context) } + "."
                                     },
                                 severity = if (nfcNeeders.isEmpty()) Severity.INFO else Severity.WARN,
                                 fix =
@@ -465,7 +465,7 @@ class DoctorChecks(
                                 id = "perm.nfc_enabled",
                                 category = DoctorCategory.Permissions,
                                 labelRes = R.string.doctor_common_18,
-                                detail = "NFC 硬件已启用。",
+                                detail = context.getString(R.string.doctor_msg_nfc_on),
                                 severity = Severity.OK,
                             ),
                         )
@@ -504,8 +504,8 @@ class DoctorChecks(
         val detail =
             when {
                 granted -> grantedDetail
-                needers.isEmpty() -> "当前未启用任何需要此功能的工具。"
-                else -> "$missingDetail Needed by: ${needers.joinToString(", ") { it.shortName() }}."
+                needers.isEmpty() -> context.getString(R.string.doctor_msg_not_needed)
+                else -> "$missingDetail Needed by: ${needers.joinToString(", ") { it.shortName(context) }}."
             }
         return DoctorCheck(
             id = id,
@@ -534,9 +534,9 @@ class DoctorChecks(
                         // bot id, which an attacker could use to enumerate bot endpoints.
                         detail =
                             if (tg.token.isNotBlank()) {
-                                "已配置令牌（${tg.token.length} 字符，已隐藏）。"
+                                context.getString(R.string.doctor_msg_tg_token_set, tg.token.length)
                             } else {
-                                "Telegram 机器人已启用但未设置令牌 — 服务将在启动时失败。"
+                                context.getString(R.string.doctor_msg_tg_token_missing)
                             },
                         severity = if (tg.token.isNotBlank()) Severity.OK else Severity.FAIL,
                         fix =
@@ -554,9 +554,9 @@ class DoctorChecks(
                         labelRes = R.string.doctor_svc_05,
                         detail =
                             if (TelegramBotService.isRunning) {
-                                "服务正在运行。"
+                                context.getString(R.string.doctor_msg_tg_running)
                             } else {
-                                "服务已停止。Telegram 消息将无法送达助手。看门狗将在下次 30 分钟健康检查时重试。"
+                                context.getString(R.string.doctor_msg_tg_stopped)
                             },
                         severity =
                             when {
@@ -575,7 +575,7 @@ class DoctorChecks(
                         id = "service.telegram_off",
                         category = DoctorCategory.Services,
                         labelRes = R.string.doctor_common_07,
-                        detail = "已禁用 — 如果不使用 Telegram 则无影响。",
+                        detail = context.getString(R.string.doctor_msg_tg_disabled),
                         severity = Severity.INFO,
                     ),
                 )
@@ -590,11 +590,11 @@ class DoctorChecks(
                         labelRes = R.string.doctor_svc_09,
                         detail =
                             if (AccessibilityServiceHandle.isRunning()) {
-                                "服务实例活跃 — ${accNeeders.joinToString(", ") { it.shortName() }} can run."
+                                context.getString(R.string.doctor_msg_acc_live, accNeeders.joinToString(", ") { it.shortName(context) })
                             } else if (PermissionHelper.hasAccessibilityService(context)) {
-                                "已在设置中启用但未绑定（Android 已终止服务或尚未启动）。请关闭后重新打开。"
+                                context.getString(R.string.doctor_msg_acc_enabled_unbound)
                             } else {
-                                "未启用。需求方: ${accNeeders.joinToString(", ") { it.shortName() }}."
+                                context.getString(R.string.doctor_msg_acc_needed, accNeeders.joinToString(", ") { it.shortName(context) })
                             },
                         severity =
                             when {
@@ -623,11 +623,11 @@ class DoctorChecks(
                         labelRes = R.string.doctor_svc_13,
                         detail =
                             if (NotificationListenerHandle.isBound()) {
-                                "监听器已绑定 — ${nlNeeders.joinToString(", ") { it.shortName() }} can run."
+                                context.getString(R.string.doctor_msg_nl_bound, nlNeeders.joinToString(", ") { it.shortName(context) })
                             } else if (PermissionHelper.hasNotificationListener(context)) {
-                                "已授予但当前未绑定。请在设置中关闭后重新打开。"
+                                context.getString(R.string.doctor_msg_nl_granted_unbound)
                             } else {
-                                "未授予。需求方: ${nlNeeders.joinToString(", ") { it.shortName() }}."
+                                context.getString(R.string.doctor_msg_nl_needed, nlNeeders.joinToString(", ") { it.shortName(context) })
                             },
                         severity =
                             when {
@@ -678,11 +678,14 @@ class DoctorChecks(
                         labelRes = R.string.doctor_assistant_01,
                         detail =
                             if (assistants.isEmpty()) {
-                                "未配置助手 — 应用将无法发起对话。"
+                                context.getString(R.string.doctor_msg_assistant_none)
                             } else {
-                                "\"${defaultAssistant.name.ifBlank { "（未命名）" }}\" " +
-                                    "(id: ${defaultAssistant.id.toString().take(8)}…). " +
-                                    "用于新对话、定时任务和 Telegram（未设置覆盖时）。"
+                                context.getString(
+                                        R.string.doctor_msg_assistant_named,
+                                        defaultAssistant.name.ifBlank { context.getString(R.string.doctor_msg_unnamed) },
+                                        defaultAssistant.id.toString().take(8),
+                                    ) +
+                                    context.getString(R.string.doctor_msg_assistant_default)
                             },
                         severity = if (assistants.isEmpty()) Severity.WARN else Severity.INFO,
                         fix = FixAction.OpenAppRoute(R.string.doctor_assistant_05, AppRouteKey.Assistant),
@@ -695,7 +698,7 @@ class DoctorChecks(
                         id = "assistant.count",
                         category = DoctorCategory.AssistantInfo,
                         labelRes = R.string.doctor_assistant_06,
-                        detail = "${assistants.size} assistant(s) configured.",
+                        detail = context.getString(R.string.doctor_msg_assistant_count, assistants.size),
                         severity = Severity.INFO,
                         fix = FixAction.OpenAppRoute(R.string.doctor_assistant_05, AppRouteKey.Assistant),
                     ),
@@ -719,14 +722,14 @@ class DoctorChecks(
                             detail =
                                 when {
                                     tgAssistant != null -> {
-                                        "Telegram 入站消息路由至 「${tgAssistant.name.ifBlank { "（未命名）" }}\" " +
+                                        context.getString(R.string.doctor_msg_tg_route, tgAssistant.name.ifBlank { context.getString(R.string.doctor_msg_unnamed) }) +
                                             "(id: ${tgAssistant.id.toString().take(
                                                 8,
                                             )}…) — overriding the global default."
                                     }
 
                                     else -> {
-                                        "Telegram 助手覆盖已设置 (id: ${tg.assistantId.take(8)}…) 但未找到匹配的 " +
+                                        context.getString(R.string.doctor_msg_tg_override_missing, tg.assistantId.take(8)) +
                                             "assistant was found. Messages will fall back to the global default."
                                     }
                                 },
@@ -760,7 +763,7 @@ class DoctorChecks(
                         if (version > 0) {
                             "v$version — migrations completed, schema is consistent."
                         } else {
-                            "无法读取数据库版本 — Room 可能无法打开数据库。"
+                            context.getString(R.string.doctor_msg_db_version_failed)
                         },
                     severity = if (version > 0) Severity.OK else Severity.WARN,
                 ),
@@ -787,9 +790,9 @@ class DoctorChecks(
                     labelRes = R.string.doctor_db_03,
                     detail =
                         when (integrity) {
-                            null -> "完整性检查超时或失败。"
-                            "ok" -> "PRAGMA integrity_check 返回正常。"
-                            else -> "完整性检查结果: $integrity"
+                            null -> context.getString(R.string.doctor_msg_db_timeout)
+                            "ok" -> context.getString(R.string.doctor_msg_db_ok)
+                            else -> context.getString(R.string.doctor_msg_db_result, integrity)
                         },
                     severity = if (integrity == "ok") Severity.OK else Severity.FAIL,
                     fix =
@@ -799,11 +802,11 @@ class DoctorChecks(
                                 run = {
                                     runCatching {
                                         val n = conversationRepository.repairAndRebuildIndexes()
-                                        AutoFixResult(ok = true, message = "已从 $n 个对话重建 message_fts 索引。")
+                                        AutoFixResult(ok = true, message = context.getString(R.string.doctor_msg_fts_rebuilt, n))
                                     }.getOrElse {
                                         AutoFixResult(
                                             ok = false,
-                                            message = "修复失败: ${it::class.simpleName}: ${it.message ?: "?"}",
+                                            message = context.getString(R.string.doctor_msg_fix_failed, it::class.simpleName, it.message ?: "?"),
                                         )
                                     }
                                 },
@@ -863,7 +866,7 @@ class DoctorChecks(
                         labelRes = R.string.doctor_db_12,
                         detail =
                             if (stranded.isEmpty()) {
-                                "无。Worker 所有运行均正常完成。"
+                                context.getString(R.string.doctor_msg_stranded_none)
                             } else {
                                 "${stranded.size} run(s) started > 30 min ago and never reported back. Likely process kill mid-run."
                             },
@@ -886,15 +889,15 @@ class DoctorChecks(
                             detail =
                                 when {
                                     !externalStorageEnabled && grants.isEmpty() -> {
-                                        "外部存储工具未启用。无需关注。"
+                                        context.getString(R.string.doctor_msg_ext_storage_off)
                                     }
 
                                     grants.isEmpty() -> {
-                                        "尚未授予任何目录。请调用 grant_directory_access 添加。"
+                                        context.getString(R.string.doctor_msg_ext_storage_no_grants)
                                     }
 
                                     else -> {
-                                        "${grants.size} directory(ies) granted: " +
+                                        context.getString(R.string.doctor_msg_dirs_granted, grants.size) +
                                             grants.joinToString(", ") { it.displayName } + "."
                                     }
                                 },
@@ -953,7 +956,7 @@ class DoctorChecks(
                         id = "net.providers",
                         category = DoctorCategory.Network,
                         labelRes = R.string.doctor_net_01,
-                        detail = "$configured provider(s) configured (API key set, AICore enabled, or local model loaded) out of ${provs.size} total.",
+                        detail = context.getString(R.string.doctor_msg_providers, configured, provs.size),
                         severity = if (configured > 0) Severity.OK else Severity.WARN,
                         fix = FixAction.OpenAppRoute(R.string.doctor_net_02, AppRouteKey.SettingProvider),
                     ),
@@ -973,22 +976,22 @@ class DoctorChecks(
                     val detail =
                         when {
                             accel == null -> {
-                                "尚未探测。加速器将在首次模型加载时决定。"
+                                context.getString(R.string.doctor_msg_litert_unprobed)
                             }
 
                             forceCpu && accel == "CPU" -> {
-                                "CPU（设置 -> 本地 LiteRT 中「尝试 GPU 加速」已关闭）" +
-                                    "开启以在下次加载时重试设备 GPU。"
+                                context.getString(R.string.doctor_msg_litert_cpu_disabled) +
+                                    context.getString(R.string.doctor_msg_litert_enable_hint)
                             }
 
                             accel == "CPU" -> {
-                                "CPU（备用：此设备 GPU delegate 初始化失败， " +
+                                context.getString(R.string.doctor_msg_litert_cpu_fallback) +
                                     "likely an MLDrift issue. Tap 'Re-detect' in Settings → Local LiteRT " +
                                     "to retry with a fresh probe.)"
                             }
 
                             accel == "GPU" -> {
-                                "GPU（OpenCL 或 OpenGL，由 LiteRT 内部探测选择）。"
+                                context.getString(R.string.doctor_msg_litert_gpu)
                             }
 
                             accel == "QNN" || accel == "NPU" -> {
@@ -1000,7 +1003,7 @@ class DoctorChecks(
                             }
 
                             else -> {
-                                "后端标签: $accel"
+                                context.getString(R.string.doctor_msg_litert_backend, accel)
                             }
                         }
                     val severity =
@@ -1046,7 +1049,7 @@ class DoctorChecks(
                                 category = DoctorCategory.Network,
                                 labelRes = R.string.doctor_net_12,
                                 detail =
-                                    "各模型最近已知速率（基于字符估算， " +
+                                    context.getString(R.string.doctor_msg_rate_note) +
                                         "~10% accurate for English text):\n$detail",
                                 severity = Severity.INFO,
                                 fix =
@@ -1074,7 +1077,7 @@ class DoctorChecks(
                                 category = DoctorCategory.Network,
                                 labelRes = R.string.doctor_net_14,
                                 detail =
-                                    "此设备不支持以下模型的视觉编码器: " +
+                                    context.getString(R.string.doctor_msg_vision_unsupported) +
                                         visionUnavailable.joinToString(", ") +
                                         ". These multimodal models run in text-only mode — chat works, " +
                                         "image inputs don't. Often fixed by a future LiteRT-LM SDK update " +
@@ -1105,9 +1108,9 @@ class DoctorChecks(
                     labelRes = R.string.doctor_net_16,
                     detail =
                         if (dnsOk) {
-                            "dns.google resolved within 2.5 s."
+                            context.getString(R.string.doctor_msg_dns_ok)
                         } else {
-                            "DNS 解析失败或超时。网络变化时 NetworkChangeMonitor 会清空 OkHttp 连接池 — 如果持续红色，请检查网络连接。"
+                            context.getString(R.string.doctor_msg_dns_failed)
                         },
                     severity = if (dnsOk) Severity.OK else Severity.WARN,
                 ),
@@ -1136,9 +1139,9 @@ class DoctorChecks(
                     labelRes = R.string.doctor_termux_01,
                     detail =
                         if (termuxInstalled) {
-                            "com.termux is installed on this device."
+                            context.getString(R.string.doctor_msg_termux_installed)
                         } else {
-                            "Termux 未安装。需求方: ${needers.joinToString(", ") { it.shortName() }}."
+                            context.getString(R.string.doctor_msg_termux_missing, needers.joinToString(", ") { it.shortName(context) })
                         },
                     severity = if (termuxInstalled) Severity.OK else Severity.WARN,
                 ),
@@ -1156,9 +1159,9 @@ class DoctorChecks(
                         labelRes = R.string.doctor_termux_03,
                         detail =
                             if (runCommandPerm) {
-                                "已授予 — RikkaHub Agents 可向 Termux 派发 Shell 命令。"
+                                context.getString(R.string.doctor_msg_termux_ok)
                             } else {
-                                "未授予。请在本地工具中重新切换 Termux 开关以查看授权后对话框。"
+                                context.getString(R.string.doctor_msg_termux_denied)
                             },
                         severity = if (runCommandPerm) Severity.OK else Severity.WARN,
                     ),
@@ -1199,12 +1202,12 @@ class DoctorChecks(
                     labelRes = R.string.doctor_browser_02,
                     detail =
                         when {
-                            ok && browserNeeded -> "${profileDir.absolutePath} exists and is writable — cookies persist."
-                            ok -> "${profileDir.absolutePath} exists. Not required by any enabled tool."
-                            !exists && browserNeeded -> "目录不存在。Cookie 和 localStorage 将不会持久化。需求方: 浏览器。"
-                            !exists -> "目录不存在。当前未启用任何需要此目录的工具。"
-                            !writable && browserNeeded -> "目录存在但不可写。需求方: 浏览器。"
-                            else -> "目录存在但不可写。"
+                            ok && browserNeeded -> context.getString(R.string.doctor_msg_browser_ok, profileDir.absolutePath)
+                            ok -> context.getString(R.string.doctor_msg_browser_unneeded, profileDir.absolutePath)
+                            !exists && browserNeeded -> context.getString(R.string.doctor_msg_browser_no_dir)
+                            !exists -> context.getString(R.string.doctor_msg_browser_no_dir_unneeded)
+                            !writable && browserNeeded -> context.getString(R.string.doctor_msg_browser_readonly_needed)
+                            else -> context.getString(R.string.doctor_msg_browser_readonly)
                         },
                     severity =
                         when {
@@ -1223,9 +1226,9 @@ class DoctorChecks(
                                         ok = nowOk,
                                         message =
                                             if (nowOk) {
-                                                "已创建 ${profileDir.absolutePath}。"
+                                                context.getString(R.string.doctor_msg_browser_created, profileDir.absolutePath)
                                             } else if (created) {
-                                                "目录已创建但仍不可写 — 请检查存储权限。"
+                                                context.getString(R.string.doctor_msg_browser_created_readonly)
                                             } else {
                                                 "mkdirs() returned false; underlying storage may be read-only."
                                             },
@@ -1250,11 +1253,13 @@ class DoctorChecks(
                 val onWriteTools = BrowserToolDefaults.WRITE_TOOLS.filter { snapshot[it] == true }
                 val detail =
                     if (onWriteTools.isEmpty()) {
-                        "已启用的副作用浏览器工具数: 0。未开启任何写入工具。"
+                        context.getString(R.string.doctor_msg_browser_write_none)
                     } else {
-                        "已启用的副作用浏览器工具数: ${onWriteTools.size} (${onWriteTools.joinToString(
-                            ", ",
-                        ) { it.removePrefix("browser_") }})."
+                        context.getString(
+                            R.string.doctor_msg_browser_write_some,
+                            onWriteTools.size,
+                            onWriteTools.joinToString(", ") { it.removePrefix("browser_") },
+                        )
                     }
                 add(
                     DoctorCheck(
@@ -1280,15 +1285,15 @@ class DoctorChecks(
                     category = DoctorCategory.Maintenance,
                     labelRes = R.string.doctor_maint_01,
                     detail =
-                        "缓存占用 ${humanBytes(cacheBytes)}。" +
-                            if (cacheBytes > 200L * 1024 * 1024) "建议清理 — 已超过 200 MB。" else "正常范围内。",
+                        context.getString(R.string.doctor_msg_cache_usage, humanBytes(cacheBytes)) +
+                            if (cacheBytes > 200L * 1024 * 1024) context.getString(R.string.doctor_msg_cache_advice) else context.getString(R.string.doctor_msg_cache_normal),
                     severity = if (cacheBytes > 500L * 1024 * 1024) Severity.WARN else Severity.OK,
                     fix =
                         FixAction.AutoFix(
                             labelRes = R.string.doctor_maint_05,
                             run = {
                                 val freed = clearDirectoryContents(context.cacheDir)
-                                AutoFixResult(ok = true, message = "已释放 ${humanBytes(freed)}。")
+                                AutoFixResult(ok = true, message = context.getString(R.string.doctor_msg_cache_freed, humanBytes(freed)))
                             },
                         ),
                 ),
@@ -1310,7 +1315,7 @@ class DoctorChecks(
                 id = "diag.android",
                 category = DoctorCategory.Diagnostics,
                 labelRes = R.string.doctor_common_19,
-                detail = "API ${Build.VERSION.SDK_INT} (${Build.VERSION.RELEASE}) 设备 ${Build.MANUFACTURER} ${Build.MODEL}",
+                detail = context.getString(R.string.doctor_msg_android_device, Build.VERSION.SDK_INT, Build.VERSION.RELEASE, Build.MANUFACTURER, Build.MODEL),
                 severity = Severity.INFO,
             ),
             DoctorCheck(
@@ -1323,7 +1328,7 @@ class DoctorChecks(
                         val freeMb = rt.freeMemory() / (1024 * 1024)
                         val totalMb = rt.totalMemory() / (1024 * 1024)
                         val maxMb = rt.maxMemory() / (1024 * 1024)
-                        "堆内存: $freeMb MB 可用 / $totalMb MB ($maxMb MB 最大值)"
+                        context.getString(R.string.doctor_msg_heap, freeMb, totalMb, maxMb)
                     },
                 severity = Severity.INFO,
             ),
@@ -1333,9 +1338,9 @@ class DoctorChecks(
                 labelRes = R.string.doctor_diag_05,
                 detail =
                     if (enabled.isEmpty()) {
-                        "未启用任何本地工具 — 智能体功能将无法工作。"
+                        context.getString(R.string.doctor_msg_no_local_tools)
                     } else {
-                        "${enabled.size} tool group(s) enabled."
+                        context.getString(R.string.doctor_msg_tool_groups, enabled.size)
                     },
                 severity = if (enabled.isEmpty()) Severity.WARN else Severity.INFO,
             ),

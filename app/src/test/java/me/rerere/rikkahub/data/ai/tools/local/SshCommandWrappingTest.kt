@@ -100,6 +100,8 @@ class SshCommandWrappingTest {
         assertTrue(ps, ps.startsWith("[Console]::OutputEncoding=[Text.Encoding]::UTF8;"))
         assertEquals("cmd.exe /c \"chcp 65001\"", withUtf8ConsoleEncoding("cmd.exe /c \"chcp 65001\""))
         assertEquals("uname -s", withUtf8ConsoleEncoding("uname -s"))
+    }
+
     @Test
     fun `sshOptionInt reads overrides and ignores comments`() {
         assertEquals(10, sshOptionInt("# comment\nServerAliveInterval 10\nServerAliveCountMax 6", "ServerAliveInterval"))
