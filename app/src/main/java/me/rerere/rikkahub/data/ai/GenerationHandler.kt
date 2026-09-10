@@ -215,7 +215,7 @@ fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
             FailureKind.AUTH
         listOf("402", "insufficient_quota", "insufficientbalance", "余额", "额度", "quota", "billing").any { text.contains(it) } ->
             FailureKind.QUOTA
-        listOf("429", "rate_limit", "toomanyrequests", "throttl", "限流").any { text.contains(it) } ->
+        listOf("429", "rate_limit", "toomanyrequests", "throttl", "限流", "tpm", "rpm", "per minute", "throughput").any { text.contains(it) } ->
             FailureKind.RATE_LIMIT
         listOf("model_not_found", "invalid_model", "modelnotfound", "not found", "404").any { text.contains(it) } ->
             FailureKind.MODEL_NOT_FOUND
