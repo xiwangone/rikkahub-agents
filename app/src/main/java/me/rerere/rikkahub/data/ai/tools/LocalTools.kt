@@ -965,6 +965,10 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.CostGuards)) {
             tools.add(me.rerere.rikkahub.costguards.checkTokenUsageTool(settingsStore, conversationRepo))
+            // L4 observability: measure the assembled tool surface (size, ordering, hash).
+            // Registered after the other cost-guard tools; the lambda is read at execute()
+            // time, by which point the whole list — this tool included — has been built.
+            tools.add(me.rerere.rikkahub.costguards.toolSurfaceReportTool { tools.toList() })
         }
         if (options.contains(LocalToolOption.SkillImport)) {
             tools.add(me.rerere.rikkahub.skills.skillInstallFromUrlTool(skillUrlImporter, settingsStore, skillManager))
