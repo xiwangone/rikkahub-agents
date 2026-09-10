@@ -159,7 +159,7 @@ fun ProviderConfigure(
             }
 
             is ProviderSetting.GeminiOAuth -> {
-                Unit
+                GeminiProviderConfigure(provider, onEdit)
             }
 
             is ProviderSetting.LlamaCppLocal -> {

@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
-  <string name="provider_display_name_aicore">AICore (on-device)</string>
+    <string name="provider_display_name_aicore">AICore (on-device)</string>
   <string name="provider_display_name_litert">Local · LiteRT</string>
   <string name="provider_display_name_llamacpp">Local · llama.cpp</string>
   <string name="provider_display_name_backend">Backend Service</string>
@@ -1307,8 +1307,6 @@
   <string name="setting_model_page_tool_output_max_chars">Tool output limit (KB, 1-20; e.g. 5 = 5000 chars)</string>
   <string name="setting_display_page_bubble_opacity_title">Bubble Opacity</string>
   <string name="setting_provider_page_include_history_reasoning">Include History Reasoning</string>
-
-  <!-- fork (agent) strings preserved from merge -->
   <string name="assistant_page_local_tools_audio_info_desc">Read ringer mode, music-active state, headphone connection, and output devices.</string>
   <string name="assistant_page_local_tools_audio_info_title">Audio info</string>
   <string name="assistant_page_local_tools_battery_desc">Read battery level, charging state, plug type, temperature, and health.</string>
@@ -2148,8 +2146,6 @@
   <string name="setting_files_page_selected_count">Selected %1$d items</string>
   <string name="setting_files_page_batch_delete">Batch Delete</string>
   <string name="setting_files_page_batch_delete_confirm">Delete the %1$d selected files?</string>
-
-  <!-- Credential Vault / 安全凭证库 -->
   <string name="setting_vault_title">Credential Vault</string>
   <string name="setting_page_vault">Credential Vault</string>
   <string name="setting_page_vault_desc">Manage API keys and credentials securely</string>
@@ -2331,7 +2327,6 @@
   <string name="doctor_category_termux">Termux integration</string>
   <string name="doctor_category_maintenance">Maintenance</string>
   <string name="doctor_category_diagnostics">Diagnostics</string>
-  <!-- Doctor diagnostics -->
   <string name="doctor_common_07">Telegram bot</string>
   <string name="doctor_common_08">Scheduled jobs</string>
   <string name="doctor_common_09">Workflows</string>
@@ -2485,7 +2480,6 @@
   <string name="vault_session_remaining_session">当场有效</string>
   <string name="vault_session_revoked">会话已撤销</string>
   <string name="vault_session_token_copied">token 已复制</string>
-  <!-- Quota / 额度查询 -->
   <string name="backend_base_url_example">例：http://&lt;服务器地址&gt;</string>
   <string name="backend_connection_mode">Connection mode</string>
   <string name="backend_mode_serve">serve (HTTP/SSE direct)</string>
@@ -2534,7 +2528,6 @@
   <string name="export_import_session">导入会话</string>
   <string name="export_import_desc">从 JSON 文件导入对话记录</string>
   <string name="asr_hotwords_placeholder">热词1, 热词2, 热词3</string>
-
   <string name="accessibility_hide_password">Hide password</string>
   <string name="accessibility_show_password">Show password</string>
   <string name="accessibility_remove_attachment">Remove attachment</string>
@@ -2672,7 +2665,7 @@
   <string name="doctor_msg_litert_cpu_disabled">CPU (GPU acceleration is turned off in Settings, Local LiteRT)</string>
   <string name="doctor_msg_litert_unprobed">Not probed yet. The accelerator is decided on first model load.</string>
   <string name="doctor_msg_providers">%1$s provider(s) configured (API key set, AICore enabled, or local model loaded) out of %2$s total.</string>
-  <string name="doctor_msg_dirs_granted">%1$s directory(ies) granted: %2$s</string>
+  <string name="doctor_msg_dirs_granted">%1$s directory(ies) granted: %2$s.</string>
   <string name="doctor_msg_ext_storage_no_grants">No directory granted yet. Call grant_directory_access to add one.</string>
   <string name="doctor_msg_ext_storage_off">External storage tools are not enabled. Nothing to check.</string>
   <string name="doctor_msg_stranded_none">None. All worker runs completed normally.</string>
@@ -2682,8 +2675,8 @@
   <string name="doctor_msg_db_ok">PRAGMA integrity_check returned OK.</string>
   <string name="doctor_msg_db_timeout">Integrity check timed out or failed.</string>
   <string name="doctor_msg_db_version_failed">Cannot read the database version — Room may fail to open the database.</string>
-  <string name="doctor_msg_tg_override_missing">Telegram assistant override is set but no matching assistant was found.</string>
-  <string name="doctor_msg_tg_route">Inbound Telegram messages route to </string>
+  <string name="doctor_msg_tg_override_missing">Telegram assistant override is set (id: %1$s…) but no matching assistant was found. Messages will fall back to the global default.</string>
+  <string name="doctor_msg_tg_route">Inbound Telegram messages route to "%1$s" (id: %2$s…) — overriding the global default.</string>
   <string name="doctor_msg_assistant_count">%1$s assistant(s) configured.</string>
   <string name="doctor_msg_assistant_default">Used for new chats, scheduled jobs and Telegram (unless overridden).</string>
   <string name="doctor_msg_assistant_none">No assistant configured — the app cannot start a conversation.</string>
@@ -2740,4 +2733,20 @@
   <string name="doctor_msg_heap">Heap: %1$s MB free / %2$s MB (%3$s MB max)</string>
   <string name="doctor_msg_browser_write_some">Side-effecting browser tools enabled: %1$s (%2$s).</string>
   <string name="doctor_msg_assistant_named">"%1$s" (id: %2$s…). </string>
+  <string name="doctor_msg_sms_missing">send_sms tool needs this to send messages.</string>
+  <string name="doctor_msg_write_settings_missing">set_brightness can\'t change screen brightness without it.</string>
+  <string name="doctor_msg_db_version_ok">v%1$s — migrations completed, schema is consistent.</string>
+  <string name="doctor_msg_count_total_enabled">%1$s total, %2$s enabled.</string>
+  <string name="doctor_msg_stranded_some">%1$s run(s) started over 30 min ago and never reported back. Likely a process kill mid-run.</string>
+  <string name="doctor_msg_litert_cpu_mldrift">CPU (fallback: this device\'s GPU delegate failed to initialize, likely an MLDrift issue. Tap \'Re-detect\' in Settings, Local LiteRT to retry with a fresh probe.)</string>
+  <string name="doctor_msg_rate_detail">Last known rates per model (estimated from characters, ~10% accurate for English text):
+%1$s</string>
+  <string name="doctor_msg_vision_detail">This device does not support the vision encoder of: %1$s. These multimodal models run in text-only mode — chat works, image inputs don\'t. Often fixed by a future LiteRT-LM SDK update (the OpenGL fallback path\'s CreateSharedMemoryManager is currently UNIMPLEMENTED upstream). Tap \'Re-try vision\' next to the model in Settings, Local LiteRT after a GPU driver update to clear the flag.</string>
+  <string name="doctor_msg_browser_mkdir_failed">mkdirs() returned false; the underlying storage may be read-only.</string>
+  <string name="doctor_summary_fail">Failures</string>
+  <string name="doctor_summary_warn">Warnings</string>
+  <string name="doctor_summary_ok">OK</string>
+  <string name="doctor_summary_info">Info</string>
+  <string name="doctor_msg_open_failed">Could not open: %1$s</string>
+  <string name="doctor_report_clip_label">RikkaHub Agents diagnostic report</string>
 </resources>

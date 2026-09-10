@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='UTF-8'?>
 <resources>
-  <string name="provider_display_name_aicore">AICore（设备端）</string>
+    <string name="provider_display_name_aicore">AICore（设备端）</string>
   <string name="provider_display_name_litert">本地 · LiteRT</string>
   <string name="provider_display_name_llamacpp">本地 · llama.cpp</string>
   <string name="provider_display_name_backend">后端服务</string>
@@ -1291,8 +1291,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_model_page_fast_model">快速模型</string>
   <string name="setting_model_page_fast_model_desc">用于快速或后台任务的模型，当未设置时也用作标题和建议模型的后备</string>
   <string name="setting_model_page_enable_suggestion">启用聊天建议</string>
-
-  <!-- fork (agent) strings preserved from merge -->
   <string name="setting_display_page_show_date_below_name_desc">是否在昵称或模型名称下方显示消息日期</string>
   <string name="setting_display_page_show_date_below_name_title">显示昵称下方日期</string>
   <string name="accessibility_service_summary">当大模型使用屏幕自动化工具时，允许 RikkaHub Agents 点击、滑动、滚动、读取屏幕内容和截图。</string>
@@ -2115,8 +2113,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_files_page_selected_count">已选 %1$d 项</string>
   <string name="setting_files_page_batch_delete">批量删除</string>
   <string name="setting_files_page_batch_delete_confirm">确认删除所选 %1$d 个文件？</string>
-
-  <!-- Credential Vault / 安全凭证库 -->
   <string name="setting_vault_title">安全凭证库</string>
   <string name="setting_page_vault">安全凭证库</string>
   <string name="setting_page_vault_desc">安全管理 API 密钥与各类凭证</string>
@@ -2300,7 +2296,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="doctor_category_termux">Termux 集成</string>
   <string name="doctor_category_maintenance">维护</string>
   <string name="doctor_category_diagnostics">诊断信息</string>
-  <!-- Doctor diagnostics -->
   <string name="doctor_common_07">Telegram 机器人</string>
   <string name="doctor_common_08">定时任务</string>
   <string name="doctor_common_09">工作流</string>
@@ -2441,12 +2436,10 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="setting_web_bridge_copy_success">✅ 公钥已复制！请粘贴到服务器 ~/.ssh/authorized_keys\n%1$s</string>
   <string name="setting_web_bridge_gen_key_desc">生成新密钥对，保存到密钥库并自动填写路径</string>
   <string name="setting_web_bridge_gen_key_btn">生成新 SSH 密钥</string>
-
   <string name="vault_session_mode_ttl">30 分钟</string>
   <string name="vault_session_mode_manual">一直有效</string>
   <string name="vault_session_mode_ttl_desc">Token 30 分钟后自动过期，需重新指纹验证签发</string>
   <string name="vault_session_mode_manual_desc">Token 一直有效（永不过期），仅手动撤销后失效</string>
-  <!-- Quota / 额度查询 -->
   <string name="vault_session_empty">暂无会话</string>
   <string name="vault_session_label_default">默认</string>
   <string name="vault_session_list_desc">所有已签发的会话，可单独撤销或复制 token</string>
@@ -2504,7 +2497,6 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="export_import_session">导入会话</string>
   <string name="export_import_desc">从 JSON 文件导入对话记录</string>
   <string name="asr_hotwords_placeholder">热词1, 热词2, 热词3</string>
-  <!-- BrowserAiStripe redesign: outcome-aware, localized action trail -->
   <string name="setting_page_sub_agents">子代理配置</string>
   <string name="setting_page_sub_agents_desc">命名模型 + 系统提示词预设，subagent_dispatch 可按名称派发。</string>
   <string name="setting_sub_agents_page_title">子代理配置</string>
@@ -2675,7 +2667,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="doctor_msg_litert_cpu_disabled">CPU（设置 -&gt; 本地 LiteRT 中「尝试 GPU 加速」已关闭）</string>
   <string name="doctor_msg_litert_unprobed">尚未探测。加速器将在首次模型加载时决定。</string>
   <string name="doctor_msg_providers">已配置 %1$s 个供应商（已设 API key / AICore 已启用 / 已加载本地模型），共 %2$s 个。</string>
-  <string name="doctor_msg_dirs_granted">已授权 %1$s 个目录：%2$s</string>
+  <string name="doctor_msg_dirs_granted">已授权 %1$s 个目录：%2$s。</string>
   <string name="doctor_msg_ext_storage_no_grants">尚未授予任何目录。请调用 grant_directory_access 添加。</string>
   <string name="doctor_msg_ext_storage_off">外部存储工具未启用。无需关注。</string>
   <string name="doctor_msg_stranded_none">无。Worker 所有运行均正常完成。</string>
@@ -2685,8 +2677,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="doctor_msg_db_ok">PRAGMA integrity_check 返回正常。</string>
   <string name="doctor_msg_db_timeout">完整性检查超时或失败。</string>
   <string name="doctor_msg_db_version_failed">无法读取数据库版本 — Room 可能无法打开数据库。</string>
-  <string name="doctor_msg_tg_override_missing">Telegram 助手覆盖已设置 (id: %1$s…) 但未找到匹配的 </string>
-  <string name="doctor_msg_tg_route">Telegram 入站消息路由至 「%1$s\" </string>
+  <string name="doctor_msg_tg_override_missing">已设置 Telegram 助手覆盖 (id: %1$s…)，但未找到匹配的助手。消息将回退到全局默认。</string>
+  <string name="doctor_msg_tg_route">Telegram 入站消息路由至「%1$s」(id: %2$s…) — 覆盖全局默认。</string>
   <string name="doctor_msg_assistant_count">已配置 %1$s 个助手。</string>
   <string name="doctor_msg_assistant_default">用于新对话、定时任务和 Telegram（未设置覆盖时）。</string>
   <string name="doctor_msg_assistant_none">未配置助手 — 应用将无法发起对话。</string>
@@ -2743,4 +2735,20 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="doctor_msg_heap">堆内存: %1$s MB 可用 / %2$s MB (%3$s MB 最大值)</string>
   <string name="doctor_msg_browser_write_some">已启用的副作用浏览器工具数: %1$s (%2$s)。</string>
   <string name="doctor_msg_assistant_named">「%1$s」(id: %2$s…)。</string>
+  <string name="doctor_msg_sms_missing">send_sms 工具需要此权限才能发送短信。</string>
+  <string name="doctor_msg_write_settings_missing">没有此权限时 set_brightness 无法修改屏幕亮度。</string>
+  <string name="doctor_msg_db_version_ok">v%1$s — 迁移已完成，schema 一致。</string>
+  <string name="doctor_msg_count_total_enabled">共 %1$s 个，已启用 %2$s 个。</string>
+  <string name="doctor_msg_stranded_some">%1$s 次运行在 30 分钟前启动后一直未回报，可能是进程中途被杀。</string>
+  <string name="doctor_msg_litert_cpu_mldrift">CPU（备用：本机 GPU delegate 初始化失败，可能是 MLDrift 问题。可在设置 → 本地 LiteRT 中点击「重新探测」再试。）</string>
+  <string name="doctor_msg_rate_detail">各模型最近已知速率（按字符估算，英文文本约 10% 精度）：
+%1$s</string>
+  <string name="doctor_msg_vision_detail">本机不支持以下模型的视觉编码器：%1$s。这些多模态模型会退化为纯文本模式——对话可用，但无法输入图片。通常需等待未来 LiteRT-LM SDK 更新（OpenGL 备用路径的 CreateSharedMemoryManager 上游尚未实现）。GPU 驱动更新后，可在设置 → 本地 LiteRT 中对该模型点击「重试视觉」以清除标记。</string>
+  <string name="doctor_msg_browser_mkdir_failed">mkdirs() 返回 false；底层存储可能为只读。</string>
+  <string name="doctor_summary_fail">失败</string>
+  <string name="doctor_summary_warn">警告</string>
+  <string name="doctor_summary_ok">正常</string>
+  <string name="doctor_summary_info">信息</string>
+  <string name="doctor_msg_open_failed">无法打开：%1$s</string>
+  <string name="doctor_report_clip_label">RikkaHub Agents 诊断报告</string>
 </resources>

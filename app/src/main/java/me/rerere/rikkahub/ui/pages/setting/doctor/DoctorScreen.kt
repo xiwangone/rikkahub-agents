@@ -139,7 +139,10 @@ fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
                                                 }.onFailure {
                                                     scope.launch {
                                                         snackbar.showSnackbar(
-                                                            "Could not open: ${it.message ?: it::class.simpleName}",
+                                                            ctx.getString(
+                                                                R.string.doctor_msg_open_failed,
+                                                                it.message ?: it::class.simpleName ?: "?",
+                                                            ),
                                                         )
                                                     }
                                                 }
@@ -179,10 +182,10 @@ private fun SummaryCard(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
-            CountPill("Failures", counts[Severity.FAIL] ?: 0, Severity.FAIL)
-            CountPill("Warnings", counts[Severity.WARN] ?: 0, Severity.WARN)
-            CountPill("OK", counts[Severity.OK] ?: 0, Severity.OK)
-            CountPill("Info", counts[Severity.INFO] ?: 0, Severity.INFO)
+            CountPill(stringResource(R.string.doctor_summary_fail), counts[Severity.FAIL] ?: 0, Severity.FAIL)
+            CountPill(stringResource(R.string.doctor_summary_warn), counts[Severity.WARN] ?: 0, Severity.WARN)
+            CountPill(stringResource(R.string.doctor_summary_ok), counts[Severity.OK] ?: 0, Severity.OK)
+            CountPill(stringResource(R.string.doctor_summary_info), counts[Severity.INFO] ?: 0, Severity.INFO)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(
@@ -293,5 +296,5 @@ private fun copyToClipboard(
     text: String,
 ) {
     val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-    cm.setPrimaryClip(ClipData.newPlainText("RikkaHub Agents diagnostic report", text))
+    cm.setPrimaryClip(ClipData.newPlainText(ctx.getString(R.string.doctor_report_clip_label), text))
 }

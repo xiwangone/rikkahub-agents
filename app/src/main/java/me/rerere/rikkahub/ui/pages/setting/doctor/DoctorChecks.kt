@@ -329,7 +329,7 @@ class DoctorChecks(
                     enabled = enabled,
                     granted = PermissionHelper.hasRuntime(context, listOf(Manifest.permission.SEND_SMS)),
                     grantedDetail = context.getString(R.string.doctor_msg_granted),
-                    missingDetail = "send_sms tool needs this to send messages.",
+                    missingDetail = context.getString(R.string.doctor_msg_sms_missing),
                     fix = FixAction.OpenAppRoute(R.string.doctor_perm_04, AppRouteKey.SettingPermissions),
                 ),
             )
@@ -358,7 +358,7 @@ class DoctorChecks(
                     enabled = enabled,
                     granted = PermissionHelper.hasWriteSettings(context),
                     grantedDetail = context.getString(R.string.doctor_msg_granted),
-                    missingDetail = "set_brightness can't change screen brightness without it.",
+                    missingDetail = context.getString(R.string.doctor_msg_write_settings_missing),
                     fix = FixAction.OpenAppRoute(R.string.doctor_perm_04, AppRouteKey.SettingPermissions),
                 ),
             )
@@ -722,15 +722,15 @@ class DoctorChecks(
                             detail =
                                 when {
                                     tgAssistant != null -> {
-                                        context.getString(R.string.doctor_msg_tg_route, tgAssistant.name.ifBlank { context.getString(R.string.doctor_msg_unnamed) }) +
-                                            "(id: ${tgAssistant.id.toString().take(
-                                                8,
-                                            )}…) — overriding the global default."
+                                        context.getString(
+                                            R.string.doctor_msg_tg_route,
+                                            tgAssistant.name.ifBlank { context.getString(R.string.doctor_msg_unnamed) },
+                                            tgAssistant.id.toString().take(8),
+                                        )
                                     }
 
                                     else -> {
-                                        context.getString(R.string.doctor_msg_tg_override_missing, tg.assistantId.take(8)) +
-                                            "assistant was found. Messages will fall back to the global default."
+                                        context.getString(R.string.doctor_msg_tg_override_missing, tg.assistantId.take(8))
                                     }
                                 },
                             severity = if (tgAssistant != null) Severity.INFO else Severity.WARN,
@@ -761,7 +761,7 @@ class DoctorChecks(
                     // if we got here, version is the live schema version (migrations ran successfully).
                     detail =
                         if (version > 0) {
-                            "v$version — migrations completed, schema is consistent."
+                            context.getString(R.string.doctor_msg_db_version_ok, version)
                         } else {
                             context.getString(R.string.doctor_msg_db_version_failed)
                         },
@@ -825,7 +825,7 @@ class DoctorChecks(
                         id = "db.workflows",
                         category = DoctorCategory.Database,
                         labelRes = R.string.doctor_common_09,
-                        detail = "${all.size} total, $enabled enabled.",
+                        detail = context.getString(R.string.doctor_msg_count_total_enabled, all.size, enabled),
                         severity = Severity.INFO,
                         fix =
                             if (all.isNotEmpty()) {
@@ -845,7 +845,7 @@ class DoctorChecks(
                         id = "db.scheduled_jobs",
                         category = DoctorCategory.Database,
                         labelRes = R.string.doctor_common_08,
-                        detail = "${all.size} total, $enabled enabled.",
+                        detail = context.getString(R.string.doctor_msg_count_total_enabled, all.size, enabled),
                         severity = Severity.INFO,
                         fix =
                             if (all.isNotEmpty()) {
@@ -868,7 +868,7 @@ class DoctorChecks(
                             if (stranded.isEmpty()) {
                                 context.getString(R.string.doctor_msg_stranded_none)
                             } else {
-                                "${stranded.size} run(s) started > 30 min ago and never reported back. Likely process kill mid-run."
+                                context.getString(R.string.doctor_msg_stranded_some, stranded.size)
                             },
                         severity = if (stranded.isEmpty()) Severity.OK else Severity.WARN,
                     ),
@@ -900,7 +900,7 @@ class DoctorChecks(
                                         context.getString(
                                             R.string.doctor_msg_dirs_granted,
                                             grants.size,
-                                            grants.joinToString(", ") { it.displayName },
+                                            grants.joinToString(", ") { it.displayName.trim() },
                                         )
                                     }
                                 },
@@ -988,9 +988,7 @@ class DoctorChecks(
                             }
 
                             accel == "CPU" -> {
-                                context.getString(R.string.doctor_msg_litert_cpu_fallback) +
-                                    "likely an MLDrift issue. Tap 'Re-detect' in Settings → Local LiteRT " +
-                                    "to retry with a fresh probe.)"
+                                context.getString(R.string.doctor_msg_litert_cpu_mldrift)
                             }
 
                             accel == "GPU" -> {
@@ -1052,8 +1050,7 @@ class DoctorChecks(
                                 category = DoctorCategory.Network,
                                 labelRes = R.string.doctor_net_12,
                                 detail =
-                                    context.getString(R.string.doctor_msg_rate_note) +
-                                        "~10% accurate for English text):\n$detail",
+                                    context.getString(R.string.doctor_msg_rate_detail, detail),
                                 severity = Severity.INFO,
                                 fix =
                                     FixAction.OpenAppRoute(
@@ -1080,14 +1077,10 @@ class DoctorChecks(
                                 category = DoctorCategory.Network,
                                 labelRes = R.string.doctor_net_14,
                                 detail =
-                                    context.getString(R.string.doctor_msg_vision_unsupported) +
-                                        visionUnavailable.joinToString(", ") +
-                                        ". These multimodal models run in text-only mode — chat works, " +
-                                        "image inputs don't. Often fixed by a future LiteRT-LM SDK update " +
-                                        "(the OpenGL fallback path's CreateSharedMemoryManager is " +
-                                        "currently UNIMPLEMENTED upstream). Tap 'Re-try vision' next to " +
-                                        "the model in Settings -> Local LiteRT after a GPU driver update " +
-                                        "to clear the flag.",
+                                    context.getString(
+                                        R.string.doctor_msg_vision_detail,
+                                        visionUnavailable.joinToString(", "),
+                                    ),
                                 severity = Severity.WARN,
                                 fix =
                                     FixAction.OpenAppRoute(
@@ -1233,7 +1226,7 @@ class DoctorChecks(
                                             } else if (created) {
                                                 context.getString(R.string.doctor_msg_browser_created_readonly)
                                             } else {
-                                                "mkdirs() returned false; underlying storage may be read-only."
+                                                context.getString(R.string.doctor_msg_browser_mkdir_failed)
                                             },
                                     )
                                 },
