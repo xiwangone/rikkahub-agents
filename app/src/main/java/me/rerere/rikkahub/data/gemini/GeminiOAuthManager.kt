@@ -24,6 +24,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import me.rerere.common.http.await
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.log.AppLog
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -59,6 +60,7 @@ class GeminiOAuthManager(
             val redirect = "http://localhost:$port$CALLBACK_PATH"
             sessions[state] = redirect
             _status.value = GeminiOAuthStatus.Waiting
+            AppLog.i("GeminiOAuth", "startLogin: port=$port redirect=$redirect")
 
             val authUrl = Uri.parse(AUTHORIZE_URL).buildUpon()
                 .appendQueryParameter("response_type", "code")
@@ -75,6 +77,7 @@ class GeminiOAuthManager(
                 }
             )
         } catch (error: Throwable) {
+            AppLog.e("GeminiOAuth", "startLogin failed: ${error.message}")
             sessions.remove(state)
             _status.value = GeminiOAuthStatus.Error(
                 if (error.message == CALLBACK_PORTS_UNAVAILABLE) {

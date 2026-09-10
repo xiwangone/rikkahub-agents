@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.data.sync
 
+import me.rerere.rikkahub.data.log.AppLog
+
 import android.content.Context
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -40,6 +42,7 @@ class BackupEncryptionManager(
      * @return 待上传文件（加密时为新 .enc 文件，临时目录；否则原 [plainZip]）。
      */
     fun maybeEncrypt(plainZip: File): File {
+        AppLog.i("BackupEnc", "maybeEncrypt: ${plainZip.name} enabled=${isEnabled}")
         if (!isEnabled) return plainZip
         val password = rememberedPassword
             ?: throw IllegalStateException("备份加密已开启，但本机未记住口令。请先在「备份与恢复 → 加密设置」设置口令。")
@@ -55,6 +58,7 @@ class BackupEncryptionManager(
      * @throws IllegalStateException 加密文件但无口令可用。
      */
     fun maybeDecrypt(backupFile: File, password: String? = null): File {
+        AppLog.i("BackupEnc", "maybeDecrypt: ${backupFile.name}")
         if (!BackupCrypto.isEncrypted(backupFile)) return backupFile
         val pwd = password ?: rememberedPassword
             ?: throw IllegalStateException("备份文件已加密，需要口令才能恢复。")

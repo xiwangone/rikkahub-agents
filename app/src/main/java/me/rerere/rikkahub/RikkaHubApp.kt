@@ -22,8 +22,11 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.flow.first
+import me.rerere.common.android.LogEntry
 import me.rerere.common.android.Logging
 import me.rerere.common.android.appTempFolder
+import me.rerere.rikkahub.data.log.AppLifecycleRecorder
+import me.rerere.rikkahub.data.log.FileLogSink
 import com.whl.quickjs.android.QuickJSLoader
 import me.rerere.rikkahub.di.appModule
 import me.rerere.rikkahub.di.dataSourceModule
@@ -51,6 +54,8 @@ const val CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID = "chat_live_update"
 const val WEB_SERVER_NOTIFICATION_CHANNEL_ID = "web_server"
 
 class RikkaHubApp : Application() {
+    private val appStartElapsedMs = android.os.SystemClock.elapsedRealtime()
+
     override fun onCreate() {
         super.onCreate()
         // 兼容老 SSH 服务端（如小米路由 dropbear 2017.75 只提供 ssh-rsa host key）：
@@ -88,6 +93,25 @@ class RikkaHubApp : Application() {
 
         // install crash handler
         CrashHandler.install(this)
+
+        // ---- 日志持久化 + 进程状态记录（2026-09-11）----
+        // 统一文件日志器：app/req/text/lifecycle 四类写 filesDir/logs/*.log，杀进程不丢。
+        FileLogSink.init(
+            this,
+            "RikkaHub Agents ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) debug=${BuildConfig.DEBUG}",
+        )
+        Logging.persistSink = { entry ->
+            when (entry) {
+                is LogEntry.RequestLog ->
+                    FileLogSink.append(
+                        FileLogSink.KIND_REQ,
+                        "[HTTP] ${entry.method} ${entry.url} code=${entry.responseCode} dur=${entry.durationMs}ms err=${entry.error ?: "-"}",
+                    )
+                is LogEntry.TextLog ->
+                    FileLogSink.append(FileLogSink.KIND_TEXT, "[${entry.tag}] ${entry.message}")
+            }
+        }
+        AppLifecycleRecorder.install(this, appStartElapsedMs)
 
         // Init QuickJS native library
         QuickJSLoader.init()
@@ -191,6 +215,11 @@ class RikkaHubApp : Application() {
         invalidateLocalLlmDecisionsOnSdkUpgrade()
 
         // Composer.setDiagnosticStackTraceMode(ComposeStackTraceMode.Auto)
+    }
+
+    override fun onTrimMemory(level: Int) {
+        super.onTrimMemory(level)
+        AppLifecycleRecorder.onTrimMemory(level)
     }
 
     /**

@@ -1,4 +1,6 @@
-package me.rerere.rikkahub.web
+package me.rerere.rikkahub
+
+import me.rerere.rikkahub.data.log.AppLog.web
 
 import android.content.Context
 import android.util.Log
@@ -66,7 +68,7 @@ class WebServerManager(
         localhostOnly: Boolean = false
     ) {
         if (server != null) {
-            Log.w(TAG, "Server already running")
+            AppLog.w(TAG, "Server already running")
             return
         }
 
@@ -88,7 +90,7 @@ class WebServerManager(
                 _state.value = _state.value.copy(isLoading = true, startId = startId)
                 Log.i(TAG, "Starting web server on $host:$port")
                 if (!isPortAvailable(port)) {
-                    Log.w(TAG, "Port $port is already in use")
+                    AppLog.w(TAG, "Port $port is already in use")
                     _state.value = baseState.copy(error = "Port $port is already in use")
                     return@launch
                 }
@@ -121,12 +123,12 @@ class WebServerManager(
                             }
                         )
                     }.onFailure {
-                        Log.w(TAG, "NSD register failed", it)
+                        AppLog.w(TAG, "NSD register failed", it)
                     }
                 }
                 Log.i(TAG, "Web server started successfully on $host:$port")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to start web server", e)
+                AppLog.e(TAG, "Failed to start web server", e)
                 _state.value = baseState.copy(error = e.message)
             }
         }
@@ -147,12 +149,12 @@ class WebServerManager(
                 runCatching {
                     nsdRegistrar.unregister()
                 }.onFailure {
-                    Log.w(TAG, "NSD unregister failed", it)
+                    AppLog.w(TAG, "NSD unregister failed", it)
                 }
                 _state.value = _state.value.copy(isLoading = false)
                 Log.i(TAG, "Web server stopped")
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to stop web server", e)
+                AppLog.e(TAG, "Failed to stop web server", e)
                 _state.value = _state.value.copy(isLoading = false, error = e.message)
             }
         }

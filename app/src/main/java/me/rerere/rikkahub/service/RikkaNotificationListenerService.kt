@@ -1,4 +1,6 @@
-package me.rerere.rikkahub.service
+package me.rerere.rikkahub
+
+import me.rerere.rikkahub.data.log.AppLog.service
 
 import android.app.Notification
 import android.content.pm.PackageManager
@@ -137,7 +139,7 @@ class RikkaNotificationListenerService : NotificationListenerService() {
             try {
                 whitelistPrefs.current()
             } catch (t: Throwable) {
-                Log.w(TAG, "whitelist prefs read failed; skipping forward", t)
+                AppLog.w(TAG, "whitelist prefs read failed; skipping forward", t)
                 return
             }
         if (entry.packageName !in cfg.whitelist) return
@@ -146,7 +148,7 @@ class RikkaNotificationListenerService : NotificationListenerService() {
             try {
                 telegramPrefs.current()
             } catch (t: Throwable) {
-                Log.w(TAG, "telegram prefs read failed; skipping forward", t)
+                AppLog.w(TAG, "telegram prefs read failed; skipping forward", t)
                 return
             }
         val chatId = tg.defaultChatId ?: return
@@ -195,7 +197,7 @@ class RikkaNotificationListenerService : NotificationListenerService() {
             lastForwardedGlobalSig = globalSig
             lastForwardedGlobalAtMs = now
         } catch (e: Throwable) {
-            Log.w(TAG, "auto-route failed for ${entry.packageName}", e)
+            AppLog.w(TAG, "auto-route failed for ${entry.packageName}", e)
         }
     }
 

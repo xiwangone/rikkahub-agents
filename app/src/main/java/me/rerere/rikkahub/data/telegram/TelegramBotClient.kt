@@ -1,4 +1,6 @@
-package me.rerere.rikkahub.data.telegram
+package me.rerere.rikkahub
+
+import me.rerere.rikkahub.data.log.AppLog.data.telegram
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers
@@ -82,7 +84,7 @@ class TelegramBotClient(
         runCatching { proxyConfigProvider() }.getOrDefault(TelegramBotConfig())
     private val resolvedProxy: Proxy? = telegramProxyOrNull(proxyConfig).also { resolved ->
         if (proxyConfig.proxyEnabled && resolved == null) {
-            Log.w(tag, "Telegram proxy enabled but host/port invalid; continuing without a proxy")
+            AppLog.w(tag, "Telegram proxy enabled but host/port invalid; continuing without a proxy")
         }
     }
 
@@ -139,7 +141,7 @@ class TelegramBotClient(
     private fun redactToken(s: String?): String {
         if (s.isNullOrEmpty()) return s.orEmpty()
         val token = try { tokenProvider() } catch (t: Throwable) {
-            Log.w(tag, "tokenProvider failed while redacting token", t)
+            AppLog.w(tag, "tokenProvider failed while redacting token", t)
             ""
         }
         return if (token.isNotBlank() && s.contains(token)) s.replace(token, "***REDACTED***") else s
@@ -149,7 +151,7 @@ class TelegramBotClient(
     private fun redactException(e: IOException): IOException {
         val msg = e.message
         val token = try { tokenProvider() } catch (t: Throwable) {
-            Log.w(tag, "tokenProvider failed while redacting exception", t)
+            AppLog.w(tag, "tokenProvider failed while redacting exception", t)
             ""
         }
         if (token.isBlank() || msg == null || !msg.contains(token)) return e

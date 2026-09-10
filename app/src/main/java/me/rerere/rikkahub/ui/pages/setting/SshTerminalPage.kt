@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.data.log.AppLog
+
 import me.rerere.rikkahub.data.vault.ensureTrailingNewline
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -59,8 +61,10 @@ fun SshTerminalPage(hostName: String) {
     LaunchedEffect(hostName) {
         withContext(Dispatchers.IO) {
             val host = hostRepo.getByName(hostName)
+            AppLog.w("SshTerm", "connect: host not found $hostName")
             if (host == null) { connectError = appContext.getString(R.string.ssh_terminal_host_not_found, hostName); return@withContext }
             val auth = resolveHostAuth(host, vaultRepo)
+            AppLog.w("SshTerm", "connect: no credential for $hostName (vaultRef=${host.vaultCredentialRef ?: "none"})")
             if (auth == null) { connectError = appContext.getString(R.string.ssh_terminal_no_credential, host.vaultCredentialRef ?: "none"); return@withContext }
             try {
                 val jsch = newJSch(appContext)
@@ -74,8 +78,10 @@ fun SshTerminalPage(hostName: String) {
                 sessionRef.set(session)
                 connected = true
                 output = appContext.getString(R.string.ssh_terminal_connected, host.user, host.host, host.port)
+                AppLog.i("SshTerm", "connected ${host.user}@${host.host}:${host.port}")
             } catch (e: Exception) {
                 connectError = appContext.getString(R.string.ssh_terminal_connect_failed, e.message)
+                AppLog.w("SshTerm", "connect failed: ${e.message}")
             }
         }
     }

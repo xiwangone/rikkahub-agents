@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import me.rerere.rikkahub.data.log.AppLog
+
 import me.rerere.rikkahub.data.vault.ensureTrailingNewline
 import android.content.Context
 import android.net.ConnectivityManager
@@ -303,7 +305,7 @@ private fun resolveToIPv4(host: String): String? {
             Log.i(TAG_SSH, "resolveToIPv4: $host -> $it (skipping ${addrs.size - 1} other records)")
         }
     } catch (t: Throwable) {
-        Log.w(TAG_SSH, "resolveToIPv4: $host failed", t)
+        AppLog.w(TAG_SSH, "resolveToIPv4: $host failed", t)
         null
     }
 }

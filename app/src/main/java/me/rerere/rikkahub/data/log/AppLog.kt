@@ -180,6 +180,8 @@ object AppLog {
                 buffer.removeFirst()
             }
         }
+        // 文件持久化（与内存开关一致；时间戳由 FileLogSink 统一加）
+        FileLogSink.append(FileLogSink.KIND_APP, "${entry.level} ${entry.tag}: ${entry.message}")
     }
 
     private fun formatLine(entry: Entry): String {

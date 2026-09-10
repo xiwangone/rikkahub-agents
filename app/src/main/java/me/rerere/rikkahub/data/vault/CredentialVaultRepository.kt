@@ -56,6 +56,7 @@ class CredentialVaultRepository(
         } else {
             upsertEntry(name, value, description, group, publicKey)
         }
+        logAccess(name, "repository", if (existing != null) "save_update" else "save_create")
     }
 
     /** 批量导入（解析结果 → 逐条 upsert，返回导入条数）。 */
@@ -126,7 +127,10 @@ class CredentialVaultRepository(
         }
     }
 
-    suspend fun delete(entry: VaultCredentialEntity) = dao.delete(entry)
+    suspend fun delete(entry: VaultCredentialEntity) {
+        logAccess(entry.name, "repository", "delete")
+        dao.delete(entry)
+    }
 
     suspend fun clearAll() = dao.clearAll()
 

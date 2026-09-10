@@ -1,4 +1,6 @@
-package me.rerere.rikkahub.data.ai.mcp
+package me.rerere.rikkahub
+
+import me.rerere.rikkahub.data.log.AppLog.data.ai.mcp
 
 import android.content.Context
 import android.util.Log
@@ -147,7 +149,7 @@ class McpManager(
                         toAdd.forEach { cfg ->
                             appScope.launch {
                                 runCatching { addClient(cfg) }
-                                    .onFailure { Log.w(TAG, "addClient failed for ${cfg.commonOptions.name}", it) }
+                                    .onFailure { AppLog.w(TAG, "addClient failed for ${cfg.commonOptions.name}", it) }
                             }
                         }
                         toRemove.forEach { cfg ->
@@ -156,11 +158,11 @@ class McpManager(
                         toReplace.forEach { cfg ->
                             appScope.launch {
                                 runCatching { addClient(cfg) }
-                                    .onFailure { Log.w(TAG, "reconnect-on-edit failed for ${cfg.commonOptions.name}", it) }
+                                    .onFailure { AppLog.w(TAG, "reconnect-on-edit failed for ${cfg.commonOptions.name}", it) }
                             }
                         }
                     }.onFailure {
-                        Log.w(TAG, "settings collector reconcile failed", it)
+                        AppLog.w(TAG, "settings collector reconcile failed", it)
                     }
                 }
         }
@@ -312,7 +314,7 @@ class McpManager(
         }
 
         transport.onError { error ->
-            Log.e(TAG, "Transport error for ${config.commonOptions.name}: ${error.message}")
+            AppLog.e(TAG, "Transport error for ${config.commonOptions.name}: ${error.message}")
             if (isSseStreamGiveUpError(error)) return@onError
             val currentStatus = syncingStatus.value[config.id]
             // 只有在已连接状态下才触发重连
@@ -334,7 +336,7 @@ class McpManager(
             reconnectAttempts[config.id] = 0 // 重置重连计数
             Log.i(TAG, "addClient: connected ${config.commonOptions.name}")
         }.onFailure {
-            Log.w(TAG, "addClient: connect failed for ${config.commonOptions.name}", it)
+            AppLog.w(TAG, "addClient: connect failed for ${config.commonOptions.name}", it)
             if (needsAuthorization(config, it)) {
                 setStatus(config = config, status = McpStatus.NeedsAuthorization)
             } else {
@@ -418,7 +420,7 @@ class McpManager(
                 // sync() rekeys clients for this id; serialize against add/remove/reconnect.
                 lockFor(config.id).withLock { sync(config) }
             }.onFailure {
-                Log.w(TAG, "syncAll: sync failed for ${config.commonOptions.name}", it)
+                AppLog.w(TAG, "syncAll: sync failed for ${config.commonOptions.name}", it)
                 if (needsAuthorization(config, it)) {
                     setStatus(config, McpStatus.NeedsAuthorization)
                 } else {
@@ -463,7 +465,7 @@ class McpManager(
             runCatching {
                 entry.value.close()
             }.onFailure {
-                Log.w(TAG, "removeClient: close failed for ${entry.key.commonOptions.name}", it)
+                AppLog.w(TAG, "removeClient: close failed for ${entry.key.commonOptions.name}", it)
             }
             clients.remove(entry.key)
             syncingStatus.emit(syncingStatus.value.toMutableMap().apply { remove(entry.key.id) })
@@ -477,7 +479,7 @@ class McpManager(
     private suspend fun closeExistingFor(id: Uuid) {
         clients.entries.filter { it.key.id == id }.forEach { entry ->
             runCatching { entry.value.close() }
-                .onFailure { Log.w(TAG, "closeExistingFor: close failed for ${entry.key.commonOptions.name}", it) }
+                .onFailure { AppLog.w(TAG, "closeExistingFor: close failed for ${entry.key.commonOptions.name}", it) }
             clients.remove(entry.key)
         }
     }
@@ -487,7 +489,7 @@ class McpManager(
         val currentAttempt = (reconnectAttempts[configId] ?: 0) + 1
 
         if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {
-            Log.w(TAG, "Max reconnect attempts reached for ${config.commonOptions.name}")
+            AppLog.w(TAG, "Max reconnect attempts reached for ${config.commonOptions.name}")
             appScope.launch {
                 setStatus(config, McpStatus.Error(context.getString(R.string.mcp_error_reconnect_exhausted)))
             }
@@ -523,7 +525,7 @@ class McpManager(
                 Log.i(TAG, "Reconnect cancelled for ${config.commonOptions.name}")
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "Reconnect failed for ${config.commonOptions.name}", e)
+                AppLog.e(TAG, "Reconnect failed for ${config.commonOptions.name}", e)
                 // 继续尝试重连
                 scheduleReconnect(config)
             }
@@ -567,7 +569,7 @@ class McpManager(
             }
 
             transport.onError { error ->
-                Log.e(TAG, "Transport error for ${config.commonOptions.name}: ${error.message}")
+                AppLog.e(TAG, "Transport error for ${config.commonOptions.name}: ${error.message}")
                 if (isSseStreamGiveUpError(error)) return@onError
                 val currentStatus = syncingStatus.value[config.id]
                 if (currentStatus == McpStatus.Connected) {
@@ -789,7 +791,7 @@ class McpManager(
             persistOAuthState(config.id, updated)
             config.clone(commonOptions = config.commonOptions.copy(oauth = updated))
         }.getOrElse {
-            Log.w(TAG, "Token refresh failed for ${config.commonOptions.name}: ${it.message}")
+            AppLog.w(TAG, "Token refresh failed for ${config.commonOptions.name}: ${it.message}")
             config // 刷新失败仍用旧令牌尝试，失败会转为 NeedsAuthorization
         }
     }

@@ -53,5 +53,49 @@ object CrashHandler {
                 putBoolean(KEY_CRASHED, true)
                 putString(KEY_STACKTRACE, stackTrace)
             } // commit() 同步写入，确保崩溃前写完
+
+        // 崩溃快照：堆栈 + 应用日志尾部 + 请求日志尾部，写 crash-latest.txt（尽力同步，崩溃时不再开线程）
+        persistCrashSnapshot(context, thread, throwable)
+    }
+
+    private fun persistCrashSnapshot(
+        context: Context,
+        thread: Thread,
+        throwable: Throwable,
+    ) {
+        val dir = context.getDir("crash", Context.MODE_PRIVATE)
+        dir.mkdirs()
+        val file = java.io.File(dir, "crash-latest.txt")
+        val appLogTail = me.rerere.rikkahub.data.log.AppLog.getLogs().takeLast(50).joinToString("\n") {
+            java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.getDefault()).format(it.timestamp) +
+                " ${it.level} ${it.tag}: ${it.message}"
+        }
+        val requestTail = me.rerere.common.android.Logging.getRecentLogs().filterIsInstance<me.rerere.common.android.LogEntry.RequestLog>().take(20).joinToString("\n") {
+            "[HTTP] ${it.method} ${it.url} code=${it.responseCode} dur=${it.durationMs}ms err=${it.error ?: "-"}"
+        }
+        val lifecycleTail = me.rerere.rikkahub.data.log.FileLogSink.recentLines(
+            me.rerere.rikkahub.data.log.FileLogSink.KIND_LIFECYCLE,
+            30,
+        )
+        val content =
+            buildString {
+                appendLine("=== Crash Snapshot ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())} ===")
+                appendLine("Thread: ${thread.name}")
+                appendLine()
+                appendLine(throwable.stackTraceToString())
+                appendLine()
+                appendLine("--- AppLog tail (50) ---")
+                appendLine(me.rerere.rikkahub.utils.LogRedactor.maskText(appLogTail))
+                appendLine()
+                appendLine("--- Request tail (20) ---")
+                appendLine(me.rerere.rikkahub.utils.LogRedactor.maskText(requestTail))
+                appendLine()
+                appendLine("--- Lifecycle tail (30) ---")
+                appendLine(lifecycleTail)
+            }
+        runCatching {
+            file.writeText(content, Charsets.UTF_8)
+        }
+        me.rerere.rikkahub.data.log.FileLogSink.flush()
     }
 }

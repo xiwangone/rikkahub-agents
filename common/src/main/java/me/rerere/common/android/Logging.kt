@@ -40,6 +40,13 @@ object Logging {
     @Volatile
     private var requestLoggingEnabled = false
 
+    /**
+     * 文件持久化回调：由 :app 层在 Application 启动时注入（FileLogSink），
+     * 把 entry 同步写入 filesDir/logs/*.log。common 层不持有 Context，保持 null 安全。
+     */
+    @Volatile
+    var persistSink: ((LogEntry) -> Unit)? = null
+
     // Modules below :app (e.g. :ai) have no BuildConfig of their own to gate verbose
     // android.util.Log calls with, the way :app already gates HttpLoggingInterceptor
     // behind BuildConfig.DEBUG. RikkaHubApp.onCreate() sets this once from
@@ -77,6 +84,7 @@ object Logging {
                 recentLogs.removeLastOrNull()
             }
         }
+        persistSink?.invoke(entry)
     }
 
     fun getRecentLogs(): List<LogEntry> {

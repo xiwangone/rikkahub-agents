@@ -6,6 +6,7 @@ import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
 import me.rerere.rikkahub.data.db.entity.ScheduledJobEntity
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.repository.ScheduledJobRepository
 import java.time.Instant
 import java.time.ZoneId
@@ -26,6 +27,8 @@ class CronJobScheduler(
 ) {
     private val wm get() = WorkManager.getInstance(context)
 
+    private val tag = "CronJob"
+
     suspend fun schedule(job: ScheduledJobEntity) {
         val nowMs = System.currentTimeMillis()
         val nextRun = nextRunMs(job, nowMs)
@@ -41,6 +44,7 @@ class CronJobScheduler(
                 .setInputData(Data.Builder().putString(CronJobWorker.KEY_JOB_ID, job.id).build())
                 .build()
         wm.enqueueUniqueWork(workNameFor(job.id), ExistingWorkPolicy.REPLACE, req)
+        AppLog.i(tag, "schedule: job=${job.id} task=${job.task} next=$nextRun delay=${delayMs}ms")
     }
 
     /**
@@ -64,6 +68,7 @@ class CronJobScheduler(
 
     fun cancel(jobId: String) {
         wm.cancelUniqueWork(workNameFor(jobId))
+        AppLog.i(tag, "cancel: $jobId")
     }
 
     suspend fun scheduleAllEnabled() {
