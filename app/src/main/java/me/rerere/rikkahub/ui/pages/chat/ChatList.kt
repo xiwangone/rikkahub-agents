@@ -430,6 +430,7 @@ private fun ChatListNormal(
                             AnimatedVisibility(
                                 visible = processingStatus != null,
                             ) {
+                                val statusContext = LocalContext.current
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -443,9 +444,8 @@ private fun ChatListNormal(
                                         onClick = {
                                             val text = processingStatus
                                             if (!text.isNullOrBlank()) {
-                                                val ctx = LocalContext.current
                                                 val clipboard =
-                                                    ctx.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                                    statusContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                                 clipboard.setPrimaryClip(
                                                     ClipData.newPlainText("processingStatus", text)
                                                 )
