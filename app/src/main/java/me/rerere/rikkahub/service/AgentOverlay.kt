@@ -18,6 +18,7 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.hooks.readBooleanPreference
 
 /**
@@ -66,27 +67,43 @@ object AgentOverlay {
         ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
 
     /**
-     * 注册一次前后台监听：退到后台时若回合仍在跑就补显出悬浮条，回到前台立刻收起。
+     * 注册前后台监听（幂等）。必须在**主线程**注册：`LifecycleRegistry.addObserver` 会断言主线程，
+     * 而 [show] 是从 GenerationHandler 的 flow `onStart` 调用的，那条链带 `flowOn(Dispatchers.IO)`
+     * —— 也就是说这里默认跑在 IO 线程。2026-09-10 实测：直接注册会抛
+     * "Method addObserver must be called on the main thread"，被 runCatching 吞掉后
+     * 只留下 `observerRegistered = true` 的假状态，于是后台永不显示悬浮条。
      */
     private fun ensureObserver(app: Context) {
         if (observerRegistered) return
-        synchronized(this) {
-            if (observerRegistered) return
+        mainHandler.post {
+            if (observerRegistered) return@post
             runCatching {
                 ProcessLifecycleOwner.get().lifecycle.addObserver(
                     object : DefaultLifecycleObserver {
                         override fun onStop(owner: LifecycleOwner) {
+                            log("lifecycle onStop, active=$active")
                             if (active) mainHandler.post { showInternal(app, lastText) }
                         }
 
                         override fun onStart(owner: LifecycleOwner) {
+                            log("lifecycle onStart")
                             mainHandler.post { hideInternal(app) }
                         }
                     },
                 )
-            }.onFailure { Log.w(TAG, "addObserver failed", it) }
-            observerRegistered = true
+                observerRegistered = true
+            }.onFailure {
+                // 注册失败不要留下"已注册"假状态，否则永不重试
+                Log.w(TAG, "addObserver failed", it)
+                log("addObserver failed: ${it.message}")
+            }
         }
+    }
+
+    /** 诊断：同时写系统日志与 App 内存日志（后者可被 read_app_logs 读到）。 */
+    private fun log(message: String) {
+        Log.d(TAG, message)
+        runCatching { AppLog.d(TAG, message) }
     }
 
     /** 回合开始：记录状态并按当前前后台立即决定是否显示。 */
@@ -95,11 +112,11 @@ object AgentOverlay {
         active = true
         lastText = text
         if (!canShow(app)) {
-            Log.d(TAG, "show: SYSTEM_ALERT_WINDOW not granted, no-op")
+            log("show: SYSTEM_ALERT_WINDOW not granted, no-op")
             return
         }
         if (!isEnabled(app)) {
-            Log.d(TAG, "show: overlay disabled by user, no-op")
+            log("show: overlay disabled by user, no-op")
             return
         }
         ensureObserver(app)
@@ -107,10 +124,11 @@ object AgentOverlay {
             // App is on screen; the chat UI has its own progress indicator. Drop the pill so it
             // doesn't overlap the top bar — it will appear via the lifecycle observer if a later
             // turn (or the rest of this one) leaves the app.
-            Log.d(TAG, "show: app in foreground, suppressing pill")
+            log("show: app in foreground, suppressing pill (will appear on background)")
             mainHandler.post { hideInternal(app) }
             return
         }
+        log("show: app in background, showing pill")
         mainHandler.post { showInternal(app, text) }
     }
 
@@ -118,6 +136,7 @@ object AgentOverlay {
     fun hide(context: Context) {
         val app = context.applicationContext
         active = false
+        log("hide: turn finished, removing pill")
         mainHandler.post { hideInternal(app) }
     }
 
@@ -164,7 +183,7 @@ object AgentOverlay {
             wm.addView(tv, params)
             view = tv
         } catch (t: Throwable) {
-            Log.w(TAG, "addView failed", t)
+            log("addView failed: ${t.message}")
         }
     }
 
@@ -175,7 +194,7 @@ object AgentOverlay {
         try {
             wm.removeViewImmediate(v)
         } catch (t: Throwable) {
-            Log.w(TAG, "removeView failed", t)
+            log("removeView failed: ${t.message}")
         }
     }
 }
