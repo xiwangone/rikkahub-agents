@@ -487,6 +487,22 @@ class ConversationRepository(
     }
 
     private suspend fun saveMessageNodes(conversationId: String, nodes: List<MessageNode>) {
+        // 空轮次诊断（2026-09-11）：检测写入历史的空 user 文本消息（无文本/纯空白 part 的 user 节点）
+        nodes.forEach { node ->
+            val hasEmptyUser =
+                node.messages.any { msg ->
+                    msg.role == me.rerere.ai.core.MessageRole.USER &&
+                        msg.parts.none { p ->
+                            (p as? me.rerere.ai.ui.UIMessagePart.Text)?.text?.isNotBlank() == true
+                        }
+                }
+            if (hasEmptyUser) {
+                me.rerere.rikkahub.data.log.AppLog.w(
+                    "DiagEmptyMsg",
+                    "空 user 节点入历史: conv=$conversationId node=${node.id} msgs=${node.messages.size}",
+                )
+            }
+        }
         val entities = nodes.mapIndexed { index, node ->
             MessageNodeEntity(
                 id = node.id.toString(),
