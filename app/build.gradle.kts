@@ -11,6 +11,19 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+// ---- 可选单架构打包（本地出包提速用）-------------------------------------------
+// 用法：gradlew :app:assembleRelease -PrikkaAbi=arm64-v8a    （三架构约 1h → 单架构约 11min）
+// ⚠ 不要用 `-Pandroid.injected.build.abi=...`：AGP 见 `android.injected.*` 前缀会判定为
+// IDE 测试注入构建，给 APK 打上 testOnly=true（装机虽可能成功，但属非发布形态）。
+// 这里走自定义属性，不触碰 injected 前缀，产物与正常 release 完全一致。
+val abiSelection: List<String> =
+    providers.gradleProperty("rikkaAbi").orNull
+        ?.split(",")
+        ?.map { it.trim() }
+        ?.filter { it.isNotEmpty() }
+        ?.takeIf { it.isNotEmpty() }
+        ?: listOf("arm64-v8a", "x86_64")
+
 android {
     namespace = "me.rerere.rikkahub"
     compileSdk = 37
@@ -19,13 +32,14 @@ android {
         applicationId = "excp.rikkahub.agents"
         minSdk = 26
         targetSdk = 37
-        versionCode = 204
+        versionCode = 205
         versionName = "2.47.3"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
+            // 单架构覆盖时交给 splits 处理：AGP 不允许 ndk.abiFilters 与 splits.abi 同时生效
+            if (abiSelection.size > 1) abiFilters += abiSelection
         }
     }
 
@@ -36,8 +50,9 @@ android {
             val isBuildingBundle = gradle.startParameter.taskNames.any { it.lowercase().contains("bundle") }
             isEnable = !isBuildingBundle
             reset()
-            include("arm64-v8a", "x86_64")
-            isUniversalApk = true
+            include(*abiSelection.toTypedArray())
+            // 只挑单架构时不需要 universal 包（省一次打包）
+            isUniversalApk = abiSelection.size > 1
         }
     }
 
