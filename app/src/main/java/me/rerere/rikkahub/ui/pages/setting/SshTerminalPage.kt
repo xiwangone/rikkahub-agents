@@ -33,6 +33,7 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuth
+import androidx.compose.ui.res.stringResource
 import me.rerere.rikkahub.data.ai.tools.local.newJSch
 import me.rerere.rikkahub.data.ai.tools.local.SshAuth
 

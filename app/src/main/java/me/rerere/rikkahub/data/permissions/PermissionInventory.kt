@@ -159,7 +159,7 @@ object PermissionInventory {
                         grant = GrantAction.Runtime(perm),
                     )
                 } else {
-                    autoRow(perm, "Post notifications")
+                    autoRow(perm, "Post notifications", context)
                 }
             }
         }
@@ -204,11 +204,11 @@ object PermissionInventory {
                 grant = GrantAction.Runtime(perm),
             )
         } else {
-            autoRow(perm, labelOrHumanize(perm, context))
+            autoRow(perm, labelOrHumanize(perm, context), context)
         }
     }
 
-    private fun autoRow(perm: String, label: String) = Row(
+    private fun autoRow(perm: String, label: String, context: Context) = Row(
         id = perm,
         label = label,
         description = context.getString(R.string.perm_auto_granted_desc),
