@@ -132,7 +132,7 @@ fun SshKeyPairDialog(
                 } else {
                     // 第二步：显示公钥（可复制/可选中）
                     Text(
-                        stringResource(R.string.ssh_key_saved_instruction, savedName),
+                        stringResource(R.string.ssh_key_saved_instruction, savedName ?: ""),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     androidx.compose.foundation.text.selection.SelectionContainer {

@@ -141,6 +141,7 @@ fun DebugPage(vm: DebugVM = koinViewModel()) {
 
 @Composable
 private fun MainPage(vm: DebugVM) {
+    val context = LocalContext.current
     val settings = LocalSettings.current
     val conversationCount by vm.conversationCount.collectAsStateWithLifecycle()
     Column(
