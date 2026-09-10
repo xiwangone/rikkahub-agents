@@ -159,19 +159,60 @@ internal fun wrapDetachedCommand(command: String): String =
     "nohup sh -c ${shellSingleQuote(command)} >/dev/null 2>&1 </dev/null & echo \"rikkahub_bg_pid=\$!\""
 
 /**
+ * 判断 [command] 是不是「Windows/PowerShell 风格」的命令行。
+ *
+ * 用于 detached 包装与输出编码修复的选路。历史上只看 `powershell`/`pwsh` 前缀与 `C:\`
+ * 等字面量，导致 `Start-Sleep -Seconds 5; Write-Output done` 这类**纯 cmdlet 命令**被误判为
+ * POSIX → 用 `nohup sh -c …` 包装 → Windows 主机上必然 ParserError（2026-09-10 实测）。
+ * 现在补上 cmdlet 特征（动词-名词、`-Command`、`$env:`、`$_` 等）。
+ *
+ * 先排除 POSIX 外壳前缀（cmd/wsl/bash/sh/zsh）——它们即使出现在 Windows 主机上，
+ * 也应按原样直接执行，不能加 PowerShell 包装。
+ */
+internal fun looksLikeWindowsCommand(command: String): Boolean {
+    val c = command.trim()
+    if (c.isEmpty()) return false
+    val posixShellPrefix = Regex("""^\s*(cmd(\.exe)?|wsl|bash|sh|zsh|dash|ash)\b""", RegexOption.IGNORE_CASE)
+    if (posixShellPrefix.containsMatchIn(c)) return false
+    if (Regex("""^\s*(powershell|pwsh)(\.exe)?\b""", RegexOption.IGNORE_CASE).containsMatchIn(c)) return true
+    if (c.contains(":\\") || c.contains("cmd /c") || c.contains("cmd.exe /c")) return true
+    return WINDOWS_CMDLET_REGEX.containsMatchIn(c)
+}
+
+/** PowerShell 命令特征：`$env:` / `$_` / `$?` 变量，或常见 cmdlet 动词-名词。 */
+private val WINDOWS_CMDLET_REGEX = Regex(
+    """(?i)([$]env:|[$]_|[$][?]|\b(Select|Where|ForEach|Measure|Sort|Group|Tee|Out|Write|Read|Get|Set|New|Remove|Copy|Move|Rename|Test|Start|Stop|Restart|Invoke|Add|Clear|Enable|Disable|Export|Import|Join|Split|ConvertTo|ConvertFrom|Wait|Resolve|Format|Show|Update)-[A-Za-z]+)""",
+)
+
+/**
+ * 给 Windows/PowerShell 命令补上「输出转 UTF-8」前缀，修中文乱码。
+ *
+ * 实测（2026-09-10，pc-xedge / pwsh 7.7）：远端默认 `[Console]::OutputEncoding` = gb2312，
+ * 中文字节流回到 App 按 UTF-8 解码 → 全是 `????`/乱码；命令前加这一句即恢复。
+ * `cmd.exe /c …` 之类显式 POSIX/exe 前缀不动（那是另一套代码页，乱码需 chcp，另行处理）。
+ */
+internal fun withUtf8ConsoleEncoding(command: String): String {
+    if (!looksLikeWindowsCommand(command)) return command
+    if (command.contains("[Console]::OutputEncoding")) return command
+    return "[Console]::OutputEncoding=[Text.Encoding]::UTF8; \$OutputEncoding=[Text.Encoding]::UTF8; " + command
+}
+
+/**
  * 平台自适应 detached 包装（POSIX 与 Windows 统一），返回 (detachedCommand, logPath)：
- * - POSIX：nohup 落 /tmp/rikkahub_bg_<ts>.log（不再丢 /dev/null），返回 logPath 供轮询
+ * - POSIX：nohup（缺失则退 setsid，再退裸后台）落 /tmp/rikkahub_bg_<ts>.log，返回 logPath 供轮询
  * - Windows/pwsh：Start-Process 全脱钩 + 输出重定向日志，返回 logPath
  * 两者都让 background=true 的任务可被 ssh_job_poll 尾读进度——任何主机类型通用。
  */
 internal fun wrapDetachedCommandSmart(command: String): Pair<String, String?> {
-    val looksWindows = command.startsWith("powershell") || command.startsWith("pwsh") ||
-        command.startsWith("PowerShell") || command.contains("PowerShell -") ||
-        command.contains("powershell -") || command.contains(":\\") || command.contains("cmd /c")
-    if (!looksWindows) {
-        // POSIX：nohup + 日志落盘（/tmp 通用可写），输出与错误都进同一日志
+    if (!looksLikeWindowsCommand(command)) {
+        // POSIX：日志落 /tmp（通用可写），输出与错误都进同一日志。
+        // nohup 并非到处都有（2026-09-10 实测：OpenWrt/ash 无 nohup，命令直接失败），
+        // 因此按 nohup → setsid → 裸后台 逐级降级；整组后台化，$! 即该组的 pid。
         val logPath = "/tmp/rikkahub_bg_${System.currentTimeMillis()}.log"
-        val wrapped = "nohup sh -c ${shellSingleQuote(command)} >$logPath 2>&1 </dev/null & echo \"rikkahub_bg_pid=\$!\""
+        val body = shellSingleQuote(command)
+        val wrapped = "{ command -v nohup >/dev/null 2>&1 && nohup sh -c $body >$logPath 2>&1 </dev/null" +
+            " || command -v setsid >/dev/null 2>&1 && setsid sh -c $body >$logPath 2>&1 </dev/null" +
+            " || sh -c $body >$logPath 2>&1 </dev/null; } & echo \"rikkahub_bg_pid=\$!\""
         return wrapped to logPath
     }
 
@@ -191,9 +232,7 @@ internal fun wrapDetachedCommandSmart(command: String): Pair<String, String?> {
     val script = "[Console]::OutputEncoding=[Text.Encoding]::UTF8; " +
         "Start-Process -FilePath powershell -ArgumentList @('-NoProfile','-NonInteractive','-Command',$(-f ${shellQuoteWin(inner)})) " +
         "-RedirectStandardOutput '$logPath' -RedirectStandardError '$errPath' -WindowStyle Hidden"
-    val b64 = android.util.Base64.encodeToString(
-        script.toByteArray(Charsets.UTF_16LE), android.util.Base64.NO_WRAP
-    )
+    val b64 = java.util.Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
     return "powershell -NoProfile -NonInteractive -EncodedCommand $b64" to logPath
 }
 
@@ -698,7 +737,7 @@ fun sshExecTool(context: Context): Tool = Tool(
                 buildJsonObject { put("error", "stdin and background are mutually exclusive (a detached command reads from /dev/null)") }.toString()
             ))
         }
-        val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(command) else (command to null)
+        val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(command) else (withUtf8ConsoleEncoding(command) to null)
         val effectiveCommand = detachedCmd
         val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
             execOneShot(context, host, port, user, auth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin)

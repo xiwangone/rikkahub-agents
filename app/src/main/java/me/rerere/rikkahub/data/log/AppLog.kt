@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.log
 
 import android.content.Context
 import android.util.Log
+import me.rerere.rikkahub.utils.LogRedactor
 import java.text.SimpleDateFormat
 import java.util.Locale
 
@@ -130,22 +131,32 @@ object AppLog {
     /**
      * 按关键字过滤并导出为纯文本。
      *
+     * 默认**脱敏**（`redact = true`）：导出/分享/复制意味着日志离开 App（外部编辑器、
+     * 剪贴板、第三方聊天工具），必须过 [LogRedactor.maskText]，防止崩溃堆栈/错误消息里
+     * 的 API key、连接串随日志外泄。屏幕内查看（[getLogs]）保持原文，不影响本机排查。
+     *
      * @param keyword 关键字（null / 空白表示不过滤），大小写不敏感
+     * @param redact 是否脱敏（默认 true）；仅在明确需要原文且不外发时传 false
      * @return 过滤后的日志文本（每行含时间、级别、TAG、消息）
      */
-    fun exportText(keyword: String? = null): String {
+    fun exportText(
+        keyword: String? = null,
+        redact: Boolean = true,
+    ): String {
         val filter = keyword?.trim().orEmpty().lowercase(Locale.getDefault())
-        return buildString {
-            getLogs().forEach { entry ->
-                if (filter.isEmpty() ||
-                    entry.tag.lowercase(Locale.getDefault()).contains(filter) ||
-                    entry.message.lowercase(Locale.getDefault()).contains(filter)
-                ) {
-                    append(formatLine(entry))
-                    append('\n')
+        val raw =
+            buildString {
+                getLogs().forEach { entry ->
+                    if (filter.isEmpty() ||
+                        entry.tag.lowercase(Locale.getDefault()).contains(filter) ||
+                        entry.message.lowercase(Locale.getDefault()).contains(filter)
+                    ) {
+                        append(formatLine(entry))
+                        append('\n')
+                    }
                 }
             }
-        }
+        return if (redact) LogRedactor.maskText(raw) else raw
     }
 
     // ---- 内部 ----

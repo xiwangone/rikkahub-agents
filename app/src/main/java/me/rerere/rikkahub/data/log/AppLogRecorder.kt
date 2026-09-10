@@ -27,5 +27,9 @@ object AppLogRecorder {
 
     fun clear() = AppLog.clear()
 
-    fun exportText(keyword: String? = null): String = AppLog.exportText(keyword)
+    /** @see AppLog.exportText —— 默认脱敏（导出即外发场景） */
+    fun exportText(
+        keyword: String? = null,
+        redact: Boolean = true,
+    ): String = AppLog.exportText(keyword, redact)
 }

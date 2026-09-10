@@ -13,7 +13,9 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.TextView
+import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.hooks.readBooleanPreference
@@ -23,12 +25,27 @@ import me.rerere.rikkahub.ui.hooks.readBooleanPreference
  * user always knows when the agent is driving the UI. Uses TYPE_APPLICATION_OVERLAY
  * with FLAG_NOT_TOUCHABLE so it never blocks user gestures. No-ops silently if
  * SYSTEM_ALERT_WINDOW has not been granted — overlay is purely informational.
+ *
+ * Visibility is **state-driven, not edge-triggered**（2026-09-10 修复）：以前的实现只在回合
+ * 开始那一瞬判定前后台（`show()` 里判一次），于是「前台发起回合 → 用户退到后台」不会出现
+ * 悬浮条，「后台发起回合 → 用户回到前台」也不会消失，表现为时有时无。现在改为：
+ *  - 回合生命周期只记录 `active`（`show` / `hide` 由 GenerationHandler 调）；
+ *  - 实际显隐由 [ProcessLifecycleOwner] 的 onStart / onStop 驱动（onStop && active → 显示）。
  */
 object AgentOverlay {
     private const val TAG = "AgentOverlay"
 
     @Volatile private var view: TextView? = null
     private val mainHandler = Handler(Looper.getMainLooper())
+
+    /** 当前是否有回合在跑（由 GenerationHandler 的 onStart / onCompletion 驱动）。 */
+    @Volatile private var active = false
+
+    /** 最近一次 show 传入的文案，供前后台切换后重新显示时复用。 */
+    @Volatile private var lastText: String = ""
+
+    /** 生命周期回调只注册一次。 */
+    @Volatile private var observerRegistered = false
 
     fun canShow(context: Context): Boolean = Settings.canDrawOverlays(context)
 
@@ -48,8 +65,35 @@ object AgentOverlay {
     private fun isForeground(): Boolean =
         ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
 
+    /**
+     * 注册一次前后台监听：退到后台时若回合仍在跑就补显出悬浮条，回到前台立刻收起。
+     */
+    private fun ensureObserver(app: Context) {
+        if (observerRegistered) return
+        synchronized(this) {
+            if (observerRegistered) return
+            runCatching {
+                ProcessLifecycleOwner.get().lifecycle.addObserver(
+                    object : DefaultLifecycleObserver {
+                        override fun onStop(owner: LifecycleOwner) {
+                            if (active) mainHandler.post { showInternal(app, lastText) }
+                        }
+
+                        override fun onStart(owner: LifecycleOwner) {
+                            mainHandler.post { hideInternal(app) }
+                        }
+                    },
+                )
+            }.onFailure { Log.w(TAG, "addObserver failed", it) }
+            observerRegistered = true
+        }
+    }
+
+    /** 回合开始：记录状态并按当前前后台立即决定是否显示。 */
     fun show(context: Context, text: String = context.getString(R.string.agent_overlay_working)) {
         val app = context.applicationContext
+        active = true
+        lastText = text
         if (!canShow(app)) {
             Log.d(TAG, "show: SYSTEM_ALERT_WINDOW not granted, no-op")
             return
@@ -58,9 +102,11 @@ object AgentOverlay {
             Log.d(TAG, "show: overlay disabled by user, no-op")
             return
         }
+        ensureObserver(app)
         if (isForeground()) {
             // App is on screen; the chat UI has its own progress indicator. Drop the pill so it
-            // doesn't overlap the top bar. It will appear if a later turn leaves the app.
+            // doesn't overlap the top bar — it will appear via the lifecycle observer if a later
+            // turn (or the rest of this one) leaves the app.
             Log.d(TAG, "show: app in foreground, suppressing pill")
             mainHandler.post { hideInternal(app) }
             return
@@ -68,8 +114,10 @@ object AgentOverlay {
         mainHandler.post { showInternal(app, text) }
     }
 
+    /** 回合结束：清状态并移除悬浮条。 */
     fun hide(context: Context) {
         val app = context.applicationContext
+        active = false
         mainHandler.post { hideInternal(app) }
     }
 
