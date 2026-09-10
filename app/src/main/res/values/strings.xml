@@ -2380,8 +2380,17 @@
   <string name="doctor_maint_01">App cache size</string>
   <string name="doctor_maint_05">Clear cache</string>
   <string name="doctor_diag_01">App build info</string>
+  <string name="doctor_diag_02">App logging</string>
   <string name="doctor_diag_03">Runtime</string>
+  <string name="doctor_diag_04">Crash history</string>
   <string name="doctor_diag_05">Tools enabled per assistant</string>
+  <string name="doctor_diag_06">Build freshness</string>
+  <string name="doctor_msg_app_log_on">App log is ON — read_app_logs returns buffered entries (restart-safe via file sink).</string>
+  <string name="doctor_msg_app_log_off">App log is OFF — read_app_logs returns nothing. Enable it in the Logging page.</string>
+  <string name="doctor_msg_crash_none">No crash-exit in the last %1$d days.</string>
+  <string name="doctor_msg_crash_some">%1$d crash(es) in the last %2$d days; latest %3$s.</string>
+  <string name="doctor_msg_version_ok">Installed v%1$s, running the same build.</string>
+  <string name="doctor_msg_version_stale">Installed v%1$s but running v%2$s — the process still runs the old build; restart to pick up changes.</string>
   <string name="vault_export_password_label">Export password</string>
   <string name="vault_export_button">Export .vault package</string>
   <string name="vault_export_password_required">Enter an export password</string>

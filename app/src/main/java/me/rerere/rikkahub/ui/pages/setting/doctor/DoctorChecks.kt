@@ -20,6 +20,7 @@ import me.rerere.rikkahub.data.ai.tools.local.PermissionHelper
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.db.AppDatabase
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.ScheduledJobRepository
 import me.rerere.rikkahub.data.repository.ScheduledJobRunRepository
@@ -1329,18 +1330,97 @@ class DoctorChecks(
                 severity = Severity.INFO,
             ),
             DoctorCheck(
-                id = "diag.enabled_tools",
-                category = DoctorCategory.Diagnostics,
-                labelRes = R.string.doctor_diag_05,
-                detail =
-                    if (enabled.isEmpty()) {
-                        context.getString(R.string.doctor_msg_no_local_tools)
-                    } else {
-                        context.getString(R.string.doctor_msg_tool_groups, enabled.size)
-                    },
-                severity = if (enabled.isEmpty()) Severity.WARN else Severity.INFO,
-            ),
-        )
+                            id = "diag.enabled_tools",
+                            category = DoctorCategory.Diagnostics,
+                            labelRes = R.string.doctor_diag_05,
+                            detail =
+                                if (enabled.isEmpty()) {
+                                    context.getString(R.string.doctor_msg_no_local_tools)
+                                } else {
+                                    context.getString(R.string.doctor_msg_tool_groups, enabled.size)
+                                },
+                            severity = if (enabled.isEmpty()) Severity.WARN else Severity.INFO,
+                        ),
+                        // P0：AppLog 开关真相——默认关闭时 read_app_logs 永远返回空
+                        DoctorCheck(
+                            id = "diag.app_log_enabled",
+                            category = DoctorCategory.Diagnostics,
+                            labelRes = R.string.doctor_diag_02,
+                            detail =
+                                if (AppLog.isEnabled(context)) {
+                                    context.getString(R.string.doctor_msg_app_log_on)
+                                } else {
+                                    context.getString(R.string.doctor_msg_app_log_off)
+                                },
+                            severity = if (AppLog.isEnabled(context)) Severity.OK else Severity.WARN,
+                        ),
+                        // P1：崩溃记录——ApplicationExitInfo 最近 N 天崩溃汇总
+                        run {
+                            val exitInfo = crashExitSummary()
+                            val days = 7
+                            DoctorCheck(
+                                id = "diag.crash_history",
+                                category = DoctorCategory.Diagnostics,
+                                labelRes = R.string.doctor_diag_04,
+                                detail =
+                                    if (exitInfo == null) {
+                                        context.getString(R.string.doctor_msg_crash_none, days)
+                                    } else {
+                                        val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", Locale.US)
+                                        context.getString(
+                                            R.string.doctor_msg_crash_some,
+                                            exitInfo.count,
+                                            days,
+                                            fmt.format(java.util.Date(exitInfo.latestTs)),
+                                        )
+                                    },
+                                severity = if (exitInfo == null) Severity.OK else Severity.WARN,
+                            )
+                        },
+                        // P1：版本/进程新鲜度——装了新包但进程跑旧代码
+                        run {
+                            val installed = runCatching {
+                                context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
+                            }.getOrNull()
+                            val running = BuildConfig.VERSION_CODE.toLong()
+                            val fresh = installed != null && installed == running
+                            DoctorCheck(
+                                id = "diag.version_freshness",
+                                category = DoctorCategory.Diagnostics,
+                                labelRes = R.string.doctor_diag_06,
+                                detail =
+                                    if (fresh) {
+                                        context.getString(R.string.doctor_msg_version_ok, running)
+                                    } else {
+                                        context.getString(R.string.doctor_msg_version_stale, installed ?: -1, running)
+                                    },
+                                severity = if (fresh) Severity.OK else Severity.WARN,
+                            )
+                        },
+                    )
+
+    // P1 检查项 `diag.crash_history` 的辅助：汇总最近 N 天非正常退出（崩溃）次数与最新时间。
+    // ApplicationExitInfo 仅 API 30+；低版本返回 null（检查项显示"无崩溃"）。
+    private fun crashExitSummary(): CrashExitSummary? {
+        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.R) return null
+        val am = context.getSystemService(android.app.ActivityManager::class.java) ?: return null
+        val cutoff = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
+        val exits =
+            runCatching {
+                am.getHistoricalProcessExitReasons(context.packageName, 0, 20)
+            }.getOrDefault(emptyList())
+        val crashes =
+            exits.filter { e ->
+                (e.reason == android.app.ApplicationExitInfo.REASON_CRASH ||
+                    e.reason == android.app.ApplicationExitInfo.REASON_CRASH_NATIVE ||
+                    e.reason == android.app.ApplicationExitInfo.REASON_ANR) &&
+                    e.timestamp >= cutoff
+            }
+        if (crashes.isEmpty()) return null
+        return CrashExitSummary(count = crashes.size, latestTs = crashes.maxOf { it.timestamp })
+    }
+
+    private data class CrashExitSummary(val count: Int, val latestTs: Long)
 
     private fun directorySize(dir: File): Long =
         runCatching {

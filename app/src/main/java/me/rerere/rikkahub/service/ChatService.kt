@@ -410,8 +410,19 @@ class ChatService(
     ) {
         if (content.isEmptyInputMessage()) return
 
+        // 消息事件日志（只记事件 + 会话 id，不记文本，隐私边界）
+        val isUserTurn = content.any { it is UIMessagePart.Text && it.text.isNotBlank() }
+        val textCount = content.count { it is UIMessagePart.Text }
+        AppLog.i(
+            TAG,
+            "msg-recv conv=$conversationId parts=${content.size} text=$textCount userTurn=$isUserTurn answer=$answer",
+        )
+
         val session = getOrCreateSession(conversationId)
         val previousJob = session.getJob()
+        if (previousJob?.isActive == true) {
+            AppLog.i(TAG, "msg-cancel prev conv=$conversationId")
+        }
         previousJob?.cancel()
 
         val job =
@@ -459,8 +470,15 @@ class ChatService(
                         handleMessageComplete(conversationId)
                     }
 
+                    AppLog.i(TAG, "msg-done conv=$conversationId routed=$routedHandled")
                     _generationDoneFlow.emit(conversationId)
                 } catch (e: Exception) {
+                    if (e is CancellationException) {
+                        // 协程取消：新消息打断/会话切换，不算失败
+                        AppLog.i(TAG, "msg-cancel conv=$conversationId") // 已在上方 previousJob 取消处记录，此处仅兜底
+                    } else {
+                        AppLog.w(TAG, "msg-fail conv=$conversationId err=${e.message}", e)
+                    }
                     e.printStackTrace()
                     addError(e, conversationId, title = context.getString(R.string.error_title_send_message))
                 }

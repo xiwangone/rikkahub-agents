@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.sync.webdav
 
+import me.rerere.rikkahub.data.log.AppLog
 import android.content.Context
 import android.util.Log
 import io.ktor.client.HttpClient
@@ -229,7 +230,7 @@ class WebDavSync(
                 }
             }
         } catch (e: Exception) {
-            Log.e(TAG, "restoreFromLocalFile: Failed to restore from local file", e)
+            AppLog.e(TAG, "restoreFromLocalFile: Failed to restore from local file", e)
             throw Exception("Restore failed: ${e.message}")
         }
     }
@@ -334,7 +335,7 @@ class WebDavSync(
     private suspend fun backupWorkspaceDocs(zipOut: ZipOutputStream) {
         val workspacesRoot = File(context.filesDir, "workspaces")
         if (!workspacesRoot.exists() || !workspacesRoot.isDirectory) {
-            Log.w(TAG, "backupWorkspaceDocs: workspaces root missing: ${workspacesRoot.absolutePath}")
+            AppLog.w(TAG, "backupWorkspaceDocs: workspaces root missing: ${workspacesRoot.absolutePath}")
             return
         }
         workspacesRoot.listFiles().orEmpty().forEach { wsDir ->
@@ -457,7 +458,7 @@ class WebDavSync(
         // is pre-existing and bounded by the user driving a deliberate, near-idle restore.)
         if (config.items.contains(WebDavConfig.BackupItem.DATABASE)) {
             runCatching { appDatabase.close() }
-                .onFailure { Log.w(TAG, "restoreFromBackupFile: appDatabase.close() before restore failed", it) }
+                .onFailure { AppLog.w(TAG, "restoreFromBackupFile: appDatabase.close() before restore failed", it) }
         }
 
         ZipInputStream(FileInputStream(backupFile)).use { zipIn ->
@@ -480,7 +481,7 @@ class WebDavSync(
                                     settingsStore.update(settings)
                                     Log.i(TAG, "restoreFromBackupFile: Settings restored successfully")
                                 } catch (e: Exception) {
-                                    Log.e(TAG, "restoreFromBackupFile: Failed to restore settings", e)
+                                    AppLog.e(TAG, "restoreFromBackupFile: Failed to restore settings", e)
                                     throw Exception("Failed to restore settings: ${e.message}")
                                 }
                             } else {
@@ -655,7 +656,7 @@ class WebDavSync(
         } catch (e: Exception) {
             // Non-fatal: the -wal/-shm files are still copied below, so no committed data
             // is lost — the snapshot just isn't guaranteed torn-free for this run.
-            Log.w(TAG, "checkpointDatabase: WAL checkpoint failed; copying db+wal+shm as-is", e)
+            AppLog.w(TAG, "checkpointDatabase: WAL checkpoint failed; copying db+wal+shm as-is", e)
         }
     }
 
@@ -710,7 +711,7 @@ class WebDavSync(
         // zip-slip 防护：目标必须落在 folderRoot 内
         val targetFile = SkillPaths.resolveSkillFile(folderRoot, relative)
         if (targetFile == null) {
-            Log.w(TAG, "restoreFolderEntry: Rejected unsafe $folder entry ${zipEntry.name}")
+            AppLog.w(TAG, "restoreFolderEntry: Rejected unsafe $folder entry ${zipEntry.name}")
             return
         }
         targetFile.parentFile?.mkdirs()
@@ -720,7 +721,7 @@ class WebDavSync(
             }
             Log.i(TAG, "restoreFolderEntry: Restored ${zipEntry.name} (${targetFile.length()} bytes)")
         } catch (e: Exception) {
-            Log.e(TAG, "restoreFolderEntry: Failed to restore ${zipEntry.name}", e)
+            AppLog.e(TAG, "restoreFolderEntry: Failed to restore ${zipEntry.name}", e)
             throw Exception("Failed to restore ${zipEntry.name}: ${e.message}")
         }
     }
@@ -733,12 +734,12 @@ class WebDavSync(
         // workspaces/<root>/files/<rel>  或 workspaces/<root>/files/<rel>/... 
         val segments = zipEntry.name.split('/')
         if (segments.size < 4 || segments[0] != "workspaces" || segments[2] != "files") {
-            Log.w(TAG, "restoreWorkspaceEntry: Unexpected workspace entry ${zipEntry.name}")
+            AppLog.w(TAG, "restoreWorkspaceEntry: Unexpected workspace entry ${zipEntry.name}")
             return
         }
         val wsRoot = segments[1]
         if (wsRoot.isBlank() || wsRoot == "." || wsRoot == ".." || wsRoot.contains('\\')) {
-            Log.w(TAG, "restoreWorkspaceEntry: Rejected unsafe workspace root in ${zipEntry.name}")
+            AppLog.w(TAG, "restoreWorkspaceEntry: Rejected unsafe workspace root in ${zipEntry.name}")
             return
         }
         val relative = segments.drop(3).joinToString("/")
@@ -747,7 +748,7 @@ class WebDavSync(
         val filesLayer = File(wsDir, "files").apply { mkdirs() }
         val targetFile = SkillPaths.resolveSkillFile(filesLayer, relative)
         if (targetFile == null) {
-            Log.w(TAG, "restoreWorkspaceEntry: Rejected unsafe workspace entry ${zipEntry.name}")
+            AppLog.w(TAG, "restoreWorkspaceEntry: Rejected unsafe workspace entry ${zipEntry.name}")
             return
         }
         targetFile.parentFile?.mkdirs()
@@ -757,7 +758,7 @@ class WebDavSync(
             }
             Log.i(TAG, "restoreWorkspaceEntry: Restored ${zipEntry.name} (${targetFile.length()} bytes)")
         } catch (e: Exception) {
-            Log.e(TAG, "restoreWorkspaceEntry: Failed to restore ${zipEntry.name}", e)
+            AppLog.e(TAG, "restoreWorkspaceEntry: Failed to restore ${zipEntry.name}", e)
             throw Exception("Failed to restore ${zipEntry.name}: ${e.message}")
         }
     }
@@ -768,7 +769,7 @@ class WebDavSync(
         val skillRelativePath = relativePath.substringAfter('/', missingDelimiterValue = "")
 
         if (skillName.isBlank() || skillRelativePath.isBlank()) {
-            Log.w(TAG, "restoreFromBackupFile: Invalid skill entry $entryName")
+            AppLog.w(TAG, "restoreFromBackupFile: Invalid skill entry $entryName")
             return
         }
 
@@ -787,7 +788,7 @@ class WebDavSync(
             }
             Log.i(TAG, "restoreFromBackupFile: Restored skill file $entryName (${targetFile.length()} bytes)")
         } catch (e: Exception) {
-            Log.e(TAG, "restoreFromBackupFile: Failed to restore skill file $entryName", e)
+            AppLog.e(TAG, "restoreFromBackupFile: Failed to restore skill file $entryName", e)
             throw Exception("Failed to restore skill file $entryName: ${e.message}")
         }
     }

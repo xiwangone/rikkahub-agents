@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.sync
 
+import me.rerere.rikkahub.data.log.AppLog
 import android.content.Context
 import android.util.Log
 import io.ktor.client.HttpClient
@@ -225,7 +226,7 @@ class S3Sync(
                         }
                     }
                 } else {
-                    Log.w(TAG, "prepareBackupFile: Upload folder does not exist or is not a directory")
+                    AppLog.w(TAG, "prepareBackupFile: Upload folder does not exist or is not a directory")
                 }
 
                 val skillsFolder = File(context.filesDir, FileFolders.SKILLS)
@@ -238,7 +239,7 @@ class S3Sync(
                         entryPrefix = "${FileFolders.SKILLS}/"
                     )
                 } else {
-                    Log.w(TAG, "prepareBackupFile: Skills folder does not exist or is not a directory")
+                    AppLog.w(TAG, "prepareBackupFile: Skills folder does not exist or is not a directory")
                 }
 
                 val fontsFolder = File(context.filesDir, FileFolders.FONTS)
@@ -250,7 +251,7 @@ class S3Sync(
                         }
                     }
                 } else {
-                    Log.w(TAG, "prepareBackupFile: Fonts folder does not exist or is not a directory")
+                    AppLog.w(TAG, "prepareBackupFile: Fonts folder does not exist or is not a directory")
                 }
 
                 val imagesFolder = File(context.filesDir, FileFolders.IMAGES)
@@ -262,7 +263,7 @@ class S3Sync(
                         }
                     }
                 } else {
-                    Log.w(TAG, "prepareBackupFile: Images folder does not exist or is not a directory")
+                    AppLog.w(TAG, "prepareBackupFile: Images folder does not exist or is not a directory")
                 }
             }
         }
@@ -293,7 +294,7 @@ class S3Sync(
         // is pre-existing and bounded by the user driving a deliberate, near-idle restore.)
         if (config.items.contains(S3Config.BackupItem.DATABASE)) {
             runCatching { appDatabase.close() }
-                .onFailure { Log.w(TAG, "restoreFromBackupFile: appDatabase.close() before restore failed", it) }
+                .onFailure { AppLog.w(TAG, "restoreFromBackupFile: appDatabase.close() before restore failed", it) }
         }
 
         ZipInputStream(FileInputStream(backupFile)).use { zipIn ->
@@ -312,7 +313,7 @@ class S3Sync(
                                 settingsStore.update(settings)
                                 Log.i(TAG, "restoreFromBackupFile: Settings restored successfully")
                             } catch (e: Exception) {
-                                Log.e(TAG, "restoreFromBackupFile: Failed to restore settings", e)
+                                AppLog.e(TAG, "restoreFromBackupFile: Failed to restore settings", e)
                                 throw Exception("Failed to restore settings: ${e.message}")
                             }
                         }
@@ -372,7 +373,7 @@ class S3Sync(
                                     // outside the upload folder (e.g. "../../databases/...").
                                     val targetFile = SkillPaths.resolveSkillFile(uploadFolder, fileName)
                                     if (targetFile == null) {
-                                        Log.w(TAG, "restoreFromBackupFile: Rejected unsafe upload entry ${zipEntry.name}")
+                                        AppLog.w(TAG, "restoreFromBackupFile: Rejected unsafe upload entry ${zipEntry.name}")
                                     } else {
                                         Log.i(
                                             TAG,
@@ -388,7 +389,7 @@ class S3Sync(
                                                 "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
                                             )
                                         } catch (e: Exception) {
-                                            Log.e(TAG, "restoreFromBackupFile: Failed to restore file ${zipEntry.name}", e)
+                                            AppLog.e(TAG, "restoreFromBackupFile: Failed to restore file ${zipEntry.name}", e)
                                             throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")
                                         }
                                     }
@@ -427,7 +428,7 @@ class S3Sync(
                                     // outside the images folder (e.g. "../../databases/...").
                                     val targetFile = SkillPaths.resolveSkillFile(imagesFolder, fileName)
                                     if (targetFile == null) {
-                                        Log.w(TAG, "restoreFromBackupFile: Rejected unsafe images entry ${zipEntry.name}")
+                                        AppLog.w(TAG, "restoreFromBackupFile: Rejected unsafe images entry ${zipEntry.name}")
                                     } else {
                                         Log.i(
                                             TAG,
@@ -443,7 +444,7 @@ class S3Sync(
                                                 "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
                                             )
                                         } catch (e: Exception) {
-                                            Log.e(TAG, "restoreFromBackupFile: Failed to restore file ${zipEntry.name}", e)
+                                            AppLog.e(TAG, "restoreFromBackupFile: Failed to restore file ${zipEntry.name}", e)
                                             throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")
                                         }
                                     }
@@ -510,7 +511,7 @@ class S3Sync(
         } catch (e: Exception) {
             // Non-fatal: the -wal/-shm files are still copied below, so no committed data
             // is lost — the snapshot just isn't guaranteed torn-free for this run.
-            Log.w(TAG, "checkpointDatabase: WAL checkpoint failed; copying db+wal+shm as-is", e)
+            AppLog.w(TAG, "checkpointDatabase: WAL checkpoint failed; copying db+wal+shm as-is", e)
         }
     }
 
@@ -551,7 +552,7 @@ class S3Sync(
         val skillRelativePath = relativePath.substringAfter('/', missingDelimiterValue = "")
 
         if (skillName.isBlank() || skillRelativePath.isBlank()) {
-            Log.w(TAG, "restoreFromBackupFile: Invalid skill entry $entryName")
+            AppLog.w(TAG, "restoreFromBackupFile: Invalid skill entry $entryName")
             return
         }
 
@@ -570,7 +571,7 @@ class S3Sync(
             }
             Log.i(TAG, "restoreFromBackupFile: Restored skill file $entryName (${targetFile.length()} bytes)")
         } catch (e: Exception) {
-            Log.e(TAG, "restoreFromBackupFile: Failed to restore skill file $entryName", e)
+            AppLog.e(TAG, "restoreFromBackupFile: Failed to restore skill file $entryName", e)
             throw Exception("Failed to restore skill file $entryName: ${e.message}")
         }
     }

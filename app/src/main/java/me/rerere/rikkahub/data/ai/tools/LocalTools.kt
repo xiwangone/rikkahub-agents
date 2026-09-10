@@ -1100,6 +1100,7 @@ class LocalTools(
         }
         if (options.contains(LocalToolOption.AppLogs)) {
             tools.add(readAppLogsTool(context))
+            tools.add(readRequestLogsTool(context))
         }
         if (options.contains(LocalToolOption.ModelTesting)) {
             tools.add(testModelTool(providerManager, settingsStore, context))

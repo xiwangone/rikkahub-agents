@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.service
 
+import me.rerere.rikkahub.data.log.AppLog
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.Service
@@ -182,7 +183,7 @@ class TelegramBotService : Service() {
             // process revive without a fresh foreground ticket, OR SecurityException on
             // Android 14+ if the FOREGROUND_SERVICE_<TYPE> permission isn't declared.
             // Either way: log loudly so we don't fail silently again, then stop.
-            android.util.Log.e("TelegramBotService", "startForeground failed; service will not run", e)
+            AppLog.e("TelegramBotService", "startForeground failed; service will not run", e)
             stopSelf(startId)
             return START_NOT_STICKY
         }
@@ -288,7 +289,7 @@ class TelegramBotService : Service() {
         } catch (e: Throwable) {
             // Notifications can fail in restricted contexts (POST_NOTIFICATIONS revoked,
             // channel blocked); non-fatal, but log so a vanished notification leaves a trace.
-            android.util.Log.w(TAG, "updateForegroundNotification failed", e)
+            AppLog.w(TAG, "updateForegroundNotification failed", e)
         }
     }
 
@@ -323,11 +324,11 @@ class TelegramBotService : Service() {
                 try {
                     prefs.current()
                 } catch (e: Throwable) {
-                    android.util.Log.e(TAG, "pollLoop: prefs.current() failed", e)
+                    AppLog.e(TAG, "pollLoop: prefs.current() failed", e)
                     null
                 }
             if (cfg == null || !cfg.isUsable) {
-                android.util.Log.w(
+                AppLog.w(
                     TAG,
                     "pollLoop: cfg unusable (token_set=${cfg?.token?.isNotBlank()} enabled=${cfg?.enabled}); stopping",
                 )
@@ -389,7 +390,7 @@ class TelegramBotService : Service() {
                             } catch (
                                 e: Throwable,
                             ) {
-                                android.util.Log.e(TAG, "handleIncoming threw for message ${incoming.messageId}", e)
+                                AppLog.e(TAG, "handleIncoming threw for message ${incoming.messageId}", e)
                             }
                         }
                         continue
@@ -406,7 +407,7 @@ class TelegramBotService : Service() {
                             } catch (
                                 e: Throwable,
                             ) {
-                                android.util.Log.e(TAG, "handleCallbackQuery threw for ${cq.callbackQueryId}", e)
+                                AppLog.e(TAG, "handleCallbackQuery threw for ${cq.callbackQueryId}", e)
                             }
                         }
                         continue
@@ -423,7 +424,7 @@ class TelegramBotService : Service() {
                             } catch (
                                 e: Throwable,
                             ) {
-                                android.util.Log.e(TAG, "handleMyChatMember threw for chat=${mcm.chatId}", e)
+                                AppLog.e(TAG, "handleMyChatMember threw for chat=${mcm.chatId}", e)
                             }
                         }
                         continue
@@ -439,13 +440,13 @@ class TelegramBotService : Service() {
                 // permanently elevate the retry delay.
                 consecutiveErrors = 0
             } catch (e: TelegramApiException) {
-                android.util.Log.e(TAG, "pollLoop: telegram api error ${e.errorCode}: ${e.description}", e)
+                AppLog.e(TAG, "pollLoop: telegram api error ${e.errorCode}: ${e.description}", e)
                 if (e.errorCode == 401 || e.errorCode == 404) {
                     // Token revoked / wrong / bot deleted. Spinning every 5s forever burns
                     // battery + Telegram quota for no recovery — only the user can fix this
                     // by setting a new token. Disable the bot, surface a notification, and
                     // stop the service cleanly.
-                    android.util.Log.w(TAG, "pollLoop: bailing out; bot token rejected (${e.errorCode})")
+                    AppLog.w(TAG, "pollLoop: bailing out; bot token rejected (${e.errorCode})")
                     runCatching { prefs.update { it.copy(enabled = false) } }
                     postTokenInvalidNotification(e.errorCode, e.description)
                     stopSelf()
@@ -457,7 +458,7 @@ class TelegramBotService : Service() {
                 val retryAfterMs = e.retryAfterSec?.let { it * 1000L + 1000L } ?: 0L
                 delay(maxOf(computeBackoffMs(consecutiveErrors), retryAfterMs))
             } catch (e: Throwable) {
-                android.util.Log.e(TAG, "pollLoop: unexpected error in cycle=$cycle", e)
+                AppLog.e(TAG, "pollLoop: unexpected error in cycle=$cycle", e)
                 consecutiveErrors++
                 delay(computeBackoffMs(consecutiveErrors))
             } finally {
@@ -477,7 +478,7 @@ class TelegramBotService : Service() {
      * cost of a full service restart (notification flash, OkHttp re-warm).
      */
     private fun restartPollLoop() {
-        android.util.Log.w(TAG, "restartPollLoop: recycling the long-poll coroutine")
+        AppLog.w(TAG, "restartPollLoop: recycling the long-poll coroutine")
         runCatching { pollJob?.cancel() }
         pollJob = scope.launch { pollLoop() }
     }
@@ -490,7 +491,7 @@ class TelegramBotService : Service() {
      * recovery: no user notification (per spec).
      */
     private fun escalatePollStallToFgsRestart() {
-        android.util.Log.w(TAG, "escalatePollStallToFgsRestart: poll loop flapping — requesting FGS restart")
+        AppLog.w(TAG, "escalatePollStallToFgsRestart: poll loop flapping — requesting FGS restart")
         runCatching {
             // The health worker is idempotent (ExistingPeriodicWorkPolicy.KEEP) and its
             // next pass re-starts the service if it finds it unhealthy. Re-scheduling here
@@ -500,7 +501,7 @@ class TelegramBotService : Service() {
             // START_NOT_STICKY means we won't auto-revive without a fresh foreground ticket,
             // which the health worker provides via startForegroundService.
             stopSelf()
-        }.onFailure { android.util.Log.w(TAG, "escalatePollStallToFgsRestart failed", it) }
+        }.onFailure { AppLog.w(TAG, "escalatePollStallToFgsRestart failed", it) }
     }
 
     /** Capped exponential backoff: 5s, 10s, 20s, 40s, 80s, 120s (capped). */
@@ -562,7 +563,7 @@ class TelegramBotService : Service() {
                     "external-gen-pump: convId=$convId → pushed ${text.length} chars to Telegram chat ${mapping.chatId}",
                 )
             }.onFailure {
-                android.util.Log.w(TAG, "external-gen-pump: send failed for convId=$convId", it)
+                AppLog.w(TAG, "external-gen-pump: send failed for convId=$convId", it)
             }
         }
     }
@@ -628,7 +629,7 @@ class TelegramBotService : Service() {
         } catch (_: SecurityException) {
             // POST_NOTIFICATIONS not granted — silent failure is fine
         } catch (e: Throwable) {
-            android.util.Log.w(TAG, "postTokenInvalidNotification failed", e)
+            AppLog.w(TAG, "postTokenInvalidNotification failed", e)
         }
     }
 
@@ -638,7 +639,7 @@ class TelegramBotService : Service() {
     ) {
         val sender =
             m.senderId ?: run {
-                android.util.Log.w(TAG, "handleIncoming: dropping — no sender id")
+                AppLog.w(TAG, "handleIncoming: dropping — no sender id")
                 return
             }
         // Strict whitelist: nobody is allowed unless their sender_id (or the chat_id, for
@@ -647,7 +648,7 @@ class TelegramBotService : Service() {
         // bot whose owner forgot to fill in the whitelist would happily accept messages
         // from any random Telegram user who knows the bot's @username.
         if (sender !in cfg.whitelist && m.chatId !in cfg.whitelist) {
-            android.util.Log.w(
+            AppLog.w(
                 TAG,
                 "handleIncoming: dropping — sender=$sender chat=${m.chatId} not in whitelist=${cfg.whitelist}",
             )
@@ -854,7 +855,7 @@ class TelegramBotService : Service() {
                     )
                 res["message_id"]?.jsonPrimitive?.longOrNull
             } catch (e: Throwable) {
-                android.util.Log.w(TAG, "handleIncoming: placeholder send failed", e)
+                AppLog.w(TAG, "handleIncoming: placeholder send failed", e)
                 null
             }
 
@@ -1062,7 +1063,7 @@ class TelegramBotService : Service() {
             turnCancelled = true
             throw e
         } catch (e: Throwable) {
-            android.util.Log.w(TAG, "handleIncoming: generation flow ended with error", e)
+            AppLog.w(TAG, "handleIncoming: generation flow ended with error", e)
             generationError = e
         } finally {
             chatService.removeConversationReference(convId)
@@ -1416,7 +1417,7 @@ class TelegramBotService : Service() {
                 // chunk. Log + retry as plain text. sendWithFloodRetry already honored any
                 // 429 retry_after on the HTML attempt. The pre-fix behaviour silently
                 // swallowed both branches; we record the exception so a repeat leaves a trail.
-                android.util.Log.w(
+                AppLog.w(
                     TAG,
                     "sendChunked: HTML send failed for chunk ${idx + 1}/${chunks.size} (len=${html.length} src=${chunk.length}); retrying as plain text",
                     err,
@@ -1424,7 +1425,7 @@ class TelegramBotService : Service() {
                 val plain = TelegramHtmlRenderer.stripHtml(html).ifBlank { chunk }
                 err = sendWithFloodRetry(chatId, plain, null, if (idx == 0) replyTo else null)
                 if (err != null) {
-                    android.util.Log.w(
+                    AppLog.w(
                         TAG,
                         "sendChunked: plain-text fallback also failed for chunk ${idx + 1}/${chunks.size} (len=${plain.length})",
                         err,
@@ -1457,7 +1458,7 @@ class TelegramBotService : Service() {
             runCatching {
                 client.sendMessage(chatId = chatId, text = notice, parseMode = null)
             }.onFailure {
-                android.util.Log.w(TAG, "sendChunked: even the failure notice failed to deliver", it)
+                AppLog.w(TAG, "sendChunked: even the failure notice failed to deliver", it)
             }
         }
     }
@@ -1478,7 +1479,7 @@ class TelegramBotService : Service() {
             return null
         } catch (e: TelegramApiException) {
             if (e.errorCode != 429 || e.retryAfterSec == null) return e
-            android.util.Log.w(
+            AppLog.w(
                 TAG,
                 "sendWithFloodRetry: 429 flood-wait ${e.retryAfterSec}s; backing off then retrying once",
             )
@@ -1521,7 +1522,7 @@ class TelegramBotService : Service() {
             client.sendDocument(chatId, file, caption = "Full reply (${text.length} chars)")
             true
         } catch (t: Throwable) {
-            android.util.Log.w(TAG, "trySendReplyAsDocument: failed, falling back to chunked send", t)
+            AppLog.w(TAG, "trySendReplyAsDocument: failed, falling back to chunked send", t)
             false
         } finally {
             try {
@@ -1934,7 +1935,7 @@ class TelegramBotService : Service() {
                     replyMarkup = buildApprovalKeyboard(tool.toolCallId, tool.toolName),
                 )
             } catch (e: Throwable) {
-                android.util.Log.w(TAG, "approval prompt send failed", e)
+                AppLog.w(TAG, "approval prompt send failed", e)
                 null
             }
         val msgId = res?.get("message_id")?.jsonPrimitive?.longOrNull
@@ -1988,7 +1989,7 @@ class TelegramBotService : Service() {
                     replyMarkup = buildProviderKeyboard(enabledProviders, currentPair?.first?.id),
                 )
             } catch (e: Throwable) {
-                android.util.Log.w(TAG, "handleProviderPickCallback: back-to-providers edit failed", e)
+                AppLog.w(TAG, "handleProviderPickCallback: back-to-providers edit failed", e)
             }
             return
         }
@@ -2049,7 +2050,7 @@ class TelegramBotService : Service() {
                 replyMarkup = keyboard,
             )
         } catch (e: Throwable) {
-            android.util.Log.w(TAG, "handleProviderPickCallback: model-list edit failed", e)
+            AppLog.w(TAG, "handleProviderPickCallback: model-list edit failed", e)
         }
     }
 
@@ -2097,7 +2098,7 @@ class TelegramBotService : Service() {
                 }
             client.editMessageText(cq.chatId, cq.messageId, newText, parseMode = PARSE_MODE_HTML)
         } catch (e: Throwable) {
-            android.util.Log.w(TAG, "handleModelPickCallback: switched-confirmation edit failed", e)
+            AppLog.w(TAG, "handleModelPickCallback: switched-confirmation edit failed", e)
         }
     }
 
@@ -2115,7 +2116,7 @@ class TelegramBotService : Service() {
         android.util.Log.i(TAG, "cb:${cq.callbackQueryId} START data=${cq.data} chat=${cq.chatId}")
         val sender = cq.senderId
         if (sender == null || (sender !in cfg.whitelist && cq.chatId !in cfg.whitelist)) {
-            android.util.Log.w(TAG, "handleCallbackQuery: dropping non-whitelisted sender=$sender chat=${cq.chatId}")
+            AppLog.w(TAG, "handleCallbackQuery: dropping non-whitelisted sender=$sender chat=${cq.chatId}")
             // ALWAYS ack, even when dropping. Spec requires answerCallbackQuery within
             // ~15 s or Telegram resends the tap multiple times — without this ack the
             // bot wastes a getUpdates round-trip on every retry. There is no probe-defence
@@ -2279,7 +2280,7 @@ class TelegramBotService : Service() {
                         "cb:${cq.callbackQueryId} EDITED in ${System.currentTimeMillis() - editStart} ms (total ${System.currentTimeMillis() - cbStartMs} ms since START)",
                     )
                 } catch (e: Throwable) {
-                    android.util.Log.w(
+                    AppLog.w(
                         TAG,
                         "cb:${cq.callbackQueryId} EDIT FAILED: ${e.message ?: e::class.simpleName}",
                         e,

@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai
 
+import me.rerere.rikkahub.data.log.AppLog
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
@@ -307,7 +308,7 @@ private suspend fun <T> retryGenerationTransportRequest(
                 throw failure
             }
             val delayMs = generationStreamRetryDelayMs(retryAttempt)
-            Log.w(
+            AppLog.w(
                 TAG,
                 "generateText: retrying after failure " +
                     "(${retryAttempt + 1}/$maxRetries) in ${delayMs}ms",
@@ -565,7 +566,7 @@ class GenerationHandler(
         var messages: List<UIMessage> = messages.map { msg ->
             val newParts = msg.parts.map { part ->
                 if (part is UIMessagePart.Tool && part.isInterruptedAttempt) {
-                    Log.w(TAG, "replay: ${part.toolName} (${part.toolCallId}) had executionStartedAt set with empty output → Denied(interrupted_unknown_outcome)")
+                    AppLog.w(TAG, "replay: ${part.toolName} (${part.toolCallId}) had executionStartedAt set with empty output → Denied(interrupted_unknown_outcome)")
                     part.copy(approvalState = ToolApprovalState.Denied(
                         "interrupted_unknown_outcome: a previous attempt to execute this tool started " +
                             "but did not complete (process killed mid-execute). The side effect MAY OR " +
@@ -588,7 +589,7 @@ class GenerationHandler(
             // run for hours.
             val elapsedMs = android.os.SystemClock.elapsedRealtime() - turnStartMs
             if (elapsedMs > ToolRuntimeLimits.turnBudgetMs) {
-                Log.w(TAG, "generateText: wall-clock cap (${ToolRuntimeLimits.turnBudgetMs}ms) hit at step #$stepIndex; force-ending turn")
+                AppLog.w(TAG, "generateText: wall-clock cap (${ToolRuntimeLimits.turnBudgetMs}ms) hit at step #$stepIndex; force-ending turn")
                 break
             }
             // Repeated loop-guard trips mean the model is flailing: it bumps into the
@@ -596,7 +597,7 @@ class GenerationHandler(
             // N trips we just stop — the model is not going to recover, and every extra
             // step is paid for in tokens.
             if (loopGuardTripCount >= MAX_LOOP_GUARD_TRIPS_PER_TURN) {
-                Log.w(TAG, "generateText: loop-guard tripped $loopGuardTripCount times this turn; force-ending")
+                AppLog.w(TAG, "generateText: loop-guard tripped $loopGuardTripCount times this turn; force-ending")
                 break
             }
 
@@ -772,7 +773,7 @@ class GenerationHandler(
                         .HardlineCommandGuard.checkTool(tool.toolName, tool.input)
                     val transformed = when {
                         hardlineReason != null && tool.approvalState is ToolApprovalState.Auto -> {
-                            Log.w(TAG, "hardline-blocked ${tool.toolName}: $hardlineReason")
+                            AppLog.w(TAG, "hardline-blocked ${tool.toolName}: $hardlineReason")
                             tool.copy(approvalState = ToolApprovalState.Denied(
                                 "blocked by safety floor (hardline): $hardlineReason. " +
                                     "This command cannot run via the agent under any " +
@@ -882,7 +883,7 @@ class GenerationHandler(
                         val resumeHardlineReason = me.rerere.rikkahub.data.ai.tools
                             .HardlineCommandGuard.checkTool(tool.toolName, tool.input)
                         if (resumeHardlineReason != null) {
-                            Log.w(TAG, "generateText: resume-path hardline re-check blocked ${tool.toolName}: $resumeHardlineReason")
+                            AppLog.w(TAG, "generateText: resume-path hardline re-check blocked ${tool.toolName}: $resumeHardlineReason")
                             executedTools += tool.copy(
                                 output = listOf(
                                     UIMessagePart.Text(
@@ -932,7 +933,7 @@ class GenerationHandler(
                         val priorOccurrences = loopDecision.priorOccurrences
                         if (loopDecision.block) {
                             loopGuardTripCount++
-                            Log.w(TAG, "generateText: loop-guard tripped on $signature (${priorOccurrences + 1} repeat, trip #$loopGuardTripCount this turn); injecting bail-out envelope")
+                            AppLog.w(TAG, "generateText: loop-guard tripped on $signature (${priorOccurrences + 1} repeat, trip #$loopGuardTripCount this turn); injecting bail-out envelope")
                             executedTools += tool.copy(
                                 output = listOf(
                                     UIMessagePart.Text(
@@ -973,7 +974,7 @@ class GenerationHandler(
                         }
                         if (parsedArgs.isFailure) {
                             val cause = parsedArgs.exceptionOrNull()
-                            Log.w(TAG, "tool ${tool.toolName} args failed to parse (likely truncated stream)", cause)
+                            AppLog.w(TAG, "tool ${tool.toolName} args failed to parse (likely truncated stream)", cause)
                             executedTools += tool.copy(
                                 output = listOf(
                                     UIMessagePart.Text(
@@ -1040,7 +1041,7 @@ class GenerationHandler(
                             val remainingMs = ToolRuntimeLimits.turnBudgetMs -
                                 (android.os.SystemClock.elapsedRealtime() - turnStartMs)
                             val result = if (remainingMs <= 0L) {
-                                Log.w(TAG, "generateText: ${toolDef.name} skipped — wall-clock budget already exceeded")
+                                AppLog.w(TAG, "generateText: ${toolDef.name} skipped — wall-clock budget already exceeded")
                                 listOf(UIMessagePart.Text(json.encodeToString(buildJsonObject {
                                     put("error", JsonPrimitive("tool_cancelled_wall_clock"))
                                     put("detail", JsonPrimitive("turn budget exceeded before tool started"))
@@ -1048,7 +1049,7 @@ class GenerationHandler(
                             } else {
                                 withTimeoutOrNull(remainingMs) { toolDef.execute(args) }
                                     ?: run {
-                                        Log.w(TAG, "generateText: ${toolDef.name} cancelled — wall-clock budget exhausted mid-execution")
+                                        AppLog.w(TAG, "generateText: ${toolDef.name} cancelled — wall-clock budget exhausted mid-execution")
                                         listOf(UIMessagePart.Text(json.encodeToString(buildJsonObject {
                                             put("error", JsonPrimitive("tool_cancelled_wall_clock"))
                                             put(
@@ -1077,7 +1078,7 @@ class GenerationHandler(
                             // tokens per failure, confused the model, and surfaced
                             // user-visible "java.lang.IllegalStateException at ..." walls
                             // for what was usually a one-line "name is required" problem.
-                            Log.w(TAG, "tool ${tool.toolName} threw", it)
+                            AppLog.w(TAG, "tool ${tool.toolName} threw", it)
                             executedTools += tool.copy(
                                 output = listOf(
                                     UIMessagePart.Text(
@@ -1195,7 +1196,7 @@ class GenerationHandler(
             // startActivity throws ActivityNotFoundException / SecurityException —
             // both Exception. Catching Throwable here would also swallow JVM errors
             // (OOM, StackOverflowError); let those propagate.
-            Log.w(TAG, "auto-return launch failed", e)
+            AppLog.w(TAG, "auto-return launch failed", e)
         }
     }
 
@@ -1321,7 +1322,7 @@ class GenerationHandler(
                     throw IOException("Model stream closed without meaningful output")
                 }
                 if (cause == null && receivedAnyChunk && !receivedMeaningfulOutput) {
-                    Log.w(
+                    AppLog.w(
                         TAG,
                         "streamText: stream closed after chunks arrived but none contained " +
                             "parseable parts; ending without retry",
@@ -1346,7 +1347,7 @@ class GenerationHandler(
                         maxRetries = params.maxStreamRetries,
                         failure = cause,
                     )
-                    Log.w(
+                    AppLog.w(
                         TAG,
                         "streamText: retrying after failure " +
                             "(${retryAttempt + 1}/${params.maxStreamRetries}) in ${delayMs}ms",

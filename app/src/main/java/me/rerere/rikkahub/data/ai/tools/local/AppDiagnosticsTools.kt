@@ -24,6 +24,8 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.common.android.LogEntry
+import me.rerere.common.android.Logging
 import me.rerere.rikkahub.ui.pages.setting.doctor.DoctorChecks
 import me.rerere.rikkahub.ui.pages.setting.doctor.Severity
 import me.rerere.rikkahub.utils.LogRedactor
@@ -139,6 +141,49 @@ fun readAppLogsTool(context: Context): Tool = Tool(
         val fmt = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
         val raw = entries.joinToString("\n") { e ->
             "${fmt.format(e.timestamp)} ${e.level} ${e.tag}: ${e.message}"
+        }
+        listOf(UIMessagePart.Text(LogRedactor.maskText(raw)))
+    },
+)
+
+// ---------- read_request_logs ----------
+
+/**
+ * 读取 HTTP 请求/响应摘要日志（common Logging 的 RequestLog，纯内存 100 条），
+ * 返回前过 [LogRedactor.maskText] 脱敏。用于排查 API 调用失败/限流/端点错误等
+ * 一手证据——read_app_logs 只覆盖 AppLog，请求日志是唯一能看到实际请求结果的入口。
+ */
+fun readRequestLogsTool(context: Context): Tool = Tool(
+    name = "read_request_logs",
+    description = """Read the in-memory HTTP request/response summary log (RequestLog, up to 100 entries). Each line: time method url code duration error. Output is de-sensitised through LogRedactor. Use when debugging provider/API failures, rate limits, endpoint errors."""".trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("limit", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Max number of entries to return (default 50).")
+                })
+                put("keyword", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional case-insensitive substring to match against url/error. Omit for all.")
+                })
+            },
+            required = emptyList(),
+        )
+    },
+    execute = {
+        val params = it.jsonObject
+        val keyword = params["keyword"]?.jsonPrimitive?.contentOrNull
+            ?.trim()?.lowercase(Locale.getDefault())?.takeIf { s -> s.isNotEmpty() }
+        val limit = params["limit"]?.jsonPrimitive?.intOrNull ?: 50
+
+        val fmt = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
+        val entries = Logging.getRequestLogs()
+            .filter { e -> keyword == null || e.url.lowercase(Locale.getDefault()).contains(keyword) || (e.error?.lowercase(Locale.getDefault())?.contains(keyword) == true) }
+            .take(limit.coerceIn(1, 100))
+
+        val raw = entries.joinToString("\n") { e ->
+            "${fmt.format(e.timestamp)} [HTTP] ${e.method} ${e.url} code=${e.responseCode ?: "-"} dur=${e.durationMs ?: "-"}ms err=${e.error ?: "-"}"
         }
         listOf(UIMessagePart.Text(LogRedactor.maskText(raw)))
     },

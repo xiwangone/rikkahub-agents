@@ -2349,8 +2349,17 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="doctor_maint_01">应用缓存大小</string>
   <string name="doctor_maint_05">清除缓存</string>
   <string name="doctor_diag_01">应用构建信息</string>
+  <string name="doctor_diag_02">应用日志</string>
   <string name="doctor_diag_03">运行时</string>
+  <string name="doctor_diag_04">崩溃记录</string>
   <string name="doctor_diag_05">各助手启用的工具</string>
+  <string name="doctor_diag_06">构建新鲜度</string>
+  <string name="doctor_msg_app_log_on">应用日志已开启 — read_app_logs 读取缓冲条目（文件落盘兜底，重启可读）。</string>
+  <string name="doctor_msg_app_log_off">应用日志已关闭 — read_app_logs 将返回空。请在日志页开启。</string>
+  <string name="doctor_msg_crash_none">最近 %1$d 天无崩溃退出。</string>
+  <string name="doctor_msg_crash_some">最近 %2$d 天内有 %1$d 次崩溃；最新 %3$s。</string>
+  <string name="doctor_msg_version_ok">已安装 v%1$s，进程运行同一版本。</string>
+  <string name="doctor_msg_version_stale">已安装 v%1$s 但进程仍运行 v%2$s — 重启后生效。</string>
   <string name="vault_export_password_label">导出口令</string>
   <string name="vault_export_button">导出 .vault 包</string>
   <string name="vault_export_password_required">请输入导出口令</string>
