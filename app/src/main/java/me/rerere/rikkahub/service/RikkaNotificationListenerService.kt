@@ -1,6 +1,6 @@
-package me.rerere.rikkahub
+package me.rerere.rikkahub.service
 
-import me.rerere.rikkahub.data.log.AppLog.service
+import me.rerere.rikkahub.data.log.AppLog
 
 import android.app.Notification
 import android.content.pm.PackageManager

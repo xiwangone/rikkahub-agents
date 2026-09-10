@@ -974,7 +974,7 @@ class GenerationHandler(
                         }
                         if (parsedArgs.isFailure) {
                             val cause = parsedArgs.exceptionOrNull()
-                            AppLog.w(TAG, "tool ${tool.toolName} args failed to parse (likely truncated stream)", cause)
+                            cause?.let { AppLog.w(TAG, "tool ${tool.toolName} args failed to parse (likely truncated stream)", it) }
                             executedTools += tool.copy(
                                 output = listOf(
                                     UIMessagePart.Text(

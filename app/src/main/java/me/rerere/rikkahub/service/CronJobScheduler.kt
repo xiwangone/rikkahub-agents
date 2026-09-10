@@ -44,7 +44,7 @@ class CronJobScheduler(
                 .setInputData(Data.Builder().putString(CronJobWorker.KEY_JOB_ID, job.id).build())
                 .build()
         wm.enqueueUniqueWork(workNameFor(job.id), ExistingWorkPolicy.REPLACE, req)
-        AppLog.i(tag, "schedule: job=${job.id} task=${job.task} next=$nextRun delay=${delayMs}ms")
+        AppLog.i(tag, "schedule: job=${job.id} name=${job.name} next=$nextRun delay=${delayMs}ms")
     }
 
     /**

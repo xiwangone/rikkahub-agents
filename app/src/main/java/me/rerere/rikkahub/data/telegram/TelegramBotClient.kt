@@ -1,6 +1,6 @@
-package me.rerere.rikkahub
+package me.rerere.rikkahub.data.telegram
 
-import me.rerere.rikkahub.data.log.AppLog.data.telegram
+import me.rerere.rikkahub.data.log.AppLog
 
 import android.util.Log
 import kotlinx.coroutines.Dispatchers

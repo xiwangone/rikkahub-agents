@@ -1,6 +1,6 @@
-package me.rerere.rikkahub
+package me.rerere.rikkahub.web
 
-import me.rerere.rikkahub.data.log.AppLog.web
+import me.rerere.rikkahub.data.log.AppLog
 
 import android.content.Context
 import android.util.Log

@@ -1,6 +1,6 @@
-package me.rerere.rikkahub
+package me.rerere.rikkahub.data.ai.mcp
 
-import me.rerere.rikkahub.data.log.AppLog.data.ai.mcp
+import me.rerere.rikkahub.data.log.AppLog
 
 import android.content.Context
 import android.util.Log
