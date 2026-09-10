@@ -190,9 +190,9 @@ private fun MainPage(vm: DebugVM) {
         val toaster = LocalToaster.current
         Button(
             onClick = {
-                toaster.show("测试 ${counter++}")
-                toaster.show("测试 ${counter++}", type = ToastType.Info)
-                toaster.show("测试 ${counter++}", type = ToastType.Error)
+                toaster.show(context.getString(R.string.debug_toast_test, counter++))
+                toaster.show(context.getString(R.string.debug_toast_test, counter++), type = ToastType.Info)
+                toaster.show(context.getString(R.string.debug_toast_test, counter++), type = ToastType.Error)
             },
         ) {
             Text("toast")
@@ -222,7 +222,7 @@ private fun MainPage(vm: DebugVM) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = "Conversation 数量: ${conversationCount?.toString() ?: "..."}",
+                text = context.getString(R.string.debug_conversation_count, conversationCount?.toString() ?: "..."),
                 modifier = Modifier.weight(1f),
             )
             Button(onClick = { vm.refreshConversationCount() }) {
@@ -233,7 +233,7 @@ private fun MainPage(vm: DebugVM) {
         Button(
             onClick = {
                 vm.createOversizedConversation(30)
-                toaster.show("正在创建 30MB 超大对话...")
+                toaster.show(context.getString(R.string.debug_creating_large_convo))
             },
         ) {
             Text(stringResource(R.string.debug_create_huge))
@@ -242,7 +242,7 @@ private fun MainPage(vm: DebugVM) {
         Button(
             onClick = {
                 vm.createConversationWithMessages(1024)
-                toaster.show("正在创建 1024 条消息对话...")
+                toaster.show(context.getString(R.string.debug_creating_msg_convo))
             },
         ) {
             Text(stringResource(R.string.debug_create_1024))

@@ -220,7 +220,7 @@ fun SettingToolApprovalsPage() {
                         verticalArrangement = Arrangement.spacedBy(2.dp),
                     ) {
                         Text(
-                            text = "本地 MCP Server（供 Backend 使用）",
+                            text = stringResource(R.string.tool_approvals_mcp_local_title),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold,
                             color = onContainer,
@@ -228,9 +228,9 @@ fun SettingToolApprovalsPage() {
                         Text(
                             text =
                                 if (mcpServerEnabled) {
-                                    "运行中：127.0.0.1:8788"
+                                    stringResource(R.string.tool_approvals_mcp_running)
                                 } else {
-                                    "已关闭：Backend 无法调用设备工具"
+                                    stringResource(R.string.tool_approvals_mcp_stopped)
                                 },
                             style = MaterialTheme.typography.bodySmall,
                             color = onContainer,

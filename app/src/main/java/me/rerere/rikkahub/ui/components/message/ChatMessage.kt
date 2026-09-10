@@ -716,7 +716,7 @@ private fun MessagePartsBlock(
                                     Text(text = annotation.level?.let { "[$it] ${annotation.text}" } ?: annotation.text)
 
                                 is UIMessageAnnotation.CompactionNotice ->
-                                    Text(text = "上下文已压缩" + (annotation.trigger?.let { "（$it）" } ?: ""))
+                                    Text(text = stringResource(R.string.chat_msg_context_compacted) + (annotation.trigger?.let { stringResource(R.string.chat_msg_context_compacted_trigger, it) } ?: ""))
 
                                 is UIMessageAnnotation.ApprovalRequest -> {
                                     BackendApprovalCard(
@@ -858,7 +858,7 @@ private fun BackendApprovalCard(
     var inFlight by remember(requestId) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
         Text(
-            text = "待审批：$tool${subject?.let { "\n$it" } ?: ""}",
+            text = stringResource(R.string.chat_msg_pending_approval, tool, subject?.let { "\n$it" } ?: ""),
             style = MaterialTheme.typography.labelMedium,
         )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -909,7 +909,7 @@ private fun BackendAskCard(
     var submitted by remember(requestId) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
-            text = "待回答",
+            text = stringResource(R.string.chat_msg_pending_reply),
             style = MaterialTheme.typography.labelMedium,
         )
         questions.forEach { q ->

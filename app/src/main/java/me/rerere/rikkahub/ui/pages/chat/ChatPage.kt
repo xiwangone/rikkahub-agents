@@ -374,7 +374,7 @@ private fun ChatPageContent(
                 vaultAuthMsg = context.getString(R.string.vault_authorize_success)
             }.onFailure { e ->
                 me.rerere.rikkahub.data.log.AppLog.d("VaultAuth", "授权失败: ${e.message}")
-                vaultAuthMsg = "授权失败: ${e.message}"
+                vaultAuthMsg = context.getString(R.string.chat_page_vault_auth_failed, e.message)
             }
         }
     }
@@ -404,7 +404,7 @@ private fun ChatPageContent(
                 vaultAuthMsg = context.getString(R.string.vault_authorize_revoked)
             }.onFailure { e ->
                 me.rerere.rikkahub.data.log.AppLog.d("VaultRevoke", "撤销失败: ${e.message}")
-                vaultAuthMsg = "撤销失败: ${e.message}"
+                vaultAuthMsg = context.getString(R.string.chat_page_vault_revoke_failed, e.message)
             }
         }
     }
@@ -1076,16 +1076,22 @@ private fun TopBar(
         actions = {
             // 执行后端（AI 执行通道）：本机 local / 后端服务 provider
             androidx.compose.material3.TextButton(onClick = { backendMenuOpen = true }) {
-                Text("⚙ ${if (settings.executionBackend.isBlank() || settings.executionBackend == "local") "本机" else settings.providers.firstOrNull { it.id.toString() == settings.executionBackend }?.name?.ifBlank { "后端服务" } ?: settings.executionBackend}")
+                val backendLabel =
+                    if (settings.executionBackend.isBlank() || settings.executionBackend == "local") {
+                        stringResource(R.string.chat_page_backend_local)
+                    } else {
+                        settings.providers.firstOrNull { it.id.toString() == settings.executionBackend }?.name?.ifBlank { stringResource(R.string.backend_service) } ?: settings.executionBackend
+                    }
+                Text(stringResource(R.string.chat_page_backend_label, backendLabel))
             }
             androidx.compose.material3.DropdownMenu(expanded = backendMenuOpen, onDismissRequest = { backendMenuOpen = false }) {
                 androidx.compose.material3.DropdownMenuItem(
-                    text = { Text("本机") },
+                    text = { Text(stringResource(R.string.chat_page_backend_local)) },
                     onClick = { onBackendChange("local"); backendMenuOpen = false },
                 )
                 settings.providers.filter { it is ProviderSetting.Backend }.forEach { p ->
                     androidx.compose.material3.DropdownMenuItem(
-                        text = { Text(p.name.ifBlank { "后端服务" }) },
+                        text = { Text(p.name.ifBlank { stringResource(R.string.backend_service) }) },
                         onClick = { onBackendChange(p.id.toString()); backendMenuOpen = false },
                     )
                 }

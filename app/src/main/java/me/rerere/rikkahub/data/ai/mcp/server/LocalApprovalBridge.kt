@@ -94,10 +94,10 @@ class LocalApprovalBridge(private val context: Context) {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             val channel = NotificationChannel(
                 CHANNEL_ID,
-                "MCP 工具审批",
+                context.getString(R.string.mcp_approval_channel_name),
                 NotificationManager.IMPORTANCE_HIGH,
             ).apply {
-                description = "Backend 通过本地 MCP 调用设备工具时的批准/拒绝"
+                description = context.getString(R.string.mcp_approval_channel_desc)
             }
             nm.createNotificationChannel(channel)
         }
@@ -142,15 +142,15 @@ class LocalApprovalBridge(private val context: Context) {
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(R.drawable.small_icon)
-            .setContentTitle("设备工具待批准：${tool.name}")
+            .setContentTitle(context.getString(R.string.mcp_approval_title, tool.name))
             .setContentText(summary)
             .setStyle(NotificationCompat.BigTextStyle().bigText(summary))
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setAutoCancel(true)
             .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
-            .addAction(0, "批准", approvePi)
-            .addAction(0, "拒绝", denyPi)
+            .addAction(0, context.getString(R.string.approve), approvePi)
+            .addAction(0, context.getString(R.string.deny), denyPi)
             .build()
         runCatching {
             NotificationManagerCompat.from(context).notify(tool.name.hashCode(), notification)
@@ -168,6 +168,6 @@ class LocalApprovalBridge(private val context: Context) {
         } catch (e: Exception) {
             input.toString().take(200)
         }
-        return "Backend 请求调用设备工具 ${tool.name}。\n参数：$args\n\n批准后将在本机执行。"
+        return context.getString(R.string.mcp_approval_body, tool.name, args)
     }
 }

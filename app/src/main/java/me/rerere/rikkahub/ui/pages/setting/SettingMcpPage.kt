@@ -327,8 +327,8 @@ private fun LocalMcpServerSection(
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
-                    Text("本地 MCP Server", style = MaterialTheme.typography.titleMedium)
-                    Text("127.0.0.1:8788 · 供 Backend 使用", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.mcp_page_local_server_title), style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.mcp_page_local_server_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Switch(checked = enabled, onCheckedChange = onEnable)
             }
@@ -338,17 +338,18 @@ private fun LocalMcpServerSection(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Column(Modifier.weight(1f)) {
-                        Text(if (p.id == activeId) "当前 · ${p.name.ifBlank { "未命名" }}" else p.name.ifBlank { "未命名" })
-                        Text("端口 ${p.port} · ${p.allowedTools.size} 工具", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        val displayName = p.name.ifBlank { stringResource(R.string.mcp_page_unnamed) }
+                        Text(if (p.id == activeId) stringResource(R.string.mcp_page_current_prefix, displayName) else displayName)
+                        Text(stringResource(R.string.mcp_page_port_tools, p.port, p.allowedTools.size), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                     if (p.id != activeId) {
-                        TextButton(onClick = { onSetActive(p) }) { Text("设为当前") }
+                        TextButton(onClick = { onSetActive(p) }) { Text(stringResource(R.string.mcp_page_set_active)) }
                     }
-                    TextButton(onClick = { onEdit(p) }) { Text("编辑") }
-                    TextButton(onClick = { onDelete(p) }) { Text("删除", color = MaterialTheme.colorScheme.error) }
+                    TextButton(onClick = { onEdit(p) }) { Text(stringResource(R.string.edit)) }
+                    TextButton(onClick = { onDelete(p) }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
                 }
             }
-            TextButton(onClick = onAdd) { Text("+ 添加配置") }
+            TextButton(onClick = onAdd) { Text(stringResource(R.string.mcp_page_add_config)) }
         }
     }
 }
@@ -378,9 +379,10 @@ private fun LocalMcpProfileModal(
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var port by remember { mutableStateOf(initial?.port?.toString() ?: "8788") }
     var selected by remember { mutableStateOf(initial?.allowedTools ?: emptyList()) }
+    val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (initial == null) "添加本地 MCP 配置" else "编辑本地 MCP 配置") },
+        title = { Text(if (initial == null) stringResource(R.string.mcp_page_dialog_add_title) else stringResource(R.string.mcp_page_dialog_edit_title)) },
         text = {
             Column(
                 modifier =
@@ -388,17 +390,17 @@ private fun LocalMcpProfileModal(
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState()),
             ) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("名称") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text("端口") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.mcp_page_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text(stringResource(R.string.mcp_page_port_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text("暴露的工具（默认全部未选）", style = MaterialTheme.typography.labelLarge)
+                        Text(stringResource(R.string.mcp_page_tools_header), style = MaterialTheme.typography.labelLarge)
                         Row {
-                            TextButton(onClick = { selected = ALL_LOCAL_TOOLS }) { Text("全选") }
-                            TextButton(onClick = { selected = emptyList() }) { Text("清空") }
+                            TextButton(onClick = { selected = ALL_LOCAL_TOOLS }) { Text(stringResource(R.string.mcp_page_select_all)) }
+                            TextButton(onClick = { selected = emptyList() }) { Text(stringResource(R.string.mcp_page_clear)) }
                         }
                     }
                 FlowRow {
@@ -420,15 +422,15 @@ private fun LocalMcpProfileModal(
                     val base = initial ?: LocalMcpProfile(id = "local-mcp-${System.currentTimeMillis()}", name = "")
                     onConfirm(
                         base.copy(
-                            name = name.ifBlank { "未命名" },
+                            name = name.ifBlank { context.getString(R.string.mcp_page_unnamed) },
                             port = port.toIntOrNull() ?: 8788,
                             allowedTools = selected,
                         ),
                     )
                 },
-            ) { Text("保存") }
+            ) { Text(stringResource(R.string.save)) }
         },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
     )
 }
 
@@ -613,7 +615,7 @@ private fun McpServerItem(
                     if (status == McpStatus.NeedsAuthorization) {
                         val context = LocalContext.current
                         Text(
-                            text = "需要 OAuth 授权",
+                            text = stringResource(R.string.mcp_page_oauth_required),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.error,
                         )
@@ -626,7 +628,7 @@ private fun McpServerItem(
                     }
                     if (status == McpStatus.Authorizing) {
                         Text(
-                            text = "正在授权，请在浏览器中完成…",
+                            text = stringResource(R.string.mcp_page_oauth_in_progress),
                             style = MaterialTheme.typography.labelSmall,
                         )
                         TextButton(

@@ -38,7 +38,6 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
     private companion object {
         const val TAG = "BackendInteraction"
         const val CHANNEL_ID = "backend_interactions"
-        const val CHANNEL_NAME = "Backend 提问与审批"
         const val ACTION_APPROVE = "me.rerere.rikkahub.action.BACKEND_APPROVE"
         const val ACTION_DENY = "me.rerere.rikkahub.action.BACKEND_DENY"
         const val EXTRA_REQUEST_ID = "request_id"
@@ -141,18 +140,18 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                 denyIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
-        val body = subject?.takeIf { it.isNotBlank() } ?: "Backend 请求执行工具 $tool"
+        val body = subject?.takeIf { it.isNotBlank() } ?: context.getString(R.string.backend_notif_tool_request, tool)
         val notification =
             NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.small_icon)
-                .setContentTitle("Backend 工具待批准：$tool")
+                .setContentTitle(context.getString(R.string.backend_notif_pending_approve, tool))
                 .setContentText(body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setCategory(NotificationCompat.CATEGORY_CALL)
                 .setAutoCancel(true)
-                .addAction(0, "批准", approvePi)
-                .addAction(0, "拒绝", denyPi)
+                .addAction(0, context.getString(R.string.approve), approvePi)
+                .addAction(0, context.getString(R.string.deny), denyPi)
                 .build()
         notify(id, notification)
     }
@@ -169,9 +168,9 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
             questions.joinToString("\n\n") { q ->
                 val options =
                     q.options.joinToString("\n") { opt ->
-                        "• ${opt.label}${opt.description?.let { "（$it）" } ?: ""}"
+                        "• ${opt.label}${opt.description?.let { context.getString(R.string.backend_notif_desc_paren, it) } ?: ""}"
                     }
-                "问：${q.prompt}${if (q.multi) "（多选）" else "（单选）"}\n$options"
+                context.getString(R.string.backend_notif_ask_body, q.prompt, if (q.multi) context.getString(R.string.backend_notif_multi) else context.getString(R.string.backend_notif_single), options)
             }
         val replyIntent =
             Intent().apply {
@@ -186,19 +185,19 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                 replyIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
-        val remoteInput = RemoteInput.Builder(KEY_REPLY).setLabel("输入答案/选项").build()
+        val remoteInput = RemoteInput.Builder(KEY_REPLY).setLabel(context.getString(R.string.backend_notif_reply_hint)).build()
         val notification =
             NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.small_icon)
-                .setContentTitle("Backend 提问")
-                .setContentText(questions.firstOrNull()?.prompt ?: "请回答")
+                .setContentTitle(context.getString(R.string.backend_notif_ask_title))
+                .setContentText(questions.firstOrNull()?.prompt ?: context.getString(R.string.backend_notif_answer_hint))
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .addAction(
                     NotificationCompat.Action.Builder(
                         android.R.drawable.ic_menu_send,
-                        "回答",
+                        context.getString(R.string.answer),
                         replyPi,
                     ).addRemoteInput(remoteInput).build(),
                 )
@@ -240,7 +239,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
             nm.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_ID,
-                    CHANNEL_NAME,
+                    context.getString(R.string.backend_notif_channel_name),
                     NotificationManager.IMPORTANCE_HIGH,
                 ),
             )

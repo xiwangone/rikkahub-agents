@@ -325,7 +325,7 @@ private fun CredentialRow(
                             .padding(top = 2.dp)
                             .clickable {
                                 clipboard.setText(androidx.compose.ui.text.AnnotatedString(entry.publicKey))
-                                android.widget.Toast.makeText(context, "公钥已复制", android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, context.getString(R.string.vault_pubkey_copied), android.widget.Toast.LENGTH_SHORT).show()
                             },
                     )
                 }
@@ -407,7 +407,7 @@ private fun CredentialEditorDialog(
                 OutlinedTextField(
                     value = publicKey,
                     onValueChange = { publicKey = it },
-                    label = { Text("SSH 公钥（可选，明文）") },
+                    label = { Text(stringResource(R.string.vault_ssh_pubkey_label)) },
                     singleLine = false,
                     modifier = Modifier.fillMaxWidth(),
                 )

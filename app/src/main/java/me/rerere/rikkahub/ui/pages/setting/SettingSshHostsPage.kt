@@ -25,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -193,7 +194,7 @@ fun SettingSshHostsPage() {
                             "SshHostsPage",
                             "保存 SSH 主机失败: name=${entity.name} err=${e.message}",
                         )
-                        toaster.show("保存失败: ${e.message ?: e.javaClass.simpleName}")
+                        toaster.show(context.getString(R.string.ssh_hosts_save_failed, e.message ?: e.javaClass.simpleName))
                     }
                 }
             },
@@ -209,6 +210,7 @@ private fun SshHostEditDialog(
     onSave: (SshHostEntity) -> Unit,
 ) {
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
+    val context = LocalContext.current
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var host by remember { mutableStateOf(initial?.host ?: "") }
     var port by remember { mutableStateOf((initial?.port ?: 22).toString()) }

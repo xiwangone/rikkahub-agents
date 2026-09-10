@@ -239,7 +239,7 @@ fun SettingNotificationsPage() {
                     recent.asReversed().take(50).forEach { entry ->
                         item(
                             headlineContent = {
-                                Text("${entry.label}: ${entry.title.ifBlank { "（无标题）" }}")
+                                Text(stringResource(R.string.notification_label_title, entry.label, entry.title.ifBlank { stringResource(R.string.notification_no_title) }))
                             },
                             supportingContent = {
                                 Text(

@@ -287,11 +287,11 @@ fun ChatExportSheet(
                                         val conversation = JsonInstant.decodeFromString<Conversation>(jsonString)
                                         val newConversation = conversation.copy(id = kotlin.uuid.Uuid.random())
                                         importRepo.insertConversation(newConversation)
-                                        toaster.show("导入成功", type = ToastType.Success)
+                                        toaster.show(context.getString(R.string.export_import_success), type = ToastType.Success)
                                         onDismissRequest()
                                     }
                                 } catch (e: Exception) {
-                                    toaster.show("导入失败: ${e.message}", type = ToastType.Error)
+                                    toaster.show(context.getString(R.string.export_import_failed, e.message), type = ToastType.Error)
                                 }
                             }
                         }

@@ -14,6 +14,7 @@ import android.os.PowerManager
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 import me.rerere.rikkahub.service.RikkaAccessibilityService
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.service.RikkaNotificationListenerService
 
 /**
@@ -93,8 +94,8 @@ object PermissionInventory {
                 val granted = Settings.canDrawOverlays(context)
                 return Row(
                     id = perm,
-                    label = "悬浮窗权限",
-                    description = "允许 RikkaHub 在自动化进行时显示「智能体工作中」悬浮提示。",
+                    label = context.getString(R.string.perm_float_window_label),
+                    description = context.getString(R.string.perm_float_window_desc),
                     status = if (granted) Status.GRANTED else Status.DENIED,
                     group = Group.SpecialAccess,
                     grant = GrantAction.SystemSettings(
@@ -106,8 +107,8 @@ object PermissionInventory {
                 val granted = Settings.System.canWrite(context)
                 return Row(
                     id = perm,
-                    label = "修改系统设置",
-                    description = "允许通过 set_brightness 调节屏幕亮度。",
+                    label = context.getString(R.string.perm_write_settings_label),
+                    description = context.getString(R.string.perm_write_settings_desc),
                     status = if (granted) Status.GRANTED else Status.DENIED,
                     group = Group.SpecialAccess,
                     grant = GrantAction.SystemSettings(
@@ -120,8 +121,8 @@ object PermissionInventory {
                 val granted = nm?.isNotificationPolicyAccessGranted == true
                 return Row(
                     id = perm,
-                    label = "勿扰模式访问",
-                    description = "允许切换响铃模式和调节各声道音量。",
+                    label = context.getString(R.string.perm_notification_policy_label),
+                    description = context.getString(R.string.perm_notification_policy_desc),
                     status = if (granted) Status.GRANTED else Status.DENIED,
                     group = Group.SpecialAccess,
                     grant = GrantAction.SystemSettings(
@@ -134,8 +135,8 @@ object PermissionInventory {
                 val granted = pwm?.isIgnoringBatteryOptimizations(context.packageName) == true
                 return Row(
                     id = perm,
-                    label = "忽略电池优化",
-                    description = "保持 Telegram 机器人在锁屏后前台服务依然响应。",
+                    label = context.getString(R.string.perm_battery_label),
+                    description = context.getString(R.string.perm_battery_desc),
                     status = if (granted) Status.GRANTED else Status.DENIED,
                     group = Group.SpecialAccess,
                     // ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS pops a system dialog asking
@@ -151,8 +152,8 @@ object PermissionInventory {
                         PackageManager.PERMISSION_GRANTED
                     Row(
                         id = perm,
-                        label = "发送通知",
-                        description = "机器人前台服务和 TTS/进度通知的显示需要此权限。",
+                        label = context.getString(R.string.perm_post_notifications_label),
+                        description = context.getString(R.string.perm_post_notifications_desc),
                         status = if (granted) Status.GRANTED else Status.DENIED,
                         group = Group.Runtime,
                         grant = GrantAction.Runtime(perm),
@@ -181,7 +182,7 @@ object PermissionInventory {
             return Row(
                 id = perm,
                 label = humanize(perm),
-                description = "自定义权限。目标应用可能尚未安装。",
+                description = context.getString(R.string.perm_custom_desc),
                 status = if (granted) Status.GRANTED else Status.DENIED,
                 group = Group.Runtime,
                 grant = GrantAction.Runtime(perm),
@@ -196,21 +197,21 @@ object PermissionInventory {
         return if (isDangerous) {
             Row(
                 id = perm,
-                label = labelOrHumanize(perm),
-                description = describeRuntime(perm),
+                label = labelOrHumanize(perm, context),
+                description = describeRuntime(perm, context),
                 status = if (granted) Status.GRANTED else Status.DENIED,
                 group = Group.Runtime,
                 grant = GrantAction.Runtime(perm),
             )
         } else {
-            autoRow(perm, labelOrHumanize(perm))
+            autoRow(perm, labelOrHumanize(perm, context))
         }
     }
 
     private fun autoRow(perm: String, label: String) = Row(
         id = perm,
         label = label,
-        description = "安装时自动授予（无需用户操作）。",
+        description = context.getString(R.string.perm_auto_granted_desc),
         status = Status.AUTO_GRANTED,
         group = Group.AutoGranted,
         grant = GrantAction.None,
@@ -224,8 +225,8 @@ object PermissionInventory {
         ) ?: "").split(":").any { it.equals(component, ignoreCase = true) }
         return Row(
             id = "rikkahub.SERVICE_ACCESSIBILITY",
-            label = "屏幕自动化（无障碍服务）",
-            description = "点击、滑动、点击节点、截图、读取窗口树、设置文本等界面操控工具需要此权限。",
+            label = context.getString(R.string.perm_accessibility_label),
+            description = context.getString(R.string.perm_accessibility_desc),
             status = if (enabled) Status.GRANTED else Status.DENIED,
             group = Group.ServicesAndIntegrations,
             grant = GrantAction.SystemSettings(
@@ -242,8 +243,8 @@ object PermissionInventory {
         ) ?: "").split(":").any { it.equals(component, ignoreCase = true) }
         return Row(
             id = "rikkahub.SERVICE_NOTIFICATION_LISTENER",
-            label = "通知访问",
-            description = "允许读取传入通知，并将白名单应用自动转发到 Telegram。",
+            label = context.getString(R.string.perm_notif_listener_label),
+            description = context.getString(R.string.perm_notif_listener_desc),
             status = if (enabled) Status.GRANTED else Status.DENIED,
             group = Group.ServicesAndIntegrations,
             grant = GrantAction.SystemSettings(
@@ -255,36 +256,38 @@ object PermissionInventory {
 
     // -- Friendly labels for every dangerous permission we currently request ------------------
 
-    private val LABELS = mapOf(
-        Manifest.permission.CAMERA to "相机",
-        Manifest.permission.RECORD_AUDIO to "麦克风",
-        Manifest.permission.READ_PHONE_STATE to "电话状态",
-        Manifest.permission.ACCESS_FINE_LOCATION to "精确位置",
-        Manifest.permission.ACCESS_COARSE_LOCATION to "大致位置",
-        Manifest.permission.READ_CONTACTS to "通讯录",
-        Manifest.permission.READ_CALL_LOG to "通话记录",
-        Manifest.permission.READ_SMS to "短信",
-        Manifest.permission.SEND_SMS to "发送短信",
-        Manifest.permission.POST_NOTIFICATIONS to "发送通知",
-        "com.termux.permission.RUN_COMMAND" to "Termux RUN_COMMAND",
+    private val LABELS: Map<String, Int> = mapOf(
+        Manifest.permission.CAMERA to R.string.perm_label_camera,
+        Manifest.permission.RECORD_AUDIO to R.string.perm_label_mic,
+        Manifest.permission.READ_PHONE_STATE to R.string.perm_label_phone_state,
+        Manifest.permission.ACCESS_FINE_LOCATION to R.string.perm_label_fine_location,
+        Manifest.permission.ACCESS_COARSE_LOCATION to R.string.perm_label_coarse_location,
+        Manifest.permission.READ_CONTACTS to R.string.perm_label_contacts,
+        Manifest.permission.READ_CALL_LOG to R.string.perm_label_call_log,
+        Manifest.permission.READ_SMS to R.string.perm_label_sms,
+        Manifest.permission.SEND_SMS to R.string.perm_label_send_sms,
+        Manifest.permission.POST_NOTIFICATIONS to R.string.perm_post_notifications_label,
+        "com.termux.permission.RUN_COMMAND" to R.string.perm_label_termux_cmd,
     )
 
-    private val DESCRIPTIONS = mapOf(
-        Manifest.permission.CAMERA to "take_photo 拍照时使用。",
-        Manifest.permission.RECORD_AUDIO to "record_audio 和 speech_to_text 使用。",
-        Manifest.permission.READ_PHONE_STATE to "get_telephony_info（SIM 运营商/信号）使用。",
-        Manifest.permission.ACCESS_FINE_LOCATION to "get_location 和 get_wifi_info 使用。",
-        Manifest.permission.ACCESS_COARSE_LOCATION to "get_location 的大致位置回退方案。",
-        Manifest.permission.READ_CONTACTS to "search_contacts 和 list_contacts 使用。",
-        Manifest.permission.READ_CALL_LOG to "list_call_log 使用。",
-        Manifest.permission.READ_SMS to "list_sms_inbox 和 search_sms 使用。",
-        Manifest.permission.SEND_SMS to "send_sms 发送短信时使用。",
-        "com.termux.permission.RUN_COMMAND" to "允许 RikkaHub 在 Termux 中启动命令（termux_run_command 工具）。",
+    private val DESCRIPTIONS: Map<String, Int> = mapOf(
+        Manifest.permission.CAMERA to R.string.perm_desc_camera,
+        Manifest.permission.RECORD_AUDIO to R.string.perm_desc_mic,
+        Manifest.permission.READ_PHONE_STATE to R.string.perm_desc_phone_state,
+        Manifest.permission.ACCESS_FINE_LOCATION to R.string.perm_desc_fine_location,
+        Manifest.permission.ACCESS_COARSE_LOCATION to R.string.perm_desc_coarse_location,
+        Manifest.permission.READ_CONTACTS to R.string.perm_desc_contacts,
+        Manifest.permission.READ_CALL_LOG to R.string.perm_desc_call_log,
+        Manifest.permission.READ_SMS to R.string.perm_desc_sms,
+        Manifest.permission.SEND_SMS to R.string.perm_desc_send_sms,
+        "com.termux.permission.RUN_COMMAND" to R.string.perm_desc_termux_cmd,
     )
 
-    private fun labelOrHumanize(perm: String) = LABELS[perm] ?: humanize(perm)
-    private fun describeRuntime(perm: String) =
-        DESCRIPTIONS[perm] ?: "一个或多个已启用工具需要此运行时权限。"
+    private fun labelOrHumanize(perm: String, context: Context) =
+        LABELS[perm]?.let { context.getString(it) } ?: humanize(perm)
+    private fun describeRuntime(perm: String, context: Context) =
+        DESCRIPTIONS[perm]?.let { context.getString(it) }
+            ?: context.getString(R.string.perm_desc_fallback)
 
     private fun humanize(perm: String): String {
         val tail = perm.substringAfterLast('.')

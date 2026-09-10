@@ -45,7 +45,7 @@ fun ToolOutputDialog(
                 modifier = Modifier.padding(horizontal = 16.dp),
             ) {
                 Text(
-                    text = "限制工具输出的最大字符数，防止长输出占用过多上下文",
+                    text = stringResource(R.string.tool_output_limit_desc),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -76,7 +76,7 @@ fun ToolOutputDialog(
                 }
 
                 Text(
-                    text = "⚠️ 设置过低可能导致工具输出被截断",
+                    text = stringResource(R.string.tool_output_limit_warning),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.error,
                 )

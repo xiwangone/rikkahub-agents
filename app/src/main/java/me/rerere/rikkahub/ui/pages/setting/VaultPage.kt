@@ -609,15 +609,15 @@ fun VaultPage() {
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                         // 导出格式选择
-                        Text("导出格式", style = MaterialTheme.typography.labelMedium)
+                        Text(stringResource(R.string.vault_page_export_format), style = MaterialTheme.typography.labelMedium)
                         androidx.compose.foundation.layout.FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             listOf(
-                                VaultFormats.FORMAT_VAULT to ".vault（加密，口令保护）",
-                                VaultFormats.FORMAT_CSV to "CSV（明文）",
-                                VaultFormats.FORMAT_BITWARDEN to "Bitwarden JSON（明文）",
+                                VaultFormats.FORMAT_VAULT to stringResource(R.string.vault_format_vault_desc),
+                                VaultFormats.FORMAT_CSV to stringResource(R.string.vault_format_csv_desc),
+                                VaultFormats.FORMAT_BITWARDEN to stringResource(R.string.vault_format_bitwarden_desc),
                             ).forEach { (fmt, label) ->
                                 OutlinedButton(
                                     onClick = { exportFormat = fmt; exportResult = null },
@@ -640,7 +640,7 @@ fun VaultPage() {
                             )
                         } else {
                             Text(
-                                "明文格式：值中的 \${VAR} 将替换为环境变量值（未定义的保留原样）。",
+                                stringResource(R.string.vault_page_plaintext_env_hint),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )

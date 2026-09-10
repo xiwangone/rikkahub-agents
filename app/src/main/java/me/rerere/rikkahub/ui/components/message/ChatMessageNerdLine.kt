@@ -78,12 +78,12 @@ fun ChatMessageNerdLine(
                             )
                         },
                         content = {
-                            Text(text = "${usage.promptTokens.formatNumber()} 输入")
+                            Text(text = stringResource(R.string.chat_nerd_input_tokens, usage.promptTokens.formatNumber()))
                             // Cached tokens (count + hit-%)
                             if (usage.cachedTokens > 0 && usage.promptTokens > 0) {
                                 val pct = usage.cachedTokens.toDouble() / usage.promptTokens.toDouble() * 100.0
                                 Text(
-                                    text = "(${message.usage?.cachedTokens?.formatNumber() ?: "0"} 命中 · ${String.format(java.util.Locale.US, "%.1f%%", pct)})",
+                                    text = stringResource(R.string.chat_nerd_cached_hit, message.usage?.cachedTokens?.formatNumber() ?: "0", String.format(java.util.Locale.US, "%.1f%%", pct)),
                                 )
                             }
                         },
@@ -98,7 +98,7 @@ fun ChatMessageNerdLine(
                             )
                         },
                         content = {
-                            Text(text = "${usage.completionTokens.formatNumber()} 输出")
+                            Text(text = stringResource(R.string.chat_nerd_output_tokens, usage.completionTokens.formatNumber()))
                         },
                     )
                     // Cost (USD) — shown when the provider reports it (e.g. OpenRouter usage.cost)

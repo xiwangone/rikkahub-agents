@@ -251,7 +251,7 @@ class WorkspaceDetailVM(
                 _terminalState.update {
                     it.copy(
                         running = false,
-                        history = it.history + WorkspaceTerminalEntry.Error(error.message ?: "命令执行失败"),
+                        history = it.history + WorkspaceTerminalEntry.Error(error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_cmd_exec_failed)),
                     )
                 }
             }

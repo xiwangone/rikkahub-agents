@@ -123,10 +123,10 @@ fun BackendServicePage() {
             // 后端连接列表
             CardGroup {
                 item(
-                    headlineContent = { Text("本机（local）") },
+                    headlineContent = { Text(stringResource(R.string.backend_service_local)) },
                     supportingContent = {
                         Text(
-                            if (settings.executionBackend == BackendTypes.LOCAL) "✅ 当前执行后端" else "内置默认——AI 本机执行",
+                            if (settings.executionBackend == BackendTypes.LOCAL) stringResource(R.string.backend_service_current_badge) else stringResource(R.string.backend_service_local_desc),
                         )
                     },
                     trailingContent = {
@@ -139,7 +139,10 @@ fun BackendServicePage() {
                                 }
                             },
                         ) {
-                            Text(if (settings.executionBackend == BackendTypes.LOCAL) "当前" else "切换", color = MaterialTheme.colorScheme.primary)
+                            Text(
+                                if (settings.executionBackend == BackendTypes.LOCAL) stringResource(R.string.backend_service_current) else stringResource(R.string.backend_service_switch),
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         }
                     },
                 )
@@ -148,15 +151,18 @@ fun BackendServicePage() {
                     item(
                         headlineContent = { Text(conn.name) },
                         supportingContent = {
+                            val typeLabel =
+                                when (conn.type) {
+                                    BackendTypes.BACKEND -> stringResource(R.string.backend_service)
+                                    BackendTypes.SSH -> stringResource(R.string.backend_service_type_ssh)
+                                    else -> stringResource(R.string.backend_service_type_custom)
+                                }
+                            val currentBadge = stringResource(R.string.backend_service_current_badge)
                             Text(
                                 buildString {
-                                    append(when (conn.type) {
-                                        BackendTypes.BACKEND -> "后端服务"
-                                        BackendTypes.SSH -> "SSH 后端"
-                                        else -> "自定义后端"
-                                    })
+                                    append(typeLabel)
                                     if (conn.endpoint.isNotBlank()) append("\n").append(conn.endpoint)
-                                    if (settings.executionBackend == conn.id) append("\n✅ 当前执行后端")
+                                    if (settings.executionBackend == conn.id) append("\n").append(currentBadge)
                                 },
                             )
                         },
@@ -172,11 +178,11 @@ fun BackendServicePage() {
                                             }
                                         },
                                     ) {
-                                        Text("切换", color = MaterialTheme.colorScheme.primary)
+                                        Text(stringResource(R.string.backend_service_switch), color = MaterialTheme.colorScheme.primary)
                                     }
                                 }
                                 TextButton(onClick = { editing = conn }) {
-                                    Text("编辑")
+                                    Text(stringResource(R.string.edit))
                                 }
                             }
                         },
@@ -191,7 +197,7 @@ fun BackendServicePage() {
                     headlineContent = {
                         Text(stringResource(R.string.backend_service_add), color = MaterialTheme.colorScheme.primary)
                     },
-                    supportingContent = { Text("添加 Backend / SSH / 自定义后端连接") },
+                    supportingContent = { Text(stringResource(R.string.backend_service_add_conn_desc)) },
                 )
             }
 
@@ -229,13 +235,13 @@ private fun BackendEditDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (initial == null) "添加后端连接" else "编辑后端连接") },
+        title = { Text(if (initial == null) stringResource(R.string.backend_service_dialog_add_title) else stringResource(R.string.backend_service_dialog_edit_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text("名称（如 backend-ecs）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text("类型（backend/ssh/custom）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, label = { Text("地址（backend baseUrl / SSH host:port）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = authRef, onValueChange = { authRef = it }, label = { Text("Vault 凭证引用（可选）") }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.backend_service_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text(stringResource(R.string.backend_service_type_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, label = { Text(stringResource(R.string.backend_service_endpoint_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = authRef, onValueChange = { authRef = it }, label = { Text(stringResource(R.string.backend_service_auth_ref_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 // 凭证库下拉快捷选择：点击填入 authRef
                 if (credentialNames.isNotEmpty()) {
                     Select(
@@ -246,7 +252,7 @@ private fun BackendEditDialog(
                         modifier = Modifier.fillMaxWidth(),
                     )
                 } else {
-                    Text("（凭证库为空，可手动输入凭证名）", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.backend_service_vault_empty_hint), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
         },
@@ -265,16 +271,16 @@ private fun BackendEditDialog(
                         ),
                     )
                 },
-            ) { Text("保存") }
+            ) { Text(stringResource(R.string.save)) }
         },
         dismissButton = {
             Row {
                 if (initial != null) {
                     TextButton(onClick = { onDelete(initial) }) {
-                        Text("删除", color = MaterialTheme.colorScheme.error)
+                        Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
                     }
                 }
-                TextButton(onClick = onDismiss) { Text("取消") }
+                TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
             }
         },
     )

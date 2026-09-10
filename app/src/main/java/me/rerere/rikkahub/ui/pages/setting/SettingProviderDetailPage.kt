@@ -1710,7 +1710,7 @@ private fun ProviderOverrideSettings(
                             modifier = Modifier.size(24.dp),
                         )
                         Text(
-                            text = "${providerOverride.name} （覆盖）",
+                            text = stringResource(R.string.provider_override_label, providerOverride.name),
                             style = MaterialTheme.typography.bodyMedium,
                             modifier = Modifier.weight(1f),
                         )

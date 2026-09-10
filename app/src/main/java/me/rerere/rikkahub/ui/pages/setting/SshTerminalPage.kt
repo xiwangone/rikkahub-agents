@@ -31,6 +31,7 @@ import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuth
 import me.rerere.rikkahub.data.ai.tools.local.newJSch
 import me.rerere.rikkahub.data.ai.tools.local.SshAuth
@@ -57,9 +58,9 @@ fun SshTerminalPage(hostName: String) {
     LaunchedEffect(hostName) {
         withContext(Dispatchers.IO) {
             val host = hostRepo.getByName(hostName)
-            if (host == null) { connectError = "主机不存在: $hostName"; return@withContext }
+            if (host == null) { connectError = appContext.getString(R.string.ssh_terminal_host_not_found, hostName); return@withContext }
             val auth = resolveHostAuth(host, vaultRepo)
-            if (auth == null) { connectError = "无可用凭证（vault ref: ${host.vaultCredentialRef ?: "none"}）"; return@withContext }
+            if (auth == null) { connectError = appContext.getString(R.string.ssh_terminal_no_credential, host.vaultCredentialRef ?: "none"); return@withContext }
             try {
                 val jsch = newJSch(appContext)
                 val session = jsch.getSession(host.user, host.host, host.port)
@@ -71,9 +72,9 @@ fun SshTerminalPage(hostName: String) {
                 session.connect(10000)
                 sessionRef.set(session)
                 connected = true
-                output = "已连接 ${host.user}@${host.host}:${host.port}\n"
+                output = appContext.getString(R.string.ssh_terminal_connected, host.user, host.host, host.port)
             } catch (e: Exception) {
-                connectError = "连接失败: ${e.message}"
+                connectError = appContext.getString(R.string.ssh_terminal_connect_failed, e.message)
             }
         }
     }
@@ -107,7 +108,7 @@ fun SshTerminalPage(hostName: String) {
                     output += "exit=${ch.exitStatus}\n"
                     ch.disconnect()
                 } catch (e: Exception) {
-                    output += "执行失败: ${e.message}\n"
+                    output += appContext.getString(R.string.ssh_terminal_exec_failed, e.message)
                 }
             }
         }
@@ -141,12 +142,12 @@ fun SshTerminalPage(hostName: String) {
                     OutlinedTextField(
                         value = command,
                         onValueChange = { command = it },
-                        placeholder = { Text("输入命令，回车执行") },
+                        placeholder = { Text(stringResource(R.string.ssh_terminal_input_placeholder)) },
                         modifier = Modifier.weight(1f),
                         singleLine = true,
                     )
                     OutlinedButton(onClick = { runCmd(command); command = "" }) {
-                        Text("执行")
+                        Text(stringResource(R.string.ssh_terminal_execute))
                     }
                 }
             }

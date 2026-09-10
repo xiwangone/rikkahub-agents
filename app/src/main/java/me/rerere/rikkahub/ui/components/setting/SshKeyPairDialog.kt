@@ -62,7 +62,7 @@ fun SshKeyPairDialog(
 
     var name by remember { mutableStateOf(credentialName.ifBlank { "ssh-key-${System.currentTimeMillis() % 100000}" }) }
     var group by remember { mutableStateOf(defaultGroup.ifBlank { "SSH" }) }
-    var description by remember { mutableStateOf("SSH 密钥对（生成于 RikkaHub Agents）") }
+    var description by remember { mutableStateOf(context.getString(R.string.ssh_key_default_desc)) }
     var keyType by remember { mutableStateOf(SshKeyGenerator.KeyType.RSA) }
     var generating by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
@@ -71,7 +71,7 @@ fun SshKeyPairDialog(
 
     AlertDialog(
         onDismissRequest = { if (!generating) onDismiss() },
-        title = { Text(if (savedName == null) "生成 SSH 密钥对" else "密钥已保存") },
+        title = { Text(if (savedName == null) stringResource(R.string.ssh_key_dialog_generate_title) else stringResource(R.string.ssh_key_dialog_saved_title)) },
         text = {
             Column(
                 modifier = Modifier
@@ -85,26 +85,26 @@ fun SshKeyPairDialog(
                     OutlinedTextField(
                         value = name,
                         onValueChange = { name = it },
-                        label = { Text("凭证名称（保存到凭证库）") },
+                        label = { Text(stringResource(R.string.ssh_key_name_label)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
                         value = group,
                         onValueChange = { group = it },
-                        label = { Text("凭证分组（如 SSH）") },
+                        label = { Text(stringResource(R.string.ssh_key_group_label)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
                         value = description,
                         onValueChange = { description = it },
-                        label = { Text("描述（可选）") },
+                        label = { Text(stringResource(R.string.ssh_key_desc_label)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
                     // 算法选择（三选一，FlowRow 换行防止按钮溢出屏幕）
-                    Text("算法类型", style = MaterialTheme.typography.labelMedium)
+                    Text(stringResource(R.string.ssh_key_type_label), style = MaterialTheme.typography.labelMedium)
                     androidx.compose.foundation.layout.FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -124,14 +124,14 @@ fun SshKeyPairDialog(
                         Text(error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
                     Text(
-                        "私钥将加密存入凭证库；公钥用于配置服务器 authorized_keys。Ed25519 需 Android 14+。",
+                        stringResource(R.string.ssh_key_desc_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
                     // 第二步：显示公钥（可复制/可选中）
                     Text(
-                        "私钥已保存到凭证库「$savedName」。将以下公钥添加到目标服务器的 authorized_keys：",
+                        stringResource(R.string.ssh_key_saved_instruction, savedName),
                         style = MaterialTheme.typography.bodySmall,
                     )
                     androidx.compose.foundation.text.selection.SelectionContainer {
@@ -149,9 +149,9 @@ fun SshKeyPairDialog(
                             clipboard.setText(androidx.compose.ui.text.AnnotatedString(publicKey ?: ""))
                         },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("复制公钥") }
+                    ) { Text(stringResource(R.string.ssh_key_copy_public)) }
                     Text(
-                        "复制后粘贴到服务器 ~/.ssh/authorized_keys（若服务器已能用密码登录，可让我帮你一条命令写入）。",
+                        stringResource(R.string.ssh_key_after_copy_hint),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -174,32 +174,32 @@ fun SshKeyPairDialog(
                                     repository.save(
                                         name = name.trim(),
                                         value = pair.privateKeyPem,
-                                        description = description.trim().ifBlank { "SSH 密钥对（生成于 RikkaHub Agents, $keyType）" },
+                                        description = description.trim().ifBlank { context.getString(R.string.ssh_key_default_desc_with_type, keyType) },
                                         group = group.trim().ifBlank { "SSH" },
                                         publicKey = pair.publicKeyLine,
                                     )
                                     publicKey = pair.publicKeyLine
                                     savedName = name.trim()
                                 } catch (e: Throwable) {
-                                    error = "保存凭证失败: ${e.message}"
+                                    error = context.getString(R.string.ssh_key_save_failed, e.message)
                                 }
                             }.onFailure { e ->
                                 error = if (e is java.security.NoSuchAlgorithmException) {
-                                    "当前系统不支持 ${keyType.label}（需 Android 14+ 支持 Ed25519），请换 RSA 或 ECDSA"
+                                    context.getString(R.string.ssh_key_unsupported_type, keyType.label)
                                 } else {
-                                    "生成密钥失败: ${e.message}"
+                                    context.getString(R.string.ssh_key_generate_failed, e.message)
                                 }
                             }
                             generating = false
                         }
                     },
-                ) { Text(if (generating) "生成中…" else "生成并保存") }
+                ) { Text(if (generating) stringResource(R.string.ssh_key_generating) else stringResource(R.string.ssh_key_generate_save)) }
             } else {
-                TextButton(onClick = { onSaved(savedName!!) }) { Text("完成") }
+                TextButton(onClick = { onSaved(savedName!!) }) { Text(stringResource(R.string.ssh_key_done)) }
             }
         },
         dismissButton = {
-            TextButton(onClick = { if (!generating) onDismiss() }) { Text("取消") }
+            TextButton(onClick = { if (!generating) onDismiss() }) { Text(stringResource(R.string.cancel)) }
         },
     )
 }

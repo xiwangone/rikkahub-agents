@@ -4,6 +4,7 @@ import android.content.Context
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import me.rerere.rikkahub.R
 
 /**
  * Plain-text formatter shared by the in-app Doctor screen ("Copy report" button) and the
@@ -14,17 +15,17 @@ object DoctorReport {
     fun format(
         context: Context,
         checks: List<DoctorCheck>,
-        header: String = "RikkaHub Agents — 诊断报告",
+        header: String = context.getString(R.string.doctor_report_header),
     ): String =
         buildString {
             appendLine(header)
-            appendLine("生成时间: ${SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())}")
+            appendLine(context.getString(R.string.doctor_report_generated_at, SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())))
             val counts = mutableMapOf<Severity, Int>()
             checks.forEach { counts[it.severity] = (counts[it.severity] ?: 0) + 1 }
             val summary =
                 listOf(Severity.FAIL, Severity.WARN, Severity.OK, Severity.INFO)
                     .joinToString("  ") { "${it.name.lowercase()}=${counts[it] ?: 0}" }
-            appendLine("摘要: $summary")
+            appendLine(context.getString(R.string.doctor_report_summary, summary))
             appendLine()
             DoctorCategory.entries.forEach { cat ->
                 val rows = checks.filter { it.category == cat }

@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai
 
 import android.content.Context
+import me.rerere.rikkahub.R
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Logger as JSchLogger
 import com.jcraft.jsch.Session
@@ -70,7 +71,7 @@ class ReasonixWebBridge(
             _state.value = _state.value.copy(webServerRunning = true)
         }.onFailure { e ->
             AppLog.e(TAG, "Failed to start web server", e)
-            _state.value = _state.value.copy(message = "Web 服务启动失败: ${e.message}")
+            _state.value = _state.value.copy(message = context.getString(R.string.web_bridge_start_failed, e.message))
         }
 
         // 2. 建立 SSH 反向隧道
@@ -105,12 +106,12 @@ class ReasonixWebBridge(
                 val keyFile = java.io.File(privateKeyPath)
                 if (!keyFile.exists()) {
                     AppLog.e(TAG, "SSH private key file not found: $privateKeyPath")
-                    _state.value = _state.value.copy(message = "私钥文件不存在: $privateKeyPath（请点「生成 SSH 密钥」自动填写路径）")
+                    _state.value = _state.value.copy(message = context.getString(R.string.web_bridge_keyfile_missing, privateKeyPath))
                     return@withContext false
                 }
                 if (keyFile.length() == 0L) {
                     AppLog.e(TAG, "SSH private key file is empty: $privateKeyPath")
-                    _state.value = _state.value.copy(message = "私钥文件为空: $privateKeyPath（请重新生成 SSH 密钥）")
+                    _state.value = _state.value.copy(message = context.getString(R.string.web_bridge_keyfile_empty, privateKeyPath))
                     return@withContext false
                 }
                 jsch.addIdentity(privateKeyPath)
@@ -145,7 +146,7 @@ class ReasonixWebBridge(
             true
         } catch (e: Exception) {
             AppLog.e(TAG, "SSH tunnel failed", e)
-            _state.value = _state.value.copy(message = "隧道建立失败: ${e.message}")
+            _state.value = _state.value.copy(message = context.getString(R.string.web_bridge_tunnel_failed, e.message))
             false
         }
     }
