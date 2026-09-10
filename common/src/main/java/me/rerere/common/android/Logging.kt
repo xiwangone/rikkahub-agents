@@ -42,7 +42,7 @@ object Logging {
 
     /**
      * 文件持久化回调：由 :app 层在 Application 启动时注入（FileLogSink），
-     * 把 entry 同步写入 filesDir/logs/*.log。common 层不持有 Context，保持 null 安全。
+     * 把 entry 同步写入 filesDir/logs/ 下的日志文件。common 层不持有 Context，保持 null 安全。
      */
     @Volatile
     var persistSink: ((LogEntry) -> Unit)? = null
