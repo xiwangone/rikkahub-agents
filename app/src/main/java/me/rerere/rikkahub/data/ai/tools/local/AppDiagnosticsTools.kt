@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -216,7 +217,7 @@ fun getAppSettingsTool(settingsStore: SettingsStore): Tool = Tool(
                         put("name", a.name)
                         put("chat_model_id", a.chatModelId?.toString() ?: "inherit")
                         put("local_tool_groups", a.localTools.size)
-                        put("enabled_skills", buildJsonArray { a.enabledSkills.forEach { add(it) } })
+                        put("enabled_skills", buildJsonArray { a.enabledSkills.forEach { add(JsonPrimitive(it)) } })
                     })
                 }
             })
