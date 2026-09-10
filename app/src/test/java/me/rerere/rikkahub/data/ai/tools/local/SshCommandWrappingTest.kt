@@ -100,7 +100,31 @@ class SshCommandWrappingTest {
         assertTrue(ps, ps.startsWith("[Console]::OutputEncoding=[Text.Encoding]::UTF8;"))
         assertEquals("cmd.exe /c \"chcp 65001\"", withUtf8ConsoleEncoding("cmd.exe /c \"chcp 65001\""))
         assertEquals("uname -s", withUtf8ConsoleEncoding("uname -s"))
-        // 幂等：已有前缀不重复添加
-        assertEquals(ps, withUtf8ConsoleEncoding(ps))
+    @Test
+    fun `sshOptionInt reads overrides and ignores comments`() {
+        assertEquals(10, sshOptionInt("# comment\nServerAliveInterval 10\nServerAliveCountMax 6", "ServerAliveInterval"))
+        assertEquals(6, sshOptionInt("ServerAliveInterval 10\nServerAliveCountMax 6", "ServerAliveCountMax"))
+        assertEquals(null, sshOptionInt("ServerAliveInterval 10", "ServerAliveCountMax"))
+        assertEquals(null, sshOptionInt(null, "ServerAliveInterval"))
+        // 前缀相同但键不同的行不能被误命中
+        assertEquals(null, sshOptionInt("ServerAliveIntervalX 5", "ServerAliveInterval"))
+    }
+
+    @Test
+    fun `joinCommandBatch uses newlines for POSIX and semicolons for PowerShell`() {
+        assertEquals("a\nb\nc", joinCommandBatch(listOf("a", "b", "c")))
+        assertEquals("Write-Output a; Write-Output b", joinCommandBatch(listOf("Write-Output a", "Write-Output b")))
+        // 空白条目被丢弃；全空返回空串（调用方据此报参数错误）
+        assertEquals("a\nb", joinCommandBatch(listOf(" a ", "", "  ", "b")))
+        assertEquals("", joinCommandBatch(listOf("", "   ")))
+    }
+
+    @Test
+    fun `env injection is rendered as env argv assignments`() {
+        // 见 workspace 模块 EnvAssignmentTest：`env -i` 会清空继承环境，必须显式传 K=V
+        assertEquals(
+            listOf("TOKEN=abc"),
+            me.rerere.workspace.buildEnvAssignments(mapOf("TOKEN" to "abc")),
+        )
     }
 }

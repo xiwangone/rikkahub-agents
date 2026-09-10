@@ -288,6 +288,11 @@ fun sshExecSavedTool(
             properties = buildJsonObject {
                 put("name", buildJsonObject { put("type", "string"); put("description", "Saved host name") })
                 put("command", buildJsonObject { put("type", "string"); put("description", "Shell command to run. Mutually exclusive with preset.") })
+                put("commands", buildJsonObject {
+                    put("type", "array")
+                    put("description", "Batch of commands to run in ONE connection (joined into a single script: newline-separated for POSIX, '; '-separated when any entry looks like PowerShell). Prefer this over several ssh_exec_saved calls — the app has no connection multiplexing, so batching avoids one handshake per command. Mutually exclusive with preset; may be combined with command (appended after it).")
+                    put("items", buildJsonObject { put("type", "string") })
+                })
                 put("preset", buildJsonObject { put("type", "string"); put("description", "Preset command key for this host (see ssh_presets). Mutually exclusive with command. Generic platform presets include: on a Windows-class host: 系统信息/磁盘/进程/服务列表; on a POSIX host: 系统信息/磁盘/内存/进程/最近日志. When preset is used, command must be omitted.") })
                 put("stdin", buildJsonObject { put("type", "string"); put("description", "Optional data piped to the command's stdin (then EOF). Quote-free way to write a file (command=\"cat > /path\") or feed input; omit to send an immediate EOF.") })
                 put("background", buildJsonObject { put("type", "boolean"); put("description", "If true, launch the command fully detached (nohup, streams redirected) and return immediately with its PID instead of waiting. Default false.") })
@@ -301,10 +306,14 @@ fun sshExecSavedTool(
         val name = p["name"]?.jsonPrimitive?.contentOrNull ?: error("name is required")
         val command = p["command"]?.jsonPrimitive?.contentOrNull
         val presetKey = p["preset"]?.jsonPrimitive?.contentOrNull
-        if (command == null && presetKey == null) error("either command or preset is required")
-        if (command != null && presetKey != null) {
+        val batch: List<String> =
+            (p["commands"] as? kotlinx.serialization.json.JsonArray)
+                ?.mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
+                .orEmpty()
+        if (command == null && presetKey == null && batch.isEmpty()) error("either command, commands or preset is required")
+        if (presetKey != null && (command != null || batch.isNotEmpty())) {
             return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "command and preset are mutually exclusive — pass exactly one") }.toString()
+                buildJsonObject { put("error", "preset is mutually exclusive with command/commands — pass exactly one") }.toString()
             ))
         }
         // preset 展开：按 saved host 名匹配预设集（精确名 → 特征归类 linux/windows 通用模板）
@@ -323,7 +332,9 @@ fun sshExecSavedTool(
             }
             expanded
         } else {
-            command!!
+            val joined = joinCommandBatch(listOfNotNull(command) + batch)
+            require(joined.isNotBlank()) { "command or commands is required" }
+            joined
         }
         val stdin = p["stdin"]?.jsonPrimitive?.contentOrNull
         val background = p["background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false

@@ -129,6 +129,15 @@ class ProotShellRunner(
                 "CI=true",
                 "NO_COLOR=1",
                 "PAGER=cat",
+            )
+
+        // ⚠️ 注入的变量必须作为 env 的参数传入：`env -i` 会清空继承来的整个环境，
+        // 只在 ProcessBuilder.environment() 里 set 是无效的（2026-09-10 实测：
+        // workspace_shell(env=…) 静默失败，命令里 $VAR 恒为空）。
+        command += buildEnvAssignments(context.env)
+
+        command +=
+            listOf(
                 "/bin/bash",
                 "-l",
                 "-c",
@@ -158,3 +167,16 @@ class ProotShellRunner(
         private val WORKSPACE_DIR = WorkspaceManager.ROOTFS_WORKSPACE_DIR
     }
 }
+
+/**
+ * 把待注入的环境变量渲染成 `K=V` 参数列表，供 `/usr/bin/env` 直接作为参数接收。
+ *
+ * 为什么是参数而不是 `ProcessBuilder.environment()`：proot 启动链用的是 `env -i`，
+ * 它会**清空**继承环境，只保留命令行上显式给出的 `K=V`。见 [ProotShellRunner.buildCommand]。
+ *
+ * 非法键（空 / 含 `=` / 含 NUL）会被丢弃——`env` 对它们会报错并中止整条命令。
+ */
+fun buildEnvAssignments(env: Map<String, String>): List<String> =
+    env.entries
+        .filter { (key, _) -> key.isNotBlank() && !key.contains('=') && !key.contains('\u0000') }
+        .map { (key, value) -> "$key=${value.replace("\u0000", "")}" }

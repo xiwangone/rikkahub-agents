@@ -240,6 +240,39 @@ internal fun wrapDetachedCommandSmart(command: String): Pair<String, String?> {
 internal fun shellQuoteWin(s: String): String = "'" + s.replace("'", "''") + "'"
 
 /**
+ * 读取 `ssh_options` 文本里某个整型选项（每行「键 值」，# 为注释）。
+ *
+ * 用途：让默认值可被按主机覆盖。例如弱网/长任务把保活调密：
+ * `ServerAliveInterval 10` + `ServerAliveCountMax 6`。未给出时返回 null，调用方落回默认。
+ */
+internal fun sshOptionInt(
+    extraOptions: String?,
+    key: String,
+): Int? =
+    extraOptions
+        ?.lineSequence()
+        ?.map { it.trim().removePrefix("\uFEFF") }
+        ?.filter { it.isNotEmpty() && !it.startsWith("#") }
+        ?.firstOrNull { it.length > key.length && it.startsWith(key, ignoreCase = true) && it[key.length].isWhitespace() }
+        ?.substring(key.length)
+        ?.trim()
+        ?.toIntOrNull()
+
+/**
+ * 把「一批命令」合成一条脚本，供 `commands: [...]` 参数使用——一次 SSH 连接跑完，
+ * 省掉逐条握手（App 侧无连接复用，合并是等价且更省的做法）。
+ *
+ * 分隔符按命令风格选：任一命令像 PowerShell/cmdlet 就用 `; `，否则用换行（POSIX）。
+ * 空串条目被丢弃；全部为空时返回空串，调用方据此报参数错误。
+ */
+internal fun joinCommandBatch(commands: List<String>): String {
+    val cleaned = commands.map { it.trim() }.filter { it.isNotEmpty() }
+    if (cleaned.isEmpty()) return ""
+    val separator = if (cleaned.any { looksLikeWindowsCommand(it) }) "; " else "\n"
+    return cleaned.joinToString(separator)
+}
+
+/**
  * Resolves [host] to an IPv4 address string. JSch's `Socket(addr, port)` does NOT implement
  * Happy Eyeballs — it sits on the IPv6 SYN until the connect timeout fires, even when the
  * server only listens on IPv4. Termux's OpenSSH races both stacks in parallel and never
@@ -414,8 +447,8 @@ internal fun openSshSession(
     // state entry during a long-running command and the session black-holes. This is the
     // single shared session-build path for ssh_exec, ssh_exec_saved, and SFTP
     // upload/download, so setting it here covers every JSch session in the app.
-    session.serverAliveInterval = SERVER_ALIVE_INTERVAL_MS
-    session.serverAliveCountMax = SERVER_ALIVE_COUNT_MAX
+    session.serverAliveInterval = sshOptionInt(extraOptions, "ServerAliveInterval") ?: SERVER_ALIVE_INTERVAL_MS
+    session.serverAliveCountMax = sshOptionInt(extraOptions, "ServerAliveCountMax") ?: SERVER_ALIVE_COUNT_MAX
     session.connect(timeoutMs)
     return session
 }
@@ -706,18 +739,34 @@ fun sshExecTool(context: Context): Tool = Tool(
                 put("private_key", buildJsonObject { put("type", "string"); put("description", "Full PEM/OpenSSH private key contents") })
                 put("passphrase", buildJsonObject { put("type", "string"); put("description", "Optional passphrase for the private key") })
                 put("command", buildJsonObject { put("type", "string"); put("description", "Shell command to run on the remote host") })
+                put("commands", buildJsonObject {
+                    put("type", "array")
+                    put("description", "A batch of commands to run in ONE connection (joined into a single script: newline-separated for POSIX, '; '-separated when any entry looks like PowerShell). Use instead of `command` to avoid one handshake per command — the app has no connection multiplexing, so batching is the cheapest way to run several steps.")
+                    put("items", buildJsonObject { put("type", "string") })
+                })
                 put("stdin", buildJsonObject { put("type", "string"); put("description", "Optional data piped to the command's stdin (then EOF). Quote-free way to write a file (command=\"cat > /path\") or feed input; omit to send an immediate EOF.") })
                 put("background", buildJsonObject { put("type", "boolean"); put("description", "If true, launch the command fully detached (nohup, streams redirected) and return immediately with its PID instead of waiting. Use for servers/long jobs that would otherwise block until timeout. Default false.") })
                 put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Total timeout including connect+exec, default 30, max 300") })
             },
-            required = listOf("host", "user", "command")
+            required = listOf("host", "user")
         )
     },
     execute = {
         val p = it.jsonObject
         val host = p["host"]?.jsonPrimitive?.contentOrNull ?: error("host is required")
         val user = p["user"]?.jsonPrimitive?.contentOrNull ?: error("user is required")
-        val command = p["command"]?.jsonPrimitive?.contentOrNull ?: error("command is required")
+        // command / commands 二选一（可同给，commands 追加在 command 之后），合并成一次连接里的单条脚本
+        val command =
+            run {
+                val single = p["command"]?.jsonPrimitive?.contentOrNull
+                val batch: List<String> =
+                    (p["commands"] as? kotlinx.serialization.json.JsonArray)
+                        ?.mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
+                        .orEmpty()
+                val joined = joinCommandBatch(listOfNotNull(single) + batch)
+                if (joined.isBlank()) error("command or commands is required")
+                joined
+            }
         val port = p["port"]?.jsonPrimitive?.intOrNull ?: 22
         val stdin = p["stdin"]?.jsonPrimitive?.contentOrNull
         val background = p["background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
