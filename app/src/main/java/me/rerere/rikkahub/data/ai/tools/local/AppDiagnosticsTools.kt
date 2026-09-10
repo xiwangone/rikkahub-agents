@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -186,6 +187,65 @@ fun readRequestLogsTool(context: Context): Tool = Tool(
             "${fmt.format(e.timestamp)} [HTTP] ${e.method} ${e.url} code=${e.responseCode ?: "-"} dur=${e.durationMs ?: "-"}ms err=${e.error ?: "-"}"
         }
         listOf(UIMessagePart.Text(LogRedactor.maskText(raw)))
+    },
+)
+
+// ---------- get_app_settings ----------
+
+/**
+ * 读取应用/助手/供应商配置摘要（纯读，零风险）。
+ * - 助手：id/name/chatModelId/systemPrompt 长度/localTools 组数/enabledSkills 名单
+ * - 供应商：id/name/enabled/builtIn/模型数（**不含任何 key/密钥**，AI 全程不见明文）
+ * - 关键偏好：默认聊天模型/自动压缩开关/流式重试/工具输出限制等
+ * 对齐规划 #6「配置真相」+ get_providers V1 读侧：AI 能看见自己配了什么，才能谈管理。
+ */
+fun getAppSettingsTool(settingsStore: SettingsStore): Tool = Tool(
+    name = "get_app_settings",
+    description = """Read the app's configuration summary: assistants (id/name/model/local tools count/enabled skills), providers (id/name/enabled/built-in/model count — API keys are NEVER included), and key preferences (default chat model, auto-compress, retry, tool output limits). Read-only, zero risk. Use when you need to know what the app is configured with (which assistants/skills/providers are active) before managing anything."""".trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(properties = buildJsonObject { }, required = emptyList())
+    },
+    execute = {
+        val settings = runCatching { settingsStore.settingsFlow.first() }.getOrNull()
+            ?: return@Tool listOf(UIMessagePart.Text("{\"error\":\"settings_unavailable\"}"))
+        val out = buildJsonObject {
+            put("assistants", buildJsonArray {
+                settings.assistants.forEach { a ->
+                    add(buildJsonObject {
+                        put("id", a.id.toString())
+                        put("name", a.name)
+                        put("chat_model_id", a.chatModelId?.toString() ?: "inherit")
+                        put("local_tool_groups", a.localTools.size)
+                        put("enabled_skills", buildJsonArray { a.enabledSkills.forEach { add(it) } })
+                    })
+                }
+            })
+            put("providers", buildJsonArray {
+                settings.providers.forEach { p ->
+                    add(buildJsonObject {
+                        put("id", p.id.toString())
+                        put("name", p.name)
+                        put("enabled", p.enabled)
+                        put("built_in", p.builtIn)
+                        put("model_count", p.models.size)
+                        // 绝不含 key/privateKey/password/token
+                    })
+                }
+            })
+            put("preferences", buildJsonObject {
+                put("default_chat_model", settings.chatModelId.toString())
+                put("execution_backend", settings.executionBackend)
+                put("auto_compress_enabled", settings.autoCompressEnabled)
+                put("auto_compress_threshold", settings.autoCompressThreshold)
+                put("stream_max_retries", settings.responseStreamMaxRetries)
+                put("auto_retry_enabled", settings.enableAutoRetry)
+                put("tool_output_enabled", settings.toolOutputEnabled)
+                put("tool_output_max_chars", settings.toolOutputMaxChars)
+                put("assistant_count", settings.assistants.size)
+                put("provider_count", settings.providers.size)
+            })
+        }
+        listOf(UIMessagePart.Text(out.toString()))
     },
 )
 
