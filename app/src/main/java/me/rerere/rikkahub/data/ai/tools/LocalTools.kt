@@ -44,6 +44,7 @@ import me.rerere.rikkahub.data.ai.tools.local.getVolumeTool
 import me.rerere.rikkahub.data.ai.tools.local.getAppHealthTool
 import me.rerere.rikkahub.data.ai.tools.local.globalActionTool
 import me.rerere.rikkahub.data.ai.tools.local.readAppLogsTool
+import me.rerere.rikkahub.data.ai.tools.local.readRequestLogsTool
 import me.rerere.rikkahub.data.ai.tools.local.testModelTool
 import me.rerere.rikkahub.data.ai.tools.local.listContactsTool
 import me.rerere.rikkahub.data.ai.tools.local.listSensorsTool
