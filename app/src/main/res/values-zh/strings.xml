@@ -2646,7 +2646,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
     <string name="error_kind_unknown">未知错误类型</string>
     <string name="error_context_injected">生成失败：%1$s。返回原文：%2$s</string>
     <string name="error_context_retry_succeeded">重试成功。之前失败：%1$s。返回原文：%2$s</string>
-  <string name="doctor_msg_tool_groups">%1$s tool group(s) enabled.</string>
+  <string name="doctor_msg_tool_groups">%1$s 个工具组已启用。</string>
   <string name="doctor_msg_no_local_tools">未启用任何本地工具 — 智能体功能将无法工作。</string>
   <string name="doctor_msg_cache_freed">已释放 %1$s。</string>
   <string name="doctor_msg_cache_normal">正常范围内。</string>
@@ -2658,14 +2658,14 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="doctor_msg_browser_readonly_needed">目录存在但不可写。需求方: 浏览器。</string>
   <string name="doctor_msg_browser_no_dir_unneeded">目录不存在。当前未启用任何需要此目录的工具。</string>
   <string name="doctor_msg_browser_no_dir">目录不存在。Cookie 和 localStorage 将不会持久化。需求方: 浏览器。</string>
-  <string name="doctor_msg_browser_unneeded">%1$s exists. Not required by any enabled tool.</string>
-  <string name="doctor_msg_browser_ok">%1$s exists and is writable — cookies persist.</string>
+  <string name="doctor_msg_browser_unneeded">%1$s 已存在。当前没有启用的工具需要它。</string>
+  <string name="doctor_msg_browser_ok">%1$s 存在且可写 — Cookie 将持久化。</string>
   <string name="doctor_msg_termux_denied">未授予。请在本地工具中重新切换 Termux 开关以查看授权后对话框。</string>
   <string name="doctor_msg_termux_ok">已授予 — RikkaHub Agents 可向 Termux 派发 Shell 命令。</string>
   <string name="doctor_msg_termux_missing">Termux 未安装。需求方: %1$s.</string>
-  <string name="doctor_msg_termux_installed">com.termux is installed on this device.</string>
+  <string name="doctor_msg_termux_installed">本机已安装 com.termux。</string>
   <string name="doctor_msg_dns_failed">DNS 解析失败或超时。网络变化时 NetworkChangeMonitor 会清空 OkHttp 连接池 — 如果持续红色，请检查网络连接。</string>
-  <string name="doctor_msg_dns_ok">dns.google resolved within 2.5 s.</string>
+  <string name="doctor_msg_dns_ok">DNS 解析成功（2.5 s 内）。</string>
   <string name="doctor_msg_vision_unsupported">此设备不支持以下模型的视觉编码器: </string>
   <string name="doctor_msg_rate_note">各模型最近已知速率（基于字符估算， </string>
   <string name="doctor_msg_litert_backend">后端标签: %1$s</string>
@@ -2674,8 +2674,8 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="doctor_msg_litert_enable_hint">开启以在下次加载时重试设备 GPU。</string>
   <string name="doctor_msg_litert_cpu_disabled">CPU（设置 -&gt; 本地 LiteRT 中「尝试 GPU 加速」已关闭）</string>
   <string name="doctor_msg_litert_unprobed">尚未探测。加速器将在首次模型加载时决定。</string>
-  <string name="doctor_msg_providers">%1$s provider(s) configured (API key set, AICore enabled, or local model loaded) out of %2$s total.</string>
-  <string name="doctor_msg_dirs_granted">%1$s directory(ies) granted: </string>
+  <string name="doctor_msg_providers">已配置 %1$s 个供应商（已设 API key / AICore 已启用 / 已加载本地模型），共 %2$s 个。</string>
+  <string name="doctor_msg_dirs_granted">已授权 %1$s 个目录：%2$s</string>
   <string name="doctor_msg_ext_storage_no_grants">尚未授予任何目录。请调用 grant_directory_access 添加。</string>
   <string name="doctor_msg_ext_storage_off">外部存储工具未启用。无需关注。</string>
   <string name="doctor_msg_stranded_none">无。Worker 所有运行均正常完成。</string>
@@ -2687,7 +2687,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="doctor_msg_db_version_failed">无法读取数据库版本 — Room 可能无法打开数据库。</string>
   <string name="doctor_msg_tg_override_missing">Telegram 助手覆盖已设置 (id: %1$s…) 但未找到匹配的 </string>
   <string name="doctor_msg_tg_route">Telegram 入站消息路由至 「%1$s\" </string>
-  <string name="doctor_msg_assistant_count">%1$s assistant(s) configured.</string>
+  <string name="doctor_msg_assistant_count">已配置 %1$s 个助手。</string>
   <string name="doctor_msg_assistant_default">用于新对话、定时任务和 Telegram（未设置覆盖时）。</string>
   <string name="doctor_msg_assistant_none">未配置助手 — 应用将无法发起对话。</string>
   <string name="doctor_msg_nl_needed">未授予。需求方: %1$s.</string>
@@ -2742,5 +2742,5 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="doctor_msg_android_device">API %1$s (%2$s) 设备 %3$s %4$s</string>
   <string name="doctor_msg_heap">堆内存: %1$s MB 可用 / %2$s MB (%3$s MB 最大值)</string>
   <string name="doctor_msg_browser_write_some">已启用的副作用浏览器工具数: %1$s (%2$s)。</string>
-  <string name="doctor_msg_assistant_named">"%1$s" (id: %2$s…). </string>
+  <string name="doctor_msg_assistant_named">「%1$s」(id: %2$s…)。</string>
 </resources>

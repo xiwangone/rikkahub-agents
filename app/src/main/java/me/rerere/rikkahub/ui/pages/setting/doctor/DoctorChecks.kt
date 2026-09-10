@@ -897,8 +897,11 @@ class DoctorChecks(
                                     }
 
                                     else -> {
-                                        context.getString(R.string.doctor_msg_dirs_granted, grants.size) +
-                                            grants.joinToString(", ") { it.displayName } + "."
+                                        context.getString(
+                                            R.string.doctor_msg_dirs_granted,
+                                            grants.size,
+                                            grants.joinToString(", ") { it.displayName },
+                                        )
                                     }
                                 },
                             severity =
