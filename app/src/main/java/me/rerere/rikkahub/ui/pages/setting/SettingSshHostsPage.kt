@@ -63,6 +63,7 @@ fun SettingSshHostsPage() {
     val navController = LocalNavController.current
     val scope = rememberCoroutineScope()
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
+    val context = LocalContext.current
     val settings = LocalSettings.current
 
     var hosts by remember { mutableStateOf<List<SshHostEntity>>(emptyList()) }
