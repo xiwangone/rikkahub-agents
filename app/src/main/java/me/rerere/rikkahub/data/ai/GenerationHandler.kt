@@ -546,6 +546,7 @@ class GenerationHandler(
         // preamble is replayed in user history every turn, burning ~80 tokens × N turns.
         systemAddendum: String? = null,
         conversationSystemPrompt: String? = null,
+        conversationId: Uuid? = null,
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
         workspaceCwd: String? = null,
@@ -691,6 +692,7 @@ class GenerationHandler(
                         stream = assistant.streamOutput,
                         processingStatus = processingStatus,
                         conversationSystemPrompt = conversationSystemPrompt,
+                        conversationId = conversationId,
                         conversationModeInjectionIds = conversationModeInjectionIds,
                         conversationLorebookIds = conversationLorebookIds,
                         workspaceCwd = workspaceCwd,
@@ -1216,6 +1218,7 @@ class GenerationHandler(
         // retry finally succeeds, so the model knows the generation recovered.
         onRetryDiagnosed: ((FailureDiagnosis) -> Unit)? = null,
         conversationSystemPrompt: String? = null,
+        conversationId: Uuid? = null,
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
         workspaceCwd: String? = null,
@@ -1285,7 +1288,11 @@ class GenerationHandler(
             customBody = buildList {
                 addAll(assistant.customBodies)
                 addAll(model.customBodies)
-            }
+            },
+            // Conversation-scoped sticky-routing key (OpenRouter `session_id`): keeps
+            // every turn of one conversation pinned to the same upstream so its prompt
+            // cache stays warm. Null when there is no conversation (utility generations).
+            sessionId = conversationId?.toString(),
         )
         if (stream) {
             aiLoggingManager.addLog(

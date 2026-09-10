@@ -966,6 +966,7 @@ class ChatService(
                         },
                     assistant = assistant,
                     conversationSystemPrompt = conversation.customSystemPrompt,
+                    conversationId = conversationId,
                     conversationModeInjectionIds = conversation.modeInjectionIds,
                     conversationLorebookIds = conversation.lorebookIds,
                     workspaceCwd = conversation.workspaceCwd,

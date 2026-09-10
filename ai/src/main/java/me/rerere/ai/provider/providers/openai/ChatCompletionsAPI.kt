@@ -277,6 +277,12 @@ class ChatCompletionsAPI(
 
             // open router适配
             if(isOpenRouter) {
+                // Sticky-routing / cache-affinity key. OpenRouter routes every request
+                // carrying the same session_id to the same upstream provider (10-minute
+                // sticky window), so a conversation keeps hitting a warm prompt cache
+                // instead of being re-routed to a cold one. Without this OpenRouter falls
+                // back to hashing the opening messages, which is weaker.
+                params.sessionId?.let { put("session_id", it) }
                 // Ask OpenRouter to report the real generation cost in the usage object
                 // (surfaced per-message in the UI). Works for both streamed and non-streamed.
                 put("usage", buildJsonObject {

@@ -76,6 +76,13 @@ data class TextGenerationParams(
     val reasoningLevel: ReasoningLevel = ReasoningLevel.OFF,
     val customHeaders: List<CustomHeader> = emptyList(),
     val customBody: List<CustomBody> = emptyList(),
+    /**
+     * Conversation-scoped id forwarded to providers that support sticky/cache-affinity
+     * routing (currently OpenRouter's `session_id`). Keeping every turn of one
+     * conversation on the same upstream keeps its prompt cache warm; null for callers
+     * without a conversation (e.g. one-shot utility generations).
+     */
+    val sessionId: String? = null,
 )
 
 @Serializable
