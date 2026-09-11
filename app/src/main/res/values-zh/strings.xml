@@ -2927,6 +2927,8 @@
   <string name="backend_notif_channel_name">Backend 提问与审批</string>
   <string name="backend_notif_tool_request">Backend 请求执行工具 %1$s</string>
   <string name="backend_notif_pending_approve">Backend 工具待批准：%1$s</string>
+  <string name="backend_pending_approval">待审批：%1$s%2$s</string>
+  <string name="backend_pending_reply">待回复</string>
   <string name="backend_notif_ask_body">问：%1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi">（多选）</string>
   <string name="backend_notif_single">（单选）</string>

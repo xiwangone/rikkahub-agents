@@ -2462,6 +2462,8 @@
   <string name="backend_notif_channel_name">Вопросы и одобрения бэкенда</string>
   <string name="backend_notif_tool_request">Бэкенд запрашивает выполнение инструмента %1$s</string>
   <string name="backend_notif_pending_approve">Ожидает одобрения инструмента бэкенда: %1$s</string>
+  <string name="backend_pending_approval">Ожидает подтверждения: %1$s%2$s</string>
+  <string name="backend_pending_reply">Ожидает ответа</string>
   <string name="backend_notif_ask_body">Вопрос: %1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi">(множественный выбор)</string>
   <string name="backend_notif_single">(один вариант)</string>

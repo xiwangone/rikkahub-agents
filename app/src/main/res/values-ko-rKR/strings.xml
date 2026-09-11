@@ -2469,6 +2469,8 @@
   <string name="backend_notif_channel_name">Backend 질문 및 승인</string>
   <string name="backend_notif_tool_request">Backend가 도구 %1$s 실행을 요청</string>
   <string name="backend_notif_pending_approve">Backend 도구 승인 대기: %1$s</string>
+  <string name="backend_pending_approval">승인 대기: %1$s%2$s</string>
+  <string name="backend_pending_reply">답변 대기</string>
   <string name="backend_notif_ask_body">질문: %1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi">(다중 선택)</string>
   <string name="backend_notif_single">(단일 선택)</string>
