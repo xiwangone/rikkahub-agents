@@ -695,6 +695,10 @@ object ModelRegistry {
         resolveModalities(modelId) { it.outputModalities }
     }
 
+    val MODEL_CONTEXT_LENGTH = ModelData { modelId ->
+        resolveModels(modelId).firstNotNullOfOrNull { it.contextLength }
+    }
+
     val MODEL_ABILITIES = ModelData { modelId ->
         val abilities = resolveModels(modelId)
             .flatMap { it.abilities }
@@ -756,4 +760,7 @@ object ModelRegistry {
     private fun ModelDefinitionBuilder.toolReasoningAbility() {
         ability(ModelAbility.TOOL, ModelAbility.REASONING)
     }
+
+    private val Int.k: Int get() = this * 1_000
+    private val Int.m: Int get() = this * 1_000_000
 }
