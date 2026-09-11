@@ -265,6 +265,9 @@ dependencies {
     // serialization
     implementation(libs.kotlinx.serialization.json)
 
+    // YAML front matter
+    implementation(libs.snakeyaml)
+
     // zxing
     implementation(libs.zxing.core)
 

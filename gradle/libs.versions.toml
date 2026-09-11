@@ -81,6 +81,7 @@ genaiPrompt = "1.0.0-beta2"
 # it. 0.13.1 has an identical public API (same classes, same tool-calling surface,
 # getTokenCount/getBenchmarkInfo/cancelProcess all present) and a working GPU path.
 
+snakeyaml = "2.6"
 dom4j = "2.2.0"
 
 profileinstaller = "1.4.1"
@@ -164,6 +165,7 @@ commons-text = { module = "org.apache.commons:commons-text", version.ref = "comm
 modelcontextprotocol-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref = "mcp" }
 pebble = { module = "io.pebbletemplates:pebble", version.ref = "pebble" }
 diffutils = { module = "io.github.java-diff-utils:java-diff-utils", version.ref = "diffutils" }
+snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
 androidx-browser = { group = "androidx.browser", name = "browser", version.ref = "browser" }
 androidx-webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 androidx-appcompat = { group = "androidx.appcompat", name = "appcompat", version.ref = "appcompat" }
