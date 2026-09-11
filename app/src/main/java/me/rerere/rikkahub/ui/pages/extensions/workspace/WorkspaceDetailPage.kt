@@ -221,6 +221,13 @@ fun WorkspaceDetailPage(id: String) {
                                     vm.open(entry)
                                 }
 
+                                // svg：直接进编辑器用 WebView 预览（优先于图片弹窗）
+                                entry.name.substringAfterLast('.').equals("svg", ignoreCase = true) -> {
+                                    navController.navigate(
+                                        Screen.WorkspaceFileEditor(id, state.area.name, entry.path),
+                                    )
+                                }
+
                                 else -> {
                                     when (entry.detectFileType()) {
                                         WorkspaceFileType.TEXT -> {
