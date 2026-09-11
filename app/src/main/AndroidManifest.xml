@@ -172,6 +172,7 @@
       android:name=".RouteActivity"
       android:configChanges="keyboardHidden|orientation|screenSize|uiMode|screenLayout|smallestScreenSize|density"
       android:exported="true"
+      android:launchMode="singleTask"
       android:importantForAutofill="noExcludeDescendants"
       android:theme="@style/Theme.Rikkahub"
       android:windowSoftInputMode="adjustResize">
