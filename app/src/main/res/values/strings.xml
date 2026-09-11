@@ -2921,4 +2921,11 @@
   <string name="web_bridge_keyfile_missing">Private key file not found: %1$s (tap \"Generate SSH key\" to fill the path automatically)</string>
   <string name="web_bridge_keyfile_empty">Private key file is empty: %1$s (please regenerate the SSH key)</string>
   <string name="web_bridge_tunnel_failed">Tunnel setup failed: %1$s</string>
+  <string name="imggen_page_delete_images_title">Delete images</string>
+  <string name="imggen_page_delete_images_message">Delete the selected images (%1$d)? This cannot be undone.</string>
+  <string name="imggen_page_delete_images_success">Images deleted: %1$d</string>
+  <string name="imggen_page_delete_images_failed">Deleted: %1$d. Failed: %2$d. Please try again.</string>
+  <string name="imggen_page_deleting">Deleting…</string>
+  <string name="imggen_page_selected_count">Selected: %1$d</string>
+  <string name="imggen_page_select_image">Select image</string>
 </resources>

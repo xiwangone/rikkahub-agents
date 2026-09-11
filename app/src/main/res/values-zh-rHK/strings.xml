@@ -2639,4 +2639,11 @@
     <string name="error_kind_unknown">未知錯誤類型</string>
     <string name="error_context_injected">生成失敗：%1$s。返回原文：%2$s</string>
     <string name="error_context_retry_succeeded">重試成功。之前失敗：%1$s。返回原文：%2$s</string>
+  <string name="imggen_page_delete_images_title">刪除圖片</string>
+  <string name="imggen_page_delete_images_message">刪除選取的圖片（%1$d）？此操作無法復原。</string>
+  <string name="imggen_page_delete_images_success">已刪除 %1$d 張圖片</string>
+  <string name="imggen_page_delete_images_failed">已刪除：%1$d。失敗：%2$d。請再試一次。</string>
+  <string name="imggen_page_deleting">刪除中…</string>
+  <string name="imggen_page_selected_count">已選取：%1$d</string>
+  <string name="imggen_page_select_image">選擇圖片</string>
 </resources>

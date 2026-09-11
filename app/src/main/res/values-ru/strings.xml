@@ -1820,4 +1820,11 @@
     <string name="error_kind_unknown">Неизвестная ошибка</string>
     <string name="error_context_injected">Сбой генерации: %1$s. Исходный ответ: %2$s</string>
     <string name="error_context_retry_succeeded">Повтор успешен. Предыдущая ошибка: %1$s. Исходный ответ: %2$s</string>
+  <string name="imggen_page_delete_images_title">Удалить изображения</string>
+  <string name="imggen_page_delete_images_message">Удалить выбранные изображения (%1$d)? Это действие необратимо.</string>
+  <string name="imggen_page_delete_images_success">Изображения удалены: %1$d</string>
+  <string name="imggen_page_delete_images_failed">Удалено: %1$d. Не удалось: %2$d. Попробуйте ещё раз.</string>
+  <string name="imggen_page_deleting">Удаление…</string>
+  <string name="imggen_page_selected_count">Выбрано: %1$d</string>
+  <string name="imggen_page_select_image">Выбрать изображение</string>
 </resources>
