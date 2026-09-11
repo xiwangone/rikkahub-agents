@@ -1465,40 +1465,39 @@ class DoctorChecks(
                                                         severity = if (leaked.isEmpty()) Severity.OK else Severity.WARN,
                                                     )
                                                 },
+                                                // P3：日志健康——AppLog 近期 WARN/ERROR 占比与小样（过脱敏）
+                                                run {
+                                                    val logs = me.rerere.rikkahub.data.log.AppLog.getLogs()
+                                                    val recent = logs.takeLast(100)
+                                                    val problems = recent.filter { it.level == 'W' || it.level == 'E' }
+                                                    DoctorCheck(
+                                                        id = "diag.log_health",
+                                                        category = DoctorCategory.Diagnostics,
+                                                        labelRes = R.string.doctor_diag_09,
+                                                        detail =
+                                                            if (recent.isEmpty()) {
+                                                                context.getString(R.string.doctor_msg_log_health_empty)
+                                                            } else {
+                                                                val sample =
+                                                                    problems.takeLast(3).joinToString(" | ") { e ->
+                                                                        "${e.level} ${e.tag}: ${me.rerere.rikkahub.utils.LogRedactor.maskText(e.message.take(80))}"
+                                                                    }
+                                                                context.getString(
+                                                                    R.string.doctor_msg_log_health_summary,
+                                                                    problems.size,
+                                                                    recent.size,
+                                                                    sample.ifEmpty { "-" },
+                                                                )
+                                                            },
+                                                        severity =
+                                                            when {
+                                                                problems.isEmpty() -> Severity.OK
+                                                                problems.size >= 20 -> Severity.WARN
+                                                                else -> Severity.INFO
+                                                            },
+                                                    )
+                                                },
                                             )
-                                            // P3：日志健康——AppLog 近期 WARN/ERROR 占比与小样（过脱敏）
-                                            run {
-                                                val logs = me.rerere.rikkahub.data.log.AppLog.getLogs()
-                                                val recent = logs.takeLast(100)
-                                                val problems = recent.filter { it.level == 'W' || it.level == 'E' }
-                                                DoctorCheck(
-                                                    id = "diag.log_health",
-                                                    category = DoctorCategory.Diagnostics,
-                                                    labelRes = R.string.doctor_diag_09,
-                                                    detail =
-                                                        if (recent.isEmpty()) {
-                                                            context.getString(R.string.doctor_msg_log_health_empty)
-                                                        } else {
-                                                            val sample =
-                                                                problems.takeLast(3).joinToString(" | ") { e ->
-                                                                    "${e.level} ${e.tag}: ${me.rerere.rikkahub.utils.LogRedactor.maskText(e.message.take(80))}"
-                                                                }
-                                                            context.getString(
-                                                                R.string.doctor_msg_log_health_summary,
-                                                                problems.size,
-                                                                recent.size,
-                                                                sample.ifEmpty { "-" },
-                                                            )
-                                                        },
-                                                    severity =
-                                                        when {
-                                                            problems.isEmpty() -> Severity.OK
-                                                            problems.size >= 20 -> Severity.WARN
-                                                            else -> Severity.INFO
-                                                        },
-                                                )
-                                            },
-                                        )
 
     // P1 检查项 `diag.crash_history` 的辅助：汇总最近 N 天非正常退出（崩溃）次数与最新时间。
     // ApplicationExitInfo 仅 API 30+；低版本返回 null（检查项显示"无崩溃"）。
