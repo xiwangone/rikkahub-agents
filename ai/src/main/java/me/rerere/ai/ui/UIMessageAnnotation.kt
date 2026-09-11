@@ -37,6 +37,7 @@ sealed class UIMessageAnnotation {
     /** 服务端审批请求卡片（展示态；交互回传依赖 serve 应答协议，后续阶段接入）。 */
     @Serializable
     @SerialName("approval_request")
+    /** 审批请求注解：由后端连接路径产出。 */
     data class ApprovalRequest(
         val id: String,
         val tool: String = "",
@@ -46,6 +47,7 @@ sealed class UIMessageAnnotation {
     /** 服务端提问卡片（AskCard，展示态；作答回传依赖 serve 应答协议，后续阶段接入）。 */
     @Serializable
     @SerialName("ask_request")
+    /** 提问请求注解：由后端连接路径产出。 */
     data class AskRequest(
         val id: String,
         val questions: List<AskQuestion> = emptyList(),

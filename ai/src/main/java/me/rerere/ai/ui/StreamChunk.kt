@@ -179,6 +179,7 @@ sealed class StreamChunk {
     /** 服务端向用户发起的提问（AskCard）。 */
     @Serializable
     @SerialName("ask_request")
+    /** 提问请求：由后端连接路径产出，客户端作答后回传。 */
     data class AskRequest(
         val id: String,
         val questions: List<AskQuestion> = emptyList(),
@@ -187,6 +188,7 @@ sealed class StreamChunk {
     /** 服务端请求工具执行审批。 */
     @Serializable
     @SerialName("approval_request")
+    /** 审批请求：由后端连接路径产出，客户端批准/拒绝后回传。 */
     data class ApprovalRequest(
         val id: String,
         val tool: String = "",
