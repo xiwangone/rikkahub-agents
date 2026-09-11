@@ -2769,7 +2769,7 @@
   <string name="vault_session_remaining_session">Действует сразу</string>
   <string name="vault_session_revoked">Сессия отозвана</string>
   <string name="vault_session_token_copied">Token скопирован</string>
-  <string name="backend_base_url_example">Пример: http://&amp;lt;адрес сервера&amp;gt;</string>
+  <string name="backend_base_url_example">Пример: http://&lt;адрес сервера&gt;</string>
   <string name="backend_connection_mode">Способ подключения</string>
   <string name="backend_mode_serve">serve (прямое HTTP/SSE)</string>
   <string name="backend_mode_ssh">Обратный SSH-туннель</string>

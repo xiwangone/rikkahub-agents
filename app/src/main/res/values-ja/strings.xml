@@ -2776,7 +2776,7 @@
   <string name="vault_session_remaining_session">即時有効</string>
   <string name="vault_session_revoked">セッションを取り消しました</string>
   <string name="vault_session_token_copied">token をコピーしました</string>
-  <string name="backend_base_url_example">例: http://&amp;lt;サーバーアドレス&amp;gt;</string>
+  <string name="backend_base_url_example">例: http://&lt;サーバーアドレス&gt;</string>
   <string name="backend_connection_mode">接続方式</string>
   <string name="backend_mode_serve">serve（HTTP/SSE 直結）</string>
   <string name="backend_mode_ssh">SSH リバーストンネル</string>

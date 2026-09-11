@@ -802,7 +802,7 @@
   <string name="setting_page_extensions">확장 기능</string>
   <string name="setting_page_extensions_desc">프롬프트 인젝션, 스킬 등을 관리합니다</string>
   <string name="setting_page_general_settings">일반 설정</string>
-  <string name="setting_page_interaction_notification_settings">상호작용 &amp;amp; 알림</string>
+  <string name="setting_page_interaction_notification_settings">상호작용 &amp; 알림</string>
   <string name="setting_page_mcp">MCP</string>
   <string name="setting_page_mcp_desc">MCP 서버 구성</string>
   <string name="setting_page_message_display_settings">메시지 표시</string>
@@ -2776,7 +2776,7 @@
   <string name="vault_session_remaining_session">즉시 유효</string>
   <string name="vault_session_revoked">세션을 취소했습니다</string>
   <string name="vault_session_token_copied">token을 복사했습니다</string>
-  <string name="backend_base_url_example">예: http://&amp;lt;서버 주소&amp;gt;</string>
+  <string name="backend_base_url_example">예: http://&lt;서버 주소&gt;</string>
   <string name="backend_connection_mode">연결 방식</string>
   <string name="backend_mode_serve">serve(HTTP/SSE 직접 연결)</string>
   <string name="backend_mode_ssh">SSH 역방향 터널</string>

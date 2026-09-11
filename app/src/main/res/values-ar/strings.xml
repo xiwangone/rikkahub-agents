@@ -2436,7 +2436,7 @@
   <string name="vault_session_remaining_session">سارٍ فورًا</string>
   <string name="vault_session_revoked">تم إلغاء الجلسة</string>
   <string name="vault_session_token_copied">تم نسخ الرمز</string>
-  <string name="backend_base_url_example">مثال: http://&amp;lt;عنوان الخادم&amp;gt;</string>
+  <string name="backend_base_url_example">مثال: http://&lt;عنوان الخادم&gt;</string>
   <string name="backend_connection_mode">طريقة الاتصال</string>
   <string name="backend_mode_serve">serve (اتصال مباشر HTTP/SSE)</string>
   <string name="backend_mode_ssh">نفق SSH عكسي</string>
@@ -2696,7 +2696,7 @@
   <string name="setting_theme_page_tertiary_color">اللون الثالث</string>
   <string name="setting_theme_page_preview">معاينة</string>
   <string name="setting_theme_page_save">حفظ</string>
-  <string name="setting_theme_page_dynamic_color_hint">الألوان الديناميكية مفعّلة. أوقفها من الإعدادات &amp;gt; السمة لاستخدام السمات المخصّصة.</string>
+  <string name="setting_theme_page_dynamic_color_hint">الألوان الديناميكية مفعّلة. أوقفها من الإعدادات &gt; السمة لاستخدام السمات المخصّصة.</string>
   <string name="setting_provider_page_recommend">مزوّدون موصى بهم</string>
   <string name="setting_tts_page_similarity_boost">تعزيز التشابه</string>
   <string name="setting_tts_page_similarity_boost_description">يتحكم في مدى مطابقة الصوت للنبرة الأصلية (0.0 - 1.0)</string>
