@@ -2356,6 +2356,9 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="doctor_diag_06">构建新鲜度</string>
   <string name="doctor_diag_07">技能注入</string>
   <string name="doctor_diag_08">脱敏回归自检</string>
+  <string name="doctor_diag_09">日志健康</string>
+  <string name="doctor_msg_log_health_empty">暂无缓冲日志。</string>
+  <string name="doctor_msg_log_health_summary">最近 %2$s 条日志中 %1$s 条 WARN/ERROR。样例: %3$s</string>
   <string name="doctor_msg_skill_none_on_disk">设备上未发现任何技能目录。</string>
   <string name="doctor_msg_skill_all_present">全部 %1$s 个技能目录 SKILL.md 有效（auto-load 侧载文件就位）。</string>
   <string name="doctor_msg_skill_missing">技能目录损坏或 auto-load 文件缺失: %1$s</string>

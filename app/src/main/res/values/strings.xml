@@ -2387,6 +2387,9 @@
   <string name="doctor_diag_06">Build freshness</string>
   <string name="doctor_diag_07">Skill injection</string>
   <string name="doctor_diag_08">Redactor self-test</string>
+  <string name="doctor_diag_09">Log health</string>
+  <string name="doctor_msg_log_health_empty">No buffered logs yet.</string>
+  <string name="doctor_msg_log_health_summary">%1$s WARN/ERROR out of last %2$s entries. Samples: %3$s</string>
   <string name="doctor_msg_skill_none_on_disk">No skill directories found on disk.</string>
   <string name="doctor_msg_skill_all_present">All %1$s skill dirs have a valid SKILL.md (auto-load sidecars present).</string>
   <string name="doctor_msg_skill_missing">Skill dir(s) broken or auto-load file missing: %1$s</string>
