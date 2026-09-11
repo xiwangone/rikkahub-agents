@@ -152,12 +152,19 @@ class RouteActivity : ComponentActivity() {
     companion object {
         const val EXTRA_OPEN_CODEX_SETTINGS = "open_codex_settings"
         const val EXTRA_OPEN_GEMINI_SETTINGS = "open_gemini_settings"
+
+        /** 保存/恢复导航栈中的会话 id，避免界面重建后落到新会话。 */
+        private const val KEY_CHAT_STACK = "rikkahub_chat_stack"
     }
 
     private val okHttpClient by inject<OkHttpClient>()
     private val settingsStore by inject<SettingsStore>()
     private var navStack: MutableList<NavKey>? = null
     private val pendingIntents = ArrayDeque<Intent>()
+
+    // 界面被系统回收后重建时，用这里带回原来的会话栈；
+    // null 表示真正的冷启动（按偏好决定是否新建会话）。
+    private var restoredChatIds: List<String>? = null
 
     // Volume key listener registry — last registered handler wins
     internal val volumeKeyListeners = mutableListOf<(isVolumeUp: Boolean) -> Boolean>()
@@ -186,6 +193,8 @@ class RouteActivity : ComponentActivity() {
         }
         if (savedInstanceState == null) {
             handleIntent(intent)
+        } else {
+            restoredChatIds = savedInstanceState.getStringArrayList(KEY_CHAT_STACK)?.toList()
         }
         setContent {
             RikkahubTheme {
@@ -260,6 +269,15 @@ class RouteActivity : ComponentActivity() {
         handleIntent(intent)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        super.onSaveInstanceState(outState)
+        // 记录当前栈里的会话，供界面重建时恢复；其它页面（设置/扩展等）无需持久化。
+        val ids = navStack?.filterIsInstance<Screen.Chat>()?.map { it.id }.orEmpty()
+        if (ids.isNotEmpty()) {
+            outState.putStringArrayList(KEY_CHAT_STACK, ArrayList(ids))
+        }
+    }
+
     @OptIn(ExperimentalComposeUiApi::class)
     @Composable
     fun AppRoutes() {
@@ -281,13 +299,17 @@ class RouteActivity : ComponentActivity() {
         // Resolve once per composition (not on every recomposition) so a later removeExtra()
         // of "conversationId" can't flip which rememberNavBackStack() branch below gets called.
         val deepLinkConversationId = remember { intent?.getStringExtra("conversationId") }
+        // 界面重建（非冷启动）时回到原来的会话，不因"启动时新建对话"偏好而跳到新会话；
+        // 冷启动仍按偏好执行。Chat 的附加字段（分享文本/文件）在重建场景已提交，不再带回。
+        val restored = restoredChatIds?.takeIf { it.isNotEmpty() }
         val initialChatIds = remember {
-            resolveInitialChatStack(
-                deepLinkConversationId = deepLinkConversationId,
-                createNewOnStart = readBooleanPreference("create_new_conversation_on_start", true),
-                lastConversationId = readStringPreference("lastConversationId", null),
-                newId = { Uuid.random().toString() },
-            )
+            restored
+                ?: resolveInitialChatStack(
+                    deepLinkConversationId = deepLinkConversationId,
+                    createNewOnStart = readBooleanPreference("create_new_conversation_on_start", true),
+                    lastConversationId = readStringPreference("lastConversationId", null),
+                    newId = { Uuid.random().toString() },
+                )
         }
 
         val backStack = if (initialChatIds.size > 1) {
