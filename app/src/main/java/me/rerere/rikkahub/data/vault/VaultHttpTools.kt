@@ -58,6 +58,16 @@ object SecretMasker {
         setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE),
     )
 
+    // 通用密钥形态：不依赖凭证表即可命中（未登记凭证 / 临时 token 的兜底）
+    private val GENERIC_SECRET_PATTERNS = listOf(
+        Regex("gh[pousr]_[A-Za-z0-9]{20,}"),
+        Regex("sk-[A-Za-z0-9_-]{20,}"),
+        Regex("xox[baprs]-[A-Za-z0-9-]{10,}"),
+        Regex("AKIA[0-9A-Z]{16}"),
+        Regex("eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}"),
+        Regex("AIza[0-9A-Za-z_-]{30,}"),
+    )
+
     // 公钥值形态：以这些开头的是公钥（可公开，不掩——authorized_keys 本就公开贴）
     private val PUBLIC_KEY_PREFIX = listOf(
         "ssh-rsa ", "ssh-ed25519 ", "ecdsa-sha2-", "ssh-dss ",
@@ -127,6 +137,8 @@ object SecretMasker {
     /** 掩码文本：PEM 私钥结构正则 + 精确值替换。公钥/非敏感短值不受影响。 */
     fun mask(text: String, rules: Collection<SecretRule>): String {
         var out = text
+        // 0) 通用形态层：常见密钥格式（即使未登记在凭证库也能掩）
+        GENERIC_SECRET_PATTERNS.forEach { out = it.replace(out, MASK) }
         // 1) 结构层：私钥块全掩（容忍折行/多行，兜住精确匹配漏网）
         out = PEM_PRIVATE_KEY.replace(out, MASK)
         // 2) 精确层：逐条 replace（classify 已只收真机密条目——公钥/非敏感短值已排除，
