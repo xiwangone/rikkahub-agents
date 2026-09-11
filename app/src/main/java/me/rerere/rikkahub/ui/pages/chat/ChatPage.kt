@@ -168,6 +168,8 @@ fun ChatPage(
         }
     }
 
+    val pendingQueue by vm.pendingQueue.collectAsStateWithLifecycle()
+
     val inputState = vm.inputState
 
     // 初始化输入状态（处理传入的 files 和 text 参数）
@@ -469,6 +471,7 @@ private fun ChatPageContent(
                 ChatInput(
                     state = inputState,
                     loading = loadingJob != null,
+                    pendingQueueCount = pendingQueue.size,
                     settings = setting,
                     hazeState = hazeState,
                     completionProviders = completionProviders,

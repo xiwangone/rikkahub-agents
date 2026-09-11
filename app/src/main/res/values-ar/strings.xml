@@ -2935,4 +2935,5 @@
   <string name="assistant_page_time_reminder_interval_desc">إدراج تذكير عندما يتجاوز الفاصل بين الرسائل هذه القيمة. ويُذكَّر دائمًا قبل أول رسالة من المستخدم.</string>
   <string name="assistant_page_time_reminder_interval_value">%1$d دقيقة
 </string>
+  <string name="chat_input_pending_queue">في انتظار الإرسال: %1$d · ستُرسل تلقائيًا بالترتيب</string>
 </resources>

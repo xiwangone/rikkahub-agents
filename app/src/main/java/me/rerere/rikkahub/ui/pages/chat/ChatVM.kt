@@ -77,6 +77,10 @@ class ChatVM(
     val conversation: StateFlow<Conversation> = chatService.getConversationFlow(_conversationId)
 
     // 会话级 token 累计（当前分支所有消息 usage 之和），供聊天底部统计条展示
+    /** 待发送队列（生成中发送的消息按序排队，本轮结束后自动发出）。 */
+    val pendingQueue: StateFlow<List<me.rerere.rikkahub.service.QueuedMessage>> =
+        chatService.messageQueueState(_conversationId)
+
     val sessionTotals: StateFlow<TokenBudgetTracker.Totals> =
         conversation
             .map { TokenBudgetTracker.aggregate(it) }

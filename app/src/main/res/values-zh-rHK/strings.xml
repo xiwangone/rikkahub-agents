@@ -2935,4 +2935,5 @@
   <string name="web_bridge_keyfile_missing">私鑰文件不存在: %1$s（請點「生成 SSH 密鑰」自動填寫路徑）</string>
   <string name="web_bridge_keyfile_empty">私鑰文件為空: %1$s（請重新生成 SSH 密鑰）</string>
   <string name="web_bridge_tunnel_failed">隧道建立失敗: %1$s</string>
+  <string name="chat_input_pending_queue">待傳送 %1$d 則 · 將自動依序送出</string>
 </resources>

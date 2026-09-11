@@ -2936,4 +2936,5 @@
   <string name="chat_page_import_failed">Ошибка импорта: %s</string>
   <string name="browser_address_bar_open_external">Открыть в браузере</string>
   <string name="browser_address_bar_share">Поделиться ссылкой</string>
+  <string name="chat_input_pending_queue">Ожидают отправки: %1$d · отправятся по порядку автоматически</string>
 </resources>

@@ -129,6 +129,8 @@ import kotlin.time.Duration.Companion.seconds
 fun ChatInput(
     state: ChatInputState,
     loading: Boolean,
+    /** 待发送队列长度；> 0 时在输入区上方提示「待发送 N 条」。 */
+    pendingQueueCount: Int = 0,
     settings: Settings,
     hazeState: HazeState,
     enableSearch: Boolean,
@@ -259,6 +261,30 @@ fun ChatInput(
                 ) {
                     if (state.messageContent.isNotEmpty()) {
                         MediaFileInputRow(state = state)
+                    }
+
+                    // 队列提示（克制）：仅有待发送消息时出现一行小字，不弹面板。
+                    if (pendingQueueCount > 0) {
+                        Row(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(horizontal = 12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Icon(
+                                imageVector = HugeIcons.ArrowUp02,
+                                contentDescription = null,
+                                modifier = Modifier.size(12.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                text = stringResource(R.string.chat_input_pending_queue, pendingQueueCount),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
 
                     Row(

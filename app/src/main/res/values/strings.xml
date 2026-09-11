@@ -2932,4 +2932,5 @@
   <string name="assistant_page_time_reminder_interval_hint">Enter a positive whole number. A reminder is inserted when the message gap exceeds this interval.</string>
   <string name="assistant_page_time_reminder_interval_desc">Insert a reminder when the message gap exceeds this interval. Always remind before the first user message.</string>
   <string name="assistant_page_time_reminder_interval_value">%1$d min</string>
+  <string name="chat_input_pending_queue">Waiting to send: %1$d · sent automatically in order</string>
 </resources>
