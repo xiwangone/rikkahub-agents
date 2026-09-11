@@ -2353,6 +2353,15 @@
   <string name="mcp_page_port_label">Порт</string>
   <string name="mcp_page_tools_header">Открываемые инструменты (по умолчанию ничего не выбрано)</string>
   <string name="mcp_page_select_all">Выбрать все</string>
+  <string name="mcp_category_device_info">Информация об устройстве</string>
+  <string name="mcp_category_device_control">Управление устройством</string>
+  <string name="mcp_category_media">Медиа и ввод</string>
+  <string name="mcp_category_files">Файлы и хранилище</string>
+  <string name="mcp_category_personal">Личные данные</string>
+  <string name="mcp_category_remote">Удалённый доступ и терминал</string>
+  <string name="mcp_category_vault">Учётные данные и безопасность</string>
+  <string name="mcp_category_automation">Автоматизация и задачи</string>
+  <string name="mcp_category_web_ai">Веб и ИИ</string>
   <string name="mcp_page_clear">Очистить</string>
   <string name="mcp_page_oauth_required">Требуется авторизация OAuth</string>
   <string name="mcp_page_oauth_in_progress">Идёт авторизация, завершите её в браузере…</string>

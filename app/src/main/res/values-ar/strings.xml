@@ -2013,6 +2013,15 @@
   <string name="mcp_page_port_label">المنفذ</string>
   <string name="mcp_page_tools_header">الأدوات المكشوفة (غير محددة افتراضيًا)</string>
   <string name="mcp_page_select_all">تحديد الكل</string>
+  <string name="mcp_category_device_info">معلومات الجهاز</string>
+  <string name="mcp_category_device_control">التحكم بالجهاز</string>
+  <string name="mcp_category_media">الوسائط والإدخال</string>
+  <string name="mcp_category_files">الملفات والتخزين</string>
+  <string name="mcp_category_personal">البيانات الشخصية</string>
+  <string name="mcp_category_remote">الاتصال البعيد والطرفية</string>
+  <string name="mcp_category_vault">بيانات الاعتماد والأمان</string>
+  <string name="mcp_category_automation">الأتمتة والمهام</string>
+  <string name="mcp_category_web_ai">الويب والذكاء الاصطناعي</string>
   <string name="mcp_page_clear">مسح</string>
   <string name="mcp_page_oauth_required">يلزم تفويض OAuth</string>
   <string name="mcp_page_oauth_in_progress">جارٍ التفويض، أكمله في المتصفح…</string>

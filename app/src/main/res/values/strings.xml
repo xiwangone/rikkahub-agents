@@ -2818,6 +2818,15 @@
   <string name="mcp_page_port_label">Port</string>
   <string name="mcp_page_tools_header">Exposed tools (none selected by default)</string>
   <string name="mcp_page_select_all">Select all</string>
+  <string name="mcp_category_device_info">Device info</string>
+  <string name="mcp_category_device_control">Device control</string>
+  <string name="mcp_category_media">Media and input</string>
+  <string name="mcp_category_files">Files and storage</string>
+  <string name="mcp_category_personal">Personal data</string>
+  <string name="mcp_category_remote">Remote and terminal</string>
+  <string name="mcp_category_vault">Credentials and security</string>
+  <string name="mcp_category_automation">Automation and tasks</string>
+  <string name="mcp_category_web_ai">Web and AI</string>
   <string name="mcp_page_clear">Clear</string>
   <string name="mcp_page_oauth_required">OAuth authorization required</string>
   <string name="mcp_page_oauth_in_progress">Authorizing, please complete in browser…</string>

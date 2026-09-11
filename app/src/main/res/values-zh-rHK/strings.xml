@@ -2833,6 +2833,15 @@
   <string name="mcp_page_port_label">端口</string>
   <string name="mcp_page_tools_header">暴露的工具（默認全部未選）</string>
   <string name="mcp_page_select_all">全選</string>
+  <string name="mcp_category_device_info">裝置資訊</string>
+  <string name="mcp_category_device_control">裝置控制</string>
+  <string name="mcp_category_media">媒體與輸入</string>
+  <string name="mcp_category_files">檔案與儲存</string>
+  <string name="mcp_category_personal">個人資料</string>
+  <string name="mcp_category_remote">遠端與終端</string>
+  <string name="mcp_category_vault">憑證與安全</string>
+  <string name="mcp_category_automation">自動化與任務</string>
+  <string name="mcp_category_web_ai">網路與 AI</string>
   <string name="mcp_page_clear">清空</string>
   <string name="mcp_page_oauth_required">需要 OAuth 授權</string>
   <string name="mcp_page_oauth_in_progress">正在授權，請在瀏覽器中完成…</string>

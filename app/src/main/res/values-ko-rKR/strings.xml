@@ -2360,6 +2360,15 @@
   <string name="mcp_page_port_label">포트</string>
   <string name="mcp_page_tools_header">노출할 도구(기본은 모두 미선택)</string>
   <string name="mcp_page_select_all">전체 선택</string>
+  <string name="mcp_category_device_info">기기 정보</string>
+  <string name="mcp_category_device_control">기기 제어</string>
+  <string name="mcp_category_media">미디어 및 입력</string>
+  <string name="mcp_category_files">파일 및 저장소</string>
+  <string name="mcp_category_personal">개인 데이터</string>
+  <string name="mcp_category_remote">원격 및 터미널</string>
+  <string name="mcp_category_vault">자격 증명 및 보안</string>
+  <string name="mcp_category_automation">자동화 및 작업</string>
+  <string name="mcp_category_web_ai">웹 및 AI</string>
   <string name="mcp_page_clear">비우기</string>
   <string name="mcp_page_oauth_required">OAuth 인증 필요</string>
   <string name="mcp_page_oauth_in_progress">인증 중입니다. 브라우저에서 완료하세요…</string>

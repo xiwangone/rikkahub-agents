@@ -2818,6 +2818,15 @@
   <string name="mcp_page_port_label">端口</string>
   <string name="mcp_page_tools_header">暴露的工具（默认全部未选）</string>
   <string name="mcp_page_select_all">全选</string>
+  <string name="mcp_category_device_info">设备信息</string>
+  <string name="mcp_category_device_control">设备控制</string>
+  <string name="mcp_category_media">媒体与输入</string>
+  <string name="mcp_category_files">文件与存储</string>
+  <string name="mcp_category_personal">个人数据</string>
+  <string name="mcp_category_remote">远程与终端</string>
+  <string name="mcp_category_vault">凭证与安全</string>
+  <string name="mcp_category_automation">自动化与任务</string>
+  <string name="mcp_category_web_ai">网络与 AI</string>
   <string name="mcp_page_clear">清空</string>
   <string name="mcp_page_oauth_required">需要 OAuth 授权</string>
   <string name="mcp_page_oauth_in_progress">正在授权，请在浏览器中完成…</string>

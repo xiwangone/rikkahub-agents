@@ -103,6 +103,8 @@ import me.rerere.rikkahub.data.ai.mcp.McpCommonOptions
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
+import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
+import me.rerere.rikkahub.data.ai.tools.LocalToolCategory
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.RadioButton
@@ -355,21 +357,7 @@ private fun LocalMcpServerSection(
     }
 }
 
-private val ALL_LOCAL_TOOLS: List<LocalToolOption> =
-    listOf(
-        LocalToolOption.JavascriptEngine, LocalToolOption.TimeInfo, LocalToolOption.Clipboard, LocalToolOption.Tts, LocalToolOption.AskUser,
-        LocalToolOption.Battery, LocalToolOption.AudioInfo, LocalToolOption.TelephonyInfo, LocalToolOption.WifiInfo, LocalToolOption.Sensors,
-        LocalToolOption.StorageInfo, LocalToolOption.Toast, LocalToolOption.Notification, LocalToolOption.Share, LocalToolOption.Torch,
-        LocalToolOption.Vibrate, LocalToolOption.Brightness, LocalToolOption.Volume, LocalToolOption.MediaPlayer, LocalToolOption.MediaScanner,
-        LocalToolOption.Download, LocalToolOption.Location, LocalToolOption.Contacts, LocalToolOption.CallLog, LocalToolOption.SmsInbox,
-        LocalToolOption.CameraPhoto, LocalToolOption.MicRecorder, LocalToolOption.SpeechToText, LocalToolOption.Fingerprint, LocalToolOption.CronJobs,
-        LocalToolOption.Ssh, LocalToolOption.Shizuku, LocalToolOption.TelegramBot, LocalToolOption.ScreenAutomation, LocalToolOption.AppLauncher,
-        LocalToolOption.Termux, LocalToolOption.NotificationListener, LocalToolOption.Files, LocalToolOption.McpControl, LocalToolOption.ExternalAutomation,
-        LocalToolOption.Reliability, LocalToolOption.SubAgents, LocalToolOption.CostGuards, LocalToolOption.Workflows, LocalToolOption.SkillImport,
-        LocalToolOption.JsSkills, LocalToolOption.VaultTools, LocalToolOption.VaultExportEnv, LocalToolOption.SystemIntents, LocalToolOption.Browser,
-        LocalToolOption.WebFetch, LocalToolOption.SmsSend, LocalToolOption.Wallpaper, LocalToolOption.Keystore, LocalToolOption.Nfc,
-        LocalToolOption.ExternalStorage, LocalToolOption.Archive, LocalToolOption.KeyboardControl,
-    )
+private val ALL_LOCAL_TOOLS: List<LocalToolOption> = LocalToolCatalog.all
 
 @Composable
 private fun LocalMcpProfileModal(
@@ -434,15 +422,32 @@ private fun LocalMcpProfileModal(
                             TextButton(onClick = { selected = emptyList() }) { Text(stringResource(R.string.mcp_page_clear)) }
                         }
                     }
-                FlowRow {
-                    ALL_LOCAL_TOOLS.forEach { tool ->
-                        val checked = tool in selected
-                        FilterChip(
-                            selected = checked,
-                            onClick = { selected = if (checked) selected - tool else selected + tool },
-                            label = { Text(toolName(tool)) },
-                            modifier = Modifier.padding(4.dp),
-                        )
+                LocalToolCatalog.groups().forEach { (category, tools) ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(categoryLabel(category), style = MaterialTheme.typography.labelMedium)
+                        Row {
+                            TextButton(onClick = { selected = (selected + tools).distinct() }) {
+                                Text(stringResource(R.string.mcp_page_select_all))
+                            }
+                            TextButton(onClick = { selected = selected - tools.toSet() }) {
+                                Text(stringResource(R.string.mcp_page_clear))
+                            }
+                        }
+                    }
+                    FlowRow {
+                        tools.forEach { tool ->
+                            val checked = tool in selected
+                            FilterChip(
+                                selected = checked,
+                                onClick = { selected = if (checked) selected - tool else selected + tool },
+                                label = { Text(toolName(tool)) },
+                                modifier = Modifier.padding(4.dp),
+                            )
+                        }
                     }
                 }
             }
@@ -469,6 +474,22 @@ private fun LocalMcpProfileModal(
 }
 
 private fun toolName(t: LocalToolOption): String = t::class.simpleName ?: ""
+
+@Composable
+private fun categoryLabel(category: LocalToolCategory): String =
+    stringResource(
+        when (category) {
+            LocalToolCategory.DEVICE_INFO -> R.string.mcp_category_device_info
+            LocalToolCategory.DEVICE_CONTROL -> R.string.mcp_category_device_control
+            LocalToolCategory.MEDIA -> R.string.mcp_category_media
+            LocalToolCategory.FILES -> R.string.mcp_category_files
+            LocalToolCategory.PERSONAL -> R.string.mcp_category_personal
+            LocalToolCategory.REMOTE -> R.string.mcp_category_remote
+            LocalToolCategory.VAULT -> R.string.mcp_category_vault
+            LocalToolCategory.AUTOMATION -> R.string.mcp_category_automation
+            LocalToolCategory.WEB_AI -> R.string.mcp_category_web_ai
+        },
+    )
 
 @Composable
 private fun McpServerItem(

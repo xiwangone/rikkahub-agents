@@ -2360,6 +2360,15 @@
   <string name="mcp_page_port_label">ポート</string>
   <string name="mcp_page_tools_header">公開するツール（既定はすべて未選択）</string>
   <string name="mcp_page_select_all">すべて選択</string>
+  <string name="mcp_category_device_info">デバイス情報</string>
+  <string name="mcp_category_device_control">デバイス操作</string>
+  <string name="mcp_category_media">メディアと入力</string>
+  <string name="mcp_category_files">ファイルと保存</string>
+  <string name="mcp_category_personal">個人データ</string>
+  <string name="mcp_category_remote">リモートと端末</string>
+  <string name="mcp_category_vault">認証情報とセキュリティ</string>
+  <string name="mcp_category_automation">自動化とタスク</string>
+  <string name="mcp_category_web_ai">ウェブと AI</string>
   <string name="mcp_page_clear">クリア</string>
   <string name="mcp_page_oauth_required">OAuth 認証が必要</string>
   <string name="mcp_page_oauth_in_progress">認証中です。ブラウザで完了してください…</string>
