@@ -258,6 +258,14 @@ class ChatService(
         _errors.value = emptyList()
     }
 
+    // 每会话待发送队列：生成中再次发送时消息排队，当前生成结束后按序自动发出
+    // （详见 MessageQueue 的语义说明）。
+    private val messageQueues = ConcurrentHashMap<Uuid, MessageQueue>()
+
+    /** 供 UI 观察某会话的待发送队列。 */
+    fun messageQueueState(conversationId: Uuid): StateFlow<List<QueuedMessage>> =
+        messageQueues.getOrPut(conversationId) { MessageQueue() }.state
+
     // 生成完成流
     private val _generationDoneFlow = MutableSharedFlow<Uuid>()
     val generationDoneFlow: SharedFlow<Uuid> = _generationDoneFlow.asSharedFlow()
@@ -434,6 +442,43 @@ class ChatService(
     ) {
         if (content.isEmptyInputMessage()) return
 
+        // 生成中再次发送：入队而不是打断当前生成，待本轮结束后按序发出。
+        // 这样「发送键在生成中依然可用」，用户无需等待或手动停止。
+        val session = getOrCreateSession(conversationId)
+        if (session.getJob()?.isActive == true) {
+            messageQueues.getOrPut(conversationId) { MessageQueue() }.enqueue(content, answer)
+            AppLog.i(
+                TAG,
+                "msg-queued conv=$conversationId pending=${messageQueues[conversationId]?.size}",
+            )
+            return
+        }
+        sendMessageNow(conversationId, content, answer)
+    }
+
+    /**
+     * 生成结束后派发队首消息。由 [sendMessageNow] 的收尾统一调用，
+     * 保证「一轮结束 → 自动发出下一条排队消息」形成闭环。
+     */
+    private fun dispatchNextQueuedMessage(conversationId: Uuid) {
+        val queue = messageQueues[conversationId] ?: return
+        val session = getOrCreateSession(conversationId)
+        // 仍在生成中（例如停止后又被 resume）或存在待审批工具时，等下一次时机
+        if (session.getJob()?.isActive == true) return
+        val pendingToolExists =
+            session.state.value.currentMessages.lastOrNull()?.getTools()?.any { !it.isExecuted } == true
+        if (pendingToolExists) return
+        val next = queue.takeNext() ?: return
+        AppLog.i(TAG, "msg-dequeue conv=$conversationId remaining=${queue.size}")
+        sendMessageNow(conversationId, next.parts, next.answer)
+    }
+
+    private fun sendMessageNow(
+        conversationId: Uuid,
+        content: List<UIMessagePart>,
+        answer: Boolean = true,
+    ) {
+
         // 消息事件日志（只记事件 + 会话 id，不记文本，隐私边界）
         val isUserTurn = content.any { it is UIMessagePart.Text && it.text.isNotBlank() }
         val textCount = content.count { it is UIMessagePart.Text }
@@ -496,6 +541,8 @@ class ChatService(
 
                     AppLog.i(TAG, "msg-done conv=$conversationId routed=$routedHandled")
                     _generationDoneFlow.emit(conversationId)
+                    // 本轮结束 → 尝试发出下一条排队消息
+                    dispatchNextQueuedMessage(conversationId)
                 } catch (e: Exception) {
                     if (e is CancellationException) {
                         // 协程取消：新消息打断/会话切换，不算失败
@@ -712,6 +759,8 @@ class ChatService(
                     }
 
                     _generationDoneFlow.emit(conversationId)
+                    // 本轮结束 → 尝试发出下一条排队消息
+                    dispatchNextQueuedMessage(conversationId)
                 } catch (e: Exception) {
                     addError(e, conversationId, title = context.getString(R.string.error_title_regenerate_message))
                 }
@@ -871,6 +920,8 @@ class ChatService(
                         handleMessageComplete(conversationId)
                     }
                     _generationDoneFlow.emit(conversationId)
+                    // 本轮结束 → 尝试发出下一条排队消息
+                    dispatchNextQueuedMessage(conversationId)
                 } catch (e: Exception) {
                     addError(e, conversationId, title = context.getString(R.string.error_title_tool_approval))
                 }
