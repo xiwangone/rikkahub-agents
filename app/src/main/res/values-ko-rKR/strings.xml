@@ -1836,4 +1836,23 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="assistant_page_time_reminder_interval_hint">양의 정수를 입력하세요. 메시지 간격이 이 값을 초과하면 알림이 삽입됩니다.</string>
   <string name="assistant_page_time_reminder_interval_desc">메시지 사이의 간격이 이 간격을 초과하면 알림 메시지를 삽입합니다. 항상 첫 번째 사용자 메시지 전에 알림 메시지를 삽입합니다.</string>
   <string name="assistant_page_time_reminder_interval_value">%1$d분</string>
+<string name="backup_page_import_overwrite_confirm">백업을 가져오면 앱 데이터가 덮어써집니다. 계속하시겠습니까?</string>
+<string name="theme_name_minimal">미니멀 화이트</string>
+<string name="setting_page_preferences_network">네트워크</string>
+<string name="setting_page_preferences_network_desc">User-Agent 및 네트워크 요청 설정</string>
+<string name="setting_page_preferences_network_user_agent">User-Agent</string>
+<string name="setting_page_preferences_network_user_agent_desc">비워 두면 %1$s(을)를 사용합니다.</string>
+<string name="setting_page_preferences_network_proxy">프록시</string>
+<string name="setting_page_preferences_network_proxy_desc">HTTP 및 SOCKS5 프록시 URL을 지원합니다. 비워 두면 시스템 설정을 사용합니다.</string>
+<string name="setting_page_preferences_network_proxy_invalid">호스트와 포트가 있는 유효한 프록시 URL을 입력하세요.</string>
+<string name="setting_model_page_ocr_model">OCR 모델</string>
+<string name="setting_model_page_ocr_model_desc">이미지에서 광학 문자 인식에 사용되는 모델</string>
+<string name="setting_model_page_ocr_prompt_vars">변수: 이미지 데이터: {images}</string>
+<string name="assistant_page_context_message_limit_hint">무제한으로 하려면 0을 입력하세요. 그렇지 않으면 값이 클수록 좋습니다. 0 또는 최소 20으로 설정하는 것이 좋습니다.</string>
+<string name="setting_files_page_clean_action">정리</string>
+<string name="setting_files_page_clean_confirmation">이 카테고리의 모든 파일이 영구적으로 삭제됩니다. 이 작업은 실행 취소할 수 없습니다.</string>
+<string name="setting_files_page_clean_content_description">파일 정리</string>
+<string name="setting_files_page_clean_failed_toast">일부 파일을 정리하지 못했습니다</string>
+<string name="setting_files_page_clean_title">파일을 정리할까요?</string>
+<string name="setting_files_page_cleaned_toast">파일을 정리했습니다</string>
 </resources>

@@ -1832,4 +1832,20 @@
   <string name="assistant_page_time_reminder_interval_hint">Введите целое положительное число. Напоминание вставляется, когда промежуток между сообщениями превышает этот интервал.</string>
   <string name="assistant_page_time_reminder_interval_desc">Вставлять напоминание, когда промежуток между сообщениями превышает этот интервал. Всегда напоминать перед первым сообщением пользователя.</string>
   <string name="assistant_page_time_reminder_interval_value">%1$d мин</string>
+<string name="backup_page_import_overwrite_confirm">Импорт резервной копии перезапишет данные приложения. Продолжить?</string>
+<string name="theme_name_minimal">Минималистичный белый</string>
+<string name="setting_page_preferences_network">Сеть</string>
+<string name="setting_page_preferences_network_desc">Настройки User-Agent и сетевых запросов</string>
+<string name="setting_page_preferences_network_user_agent">User-Agent</string>
+<string name="setting_page_preferences_network_user_agent_desc">Оставьте пустым, чтобы использовать %1$s</string>
+<string name="setting_page_preferences_network_proxy">Прокси</string>
+<string name="setting_page_preferences_network_proxy_desc">Поддерживает HTTP и SOCKS5 прокси-URL. Оставьте пустым для использования системных настроек.</string>
+<string name="setting_page_preferences_network_proxy_invalid">Введите корректный URL прокси-сервера с хостом и портом.</string>
+<string name="assistant_page_context_message_limit_hint">Введите 0 для безлимита; в противном случае чем больше значения, тем лучше. Рекомендуется установить значение 0 или не менее 20.</string>
+<string name="setting_files_page_clean_action">Очистить</string>
+<string name="setting_files_page_clean_confirmation">Все файлы в этой категории будут удалены без возможности восстановления.</string>
+<string name="setting_files_page_clean_content_description">Очистить файлы</string>
+<string name="setting_files_page_clean_failed_toast">Не удалось удалить некоторые файлы</string>
+<string name="setting_files_page_clean_title">Очистить файлы?</string>
+<string name="setting_files_page_cleaned_toast">Файлы удалены</string>
 </resources>
