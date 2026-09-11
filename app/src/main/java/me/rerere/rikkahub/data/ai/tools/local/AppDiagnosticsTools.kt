@@ -56,10 +56,7 @@ fun getAppHealthTool(
 ): Tool = Tool(
     name = "get_app_health",
     description = """
-        Return the app's diagnostic health snapshot. Reuses the built-in Doctor checks and
-        returns a structured list of every check item (permissions, services, assistant info,
-        database, network, termux, maintenance, diagnostics) with its severity
-        (OK / INFO / WARN / FAIL). Use this to detect misconfigured or broken subsystems.
+        Run the built-in Doctor checks and return a structured health snapshot with per-item severity (OK/INFO/WARN/FAIL). Use to detect misconfigured or broken subsystems.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(properties = buildJsonObject { })
@@ -99,10 +96,7 @@ fun getAppHealthTool(
 fun readAppLogsTool(context: Context): Tool = Tool(
     name = "read_app_logs",
     description = """
-        Read the in-memory application log buffer. Optionally filter by level
-        (D / I / W / E), by case-insensitive keyword, and cap the return count.
-        The output is de-sensitised through LogRedactor before being returned,
-        so any API keys / tokens / URLs in the log are masked.
+        Read the in-memory app log buffer; optional level (D/I/W/E) and keyword filters. Secrets are masked before returning.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -157,7 +151,7 @@ fun readAppLogsTool(context: Context): Tool = Tool(
  */
 fun readRequestLogsTool(context: Context): Tool = Tool(
     name = "read_request_logs",
-    description = """Read the in-memory HTTP request/response summary log (RequestLog, up to 100 entries). Each line: time method url code duration error. Output is de-sensitised through LogRedactor. Use when debugging provider/API failures, rate limits, endpoint errors."""".trimIndent().replace("\n", " "),
+    description = """Read the HTTP request/response summary log (time, method, url, code, duration, error). Secrets masked. Use for provider/API failures, rate limits, endpoint errors."""".trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -202,7 +196,7 @@ fun readRequestLogsTool(context: Context): Tool = Tool(
  */
 fun getAppSettingsTool(settingsStore: SettingsStore): Tool = Tool(
     name = "get_app_settings",
-    description = """Read the app's configuration summary: assistants (id/name/model/local tools count/enabled skills), providers (id/name/enabled/built-in/model count — API keys are NEVER included), and key preferences (default chat model, auto-compress, retry, tool output limits). Read-only, zero risk. Use when you need to know what the app is configured with (which assistants/skills/providers are active) before managing anything."""".trimIndent().replace("\n", " "),
+    description = """Read the app's configuration summary (assistants / providers / key preferences). API keys are never included. Read-only. Use before managing anything, to see what is actually configured."""".trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(properties = buildJsonObject { }, required = emptyList())
     },
@@ -266,10 +260,7 @@ fun testModelTool(
 ): Tool = Tool(
     name = "test_model",
     description = """
-        Test a specific model endpoint by provider + model id. Runs three probes:
-        non-streaming text generation, streaming text generation, and tool-call support.
-        Results are cached per endpoint+model so repeat tests are instant. Set force=true
-        to bypass the cache. Returns per-probe status (ok / fail) with a short summary.
+        Test a model endpoint (provider + model id): non-streaming, streaming, and tool-call support. Cached; force=true bypasses cache. Use to verify a provider works before relying on it.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -433,7 +424,7 @@ private suspend fun <T : ProviderSetting> probeProvider(
  */
 fun readCrashSnapshotTool(context: Context): Tool = Tool(
     name = "read_crash_snapshot",
-    description = """Read the persisted crash snapshot(s) written when the app hit an uncaught exception on the main thread. A snapshot contains the stack trace plus tails of the app log, HTTP request log and process lifecycle log. The most recent 3 crashes are kept (crash-latest, crash-1, crash-2). Use this to explain an unexpected restart or a crash the user reports. Returns "(no crash snapshot)" when the app has not crashed yet.""".trimIndent().replace("\n", " "),
+    description = """Read the crash snapshot (stack trace + tails of app log, request log and lifecycle log) written on an uncaught exception. Latest 3 are kept; `which` selects latest/1/2. Use to explain an unexpected restart or a reported crash.""".trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -485,7 +476,7 @@ fun readCrashSnapshotTool(context: Context): Tool = Tool(
  */
 fun readLifecycleLogsTool(context: Context): Tool = Tool(
     name = "read_lifecycle_logs",
-    description = """Read the process lifecycle log: each process start with its inferred reason (fresh start / likely killed by the system / restarted after a crash), foreground/background transitions, and memory-trim levels. Use this to diagnose "returning to the app looks like a restart" or "the app was killed in the background" reports. Newest lines are at the end.""".trimIndent().replace("\n", " "),
+    description = """Read the process lifecycle log: process starts with inferred reason (fresh / killed by system / after crash), foreground-background transitions, memory trims. Use for "looks like a restart" or "killed in background" reports. Newest lines last.""".trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
