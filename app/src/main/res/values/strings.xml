@@ -2758,7 +2758,7 @@
   <string name="doctor_msg_count_total_enabled">%1$s total, %2$s enabled.</string>
   <string name="doctor_msg_stranded_some">%1$s run(s) started over 30 min ago and never reported back. Likely a process kill mid-run.</string>
   <string name="doctor_msg_litert_cpu_mldrift">CPU (fallback: this device\'s GPU delegate failed to initialize, likely an MLDrift issue. Tap \'Re-detect\' in Settings, Local LiteRT to retry with a fresh probe.)</string>
-  <string name="doctor_msg_rate_detail">Last known rates per model (estimated from characters, ~10% accurate for English text):
+  <string name="doctor_msg_rate_detail">Last known rates per model (estimated from characters, ~10%% accurate for English text):
 %1$s</string>
   <string name="doctor_msg_vision_detail">This device does not support the vision encoder of: %1$s. These multimodal models run in text-only mode — chat works, image inputs don\'t. Often fixed by a future LiteRT-LM SDK update (the OpenGL fallback path\'s CreateSharedMemoryManager is currently UNIMPLEMENTED upstream). Tap \'Re-try vision\' next to the model in Settings, Local LiteRT after a GPU driver update to clear the flag.</string>
   <string name="doctor_msg_browser_mkdir_failed">mkdirs() returned false; the underlying storage may be read-only.</string>
