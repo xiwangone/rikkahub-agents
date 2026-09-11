@@ -2,12 +2,15 @@ package me.rerere.ai.provider.providers.openai
 
 import android.util.Log
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.channels.onFailure
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArrayBuilder
 import kotlinx.serialization.json.JsonObject
@@ -189,7 +192,7 @@ class ResponseAPI(
         providerSetting: ProviderSetting.OpenAI,
         messages: List<UIMessage>,
         params: TextGenerationParams
-    ): TextGenerationResult {
+    ): TextGenerationResult = withContext(Dispatchers.IO) {
         val requestBody = buildRequestBody(
             providerSetting = providerSetting,
             messages = messages,
@@ -213,19 +216,19 @@ class ResponseAPI(
             Log.i(TAG, "generateText: ${json.encodeToString(redactSecrets(requestBody))}")
         }
 
-        val response = client.newCall(request).await()
-        if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body.string()}")
-        }
+        // await() waits for the response headers; reading the body can still block.
+        client.newCall(request).await().use { response ->
+            if (!response.isSuccessful) {
+                throw Exception("Failed to get response: ${response.code} ${response.body.string()}")
+            }
 
-        val bodyStr = response.body.string()
-        if (Logging.isDebugLoggingEnabled()) {
-            Log.i(TAG, "generateText: ${redactSecrets(json.parseToJsonElement(bodyStr))}")
+            val bodyStr = response.body.string()
+            if (Logging.isDebugLoggingEnabled()) {
+                Log.i(TAG, "generateText: ${redactSecrets(json.parseToJsonElement(bodyStr))}")
+            }
+            val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
+            parseResponseOutput(bodyJson)
         }
-        val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
-        val output = parseResponseOutput(bodyJson)
-
-        return output
     }
 
     override suspend fun streamText(
@@ -392,7 +395,7 @@ class ResponseAPI(
             eventSource.cancel()
         }
         // trySend 在缓冲满时会静默丢弃 delta，导致回复中间缺字 (#1295)，因此缓冲必须无界
-    }.buffer(Channel.UNLIMITED)
+    }.buffer(Channel.UNLIMITED).flowOn(Dispatchers.IO)
 
     fun createRequestBody(
         providerSetting: ProviderSetting.OpenAI,
