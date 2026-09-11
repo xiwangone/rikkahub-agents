@@ -135,8 +135,17 @@ private fun createWriteFileTool(
         val path = params.absolutePath("path")
         val text = params.string("text") ?: error("text is required")
         val overwrite = params["overwrite"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true
+        // 执行前读旧内容（文件不存在 → 视为空）：新建文件 diff 全绿、覆盖写显示红绿改动。
+        // 与 edit_file 保持一致：diff 存 metadata，不随工具结果发给模型、不占上下文。
+        val originalText = runCatching { workspaceRepository.readTextInRootfs(workspaceId, path) }.getOrNull()
         val entry = workspaceRepository.writeTextInRootfs(workspaceId, path, text, overwrite)
-        listOf(UIMessagePart.Text(entry.toJson().toString()))
+        val diff = generateUnifiedDiff(originalText.orEmpty(), text, entry.path)
+        listOf(
+            UIMessagePart.Text(
+                text = entry.toJson().toString(),
+                metadata = diff?.let { d -> DiffMetadata(diff = d).toMetadata() },
+            )
+        )
     },
 )
 
@@ -309,9 +318,12 @@ private fun createShellTool(
 
         // 执行前后各取一次快照：让脚本改动的文件也能像写文件那样显示红绿 diff。
         // 快照有遍历数与缓存上限，超限即放弃检测（退回原行为，不影响命令执行）。
+        // 扫描根取命令的 cwd（默认工作区根）：范围越小越快，也越不容易撞上条目上限
+        val diffScanRoot = cwd.orEmpty()
         val beforeSnapshot = WorkspaceChangeDiff.takeSnapshot(
             listFiles = { path -> workspaceRepository.listFiles(workspaceId, me.rerere.workspace.WorkspaceStorageArea.FILES, path) },
             readText = { path -> runCatching { workspaceRepository.readText(workspaceId, path) }.getOrNull() },
+            rootPath = diffScanRoot,
         )
 
         val result = workspaceRepository.executeCommand(
@@ -322,6 +334,7 @@ private fun createShellTool(
         val afterSnapshot = WorkspaceChangeDiff.takeSnapshot(
             listFiles = { path -> workspaceRepository.listFiles(workspaceId, me.rerere.workspace.WorkspaceStorageArea.FILES, path) },
             readText = { path -> runCatching { workspaceRepository.readText(workspaceId, path) }.getOrNull() },
+            rootPath = diffScanRoot,
         )
         val changes = WorkspaceChangeDiff.compare(beforeSnapshot, afterSnapshot)
         val changeDiff =

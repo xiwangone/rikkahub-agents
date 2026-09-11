@@ -217,6 +217,8 @@ object ReadFileToolUI : ToolUIRenderer {
  * 工作空间写入文件: 内容取自入参 (未执行也可预览), 摘要为内容首部, 详情为完整内容
  */
 object WriteFileToolUI : ToolUIRenderer {
+    private const val SUMMARY_MAX_LINES = 10
+
     override val toolName: String = "workspace_write_file"
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.FileAdd
@@ -235,10 +237,46 @@ object WriteFileToolUI : ToolUIRenderer {
 
     private fun textOf(context: ToolUIContext): String? = context.arguments.getStringContent("text")
 
-    override fun hasSummary(context: ToolUIContext): Boolean = textOf(context) != null
+    /**
+     * 写入产生的改动 diff（工具执行时读旧内容生成）：新建文件全绿、覆盖写显示红绿。
+     * 存 metadata，不随工具结果发给模型、不占上下文。
+     */
+    private fun diffOf(context: ToolUIContext): String? =
+        context.tool.output.firstOrNull()?.metadataAs<DiffMetadata>()?.diff?.takeIf { it.isNotBlank() }
+
+    override fun hasSummary(context: ToolUIContext): Boolean =
+        diffOf(context) != null || textOf(context) != null
 
     @Composable
     override fun Summary(context: ToolUIContext) {
+        val diff = remember(context) { diffOf(context) }
+        if (diff != null) {
+            val stats = remember(diff) { parseDiffStats(diff) }
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "+${stats.additions}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = DiffAddedColor,
+                    )
+                    Text(
+                        text = "-${stats.deletions}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = DiffRemovedColor,
+                    )
+                }
+                DiffView(
+                    diff = diff,
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = SUMMARY_MAX_LINES,
+                    showFileHeader = false,
+                )
+            }
+            return
+        }
         val text = remember(context) { textOf(context) } ?: return
         FileContentSummary(
             text = text,
@@ -252,6 +290,48 @@ object WriteFileToolUI : ToolUIRenderer {
         context: ToolUIContext,
         onDismissRequest: () -> Unit,
     ) {
+        val diff = remember(context) { diffOf(context) }
+        if (diff != null) {
+            val stats = remember(diff) { parseDiffStats(diff) }
+            Column(
+                modifier =
+                    Modifier
+                        .fillMaxHeight(0.8f)
+                        .padding(16.dp)
+                        .verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    text = context.arguments.getStringContent("path") ?: toolName,
+                    style = MaterialTheme.typography.titleMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "+${stats.additions}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = DiffAddedColor,
+                    )
+                    Text(
+                        text = "-${stats.deletions}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = DiffRemovedColor,
+                    )
+                }
+                DiffView(
+                    diff = diff,
+                    modifier = Modifier.fillMaxWidth(),
+                    showFileHeader = true,
+                )
+            }
+            return
+        }
         val text = remember(context) { textOf(context) }
         if (text == null) {
             DefaultToolPreview(context = context)

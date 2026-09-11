@@ -15,8 +15,17 @@ import me.rerere.rikkahub.utils.generateUnifiedDiff
  * - 二进制文件只记名称、不生成 diff。
  */
 object WorkspaceChangePolicy {
-    /** 最多遍历的目录条目数（含子目录），超过即放弃检测。 */
-    const val MAX_ENTRIES = 3_000
+    /** 最多遍历的目录条目数（含子目录）。超出后仍产出「新增/修改」，但不判定删除。 */
+    const val MAX_ENTRIES = 6_000
+
+    /**
+     * 遍历深度上限（相对扫描根）。
+     *
+     * 工作区可能挂着完整代码仓库（实测某工作区 2 万+ 文件），无限制遍历既慢又会触发条目上限，
+     * 反而完全不产出 diff。命令改动的文件绝大多数在浅层，故默认限制深度；
+     * 命令可传 cwd 进一步收窄扫描根。
+     */
+    const val MAX_DEPTH = 5
 
     /** 单个文件超过此大小不生成 diff（避免读入超大文件）。 */
     const val MAX_DIFF_FILE_BYTES = 256L * 1024
@@ -75,16 +84,25 @@ data class FileChange(
 object WorkspaceChangeDiff {
     /**
      * 对比两份快照，产出变更列表（按路径稳定排序）。
-     * 任一快照被截断时返回空列表——宁可不出 diff，也不要因漏扫而误报「删除」。
+     *
+     * 截断时（扫描未覆盖全量）**只报「新增 / 修改」，不报「删除」**——
+     * 漏扫会被误判成删除，从而谎报「文件被删了」；而新增/修改是扫到即真实的。
      */
     fun compare(before: WorkspaceSnapshot, after: WorkspaceSnapshot): List<FileChange> {
-        if (before.truncated || after.truncated) return emptyList()
         val changes = mutableListOf<FileChange>()
-        before.files.forEach { (path, old) ->
-            val new = after.files[path]
-            when {
-                new == null -> changes += FileChange(path, FileChangeKind.DELETED)
-                new != old -> changes += FileChange(path, FileChangeKind.MODIFIED)
+        if (!before.truncated && !after.truncated) {
+            before.files.forEach { (path, old) ->
+                val new = after.files[path]
+                when {
+                    new == null -> changes += FileChange(path, FileChangeKind.DELETED)
+                    new != old -> changes += FileChange(path, FileChangeKind.MODIFIED)
+                }
+            }
+        } else {
+            // 截断：仅报能确证的修改（两侧都扫到且指纹不同），跳过删除
+            before.files.forEach { (path, old) ->
+                val new = after.files[path]
+                if (new != null && new != old) changes += FileChange(path, FileChangeKind.MODIFIED)
             }
         }
         after.files.forEach { (path, _) ->
@@ -151,16 +169,19 @@ object WorkspaceChangeDiff {
     suspend fun takeSnapshot(
         listFiles: suspend (path: String) -> List<me.rerere.workspace.WorkspaceFileEntry>,
         readText: suspend (path: String) -> String?,
+        rootPath: String = "",
+        maxDepth: Int = WorkspaceChangePolicy.MAX_DEPTH,
     ): WorkspaceSnapshot {
         val files = mutableMapOf<String, FileFingerprint>()
         val contents = mutableMapOf<String, String>()
         var cachedBytes = 0L
         var count = 0
         var truncated = false
-        val queue = ArrayDeque<String>()
-        queue += ""
+        // 队列元素带深度，超过 maxDepth 的目录不再展开
+        val queue = ArrayDeque<Pair<String, Int>>()
+        queue += rootPath to 0
         while (queue.isNotEmpty()) {
-            val dir = queue.removeFirst()
+            val (dir, depth) = queue.removeFirst()
             val entries = runCatching { listFiles(dir) }.getOrDefault(emptyList())
             for (entry in entries) {
                 if (++count > WorkspaceChangePolicy.MAX_ENTRIES) {
@@ -168,7 +189,8 @@ object WorkspaceChangeDiff {
                     break
                 }
                 if (entry.isDirectory) {
-                    if (entry.name !in WorkspaceChangePolicy.SKIPPED_DIRS) queue += entry.path
+                    val descend = entry.name !in WorkspaceChangePolicy.SKIPPED_DIRS && depth < maxDepth
+                    if (descend) queue += entry.path to (depth + 1)
                     continue
                 }
                 files[entry.path] = FileFingerprint(entry.sizeBytes, entry.updatedAt)
