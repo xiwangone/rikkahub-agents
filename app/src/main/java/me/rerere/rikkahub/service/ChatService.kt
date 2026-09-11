@@ -12,6 +12,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
@@ -460,11 +461,17 @@ class ChatService(
      * 生成结束后派发队首消息。由 [sendMessageNow] 的收尾统一调用，
      * 保证「一轮结束 → 自动发出下一条排队消息」形成闭环。
      */
-    private fun dispatchNextQueuedMessage(conversationId: Uuid) {
+    private fun dispatchNextQueuedMessage(
+        conversationId: Uuid,
+        fromJob: Job? = null,
+    ) {
         val queue = messageQueues[conversationId] ?: return
         val session = getOrCreateSession(conversationId)
-        // 仍在生成中（例如停止后又被 resume）或存在待审批工具时，等下一次时机
-        if (session.getJob()?.isActive == true) return
+        // 仍在生成中（例如停止后又被 resume）或存在待审批工具时，等下一次时机。
+        // 注意：从本轮协程内部调用时 session 里存的可能就是该协程自身的 job，
+        // 必须排除，否则会误判为「他人正在生成」而永不放行队列。
+        val active = session.getJob()
+        if (active != null && active.isActive && active !== fromJob) return
         val pendingToolExists =
             session.state.value.currentMessages.lastOrNull()?.getTools()?.any { !it.isExecuted } == true
         if (pendingToolExists) return
@@ -541,8 +548,6 @@ class ChatService(
 
                     AppLog.i(TAG, "msg-done conv=$conversationId routed=$routedHandled")
                     _generationDoneFlow.emit(conversationId)
-                    // 本轮结束 → 尝试发出下一条排队消息
-                    dispatchNextQueuedMessage(conversationId)
                 } catch (e: Exception) {
                     if (e is CancellationException) {
                         // 协程取消：新消息打断/会话切换，不算失败
@@ -552,6 +557,10 @@ class ChatService(
                     }
                     e.printStackTrace()
                     addError(e, conversationId, title = context.getString(R.string.error_title_send_message))
+                } finally {
+                    // 无论正常结束、取消还是失败，都尝试派发队首排队消息，
+                    // 否则«用户停止生成»会让队列永久卡住。
+                    dispatchNextQueuedMessage(conversationId, fromJob = coroutineContext[Job])
                 }
             }
         session.setJob(job)
@@ -759,10 +768,10 @@ class ChatService(
                     }
 
                     _generationDoneFlow.emit(conversationId)
-                    // 本轮结束 → 尝试发出下一条排队消息
-                    dispatchNextQueuedMessage(conversationId)
                 } catch (e: Exception) {
                     addError(e, conversationId, title = context.getString(R.string.error_title_regenerate_message))
+                } finally {
+                    dispatchNextQueuedMessage(conversationId, fromJob = coroutineContext[Job])
                 }
             }
 
@@ -920,10 +929,10 @@ class ChatService(
                         handleMessageComplete(conversationId)
                     }
                     _generationDoneFlow.emit(conversationId)
-                    // 本轮结束 → 尝试发出下一条排队消息
-                    dispatchNextQueuedMessage(conversationId)
                 } catch (e: Exception) {
                     addError(e, conversationId, title = context.getString(R.string.error_title_tool_approval))
+                } finally {
+                    dispatchNextQueuedMessage(conversationId, fromJob = coroutineContext[Job])
                 }
             }
 
