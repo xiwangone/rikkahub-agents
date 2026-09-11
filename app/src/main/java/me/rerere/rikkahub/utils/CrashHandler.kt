@@ -94,6 +94,16 @@ object CrashHandler {
                 appendLine(lifecycleTail)
             }
         runCatching {
+            // 快照轮转：此前只保留最新一份，下一次崩溃即覆盖上一次现场，导致复发问题
+            // 无法回溯比对。保留最近 3 次（crash-latest / crash-1 / crash-2），
+            // 诊断时可按文件时间逐个读取。
+            java.io.File(dir, "crash-2.txt").takeIf { it.exists() }?.delete()
+            java.io.File(dir, "crash-1.txt")
+                .takeIf { it.exists() }
+                ?.renameTo(java.io.File(dir, "crash-2.txt"))
+            java.io.File(dir, "crash-latest.txt")
+                .takeIf { it.exists() }
+                ?.renameTo(java.io.File(dir, "crash-1.txt"))
             file.writeText(content, Charsets.UTF_8)
         }
         me.rerere.rikkahub.data.log.FileLogSink.flush()

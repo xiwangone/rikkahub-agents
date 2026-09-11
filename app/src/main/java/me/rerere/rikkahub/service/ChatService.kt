@@ -110,6 +110,15 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "ChatService"
 
+/**
+ * 生成过程中把内存快照写入数据库的最小间隔（毫秒）。
+ *
+ * 生成期间文本/推理/工具增量只在内存累积（[updateConversation] 不落盘），进程若在生成
+ * 中途被系统回收（内存压力下 LMK 的常见行为），这一轮已生成的内容会整体丢失。
+ * 按此间隔落盘后，最多只丢最后一个间隔内的增量。
+ */
+private const val STREAM_PERSIST_INTERVAL_MS = 8_000L
+
 internal fun backgroundTextGenerationParams(
     model: Model,
     reasoningLevel: ReasoningLevel = ReasoningLevel.OFF,
@@ -972,6 +981,8 @@ class ChatService(
 
             // start generating
             val session = getOrCreateSession(conversationId)
+            // 生成期间周期落盘的节流时间戳（见 STREAM_PERSIST_INTERVAL_MS）
+            var lastStreamPersistAtMs = 0L
             generationLoop
                 .generateText(
                     settings = settings,
@@ -1098,7 +1109,12 @@ class ChatService(
                                         p.output.isEmpty() &&
                                         p.approvalState is ToolApprovalState.Approved
                                 } ?: false
-                            if (needsImmediatePersist) {
+                            // 生成中的周期落盘：保住已被进程回收时丢失的中间内容。
+                            val nowMs = System.currentTimeMillis()
+                            val dueForPeriodicPersist =
+                                nowMs - lastStreamPersistAtMs >= STREAM_PERSIST_INTERVAL_MS
+                            if (needsImmediatePersist || dueForPeriodicPersist) {
+                                if (dueForPeriodicPersist) lastStreamPersistAtMs = nowMs
                                 saveConversation(conversationId, updatedConversation)
                             }
 
