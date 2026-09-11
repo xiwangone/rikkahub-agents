@@ -18,7 +18,7 @@ import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.data.agentrun.AgentRunBootRecovery
 import me.rerere.rikkahub.data.agentrun.AgentRunRepository
 import me.rerere.rikkahub.data.ai.AIRequestInterceptor
-import me.rerere.rikkahub.data.ai.GenerationHandler
+import me.rerere.rikkahub.data.ai.GenerationLoop
 import me.rerere.rikkahub.data.ai.RequestLoggingInterceptor
 import me.rerere.rikkahub.data.ai.TermuxCliCommandExecutor
 import me.rerere.rikkahub.data.ai.mcp.McpManager
@@ -222,7 +222,7 @@ val dataSourceModule =
         }
 
         single {
-            GenerationHandler(
+            GenerationLoop(
                 context = get(),
                 providerManager = get(),
                 json = get(),

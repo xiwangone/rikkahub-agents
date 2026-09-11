@@ -58,14 +58,13 @@ import me.rerere.rikkahub.CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
-import me.rerere.rikkahub.data.ai.GenerationHandler
+import me.rerere.rikkahub.data.ai.GenerationLoop
 import me.rerere.rikkahub.data.ai.FailureDiagnosis
 import me.rerere.rikkahub.data.ai.diagnoseFailure
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
+import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.LocalTools
-import me.rerere.rikkahub.data.ai.tools.createSearchTools
-import me.rerere.rikkahub.data.ai.tools.createSkillTools
-import me.rerere.rikkahub.data.ai.tools.createWorkspaceTools
 import me.rerere.rikkahub.data.preferences.isWorkspaceToolName
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -159,7 +158,8 @@ class ChatService(
     private val settingsStore: SettingsStore,
     private val conversationRepo: ConversationRepository,
     private val memoryRepository: MemoryRepository,
-    private val generationHandler: GenerationHandler,
+    private val generationLoop: GenerationLoop,
+    private val chatToolFactory: ChatToolFactory,
     private val templateTransformer: TemplateTransformer,
     private val providerManager: ProviderManager,
     private val localTools: LocalTools,
@@ -922,9 +922,42 @@ class ChatService(
             checkInvalidMessages(conversationId)
             val conversation = getConversationFlow(conversationId).value
 
+            // 工具面装配集中在 ChatToolFactory（记忆/搜索/本地/工作区/技能/MCP），
+            // 顺序即对外暴露顺序，参与请求前缀字节。
+            val invocationCtx =
+                me.rerere.rikkahub.data.ai.tools.ToolInvocationContext(
+                    callerAssistantId = assistant.id.toString(),
+                    callerConversationId = conversationId.toString(),
+                    isHeadless =
+                        me.rerere.rikkahub.data.ai.tools.HeadlessConversations
+                            .isHeadless(conversationId),
+                    // show_image 依此决定回给模型的结果信封——纯文本模型会被告知看不到图片。
+                    modelCanSeeImages = Modality.IMAGE in model.inputModalities,
+                )
+            val tools = try {
+                chatToolFactory.createTools(
+                    settings = settings,
+                    assistant = assistant,
+                    model = model,
+                    invocationCtx = invocationCtx,
+                    workspaceCwd = conversation.workspaceCwd,
+                )
+            } catch (error: InvalidMcpServerNamesException) {
+                addError(
+                    error = IllegalStateException(
+                        context.getString(
+                            R.string.error_mcp_invalid_server_name,
+                            error.names.joinToString(", "),
+                        ),
+                    ),
+                    conversationId = conversationId,
+                )
+                return
+            }
+
             // start generating
             val session = getOrCreateSession(conversationId)
-            generationHandler
+            generationLoop
                 .generateText(
                     settings = settings,
                     model = model,
@@ -942,7 +975,7 @@ class ChatService(
                         // YOLO mode ("I AM STUPID" toggle in Settings → Tool approvals): every
                         // tool auto-approves. User opted into this explicitly. HARDLINE still
                         // blocks rm -rf / et al — that check runs BEFORE auto-approval in
-                        // GenerationHandler, so YOLO can't smuggle one through.
+                        // GenerationLoop, so YOLO can't smuggle one through.
                         //
                         // Headless conversations (cron-driven) also auto-approve EVERY tool;
                         // the user pre-authorised the schedule itself at job-creation time
@@ -1002,116 +1035,7 @@ class ChatService(
                             add(workspaceReminderTransformer)
                         },
                     outputTransformers = outputTransformers,
-                    tools =
-                        buildList {
-                            if (assistant.enableWebSearch) {
-                                addAll(createSearchTools(settings))
-                            }
-                            // Pass the caller context so context-aware tools (subagent_dispatch
-                            // recursion guard, workflow_create authoring-id) can read the
-                            // calling conversation + assistant. isHeadless is read from
-                            // HeadlessConversations — true iff this is a cron / sub-agent /
-                            // workflow / external-automation flow.
-                            val invocationCtx =
-                                me.rerere.rikkahub.data.ai.tools.ToolInvocationContext(
-                                    callerAssistantId = assistant.id.toString(),
-                                    callerConversationId = conversationId.toString(),
-                                    isHeadless =
-                                        me.rerere.rikkahub.data.ai.tools.HeadlessConversations
-                                            .isHeadless(conversationId),
-                                    // show_image keys its result envelope off this — a text-only model
-                                    // gets told it cannot see the image instead of confabulating one.
-                                    modelCanSeeImages = Modality.IMAGE in model.inputModalities,
-                                )
-                            addAll(localTools.getTools(assistant.localTools, invocationCtx))
-                            addAll(
-                                createWorkspaceToolsIfReady(
-                                    assistant.workspaceId?.toString(),
-                                    conversation.workspaceCwd,
-                                ),
-                            )
-                            if (assistant.enabledSkills.isNotEmpty()) {
-                                addAll(
-                                    createSkillTools(
-                                        enabledSkills = assistant.enabledSkills,
-                                        allSkills = skillManager.listSkills(),
-                                        skillManager = skillManager,
-                                    ),
-                                )
-                            }
-                            mcpManager
-                                .getAllAvailableTools()
-                                .also { allTools ->
-                                    // Upstream name validation: a server name that isn't pure
-                                    // English+digits would produce an invalid `mcp__<name>__tool`
-                                    // surface, so surface it as an error rather than emit a tool the
-                                    // model can't address.
-                                    val invalidNames =
-                                        allTools
-                                            .map { it.second }
-                                            .distinct()
-                                            .filter { name ->
-                                                name.isEmpty() ||
-                                                    !name.all {
-                                                        it in 'a'..'z' ||
-                                                            it in 'A'..'Z' ||
-                                                            it in '0'..'9' ||
-                                                            it == '_' ||
-                                                            it == '-'
-                                                    }
-                                            }
-                                    if (invalidNames.isNotEmpty()) {
-                                        addError(
-                                            error =
-                                                IllegalStateException(
-                                                    context.getString(
-                                                        R.string.error_mcp_invalid_server_name,
-                                                        invalidNames.joinToString(", "),
-                                                    ),
-                                                ),
-                                            conversationId = conversationId,
-                                        )
-                                        return
-                                    }
-                                }.forEach { (serverId, serverName, tool) ->
-                                    // Namespace MCP tools by a server-id slug so two enabled servers that
-                                    // each expose a tool of the same name don't collide (which would 400 or
-                                    // mis-route to whichever server registered last). Keep the `mcp__` prefix
-                                    // intact: HardlineCommandGuard and ToolApprovalDefaults both branch on
-                                    // `startsWith("mcp__")`. The slug is the first 8 hex chars of the id with
-                                    // dashes stripped; the validated server name follows for human-readable
-                                    // disambiguation, keeping the name within the 64-char /
-                                    // ^[a-zA-Z0-9_-]+$ limit. The execute lambda below still calls callTool
-                                    // with the REAL tool.name, since the namespacing exists only on the
-                                    // model-facing surface.
-                                    val serverSlug = serverId.toString().take(8).replace("-", "")
-                                    val mcpToolName = "mcp__" + serverSlug + "_" + serverName + "__" + tool.name
-                                    add(
-                                        Tool(
-                                            name = mcpToolName,
-                                            description = tool.description ?: "",
-                                            parameters = { tool.inputSchema },
-                                            // MCP servers' tool surfaces are opaque to us — we can't
-                                            // tell read from write or safe from destructive — so
-                                            // every MCP call is approval-gated by default. The user
-                                            // can grant Always-Allow per-tool to suppress prompts on
-                                            // a known-safe MCP server. The HARDLINE floor still
-                                            // applies via HardlineCommandGuard's `mcp__*` branch,
-                                            // which scans every string arg for shell-content
-                                            // patterns (rm -rf /, mkfs, shutdown, encoded payloads).
-                                            needsApproval = {
-                                                me.rerere.rikkahub.data.ai.tools
-                                                    .ToolApprovalDefaults
-                                                    .requiresApproval(mcpToolName) ||
-                                                    tool.needsApproval
-                                            },
-                                            execute = {
-                                                mcpManager.callTool(serverId, tool.name, it.jsonObject)
-                                            },
-                                        ),
-                                    )
-                                }
-                        },
+                    tools = tools,
                 ).onCompletion {
                     // 取消 Live Update 通知
                     cancelLiveUpdateNotification(conversationId)
@@ -1147,7 +1071,7 @@ class ChatService(
                             // Persist immediately when a tool transitions to "execution
                             // started but no output yet" — this writes the executionStartedAt
                             // breadcrumb to disk so a process kill mid-execute leaves a clear
-                            // signal for the next replay (see GenerationHandler.kt's replay
+                            // signal for the next replay (see GenerationLoop.kt's replay
                             // safety pass: Approved + executionStartedAt + empty → Denied
                             // interrupted_unknown_outcome). Without this, the marker stays in
                             // memory only and replay can't distinguish "freshly approved,
@@ -1179,7 +1103,7 @@ class ChatService(
             cancelDoneNotification(conversationId)
 
             // Persist the in-memory snapshot so the Auto/Pending → Denied transitions
-            // GenerationHandler did inside its try/catch (the "generation_failed" recovery
+            // GenerationLoop did inside its try/catch (the "generation_failed" recovery
             // path) survive a process restart. Without this, the failure path only
             // updates memory and the persisted DB row keeps the stale Pending state
             // forever — replay would re-run the loop against unrecoverable shape.
@@ -1280,21 +1204,6 @@ class ChatService(
         }
     }
 
-    private suspend fun createWorkspaceToolsIfReady(
-        workspaceId: String?,
-        cwd: String? = null,
-    ): List<Tool> {
-        if (workspaceId.isNullOrBlank()) return emptyList()
-        val workspace = workspaceRepository.getById(workspaceId) ?: return emptyList()
-        if (workspace.shellStatus != WorkspaceShellStatus.READY.name) {
-            AppLog.d(
-                TAG,
-                "createWorkspaceToolsIfReady: skip workspace tools, workspace=$workspaceId, status=${workspace.shellStatus}",
-            )
-            return emptyList()
-        }
-        return createWorkspaceTools(workspaceId, workspaceRepository, cwd)
-    }
 
     // ---- 检查无效消息 ----
 
@@ -2012,7 +1921,7 @@ class ChatService(
                 val loadingText = context.getString(R.string.translating)
                 updateTranslationField(conversationId, message.id, loadingText)
 
-                generationHandler
+                generationLoop
                     .translateText(
                         settings = settings,
                         sourceText = messageText,

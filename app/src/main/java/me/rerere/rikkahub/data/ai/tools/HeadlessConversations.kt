@@ -35,7 +35,7 @@ private const val PREFS_KEY_AUTO_APPROVE = "auto_approve_ids"
  * and tools auto-fired without ever entering Pending state.
  *
  * The HARDLINE floor still applies to BOTH paths. `HardlineCommandGuard.checkTool`
- * runs BEFORE the auto-approval lookup in `GenerationHandler`, so a cron job's
+ * runs BEFORE the auto-approval lookup in `GenerationLoop`, so a cron job's
  * `rm -rf /` is still blocked at the floor regardless of headless mode.
  *
  * Persistence: both sets are written to SharedPreferences so that if the process

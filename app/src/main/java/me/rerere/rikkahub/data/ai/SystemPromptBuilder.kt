@@ -4,7 +4,7 @@ package me.rerere.rikkahub.data.ai
  * Single place for assembling the system prompt that is sent to every provider.
  *
  * Callers provide pre-rendered sections so the ordering and formatting live in one spot
- * rather than being reimplemented in GenerationHandler and the provider adapters.
+ * rather than being reimplemented in GenerationLoop and the provider adapters.
  *
  * Ordering is **stable-first**: the assistant prompt and tool prompts (byte-identical turn
  * to turn) come first, then the volatile sections (memory, recent chats, per-call

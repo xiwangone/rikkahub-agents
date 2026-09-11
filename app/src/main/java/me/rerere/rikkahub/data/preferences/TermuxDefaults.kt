@@ -19,7 +19,7 @@ object TermuxDefaults {
     const val MAX_COMMAND_TIMEOUT_MS     = 600_000L  // 10 min
 
     // --- Per-turn wall-clock budget (app-wide) ---------------------------------------------
-    // Default is 10 min matching the constant that was in GenerationHandler.kt.
+    // Default is 10 min matching the constant that was in GenerationLoop.kt.
     /** Default per-turn wall-clock budget in ms. */
     const val DEFAULT_TURN_BUDGET_MS = 10L * 60L * 1_000L  // 10 min
     const val MIN_TURN_BUDGET_MS     =  1L * 60L * 1_000L  //  1 min

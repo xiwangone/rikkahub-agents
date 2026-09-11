@@ -27,7 +27,7 @@ private val Context.termuxDataStore by preferencesDataStore(name = "termux_prefs
  *
  * The [init] block pushes persisted values into the runtime holders ([TermuxRuntime] and
  * [ToolRuntimeLimits]) immediately on construction so all non-suspend callers (TermuxTool,
- * GenerationHandler) read live values without needing a coroutine context.
+ * GenerationLoop) read live values without needing a coroutine context.
  *
  * All read paths clamp on read; all write paths clamp on write. A value stored from an
  * older build that exceeds a tightened ceiling is silently clamped on the next read.

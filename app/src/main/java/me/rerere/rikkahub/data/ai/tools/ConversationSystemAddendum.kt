@@ -15,9 +15,9 @@ import kotlin.uuid.Uuid
  * of the same ~80-token framing, polluting context and burning tokens.
  *
  * The system prompt, by contrast, is rebuilt fresh per generation from
- * [GenerationHandler.generateInternal] and never accumulates. Runtime hints belong there.
+ * [GenerationLoop.generateInternal] and never accumulates. Runtime hints belong there.
  *
- * Lifecycle: writers `set` before triggering a generation; readers (GenerationHandler)
+ * Lifecycle: writers `set` before triggering a generation; readers (GenerationLoop)
  * `get` during system-prompt construction. Process-only, no persistence — if the app
  * restarts, the next inbound message rewrites it. Cleared on `/new` and on conversation
  * reset so a fresh chat doesn't inherit a stale preamble.

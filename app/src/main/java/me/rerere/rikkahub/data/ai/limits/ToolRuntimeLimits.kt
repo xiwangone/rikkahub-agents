@@ -5,7 +5,7 @@ import me.rerere.rikkahub.data.preferences.TermuxDefaults
 /**
  * App-wide @Volatile runtime holder for tool execution limits that span all tool families
  * (not just Termux). Currently holds the per-turn wall-clock budget that was previously
- * hardcoded in GenerationHandler.kt.
+ * hardcoded in GenerationLoop.kt.
  *
  * Pushed from [me.rerere.rikkahub.data.preferences.TermuxPreferences.init] because the
  * Termux settings page is where the user configures it (per spec: "exposed on the Termux

@@ -10,7 +10,7 @@ import me.rerere.rikkahub.data.model.Conversation
  *
  * The aggregator is intentionally read-only — it never mutates the conversation or the
  * assistant settings. The auto-stop integration (live indicator pill in chat header,
- * GenerationHandler cancellation when over hard cap) is the Phase 15.5 follow-up that
+ * GenerationLoop cancellation when over hard cap) is the Phase 15.5 follow-up that
  * needs deeper hooks into the streaming pipeline.
  *
  * v1 surface:

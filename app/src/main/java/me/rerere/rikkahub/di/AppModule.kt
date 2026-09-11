@@ -315,6 +315,17 @@ val appModule =
         }
 
         single {
+            me.rerere.rikkahub.data.ai.tools.ChatToolFactory(
+                json = get(),
+                memoryRepository = get(),
+                localTools = get(),
+                mcpManager = get(),
+                skillManager = get(),
+                workspaceRepository = get(),
+            )
+        }
+
+        single {
             ChatService(
                 context = get(),
                 appScope = get(),
@@ -322,7 +333,8 @@ val appModule =
                 settingsStore = get(),
                 conversationRepo = get(),
                 memoryRepository = get(),
-                generationHandler = get(),
+                generationLoop = get(),
+                chatToolFactory = get(),
                 templateTransformer = get(),
                 providerManager = get(),
                 localTools = get(),

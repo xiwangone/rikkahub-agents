@@ -854,7 +854,7 @@ fun browserEvalJsTool(): Tool = Tool(
         }, required = listOf("code"))
     },
     execute = { input ->
-        // HARDLINE has already run via GenerationHandler before we get here. The execute
+        // HARDLINE has already run via GenerationLoop before we get here. The execute
         // body just dispatches the JS and forwards whatever the WebView returns. Any
         // pattern HARDLINE missed is a bug to fix in HardlineCommandGuard, not here.
         val code = input.jsonObject["code"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }

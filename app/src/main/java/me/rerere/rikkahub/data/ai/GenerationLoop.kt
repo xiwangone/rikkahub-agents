@@ -60,7 +60,6 @@ import me.rerere.rikkahub.data.ai.transformers.onGenerationFinish
 import me.rerere.rikkahub.data.ai.transformers.transforms
 import me.rerere.rikkahub.data.ai.transformers.visualTransforms
 import me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits
-import me.rerere.rikkahub.data.ai.tools.buildMemoryTools
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -75,7 +74,7 @@ import java.util.Locale
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
-private const val TAG = "GenerationHandler"
+private const val TAG = "GenerationLoop"
 private const val MAX_TOOL_OUTPUT_CHARS = 32 * 1024
 private const val TOOL_OUTPUT_PREVIEW_CHARS = 4 * 1024
 private const val GENERATION_STREAM_RETRY_INITIAL_DELAY_MS = 750L
@@ -456,7 +455,7 @@ internal data class LoopGuardDecision(
 )
 
 /**
- * Pure, testable loop-detection decision, extracted from [GenerationHandler.generateText] so
+ * Pure, testable loop-detection decision, extracted from [GenerationLoop.generateText] so
  * the act-observe reset and freshness-TTL rules can be unit-tested without an Android Context.
  */
 internal object LoopGuard {
@@ -501,7 +500,7 @@ private fun resolveBackendProvider(executionBackend: String, model: Model, provi
         providers.firstOrNull { it.id.toString() == executionBackend }?.let { p -> p to (p.models.firstOrNull() ?: model) }
     }
 
-class GenerationHandler(
+class GenerationLoop(
     private val context: Context,
     private val providerManager: ProviderManager,
     private val json: Json,
@@ -603,35 +602,9 @@ class GenerationHandler(
 
             Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
 
-            val toolsInternal = buildList {
-                Log.i(TAG, "generateInternal: build tools($assistant)")
-                if (assistant.enableMemory) {
-                    val memoryAssistantId = if (assistant.useGlobalMemory) {
-                        MemoryRepository.GLOBAL_MEMORY_ID
-                    } else {
-                        assistant.id.toString()
-                    }
-                    buildMemoryTools(
-                        json = json,
-                        onCreation = { content, tier ->
-                            memoryRepo.addMemory(memoryAssistantId, content, tier)
-                        },
-                        onUpdate = { id, content, tier ->
-                            memoryRepo.updateContent(id, content, tier)
-                        },
-                        onDelete = { id ->
-                            memoryRepo.deleteMemory(id)
-                        },
-                        onSearch = { keyword ->
-                            memoryRepo.searchConditionalMemories(keyword)
-                        },
-                        onListAll = {
-                            memoryRepo.getMemoriesOfAssistant(memoryAssistantId)
-                        },
-                    ).let(this::addAll)
-                }
-                addAll(tools)
-            }
+            // 工具面在调用前由装配工厂统一构建（记忆/搜索/本地/工作区/技能/MCP），
+            // 这里只做只读引用，避免两处拼装漂移。
+            val toolsInternal = tools
 
             // Check if we have tool calls ready to continue after user interaction.
             val pendingTools = messages.lastOrNull()?.getTools()?.filter {

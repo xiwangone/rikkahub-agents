@@ -763,7 +763,7 @@ class TelegramBotService : Service() {
         // shouldAutoApprove(), which the full mark sets true.
         HeadlessConversations.markBrowserHeadless(convId)
         // Register the agent-context preamble as a SYSTEM addendum (sent once per
-        // generation by GenerationHandler) instead of prepending it to the user message.
+        // generation by GenerationLoop) instead of prepending it to the user message.
         // The previous design persisted the preamble inside `UIMessagePart.Text` so it
         // got replayed on every subsequent turn AND every agentic-loop step, burning
         // ~80 tokens × turn count of pure duplication.

@@ -10,7 +10,7 @@ package me.rerere.rikkahub.data.ai.tools
  * order); the prompt only fires when none of those let it through.
  *
  * MCP-relayed tools (any name starting with `mcp__`) are gated separately at the
- * GenerationHandler level — this set covers only locally-defined tools. See
+ * GenerationLoop level — this set covers only locally-defined tools. See
  * [requiresApproval] for the combined logic.
  *
  * If you add a new LLM-callable tool, decide:

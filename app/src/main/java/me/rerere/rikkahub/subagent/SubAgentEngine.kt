@@ -30,7 +30,7 @@ private const val TAG = "SubAgentEngine"
  *
  * The engine reuses the existing cron-headless dispatch pattern (mark conv headless,
  * sendMessage, await generation flow's terminal state). It deliberately does NOT
- * re-implement [me.rerere.rikkahub.data.ai.GenerationHandler] — that path is already
+ * re-implement [me.rerere.rikkahub.data.ai.GenerationLoop] — that path is already
  * battle-tested and any duplicate would diverge.
  *
  * Recursion guard: SubAgentEngine refuses to dispatch if the calling conversation is

@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
-import me.rerere.rikkahub.data.ai.GenerationHandler
+import me.rerere.rikkahub.data.ai.GenerationLoop
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import java.util.Locale
@@ -18,7 +18,7 @@ private const val TAG = "TranslatorVM"
 
 class TranslatorVM(
     private val settingsStore: SettingsStore,
-    private val generationHandler: GenerationHandler,
+    private val generationHandler: GenerationLoop,
 ) : ViewModel() {
     val settings: StateFlow<Settings> =
         settingsStore.settingsFlow

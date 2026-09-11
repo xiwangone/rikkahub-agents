@@ -25,7 +25,7 @@ import kotlin.uuid.Uuid
  * Budget classification uses per_message_max (single-message peak = real context-window
  * size), not total_tokens (sum which double-counts repeated context across turns).
  *
- * v2 (Phase 15.5) will add the live header pill + GenerationHandler-side auto-stop
+ * v2 (Phase 15.5) will add the live header pill + GenerationLoop-side auto-stop
  * integration. Ship the data surface first so the LLM can react in the meantime.
  *
  * Stuck-detection on screen-automation flows (the second half of Phase 15 per spec) is
