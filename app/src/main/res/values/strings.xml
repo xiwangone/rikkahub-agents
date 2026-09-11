@@ -2454,7 +2454,7 @@
   <string name="log_tab_text">Text</string>
   <string name="log_tab_app">App</string>
   <string name="vault_session_title">Unlock session</string>
-  <string name="vault_session_desc">Issue an access authorization after biometric verification (30 minutes or until revoked); it gates the assistant's access to credentials and can be revoked anytime.</string>
+  <string name="vault_session_desc">Issue an access authorization after biometric verification (30 minutes or until revoked); it gates the assistant\'s access to credentials and can be revoked anytime.</string>
   <string name="vault_session_issue">Issue session token</string>
   <string name="vault_session_issued">Session token issued (valid 30 min)</string>
   <string name="vault_session_cancelled">Cancelled (biometric not verified)</string>
