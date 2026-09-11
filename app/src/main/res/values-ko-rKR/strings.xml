@@ -1831,4 +1831,9 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="imggen_page_deleting">삭제 중…</string>
   <string name="imggen_page_selected_count">선택됨: %1$d</string>
   <string name="imggen_page_select_image">이미지 선택</string>
+  <string name="assistant_page_time_reminder_interval">시간 알림 간격</string>
+  <string name="assistant_page_time_reminder_interval_label">간격(분)</string>
+  <string name="assistant_page_time_reminder_interval_hint">양의 정수를 입력하세요. 메시지 간격이 이 값을 초과하면 알림이 삽입됩니다.</string>
+  <string name="assistant_page_time_reminder_interval_desc">메시지 사이의 간격이 이 간격을 초과하면 알림 메시지를 삽입합니다. 항상 첫 번째 사용자 메시지 전에 알림 메시지를 삽입합니다.</string>
+  <string name="assistant_page_time_reminder_interval_value">%1$d분</string>
 </resources>
