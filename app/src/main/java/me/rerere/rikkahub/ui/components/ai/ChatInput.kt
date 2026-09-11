@@ -174,16 +174,18 @@ fun ChatInput(
 
     val containerShape = MaterialTheme.shapes.largeIncreased
 
+    // 发送键在生成中不再变成「停止」：此时按下表示把消息排队（由 ChatService 在
+    // 本轮结束后按序发出），停止改由左侧按钮承担。这样用户无需等待生成结束。
     fun sendMessage() {
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
-        if (loading) onCancelClick() else onSendClick()
+        onSendClick()
     }
 
     fun sendMessageWithoutAnswer() {
         focusManager.clearFocus(force = true)
         keyboardController?.hide()
-        if (loading) onCancelClick() else onLongSendClick()
+        onLongSendClick()
     }
 
     val asr = LocalASRState.current
@@ -263,20 +265,35 @@ fun ChatInput(
                         modifier = Modifier.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        // 功能按钮行折叠开关：收起时箭头向下（点击展开），展开时箭头向上（点击收起）
-                        ActionIconButton(
-                            onClick = toggleFeatureBar,
-                            modifier = Modifier.padding(end = 4.dp),
-                        ) {
-                            Icon(
-                                imageVector =
-                                    if (featureBarCollapsed) {
-                                        HugeIcons.ArrowDown01
-                                    } else {
-                                        HugeIcons.ArrowUp02
-                                    },
-                                contentDescription = stringResource(R.string.chat_input_toggle_toolbar),
-                            )
+                        // 左钮双态：生成中＝停止当前生成；空闲＝功能栏折叠开关
+                        // （收起时箭头向下＝可展开，展开时箭头向上＝可收起）。
+                        // 生成中箭头位被停止占用，因此此时不提供折叠。
+                        if (loading) {
+                            ActionIconButton(
+                                onClick = onCancelClick,
+                                modifier = Modifier.padding(end = 4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = HugeIcons.Cancel01,
+                                    contentDescription = stringResource(R.string.stop),
+                                    tint = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        } else {
+                            ActionIconButton(
+                                onClick = toggleFeatureBar,
+                                modifier = Modifier.padding(end = 4.dp),
+                            ) {
+                                Icon(
+                                    imageVector =
+                                        if (featureBarCollapsed) {
+                                            HugeIcons.ArrowDown01
+                                        } else {
+                                            HugeIcons.ArrowUp02
+                                        },
+                                    contentDescription = stringResource(R.string.chat_input_toggle_toolbar),
+                                )
+                            }
                         }
                         Box(
                             modifier =
@@ -456,20 +473,18 @@ private fun SendButton(
                     .testTag("chat_send_button")
                     .clip(CircleShape)
                     .combinedClickable(
-                        enabled = loading || !state.isEmpty(),
+                        enabled = !state.isEmpty(),
                         onClick = onSend,
                         onLongClick = onLongSend,
                     ),
         ) {
             val containerColor =
                 when {
-                    loading -> MaterialTheme.colorScheme.errorContainer
                     state.isEmpty() -> MaterialTheme.colorScheme.surfaceContainerHigh
                     else -> MaterialTheme.colorScheme.primary
                 }
             val contentColor =
                 when {
-                    loading -> MaterialTheme.colorScheme.onErrorContainer
                     state.isEmpty() -> MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
                     else -> MaterialTheme.colorScheme.onPrimary
                 }
@@ -479,22 +494,14 @@ private fun SendButton(
                 color = containerColor,
                 content = {},
             )
-            if (loading) {
-                KeepScreenOn()
-                Icon(
-                    imageVector = HugeIcons.Cancel01,
-                    contentDescription = stringResource(R.string.stop),
-                    tint = contentColor,
-                    modifier = Modifier.size(24.dp),
-                )
-            } else {
-                Icon(
-                    imageVector = HugeIcons.ArrowUp02,
-                    contentDescription = stringResource(R.string.send),
-                    tint = contentColor,
-                    modifier = Modifier.size(24.dp),
-                )
-            }
+            if (loading) KeepScreenOn()
+            // 生成中保持「发送」形态：按下即排队，不再是停止键。
+            Icon(
+                imageVector = HugeIcons.ArrowUp02,
+                contentDescription = stringResource(R.string.send),
+                tint = contentColor,
+                modifier = Modifier.size(24.dp),
+            )
         }
     }
 }
