@@ -9,6 +9,7 @@ import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 
 data class LocalMcpServerState(
     val isRunning: Boolean = false,
@@ -27,6 +28,7 @@ class LocalMcpServerManager(
     private val context: Context,
     private val settingsStore: SettingsStore,
     private val localTools: LocalTools,
+    private val vaultRepository: CredentialVaultRepository,
 ) {
 
     companion object {
@@ -96,14 +98,31 @@ class LocalMcpServerManager(
     @Volatile
     private var server: LocalMcpServer? = null
 
-    fun start(port: Int = DEFAULT_PORT, tools: List<LocalToolOption> = MCP_EXPOSED_TOOLS) {
+    @Volatile
+    private var currentProfile: LocalMcpProfile? = null
+
+    fun start(
+        port: Int = DEFAULT_PORT,
+        tools: List<LocalToolOption> = MCP_EXPOSED_TOOLS,
+        host: String = "127.0.0.1",
+        authTokenProvider: (suspend () -> String?)? = null,
+        allowedNetworks: String = "",
+    ) {
         if (server != null) {
             Log.w(TAG, "MCP server already running")
             return
         }
         registry.sync(tools)
         val toolCount = registry.size()
-        val candidate = LocalMcpServer(port, registry, approvalBridge)
+        val candidate =
+            LocalMcpServer(
+                port = port,
+                registry = registry,
+                approvalBridge = approvalBridge,
+                host = host,
+                authTokenProvider = authTokenProvider,
+                allowedNetworks = allowedNetworks,
+            )
         runCatching {
             candidate.start()
         }.onFailure { e ->
@@ -113,11 +132,30 @@ class LocalMcpServerManager(
         }
         server = candidate
         _state.value = LocalMcpServerState(isRunning = true, toolCount = toolCount, port = port, error = null)
-        Log.i(TAG, "MCP server started on 127.0.0.1:$port with $toolCount tools")
+        Log.i(TAG, "MCP server started on $host:$port with $toolCount tools")
     }
 
     fun start(profile: LocalMcpProfile) {
-        start(profile.port, profile.allowedTools)
+        currentProfile = profile
+        val host = if (profile.listenScope.equals("loopback", ignoreCase = true)) "127.0.0.1" else "0.0.0.0"
+        val tokenRef = profile.authTokenRef.trim()
+        val tokenProvider: (suspend () -> String?)? =
+            if (tokenRef.isEmpty()) {
+                null
+            } else {
+                {
+                    runCatching {
+                        vaultRepository.getByName(tokenRef)?.let { vaultRepository.decryptValue(it) }
+                    }.getOrNull()
+                }
+            }
+        start(
+            port = profile.port,
+            tools = profile.allowedTools,
+            host = host,
+            authTokenProvider = tokenProvider,
+            allowedNetworks = profile.allowedNetworks,
+        )
     }
 
     fun stop() {
@@ -128,7 +166,12 @@ class LocalMcpServerManager(
     }
 
     fun restart(port: Int = _state.value.port) {
+        val profile = currentProfile
         stop()
-        start(port)
+        if (profile != null) {
+            start(profile.copy(port = port))
+        } else {
+            start(port)
+        }
     }
 }

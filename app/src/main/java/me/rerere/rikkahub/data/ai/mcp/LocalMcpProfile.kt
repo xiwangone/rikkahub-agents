@@ -17,4 +17,10 @@ data class LocalMcpProfile(
     val port: Int = 8788,
     /** 暴露的工具子集；默认空——用户自填。为空时启动后暴露 0 个工具。 */
     val allowedTools: List<LocalToolOption> = emptyList(),
+    /** 监听范围：loopback（仅本机，默认）/ lan / any（所有接口） */
+    val listenScope: String = "loopback",
+    /** 允许访问的来源网段白名单（CIDR，逗号分隔；空 = 不限制）。仅非 loopback 时生效 */
+    val allowedNetworks: String = "",
+    /** 访问令牌的 Vault 凭证名；非空则要求 Authorization: Bearer <该凭证值> */
+    val authTokenRef: String = "",
 )

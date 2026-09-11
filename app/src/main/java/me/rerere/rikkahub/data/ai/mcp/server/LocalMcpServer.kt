@@ -22,6 +22,8 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.Tool
+import me.rerere.rikkahub.utils.isRemoteHostAllowed
+import java.security.MessageDigest
 
 /**
  * 本地 MCP Server（Streamable HTTP，单 POST 端点）。
@@ -34,6 +36,12 @@ class LocalMcpServer(
     private val port: Int,
     private val registry: LocalToolRegistry,
     private val approvalBridge: LocalApprovalBridge,
+    /** 监听地址：127.0.0.1（默认，仅本机）或 0.0.0.0（对外） */
+    private val host: String = HOST,
+    /** 访问令牌提供者：非空则要求 Authorization: Bearer <token>；每次请求解析，支持凭证轮换 */
+    private val authTokenProvider: (suspend () -> String?)? = null,
+    /** 允许访问的来源网段白名单（CIDR，逗号分隔；空 = 不限制） */
+    private val allowedNetworks: String = "",
 ) {
 
     private companion object {
@@ -48,7 +56,7 @@ class LocalMcpServer(
 
     fun start() {
         if (engine != null) return
-        val server = embeddedServer(CIO, port = port, host = HOST, module = { mcpModule() })
+        val server = embeddedServer(CIO, port = port, host = host, module = { mcpModule() })
         server.start(wait = false)
         engine = server
     }
@@ -61,6 +69,34 @@ class LocalMcpServer(
     private fun Application.mcpModule() {
         routing {
             post("/") {
+                // 0) 网段白名单：allowedNetworks 为空 = 不限制
+                val remoteHost = call.request.local.remoteHost
+                if (!isRemoteHostAllowed(remoteHost, allowedNetworks)) {
+                    call.respondText(
+                        "network not allowed: $remoteHost",
+                        ContentType.Text.Plain,
+                        HttpStatusCode.Forbidden,
+                    )
+                    return@post
+                }
+                // 1) 访问令牌：authTokenRef 非空时强制校验（每次请求解析，支持凭证轮换）
+                val expectedToken = authTokenProvider?.invoke()
+                if (!expectedToken.isNullOrBlank()) {
+                    val provided =
+                        call.request.headers["Authorization"]?.let {
+                            if (it.startsWith("Bearer ", ignoreCase = true)) it.substring(7).trim() else it.trim()
+                        }
+                    if (provided.isNullOrBlank() ||
+                        !MessageDigest.isEqual(provided.toByteArray(), expectedToken.toByteArray())
+                    ) {
+                        call.respondText(
+                            "invalid or missing access token",
+                            ContentType.Text.Plain,
+                            HttpStatusCode.Unauthorized,
+                        )
+                        return@post
+                    }
+                }
                 val raw = call.receiveText()
                 val (responseBody, sessionId) = dispatch(raw)
                 if (responseBody == null) {

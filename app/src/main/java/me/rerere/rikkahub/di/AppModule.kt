@@ -275,6 +275,7 @@ val appModule =
                 context = get(),
                 settingsStore = get(),
                 localTools = get(),
+                vaultRepository = get(),
             )
         }
 
