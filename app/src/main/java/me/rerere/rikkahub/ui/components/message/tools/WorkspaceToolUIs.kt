@@ -344,9 +344,17 @@ object ShellToolUI : ToolUIRenderer {
 
     override fun hasSummary(context: ToolUIContext): Boolean = context.content != null
 
+    /**
+     * 命令执行导致的工作区文件改动 diff（由 workspace_shell 工具在执行前后快照对比后写入
+     * 输出 metadata）。存 metadata 而非文本，因此不占模型上下文。
+     */
+    private fun diffOf(context: ToolUIContext): String? =
+        context.tool.output.firstOrNull()?.metadataAs<DiffMetadata>()?.diff?.takeIf { it.isNotBlank() }
+
     @Composable
     override fun Summary(context: ToolUIContext) {
         val content = context.content ?: return
+        val changeDiff = remember(context) { diffOf(context) }
         val combined =
             remember(content) {
                 listOf(content.getStringContent("stdout"), content.getStringContent("stderr"))
@@ -376,6 +384,31 @@ object ShellToolUI : ToolUIRenderer {
                     )
                 }
             }
+            // 该命令改动了工作区文件 → 显示增删统计与精简 diff（与写/改文件一致的红绿呈现）
+            if (changeDiff != null) {
+                val stats = remember(changeDiff) { parseDiffStats(changeDiff) }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = "+${stats.additions}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = DiffAddedColor,
+                    )
+                    Text(
+                        text = "-${stats.deletions}",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = DiffRemovedColor,
+                    )
+                }
+                DiffView(
+                    diff = changeDiff,
+                    modifier = Modifier.fillMaxWidth(),
+                    maxLines = SUMMARY_MAX_LINES,
+                    showFileHeader = false,
+                )
+            }
         }
     }
 
@@ -389,6 +422,7 @@ object ShellToolUI : ToolUIRenderer {
             DefaultToolPreview(context = context)
             return
         }
+        val changeDiff = remember(context) { diffOf(context) }
         val command = context.arguments.getStringContent("command").orEmpty()
         val cwd = context.arguments.getStringContent("cwd")
         val stdout = content.getStringContent("stdout").orEmpty()
@@ -436,6 +470,36 @@ object ShellToolUI : ToolUIRenderer {
                     code = stderr,
                     language = "plaintext",
                     modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            // 命令导致的工作区文件改动：与写/改文件一致的红绿完整 diff
+            if (changeDiff != null) {
+                val stats = remember(changeDiff) { parseDiffStats(changeDiff) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.tool_ui_shell_changed_files),
+                        style = MaterialTheme.typography.labelMedium,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        text = "+${stats.additions}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = DiffAddedColor,
+                    )
+                    Text(
+                        text = "-${stats.deletions}",
+                        style = MaterialTheme.typography.labelMedium,
+                        color = DiffRemovedColor,
+                    )
+                }
+                DiffView(
+                    diff = changeDiff,
+                    modifier = Modifier.fillMaxWidth(),
+                    showFileHeader = true,
                 )
             }
         }

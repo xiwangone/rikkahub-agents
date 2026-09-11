@@ -2936,4 +2936,5 @@
   <string name="assistant_page_time_reminder_interval_value">%1$d دقيقة
 </string>
   <string name="chat_input_pending_queue">في انتظار الإرسال: %1$d · ستُرسل تلقائيًا بالترتيب</string>
+  <string name="tool_ui_shell_changed_files">الملفات التي غيّرها الأمر</string>
 </resources>

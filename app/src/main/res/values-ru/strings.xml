@@ -2937,4 +2937,5 @@
   <string name="browser_address_bar_open_external">Открыть в браузере</string>
   <string name="browser_address_bar_share">Поделиться ссылкой</string>
   <string name="chat_input_pending_queue">Ожидают отправки: %1$d · отправятся по порядку автоматически</string>
+  <string name="tool_ui_shell_changed_files">Файлы, изменённые командой</string>
 </resources>

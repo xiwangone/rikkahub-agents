@@ -2937,4 +2937,5 @@
   <string name="web_bridge_tunnel_failed">터널 설정 실패: %1$s</string>
   <string name="setting_termux_help_allow_external_apps_body">Termux에서 다음을 실행하세요:\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties\n\n그런 다음 Android 앱 정보에서 Termux를 강제 종료하고 다시 여세요. 완료 후 아래의 검증 버튼을 누르세요.</string>
   <string name="chat_input_pending_queue">전송 대기 %1$d건 · 순서대로 자동 전송됩니다</string>
+  <string name="tool_ui_shell_changed_files">명령이 변경한 파일</string>
 </resources>

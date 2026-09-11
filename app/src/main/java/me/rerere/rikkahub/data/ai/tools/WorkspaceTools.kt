@@ -306,19 +306,45 @@ private fun createShellTool(
             injectedEnv = resolved
         }
 
+        // 执行前后各取一次快照：让脚本改动的文件也能像写文件那样显示红绿 diff。
+        // 快照有遍历数与缓存上限，超限即放弃检测（退回原行为，不影响命令执行）。
+        val beforeSnapshot = WorkspaceChangeDiff.takeSnapshot(
+            listFiles = { path -> workspaceRepository.listFiles(workspaceId, me.rerere.workspace.WorkspaceStorageArea.FILES, path) },
+            readText = { path -> runCatching { workspaceRepository.readText(workspaceId, path) }.getOrNull() },
+        )
+
         val result = workspaceRepository.executeCommand(
             workspaceId, command, cwd, timeoutMillis,
             targetId = targetWorkspace, env = injectedEnv,
         )
+
+        val afterSnapshot = WorkspaceChangeDiff.takeSnapshot(
+            listFiles = { path -> workspaceRepository.listFiles(workspaceId, me.rerere.workspace.WorkspaceStorageArea.FILES, path) },
+            readText = { path -> runCatching { workspaceRepository.readText(workspaceId, path) }.getOrNull() },
+        )
+        val changes = WorkspaceChangeDiff.compare(beforeSnapshot, afterSnapshot)
+        val changeDiff =
+            if (changes.isNotEmpty()) WorkspaceChangeDiff.buildDiff(changes, beforeSnapshot, afterSnapshot) else ""
+
         listOf(
             UIMessagePart.Text(
-                buildJsonObject {
+                text = buildJsonObject {
                     put("exitCode", result.exitCode)
                     put("stdout", result.stdout)
                     put("stderr", result.stderr)
                     put("timedOut", result.timedOut)
                     if (result.truncated) put("truncated", true)
-                }.toString()
+                    if (changes.isNotEmpty()) {
+                        put("changedFiles", buildJsonArray {
+                            changes.take(WorkspaceChangePolicy.MAX_CHANGED_FILES).forEach { c ->
+                                add(WorkspaceChangeDiff.kindLabel(c.kind) + " " + c.path)
+                            }
+                        })
+                    }
+                }.toString(),
+                // diff 存入 metadata 供 UI 渲染（不随工具结果发给模型，不占上下文）
+                metadata = changeDiff.takeIf { it.isNotBlank() }
+                    ?.let { d -> DiffMetadata(diff = d).toMetadata() },
             )
         )
     },
