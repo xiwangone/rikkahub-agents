@@ -171,8 +171,13 @@ object HardlineCommandGuard {
             }
             toolName == "ssh_exec" || toolName == "ssh_exec_saved" ->
                 checkCommand(input["command"]?.jsonPrimitive?.contentOrNull)
-            toolName == "shizuku_exec" ->
-                checkCommand(input["command"]?.jsonPrimitive?.contentOrNull)
+            toolName == "shizuku_exec" -> {
+                val single = input["command"]?.jsonPrimitive?.contentOrNull
+                single?.let { checkCommand(it) }?.let { return it }
+                input["commands"]?.jsonArray
+                    ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+                    ?.firstNotNullOfOrNull { checkCommand(it) }
+            }
             toolName == "app_force_stop" || toolName == "app_disable" || toolName == "app_enable" || toolName == "app_uninstall" -> {
                 val pkg = input["package"]?.jsonPrimitive?.contentOrNull
                 checkCommand("am force-stop $pkg") // 复用 checkCommand 的 shell 注入防护；包名本身由工具内 PACKAGE_REGEX 兜底
