@@ -46,6 +46,8 @@ import me.rerere.rikkahub.data.ai.tools.local.getAppSettingsTool
 import me.rerere.rikkahub.data.ai.tools.local.globalActionTool
 import me.rerere.rikkahub.data.ai.tools.local.readAppLogsTool
 import me.rerere.rikkahub.data.ai.tools.local.readRequestLogsTool
+import me.rerere.rikkahub.data.ai.tools.local.readCrashSnapshotTool
+import me.rerere.rikkahub.data.ai.tools.local.readLifecycleLogsTool
 import me.rerere.rikkahub.data.ai.tools.local.testModelTool
 import me.rerere.rikkahub.data.ai.tools.local.listContactsTool
 import me.rerere.rikkahub.data.ai.tools.local.listSensorsTool
@@ -1108,6 +1110,8 @@ class LocalTools(
         if (options.contains(LocalToolOption.AppDiagnostics)) {
             tools.add(getAppHealthTool(doctorChecks, context))
             tools.add(getAppSettingsTool(settingsStore))
+            tools.add(readCrashSnapshotTool(context))
+            tools.add(readLifecycleLogsTool(context))
         }
         if (options.contains(LocalToolOption.AppLogs)) {
             tools.add(readAppLogsTool(context))

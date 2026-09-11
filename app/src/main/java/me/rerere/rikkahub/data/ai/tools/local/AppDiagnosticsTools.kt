@@ -421,3 +421,93 @@ private suspend fun <T : ProviderSetting> probeProvider(
 
     return ProviderProbeResults(nonStreaming, streaming, toolCall)
 }
+
+
+// ---------- read_crash_snapshot ----------
+
+/**
+ * 读取崩溃快照（主线程未捕获异常的现场）：堆栈 + AppLog 尾部 + 请求尾部 + 生命周期尾部。
+ *
+ * 快照保留最近 3 次（crash-latest / crash-1 / crash-2），便于回溯复发问题；文件由
+ * CrashHandler 在崩溃时同步写出，因此即使进程随即退出也可读。
+ */
+fun readCrashSnapshotTool(context: Context): Tool = Tool(
+    name = "read_crash_snapshot",
+    description = """Read the persisted crash snapshot(s) written when the app hit an uncaught exception on the main thread. A snapshot contains the stack trace plus tails of the app log, HTTP request log and process lifecycle log. The most recent 3 crashes are kept (crash-latest, crash-1, crash-2). Use this to explain an unexpected restart or a crash the user reports. Returns "(no crash snapshot)" when the app has not crashed yet.""".trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("which", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Which snapshot: latest (default), 1, or 2 (older).")
+                })
+            },
+            required = emptyList(),
+        )
+    },
+    execute = {
+        val which = it.jsonObject["which"]?.jsonPrimitive?.contentOrNull
+            ?.trim()?.lowercase(Locale.US)?.takeIf { s -> s.isNotEmpty() } ?: "latest"
+        val fileName =
+            when (which) {
+                "1" -> "crash-1.txt"
+                "2" -> "crash-2.txt"
+                else -> "crash-latest.txt"
+            }
+        val dir = context.getDir("crash", Context.MODE_PRIVATE)
+        val file = java.io.File(dir, fileName)
+        val text =
+            if (file.exists()) {
+                runCatching { file.readText(Charsets.UTF_8) }.getOrDefault("")
+            } else {
+                ""
+            }
+        val available =
+            listOf("crash-latest.txt", "crash-1.txt", "crash-2.txt")
+                .filter { java.io.File(dir, it).exists() }
+                .joinToString(", ")
+        val header = "[$fileName] available snapshots: ${available.ifEmpty { "(none)" }}"
+        val body = text.take(20_000)
+        // 快照写入时已脱敏，这里再兜底一次（旧快照或异常路径可能未覆盖）
+        val out = if (body.isBlank()) "$header\n(no crash snapshot)" else "$header\n$body"
+        listOf(UIMessagePart.Text(LogRedactor.maskText(out)))
+    },
+)
+
+// ---------- read_lifecycle_logs ----------
+
+/**
+ * 读取进程生命周期记录：每次进程启动的原因（正常启动 / 疑似被系统杀死 / 崩溃重启）、
+ * 前台后台切换、以及内存回收级别（TRIM_UI_HIDDEN 等）。
+ *
+ * 这是判断「退到后台再回来像重启、会话历史不见」类问题的直接证据：若日志里出现
+ * PROCESS_START 且原因为「疑似被系统杀死」，说明是进程级回收而非界面问题。
+ */
+fun readLifecycleLogsTool(context: Context): Tool = Tool(
+    name = "read_lifecycle_logs",
+    description = """Read the process lifecycle log: each process start with its inferred reason (fresh start / likely killed by the system / restarted after a crash), foreground/background transitions, and memory-trim levels. Use this to diagnose "returning to the app looks like a restart" or "the app was killed in the background" reports. Newest lines are at the end.""".trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("lines", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "How many trailing lines to return (default 60, max 500).")
+                })
+            },
+            required = emptyList(),
+        )
+    },
+    execute = {
+        val lines = (it.jsonObject["lines"]?.jsonPrimitive?.intOrNull ?: 60).coerceIn(1, 500)
+        val raw =
+            me.rerere.rikkahub.data.log.FileLogSink.recentLines(
+                me.rerere.rikkahub.data.log.FileLogSink.KIND_LIFECYCLE,
+                lines,
+            )
+        listOf(
+            UIMessagePart.Text(
+                if (raw.isBlank()) "(no lifecycle records yet)" else raw
+            )
+        )
+    },
+)
