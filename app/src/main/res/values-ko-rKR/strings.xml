@@ -2948,4 +2948,10 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="web_bridge_keyfile_missing">개인 키 파일이 없습니다: %1$s('SSH 키 생성'을 누르면 경로가 자동 입력됩니다)</string>
   <string name="web_bridge_keyfile_empty">개인 키 파일이 비어 있습니다: %1$s(SSH 키를 다시 생성하세요)</string>
   <string name="web_bridge_tunnel_failed">터널 설정 실패: %1$s</string>
+  <string name="setting_termux_help_allow_external_apps_body">Termux에서 다음을 실행하세요:
+
+  mkdir -p ~/.termux
+  echo 'allow-external-apps=true' &gt;&gt; ~/.termux/termux.properties
+
+그런 다음 Android 앱 정보에서 Termux를 강제 종료하고 다시 여세요. 완료 후 아래의 검증 버튼을 누르세요.</string>
 </resources>

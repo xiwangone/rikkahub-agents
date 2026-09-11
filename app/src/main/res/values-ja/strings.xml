@@ -2948,4 +2948,10 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
   <string name="web_bridge_keyfile_missing">秘密鍵ファイルが存在しません: %1$s（「SSH キーを生成」を押すとパスが自動入力されます）</string>
   <string name="web_bridge_keyfile_empty">秘密鍵ファイルが空です: %1$s（SSH キーを再生成してください）</string>
   <string name="web_bridge_tunnel_failed">トンネル確立に失敗: %1$s</string>
+  <string name="setting_termux_help_allow_external_apps_body">Termux で以下を実行します:
+
+  mkdir -p ~/.termux
+  echo 'allow-external-apps=true' &gt;&gt; ~/.termux/termux.properties
+
+その後、Android のアプリ情報から Termux を強制停止して開き直してください。完了したら下の検証ボタンをタップします。</string>
 </resources>
