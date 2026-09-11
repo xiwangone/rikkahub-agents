@@ -536,6 +536,10 @@ private fun ImageGalleryScreen(
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     val pullToRefreshState = rememberPullToRefreshState()
+    var selectionMode by remember { mutableStateOf(false) }
+    var selectedImages by remember { mutableStateOf<Map<Int, GeneratedImage>>(emptyMap()) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
+    var isDeleting by remember { mutableStateOf(false) }
 
     fun clearSelection() {
         selectionMode = false
