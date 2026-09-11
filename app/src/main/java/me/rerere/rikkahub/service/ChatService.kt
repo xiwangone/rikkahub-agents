@@ -1049,6 +1049,26 @@ class ChatService(
                     model = model,
                     processingStatus = session.processingStatus,
                     onRetryDiagnosed = { retryDiagnosis = it },
+                    // 生成期间用户补充的消息：在本轮每个 step 结束后立即注入请求历史，
+                    // 同时落库，保证 UI 与历史一致（不必等整轮结束）。
+                    drainQueuedMessages = {
+                        val taken = messageQueues[conversationId]?.drainAll().orEmpty()
+                        if (taken.isNotEmpty()) {
+                            val conv = getConversationFlow(conversationId).value
+                            val withQueued =
+                                conv.copy(
+                                    messageNodes =
+                                        conv.messageNodes +
+                                            taken.map { queued ->
+                                                UIMessage(role = MessageRole.USER, parts = queued.parts)
+                                                    .toMessageNode()
+                                            },
+                                )
+                            saveConversation(conversationId, withQueued)
+                            AppLog.i(TAG, "msg-inject conv=$conversationId count=${taken.size}")
+                        }
+                        taken.map { UIMessage(role = MessageRole.USER, parts = it.parts) }
+                    },
                     // Read once per call so the surface that wrote the addendum (Telegram bot,
                     // anything else) gets its runtime context into the system prompt without
                     // having to plumb a parameter all the way through sendMessage. Returns null

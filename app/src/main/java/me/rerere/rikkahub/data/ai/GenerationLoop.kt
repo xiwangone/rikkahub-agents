@@ -534,6 +534,10 @@ class GenerationLoop(
         // result. ChatService uses this to reassert the foreground service before a background
         // continuation opens a new socket.
         onBeforeModelRequest: suspend () -> Unit = {},
+        // 取出用户在生成期间排队补充的消息，在**每个 step 结束（工具执行完）后**立即追加到
+        // 请求历史，使「及时修正/补充」在下一 step 就被模型看到，而不必等整轮结束。
+        // 返回的消息会随 GenerationChunk.Messages 一并 emit，由 ChatService 落库。
+        drainQueuedMessages: suspend () -> List<UIMessage> = { emptyList() },
         // Returns true when the user has pre-approved [toolName] for this turn (e.g.
         // "Allow for this chat" or "Always Allow" granted earlier). When true, the loop
         // below skips the Pending flip and lets the tool execute. ChatService injects the
@@ -1121,6 +1125,25 @@ class GenerationLoop(
             onAfterToolExecution(messages)?.let { compactedMessages ->
                 Log.i(TAG, "generateText: replacing request history after tool execution")
                 messages = compactedMessages
+            }
+
+            // 队列消息在「本 step 的工具执行完毕、下一次模型请求之前」插入：
+            // 用户的补充/修正能在下一 step 直接被模型看到（而不是等整轮结束）。
+            val queued = drainQueuedMessages()
+            if (queued.isNotEmpty()) {
+                AppLog.i(TAG, "generateText: injecting ${queued.size} queued user message(s) at end of step #$stepIndex")
+                messages = messages + queued
+                emit(
+                    GenerationChunk.Messages(
+                        messages.transforms(
+                            transformers = outputTransformers,
+                            context = context,
+                            model = model,
+                            assistant = assistant,
+                            settings = settings,
+                        )
+                    )
+                )
             }
         }
 
