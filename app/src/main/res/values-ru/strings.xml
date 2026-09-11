@@ -858,7 +858,7 @@
   <string name="net_scope_lan">Локальная сеть / интранет</string>
   <string name="net_scope_any">Все интерфейсы</string>
   <string name="net_allowed_networks">Разрешённые сети (CIDR)</string>
-  <string name="net_allowed_networks_desc">Через запятую, напр. 100.64.0.0/10,192.168.31.0/24. Пусто = без ограничений</string>
+  <string name="net_allowed_networks_desc">Через запятую. Пример: 10.0.0.0/8,192.168.0.0/16. Пусто = без ограничений</string>
   <string name="mcp_profile_listen_scope">Область прослушивания (локальный MCP)</string>
   <string name="mcp_auth_token_ref">Имя учётных данных токена доступа</string>
   <string name="mcp_auth_token_ref_desc">Если задано, каждый запрос должен содержать заголовок Authorization: Bearer из этих учётных данных. Управляется в хранилище учётных данных.</string>
@@ -1909,7 +1909,7 @@
   <string name="backup_page_item_avatars">Аватары</string>
   <string name="backup_page_item_avatars_desc">Изображения аватаров пользователя и ассистентов</string>
   <string name="backup_page_item_workspace_docs">Документы рабочей области</string>
-  <string name="backup_page_item_workspace_docs_desc">真源/learnings/память (без системного слоя, tmp, .git)</string>
+  <string name="backup_page_item_workspace_docs_desc">Документы рабочей области: память и записи об обучении (без системного слоя, tmp, .git)</string>
   <string name="backup_page_item_skills">Навыки</string>
   <string name="backup_page_item_skills_desc">Установленные навыки Agent</string>
   <string name="backup_page_item_chat_files">Изображения чатов</string>

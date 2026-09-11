@@ -865,7 +865,7 @@
   <string name="net_scope_lan">LAN / イントラネット</string>
   <string name="net_scope_any">すべてのインターフェース</string>
   <string name="net_allowed_networks">許可ネットワーク（CIDR）</string>
-  <string name="net_allowed_networks_desc">カンマ区切り 例: 100.64.0.0/10,192.168.31.0/24。空欄 = 制限なし</string>
+  <string name="net_allowed_networks_desc">カンマ区切り。例: 10.0.0.0/8,192.168.0.0/16。空欄 = 制限なし</string>
   <string name="mcp_profile_listen_scope">リッスン範囲（ローカル MCP）</string>
   <string name="mcp_auth_token_ref">アクセストークンの認証情報名</string>
   <string name="mcp_auth_token_ref_desc">設定すると各リクエストにこの認証情報から作る Authorization: Bearer ヘッダーが必要です。「安全な認証情報」で管理します。</string>
@@ -1916,7 +1916,7 @@
   <string name="backup_page_item_avatars">アバター</string>
   <string name="backup_page_item_avatars_desc">ユーザーとアシスタントのアバター画像</string>
   <string name="backup_page_item_workspace_docs">ワークスペース文書</string>
-  <string name="backup_page_item_workspace_docs_desc">真源/learnings/メモリ（システム層、tmp、.git を除く）</string>
+  <string name="backup_page_item_workspace_docs_desc">ワークスペース文書：メモリと学習記録（システム層、tmp、.git を除く）</string>
   <string name="backup_page_item_skills">スキル</string>
   <string name="backup_page_item_skills_desc">インストール済みの Agent スキル</string>
   <string name="backup_page_item_chat_files">チャット画像</string>

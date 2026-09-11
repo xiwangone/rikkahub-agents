@@ -865,7 +865,7 @@
   <string name="net_scope_lan">LAN / 인트라넷</string>
   <string name="net_scope_any">모든 인터페이스</string>
   <string name="net_allowed_networks">허용 네트워크(CIDR)</string>
-  <string name="net_allowed_networks_desc">쉼표로 구분, 예: 100.64.0.0/10,192.168.31.0/24. 비우면 제한 없음</string>
+  <string name="net_allowed_networks_desc">쉼표로 구분. 예: 10.0.0.0/8,192.168.0.0/16. 비우면 제한 없음</string>
   <string name="mcp_profile_listen_scope">수신 범위(로컬 MCP)</string>
   <string name="mcp_auth_token_ref">액세스 토큰 자격 증명 이름</string>
   <string name="mcp_auth_token_ref_desc">설정하면 각 요청에 이 자격 증명으로 만든 Authorization: Bearer 헤더가 필요합니다. 보안 자격 증명에서 관리하세요.</string>
@@ -1916,7 +1916,7 @@
   <string name="backup_page_item_avatars">아바타</string>
   <string name="backup_page_item_avatars_desc">사용자 및 어시스턴트 아바타 이미지</string>
   <string name="backup_page_item_workspace_docs">워크스페이스 문서</string>
-  <string name="backup_page_item_workspace_docs_desc">真源/learnings/메모리(시스템 계층, tmp, .git 제외)</string>
+  <string name="backup_page_item_workspace_docs_desc">워크스페이스 문서: 메모리 및 학습 기록(시스템 계층, tmp, .git 제외)</string>
   <string name="backup_page_item_skills">스킬</string>
   <string name="backup_page_item_skills_desc">설치된 Agent 스킬</string>
   <string name="backup_page_item_chat_files">채팅 이미지</string>

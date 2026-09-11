@@ -215,7 +215,7 @@
   <string name="backup_page_item_avatars">Avatars</string>
   <string name="backup_page_item_avatars_desc">User &amp; assistant avatar images</string>
   <string name="backup_page_item_workspace_docs">Workspace docs</string>
-  <string name="backup_page_item_workspace_docs_desc">真源/learnings/memories (excludes rootfs, tmp, .git)</string>
+  <string name="backup_page_item_workspace_docs_desc">Workspace documents: memories and learnings (excludes rootfs, tmp, .git)</string>
   <string name="backup_page_item_skills">Skills</string>
   <string name="backup_page_item_skills_desc">Installed agent skills</string>
   <string name="backup_page_item_chat_files">Chat images</string>
@@ -1036,7 +1036,7 @@
   <string name="net_scope_lan">LAN / intranet</string>
   <string name="net_scope_any">All interfaces</string>
   <string name="net_allowed_networks">Allowed networks (CIDR)</string>
-  <string name="net_allowed_networks_desc">Comma separated, e.g. 100.64.0.0/10,192.168.31.0/24. Empty = no restriction</string>
+  <string name="net_allowed_networks_desc">Comma separated. Example: 10.0.0.0/8,192.168.0.0/16. Empty = no restriction</string>
   <string name="mcp_profile_listen_scope">Listen scope (local MCP)</string>
   <string name="mcp_auth_token_ref">Access token credential name</string>
   <string name="mcp_auth_token_ref_desc">When set, each request must carry an Authorization: Bearer header built from this credential. Manage it in Security Vault.</string>
@@ -2781,7 +2781,7 @@
   <string name="doctor_msg_stranded_some">%1$s run(s) started over 30 min ago and never reported back. Likely a process kill mid-run.</string>
   <string name="doctor_msg_litert_cpu_mldrift">CPU (fallback: this device\'s GPU delegate failed to initialize, likely an MLDrift issue. Tap \'Re-detect\' in Settings, Local LiteRT to retry with a fresh probe.)</string>
   <string name="doctor_msg_rate_detail">Last known rates per model (estimated from characters, ~10%% accurate for English text):\n%1$s</string>
-  <string name="doctor_msg_vision_detail">This device does not support the vision encoder of: %1$s. These multimodal models run in text-only mode — chat works, image inputs don\'t. Often fixed by a future LiteRT-LM SDK update (the OpenGL fallback path\'s CreateSharedMemoryManager is currently UNIMPLEMENTED upstream). Tap \'Re-try vision\' next to the model in Settings, Local LiteRT after a GPU driver update to clear the flag.</string>
+  <string name="doctor_msg_vision_detail">This device does not support the vision encoder of: %1$s. These multimodal models run in text-only mode — chat works, image inputs don\'t. Often fixed by a future LiteRT-LM SDK update (the OpenGL fallback path\'s CreateSharedMemoryManager is currently not implemented in the SDK). Tap \'Re-try vision\' next to the model in Settings, Local LiteRT after a GPU driver update to clear the flag.</string>
   <string name="doctor_msg_browser_mkdir_failed">mkdirs() returned false; the underlying storage may be read-only.</string>
   <string name="doctor_summary_fail">Failures</string>
   <string name="doctor_summary_warn">Warnings</string>

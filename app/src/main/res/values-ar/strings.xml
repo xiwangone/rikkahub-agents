@@ -861,7 +861,7 @@
   <string name="net_scope_lan">الشبكة المحلية / الداخلية</string>
   <string name="net_scope_any">جميع الواجهات</string>
   <string name="net_allowed_networks">الشبكات المسموح بها (CIDR)</string>
-  <string name="net_allowed_networks_desc">مفصولة بفواصل، مثال: 100.64.0.0/10,192.168.31.0/24. فارغ = بلا قيود</string>
+  <string name="net_allowed_networks_desc">مفصولة بفواصل. مثال: 10.0.0.0/8,192.168.0.0/16. فارغ = بلا قيود</string>
   <string name="mcp_profile_listen_scope">نطاق الاستماع (MCP المحلي)</string>
   <string name="mcp_auth_token_ref">اسم بيانات اعتماد رمز الوصول</string>
   <string name="mcp_auth_token_ref_desc">عند التعيين يجب أن يحمل كل طلب ترويسة Authorization: Bearer مبنية على بيانات الاعتماد هذه. تُدار في مخزن بيانات الاعتماد.</string>
@@ -1569,7 +1569,7 @@
   <string name="backup_page_item_avatars">الصور الرمزية</string>
   <string name="backup_page_item_avatars_desc">صور المستخدم والمساعدين</string>
   <string name="backup_page_item_workspace_docs">مستندات مساحة العمل</string>
-  <string name="backup_page_item_workspace_docs_desc">真源/learnings/الذاكرة (باستثناء طبقة النظام وtmp و.git)</string>
+  <string name="backup_page_item_workspace_docs_desc">مستندات مساحة العمل: الذاكرة وسجلات التعلّم (باستثناء طبقة النظام وtmp و.git)</string>
   <string name="backup_page_item_skills">المهارات</string>
   <string name="backup_page_item_skills_desc">مهارات Agent المثبَّتة</string>
   <string name="backup_page_item_chat_files">صور المحادثات</string>

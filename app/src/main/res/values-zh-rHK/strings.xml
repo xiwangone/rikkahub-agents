@@ -863,7 +863,7 @@
   <string name="net_scope_lan">區域網路 / 內網</string>
   <string name="net_scope_any">所有介面</string>
   <string name="net_allowed_networks">允許網段（CIDR）</string>
-  <string name="net_allowed_networks_desc">逗號分隔，如 100.64.0.0/10,192.168.31.0/24；留空 = 不限制</string>
+  <string name="net_allowed_networks_desc">逗號分隔。示例：10.0.0.0/8,192.168.0.0/16；留空 = 不限制</string>
   <string name="mcp_profile_listen_scope">監聽範圍（本機 MCP）</string>
   <string name="mcp_auth_token_ref">存取權杖憑證名稱</string>
   <string name="mcp_auth_token_ref_desc">非空則要求請求攜帶 Authorization: Bearer 標頭（取該憑證的值）；憑證在「安全憑證庫」中管理。</string>
@@ -2057,7 +2057,7 @@
     <string name="backup_page_item_avatars">頭像</string>
     <string name="backup_page_item_avatars_desc">使用者與助手頭像圖片</string>
     <string name="backup_page_item_workspace_docs">工作區文件</string>
-    <string name="backup_page_item_workspace_docs_desc">真源/learnings/記憶（不含系統層、tmp、.git）</string>
+    <string name="backup_page_item_workspace_docs_desc">工作區文件：記憶與學習記錄（不含系統層、tmp、.git）</string>
     <string name="backup_page_item_skills">技能</string>
     <string name="backup_page_item_skills_desc">已安裝的 Agent 技能</string>
     <string name="backup_page_item_chat_files">聊天圖片</string>
@@ -2796,7 +2796,7 @@
   <string name="doctor_msg_stranded_some">%1$s 次運行在 30 分鐘前啓動後一直未回報，可能是進程中途被殺。</string>
   <string name="doctor_msg_litert_cpu_mldrift">CPU（備用：本機 GPU delegate 初始化失敗，可能是 MLDrift 問題。可在設置 → 本地 LiteRT 中點擊「重新探測」再試。）</string>
   <string name="doctor_msg_rate_detail">各模型最近已知速率（按字符估算，英文文本約 10%% 精度）：\n%1$s</string>
-  <string name="doctor_msg_vision_detail">本機不支持以下模型的視覺編碼器：%1$s。這些多模態模型會退化為純文本模式——對話可用，但無法輸入圖片。通常需等待未來 LiteRT-LM SDK 更新（OpenGL 備用路徑的 CreateSharedMemoryManager 上游尚未實現）。GPU 驅動更新後，可在設置 → 本地 LiteRT 中對該模型點擊「重試視覺」以清除標記。</string>
+  <string name="doctor_msg_vision_detail">本機不支持以下模型的視覺編碼器：%1$s。這些多模態模型會退化為純文本模式——對話可用，但無法輸入圖片。通常需等待未來 LiteRT-LM SDK 更新（OpenGL 備用路徑的 CreateSharedMemoryManager 尚未提供實作）。GPU 驅動更新後，可在設置 → 本地 LiteRT 中對該模型點擊「重試視覺」以清除標記。</string>
   <string name="doctor_msg_browser_mkdir_failed">mkdirs() 返回 false；底層存儲可能為只讀。</string>
   <string name="doctor_summary_fail">失敗</string>
   <string name="doctor_summary_warn">警告</string>

@@ -215,7 +215,7 @@
   <string name="backup_page_item_avatars">头像</string>
   <string name="backup_page_item_avatars_desc">用户与助手头像图片</string>
   <string name="backup_page_item_workspace_docs">工作区文档</string>
-  <string name="backup_page_item_workspace_docs_desc">真源/learnings/记忆（不含系统层、tmp、.git）</string>
+  <string name="backup_page_item_workspace_docs_desc">工作区文档：记忆与学习记录（不含系统层、tmp、.git）</string>
   <string name="backup_page_item_skills">技能</string>
   <string name="backup_page_item_skills_desc">已安装的 Agent 技能</string>
   <string name="backup_page_item_chat_files">聊天图片</string>
@@ -998,7 +998,7 @@
   <string name="net_scope_lan">局域网 / 内网</string>
   <string name="net_scope_any">所有接口</string>
   <string name="net_allowed_networks">允许网段（CIDR）</string>
-  <string name="net_allowed_networks_desc">逗号分隔，如 100.64.0.0/10,192.168.31.0/24；留空 = 不限制</string>
+  <string name="net_allowed_networks_desc">逗号分隔。示例：10.0.0.0/8,192.168.0.0/16；留空 = 不限制</string>
   <string name="mcp_profile_listen_scope">监听范围（本地 MCP）</string>
   <string name="mcp_auth_token_ref">访问令牌凭证名</string>
   <string name="mcp_auth_token_ref_desc">非空则要求请求携带 Authorization: Bearer 头（取该凭证的值）；凭证在「安全凭证库」中管理。</string>
@@ -2781,7 +2781,7 @@
   <string name="doctor_msg_stranded_some">%1$s 次运行在 30 分钟前启动后一直未回报，可能是进程中途被杀。</string>
   <string name="doctor_msg_litert_cpu_mldrift">CPU（备用：本机 GPU delegate 初始化失败，可能是 MLDrift 问题。可在设置 → 本地 LiteRT 中点击「重新探测」再试。）</string>
   <string name="doctor_msg_rate_detail">各模型最近已知速率（按字符估算，英文文本约 10%% 精度）：\n%1$s</string>
-  <string name="doctor_msg_vision_detail">本机不支持以下模型的视觉编码器：%1$s。这些多模态模型会退化为纯文本模式——对话可用，但无法输入图片。通常需等待未来 LiteRT-LM SDK 更新（OpenGL 备用路径的 CreateSharedMemoryManager 上游尚未实现）。GPU 驱动更新后，可在设置 → 本地 LiteRT 中对该模型点击「重试视觉」以清除标记。</string>
+  <string name="doctor_msg_vision_detail">本机不支持以下模型的视觉编码器：%1$s。这些多模态模型会退化为纯文本模式——对话可用，但无法输入图片。通常需等待未来 LiteRT-LM SDK 更新（OpenGL 备用路径的 CreateSharedMemoryManager 尚未提供实现）。GPU 驱动更新后，可在设置 → 本地 LiteRT 中对该模型点击「重试视觉」以清除标记。</string>
   <string name="doctor_msg_browser_mkdir_failed">mkdirs() 返回 false；底层存储可能为只读。</string>
   <string name="doctor_summary_fail">失败</string>
   <string name="doctor_summary_warn">警告</string>
