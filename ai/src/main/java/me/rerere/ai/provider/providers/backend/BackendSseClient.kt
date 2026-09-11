@@ -27,11 +27,10 @@ enum class ConnectionState {
 /**
  * Backend SSE 客户端 — 连接 /events 端点，实时接收服务端推送的消息流。
  *
- * 来源（2026-08-13 合规标注修正）：
- * - 基础 SSE/EventSource 模式：通用实现（早期参考 DeepSeek-Backend-android——该仓库无 LICENSE，
- *   已在本轮重写中剥离其独有逻辑）
- * - 热流 + turn_done 多轮收尾（4ec3fb79）
- * - 断线重连/连接状态（健壮化）：吸收 Backend Agents（MIT）思路自行重写（c5a143fc）
+ * 实现要点：
+ * - 基础 SSE / EventSource 模式
+ * - 热流 + turn_done 多轮收尾
+ * - 断线重连与连接状态（指数退避）
  *
  * 健壮性：热流单连接多消费者；网络错误指数退避重连（1s→2s→4s…封顶 30s）；HTTP 错误不重连；
  * 连接状态经 [connectionState] 暴露（可驱动顶栏状态点）。
