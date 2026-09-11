@@ -2053,9 +2053,10 @@
   <string name="setting_page_vault_desc">API キーや各種資格情報を安全に管理</string>
   <string name="vault_credential_count">資格情報庫（%1$d 件）</string>
   <string name="vault_manage_credentials">資格情報を管理</string>
-  <string name="vault_fingerprint_title">生体認証（開発中）</string>
-  <string name="vault_fingerprint_desc">資格情報庫を開くときに指紋・画面ロックを要求</string>
-  <string name="vault_fingerprint_plan">予定: BiometricPrompt + CryptoObject を Keystore 鍵に紐付け、指紋認証が通って初めて復号を解放します。</string>
+  <string name="vault_page_intro">認証情報の値は Android Keystore（AES-GCM）で暗号化して保存されます。AI は平文を参照できず、名前で参照するだけです。</string>
+  <string name="vault_fingerprint_title">生体認証ゲート</string>
+  <string name="vault_fingerprint_desc">認証情報の表示・エクスポート前に指紋 / 画面ロック認証を要求</string>
+  <string name="vault_fingerprint_plan">有効にすると、認証情報の表示・エクスポート時に指紋（または画面ロック）認証が必要になります。</string>
   <string name="vault_import_title">ファイルからインポート</string>
   <string name="vault_import_desc">load-creds.sh 形式（export KEY="value" と # によるブロックコメント）に対応。端末上の資格情報ファイルを選ぶと一括インポートできます。</string>
   <string name="vault_import_button">ファイルを選択してインポート</string>
@@ -2570,8 +2571,8 @@
   <string name="grok_enable">Grok を有効化</string>
   <string name="grok_enter_code_prompt">ブラウザでログインを承認してください。コードが自動入力されない場合は手動で入力してください:</string>
   <string name="grok_no_accounts">Grok アカウントにログインしていません。</string>
-  <string name="vault_export_title">緊急エクスポート / セッション解除（開発中）</string>
-  <string name="vault_export_desc">今後: パスワード暗号化した .vault パッケージの書き出し、サンドボックス/ECS のリモート要求向け短時間のセッション解除。</string>
+  <string name="vault_export_title">緊急エクスポート</string>
+  <string name="vault_export_desc">パスワードで暗号化した .vault パッケージ、または平文 CSV / Bitwarden JSON でエクスポートできます（平文は慎重に保管してください）。</string>
   <string name="vault_danger_zone">危険ゾーン</string>
   <string name="vault_clear_all">すべての資格情報を削除</string>
   <string name="vault_clear_confirm_title">すべての資格情報を削除しますか？</string>
@@ -2730,7 +2731,7 @@
   <string name="log_tab_text">テキスト</string>
   <string name="log_tab_app">アプリ</string>
   <string name="vault_session_title">セッション解除</string>
-  <string name="vault_session_desc">生体認証後に 30 分間有効なセッション token を発行し、サンドボックス/ECS が Web ブリッジ経由で資格情報を復号できるようにします。</string>
+  <string name="vault_session_desc">指紋認証後にアクセス許可を発行します（30 分または無期限）。AI ツールが認証情報へアクセスするためのゲートで、いつでも取り消せます。</string>
   <string name="vault_session_issue">セッション token を発行</string>
   <string name="vault_session_issued">セッション token を発行しました（30 分有効）</string>
   <string name="vault_session_cancelled">キャンセルしました（生体認証に失敗）</string>
@@ -2773,7 +2774,7 @@
   <string name="vault_session_mode_manual_desc">token は常時有効（失効しません）。手動で取消した場合のみ失効します</string>
   <string name="vault_session_empty">セッションがありません</string>
   <string name="vault_session_label_default">既定</string>
-  <string name="vault_session_list_desc">発行済みのすべてのセッション。個別に取消または token をコピーできます</string>
+  <string name="vault_session_list_desc">発行済みの認可セッション一覧。個別に取り消せます</string>
   <string name="vault_session_list_title">セッション一覧</string>
   <string name="setting_web_bridge_gen_success_vault">✅ 生成してキーストアに保存しました（グループ: SSH）\n秘密鍵パスを書き込みました: %1$s\n公開鍵をサーバーの ~/.ssh/authorized_keys に追加してください:\n%2$s</string>
   <string name="setting_web_bridge_gen_success">✅ %1$s に生成しました\n公開鍵をサーバーの ~/.ssh/authorized_keys に追加してください:\n%2$s</string>

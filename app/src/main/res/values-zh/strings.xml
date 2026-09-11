@@ -2123,14 +2123,15 @@
   <string name="setting_page_vault_desc">安全管理 API 密钥与各类凭证</string>
   <string name="vault_credential_count">密钥库凭证（%1$d 条）</string>
   <string name="vault_manage_credentials">管理密钥</string>
-  <string name="vault_fingerprint_title">指纹认证（开发中）</string>
-  <string name="vault_fingerprint_desc">打开凭证库时要求指纹/锁屏验证</string>
-  <string name="vault_fingerprint_plan">计划：BiometricPrompt + CryptoObject 绑定 Keystore 密钥，指纹通过才释放解密能力。</string>
+  <string name="vault_page_intro">凭证值由 Android Keystore（AES-GCM）加密存储；AI 全程不见明文，只能按名称引用。</string>
+  <string name="vault_fingerprint_title">指纹门禁</string>
+  <string name="vault_fingerprint_desc">查看或导出凭证前需指纹 / 锁屏验证</string>
+  <string name="vault_fingerprint_plan">开启后，查看或导出凭证值需先通过指纹（或锁屏）验证。</string>
   <string name="vault_import_title">从文件导入</string>
   <string name="vault_import_desc">支持 load-creds.sh 格式（export KEY="value" + # 注释分组）。选择手机上的凭证文件即可批量导入。</string>
   <string name="vault_import_button">选择文件导入</string>
-  <string name="vault_export_title">应急导出 / 解锁会话（开发中）</string>
-  <string name="vault_export_desc">后续：口令加密导出 .vault 包、短时解锁会话供沙箱/ECS 远程请求解密。</string>
+  <string name="vault_export_title">应急导出</string>
+  <string name="vault_export_desc">支持口令加密的 .vault 包，以及明文 CSV / Bitwarden JSON（后两者请谨慎保管）。</string>
   <string name="vault_danger_zone">危险区</string>
   <string name="vault_clear_all">清空全部凭证</string>
   <string name="vault_clear_confirm_title">清空全部凭证？</string>
@@ -2420,7 +2421,7 @@
   <string name="log_tab_text">文本</string>
   <string name="log_tab_app">应用</string>
   <string name="vault_session_title">解锁会话</string>
-  <string name="vault_session_desc">指纹验证后签发 30 分钟会话 token，供沙箱/ECS 经 Web 桥远程解密凭证。</string>
+  <string name="vault_session_desc">指纹验证后签发访问授权（30 分钟或一直有效），作为 AI 工具访问凭证库的门禁，可随时撤销。</string>
   <string name="vault_session_issue">签发会话 token</string>
   <string name="vault_session_issued">会话 token 已签发（30 分钟有效）</string>
   <string name="vault_session_cancelled">已取消（指纹验证未通过）</string>
@@ -2466,7 +2467,7 @@
   <string name="vault_session_mode_manual_desc">Token 一直有效（永不过期），仅手动撤销后失效</string>
   <string name="vault_session_empty">暂无会话</string>
   <string name="vault_session_label_default">默认</string>
-  <string name="vault_session_list_desc">所有已签发的会话，可单独撤销或复制 token</string>
+  <string name="vault_session_list_desc">所有已签发的授权会话，可单独撤销</string>
   <string name="vault_session_list_title">会话列表</string>
   <string name="vault_session_remaining_day">剩余 %1$d 天</string>
   <string name="vault_session_remaining_min">剩余 %1$d 分钟</string>

@@ -281,7 +281,7 @@ fun VaultPage() {
                     }
                 }
                 Text(
-                    text = stringResource(R.string.vault_fingerprint_plan),
+                    text = stringResource(R.string.vault_page_intro),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )

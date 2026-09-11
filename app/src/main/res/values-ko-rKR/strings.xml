@@ -2053,9 +2053,10 @@
   <string name="setting_page_vault_desc">API 키와 각종 자격 증명을 안전하게 관리</string>
   <string name="vault_credential_count">자격 증명 보관소(%1$d개)</string>
   <string name="vault_manage_credentials">자격 증명 관리</string>
-  <string name="vault_fingerprint_title">지문 인증(개발 중)</string>
-  <string name="vault_fingerprint_desc">자격 증명 보관소를 열 때 지문/화면 잠금 요구</string>
-  <string name="vault_fingerprint_plan">계획: BiometricPrompt + CryptoObject를 Keystore 키에 바인딩하여 지문 인증을 통과해야 복호화를 허용합니다.</string>
+  <string name="vault_page_intro">자격 증명 값은 Android Keystore(AES-GCM)로 암호화되어 저장됩니다. AI는 평문을 볼 수 없고 이름으로만 참조합니다.</string>
+  <string name="vault_fingerprint_title">생체 인증 게이트</string>
+  <string name="vault_fingerprint_desc">자격 증명을 보거나 내보내기 전에 지문 / 화면 잠금 인증 필요</string>
+  <string name="vault_fingerprint_plan">활성화하면 자격 증명 값을 보거나 내보낼 때 지문(또는 화면 잠금) 인증이 필요합니다.</string>
   <string name="vault_import_title">파일에서 가져오기</string>
   <string name="vault_import_desc">load-creds.sh 형식(export KEY="value" + # 주석 그룹)을 지원합니다. 기기의 자격 증명 파일을 선택하면 일괄 가져옵니다.</string>
   <string name="vault_import_button">파일 선택하여 가져오기</string>
@@ -2570,8 +2571,8 @@
   <string name="grok_enable">Grok 사용</string>
   <string name="grok_enter_code_prompt">브라우저에서 로그인을 승인하세요. 코드가 자동 입력되지 않으면 직접 입력하세요:</string>
   <string name="grok_no_accounts">Grok 계정에 로그인하지 않았습니다.</string>
-  <string name="vault_export_title">비상 내보내기 / 세션 잠금 해제(개발 중)</string>
-  <string name="vault_export_desc">예정: 암호로 암호화한 .vault 패키지 내보내기, 샌드박스/ECS 원격 요청용 단시간 세션 잠금 해제.</string>
+  <string name="vault_export_title">비상 내보내기</string>
+  <string name="vault_export_desc">암호로 보호되는 .vault 패키지 또는 평문 CSV / Bitwarden JSON으로 내보낼 수 있습니다(평문은 주의해서 보관하세요).</string>
   <string name="vault_danger_zone">위험 영역</string>
   <string name="vault_clear_all">모든 자격 증명 지우기</string>
   <string name="vault_clear_confirm_title">모든 자격 증명을 지울까요?</string>
@@ -2730,7 +2731,7 @@
   <string name="log_tab_text">텍스트</string>
   <string name="log_tab_app">앱</string>
   <string name="vault_session_title">세션 잠금 해제</string>
-  <string name="vault_session_desc">지문 인증 후 30분짜리 세션 token을 발급해 샌드박스/ECS가 웹 브리지를 통해 자격 증명을 복호화할 수 있게 합니다.</string>
+  <string name="vault_session_desc">지문 인증 후 접근 권한을 발급합니다(30분 또는 계속 유효). AI 도구가 자격 증명에 접근하기 위한 게이트이며 언제든지 취소할 수 있습니다.</string>
   <string name="vault_session_issue">세션 token 발급</string>
   <string name="vault_session_issued">세션 token을 발급했습니다(30분 유효)</string>
   <string name="vault_session_cancelled">취소되었습니다(지문 인증 실패)</string>
@@ -2773,7 +2774,7 @@
   <string name="vault_session_mode_manual_desc">token은 항상 유효하며(만료 없음), 수동 취소 시에만 만료됩니다</string>
   <string name="vault_session_empty">세션이 없습니다</string>
   <string name="vault_session_label_default">기본</string>
-  <string name="vault_session_list_desc">발급된 모든 세션. 개별 취소하거나 token을 복사할 수 있습니다</string>
+  <string name="vault_session_list_desc">발급된 모든 권한 세션 목록이며 개별적으로 취소할 수 있습니다</string>
   <string name="vault_session_list_title">세션 목록</string>
   <string name="setting_web_bridge_gen_success_vault">✅ 생성 후 키 저장소에 저장했습니다(그룹: SSH)\n개인 키 경로를 기록했습니다: %1$s\n다음 공개 키를 서버 ~/.ssh/authorized_keys에 추가하세요:\n%2$s</string>
   <string name="setting_web_bridge_gen_success">✅ %1$s에 생성했습니다\n다음 공개 키를 서버 ~/.ssh/authorized_keys에 추가하세요:\n%2$s</string>

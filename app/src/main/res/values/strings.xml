@@ -2158,14 +2158,15 @@
   <string name="setting_page_vault_desc">Manage API keys and credentials securely</string>
   <string name="vault_credential_count">Vault credentials (%1$d)</string>
   <string name="vault_manage_credentials">Manage credentials</string>
-  <string name="vault_fingerprint_title">Biometric auth (planned)</string>
-  <string name="vault_fingerprint_desc">Require fingerprint / screen lock when opening the vault</string>
-  <string name="vault_fingerprint_plan">Planned: BiometricPrompt + CryptoObject bound to the Keystore key, releasing decryption only after fingerprint passes.</string>
+  <string name="vault_page_intro">Credential values are encrypted with an Android Keystore (AES-GCM) key; the assistant never sees plaintext and references credentials by name only.</string>
+  <string name="vault_fingerprint_title">Biometric gate</string>
+  <string name="vault_fingerprint_desc">Require fingerprint / screen lock before viewing or exporting credentials</string>
+  <string name="vault_fingerprint_plan">When enabled, viewing or exporting credential values requires fingerprint (or screen lock) verification.</string>
   <string name="vault_import_title">Import from file</string>
   <string name="vault_import_desc">Supports load-creds.sh (export KEY="value"), CSV (name,value,description,group) and Bitwarden JSON formats. Auto-detected.</string>
   <string name="vault_import_button">Choose file to import</string>
-  <string name="vault_export_title">Emergency export / unlock session (planned)</string>
-  <string name="vault_export_desc">Export credentials as encrypted .vault (password-protected), plaintext CSV, or Bitwarden JSON. Plain formats interpolate ${VAR} from environment variables.</string>
+  <string name="vault_export_title">Emergency export</string>
+  <string name="vault_export_desc">Export to a password-protected .vault package, plaintext CSV, or Bitwarden JSON. Store plaintext exports carefully.</string>
   <string name="vault_danger_zone">Danger zone</string>
   <string name="vault_clear_all">Clear all credentials</string>
   <string name="vault_clear_confirm_title">Clear all credentials?</string>
@@ -2453,7 +2454,7 @@
   <string name="log_tab_text">Text</string>
   <string name="log_tab_app">App</string>
   <string name="vault_session_title">Unlock session</string>
-  <string name="vault_session_desc">Issue a 30-min session token after biometric verification, so sandbox/ECS can decrypt credentials via the Web bridge.</string>
+  <string name="vault_session_desc">Issue an access authorization after biometric verification (30 minutes or until revoked); it gates the assistant's access to credentials and can be revoked anytime.</string>
   <string name="vault_session_issue">Issue session token</string>
   <string name="vault_session_issued">Session token issued (valid 30 min)</string>
   <string name="vault_session_cancelled">Cancelled (biometric not verified)</string>
@@ -2498,7 +2499,7 @@
   <string name="vault_session_mode_ttl_desc">Token 30 分钟后自动过期，需重新指纹验证签发</string>
   <string name="vault_session_mode_manual">Forever valid</string>
   <string name="vault_session_list_title">会话列表</string>
-  <string name="vault_session_list_desc">所有已签发的会话，可单独撤销或复制 token</string>
+  <string name="vault_session_list_desc">All issued authorization sessions; revoke individually</string>
   <string name="vault_session_empty">暂无会话</string>
   <string name="vault_session_label_default">默认</string>
   <string name="vault_session_remaining_min">剩余 %1$d 分钟</string>

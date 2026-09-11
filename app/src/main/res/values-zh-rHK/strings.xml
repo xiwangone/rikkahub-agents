@@ -1840,14 +1840,15 @@
   <string name="setting_page_vault_desc">安全管理 API 金鑰與各類憑證</string>
   <string name="vault_credential_count">憑證庫憑證（%1$d 條）</string>
   <string name="vault_manage_credentials">管理金鑰</string>
-  <string name="vault_fingerprint_title">指紋認證（開發中）</string>
-  <string name="vault_fingerprint_desc">開啟憑證庫時要求指紋/鎖屏驗證</string>
-  <string name="vault_fingerprint_plan">計劃：BiometricPrompt + CryptoObject 綁定 Keystore 金鑰，指紋通過才釋放解密能力。</string>
+  <string name="vault_page_intro">憑證值由 Android Keystore（AES-GCM）加密儲存；AI 全程不見明文，只能按名稱引用。</string>
+  <string name="vault_fingerprint_title">指紋門禁</string>
+  <string name="vault_fingerprint_desc">檢視或匯出憑證前需指紋 / 螢幕鎖定驗證</string>
+  <string name="vault_fingerprint_plan">開啟後，檢視或匯出憑證值需先通過指紋（或螢幕鎖定）驗證。</string>
   <string name="vault_import_title">從檔案匯入</string>
   <string name="vault_import_desc">支援 load-creds.sh 格式（export KEY="value" + # 註解分組）。選擇手機上的憑證檔案即可批次匯入。</string>
   <string name="vault_import_button">選擇檔案匯入</string>
-  <string name="vault_export_title">應急匯出 / 解鎖會話（開發中）</string>
-  <string name="vault_export_desc">後續：口令加密匯出 .vault 包、短時解鎖會話供沙箱/伺服器 遠端請求解密。</string>
+  <string name="vault_export_title">應急匯出</string>
+  <string name="vault_export_desc">支援口令加密的 .vault 套件，以及明文 CSV / Bitwarden JSON（後兩者請謹慎保管）。</string>
   <string name="vault_danger_zone">危險區</string>
   <string name="vault_clear_all">清空全部憑證</string>
   <string name="vault_clear_confirm_title">清空全部憑證？</string>
@@ -1972,7 +1973,7 @@
   <string name="log_tab_app">應用</string>
   <string name="log_page_search_hint">搜尋…</string>
   <string name="vault_session_title">解鎖會話</string>
-  <string name="vault_session_desc">指紋驗證後簽發 30 分鐘會話 token，供沙箱/伺服器 經 Web 橋遠端解密憑證。</string>
+  <string name="vault_session_desc">指紋驗證後簽發存取授權（30 分鐘或一直有效），作為 AI 工具存取憑證庫的閘門，可隨時撤銷。</string>
   <string name="vault_session_issue">簽發會話 token</string>
   <string name="vault_session_issued">會話 token 已簽發（30 分鐘有效）</string>
   <string name="vault_session_cancelled">已取消（指紋驗證未通過）</string>
@@ -2453,7 +2454,7 @@
     <string name="setting_web_bridge_gen_key_btn">生成新 SSH 金鑰</string>
     <string name="vault_session_empty">暫無會話</string>
     <string name="vault_session_label_default">預設</string>
-    <string name="vault_session_list_desc">所有已簽發的會話，可單獨撤銷或複製 token</string>
+  <string name="vault_session_list_desc">所有已簽發的授權工作階段，可單獨撤銷</string>
     <string name="vault_session_list_title">會話列表</string>
     <string name="vault_session_remaining_day">剩餘 %1$d 天</string>
     <string name="vault_session_remaining_min">剩餘 %1$d 分鐘</string>

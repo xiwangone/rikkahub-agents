@@ -2046,9 +2046,10 @@
   <string name="setting_page_vault_desc">Безопасное управление API-ключами и учётными данными</string>
   <string name="vault_credential_count">Учётные данные хранилища (%1$d)</string>
   <string name="vault_manage_credentials">Управление учётными данными</string>
-  <string name="vault_fingerprint_title">Биометрическая аутентификация (в разработке)</string>
-  <string name="vault_fingerprint_desc">Требовать отпечаток или блокировку экрана при открытии хранилища</string>
-  <string name="vault_fingerprint_plan">План: BiometricPrompt + CryptoObject, привязанный к ключу Keystore; расшифровка только после успешной биометрии.</string>
+  <string name="vault_page_intro">Значения учётных данных шифруются ключом Android Keystore (AES-GCM). ИИ не видит открытый текст и ссылается на данные только по имени.</string>
+  <string name="vault_fingerprint_title">Биометрический доступ</string>
+  <string name="vault_fingerprint_desc">Требовать отпечаток пальца / блокировку экрана перед просмотром и экспортом</string>
+  <string name="vault_fingerprint_plan">При включении для просмотра или экспорта значений требуется проверка отпечатком пальца (или блокировкой экрана).</string>
   <string name="vault_import_title">Импорт из файла</string>
   <string name="vault_import_desc">Поддерживает формат load-creds.sh (export KEY="value" и группы-комментарии #). Выберите файл на устройстве для пакетного импорта.</string>
   <string name="vault_import_button">Выбрать файл для импорта</string>
@@ -2563,8 +2564,8 @@
   <string name="grok_enable">Включить Grok</string>
   <string name="grok_enter_code_prompt">Подтвердите вход в браузере. Если код не подставился, введите его вручную:</string>
   <string name="grok_no_accounts">Вход ни в один аккаунт Grok не выполнен.</string>
-  <string name="vault_export_title">Экстренный экспорт / разблокировка сессии (в разработке)</string>
-  <string name="vault_export_desc">В планах: экспорт пакета .vault с паролем и кратковременная разблокировка сессии для удалённых запросов из песочницы/ECS.</string>
+  <string name="vault_export_title">Экстренный экспорт</string>
+  <string name="vault_export_desc">Экспорт в защищённый паролем пакет .vault, а также в открытые CSV / Bitwarden JSON (храните их осторожно).</string>
   <string name="vault_danger_zone">Опасная зона</string>
   <string name="vault_clear_all">Удалить все учётные данные</string>
   <string name="vault_clear_confirm_title">Удалить все учётные данные?</string>
@@ -2723,7 +2724,7 @@
   <string name="log_tab_text">Текст</string>
   <string name="log_tab_app">Приложение</string>
   <string name="vault_session_title">Разблокировка сессии</string>
-  <string name="vault_session_desc">После биометрии выдаётся 30-минутный session token, чтобы песочница или ECS могли расшифровывать данные через веб-мост.</string>
+  <string name="vault_session_desc">После биометрической проверки выдаётся разрешение доступа (30 минут или бессрочно). Оно служит шлюзом для доступа ИИ к учётным данным и может быть отозвано.</string>
   <string name="vault_session_issue">Выдать session token</string>
   <string name="vault_session_issued">Session token выдан (действует 30 минут)</string>
   <string name="vault_session_cancelled">Отменено (биометрия не пройдена)</string>
@@ -2766,7 +2767,7 @@
   <string name="vault_session_mode_manual_desc">Token бессрочный (не истекает) и аннулируется только вручную</string>
   <string name="vault_session_empty">Сессий нет</string>
   <string name="vault_session_label_default">По умолчанию</string>
-  <string name="vault_session_list_desc">Все выданные сессии; можно отозвать каждую или скопировать token</string>
+  <string name="vault_session_list_desc">Все выданные сессии авторизации; можно отозвать по отдельности</string>
   <string name="vault_session_list_title">Список сессий</string>
   <string name="setting_web_bridge_gen_success_vault">✅ Создано и сохранено в хранилище (группа: SSH)\nПуть к приватному ключу записан: %1$s\nДобавьте открытый ключ в ~/.ssh/authorized_keys на сервере:\n%2$s</string>
   <string name="setting_web_bridge_gen_success">✅ Создано в %1$s\nДобавьте открытый ключ в ~/.ssh/authorized_keys на сервере:\n%2$s</string>

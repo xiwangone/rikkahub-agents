@@ -1706,9 +1706,10 @@
   <string name="setting_page_vault_desc">إدارة مفاتيح API والبيانات السرية بأمان</string>
   <string name="vault_credential_count">بيانات الخزنة السرية (%1$d)</string>
   <string name="vault_manage_credentials">إدارة البيانات السرية</string>
-  <string name="vault_fingerprint_title">المصادقة بالبصمة (قيد التطوير)</string>
-  <string name="vault_fingerprint_desc">طلب البصمة أو قفل الشاشة عند فتح الخزنة</string>
-  <string name="vault_fingerprint_plan">مخطط: ربط BiometricPrompt + CryptoObject بمفتاح Keystore، ولا يُسمح بفك التشفير إلا بعد نجاح البصمة.</string>
+  <string name="vault_page_intro">تُشفَّر قيم البيانات الاعتمادية بمفتاح Android Keystore (AES-GCM). لا يرى الذكاء الاصطناعي القيم الصريحة ويشير إليها بالاسم فقط.</string>
+  <string name="vault_fingerprint_title">بوابة التحقق الحيوي</string>
+  <string name="vault_fingerprint_desc">يتطلب التحقق ببصمة الإصبع أو قفل الشاشة قبل عرض البيانات الاعتمادية أو تصديرها</string>
+  <string name="vault_fingerprint_plan">عند التفعيل، يتطلب عرض قيم البيانات الاعتمادية أو تصديرها التحقق ببصمة الإصبع أو قفل الشاشة.</string>
   <string name="vault_import_title">استيراد من ملف</string>
   <string name="vault_import_desc">يدعم صيغة load-creds.sh (export KEY="value" ومجموعات التعليقات #). اختر ملف البيانات السرية على الجهاز للاستيراد الجماعي.</string>
   <string name="vault_import_button">اختر ملفًا للاستيراد</string>
@@ -2223,8 +2224,8 @@
   <string name="grok_enable">تفعيل Grok</string>
   <string name="grok_enter_code_prompt">وافِق على تسجيل الدخول في المتصفح. وإن لم يُملأ الرمز تلقائيًا فأدخله يدويًا:</string>
   <string name="grok_no_accounts">لم يتم تسجيل الدخول إلى أي حساب Grok.</string>
-  <string name="vault_export_title">تصدير طارئ / إلغاء قفل الجلسة (قيد التطوير)</string>
-  <string name="vault_export_desc">لاحقًا: تصدير حزمة .vault مشفّرة بكلمة مرور، وإلغاء قفل الجلسة مؤقتًا لطلبات الصندوق الرملي/ECS.</string>
+  <string name="vault_export_title">تصدير طارئ</string>
+  <string name="vault_export_desc">تصدير إلى حزمة .vault مشفرة بكلمة مرور، أو إلى CSV / Bitwarden JSON غير مشفرين (احتفظ بهما بحذر).</string>
   <string name="vault_danger_zone">منطقة الخطر</string>
   <string name="vault_clear_all">مسح كل البيانات السرية</string>
   <string name="vault_clear_confirm_title">مسح كل البيانات السرية؟</string>
@@ -2383,7 +2384,7 @@
   <string name="log_tab_text">النص</string>
   <string name="log_tab_app">التطبيق</string>
   <string name="vault_session_title">إلغاء قفل الجلسة</string>
-  <string name="vault_session_desc">بعد التحقق بالبصمة يُصدر رمز جلسة صالح 30 دقيقة ليتمكن الصندوق الرملي/ECS من فك تشفير البيانات عبر جسر الويب.</string>
+  <string name="vault_session_desc">بعد التحقق ببصمة الإصبع يُصدر إذن وصول (30 دقيقة أو سارٍ حتى الإلغاء)، وهو بوابة وصول الذكاء الاصطناعي إلى البيانات الاعتمادية ويمكن إلغاؤه في أي وقت.</string>
   <string name="vault_session_issue">إصدار رمز الجلسة</string>
   <string name="vault_session_issued">تم إصدار رمز الجلسة (صالح 30 دقيقة)</string>
   <string name="vault_session_cancelled">أُلغي (فشلت المصادقة بالبصمة)</string>
@@ -2426,7 +2427,7 @@
   <string name="vault_session_mode_manual_desc">الرمز دائم (لا ينتهي) ويُلغى يدويًا فقط</string>
   <string name="vault_session_empty">لا توجد جلسات</string>
   <string name="vault_session_label_default">افتراضي</string>
-  <string name="vault_session_list_desc">كل الجلسات الصادرة، ويمكن إلغاء كل واحدة أو نسخ رمزها</string>
+  <string name="vault_session_list_desc">جميع جلسات التفويض الصادرة، ويمكن إلغاؤها فرادى</string>
   <string name="vault_session_list_title">قائمة الجلسات</string>
   <string name="setting_web_bridge_gen_success_vault">✅ تم الإنشاء والحفظ في المخزن (المجموعة: SSH)\nتم كتابة مسار المفتاح الخاص: %1$s\nأضف المفتاح العام إلى ~/.ssh/authorized_keys على الخادم:\n%2$s</string>
   <string name="setting_web_bridge_gen_success">✅ تم الإنشاء في %1$s\nأضف المفتاح العام إلى ~/.ssh/authorized_keys على الخادم:\n%2$s</string>
