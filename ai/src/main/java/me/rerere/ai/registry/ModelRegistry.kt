@@ -345,6 +345,12 @@ object ModelRegistry {
         toolReasoningAbility()
     }
 
+    private val QWEN_3_8 = defineModel {
+        tokens("qwen", "3", "8")
+        visionInput()
+        toolReasoningAbility()
+    }
+
     private val QWEN_3_5_MAX = defineModel {
         tokens("qwen", "3", "5", "max")
         toolReasoningAbility()
@@ -605,6 +611,7 @@ object ModelRegistry {
         QWEN_3_5,
         QWEN_3_6,
         QWEN_3_7,
+        QWEN_3_8,
         QWEN_3_5_MAX,
         QWEN_3_6_MAX,
         QWEN_3_7_MAX,
