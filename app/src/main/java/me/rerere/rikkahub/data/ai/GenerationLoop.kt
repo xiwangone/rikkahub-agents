@@ -982,7 +982,17 @@ class GenerationLoop(
                         }
                         runCatching {
                             val toolDef = toolsInternal.find { toolDef -> toolDef.name == tool.toolName }
-                                ?: error("Tool ${tool.toolName} not found")
+                                ?: error(
+                                    // 工具面按会话动态构建（工作区就绪状态、技能开关、
+                                    // MCP 在线情况都会增删工具），历史里出现本轮已不可用的
+                                    // 调用是正常的。给出可行动的信息，而不是干巴巴的 not found：
+                                    // 模型可据此换用替代手段或直接向用户说明。
+                                    "Tool '${tool.toolName}' is unavailable in this turn. " +
+                                        "It may be disabled in the assistant's tool settings, " +
+                                        "or its prerequisite (such as the workspace shell) is not " +
+                                        "ready yet. Do not retry it; use another available tool or " +
+                                        "explain to the user what is needed.",
+                                )
                             val args = parsedArgs.getOrThrow()
                             if (BuildConfig.DEBUG) {
                                 Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: ${redactSecrets(args)}")
