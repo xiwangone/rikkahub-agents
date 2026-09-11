@@ -168,8 +168,6 @@ fun ChatPage(
         }
     }
 
-    val pendingQueue by vm.pendingQueue.collectAsStateWithLifecycle()
-
     val inputState = vm.inputState
 
     // 初始化输入状态（处理传入的 files 和 text 参数）
@@ -337,6 +335,8 @@ private fun ChatPageContent(
     onClearAllErrors: () -> Unit,
 ) {
     val sessionTotals by vm.sessionTotals.collectAsStateWithLifecycle()
+    // 待发送队列长度：> 0 时输入区上方显示「待发送 N 条」
+    val pendingQueue by vm.pendingQueue.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     val context = LocalContext.current
