@@ -693,7 +693,7 @@ class LocalTools(
                                         )
                                         put(
                                             "description",
-                                            "Answer type: text (free text input, default), single (select exactly one option), multi (select one or more options)"
+                                            "Answer type: text (free text input, default), single (select one option or enter custom text), multi (select options and/or enter custom text)"
                                         )
                                     })
                                 })
