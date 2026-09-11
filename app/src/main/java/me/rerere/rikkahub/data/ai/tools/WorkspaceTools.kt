@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools
 
 import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.JsonObjectBuilder
@@ -337,7 +338,7 @@ private fun createShellTool(
                     if (changes.isNotEmpty()) {
                         put("changedFiles", buildJsonArray {
                             changes.take(WorkspaceChangePolicy.MAX_CHANGED_FILES).forEach { c ->
-                                add(WorkspaceChangeDiff.kindLabel(c.kind) + " " + c.path)
+                                add(JsonPrimitive(WorkspaceChangeDiff.kindLabel(c.kind) + " " + c.path))
                             }
                         })
                     }
