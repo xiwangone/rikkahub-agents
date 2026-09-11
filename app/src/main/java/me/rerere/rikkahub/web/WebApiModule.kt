@@ -13,10 +13,9 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.jwt.jwt
-import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
-import io.ktor.server.plugins.origin
 import io.ktor.server.application.ApplicationCall
+import io.ktor.server.application.createApplicationPlugin
 import io.ktor.server.auth.principal
 import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.plugins.statuspages.StatusPages
@@ -76,18 +75,17 @@ fun Application.configureWebApi(
     val jwtEnabled = settingsStore.settingsFlow.value.webServerJwtEnabled
 
     // 网段白名单：webServerAllowedNetworks 非空时，仅放行匹配 CIDR 的来源 IP（默认空 = 不限制）
-    intercept(ApplicationCallPipeline.Plugins) {
-        // Ktor PipelineContext 以 context 暴露 ApplicationCall
-        val call = context
-        val allowedNetworks = settingsStore.settingsFlow.value.webServerAllowedNetworks
-        if (!isRemoteHostAllowed(call.request.origin.remoteHost, allowedNetworks)) {
-            call.respond(
-                HttpStatusCode.Forbidden,
-                ErrorResponse("Network not allowed: ${call.request.origin.remoteHost}", HttpStatusCode.Forbidden.value),
-            )
-            finish()
-        }
-    }
+    // 用插件 + 异常终止（而非 intercept），避免 Ktor 3 pipeline 上下文写法差异
+    install(
+        createApplicationPlugin("NetworkAllowList") {
+            onCall { call ->
+                val allowedNetworks = settingsStore.settingsFlow.value.webServerAllowedNetworks
+                if (!isRemoteHostAllowed(call.request.local.remoteHost, allowedNetworks)) {
+                    throw NetworkNotAllowedException(call.request.local.remoteHost)
+                }
+            }
+        },
+    )
 
     install(ContentNegotiation) {
         json(JsonInstant)
@@ -99,6 +97,12 @@ fun Application.configureWebApi(
         }
         exception<ApiException> { call, cause ->
             call.respond(cause.status, ErrorResponse(cause.message, cause.status.value))
+        }
+        exception<NetworkNotAllowedException> { call, cause ->
+            call.respond(
+                HttpStatusCode.Forbidden,
+                ErrorResponse(cause.message ?: "Network not allowed", HttpStatusCode.Forbidden.value),
+            )
         }
         exception<Throwable> { call, cause ->
             call.respond(
@@ -316,3 +320,8 @@ private fun ipv4InCidr(addr: Long, cidr: String): Boolean {
     val mask = if (prefix == 0) 0L else (-1L shl (32 - prefix)) and 0xFFFFFFFFL
     return (addr and mask) == (base and mask)
 }
+
+
+/** 来源 IP 不在允许网段内时抛出，由 StatusPages 映射为 403 */
+class NetworkNotAllowedException(remoteHost: String) :
+    RuntimeException("Network not allowed: $remoteHost")
