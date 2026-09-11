@@ -77,6 +77,8 @@ fun Application.configureWebApi(
 
     // 网段白名单：webServerAllowedNetworks 非空时，仅放行匹配 CIDR 的来源 IP（默认空 = 不限制）
     intercept(ApplicationCallPipeline.Plugins) {
+        // Ktor PipelineContext 以 context 暴露 ApplicationCall
+        val call = context
         val allowedNetworks = settingsStore.settingsFlow.value.webServerAllowedNetworks
         if (!isRemoteHostAllowed(call.request.origin.remoteHost, allowedNetworks)) {
             call.respond(
