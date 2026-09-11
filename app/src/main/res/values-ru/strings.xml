@@ -852,6 +852,16 @@
   <string name="setting_page_web_server_local_address">Локальный адрес</string>
   <string name="setting_page_web_server_localhost_only">Только localhost</string>
   <string name="setting_page_web_server_localhost_only_desc">Принимать запросы только на localhost (127.0.0.1), отключить доступ по LAN и mDNS</string>
+  <string name="web_server_listen_scope">Область прослушивания</string>
+  <string name="web_server_listen_scope_desc">Какие сети могут обращаться к веб-службе телефона. После изменения перезапустите службу.</string>
+  <string name="net_scope_loopback">Только это устройство (127.0.0.1)</string>
+  <string name="net_scope_lan">Локальная сеть / интранет</string>
+  <string name="net_scope_any">Все интерфейсы</string>
+  <string name="net_allowed_networks">Разрешённые сети (CIDR)</string>
+  <string name="net_allowed_networks_desc">Через запятую, напр. 100.64.0.0/10,192.168.31.0/24. Пусто = без ограничений</string>
+  <string name="mcp_profile_listen_scope">Область прослушивания (локальный MCP)</string>
+  <string name="mcp_auth_token_ref">Имя учётных данных токена доступа</string>
+  <string name="mcp_auth_token_ref_desc">Если задано, каждый запрос должен содержать заголовок Authorization: Bearer из этих учётных данных. Управляется в хранилище учётных данных.</string>
   <string name="setting_page_web_server_mdns_address">Адрес mDNS</string>
   <string name="setting_page_web_server_password">Пароль доступа</string>
   <string name="setting_page_web_server_password_desc">Пароль для доступа к веб-интерфейсу</string>

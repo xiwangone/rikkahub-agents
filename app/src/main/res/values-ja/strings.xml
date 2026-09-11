@@ -859,6 +859,16 @@
   <string name="setting_page_web_server_local_address">ローカルアドレス</string>
   <string name="setting_page_web_server_localhost_only">localhostのみ</string>
   <string name="setting_page_web_server_localhost_only_desc">localhost (127.0.0.1) のみでリッスンし、LANおよびmDNSアクセスを無効化</string>
+  <string name="web_server_listen_scope">リッスン範囲</string>
+  <string name="web_server_listen_scope_desc">どのネットワークからスマホの Web サービスへ到達できるか。変更後はサービスを再起動してください。</string>
+  <string name="net_scope_loopback">この端末のみ（127.0.0.1）</string>
+  <string name="net_scope_lan">LAN / イントラネット</string>
+  <string name="net_scope_any">すべてのインターフェース</string>
+  <string name="net_allowed_networks">許可ネットワーク（CIDR）</string>
+  <string name="net_allowed_networks_desc">カンマ区切り 例: 100.64.0.0/10,192.168.31.0/24。空欄 = 制限なし</string>
+  <string name="mcp_profile_listen_scope">リッスン範囲（ローカル MCP）</string>
+  <string name="mcp_auth_token_ref">アクセストークンの認証情報名</string>
+  <string name="mcp_auth_token_ref_desc">設定すると各リクエストにこの認証情報から作る Authorization: Bearer ヘッダーが必要です。「安全な認証情報」で管理します。</string>
   <string name="setting_page_web_server_mdns_address">mDNSアドレス</string>
   <string name="setting_page_web_server_password">アクセスパスワード</string>
   <string name="setting_page_web_server_password_desc">Webインターフェースへのアクセスに必要なパスワード</string>

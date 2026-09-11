@@ -19,6 +19,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
@@ -113,7 +114,7 @@ fun SettingWebServerPage() {
             Intent(context, WebServerService::class.java).apply {
                 action = WebServerService.ACTION_START
                 putExtra(WebServerService.EXTRA_PORT, settings.webServerPort)
-                putExtra(WebServerService.EXTRA_LOCALHOST_ONLY, settings.webServerLocalhostOnly)
+                putExtra(WebServerService.EXTRA_LOCALHOST_ONLY, settings.webServerListenScope.equals("loopback", ignoreCase = true))
             }
         context.startForegroundService(intent)
         scope.launch {
@@ -243,25 +244,47 @@ fun SettingWebServerPage() {
                         },
                     )
                     item(
-                        headlineContent = { Text(stringResource(R.string.setting_page_web_server_localhost_only)) },
+                        headlineContent = { Text(stringResource(R.string.web_server_listen_scope)) },
                         supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_page_web_server_localhost_only_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = settings.webServerLocalhostOnly,
-                                onCheckedChange = { checked ->
-                                    scope.launch {
-                                        settingsStore.update {
-                                            it.copy(webServerLocalhostOnly = checked)
-                                        }
+                            val currentScope =
+                                settings.webServerListenScope.lowercase().takeIf { it in listOf("loopback", "lan", "any") } ?: "loopback"
+                            Column {
+                                Text(stringResource(R.string.web_server_listen_scope_desc))
+                                listOf(
+                                    "loopback" to stringResource(R.string.net_scope_loopback),
+                                    "lan" to stringResource(R.string.net_scope_lan),
+                                    "any" to stringResource(R.string.net_scope_any),
+                                ).forEach { (value, label) ->
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        RadioButton(
+                                            selected = currentScope == value,
+                                            onClick = {
+                                                scope.launch {
+                                                    settingsStore.update {
+                                                        it.copy(
+                                                            webServerListenScope = value,
+                                                            webServerLocalhostOnly = value == "loopback",
+                                                        )
+                                                    }
+                                                }
+                                            },
+                                            enabled = !serverState.isRunning,
+                                        )
+                                        Text(label, style = MaterialTheme.typography.bodySmall)
                                     }
-                                },
-                                // 运行中不允许切换 需重启服务生效
-                                enabled = !serverState.isRunning,
-                            )
+                                }
+                                OutlinedTextField(
+                                    value = settings.webServerAllowedNetworks,
+                                    onValueChange = { value ->
+                                        scope.launch { settingsStore.update { it.copy(webServerAllowedNetworks = value) } }
+                                    },
+                                    label = { Text(stringResource(R.string.net_allowed_networks)) },
+                                    supportingText = { Text(stringResource(R.string.net_allowed_networks_desc)) },
+                                    singleLine = true,
+                                    enabled = !serverState.isRunning,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
                         },
                     )
                     item(

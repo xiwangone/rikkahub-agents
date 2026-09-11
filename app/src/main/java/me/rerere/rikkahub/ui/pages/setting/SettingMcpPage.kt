@@ -105,6 +105,7 @@ import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.RadioButton
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
@@ -379,6 +380,9 @@ private fun LocalMcpProfileModal(
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var port by remember { mutableStateOf(initial?.port?.toString() ?: "8788") }
     var selected by remember { mutableStateOf(initial?.allowedTools ?: emptyList()) }
+    var listenScope by remember { mutableStateOf(initial?.listenScope ?: "loopback") }
+    var allowedNetworks by remember { mutableStateOf(initial?.allowedNetworks ?: "") }
+    var authTokenRef by remember { mutableStateOf(initial?.authTokenRef ?: "") }
     val context = LocalContext.current
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -392,6 +396,33 @@ private fun LocalMcpProfileModal(
             ) {
                 OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.mcp_page_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text(stringResource(R.string.mcp_page_port_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                Text(stringResource(R.string.mcp_profile_listen_scope), style = MaterialTheme.typography.labelLarge)
+                listOf(
+                    "loopback" to stringResource(R.string.net_scope_loopback),
+                    "lan" to stringResource(R.string.net_scope_lan),
+                    "any" to stringResource(R.string.net_scope_any),
+                ).forEach { (value, label) ->
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        RadioButton(selected = listenScope == value, onClick = { listenScope = value })
+                        Text(label, style = MaterialTheme.typography.bodySmall)
+                    }
+                }
+                OutlinedTextField(
+                    value = allowedNetworks,
+                    onValueChange = { allowedNetworks = it },
+                    label = { Text(stringResource(R.string.net_allowed_networks)) },
+                    supportingText = { Text(stringResource(R.string.net_allowed_networks_desc)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = authTokenRef,
+                    onValueChange = { authTokenRef = it },
+                    label = { Text(stringResource(R.string.mcp_auth_token_ref)) },
+                    supportingText = { Text(stringResource(R.string.mcp_auth_token_ref_desc)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.SpaceBetween,
@@ -425,6 +456,9 @@ private fun LocalMcpProfileModal(
                             name = name.ifBlank { context.getString(R.string.mcp_page_unnamed) },
                             port = port.toIntOrNull() ?: 8788,
                             allowedTools = selected,
+                            listenScope = listenScope,
+                            allowedNetworks = allowedNetworks,
+                            authTokenRef = authTokenRef,
                         ),
                     )
                 },

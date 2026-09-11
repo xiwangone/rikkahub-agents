@@ -855,6 +855,16 @@
   <string name="setting_page_web_server_local_address">العنوان المحلي</string>
   <string name="setting_page_web_server_localhost_only">localhost فقط</string>
   <string name="setting_page_web_server_localhost_only_desc">الاستماع فقط على localhost (127.0.0.1)، تعطيل الوصول عبر الشبكة المحلية وmDNS</string>
+  <string name="web_server_listen_scope">نطاق الاستماع</string>
+  <string name="web_server_listen_scope_desc">الشبكات التي يمكنها الوصول إلى خدمة الويب في الهاتف. أعد تشغيل الخدمة بعد التغيير.</string>
+  <string name="net_scope_loopback">هذا الجهاز فقط (127.0.0.1)</string>
+  <string name="net_scope_lan">الشبكة المحلية / الداخلية</string>
+  <string name="net_scope_any">جميع الواجهات</string>
+  <string name="net_allowed_networks">الشبكات المسموح بها (CIDR)</string>
+  <string name="net_allowed_networks_desc">مفصولة بفواصل، مثال: 100.64.0.0/10,192.168.31.0/24. فارغ = بلا قيود</string>
+  <string name="mcp_profile_listen_scope">نطاق الاستماع (MCP المحلي)</string>
+  <string name="mcp_auth_token_ref">اسم بيانات اعتماد رمز الوصول</string>
+  <string name="mcp_auth_token_ref_desc">عند التعيين يجب أن يحمل كل طلب ترويسة Authorization: Bearer مبنية على بيانات الاعتماد هذه. تُدار في مخزن بيانات الاعتماد.</string>
   <string name="setting_page_web_server_mdns_address">عنوان mDNS</string>
   <string name="setting_page_web_server_password">كلمة مرور الوصول</string>
   <string name="setting_page_web_server_password_desc">كلمة المرور المطلوبة للوصول إلى واجهة الويب</string>

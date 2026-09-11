@@ -104,7 +104,7 @@ class WebServerService : Service() {
                         startObservingState()
                         webServerManager.start(
                             port = settings.webServerPort,
-                            localhostOnly = settings.webServerLocalhostOnly,
+                            localhostOnly = settings.webServerListenScope.equals("loopback", ignoreCase = true),
                         )
                     } else {
                         stopSelf()

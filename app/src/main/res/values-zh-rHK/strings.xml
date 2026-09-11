@@ -857,6 +857,16 @@
   <string name="setting_page_web_server_local_address">本機位址</string>
   <string name="setting_page_web_server_localhost_only">僅限本機</string>
   <string name="setting_page_web_server_localhost_only_desc">僅監聽 localhost (127.0.0.1)，停用區域網路與 mDNS 存取</string>
+  <string name="web_server_listen_scope">監聽範圍</string>
+  <string name="web_server_listen_scope_desc">手機 Web 服務對哪些網路可見；修改後需重啟服務生效。</string>
+  <string name="net_scope_loopback">僅本機（127.0.0.1）</string>
+  <string name="net_scope_lan">區域網路 / 內網</string>
+  <string name="net_scope_any">所有介面</string>
+  <string name="net_allowed_networks">允許網段（CIDR）</string>
+  <string name="net_allowed_networks_desc">逗號分隔，如 100.64.0.0/10,192.168.31.0/24；留空 = 不限制</string>
+  <string name="mcp_profile_listen_scope">監聽範圍（本機 MCP）</string>
+  <string name="mcp_auth_token_ref">存取權杖憑證名稱</string>
+  <string name="mcp_auth_token_ref_desc">非空則要求請求攜帶 Authorization: Bearer 標頭（取該憑證的值）；憑證在「安全憑證庫」中管理。</string>
   <string name="setting_page_web_server_mdns_address">mDNS 位址</string>
   <string name="setting_page_web_server_password">存取密碼</string>
   <string name="setting_page_web_server_password_desc">網頁介面存取所需的密碼</string>

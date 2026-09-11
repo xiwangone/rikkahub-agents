@@ -1030,6 +1030,16 @@
   <string name="setting_page_web_server_local_address">Local Address</string>
   <string name="setting_page_web_server_localhost_only">Only localhost</string>
   <string name="setting_page_web_server_localhost_only_desc">Listen only on localhost (127.0.0.1), disable LAN and mDNS access</string>
+  <string name="web_server_listen_scope">Listen scope</string>
+  <string name="web_server_listen_scope_desc">Which networks can reach the phone web service. Restart the service to apply.</string>
+  <string name="net_scope_loopback">This device only (127.0.0.1)</string>
+  <string name="net_scope_lan">LAN / intranet</string>
+  <string name="net_scope_any">All interfaces</string>
+  <string name="net_allowed_networks">Allowed networks (CIDR)</string>
+  <string name="net_allowed_networks_desc">Comma separated, e.g. 100.64.0.0/10,192.168.31.0/24. Empty = no restriction</string>
+  <string name="mcp_profile_listen_scope">Listen scope (local MCP)</string>
+  <string name="mcp_auth_token_ref">Access token credential name</string>
+  <string name="mcp_auth_token_ref_desc">When set, each request must carry an Authorization: Bearer header built from this credential. Manage it in Security Vault.</string>
   <string name="setting_page_web_server_mdns_address">mDNS Address</string>
   <string name="setting_page_web_server_password">Access password</string>
   <string name="setting_page_web_server_password_desc">Password required for web interface access</string>

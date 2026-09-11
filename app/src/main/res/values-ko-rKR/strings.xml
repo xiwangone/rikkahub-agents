@@ -859,6 +859,16 @@
   <string name="setting_page_web_server_local_address">로컬 주소</string>
   <string name="setting_page_web_server_localhost_only">localhost만</string>
   <string name="setting_page_web_server_localhost_only_desc">localhost(127.0.0.1)에서만 수신, LAN 및 mDNS 접근 비활성화</string>
+  <string name="web_server_listen_scope">수신 범위</string>
+  <string name="web_server_listen_scope_desc">어떤 네트워크에서 휴대폰 웹 서비스에 접근할 수 있는지 결정합니다. 변경 후 서비스를 재시작하세요.</string>
+  <string name="net_scope_loopback">이 기기만(127.0.0.1)</string>
+  <string name="net_scope_lan">LAN / 인트라넷</string>
+  <string name="net_scope_any">모든 인터페이스</string>
+  <string name="net_allowed_networks">허용 네트워크(CIDR)</string>
+  <string name="net_allowed_networks_desc">쉼표로 구분, 예: 100.64.0.0/10,192.168.31.0/24. 비우면 제한 없음</string>
+  <string name="mcp_profile_listen_scope">수신 범위(로컬 MCP)</string>
+  <string name="mcp_auth_token_ref">액세스 토큰 자격 증명 이름</string>
+  <string name="mcp_auth_token_ref_desc">설정하면 각 요청에 이 자격 증명으로 만든 Authorization: Bearer 헤더가 필요합니다. 보안 자격 증명에서 관리하세요.</string>
   <string name="setting_page_web_server_mdns_address">mDNS 주소</string>
   <string name="setting_page_web_server_password">접속 비밀번호</string>
   <string name="setting_page_web_server_password_desc">웹 인터페이스 접근에 필요한 비밀번호</string>
