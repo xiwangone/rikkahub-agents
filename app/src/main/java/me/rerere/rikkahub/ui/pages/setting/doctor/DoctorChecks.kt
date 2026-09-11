@@ -1415,7 +1415,9 @@ class DoctorChecks(
                                                             } else {
                                                                 val fm = runCatching {
                                                                     me.rerere.rikkahub.data.files.SkillFrontmatterParser.parse(skillFile.readText())
-                                                                }.getOrDefault(emptyMap())
+                                                                }.getOrDefault(
+                                                                    me.rerere.rikkahub.data.files.SkillFrontmatter.Empty,
+                                                                )
                                                                 val autoLoad = fm["auto_load"]?.equals("true", ignoreCase = true) == true
                                                                 val path = fm["auto_load_path"]
                                                                 autoLoad && !path.isNullOrBlank() &&
