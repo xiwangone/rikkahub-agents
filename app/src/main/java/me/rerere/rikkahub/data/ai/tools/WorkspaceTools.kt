@@ -17,6 +17,8 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.utils.generateUnifiedDiff
 import me.rerere.workspace.WorkspaceCommandResult
+import me.rerere.workspace.BackgroundStatus
+import me.rerere.workspace.WorkspaceTreeResult
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceManager
 import org.koin.java.KoinJavaComponent.getKoin
@@ -52,6 +54,11 @@ suspend fun createWorkspaceTools(
         createWriteFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createEditFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createShellTool(workspaceId, ::needsApproval, workspaceRepository, shellCwd),
+        createCreateFolderTool(workspaceId, ::needsApproval, workspaceRepository),
+        createReadFolderTool(workspaceId, ::needsApproval, workspaceRepository),
+        createRunBackgroundTool(workspaceId, ::needsApproval, workspaceRepository, shellCwd),
+        createBackgroundStatusTool(workspaceId, ::needsApproval, workspaceRepository),
+        createBackgroundKillTool(workspaceId, ::needsApproval, workspaceRepository),
     ) + me.rerere.agenttools.createAgentTools(
         AppAgentWorkspaceIO(workspaceId, workspaceRepository),
         approvalOverrides,
@@ -364,6 +371,177 @@ private fun createShellTool(
     },
 )
 
+private fun createCreateFolderTool(
+    workspaceId: String,
+    needsApproval: (String) -> Boolean,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_create_folder",
+    description = "Create a directory (and any missing parents) in the workspace. No-op if it already exists.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                putPathProperty(required = true)
+            },
+            required = listOf("path"),
+        )
+    },
+    needsApproval = { needsApproval("workspace_create_folder") || it.pathOutsideWritableRoots("path") },
+    execute = {
+        val path = it.jsonObject.absolutePath("path")
+        val entry = workspaceRepository.createFolderInRootfs(workspaceId, path)
+        listOf(UIMessagePart.Text(entry.toJson().toString()))
+    },
+)
+
+private fun createReadFolderTool(
+    workspaceId: String,
+    needsApproval: (String) -> Boolean,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_read_folder",
+    description = "Recursively list a directory as an indented tree (entry count and depth capped).",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                putPathProperty(required = true)
+            },
+            required = listOf("path"),
+        )
+    },
+    needsApproval = { needsApproval("workspace_read_folder") },
+    execute = {
+        val path = it.jsonObject.absolutePath("path")
+        val result = workspaceRepository.readFolderTree(workspaceId, path)
+        listOf(UIMessagePart.Text(formatWorkspaceTree(path, result)))
+    },
+)
+
+private fun createRunBackgroundTool(
+    workspaceId: String,
+    needsApproval: (String) -> Boolean,
+    workspaceRepository: WorkspaceRepository,
+    defaultCwd: String? = null,
+) = Tool(
+    name = "workspace_run_background",
+    description = "Run a command persistently in the background (survives across tool calls). Use for dev servers, long installs, watchers. Do NOT append '&'. Returns a task id; poll with workspace_background_status, stop with workspace_background_kill.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("command", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Shell command to run in the background")
+                })
+                put("cwd", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Working directory relative to the workspace files root" +
+                        if (!defaultCwd.isNullOrBlank()) ". Defaults to '$defaultCwd'." else ". Defaults to root.")
+                })
+            },
+            required = listOf("command"),
+        )
+    },
+    needsApproval = { needsApproval("workspace_run_background") },
+    execute = {
+        val params = it.jsonObject
+        val command = params.string("command") ?: error("command is required")
+        val cwd = (params.string("cwd") ?: defaultCwd.orEmpty())
+            .removePrefix("/workspace/").removePrefix("/workspace")
+        val status = workspaceRepository.startBackground(workspaceId, command, cwd)
+        listOf(
+            UIMessagePart.Text(
+                buildJsonObject {
+                    put("id", status.id)
+                    put("status", "running")
+                }.toString()
+            )
+        )
+    },
+)
+
+private fun createBackgroundStatusTool(
+    workspaceId: String,
+    needsApproval: (String) -> Boolean,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_background_status",
+    description = "Check status and recent output of background tasks started with workspace_run_background. Omit id to list all.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("id", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Task id from workspace_run_background. Omit to list all.")
+                })
+            },
+            required = emptyList(),
+        )
+    },
+    needsApproval = { needsApproval("workspace_background_status") },
+    execute = {
+        val taskId = it.jsonObject.string("id")
+        val statuses = if (taskId != null) {
+            listOfNotNull(workspaceRepository.backgroundStatus(workspaceId, taskId))
+        } else {
+            workspaceRepository.listBackground(workspaceId)
+        }
+        listOf(
+            UIMessagePart.Text(
+                buildJsonObject {
+                    put("processes", buildJsonArray {
+                        statuses.forEach { status -> add(status.toJson()) }
+                    })
+                }.toString()
+            )
+        )
+    },
+)
+
+private fun createBackgroundKillTool(
+    workspaceId: String,
+    needsApproval: (String) -> Boolean,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "workspace_background_kill",
+    description = "Stop a background task by id.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("id", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Task id from workspace_run_background")
+                })
+            },
+            required = listOf("id"),
+        )
+    },
+    needsApproval = { needsApproval("workspace_background_kill") },
+    execute = {
+        val taskId = it.jsonObject.string("id") ?: error("id is required")
+        val killed = workspaceRepository.killBackground(workspaceId, taskId)
+        listOf(
+            UIMessagePart.Text(
+                buildJsonObject {
+                    put("id", taskId)
+                    put("killed", killed)
+                }.toString()
+            )
+        )
+    },
+)
+
+private fun BackgroundStatus.toJson() = buildJsonObject {
+    put("id", id)
+    put("command", command)
+    put("status", if (running) "running" else "exited")
+    if (!running) put("exitCode", exitCode)
+    put("startedAt", startedAtMillis)
+    put("stdout", stdout)
+    put("stderr", stderr)
+    if (droppedStdout > 0) put("droppedStdout", droppedStdout)
+    if (droppedStderr > 0) put("droppedStderr", droppedStderr)
+}
+
 private fun createListTool(
     workspaceRepository: WorkspaceRepository,
 ): Tool = Tool(
@@ -581,4 +759,37 @@ private fun WorkspaceFileEntry.toJson() = buildJsonObject {
     put("isDirectory", isDirectory)
     put("sizeBytes", sizeBytes)
     put("updatedAt", updatedAt)
+}
+
+private suspend fun WorkspaceRepository.createFolderInRootfs(
+    workspaceId: String,
+    path: String,
+): WorkspaceFileEntry {
+    val pathArg = path.shellQuote()
+    val result = runRootfsCommand(
+        workspaceId = workspaceId,
+        action = "Create folder",
+        command = """
+            if [ -e $pathArg ] && [ ! -d $pathArg ]; then
+              printf '%s\n' ${"Path already exists and is not a directory: $path".shellQuote()} >&2
+              exit 1
+            fi
+            mkdir -p -- $pathArg || exit 1
+            ${statEntryCommand(path)}
+        """.trimIndent(),
+    )
+    return result.stdout.parseRootfsEntry()
+}
+
+/** 把目录树渲染成缩进文本（带截断提示）。 */
+internal fun formatWorkspaceTree(rootPath: String, result: WorkspaceTreeResult): String = buildString {
+    appendLine(rootPath)
+    result.entries.forEach { entry ->
+        repeat(entry.depth) { append("  ") }
+        append(if (entry.isDirectory) "[D] " else "[F] ")
+        append(entry.name)
+        if (!entry.isDirectory) append(" (${entry.sizeBytes}B)")
+        appendLine()
+    }
+    if (result.truncated) appendLine("(truncated: more entries omitted)")
 }

@@ -276,6 +276,12 @@ class WorkspaceManager(
 
     fun killAllBackground(root: String) = background.killAll(root)
 
+    /** 按 Rootfs 内绝对路径递归列出目录树。 */
+    fun rootfsTree(root: String, path: String, maxDepth: Int = 10): WorkspaceTreeResult {
+        val location = resolveRootfsPath(root, path)
+        return fileSystem.tree(location.rootDir, location.relativePath, maxDepth)
+    }
+
     private fun resolveCommandWorkingDir(root: String, cwd: String): File {
         val workingDir = fileSystem.resolve(filesDir(root), cwd)
         require(workingDir.exists()) { "Working directory does not exist: $cwd" }
