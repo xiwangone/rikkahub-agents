@@ -52,6 +52,10 @@ import me.rerere.rikkahub.data.db.migrations.Migration_33_34
 import me.rerere.rikkahub.data.db.migrations.Migration_34_35
 import me.rerere.rikkahub.data.db.migrations.Migration_35_36
 import me.rerere.rikkahub.data.db.migrations.Migration_6_7
+import me.rerere.rikkahub.data.gemini.GeminiAccountRepository
+import me.rerere.rikkahub.data.gemini.GeminiCredentialStore
+import me.rerere.rikkahub.data.gemini.GeminiOAuthManager
+import me.rerere.rikkahub.data.gemini.GeminiProvider
 import me.rerere.rikkahub.data.grok.GrokAccountRepository
 import me.rerere.rikkahub.data.grok.GrokCredentialStore
 import me.rerere.rikkahub.data.grok.GrokOAuthManager
@@ -333,6 +337,18 @@ val dataSourceModule =
                 .build()
         }
 
+        single<OkHttpClient>(named("gemini")) {
+            OkHttpClient
+                .Builder()
+                .connectTimeout(20, TimeUnit.SECONDS)
+                .readTimeout(10, TimeUnit.MINUTES)
+                .writeTimeout(120, TimeUnit.SECONDS)
+                .followSslRedirects(true)
+                .followRedirects(true)
+                .retryOnConnectionFailure(true)
+                .build()
+        }
+
         single<OkHttpClient>(named("grok")) {
             OkHttpClient
                 .Builder()
@@ -360,6 +376,23 @@ val dataSourceModule =
                 client = get(named("grok")),
                 repository = get(),
                 json = get(),
+            )
+        }
+
+        single {
+            GeminiAccountRepository(
+                store = GeminiCredentialStore(context = get(), json = get()),
+                client = get(named("gemini")),
+                json = get(),
+            )
+        }
+
+        single {
+            GeminiOAuthManager(
+                context = get(),
+                scope = get<AppScope>(),
+                client = get(named("gemini")),
+                repository = get(),
             )
         }
 
@@ -420,6 +453,14 @@ val dataSourceModule =
                         repository = get<GrokAccountRepository>(),
                         json = json,
                         scope = get<AppScope>(),
+                    ),
+                )
+                pm.registerProvider(
+                    "gemini_oauth",
+                    GeminiProvider(
+                        client = get(named("gemini")),
+                        repository = get<GeminiAccountRepository>(),
+                        json = json,
                     ),
                 )
                 // 覆盖默认 backend provider：注入交互桥，使 Ask/Approval 走通知闭环
