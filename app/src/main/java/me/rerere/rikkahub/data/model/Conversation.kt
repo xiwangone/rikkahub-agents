@@ -64,13 +64,22 @@ data class Conversation(
         val newNodes = this.messageNodes.toMutableList()
 
         messages.forEachIndexed { index, message ->
-            val node = newNodes
-                .getOrElse(index) { message.toMessageNode() }
+            // 先按 id 定位消息原本所属的节点：请求链路上的 transformer
+            // （工作区提醒 / 时间提醒 / 提示词注入 / OCR）会在列表头部插入合成消息，
+            // 导致 messages 的下标与 messageNodes 的下标错位。若仍按 index 对应，
+            // 同一节点的消息会被写到别的节点上、并被当成「新消息」追加，
+            // 表现为节点内出现多余分支（UI 上的「2/2」）。
+            val existingNodeIndex = newNodes.indexOfFirst { node -> node.messages.any { it.id == message.id } }
+            val targetIndex = if (existingNodeIndex >= 0) existingNodeIndex else index
+
+            val node = newNodes.getOrElse(targetIndex) { message.toMessageNode() }
 
             val newMessages = node.messages.toMutableList()
             var newMessageIndex = node.selectIndex
-            if (newMessages.any { it.id == message.id }) {
-                newMessages[newMessages.indexOfFirst { it.id == message.id }] = message
+            val existingMessageIndex = newMessages.indexOfFirst { it.id == message.id }
+            if (existingMessageIndex >= 0) {
+                newMessages[existingMessageIndex] = message
+                newMessageIndex = existingMessageIndex
             } else {
                 newMessages.add(message)
                 newMessageIndex = newMessages.lastIndex
@@ -81,11 +90,10 @@ data class Conversation(
                 selectIndex = newMessageIndex
             )
 
-            // 更新newNodes
-            if (index > newNodes.lastIndex) {
+            if (targetIndex > newNodes.lastIndex) {
                 newNodes.add(newNode)
             } else {
-                newNodes[index] = newNode
+                newNodes[targetIndex] = newNode
             }
         }
 
