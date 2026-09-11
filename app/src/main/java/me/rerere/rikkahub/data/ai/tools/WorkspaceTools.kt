@@ -146,7 +146,7 @@ private fun createWriteFileTool(
         // 与 edit_file 保持一致：diff 存 metadata，不随工具结果发给模型、不占上下文。
         val originalText = runCatching { workspaceRepository.readTextInRootfs(workspaceId, path) }.getOrNull()
         val entry = workspaceRepository.writeTextInRootfs(workspaceId, path, text, overwrite)
-        val diff = me.rerere.rikkahub.data.vault.SecretMasker.mask(generateUnifiedDiff(originalText.orEmpty(), text, entry.path))
+        val diff = me.rerere.rikkahub.data.vault.SecretMasker.mask(generateUnifiedDiff(originalText.orEmpty(), text, entry.path).orEmpty())
         listOf(
             UIMessagePart.Text(
                 text = entry.toJson().toString(),
@@ -204,7 +204,7 @@ private fun createEditFileTool(
             error("${e.message} (path: $path)")
         }
         val entry = workspaceRepository.writeTextInRootfs(workspaceId, path, result.updated, overwrite = true)
-        val diff = me.rerere.rikkahub.data.vault.SecretMasker.mask(generateUnifiedDiff(original, result.updated, entry.path))
+        val diff = me.rerere.rikkahub.data.vault.SecretMasker.mask(generateUnifiedDiff(original, result.updated, entry.path).orEmpty())
         listOf(
             UIMessagePart.Text(
                 text = buildJsonObject {
