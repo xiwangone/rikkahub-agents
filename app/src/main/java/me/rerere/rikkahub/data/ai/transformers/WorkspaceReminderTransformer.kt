@@ -1,11 +1,15 @@
 package me.rerere.rikkahub.data.ai.transformers
 
+import android.util.Log
+import kotlinx.coroutines.CancellationException
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceShellStatus
+import java.io.ByteArrayOutputStream
+import java.nio.file.Paths
 
 /**
  * Workspace 系统提示注入转换器
@@ -16,8 +20,9 @@ import me.rerere.workspace.WorkspaceShellStatus
  * - 未绑定但存在至少一个 workspace: 注入 <workspace-setup>, 告知模型如何引导用户绑定。
  * - 完全没有 workspace: 不注入。
  *
- * 工具是否真正提供仍由 ChatService.createWorkspaceToolsIfReady 决定 (仅 READY 时提供),
- * 本转换器只扩展模型对 workspace 的认知, 不改变工具可用性。
+ * 工具是否真正提供仍由 ChatToolFactory.createWorkspaceToolsIfReady 决定 (仅 READY 时提供),
+ * 本转换器只扩展模型对 workspace 的认知, 不改变工具可用性；
+ * shell 就绪时还会附带 AGENTS.md 工作区指令 (见 buildAgentsPrompt)。
  */
 class WorkspaceReminderTransformer(
     private val workspaceRepository: WorkspaceRepository,
@@ -33,16 +38,69 @@ class WorkspaceReminderTransformer(
 
         val prompt = buildWorkspaceReminder(workspace, hasAnyWorkspace, ctx.workspaceCwd)
             ?: return messages
+        // shell 就绪时附带工作区指令文件 (AGENTS.md)
+        val instructions =
+            if (workspaceId != null && workspace?.shellStatus == WorkspaceShellStatus.READY.name) {
+                buildAgentsPrompt(workspaceId, ctx.workspaceCwd)
+            } else {
+                ""
+            }
+        val fullPrompt = prompt + instructions
 
         // 追加到第一条 system 消息; 若不存在则插入一条
         val systemIndex = messages.indexOfFirst { it.role == MessageRole.SYSTEM }
         return if (systemIndex >= 0) {
             messages.toMutableList().apply {
-                this[systemIndex] = this[systemIndex].appendText("\n\n$prompt")
+                this[systemIndex] = this[systemIndex].appendText("\n\n$fullPrompt")
             }
         } else {
-            listOf(UIMessage.system(prompt)) + messages
+            listOf(UIMessage.system(fullPrompt)) + messages
         }
+    }
+
+    private suspend fun buildAgentsPrompt(workspaceId: String, cwd: String?): String {
+        // ProotShellRunner 将 HOME 固定为 /root；相对 PWD 按 /workspace 解析。
+        val workingDirectory = Paths.get("/workspace")
+            .resolve(cwd?.takeIf { it.isNotBlank() } ?: ".")
+            .normalize()
+        val paths = linkedSetOf(
+            "/root/.agents/AGENTS.md",
+            "/workspace/AGENTS.md",
+            workingDirectory.resolve("AGENTS.md").toString(),
+        )
+        val instructions = paths.mapNotNull { path ->
+            try {
+                val size = workspaceRepository.rootfsFileSize(workspaceId, path)
+                require(size <= MAX_AGENTS_BYTES) { "AGENTS.md exceeds $MAX_AGENTS_BYTES bytes" }
+                val content = ByteArrayOutputStream().use { output ->
+                    workspaceRepository.exportRootfsFile(workspaceId, path, output)
+                    output.toString(Charsets.UTF_8.name())
+                }
+                content.takeIf { it.isNotBlank() }?.let { path to it }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.d("WorkspaceReminder", "Skipping workspace instructions: $path", e)
+                null
+            }
+        }
+        if (instructions.isEmpty()) return ""
+        return buildString {
+            appendLine()
+            appendLine()
+            appendLine("<workspace_instructions>")
+            appendLine("Follow the AGENTS.md instructions below.")
+            instructions.forEach { (path, content) ->
+                appendLine()
+                appendLine("AGENTS.md source: $path")
+                appendLine(content)
+            }
+            append("</workspace_instructions>")
+        }
+    }
+
+    private companion object {
+        const val MAX_AGENTS_BYTES = 64L * 1024
     }
 }
 
