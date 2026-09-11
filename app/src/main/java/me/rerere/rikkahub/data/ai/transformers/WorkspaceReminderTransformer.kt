@@ -51,10 +51,11 @@ class WorkspaceReminderTransformer(
         val systemIndex = messages.indexOfFirst { it.role == MessageRole.SYSTEM }
         return if (systemIndex >= 0) {
             messages.toMutableList().apply {
-                this[systemIndex] = this[systemIndex].appendText("\n\n$fullPrompt")
+                this[systemIndex] =
+                    this[systemIndex].appendText("\n\n$fullPrompt").copy(isSynthetic = true)
             }
         } else {
-            listOf(UIMessage.system(fullPrompt)) + messages
+            listOf(UIMessage.system(fullPrompt).copy(isSynthetic = true)) + messages
         }
     }
 
