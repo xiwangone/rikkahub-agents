@@ -14,6 +14,93 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
+import android.content.Intent
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.animateContentSize
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
+import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.Surface
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.key
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithContent
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.LinkAnnotation
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withLink
+import androidx.compose.ui.util.fastAll
+import androidx.compose.ui.util.fastForEach
+import androidx.compose.ui.util.fastForEachIndexed
+import androidx.core.content.FileProvider
+import androidx.core.net.toFile
+import androidx.core.net.toUri
+import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.flow.debounce
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.ai.core.MessageRole
+import me.rerere.ai.provider.Model
+import me.rerere.ai.ui.ToolApprovalState
+import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessageAnnotation
+import me.rerere.ai.ui.AskQuestion
+import me.rerere.ai.ui.ServerToolStatus
+import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.isEmptyUIMessage
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.File02
+import me.rerere.hugeicons.stroke.MusicNote03
+import me.rerere.hugeicons.stroke.Video01
+import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.costguards.TokenBudgetTracker
+import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.model.AssistantAffectScope
+import me.rerere.rikkahub.data.model.MessageNode
+import me.rerere.rikkahub.data.model.replaceRegexes
+import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
+import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
+import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
+import me.rerere.rikkahub.ui.components.ui.ChainOfThought
+import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
+import me.rerere.rikkahub.ui.components.ui.Favicon
+import me.rerere.rikkahub.ui.components.webview.WebViewContentCache
+import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.modifier.shimmer
+import me.rerere.rikkahub.ui.theme.LocalChatFontFamily
+import me.rerere.rikkahub.ui.theme.extendColors
+import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
+import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.rikkahub.utils.openUrl
+import me.rerere.rikkahub.utils.urlDecode
+import java.util.Locale
+import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * 后端连接路径的消息内交互组件（审批卡 / 提问卡）。
@@ -120,4 +207,86 @@ internal fun BackendAskCard(
             }
         }
     }
+}
+
+/**
+ * 服务端工具的折叠 step —— Backend 直连产生的 [UIMessagePart.ServerTool] 以链式
+ * 思考块呈现：默认折叠，点击展开查看输入/输出。与思考卡片统一收纳在
+ * Chain-of-Thought 折叠区内，避免与正文平铺混杂。
+ */
+@Composable
+internal fun ChainOfThoughtScope.ChatMessageServerToolStep(
+    tool: UIMessagePart.ServerTool,
+    loading: Boolean = false,
+) {
+    var expanded by remember { mutableStateOf(false) }
+    val statusText =
+        when (tool.status) {
+            ServerToolStatus.IN_PROGRESS ->
+                stringResource(R.string.chat_server_tool_in_progress)
+            ServerToolStatus.COMPLETED ->
+                stringResource(R.string.chat_server_tool_completed)
+            ServerToolStatus.FAILED ->
+                stringResource(R.string.chat_server_tool_failed)
+        }
+    val inputText =
+        tool.input?.let {
+            (it as? kotlinx.serialization.json.JsonPrimitive)?.content ?: it.toString()
+        }
+    val outputText =
+        tool.output?.let {
+            (it as? kotlinx.serialization.json.JsonPrimitive)?.content ?: it.toString()
+        }
+    val title = tool.toolName.ifBlank { stringResource(R.string.chat_server_tool_title) }
+
+    ControlledChainOfThoughtStep(
+        expanded = expanded,
+        onExpandedChange = { expanded = it },
+        icon = {
+            Icon(
+                imageVector = HugeIcons.File02,
+                contentDescription = null,
+                modifier = Modifier.size(16.dp),
+                tint = MaterialTheme.colorScheme.secondary,
+            )
+        },
+        label = {
+            Text(
+                text = title,
+                style = MaterialTheme.typography.titleSmall,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.shimmer(isLoading = loading),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        },
+        extra = {
+            Text(
+                text = statusText,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.secondary,
+                modifier = Modifier.shimmer(isLoading = loading),
+            )
+        },
+        contentVisible = expanded,
+        content = {
+            Column(
+                modifier = Modifier.padding(top = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                if (!inputText.isNullOrBlank()) {
+                    Text(
+                        text = stringResource(R.string.chat_server_tool_input, inputText.take(200)),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+                if (!outputText.isNullOrBlank() && tool.isFinished) {
+                    Text(
+                        text = stringResource(R.string.chat_server_tool_output, outputText.take(300)),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                }
+            }
+        },
+    )
 }
