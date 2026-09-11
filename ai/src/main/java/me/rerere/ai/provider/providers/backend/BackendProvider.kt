@@ -389,10 +389,15 @@ class BackendProvider(
                     if (label.isNotBlank()) emit(StreamChunk.Phase(label))
                 }
 
-                "notice", "message" -> {
+                "notice" -> {
                     val text = event.text ?: event.detail ?: ""
                     if (text.isNotBlank()) emit(StreamChunk.Notice(text, event.level))
                 }
+
+                // "message" 是 serve 的消息回显事件（其 text / reasoning 均有独立事件下发），
+                // 不能再当作 Notice 发出：否则同一句正文会被重复渲染成额外的提示块
+                // （2026-09-12 实测：message#2 携带 text，与 kind=text 重复）。
+                "message" -> Unit
 
                 "tool_progress" -> {
                     val tool = event.tool
