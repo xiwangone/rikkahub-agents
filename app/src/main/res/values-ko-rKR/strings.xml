@@ -2354,7 +2354,7 @@
   <string name="ssh_key_desc_label">설명(선택)</string>
   <string name="ssh_key_type_label">알고리즘</string>
   <string name="ssh_key_desc_hint">개인 키는 암호화되어 자격 증명 보관소에 저장되고, 공개 키는 서버 authorized_keys 설정에 사용됩니다. Ed25519는 Android 14 이상이 필요합니다.</string>
-  <string name="ssh_key_saved_instruction">개인 키를 자격 증명 보관소 '%1$s'에 저장했습니다. 다음 공개 키를 대상 서버의 authorized_keys에 추가하세요:</string>
+  <string name="ssh_key_saved_instruction">개인 키를 자격 증명 보관소 \'%1$s\'에 저장했습니다. 다음 공개 키를 대상 서버의 authorized_keys에 추가하세요:</string>
   <string name="ssh_key_copy_public">공개 키 복사</string>
   <string name="ssh_key_after_copy_hint">복사한 뒤 서버의 ~/.ssh/authorized_keys에 붙여넣으세요(비밀번호로 로그인할 수 있다면 명령 한 줄로 대신 작성해 드릴 수 있습니다).</string>
   <string name="ssh_key_save_failed">자격 증명 저장 실패: %1$s</string>
@@ -2409,7 +2409,7 @@
   <string name="notification_label_title">%1$s: %2$s</string>
   <string name="workspace_cmd_exec_failed">명령 실행 실패</string>
   <string name="perm_float_window_label">오버레이 권한</string>
-  <string name="perm_float_window_desc">자동화가 진행되는 동안 '에이전트 작업 중' 오버레이를 표시하도록 허용합니다.</string>
+  <string name="perm_float_window_desc">자동화가 진행되는 동안 \'에이전트 작업 중\' 오버레이를 표시하도록 허용합니다.</string>
   <string name="perm_write_settings_label">시스템 설정 수정</string>
   <string name="perm_write_settings_desc">set_brightness로 화면 밝기를 조절하도록 허용합니다.</string>
   <string name="perm_notification_policy_label">방해 금지 모드 접근</string>
@@ -2495,7 +2495,7 @@
   <string name="assistant_page_local_tools_import_select_source">원본 어시스턴트 선택</string>
   <string name="assistant_page_local_tools_import_no_source">다른 사용 가능한 어시스턴트가 없습니다</string>
   <string name="assistant_page_local_tools_import_unnamed">이름 없는 어시스턴트</string>
-  <string name="assistant_page_local_tools_import_confirm_title">'%1$s'에서 도구 구성 가져오기</string>
+  <string name="assistant_page_local_tools_import_confirm_title">\'%1$s\'에서 도구 구성 가져오기</string>
   <string name="assistant_page_local_tools_import_scope">복사할 항목:</string>
   <string name="assistant_page_local_tools_import_local_tools">로컬 도구(필수)</string>
   <string name="assistant_page_local_tools_import_mcp">MCP 서비스</string>
@@ -2508,7 +2508,7 @@
   <string name="ocr_status_ai_recognizing">AI로 이미지 인식 중…</string>
   <string name="agent_overlay_working">에이전트 작업 중</string>
   <string name="setting_page_agent_overlay_enabled_title">작업 중 오버레이</string>
-  <string name="setting_page_agent_overlay_enabled_desc">앱이 백그라운드일 때 '에이전트 작업 중' 오버레이를 표시합니다. 포그라운드 채팅 중에는 상단을 가리지 않도록 표시하지 않습니다.</string>
+  <string name="setting_page_agent_overlay_enabled_desc">앱이 백그라운드일 때 \'에이전트 작업 중\' 오버레이를 표시합니다. 포그라운드 채팅 중에는 상단을 가리지 않도록 표시하지 않습니다.</string>
   <string name="setting_page_telegram_proxy_enabled">프록시</string>
   <string name="setting_page_telegram_proxy_enabled_desc">봇의 네트워크 요청이 프록시를 통해 전달됩니다. 편집하려면 먼저 봇을 중지하세요.</string>
   <string name="setting_page_telegram_proxy_type">프록시 유형</string>
@@ -2534,7 +2534,7 @@
   <string name="assistant_page_local_tools_external_storage_desc">파일 도구가 USB 기기, SD 카드, 다운로드 폴더, 클라우드 저장소를 다룰 수 있게 합니다. 각 디렉터리는 시스템 파일 선택기로 한 번 승인해야 합니다.</string>
   <string name="assistant_page_local_tools_external_storage_title">외부 저장소</string>
   <string name="assistant_page_local_tools_keyboard_desc">함께 제공되는 agent-keyboard 앱으로 활성 텍스트 필드를 제어합니다: 입력, 읽기, 키 입력, 삭제, 커서 이동, 텍스트 선택. 총 8개 도구. 쓰기 계열 도구는 호출마다 승인이 필요합니다.</string>
-  <string name="assistant_page_local_tools_keyboard_setup_message">키보드 제어에는 함께 제공되는 agent-keyboard 앱을 설치하고 사용 설정해야 합니다. 설치 후 '시스템 설정 → 시스템 → 언어 및 입력 → 화면 키보드'에서 agent-keyboard로 전환하세요.</string>
+  <string name="assistant_page_local_tools_keyboard_setup_message">키보드 제어에는 함께 제공되는 agent-keyboard 앱을 설치하고 사용 설정해야 합니다. 설치 후 \'시스템 설정 → 시스템 → 언어 및 입력 → 화면 키보드\'에서 agent-keyboard로 전환하세요.</string>
   <string name="assistant_page_local_tools_keyboard_setup_title">agent-keyboard 설정</string>
   <string name="assistant_page_local_tools_keyboard_status_installed">agent-keyboard가 설치됨 — 현재 키보드로 설정하면 이 도구들을 사용할 수 있습니다</string>
   <string name="assistant_page_local_tools_keyboard_status_not_installed">agent-keyboard 앱이 설치되지 않았습니다</string>
@@ -2574,7 +2574,7 @@
   <string name="vault_list_title">자격 증명 목록(%1$d)</string>
   <string name="vault_search_hint">이름 / 설명 / 그룹 검색</string>
   <string name="vault_empty_title">자격 증명이 없습니다</string>
-  <string name="vault_empty_desc">오른쪽 위 + 로 새로 만들거나 이전 페이지의 '파일에서 가져오기'로 load-creds.sh를 일괄 가져오세요.</string>
+  <string name="vault_empty_desc">오른쪽 위 + 로 새로 만들거나 이전 페이지의 \'파일에서 가져오기\'로 load-creds.sh를 일괄 가져오세요.</string>
   <string name="vault_new">자격 증명 새로 만들기</string>
   <string name="vault_new_key">SSH 키 생성</string>
   <string name="vault_delete_confirm_title">%1$s을(를) 삭제할까요?</string>
@@ -2619,7 +2619,7 @@
   <string name="setting_shizuku_toast_service_not_running">Shizuku 서비스가 실행되지 않았습니다</string>
   <string name="setting_shizuku_section_help">설정 도움말</string>
   <string name="setting_shizuku_help_title">Shizuku 구성</string>
-  <string name="setting_shizuku_help_body">GitHub releases에서 Shizuku를 설치한 뒤 서비스를 시작하세요. 루팅된 기기는 Shizuku 앱에서 시작하고, Android 11 이상은 무선 디버깅으로 페어링합니다(개발자 옵션 → 무선 디버깅 → 페어링 코드로 페어링 후 Shizuku가 표시하는 시작 명령 실행). 서비스가 실행되면 위의 '권한'을 눌러 RikkaHub에 접근을 허용하세요.</string>
+  <string name="setting_shizuku_help_body">GitHub releases에서 Shizuku를 설치한 뒤 서비스를 시작하세요. 루팅된 기기는 Shizuku 앱에서 시작하고, Android 11 이상은 무선 디버깅으로 페어링합니다(개발자 옵션 → 무선 디버깅 → 페어링 코드로 페어링 후 Shizuku가 표시하는 시작 명령 실행). 서비스가 실행되면 위의 \'권한\'을 눌러 RikkaHub에 접근을 허용하세요.</string>
   <string name="setting_ssh_hosts_title">SSH 호스트</string>
   <string name="setting_ssh_host_delete">삭제</string>
   <string name="setting_ssh_host_connect">연결</string>
@@ -2783,7 +2783,7 @@
   <string name="backend_mode_serve_desc">백엔드 서비스 serve의 HTTP API에 직접 연결합니다. baseUrl과 Basic Auth 사용자 이름/암호를 입력하세요.</string>
   <string name="backend_mode_ssh_desc">SSH 역방향 터널을 통해 휴대폰 웹 서비스에 접근합니다(개발 중, 웹 브리지와 함께 사용 필요).</string>
   <string name="backend_web_bridge_section">웹 브리지(역방향 터널)</string>
-  <string name="backend_web_bridge_desc">휴대폰 웹 서비스를 서버로 역방향 터널링해 백엔드 서비스가 휴대폰 기능을 호출할 수 있게 합니다. 연결 제어(시작/중지/상태)는 '설정 → Web 기능 → 웹 브리지'에서 관리하며, 이 스위치는 이 제공업체가 웹 브리지를 사용할지 결정합니다.</string>
+  <string name="backend_web_bridge_desc">휴대폰 웹 서비스를 서버로 역방향 터널링해 백엔드 서비스가 휴대폰 기능을 호출할 수 있게 합니다. 연결 제어(시작/중지/상태)는 \'설정 → Web 기능 → 웹 브리지\'에서 관리하며, 이 스위치는 이 제공업체가 웹 브리지를 사용할지 결정합니다.</string>
   <string name="backend_session_server_managed">백엔드 서비스 세션은 서버가 관리합니다(자동 압축/캐시 최적화를 상속). 이 스위치를 끄면 기존 클라이언트를 계속 사용하며 서로 영향을 주지 않습니다.</string>
   <string name="backend_username_basic">사용자 이름(Basic Auth)</string>
   <string name="backend_password_basic">암호(Basic Auth)</string>
@@ -2836,7 +2836,7 @@
   <string name="doctor_msg_litert_gpu">GPU(OpenCL 또는 OpenGL, LiteRT 내부가 선택).</string>
   <string name="doctor_msg_litert_cpu_fallback">CPU(대체: 이 기기의 GPU delegate 초기화 실패, </string>
   <string name="doctor_msg_litert_enable_hint">켜면 다음 로드 때 기기 GPU를 다시 시도합니다.</string>
-  <string name="doctor_msg_litert_cpu_disabled">CPU(설정 → 로컬 LiteRT의 'GPU 가속 시도'가 꺼져 있음)</string>
+  <string name="doctor_msg_litert_cpu_disabled">CPU(설정 → 로컬 LiteRT의 \'GPU 가속 시도\'가 꺼져 있음)</string>
   <string name="doctor_msg_litert_unprobed">아직 감지되지 않았습니다. 가속기는 첫 모델 로드 시 결정됩니다.</string>
   <string name="doctor_msg_providers">제공업체 %1$s개를 구성했습니다(API key 설정됨 / AICore 사용 / 로컬 모델 로드됨), 총 %2$s개.</string>
   <string name="doctor_msg_dirs_granted">디렉터리 %1$s개가 허용되었습니다: %2$s.</string>
@@ -2850,7 +2850,7 @@
   <string name="doctor_msg_db_timeout">무결성 검사가 시간 초과되었거나 실패했습니다.</string>
   <string name="doctor_msg_db_version_failed">데이터베이스 버전을 읽을 수 없습니다 — Room이 데이터베이스를 열지 못할 수 있습니다.</string>
   <string name="doctor_msg_tg_override_missing">Telegram 어시스턴트 재정의가 설정되었지만(id: %1$s…) 일치하는 어시스턴트가 없습니다. 메시지는 전역 기본값으로 돌아갑니다.</string>
-  <string name="doctor_msg_tg_route">Telegram 수신 메시지는 '%1$s'(id: %2$s…)로 라우팅됩니다 — 전역 기본값을 덮어씁니다.</string>
+  <string name="doctor_msg_tg_route">Telegram 수신 메시지는 \'%1$s\'(id: %2$s…)로 라우팅됩니다 — 전역 기본값을 덮어씁니다.</string>
   <string name="doctor_msg_assistant_count">어시스턴트 %1$s개를 구성했습니다.</string>
   <string name="doctor_msg_assistant_default">새 대화, 예약 작업, Telegram(재정의 미설정 시)에 사용됩니다.</string>
   <string name="doctor_msg_assistant_none">어시스턴트가 구성되지 않았습니다 — 앱이 대화를 시작할 수 없습니다.</string>
@@ -2874,7 +2874,7 @@
   <string name="doctor_msg_granted">부여됨.</string>
   <string name="doctor_msg_nearby_wifi_missing">Android 13+에서 이 권한이 없으면 WiFi 검사/정보가 제한될 수 있습니다.</string>
   <string name="doctor_msg_bluetooth_missing">워크플로 블루투스 트리거가 페어링된 기기 상태를 읽을 수 없습니다.</string>
-  <string name="doctor_msg_overlay_missing">화면 자동화 중에 '에이전트 작업 중' 오버레이를 표시할 수 없습니다.</string>
+  <string name="doctor_msg_overlay_missing">화면 자동화 중에 \'에이전트 작업 중\' 오버레이를 표시할 수 없습니다.</string>
   <string name="doctor_msg_files_missing">부여되지 않았습니다. 파일 도구가 범위 저장소로 제한됩니다.</string>
   <string name="doctor_msg_files_ok">부여됨 — 파일 읽기/쓰기 도구가 임의 경로에 접근할 수 있습니다.</string>
   <string name="doctor_msg_acc_missing">사용 설정되지 않았습니다. 스크린샷, 스와이프, 스크롤, 탭, 제스처 도구가 작동하지 않습니다.</string>
@@ -2906,15 +2906,15 @@
   <string name="doctor_msg_android_device">API %1$s (%2$s) 기기 %3$s %4$s</string>
   <string name="doctor_msg_heap">힙 메모리: %1$s MB 사용 가능 / %2$s MB (최대 %3$s MB)</string>
   <string name="doctor_msg_browser_write_some">사용 설정된 부작용 브라우저 도구 수: %1$s (%2$s).</string>
-  <string name="doctor_msg_assistant_named">'%1$s'(id: %2$s…).</string>
+  <string name="doctor_msg_assistant_named">\'%1$s\'(id: %2$s…).</string>
   <string name="doctor_msg_sms_missing">send_sms 도구로 문자를 보내려면 이 권한이 필요합니다.</string>
   <string name="doctor_msg_write_settings_missing">이 권한이 없으면 set_brightness가 화면 밝기를 변경할 수 없습니다.</string>
   <string name="doctor_msg_db_version_ok">v%1$s — 마이그레이션 완료, schema 일치.</string>
   <string name="doctor_msg_count_total_enabled">총 %1$s개, 활성 %2$s개.</string>
   <string name="doctor_msg_stranded_some">실행 %1$s건이 30분 전 시작된 후 보고가 없어, 중간에 프로세스가 종료되었을 수 있습니다.</string>
-  <string name="doctor_msg_litert_cpu_mldrift">CPU(대체: 이 기기의 GPU delegate 초기화 실패, MLDrift 문제일 수 있습니다. 설정 → 로컬 LiteRT에서 '다시 감지'를 눌러 재시도하세요.)</string>
+  <string name="doctor_msg_litert_cpu_mldrift">CPU(대체: 이 기기의 GPU delegate 초기화 실패, MLDrift 문제일 수 있습니다. 설정 → 로컬 LiteRT에서 \'다시 감지\'를 눌러 재시도하세요.)</string>
   <string name="doctor_msg_rate_detail">각 모델의 최근 알려진 속도(문자 기반 추정, 영문 기준 약 10%% 정확도):\n%1$s</string>
-  <string name="doctor_msg_vision_detail">이 기기는 다음 모델의 비전 인코더를 지원하지 않습니다: %1$s. 이 멀티모달 모델은 텍스트 전용 모드로 동작합니다(대화는 가능하지만 이미지 입력은 불가). 보통 향후 LiteRT-LM SDK 업데이트로 해결됩니다(OpenGL 대체 경로의 CreateSharedMemoryManager가 업스트림에 미구현). GPU 드라이버 업데이트 후 설정 → 로컬 LiteRT에서 해당 모델의 '비전 재시도'를 눌러 플래그를 지울 수 있습니다.</string>
+  <string name="doctor_msg_vision_detail">이 기기는 다음 모델의 비전 인코더를 지원하지 않습니다: %1$s. 이 멀티모달 모델은 텍스트 전용 모드로 동작합니다(대화는 가능하지만 이미지 입력은 불가). 보통 향후 LiteRT-LM SDK 업데이트로 해결됩니다(OpenGL 대체 경로의 CreateSharedMemoryManager가 업스트림에 미구현). GPU 드라이버 업데이트 후 설정 → 로컬 LiteRT에서 해당 모델의 \'비전 재시도\'를 눌러 플래그를 지울 수 있습니다.</string>
   <string name="doctor_msg_browser_mkdir_failed">mkdirs()가 false를 반환했습니다. 기본 저장소가 읽기 전용일 수 있습니다.</string>
   <string name="doctor_summary_fail">실패</string>
   <string name="doctor_summary_warn">경고</string>
@@ -2932,8 +2932,8 @@
   <string name="backend_service_type_custom">사용자 지정 백엔드</string>
   <string name="backend_service_add_conn_desc">Backend / SSH / 사용자 지정 백엔드 연결 추가</string>
   <string name="backend_service_dialog_add_title">백엔드 연결 추가</string>
-  <string name="web_bridge_keyfile_missing">개인 키 파일이 없습니다: %1$s('SSH 키 생성'을 누르면 경로가 자동 입력됩니다)</string>
+  <string name="web_bridge_keyfile_missing">개인 키 파일이 없습니다: %1$s(\'SSH 키 생성\'을 누르면 경로가 자동 입력됩니다)</string>
   <string name="web_bridge_keyfile_empty">개인 키 파일이 비어 있습니다: %1$s(SSH 키를 다시 생성하세요)</string>
   <string name="web_bridge_tunnel_failed">터널 설정 실패: %1$s</string>
-  <string name="setting_termux_help_allow_external_apps_body">Termux에서 다음을 실행하세요:\n\n  mkdir -p ~/.termux\n  echo 'allow-external-apps=true' &gt;&gt; ~/.termux/termux.properties\n\n그런 다음 Android 앱 정보에서 Termux를 강제 종료하고 다시 여세요. 완료 후 아래의 검증 버튼을 누르세요.</string>
+  <string name="setting_termux_help_allow_external_apps_body">Termux에서 다음을 실행하세요:\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties\n\n그런 다음 Android 앱 정보에서 Termux를 강제 종료하고 다시 여세요. 완료 후 아래의 검증 버튼을 누르세요.</string>
 </resources>

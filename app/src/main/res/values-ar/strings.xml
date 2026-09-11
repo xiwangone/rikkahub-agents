@@ -2595,7 +2595,7 @@
   <string name="web_bridge_keyfile_missing">ملف المفتاح الخاص غير موجود: %1$s (اضغط «توليد مفتاح SSH» لملء المسار تلقائيًا)</string>
   <string name="web_bridge_keyfile_empty">ملف المفتاح الخاص فارغ: %1$s (أعد توليد مفتاح SSH)</string>
   <string name="web_bridge_tunnel_failed">فشل إنشاء النفق: %1$s</string>
-  <string name="setting_termux_help_allow_external_apps_body">نفّذ في Termux:\n\n  mkdir -p ~/.termux\n  echo 'allow-external-apps=true' &gt;&gt; ~/.termux/termux.properties\n\nثم أوقف Termux قسريًا من معلومات التطبيق في أندرويد وأعد فتحه. بعد ذلك اضغط زر التحقق أدناه.</string>
+  <string name="setting_termux_help_allow_external_apps_body">نفّذ في Termux:\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties\n\nثم أوقف Termux قسريًا من معلومات التطبيق في أندرويد وأعد فتحه. بعد ذلك اضغط زر التحقق أدناه.</string>
   <string name="chat_page_export_json">تصدير إلى JSON</string>
   <string name="chat_page_export_json_desc">التصدير إلى ملف JSON ليمكن استعادته بالاستيراد</string>
   <string name="chat_page_import">استيراد الجلسة</string>

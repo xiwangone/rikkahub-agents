@@ -2928,7 +2928,7 @@
   <string name="web_bridge_keyfile_missing">Файл приватного ключа отсутствует: %1$s (нажмите «Создать ключ SSH», чтобы подставить путь)</string>
   <string name="web_bridge_keyfile_empty">Файл приватного ключа пуст: %1$s (создайте ключ SSH заново)</string>
   <string name="web_bridge_tunnel_failed">Не удалось установить туннель: %1$s</string>
-  <string name="setting_termux_help_allow_external_apps_body">Выполните в Termux:\n\n  mkdir -p ~/.termux\n  echo 'allow-external-apps=true' &gt;&gt; ~/.termux/termux.properties\n\nЗатем принудительно остановите Termux через «Сведения о приложении» в Android и откройте снова. После этого нажмите кнопку проверки ниже.</string>
+  <string name="setting_termux_help_allow_external_apps_body">Выполните в Termux:\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties\n\nЗатем принудительно остановите Termux через «Сведения о приложении» в Android и откройте снова. После этого нажмите кнопку проверки ниже.</string>
   <string name="chat_page_export_json">Экспорт в JSON</string>
   <string name="chat_page_export_json_desc">Экспорт в файл JSON для последующего восстановления импортом</string>
   <string name="chat_page_import">Импорт сессии</string>
