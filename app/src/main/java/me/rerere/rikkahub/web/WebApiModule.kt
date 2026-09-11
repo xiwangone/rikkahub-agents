@@ -13,7 +13,12 @@ import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
 import io.ktor.server.auth.authenticate
 import io.ktor.server.auth.jwt.jwt
+import io.ktor.server.application.ApplicationCallPipeline
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
+import io.ktor.server.plugins.origin
+import io.ktor.server.application.ApplicationCall
+import io.ktor.server.auth.principal
+import io.ktor.server.auth.jwt.JWTPrincipal
 import io.ktor.server.plugins.statuspages.StatusPages
 import io.ktor.server.request.receive
 import io.ktor.server.response.respond
@@ -69,6 +74,18 @@ fun Application.configureWebApi(
     vaultSessionManager: me.rerere.rikkahub.data.vault.VaultSessionManager,
 ) {
     val jwtEnabled = settingsStore.settingsFlow.value.webServerJwtEnabled
+
+    // 网段白名单：webServerAllowedNetworks 非空时，仅放行匹配 CIDR 的来源 IP（默认空 = 不限制）
+    intercept(ApplicationCallPipeline.Plugins) {
+        val allowedNetworks = settingsStore.settingsFlow.value.webServerAllowedNetworks
+        if (!isRemoteHostAllowed(call.request.origin.remoteHost, allowedNetworks)) {
+            call.respond(
+                HttpStatusCode.Forbidden,
+                ErrorResponse("Network not allowed: ${call.request.origin.remoteHost}", HttpStatusCode.Forbidden.value),
+            )
+            finish()
+        }
+    }
 
     install(ContentNegotiation) {
         json(JsonInstant)
@@ -157,7 +174,8 @@ fun Application.configureWebApi(
                     throw UnauthorizedException("Invalid password")
                 }
 
-                val (token, expiresAt) = createWebJwt(accessPassword)
+                val requestedScope = request.scope?.lowercase()?.takeIf { it == WEB_SCOPE_READ || it == WEB_SCOPE_FULL } ?: WEB_SCOPE_READ
+                val (token, expiresAt) = createWebJwt(accessPassword, requestedScope)
                 call.respond(
                     HttpStatusCode.OK,
                     WebAuthTokenResponse(
@@ -194,13 +212,14 @@ fun Application.configureWebApi(
     }
 }
 
-private fun createWebJwt(secret: String): Pair<String, Long> {
+private fun createWebJwt(secret: String, scope: String = WEB_SCOPE_READ): Pair<String, Long> {
     val now = System.currentTimeMillis()
     val expiresAt = now + WEB_JWT_TTL_MILLIS
     val token = JWT.create()
         .withIssuer(WEB_JWT_ISSUER)
         .withAudience(WEB_JWT_AUDIENCE)
         .withSubject(WEB_JWT_SUBJECT)
+        .withClaim(WEB_JWT_SCOPE_CLAIM, scope)
         .withIssuedAt(Date(now))
         .withExpiresAt(Date(expiresAt))
         .sign(Algorithm.HMAC256(secret))
@@ -229,4 +248,69 @@ private fun extractAccessToken(authorizationHeader: String?, queryToken: String?
 
 private fun secureEquals(left: String, right: String): Boolean {
     return MessageDigest.isEqual(left.toByteArray(Charsets.UTF_8), right.toByteArray(Charsets.UTF_8))
+}
+
+
+// ========== 权限档（scope）与网段白名单工具 ==========
+
+/** JWT 中的权限档 claim 名 */
+const val WEB_JWT_SCOPE_CLAIM = "scope"
+
+/** 只读：GET 类能力 */
+const val WEB_SCOPE_READ = "read"
+
+/** 完全授权：写类能力（发消息/写文件/改设置/SSH 执行） */
+const val WEB_SCOPE_FULL = "full"
+
+/** 读取当前请求的权限档（缺失视为只读，避免历史 token 意外获得写权限） */
+fun ApplicationCall.currentScope(): String =
+    principal<JWTPrincipal>()?.payload?.getClaim(WEB_JWT_SCOPE_CLAIM)?.asString()
+        ?.lowercase()
+        ?.takeIf { it == WEB_SCOPE_READ || it == WEB_SCOPE_FULL }
+        ?: WEB_SCOPE_READ
+
+/** 写类路由前置校验：非 full 权限直接 403 并返回 true（调用方应 return） */
+suspend fun ApplicationCall.denyUnlessFullScope(): Boolean {
+    if (currentScope() == WEB_SCOPE_FULL) return false
+    respond(
+        HttpStatusCode.Forbidden,
+        ErrorResponse("Full scope required", HttpStatusCode.Forbidden.value),
+    )
+    return true
+}
+
+/** 来源 IP 是否在白名单内；allowedNetworks 为空 = 不限制 */
+fun isRemoteHostAllowed(remoteHost: String, allowedNetworks: String): Boolean {
+    val rules =
+        allowedNetworks
+            .split(',', ';', '\n')
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+    if (rules.isEmpty()) return true
+    val addr = parseIpv4(remoteHost) ?: return false
+    return rules.any { ipv4InCidr(addr, it) }
+}
+
+private fun parseIpv4(host: String): Long? {
+    val parts = host.trim().removePrefix("::ffff:").split('.')
+    if (parts.size != 4) return null
+    var value = 0L
+    for (p in parts) {
+        val n = p.toIntOrNull() ?: return null
+        if (n !in 0..255) return null
+        value = (value shl 8) or n.toLong()
+    }
+    return value
+}
+
+private fun ipv4InCidr(addr: Long, cidr: String): Boolean {
+    val raw = cidr.trim()
+    if (raw.isEmpty()) return false
+    val slash = raw.indexOf('/')
+    val ipPart = if (slash >= 0) raw.substring(0, slash) else raw
+    val base = parseIpv4(ipPart) ?: return false
+    if (slash < 0) return base == addr
+    val prefix = raw.substring(slash + 1).toIntOrNull()?.takeIf { it in 0..32 } ?: return false
+    val mask = if (prefix == 0) 0L else (-1L shl (32 - prefix)) and 0xFFFFFFFFL
+    return (addr and mask) == (base and mask)
 }

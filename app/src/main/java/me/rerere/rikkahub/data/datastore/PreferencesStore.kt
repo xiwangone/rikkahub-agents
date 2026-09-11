@@ -210,6 +210,8 @@ class SettingsStore(
         val LOCAL_MCP_PROFILES = stringPreferencesKey("local_mcp_profiles")
         val LOCAL_MCP_ACTIVE_PROFILE_ID = stringPreferencesKey("local_mcp_active_profile_id")
         val WEB_SERVER_JWT_ENABLED = booleanPreferencesKey("web_server_jwt_enabled")
+        val WEB_SERVER_LISTEN_SCOPE = stringPreferencesKey("web_server_listen_scope")
+        val WEB_SERVER_ALLOWED_NETWORKS = stringPreferencesKey("web_server_allowed_networks")
         val WEB_SERVER_ACCESS_PASSWORD = stringPreferencesKey("web_server_access_password")
         val WEB_SERVER_LOCALHOST_ONLY = booleanPreferencesKey("web_server_localhost_only")
 
@@ -393,6 +395,8 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 webBridgePassword = preferences[WEB_BRIDGE_PASSWORD] ?: "",
                 webBridgeCredentialRef = preferences[WEB_BRIDGE_CREDENTIAL_REF] ?: "",
                 webServerJwtEnabled = preferences[WEB_SERVER_JWT_ENABLED] == true,
+                webServerListenScope = preferences[WEB_SERVER_LISTEN_SCOPE] ?: "loopback",
+                webServerAllowedNetworks = preferences[WEB_SERVER_ALLOWED_NETWORKS] ?: "",
                 webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD] ?: "",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
                 aiLogLevel = AiLogLevel.fromPreference(preferences[AI_LOG_LEVEL]),
@@ -668,6 +672,8 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[WEB_BRIDGE_PASSWORD] = settings.webBridgePassword
             preferences[WEB_BRIDGE_CREDENTIAL_REF] = settings.webBridgeCredentialRef
             preferences[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
+            preferences[WEB_SERVER_LISTEN_SCOPE] = settings.webServerListenScope
+            preferences[WEB_SERVER_ALLOWED_NETWORKS] = settings.webServerAllowedNetworks
             preferences[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
             preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
             preferences[AI_LOG_LEVEL] = settings.aiLogLevel.preferenceName
@@ -892,6 +898,10 @@ data class Settings(
     /** Web 桥 SSH 认证：Vault 凭证引用（私钥或密码条目名，优先于明文密码/私钥路径） */
     val webBridgeCredentialRef: String = "",
     val webServerJwtEnabled: Boolean = false,
+    /** Web 服务监听范围：loopback（仅本机，默认）/ lan（局域网与内网）/ any（所有接口） */
+    val webServerListenScope: String = "loopback",
+    /** 允许访问的网段白名单（CIDR，逗号分隔；空 = 不限制）。仅非 loopback 时生效 */
+    val webServerAllowedNetworks: String = "",
     val webServerAccessPassword: String = "",
     val webServerLocalhostOnly: Boolean = true,
     val aiLogLevel: AiLogLevel = AiLogLevel.INFO,

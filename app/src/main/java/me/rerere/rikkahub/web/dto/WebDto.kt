@@ -144,6 +144,8 @@ data class UpdateFavoriteModelsRequest(
 @Serializable
 data class WebAuthTokenRequest(
     val password: String,
+    /** 权限档：read（只读，默认）/ full（完全授权） */
+    val scope: String? = null,
 )
 
 // ========== Response DTOs ==========
