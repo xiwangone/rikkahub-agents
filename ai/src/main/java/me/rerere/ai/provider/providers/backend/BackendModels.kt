@@ -47,6 +47,9 @@ data class SseEvent(
     val compaction: CompactionPayload? = null,
     val message: MessagePayload? = null,
     val outcome: String? = null,
+    /** serve 侧的会话文件路径（每条事件都带）——用于会话复用（resume） */
+    val sessionPath: String? = null,
+    val sessionCurrent: Boolean? = null,
 )
 
 // ── 工具相关 ──

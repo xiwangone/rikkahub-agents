@@ -77,6 +77,20 @@ class BackendProvider(
 
     private fun api(setting: ProviderSetting.Backend): BackendApi = clientFactory(setting)
 
+    /**
+     * RikkaHub 对话 → serve 会话路径 的映射（2026-09-12 新增，会话复用）。
+     *
+     * 键用「首条用户消息」的指纹：RikkaHub 新建对话 → 无映射 → `POST /new`；
+     * 同一对话续聊 → 命中映射 → `POST /resume {path}`。
+     * 这样既不再每次生成都新建（消除服务端会话碎片），也不会串到别的对话。
+     */
+    private val sessionPaths = java.util.concurrent.ConcurrentHashMap<String, String>()
+
+    /** 会话路径变更回调（供 UI/诊断读取，可选） */
+    @Volatile
+    var lastSessionPath: String? = null
+        private set
+
     override suspend fun listModels(providerSetting: ProviderSetting.Backend): List<Model> {
         val models = api(providerSetting).getModels()
         if (models.isEmpty()) {
@@ -263,7 +277,15 @@ class BackendProvider(
 
         // 必须先 POST /new(新建会话)+ POST /submit(提交增量输入),
         // 服务端才会开始生成并向 /events 推送;否则两端 App 无限转圈。
-        api.newSession()
+        // 会话复用：命中映射则 resume 既有会话，否则新建
+        val sessionKey =
+            messages.firstOrNull { it.role == MessageRole.USER }?.textContent()?.hashCode()?.toString()
+        val existingPath = sessionKey?.let { sessionPaths[it] }
+        if (existingPath.isNullOrBlank()) {
+            api.newSession()
+        } else {
+            runCatching { api.resumeSession(existingPath) }
+        }
         api.submit(fullInput)
 
         var usage: TokenUsage? = null
@@ -286,6 +308,14 @@ class BackendProvider(
                     // 事件异常兜底：流异常时返回 null → 由外层 break 优雅收尾，而不是让整个 flow 崩溃。
                     runCatching { events.first() }.getOrNull()
                 } ?: break
+
+            // 捕获 serve 会话路径（每条事件都带），用于后续 resume 复用
+            sessionKey?.let { key ->
+                event.sessionPath?.takeIf { it.isNotBlank() }?.let { path ->
+                    sessionPaths[key] = path
+                    lastSessionPath = path
+                }
+            }
 
             val isContent =
                 event.kind in
