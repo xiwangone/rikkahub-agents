@@ -1963,6 +1963,9 @@
   <string name="workspace_terminal_not_installed">Please install Rootfs first</string>
   <string name="workspace_terminal_loading">Loading workspace…</string>
   <string name="workspace_terminal_exited">Terminal exited</string>
+  <string name="workspace_terminal_close_confirm_title">Close terminal %1$d?</string>
+  <string name="workspace_terminal_close_confirm_message">Closing this tab will terminate any process still running in it.</string>
+  <string name="workspace_terminal_close">Close</string>
   <string name="workspace_terminal_tab">Terminal %1$d</string>
   <string name="workspace_terminal_new_tab">New terminal tab</string>
   <string name="workspace_terminal_close_tab">Close terminal %1$d</string>

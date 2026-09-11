@@ -2804,6 +2804,13 @@
   <string name="workspace_terminal_not_installed">يرجى تثبيت Rootfs أولًا</string>
   <string name="workspace_terminal_loading">جارٍ تحميل مساحة العمل…</string>
   <string name="workspace_terminal_exited">خرجت الطرفية</string>
+  <string name="workspace_terminal_tab">الطرفية %1$d</string>
+  <string name="workspace_terminal_new_tab">تبويب طرفية جديد</string>
+  <string name="workspace_terminal_close_tab">إغلاق الطرفية %1$d</string>
+  <string name="workspace_terminal_no_tabs">لا توجد تبويبات طرفية مفتوحة</string>
+  <string name="workspace_terminal_close_confirm_title">إغلاق الطرفية %1$d؟</string>
+  <string name="workspace_terminal_close_confirm_message">سيؤدي إغلاق هذا التبويب إلى إنهاء أي عملية لا تزال قيد التشغيل فيه.</string>
+  <string name="workspace_terminal_close">إغلاق</string>
   <string name="extensions_page_workspace">مساحات العمل</string>
   <string name="extensions_page_workspace_desc">إدارة أدلة العمل المحلية التي يمكن للوكيل الوصول إليها</string>
   <string name="workspace_select">اختيار مساحة عمل</string>

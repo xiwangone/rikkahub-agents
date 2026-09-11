@@ -1667,6 +1667,13 @@
   <string name="workspace_terminal_not_installed">最初にRootfsをインストールしてください。</string>
   <string name="workspace_terminal_loading">ワークスペース読み込み中…</string>
   <string name="workspace_terminal_exited">ターミナル終了</string>
+  <string name="workspace_terminal_tab">ターミナル %1$d</string>
+  <string name="workspace_terminal_new_tab">新しいターミナルタブ</string>
+  <string name="workspace_terminal_close_tab">ターミナル %1$d を閉じる</string>
+  <string name="workspace_terminal_no_tabs">開いているターミナルタブはありません</string>
+  <string name="workspace_terminal_close_confirm_title">ターミナル %1$d を閉じますか？</string>
+  <string name="workspace_terminal_close_confirm_message">このタブを閉じると、実行中のプロセスは終了します。</string>
+  <string name="workspace_terminal_close">閉じる</string>
   <string name="extensions_page_workspace">ワークスペース</string>
   <string name="extensions_page_workspace_desc">エージェントがアクセス可能なローカルの作業ディレクトリを管理します</string>
   <string name="workspace_select">ワークスペースを選択</string>

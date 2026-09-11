@@ -1679,6 +1679,13 @@
   <string name="workspace_terminal_not_installed">請先安裝 Rootfs</string>
   <string name="workspace_terminal_loading">正在載入工作區…</string>
   <string name="workspace_terminal_exited">終端已退出</string>
+  <string name="workspace_terminal_tab">終端機 %1$d</string>
+  <string name="workspace_terminal_new_tab">新增終端機分頁</string>
+  <string name="workspace_terminal_close_tab">關閉終端機 %1$d</string>
+  <string name="workspace_terminal_no_tabs">沒有開啟的終端機分頁</string>
+  <string name="workspace_terminal_close_confirm_title">關閉終端機 %1$d？</string>
+  <string name="workspace_terminal_close_confirm_message">關閉此分頁將終止仍在其中執行的任何程序。</string>
+  <string name="workspace_terminal_close">關閉</string>
   <string name="extensions_page_workspace">工作區</string>
   <string name="extensions_page_workspace_desc">管理可由 Agent 存取的本地工作目錄</string>
   <string name="workspace_select">選擇工作區</string>

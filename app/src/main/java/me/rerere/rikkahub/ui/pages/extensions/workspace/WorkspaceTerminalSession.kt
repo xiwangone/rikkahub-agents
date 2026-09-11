@@ -114,6 +114,7 @@ internal fun workspaceRootfsReady(
 
 internal class WorkspaceTerminalSessionClient(
     private val context: Context,
+    private val onTitleUpdated: (String?) -> Unit,
     private val onFinished: () -> Unit,
 ) : TerminalSessionClient {
     var terminalView: TerminalView? = null
@@ -122,7 +123,9 @@ internal class WorkspaceTerminalSessionClient(
         terminalView?.onScreenUpdated()
     }
 
-    override fun onTitleChanged(changedSession: TerminalSession) = Unit
+    override fun onTitleChanged(changedSession: TerminalSession) {
+        onTitleUpdated(changedSession.title)
+    }
 
     override fun onSessionFinished(finishedSession: TerminalSession) {
         terminalView?.onScreenUpdated()

@@ -1664,6 +1664,13 @@
   <string name="workspace_terminal_not_installed">먼저 Rootfs를 설치해 주세요.</string>
   <string name="workspace_terminal_loading">워크스페이스 불러오는 중…</string>
   <string name="workspace_terminal_exited">터미널 종료됨</string>
+  <string name="workspace_terminal_tab">터미널 %1$d</string>
+  <string name="workspace_terminal_new_tab">새 터미널 탭</string>
+  <string name="workspace_terminal_close_tab">터미널 %1$d 닫기</string>
+  <string name="workspace_terminal_no_tabs">열린 터미널 탭이 없습니다</string>
+  <string name="workspace_terminal_close_confirm_title">터미널 %1$d번을 닫으시겠습니까?</string>
+  <string name="workspace_terminal_close_confirm_message">이 탭을 닫으면 실행 중인 프로세스가 종료됩니다.</string>
+  <string name="workspace_terminal_close">닫기</string>
   <string name="extensions_page_workspace">작업 공간</string>
   <string name="extensions_page_workspace_desc">Agent가 접근할 수 있는 로컬 작업 디렉토리를 관리합니다.</string>
   <string name="workspace_select">워크스페이스 선택</string>

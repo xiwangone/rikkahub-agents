@@ -1660,6 +1660,13 @@
   <string name="workspace_terminal_not_installed">Пожалуйста, сначала установите Rootfs</string>
   <string name="workspace_terminal_loading">Загрузка рабочего пространства…</string>
   <string name="workspace_terminal_exited">Терминал завершен</string>
+  <string name="workspace_terminal_tab">Терминал %1$d</string>
+  <string name="workspace_terminal_new_tab">Новая вкладка терминала</string>
+  <string name="workspace_terminal_close_tab">Закрыть терминал %1$d</string>
+  <string name="workspace_terminal_no_tabs">Нет открытых вкладок терминала</string>
+  <string name="workspace_terminal_close_confirm_title">Закрыть терминал %1$d?</string>
+  <string name="workspace_terminal_close_confirm_message">Закрытие этой вкладки приведет к завершению всех процессов, которые все еще в ней выполняются.</string>
+  <string name="workspace_terminal_close">Закрыть</string>
   <string name="extensions_page_workspace">Рабочее пространство</string>
   <string name="extensions_page_workspace_desc">Управление локальными рабочими каталогами, доступными для Agent</string>
   <string name="workspace_select">Выберите рабочее пространство</string>
