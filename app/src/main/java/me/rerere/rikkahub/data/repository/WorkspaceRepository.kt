@@ -13,6 +13,8 @@ import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.workspace.RootfsInstallProgress
 import me.rerere.workspace.RootfsInstaller
+import me.rerere.workspace.BackgroundStatus
+import me.rerere.workspace.WorkspaceTreeResult
 import me.rerere.workspace.WorkspaceCommandResult
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceManager
@@ -303,6 +305,50 @@ class WorkspaceRepository(
             manager.ensureWorkspace(workspace.root)
             manager.executeCommand(workspace.root, command, cwd, timeoutMillis, stdin, env)
         }
+    }
+
+    suspend fun readFolderTree(
+        id: String,
+        path: String,
+        maxDepth: Int = 10,
+    ): WorkspaceTreeResult = withContext(Dispatchers.IO) {
+        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
+        manager.ensureWorkspace(workspace.root)
+        manager.rootfsTree(workspace.root, path, maxDepth)
+    }
+
+    /**
+     * 启动后台任务。
+     *
+     * 用 NonCancellable 而非 runInterruptible（与 executeCommand 相反）：这里的进程要在工具
+     * 调用结束后继续跑，取消（例如回合预算到期）绝不能打断启动或丢弃刚拿到的 id——否则进程
+     * 已经起来（端口已占），调用方却永远拿不到 id 去查询或停止它。
+     */
+    suspend fun startBackground(
+        id: String,
+        command: String,
+        cwd: String = "",
+    ): BackgroundStatus {
+        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
+        return withContext(NonCancellable + Dispatchers.IO) {
+            manager.ensureWorkspace(workspace.root)
+            manager.startBackground(workspace.root, command, cwd)
+        }
+    }
+
+    suspend fun backgroundStatus(id: String, taskId: String): BackgroundStatus? = withContext(Dispatchers.IO) {
+        val workspace = dao.getById(id) ?: return@withContext null
+        manager.backgroundStatus(workspace.root, taskId)
+    }
+
+    suspend fun listBackground(id: String): List<BackgroundStatus> = withContext(Dispatchers.IO) {
+        val workspace = dao.getById(id) ?: return@withContext emptyList()
+        manager.listBackground(workspace.root)
+    }
+
+    suspend fun killBackground(id: String, taskId: String): Boolean = withContext(Dispatchers.IO) {
+        val workspace = dao.getById(id) ?: return@withContext false
+        manager.killBackground(workspace.root, taskId)
     }
 
     suspend fun delete(id: String): Boolean {
