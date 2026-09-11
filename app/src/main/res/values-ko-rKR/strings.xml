@@ -2763,6 +2763,10 @@
   <string name="setting_web_bridge_private_key_desc">선택 사항. 비워두면 암호 사용</string>
   <string name="setting_web_bridge_password">SSH 암호</string>
   <string name="setting_web_bridge_password_desc">선택 사항. 비워두면 개인 키 사용</string>
+  <string name="web_bridge_credential_ref_label">Vault 자격 증명 참조(선택)</string>
+  <string name="web_bridge_credential_ref_desc">키스토어에서 개인 키 또는 비밀번호 항목을 선택하세요(평문 저장 없음). 비워 두면 위의 키 경로/비밀번호를 사용합니다.</string>
+  <string name="web_bridge_vault_empty_hint">키스토어에 자격 증명이 없습니다. 보안 자격 증명에서 먼저 추가하세요</string>
+  <string name="web_bridge_credential_missing">자격 증명을 찾을 수 없거나 읽을 수 없습니다: %1$s</string>
   <string name="setting_web_bridge_gen_key">SSH 키 생성</string>
   <string name="setting_web_bridge_save_to_vault">키 저장소에 저장</string>
   <string name="setting_web_bridge_gen_failed">❌ 생성 실패: %1$s</string>

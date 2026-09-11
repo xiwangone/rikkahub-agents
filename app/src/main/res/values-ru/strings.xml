@@ -2756,6 +2756,10 @@
   <string name="setting_web_bridge_private_key_desc">Необязательно; если пусто — используется пароль</string>
   <string name="setting_web_bridge_password">Пароль SSH</string>
   <string name="setting_web_bridge_password_desc">Необязательно; если пусто — используется приватный ключ</string>
+  <string name="web_bridge_credential_ref_label">Ссылка на учётные данные Vault (необязательно)</string>
+  <string name="web_bridge_credential_ref_desc">Выберите в хранилище элемент с приватным ключом или паролем — без открытого текста. Оставьте пустым, чтобы использовать путь к ключу / пароль выше.</string>
+  <string name="web_bridge_vault_empty_hint">В хранилище пока нет учётных данных — добавьте их в «Хранилище учётных данных»</string>
+  <string name="web_bridge_credential_missing">Учётные данные не найдены или не читаются: %1$s</string>
   <string name="setting_web_bridge_gen_key">Создать ключ SSH</string>
   <string name="setting_web_bridge_save_to_vault">Сохранить в хранилище</string>
   <string name="setting_web_bridge_gen_failed">❌ Ошибка создания: %1$s</string>

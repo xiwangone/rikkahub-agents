@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.service.WebServerService
 
 /**
@@ -31,6 +32,7 @@ import me.rerere.rikkahub.service.WebServerService
  */
 class BackendWebBridge(
     private val context: Context,
+    private val vaultRepository: CredentialVaultRepository,
 ) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
 
@@ -57,6 +59,7 @@ class BackendWebBridge(
         localWebPort: Int = 8080,
         privateKeyPath: String = "",
         password: String = "",
+        credentialRef: String = "",
     ): Boolean = withContext(Dispatchers.Default) {
         AppLog.d(TAG, "start: host=$ecsHost remote=$remoteTunnelPort local=$localWebPort key=${if (privateKeyPath.isNotBlank()) "path" else "none"}")
         // 1. 启动 Web 服务（前台服务，通知常驻）
@@ -83,6 +86,7 @@ class BackendWebBridge(
             localWebPort = localWebPort,
             privateKeyPath = privateKeyPath,
             password = password,
+            credentialRef = credentialRef,
         )
         // 成功时清空上次失败的 message（避免「✅已连接 + 红字残留」矛盾显示）
         _state.value = _state.value.copy(tunnelConnected = ok, message = if (ok) "" else _state.value.message)
@@ -99,10 +103,31 @@ class BackendWebBridge(
         localWebPort: Int,
         privateKeyPath: String,
         password: String,
+        credentialRef: String,
     ): Boolean = withContext(Dispatchers.IO) {
         try {
             val jsch = JSch()
-            if (privateKeyPath.isNotBlank()) {
+            // Vault 凭证引用优先：按名从密钥库取私钥/密码，免明文落库、免私钥落盘
+            var vaultPrivateKey: ByteArray? = null
+            var vaultPassword: String? = null
+            if (credentialRef.isNotBlank()) {
+                val entry = try { vaultRepository.getByName(credentialRef) } catch (e: Exception) { null }
+                val value = if (entry == null) null else (try { vaultRepository.decryptValue(entry) } catch (e: Exception) { null })
+                if (value.isNullOrBlank()) {
+                    AppLog.e(TAG, "Vault credential unavailable: $credentialRef")
+                    _state.value = _state.value.copy(message = context.getString(R.string.web_bridge_credential_missing, credentialRef))
+                    return@withContext false
+                }
+                if (value.contains("-----BEGIN")) {
+                    vaultPrivateKey = value.toByteArray()
+                } else {
+                    vaultPassword = value
+                }
+                AppLog.i(TAG, "Loaded SSH ${if (vaultPrivateKey != null) "private key" else "password"} from vault: $credentialRef")
+            }
+            if (vaultPrivateKey != null) {
+                jsch.addIdentity("vault:$credentialRef", vaultPrivateKey, null, null)
+            } else if (privateKeyPath.isNotBlank()) {
                 val keyFile = java.io.File(privateKeyPath)
                 if (!keyFile.exists()) {
                     AppLog.e(TAG, "SSH private key file not found: $privateKeyPath")
@@ -126,7 +151,9 @@ class BackendWebBridge(
                 }
             })
             val session: Session = jsch.getSession(ecsUser, ecsHost, ecsPort)
-            if (password.isNotBlank()) {
+            if (vaultPassword != null) {
+                session.setPassword(vaultPassword)
+            } else if (password.isNotBlank()) {
                 session.setPassword(password)
             }
             // 非交互：接受 host key（首次连接；生产应校验指纹）

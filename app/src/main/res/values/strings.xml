@@ -2483,6 +2483,10 @@
   <string name="setting_web_bridge_private_key_desc">Optional; leave empty to use password</string>
   <string name="setting_web_bridge_password">SSH password</string>
   <string name="setting_web_bridge_password_desc">Optional; leave empty to use private key</string>
+  <string name="web_bridge_credential_ref_label">Vault credential reference (optional)</string>
+  <string name="web_bridge_credential_ref_desc">Pick a private-key or password entry from the vault — no plaintext stored. Leave empty to use the key path / password above.</string>
+  <string name="web_bridge_vault_empty_hint">No credentials in the vault yet — add one in Security Vault first</string>
+  <string name="web_bridge_credential_missing">Credential not found or unreadable: %1$s</string>
   <string name="setting_web_bridge_gen_key">Generate SSH key</string>
   <string name="setting_web_bridge_save_to_vault">Save to Vault</string>
   <string name="setting_web_bridge_gen_success_vault">✅ Generated and saved to Vault (group: SSH)\nKey path: %1$s\nAdd public key to server ~/.ssh/authorized_keys:\n%2$s</string>

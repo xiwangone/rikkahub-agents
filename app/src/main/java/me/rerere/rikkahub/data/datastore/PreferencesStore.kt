@@ -221,6 +221,7 @@ class SettingsStore(
         val WEB_BRIDGE_LOCAL_PORT = intPreferencesKey("web_bridge_local_port")
         val WEB_BRIDGE_PRIVATE_KEY_PATH = stringPreferencesKey("web_bridge_private_key_path")
         val WEB_BRIDGE_PASSWORD = stringPreferencesKey("web_bridge_password")
+        val WEB_BRIDGE_CREDENTIAL_REF = stringPreferencesKey("web_bridge_credential_ref")
 
         // AI logging
         val AI_LOG_LEVEL = stringPreferencesKey("ai_log_level")
@@ -390,6 +391,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 webBridgeLocalPort = preferences[WEB_BRIDGE_LOCAL_PORT] ?: 8080,
                 webBridgePrivateKeyPath = preferences[WEB_BRIDGE_PRIVATE_KEY_PATH] ?: "",
                 webBridgePassword = preferences[WEB_BRIDGE_PASSWORD] ?: "",
+                webBridgeCredentialRef = preferences[WEB_BRIDGE_CREDENTIAL_REF] ?: "",
                 webServerJwtEnabled = preferences[WEB_SERVER_JWT_ENABLED] == true,
                 webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD] ?: "",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
@@ -664,6 +666,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[WEB_BRIDGE_LOCAL_PORT] = settings.webBridgeLocalPort
             preferences[WEB_BRIDGE_PRIVATE_KEY_PATH] = settings.webBridgePrivateKeyPath
             preferences[WEB_BRIDGE_PASSWORD] = settings.webBridgePassword
+            preferences[WEB_BRIDGE_CREDENTIAL_REF] = settings.webBridgeCredentialRef
             preferences[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
             preferences[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
             preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
@@ -886,6 +889,8 @@ data class Settings(
     val webBridgeLocalPort: Int = 8080,
     val webBridgePrivateKeyPath: String = "",
     val webBridgePassword: String = "",
+    /** Web 桥 SSH 认证：Vault 凭证引用（私钥或密码条目名，优先于明文密码/私钥路径） */
+    val webBridgeCredentialRef: String = "",
     val webServerJwtEnabled: Boolean = false,
     val webServerAccessPassword: String = "",
     val webServerLocalhostOnly: Boolean = true,

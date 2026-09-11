@@ -2444,6 +2444,10 @@
     <string name="setting_web_bridge_private_key_desc">可選，留空則使用密碼</string>
     <string name="setting_web_bridge_password">SSH 密碼</string>
     <string name="setting_web_bridge_password_desc">可選，留空則使用私鑰</string>
+  <string name="web_bridge_credential_ref_label">Vault 憑證引用（可選）</string>
+  <string name="web_bridge_credential_ref_desc">從密鑰庫選擇私鑰或密碼項目，免明文儲存；留空則用上方私鑰路徑 / 密碼。</string>
+  <string name="web_bridge_vault_empty_hint">密鑰庫暫無憑證，請先到「安全憑證庫」新增</string>
+  <string name="web_bridge_credential_missing">憑證不存在或讀取失敗：%1$s</string>
     <string name="setting_web_bridge_gen_key">生成 SSH 金鑰</string>
     <string name="setting_web_bridge_save_to_vault">儲存到金鑰庫</string>
     <string name="setting_web_bridge_gen_success_vault">✅ 已生成並儲存到金鑰庫（分組：SSH）\n已寫私鑰路徑：%1$s\n公鑰請新增到伺服器 ~/.ssh/authorized_keys：\n%2$s</string>

@@ -2763,6 +2763,10 @@
   <string name="setting_web_bridge_private_key_desc">任意。空欄ならパスワードを使用</string>
   <string name="setting_web_bridge_password">SSH パスワード</string>
   <string name="setting_web_bridge_password_desc">任意。空欄なら秘密鍵を使用</string>
+  <string name="web_bridge_credential_ref_label">Vault 認証情報の参照（任意）</string>
+  <string name="web_bridge_credential_ref_desc">キーストアから秘密鍵またはパスワードの項目を選択（平文保存なし）。空欄の場合は上の鍵パス／パスワードを使用します。</string>
+  <string name="web_bridge_vault_empty_hint">キーストアに認証情報がありません。「安全な認証情報」で追加してください</string>
+  <string name="web_bridge_credential_missing">認証情報が見つからないか読み取れません: %1$s</string>
   <string name="setting_web_bridge_gen_key">SSH キーを生成</string>
   <string name="setting_web_bridge_save_to_vault">キーストアに保存</string>
   <string name="setting_web_bridge_gen_failed">❌ 生成に失敗: %1$s</string>

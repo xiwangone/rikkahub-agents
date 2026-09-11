@@ -376,6 +376,7 @@ val appModule =
         single {
             me.rerere.rikkahub.data.ai.BackendWebBridge(
                 context = get(),
+                vaultRepository = get(),
             )
         }
 

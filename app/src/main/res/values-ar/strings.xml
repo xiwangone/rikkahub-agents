@@ -2416,6 +2416,10 @@
   <string name="setting_web_bridge_private_key_desc">اختياري، وإن تُرك فارغًا تُستخدم كلمة المرور</string>
   <string name="setting_web_bridge_password">كلمة مرور SSH</string>
   <string name="setting_web_bridge_password_desc">اختياري، وإن تُرك فارغًا يُستخدم المفتاح الخاص</string>
+  <string name="web_bridge_credential_ref_label">مرجع بيانات اعتماد Vault (اختياري)</string>
+  <string name="web_bridge_credential_ref_desc">اختر عنصر مفتاح خاص أو كلمة مرور من مخزن المفاتيح — دون تخزين نص صريح. اتركه فارغًا لاستخدام مسار المفتاح أو كلمة المرور أعلاه.</string>
+  <string name="web_bridge_vault_empty_hint">لا توجد بيانات اعتماد في المخزن بعد — أضِف واحدة من «مخزن بيانات الاعتماد» أولاً</string>
+  <string name="web_bridge_credential_missing">تعذّر العثور على بيانات الاعتماد أو قراءتها: %1$s</string>
   <string name="setting_web_bridge_gen_key">توليد مفتاح SSH</string>
   <string name="setting_web_bridge_save_to_vault">حفظ في مخزن المفاتيح</string>
   <string name="setting_web_bridge_gen_failed">❌ فشل الإنشاء: %1$s</string>
