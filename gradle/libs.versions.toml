@@ -162,7 +162,7 @@ quickie-bundled = { group = "io.github.g00fy2.quickie", name = "quickie-bundled"
 sonner = { module = "io.github.dokar3:sonner", version.ref = "sonner" }
 reorderable = { module = "sh.calvin.reorderable:reorderable", version.ref = "reorderable" }
 commons-text = { module = "org.apache.commons:commons-text", version.ref = "commons-text" }
-modelcontextprotocol-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk", version.ref = "mcp" }
+modelcontextprotocol-kotlin-sdk = { module = "io.modelcontextprotocol:kotlin-sdk-client", version.ref = "mcp" }
 pebble = { module = "io.pebbletemplates:pebble", version.ref = "pebble" }
 diffutils = { module = "io.github.java-diff-utils:java-diff-utils", version.ref = "diffutils" }
 snakeyaml = { module = "org.yaml:snakeyaml", version.ref = "snakeyaml" }
