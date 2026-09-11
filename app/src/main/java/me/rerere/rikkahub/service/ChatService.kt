@@ -1053,21 +1053,22 @@ class ChatService(
                     // 同时落库，保证 UI 与历史一致（不必等整轮结束）。
                     drainQueuedMessages = {
                         val taken = messageQueues[conversationId]?.drainAll().orEmpty()
-                        if (taken.isNotEmpty()) {
+                        // 注意：落库与返回**必须复用同一批 UIMessage 对象**。
+                        // 若各自新建，id 不同 → 后续 GenerationChunk.Messages 走
+                        // Conversation.updateCurrentMessages 时按 id 匹配不到，会把同一内容
+                        // 追加成同一节点的第二条消息（表现为消息出现「2/2」分支）。
+                        val queuedMessages =
+                            taken.map { UIMessage(role = MessageRole.USER, parts = it.parts) }
+                        if (queuedMessages.isNotEmpty()) {
                             val conv = getConversationFlow(conversationId).value
                             val withQueued =
                                 conv.copy(
-                                    messageNodes =
-                                        conv.messageNodes +
-                                            taken.map { queued ->
-                                                UIMessage(role = MessageRole.USER, parts = queued.parts)
-                                                    .toMessageNode()
-                                            },
+                                    messageNodes = conv.messageNodes + queuedMessages.map { it.toMessageNode() },
                                 )
                             saveConversation(conversationId, withQueued)
-                            AppLog.i(TAG, "msg-inject conv=$conversationId count=${taken.size}")
+                            AppLog.i(TAG, "msg-inject conv=$conversationId count=${queuedMessages.size}")
                         }
-                        taken.map { UIMessage(role = MessageRole.USER, parts = it.parts) }
+                        queuedMessages
                     },
                     // Read once per call so the surface that wrote the addendum (Telegram bot,
                     // anything else) gets its runtime context into the system prompt without
