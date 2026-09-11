@@ -31,6 +31,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListState
@@ -47,6 +48,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -81,6 +83,8 @@ import dev.chrisbanes.haze.hazeSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
@@ -403,6 +407,44 @@ private fun ChatListNormal(
                                 sessionTotals = if (index == lastMessageIndex) sessionTotals else null,
                             )
                         }
+
+                        // 生成失败的诊断消息（system 角色）携带 API 返回原文，原文无法本地化、
+                        // 保持原样；这里给一个显式入口，方便把它整段复制后转贴给服务商排查。
+                        val rawReply = node.currentMessage
+                        val diagnosticPrefix =
+                            stringResource(R.string.error_context_injected, "\u0000", "\u0000")
+                                .substringBefore("\u0000")
+                        if (rawReply.role == MessageRole.SYSTEM) {
+                            val rawText =
+                                rawReply.parts
+                                    .filterIsInstance<UIMessagePart.Text>()
+                                    .joinToString("\n") { it.text }
+                            if (rawText.startsWith(diagnosticPrefix)) {
+                                val copyContext = LocalContext.current
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
+                                ) {
+                                    TextButton(
+                                        onClick = {
+                                            val clipboard =
+                                                copyContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            clipboard.setPrimaryClip(
+                                                ClipData.newPlainText("generation_error", rawText)
+                                            )
+                                        },
+                                    ) {
+                                        Icon(
+                                            imageVector = HugeIcons.Copy01,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(stringResource(R.string.copy))
+                                    }
+                                }
+                            }
+                        }
                     }
                 }
 
@@ -430,37 +472,11 @@ private fun ChatListNormal(
                             AnimatedVisibility(
                                 visible = processingStatus != null,
                             ) {
-                                val statusContext = LocalContext.current
-                                Row(
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                ) {
-                                    Text(
-                                        text = processingStatus ?: "",
-                                        style = MaterialTheme.typography.labelMedium,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    )
-                                    IconButton(
-                                        onClick = {
-                                            val text = processingStatus
-                                            if (!text.isNullOrBlank()) {
-                                                val clipboard =
-                                                    statusContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                                clipboard.setPrimaryClip(
-                                                    ClipData.newPlainText("processingStatus", text)
-                                                )
-                                            }
-                                        },
-                                        modifier = Modifier.size(28.dp),
-                                    ) {
-                                        Icon(
-                                            imageVector = HugeIcons.Copy01,
-                                            contentDescription = stringResource(R.string.copy),
-                                            modifier = Modifier.size(14.dp),
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
+                                Text(
+                                    text = processingStatus ?: "",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
                             }
                         }
                     }
