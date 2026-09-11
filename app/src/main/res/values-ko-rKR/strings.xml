@@ -850,9 +850,7 @@
   <string name="setting_page_tts_settings">TTS 설정</string>
   <string name="setting_page_web_server">웹 서버</string>
   <string name="setting_page_web_server_address_note">주소 메모</string>
-  <string name="setting_page_web_server_address_note_desc">LAN 주소: 기기의 WiFi IP를 사용하며, 같은 네트워크에 연결된 다른 기기에서 접근할 수 있습니다. 모바일 데이터에서는 사용할 수 없습니다.
-로컬 주소: localhost를 사용하며, 이 기기에서만 접근할 수 있습니다.
-mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네트워크의 다른 기기에서 이름으로 접근할 수 있습니다.</string>
+  <string name="setting_page_web_server_address_note_desc">LAN 주소: 기기의 WiFi IP를 사용하며, 같은 네트워크에 연결된 다른 기기에서 접근할 수 있습니다. 모바일 데이터에서는 사용할 수 없습니다.\n로컬 주소: localhost를 사용하며, 이 기기에서만 접근할 수 있습니다.\nmDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네트워크의 다른 기기에서 이름으로 접근할 수 있습니다.</string>
   <string name="setting_page_web_server_desc">웹을 통해 RikkaHub Agents에 접근할 수 있도록 허용</string>
   <string name="setting_page_web_server_error">오류</string>
   <string name="setting_page_web_server_jwt_enable">인증 활성화</string>
@@ -2375,11 +2373,9 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="chat_page_backend_local">이 기기</string>
   <string name="ssh_terminal_host_not_found">호스트가 없습니다: %1$s</string>
   <string name="ssh_terminal_no_credential">사용 가능한 자격 증명이 없습니다(vault ref: %1$s)</string>
-  <string name="ssh_terminal_connected">%1$s@%2$s:%3$s에 연결되었습니다
-</string>
+  <string name="ssh_terminal_connected">%1$s@%2$s:%3$s에 연결되었습니다\n</string>
   <string name="ssh_terminal_connect_failed">연결 실패: %1$s</string>
-  <string name="ssh_terminal_exec_failed">실행 실패: %1$s
-</string>
+  <string name="ssh_terminal_exec_failed">실행 실패: %1$s\n</string>
   <string name="ssh_terminal_input_placeholder">명령을 입력하고 Enter로 실행</string>
   <string name="ssh_terminal_execute">실행</string>
   <string name="ssh_hosts_save_failed">저장 실패: %1$s</string>
@@ -2455,8 +2451,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="backend_notif_channel_name">Backend 질문 및 승인</string>
   <string name="backend_notif_tool_request">Backend가 도구 %1$s 실행을 요청</string>
   <string name="backend_notif_pending_approve">Backend 도구 승인 대기: %1$s</string>
-  <string name="backend_notif_ask_body">질문: %1$s%2$s
-%3$s</string>
+  <string name="backend_notif_ask_body">질문: %1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi">(다중 선택)</string>
   <string name="backend_notif_single">(단일 선택)</string>
   <string name="backend_notif_desc_paren">(%1$s)</string>
@@ -2466,8 +2461,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="mcp_approval_channel_name">MCP 도구 승인</string>
   <string name="mcp_approval_channel_desc">Backend가 로컬 MCP로 기기 도구를 호출할 때의 승인/거부</string>
   <string name="mcp_approval_title">기기 도구 승인 대기: %1$s</string>
-  <string name="mcp_approval_body">Backend가 기기 도구 %1$s 호출을 요청했습니다.【NL】매개변수: %2$s【NL】
-승인하면 이 기기에서 실행됩니다.</string>
+  <string name="mcp_approval_body">Backend가 기기 도구 %1$s 호출을 요청했습니다.\n매개변수: %2$s\n\n승인하면 이 기기에서 실행됩니다.</string>
   <string name="web_bridge_start_failed">Web 서비스 시작 실패: %1$s</string>
   <string name="setting_tts_page_temperature_description">음성의 무작위성을 제어합니다(0.0 - 1.0, 높을수록 표현력 증가)</string>
   <string name="setting_tts_page_fish_audio_speed_description">말 속도(0.5 - 2.0, 1.0이 보통)</string>
@@ -2774,15 +2768,9 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="vault_session_label_default">기본</string>
   <string name="vault_session_list_desc">발급된 모든 세션. 개별 취소하거나 token을 복사할 수 있습니다</string>
   <string name="vault_session_list_title">세션 목록</string>
-  <string name="setting_web_bridge_gen_success_vault">✅ 생성 후 키 저장소에 저장했습니다(그룹: SSH)
-개인 키 경로를 기록했습니다: %1$s
-다음 공개 키를 서버 ~/.ssh/authorized_keys에 추가하세요:
-%2$s</string>
-  <string name="setting_web_bridge_gen_success">✅ %1$s에 생성했습니다
-다음 공개 키를 서버 ~/.ssh/authorized_keys에 추가하세요:
-%2$s</string>
-  <string name="setting_web_bridge_copy_success">✅ 공개 키를 복사했습니다! 서버 ~/.ssh/authorized_keys에 붙여넣으세요
-%1$s</string>
+  <string name="setting_web_bridge_gen_success_vault">✅ 생성 후 키 저장소에 저장했습니다(그룹: SSH)\n개인 키 경로를 기록했습니다: %1$s\n다음 공개 키를 서버 ~/.ssh/authorized_keys에 추가하세요:\n%2$s</string>
+  <string name="setting_web_bridge_gen_success">✅ %1$s에 생성했습니다\n다음 공개 키를 서버 ~/.ssh/authorized_keys에 추가하세요:\n%2$s</string>
+  <string name="setting_web_bridge_copy_success">✅ 공개 키를 복사했습니다! 서버 ~/.ssh/authorized_keys에 붙여넣으세요\n%1$s</string>
   <string name="vault_session_remaining_day">남은 %1$d일</string>
   <string name="vault_session_remaining_min">남은 %1$d분</string>
   <string name="vault_session_remaining_session">즉시 유효</string>
@@ -2925,8 +2913,7 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="doctor_msg_count_total_enabled">총 %1$s개, 활성 %2$s개.</string>
   <string name="doctor_msg_stranded_some">실행 %1$s건이 30분 전 시작된 후 보고가 없어, 중간에 프로세스가 종료되었을 수 있습니다.</string>
   <string name="doctor_msg_litert_cpu_mldrift">CPU(대체: 이 기기의 GPU delegate 초기화 실패, MLDrift 문제일 수 있습니다. 설정 → 로컬 LiteRT에서 '다시 감지'를 눌러 재시도하세요.)</string>
-  <string name="doctor_msg_rate_detail">각 모델의 최근 알려진 속도(문자 기반 추정, 영문 기준 약 10%% 정확도):
-%1$s</string>
+  <string name="doctor_msg_rate_detail">각 모델의 최근 알려진 속도(문자 기반 추정, 영문 기준 약 10%% 정확도):\n%1$s</string>
   <string name="doctor_msg_vision_detail">이 기기는 다음 모델의 비전 인코더를 지원하지 않습니다: %1$s. 이 멀티모달 모델은 텍스트 전용 모드로 동작합니다(대화는 가능하지만 이미지 입력은 불가). 보통 향후 LiteRT-LM SDK 업데이트로 해결됩니다(OpenGL 대체 경로의 CreateSharedMemoryManager가 업스트림에 미구현). GPU 드라이버 업데이트 후 설정 → 로컬 LiteRT에서 해당 모델의 '비전 재시도'를 눌러 플래그를 지울 수 있습니다.</string>
   <string name="doctor_msg_browser_mkdir_failed">mkdirs()가 false를 반환했습니다. 기본 저장소가 읽기 전용일 수 있습니다.</string>
   <string name="doctor_summary_fail">실패</string>
@@ -2948,10 +2935,5 @@ mDNS 주소: .local 호스트네임을 사용하며, IP를 몰라도 같은 네�
   <string name="web_bridge_keyfile_missing">개인 키 파일이 없습니다: %1$s('SSH 키 생성'을 누르면 경로가 자동 입력됩니다)</string>
   <string name="web_bridge_keyfile_empty">개인 키 파일이 비어 있습니다: %1$s(SSH 키를 다시 생성하세요)</string>
   <string name="web_bridge_tunnel_failed">터널 설정 실패: %1$s</string>
-  <string name="setting_termux_help_allow_external_apps_body">Termux에서 다음을 실행하세요:
-
-  mkdir -p ~/.termux
-  echo 'allow-external-apps=true' &gt;&gt; ~/.termux/termux.properties
-
-그런 다음 Android 앱 정보에서 Termux를 강제 종료하고 다시 여세요. 완료 후 아래의 검증 버튼을 누르세요.</string>
+  <string name="setting_termux_help_allow_external_apps_body">Termux에서 다음을 실행하세요:\n\n  mkdir -p ~/.termux\n  echo 'allow-external-apps=true' &gt;&gt; ~/.termux/termux.properties\n\n그런 다음 Android 앱 정보에서 Termux를 강제 종료하고 다시 여세요. 완료 후 아래의 검증 버튼을 누르세요.</string>
 </resources>

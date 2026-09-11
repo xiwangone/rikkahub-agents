@@ -2033,9 +2033,9 @@
   <string name="chat_page_backend_local">هذا الجهاز</string>
   <string name="ssh_terminal_host_not_found">المضيف غير موجود: %1$s</string>
   <string name="ssh_terminal_no_credential">لا توجد بيانات سرية متاحة (vault ref: %1$s)</string>
-  <string name="ssh_terminal_connected">تم الاتصال بـ %1$s@%2$s:%3$s【NL】</string>
+  <string name="ssh_terminal_connected">تم الاتصال بـ %1$s@%2$s:%3$s\n</string>
   <string name="ssh_terminal_connect_failed">فشل الاتصال: %1$s</string>
-  <string name="ssh_terminal_exec_failed">فشل التنفيذ: %1$s【NL】</string>
+  <string name="ssh_terminal_exec_failed">فشل التنفيذ: %1$s\n</string>
   <string name="ssh_terminal_input_placeholder">أدخل الأمر ثم اضغط Enter لتنفيذه</string>
   <string name="ssh_terminal_execute">تنفيذ</string>
   <string name="ssh_hosts_save_failed">فشل الحفظ: %1$s</string>
@@ -2111,7 +2111,7 @@
   <string name="backend_notif_channel_name">أسئلة الواجهة الخلفية والموافقات</string>
   <string name="backend_notif_tool_request">تطلب الواجهة الخلفية تنفيذ الأداة %1$s</string>
   <string name="backend_notif_pending_approve">أداة الواجهة الخلفية بانتظار الموافقة: %1$s</string>
-  <string name="backend_notif_ask_body">سؤال: %1$s%2$s【NL】%3$s</string>
+  <string name="backend_notif_ask_body">سؤال: %1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi">(تحديد متعدد)</string>
   <string name="backend_notif_single">(اختيار واحد)</string>
   <string name="backend_notif_desc_paren">(%1$s)</string>
@@ -2121,9 +2121,8 @@
   <string name="mcp_approval_channel_name">الموافقة على أدوات MCP</string>
   <string name="mcp_approval_channel_desc">الموافقة أو الرفض عند استدعاء الواجهة الخلفية أدوات الجهاز عبر MCP المحلي</string>
   <string name="mcp_approval_title">أداة الجهاز بانتظار الموافقة: %1$s</string>
-  <string name="mcp_approval_body">تطلب الواجهة الخلفية استدعاء أداة الجهاز %1$s.【NL】المعاملات: %2$s【NL】【NL】بعد الموافقة ستُنفَّذ على هذا الجهاز.</string>
-  <string name="web_bridge_start_failed">فشل بدء خدمة الويب: %1$s【NL】
-</string>
+  <string name="mcp_approval_body">تطلب الواجهة الخلفية استدعاء أداة الجهاز %1$s.\nالمعاملات: %2$s\n\nبعد الموافقة ستُنفَّذ على هذا الجهاز.</string>
+  <string name="web_bridge_start_failed">فشل بدء خدمة الويب: %1$s\n</string>
   <string name="setting_tts_page_temperature_description">يتحكم في عشوائية الصوت (0.0 - 1.0، وكلما زاد زاد التعبير)</string>
   <string name="setting_tts_page_fish_audio_speed_description">سرعة الكلام (0.5 - 2.0، و1.0 هي العادية)</string>
   <string name="theme_name_claude">Claude</string>
@@ -2262,8 +2261,7 @@
   <string name="backend_service_about_desc">الواجهة الخلفية قناة تنفيذ (وليست نموذج محادثة): يفكّر الذكاء الاصطناعي بالنموذج وينفّذ عبر الواجهة (خدمة خلفية / مضيف SSH / خدمة مخصّصة). التنفيذ افتراضيًا على هذا الجهاز، ويمكن التحويل إلى خلفية بعيدة للمهام الثقيلة.</string>
   <string name="backend_service_add">إضافة خلفية</string>
   <string name="setting_page_ssh_hosts_desc">إدارة مضيفات SSH، ويمكن للذكاء الاصطناعي الاتصال بالاسم.</string>
-  <string name="setting_shizuku_title">Shizuku
-</string>
+  <string name="setting_shizuku_title">Shizuku</string>
   <string name="setting_page_shizuku">Shizuku</string>
   <string name="setting_page_shizuku_desc">ترقية صلاحيات Shell-UID لأوامر الذكاء الاصطناعي</string>
   <string name="setting_shizuku_section_status">الحالة</string>
@@ -2429,17 +2427,10 @@
   <string name="vault_session_empty">لا توجد جلسات</string>
   <string name="vault_session_label_default">افتراضي</string>
   <string name="vault_session_list_desc">كل الجلسات الصادرة، ويمكن إلغاء كل واحدة أو نسخ رمزها</string>
-  <string name="vault_session_list_title">قائمة الجلسات
-</string>
-  <string name="setting_web_bridge_gen_success_vault">✅ تم الإنشاء والحفظ في المخزن (المجموعة: SSH)
-تم كتابة مسار المفتاح الخاص: %1$s
-أضف المفتاح العام إلى ~/.ssh/authorized_keys على الخادم:
-%2$s</string>
-  <string name="setting_web_bridge_gen_success">✅ تم الإنشاء في %1$s
-أضف المفتاح العام إلى ~/.ssh/authorized_keys على الخادم:
-%2$s</string>
-  <string name="setting_web_bridge_copy_success">✅ تم نسخ المفتاح العام! الصقه في ~/.ssh/authorized_keys على الخادم
-%1$s</string>
+  <string name="vault_session_list_title">قائمة الجلسات</string>
+  <string name="setting_web_bridge_gen_success_vault">✅ تم الإنشاء والحفظ في المخزن (المجموعة: SSH)\nتم كتابة مسار المفتاح الخاص: %1$s\nأضف المفتاح العام إلى ~/.ssh/authorized_keys على الخادم:\n%2$s</string>
+  <string name="setting_web_bridge_gen_success">✅ تم الإنشاء في %1$s\nأضف المفتاح العام إلى ~/.ssh/authorized_keys على الخادم:\n%2$s</string>
+  <string name="setting_web_bridge_copy_success">✅ تم نسخ المفتاح العام! الصقه في ~/.ssh/authorized_keys على الخادم\n%1$s</string>
   <string name="vault_session_remaining_day">المتبقي %1$d يوم</string>
   <string name="vault_session_remaining_min">المتبقي %1$d دقيقة</string>
   <string name="vault_session_remaining_session">سارٍ فورًا</string>
@@ -2582,8 +2573,7 @@
   <string name="doctor_msg_count_total_enabled">الإجمالي %1$s، والمفعّل %2$s.</string>
   <string name="doctor_msg_stranded_some">عمليات تشغيل (%1$s) بدأت قبل أكثر من 30 دقيقة دون تقرير، وربما قُتلت العملية أثناءها.</string>
   <string name="doctor_msg_litert_cpu_mldrift">CPU (بديل: فشل تهيئة GPU delegate على الجهاز، وربما المشكلة في MLDrift. اضغط «إعادة الفحص» في الإعدادات → محلي · LiteRT.)</string>
-  <string name="doctor_msg_rate_detail">معدلات النماذج المعروفة مؤخرًا (مقدّرة بالأحرف، بدقة ~10%% للنص الإنجليزي):
-%1$s</string>
+  <string name="doctor_msg_rate_detail">معدلات النماذج المعروفة مؤخرًا (مقدّرة بالأحرف، بدقة ~10%% للنص الإنجليزي):\n%1$s</string>
   <string name="doctor_msg_vision_detail">الجهاز لا يدعم مشفّر الرؤية للنماذج: %1$s. ستعمل هذه النماذج متعددة الوسائط في وضع النص فقط (المحادثة ممكنة دون إدخال الصور). يُصلح عادةً بتحديث LiteRT-LM SDK (إذ إن CreateSharedMemoryManager في مسار OpenGL البديل غير منفّذ). بعد تحديث تعريف GPU اضغط «إعادة محاولة الرؤية» بجانب النموذج في الإعدادات → محلي · LiteRT.</string>
   <string name="doctor_msg_browser_mkdir_failed">أعاد mkdirs() القيمة false، وربما يكون التخزين للقراءة فقط.</string>
   <string name="doctor_summary_fail">فشل</string>
@@ -2604,20 +2594,13 @@
   <string name="backend_service_dialog_add_title">إضافة اتصال الواجهة الخلفية</string>
   <string name="web_bridge_keyfile_missing">ملف المفتاح الخاص غير موجود: %1$s (اضغط «توليد مفتاح SSH» لملء المسار تلقائيًا)</string>
   <string name="web_bridge_keyfile_empty">ملف المفتاح الخاص فارغ: %1$s (أعد توليد مفتاح SSH)</string>
-  <string name="web_bridge_tunnel_failed">فشل إنشاء النفق: %1$s
-</string>
-  <string name="setting_termux_help_allow_external_apps_body">نفّذ في Termux:
-
-  mkdir -p ~/.termux
-  echo 'allow-external-apps=true' &gt;&gt; ~/.termux/termux.properties
-
-ثم أوقف Termux قسريًا من معلومات التطبيق في أندرويد وأعد فتحه. بعد ذلك اضغط زر التحقق أدناه.</string>
+  <string name="web_bridge_tunnel_failed">فشل إنشاء النفق: %1$s</string>
+  <string name="setting_termux_help_allow_external_apps_body">نفّذ في Termux:\n\n  mkdir -p ~/.termux\n  echo 'allow-external-apps=true' &gt;&gt; ~/.termux/termux.properties\n\nثم أوقف Termux قسريًا من معلومات التطبيق في أندرويد وأعد فتحه. بعد ذلك اضغط زر التحقق أدناه.</string>
   <string name="chat_page_export_json">تصدير إلى JSON</string>
   <string name="chat_page_export_json_desc">التصدير إلى ملف JSON ليمكن استعادته بالاستيراد</string>
   <string name="chat_page_import">استيراد الجلسة</string>
   <string name="chat_page_import_success">تم استيراد الجلسة</string>
   <string name="chat_page_import_failed">فشل الاستيراد: %s</string>
   <string name="browser_address_bar_open_external">فتح في المتصفح</string>
-  <string name="browser_address_bar_share">مشاركة الرابط
-</string>
+  <string name="browser_address_bar_share">مشاركة الرابط</string>
 </resources>

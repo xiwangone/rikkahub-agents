@@ -843,9 +843,7 @@
   <string name="setting_page_tts_settings">Настройки TTS</string>
   <string name="setting_page_web_server">Веб-сервер</string>
   <string name="setting_page_web_server_address_note">Примечания к адресу</string>
-  <string name="setting_page_web_server_address_note_desc">LAN-адрес: использует IP-адрес устройства в Wi-Fi, доступен другим устройствам в той же сети. Недоступен при использовании мобильных данных.
-Локальный адрес: использует localhost, доступен только на этом устройстве.
-Адрес mDNS: использует имя хоста .local, доступен по имени с других устройств в той же сети без знания IP-адреса.</string>
+  <string name="setting_page_web_server_address_note_desc">LAN-адрес: использует IP-адрес устройства в Wi-Fi, доступен другим устройствам в той же сети. Недоступен при использовании мобильных данных.\nЛокальный адрес: использует localhost, доступен только на этом устройстве.\nАдрес mDNS: использует имя хоста .local, доступен по имени с других устройств в той же сети без знания IP-адреса.</string>
   <string name="setting_page_web_server_desc">Разрешить доступ к RikkaHub Agents через веб</string>
   <string name="setting_page_web_server_error">Ошибка</string>
   <string name="setting_page_web_server_jwt_enable">Включить аутентификацию</string>
@@ -2368,11 +2366,9 @@
   <string name="chat_page_backend_local">Это устройство</string>
   <string name="ssh_terminal_host_not_found">Хост не найден: %1$s</string>
   <string name="ssh_terminal_no_credential">Нет доступных учётных данных (vault ref: %1$s)</string>
-  <string name="ssh_terminal_connected">Подключено к %1$s@%2$s:%3$s
-</string>
+  <string name="ssh_terminal_connected">Подключено к %1$s@%2$s:%3$s\n</string>
   <string name="ssh_terminal_connect_failed">Ошибка подключения: %1$s</string>
-  <string name="ssh_terminal_exec_failed">Ошибка выполнения: %1$s
-</string>
+  <string name="ssh_terminal_exec_failed">Ошибка выполнения: %1$s\n</string>
   <string name="ssh_terminal_input_placeholder">Введите команду и нажмите Enter</string>
   <string name="ssh_terminal_execute">Выполнить</string>
   <string name="ssh_hosts_save_failed">Не удалось сохранить: %1$s</string>
@@ -2448,8 +2444,7 @@
   <string name="backend_notif_channel_name">Вопросы и одобрения бэкенда</string>
   <string name="backend_notif_tool_request">Бэкенд запрашивает выполнение инструмента %1$s</string>
   <string name="backend_notif_pending_approve">Ожидает одобрения инструмента бэкенда: %1$s</string>
-  <string name="backend_notif_ask_body">Вопрос: %1$s%2$s
-%3$s</string>
+  <string name="backend_notif_ask_body">Вопрос: %1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi">(множественный выбор)</string>
   <string name="backend_notif_single">(один вариант)</string>
   <string name="backend_notif_desc_paren">(%1$s)</string>
@@ -2459,8 +2454,7 @@
   <string name="mcp_approval_channel_name">Одобрение инструментов MCP</string>
   <string name="mcp_approval_channel_desc">Одобрение или отклонение вызовов инструментов устройства через локальный MCP</string>
   <string name="mcp_approval_title">Ожидает одобрения инструмента устройства: %1$s</string>
-  <string name="mcp_approval_body">Бэкенд запрашивает вызов инструмента устройства %1$s.【NL】Параметры: %2$s【NL】
-После одобрения выполнится на этом устройстве.</string>
+  <string name="mcp_approval_body">Бэкенд запрашивает вызов инструмента устройства %1$s.\nПараметры: %2$s\n\nПосле одобрения выполнится на этом устройстве.</string>
   <string name="web_bridge_start_failed">Не удалось запустить веб-службу: %1$s</string>
   <string name="setting_tts_page_temperature_description">Управляет случайностью речи (0.0–1.0, выше — выразительнее)</string>
   <string name="setting_tts_page_fish_audio_speed_description">Скорость речи (0.5–2.0, 1.0 — норма)</string>
@@ -2767,15 +2761,9 @@
   <string name="vault_session_label_default">По умолчанию</string>
   <string name="vault_session_list_desc">Все выданные сессии; можно отозвать каждую или скопировать token</string>
   <string name="vault_session_list_title">Список сессий</string>
-  <string name="setting_web_bridge_gen_success_vault">✅ Создано и сохранено в хранилище (группа: SSH)
-Путь к приватному ключу записан: %1$s
-Добавьте открытый ключ в ~/.ssh/authorized_keys на сервере:
-%2$s</string>
-  <string name="setting_web_bridge_gen_success">✅ Создано в %1$s
-Добавьте открытый ключ в ~/.ssh/authorized_keys на сервере:
-%2$s</string>
-  <string name="setting_web_bridge_copy_success">✅ Открытый ключ скопирован! Вставьте в ~/.ssh/authorized_keys на сервере
-%1$s</string>
+  <string name="setting_web_bridge_gen_success_vault">✅ Создано и сохранено в хранилище (группа: SSH)\nПуть к приватному ключу записан: %1$s\nДобавьте открытый ключ в ~/.ssh/authorized_keys на сервере:\n%2$s</string>
+  <string name="setting_web_bridge_gen_success">✅ Создано в %1$s\nДобавьте открытый ключ в ~/.ssh/authorized_keys на сервере:\n%2$s</string>
+  <string name="setting_web_bridge_copy_success">✅ Открытый ключ скопирован! Вставьте в ~/.ssh/authorized_keys на сервере\n%1$s</string>
   <string name="vault_session_remaining_day">Осталось %1$d дн.</string>
   <string name="vault_session_remaining_min">Осталось %1$d мин</string>
   <string name="vault_session_remaining_session">Действует сразу</string>
@@ -2918,8 +2906,7 @@
   <string name="doctor_msg_count_total_enabled">Всего %1$s, включено %2$s.</string>
   <string name="doctor_msg_stranded_some">Запусков (%1$s) начались более 30 минут назад и не отчитались — возможно, процесс был убит.</string>
   <string name="doctor_msg_litert_cpu_mldrift">CPU (резерв: не удалось инициализировать GPU delegate, возможно, проблема MLDrift. Нажмите «Повторить обнаружение» в Настройки → Локально · LiteRT.)</string>
-  <string name="doctor_msg_rate_detail">Последние известные скорости моделей (оценка по символам, ~10%% точность для английского):
-%1$s</string>
+  <string name="doctor_msg_rate_detail">Последние известные скорости моделей (оценка по символам, ~10%% точность для английского):\n%1$s</string>
   <string name="doctor_msg_vision_detail">Устройство не поддерживает кодировщик зрения для: %1$s. Эти мультимодальные модели работают в текстовом режиме (чат доступен, ввод изображений — нет). Обычно решается обновлением LiteRT-LM SDK (CreateSharedMemoryManager в резервном пути OpenGL не реализован). После обновления драйвера GPU нажмите «Повторить зрение» у модели в Настройки → Локально · LiteRT.</string>
   <string name="doctor_msg_browser_mkdir_failed">mkdirs() вернул false; возможно, хранилище доступно только для чтения.</string>
   <string name="doctor_summary_fail">Ошибки</string>
@@ -2941,12 +2928,7 @@
   <string name="web_bridge_keyfile_missing">Файл приватного ключа отсутствует: %1$s (нажмите «Создать ключ SSH», чтобы подставить путь)</string>
   <string name="web_bridge_keyfile_empty">Файл приватного ключа пуст: %1$s (создайте ключ SSH заново)</string>
   <string name="web_bridge_tunnel_failed">Не удалось установить туннель: %1$s</string>
-  <string name="setting_termux_help_allow_external_apps_body">Выполните в Termux:
-
-  mkdir -p ~/.termux
-  echo 'allow-external-apps=true' &gt;&gt; ~/.termux/termux.properties
-
-Затем принудительно остановите Termux через «Сведения о приложении» в Android и откройте снова. После этого нажмите кнопку проверки ниже.</string>
+  <string name="setting_termux_help_allow_external_apps_body">Выполните в Termux:\n\n  mkdir -p ~/.termux\n  echo 'allow-external-apps=true' &gt;&gt; ~/.termux/termux.properties\n\nЗатем принудительно остановите Termux через «Сведения о приложении» в Android и откройте снова. После этого нажмите кнопку проверки ниже.</string>
   <string name="chat_page_export_json">Экспорт в JSON</string>
   <string name="chat_page_export_json_desc">Экспорт в файл JSON для последующего восстановления импортом</string>
   <string name="chat_page_import">Импорт сессии</string>

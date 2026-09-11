@@ -2773,8 +2773,7 @@
   <string name="doctor_msg_count_total_enabled">共 %1$s 個，已啓用 %2$s 個。</string>
   <string name="doctor_msg_stranded_some">%1$s 次運行在 30 分鐘前啓動後一直未回報，可能是進程中途被殺。</string>
   <string name="doctor_msg_litert_cpu_mldrift">CPU（備用：本機 GPU delegate 初始化失敗，可能是 MLDrift 問題。可在設置 → 本地 LiteRT 中點擊「重新探測」再試。）</string>
-  <string name="doctor_msg_rate_detail">各模型最近已知速率（按字符估算，英文文本約 10%% 精度）：
-%1$s</string>
+  <string name="doctor_msg_rate_detail">各模型最近已知速率（按字符估算，英文文本約 10%% 精度）：\n%1$s</string>
   <string name="doctor_msg_vision_detail">本機不支持以下模型的視覺編碼器：%1$s。這些多模態模型會退化為純文本模式——對話可用，但無法輸入圖片。通常需等待未來 LiteRT-LM SDK 更新（OpenGL 備用路徑的 CreateSharedMemoryManager 上游尚未實現）。GPU 驅動更新後，可在設置 → 本地 LiteRT 中對該模型點擊「重試視覺」以清除標記。</string>
   <string name="doctor_msg_browser_mkdir_failed">mkdirs() 返回 false；底層存儲可能為只讀。</string>
   <string name="doctor_summary_fail">失敗</string>
