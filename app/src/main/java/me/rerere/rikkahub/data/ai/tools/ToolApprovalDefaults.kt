@@ -53,6 +53,8 @@ object ToolApprovalDefaults {
         "app_enable",
         "app_uninstall",
         "appops_set",
+        // Shizuku 系统参数组（批次 B，写类审批；settings_get 纯读不在此列）
+        "settings_put",
 
         // Filesystem / network writes
         "write_text_file",

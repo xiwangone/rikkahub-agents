@@ -221,3 +221,105 @@ fun appOpsSetTool(context: Context): Tool = Tool(
         shizukuExec(context, "appops set $pkg $op $mode")
     },
 )
+
+// ---------- settings_get / settings_put（批次 B） ----------
+
+/** settings namespace 白名单 */
+private val SETTINGS_NS_WHITELIST = setOf("system", "secure", "global")
+
+/**
+ * settings key 白名单（保守：只放明确安全/常用的 key，未知一律拒绝）。
+ * 覆盖亮度/屏幕超时/音量/飞行/WiFi/蓝牙/位置/动画缩放/安装来源等。
+ */
+private val SETTINGS_KEY_WHITELIST = setOf(
+    // system
+    "screen_brightness", "screen_brightness_mode", "screen_off_timeout",
+    "stay_on_while_plugged_in", "accelerometer_rotation", "user_rotation",
+    "volume_music", "volume_ring", "volume_notification", "volume_alarm",
+    "volume_system", "vibrate_when_ringing", "ringtone", "notification_sound",
+    // secure
+    "location_mode", "location_providers_allowed", "adb_enabled", "install_non_market_apps",
+    "immersive_mode_confirmations", "sleep_timeout",
+    // global
+    "wifi_on", "bluetooth_on", "airplane_mode_on", "stay_on_while_plugged_in",
+    "mobile_data", "data_roaming", "usb_mass_storage_enabled",
+    "window_animation_scale", "transition_animation_scale", "animator_duration_scale",
+    "device_provisioned", "network_recommendations_enabled", "zen_mode",
+    "boot_count", "nfc_on", "torch_on",
+)
+
+/** 读系统设置（settings get）。纯读，不审批。 */
+fun settingsGetTool(context: Context): Tool = Tool(
+    name = "settings_get",
+    description = "Read a system setting value (settings get <ns> <key>). Namespaces: system/secure/global. Read-only, no approval needed. Only whitelisted keys are accepted — unknown keys return not_whitelisted.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("namespace", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Namespace: system | secure | global")
+                })
+                put("key", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Setting key, e.g. screen_off_timeout, wifi_on, location_mode")
+                })
+            },
+            required = listOf("namespace", "key"),
+        )
+    },
+    execute = { input ->
+        val ns = input.jsonObject["namespace"]?.jsonPrimitive?.contentOrNull?.lowercase()
+        val key = input.jsonObject["key"]?.jsonPrimitive?.contentOrNull
+        if (ns == null || ns !in SETTINGS_NS_WHITELIST) {
+            return@Tool toolResult(buildJsonObject { put("error", "invalid_namespace") }.toString())
+        }
+        if (key == null || key !in SETTINGS_KEY_WHITELIST) {
+            return@Tool toolResult(buildJsonObject { put("error", "key_not_whitelisted") }.toString())
+        }
+        shizukuExec(context, "settings get $ns $key")
+    },
+)
+
+/** 写系统设置（settings put）。写类，需审批；namespace+key 白名单。 */
+fun settingsPutTool(context: Context): Tool = Tool(
+    name = "settings_put",
+    description = "Write a system setting (settings put <ns> <key> <value>). Whitelisted namespaces (system/secure/global) and keys only; some keys are write-protected at the shell level and will report failure. Side-effecting, approval required.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("namespace", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Namespace: system | secure | global")
+                })
+                put("key", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Setting key, e.g. screen_off_timeout, wifi_on, location_mode")
+                })
+                put("value", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Value to write (string/number/boolean)")
+                })
+            },
+            required = listOf("namespace", "key", "value"),
+        )
+    },
+    execute = { input ->
+        val ns = input.jsonObject["namespace"]?.jsonPrimitive?.contentOrNull?.lowercase()
+        val key = input.jsonObject["key"]?.jsonPrimitive?.contentOrNull
+        val value = input.jsonObject["value"]?.jsonPrimitive?.contentOrNull
+        if (ns == null || ns !in SETTINGS_NS_WHITELIST) {
+            return@Tool toolResult(buildJsonObject { put("error", "invalid_namespace") }.toString())
+        }
+        if (key == null || key !in SETTINGS_KEY_WHITELIST) {
+            return@Tool toolResult(buildJsonObject { put("error", "key_not_whitelisted") }.toString())
+        }
+        if (value == null || value.isBlank()) {
+            return@Tool toolResult(buildJsonObject { put("error", "invalid_value") }.toString())
+        }
+        // value 也过一道注入校验：只允许字母数字/点/下划线/冒号/等号/横杠/空格（settings 值形态）
+        if (!Regex("^[a-zA-Z0-9._:=\\-\\s]{1,64}$").matches(value)) {
+            return@Tool toolResult(buildJsonObject { put("error", "invalid_value") }.toString())
+        }
+        shizukuExec(context, "settings put $ns $key $value")
+    },
+)

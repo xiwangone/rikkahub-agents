@@ -1006,6 +1006,8 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.data.ai.tools.local.appUninstallTool(context))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.appOpsGetTool(context))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.appOpsSetTool(context))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.settingsGetTool(context))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.settingsPutTool(context))
         }
         if (options.contains(LocalToolOption.SystemIntents)) {
             tools.add(me.rerere.rikkahub.data.ai.tools.local.createCalendarEventTool(context, invocationContext, interactiveToolStreamer))

@@ -183,6 +183,12 @@ object HardlineCommandGuard {
                 val mode = input["mode"]?.jsonPrimitive?.contentOrNull
                 checkCommand("appops set $pkg $op $mode")
             }
+            toolName == "settings_put" -> {
+                val ns = input["namespace"]?.jsonPrimitive?.contentOrNull
+                val key = input["key"]?.jsonPrimitive?.contentOrNull
+                val value = input["value"]?.jsonPrimitive?.contentOrNull
+                checkCommand("settings put $ns $key $value")
+            }
             // Sub-agent dispatch — the spawned LLM gets the parent's full tool surface
             // headlessly, so a `task` / `prompt` containing a literal hardline-blocked
             // command (e.g. `rm -rf /`) shouldn't be authorised even if the parent
