@@ -34,6 +34,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -245,6 +246,7 @@ private fun ConversationItem(
         } else {
             Color.Transparent
         }
+    val focusManager = LocalFocusManager.current
     var showDropdownMenu by remember {
         mutableStateOf(false)
     }
@@ -257,6 +259,8 @@ private fun ConversationItem(
                     indication = LocalIndication.current,
                     onClick = { onClick(conversation) },
                     onLongClick = {
+                        // 抽屉常驻时也收起输入焦点，避免键盘闪现
+                        focusManager.clearFocus(force = true)
                         showDropdownMenu = true
                     },
                 ).background(backgroundColor),
