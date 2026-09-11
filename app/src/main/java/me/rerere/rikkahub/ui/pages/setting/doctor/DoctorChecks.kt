@@ -1379,26 +1379,93 @@ class DoctorChecks(
                             )
                         },
                         // P1：版本/进程新鲜度——装了新包但进程跑旧代码
-                        run {
-                            val installed = runCatching {
-                                context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
-                            }.getOrNull()
-                            val running = BuildConfig.VERSION_CODE.toLong()
-                            val fresh = installed != null && installed == running
-                            DoctorCheck(
-                                id = "diag.version_freshness",
-                                category = DoctorCategory.Diagnostics,
-                                labelRes = R.string.doctor_diag_06,
-                                detail =
-                                    if (fresh) {
-                                        context.getString(R.string.doctor_msg_version_ok, running)
-                                    } else {
-                                        context.getString(R.string.doctor_msg_version_stale, installed ?: -1, running)
+                                    run {
+                                        val installed = runCatching {
+                                            context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
+                                        }.getOrNull()
+                                        val running = BuildConfig.VERSION_CODE.toLong()
+                                        val fresh = installed != null && installed == running
+                                        DoctorCheck(
+                                            id = "diag.version_freshness",
+                                            category = DoctorCategory.Diagnostics,
+                                            labelRes = R.string.doctor_diag_06,
+                                            detail =
+                                                if (fresh) {
+                                                    context.getString(R.string.doctor_msg_version_ok, running)
+                                                } else {
+                                                    context.getString(R.string.doctor_msg_version_stale, installed ?: -1, running)
+                                                },
+                                            severity = if (fresh) Severity.OK else Severity.WARN,
+                                        )
                                     },
-                                severity = if (fresh) Severity.OK else Severity.WARN,
-                            )
-                        },
-                    )
+                                    // P2：技能注入真相——「开关看似开实则空」：扫描 skills 目录下 SKILL.md 存在且非空；
+                                                //     auto_load 技能还校验 auto_load_path 文件存在（注入是否真正有效）。
+                                                //     纯文件系统自检（不依赖 settingsStore，非 suspend 环境），只统计本地技能目录。
+                                                run {
+                                                    val skillsDir = context.filesDir.resolve(me.rerere.rikkahub.data.files.FileFolders.SKILLS)
+                                                    val dirs =
+                                                        skillsDir.listFiles()
+                                                            ?.filter { it.isDirectory }
+                                                            ?: emptyList()
+                                                    val problems =
+                                                        dirs.filter { dir ->
+                                                            val skillFile = dir.resolve("SKILL.md")
+                                                            if (!skillFile.exists() || skillFile.length() == 0L) {
+                                                                true
+                                                            } else {
+                                                                val fm = runCatching {
+                                                                    me.rerere.rikkahub.data.files.SkillFrontmatterParser.parse(skillFile.readText())
+                                                                }.getOrDefault(emptyMap())
+                                                                val autoLoad = fm["auto_load"]?.equals("true", ignoreCase = true) == true
+                                                                val path = fm["auto_load_path"]
+                                                                autoLoad && !path.isNullOrBlank() &&
+                                                                    (!dir.resolve(path).exists() || dir.resolve(path).length() == 0L)
+                                                            }
+                                                        }.map { it.name }
+                                                    DoctorCheck(
+                                                        id = "diag.skill_injection",
+                                                        category = DoctorCategory.Diagnostics,
+                                                        labelRes = R.string.doctor_diag_07,
+                                                        detail =
+                                                            if (dirs.isEmpty()) {
+                                                                context.getString(R.string.doctor_msg_skill_none_on_disk)
+                                                            } else if (problems.isEmpty()) {
+                                                                context.getString(R.string.doctor_msg_skill_all_present, dirs.size)
+                                                            } else {
+                                                                context.getString(R.string.doctor_msg_skill_missing, problems.take(5).joinToString(", "))
+                                                            },
+                                                        severity = if (problems.isEmpty()) Severity.OK else Severity.WARN,
+                                                    )
+                                                },
+                                                // P2：脱敏回归自检——已知样例喂 maskText，断言被掩；只防回归，不证明覆盖完整
+                                                run {
+                                                    val samples =
+                                                        listOf(
+                                                            "sk-1234567890abcdef1234567890abcdef",
+                                                            "xai-1234567890abcdef1234567890abcdef",
+                                                            "Bearer abcdefghijklmnopqrstuvwxyz012345",
+                                                            "AIzaSyAaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+                                                            "api_key=9876543210abcdef9876543210abcdef",
+                                                        )
+                                                    val leaked =
+                                                        samples.filter { sample ->
+                                                            val masked = me.rerere.rikkahub.utils.LogRedactor.maskText(sample)
+                                                            masked == sample
+                                                        }
+                                                    DoctorCheck(
+                                                        id = "diag.redactor_selftest",
+                                                        category = DoctorCategory.Diagnostics,
+                                                        labelRes = R.string.doctor_diag_08,
+                                                        detail =
+                                                            if (leaked.isEmpty()) {
+                                                                context.getString(R.string.doctor_msg_redactor_ok, samples.size)
+                                                            } else {
+                                                                context.getString(R.string.doctor_msg_redactor_leak, leaked.take(3).joinToString(", "))
+                                                            },
+                                                        severity = if (leaked.isEmpty()) Severity.OK else Severity.WARN,
+                                                    )
+                                                },
+                                            )
 
     // P1 检查项 `diag.crash_history` 的辅助：汇总最近 N 天非正常退出（崩溃）次数与最新时间。
     // ApplicationExitInfo 仅 API 30+；低版本返回 null（检查项显示"无崩溃"）。

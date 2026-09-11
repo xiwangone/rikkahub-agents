@@ -2385,6 +2385,13 @@
   <string name="doctor_diag_04">Crash history</string>
   <string name="doctor_diag_05">Tools enabled per assistant</string>
   <string name="doctor_diag_06">Build freshness</string>
+  <string name="doctor_diag_07">Skill injection</string>
+  <string name="doctor_diag_08">Redactor self-test</string>
+  <string name="doctor_msg_skill_none_on_disk">No skill directories found on disk.</string>
+  <string name="doctor_msg_skill_all_present">All %1$s skill dirs have a valid SKILL.md (auto-load sidecars present).</string>
+  <string name="doctor_msg_skill_missing">Skill dir(s) broken or auto-load file missing: %1$s</string>
+  <string name="doctor_msg_redactor_ok">All %1$s known secret samples are masked.</string>
+  <string name="doctor_msg_redactor_leak">Redactor LEAKED sample(s): %1$s</string>
   <string name="doctor_msg_app_log_on">App log is ON — read_app_logs returns buffered entries (restart-safe via file sink).</string>
   <string name="doctor_msg_app_log_off">App log is OFF — read_app_logs returns nothing. Enable it in the Logging page.</string>
   <string name="doctor_msg_crash_none">No crash-exit in the last %1$d days.</string>
