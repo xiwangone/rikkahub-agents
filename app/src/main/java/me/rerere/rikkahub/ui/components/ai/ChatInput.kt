@@ -76,6 +76,8 @@ import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.DialogProperties
+import com.composables.icons.lucide.ChevronDown
+import com.composables.icons.lucide.ChevronUp
 import com.dokar.sonner.ToastType
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.blurEffect
@@ -310,14 +312,16 @@ fun ChatInput(
                                 onClick = toggleFeatureBar,
                                 modifier = Modifier.padding(end = 4.dp),
                             ) {
+                                // 纯折角 chevron（不带竖柄），收起/展开两态样式一致
                                 Icon(
                                     imageVector =
                                         if (featureBarCollapsed) {
-                                            HugeIcons.ArrowDown01
+                                            Lucide.ChevronDown
                                         } else {
-                                            HugeIcons.ArrowUp02
+                                            Lucide.ChevronUp
                                         },
                                     contentDescription = stringResource(R.string.chat_input_toggle_toolbar),
+                                    modifier = Modifier.size(18.dp),
                                 )
                             }
                         }
