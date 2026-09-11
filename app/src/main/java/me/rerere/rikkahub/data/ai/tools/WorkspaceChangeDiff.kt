@@ -111,6 +111,19 @@ object WorkspaceChangeDiff {
         return changes.sortedBy { it.path }
     }
 
+    /** 敏感路径：文件名/路径含凭证线索时不生成 diff（脱敏之外的第二道闸） */
+    fun isSensitivePath(path: String): Boolean {
+        val p = path.lowercase()
+        return SENSITIVE_PATH_HINTS.any { p.contains(it) }
+    }
+
+    private val SENSITIVE_PATH_HINTS =
+        listOf(
+            "vault-env", "load-creds", "credential", "credentials",
+            ".env", "id_rsa", "id_ed25519", ".pem", ".key",
+            "token", "secret", "password",
+        )
+
     fun isTextFile(path: String): Boolean {
         val ext = path.substringAfterLast('.', "").lowercase()
         return ext.isNotEmpty() && ext in WorkspaceChangePolicy.TEXT_EXTENSIONS
@@ -140,6 +153,12 @@ object WorkspaceChangeDiff {
                 emitted++
                 continue
             }
+            // 敏感路径不生成 diff：凭证/密钥文件的内容不得进入消息与记录
+            if (isSensitivePath(change.path)) {
+                sb.appendLine("${kindLabel(change.kind)} ${change.path}（内容已隐藏）")
+                emitted++
+                continue
+            }
             when (change.kind) {
                 FileChangeKind.ADDED -> {
                     val newText = after.contents[change.path] ?: continue
@@ -157,7 +176,8 @@ object WorkspaceChangeDiff {
             }
             emitted++
         }
-        return sb.toString().trimEnd()
+        // 统一脱敏：避免任何疑似凭证/密钥片段随 diff 进入消息与聊天记录
+        return me.rerere.rikkahub.data.vault.SecretMasker.mask(sb.toString().trimEnd())
     }
 
     /**
