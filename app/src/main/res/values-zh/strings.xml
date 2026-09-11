@@ -2374,7 +2374,7 @@ mDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过�
   <string name="vault_export_button">导出 .vault 包</string>
   <string name="vault_export_password_required">请输入导出口令</string>
   <string name="vault_export_cancelled">已取消（指纹验证未通过）</string>
-  <string name="vault_export_success">已导出 %1$d 条凭证到 .vault 包</string>
+  <string name="vault_export_success">已导出 %1$d 条凭证（%2$s 格式）</string>
   <string name="vault_export_failed">导出失败: %1$s</string>
   <string name="vault_import_success">已导入 %1$d 条凭证（共解析 %2$d 条）</string>
   <string name="vault_import_failed">导入失败: %1$s</string>

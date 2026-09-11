@@ -2671,7 +2671,7 @@
   <string name="doctor_msg_browser_ok">%1$s exists and is writable — cookies persist.</string>
   <string name="doctor_msg_termux_denied">Not granted. Toggle the Termux tool off and on to see the authorization dialog.</string>
   <string name="doctor_msg_termux_ok">Granted — the app can dispatch shell commands to Termux.</string>
-  <string name="doctor_msg_termux_missing">Termux is not installed. Needed by: </string>
+  <string name="doctor_msg_termux_missing">Termux is not installed. Needed by: %1$s</string>
   <string name="doctor_msg_termux_installed">com.termux is installed on this device.</string>
   <string name="doctor_msg_dns_failed">DNS resolution failed or timed out. NetworkChangeMonitor clears the OkHttp connection pool on network changes; if this stays red, check your network.</string>
   <string name="doctor_msg_dns_ok">DNS resolution succeeded within 2.5 s.</string>
@@ -2688,7 +2688,7 @@
   <string name="doctor_msg_ext_storage_no_grants">No directory granted yet. Call grant_directory_access to add one.</string>
   <string name="doctor_msg_ext_storage_off">External storage tools are not enabled. Nothing to check.</string>
   <string name="doctor_msg_stranded_none">None. All worker runs completed normally.</string>
-  <string name="doctor_msg_fix_failed">Fix failed: </string>
+  <string name="doctor_msg_fix_failed">Fix failed: %1$s: %2$s</string>
   <string name="doctor_msg_fts_rebuilt">Rebuilt the message_fts index from %1$s conversations.</string>
   <string name="doctor_msg_db_result">Integrity check result: %1$s</string>
   <string name="doctor_msg_db_ok">PRAGMA integrity_check returned OK.</string>
@@ -2699,12 +2699,12 @@
   <string name="doctor_msg_assistant_count">%1$s assistant(s) configured.</string>
   <string name="doctor_msg_assistant_default">Used for new chats, scheduled jobs and Telegram (unless overridden).</string>
   <string name="doctor_msg_assistant_none">No assistant configured — the app cannot start a conversation.</string>
-  <string name="doctor_msg_nl_needed">Not granted. Needed by: </string>
+  <string name="doctor_msg_nl_needed">Not granted. Needed by: %1$s</string>
   <string name="doctor_msg_nl_granted_unbound">Granted but not currently bound. Toggle it off and on in settings.</string>
-  <string name="doctor_msg_nl_bound">Listener is bound — </string>
-  <string name="doctor_msg_acc_needed">Not enabled. Needed by: </string>
+  <string name="doctor_msg_nl_bound">Listener is bound — %1$s can run.</string>
+  <string name="doctor_msg_acc_needed">Not enabled. Needed by: %1$s</string>
   <string name="doctor_msg_acc_enabled_unbound">Enabled in settings but not bound (Android killed it or it never started). Toggle it off and on again.</string>
-  <string name="doctor_msg_acc_live">Service instance is live — </string>
+  <string name="doctor_msg_acc_live">Service instance is live — %1$s can run.</string>
   <string name="doctor_msg_tg_disabled">Disabled — harmless if you do not use Telegram.</string>
   <string name="doctor_msg_tg_stopped">Service is stopped. Telegram messages will not reach the assistant. The watchdog retries at the next 30-minute health check.</string>
   <string name="doctor_msg_tg_running">Service is running.</string>

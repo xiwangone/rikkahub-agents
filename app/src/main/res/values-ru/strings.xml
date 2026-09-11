@@ -1841,7 +1841,7 @@
 <string name="setting_page_preferences_network_proxy">Прокси</string>
 <string name="setting_page_preferences_network_proxy_desc">Поддерживает HTTP и SOCKS5 прокси-URL. Оставьте пустым для использования системных настроек.</string>
 <string name="setting_page_preferences_network_proxy_invalid">Введите корректный URL прокси-сервера с хостом и портом.</string>
-<string name="assistant_page_context_message_limit_hint">Введите 0 для безлимита; в противном случае чем больше значения, тем лучше. Рекомендуется установить значение 0 или не менее 20.</string>
+<string name="assistant_page_context_message_limit_hint">Введите 0 для безлимита или значение не менее %d</string>
 <string name="setting_files_page_clean_action">Очистить</string>
 <string name="setting_files_page_clean_confirmation">Все файлы в этой категории будут удалены без возможности восстановления.</string>
 <string name="setting_files_page_clean_content_description">Очистить файлы</string>

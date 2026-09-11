@@ -1848,7 +1848,7 @@ mDNSアドレス: .localホスト名を使用し、IPを知らなくても同じ
 <string name="setting_page_preferences_network_proxy">プロキシ</string>
 <string name="setting_page_preferences_network_proxy_desc">HTTPおよびSOCKS5プロキシURLをサポートします。空白の場合はシステム設定を使用します。</string>
 <string name="setting_page_preferences_network_proxy_invalid">ホストとポートを含む有効なプロキシURLを入力してください。</string>
-<string name="assistant_page_context_message_limit_hint">0を入力すると無制限になります。それ以外の場合、値は大きいほど良いです。0または20以上に設定することをお勧めします。</string>
+<string name="assistant_page_context_message_limit_hint">0 で無制限、または %d 以上の値を入力してください</string>
 <string name="setting_files_page_clean_action">クリーンアップ</string>
 <string name="setting_files_page_clean_confirmation">このカテゴリのすべてのファイルを完全に削除します。この操作は元に戻せません。</string>
 <string name="setting_files_page_clean_content_description">ファイルをクリーンアップ</string>
