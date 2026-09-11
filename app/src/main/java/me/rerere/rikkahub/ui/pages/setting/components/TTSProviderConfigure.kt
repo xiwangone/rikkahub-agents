@@ -681,7 +681,7 @@ private fun QwenTTSConfiguration(
     val voices =
         listOf(
             "Cherry",
-            "Serene",
+            "Serena",
             "Ethan",
             "Chelsie",
             "Momo",
