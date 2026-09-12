@@ -501,7 +501,8 @@ private fun LocalMcpProfileModal(
     )
 }
 
-private fun toolName(t: LocalToolOption): String = t::class.simpleName ?: ""
+@Composable
+private fun toolName(t: LocalToolOption): String = stringResource(LocalToolCatalog.labelRes(t))
 
 @Composable
 private fun categoryLabel(category: LocalToolCategory): String =
