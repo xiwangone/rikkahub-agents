@@ -32,6 +32,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ProvideTextStyle
@@ -241,8 +242,7 @@ internal fun BackendApprovalCard(
 }
 
 /**
- * Backend 直连路径的服务端提问卡：渲染每个问题的选项/文本输入 + 提交。
- * 复用 [ChatMessage] 传入的 onToolAnswer 回调（toolCallId = 服务端 requestId）。
+ * 服务端提问卡：渲染问题与选项（样式与对话内提问一致），提交后给出回执。
  */
 @Composable
 internal fun BackendAskCard(
@@ -252,32 +252,56 @@ internal fun BackendAskCard(
 ) {
     val notifier: me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier = koinInject()
     var submitted by remember(requestId) { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text(
-            text = stringResource(R.string.backend_pending_reply),
-            style = MaterialTheme.typography.labelMedium,
-        )
-        questions.forEach { q ->
+    var feedback by remember(requestId) { mutableStateOf<String?>(null) }
+    val answeredText = stringResource(R.string.backend_ask_submitted)
+    val staleText = stringResource(R.string.backend_approval_stale)
+    Surface(
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        modifier = Modifier.fillMaxWidth(0.9f),
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
             Text(
-                text = q.prompt,
+                text = stringResource(R.string.backend_pending_reply),
                 style = MaterialTheme.typography.labelMedium,
             )
-            if (q.options.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    q.options.forEach { opt ->
-                        TextButton(
-                            enabled = !submitted,
-                            onClick = {
-                                submitted = true
-                                if (!notifier.answerById(requestId, opt.label)) {
-                                    onToolAnswer?.invoke(requestId, opt.label)
-                                }
-                            },
-                        ) {
-                            Text(opt.label)
+            questions.forEach { q ->
+                Text(
+                    text = q.prompt,
+                    style = MaterialTheme.typography.labelMedium,
+                )
+                if (q.options.isNotEmpty()) {
+                    androidx.compose.foundation.layout.FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        q.options.forEach { opt ->
+                            FilterChip(
+                                selected = feedback == answeredText,
+                                enabled = !submitted,
+                                onClick = {
+                                    submitted = true
+                                    val ok = notifier.answerById(requestId, opt.label)
+                                    if (!ok) onToolAnswer?.invoke(requestId, opt.label)
+                                    feedback = if (ok) answeredText else staleText
+                                },
+                                label = {
+                                    Text(opt.label, style = MaterialTheme.typography.labelSmall)
+                                },
+                            )
                         }
                     }
                 }
+            }
+            feedback?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
         }
     }

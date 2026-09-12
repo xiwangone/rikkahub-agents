@@ -2941,6 +2941,7 @@
   <string name="backend_approval_denied">Denied</string>
   <string name="backend_approval_stale">This request is no longer pending (handled in the notification, or the app restarted)</string>
   <string name="backend_pending_reply">Pending reply</string>
+  <string name="backend_ask_submitted">Answered</string>
   <string name="backend_notif_ask_body">Q: %1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi"> (multi)</string>
   <string name="backend_notif_single"> (single)</string>

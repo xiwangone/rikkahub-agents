@@ -2483,6 +2483,7 @@
   <string name="backend_approval_denied">거부됨</string>
   <string name="backend_approval_stale">이 요청은 더 이상 유효하지 않습니다(알림에서 처리되었거나 앱이 재시작됨)</string>
   <string name="backend_pending_reply">답변 대기</string>
+  <string name="backend_ask_submitted">답변 완료</string>
   <string name="backend_notif_ask_body">질문: %1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi">(다중 선택)</string>
   <string name="backend_notif_single">(단일 선택)</string>

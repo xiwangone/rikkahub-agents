@@ -2483,6 +2483,7 @@
   <string name="backend_approval_denied">拒否しました</string>
   <string name="backend_approval_stale">このリクエストは既に有効ではありません（通知で処理済み、またはアプリを再起動）</string>
   <string name="backend_pending_reply">返信待ち</string>
+  <string name="backend_ask_submitted">回答しました</string>
   <string name="backend_notif_ask_body">質問: %1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi">（複数選択）</string>
   <string name="backend_notif_single">（単一選択）</string>
