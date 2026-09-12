@@ -285,7 +285,9 @@ class BackendProvider(
         if (existingPath.isNullOrBlank()) {
             api.newSession()
         } else {
-            runCatching { api.resumeSession(existingPath) }
+            runCatching { api.resumeSession(existingPath) }.onFailure {
+                android.util.Log.w("BackendProvider", "resume 会话失败，将新建", it)
+            }
         }
         api.submit(fullInput)
 

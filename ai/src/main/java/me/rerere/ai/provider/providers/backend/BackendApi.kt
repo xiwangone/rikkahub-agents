@@ -61,7 +61,10 @@ class BackendApi(
         val body = get("/history") ?: return@withContext emptyList()
         runCatching {
             json.decodeFromString<List<HistoryMessage>>(body)
-        }.getOrElse { emptyList() }
+        }.getOrElse {
+            android.util.Log.w("BackendApi", "解析 /history 失败", it)
+            emptyList()
+        }
     }
 
     // ── 获取服务器状态 ──
@@ -77,7 +80,10 @@ class BackendApi(
         val body = get("/sessions") ?: return@withContext emptyList()
         runCatching {
             json.decodeFromString<List<SessionInfo>>(body)
-        }.getOrElse { emptyList() }
+        }.getOrElse {
+            android.util.Log.w("BackendApi", "解析 /sessions 失败", it)
+            emptyList()
+        }
     }
 
     // ── 运行时模型列表 ──
@@ -85,7 +91,11 @@ class BackendApi(
         val body = get("/models") ?: return@withContext emptyList()
         runCatching {
             json.decodeFromString<BackendModelsResponse>(body).models
-        }.getOrElse { emptyList() }
+        }.getOrElse {
+            // 解析失败会表现为「模型列表为空 → 回退单模型」，记录原因便于排查
+            android.util.Log.w("BackendApi", "解析 /models 失败", it)
+            emptyList()
+        }
     }
 
     // ── 运行时切换模型 ──

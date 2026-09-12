@@ -98,7 +98,11 @@ class BackendSseClient(
                     _connectionState.value = ConnectionState.CONNECTED
                     // 重连恢复（非首次连接）：异步补拉 /history 差值，弥合断流窗口丢失内容
                     if (attempt > 0) {
-                        Thread { runCatching { backfill(destination) } }.start()
+                        Thread {
+                            runCatching { backfill(destination) }.onFailure {
+                                android.util.Log.w("BackendSse", "断流补拉失败", it)
+                            }
+                        }.start()
                         // 审批/提问事件不属于 /history，断流窗口内发生会永久丢失 →
                         // 重连后探测服务端是否仍在等待应答，是则提示用户，避免无声挂起。
                         Thread {
