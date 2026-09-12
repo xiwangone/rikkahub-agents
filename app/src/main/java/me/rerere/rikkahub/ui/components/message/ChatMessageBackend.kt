@@ -238,6 +238,7 @@ internal fun BackendAskCard(
     questions: List<me.rerere.ai.ui.AskQuestion>,
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)?,
 ) {
+    val notifier: me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier = koinInject()
     var submitted by remember(requestId) { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Text(
@@ -256,8 +257,6 @@ internal fun BackendAskCard(
                             enabled = !submitted,
                             onClick = {
                                 submitted = true
-                                val notifier: me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier =
-                                    koinInject()
                                 if (!notifier.answerById(requestId, opt.label)) {
                                     onToolAnswer?.invoke(requestId, opt.label)
                                 }

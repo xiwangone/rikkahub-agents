@@ -8,8 +8,9 @@ import org.junit.Test
 
 /**
  * Unit tests for [groupMessageParts] — the pure helper that splits a message's
- * part list into renderable blocks (consecutive Reasoning/Tool parts collapse
- * into a single ThinkingBlock, everything else becomes a ContentBlock).
+ * part list into renderable blocks (consecutive Reasoning parts collapse into
+ * a single ThinkingBlock, consecutive Tool/ServerTool parts collapse into a
+ * separate ThinkingBlock, and reasoning never mixes with tool steps).
  */
 class GroupMessagePartsTest {
 
@@ -23,19 +24,23 @@ class GroupMessagePartsTest {
     )
 
     @Test
-    fun `server tool collapses into thinking block like a tool`() {
+    fun `reasoning and server tool each form their own thinking block`() {
         val result = listOf(
             reasoning("think a"),
             serverTool("sc-1"),
             text("answer"),
         ).groupMessageParts()
 
-        assertEquals(2, result.size)
-        val thinking = result[0] as MessagePartBlock.ThinkingBlock
-        assertEquals(2, thinking.steps.size)
-        assertTrue(thinking.steps[0] is ThinkingStep.ReasoningStep)
-        assertTrue(thinking.steps[1] is ThinkingStep.ServerToolStep)
-        val content = result[1] as MessagePartBlock.ContentBlock
+        assertEquals(3, result.size)
+        // 思考独立成块
+        val reasoningBlock = result[0] as MessagePartBlock.ThinkingBlock
+        assertEquals(1, reasoningBlock.steps.size)
+        assertTrue(reasoningBlock.steps[0] is ThinkingStep.ReasoningStep)
+        // 工具独立成块,不与思考混合
+        val toolBlock = result[1] as MessagePartBlock.ThinkingBlock
+        assertEquals(1, toolBlock.steps.size)
+        assertTrue(toolBlock.steps[0] is ThinkingStep.ServerToolStep)
+        val content = result[2] as MessagePartBlock.ContentBlock
         assertEquals(text("answer"), content.part)
     }
 
@@ -54,33 +59,46 @@ class GroupMessagePartsTest {
     }
 
     @Test
-    fun `consecutive reasoning and tool parts collapse into one thinking block`() {
+    fun `consecutive reasoning and tool parts each form their own block`() {
         val result = listOf(
             reasoning("think a"),
             tool("call-1"),
             reasoning("think b"),
         ).groupMessageParts()
 
-        assertEquals(1, result.size)
-        val block = result[0] as MessagePartBlock.ThinkingBlock
-        assertEquals(3, block.steps.size)
-        assertTrue(block.steps[0] is ThinkingStep.ReasoningStep)
-        assertTrue(block.steps[1] is ThinkingStep.ToolStep)
-        assertTrue(block.steps[2] is ThinkingStep.ReasoningStep)
+        assertEquals(3, result.size)
+        // 思考1 独立
+        val r1 = result[0] as MessagePartBlock.ThinkingBlock
+        assertEquals(1, r1.steps.size)
+        assertTrue(r1.steps[0] is ThinkingStep.ReasoningStep)
+        // 工具 独立
+        val t = result[1] as MessagePartBlock.ThinkingBlock
+        assertEquals(1, t.steps.size)
+        assertTrue(t.steps[0] is ThinkingStep.ToolStep)
+        // 思考2 独立
+        val r2 = result[2] as MessagePartBlock.ThinkingBlock
+        assertEquals(1, r2.steps.size)
+        assertTrue(r2.steps[0] is ThinkingStep.ReasoningStep)
     }
 
     @Test
-    fun `content part flushes pending thinking steps before it`() {
+    fun `content part flushes pending thinking and tool steps before it`() {
         val result = listOf(
             reasoning("think"),
             tool("call-1"),
             text("answer"),
         ).groupMessageParts()
 
-        assertEquals(2, result.size)
-        val thinking = result[0] as MessagePartBlock.ThinkingBlock
-        assertEquals(2, thinking.steps.size)
-        val content = result[1] as MessagePartBlock.ContentBlock
+        assertEquals(3, result.size)
+        // 思考独立成块
+        val reasoning = result[0] as MessagePartBlock.ThinkingBlock
+        assertEquals(1, reasoning.steps.size)
+        assertTrue(reasoning.steps[0] is ThinkingStep.ReasoningStep)
+        // 工具独立成块,不与思考混合
+        val tool = result[1] as MessagePartBlock.ThinkingBlock
+        assertEquals(1, tool.steps.size)
+        assertTrue(tool.steps[0] is ThinkingStep.ToolStep)
+        val content = result[2] as MessagePartBlock.ContentBlock
         assertEquals(text("answer"), content.part)
         // index is the original position in the source list
         assertEquals(2, content.index)

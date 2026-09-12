@@ -35,49 +35,13 @@ sealed interface MessagePartBlock {
 }
 
 /**
- * 将 parts 分组成 ThinkingBlock 和 ContentBlock
- * 连续的 Reasoning 和 Tool 会被分组到一个 ThinkingBlock 中
+ * 将 parts 分组成 ThinkingBlock 和 ContentBlock。
+ *
+ * 分组策略：连续 Reasoning 归入同一个 ThinkingBlock（思考独立成卡）；
+ * 连续 Tool/ServerTool 归入另一个 ThinkingBlock（工具链折叠）；
+ * 二者相邻时各自独立、互不合并。
  */
 fun List<UIMessagePart>.groupMessageParts(): List<MessagePartBlock> {
-    val result = mutableListOf<MessagePartBlock>()
-    var currentThinkingSteps = mutableListOf<ThinkingStep>()
-
-    fun flushThinkingSteps() {
-        if (currentThinkingSteps.isNotEmpty()) {
-            result.add(MessagePartBlock.ThinkingBlock(currentThinkingSteps.toList()))
-            currentThinkingSteps = mutableListOf()
-        }
-    }
-
-    this.fastForEachIndexed { index, part ->
-        when (part) {
-            is UIMessagePart.Reasoning -> {
-                currentThinkingSteps.add(ThinkingStep.ReasoningStep(part))
-            }
-
-            is UIMessagePart.Tool -> {
-                currentThinkingSteps.add(ThinkingStep.ToolStep(part))
-            }
-
-            is UIMessagePart.ServerTool -> {
-                currentThinkingSteps.add(ThinkingStep.ServerToolStep(part))
-            }
-
-            else -> {
-                flushThinkingSteps()
-                result.add(MessagePartBlock.ContentBlock(part, index))
-            }
-        }
-    }
-    flushThinkingSteps()
-    return result
-}
-
-/**
- * 与 [groupMessageParts] 相同的分组，但连续 Reasoning 与 Tool/ServerTool 各自独立成块，
- * 不合并到同一个 ThinkingBlock。供需要分离展示的路径使用。
- */
-fun List<UIMessagePart>.groupMessagePartsSeparated(): List<MessagePartBlock> {
     val result = mutableListOf<MessagePartBlock>()
     var pendingReasoning = mutableListOf<UIMessagePart.Reasoning>()
     var pendingTools = mutableListOf<ThinkingStep>()
@@ -129,3 +93,4 @@ fun List<UIMessagePart>.groupMessagePartsSeparated(): List<MessagePartBlock> {
     flushTools()
     return result
 }
+
