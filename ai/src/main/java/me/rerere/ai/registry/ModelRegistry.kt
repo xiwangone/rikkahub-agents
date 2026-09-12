@@ -244,6 +244,7 @@ object ModelRegistry {
         notTokens("claude", "sonnet", "4")
         visionInput()
         toolReasoningAbility()
+        contextLength(1.m)
     }
 
     private val CLAUDE_OPUS_5 = defineModel {
@@ -251,6 +252,7 @@ object ModelRegistry {
         notTokens("claude", "opus", "4")
         visionInput()
         toolReasoningAbility()
+        contextLength(1.m)
     }
 
     val CLAUDE_SERIES = defineGroup {
@@ -301,12 +303,14 @@ object ModelRegistry {
     private val DEEPSEEK_V4_FLASH = defineModel {
         tokens("deepseek", "v", "4", "flash")
         toolReasoningAbility()
+        contextLength(1.m)
     }
 
     private val DEEPSEEK_V4_FLASH_VISION_EXP = defineModel {
         tokens("deepseek", "v", "4", "flash", "vision", "exp")
         visionInput()
         toolReasoningAbility()
+        contextLength(1.m)
     }
 
     private val DEEPSEEK_V4_1_FLASH = defineModel {
@@ -319,6 +323,7 @@ object ModelRegistry {
     private val DEEPSEEK_V4_PRO = defineModel {
         tokens("deepseek", "v", "4", "pro")
         toolReasoningAbility()
+        contextLength(1.m)
     }
 
     private val DEEPSEEK_R1 = defineGroup {
@@ -694,10 +699,6 @@ object ModelRegistry {
         resolveModalities(modelId) { it.outputModalities }
     }
 
-    val MODEL_CONTEXT_LENGTH = ModelData { modelId ->
-        resolveModels(modelId).firstNotNullOfOrNull { it.contextLength }
-    }
-
     val MODEL_ABILITIES = ModelData { modelId ->
         val abilities = resolveModels(modelId)
             .flatMap { it.abilities }
@@ -706,6 +707,10 @@ object ModelRegistry {
             if (ModelAbility.TOOL in abilities) add(ModelAbility.TOOL)
             if (ModelAbility.REASONING in abilities) add(ModelAbility.REASONING)
         }
+    }
+
+    val MODEL_CONTEXT_LENGTH = ModelData { modelId ->
+        resolveModels(modelId).firstNotNullOfOrNull { it.contextLength }
     }
 
     private fun resolveModels(modelId: String): List<ModelDefinition> {
