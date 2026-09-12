@@ -272,6 +272,7 @@ class BackendProvider(
                 token = providerSetting.token,
                 // 断流重连恢复时补拉 /history 差值，弥合断流窗口丢失的文本/推理
                 historyLoader = { runBlocking { api.getHistory() } },
+                statusLoader = { runBlocking { api.getStatus() } },
             )
         val events = sse.connect()
 

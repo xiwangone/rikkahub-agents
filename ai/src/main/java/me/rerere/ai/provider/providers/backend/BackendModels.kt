@@ -176,6 +176,12 @@ data class StatusInfo(
     val cacheMiss: Long = 0,
     val lastUsage: LastUsage? = null,
     val balance: BalanceInfo? = null,
+    /** 服务端是否有待应答的交互（审批 / 提问）——断流后可用于探测是否挂起 */
+    val pendingPrompt: Boolean? = null,
+    val cancellable: Boolean? = null,
+    val cancelRequested: Boolean? = null,
+    val cwd: String? = null,
+    val sessionPath: String? = null,
 )
 
 @Serializable

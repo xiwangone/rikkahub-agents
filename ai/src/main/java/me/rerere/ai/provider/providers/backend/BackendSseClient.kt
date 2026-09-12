@@ -47,6 +47,8 @@ class BackendSseClient(
     private val reconnectEnabled: Boolean = true,
     private val maxReconnectDelayMs: Long = 30_000L,
     private val historyLoader: (() -> List<HistoryMessage>)? = null,
+    /** 服务端状态读取（用于断流重连后探测是否有待应答交互） */
+    private val statusLoader: (() -> StatusInfo?)? = null,
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(120, TimeUnit.SECONDS)
         .readTimeout(0, TimeUnit.MILLISECONDS)
@@ -97,6 +99,21 @@ class BackendSseClient(
                     // 重连恢复（非首次连接）：异步补拉 /history 差值，弥合断流窗口丢失内容
                     if (attempt > 0) {
                         Thread { runCatching { backfill(destination) } }.start()
+                        // 审批/提问事件不属于 /history，断流窗口内发生会永久丢失 →
+                        // 重连后探测服务端是否仍在等待应答，是则提示用户，避免无声挂起。
+                        Thread {
+                            runCatching {
+                                if (statusLoader?.invoke()?.pendingPrompt == true) {
+                                    destination.tryEmit(
+                                        SseEvent(
+                                            kind = "notice",
+                                            text = "服务端仍在等待应答（审批 / 提问）：请在通知栏处理，或重启服务后重试",
+                                            level = "warn",
+                                        ),
+                                    )
+                                }
+                            }
+                        }.start()
                     }
                 }
 

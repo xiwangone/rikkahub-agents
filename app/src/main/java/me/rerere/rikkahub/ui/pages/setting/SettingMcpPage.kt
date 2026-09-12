@@ -53,6 +53,7 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.Tab
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -368,6 +369,7 @@ private fun LocalMcpProfileModal(
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var port by remember { mutableStateOf(initial?.port?.toString() ?: "8788") }
     var selected by remember { mutableStateOf(initial?.allowedTools ?: emptyList()) }
+    var expandedCategories by remember { mutableStateOf(setOf<LocalToolCategory>()) }
     var listenScope by remember { mutableStateOf(initial?.listenScope ?: "loopback") }
     var allowedNetworks by remember { mutableStateOf(initial?.allowedNetworks ?: "") }
     var authTokenRef by remember { mutableStateOf(initial?.authTokenRef ?: "") }
@@ -423,21 +425,47 @@ private fun LocalMcpProfileModal(
                         }
                     }
                 LocalToolCatalog.groups().forEach { (category, tools) ->
-                    Row(
+                    val expanded = category in expandedCategories
+                    val pickedCount = tools.count { it in selected }
+                    Surface(
+                        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f),
                         modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(categoryLabel(category), style = MaterialTheme.typography.labelMedium)
-                        Row {
-                            TextButton(onClick = { selected = (selected + tools).distinct() }) {
-                                Text(stringResource(R.string.mcp_page_select_all))
+                        Column(modifier = Modifier.padding(8.dp)) {
+                            Row(
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            expandedCategories =
+                                                if (expanded) expandedCategories - category else expandedCategories + category
+                                        },
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = categoryLabel(category) + "  ($pickedCount/${tools.size})",
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                                Text(if (expanded) "\u25b4" else "\u25be", style = MaterialTheme.typography.labelMedium)
                             }
-                            TextButton(onClick = { selected = selected - tools.toSet() }) {
-                                Text(stringResource(R.string.mcp_page_clear))
+                            if (expanded) {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.End,
+                                ) {
+                                    TextButton(onClick = { selected = (selected + tools).distinct() }) {
+                                        Text(stringResource(R.string.mcp_page_select_all))
+                                    }
+                                    TextButton(onClick = { selected = selected - tools.toSet() }) {
+                                        Text(stringResource(R.string.mcp_page_clear))
+                                    }
+                                }
                             }
                         }
                     }
+                    if (!expanded) return@forEach
                     FlowRow {
                         tools.forEach { tool ->
                             val checked = tool in selected
