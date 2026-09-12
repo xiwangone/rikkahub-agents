@@ -17,6 +17,7 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -119,6 +120,9 @@ private const val TAG = "ChatService"
  * 按此间隔落盘后，最多只丢最后一个间隔内的增量。
  */
 private const val STREAM_PERSIST_INTERVAL_MS = 8_000L
+
+// 审批续跑时等待前一个生成任务结束的上限（不取消前一个，避免打断其审批写入）。
+private const val PREV_JOB_JOIN_TIMEOUT_MS = 10_000L
 
 internal fun backgroundTextGenerationParams(
     model: Model,
@@ -851,7 +855,12 @@ class ChatService(
                         // the prior coroutine emits one last chunk into `messages` between
                         // our cancel call and our state.value read. Use the SNAPSHOT taken
                         // before launch — see the comment on priorGenerationJob above.
-                        priorGenerationJob?.let { runCatching { it.cancelAndJoin() } }
+                        priorGenerationJob?.let { prev ->
+                            // 接续语义：不取消前一个任务，只等它把当前状态写完，
+                            // 否则会打断上一个任务的审批写入（表现为「连续审批丢失」）。
+                            // 超时兜底：前一个任务若长期挂在等待用户输入，不阻塞本次审批。
+                            runCatching { withTimeoutOrNull(PREV_JOB_JOIN_TIMEOUT_MS) { prev.join() } }
+                        }
 
                         val conversation = session.state.value
                         val newApprovalState =
@@ -936,7 +945,7 @@ class ChatService(
                 }
             }
 
-        session.setJob(job)
+        session.setJob(job, cancelPrevious = false)
     }
 
     // ---- 处理消息补全 ----
@@ -2290,7 +2299,11 @@ class ChatService(
         val convMutex = mutexFor(conversationId)
         // cancelAndJoin BEFORE the mutex so the cancelled coroutine can drain its own
         // writes (which may try to acquire the same mutex via their save path).
-        sessions[conversationId]?.getJob()?.let { runCatching { it.cancelAndJoin() } }
+        sessions[conversationId]?.let { session ->
+            // 接续语义下可能同时存在多个任务（审批接续链），停止时须全部取消再等待收尾。
+            val jobs = runCatching { session.cancelJobs() }.getOrNull() ?: emptyList()
+            jobs.forEach { runCatching { it.join() } }
+        }
 
         // 后端连接路径：本地协程取消不会让服务端停下，必须显式通知取消，
         // 否则服务端 turn 会一直挂着并阻塞后续提交（表现为「停止无效、再发无反应」）。

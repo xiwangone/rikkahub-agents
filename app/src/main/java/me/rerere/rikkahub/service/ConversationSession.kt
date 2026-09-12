@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.service
 
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -33,6 +34,8 @@ class ConversationSession(
 
     // 生成任务（内聚在 session 中）
     private val _generationJob = MutableStateFlow<Job?>(null)
+    /** 当前活跃的生成任务（含接续链）。停止生成时全部取消。 */
+    private val activeJobs = java.util.Collections.synchronizedSet(mutableSetOf<Job>())
     val generationJob: StateFlow<Job?> = _generationJob.asStateFlow()
     val isGenerating: Boolean get() = _generationJob.value?.isActive == true
     val isInUse: Boolean get() = refCount.get() > 0 || isGenerating
@@ -72,23 +75,41 @@ class ConversationSession(
         }
     }
 
-    fun setJob(job: Job?) {
+    /**
+     * 设置当前生成任务。
+     *
+     * @param cancelPrevious true（默认）= 取代语义，取消前一个任务；
+     *   false = 接续语义，不取消前一个任务（用于连续工具审批，避免打断上一个任务的审批写入）。
+     */
+    @Synchronized
+    fun setJob(job: Job?, cancelPrevious: Boolean = true) {
         // Atomic swap so two concurrent setJob callers can't race-write a stale job.
         // The previous code (cancel() then assign) had a window where two writers could
         // each read the prior value, A cancels old, B reads old (already cancelled,
         // no-op), A writes newA, B writes newB → A's job is untracked but still running;
         // getJob() returns B; stopGeneration only cancels B; A leaks until completion.
         val previous = _generationJob.getAndUpdate { job }
-        previous?.cancel()
+        if (cancelPrevious) previous?.cancel()
+        if (job != null) activeJobs.add(job)
         // Identity-checked completion handler: only null the StateFlow if the value is
         // STILL the same job we just set. Without this an out-of-order setJob(B) →
         // A.invokeOnCompletion → clobber-B race could null out the live job.
-        job?.invokeOnCompletion {
-            _generationJob.compareAndSet(job, null)
-            if (refCount.get() <= 0) {
-                scheduleIdleCheck()
+        job?.invokeOnCompletion { cause ->
+            activeJobs.remove(job)
+            // 接续语义下，若新任务尚未进入协程体就被取消，需要把取消传播给被取代的前一个任务，
+            // 否则前一个任务已被取代又未真正接管 → 生成停滞。
+            if (!cancelPrevious && cause is CancellationException) previous?.cancel()
+            if (_generationJob.compareAndSet(job, null)) {
+                if (refCount.get() <= 0) {
+                    scheduleIdleCheck()
+                }
             }
         }
+    }
+
+    /** 取消所有活跃生成任务（含接续链），返回被取消的任务快照。 */
+    fun cancelJobs(): List<Job> = activeJobs.toList().also { jobs ->
+        jobs.asReversed().forEach { it.cancel() }
     }
 
     fun getJob(): Job? = _generationJob.value
