@@ -16,9 +16,8 @@ import me.rerere.ai.ui.UIMessage
 interface Provider<T : ProviderSetting> {
     suspend fun listModels(providerSetting: T): List<Model>
 
-    suspend fun getBalance(providerSetting: T): String {
-        return "TODO"
-    }
+    suspend fun getBalance(providerSetting: T): String = ""
+
 
     suspend fun generateText(
         providerSetting: T,
