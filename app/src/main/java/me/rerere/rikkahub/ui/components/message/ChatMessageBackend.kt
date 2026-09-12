@@ -243,6 +243,13 @@ internal fun BackendApprovalCard(
                     )
                 }
             }
+            (feedback ?: if (handledElsewhere) staleHint else null)?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -264,6 +271,7 @@ internal fun BackendAskCard(
     var feedback by remember(requestId) { mutableStateOf<String?>(null) }
     val answeredText = stringResource(R.string.backend_ask_submitted)
     val staleText = stringResource(R.string.backend_approval_stale)
+    val handledElsewhere = everPending && requestId !in pendingIds && !submitted
     Surface(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
@@ -305,7 +313,7 @@ internal fun BackendAskCard(
                     }
                 }
             }
-            (feedback ?: if (handledElsewhere) staleHint else null)?.let {
+            (feedback ?: if (handledElsewhere) staleText else null)?.let {
                 Text(
                     text = it,
                     style = MaterialTheme.typography.labelSmall,
