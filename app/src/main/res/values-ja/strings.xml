@@ -2815,6 +2815,8 @@
   <string name="vault_session_token_copied">token をコピーしました</string>
   <string name="backend_base_url_example">例: http://&lt;サーバーアドレス&gt;</string>
   <string name="backend_connection_mode">接続方式</string>
+  <string name="backend_diag_title">接続診断</string>
+  <string name="backend_diag_check">サーバー状態を確認</string>
   <string name="backend_mode_serve">serve（HTTP/SSE 直結）</string>
   <string name="backend_mode_ssh">SSH リバーストンネル</string>
   <string name="backend_mode_serve_desc">バックエンドサービス serve の HTTP API に直結します。baseUrl と Basic Auth のユーザー名/パスワードを入力してください。</string>

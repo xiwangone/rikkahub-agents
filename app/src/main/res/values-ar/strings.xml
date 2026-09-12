@@ -2468,6 +2468,8 @@
   <string name="vault_session_token_copied">تم نسخ الرمز</string>
   <string name="backend_base_url_example">مثال: http://&lt;عنوان الخادم&gt;</string>
   <string name="backend_connection_mode">طريقة الاتصال</string>
+  <string name="backend_diag_title">التشخيص</string>
+  <string name="backend_diag_check">تحقق من حالة الخادم</string>
   <string name="backend_mode_serve">serve (اتصال مباشر HTTP/SSE)</string>
   <string name="backend_mode_ssh">نفق SSH عكسي</string>
   <string name="backend_mode_serve_desc">اتصال مباشر بواجهة HTTP لخدمة serve. أدخل baseUrl واسم مستخدم/كلمة مرور Basic Auth.</string>

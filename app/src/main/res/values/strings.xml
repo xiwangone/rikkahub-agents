@@ -2523,6 +2523,8 @@
   <string name="vault_session_token_copied">token 已复制</string>
   <string name="backend_base_url_example">例：http://&lt;服务器地址&gt;</string>
   <string name="backend_connection_mode">Connection mode</string>
+  <string name="backend_diag_title">Diagnostics</string>
+  <string name="backend_diag_check">Check server status</string>
   <string name="backend_mode_serve">serve (HTTP/SSE direct)</string>
   <string name="backend_mode_ssh">SSH reverse tunnel</string>
   <string name="backend_mode_serve_desc">Connect directly to Backend serve HTTP API; fill in baseUrl + Basic Auth username/password.</string>

@@ -2808,6 +2808,8 @@
   <string name="vault_session_token_copied">Token скопирован</string>
   <string name="backend_base_url_example">Пример: http://&lt;адрес сервера&gt;</string>
   <string name="backend_connection_mode">Способ подключения</string>
+  <string name="backend_diag_title">Диагностика</string>
+  <string name="backend_diag_check">Проверить состояние сервера</string>
   <string name="backend_mode_serve">serve (прямое HTTP/SSE)</string>
   <string name="backend_mode_ssh">Обратный SSH-туннель</string>
   <string name="backend_mode_serve_desc">Прямое подключение к HTTP API службы serve. Укажите baseUrl и логин/пароль Basic Auth.</string>

@@ -14,10 +14,13 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Switch
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import kotlinx.coroutines.launch
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -233,4 +236,59 @@ fun BackendProviderConfigure(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
+
+    // 接入诊断：读取服务端 /status，把「是否挂起 / 能否取消」等关键状态集中展示，
+    // 避免交互（审批 / 提问 / 停止）失效时无从判断。
+    if (provider.backendType == "backend" && provider.baseUrl.isNotBlank()) {
+        val scope = rememberCoroutineScope()
+        var diag by remember { mutableStateOf<String?>(null) }
+        var diagLoading by remember { mutableStateOf(false) }
+        Text(
+            text = stringResource(R.string.backend_diag_title),
+            style = MaterialTheme.typography.titleSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(
+                enabled = !diagLoading,
+                onClick = {
+                    diagLoading = true
+                    scope.launch {
+                        diag =
+                            runCatching { backendStatusDigest(provider) }
+                                .getOrElse { "检查失败：${it.message ?: it::class.simpleName}" }
+                        diagLoading = false
+                    }
+                },
+            ) {
+                Text(stringResource(R.string.backend_diag_check))
+            }
+        }
+        diag?.let {
+            Text(
+                text = it,
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
 }
+
+/** 读取后端服务 /status，输出便于判断的摘要（是否待应答 / 能否取消 / 审批模式等）。 */
+private suspend fun backendStatusDigest(provider: ProviderSetting.Backend): String {
+    val st =
+        me.rerere.ai.provider.providers.backend.BackendApi(
+            baseUrl = provider.baseUrl,
+            username = provider.username,
+            password = provider.password,
+            token = provider.token,
+        ).getStatus() ?: return "无法读取服务端状态"
+    return buildString {
+        appendLine("待应答交互 pendingPrompt: ${st.pendingPrompt == true}")
+        appendLine("可取消 cancellable: ${st.cancellable == true}")
+        appendLine("已请求取消 cancelRequested: ${st.cancelRequested == true}")
+        appendLine("审批模式 toolApprovalMode: ${st.toolApprovalMode ?: "-"}")
+        st.cwd?.let { appendLine("工作目录: $it") }
+        st.sessionPath?.let { appendLine("会话: $it") }
+    }.trimEnd()
+}}

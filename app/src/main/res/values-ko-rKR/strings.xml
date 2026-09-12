@@ -2815,6 +2815,8 @@
   <string name="vault_session_token_copied">token을 복사했습니다</string>
   <string name="backend_base_url_example">예: http://&lt;서버 주소&gt;</string>
   <string name="backend_connection_mode">연결 방식</string>
+  <string name="backend_diag_title">연결 진단</string>
+  <string name="backend_diag_check">서버 상태 확인</string>
   <string name="backend_mode_serve">serve(HTTP/SSE 직접 연결)</string>
   <string name="backend_mode_ssh">SSH 역방향 터널</string>
   <string name="backend_mode_serve_desc">백엔드 서비스 serve의 HTTP API에 직접 연결합니다. baseUrl과 Basic Auth 사용자 이름/암호를 입력하세요.</string>

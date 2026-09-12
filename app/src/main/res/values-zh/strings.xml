@@ -2490,6 +2490,8 @@
   <string name="vault_session_token_copied">token 已复制</string>
   <string name="backend_base_url_example">例：http://&lt;服务器地址&gt;</string>
   <string name="backend_connection_mode">连接方式</string>
+  <string name="backend_diag_title">接入诊断</string>
+  <string name="backend_diag_check">检查服务端状态</string>
   <string name="backend_mode_serve">serve（HTTP/SSE 直连）</string>
   <string name="backend_mode_ssh">SSH 反向隧道</string>
   <string name="backend_mode_serve_desc">直连 后端服务 serve 的 HTTP API，需填写 baseUrl + Basic Auth 用户名/密码。</string>
