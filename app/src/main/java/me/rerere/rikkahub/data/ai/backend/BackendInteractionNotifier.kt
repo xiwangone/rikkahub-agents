@@ -63,7 +63,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
 
     /** 当前仍待应答的请求 id 集合（供对话卡片与通知栏状态同步）。 */
     private val _pendingIds = MutableStateFlow<Set<String>>(emptySet())
-    val pendingIds: StateFlow<Set<String>> = _pendingIds.asStateFlow()
+    val pendingIds: kotlinx.coroutines.flow.StateFlow<Set<String>> = _pendingIds.asStateFlow()
 
     /** 重新计算待应答集合（任何增删后调用）。 */
     private fun syncPendingIds() {
