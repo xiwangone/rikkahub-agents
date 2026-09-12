@@ -1,0 +1,25 @@
+name: Dependency Scan
+# 依赖漏洞扫描（osv-scanner）：锁文件变更 / PR / 每周定时
+on:
+  push:
+    branches: [master]
+    paths: ['**/package.json', '**/pnpm-lock.yaml', '**/bun.lock', '**/uv.lock', '**/build.gradle.kts', '**/libs.versions.toml']
+  pull_request:
+  schedule:
+    - cron: '0 20 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  osv-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: 获取 osv-scanner
+        run: |
+          curl -sSL -o osv-scanner https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64
+          chmod +x osv-scanner
+      - name: 扫描依赖漏洞
+        run: ./osv-scanner scan -r . --format table

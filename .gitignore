@@ -71,3 +71,6 @@ agent-tools/build/
 
 # synaptic 本地运行数据（本机生成，不入库）
 /.synaptic/
+
+# Python 工具缓存
+.ruff_cache/
