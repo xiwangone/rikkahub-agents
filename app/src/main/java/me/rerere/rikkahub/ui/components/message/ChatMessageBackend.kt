@@ -14,6 +14,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
+import org.koin.compose.koinInject
 import android.content.Intent
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateContentSize
@@ -110,8 +111,10 @@ import kotlin.time.Duration.Companion.milliseconds
  */
 
 /**
- * Backend 直连路径的服务端审批卡：展示待审批工具 + 批准/拒绝按钮。
- * 复用 [ChatMessage] 传入的 onToolApproval 回调（toolCallId = 服务端 requestId）。
+ * 服务端审批卡：展示待审批工具 + 批准/拒绝。
+ *
+ * 应答优先走 BackendInteractionNotifier（与通知栏按钮同一通道，即 BackendApi.approve）；
+ * 若该请求不在此通道中（非后端直连场景），回退到传入的通用回调。
  */
 @Composable
 internal fun BackendApprovalCard(
@@ -128,42 +131,61 @@ internal fun BackendApprovalCard(
         ) -> Unit
     )?,
 ) {
+    val notifier: me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier = org.koin.compose.koinInject()
     var inFlight by remember(requestId) { mutableStateOf(false) }
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            text = stringResource(R.string.backend_pending_approval, tool, subject?.let { "\n$it" } ?: ""),
-            style = MaterialTheme.typography.labelMedium,
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            TextButton(
-                enabled = !inFlight,
-                onClick = {
-                    inFlight = true
-                    onToolApproval?.invoke(
-                        requestId,
-                        true,
-                        "",
-                        me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
-                        tool,
-                    )
-                },
-            ) {
-                Text(stringResource(R.string.chat_message_tool_approve))
-            }
-            TextButton(
-                enabled = !inFlight,
-                onClick = {
-                    inFlight = true
-                    onToolApproval?.invoke(
-                        requestId,
-                        false,
-                        "",
-                        me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
-                        tool,
-                    )
-                },
-            ) {
-                Text(stringResource(R.string.chat_message_tool_deny))
+    var resolved by remember(requestId) { mutableStateOf(false) }
+    Surface(
+        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
+        modifier = Modifier.fillMaxWidth(0.9f),
+    ) {
+        Column(
+            modifier = Modifier.padding(10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                text = stringResource(R.string.backend_pending_approval, tool, subject?.let { "\n$it" } ?: ""),
+                style = MaterialTheme.typography.labelMedium,
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(
+                    enabled = !inFlight && !resolved,
+                    onClick = {
+                        inFlight = true
+                        resolved = notifier.approveById(requestId, true)
+                        if (!resolved) {
+                            onToolApproval?.invoke(
+                                requestId,
+                                true,
+                                "",
+                                me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
+                                tool,
+                            )
+                        }
+                        inFlight = false
+                    },
+                ) {
+                    Text(stringResource(R.string.chat_message_tool_approve))
+                }
+                TextButton(
+                    enabled = !inFlight && !resolved,
+                    onClick = {
+                        inFlight = true
+                        resolved = notifier.approveById(requestId, false)
+                        if (!resolved) {
+                            onToolApproval?.invoke(
+                                requestId,
+                                false,
+                                "",
+                                me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
+                                tool,
+                            )
+                        }
+                        inFlight = false
+                    },
+                ) {
+                    Text(stringResource(R.string.chat_message_tool_deny))
+                }
             }
         }
     }
@@ -197,7 +219,11 @@ internal fun BackendAskCard(
                             enabled = !submitted,
                             onClick = {
                                 submitted = true
-                                onToolAnswer?.invoke(requestId, opt.label)
+                                val notifier: me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier =
+                                    koinInject()
+                                if (!notifier.answerById(requestId, opt.label)) {
+                                    onToolAnswer?.invoke(requestId, opt.label)
+                                }
                             },
                         ) {
                             Text(opt.label)

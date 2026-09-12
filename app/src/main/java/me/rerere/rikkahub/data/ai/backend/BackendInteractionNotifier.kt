@@ -156,6 +156,47 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
         notify(id, notification)
     }
 
+    /**
+     * 由对话内嵌卡片调用：按 requestId 批准/拒绝（与通知栏按钮同一通道）。
+     * 返回 true 表示该请求仍在等待应答且已提交。
+     */
+    fun approveById(requestId: String, approved: Boolean): Boolean {
+        val p = synchronized(lock) { pendingApprovals.remove(requestId) } ?: return false
+        cancelNotification(requestId)
+        ioScope.launch {
+            runCatching {
+                api(p.setting).approve(id = requestId, allow = approved)
+            }.onFailure {
+                Log.w(TAG, "approve($requestId, $approved) failed", it)
+            }
+        }
+        return true
+    }
+
+    /** 由对话内嵌卡片调用：回答提问（answers: questionId → 文本）。 */
+    fun answerById(requestId: String, answer: String): Boolean {
+        val p = synchronized(lock) { pendingAsks.remove(requestId) } ?: return false
+        cancelNotification(requestId)
+        if (answer.isBlank()) return true
+        ioScope.launch {
+            runCatching {
+                api(p.setting).answer(
+                    id = requestId,
+                    answers =
+                        p.questions.map { q ->
+                            buildJsonObject {
+                                put("id", JsonPrimitive(q.id))
+                                put("answers", JsonPrimitive(answer))
+                            }
+                        },
+                )
+            }.onFailure {
+                Log.w(TAG, "answer($requestId) failed", it)
+            }
+        }
+        return true
+    }
+
     override fun onAskRequest(
         setting: ProviderSetting.Backend,
         id: String,
