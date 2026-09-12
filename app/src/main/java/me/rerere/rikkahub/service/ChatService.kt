@@ -330,6 +330,24 @@ class ChatService(
             }
         }
 
+    /**
+     * 会话被回收前，把内存中的最新快照落盘。
+     *
+     * 生成期间的落盘是 8 秒节流的（见 STREAM_PERSIST_INTERVAL_MS）；若生成刚结束就发生
+     * idle 回收（切走会话 → 引用归零 → 5 秒宽限 → 回收），最后一次节流之后的内容只存在于
+     * 内存会话里，会随回收一起消失（表现为「切走再回来内容变少」）。这里在移除前补一次
+     * NonCancellable 落盘，保证内存与磁盘一致。
+     */
+    private fun persistSnapshotBeforeEvict(conversationId: Uuid, session: ConversationSession) {
+        val snapshot = session.state.value
+        appScope.launch {
+            withContext(NonCancellable) {
+                runCatching { saveConversation(conversationId, snapshot) }
+                    .onFailure { AppLog.w(TAG, "persist before evict failed: $conversationId", it) }
+            }
+        }
+    }
+
     private fun removeSession(conversationId: Uuid) {
         val session = sessions[conversationId] ?: return
         if (session.isInUse) {
@@ -337,6 +355,7 @@ class ChatService(
             return
         }
         if (sessions.remove(conversationId, session)) {
+            persistSnapshotBeforeEvict(conversationId, session)
             session.cleanup()
             // Evict the per-conversation mutex so it doesn't accumulate forever.
             // dropSession() already removes it; removeSession() (idle eviction path)
@@ -356,6 +375,7 @@ class ChatService(
      */
     fun dropSession(conversationId: Uuid) {
         val session = sessions.remove(conversationId) ?: return
+        persistSnapshotBeforeEvict(conversationId, session)
         session.cleanup()
         sessionMutexes.remove(conversationId)
         _sessionsVersion.value++
