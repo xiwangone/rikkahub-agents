@@ -33,6 +33,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -308,6 +309,10 @@ fun WorkspaceDetailPage(id: String) {
                 onDismiss = { showInstallDialog = false },
                 onConfirm = { url ->
                     vm.installRootfs(url)
+                    showInstallDialog = false
+                },
+                onConfirmFile = { path ->
+                    vm.installRootfsFromFile(path)
                     showInstallDialog = false
                 },
             )
@@ -620,8 +625,28 @@ private fun InstallRootfsDialog(
     workspace: WorkspaceEntity,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
+    onConfirmFile: (String) -> Unit,
 ) {
     var url by rememberSaveable(workspace.id) { mutableStateOf(DEFAULT_ROOTFS_URL) }
+    val context = LocalContext.current
+    // 本地导入：先把所选归档复制到应用缓存，再交给安装流程（安装线程无法直接读 SAF 流）
+    val pickArchiveLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.OpenDocument(),
+        ) { uri: android.net.Uri? ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            val name = uri.lastPathSegment?.substringAfterLast('/') ?: "rootfs.tar.gz"
+            val suffix =
+                if (name.endsWith(".tar.xz", true) || name.endsWith(".txz", true)) ".tar.xz" else ".tar.gz"
+            val target = File(context.cacheDir, "rootfs-import-${System.currentTimeMillis()}$suffix")
+            runCatching {
+                context.contentResolver.openInputStream(uri)?.use { input ->
+                    target.outputStream().use { output -> input.copyTo(output) }
+                } ?: error("Unable to read selected file")
+            }.onSuccess {
+                onConfirmFile(target.absolutePath)
+            }
+        }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -639,6 +664,17 @@ private fun InstallRootfsDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.workspace_detail_download_url)) },
                     maxLines = 5,
+                )
+                OutlinedButton(
+                    onClick = { pickArchiveLauncher.launch(arrayOf("*/*")) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.workspace_detail_import_local_rootfs))
+                }
+                Text(
+                    text = stringResource(R.string.workspace_detail_import_local_rootfs_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
         },

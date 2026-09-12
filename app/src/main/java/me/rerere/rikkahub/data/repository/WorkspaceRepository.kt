@@ -12,6 +12,7 @@ import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.workspace.RootfsInstallProgress
+import java.io.File
 import me.rerere.workspace.RootfsInstaller
 import me.rerere.workspace.BackgroundStatus
 import me.rerere.workspace.WorkspaceTreeResult
@@ -116,6 +117,37 @@ class WorkspaceRepository(
             )
         )
         return true
+    }
+
+    /** 从本地归档文件安装 rootfs（离线/内网分发场景，无需下载）。 */
+    suspend fun installRootfsFromFile(
+        id: String,
+        archivePath: String,
+        onProgress: (RootfsInstallProgress) -> Unit = {},
+    ): Boolean {
+        val workspace = dao.getById(id) ?: return false
+        updateShellState(workspace, WorkspaceShellStatus.INSTALLING.name)
+        try {
+            runInterruptible(Dispatchers.IO) {
+                rootfsInstaller.installFromFile(workspace.root, File(archivePath), onProgress)
+            }
+            updateShellState(workspace, WorkspaceShellStatus.READY.name)
+            return true
+        } catch (e: CancellationException) {
+            withContext(NonCancellable) {
+                restoreShellState(workspace)
+            }
+            throw e
+        } catch (e: InterruptedException) {
+            withContext(NonCancellable) {
+                restoreShellState(workspace)
+            }
+            throw CancellationException("Rootfs install cancelled").also { it.initCause(e) }
+        } catch (e: Throwable) {
+            Log.e(TAG, "installRootfsFromFile failed: workspace=${workspace.id}, archive=$archivePath", e)
+            updateShellState(workspace, WorkspaceShellStatus.BROKEN.name)
+            throw e
+        }
     }
 
     suspend fun installRootfs(

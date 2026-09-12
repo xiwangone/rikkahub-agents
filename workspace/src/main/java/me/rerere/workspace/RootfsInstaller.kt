@@ -46,6 +46,34 @@ class RootfsInstaller(
         }
     }
 
+    /** 从本地归档文件安装 rootfs（离线/内网分发场景；与 URL 安装共用解压与补丁流程）。 */
+    fun installFromFile(
+        root: String,
+        archive: File,
+        onProgress: (RootfsInstallProgress) -> Unit = {},
+    ) {
+        require(archive.isFile) { "Rootfs archive not found: ${archive.absolutePath}" }
+        manager.ensureWorkspace(root)
+        val format = ArchiveFormat.fromFileName(archive.name)
+        val tempDir = manager.tempDir(root)
+        val stagingDir = File(tempDir, "rootfs-staging")
+        val linuxDir = manager.linuxDir(root)
+
+        try {
+            stagingDir.deleteRecursively()
+            stagingDir.mkdirs()
+            extractTar(archive, stagingDir, format, onProgress)
+            linuxDir.deleteRecursively()
+            require(stagingDir.renameTo(linuxDir)) {
+                "Failed to move rootfs into workspace"
+            }
+            patcher.patch(linuxDir)
+            onProgress(RootfsInstallProgress(stage = RootfsInstallStage.INSTALLED))
+        } finally {
+            stagingDir.deleteRecursively()
+        }
+    }
+
     private fun download(
         url: String,
         target: File,
@@ -467,11 +495,17 @@ class RootfsInstaller(
         companion object {
             fun fromUrl(url: String): ArchiveFormat {
                 val path = url.substringBefore('?').substringBefore('#')
-                return when {
-                    path.endsWith(".tar.xz") || path.endsWith(".txz") -> TAR_XZ
+                return fromFileName(path)
+            }
+
+            /** 按文件名推断归档格式（本地导入用）。 */
+            fun fromFileName(name: String): ArchiveFormat =
+                when {
+                    name.endsWith(".tar.xz", ignoreCase = true) ||
+                        name.endsWith(".txz", ignoreCase = true) -> TAR_XZ
+
                     else -> TAR_GZ
                 }
-            }
 
             fun fromFile(file: File): ArchiveFormat = fromUrl(file.name)
         }

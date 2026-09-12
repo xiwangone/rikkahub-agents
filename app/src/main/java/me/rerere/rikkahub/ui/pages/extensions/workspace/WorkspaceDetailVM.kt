@@ -239,6 +239,30 @@ class WorkspaceDetailVM(
         }
     }
 
+    /** 从本地归档文件安装 rootfs（离线导入，无需下载）。 */
+    fun installRootfsFromFile(archivePath: String) {
+        viewModelScope.launch {
+            _installError.value = null
+            val workspace = state.value.workspace ?: return@launch
+            _installProgress.value = RootfsInstallProgress(stage = RootfsInstallStage.EXTRACTING)
+            try {
+                terminalSessionManager.closeWorkspace(workspace.root)
+                repository.installRootfsFromFile(workspace.id, archivePath) { progress ->
+                    _installProgress.value = progress
+                }
+                loadWorkspace()
+                refresh()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (error: Throwable) {
+                _installError.value =
+                    error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_rootfs_install)
+            } finally {
+                _installProgress.value = null
+            }
+        }
+    }
+
     fun dismissInstallError() {
         _installError.value = null
     }

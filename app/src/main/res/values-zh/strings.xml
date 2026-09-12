@@ -3038,4 +3038,6 @@
   <string name="workspace_detail_compatibility_mode">兼容模式</string>
   <string name="workspace_detail_compatibility_mode_desc">如果终端无法启动，请尝试启用此功能。这可能会降低性能。适用于新的终端标签页及后续命令。</string>
   <string name="workspace_detail_settings_save_failed">保存设置失败</string>
+  <string name="workspace_detail_import_local_rootfs">从本地文件导入</string>
+  <string name="workspace_detail_import_local_rootfs_desc">选择设备上已有的 rootfs 归档（tar.gz / tar.xz）。适用于下载源不可达的情况。</string>
 </resources>
