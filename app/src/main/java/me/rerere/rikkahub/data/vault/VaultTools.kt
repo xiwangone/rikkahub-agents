@@ -262,7 +262,9 @@ private suspend fun runVaultExportEnv(
         runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
             ?: return fail("工作区不可用")
     val ws = wsRepository.getAll().firstOrNull() ?: return fail("无工作区")
-    runCatching { wsRepository.writeText(ws.id, "tmp/vault-env.sh", lines.joinToString("\n"), overwrite = true) }.getOrNull()
+    runCatching { wsRepository.writeText(ws.id, "tmp/vault-env.sh", lines.joinToString("\n"), overwrite = true) }
+        .onFailure { android.util.Log.w("VaultTools", "写入 vault-env.sh 失败", it) }
+        .getOrNull()
         ?: return fail("写沙箱环境文件失败")
 
     return listOf(
@@ -661,7 +663,9 @@ fun vaultExportLoadCredsTool(
                     runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
                         ?: return@Tool listOf(UIMessagePart.Text("❌ 工作区不可用"))
                 val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ 无工作区"))
-                runCatching { wsRepository.writeText(ws.id, "tmp/load-creds-export.sh", script, overwrite = true) }.getOrNull()
+                runCatching { wsRepository.writeText(ws.id, "tmp/load-creds-export.sh", script, overwrite = true) }
+                    .onFailure { android.util.Log.w("VaultTools", "写入 load-creds-export.sh 失败", it) }
+                    .getOrNull()
                     ?: return@Tool listOf(UIMessagePart.Text("❌ 写工作区文件失败"))
                 quads.forEach { q -> repository.logAccess(q.name, "ai-tool", "export_loadcreds") }
                 listOf(

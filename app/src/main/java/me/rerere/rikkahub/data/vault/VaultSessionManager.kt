@@ -246,7 +246,10 @@ class VaultSessionManager(private val context: Context) {
 
     private suspend fun readSessions(): List<VaultSessionRecord> {
         val raw = context.vaultSessionStore.data.first()[Keys.SESSIONS] ?: return emptyList()
-        val all = runCatching { json.decodeFromString<List<VaultSessionRecord>>(raw) }.getOrDefault(emptyList())
+        val all =
+            runCatching { json.decodeFromString<List<VaultSessionRecord>>(raw) }
+                .onFailure { android.util.Log.w("VaultSession", "解析会话记录失败（将视为无会话）", it) }
+                .getOrDefault(emptyList())
         val now = System.currentTimeMillis()
         // 自动清理已过期会话（当场有效 ttlMs=Long.MAX_VALUE 不过期）
         val valid = all.filter { it.ttlMs == Long.MAX_VALUE || now < it.createdAt + it.ttlMs }
