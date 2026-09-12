@@ -1,2 +1,13 @@
 allowBuilds:
   esbuild: true
+
+overrides:
+  browserslist: "^4.28.7"
+  dompurify: "^3.4.13"
+  js-yaml: "^4.3.2"
+  mermaid: "^11.16.1"
+  qs: "^6.16.0"
+  baseline-browser-mapping: "^2.11.0"
+  postcss: "^8.5.23"
+  body-parser: "^1.20.6"
+  "@babel/core": "^7.29.6"
