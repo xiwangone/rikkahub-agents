@@ -492,8 +492,14 @@ class ConversationRepository(
             val hasEmptyUser =
                 node.messages.any { msg ->
                     msg.role == me.rerere.ai.core.MessageRole.USER &&
+                        msg.parts.isNotEmpty() &&
                         msg.parts.none { p ->
-                            (p as? me.rerere.ai.ui.UIMessagePart.Text)?.text?.isNotBlank() == true
+                            when (p) {
+                                // 纯空白文本才算空
+                                is me.rerere.ai.ui.UIMessagePart.Text -> p.text.isNotBlank()
+                                // 其他 part（图片/文件/工具调用等）视为有内容，避免把带图消息误判为空
+                                else -> true
+                            }
                         }
                 }
             if (hasEmptyUser) {
