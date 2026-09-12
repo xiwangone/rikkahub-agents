@@ -236,7 +236,6 @@ fun BackendProviderConfigure(
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
     }
-
     // 接入诊断：读取服务端 /status，把「是否挂起 / 能否取消」等关键状态集中展示，
     // 避免交互（审批 / 提问 / 停止）失效时无从判断。
     if (provider.backendType == "backend" && provider.baseUrl.isNotBlank()) {
@@ -272,7 +271,9 @@ fun BackendProviderConfigure(
             )
         }
     }
+
 }
+
 
 /** 读取后端服务 /status，输出便于判断的摘要（是否待应答 / 能否取消 / 审批模式等）。 */
 private suspend fun backendStatusDigest(provider: ProviderSetting.Backend): String {
@@ -291,4 +292,4 @@ private suspend fun backendStatusDigest(provider: ProviderSetting.Backend): Stri
         st.cwd?.let { appendLine("工作目录: $it") }
         st.sessionPath?.let { appendLine("会话: $it") }
     }.trimEnd()
-}}
+}
