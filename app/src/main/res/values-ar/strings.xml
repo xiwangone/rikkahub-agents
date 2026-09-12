@@ -2132,6 +2132,9 @@
   <string name="backend_notif_tool_request">تطلب الواجهة الخلفية تنفيذ الأداة %1$s</string>
   <string name="backend_notif_pending_approve">أداة الواجهة الخلفية بانتظار الموافقة: %1$s</string>
   <string name="backend_pending_approval">بانتظار الموافقة: %1$s%2$s</string>
+  <string name="backend_approval_approved">تمت الموافقة</string>
+  <string name="backend_approval_denied">تم الرفض</string>
+  <string name="backend_approval_stale">لم يعد هذا الطلب نشطًا (تمت معالجته من الإشعار أو أُعيد تشغيل التطبيق)</string>
   <string name="backend_pending_reply">بانتظار الرد</string>
   <string name="backend_notif_ask_body">سؤال: %1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi">(تحديد متعدد)</string>

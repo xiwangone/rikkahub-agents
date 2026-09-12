@@ -2937,6 +2937,9 @@
   <string name="backend_notif_tool_request">Backend requests to execute tool %1$s</string>
   <string name="backend_notif_pending_approve">Backend tool awaiting approval: %1$s</string>
   <string name="backend_pending_approval">Pending approval: %1$s%2$s</string>
+  <string name="backend_approval_approved">Approved</string>
+  <string name="backend_approval_denied">Denied</string>
+  <string name="backend_approval_stale">This request is no longer pending (handled in the notification, or the app restarted)</string>
   <string name="backend_pending_reply">Pending reply</string>
   <string name="backend_notif_ask_body">Q: %1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi"> (multi)</string>

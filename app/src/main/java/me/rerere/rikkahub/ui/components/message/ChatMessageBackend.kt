@@ -135,8 +135,12 @@ internal fun BackendApprovalCard(
     )?,
 ) {
     val notifier: me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier = org.koin.compose.koinInject()
+    val approveDone = stringResource(R.string.backend_approval_approved)
+    val denyDone = stringResource(R.string.backend_approval_denied)
+    val staleHint = stringResource(R.string.backend_approval_stale)
     var inFlight by remember(requestId) { mutableStateOf(false) }
     var resolved by remember(requestId) { mutableStateOf(false) }
+    var feedback by remember(requestId) { mutableStateOf<String?>(null) }
     Surface(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
@@ -156,8 +160,11 @@ internal fun BackendApprovalCard(
                     onClick = {
                         if (inFlight || resolved) return@FilledTonalIconButton
                         inFlight = true
-                        resolved = notifier.approveById(requestId, true)
-                        if (!resolved) {
+                        val ok = notifier.approveById(requestId, true)
+                        resolved = ok
+                        if (ok) {
+                            feedback = approveDone
+                        } else {
                             onToolApproval?.invoke(
                                 requestId,
                                 true,
@@ -165,6 +172,7 @@ internal fun BackendApprovalCard(
                                 me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
                                 tool,
                             )
+                            feedback = staleHint
                         }
                         inFlight = false
                     },
@@ -181,8 +189,10 @@ internal fun BackendApprovalCard(
                     onClick = {
                         if (inFlight || resolved) return@FilledTonalIconButton
                         inFlight = true
-                        resolved = notifier.approveById(requestId, true)
-                        if (!resolved) {
+                        val ok = notifier.approveById(requestId, true)
+                        resolved = ok
+                        feedback = if (ok) approveDone else staleHint
+                        if (!ok) {
                             onToolApproval?.invoke(
                                 requestId,
                                 true,
@@ -202,8 +212,10 @@ internal fun BackendApprovalCard(
                     onClick = {
                         if (inFlight || resolved) return@FilledTonalIconButton
                         inFlight = true
-                        resolved = notifier.approveById(requestId, false)
-                        if (!resolved) {
+                        val ok = notifier.approveById(requestId, false)
+                        resolved = ok
+                        feedback = if (ok) denyDone else staleHint
+                        if (!ok) {
                             onToolApproval?.invoke(
                                 requestId,
                                 false,

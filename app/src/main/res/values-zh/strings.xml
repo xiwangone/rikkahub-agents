@@ -2937,6 +2937,9 @@
   <string name="backend_notif_tool_request">Backend 请求执行工具 %1$s</string>
   <string name="backend_notif_pending_approve">Backend 工具待批准：%1$s</string>
   <string name="backend_pending_approval">待审批：%1$s%2$s</string>
+  <string name="backend_approval_approved">已批准</string>
+  <string name="backend_approval_denied">已拒绝</string>
+  <string name="backend_approval_stale">该请求已失效（可能已在通知栏处理，或应用重启过）</string>
   <string name="backend_pending_reply">待回复</string>
   <string name="backend_notif_ask_body">问：%1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi">（多选）</string>

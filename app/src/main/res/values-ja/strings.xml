@@ -2479,6 +2479,9 @@
   <string name="backend_notif_tool_request">Backend がツール %1$s の実行を要求</string>
   <string name="backend_notif_pending_approve">Backend ツールの承認待ち: %1$s</string>
   <string name="backend_pending_approval">承認待ち: %1$s%2$s</string>
+  <string name="backend_approval_approved">承認しました</string>
+  <string name="backend_approval_denied">拒否しました</string>
+  <string name="backend_approval_stale">このリクエストは既に有効ではありません（通知で処理済み、またはアプリを再起動）</string>
   <string name="backend_pending_reply">返信待ち</string>
   <string name="backend_notif_ask_body">質問: %1$s%2$s\n%3$s</string>
   <string name="backend_notif_multi">（複数選択）</string>
