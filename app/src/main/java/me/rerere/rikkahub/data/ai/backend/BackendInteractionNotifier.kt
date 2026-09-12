@@ -58,6 +58,15 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
     private val lock = Any()
     private val pendingApprovals = mutableMapOf<String, PendingApproval>()
     private val pendingAsks = mutableMapOf<String, PendingAsk>()
+
+    /** 当前仍待应答的请求 id 集合（供对话卡片与通知栏状态同步）。 */
+    private val _pendingIds = kotlinx.coroutines.flow.MutableStateFlow<Set<String>>(emptySet())
+    val pendingIds: kotlinx.coroutines.flow.StateFlow<Set<String>> = _pendingIds.asStateFlow()
+
+    /** 重新计算待应答集合（任何增删后调用）。 */
+    private fun syncPendingIds() {
+        _pendingIds.value = synchronized(lock) { pendingApprovals.keys.toSet() + pendingAsks.keys.toSet() }
+    }
     private val ioScope = CoroutineScope(Dispatchers.IO)
     private var receiverRegistered = false
 
@@ -68,6 +77,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                 ACTION_APPROVE, ACTION_DENY -> {
                     val approved = intent.getBooleanExtra(EXTRA_APPROVED, false)
                     val p = synchronized(lock) { pendingApprovals.remove(requestId) } ?: return
+                    syncPendingIds()
                     cancelNotification(requestId)
                     ioScope.launch {
                         runCatching {
@@ -82,6 +92,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                     val reply = RemoteInput.getResultsFromIntent(intent)
                         ?.getCharSequence(KEY_REPLY)?.toString()?.trim().orEmpty()
                     val p = synchronized(lock) { pendingAsks.remove(requestId) } ?: return
+                    syncPendingIds()
                     cancelNotification(requestId)
                     if (reply.isEmpty()) return
                     ioScope.launch {
@@ -113,6 +124,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
     ) {
         ensureReceiverRegistered()
         synchronized(lock) { pendingApprovals[id] = PendingApproval(setting, tool) }
+        syncPendingIds()
         ensureChannel()
         val approveIntent =
             Intent(ACTION_APPROVE).apply {
@@ -162,6 +174,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
      */
     fun approveById(requestId: String, approved: Boolean): Boolean {
         val p = synchronized(lock) { pendingApprovals.remove(requestId) } ?: return false
+        syncPendingIds()
         cancelNotification(requestId)
         ioScope.launch {
             runCatching {
@@ -176,6 +189,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
     /** 由对话内嵌卡片调用：回答提问（answers: questionId → 文本）。 */
     fun answerById(requestId: String, answer: String): Boolean {
         val p = synchronized(lock) { pendingAsks.remove(requestId) } ?: return false
+        syncPendingIds()
         cancelNotification(requestId)
         if (answer.isBlank()) return true
         ioScope.launch {
@@ -204,6 +218,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
     ) {
         ensureReceiverRegistered()
         synchronized(lock) { pendingAsks[id] = PendingAsk(setting, questions) }
+        syncPendingIds()
         ensureChannel()
         val body =
             questions.joinToString("\n\n") { q ->
