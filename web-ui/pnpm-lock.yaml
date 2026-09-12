@@ -15,6 +15,7 @@ overrides:
   body-parser: ^1.20.6
   '@babel/core': ^7.29.6
   enhanced-resolve: 5.24.5
+  valibot: ^1.4.2
 
 importers:
 
@@ -3861,8 +3862,8 @@ packages:
     resolution: {integrity: sha512-vzi9uRZ926x4XV73S/4qQaTwPXM2JBj6/6lI/byHH1jOpCzb0zDbfytgA9LcN/hzb2l7WQSQnxITOVx5un/wGw==}
     hasBin: true
 
-  valibot@1.4.0:
-    resolution: {integrity: sha512-iC/x7fVcSyOwlm/VSt7RlHnzNGLGvR9GnxdifUeWoCJo0q4ZZvrVkIHC6faTlkxG47I2Y4UrFquPuVHCrOnrLg==}
+  valibot@1.5.0:
+    resolution: {integrity: sha512-nil6AkP2TChWL43Z5uJ6GTxX01CUA+g8LWUM+N/rB9NBbkUMaUsi9PUNzlUPgoKASgmx9f7eGOYpJ04/fSa6FQ==}
     peerDependencies:
       typescript: '>=5'
     peerDependenciesMeta:
@@ -5390,7 +5391,7 @@ snapshots:
       react-router: 7.18.3(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       semver: 7.8.0
       tinyglobby: 0.2.16
-      valibot: 1.4.0(typescript@5.9.3)
+      valibot: 1.5.0(typescript@5.9.3)
       vite: 7.3.6(@types/node@24.12.4)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13)
       vite-node: 3.2.4(@types/node@24.12.4)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.23.13)
     optionalDependencies:
@@ -7982,7 +7983,7 @@ snapshots:
 
   uuid@13.0.2: {}
 
-  valibot@1.4.0(typescript@5.9.3):
+  valibot@1.5.0(typescript@5.9.3):
     optionalDependencies:
       typescript: 5.9.3
 
