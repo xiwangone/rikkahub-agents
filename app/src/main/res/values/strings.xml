@@ -3040,4 +3040,7 @@
   <string name="workspace_detail_settings_save_failed">Failed to save settings</string>
   <string name="workspace_detail_import_local_rootfs">Import from local file</string>
   <string name="workspace_detail_import_local_rootfs_desc">Pick a rootfs archive (tar.gz / tar.xz) already on this device. Useful when the download source is unreachable.</string>
+  <string name="workspace_detail_saved_rootfs_urls">Saved URLs</string>
+  <string name="workspace_detail_save_rootfs_url">Save current URL</string>
+  <string name="workspace_detail_delete_saved_url">Delete</string>
 </resources>

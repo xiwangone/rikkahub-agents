@@ -5,6 +5,8 @@ import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.hooks.readStringPreference
+import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -648,6 +650,8 @@ private fun InstallRootfsDialog(
             }
         }
 
+    var savedUrls by remember { mutableStateOf(loadSavedRootfsUrls(context)) }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.workspace_detail_install_rootfs)) },
@@ -665,6 +669,49 @@ private fun InstallRootfsDialog(
                     label = { Text(stringResource(R.string.workspace_detail_download_url)) },
                     maxLines = 5,
                 )
+                if (savedUrls.isNotEmpty()) {
+                    Text(
+                        text = stringResource(R.string.workspace_detail_saved_rootfs_urls),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    savedUrls.forEach { saved ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            TextButton(
+                                onClick = { url = saved },
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Text(text = saved, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
+                            TextButton(
+                                onClick = {
+                                    val updated = savedUrls - saved
+                                    savedUrls = updated
+                                    saveRootfsUrls(context, updated)
+                                },
+                            ) {
+                                Text(stringResource(R.string.workspace_detail_delete_saved_url))
+                            }
+                        }
+                    }
+                }
+                OutlinedButton(
+                    onClick = {
+                        val candidate = url.trim()
+                        if (candidate.isNotBlank()) {
+                            val updated =
+                                (listOf(candidate) + savedUrls).distinct().take(MAX_SAVED_ROOTFS_URLS)
+                            savedUrls = updated
+                            saveRootfsUrls(context, updated)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.workspace_detail_save_rootfs_url))
+                }
                 OutlinedButton(
                     onClick = { pickArchiveLauncher.launch(arrayOf("*/*")) },
                     modifier = Modifier.fillMaxWidth(),
@@ -1055,4 +1102,20 @@ private fun WorkspaceInfoRow(
             overflow = TextOverflow.Ellipsis,
         )
     }
+}
+
+private const val MAX_SAVED_ROOTFS_URLS = 5
+private const val ROOTFS_URL_HISTORY_KEY = "rootfs_url_history"
+
+private fun loadSavedRootfsUrls(context: android.content.Context): List<String> =
+    context
+        .readStringPreference(ROOTFS_URL_HISTORY_KEY)
+        ?.lineSequence()
+        ?.map { it.trim() }
+        ?.filter { it.isNotBlank() }
+        ?.toList()
+        .orEmpty()
+
+private fun saveRootfsUrls(context: android.content.Context, urls: List<String>) {
+    context.writeStringPreference(ROOTFS_URL_HISTORY_KEY, urls.joinToString("\n"))
 }

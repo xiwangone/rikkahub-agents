@@ -3040,4 +3040,7 @@
   <string name="workspace_detail_settings_save_failed">保存设置失败</string>
   <string name="workspace_detail_import_local_rootfs">从本地文件导入</string>
   <string name="workspace_detail_import_local_rootfs_desc">选择设备上已有的 rootfs 归档（tar.gz / tar.xz）。适用于下载源不可达的情况。</string>
+  <string name="workspace_detail_saved_rootfs_urls">已保存的链接</string>
+  <string name="workspace_detail_save_rootfs_url">保存当前链接</string>
+  <string name="workspace_detail_delete_saved_url">删除</string>
 </resources>
