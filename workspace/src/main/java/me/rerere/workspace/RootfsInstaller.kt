@@ -139,7 +139,14 @@ class RootfsInstaller(
                     input.skipFully(header.size.paddingSize())
                     continue
                 }
-                val target = targetDir.safeResolve(header.name)
+                val normalizedName = normalizeTarPathOrNull(header.name)
+                if (normalizedName == null) {
+                    // 根目录/空路径条目（部分发行版如 Alpine 的 tar 会带 "./"）：跳过而非报错
+                    input.skipFully(header.size)
+                    input.skipFully(header.size.paddingSize())
+                    continue
+                }
+                val target = targetDir.safeResolveNormalized(normalizedName)
                 target.parentFile?.mkdirs()
                 when (header.type) {
                     TarEntryType.DIRECTORY -> {
@@ -357,6 +364,29 @@ class RootfsInstaller(
         setReadable(mode and 0b100_000_000 != 0, false)
         setWritable(mode and 0b010_000_000 != 0, true)
         setExecutable(mode and 0b001_000_000 != 0, false)
+    }
+
+    /** 归一化 tar 条目路径；根目录/空路径条目（如 "./"）返回 null 表示可跳过。 */
+    private fun normalizeTarPathOrNull(path: String): String? {
+        val normalized =
+            path
+                .replace('\\', '/')
+                .trim()
+                .trimStart('/')
+                .removePrefix("./")
+        if (normalized.isBlank()) return null
+        require(!normalized.contains('\u0000')) { "Rootfs entry path contains invalid character" }
+        require(normalized.split('/').none { it == ".." }) { "Rootfs entry escapes target directory: $path" }
+        return normalized
+    }
+
+    private fun File.safeResolveNormalized(normalized: String): File {
+        val root = canonicalFile
+        val target = File(root, normalized).canonicalFile
+        require(target.path == root.path || target.path.startsWith(root.path + File.separator)) {
+            "Rootfs entry escapes target directory: $normalized"
+        }
+        return target
     }
 
     private fun normalizeTarPath(path: String): String {
