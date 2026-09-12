@@ -3043,4 +3043,5 @@
   <string name="workspace_detail_saved_rootfs_urls">已保存的链接</string>
   <string name="workspace_detail_save_rootfs_url">保存当前链接</string>
   <string name="workspace_detail_delete_saved_url">删除</string>
+  <string name="workspace_detail_preset_rootfs_urls">预置链接</string>
 </resources>

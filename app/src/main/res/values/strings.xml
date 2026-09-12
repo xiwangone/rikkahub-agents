@@ -3043,4 +3043,5 @@
   <string name="workspace_detail_saved_rootfs_urls">Saved URLs</string>
   <string name="workspace_detail_save_rootfs_url">Save current URL</string>
   <string name="workspace_detail_delete_saved_url">Delete</string>
+  <string name="workspace_detail_preset_rootfs_urls">Presets</string>
 </resources>

@@ -669,6 +669,19 @@ private fun InstallRootfsDialog(
                     label = { Text(stringResource(R.string.workspace_detail_download_url)) },
                     maxLines = 5,
                 )
+                Text(
+                    text = stringResource(R.string.workspace_detail_preset_rootfs_urls),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                PRESET_ROOTFS_URLS.forEach { preset ->
+                    TextButton(
+                        onClick = { url = preset.url },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text(text = preset.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    }
+                }
                 if (savedUrls.isNotEmpty()) {
                     Text(
                         text = stringResource(R.string.workspace_detail_saved_rootfs_urls),
@@ -1119,3 +1132,26 @@ private fun loadSavedRootfsUrls(context: android.content.Context): List<String> 
 private fun saveRootfsUrls(context: android.content.Context, urls: List<String>) {
     context.writeStringPreference(ROOTFS_URL_HISTORY_KEY, urls.joinToString("\n"))
 }
+
+private data class PresetRootfsUrl(val label: String, val url: String)
+
+/** 预置 rootfs 源：均已在移动网络下实测可达（GitHub 系地址不可达，勿加入）。 */
+private val PRESET_ROOTFS_URLS =
+    listOf(
+        PresetRootfsUrl(
+            "Ubuntu 24.04 base",
+            "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-arm64.tar.gz",
+        ),
+        PresetRootfsUrl(
+            "Ubuntu 22.04 base",
+            "https://cdimage.ubuntu.com/ubuntu-base/releases/22.04/release/ubuntu-base-22.04.5-base-arm64.tar.gz",
+        ),
+        PresetRootfsUrl(
+            "Alpine 3.21 minirootfs",
+            "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz",
+        ),
+        PresetRootfsUrl(
+            "Debian 12 cloud",
+            "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-arm64.tar.xz",
+        ),
+    )
