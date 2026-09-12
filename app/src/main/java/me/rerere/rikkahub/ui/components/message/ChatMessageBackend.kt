@@ -140,13 +140,13 @@ internal fun BackendApprovalCard(
     // 与通知栏状态同步：曾列入待办、现已不在集合 → 说明已在别处（通知栏）处理
     val pendingIds by notifier.pendingIds.collectAsState()
     var everPending by remember(requestId) { mutableStateOf(false) }
-    LaunchedEffect(pendingIds) { if (requestId in pendingIds) everPending = true }
-    val handledElsewhere = everPending && requestId !in pendingIds && !resolved
+    LaunchedEffect(pendingIds) { if (requestId in pendingIds) everPending = true
     val approveDone = stringResource(R.string.backend_approval_approved)
     val denyDone = stringResource(R.string.backend_approval_denied)
     val staleHint = stringResource(R.string.backend_approval_stale)
     var inFlight by remember(requestId) { mutableStateOf(false) }
     var resolved by remember(requestId) { mutableStateOf(false) }
+    val handledElsewhere = everPending && requestId !in pendingIds && !resolved
     var feedback by remember(requestId) { mutableStateOf<String?>(null) }
     Surface(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),

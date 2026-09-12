@@ -15,6 +15,8 @@ import androidx.core.app.RemoteInput
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -60,8 +62,8 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
     private val pendingAsks = mutableMapOf<String, PendingAsk>()
 
     /** 当前仍待应答的请求 id 集合（供对话卡片与通知栏状态同步）。 */
-    private val _pendingIds = kotlinx.coroutines.flow.MutableStateFlow<Set<String>>(emptySet())
-    val pendingIds: kotlinx.coroutines.flow.StateFlow<Set<String>> = _pendingIds.asStateFlow()
+    private val _pendingIds = MutableStateFlow<Set<String>>(emptySet())
+    val pendingIds: StateFlow<Set<String>> = _pendingIds.asStateFlow()
 
     /** 重新计算待应答集合（任何增删后调用）。 */
     private fun syncPendingIds() {
