@@ -252,7 +252,8 @@ class RootfsInstaller(
         linkName: String,
     ) {
         if (linkName.isBlank()) return
-        val source = root.safeResolve(linkName)
+        // linkName 可能是 "./" 这类归一化后为空的路径 → 跳过该链接条目而不是中断安装
+        val source = root.safeResolve(linkName) ?: return
         if (!source.exists()) return
         target.delete()
         runCatching {
@@ -285,7 +286,8 @@ class RootfsInstaller(
                 .filter { it.isNotBlank() }
                 .joinToString("/")
         return TarHeader(
-            name = normalizeTarPath(fullName),
+            // 允许为空：根目录条目（如 "./"）与空 PAX 名交由外层循环跳过
+            name = normalizeTarPathOrNull(fullName) ?: "",
             mode = header.octal(100, 8).toInt(),
             size = header.octal(124, 12),
             modTime = header.octal(136, 12),
@@ -378,8 +380,8 @@ class RootfsInstaller(
         return offset
     }
 
-    private fun File.safeResolve(path: String): File {
-        val normalized = normalizeTarPath(path)
+    private fun File.safeResolve(path: String): File? {
+        val normalized = normalizeTarPathOrNull(path) ?: return null
         val root = canonicalFile
         val target = File(root, normalized).canonicalFile
         require(target.path == root.path || target.path.startsWith(root.path + File.separator)) {
@@ -417,19 +419,6 @@ class RootfsInstaller(
         return target
     }
 
-    private fun normalizeTarPath(path: String): String {
-        val normalized =
-            path
-                .replace('\\', '/')
-                .trim()
-                .trimStart('/')
-                .removePrefix("./")
-        require(normalized.isNotBlank()) { "Rootfs entry path is blank" }
-        require(!normalized.contains('\u0000')) { "Rootfs entry path contains invalid character" }
-        require(normalized.split('/').none { it == ".." }) { "Rootfs entry escapes target directory: $path" }
-        return normalized
-    }
-
     private fun ByteArray.string(
         offset: Int,
         length: Int,
@@ -445,12 +434,22 @@ class RootfsInstaller(
         offset: Int,
         length: Int,
     ): Long {
-        val value =
-            string(offset, length)
-                .trim()
-                .lowercase(Locale.US)
-                .trimEnd('\u0000')
-        return if (value.isBlank()) 0L else value.toLong(8)
+        if (length <= 0) return 0L
+        // GNU tar 对超出八进制范围的数值使用 base-256（首字节最高位为 1）；
+        // 某些发行版（如 Debian cloud 镜像）的条目会带上该编码，直接按八进制解析会抛
+        // NumberFormatException("For input string ... under radix 8")。
+        if ((this[offset].toInt() and 0x80) != 0) {
+            var value = 0L
+            for (i in offset until offset + length) {
+                value = (value shl 8) or (this[i].toLong() and 0xFF)
+            }
+            return value
+        }
+        val raw =
+            copyOfRange(offset, offset + length)
+                .toString(Charsets.US_ASCII)
+                .trim { it == ' ' || it == '\u0000' || it == '\n' || it == '\r' }
+        return if (raw.isEmpty()) 0L else (raw.toLongOrNull(8) ?: 0L)
     }
 
     private fun Long.paddingSize(): Long =
