@@ -2292,6 +2292,10 @@ class ChatService(
         // writes (which may try to acquire the same mutex via their save path).
         sessions[conversationId]?.getJob()?.let { runCatching { it.cancelAndJoin() } }
 
+        // 后端连接路径：本地协程取消不会让服务端停下，必须显式通知取消，
+        // 否则服务端 turn 会一直挂着并阻塞后续提交（表现为「停止无效、再发无反应」）。
+        runCatching { cancelBackendGenerationIfNeeded() }
+
         convMutex.withLock {
             // Hydrate from disk so we mark Pending tools cancelled even when the user
             // hits /stop after a process restart (sessions map is empty post-restart;
@@ -2321,6 +2325,24 @@ class ChatService(
 
             val updatedConversation = currentConversation.copy(messageNodes = updatedNodes)
             saveConversation(conversationId, updatedConversation)
+        }
+    }
+
+    /** 通知后端服务取消当前生成（仅 serve 直连模式）。 */
+    private suspend fun cancelBackendGenerationIfNeeded() {
+        val settings = settingsStore.settingsFlow.value
+        val targetId = settings.executionBackend
+        val target =
+            settings.providers.firstOrNull { it.id.toString() == targetId } as? me.rerere.ai.provider.ProviderSetting.Backend
+                ?: return
+        if (target.backendType != "backend") return
+        runCatching {
+            me.rerere.ai.provider.providers.backend.BackendApi(
+                baseUrl = target.baseUrl,
+                username = target.username,
+                password = target.password,
+                token = target.token,
+            ).cancel()
         }
     }
 }
