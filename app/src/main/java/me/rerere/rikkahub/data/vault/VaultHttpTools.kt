@@ -146,6 +146,9 @@ object SecretMasker {
         rules.asSequence()
             .filter { it.exact }
             .map { it.value }
+            // 空值/极短值必须排除：空串会让 replace("", MASK) 变成「逐字符插入掩码」，
+            // 把整段输出污染成 ***x***x***（空占位凭证即触发此问题）。
+            .filter { it.isNotBlank() && it.length >= 2 }
             .distinct()
             .sortedByDescending { it.length }
             .forEach { secret -> out = out.replace(secret, MASK) }
