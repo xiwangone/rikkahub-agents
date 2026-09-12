@@ -65,7 +65,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: web-ui/node_modules
-          key: webui-${{ hashFiles('bun.lock') }}
+          key: webui-${{ hashFiles('web-ui/bun.lock') }}
           restore-keys: webui-
 
       - name: 编译（debug=快速验证 / release=R8 正式签名出包）

@@ -62,7 +62,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: web-ui/node_modules
-          key: webui-${{ hashFiles('bun.lock') }}
+          key: webui-${{ hashFiles('web-ui/bun.lock') }}
           restore-keys: webui-
 
       - name: 编译 debug（不签名不发版，仅验证编译通过）
