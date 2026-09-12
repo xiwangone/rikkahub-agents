@@ -35,6 +35,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
@@ -75,7 +76,9 @@ import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.File02
+import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.Screen
@@ -147,10 +150,11 @@ internal fun BackendApprovalCard(
                 text = stringResource(R.string.backend_pending_approval, tool, subject?.let { "\n$it" } ?: ""),
                 style = MaterialTheme.typography.labelMedium,
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                TextButton(
-                    enabled = !inFlight && !resolved,
+            // 按钮样式与对话内工具审批保持一致（同组件、同尺寸、同图标）
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FilledTonalIconButton(
                     onClick = {
+                        if (inFlight || resolved) return@FilledTonalIconButton
                         inFlight = true
                         resolved = notifier.approveById(requestId, true)
                         if (!resolved) {
@@ -164,12 +168,39 @@ internal fun BackendApprovalCard(
                         }
                         inFlight = false
                     },
-                ) {
-                    Text(stringResource(R.string.chat_message_tool_approve))
-                }
-                TextButton(
                     enabled = !inFlight && !resolved,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Tick01,
+                        contentDescription = stringResource(R.string.chat_message_tool_approve),
+                        modifier = Modifier.size(14.dp),
+                    )
+                }
+                FilledTonalIconButton(
                     onClick = {
+                        if (inFlight || resolved) return@FilledTonalIconButton
+                        inFlight = true
+                        resolved = notifier.approveById(requestId, true)
+                        if (!resolved) {
+                            onToolApproval?.invoke(
+                                requestId,
+                                true,
+                                "",
+                                me.rerere.rikkahub.service.ChatService.ApprovalScope.Always,
+                                tool,
+                            )
+                        }
+                        inFlight = false
+                    },
+                    enabled = !inFlight && !resolved,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Text("\u221e", style = MaterialTheme.typography.labelMedium)
+                }
+                FilledTonalIconButton(
+                    onClick = {
+                        if (inFlight || resolved) return@FilledTonalIconButton
                         inFlight = true
                         resolved = notifier.approveById(requestId, false)
                         if (!resolved) {
@@ -183,8 +214,14 @@ internal fun BackendApprovalCard(
                         }
                         inFlight = false
                     },
+                    enabled = !inFlight && !resolved,
+                    modifier = Modifier.size(28.dp),
                 ) {
-                    Text(stringResource(R.string.chat_message_tool_deny))
+                    Icon(
+                        imageVector = HugeIcons.Cancel01,
+                        contentDescription = stringResource(R.string.chat_message_tool_deny),
+                        modifier = Modifier.size(14.dp),
+                    )
                 }
             }
         }
