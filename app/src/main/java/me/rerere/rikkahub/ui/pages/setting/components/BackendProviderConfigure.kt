@@ -256,6 +256,8 @@ fun BackendProviderConfigure(
                         diag =
                             runCatching { backendStatusDigest(provider) }
                                 .getOrElse { "检查失败：${it.message ?: it::class.simpleName}" }
+                        // 同步写入日志，便于事后排查（诊断结果同样可追溯）
+                        runCatching { me.rerere.rikkahub.data.log.AppLog.d("BackendDiag", diag ?: "") }
                         diagLoading = false
                     }
                 },
