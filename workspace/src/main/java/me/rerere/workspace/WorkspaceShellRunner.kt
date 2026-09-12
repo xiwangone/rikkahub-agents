@@ -29,6 +29,7 @@ data class WorkspaceShellContext(
     val stdin: ByteArray? = null,
     val bindMounts: List<WorkspaceBindMount> = emptyList(),
     val env: Map<String, String> = emptyMap(),
+    val shellCompatibilityMode: Boolean = false,
 )
 
 class HostShellRunner : WorkspaceShellRunner {

@@ -81,6 +81,7 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.tools.resolveWorkspaceToolApproval
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -103,6 +104,7 @@ fun WorkspaceDetailPage(id: String) {
     val state by vm.state.collectAsStateWithLifecycle()
     val installProgress by vm.installProgress.collectAsStateWithLifecycle()
     val installError by vm.installError.collectAsStateWithLifecycle()
+    val settingsError by vm.settingsError.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
@@ -205,6 +207,7 @@ fun WorkspaceDetailPage(id: String) {
                         installProgress = installProgress,
                         onInstallRootfs = { showInstallDialog = true },
                         onToolApprovalChange = vm::setToolApproval,
+                        onShellCompatibilityModeChange = vm::setShellCompatibilityMode,
                     )
                 }
 
@@ -324,6 +327,19 @@ fun WorkspaceDetailPage(id: String) {
         )
     }
 
+    settingsError?.let { message ->
+        AlertDialog(
+            onDismissRequest = vm::dismissSettingsError,
+            title = { Text(stringResource(R.string.workspace_detail_settings_save_failed)) },
+            text = { Text(message.ifBlank { stringResource(R.string.workspace_detail_settings_save_failed) }) },
+            confirmButton = {
+                TextButton(onClick = vm::dismissSettingsError) {
+                    Text(stringResource(R.string.common_confirm))
+                }
+            },
+        )
+    }
+
     previewImageUri?.let { uri ->
         ImagePreviewDialog(
             images = listOf(uri),
@@ -361,6 +377,7 @@ private fun WorkspaceBasicPage(
     installProgress: RootfsInstallProgress?,
     onInstallRootfs: () -> Unit,
     onToolApprovalChange: (String, Boolean) -> Unit,
+    onShellCompatibilityModeChange: (Boolean) -> Unit,
 ) {
     val shellStatus = workspace?.shellStatus
     val installing = installProgress != null || shellStatus == WorkspaceShellStatus.INSTALLING.name
@@ -378,9 +395,8 @@ private fun WorkspaceBasicPage(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CustomColors.cardColorsOnSurfaceContainer,
+            CardGroup(
+                title = { Text(stringResource(R.string.workspace_detail_workspace_info)) },
             ) {
                 Column(
                     modifier =
@@ -406,9 +422,8 @@ private fun WorkspaceBasicPage(
         }
 
         item {
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CustomColors.cardColorsOnSurfaceContainer,
+            CardGroup(
+                title = { Text(stringResource(R.string.workspace_detail_enable_shell)) },
             ) {
                 Column(
                     modifier =
@@ -443,6 +458,32 @@ private fun WorkspaceBasicPage(
                         RootfsProgress(progress)
                     }
                 }
+            }
+        }
+
+        item {
+            CardGroup(
+                title = {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.workspace_detail_compatibility_mode))
+                        Text(
+                            text = stringResource(R.string.workspace_detail_compatibility_mode_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+            ) {
+                item(
+                    headlineContent = { Text(stringResource(R.string.workspace_detail_compatibility_mode)) },
+                    trailingContent = {
+                        Switch(
+                            checked = workspace?.shellCompatibilityMode ?: false,
+                            onCheckedChange = onShellCompatibilityModeChange,
+                            enabled = workspace != null,
+                        )
+                    },
+                )
             }
         }
 
@@ -526,34 +567,6 @@ private fun workspaceToolApprovalItems() =
         "workspace_edit_file" to stringResource(R.string.workspace_detail_tool_edit_file),
         "workspace_shell" to stringResource(R.string.workspace_detail_tool_shell),
     )
-
-@Composable
-private fun WorkspaceInfoRow(
-    label: String,
-    value: String,
-) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(
-            text = label,
-            modifier = Modifier.weight(0.35f),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-        Text(
-            text = value,
-            modifier = Modifier.weight(0.65f),
-            style = MaterialTheme.typography.bodyMedium,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
-    }
-}
 
 @Composable
 private fun RootfsProgress(progress: RootfsInstallProgress) {
@@ -979,3 +992,31 @@ internal fun String.toShellStatusLabel(): String =
 
 private const val DEFAULT_ROOTFS_URL =
     "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-arm64.tar.gz"
+
+@Composable
+private fun WorkspaceInfoRow(
+    label: String,
+    value: String,
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = label,
+            modifier = Modifier.weight(0.35f),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = value,
+            modifier = Modifier.weight(0.65f),
+            style = MaterialTheme.typography.bodyMedium,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}

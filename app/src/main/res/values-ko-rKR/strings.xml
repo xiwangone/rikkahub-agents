@@ -3039,4 +3039,7 @@
   <string name="setting_termux_help_allow_external_apps_body">Termux에서 다음을 실행하세요:\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties\n\n그런 다음 Android 앱 정보에서 Termux를 강제 종료하고 다시 여세요. 완료 후 아래의 검증 버튼을 누르세요.</string>
   <string name="chat_input_pending_queue">전송 대기 %1$d건 · 순서대로 자동 전송됩니다</string>
   <string name="tool_ui_shell_changed_files">명령이 변경한 파일</string>
+  <string name="workspace_detail_compatibility_mode">호환 모드</string>
+  <string name="workspace_detail_compatibility_mode_desc">터미널이 시작되지 않으면 이 옵션을 활성화해 보세요. 성능이 저하될 수 있습니다. 새 터미널 탭과 이후 명령에 적용됩니다.</string>
+  <string name="workspace_detail_settings_save_failed">설정 저장에 실패했습니다.</string>
 </resources>

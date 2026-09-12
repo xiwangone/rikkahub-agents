@@ -3035,4 +3035,7 @@
   <string name="assistant_page_time_reminder_interval_value">%1$d min</string>
   <string name="chat_input_pending_queue">Waiting to send: %1$d · sent automatically in order</string>
   <string name="tool_ui_shell_changed_files">Command changed files</string>
+  <string name="workspace_detail_compatibility_mode">Compatibility mode</string>
+  <string name="workspace_detail_compatibility_mode_desc">Try enabling this if the terminal fails to start. It may reduce performance. Applies to new terminal tabs and subsequent commands.</string>
+  <string name="workspace_detail_settings_save_failed">Failed to save settings</string>
 </resources>

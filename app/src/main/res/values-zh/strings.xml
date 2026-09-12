@@ -3035,4 +3035,7 @@
   <string name="assistant_page_time_reminder_interval_value">%1$d 分钟</string>
   <string name="chat_input_pending_queue">待发送 %1$d 条 · 将自动按序发出</string>
   <string name="tool_ui_shell_changed_files">命令改动的文件</string>
+  <string name="workspace_detail_compatibility_mode">兼容模式</string>
+  <string name="workspace_detail_compatibility_mode_desc">如果终端无法启动，请尝试启用此功能。这可能会降低性能。适用于新的终端标签页及后续命令。</string>
+  <string name="workspace_detail_settings_save_failed">保存设置失败</string>
 </resources>
