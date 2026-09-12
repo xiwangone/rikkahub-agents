@@ -2471,6 +2471,7 @@
   <string name="vault_format_vault_desc">.vault(암호화, 암호 보호)</string>
   <string name="vault_format_csv_desc">CSV(평문)</string>
   <string name="vault_format_bitwarden_desc">Bitwarden JSON(평문)</string>
+  <string name="vault_format_loadcreds_desc">load-creds.sh(평문, 자격 증명 저장소와 왕복 가능)</string>
   <string name="vault_page_plaintext_env_hint">평문 형식: 값의 ${VAR}는 환경 변수 값으로 치환됩니다(정의되지 않은 것은 그대로 유지).</string>
   <string name="doctor_report_header">RikkaHub Agents — 진단 보고서</string>
   <string name="doctor_report_generated_at">생성 시각: %1$s</string>

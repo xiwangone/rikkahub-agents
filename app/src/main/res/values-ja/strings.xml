@@ -2471,6 +2471,7 @@
   <string name="vault_format_vault_desc">.vault（暗号化、パスワード保護）</string>
   <string name="vault_format_csv_desc">CSV（平文）</string>
   <string name="vault_format_bitwarden_desc">Bitwarden JSON（平文）</string>
+  <string name="vault_format_loadcreds_desc">load-creds.sh（平文、資格情報ストアと往復可能）</string>
   <string name="vault_page_plaintext_env_hint">平文形式: 値中の ${VAR} は環境変数の値に置換されます（未定義のものはそのまま）。</string>
   <string name="doctor_report_header">RikkaHub Agents — 診断レポート</string>
   <string name="doctor_report_generated_at">生成時刻: %1$s</string>

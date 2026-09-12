@@ -19,6 +19,7 @@ object VaultFormats {
     const val FORMAT_VAULT = "vault"      // 加密 .vault（默认）
     const val FORMAT_CSV = "csv"          // 明文 CSV
     const val FORMAT_BITWARDEN = "bitwarden" // 明文 Bitwarden JSON
+    const val FORMAT_LOADCREDS = "loadcreds" // load-creds.sh（可与凭证库往返导入）
 
     // ================= 环境变量插值 =================
 

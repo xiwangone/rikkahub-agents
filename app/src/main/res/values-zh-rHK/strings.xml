@@ -2946,6 +2946,7 @@
   <string name="vault_format_vault_desc">.vault（加密，口令保護）</string>
   <string name="vault_format_csv_desc">CSV（明文）</string>
   <string name="vault_format_bitwarden_desc">Bitwarden JSON（明文）</string>
+  <string name="vault_format_loadcreds_desc">load-creds.sh（明文，可與憑證庫往返匯入）</string>
   <string name="vault_page_plaintext_env_hint">明文格式：值中的 ${VAR} 將替換為環境變量值（未定義的保留原樣）。</string>
   <string name="doctor_report_header">RikkaHub Agents — 診斷報告</string>
   <string name="doctor_report_generated_at">生成時間: %1$s</string>

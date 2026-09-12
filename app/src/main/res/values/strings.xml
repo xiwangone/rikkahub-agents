@@ -2931,6 +2931,7 @@
   <string name="vault_format_vault_desc">.vault (encrypted, passphrase-protected)</string>
   <string name="vault_format_csv_desc">CSV (plaintext)</string>
   <string name="vault_format_bitwarden_desc">Bitwarden JSON (plaintext)</string>
+  <string name="vault_format_loadcreds_desc">load-creds.sh (plaintext, round-trips with the vault)</string>
   <string name="vault_page_plaintext_env_hint">Plaintext format: ${VAR} in values is replaced by the environment variable value (undefined ones stay as-is).</string>
   <string name="doctor_report_header">RikkaHub Agents — Diagnostic report</string>
   <string name="doctor_report_generated_at">Generated at: %1$s</string>

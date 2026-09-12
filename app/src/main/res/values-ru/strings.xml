@@ -2464,6 +2464,7 @@
   <string name="vault_format_vault_desc">.vault (шифрованный, под паролем)</string>
   <string name="vault_format_csv_desc">CSV (открытый текст)</string>
   <string name="vault_format_bitwarden_desc">Bitwarden JSON (открытый текст)</string>
+  <string name="vault_format_loadcreds_desc">load-creds.sh (открытый текст, совместим с хранилищем)</string>
   <string name="vault_page_plaintext_env_hint">Открытый формат: ${VAR} в значениях заменяется переменными окружения (неопределённые остаются как есть).</string>
   <string name="doctor_report_header">RikkaHub Agents — отчёт диагностики</string>
   <string name="doctor_report_generated_at">Создано: %1$s</string>

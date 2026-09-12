@@ -2124,6 +2124,7 @@
   <string name="vault_format_vault_desc">‎.vault (مشفَّر ومحمي بكلمة مرور)</string>
   <string name="vault_format_csv_desc">CSV (نص صريح)</string>
   <string name="vault_format_bitwarden_desc">Bitwarden JSON (نص صريح)</string>
+  <string name="vault_format_loadcreds_desc">load-creds.sh (نص صريح، متوافق مع المخزن)</string>
   <string name="vault_page_plaintext_env_hint">صيغة النص الصريح: يُستبدل ${VAR} بقيمة متغير البيئة (وما لم يُعرَّف يبقى كما هو).</string>
   <string name="doctor_report_header">RikkaHub Agents — تقرير التشخيص</string>
   <string name="doctor_report_generated_at">وقت الإنشاء: %1$s</string>

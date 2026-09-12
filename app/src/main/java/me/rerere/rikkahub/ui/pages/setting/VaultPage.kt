@@ -211,6 +211,7 @@ fun VaultPage() {
                         val output = when (exportFormat) {
                             VaultFormats.FORMAT_CSV -> VaultFormats.toCsv(plaintexts)
                             VaultFormats.FORMAT_BITWARDEN -> VaultFormats.toBitwarden(plaintexts)
+                            VaultFormats.FORMAT_LOADCREDS -> VaultExporter.toLoadCreds(plaintexts)
                             else -> VaultExporter.exportWithGroups(exportPassword, plaintexts)
                         }
                         context.contentResolver.openOutputStream(uri)?.use { out ->
@@ -618,6 +619,7 @@ fun VaultPage() {
                                 VaultFormats.FORMAT_VAULT to stringResource(R.string.vault_format_vault_desc),
                                 VaultFormats.FORMAT_CSV to stringResource(R.string.vault_format_csv_desc),
                                 VaultFormats.FORMAT_BITWARDEN to stringResource(R.string.vault_format_bitwarden_desc),
+                                VaultFormats.FORMAT_LOADCREDS to stringResource(R.string.vault_format_loadcreds_desc),
                             ).forEach { (fmt, label) ->
                                 OutlinedButton(
                                     onClick = { exportFormat = fmt; exportResult = null },
@@ -654,6 +656,7 @@ fun VaultPage() {
                                 val suffix = when (exportFormat) {
                                     VaultFormats.FORMAT_CSV -> ".csv"
                                     VaultFormats.FORMAT_BITWARDEN -> ".json"
+                                    VaultFormats.FORMAT_LOADCREDS -> ".sh"
                                     else -> ".vault"
                                 }
                                 exportLauncher.launch("RikkaHub-Vault-${System.currentTimeMillis()}$suffix")
