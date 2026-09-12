@@ -144,6 +144,6 @@ class GitHubReleaseChecker(
     }
 
     companion object {
-        const val LATEST_URL = "https://api.github.com/repos/ExTV/rikkahub-agent/releases/latest"
+        const val LATEST_URL = "https://api.github.com/repos/xiwangone/rikkahub-agents/releases/latest"
     }
 }

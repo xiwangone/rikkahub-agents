@@ -130,8 +130,8 @@ jobs:
           echo "Release TAG: $TAG (prerelease=$PRERELEASE)"
           # Release 已存在则保留（只刷新资产）；不存在则创建
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            # 自动生成 notes：git log 最近提交
-            NOTES=$(git log --oneline --no-merges -40 HEAD 2>/dev/null | head -40 || echo "v$TAG")
+            # 固定发版说明：简短通用（不列举具体改动）
+            NOTES="功能优化与问题修复"
             gh release create "$TAG" \
               --title "🚀 RikkaHub Agents $TAG" \
               --prerelease="$PRERELEASE" \
