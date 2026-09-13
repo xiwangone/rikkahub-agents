@@ -48,7 +48,7 @@ class QwenTTSProvider : TTSProvider<TTSProviderSetting.Qwen> {
             })
         }
 
-            Log.i(TAG, "generateSpeech: $requestBody")
+        Log.i(TAG, "generateSpeech: $requestBody")
 
         val httpRequest = Request.Builder()
             .url("${providerSetting.baseUrl.trimEnd('/')}/services/audio/tts/SpeechSynthesizer")
@@ -90,6 +90,7 @@ class QwenTTSProvider : TTSProvider<TTSProviderSetting.Qwen> {
                 }
             }
         }
+    }
 
     private fun parseSSEData(
         data: String,
