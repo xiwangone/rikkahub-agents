@@ -11,6 +11,7 @@ import me.rerere.tts.model.AudioChunk
 import me.rerere.tts.model.AudioFormat
 import me.rerere.tts.model.TTSRequest
 import me.rerere.tts.provider.TTSProvider
+import me.rerere.tts.provider.TTSProviderException
 import me.rerere.tts.provider.TTSProviderSetting
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -127,7 +128,10 @@ class GeminiTTSProvider : TTSProvider<TTSProviderSetting.Gemini> {
             val response = httpClient.newCall(httpRequest).execute()
 
             if (!response.isSuccessful) {
-                throw Exception("Gemini TTS request failed: ${response.code} ${response.message}")
+                throw TTSProviderException(
+                    message = "Gemini TTS request failed: ${response.code} ${response.message}",
+                    statusCode = response.code,
+                )
             }
 
             val responseJson = response.body.string()
@@ -138,7 +142,10 @@ class GeminiTTSProvider : TTSProvider<TTSProviderSetting.Gemini> {
                     .content.parts
                     .isEmpty()
             ) {
-                throw Exception("No audio data returned from Gemini TTS")
+                throw TTSProviderException(
+                    message = "No audio data returned from Gemini TTS",
+                    statusCode = response.code,
+                )
             }
 
             val audioBase64 =
