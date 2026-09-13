@@ -13,6 +13,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +25,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -680,12 +682,18 @@ private fun InstallRootfsDialog(
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                PRESET_ROOTFS_URLS.forEach { preset ->
-                    TextButton(
-                        onClick = { url = preset.url },
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Text(text = preset.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                FlowRow(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    PRESET_ROOTFS_URLS.forEach { preset ->
+                        AssistChip(
+                            onClick = { url = preset.url },
+                            label = {
+                                Text(text = preset.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            },
+                        )
                     }
                 }
                 if (savedUrls.isNotEmpty()) {
