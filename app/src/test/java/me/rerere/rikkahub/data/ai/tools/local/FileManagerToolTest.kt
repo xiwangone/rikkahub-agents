@@ -199,18 +199,19 @@ class FileManagerToolTest {
 
     // ========== write_text_file ==========
 
-    @Test fun `write_text_file auto creates RikkaHub shared-storage parents`() {
-        assumePosix()
+    @Test fun `write_text_file auto creates RikkaHub Agents shared-storage parents`() {
+        // The managed folder is "RikkaHub Agents" (with the space) — the guard matches that
+        // exact prefix, so the assertions must use it too.
         assertTrue(
             shouldAutoCreateParent(
-                "/sdcard/Documents/RikkaHub/nested/note.txt",
-                "/sdcard/Documents/RikkaHub/nested/note.txt"
+                "/sdcard/Documents/RikkaHub Agents/nested/note.txt",
+                "/sdcard/Documents/RikkaHub Agents/nested/note.txt"
             )
         )
         assertTrue(
             shouldAutoCreateParent(
-                "/storage/emulated/0/Download/RikkaHub/nested/note.txt",
-                "/storage/emulated/0/Download/RikkaHub/nested/note.txt"
+                "/storage/emulated/0/Download/RikkaHub Agents/nested/note.txt",
+                "/storage/emulated/0/Download/RikkaHub Agents/nested/note.txt"
             )
         )
         assertFalse(
