@@ -112,25 +112,22 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
             val body = buildSearchRequestBody(params, commonOptions.resultSize)
             val apiKey = keyRoulette.next(serviceOptions.apiKey, serviceOptions.id.toString())
 
-                val request =
-                    Request
-                        .Builder()
-                        .url("https://api.exa.ai/search")
-                        .post(json.encodeToString(body).toRequestBody("application/json".toMediaType()))
-                        .addHeader("Authorization", "Bearer $apiKey")
-                        .build()
+            val request = Request.Builder()
+                .url("https://api.exa.ai/search")
+                .post(json.encodeToString(body).toRequestBody("application/json".toMediaType()))
+                .addHeader("Authorization", "Bearer $apiKey")
+                .build()
 
-                val response = httpClient.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val bodyRaw = response.body.string()
-                    val response =
-                        runCatching {
-                            json.decodeFromString<ExaData>(bodyRaw)
-                        }.onFailure {
-                            it.printStackTrace()
-                            println(bodyRaw)
-                            error("Failed to decode response: $bodyRaw")
-                        }.getOrThrow()
+            val response = httpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                val bodyRaw = response.body.string()
+                val response = runCatching {
+                    json.decodeFromString<ExaData>(bodyRaw)
+                }.onFailure {
+                    it.printStackTrace()
+                    println(bodyRaw)
+                    error("Failed to decode response: $bodyRaw")
+                }.getOrThrow()
 
                 return@withContext Result.success(mapSearchResult(response))
             } else {
@@ -138,6 +135,7 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
                 error("response failed #${response.code}")
             }
         }
+    }
 
     override suspend fun scrape(
         params: JsonObject,
@@ -148,25 +146,22 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
             val body = buildScrapeRequestBody(params)
             val apiKey = keyRoulette.next(serviceOptions.apiKey, serviceOptions.id.toString())
 
-                val request =
-                    Request
-                        .Builder()
-                        .url("https://api.exa.ai/contents")
-                        .post(json.encodeToString(body).toRequestBody("application/json".toMediaType()))
-                        .addHeader("Authorization", "Bearer $apiKey")
-                        .build()
+            val request = Request.Builder()
+                .url("https://api.exa.ai/contents")
+                .post(json.encodeToString(body).toRequestBody("application/json".toMediaType()))
+                .addHeader("Authorization", "Bearer $apiKey")
+                .build()
 
-                val response = httpClient.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val bodyRaw = response.body.string()
-                    val data =
-                        runCatching {
-                            json.decodeFromString<ExaData>(bodyRaw)
-                        }.onFailure {
-                            it.printStackTrace()
-                            println(bodyRaw)
-                            error("Failed to decode response: $bodyRaw")
-                        }.getOrThrow()
+            val response = httpClient.newCall(request).execute()
+            if (response.isSuccessful) {
+                val bodyRaw = response.body.string()
+                val data = runCatching {
+                    json.decodeFromString<ExaData>(bodyRaw)
+                }.onFailure {
+                    it.printStackTrace()
+                    println(bodyRaw)
+                    error("Failed to decode response: $bodyRaw")
+                }.getOrThrow()
 
                 return@withContext Result.success(mapScrapedResult(data))
             } else {
@@ -174,6 +169,7 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
                 error("response failed #${response.code}")
             }
         }
+    }
 
     @Serializable
     data class ExaData(
