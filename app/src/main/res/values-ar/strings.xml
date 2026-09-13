@@ -3046,4 +3046,5 @@
   <string name="workspace_detail_settings_save_failed">تعذّر حفظ الإعدادات</string>
   <string name="search_page_scope_current_assistant">المساعد الحالي</string>
   <string name="search_page_scope_all_assistants">كل المساعدين</string>
+  <string name="workspace_detail_distro">التوزيعة</string>
 </resources>

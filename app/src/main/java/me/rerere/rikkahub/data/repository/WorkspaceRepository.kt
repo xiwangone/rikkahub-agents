@@ -17,6 +17,7 @@ import me.rerere.workspace.RootfsInstaller
 import me.rerere.workspace.BackgroundStatus
 import me.rerere.workspace.WorkspaceTreeResult
 import me.rerere.workspace.WorkspaceCommandResult
+import me.rerere.workspace.WorkspaceDistroInfo
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspaceShellStatus
@@ -299,6 +300,13 @@ class WorkspaceRepository(
         manager.ensureWorkspace(workspace.root)
         manager.exportRootfsFile(workspace.root, path, outputStream)
     }
+
+    /** 读取 rootfs 的发行版信息（无 rootfs 或读取失败时返回 null）。 */
+    suspend fun readDistroInfo(id: String): WorkspaceDistroInfo? =
+        withContext(Dispatchers.IO) {
+            val workspace = dao.getById(id) ?: return@withContext null
+            runCatching { manager.readDistroInfo(workspace.root) }.getOrNull()
+        }
 
     suspend fun deleteFile(
         id: String,

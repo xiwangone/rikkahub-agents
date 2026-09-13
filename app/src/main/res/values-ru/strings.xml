@@ -3057,4 +3057,5 @@
   <string name="setting_files_page_clean_range_description">Выберите файлы для окончательного удаления. Это действие нельзя отменить.</string>
   <string name="search_page_scope_current_assistant">Текущий ассистент</string>
   <string name="search_page_scope_all_assistants">Все ассистенты</string>
+  <string name="workspace_detail_distro">Дистрибутив</string>
 </resources>

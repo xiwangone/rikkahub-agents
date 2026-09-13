@@ -3043,4 +3043,5 @@
   <string name="tool_ui_shell_changed_files">命令改動的檔案</string>
   <string name="search_page_scope_current_assistant">當前助手</string>
   <string name="search_page_scope_all_assistants">所有助手</string>
+  <string name="workspace_detail_distro">發行版</string>
 </resources>

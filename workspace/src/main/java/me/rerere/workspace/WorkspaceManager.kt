@@ -48,6 +48,40 @@ class WorkspaceManager(
 
     fun hasRootfs(root: String): Boolean = File(linuxDir(root), "bin/sh").isFile
 
+    /** 从 rootfs 的 /etc/os-release（或 /usr/lib/os-release、/etc/issue 回退）识别发行版。 */
+    fun readDistroInfo(root: String): WorkspaceDistroInfo? {
+        val linuxRoot = linuxDir(root)
+        val candidates = listOf("etc/os-release", "usr/lib/os-release", "etc/issue")
+        val file = candidates.map { File(linuxRoot, it) }.firstOrNull { it.isFile } ?: return null
+        val text =
+            runCatching { file.readText() }
+                .getOrNull()
+                ?.takeIf { it.isNotBlank() }
+                ?: return null
+        if (file.name == "issue") {
+            val line = text.lineSequence().firstOrNull { it.isNotBlank() }?.trim() ?: return null
+            return WorkspaceDistroInfo(name = line, version = null, prettyName = line)
+        }
+        val fields =
+            text
+                .lineSequence()
+                .mapNotNull { line ->
+                    val index = line.indexOf('=')
+                    if (index <= 0) return@mapNotNull null
+                    val key = line.substring(0, index).trim()
+                    val value = line.substring(index + 1).trim().trim('"', '\'')
+                    if (key.isEmpty() || value.isEmpty()) null else key to value
+                }
+                .toMap()
+        val name = fields["NAME"] ?: fields["ID"]?.replaceFirstChar { it.uppercase() } ?: return null
+        val version = fields["VERSION_ID"]
+        return WorkspaceDistroInfo(
+            name = name,
+            version = version,
+            prettyName = fields["PRETTY_NAME"] ?: listOfNotNull(name, version).joinToString(" "),
+        )
+    }
+
     fun deleteWorkspace(root: String): Boolean = synchronized(backgroundLifecycleLock) {
         // 先杀掉该 workspace 所有后台进程, 再删目录, 避免进程仍持有已删除目录下的 fd
         killAllBackground(root)
@@ -339,4 +373,11 @@ class WorkspaceManager(
 data class RootfsLocation(
     val rootDir: File,
     val relativePath: String,
+)
+
+/** rootfs 发行版信息（来自 /etc/os-release）。 */
+data class WorkspaceDistroInfo(
+    val name: String,
+    val version: String?,
+    val prettyName: String,
 )

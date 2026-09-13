@@ -424,6 +424,12 @@ private fun WorkspaceBasicPage(
                         stringResource(R.string.workspace_detail_shell_status),
                         workspace?.shellStatus?.toShellStatusLabel() ?: "-",
                     )
+                    state.distro?.let { distro ->
+                        WorkspaceInfoRow(
+                            stringResource(R.string.workspace_detail_distro),
+                            distro.prettyName,
+                        )
+                    }
                 }
             }
         }
