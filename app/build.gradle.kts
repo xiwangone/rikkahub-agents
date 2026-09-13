@@ -120,6 +120,8 @@ android {
             // Unmocked android.* stubs (e.g. android.util.Log) return defaults instead of
             // throwing "not mocked", so pure-logic tests can run on the host JVM.
             isReturnDefaultValues = true
+            // Robolectric-backed tests need real resources (themes/strings) on the classpath.
+            isIncludeAndroidResources = true
         }
     }
     buildFeatures {
@@ -373,6 +375,11 @@ dependencies {
 
     // tests
     testImplementation(libs.junit)
+    // Host-side Compose UI tests (Robolectric 4.15 + @Config(sdk = [35]); see ComposeSmokeTest)
+    testImplementation(libs.robolectric)
+    testImplementation(platform(libs.androidx.compose.bom))
+    testImplementation(libs.androidx.ui.test.junit4)
+    debugImplementation(libs.androidx.ui.test.manifest)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
