@@ -1306,7 +1306,7 @@
   <string name="auto_compress_reset_warning">⚠️ 自动压缩将重置当前对话中的历史消息</string>
   <string name="auto_compress_invalid_input">请输入有效值</string>
   <string name="setting_model_page_tool_output">工具输出限制</string>
-  <string name="setting_model_page_tool_output_max_chars">工具输出限制（KB，1-20；如 5 = 5000 字符）</string>
+  <string name="setting_model_page_tool_output_max_chars">工具输出限制（K 字符，1-20；如 5 = 5000 字符）</string>
   <string name="setting_display_page_bubble_opacity_title">气泡不透明度</string>
   <string name="setting_provider_page_include_history_reasoning">回传历史思考过程</string>
   <string name="setting_model_page_fast_model">快速模型</string>

@@ -1155,7 +1155,7 @@
   <string name="auto_compress_reset_warning">⚠️ 自動壓縮將重設目前對話中的歷史訊息</string>
   <string name="auto_compress_invalid_input">請輸入有效值</string>
   <string name="setting_model_page_tool_output">工具輸出限制</string>
-  <string name="setting_model_page_tool_output_max_chars">工具輸出限制（KB，1-20；如 5 = 5000 字元）</string>
+  <string name="setting_model_page_tool_output_max_chars">工具輸出限制（K 字元，1-20；如 5 = 5000 字元）</string>
   <string name="setting_display_page_bubble_opacity_title">氣泡透明度</string>
   <string name="setting_provider_page_include_history_reasoning">回傳歷史思考過程</string>
   <string name="setting_model_page_fast_model">快速模型</string>

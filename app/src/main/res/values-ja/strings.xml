@@ -2585,7 +2585,7 @@
   <string name="auto_compress_reset_warning">⚠️ 自動圧縮は現在の会話の履歴メッセージをリセットします</string>
   <string name="auto_compress_invalid_input">有効な値を入力してください</string>
   <string name="setting_model_page_tool_output">ツール出力の上限</string>
-  <string name="setting_model_page_tool_output_max_chars">ツール出力の上限（KB、1〜20。例: 5 = 5000 文字）</string>
+  <string name="setting_model_page_tool_output_max_chars">ツール出力の上限（K 文字、1〜20。例: 5 = 5000 文字）</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 診断</string>
   <string name="assistant_page_local_tools_app_health_title">アプリ診断</string>
   <string name="assistant_page_local_tools_app_health_desc">内蔵 Doctor チェックを実行し、構造化されたヘルススナップショット（権限・サービス・データベース・ネットワーク・メンテナンス）を返します。</string>
