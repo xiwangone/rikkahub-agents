@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools
 
 import android.content.Context
+import android.os.SystemClock
 import com.whl.quickjs.wrapper.QuickJSContext
 import com.whl.quickjs.wrapper.QuickJSObject
 import kotlinx.coroutines.CompletableDeferred
@@ -43,6 +44,8 @@ import me.rerere.rikkahub.data.ai.tools.local.getBrightnessTool
 import me.rerere.rikkahub.data.ai.tools.local.getVolumeTool
 import me.rerere.rikkahub.data.ai.tools.local.getAppHealthTool
 import me.rerere.rikkahub.data.ai.tools.local.getBuildInfoTool
+import me.rerere.rikkahub.data.ai.tools.local.toolUsageStatsTool
+import me.rerere.rikkahub.data.ai.tools.local.listEnabledToolsTool
 import me.rerere.rikkahub.data.ai.tools.local.getAppSettingsTool
 import me.rerere.rikkahub.data.ai.tools.local.globalActionTool
 import me.rerere.rikkahub.data.ai.tools.local.readAppLogsTool
@@ -1111,6 +1114,8 @@ class LocalTools(
         if (options.contains(LocalToolOption.AppDiagnostics)) {
             tools.add(getAppHealthTool(doctorChecks, context))
             tools.add(getBuildInfoTool(context))
+            tools.add(listEnabledToolsTool(settingsStore))
+            tools.add(toolUsageStatsTool(context, settingsStore))
             tools.add(getAppSettingsTool(settingsStore))
             tools.add(readCrashSnapshotTool(context))
             tools.add(readLifecycleLogsTool(context))
@@ -1131,7 +1136,28 @@ class LocalTools(
             } else {
                 t
             }
-            addHumanErrorEnvelopes(appendTopToolExample(withApproval))
+            // 统一埋点：只记录工具名/次数/失败数/耗时（不含参数），供工具面分档与精简评估使用。
+            val tracked =
+                withApproval.copy(
+                    execute = { args ->
+                        val startedAt = SystemClock.elapsedRealtime()
+                        var failed = false
+                        try {
+                            withApproval.execute(args)
+                        } catch (error: Throwable) {
+                            failed = true
+                            throw error
+                        } finally {
+                            ToolUsageTracker.record(
+                                context = context,
+                                name = withApproval.name,
+                                durationMs = SystemClock.elapsedRealtime() - startedAt,
+                                failed = failed,
+                            )
+                        }
+                    },
+                )
+            addHumanErrorEnvelopes(appendTopToolExample(tracked))
         }
     }
 }

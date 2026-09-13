@@ -17,6 +17,10 @@ import kotlinx.serialization.json.put
 import android.content.pm.PackageManager
 import me.rerere.rikkahub.BuildConfig
 import java.security.MessageDigest
+import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
+import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import kotlinx.serialization.json.booleanOrNull
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Model
@@ -546,6 +550,115 @@ fun getBuildInfoTool(context: Context): Tool =
                     put("lastUpdateTime", info?.lastUpdateTime?.let { formatter.format(it) } ?: "unknown")
                     put("signerSha256", signerSha256 ?: "unknown")
                     put("processId", android.os.Process.myPid())
+                }
+            listOf(UIMessagePart.Text(payload.toString()))
+        },
+    )
+
+// ---------- list_enabled_tools ----------
+
+/**
+ * 当前启用的本地工具选项（按分类）。只读。
+ * 用于回答"我现在能用哪些工具"，也可与 [tool_usage_stats] 对照找出"启用了却从未用过"的项。
+ */
+fun listEnabledToolsTool(settingsStore: SettingsStore): Tool =
+    Tool(
+        name = "list_enabled_tools",
+        description = """List which local tool options are enabled for the active assistant, grouped by category. Read-only. Use to answer "what can I do right now" and to compare against tool_usage_stats (enabled but never used).""".trimIndent().replace("\n", " "),
+        parameters = {
+            InputSchema.Obj(
+                properties = buildJsonObject {},
+                required = emptyList(),
+            )
+        },
+        execute = {
+            val settings = settingsStore.settingsFlow.first()
+            val assistant = settings.getCurrentAssistant()
+            val enabled = assistant.localTools
+            val byCategory =
+                buildJsonObject {
+                    LocalToolCatalog.groups().forEach { (category, options) ->
+                        val names = options.filter { it in enabled }.map { it.toString() }
+                        if (names.isNotEmpty()) {
+                            put(category.id, buildJsonArray { names.forEach { add(JsonPrimitive(it)) } })
+                        }
+                    }
+                }
+            val payload =
+                buildJsonObject {
+                    put("assistant", assistant.name)
+                    put("enabledOptionCount", enabled.size)
+                    put("byCategory", byCategory)
+                    put(
+                        "note",
+                        "本地工具按「设置 → 工具」的分类勾选；未勾选的工具不会注入给模型。选项名对应一组工具，具体工具名见 tool_surface_report。",
+                    )
+                }
+            listOf(UIMessagePart.Text(payload.toString()))
+        },
+    )
+
+// ---------- tool_usage_stats ----------
+
+/**
+ * 本地工具的调用统计（次数/失败数/平均耗时/最近调用时间），可 reset 清零。
+ * 只记录工具名与计数，不含任何参数。与 tool_surface_report 对照可得出"从未使用"清单。
+ */
+fun toolUsageStatsTool(
+    context: Context,
+    settingsStore: SettingsStore,
+): Tool =
+    Tool(
+        name = "tool_usage_stats",
+        description = """Report per-tool call statistics (count, failures, average duration, last used time). Read-only unless reset=true (which clears all counters). Tracked locally by name only - never records arguments. Combine with tool_surface_report to find enabled-but-never-used tools.""".trimIndent().replace("\n", " "),
+        parameters = {
+            InputSchema.Obj(
+                properties =
+                    buildJsonObject {
+                        put("limit", buildJsonObject {
+                            put("type", "integer")
+                            put("description", "Top N by call count (default 30, max 200).")
+                        })
+                        put("reset", buildJsonObject {
+                            put("type", "boolean")
+                            put("description", "If true, clears all usage counters before reporting. Default false.")
+                        })
+                    },
+                required = emptyList(),
+            )
+        },
+        execute = { input ->
+            val limit = (input.jsonObject["limit"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 200)
+            val reset = input.jsonObject["reset"]?.jsonPrimitive?.booleanOrNull ?: false
+            if (reset) ToolUsageTracker.clear(context)
+            val snapshot = ToolUsageTracker.snapshot(context)
+            val settings = settingsStore.settingsFlow.first()
+            val payload =
+                buildJsonObject {
+                    put("assistant", settings.getCurrentAssistant().name)
+                    put("trackedToolCount", snapshot.size)
+                    put("totalCalls", snapshot.sumOf { it.count })
+                    put("resetApplied", reset)
+                    put(
+                        "top",
+                        buildJsonArray {
+                            snapshot.take(limit).forEach { entry ->
+                                add(
+                                    buildJsonObject {
+                                        put("name", entry.name)
+                                        put("count", entry.count)
+                                        put("failures", entry.failures)
+                                        put("avgMs", entry.avgMs)
+                                        put("lastUsedAt", entry.lastUsedAt)
+                                    },
+                                )
+                            }
+                        },
+                    )
+                    put(
+                        "hint",
+                        "统计只覆盖被调用过的工具；「从未使用」需与 tool_surface_report 的工具清单做差集。",
+                    )
                 }
             listOf(UIMessagePart.Text(payload.toString()))
         },
