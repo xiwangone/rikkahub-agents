@@ -42,6 +42,7 @@ import me.rerere.rikkahub.data.ai.tools.local.findNodeTool
 import me.rerere.rikkahub.data.ai.tools.local.getBrightnessTool
 import me.rerere.rikkahub.data.ai.tools.local.getVolumeTool
 import me.rerere.rikkahub.data.ai.tools.local.getAppHealthTool
+import me.rerere.rikkahub.data.ai.tools.local.getBuildInfoTool
 import me.rerere.rikkahub.data.ai.tools.local.getAppSettingsTool
 import me.rerere.rikkahub.data.ai.tools.local.globalActionTool
 import me.rerere.rikkahub.data.ai.tools.local.readAppLogsTool
@@ -1109,6 +1110,7 @@ class LocalTools(
         // AI 自诊断/自管理（第一批，纯读工具）。
         if (options.contains(LocalToolOption.AppDiagnostics)) {
             tools.add(getAppHealthTool(doctorChecks, context))
+            tools.add(getBuildInfoTool(context))
             tools.add(getAppSettingsTool(settingsStore))
             tools.add(readCrashSnapshotTool(context))
             tools.add(readLifecycleLogsTool(context))

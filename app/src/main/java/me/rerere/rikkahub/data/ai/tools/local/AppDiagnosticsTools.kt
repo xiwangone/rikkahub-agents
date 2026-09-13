@@ -14,6 +14,9 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import android.content.pm.PackageManager
+import me.rerere.rikkahub.BuildConfig
+import java.security.MessageDigest
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Model
@@ -502,3 +505,48 @@ fun readLifecycleLogsTool(context: Context): Tool = Tool(
         )
     },
 )
+
+// ---------- get_build_info ----------
+
+/**
+ * 当前安装包的构建身份：版本号、是否 debug、安装/更新时间、签名指纹 SHA-256。
+ * 用于 AI 在测试前确认"测的是哪个包"，以及排查"改了没生效"（装错包 / 进程跑旧码）。
+ */
+@SuppressLint("PackageManagerGetSignatures")
+fun getBuildInfoTool(context: Context): Tool =
+    Tool(
+        name = "get_build_info",
+        description = """Report the installed build identity: versionName, versionCode, debug flag, first-install/update time and the signing certificate SHA-256. Use before verifying a change, or when a fix seems not to take effect (stale package / wrong build).""".trimIndent().replace("\n", " "),
+        parameters = {
+            InputSchema.Obj(
+                properties = buildJsonObject {},
+                required = emptyList(),
+            )
+        },
+        execute = {
+            val pm = context.packageManager
+            val packageName = context.packageName
+            val info =
+                runCatching { pm.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES) }.getOrNull()
+            val formatter = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+            val signerSha256 =
+                runCatching {
+                    val cert = info?.signingInfo?.apkContentsSigners?.firstOrNull()?.toByteArray()
+                    cert?.let { bytes ->
+                        MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { b -> "%02x".format(b) }
+                    }
+                }.getOrNull()
+            val payload =
+                buildJsonObject {
+                    put("packageName", packageName)
+                    put("versionName", BuildConfig.VERSION_NAME)
+                    put("versionCode", BuildConfig.VERSION_CODE)
+                    put("isDebugBuild", BuildConfig.DEBUG)
+                    put("firstInstallTime", info?.firstInstallTime?.let { formatter.format(it) } ?: "unknown")
+                    put("lastUpdateTime", info?.lastUpdateTime?.let { formatter.format(it) } ?: "unknown")
+                    put("signerSha256", signerSha256 ?: "unknown")
+                    put("processId", android.os.Process.myPid())
+                }
+            listOf(UIMessagePart.Text(payload.toString()))
+        },
+    )
