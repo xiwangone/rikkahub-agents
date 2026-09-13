@@ -43,7 +43,7 @@ private const val MAX_WEBSOCKET_QUEUE_BYTES = 100_000L
 class OpenAIRealtimeASRController(
     private val context: Context,
     private val httpClient: OkHttpClient,
-    private val provider: ASRProviderSetting.OpenAIRealtime,
+    private val provider: ASRProviderSetting.OpenAIRealtime
 ) : ASRController {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
 
@@ -61,7 +61,7 @@ class OpenAIRealtimeASRController(
         if (state.value.isRecording) return
         if (ContextCompat.checkSelfPermission(
                 context,
-                Manifest.permission.RECORD_AUDIO,
+                Manifest.permission.RECORD_AUDIO
             ) != PackageManager.PERMISSION_GRANTED
         ) {
             setError("Microphone permission is required")
@@ -74,62 +74,55 @@ class OpenAIRealtimeASRController(
         _state.update {
             ASRState(
                 status = ASRStatus.Connecting,
-                isAvailable = true,
+                isAvailable = true
             )
         }
 
-        val request =
-            Request
-                .Builder()
-                .url(provider.websocketEndpoint())
-                .addHeader("Authorization", "Bearer ${provider.apiKey}")
-                .build()
+        val request = Request.Builder()
+            .url(provider.websocketEndpoint())
+            .addHeader("Authorization", "Bearer ${provider.apiKey}")
+            .build()
 
-        webSocket =
-            httpClient.newWebSocket(
-                request,
-                object : WebSocketListener() {
-                    override fun onOpen(
-                        webSocket: WebSocket,
-                        response: Response,
-                    ) {
-                        webSocket.send(provider.sessionUpdateEvent().toString())
-                        _state.update { it.copy(status = ASRStatus.Listening, errorMessage = null) }
-                        startRecorder(provider, webSocket)
-                    }
+        webSocket = httpClient.newWebSocket(request, object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                if (this@OpenAIRealtimeASRController.webSocket !== webSocket ||
+                    state.value.status != ASRStatus.Connecting
+                ) {
+                    webSocket.cancel()
+                    return
+                }
+                webSocket.send(provider.sessionUpdateEvent().toString())
+                _state.update { it.copy(status = ASRStatus.Listening, errorMessage = null) }
+                startRecorder(provider, webSocket)
+            }
 
-                    override fun onMessage(
-                        webSocket: WebSocket,
-                        text: String,
-                    ) {
-                        handleServerEvent(text)
-                    }
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                if (this@OpenAIRealtimeASRController.webSocket === webSocket) handleServerEvent(text)
+            }
 
-                    override fun onFailure(
-                        webSocket: WebSocket,
-                        t: Throwable,
-                        response: Response?,
-                    ) {
-                        Log.e(TAG, "Realtime ASR websocket failed", t)
-                        releaseRecorder()
-                        setError(t.message ?: "ASR websocket failed")
-                    }
+            override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
+                if (this@OpenAIRealtimeASRController.webSocket !== webSocket) return
+                Log.e(TAG, "Realtime ASR websocket failed", t)
+                releaseRecorder()
+                setError(t.message ?: "ASR websocket failed")
+            }
 
-                    override fun onClosed(
-                        webSocket: WebSocket,
-                        code: Int,
-                        reason: String,
-                    ) {
-                        releaseRecorder()
-                        _state.update {
-                            it.copy(
-                                status = ASRStatus.Idle,
-                                errorMessage = null,
-                            )
-                        }
-                    }
-                },
-            )
+            override fun onClosed(webSocket: WebSocket, code: Int, reason: String) {
+                if (this@OpenAIRealtimeASRController.webSocket !== webSocket) return
+                releaseRecorder()
+                _state.update {
+                    it.copy(
+                        status = ASRStatus.Idle,
+                        errorMessage = null
+                    )
+                }
+            }
+        })
+    }
+
+    override fun pauseCapture() {
+        recorderJob?.cancel()
+        runCatching { audioRecord?.stop() }
     }
 
     override fun stop() {
@@ -152,78 +145,88 @@ class OpenAIRealtimeASRController(
     }
 
     override fun dispose() {
-        stop()
+        recorderJob?.cancel()
+        val socket = webSocket
+        webSocket = null
+        socket?.cancel()
+        releaseRecorder()
         scope.cancel()
     }
 
     @SuppressLint("MissingPermission")
     private fun startRecorder(
         provider: ASRProviderSetting.OpenAIRealtime,
-        socket: WebSocket,
+        socket: WebSocket
     ) {
         recorderJob?.cancel()
-        recorderJob =
-            scope.launch(Dispatchers.IO) {
-                val minBufferSize =
-                    AudioRecord.getMinBufferSize(
-                        provider.sampleRate,
-                        AudioFormat.CHANNEL_IN_MONO,
-                        AudioFormat.ENCODING_PCM_16BIT,
-                    )
-                val bufferSize =
-                    minBufferSize
-                        .coerceAtLeast(provider.sampleRate / 10 * 2)
-                        .coerceAtLeast(4096)
+        recorderJob = scope.launch(Dispatchers.IO) {
+            val minBufferSize = AudioRecord.getMinBufferSize(
+                provider.sampleRate,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT
+            )
+            val bufferSize = minBufferSize
+                .coerceAtLeast(provider.sampleRate / 10 * 2)
+                .coerceAtLeast(4096)
 
-                val recorder =
-                    AudioRecord(
-                        MediaRecorder.AudioSource.VOICE_COMMUNICATION,
-                        provider.sampleRate,
-                        AudioFormat.CHANNEL_IN_MONO,
-                        AudioFormat.ENCODING_PCM_16BIT,
-                        bufferSize * 2,
-                    )
-                audioRecord = recorder
+            val recorder = AudioRecord(
+                MediaRecorder.AudioSource.VOICE_COMMUNICATION,
+                provider.sampleRate,
+                AudioFormat.CHANNEL_IN_MONO,
+                AudioFormat.ENCODING_PCM_16BIT,
+                bufferSize * 2
+            )
+            audioRecord = recorder
 
-                try {
-                    recorder.startRecording()
-                    val buffer = ByteArray(bufferSize)
-                    while (isActive) {
-                        val read = recorder.read(buffer, 0, buffer.size)
-                        if (read > 0) {
-                            val amplitude = calculateRmsAmplitude(buffer, read)
-                            _state.update { it.copy(amplitudes = it.amplitudes.appendAmplitude(amplitude)) }
-                            if (socket.queueSize() < MAX_WEBSOCKET_QUEUE_BYTES) {
-                                val encoded = Base64.encodeToString(buffer, 0, read, Base64.NO_WRAP)
-                                val event =
-                                    JSONObject()
-                                        .put("type", "input_audio_buffer.append")
-                                        .put("audio", encoded)
-                                socket.send(event.toString())
-                            } else {
-                                Log.w(TAG, "WebSocket queue full, dropping audio frame")
-                            }
-                        } else if (read < 0) {
-                            throw IllegalStateException("AudioRecord read error: $read")
+            try {
+                recorder.startRecording()
+                val buffer = ByteArray(bufferSize)
+                while (isActive) {
+                    val read = recorder.read(buffer, 0, buffer.size)
+                    if (read > 0) {
+                        val amplitude = calculateRmsAmplitude(buffer, read)
+                        _state.update { it.copy(amplitudes = it.amplitudes.appendAmplitude(amplitude)) }
+                        if (socket.queueSize() < MAX_WEBSOCKET_QUEUE_BYTES) {
+                            val encoded = Base64.encodeToString(buffer, 0, read, Base64.NO_WRAP)
+                            val event = JSONObject()
+                                .put("type", "input_audio_buffer.append")
+                                .put("audio", encoded)
+                            socket.send(event.toString())
+                        } else {
+                            Log.w(TAG, "WebSocket queue full, dropping audio frame")
                         }
+                    } else if (read < 0) {
+                        throw IllegalStateException("AudioRecord read error: $read")
                     }
-                } catch (e: Exception) {
+                }
+            } catch (e: Exception) {
+                if (isActive) {
                     Log.e(TAG, "Audio recording failed", e)
                     setError(e.message ?: "Audio recording failed")
-                } finally {
-                    releaseRecorder()
                 }
+            } finally {
+                releaseRecorder()
             }
+        }
     }
 
     private fun handleServerEvent(text: String) {
-        val event =
-            runCatching { JSONObject(text) }.getOrElse {
-                Log.w(TAG, "Invalid realtime event: $text", it)
-                return
-            }
+        val event = runCatching { JSONObject(text) }.getOrElse {
+            Log.w(TAG, "Invalid realtime event: $text", it)
+            return
+        }
 
         when (val type = event.optString("type")) {
+            "input_audio_buffer.speech_started" -> {
+                val id = event.optString("item_id")
+                _state.update { it.copy(voiceTurn = it.voiceTurn.started(id)) }
+            }
+
+            "input_audio_buffer.speech_stopped" -> {
+                val id = event.optString("item_id")
+                _state.update { it.copy(voiceTurn = it.voiceTurn.stopped(id)) }
+            }
+
             "conversation.item.input_audio_transcription.delta" -> {
                 val itemId = event.optString("item_id", "default")
                 val delta = event.optString("delta")
@@ -236,11 +239,16 @@ class OpenAIRealtimeASRController(
             "conversation.item.input_audio_transcription.completed" -> {
                 val itemId = event.optString("item_id", "default")
                 val transcript = event.optString("transcript").trim()
+                _state.update { it.copy(voiceTurn = it.voiceTurn.completed(itemId, transcript)) }
                 partialTranscripts.remove(itemId)
                 if (transcript.isNotEmpty()) {
                     completedTranscripts.add(transcript)
                 }
                 publishTranscript()
+            }
+
+            "conversation.item.input_audio_transcription.failed" -> {
+                setError(event.optJSONObject("error")?.optString("message") ?: "ASR transcription failed")
             }
 
             "error" -> {
@@ -255,10 +263,9 @@ class OpenAIRealtimeASRController(
     }
 
     private fun publishTranscript() {
-        val transcript =
-            (completedTranscripts + partialTranscripts.values)
-                .filter { it.isNotBlank() }
-                .joinToString(" ")
+        val transcript = (completedTranscripts + partialTranscripts.values)
+            .filter { it.isNotBlank() }
+            .joinToString(" ")
         _state.update { it.copy(transcript = transcript, errorMessage = null) }
         scope.launch {
             onTranscriptChange?.invoke(transcript)
@@ -269,7 +276,7 @@ class OpenAIRealtimeASRController(
         _state.update {
             it.copy(
                 status = ASRStatus.Error,
-                errorMessage = message,
+                errorMessage = message
             )
         }
     }
@@ -291,9 +298,8 @@ private fun ASRProviderSetting.OpenAIRealtime.websocketEndpoint(): String {
 }
 
 private fun ASRProviderSetting.OpenAIRealtime.sessionUpdateEvent(): JSONObject {
-    val transcription =
-        JSONObject()
-            .put("model", model)
+    val transcription = JSONObject()
+        .put("model", model)
     if (language.isNotBlank()) transcription.put("language", language)
     if (prompt.isNotBlank()) transcription.put("prompt", prompt)
 
@@ -313,21 +319,23 @@ private fun ASRProviderSetting.OpenAIRealtime.sessionUpdateEvent(): JSONObject {
                                     "format",
                                     JSONObject()
                                         .put("type", "audio/pcm")
-                                        .put("rate", sampleRate),
-                                ).put("transcription", transcription)
+                                        .put("rate", sampleRate)
+                                )
+                                .put("transcription", transcription)
                                 .put(
                                     "noise_reduction",
                                     JSONObject()
-                                        .put("type", "near_field"),
-                                ).put(
+                                        .put("type", "near_field")
+                                )
+                                .put(
                                     "turn_detection",
                                     JSONObject()
                                         .put("type", "server_vad")
                                         .put("threshold", vadThreshold)
                                         .put("prefix_padding_ms", prefixPaddingMs)
-                                        .put("silence_duration_ms", silenceDurationMs),
-                                ),
-                        ),
-                ),
+                                        .put("silence_duration_ms", silenceDurationMs)
+                                )
+                        )
+                )
         )
 }
