@@ -142,7 +142,11 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
                 put("private_key", buildJsonObject { put("type", "string"); put("description", "Full PEM/OpenSSH private key contents") })
                 put("passphrase", buildJsonObject { put("type", "string"); put("description", "Optional passphrase for the private key") })
                 put("vault_credential", buildJsonObject { put("type", "string"); put("description", "Optional Vault credential name holding the SSH private key (preferred over private_key — the key is never stored in plaintext). See vault_credential_names.") })
-                put("fallback_hosts", buildJsonObject { put("type", "array"); put("description", "Optional array of saved-host names tried in order when this host is unreachable (connection-level failures only). Items are resolved at call time.") })
+                put("fallback_hosts", buildJsonObject {
+                    put("type", "array")
+                    put("items", buildJsonObject { put("type", "string") })
+                    put("description", "Optional array of saved-host names tried in order when this host is unreachable (connection-level failures only). Items are resolved at call time.")
+                })
                 put("jump_host", buildJsonObject { put("type", "string"); put("description", "Optional saved-host name used as a jump/bastion host. Reserved; connectivity via jump is not yet wired end-to-end.") })
                 put("ssh_options", buildJsonObject { put("type", "string"); put("description", "Optional custom ssh config, one 'key value' per line (e.g. ConnectTimeout 5 / Ciphers ...). Applied as JSch config overrides for this host; # starts a comment line.") })
             },

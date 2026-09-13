@@ -50,6 +50,7 @@ fun shizukuExecTool(context: Context): Tool = Tool(
                 })
                 put("commands", buildJsonObject {
                     put("type", "array")
+                    put("items", buildJsonObject { put("type", "string") })
                     put("description", "Optional batch: array of shell commands run in sequence (max $MAX_BATCH_COMMANDS). Use instead of command for multi-step work.")
                 })
                 put("timeout_ms", buildJsonObject {
