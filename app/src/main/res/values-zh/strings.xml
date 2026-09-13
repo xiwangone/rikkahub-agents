@@ -829,6 +829,15 @@
   <string name="setting_display_page_volume_key_scroll_ratio">滚动幅度</string>
   <string name="setting_display_page_volume_key_scroll_title">音量键翻页</string>
   <string name="setting_files_page_cancel_action">取消</string>
+  <string name="setting_files_page_clean_action">清理</string>
+  <string name="setting_files_page_clean_all">全部文件</string>
+  <string name="setting_files_page_clean_confirmation">将永久删除此分类中的全部文件，此操作无法撤销。</string>
+  <string name="setting_files_page_clean_content_description">清理文件</string>
+  <string name="setting_files_page_clean_failed_toast">部分文件清理失败</string>
+  <string name="setting_files_page_clean_older_than_days">%1$d 天前</string>
+  <string name="setting_files_page_clean_range_description">选择要永久删除的文件。此操作无法撤销。</string>
+  <string name="setting_files_page_clean_title">清理文件？</string>
+  <string name="setting_files_page_cleaned_toast">文件已清理</string>
   <string name="setting_files_page_delete_action">删除</string>
   <string name="setting_files_page_delete_content_description">删除</string>
   <string name="setting_files_page_delete_failed_toast">删除失败</string>
@@ -900,7 +909,7 @@
   <string name="setting_page_built_in_tools_search_desc">启用 Google 搜索集成</string>
   <string name="setting_page_built_in_tools_url_context">URL 上下文</string>
   <string name="setting_page_built_in_tools_url_context_desc">启用 URL 内容处理</string>
-  <string name="setting_page_chat_storage">聊天记录存储</string>
+  <string name="setting_page_chat_storage">存储管理</string>
   <string name="setting_page_chat_storage_desc">%1$d 个文件，%2$.2f MB</string>
   <string name="setting_page_code_display_settings">代码显示</string>
   <string name="setting_page_color_mode">颜色模式</string>
@@ -2108,12 +2117,6 @@
   <string name="assistant_page_context_message_limit_hint">输入 0 表示不限制，其他值不能小于 %d</string>
   <string name="assistant_page_context_message_limit_too_small">上下文消息限制不能小于 %1$d，已自动重置为 %1$d。</string>
   <string name="assistant_page_context_message_limit_warning">限制上下文会在每次上下文被修剪时使提示词缓存失效。更大的限制修剪频率更低；无限制则从不修剪，并保持缓存完全完好。</string>
-  <string name="setting_files_page_clean_action">清理</string>
-  <string name="setting_files_page_clean_confirmation">该分类下的所有文件将被永久删除，此操作不可撤销。</string>
-  <string name="setting_files_page_clean_content_description">清理文件</string>
-  <string name="setting_files_page_clean_failed_toast">部分文件无法清理</string>
-  <string name="setting_files_page_clean_title">确认清理文件？</string>
-  <string name="setting_files_page_cleaned_toast">已清理文件</string>
   <string name="setting_tts_page_default_playback_speed">默认播放速度</string>
   <string name="setting_tts_page_default_playback_speed_description">本地应用于每个 TTS 提供商，不更改其合成设置。</string>
   <string name="settings_confirm">确定</string>

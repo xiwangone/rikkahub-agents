@@ -776,7 +776,7 @@
   <string name="setting_page_built_in_tools_search_desc">Google 검색 통합 활성화</string>
   <string name="setting_page_built_in_tools_url_context">URL 컨텍스트</string>
   <string name="setting_page_built_in_tools_url_context_desc">URL 콘텐츠 처리 활성화</string>
-  <string name="setting_page_chat_storage">채팅 저장 공간</string>
+  <string name="setting_page_chat_storage">저장 공간 관리</string>
   <string name="setting_page_chat_storage_desc">%1$d개 파일, %2$.2f MB</string>
   <string name="setting_page_code_display_settings">코드 표시</string>
   <string name="setting_page_color_mode">색상 모드</string>
@@ -3042,4 +3042,17 @@
   <string name="workspace_detail_compatibility_mode">호환 모드</string>
   <string name="workspace_detail_compatibility_mode_desc">터미널이 시작되지 않으면 이 옵션을 활성화해 보세요. 성능이 저하될 수 있습니다. 새 터미널 탭과 이후 명령에 적용됩니다.</string>
   <string name="workspace_detail_settings_save_failed">설정 저장에 실패했습니다.</string>
+  <string name="setting_provider_page_test_non_streaming">비스트리밍</string>
+  <string name="setting_provider_page_test_streaming">스트리밍</string>
+  <string name="setting_provider_page_test_tool_call">도구 호출</string>
+  <string name="setting_provider_page_test_tool_called">호출: %1$s  인수: %2$s</string>
+  <string name="setting_provider_page_test_tool_not_called">도구가 호출되지 않음, 응답: %s</string>
+    <string name="chat_generation_network_retrying">%1$s. 재시도 중 (%2$d/%3$d)…</string>
+    <string name="chat_generation_network_unknown_host">서버 주소를 확인할 수 없습니다</string>
+    <string name="chat_generation_network_timeout">연결 시간이 초과되었습니다</string>
+    <string name="chat_generation_network_unreachable">서버에 연결할 수 없습니다</string>
+    <string name="chat_generation_network_disconnected">네트워크 연결이 끊어졌습니다</string>
+  <string name="setting_files_page_clean_all">모든 파일</string>
+  <string name="setting_files_page_clean_older_than_days">%1$d일 이상 지난 파일</string>
+  <string name="setting_files_page_clean_range_description">영구적으로 삭제할 파일을 선택하세요. 이 작업은 되돌릴 수 없습니다.</string>
 </resources>

@@ -3016,9 +3016,12 @@
   <string name="assistant_page_context_message_limit_hint">أدخل 0 لعدم التحديد، أو قيمة لا تقل عن %d</string>
   <string name="assistant_page_context_message_limit_warning">يؤدي تحديد السياق إلى إبطال ذاكرة المطالبات المؤقتة كلما قُلم السياق. والحدود الأكبر تقلّل تكرار التقليم، أما عدم التحديد فلا يقلم أبدًا ويُبقي الذاكرة سليمة بالكامل.</string>
   <string name="setting_files_page_clean_action">تنظيف</string>
+  <string name="setting_files_page_clean_all">كل الملفات</string>
   <string name="setting_files_page_clean_confirmation">ستُحذف كل ملفات هذه الفئة نهائيًا، ولا يمكن التراجع عن هذا الإجراء.</string>
   <string name="setting_files_page_clean_content_description">تنظيف الملفات</string>
   <string name="setting_files_page_clean_failed_toast">تعذّر تنظيف بعض الملفات</string>
+  <string name="setting_files_page_clean_older_than_days">أقدم من %1$d يوم</string>
+  <string name="setting_files_page_clean_range_description">حدد الملفات التي تريد حذفها نهائيًا. لا يمكن التراجع عن هذا الإجراء.</string>
   <string name="setting_files_page_clean_title">تأكيد تنظيف الملفات؟</string>
   <string name="setting_files_page_cleaned_toast">تم تنظيف الملفات</string>
   <string name="setting_tts_page_default_playback_speed">سرعة التشغيل الافتراضية</string>
