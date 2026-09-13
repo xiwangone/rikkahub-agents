@@ -219,9 +219,11 @@ class BrowserToolsTest {
         assertEquals(18, BrowserToolDefaults.ALL_TOOLS.size)
         assertEquals(8, BrowserToolDefaults.WRITE_TOOLS.size)
         assertEquals(BrowserToolDefaults.ALL_TOOLS.toSet(), BrowserToolDefaults.DEFAULT_ENABLED.keys)
-        // Read tools default ON
+        // Read tools default ON — except browser_screenshot, which the token-cost pass
+        // turned OFF (screenshot payloads are byte-heavy); it is opt-in like write tools.
         for (n in BrowserToolDefaults.READ_TOOLS) {
-            assertEquals("$n should default ON", true, BrowserToolDefaults.DEFAULT_ENABLED[n])
+            val expected = n != BrowserToolDefaults.SCREENSHOT
+            assertEquals("$n default mismatch", expected, BrowserToolDefaults.DEFAULT_ENABLED[n])
         }
         // Write tools default OFF
         for (n in BrowserToolDefaults.WRITE_TOOLS) {

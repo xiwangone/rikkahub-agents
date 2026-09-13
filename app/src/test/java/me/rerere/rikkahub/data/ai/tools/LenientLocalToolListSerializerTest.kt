@@ -45,27 +45,27 @@ class LenientLocalToolListSerializerTest {
     }
 
     @Test
-    fun `web_fetch and web_extract are dropped, rest of the list survives`() {
-        // web_fetch/web_extract moved from per-assistant LocalToolOption entries to a single
-        // global setting, so they are no longer defined subtypes. An assistant persisted before
-        // this change may still carry them in its tool list; the restore must not abort and must
-        // keep the other, still-known entries in order.
+    fun `web_extract is dropped while web_fetch survives, rest of the list stays in order`() {
+        // web_extract is no longer a defined subtype (the capability lives in the global web
+        // settings), while web_fetch is still a per-assistant option. An assistant persisted by
+        // an older build may carry both; the restore must not abort, must drop only the unknown
+        // one, and must keep the known entries in their original order.
         val decoded = json.decodeFromString(
             LenientLocalToolListSerializer,
             """[{"type":"time_info"},{"type":"web_fetch"},{"type":"web_extract"},{"type":"ask_user"}]""",
         )
 
         assertEquals(
-            listOf(LocalToolOption.TimeInfo, LocalToolOption.AskUser),
+            listOf(LocalToolOption.TimeInfo, LocalToolOption.WebFetch, LocalToolOption.AskUser),
             decoded,
         )
     }
 
     @Test
-    fun `settings containing only removed web_fetch and web_extract decode to an empty list`() {
+    fun `settings containing only removed tools decode to an empty list`() {
         val decoded = json.decodeFromString(
             LenientLocalToolListSerializer,
-            """[{"type":"web_fetch"},{"type":"web_extract"}]""",
+            """[{"type":"web_extract"},{"type":"some_removed_tool"}]""",
         )
 
         assertEquals(emptyList<LocalToolOption>(), decoded)

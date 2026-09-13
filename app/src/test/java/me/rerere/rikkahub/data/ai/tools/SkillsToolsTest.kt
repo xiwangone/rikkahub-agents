@@ -35,7 +35,7 @@ class SkillsToolsTest {
                     skillDir = skillDir,
                 )
             ),
-        ).single()
+        ).first { it.name == "use_skill" }
 
         val result = tool.execute(
             buildJsonObject {
