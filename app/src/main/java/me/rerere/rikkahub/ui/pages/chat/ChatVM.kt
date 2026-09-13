@@ -217,8 +217,7 @@ class ChatVM(
     }
 
     // Update checker
-    val updateState =
-        updateChecker.checkUpdate().stateIn(viewModelScope, SharingStarted.Eagerly, UiState.Loading)
+    val updateState = updateChecker.updateState
 
     /**
      * 处理消息发送
