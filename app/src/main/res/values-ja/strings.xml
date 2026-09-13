@@ -3091,7 +3091,6 @@
   <string name="chat_page_voice_generation_failed">モデルの応答生成に失敗しました。チャットでエラーを確認してください。</string>
   <string name="chat_page_voice_queue_paused">メッセージキューが一時停止しています。問題を解決してから、音声モードを再起動してください。</string>
   <string name="setting_page_asr_silence_duration">発話終了の無音時間</string>
-  <string name="setting_page_asr_silence_duration_desc">無音がこの時間続いたら発話を終了します。推奨: 800〜1000 ms。</string>
   <string name="setting_page_asr_milliseconds">ミリ秒</string>
   <string name="workspace_detail_distro">ディストリビューション</string>
 </resources>
