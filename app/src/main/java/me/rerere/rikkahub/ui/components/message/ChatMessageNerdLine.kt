@@ -295,15 +295,15 @@ fun ChatMessageNerdLine(
                                     windowTokens?.let { win ->
                                         stringResource(
                                             R.string.chat_nerd_context_window,
-                                            ctxTokens.formatNumber(),
-                                            win.formatNumber(),
+                                            ctxTokens.toInt().formatNumber(),
+                                            win.toInt().formatNumber(),
                                             String.format(
                                                 java.util.Locale.US,
                                                 "%.0f%%",
                                                 ((1.0 - ctxTokens.toDouble() / win.toDouble()) * 100.0).coerceIn(0.0, 100.0),
                                             ),
                                         )
-                                    } ?: stringResource(R.string.chat_nerd_context_only, ctxTokens.formatNumber()),
+                                    } ?: stringResource(R.string.chat_nerd_context_only, ctxTokens.toInt().formatNumber()),
                                 color = contextColor,
                             )
                         },
