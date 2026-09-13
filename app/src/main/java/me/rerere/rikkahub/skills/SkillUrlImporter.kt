@@ -191,6 +191,14 @@ class SkillUrlImporter(
     private val OpenclawMarker =
         Regex("""(?im)^#{1,6}\s+(when to use|steps|tools used)\b""")
 
+    /**
+     * Quote a free-text value for the YAML frontmatter we generate. A plain scalar containing
+     * ": " (or another YAML indicator) makes the whole block unparseable — which surfaced as a
+     * bogus "missing_name" on import even though the skill was fine.
+     */
+    private fun yamlQuote(value: String): String =
+        "\"" + value.replace("\\", "\\\\").replace("\"", "\\\"").replace("\n", " ") + "\""
+
     private fun transcodeFromOpenclaw(raw: String, sourceUrl: String, override: String?): String? {
         // Pull the first H1 as name (if missing, fall back to first non-blank line).
         val h1Match = Regex("""^#\s+(.+)$""", RegexOption.MULTILINE).find(raw)
@@ -214,9 +222,9 @@ class SkillUrlImporter(
         val frontmatterBlock = buildString {
             appendLine("---")
             appendLine("name: $sanitisedName")
-            appendLine("description: ${descCandidate.replace("\n", " ").replace("\"", "")}")
+            appendLine("description: ${yamlQuote(descCandidate)}")
             appendLine("source-format: openclaw")
-            appendLine("source-url: $sourceUrl")
+            appendLine("source-url: ${yamlQuote(sourceUrl)}")
             appendLine("---")
         }
         return frontmatterBlock + "\n" + transcodedBody
@@ -243,9 +251,9 @@ class SkillUrlImporter(
         val body = buildString {
             appendLine("---")
             appendLine("name: $sanitisedName")
-            appendLine("description: ${description.replace("\n", " ").replace("\"", "")}")
+            appendLine("description: ${yamlQuote(description)}")
             appendLine("source-format: hermes")
-            appendLine("source-url: $sourceUrl")
+            appendLine("source-url: ${yamlQuote(sourceUrl)}")
             appendLine("---")
             appendLine()
             appendLine("# $name")
