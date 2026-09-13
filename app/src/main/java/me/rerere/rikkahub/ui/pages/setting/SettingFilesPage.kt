@@ -96,7 +96,6 @@ fun SettingFilesPage(filesManager: FilesManager = koinInject()) {
     val files by filesManager.observe(selectedFolder).collectAsStateWithLifecycle(initialValue = emptyList())
     var showCleanSheet by remember { mutableStateOf(false) }
     var selectedCleanRange by remember { mutableStateOf(CleanRange.DAYS_7) }
-    val files by filesManager.observe(selectedFolder).collectAsState(initial = emptyList())
 
     if (pendingDelete != null) {
         val target = pendingDelete!!
