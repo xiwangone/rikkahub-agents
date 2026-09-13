@@ -1296,7 +1296,7 @@
   <string name="setting_model_page_auto_compress_mode_percent">百分比模式（基准 × 阈值）</string>
   <string name="setting_model_page_auto_compress_mode_token">Token 消耗模式</string>
   <string name="setting_model_page_auto_compress_base">基准（M）</string>
-  <string name="setting_model_page_auto_compress_m_unit">单位 M：1M = 1,000,000 token</string>
+  <string name="setting_model_page_auto_compress_m_unit">单位 K：1K = 1,000 token</string>
   <string name="setting_model_page_auto_compress_threshold">触发阈值（上下文百分比，50-95）</string>
   <string name="setting_model_page_auto_compress_token_limit">Token 消耗（M）</string>
   <string name="setting_model_page_auto_compress_token_limit_desc">累计 Token 消耗超过该值即自动压缩（0 = 不启用）</string>
@@ -2310,7 +2310,11 @@
   <string name="stats_total_input">累计输入</string>
   <string name="stats_copy_total">复制累计统计</string>
   <string name="stats_copy">复制统计</string>
-  <string name="stats_format">↑%1$s 输入 · 命中 %2$s ↓%3$s 输出</string>
+  <string name="stats_format">累计 ↑%1$s 输入 · 命中 %2$s ↓%3$s 输出</string>
+  <string name="chat_nerd_context_window">上下文 %1$s / %2$s · 剩 %3$s</string>
+  <string name="chat_nerd_context_only">上下文 %1$s</string>
+  <string name="chat_context_window_title">上下文窗口大小</string>
+  <string name="chat_context_window_hint">以 K 为单位（如 200 = 200K）</string>
   <string name="doctor_category_permissions">权限</string>
   <string name="doctor_category_services">后台服务</string>
   <string name="doctor_category_assistant_info">当前助手</string>

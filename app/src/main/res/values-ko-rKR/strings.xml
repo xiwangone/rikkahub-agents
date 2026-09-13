@@ -2139,7 +2139,11 @@
   <string name="stats_total_input">누적 입력</string>
   <string name="stats_copy_total">누적 통계 복사</string>
   <string name="stats_copy">통계 복사</string>
-  <string name="stats_format">↑%1$s 입력 · 적중 %2$s ↓%3$s 출력</string>
+  <string name="stats_format">누적 ↑%1$s 입력 · 적중 %2$s ↓%3$s 출력</string>
+  <string name="chat_nerd_context_window">컨텍스트 %1$s / %2$s · 남음 %3$s</string>
+  <string name="chat_nerd_context_only">컨텍스트 %1$s</string>
+  <string name="chat_context_window_title">컨텍스트 창 크기</string>
+  <string name="chat_context_window_hint">K 단위 (예: 200 = 200K)</string>
   <string name="doctor_category_permissions">권한</string>
   <string name="doctor_category_services">백그라운드 서비스</string>
   <string name="doctor_category_assistant_info">현재 어시스턴트</string>
@@ -2571,7 +2575,7 @@
   <string name="setting_model_page_auto_compress_mode_percent">백분율 모드(기준 × 임계값)</string>
   <string name="setting_model_page_auto_compress_mode_token">토큰 소모 모드</string>
   <string name="setting_model_page_auto_compress_base">기준(M)</string>
-  <string name="setting_model_page_auto_compress_m_unit">단위 M: 1M = 1,000,000 토큰</string>
+  <string name="setting_model_page_auto_compress_m_unit">단위 K: 1K = 1,000 토큰</string>
   <string name="setting_model_page_auto_compress_threshold">트리거 임계값(컨텍스트 백분율, 50-95)</string>
   <string name="setting_model_page_auto_compress_token_limit">토큰 소모(M)</string>
   <string name="setting_model_page_auto_compress_token_limit_desc">누적 토큰 소모가 이 값을 넘으면 자동 압축(0 = 사용 안 함)</string>

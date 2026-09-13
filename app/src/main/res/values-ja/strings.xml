@@ -2139,7 +2139,11 @@
   <string name="stats_total_input">累計入力</string>
   <string name="stats_copy_total">累計統計をコピー</string>
   <string name="stats_copy">統計をコピー</string>
-  <string name="stats_format">↑%1$s 入力 · ヒット %2$s ↓%3$s 出力</string>
+  <string name="stats_format">累計 ↑%1$s 入力 · ヒット %2$s ↓%3$s 出力</string>
+  <string name="chat_nerd_context_window">コンテキスト %1$s / %2$s · 残り %3$s</string>
+  <string name="chat_nerd_context_only">コンテキスト %1$s</string>
+  <string name="chat_context_window_title">コンテキストウィンドウサイズ</string>
+  <string name="chat_context_window_hint">K 単位（例: 200 = 200K）</string>
   <string name="doctor_category_permissions">権限</string>
   <string name="doctor_category_services">バックグラウンドサービス</string>
   <string name="doctor_category_assistant_info">現在のアシスタント</string>
@@ -2571,7 +2575,7 @@
   <string name="setting_model_page_auto_compress_mode_percent">パーセント方式（基準 × しきい値）</string>
   <string name="setting_model_page_auto_compress_mode_token">トークン消費方式</string>
   <string name="setting_model_page_auto_compress_base">基準（M）</string>
-  <string name="setting_model_page_auto_compress_m_unit">単位 M: 1M = 1,000,000 トークン</string>
+  <string name="setting_model_page_auto_compress_m_unit">単位 K: 1K = 1,000 トークン</string>
   <string name="setting_model_page_auto_compress_threshold">しきい値（コンテキストの割合、50-95）</string>
   <string name="setting_model_page_auto_compress_token_limit">トークン消費（M）</string>
   <string name="setting_model_page_auto_compress_token_limit_desc">累計トークン消費がこの値を超えると自動圧縮（0 = 無効）</string>

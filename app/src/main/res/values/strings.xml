@@ -1311,7 +1311,7 @@
   <string name="setting_model_page_auto_compress_mode_percent">Percentage mode (base × threshold)</string>
   <string name="setting_model_page_auto_compress_mode_token">Token consumption mode</string>
   <string name="setting_model_page_auto_compress_base">Base (M)</string>
-  <string name="setting_model_page_auto_compress_m_unit">Unit M: 1M = 1,000,000 tokens</string>
+  <string name="setting_model_page_auto_compress_m_unit">Unit K: 1K = 1,000 tokens</string>
   <string name="setting_model_page_auto_compress_threshold">Trigger threshold (% of context, 50-95)</string>
   <string name="setting_model_page_auto_compress_token_limit">Token consumption (M)</string>
   <string name="setting_model_page_auto_compress_token_limit_desc">Auto compress when accumulated token consumption exceeds this value (0 = disabled)</string>
@@ -2343,7 +2343,11 @@
   <string name="stats_total_input">Total input</string>
   <string name="stats_copy_total">Copy total stats</string>
   <string name="stats_copy">Copy stats</string>
-  <string name="stats_format">↑%1$s in · cached %2$s ↓%3$s out</string>
+  <string name="stats_format">Total ↑%1$s in · cached %2$s ↓%3$s out</string>
+  <string name="chat_nerd_context_window">Context %1$s / %2$s · %3$s left</string>
+  <string name="chat_nerd_context_only">Context %1$s</string>
+  <string name="chat_context_window_title">Context window size</string>
+  <string name="chat_context_window_hint">Size in K tokens (e.g. 200 = 200K)</string>
   <string name="doctor_category_permissions">Permissions</string>
   <string name="doctor_category_services">Background services</string>
   <string name="doctor_category_assistant_info">Current assistant</string>

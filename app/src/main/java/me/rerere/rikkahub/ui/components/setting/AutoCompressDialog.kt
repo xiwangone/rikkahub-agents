@@ -32,10 +32,10 @@ import me.rerere.rikkahub.R
  * 自动压缩设置弹窗。
  *
  * 两种触发模式（单选二选一）：
- *  - 模式 0（百分比模式）：基准 token 数（M）× 触发百分比（50-95）
- *  - 模式 1（token 消耗模式）：会话累计 token 消耗（M）超过上限即触发
+ *  - 模式 0（百分比模式）：基准 token 数（K）× 触发百分比（50-95）
+ *  - 模式 1（token 消耗模式）：会话累计 token 消耗（K）超过上限即触发
  *
- * 输入框一律以 M 为单位（1M = 1,000,000 token）：显示时除以 1e6，确认时乘以 1e6。
+ * 输入框一律以 K 为单位（1K = 1,000 token）：显示时除以 1e3，确认时乘以 1e3。
  */
 @Composable
 fun AutoCompressDialog(
@@ -49,10 +49,10 @@ fun AutoCompressDialog(
 ) {
     var currentEnabled by remember { mutableStateOf(enabled) }
     var currentMode by remember { mutableIntStateOf(mode) }
-    var currentBase by remember { mutableStateOf(formatMillion(base)) }
+    var currentBase by remember { mutableStateOf(formatThousands(base)) }
     // 以 String 保存输入值，支持自由删除/编辑，避免 5→50→500 追加问题
     var currentThreshold by remember { mutableStateOf(threshold.toString()) }
-    var currentTokenLimit by remember { mutableStateOf(formatMillion(tokenLimit)) }
+    var currentTokenLimit by remember { mutableStateOf(formatThousands(tokenLimit)) }
 
     // Composable 作用域获取 Context（供 onClick 等非 Composable 回调使用）
     val ctx = LocalContext.current
@@ -109,7 +109,7 @@ fun AutoCompressDialog(
                         OutlinedTextField(
                             value = currentBase,
                             onValueChange = { value ->
-                                if (value.matches(MILLION_INPUT_REGEX)) {
+                                if (value.matches(WINDOW_INPUT_REGEX)) {
                                     currentBase = value
                                 }
                             },
@@ -151,7 +151,7 @@ fun AutoCompressDialog(
                         OutlinedTextField(
                             value = currentTokenLimit,
                             onValueChange = { value ->
-                                if (value.matches(MILLION_INPUT_REGEX)) {
+                                if (value.matches(WINDOW_INPUT_REGEX)) {
                                     currentTokenLimit = value
                                 }
                             },
@@ -178,7 +178,7 @@ fun AutoCompressDialog(
                     if (currentEnabled) {
                         when (currentMode) {
                             0 -> {
-                                if (currentBase.isBlank() || parseMillion(currentBase) <= 0L) {
+                                if (currentBase.isBlank() || parseThousands(currentBase) <= 0L) {
                                     Toast
                                         .makeText(
                                             ctx,
@@ -190,7 +190,7 @@ fun AutoCompressDialog(
                             }
 
                             1 -> {
-                                if (currentTokenLimit.isBlank() || parseMillion(currentTokenLimit) <= 0L) {
+                                if (currentTokenLimit.isBlank() || parseThousands(currentTokenLimit) <= 0L) {
                                     Toast
                                         .makeText(
                                             ctx,
@@ -205,9 +205,9 @@ fun AutoCompressDialog(
                     onConfirm(
                         currentEnabled,
                         currentMode,
-                        parseMillion(currentBase),
+                        parseThousands(currentBase),
                         currentThreshold.toIntOrNull()?.coerceIn(50, 95) ?: 80,
-                        parseMillion(currentTokenLimit),
+                        parseThousands(currentTokenLimit),
                     )
                     onDismiss()
                 },
@@ -224,16 +224,16 @@ fun AutoCompressDialog(
 }
 
 /** 输入框允许的格式：非负整数或小数（可带一位小数点） */
-private val MILLION_INPUT_REGEX = Regex("^\\d+(\\.\\d+)?$")
+private val WINDOW_INPUT_REGEX = Regex("^\\d+(\\.\\d+)?$")
 
-/** 以 M 为单位展示（1M = 1,000,000）：整数时省略小数部分 */
-private fun formatMillion(value: Long): String {
-    val m = value / 1_000_000.0
-    return if (m == m.toLong().toDouble()) m.toLong().toString() else m.toString()
+/** 以 K 为单位展示（1K = 1,000）：整数时省略小数部分 */
+private fun formatThousands(value: Long): String {
+    val k = value / 1_000.0
+    return if (k == k.toLong().toDouble()) k.toLong().toString() else k.toString()
 }
 
-/** 从 M 单位的输入解析为原始 token 数（×1e6），非法输入按 0 处理 */
-private fun parseMillion(text: String): Long {
+/** 从 K 单位的输入解析为原始 token 数（×1e3），非法输入按 0 处理 */
+private fun parseThousands(text: String): Long {
     val v = text.toDoubleOrNull() ?: 0.0
-    return (v * 1_000_000).toLong().coerceAtLeast(0L)
+    return (v * 1_000).toLong().coerceAtLeast(0L)
 }

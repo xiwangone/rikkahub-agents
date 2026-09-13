@@ -4,21 +4,28 @@ import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -26,21 +33,26 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.CoinsDollar
 import me.rerere.hugeicons.stroke.Copy01
+import me.rerere.hugeicons.stroke.DashboardSquare01
 import me.rerere.rikkahub.R
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.costguards.TokenBudgetTracker
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
+import org.koin.compose.koinInject
 import java.time.Duration
 
 /**
@@ -240,6 +252,100 @@ fun ChatMessageNerdLine(
                             clipboardManager.setText(AnnotatedString(sessionPendingCopy))
                         }
                     }
+                }
+            }
+            // 当前上下文占用：已用 / 窗口大小 / 剩余百分比；点击可设置窗口大小
+            val contextUsage = message.usage
+            if (settings.showTokenUsage && contextUsage != null && contextUsage.promptTokens > 0) {
+                val ctxTokens = contextUsage.promptTokens.toLong()
+                val windowTokens = LocalSettings.current.autoCompressTokenBase.takeIf { it > 0 }
+                val usedRatio = windowTokens?.let { ctxTokens.toDouble() / it.toDouble() }
+                val contextColor = when {
+                    usedRatio == null -> color
+                    usedRatio >= 0.8 -> MaterialTheme.colorScheme.error
+                    usedRatio >= 0.6 -> Color(0xFFE0A100)
+                    else -> color
+                }
+                var showWindowDialog by remember { mutableStateOf(false) }
+                var windowInput by remember(windowTokens) {
+                    mutableStateOf(windowTokens?.let { (it / 1000).toString() } ?: "")
+                }
+                val settingsStore = koinInject<SettingsStore>()
+                val coroutineScope = rememberCoroutineScope()
+                Box(
+                    modifier =
+                        Modifier
+                            .padding(top = 2.dp)
+                            .clickable { showWindowDialog = true }
+                            .padding(2.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    StatsItem(
+                        icon = {
+                            Icon(
+                                imageVector = HugeIcons.DashboardSquare01,
+                                contentDescription = stringResource(R.string.chat_context_window_title),
+                                tint = contextColor,
+                                modifier = Modifier.size(12.dp),
+                            )
+                        },
+                        content = {
+                            Text(
+                                text =
+                                    windowTokens?.let { win ->
+                                        stringResource(
+                                            R.string.chat_nerd_context_window,
+                                            ctxTokens.formatNumber(),
+                                            win.formatNumber(),
+                                            String.format(
+                                                java.util.Locale.US,
+                                                "%.0f%%",
+                                                ((1.0 - ctxTokens.toDouble() / win.toDouble()) * 100.0).coerceIn(0.0, 100.0),
+                                            ),
+                                        )
+                                    } ?: stringResource(R.string.chat_nerd_context_only, ctxTokens.formatNumber()),
+                                color = contextColor,
+                            )
+                        },
+                    )
+                }
+                if (showWindowDialog) {
+                    AlertDialog(
+                        onDismissRequest = { showWindowDialog = false },
+                        title = { Text(stringResource(R.string.chat_context_window_title)) },
+                        text = {
+                            Column {
+                                Text(stringResource(R.string.chat_context_window_hint))
+                                OutlinedTextField(
+                                    value = windowInput,
+                                    onValueChange = { input -> windowInput = input.filter { it.isDigit() } },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                    singleLine = true,
+                                    suffix = { Text("K") },
+                                )
+                            }
+                        },
+                        confirmButton = {
+                            TextButton(
+                                onClick = {
+                                    val k = windowInput.toLongOrNull() ?: 0L
+                                    val newBase = if (k > 0L) k * 1000L else 0L
+                                    showWindowDialog = false
+                                    coroutineScope.launch {
+                                        settingsStore.update { current -> current.copy(autoCompressTokenBase = newBase) }
+                                    }
+                                },
+                            ) {
+                                Text(stringResource(R.string.save))
+                            }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showWindowDialog = false }) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                        },
+                    )
                 }
             }
         }

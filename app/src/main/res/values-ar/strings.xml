@@ -1792,7 +1792,11 @@
   <string name="stats_total_input">إجمالي الإدخال</string>
   <string name="stats_copy_total">نسخ الإحصاء التراكمي</string>
   <string name="stats_copy">نسخ الإحصاء</string>
-  <string name="stats_format">↑%1$s إدخال · إصابة %2$s ↓%3$s إخراج</string>
+  <string name="stats_format">الإجمالي ↑%1$s إدخال · إصابة %2$s ↓%3$s إخراج</string>
+  <string name="chat_nerd_context_window">السياق %1$s / %2$s · يتبقى %3$s</string>
+  <string name="chat_nerd_context_only">السياق %1$s</string>
+  <string name="chat_context_window_title">حجم نافذة السياق</string>
+  <string name="chat_context_window_hint">بالآلاف من الرموز (مثال: 200 = 200K)</string>
   <string name="doctor_category_permissions">الأذونات</string>
   <string name="doctor_category_services">الخدمات الخلفية</string>
   <string name="doctor_category_assistant_info">المساعد الحالي</string>
@@ -2224,7 +2228,7 @@
   <string name="setting_model_page_auto_compress_mode_percent">وضع النسبة المئوية (الأساس × العتبة)</string>
   <string name="setting_model_page_auto_compress_mode_token">وضع استهلاك الرموز</string>
   <string name="setting_model_page_auto_compress_base">الأساس (M)</string>
-  <string name="setting_model_page_auto_compress_m_unit">الوحدة M: 1M = 1,000,000 رمز</string>
+  <string name="setting_model_page_auto_compress_m_unit">الوحدة K: 1K = 1,000 رمز</string>
   <string name="setting_model_page_auto_compress_threshold">عتبة التشغيل (نسبة السياق، 50-95)</string>
   <string name="setting_model_page_auto_compress_token_limit">استهلاك الرموز (M)</string>
   <string name="setting_model_page_auto_compress_token_limit_desc">يُضغط تلقائيًا عند تجاوز استهلاك الرموز التراكمي هذه القيمة (0 = معطّل)</string>

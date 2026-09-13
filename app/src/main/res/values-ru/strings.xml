@@ -2132,7 +2132,11 @@
   <string name="stats_total_input">Всего ввода</string>
   <string name="stats_copy_total">Копировать итоговую статистику</string>
   <string name="stats_copy">Копировать статистику</string>
-  <string name="stats_format">↑%1$s ввод · попадание %2$s ↓%3$s вывод</string>
+  <string name="stats_format">Всего ↑%1$s ввод · попадание %2$s ↓%3$s вывод</string>
+  <string name="chat_nerd_context_window">Контекст %1$s / %2$s · осталось %3$s</string>
+  <string name="chat_nerd_context_only">Контекст %1$s</string>
+  <string name="chat_context_window_title">Размер контекстного окна</string>
+  <string name="chat_context_window_hint">В тысячах токенов (напр. 200 = 200K)</string>
   <string name="doctor_category_permissions">Разрешения</string>
   <string name="doctor_category_services">Фоновые службы</string>
   <string name="doctor_category_assistant_info">Текущий ассистент</string>
@@ -2564,7 +2568,7 @@
   <string name="setting_model_page_auto_compress_mode_percent">Режим процентов (база × порог)</string>
   <string name="setting_model_page_auto_compress_mode_token">Режим расхода токенов</string>
   <string name="setting_model_page_auto_compress_base">База (M)</string>
-  <string name="setting_model_page_auto_compress_m_unit">Единица M: 1M = 1 000 000 токенов</string>
+  <string name="setting_model_page_auto_compress_m_unit">Единица K: 1K = 1 000 токенов</string>
   <string name="setting_model_page_auto_compress_threshold">Порог срабатывания (% контекста, 50–95)</string>
   <string name="setting_model_page_auto_compress_token_limit">Расход токенов (M)</string>
   <string name="setting_model_page_auto_compress_token_limit_desc">Автосжатие при превышении накопленного расхода токенов (0 = выкл.)</string>
