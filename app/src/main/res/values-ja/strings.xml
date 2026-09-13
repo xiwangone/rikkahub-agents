@@ -153,6 +153,10 @@
   <string name="assistant_page_top_p">Top P</string>
   <string name="assistant_page_top_p_value">Top P: %s</string>
   <string name="assistant_page_top_p_warning">何をしているのか理解している場合を除き、この値を変更しないでください</string>
+  <string name="assistant_page_frequency_penalty">繰り返し抑制</string>
+  <string name="assistant_page_frequency_penalty_warning">応答が言葉の繰り返しや堂々巡りを始めたら上げます。範囲 0-2、まず 0.3-0.6 をお試しください。1 を超えると言い回しが硬く不自然になります。既定はオフ。OpenAI 互換エンドポイント（DeepSeek など）のみ有効。Claude / Gemini は非対応。</string>
+  <string name="assistant_page_presence_penalty">話題の新規性</string>
+  <string name="assistant_page_presence_penalty_warning">応答が同じ内容を堂々巡りするときに上げ、新しい内容へ誘導します。範囲 0-2、まず 0.2-0.5 をお試しください。高すぎると話題が逸れます。既定はオフ。OpenAI 互換エンドポイント（DeepSeek など）のみ有効。Claude / Gemini は非対応。</string>
   <string name="assistant_page_use_assistant_avatar">アシスタントアバターを使用</string>
   <string name="assistant_page_use_assistant_avatar_desc">チャットでモデルアバターと名前ではなくアシスタントアバターと名前を使用</string>
   <string name="audio">音声</string>

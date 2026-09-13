@@ -231,6 +231,10 @@
   <string name="assistant_page_top_p">Top P</string>
   <string name="assistant_page_top_p_value">Top P: %s</string>
   <string name="assistant_page_top_p_warning">من فضلك لا تعدّل هذه القيمة إلا إذا كنت تعرف ما تفعله</string>
+  <string name="assistant_page_frequency_penalty">تقليل التكرار</string>
+  <string name="assistant_page_frequency_penalty_warning">ارفع القيمة عندما تبدأ الردود بتكرار العبارات أو تدور في حلقة. النطاق 0-2، جرّب 0.3-0.6 أولاً؛ وما فوق 1 قد يجعل الصياغة جافة وغير طبيعية. معطّل افتراضياً. يعمل فقط مع نقاط متوافقة مع OpenAI (مثل DeepSeek). لا يدعمه Claude / Gemini.</string>
+  <string name="assistant_page_presence_penalty">تجديد الموضوع</string>
+  <string name="assistant_page_presence_penalty_warning">ارفع القيمة عندما تدور الردود حول النقطة نفسها لتوجيه النموذج إلى محتوى جديد. النطاق 0-2، جرّب 0.2-0.5 أولاً؛ والقيمة العالية جداً قد تخرج عن الموضوع. معطّل افتراضياً. يعمل فقط مع نقاط متوافقة مع OpenAI (مثل DeepSeek). لا يدعمه Claude / Gemini.</string>
   <string name="assistant_page_use_assistant_avatar">استخدام صورة المساعد</string>
   <string name="assistant_page_use_assistant_avatar_desc">استخدام صورة واسم المساعد بدلًا من صورة واسم النموذج في الدردشات</string>
   <string name="audio">صوت</string>
