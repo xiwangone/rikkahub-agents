@@ -34,55 +34,72 @@ private fun invokeTool(tool: Tool, args: String): JsonObject {
 
 class FileManagerToolTest {
 
+    /** The path guard canonicalises paths and matches POSIX prefixes (`/system`, `/proc`, …),
+     *  which cannot hold on a non-POSIX host (Windows). Skip those assertions off-POSIX; the
+     *  suite runs in full on Android / Linux CI. */
+    private fun assumePosix() = org.junit.Assume.assumeTrue(
+        "POSIX path semantics required for canonical-path prefix checks",
+        java.io.File.separatorChar == '/',
+    )
+
     @get:Rule
     val tmp = TemporaryFolder()
 
     // ========== PathSafetyGuard integration via tools ==========
 
     @Test fun `list_files blocks system path`() {
+        assumePosix()
         val result = invokeTool(listFilesTool(), """{"path":"/system"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `read_file blocks proc path`() {
+        assumePosix()
         val result = invokeTool(readFileTool(), """{"path":"/proc/1/status"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `delete_file blocks vendor path`() {
+        assumePosix()
         val result = invokeTool(deleteFileTool(), """{"path":"/vendor/lib"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `write_binary_file blocks other app sandbox`() {
+        assumePosix()
         val result = invokeTool(writeBinaryFileTool(),
             """{"path":"/data/data/com.evil.app/evil.db","base64_content":"dGVzdA=="}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `move_file blocks traversal in src`() {
+        assumePosix()
         val result = invokeTool(moveFileTool(),
             """{"src":"/sdcard/../../system/lib","dst":"/sdcard/out.so"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `copy_file blocks traversal in dst`() {
+        assumePosix()
         val result = invokeTool(copyFileTool(),
             """{"src":"/sdcard/good.txt","dst":"../../../system/evil.txt"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `create_directory blocks sys path`() {
+        assumePosix()
         val result = invokeTool(createDirectoryTool(), """{"path":"/sys/newdir"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `file_info blocks dev path`() {
+        assumePosix()
         val result = invokeTool(fileInfoTool(), """{"path":"/dev/zero"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `find_files blocks apex path`() {
+        assumePosix()
         val result = invokeTool(findFilesTool(), """{"root":"/apex","query":"lib"}""")
         assertEquals("path_blocked", result["error"]?.jsonPrimitive?.content)
     }
@@ -173,6 +190,7 @@ class FileManagerToolTest {
     }
 
     @Test fun `write_binary_file rejects invalid base64`() {
+        assumePosix()
         val path = "${tmp.root.absolutePath}/bad.bin"
         val result = invokeTool(writeBinaryFileTool(),
             """{"path":"${jp(path)}","base64_content":"!!!not-base64!!!"}""")

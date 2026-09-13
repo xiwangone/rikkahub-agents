@@ -23,6 +23,14 @@ private fun jp(path: String): String = path.replace("\\", "\\\\")
 
 class FileBatchToolsTest {
 
+    /** The path guard canonicalises paths and matches POSIX prefixes (`/system`, `/proc`, …),
+     *  which cannot hold on a non-POSIX host (Windows). Skip those assertions off-POSIX; the
+     *  suite runs in full on Android / Linux CI. */
+    private fun assumePosix() = org.junit.Assume.assumeTrue(
+        "POSIX path semantics required for canonical-path prefix checks",
+        java.io.File.separatorChar == '/',
+    )
+
     @get:Rule
     val tmp = TemporaryFolder()
 
@@ -81,6 +89,7 @@ class FileBatchToolsTest {
     }
 
     @Test fun `batch_copy blocks a system path inside the batch`() {
+        assumePosix()
         val a = tmp.newFile("ok.txt").apply { writeText("O") }
         val dst = tmp.newFolder("out3")
         val res = invoke(
@@ -92,6 +101,7 @@ class FileBatchToolsTest {
     }
 
     @Test fun `batch_copy rejects a system dst_dir`() {
+        assumePosix()
         val res = invoke(batchCopyTool(), """{"paths":["/x"],"dst_dir":"/system/out"}""")
         assertEquals("bad_request", res["error"]?.jsonPrimitive?.content)
     }
@@ -181,6 +191,7 @@ class FileBatchToolsTest {
     }
 
     @Test fun `batch_delete blocks a system path`() {
+        assumePosix()
         val res = invoke(batchDeleteTool(), """{"paths":["/system/x","/proc/1"]}""")
         assertEquals(0, res.success())
         assertEquals(2, res.failedPaths()!!.size)
