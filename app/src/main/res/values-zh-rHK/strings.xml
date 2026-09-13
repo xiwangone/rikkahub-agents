@@ -149,6 +149,10 @@
   <string name="assistant_page_top_p">Top P</string>
   <string name="assistant_page_top_p_value">Top P: %s</string>
   <string name="assistant_page_top_p_warning">請不要修改此值, 除非你知道自己在做什麼</string>
+  <string name="assistant_page_frequency_penalty">重複抑制強度</string>
+  <string name="assistant_page_frequency_penalty_warning">回覆開始複讀或繞圈時調高，用來抑制重複用詞。範圍 0-2，建議先試 0.3-0.6；超過 1 會讓措辭變得生硬、不自然。預設關閉。僅對 OpenAI 相容介面生效（如 DeepSeek），Claude / Gemini 不支援。</string>
+  <string name="assistant_page_presence_penalty">話題推進傾向</string>
+  <string name="assistant_page_presence_penalty_warning">回覆反覆繞圈時調高，促使模型轉向新內容。範圍 0-2，建議先試 0.2-0.5；過高容易離題。預設關閉。僅對 OpenAI 相容介面生效（如 DeepSeek），Claude / Gemini 不支援。</string>
   <string name="assistant_page_use_assistant_avatar">使用助手頭像</string>
   <string name="assistant_page_use_assistant_avatar_desc">在聊天中使用助手頭像和名字而不是模型頭像和名字</string>
   <string name="audio">音訊</string>

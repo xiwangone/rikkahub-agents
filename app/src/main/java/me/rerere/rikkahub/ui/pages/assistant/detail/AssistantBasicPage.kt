@@ -378,6 +378,108 @@ internal fun AssistantBasicContent(
             FormItem(
                 modifier = Modifier.padding(8.dp),
                 label = {
+                    Text(stringResource(R.string.assistant_page_frequency_penalty))
+                },
+                description = {
+                    Text(
+                        text = stringResource(R.string.assistant_page_frequency_penalty_warning),
+                    )
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.frequencyPenalty != null,
+                        onCheckedChange = { enabled ->
+                            onUpdate(
+                                assistant.copy(
+                                    frequencyPenalty = if (enabled) 0.5f else null,
+                                ),
+                            )
+                        },
+                    )
+                },
+            ) {
+                assistant.frequencyPenalty?.let { frequencyPenalty ->
+                    var frequencyPenaltyInput by remember(assistant.id) {
+                        mutableStateOf(frequencyPenalty.toString())
+                    }
+                    val frequencyPenaltyValue = frequencyPenaltyInput.toFloatOrNull()
+                    OutlinedTextField(
+                        value = frequencyPenaltyInput,
+                        onValueChange = { value ->
+                            frequencyPenaltyInput = value
+                            value.toFloatOrNull()?.takeIf { it in 0f..2f }?.let { next ->
+                                onUpdate(
+                                    assistant.copy(
+                                        frequencyPenalty = next,
+                                    ),
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        isError = frequencyPenaltyValue == null || frequencyPenaltyValue !in 0f..2f,
+                        supportingText = {
+                            Text("0 - 2")
+                        },
+                    )
+                }
+            }
+            HorizontalDivider()
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text(stringResource(R.string.assistant_page_presence_penalty))
+                },
+                description = {
+                    Text(
+                        text = stringResource(R.string.assistant_page_presence_penalty_warning),
+                    )
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.presencePenalty != null,
+                        onCheckedChange = { enabled ->
+                            onUpdate(
+                                assistant.copy(
+                                    presencePenalty = if (enabled) 0.3f else null,
+                                ),
+                            )
+                        },
+                    )
+                },
+            ) {
+                assistant.presencePenalty?.let { presencePenalty ->
+                    var presencePenaltyInput by remember(assistant.id) {
+                        mutableStateOf(presencePenalty.toString())
+                    }
+                    val presencePenaltyValue = presencePenaltyInput.toFloatOrNull()
+                    OutlinedTextField(
+                        value = presencePenaltyInput,
+                        onValueChange = { value ->
+                            presencePenaltyInput = value
+                            value.toFloatOrNull()?.takeIf { it in 0f..2f }?.let { next ->
+                                onUpdate(
+                                    assistant.copy(
+                                        presencePenalty = next,
+                                    ),
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                        singleLine = true,
+                        isError = presencePenaltyValue == null || presencePenaltyValue !in 0f..2f,
+                        supportingText = {
+                            Text("0 - 2")
+                        },
+                    )
+                }
+            }
+            HorizontalDivider()
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
                     Text(stringResource(R.string.assistant_page_context_message_limit))
                 },
                 description = {

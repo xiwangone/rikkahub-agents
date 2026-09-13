@@ -153,6 +153,10 @@
   <string name="assistant_page_top_p">Top P</string>
   <string name="assistant_page_top_p_value">Top P: %s</string>
   <string name="assistant_page_top_p_warning">Пожалуйста, не изменяйте это значение, если не уверены в своих действиях</string>
+  <string name="assistant_page_frequency_penalty">Подавление повторов</string>
+  <string name="assistant_page_frequency_penalty_warning">Повышайте, если ответы начинают повторять слова или зацикливаться. Диапазон 0-2, начните с 0.3-0.6; выше 1 формулировки становятся сухими и неестественными. По умолчанию выключено. Работает только для OpenAI-совместимых эндпоинтов (например DeepSeek). Claude / Gemini не поддерживают.</string>
+  <string name="assistant_page_presence_penalty">Новизна темы</string>
+  <string name="assistant_page_presence_penalty_warning">Повышайте, если ответы ходят по кругу — модель будет переходить к новому содержанию. Диапазон 0-2, начните с 0.2-0.5; слишком высоко уводит от темы. По умолчанию выключено. Работает только для OpenAI-совместимых эндпоинтов (например DeepSeek). Claude / Gemini не поддерживают.</string>
   <string name="assistant_page_use_assistant_avatar">Использовать аватар ассистента</string>
   <string name="assistant_page_use_assistant_avatar_desc">Использовать аватар и имя ассистента вместо аватара и имени модели в чатах</string>
   <string name="audio">Аудио</string>

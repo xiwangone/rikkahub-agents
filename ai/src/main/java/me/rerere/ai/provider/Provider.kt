@@ -66,6 +66,18 @@ data class TextGenerationParams(
     val model: Model,
     val temperature: Float? = null,
     val topP: Float? = null,
+    /**
+     * Penalty applied to tokens by their frequency in the text so far. Higher values
+     * discourage repeating the same wording. Null = not sent. Only providers whose
+     * request format supports it read this.
+     */
+    val frequencyPenalty: Float? = null,
+    /**
+     * Penalty applied to tokens already present in the text so far. Higher values push the
+     * model toward introducing new content. Null = not sent. Only providers whose request
+     * format supports it read this.
+     */
+    val presencePenalty: Float? = null,
     val maxTokens: Int? = null,
     /**
      * Number of additional attempts permitted when a streaming response fails before any

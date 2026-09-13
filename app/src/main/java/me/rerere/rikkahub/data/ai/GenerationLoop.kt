@@ -1284,6 +1284,8 @@ class GenerationLoop(
             model = model,
             temperature = assistant.temperature,
             topP = assistant.topP,
+            frequencyPenalty = assistant.frequencyPenalty,
+            presencePenalty = assistant.presencePenalty,
             maxTokens = assistant.maxTokens,
             maxStreamRetries = if (settings.enableAutoRetry) settings.responseStreamMaxRetries else 0,
             tools = tools,

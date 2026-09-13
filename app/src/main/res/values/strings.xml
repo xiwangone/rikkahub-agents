@@ -192,6 +192,10 @@
   <string name="assistant_page_top_p">Top P</string>
   <string name="assistant_page_top_p_value">Top P: %s</string>
   <string name="assistant_page_top_p_warning">Please don\'t modify this value unless you know what you\'re doing</string>
+  <string name="assistant_page_frequency_penalty">Repetition Suppression</string>
+  <string name="assistant_page_frequency_penalty_warning">Raise this when replies start repeating words or looping. Range 0-2; try 0.3-0.6 first. Above 1 the wording can turn stiff and unnatural. Off by default. Only applies to OpenAI-compatible endpoints (e.g. DeepSeek); Claude/Gemini do not support it.</string>
+  <string name="assistant_page_presence_penalty">Topic Freshness</string>
+  <string name="assistant_page_presence_penalty_warning">Raise this when replies keep circling the same point, to push the model toward new content. Range 0-2; try 0.2-0.5 first. Too high drifts off-topic. Off by default. Only applies to OpenAI-compatible endpoints (e.g. DeepSeek); Claude/Gemini do not support it.</string>
   <string name="assistant_page_use_assistant_avatar">Use Assistant Avatar</string>
   <string name="assistant_page_use_assistant_avatar_desc">Use assistant avatar and name instead of model avatar and name in chats</string>
   <string name="audio">Audio</string>

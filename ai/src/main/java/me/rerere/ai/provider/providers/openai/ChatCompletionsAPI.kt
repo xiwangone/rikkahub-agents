@@ -269,6 +269,8 @@ class ChatCompletionsAPI(
                 if (params.temperature != null) put("temperature", params.temperature)
                 if (params.topP != null) put("top_p", params.topP)
             }
+            if (params.frequencyPenalty != null) put("frequency_penalty", params.frequencyPenalty)
+            if (params.presencePenalty != null) put("presence_penalty", params.presencePenalty)
             if (params.maxTokens != null) put("max_tokens", params.maxTokens)
 
             put("stream", stream)
