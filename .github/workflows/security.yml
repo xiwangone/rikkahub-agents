@@ -1,0 +1,64 @@
+name: 安全扫描（密钥 / 依赖漏洞 / 依赖变更审查）
+
+# 合并自 secret-scan.yml + dependency-scan.yml + dependency-review.yml：
+# - gitleaks：push / PR 全量扫描密钥泄漏
+# - osv-scanner：push / PR / 每周定时扫描依赖漏洞（4 个锁文件）
+# - dependency-review：仅 PR，审查依赖变更（fail-on-severity: high）
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  schedule:
+    - cron: '0 20 * * 0'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  gitleaks:
+    name: gitleaks（密钥扫描）
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (full history for range scan)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Run gitleaks
+        uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # 仅作为检查门禁；不在 PR 里发评论，避免噪声
+          GITLEAKS_ENABLE_COMMENTS: false
+
+  osv-scan:
+    name: osv-scanner（依赖漏洞）
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: 获取 osv-scanner
+        run: |
+          curl -sSL -o osv-scanner https://github.com/google/osv-scanner/releases/latest/download/osv-scanner_linux_amd64
+          chmod +x osv-scanner
+
+      - name: 扫描依赖漏洞
+        run: ./osv-scanner scan -r . --format table
+
+  dependency-review:
+    name: dependency-review（依赖变更审查）
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Review dependency changes
+        uses: actions/dependency-review-action@v4
+        with:
+          fail-on-severity: high
+          comment-summary-in-pr: on-failure
