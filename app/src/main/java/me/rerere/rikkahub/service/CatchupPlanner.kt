@@ -15,6 +15,13 @@ import java.time.ZoneId
  */
 object CatchupPlanner {
     private const val FIRE_ALL_CAP = 20
+
+    /**
+     * Upper bound on the reported skipped-catchup rows. A device that was off for weeks
+     * must not queue thousands of history inserts (one per missed window) in the boot
+     * receiver, regardless of how long the outage was.
+     */
+    private const val SKIPPED_CAP = 100
     private const val FIRE_ALL_STAGGER_MS = 2_000L
 
     data class CatchupPlan(
@@ -73,14 +80,14 @@ object CatchupPlanner {
 
         return when (job.catchup) {
             "skip" -> {
-                CatchupPlan(emptyList(), missedCount)
+                CatchupPlan(emptyList(), missedCount.coerceAtMost(SKIPPED_CAP))
             }
 
             "fire_once" -> {
                 if (missedCount == 0) {
                     CatchupPlan(emptyList(), 0)
                 } else {
-                    CatchupPlan(listOf(0L), missedCount - 1)
+                    CatchupPlan(listOf(0L), (missedCount - 1).coerceAtMost(SKIPPED_CAP))
                 }
             }
 
