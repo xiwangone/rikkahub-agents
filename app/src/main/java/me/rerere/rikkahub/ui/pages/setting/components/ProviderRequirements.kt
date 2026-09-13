@@ -45,6 +45,15 @@ data class ProviderRequirement(
                     )
                 }
 
+                is ProviderSetting.LlamaCppLocal -> {
+                    listOf(
+                        ProviderRequirement(
+                            label = "On-device · CPU only",
+                            severity = TagType.INFO,
+                        ),
+                    )
+                }
+
                 else -> {
                     emptyList()
                 }

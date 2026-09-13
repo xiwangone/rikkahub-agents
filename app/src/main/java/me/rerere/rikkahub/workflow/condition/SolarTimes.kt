@@ -55,14 +55,23 @@ object SolarTimes {
         lng: Double,
         offsetMinutes: Int,
     ): Boolean {
-        val sunset = sunsetAt(now.toLocalDate(), lat, lng, now.zone) ?: return true // polar day → "always after sunset"
+        val date = now.toLocalDate()
+        val sunset = sunsetAt(date, lat, lng, now.zone) ?: return true // polar day → "always after sunset"
         val cutoff =
-            now
-                .toLocalDate()
+            date
                 .atTime(sunset)
                 .plusMinutes(offsetMinutes.toLong())
                 .atZone(now.zone)
-        return !now.isBefore(cutoff)
+        if (!now.isBefore(cutoff)) return true
+        // Before today's sunset, the previous evening's sunset may still be the applicable one:
+        // in the post-midnight hours (00:00 until sunrise) the night has not ended yet.
+        val sunrise = sunriseAt(date, lat, lng, now.zone) ?: return false
+        val sunriseInstant =
+            date
+                .atTime(sunrise)
+                .plusMinutes(offsetMinutes.toLong())
+                .atZone(now.zone)
+        return now.isBefore(sunriseInstant)
     }
 
     /** True if [now] is before sunrise (with [offsetMinutes] applied) for [date]. */

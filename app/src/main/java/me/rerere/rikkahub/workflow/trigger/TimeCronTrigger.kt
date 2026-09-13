@@ -196,7 +196,10 @@ internal class TimeCronTriggerFamily(
                 val n = every.groupValues[1].toLong()
                 val unit = every.groupValues[2]
                 return when (unit) {
-                    "s" -> n * 1000
+                    // Sub-minute intervals are not expressible in this cron dialect: report
+                    // "not a periodic form" so validation rejects them, instead of flooring
+                    // them to 60s and silently changing the schedule the user asked for.
+                    "s" -> if (n >= 60) n * 1000 else null
                     "m" -> n * 60 * 1000
                     "h" -> n * 60 * 60 * 1000
                     "d" -> n * 24 * 60 * 60 * 1000

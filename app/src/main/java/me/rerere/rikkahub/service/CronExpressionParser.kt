@@ -128,13 +128,15 @@ object CronExpressionParser {
             }
 
             'm' -> {
-                val minutes = value.coerceAtMost(59)
-                "*/$minutes * * * *"
+                // 1..59 only — an out-of-range interval must be a parse failure, never a
+                // silently clamped schedule the user never asked for.
+                if (value > 59) return null
+                "*/$value * * * *"
             }
 
             'h' -> {
-                val hours = value.coerceAtMost(23)
-                "0 */$hours * * *"
+                if (value > 23) return null
+                "0 */$value * * *"
             }
 
             else -> {
