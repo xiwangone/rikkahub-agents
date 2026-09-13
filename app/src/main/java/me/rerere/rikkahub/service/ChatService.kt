@@ -2361,6 +2361,10 @@ class ChatService(
             val updatedConversation = currentConversation.copy(messageNodes = updatedNodes)
             saveConversation(conversationId, updatedConversation)
         }
+
+        // 停止生成后立刻给队列一次机会：用户「打断 → 继续发送排队的消息」不必再等下一次交互。
+        // 放在锁外：dispatch 内部重新读取会话与待审批状态，此刻 Pending 工具已全部收尾。
+        appScope.launch { dispatchNextQueuedMessage(conversationId) }
     }
 
     /** 通知后端服务取消当前生成（仅 serve 直连模式）。 */
