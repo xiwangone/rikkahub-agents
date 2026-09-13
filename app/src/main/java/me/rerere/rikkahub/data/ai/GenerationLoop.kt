@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.retryWhen
+import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.rikkahub.service.AgentOverlay
 import me.rerere.rikkahub.service.RikkaAccessibilityService
@@ -398,6 +399,13 @@ private const val MAX_LOOP_GUARD_TRIPS_PER_TURN = 6
  * screenshot in context. Anything older has been superseded.
  */
 private const val IMAGE_KEEP_LAST_N_TOOL_RESULTS = 2
+
+/**
+ * Hard ceiling on a single streamed generation step. Guards the "model thinks for 2000+ seconds"
+ * failure mode, which no chunk-level check can catch (the stream stays alive and looks productive
+ * the whole time). Deliberately generous so ordinary long generations are never cut short.
+ */
+private const val MAX_STREAM_DURATION_MS = 15 * 60 * 1000L
 
 /**
  * Some read-only tools measure a real-time signal where re-calling after a TTL is
@@ -1315,6 +1323,8 @@ class GenerationLoop(
             var receivedMeaningfulOutput = false
             var receivedAnyChunk = false
             val streamChunkHandler = StreamChunkHandler(model)
+            val repetitionDetector = OutputRepetitionDetector()
+            val streamStartedAtMs = System.currentTimeMillis()
             providerImpl.streamText(
                 providerSetting = provider,
                 messages = internalMessages,
@@ -1364,6 +1374,29 @@ class GenerationLoop(
                     delay(delayMs)
                 }
                 shouldRetry
+            }.takeWhile { chunk ->
+                // Wall-clock ceiling: a stream that never ends (endless "thinking") can only be
+                // caught here — repetition detection is blind to it, because the stream keeps
+                // producing fresh-looking text the whole time.
+                if (System.currentTimeMillis() - streamStartedAtMs > MAX_STREAM_DURATION_MS) {
+                    AppLog.w(TAG, "streamText: stream exceeded max duration; ending this turn's stream early")
+                    return@takeWhile false
+                }
+                // Generation-side guard: stop early once the model starts repeating itself.
+                // Ending the flow normally (instead of throwing) keeps this out of the retry
+                // policy — a repetition loop is not a transport failure and must not be replayed.
+                val deltaText =
+                    when (chunk) {
+                        is StreamChunk.TextDelta -> chunk.text
+                        is StreamChunk.ReasoningDelta -> chunk.text
+                        else -> null
+                    }
+                if (deltaText != null && repetitionDetector.feed(deltaText)) {
+                    AppLog.w(TAG, "streamText: runaway repetition detected; ending this turn's stream early")
+                    false
+                } else {
+                    true
+                }
             }.collect {
                 receivedAnyChunk = true
                 if (isMeaningfulStreamChunk(it)) {
