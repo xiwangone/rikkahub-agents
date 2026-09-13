@@ -18,7 +18,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 /**
  * Backend REST API — 对应 serve 端点的 HTTP 客户端。
- * 移植自 DeepSeek-Backend-android `BackendApi.kt`（Gson → kotlinx.serialization），
+ * 使用 kotlinx.serialization 编解码。
  * 增加 Basic Auth / Bearer 认证支持（nginx Basic Auth 前置）。
  */
 class BackendApi(

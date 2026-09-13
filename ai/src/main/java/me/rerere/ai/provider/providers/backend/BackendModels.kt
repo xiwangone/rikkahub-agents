@@ -4,8 +4,7 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 
 /**
- * Backend serve HTTP/SSE 数据模型。
- * 移植自 DeepSeek-Backend-android `Models.kt`（Gson → kotlinx.serialization）。
+ * Backend serve HTTP/SSE 数据模型（kotlinx.serialization）。
  * 对应服务端 `internal/eventwire` 的 JSON 契约。
  */
 

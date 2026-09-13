@@ -42,7 +42,7 @@ import kotlin.uuid.Uuid
  * 全部继承），每次对话开始 POST /new，streamText 只发增量（最后一条用户消息）→ POST /submit，
  * 然后监听 GET /events SSE 事件流并映射为 [StreamChunk]。
  *
- * SSE 事件映射（跟随上游 ai 模块重构后的事件模型）：
+ * SSE 事件映射（对齐 ai 模块的事件模型）：
  * - text        → TextStart/TextDelta/TextEnd
  * - reasoning   → ReasoningStart/ReasoningDelta/ReasoningEnd
  * - tool_dispatch/tool_result → ServerToolStart/ServerToolEnd（服务端执行工具）
