@@ -1,4 +1,4 @@
-name: 同步镜像到 Gitee
+name: 同步镜像（Gitee / GitCode）
 
 on:
   push:
@@ -23,3 +23,11 @@ jobs:
           git remote add gitee "https://oauth2:${GITEE_TOKEN}@gitee.com/choosesheng/rikkahub-agents.git"
           git push gitee HEAD:master --force
           git remote remove gitee
+
+      - name: 推送 GitCode 镜像
+        env:
+          GITCODE_TOKEN: ${{ secrets.GITCODE_TOKEN }}
+        run: |
+          git remote add gitcode "https://oauth2:${GITCODE_TOKEN}@gitcode.com/xiwanhao/rikkahub-agents.git"
+          git push gitcode HEAD:master --force
+          git remote remove gitcode
