@@ -33,4 +33,4 @@ auto_load: false
 
 ## 来源
 
-移植自 [google-ai-edge/gallery](https://github.com/google-ai-edge/gallery)，Apache-2.0 许可。原始版权归 Google LLC 所有。
+基于 [google-ai-edge/gallery] 改写(https://github.com/google-ai-edge/gallery)，Apache-2.0 许可。原始版权归 Google LLC 所有。

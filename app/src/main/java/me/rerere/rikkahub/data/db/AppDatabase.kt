@@ -92,15 +92,15 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         AutoMigration(from = 20, to = 21, spec = Migration_20_21::class),
         AutoMigration(from = 21, to = 22, spec = Migration_21_22::class),
         AutoMigration(from = 22, to = 23, spec = Migration_22_23::class),
-        // v25: upstream 2.2.6 added conversation-level custom_system_prompt / mode_injection_ids
+        // v25: 2.2.6 added conversation-level custom_system_prompt / mode_injection_ids
         // / lorebook_ids columns (all carry defaultValue, so a plain auto-migration suffices).
         AutoMigration(from = 24, to = 25),
-        // v26: the 2.3.1 merge brings upstream's workspaces table (WorkspaceEntity). Existing
-        // fork users never had it, so Room auto-creates the table on this step.
+        // v26: the 2.3.1 merge brings the workspaces table (WorkspaceEntity). Existing
+        // existing users never had it, so Room auto-creates the table on this step.
         AutoMigration(from = 25, to = 26),
-        // v27: upstream 2.4.x added conversation folders (FolderEntity -> conversation_folder
+        // v27: 2.4.x added conversation folders (FolderEntity -> conversation_folder
         // table) plus a folder_id column on ConversationEntity (defaultValue ""). Both are pure
-        // additions; upstream numbered it as their v24, folded into the fork's version space here.
+        // additions; numbered v24 externally, folded into this app's version space here.
         AutoMigration(from = 26, to = 27),
         // v28+v29+v30: 密钥库凭证表（VaultCredentialEntity -> vault_credentials）、
         // 密钥使用审计表（VaultAuditLogEntity -> vault_audit_log）与压缩历史归档

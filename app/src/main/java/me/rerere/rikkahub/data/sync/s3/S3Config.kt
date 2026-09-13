@@ -68,7 +68,7 @@ data class S3Config(
         SETTINGS,
         /** 头像图片（files/avatars/，与聊天图分离，体积小） */
         AVATARS,
-        /** 工作区文档与状态（workspace/ 下真源/记忆/learnings/skills-lock 等，排除 tmp/.git/大件） */
+        /** 工作区文档与状态目录（排除 tmp/.git/大件） */
         WORKSPACE_DOCS,
         /** 已装技能（files/skills/，递归） */
         SKILLS,

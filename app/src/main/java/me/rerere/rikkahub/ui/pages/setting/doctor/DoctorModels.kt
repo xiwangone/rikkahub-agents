@@ -8,7 +8,7 @@ import androidx.annotation.StringRes
  * by [category]. Severity decides the colour chip; [fix], when present, surfaces a tap
  * target on the row.
  *
- * Pattern is a fusion of two upstream "doctors" we audited:
+ * Pattern is a fusion of two existing "doctor" designs:
  *   - hermes-agent's `hermes doctor` (NousResearch): linear category-by-category print
  *     with "ok / warn / fail / info" markers, plus a `--fix` flag for auto-repairable items.
  *   - openclaw/openclaw's `doctor`: per-mutation repair pipeline where each check returns

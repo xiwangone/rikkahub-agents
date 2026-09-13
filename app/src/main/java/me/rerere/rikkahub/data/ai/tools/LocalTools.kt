@@ -228,11 +228,11 @@ sealed class LocalToolOption {
 
 /**
  * Deserializes a [LocalToolOption] list leniently: any entry whose "type" this build no longer
- * defines (for example an upstream-only tool such as `screen_time` that the fork removed) is
+ * defines (for example a tool from another build such as `screen_time` that this app removed) is
  * dropped instead of aborting the whole decode. Without this, restoring a backup exported from
  * a build with a different tool set fails the entire settings restore with
  * "Serializer for subclass '<type>' is not found in the polymorphic scope of 'LocalToolOption'"
- * (see the upstream-2.4.x restore path). Encoding is unchanged and known tools decode exactly
+ * (see the legacy-backup restore path). Encoding is unchanged and known tools decode exactly
  * as before, so this only ever discards options this build could not represent anyway.
  */
 object LenientLocalToolListSerializer : KSerializer<List<LocalToolOption>> {

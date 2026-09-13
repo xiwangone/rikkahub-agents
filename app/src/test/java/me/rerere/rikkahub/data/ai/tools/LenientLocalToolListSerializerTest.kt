@@ -6,8 +6,8 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Regression test for the upstream-backup restore path: an assistant config exported by a build
- * with a different tool set (e.g. upstream RikkaHub, which has `screen_time`) must not abort the
+ * Regression test for the legacy-backup restore path: an assistant config exported by a build
+ * with a different tool set (e.g. a build with other tools, which has `screen_time`) must not abort the
  * whole settings restore. [LenientLocalToolListSerializer] drops tool types this build does not
  * define while keeping the known ones, and leaves encoding untouched.
  */
@@ -16,7 +16,7 @@ class LenientLocalToolListSerializerTest {
 
     @Test
     fun decode_dropsUnknownToolTypes_keepsKnownOnesInOrder() {
-        // `screen_time` is an upstream-only tool the fork removed; the rest are fork tools.
+        // `screen_time` is a tool from another build that this app removed; the rest are fork tools.
         val decoded = json.decodeFromString(
             LenientLocalToolListSerializer,
             """[{"type":"time_info"},{"type":"tts"},{"type":"screen_time"},{"type":"ask_user"}]""",

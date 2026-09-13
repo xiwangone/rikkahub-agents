@@ -292,7 +292,7 @@ class TelegramBotClient(
         //     returns null instead of throwing.
         //   * "message_too_long" / "MESSAGE_TOO_LONG" — chunk overflow; caller falls
         //     back to deleting + re-sending as multiple shorter messages.
-        // Anything else (403 bot was blocked / kicked, 401 token revoked, 5xx upstream)
+        // Anything else (403 bot was blocked / kicked, 401 token revoked, 5xx from server)
         // is genuinely fatal: re-throw so the streaming pipeline tears down cleanly
         // instead of silently looping on every chunk.
         val desc = e.description.lowercase()

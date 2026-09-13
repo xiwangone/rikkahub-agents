@@ -1046,7 +1046,7 @@ class GenerationLoop(
                                         })))
                                     }
                             }
-                            // Upstream tool-output truncation: when the workspace shell is
+                            // Tool-output truncation: when the workspace shell is
                             // available, oversized text output is spilled to /tool_outputs/
                             // and replaced with a preview + read/grep instructions so the
                             // model can pull the full payload on demand instead of burning
@@ -1231,7 +1231,7 @@ class GenerationLoop(
         workspaceCwd: String? = null,
     ) {
         val internalMessages = buildList {
-            // Conversation-level system prompt override (upstream): when the assistant
+            // Conversation-level system prompt override: when the assistant
             // allows it and the conversation supplies one, it replaces the assistant prompt.
             val effectiveSystemPrompt =
                 if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
@@ -1263,8 +1263,8 @@ class GenerationLoop(
             if (systemParts.isNotEmpty()) {
                 add(UIMessage(role = MessageRole.SYSTEM, parts = systemParts))
             }
-            // Keeps the fork's multi-part system assembly and tool-image ageing, on top of
-            // upstream's renamed field and its stepped truncation (which now preserves
+            // Keeps this app's multi-part system assembly and tool-image ageing, on top of
+            // the renamed field and its stepped truncation (which now preserves
             // prompt caching instead of trimming one message at a time).
             addAll(messages.limitContext(assistant.contextMessageLimit).ageOldToolImages())
         }.transforms(
@@ -1297,9 +1297,9 @@ class GenerationLoop(
                 addAll(model.customBodies)
             },
             // Conversation-scoped sticky-routing key (OpenRouter `session_id`): keeps
-            // every turn of one conversation pinned to the same upstream so its prompt
-            // cache stays warm. Null when there is no conversation (utility generations).
-            sessionId = conversationId?.toString(),
+            // every turn of one conversation pinned to the same provider so its prompt
+            // cache stays warm. Utility generations (no conversation) get a random id.
+            sessionId = (conversationId ?: Uuid.random()).toString(),
         )
         if (stream) {
             aiLoggingManager.addLog(

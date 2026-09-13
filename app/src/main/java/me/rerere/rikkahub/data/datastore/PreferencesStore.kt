@@ -113,7 +113,7 @@ class SettingsStore(
         // 版本号
         val VERSION = intPreferencesKey("data_version")
 
-        // 自动压缩与响应重试（合并自 ExTV；V4 迁移引用）
+        // 自动压缩与响应重试（与既有配置合并；V4 迁移引用）
         val ENABLE_AUTO_COMPACTION = booleanPreferencesKey("enable_auto_compaction")
         val AUTO_COMPACTION_THRESHOLD_MODE = stringPreferencesKey("auto_compaction_threshold_mode")
         val AUTO_COMPACTION_THRESHOLD_PERCENT = intPreferencesKey("auto_compaction_threshold_percent")
@@ -1088,7 +1088,7 @@ data class WebDavConfig(
         SETTINGS,
         /** 头像图片（files/avatars/，与聊天图分离，体积小） */
         AVATARS,
-        /** 工作区文档与状态（workspace/ 下真源/记忆/learnings/skills-lock 等，排除 tmp/.git/大件） */
+        /** 工作区文档与状态目录（排除 tmp/.git/大件） */
         WORKSPACE_DOCS,
         /** 已装技能（files/skills/，递归） */
         SKILLS,

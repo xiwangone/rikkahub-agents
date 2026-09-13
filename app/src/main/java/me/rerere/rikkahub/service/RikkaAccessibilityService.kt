@@ -53,9 +53,9 @@ class RikkaAccessibilityService : AccessibilityService() {
     private val serializeGate = AtomicInteger(0)
     private val gateCurrent = AtomicInteger(0)
 
-    // Last accessibility event uptime, used by ScreenState (ExTV merge) to settle
+    // Last accessibility event uptime, used by ScreenState to settle
     // between capture and comparison. Kept on the master baseline service by adding
-    // this single field instead of adopting the whole ExTV service variant.
+    // this single field instead of adopting the whole service variant.
     var lastWindowEventUptime: Long = 0L
 
     override fun onServiceConnected() {

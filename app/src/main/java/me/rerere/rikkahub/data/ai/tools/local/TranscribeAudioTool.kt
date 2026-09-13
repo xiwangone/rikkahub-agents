@@ -36,7 +36,7 @@ private val WHISPER_MODEL_SEARCH_PATHS = listOf(
 private val WHISPER_CLI_CANDIDATES = listOf(
     // 1. Termux pkg install (when/if it lands)
     "/data/data/com.termux/files/usr/bin/whisper-cli",
-    // 2. Built-from-source — current upstream binary name (post-rename)
+    // 2. Built-from-source — current binary name (post-rename)
     "/data/data/com.termux/files/home/whisper.cpp/build/bin/whisper-cli",
     // 3. Built-from-source — legacy binary name, still used by older checkouts
     "/data/data/com.termux/files/home/whisper.cpp/build/bin/main",

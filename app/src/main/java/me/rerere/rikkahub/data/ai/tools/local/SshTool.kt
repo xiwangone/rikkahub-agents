@@ -189,7 +189,7 @@ private val WINDOWS_CMDLET_REGEX = Regex(
 /**
  * 给 Windows/PowerShell 命令补上「输出转 UTF-8」前缀，修中文乱码。
  *
- * 实测（2026-09-10，pc-xedge / pwsh 7.7）：远端默认 `[Console]::OutputEncoding` = gb2312，
+ * 实测（2026-09-10，pwsh 7.7 会话）：远端默认 `[Console]::OutputEncoding` = gb2312，
  * 中文字节流回到 App 按 UTF-8 解码 → 全是 `????`/乱码；命令前加这一句即恢复。
  * `cmd.exe /c …` 之类显式 POSIX/exe 前缀不动（那是另一套代码页，乱码需 chcp，另行处理）。
  */

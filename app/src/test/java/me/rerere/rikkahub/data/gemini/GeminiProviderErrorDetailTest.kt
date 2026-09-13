@@ -104,7 +104,7 @@ class GeminiProviderErrorDetailTest {
 
     @Test
     fun `a non-JSON body degrades to null rather than throw`() {
-        assertNull(parse("<html>upstream down</html>"))
+        assertNull(parse("<html>service down</html>"))
     }
 
     @Test

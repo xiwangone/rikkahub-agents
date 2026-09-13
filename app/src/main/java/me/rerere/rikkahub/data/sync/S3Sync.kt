@@ -460,7 +460,7 @@ class S3Sync(
             }
         }
 
-        // A backup exported from upstream RikkaHub lacks the fork-only tables; reconcile the
+        // A backup exported from the base app lacks app-specific tables; reconcile the
         // restored file before Room opens it so the import doesn't crash on first launch.
         if (config.items.contains(S3Config.BackupItem.DATABASE)) {
             // appDatabase was already closed before the zip loop (see top of this function), so

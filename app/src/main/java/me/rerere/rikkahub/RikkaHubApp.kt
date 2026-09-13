@@ -511,7 +511,7 @@ class RikkaHubApp : Application() {
                     }
                     // Android 17 (API 37) requires ACCESS_LOCAL_NETWORK to bind to LAN
                     // interfaces. localhost-only mode does not need it because traffic stays
-                    // within the app's UID. Cherry-picked from upstream 80186f5d.
+                    // within the app's UID.
                     if (Build.VERSION.SDK_INT >= 37 &&
                         !settings.webServerLocalhostOnly &&
                         ContextCompat.checkSelfPermission(

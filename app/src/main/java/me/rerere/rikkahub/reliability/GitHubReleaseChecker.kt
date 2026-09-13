@@ -12,12 +12,12 @@ import okhttp3.Request
 private const val TAG = "GHReleaseChecker"
 
 /**
- * Checks GitHub Releases for the latest tag of `ExTV/rikkahub-agent` and compares against
+ * Checks the release feed for the latest published tag and compares against
  * the locally-installed [BuildConfig.VERSION_NAME]. Pure HTTP — no caching, no scheduler,
  * no UI. Surfaces are responsible for invoking when the user / scheduler asks.
  *
- * Tag schema: every release on this fork ships as `vX.Y.Z-agent.N` where `vX.Y.Z` is the
- * upstream RikkaHub version this fork is built on top of and `N` is the agent revision.
+ * Tag schema: every release ships as `vX.Y.Z-agent.N` where `vX.Y.Z` is the
+ * base version this app is built on top of and `N` is the agent revision.
  * The newer-than comparator is lexicographic by (X, Y, Z, N) — works for the current
  * `2.1.15-agent.0` schema. Pre-release suffixes outside `-agent.N` (e.g. `-rc1`) are not
  * supported; if the user ever ships those, this comparator needs revisiting.

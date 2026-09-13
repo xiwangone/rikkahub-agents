@@ -172,7 +172,7 @@ class CredentialVaultRepository(
         }
 
         /**
-         * 凭证命名规范（2026-09-03 定稿写死）：大写蛇形。
+         * 凭证命名规范（2026-09-03 约定）：大写蛇形。
          * 规则：^[A-Z][A-Z0-9_]*$ —— 首字符大写字母，仅大写字母/数字/下划线。
          * 语义后缀（建议非强制）：_TOKEN / _API_KEY / _KEY / _PUB / _PWD / _PASS / _PATH / _ACCOUNT。
          */

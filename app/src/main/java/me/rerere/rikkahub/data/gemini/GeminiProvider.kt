@@ -330,7 +330,7 @@ private fun parseErrorMessage(body: String?, json: Json): String? {
 // reasoning level (400, no fieldViolations to name the field). Confirmed on-device
 // 2026-08-12 and independently by five other projects; gemini-3.1-pro-low works fine on
 // the same endpoint, so this is scoped to the exact id rather than a `-high` suffix rule
-// (other suffixed models work). Re-test and drop this once upstream fixes it.
+// (other suffixed models work). Re-test and drop this once the base project fixes it.
 //
 // internal rather than private: PreferencesStore's GeminiOAuth normalization branch also
 // filters on this set, to evict copies already persisted from before this filter existed.

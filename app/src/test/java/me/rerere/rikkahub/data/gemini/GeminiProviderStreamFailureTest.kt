@@ -62,7 +62,7 @@ class GeminiProviderStreamFailureTest {
 
     @Test
     fun `an unparseable body falls back to the raw code and detail`() {
-        val cause = resolve(t = null, responseCode = 503) { "<html>upstream down</html>" }
+        val cause = resolve(t = null, responseCode = 503) { "<html>service down</html>" }
         assertEquals("Cloud Code Assist request failed: 503 <html>upstream down</html>", cause.message)
     }
 

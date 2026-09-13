@@ -14,33 +14,33 @@ import org.junit.Test
 import org.junit.runner.RunWith
 
 /**
- * Regression test for issues #10 / #11: restoring an *upstream* RikkaHub 2.4.1 backup into the
- * fork crashed on the first launch after the import with
+ * Regression test for issues #10 / #11: restoring a 2.4.1 backup into the
+ * app crashed on the first launch after the import with
  * "duplicate column name: custom_system_prompt".
  *
- * Upstream 2.4.1 stamps its database at user_version 24, but its ConversationEntity already
- * carries custom_system_prompt / workspace_cwd / folder_id (upstream added them at its own
- * earlier versions). The fork's schema-equivalent version is 27, so an un-reconciled restore
- * makes Room replay the fork's 24 -> 25 auto-migration, which re-ADDs custom_system_prompt and
- * crashes. The fork's shared tables at v27 are byte-for-byte identical to upstream's at v24, so
+ * A 2.4.1 database is stamped at user_version 24, but its ConversationEntity already
+ * carries custom_system_prompt / workspace_cwd / folder_id (added in its own
+ * earlier versions). This app's schema-equivalent version is 27, so an un-reconciled restore
+ * makes Room replay this app's 24 -> 25 auto-migration, which re-ADDs custom_system_prompt and
+ * crashes. This app's shared tables at v27 are byte-for-byte identical to the earlier build's at v24, so
  * [ImportedDatabaseReconciler] stamps such a file straight to v27 and skips the replay.
  *
- * The test builds a faithful upstream-2.4.1 file (fork v27 shared schema, upstream's version +
- * identity, fork-only tables removed) and asserts:
+ * The test builds a faithful 2.4.1 file (this app's v27 shared schema, the earlier version +
+ * identity, app-specific tables removed) and asserts:
  *  - without reconcile, opening it through Room reproduces the reported duplicate-column crash;
  *  - after reconcile, Room opens it cleanly, the seeded conversation survives, and every
- *    fork-only table exists and starts empty.
+ *    app-specific table exists and starts empty.
  */
 @RunWith(AndroidJUnit4::class)
 class ImportedDatabaseReconcilerTest {
 
-    private val TEST_DB = "reconciler-upstream-241-test"
+    private val TEST_DB = "reconciler-legacy-241-test"
 
-    // Upstream RikkaHub 2.4.1's actual stamp: user_version 24 plus its own (foreign) identity.
-    private val UPSTREAM_VERSION = 24
-    private val UPSTREAM_IDENTITY = "0ea1aaebfa031c7995c45a1e35822e1a"
+    // A 2.4.1 file's actual stamp: user_version 24 plus its own (foreign) identity.
+    private val LEGACY_VERSION = 24
+    private val LEGACY_IDENTITY = "0ea1aaebfa031c7995c45a1e35822e1a"
 
-    private val FORK_ONLY_TABLES = listOf(
+    private val APP_SPECIFIC_TABLES = listOf(
         "scheduled_jobs", "scheduled_job_runs", "ssh_hosts", "telegram_chats",
         "workflows", "workflow_runs", "agent_runs",
     )
@@ -58,8 +58,8 @@ class ImportedDatabaseReconcilerTest {
     }
 
     @Test
-    fun withoutReconcile_upstream241Backup_reproducesDuplicateColumnCrash() {
-        createUpstream241Backup(conversationId = "c1")
+    fun withoutReconcile_legacy241Backup_reproducesDuplicateColumnCrash() {
+        createLegacy241Backup(conversationId = "c1")
 
         val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB)
             .allowMainThreadQueries()
@@ -69,7 +69,7 @@ class ImportedDatabaseReconcilerTest {
             // reported crash fired.
             room.openHelper.writableDatabase
                 .query("SELECT COUNT(*) FROM ConversationEntity").use { it.moveToFirst() }
-            fail("expected Room to crash replaying the 24 -> 25 migration on an upstream 2.4.1 file")
+            fail("expected Room to crash replaying the 24 -> 25 migration on a 2.4.1 file")
         } catch (expected: Throwable) {
             val chain = generateSequence<Throwable>(expected) { it.cause }
                 .mapNotNull { it.message }
@@ -84,8 +84,8 @@ class ImportedDatabaseReconcilerTest {
     }
 
     @Test
-    fun afterReconcile_upstream241Backup_opensAndKeepsData() {
-        createUpstream241Backup(conversationId = "c1")
+    fun afterReconcile_legacy241Backup_opensAndKeepsData() {
+        createLegacy241Backup(conversationId = "c1")
 
         ImportedDatabaseReconciler.reconcileDatabaseFile(context.getDatabasePath(TEST_DB))
 
@@ -100,10 +100,10 @@ class ImportedDatabaseReconcilerTest {
                 assertEquals("hello", c.getString(0))
             }
 
-            for (table in FORK_ONLY_TABLES) {
+            for (table in APP_SPECIFIC_TABLES) {
                 db.query("SELECT COUNT(*) FROM `$table`").use { c ->
-                    assertTrue("fork-only table $table should exist after reconcile", c.moveToFirst())
-                    assertEquals("fork-only table $table should start empty", 0, c.getInt(0))
+                    assertTrue("app-specific table $table should exist after reconcile", c.moveToFirst())
+                    assertEquals("app-specific table $table should start empty", 0, c.getInt(0))
                 }
             }
         } finally {
@@ -112,12 +112,12 @@ class ImportedDatabaseReconcilerTest {
     }
 
     /**
-     * Writes a file that looks exactly like an upstream RikkaHub 2.4.1 backup: start from a
-     * genuine fork v27 database (Room creates every table and stamps the v27 identity), seed a
-     * conversation, then downgrade the file on disk by dropping the fork-only tables and
-     * stamping upstream's user_version + identity.
+     * Writes a file that looks exactly like a 2.4.1 backup: start from a
+     * genuine v27 database (Room creates every table and stamps the v27 identity), seed a
+     * conversation, then downgrade the file on disk by dropping the app-specific tables and
+     * stamping the earlier user_version + identity.
      */
-    private fun createUpstream241Backup(conversationId: String) {
+    private fun createLegacy241Backup(conversationId: String) {
         val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB)
             .allowMainThreadQueries()
             .build()
@@ -133,12 +133,12 @@ class ImportedDatabaseReconcilerTest {
 
         val dbFile = context.getDatabasePath(TEST_DB)
         SQLiteDatabase.openDatabase(dbFile.absolutePath, null, SQLiteDatabase.OPEN_READWRITE).use { raw ->
-            FORK_ONLY_TABLES.forEach { raw.execSQL("DROP TABLE IF EXISTS `$it`") }
+            APP_SPECIFIC_TABLES.forEach { raw.execSQL("DROP TABLE IF EXISTS `$it`") }
             raw.execSQL(
                 "UPDATE room_master_table SET identity_hash = ? WHERE id = 42",
-                arrayOf<Any?>(UPSTREAM_IDENTITY),
+                arrayOf<Any?>(LEGACY_IDENTITY),
             )
-            raw.version = UPSTREAM_VERSION // PRAGMA user_version = 24
+            raw.version = LEGACY_VERSION // PRAGMA user_version = 24
         }
     }
 }

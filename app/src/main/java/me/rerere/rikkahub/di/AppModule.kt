@@ -29,7 +29,7 @@ import org.koin.dsl.module
 val appModule =
     module {
         single<Json> { JsonInstant }
-        // com.google.gson.JsonParser：供 Gemini OAuth 等历史/移植代码路径解析（防御性注册，防
+        // com.google.gson.JsonParser：供 Gemini OAuth 等历史兼容代码路径解析（防御性注册，防
         // NoDefinitionFoundException；依赖声明见 app/build.gradle.kts implementation(libs.gson)）。
         single { com.google.gson.JsonParser() }
 

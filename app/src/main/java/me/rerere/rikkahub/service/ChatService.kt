@@ -126,6 +126,7 @@ private const val PREV_JOB_JOIN_TIMEOUT_MS = 10_000L
 
 internal fun backgroundTextGenerationParams(
     model: Model,
+    conversationId: Uuid,
     reasoningLevel: ReasoningLevel = ReasoningLevel.OFF,
 ): TextGenerationParams =
     TextGenerationParams(
@@ -133,6 +134,7 @@ internal fun backgroundTextGenerationParams(
         reasoningLevel = reasoningLevel,
         customHeaders = model.customHeaders,
         customBody = model.customBodies,
+        sessionId = conversationId.toString(),
     )
 
 internal fun createForkConversation(
@@ -1489,7 +1491,7 @@ class ChatService(
                                     ),
                             ),
                         ),
-                    params = backgroundTextGenerationParams(model),
+                    params = backgroundTextGenerationParams(model, conversationId),
                 )
 
             applyTitle(result.message.toText().trim().ifBlank { fallback })
@@ -1544,7 +1546,7 @@ class ChatService(
                                 ),
                             ),
                         ),
-                    params = backgroundTextGenerationParams(model),
+                    params = backgroundTextGenerationParams(model, conversationId),
                 )
             val suggestions =
                 result.message.toText().split("\n")
@@ -1661,7 +1663,7 @@ class ChatService(
                     providerHandler.generateText(
                         providerSetting = provider,
                         messages = listOf(UIMessage.user(prompt)),
-                        params = backgroundTextGenerationParams(model),
+                        params = backgroundTextGenerationParams(model, conversationId),
                     )
 
                 return result.message.toText()
