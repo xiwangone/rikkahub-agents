@@ -3,6 +3,8 @@ package me.rerere.rikkahub.data.ai.tools.local
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assume
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -33,6 +35,16 @@ import java.io.File
  *      re-run it. If you get `whisper_not_installed`, step 1 failed; retry pkg install.
  */
 class TranscribeAudioToolValidationTest {
+
+    /** See PathSafetyGuardTest: the guard's system-prefix checks assume POSIX canonical
+     *  paths, so this suite runs only where those semantics hold (Android/Linux CI). */
+    @Before
+    fun requirePosixPathSemantics() {
+        Assume.assumeTrue(
+            "POSIX path semantics required for canonical-path prefix checks",
+            java.io.File.separatorChar == '/',
+        )
+    }
 
     @get:Rule
     val tmp = TemporaryFolder()

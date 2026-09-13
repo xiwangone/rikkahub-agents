@@ -3,10 +3,28 @@ package me.rerere.rikkahub.data.ai.tools.local
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assume
+import org.junit.Before
 import org.junit.Test
+import java.io.File
 import me.rerere.rikkahub.BuildConfig
 
 class PathSafetyGuardTest {
+
+    /**
+     * The guard canonicalises paths with [File.canonicalPath] and then matches POSIX
+     * system prefixes (`/system`, `/proc`, …). On a non-POSIX host (e.g. the Windows
+     * dev machine) `/proc/1` canonicalises to `C:\proc\1`, so those assertions cannot
+     * hold. The production target is Android (POSIX), so this suite runs there and on
+     * Linux CI; elsewhere it is skipped rather than asserting the wrong semantics.
+     */
+    @Before
+    fun requirePosixPathSemantics() {
+        Assume.assumeTrue(
+            "POSIX path semantics required for canonical-path prefix checks",
+            File.separatorChar == '/',
+        )
+    }
 
     // ---- valid paths ----
 

@@ -6,7 +6,10 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Assume
+import org.junit.Before
 import org.junit.Test
+import java.io.File
 
 /**
  * Unit tests for [ShizukuCommandRunner], the Android/Shizuku-independent process-execution
@@ -17,6 +20,19 @@ import org.junit.Test
  * on a device with Shizuku actually running.
  */
 class ShizukuCommandRunnerTest {
+
+    /**
+     * These tests spawn a real POSIX `sh` and assert its stdout/stderr/exit-code
+     * round-trip. Windows dev hosts have no `/bin/sh`, so skip there; the suite runs
+     * on Linux CI (and on the POSIX hosts it was written for).
+     */
+    @Before
+    fun requirePosixShell() {
+        Assume.assumeTrue(
+            "POSIX `sh` is required to exercise the process runner",
+            File("/bin/sh").exists() || File("/usr/bin/sh").exists(),
+        )
+    }
 
     @Test
     fun `successful command returns stdout, stderr and exit code`() {

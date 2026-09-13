@@ -57,10 +57,14 @@ class WebFetchToolTest {
 
     @Test fun `method is case-insensitive and clears validation`() {
         // "get" normalises to GET and passes validation — it then proceeds to the network
-        // layer, which against an unroutable address yields network_error or timeout, never
-        // a validation error. We only assert it cleared the validation gate.
+        // layer. A loopback target is refused by the private-address guard (blocked_address);
+        // other reachability failures surface as network_error / timeout. What matters here
+        // is that it cleared the validation gate, i.e. never a validation error.
         val err = invoke("""{"url":"http://127.0.0.1:9","method":"get"}""").error()
-        assertEquals(true, err == "network_error" || err == "timeout")
+        assertTrue(
+            "expected a network-layer rejection, got: $err",
+            err == "network_error" || err == "timeout" || err == "blocked_address",
+        )
     }
 
     @Test fun `malformed url is rejected as bad_request`() {

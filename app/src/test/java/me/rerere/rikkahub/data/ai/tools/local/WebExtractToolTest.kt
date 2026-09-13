@@ -8,11 +8,14 @@ import org.junit.Test
 class WebExtractToolTest {
 
     @Test
-    fun `tool is named web_extract and defaults to article`() {
+    fun `tool is named web_extract and reads pages as clean readable content`() {
         val tool = webExtractTool(OkHttpClient())
 
         assertEquals("web_extract", tool.name)
-        assertTrue(tool.description.contains("article"))
+        assertTrue(
+            "description should advertise the clean readable-content behaviour",
+            tool.description.contains("readable"),
+        )
     }
 
     @Test

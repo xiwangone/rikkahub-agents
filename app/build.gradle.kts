@@ -115,6 +115,13 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
+    testOptions {
+        unitTests {
+            // Unmocked android.* stubs (e.g. android.util.Log) return defaults instead of
+            // throwing "not mocked", so pure-logic tests can run on the host JVM.
+            isReturnDefaultValues = true
+        }
+    }
     buildFeatures {
         compose = true
         buildConfig = true

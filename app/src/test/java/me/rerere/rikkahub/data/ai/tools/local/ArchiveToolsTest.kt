@@ -14,6 +14,10 @@ import java.io.File
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
 
+/** JSON-escape a path before embedding it in a hand-written JSON literal:
+ *  Windows absolute paths contain backslashes, which are illegal JSON escapes. */
+private fun jp(path: String): String = path.replace("\\", "\\\\")
+
 /**
  * Phase 25 — Archive tools. file:// zip / unzip / list paths are fully JVM-testable
  * (openIn / openOut only touch java.io.File for file:// URIs, never the Context). The
@@ -35,7 +39,7 @@ class ArchiveToolsTest {
         val zipPath = "${tmp.root.absolutePath}/out.zip"
         val zipResult = obj(execTool(
             zipFilesTool(NULL_CONTEXT),
-            """{"sources":["${srcDir.absolutePath}"],"destination":"$zipPath"}""",
+            """{"sources":["${jp(srcDir.absolutePath)}"],"destination":"${jp(zipPath)}"}""",
         ))
         assertTrue(zipResult["success"]!!.jsonPrimitive.content.toBoolean())
         assertEquals(3, zipResult["entry_count"]!!.jsonPrimitive.content.toInt())
@@ -44,7 +48,7 @@ class ArchiveToolsTest {
         val destDir = "${tmp.root.absolutePath}/extracted"
         val unzipResult = obj(execTool(
             unzipFileTool(NULL_CONTEXT),
-            """{"source":"$zipPath","destination_dir":"$destDir"}""",
+            """{"source":"${jp(zipPath)}","destination_dir":"${jp(destDir)}"}""",
         ))
         assertTrue(unzipResult["success"]!!.jsonPrimitive.content.toBoolean())
         assertEquals(3, unzipResult["entries_extracted"]!!.jsonPrimitive.content.toInt())
@@ -66,7 +70,7 @@ class ArchiveToolsTest {
         val destDir = tmp.newFolder("safe").absolutePath
         val result = obj(execTool(
             unzipFileTool(NULL_CONTEXT),
-            """{"source":"${evilZip.absolutePath}","destination_dir":"$destDir"}""",
+            """{"source":"${jp(evilZip.absolutePath)}","destination_dir":"${jp(destDir)}"}""",
         ))
         assertEquals("unsafe_zip_entry", result["error"]?.jsonPrimitive?.content)
     }
@@ -88,14 +92,14 @@ class ArchiveToolsTest {
         val zipPath = "${tmp.root.absolutePath}/o.zip"
         execTool(
             zipFilesTool(NULL_CONTEXT),
-            """{"sources":["${srcDir.absolutePath}"],"destination":"$zipPath"}""",
+            """{"sources":["${jp(srcDir.absolutePath)}"],"destination":"${jp(zipPath)}"}""",
         )
         val destDir = tmp.newFolder("o_dest")
         // Pre-create the colliding file.
         File(destDir, "o_src/dup.txt").apply { parentFile?.mkdirs(); writeText("existing") }
         val result = obj(execTool(
             unzipFileTool(NULL_CONTEXT),
-            """{"source":"$zipPath","destination_dir":"${destDir.absolutePath}"}""",
+            """{"source":"${jp(zipPath)}","destination_dir":"${jp(destDir.absolutePath)}"}""",
         ))
         assertEquals("entry_exists", result["error"]?.jsonPrimitive?.content)
     }
@@ -106,11 +110,11 @@ class ArchiveToolsTest {
         val zipPath = "${tmp.root.absolutePath}/l.zip"
         execTool(
             zipFilesTool(NULL_CONTEXT),
-            """{"sources":["${srcDir.absolutePath}"],"destination":"$zipPath"}""",
+            """{"sources":["${jp(srcDir.absolutePath)}"],"destination":"${jp(zipPath)}"}""",
         )
         val result = obj(execTool(
             listZipContentsTool(NULL_CONTEXT),
-            """{"source":"$zipPath"}""",
+            """{"source":"${jp(zipPath)}"}""",
         ))
         val entries = result["entries"]!!.jsonArray
         assertEquals(1, entries.size)
@@ -125,7 +129,7 @@ class ArchiveToolsTest {
         notZip.writeText("definitely not a zip")
         val result = obj(execTool(
             listZipContentsTool(NULL_CONTEXT),
-            """{"source":"${notZip.absolutePath}"}""",
+            """{"source":"${jp(notZip.absolutePath)}"}""",
         ))
         assertEquals("invalid_zip", result["error"]?.jsonPrimitive?.content)
     }
@@ -133,7 +137,7 @@ class ArchiveToolsTest {
     @Test fun `zip_files errors on unreadable source`() {
         val result = obj(execTool(
             zipFilesTool(NULL_CONTEXT),
-            """{"sources":["/nonexistent/path/xyz"],"destination":"${tmp.root.absolutePath}/x.zip"}""",
+            """{"sources":["/nonexistent/path/xyz"],"destination":"${jp(tmp.root.absolutePath)}/x.zip"}""",
         ))
         assertEquals("source_unreadable", result["error"]?.jsonPrimitive?.content)
     }
