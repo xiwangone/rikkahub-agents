@@ -3055,4 +3055,6 @@
   <string name="setting_files_page_clean_all">Все файлы</string>
   <string name="setting_files_page_clean_older_than_days">Старше %1$d дней</string>
   <string name="setting_files_page_clean_range_description">Выберите файлы для окончательного удаления. Это действие нельзя отменить.</string>
+  <string name="search_page_scope_current_assistant">Текущий ассистент</string>
+  <string name="search_page_scope_all_assistants">Все ассистенты</string>
 </resources>

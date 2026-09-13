@@ -3047,4 +3047,22 @@
   <string name="workspace_detail_save_rootfs_url">Save current URL</string>
   <string name="workspace_detail_delete_saved_url">Delete</string>
   <string name="workspace_detail_preset_rootfs_urls">Presets</string>
+  <string name="setting_update_reminder_enabled">Update reminders are enabled</string>
+  <string name="setting_update_reminder_paused_until">Paused until %1$s</string>
+  <string name="setting_update_reminder_pause_title">Pause update reminders</string>
+  <string name="setting_update_reminder_pause_description">Choose how long to pause update reminders. They will resume automatically.</string>
+  <string name="setting_update_reminder_pause_days">%1$d days</string>
+  <string name="setting_update_reminder_resume_now">Resume now</string>
+  <string name="setting_provider_page_test_non_streaming">Non-streaming</string>
+  <string name="setting_provider_page_test_streaming">Streaming</string>
+  <string name="setting_provider_page_test_tool_call">Tool Call</string>
+  <string name="setting_provider_page_test_tool_called">Called: %1$s  Args: %2$s</string>
+  <string name="setting_provider_page_test_tool_not_called">Tool not called, response: %s</string>
+  <string name="chat_generation_network_retrying">%1$s. Retrying (%2$d/%3$d)…</string>
+  <string name="chat_generation_network_unknown_host">Unable to resolve server address</string>
+  <string name="chat_generation_network_timeout">Connection timed out</string>
+  <string name="chat_generation_network_unreachable">Unable to connect to server</string>
+  <string name="chat_generation_network_disconnected">Network connection lost</string>
+  <string name="search_page_scope_current_assistant">Current Assistant</string>
+  <string name="search_page_scope_all_assistants">All Assistants</string>
 </resources>

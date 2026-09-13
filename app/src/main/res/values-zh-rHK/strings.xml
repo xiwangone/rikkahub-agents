@@ -3041,4 +3041,6 @@
   <string name="web_bridge_tunnel_failed">隧道建立失敗: %1$s</string>
   <string name="chat_input_pending_queue">待傳送 %1$d 則 · 將自動依序送出</string>
   <string name="tool_ui_shell_changed_files">命令改動的檔案</string>
+  <string name="search_page_scope_current_assistant">當前助手</string>
+  <string name="search_page_scope_all_assistants">所有助手</string>
 </resources>

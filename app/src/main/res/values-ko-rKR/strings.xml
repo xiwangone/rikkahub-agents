@@ -3055,4 +3055,6 @@
   <string name="setting_files_page_clean_all">모든 파일</string>
   <string name="setting_files_page_clean_older_than_days">%1$d일 이상 지난 파일</string>
   <string name="setting_files_page_clean_range_description">영구적으로 삭제할 파일을 선택하세요. 이 작업은 되돌릴 수 없습니다.</string>
+  <string name="search_page_scope_current_assistant">현재 어시스턴트</string>
+  <string name="search_page_scope_all_assistants">모든 어시스턴트</string>
 </resources>

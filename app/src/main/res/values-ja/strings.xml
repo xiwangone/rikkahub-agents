@@ -3055,4 +3055,6 @@
   <string name="setting_files_page_clean_all">すべてのファイル</string>
   <string name="setting_files_page_clean_older_than_days">%1$d日以上前</string>
   <string name="setting_files_page_clean_range_description">完全に削除するファイルを選択してください。この操作は元に戻せません。</string>
+  <string name="search_page_scope_current_assistant">現在のアシスタント</string>
+  <string name="search_page_scope_all_assistants">すべてのアシスタント</string>
 </resources>

@@ -3044,4 +3044,6 @@
   <string name="workspace_detail_compatibility_mode">وضع التوافق</string>
   <string name="workspace_detail_compatibility_mode_desc">جرّب تفعيل هذا الخيار إذا فشل تشغيل الطرفية. قد يقلل من الأداء. ينطبق على علامات التبويب الجديدة والأوامر اللاحقة.</string>
   <string name="workspace_detail_settings_save_failed">تعذّر حفظ الإعدادات</string>
+  <string name="search_page_scope_current_assistant">المساعد الحالي</string>
+  <string name="search_page_scope_all_assistants">كل المساعدين</string>
 </resources>
