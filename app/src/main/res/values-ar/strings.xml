@@ -3010,10 +3010,10 @@
   <string name="chat_page_delete_folder_confirm">حذف المجلد «%1$s»؟ لن تُحذف المحادثات داخله، بل ستُخرج من المجلد فقط.</string>
   <string name="chat_page_delete_folder_generating">ما زالت هناك محادثات قيد التوليد في هذا المجلد. أوقفها قبل الحذف.</string>
   <string name="assistant_page_context_message_limit">حد رسائل السياق</string>
-  <string name="assistant_page_context_message_limit_desc">يحدّ عدد الرسائل الأخيرة المرسلة إلى النموذج. عند تجاوز الحد يُقلَّص السياق دفعة واحدة إلى نحو النصف بدل حذف رسالة كل دور، ما يحافظ على ثبات بادئة الطلب واستمرار فاعلية ذاكرة المطالبات المؤقتة عبر الأدوار.</string>
+  <string name="assistant_page_context_message_limit_desc">يحدّ عدد الرسائل الأخيرة المرسلة إلى النموذج</string>
   <string name="assistant_page_context_message_limit_count">حد رسائل السياق: %d</string>
   <string name="assistant_page_context_message_limit_unlimited">رسائل سياق بلا حد</string>
-  <string name="assistant_page_context_message_limit_hint">أدخل 0 لعدم التحديد، أو قيمة لا تقل عن %d</string>
+  <string name="assistant_page_context_message_limit_hint">أدخل 0 لعدم التحديد؛ وإلا فالقيم الأكبر أفضل. يُوصى بـ 0 أو 20 على الأقل</string>
   <string name="assistant_page_context_message_limit_warning">يؤدي تحديد السياق إلى إبطال ذاكرة المطالبات المؤقتة كلما قُلم السياق. والحدود الأكبر تقلّل تكرار التقليم، أما عدم التحديد فلا يقلم أبدًا ويُبقي الذاكرة سليمة بالكامل.</string>
   <string name="setting_files_page_clean_action">تنظيف</string>
   <string name="setting_files_page_clean_all">كل الملفات</string>

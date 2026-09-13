@@ -12,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.TextButton
@@ -396,9 +395,6 @@ internal fun AssistantBasicContent(
                 var contextMessageLimitFocused by remember(assistant.id) {
                     mutableStateOf(false)
                 }
-                var showContextMessageLimitDialog by remember(assistant.id) {
-                    mutableStateOf(false)
-                }
                 val focusManager = LocalFocusManager.current
 
                 fun commitContextMessageLimit() {
@@ -408,17 +404,12 @@ internal fun AssistantBasicContent(
                         return
                     }
 
-                    val normalizedValue = normalizeContextMessageLimit(value)
-                    contextMessageLimitInput = normalizedValue.toString()
-                    if (normalizedValue != assistant.contextMessageLimit) {
-                        onUpdate(assistant.copy(contextMessageLimit = normalizedValue))
-                    }
-                    if (normalizedValue != value) {
-                        showContextMessageLimitDialog = true
+                    contextMessageLimitInput = value.toString()
+                    if (value != assistant.contextMessageLimit) {
+                        onUpdate(assistant.copy(contextMessageLimit = value))
                     }
                 }
 
-                val contextMessageLimitValue = contextMessageLimitInput.toIntOrNull()
                 OutlinedTextField(
                     value = contextMessageLimitInput,
                     onValueChange = { input ->
@@ -427,7 +418,6 @@ internal fun AssistantBasicContent(
                         ) {
                             contextMessageLimitInput = input
                             input.toIntOrNull()
-                                ?.takeIf { it == 0 || it >= MIN_CONTEXT_MESSAGE_LIMIT }
                                 ?.takeIf { it != assistant.contextMessageLimit }
                                 ?.let { onUpdate(assistant.copy(contextMessageLimit = it)) }
                         }
@@ -451,38 +441,12 @@ internal fun AssistantBasicContent(
                             onDone = { focusManager.clearFocus() },
                         ),
                     singleLine = true,
-                    isError = contextMessageLimitValue in 1 until MIN_CONTEXT_MESSAGE_LIMIT,
                     supportingText = {
                         Text(
-                            stringResource(
-                                R.string.assistant_page_context_message_limit_hint,
-                                MIN_CONTEXT_MESSAGE_LIMIT,
-                            ),
+                            stringResource(R.string.assistant_page_context_message_limit_hint)
                         )
                     },
                 )
-
-                if (showContextMessageLimitDialog) {
-                    AlertDialog(
-                        onDismissRequest = { showContextMessageLimitDialog = false },
-                        title = {
-                            Text(stringResource(R.string.assistant_page_context_message_limit))
-                        },
-                        text = {
-                            Text(
-                                stringResource(
-                                    R.string.assistant_page_context_message_limit_too_small,
-                                    MIN_CONTEXT_MESSAGE_LIMIT,
-                                ),
-                            )
-                        },
-                        confirmButton = {
-                            TextButton(onClick = { showContextMessageLimitDialog = false }) {
-                                Text(stringResource(R.string.common_confirm))
-                            }
-                        },
-                    )
-                }
 
                 if (assistant.contextMessageLimit > 0) {
                     Text(
@@ -667,17 +631,3 @@ internal fun AssistantBasicContent(
         }
     }
 }
-
-/**
- * 上下文限制的最小有效值
- *
- * 低于此值时截断点几乎每轮都在移动, 提示词缓存命中率跌破 90%,
- * 且保留的上下文通常达不到可缓存的最小长度, 限制本身失去意义
- */
-private const val MIN_CONTEXT_MESSAGE_LIMIT = 20
-
-/**
- * 把数值输入归一化到 0(不限制) 或不低于 [MIN_CONTEXT_MESSAGE_LIMIT] 的有效值
- */
-internal fun normalizeContextMessageLimit(value: Int): Int =
-    if (value in 1 until MIN_CONTEXT_MESSAGE_LIMIT) MIN_CONTEXT_MESSAGE_LIMIT else value

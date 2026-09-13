@@ -1810,7 +1810,7 @@
   <string name="setting_display_page_tts_read_outside_brackets_title">TTS 괄호 안 내용 읽지 않기</string>
   <string name="setting_display_page_tts_read_outside_brackets_desc">활성화하면 TTS가 괄호 안의 내용을 읽지 않습니다</string>
   <string name="assistant_page_context_message_limit">컨텍스트 메시지 제한</string>
-  <string name="assistant_page_context_message_limit_desc">모델로 전송되는 최근 메시지 수를 제한합니다. 제한을 초과하면 한 번에 하나씩 메시지를 삭제하는 대신 컨텍스트가 한 번에 약 절반으로 줄어들어 요청 접두사가 안정적으로 유지되고 프롬프트 캐싱이 여러 턴 동안 계속 작동합니다.</string>
+  <string name="assistant_page_context_message_limit_desc">모델로 전송되는 최근 메시지 수를 제한합니다.</string>
   <string name="assistant_page_context_message_limit_count">컨텍스트 메시지 한도: %d</string>
   <string name="assistant_page_context_message_limit_unlimited">무제한 컨텍스트 메시지</string>
   <string name="assistant_page_context_message_limit_warning">컨텍스트 제한 시 컨텍스트가 정리될 때마다 프롬프트 캐시가 무효화됩니다. 제한이 클수록 정리 빈도가 낮아지며, 무제한일 경우 정리되지 않아 캐시가 완전히 보존됩니다.</string>
@@ -1863,7 +1863,7 @@
 <string name="setting_model_page_ocr_model">OCR 모델</string>
 <string name="setting_model_page_ocr_model_desc">이미지에서 광학 문자 인식에 사용되는 모델</string>
 <string name="setting_model_page_ocr_prompt_vars">변수: 이미지 데이터: {images}</string>
-<string name="assistant_page_context_message_limit_hint">무제한은 0, 그 외에는 %d 이상의 값을 입력하세요</string>
+<string name="assistant_page_context_message_limit_hint">0은 무제한이며, 그 외에는 클수록 좋습니다. 0 또는 20 이상을 권장합니다</string>
 <string name="setting_files_page_clean_action">정리</string>
 <string name="setting_files_page_clean_confirmation">이 카테고리의 모든 파일이 영구적으로 삭제됩니다. 이 작업은 실행 취소할 수 없습니다.</string>
 <string name="setting_files_page_clean_content_description">파일 정리</string>

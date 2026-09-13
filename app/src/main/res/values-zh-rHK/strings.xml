@@ -1828,7 +1828,7 @@
   <string name="setting_display_page_tts_read_outside_brackets_title">TTS 不朗讀括號內的內容</string>
   <string name="setting_display_page_tts_read_outside_brackets_desc">啟用後，TTS 將不朗讀括號內的內容</string>
   <string name="assistant_page_context_message_limit">上下文訊息限制</string>
-  <string name="assistant_page_context_message_limit_desc">限制發送給模型的最近訊息數量。當超出限制時，上下文會一次性修剪到大約一半，而不是每次輪次刪除一條訊息，這樣請求前綴保持穩定，提示詞緩存可以在多次輪次中繼續運作。</string>
+  <string name="assistant_page_context_message_limit_desc">限制發送給模型的最近訊息數量</string>
   <string name="assistant_page_context_message_limit_count">上下文訊息限制：%d</string>
   <string name="assistant_page_context_message_limit_unlimited">無限上下文訊息</string>
   <string name="assistant_page_context_message_limit_warning">限制上下文會在每次上下文被裁減時使提示詞快取失效。較大的限制裁減頻率較低；無限則永不裁減並保持快取完整。</string>
@@ -2292,7 +2292,7 @@
     <string name="setting_termux_verify_timeout_desc">allow-external-apps 回顯冒煙測試的超時時間。範圍 3 秒至 30 秒。</string>
     <string name="setting_termux_verify_unexpected_output">冒煙測試輸出異常。</string>
     <string name="setting_termux_working_dir">預設工作目錄</string>
-    <string name="assistant_page_context_message_limit_hint">輸入 0 表示不限制，其他值不能小於 %d</string>
+    <string name="assistant_page_context_message_limit_hint">輸入 0 表示不限制，否則越大越好，推薦設定為 0 或 20 以上</string>
     <string name="assistant_page_context_message_limit_too_small">上下文訊息限制不能小於 %1$d，已自動重置為 %1$d。</string>
     <string name="vault_search_hint">搜尋名稱 / 描述 / 分組</string>
     <string name="auto_task_default_message">自動任務中。自主判斷並執行當前需要做什麼。</string>
