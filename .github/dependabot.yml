@@ -15,6 +15,11 @@ updates:
       kotlin:
         patterns:
           - "org.jetbrains.kotlin*"
+    ignore:
+      # Netty only ever appears as a transitive dependency of the build toolchain (plugin
+      # classpath), never in an app/module runtime classpath. Nothing can be bumped from a
+      # manifest here, so update attempts fail every time; the build toolchain owns the version.
+      - dependency-name: "io.netty:*"
 
   # GitHub Actions 自身
   - package-ecosystem: "github-actions"
