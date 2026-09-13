@@ -1,0 +1,85 @@
+name: 同步 Release 到 Gitee
+
+# GitHub 发布 Release 后，把同一个版本（含 APK 资产）同步到 Gitee 镜像，
+# 让国内用户不必穿墙即可下载安装包。
+# 手动补同步：Actions → 本 workflow → Run workflow → 填 tag（留空 = 最近一个 release）
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '要同步的 tag（如 2.48；留空则取最近一个 release）'
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: 解析 tag 与元信息
+        id: meta
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          INPUT_TAG: ${{ inputs.tag }}
+          EVENT_TAG: ${{ github.event.release.tag_name }}
+        run: |
+          set -e
+          TAG="${INPUT_TAG:-${EVENT_TAG:-}}"
+          if [ -z "$TAG" ]; then
+            TAG="$(gh release view --json tagName -q .tagName)"
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
+          gh release view "$TAG" --json name,body,isPrerelease > rel.json
+          jq -r '.name' rel.json > name.txt
+          jq -r '.body // ""' rel.json > body.txt
+          jq -r '.isPrerelease' rel.json > pre.txt
+          echo "resolved tag=$TAG name=$(cat name.txt)"
+
+      - name: 下载 APK 资产
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          mkdir -p dist
+          gh release download "${{ steps.meta.outputs.tag }}" --dir dist --pattern '*.apk' || true
+          ls -la dist
+
+      - name: 在 Gitee 建 Release 并上传 APK
+        env:
+          GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
+          TAG: ${{ steps.meta.outputs.tag }}
+        run: |
+          set -e
+          REPO="choosesheng/rikkahub-agents"
+          NAME="$(cat name.txt)"
+          BODY="$(cat body.txt)"
+          PRE="$(cat pre.txt)"
+
+          # 已存在同 tag 的 release 时复用它，避免重复创建报错
+          RID="$(curl -sS -H "Authorization: token ${GITEE_TOKEN}" \
+            "https://gitee.com/api/v5/repos/${REPO}/releases/tags/${TAG}" | jq -r '.id // empty')"
+
+          if [ -z "$RID" ]; then
+            RESP="$(curl -sS -X POST "https://gitee.com/api/v5/repos/${REPO}/releases" \
+              -H "Authorization: token ${GITEE_TOKEN}" \
+              -H 'Content-Type: application/json' \
+              -d "$(jq -n --arg t "$TAG" --arg n "$NAME" --arg b "$BODY" --argjson p "$PRE" \
+                    '{tag_name:$t,name:$n,body:$b,target_commitish:"master",prerelease:$p}')")"
+            echo "$RESP" | head -c 300
+            RID="$(echo "$RESP" | jq -r '.id // empty')"
+          fi
+          echo "gitee release id=$RID"
+          [ -n "$RID" ] || { echo "创建 Gitee release 失败"; exit 1; }
+
+          for f in dist/*.apk; do
+            [ -f "$f" ] || continue
+            echo "== 上传 $(basename "$f")"
+            curl -sS -X POST -H "Authorization: token ${GITEE_TOKEN}" \
+              -F "file=@$f" \
+              "https://gitee.com/api/v5/repos/${REPO}/releases/${RID}/attach_files" | head -c 200
+            echo
+          done
