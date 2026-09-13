@@ -157,6 +157,12 @@ fun ChatInput(
     val assistant = settings.getCurrentAssistant()
     val settingsStore = koinInject<SettingsStore>()
     val coroutineScope = rememberCoroutineScope()
+    val modelListState =
+        rememberModelListState(
+            modelId = assistant.chatModelId ?: settings.chatModelId,
+            providers = settings.providers,
+            type = ModelType.CHAT,
+        )
     // 功能按钮行（Zap/LockKey/ASR 等）折叠状态：默认折叠，用户展开后持久化记忆
     val featureBarCollapsed = settings.displaySetting.featureBarCollapsed
     val toggleFeatureBar: () -> Unit = {
@@ -369,13 +375,8 @@ fun ChatInput(
                                 horizontalArrangement = Arrangement.spacedBy(2.dp),
                             ) {
                                 // Model Picker
-                                ModelSelector(
-                                    modelId = assistant.chatModelId ?: settings.chatModelId,
-                                    providers = settings.providers,
-                                    onSelect = {
-                                        onUpdateChatModel(it)
-                                    },
-                                    type = ModelType.CHAT,
+                                ModelSelectorButton(
+                                    state = modelListState,
                                     onlyIcon = true,
                                     modifier = Modifier,
                                 )
@@ -480,6 +481,11 @@ fun ChatInput(
             }
         }
     }
+
+    ModelListSheet(
+        state = modelListState,
+        onSelect = onUpdateChatModel,
+    )
 }
 
 
