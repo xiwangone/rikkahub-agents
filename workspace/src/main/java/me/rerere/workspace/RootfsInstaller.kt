@@ -12,6 +12,9 @@ import java.nio.file.Files
 import java.util.Locale
 import java.util.zip.GZIPInputStream
 
+/** tar 时间戳合理上限（9999-12-31，秒）；超出视为非法，避免 *1000 溢出或负数 */
+private const val MAX_TAR_MOD_TIME_SECONDS = 253_402_300_799L
+
 class RootfsInstaller(
     private val manager: WorkspaceManager,
     private val patcher: RootfsPatcher = RootfsPatcher(),
@@ -205,13 +208,26 @@ class RootfsInstaller(
                     -> {
                         Unit
                     }
+
+                    // GNU sparse（磁盘镜像，如 Debian cloud 的 disk.raw）不是 rootfs 结构，
+                    // 其数据布局由扩展头描述，按普通条目继续解析会导致后续 header 错位
+                    TarEntryType.SPARSE -> {
+                        throw IllegalArgumentException(
+                            "该压缩包是磁盘镜像（disk.raw），不能作为 rootfs 安装；请改用 rootfs 包（如 Ubuntu base / Alpine minirootfs）",
+                        )
+                    }
                 }
                 if (header.type != TarEntryType.FILE) {
                     input.skipFully(header.size)
                 }
                 input.skipFully(header.size.paddingSize())
-                if (header.modTime > 0 && header.type != TarEntryType.SYMLINK) {
-                    target.setLastModified(header.modTime * 1000)
+                val modTimeSeconds = header.modTime
+                if (
+                    header.type != TarEntryType.SYMLINK &&
+                    modTimeSeconds in 1..MAX_TAR_MOD_TIME_SECONDS
+                ) {
+                    // 异常时间戳（base-256 负值 / 越界）直接忽略；设置失败也不应中断解压
+                    runCatching { target.setLastModified(modTimeSeconds * 1000) }
                 }
                 entries++
                 onProgress(
@@ -300,6 +316,7 @@ class RootfsInstaller(
                     'L' -> TarEntryType.LONG_NAME
                     'K' -> TarEntryType.LONG_LINK
                     'x' -> TarEntryType.PAX
+                    'S' -> TarEntryType.SPARSE
                     else -> TarEntryType.OTHER
                 },
             linkName = header.string(157, 100),
@@ -439,7 +456,10 @@ class RootfsInstaller(
         // 某些发行版（如 Debian cloud 镜像）的条目会带上该编码，直接按八进制解析会抛
         // NumberFormatException("For input string ... under radix 8")。
         if ((this[offset].toInt() and 0x80) != 0) {
-            var value = 0L
+            // GNU base-256：最高位置 1 表示二进制编码，其余位为大端二补码有符号数
+            // （首字节 0x80 表示负数）。此前的无符号实现会把负值读成巨大值，
+            // 下游 *1000 溢出为负，setLastModified 因此抛 "Negative time"。
+            var value = if ((this[offset].toInt() and 0x40) != 0) -1L else 0L
             for (i in offset until offset + length) {
                 value = (value shl 8) or (this[i].toLong() and 0xFF)
             }
@@ -476,6 +496,7 @@ class RootfsInstaller(
         LONG_NAME,
         LONG_LINK,
         PAX,
+        SPARSE,
         OTHER,
     }
 

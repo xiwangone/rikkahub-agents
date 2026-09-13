@@ -1143,15 +1143,11 @@ private val PRESET_ROOTFS_URLS =
             "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-arm64.tar.gz",
         ),
         PresetRootfsUrl(
-            "Ubuntu 22.04 base",
-            "https://cdimage.ubuntu.com/ubuntu-base/releases/22.04/release/ubuntu-base-22.04.5-base-arm64.tar.gz",
+            "Ubuntu 26.04 base",
+            "https://cdimage.ubuntu.com/ubuntu-base/releases/26.04/release/ubuntu-base-26.04-base-arm64.tar.gz",
         ),
         PresetRootfsUrl(
             "Alpine 3.21 minirootfs",
             "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz",
-        ),
-        PresetRootfsUrl(
-            "Debian 12 cloud",
-            "https://cloud.debian.org/images/cloud/bookworm/latest/debian-12-genericcloud-arm64.tar.xz",
         ),
     )
