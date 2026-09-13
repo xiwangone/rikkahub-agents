@@ -93,6 +93,7 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.rikkahub.utils.plus
+import me.rerere.workspace.WorkspaceDistroInfo
 import me.rerere.workspace.RootfsInstallProgress
 import me.rerere.workspace.RootfsInstallStage
 import me.rerere.workspace.WorkspaceFileEntry
@@ -209,6 +210,7 @@ fun WorkspaceDetailPage(id: String) {
                 0 -> {
                     WorkspaceBasicPage(
                         workspace = state.workspace,
+                        distro = state.distro,
                         installProgress = installProgress,
                         onInstallRootfs = { showInstallDialog = true },
                         onToolApprovalChange = vm::setToolApproval,
@@ -383,6 +385,7 @@ fun WorkspaceDetailPage(id: String) {
 @Composable
 private fun WorkspaceBasicPage(
     workspace: WorkspaceEntity?,
+    distro: WorkspaceDistroInfo?,
     installProgress: RootfsInstallProgress?,
     onInstallRootfs: () -> Unit,
     onToolApprovalChange: (String, Boolean) -> Unit,
@@ -426,10 +429,10 @@ private fun WorkspaceBasicPage(
                         stringResource(R.string.workspace_detail_shell_status),
                         workspace?.shellStatus?.toShellStatusLabel() ?: "-",
                     )
-                    state.distro?.let { distro ->
+                    distro?.let { info ->
                         WorkspaceInfoRow(
                             stringResource(R.string.workspace_detail_distro),
-                            distro.prettyName,
+                            info.prettyName,
                         )
                     }
                 }
