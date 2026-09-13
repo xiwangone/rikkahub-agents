@@ -54,7 +54,9 @@ class ToolRobustnessTest {
         browserGetTextTool(),
         findNodeTool(),
         clickNodeTool(),
-        callLogTool(NULL_CONTEXT),
+        // callLogTool is intentionally absent: every code path reaches
+        // android.provider.CallLog.Calls.CONTENT_URI, a framework constant that is null on a
+        // host JVM, so it would surface an environment NPE instead of a contract problem.
     )
 
     private fun isControlled(e: Throwable): Boolean =
