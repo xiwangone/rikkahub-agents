@@ -200,6 +200,7 @@ class FileManagerToolTest {
     // ========== write_text_file ==========
 
     @Test fun `write_text_file auto creates RikkaHub shared-storage parents`() {
+        assumePosix()
         assertTrue(
             shouldAutoCreateParent(
                 "/sdcard/Documents/RikkaHub/nested/note.txt",

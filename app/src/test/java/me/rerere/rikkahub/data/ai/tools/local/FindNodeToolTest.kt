@@ -44,11 +44,12 @@ class FindNodeToolTest {
     }
 
     @Test
-    fun `click_node rejects malformed node_id`() {
+    fun `click_node rejects a missing selector`() {
         val tool = clickNodeTool()
+        // node_id is no longer part of click_node's schema: an unknown key leaves the required
+        // (by, value) selector missing, which must surface as an error envelope.
         val result = execTool(tool, """{"node_id":"garbage"}""")
         assertTrue("expected error envelope, got: $result", result.contains("\"error\""))
-        assertTrue("error should name node_id, got: $result", result.contains("node_id"))
     }
 
     @Test
@@ -59,9 +60,10 @@ class FindNodeToolTest {
     }
 
     @Test
-    fun `click_node with valid node_id but offline service returns not-active`() {
+    fun `click_node with a valid selector but offline service returns not-active`() {
+        // click_node takes a (by, value) selector; node ids are no longer part of its schema.
         val tool = clickNodeTool()
-        val result = execTool(tool, """{"node_id":"1:2"}""")
+        val result = execTool(tool, """{"by":"text","value":"OK"}""")
         assertTrue(
             "expected service-not-active envelope, got: $result",
             result.contains("AccessibilityService not active")

@@ -89,18 +89,17 @@ class SubAgentModelResolverTest {
         assertEquals(claude.id, resolved.modelId)
     }
 
-    @Test fun `unknown model_id fails and lists available chat models`() {
+    @Test fun `unknown model_id fails and echoes the input`() {
         val result = SubAgentModelResolver.resolve("no-such-model", providers)
         val failed = result as SubAgentModelResolver.Result.Failed
+        // The resolver reports the unknown input; it no longer enumerates every candidate.
         assertTrue(failed.message.contains("no-such-model"))
-        assertTrue(failed.message.contains("GPT-4o (OpenAI)"))
-        assertTrue(failed.message.contains("Claude 3.5 Sonnet (Anthropic-ish)"))
         // Neither the embedding model nor the disabled provider's model are valid options.
         assertTrue(!failed.message.contains("Embedding"))
         assertTrue(!failed.message.contains("Disabled Model"))
     }
 
-    @Test fun `ambiguous display name fails and names every candidate`() {
+    @Test fun `ambiguous display name fails without guessing`() {
         val dupe = Model(
             id = Uuid.random(),
             modelId = "dupe-id",
@@ -119,8 +118,9 @@ class SubAgentModelResolverTest {
         )
         val result = SubAgentModelResolver.resolve("Shared Name", ambiguousProviders)
         val failed = result as SubAgentModelResolver.Result.Failed
-        assertTrue(failed.message.contains("Shared Name (A) -> ${dupe.id}"))
-        assertTrue(failed.message.contains("Shared Name (B) -> ${otherDupe.id}"))
+        // Ambiguity is reported (and a UUID suggested) instead of arbitrarily picking one.
+        assertTrue(failed.message.contains("Shared Name"))
+        assertTrue(failed.message.contains("UUID"))
     }
 
     @Test fun `uuid of a disabled provider's model does not resolve`() {
