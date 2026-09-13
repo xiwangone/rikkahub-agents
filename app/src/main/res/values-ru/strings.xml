@@ -2578,7 +2578,7 @@
   <string name="auto_compress_reset_warning">⚠️ Автосжатие сбросит историю текущего диалога</string>
   <string name="auto_compress_invalid_input">Введите корректное значение</string>
   <string name="setting_model_page_tool_output">Ограничение вывода инструментов</string>
-  <string name="setting_model_page_tool_output_max_chars">Ограничение вывода (КБ, 1–20; например, 5 = 5000 символов)</string>
+  <string name="setting_model_page_tool_output_max_chars">Лимит вывода инструментов (K символов, 1-20; напр. 5 = 5000 символов)</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">Диагностика ИИ</string>
   <string name="assistant_page_local_tools_app_health_title">Диагностика приложения</string>
   <string name="assistant_page_local_tools_app_health_desc">Запускает встроенную проверку Doctor и возвращает структурированный отчёт (разрешения, службы, БД, сеть, обслуживание).</string>

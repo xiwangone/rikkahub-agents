@@ -1321,7 +1321,7 @@
   <string name="auto_compress_reset_warning">⚠️ Auto compress will reset the current conversation history</string>
   <string name="auto_compress_invalid_input">Please enter a valid value</string>
   <string name="setting_model_page_tool_output">Tool Output Limit</string>
-  <string name="setting_model_page_tool_output_max_chars">Tool output limit (KB, 1-20; e.g. 5 = 5000 chars)</string>
+  <string name="setting_model_page_tool_output_max_chars">Tool output limit (K chars, 1-20; e.g. 5 = 5000 chars)</string>
   <string name="setting_display_page_bubble_opacity_title">Bubble Opacity</string>
   <string name="setting_provider_page_include_history_reasoning">Include History Reasoning</string>
   <string name="assistant_page_local_tools_audio_info_desc">Read ringer mode, music-active state, headphone connection, and output devices.</string>

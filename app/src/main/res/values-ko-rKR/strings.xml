@@ -2585,7 +2585,7 @@
   <string name="auto_compress_reset_warning">⚠️ 자동 압축은 현재 대화의 기록 메시지를 초기화합니다</string>
   <string name="auto_compress_invalid_input">유효한 값을 입력하세요</string>
   <string name="setting_model_page_tool_output">도구 출력 제한</string>
-  <string name="setting_model_page_tool_output_max_chars">도구 출력 제한(KB, 1~20; 예: 5 = 5000자)</string>
+  <string name="setting_model_page_tool_output_max_chars">도구 출력 제한(K자, 1~20; 예: 5 = 5000자)</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 진단</string>
   <string name="assistant_page_local_tools_app_health_title">앱 진단</string>
   <string name="assistant_page_local_tools_app_health_desc">내장 Doctor 검사를 실행하고 구조화된 상태 스냅숏(권한, 서비스, 데이터베이스, 네트워크, 유지 관리)을 반환합니다.</string>
