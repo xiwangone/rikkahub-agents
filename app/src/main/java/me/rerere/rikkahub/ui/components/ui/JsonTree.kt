@@ -43,6 +43,14 @@ import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 
+// 单个容器默认最多组合的子节点数: 大对象/大数组一次展开会组合上千个节点,
+// 直接拖慢首帧与滚动; 超出部分先折叠, 点击后再继续展开
+private const val INITIAL_VISIBLE_CHILDREN = 100
+
+// 内联展示的字符串最大长度: 超长字符串单行测量昂贵, 只预览前若干字符,
+// 完整内容仍可点击在底部面板查看
+private const val MAX_INLINE_STRING_CHARS = 2_000
+
 @Composable
 fun JsonTree(
     json: JsonElement,
@@ -109,7 +117,9 @@ private fun JsonObjectNode(
     onStringClick: (String) -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(depth < initialExpandLevel) }
+    var showAllChildren by rememberSaveable(obj) { mutableStateOf(false) }
     val entries = remember(obj) { obj.entries.toList() }
+    val visibleEntries = if (showAllChildren) entries else entries.take(INITIAL_VISIBLE_CHILDREN)
 
     Column {
         Row(
@@ -145,7 +155,7 @@ private fun JsonObjectNode(
             exit = shrinkVertically(),
         ) {
             Column {
-                entries.forEach { (childKey, childElement) ->
+                visibleEntries.forEach { (childKey, childElement) ->
                     JsonNode(
                         element = childElement,
                         key = childKey,
@@ -153,6 +163,16 @@ private fun JsonObjectNode(
                         initialExpandLevel = initialExpandLevel,
                         onStringClick = onStringClick,
                     )
+                }
+                if (entries.size > visibleEntries.size) {
+                    Row(modifier = Modifier.padding(start = (depth * 16 + 14).dp)) {
+                        Text(
+                            text = "… 还有 ${entries.size - visibleEntries.size} 项（点击展开）",
+                            fontFamily = JetBrainsMono,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable { showAllChildren = true },
+                        )
+                    }
                 }
                 Row(modifier = Modifier.padding(start = (depth * 16 + 14).dp)) {
                     Text(
@@ -175,6 +195,8 @@ private fun JsonArrayNode(
     onStringClick: (String) -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(depth < initialExpandLevel) }
+    var showAllChildren by rememberSaveable(array) { mutableStateOf(false) }
+    val visibleChildren = if (showAllChildren) array.size else minOf(array.size, INITIAL_VISIBLE_CHILDREN)
 
     Column {
         Row(
@@ -210,7 +232,7 @@ private fun JsonArrayNode(
             exit = shrinkVertically(),
         ) {
             Column {
-                array.forEachIndexed { index, childElement ->
+                array.take(visibleChildren).forEachIndexed { index, childElement ->
                     JsonNode(
                         element = childElement,
                         key = index.toString(),
@@ -218,6 +240,16 @@ private fun JsonArrayNode(
                         initialExpandLevel = initialExpandLevel,
                         onStringClick = onStringClick,
                     )
+                }
+                if (array.size > visibleChildren) {
+                    Row(modifier = Modifier.padding(start = (depth * 16 + 14).dp)) {
+                        Text(
+                            text = "… 还有 ${array.size - visibleChildren} 项（点击展开）",
+                            fontFamily = JetBrainsMono,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.clickable { showAllChildren = true },
+                        )
+                    }
                 }
                 Row(modifier = Modifier.padding(start = (depth * 16 + 14).dp)) {
                     Text(
@@ -318,9 +350,16 @@ private fun ValueText(
             }
         }
 
+    // 超长字符串只内联预览前若干字符: 单行文本的测量与绘制代价随长度线性增长
+    val displayText =
+        if (text.length > MAX_INLINE_STRING_CHARS) {
+            text.take(MAX_INLINE_STRING_CHARS) + "…（点击查看全部）"
+        } else {
+            text
+        }
     Text(
-        text = text,
-        fontFamily = JetbrainsMono,
+        text = displayText,
+        fontFamily = JetBrainsMono,
         color = color,
         textDecoration = if (onClick != null) TextDecoration.Underline else null,
         modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
