@@ -775,7 +775,7 @@
   <string name="setting_display_page_chat_font_family_serif">Serif</string>
   <string name="setting_page_render_performance_settings">Rendering</string>
   <string name="setting_display_page_render_performance_title">Render Performance</string>
-  <string name="setting_display_page_render_performance_desc">Adapts rendering throttling to device capability; "Full priority" turns off all merging</string>
+  <string name="setting_display_page_render_performance_desc">Adapts rendering throttling to device capability; Full priority turns off all merging</string>
   <string name="setting_display_page_render_performance_auto">Auto</string>
   <string name="setting_display_page_render_performance_smooth">Smooth priority</string>
   <string name="setting_display_page_render_performance_full">Full priority</string>
