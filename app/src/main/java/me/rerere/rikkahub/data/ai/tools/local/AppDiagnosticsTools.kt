@@ -528,7 +528,7 @@ internal suspend fun usageStatsPayload(
                             injected
                                 .filter { name -> snapshot.none { it.name == name } }
                                 .sorted()
-                                .forEach { add(it) }
+                                .forEach { add(JsonPrimitive(it)) }
                         },
                     )
                     put(
