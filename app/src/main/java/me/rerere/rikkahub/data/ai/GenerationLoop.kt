@@ -393,6 +393,11 @@ private const val MAX_LOOP_GUARD_TRIPS_PER_TURN = 6
 // 轮预算将尽时提前注入收尾指令的宽限窗口：让模型总结收场，而不是被硬掐在半句话上
 private const val WRAP_UP_GRACE_MS = 120_000L
 
+// 流式期间「输出变换 + 界面投递」的合并窗口：每个 token 都做一次全量变换，
+// 在长会话下开销随消息数增长。同一窗口内只保留最新快照，并在 step 边界与生成结束时
+// 强制补齐，最终结果与逐次变换一致（设为 0 即恢复逐次处理）。
+private const val OUTPUT_FLUSH_INTERVAL_MS = 200L
+
 private const val WRAP_UP_PROMPT =
     "TIME BUDGET NOTICE: this turn is about to hit its wall-clock limit. Stop starting new " +
         "tool calls, finish any in-flight work, and give a concise final summary of what was " +
@@ -598,6 +603,10 @@ class GenerationLoop(
         val turnStartMs = android.os.SystemClock.elapsedRealtime()
         var loopGuardTripCount = 0
         var wrapUpInjected = false
+        // 输出变换节流状态（见 OUTPUT_FLUSH_INTERVAL_MS）：窗口内被合并掉的最新快照，
+        // 由 step 边界 / 生成结束补齐；任何"直接投递"点都会把它清空，避免旧快照回退内容。
+        var lastOutputFlushAtMs = 0L
+        var pendingOutputMessages: List<UIMessage>? = null
 
         for (stepIndex in 0 until maxSteps) {
             // Wall-clock cap: any single user turn that has been running longer than the
@@ -628,6 +637,31 @@ class GenerationLoop(
             }
 
             Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
+
+            // step 边界：把上一轮流式期间合并掉的输出变换补上，
+            // 保证本 step 的请求上下文与界面状态与逐次变换完全一致
+            pendingOutputMessages?.let { pending ->
+                pendingOutputMessages = null
+                lastOutputFlushAtMs = android.os.SystemClock.elapsedRealtime()
+                messages = pending.transforms(
+                    transformers = outputTransformers,
+                    context = context,
+                    model = model,
+                    assistant = assistant,
+                    settings = settings
+                )
+                emit(
+                    GenerationChunk.Messages(
+                        messages.visualTransforms(
+                            transformers = outputTransformers,
+                            context = context,
+                            model = model,
+                            assistant = assistant,
+                            settings = settings
+                        )
+                    )
+                )
+            }
 
             // 工具面在调用前由装配工厂统一构建（记忆/搜索/本地/工作区/技能/MCP），
             // 这里只做只读引用，避免两处拼装漂移。
@@ -665,24 +699,34 @@ class GenerationLoop(
                         systemAddendum = systemAddendum,
                         messages = messages,
                         onUpdateMessages = {
-                            messages = it.transforms(
-                                transformers = outputTransformers,
-                                context = context,
-                                model = model,
-                                assistant = assistant,
-                                settings = settings
-                            )
-                            emit(
-                                GenerationChunk.Messages(
-                                    messages.visualTransforms(
-                                        transformers = outputTransformers,
-                                        context = context,
-                                        model = model,
-                                        assistant = assistant,
-                                        settings = settings
+                            val nowFlushMs = android.os.SystemClock.elapsedRealtime()
+                            if (nowFlushMs - lastOutputFlushAtMs >= OUTPUT_FLUSH_INTERVAL_MS) {
+                                lastOutputFlushAtMs = nowFlushMs
+                                pendingOutputMessages = null
+                                messages = it.transforms(
+                                    transformers = outputTransformers,
+                                    context = context,
+                                    model = model,
+                                    assistant = assistant,
+                                    settings = settings
+                                )
+                                emit(
+                                    GenerationChunk.Messages(
+                                        messages.visualTransforms(
+                                            transformers = outputTransformers,
+                                            context = context,
+                                            model = model,
+                                            assistant = assistant,
+                                            settings = settings
+                                        )
                                     )
                                 )
-                            )
+                            } else {
+                                // 合并窗口内：只记录最新快照，跳过的中间帧由下一次投递或
+                                // step 边界/结束时的补齐覆盖（最终结果与逐次处理一致）
+                                messages = it
+                                pendingOutputMessages = it
+                            }
                         },
                         transformers = inputTransformers,
                         model = model,
@@ -1144,6 +1188,8 @@ class GenerationLoop(
                     )
                 )
             )
+            // 已按最新 messages 直接投递，之前合并的待处理快照作废
+            pendingOutputMessages = null
 
             onAfterToolExecution(messages)?.let { compactedMessages ->
                 Log.i(TAG, "generateText: replacing request history after tool execution")
@@ -1167,7 +1213,32 @@ class GenerationLoop(
                         )
                     )
                 )
+                // 已按最新 messages 直接投递，之前合并的待处理快照作废
+                pendingOutputMessages = null
             }
+        }
+
+        // 生成结束：补齐最后一次被合并的输出变换（保证界面与落盘拿到最终状态）
+        pendingOutputMessages?.let { pending ->
+            pendingOutputMessages = null
+            messages = pending.transforms(
+                transformers = outputTransformers,
+                context = context,
+                model = model,
+                assistant = assistant,
+                settings = settings
+            )
+            emit(
+                GenerationChunk.Messages(
+                    messages.visualTransforms(
+                        transformers = outputTransformers,
+                        context = context,
+                        model = model,
+                        assistant = assistant,
+                        settings = settings
+                    )
+                )
+            )
         }
 
     }
