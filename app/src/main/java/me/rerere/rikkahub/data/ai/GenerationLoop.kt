@@ -390,6 +390,14 @@ private const val LOOP_GUARD_REPEAT_THRESHOLD = 3
  */
 private const val MAX_LOOP_GUARD_TRIPS_PER_TURN = 6
 
+// 轮预算将尽时提前注入收尾指令的宽限窗口：让模型总结收场，而不是被硬掐在半句话上
+private const val WRAP_UP_GRACE_MS = 120_000L
+
+private const val WRAP_UP_PROMPT =
+    "TIME BUDGET NOTICE: this turn is about to hit its wall-clock limit. Stop starting new " +
+        "tool calls, finish any in-flight work, and give a concise final summary of what was " +
+        "done and what remains."
+
 /**
  * Number of most-recent tool-result-bearing messages whose `Image` parts are kept
  * verbatim in the prompt. Older tool-result images are replaced with a small text
@@ -589,6 +597,7 @@ class GenerationLoop(
 
         val turnStartMs = android.os.SystemClock.elapsedRealtime()
         var loopGuardTripCount = 0
+        var wrapUpInjected = false
 
         for (stepIndex in 0 until maxSteps) {
             // Wall-clock cap: any single user turn that has been running longer than the
@@ -597,6 +606,14 @@ class GenerationLoop(
             // discovers many distinct tool calls (each within the loop guard) can still
             // run for hours.
             val elapsedMs = android.os.SystemClock.elapsedRealtime() - turnStartMs
+            // 优雅收尾：预算进入宽限窗口时注入一次性收尾指令（合成消息，不落库不进历史），
+            // 让模型停止开新工具并总结收场；硬掐只作为最终兜底
+            val remainingBudgetMs = ToolRuntimeLimits.turnBudgetMs - elapsedMs
+            if (remainingBudgetMs in 1..WRAP_UP_GRACE_MS && !wrapUpInjected) {
+                wrapUpInjected = true
+                AppLog.w(TAG, "generateText: turn budget nearly exhausted (${remainingBudgetMs}ms left); injecting wrap-up reminder")
+                messages = messages + UIMessage.user(WRAP_UP_PROMPT).copy(isSynthetic = true)
+            }
             if (elapsedMs > ToolRuntimeLimits.turnBudgetMs) {
                 AppLog.w(TAG, "generateText: wall-clock cap (${ToolRuntimeLimits.turnBudgetMs}ms) hit at step #$stepIndex; force-ending turn")
                 break
