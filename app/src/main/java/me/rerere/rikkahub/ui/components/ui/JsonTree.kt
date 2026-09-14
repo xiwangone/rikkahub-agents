@@ -168,7 +168,7 @@ private fun JsonObjectNode(
                     Row(modifier = Modifier.padding(start = (depth * 16 + 14).dp)) {
                         Text(
                             text = "… 还有 ${entries.size - visibleEntries.size} 项（点击展开）",
-                            fontFamily = JetBrainsMono,
+                            fontFamily = JetbrainsMono,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { showAllChildren = true },
                         )
@@ -245,7 +245,7 @@ private fun JsonArrayNode(
                     Row(modifier = Modifier.padding(start = (depth * 16 + 14).dp)) {
                         Text(
                             text = "… 还有 ${array.size - visibleChildren} 项（点击展开）",
-                            fontFamily = JetBrainsMono,
+                            fontFamily = JetbrainsMono,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { showAllChildren = true },
                         )
@@ -359,7 +359,7 @@ private fun ValueText(
         }
     Text(
         text = displayText,
-        fontFamily = JetBrainsMono,
+        fontFamily = JetbrainsMono,
         color = color,
         textDecoration = if (onClick != null) TextDecoration.Underline else null,
         modifier = if (onClick != null) Modifier.clickable(onClick = onClick) else Modifier,
