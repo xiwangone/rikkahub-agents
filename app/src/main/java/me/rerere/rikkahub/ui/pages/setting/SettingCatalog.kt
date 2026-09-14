@@ -2,6 +2,29 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.ui.graphics.vector.ImageVector
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.AiMagic
+import me.rerere.hugeicons.stroke.Alert01
+import me.rerere.hugeicons.stroke.Bookshelf01
+import me.rerere.hugeicons.stroke.Brain02
+import me.rerere.hugeicons.stroke.Clock02
+import me.rerere.hugeicons.stroke.Connect
+import me.rerere.hugeicons.stroke.Console
+import me.rerere.hugeicons.stroke.Database02
+import me.rerere.hugeicons.stroke.Earth
+import me.rerere.hugeicons.stroke.GlobalSearch
+import me.rerere.hugeicons.stroke.LockKey
+import me.rerere.hugeicons.stroke.LookTop
+import me.rerere.hugeicons.stroke.McpServer
+import me.rerere.hugeicons.stroke.Megaphone01
+import me.rerere.hugeicons.stroke.Package
+import me.rerere.hugeicons.stroke.Robot01
+import me.rerere.hugeicons.stroke.ServerStack01
+import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.Shield01
+import me.rerere.hugeicons.stroke.SmartPhone01
+import me.rerere.hugeicons.stroke.Telegram
+import me.rerere.hugeicons.stroke.Tick01
+import me.rerere.hugeicons.stroke.Wrench01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 
