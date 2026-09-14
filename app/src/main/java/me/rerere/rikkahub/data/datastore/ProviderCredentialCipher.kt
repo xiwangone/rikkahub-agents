@@ -51,6 +51,12 @@ internal object ProviderCredentialCipher {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(TAG_LENGTH, iv))
         cipher.doFinal(encrypted).decodeToString()
+    }.onFailure { e ->
+        // 解密失败会让 providers 回退默认列表, 属高价值排查线索, 必须留痕并区分失败类别
+        android.util.Log.w(
+            "ProviderCredentialCipher",
+            "provider 凭证解密失败(${e.javaClass.simpleName}): ${e.message}",
+        )
     }.getOrNull()
 
     private fun getOrCreateKey(): SecretKey {

@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.mcp
 
 import kotlinx.serialization.Serializable
+import me.rerere.rikkahub.data.ai.tools.LenientLocalToolListSerializer
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 
 /**
@@ -16,6 +17,7 @@ data class LocalMcpProfile(
     val name: String,
     val port: Int = 8788,
     /** 暴露的工具子集；默认空——用户自填。为空时启动后暴露 0 个工具。 */
+    @Serializable(with = LenientLocalToolListSerializer::class)
     val allowedTools: List<LocalToolOption> = emptyList(),
     /** 监听范围：loopback（仅本机，默认）/ lan / any（所有接口） */
     val listenScope: String = "loopback",

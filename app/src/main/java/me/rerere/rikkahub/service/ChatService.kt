@@ -121,6 +121,13 @@ private const val TAG = "ChatService"
  */
 private const val STREAM_PERSIST_INTERVAL_MS = 8_000L
 
+/**
+ * 流式界面提交节流：数据块到达频率远高于屏幕刷新率，逐块提交会让消息列表反复重组造成卡顿。
+ * 内存态按此间隔提交；每个数据块携带全量快照，跳过的中间块由下一次提交自然补上，
+ * 生成结束与兜底路径仍会提交最终状态。
+ */
+private const val STREAM_UI_INTERVAL_MS = 120L
+
 // 审批续跑时等待前一个生成任务结束的上限（不取消前一个，避免打断其审批写入）。
 private const val PREV_JOB_JOIN_TIMEOUT_MS = 10_000L
 
@@ -1074,6 +1081,8 @@ class ChatService(
             val session = getOrCreateSession(conversationId)
             // 生成期间周期落盘的节流时间戳（见 STREAM_PERSIST_INTERVAL_MS）
             var lastStreamPersistAtMs = 0L
+            // 流式界面提交的节流时间戳（见 STREAM_UI_INTERVAL_MS）
+            var lastUiCommitAtMs = 0L
             generationLoop
                 .generateText(
                     settings = settings,
@@ -1204,7 +1213,12 @@ class ChatService(
                                 getConversationFlow(conversationId)
                                     .value
                                     .updateCurrentMessages(chunk.messages)
-                            updateConversation(conversationId, updatedConversation)
+                            // 界面提交节流（见 STREAM_UI_INTERVAL_MS）：落盘与通知逻辑不受影响
+                            val nowUiMs = System.currentTimeMillis()
+                            if (nowUiMs - lastUiCommitAtMs >= STREAM_UI_INTERVAL_MS) {
+                                lastUiCommitAtMs = nowUiMs
+                                updateConversation(conversationId, updatedConversation)
+                            }
 
                             // Persist immediately when a tool transitions to "execution
                             // started but no output yet" — this writes the executionStartedAt

@@ -254,6 +254,8 @@ class SettingsStore(
     val settingsFlowRaw = dataStore.data
         .catch { exception ->
             if (exception is IOException) {
+                // 文件层异常静默回落默认是排查「设置变默认」时最难定位的路径, 必须留痕
+                Log.e(TAG, "settings DataStore 读取失败, 本次回落默认设置(磁盘数据不受影响)", exception)
                 emit(emptyPreferences())
             } else {
                 throw exception
@@ -388,7 +390,11 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 webServerEnabled = preferences[WEB_SERVER_ENABLED] == true,
                 webServerPort = preferences[WEB_SERVER_PORT] ?: 8080,
                 localMcpServerEnabled = preferences[LOCAL_MCP_SERVER_ENABLED] == true,
-                localMcpProfiles = preferences[LOCAL_MCP_PROFILES]?.let { JsonInstant.decodeFromString<List<LocalMcpProfile>>(it) } ?: emptyList(),
+                localMcpProfiles = preferences[LOCAL_MCP_PROFILES]?.let {
+                    runCatching { JsonInstant.decodeFromString<List<LocalMcpProfile>>(it) }
+                        .onFailure { Log.w(TAG, "localMcpProfiles 解析失败, 暂以空列表替代(原始数据保留)", it) }
+                        .getOrElse { emptyList() }
+                } ?: emptyList(),
                 activeLocalMcpProfileId = preferences[LOCAL_MCP_ACTIVE_PROFILE_ID],
                 webBridgeEcsHost = preferences[WEB_BRIDGE_ECS_HOST] ?: "",
                 webBridgeEcsUser = preferences[WEB_BRIDGE_ECS_USER] ?: "root",

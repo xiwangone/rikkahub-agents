@@ -3,10 +3,8 @@ package me.rerere.rikkahub.ui.components.richtext
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.IntrinsicSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
@@ -23,6 +21,10 @@ import androidx.compose.ui.util.fastForEach
 
 internal val DiffAddedColor = Color(0xFF4CAF50)
 internal val DiffRemovedColor = Color(0xFFEF5350)
+
+// 单行超过该字符数即截断显示: 超长单行(如单行 JSON/转义内容)会让横向滚动容器的
+// 测量宽度超出 Constraints 可表示上限导致崩溃, 且固有测量代价高昂
+private const val MAX_LINE_CHARS = 4000
 
 /** unified diff 的增删行数统计 */
 internal data class DiffStats(
@@ -73,7 +75,12 @@ fun DiffView(
                 lines
             }
         }
-    val lines = remember(allLines, maxLines) { allLines.take(maxLines) }
+    val lines =
+        remember(allLines, maxLines) {
+            allLines.take(maxLines).map { line ->
+                if (line.length > MAX_LINE_CHARS) line.take(MAX_LINE_CHARS) + "…" else line
+            }
+        }
     val truncated = allLines.size - lines.size
 
     Column(
@@ -82,7 +89,6 @@ fun DiffView(
                 .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
                 .horizontalScroll(rememberScrollState())
-                .width(IntrinsicSize.Max)
                 .padding(vertical = 4.dp),
     ) {
         lines.fastForEach { line ->
