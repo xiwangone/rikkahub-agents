@@ -122,7 +122,10 @@ class ChatToolFactory(
                 )
             )
         }
-    }.map { slimDescriptionForInjection(it) }
+    }.let { full ->
+        // 注入视图：低频工具精简描述；元工具基于**未精简**的完整列表，保证 get_tool_schema 能取回原文。
+        full.map { slimDescriptionForInjection(it) } + buildToolDiscoveryTools(full)
+    }
 
     /** 工作区 shell 未就绪时不下发工作区工具（避免模型调用必然失败的工具）。 */
     private suspend fun createWorkspaceToolsIfReady(workspaceId: String?, cwd: String?): List<Tool> {
