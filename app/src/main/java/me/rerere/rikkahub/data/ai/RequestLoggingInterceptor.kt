@@ -8,9 +8,8 @@ import okhttp3.Response
 import okio.Buffer
 
 /**
- * 单个请求体进入日志前允许的最大字节数。超过此值只记录摘要，不做全文读取与脱敏——
- * 内联 base64 图片、超长上下文等大请求体，会让脱敏过程在堆上复制数份等大的字符串，
- * 可能触发 OutOfMemoryError。
+ * 单个请求体进入日志前允许的最大字节数。超过此值只记录摘要，不做全文读取与脱敏，
+ * 避免内联图片等大请求体在读取与正则替换过程中产生多份等大字符串而耗尽堆内存。
  */
 private const val MAX_LOGGED_BODY_BYTES = 1024L * 1024L
 

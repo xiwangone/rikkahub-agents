@@ -171,7 +171,13 @@ object LogRedactor {
      *  3. 「敏感键名 = 值」形态的值（覆盖**无固定前缀**的 key）
      * 不改变文本结构，可安全用于 JSON body / 崩溃堆栈 / 日志导出。
      */
+    /** 超过该长度不做正则脱敏：多次 replace 会在堆上产生多份等大字符串。 */
+    private const val MAX_MASK_TEXT_CHARS = 1_000_000
+
     fun maskText(text: String): String {
+        if (text.length > MAX_MASK_TEXT_CHARS) {
+            return "[text too large to redact: ${text.length} chars]"
+        }
         if (text.length > MAX_REDACT_CHARS) {
             return "[text too large to redact: ${text.length} chars]"
         }
