@@ -1,4 +1,4 @@
-name: 编译 APK（验证 / 出包）
+name: 01 编译 APK（验证 / 出包）
 
 # 合并自 build-debug.yml（push master 自动快速验证）与 build-apk.yml（手动触发，可选 release 出包）。
 # 手动出包：Actions → 本 workflow → Run workflow → build_type = debug | release

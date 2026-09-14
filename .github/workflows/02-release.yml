@@ -1,4 +1,4 @@
-name: 发布 Release
+name: 02 发布 Release
 
 on:
   workflow_dispatch:
