@@ -38,6 +38,7 @@ jobs:
           distribution: 'temurin'
 
       - name: 设置 Android SDK
+        continue-on-error: true # runner 预装 SDK 基本够单测用; 该步骤偶发下载组件损坏导致整 job 失败
         uses: android-actions/setup-android@v3
 
       - name: 缓存 Gradle 依赖（libs 变化才重建）
