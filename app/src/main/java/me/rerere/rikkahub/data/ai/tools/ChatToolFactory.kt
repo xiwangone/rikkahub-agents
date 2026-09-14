@@ -122,7 +122,7 @@ class ChatToolFactory(
                 )
             )
         }
-    }
+    }.map { slimDescriptionForInjection(it) }
 
     /** 工作区 shell 未就绪时不下发工作区工具（避免模型调用必然失败的工具）。 */
     private suspend fun createWorkspaceToolsIfReady(workspaceId: String?, cwd: String?): List<Tool> {
@@ -137,4 +137,24 @@ class ChatToolFactory(
         }
         return createWorkspaceTools(workspaceId, workspaceRepository, cwd)
     }
+}
+
+
+/**
+ * 低频工具只保留一行用途，压缩常驻提示体积（渐进式披露的 S2）。
+ *
+ * 只裁剪 description，**完整保留参数表**——工具仍可被正常调用；需要完整说明时由检索类工具按需提供。
+ * 高频工具（[SurfaceTier.HOT] / [SurfaceTier.WARM]）不作改动。
+ */
+private fun slimDescriptionForInjection(tool: Tool): Tool =
+    when (ToolSurfacePolicy.tierOf(tool.name)) {
+        SurfaceTier.COLD -> tool.copy(description = tool.description.toSingleLine())
+        else -> tool
+    }
+
+/** 取描述的首句（英文句点或换行分隔），并限制长度。 */
+private fun String.toSingleLine(maxChars: Int = 120): String {
+    val normalized = replace("\n", " ").trim()
+    val head = normalized.substringBefore(". ").substringBefore("。")
+    return if (head.length <= maxChars) head else head.take(maxChars).trimEnd() + "…"
 }
