@@ -6,18 +6,12 @@ import android.hardware.SensorEvent
 import android.hardware.SensorEventListener
 import android.hardware.SensorManager
 import kotlinx.coroutines.delay
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import me.rerere.ai.core.InputSchema
-import me.rerere.ai.core.Tool
-import me.rerere.ai.ui.UIMessagePart
 
 private val FRIENDLY_TO_TYPE: Map<String, Int> = mapOf(
     "accelerometer" to Sensor.TYPE_ACCELEROMETER,
@@ -49,15 +43,7 @@ private val UNIT_BY_FRIENDLY: Map<String, String> = mapOf(
     "humidity" to "%",
 )
 
-fun listSensorsTool(context: Context): Tool = Tool(
-    name = "list_sensors",
-    description = """
-        List all available sensors on the device, including their type, vendor, and operating range.
-    """.trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(properties = buildJsonObject { })
-    },
-    execute = {
+internal fun sensorsPayload(context: Context): JsonObject {
         val sm = context.getSystemService(SensorManager::class.java)
         val payload = if (sm == null) {
             buildJsonObject { put("error", "SensorManager unavailable") }
@@ -77,37 +63,12 @@ fun listSensorsTool(context: Context): Tool = Tool(
                 })
             }
         }
-        listOf(UIMessagePart.Text(payload.toString()))
-    }
-)
+    return payload
+}
 
-fun readSensorTool(context: Context): Tool = Tool(
-    name = "read_sensor",
-    description = """
-        Read a single value (or short averaged sample) from a named device sensor,
-        e.g., accelerometer, gyroscope, light, proximity.
-    """.trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(
-            properties = buildJsonObject {
-                put("type", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Sensor type, e.g. \"accelerometer\"")
-                })
-                put("duration_ms", buildJsonObject {
-                    put("type", "integer")
-                    put("description", "Optional sample window in ms, default 200, max 5000")
-                })
-            },
-            required = listOf("type")
-        )
-    },
-    execute = { input ->
-        val params = input.jsonObject
-        val typeName = params["type"]?.jsonPrimitive?.contentOrNull
-            ?: error("type is required")
-        val durationMs = (params["duration_ms"]?.jsonPrimitive?.intOrNull ?: 200)
-            .coerceIn(1, 5000)
+internal fun sensorReadPayload(context: Context, rawTypeName: String?, rawDurationMs: Int?): JsonObject {
+    val typeName = rawTypeName ?: error("type is required")
+    val durationMs = (rawDurationMs ?: 200).coerceIn(1, 5000)
         val typeInt = FRIENDLY_TO_TYPE[typeName]
         val payload = if (typeInt == null) {
             buildJsonObject { put("error", "unknown sensor type: $typeName") }
@@ -158,6 +119,5 @@ fun readSensorTool(context: Context): Tool = Tool(
                 }
             }
         }
-        listOf(UIMessagePart.Text(payload.toString()))
-    }
-)
+    return payload
+}

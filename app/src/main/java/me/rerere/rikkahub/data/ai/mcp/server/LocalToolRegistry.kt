@@ -20,12 +20,7 @@ class LocalToolRegistry(private val localTools: LocalTools) {
         val FALLBACK_CORE = listOf(
             LocalToolOption.TimeInfo,
             LocalToolOption.Clipboard,
-            LocalToolOption.Battery,
-            LocalToolOption.AudioInfo,
-            LocalToolOption.TelephonyInfo,
-            LocalToolOption.WifiInfo,
-            LocalToolOption.Sensors,
-            LocalToolOption.StorageInfo,
+            LocalToolOption.DeviceInfo,
             LocalToolOption.Toast,
             LocalToolOption.Files,
         )

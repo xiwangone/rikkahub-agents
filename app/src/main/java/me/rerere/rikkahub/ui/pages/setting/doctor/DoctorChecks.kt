@@ -54,7 +54,7 @@ private object Capability {
     val FineLocation: Set<LocalToolOption> =
         setOf(
             LocalToolOption.Location, // get_location, geocode tools
-            LocalToolOption.WifiInfo, // SSID/BSSID on Android 10+
+            LocalToolOption.DeviceInfo, // SSID/BSSID on Android 10+
             LocalToolOption.Workflows, // geofence_enter / geofence_exit triggers
         )
     val NotificationListener: Set<LocalToolOption> =
@@ -115,7 +115,7 @@ private object Capability {
         )
     val NearbyWifi: Set<LocalToolOption> =
         setOf(
-            LocalToolOption.WifiInfo, // WiFi scan/info on Android 13+
+            LocalToolOption.DeviceInfo, // WiFi scan/info on Android 13+
         )
     val BackgroundLocation: Set<LocalToolOption> =
         setOf(
@@ -127,7 +127,7 @@ private object Capability {
 private fun LocalToolOption.shortName(context: Context): String =
     when (this) {
         LocalToolOption.Location -> context.getString(R.string.doctor_tool_location)
-        LocalToolOption.WifiInfo -> context.getString(R.string.doctor_tool_wifi)
+        LocalToolOption.DeviceInfo -> context.getString(R.string.doctor_tool_device_info)
         LocalToolOption.NotificationListener -> context.getString(R.string.doctor_tool_nl)
         LocalToolOption.ScreenAutomation -> context.getString(R.string.doctor_tool_screen)
         LocalToolOption.Termux -> "Termux"

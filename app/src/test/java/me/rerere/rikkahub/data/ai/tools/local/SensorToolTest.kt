@@ -5,23 +5,21 @@ import org.junit.Test
 
 class SensorToolTest {
 
-    // list_sensors and the read success path require SensorManager — instrumented test required.
+    // Enumerating sensors and the successful read path require SensorManager — instrumented test required.
 
     @Test(expected = IllegalStateException::class)
-    fun `read_sensor throws when type is missing`() {
-        // Tool calls error("type is required") -> IllegalStateException
-        val tool = readSensorTool(NULL_CONTEXT)
-        execTool(tool, """{}""")
+    fun `sensor read requires a type`() {
+        sensorReadPayload(NULL_CONTEXT, null, null)
     }
 
     @Test
-    fun `read_sensor returns error envelope for unknown sensor type`() {
+    fun `sensor read returns error envelope for unknown sensor type`() {
         // Unknown-type validation runs before getSystemService, so a null Context is fine.
-        val tool = readSensorTool(NULL_CONTEXT)
-        val result = execTool(tool, """{"type":"nonsense"}""")
+        val payload = sensorReadPayload(NULL_CONTEXT, "nonsense", null)
+        val text = payload.toString()
         assertTrue(
-            "expected unknown-sensor-type error, got: $result",
-            result.contains("\"error\"") && result.contains("unknown sensor type")
+            "expected unknown-sensor-type error, got: $text",
+            text.contains("error") && text.contains("unknown sensor type")
         )
     }
 }

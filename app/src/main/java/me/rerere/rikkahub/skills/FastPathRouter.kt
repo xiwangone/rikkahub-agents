@@ -72,10 +72,10 @@ object FastPathRouter {
                 if (!pat.matches(normalized)) return null
                 return Match(
                     intent = "battery",
-                    toolName = "get_battery_status",
-                    args = buildJsonObject { },
+                    toolName = "device_info",
+                    args = buildJsonObject { put("kind", "battery") },
                     format = { result ->
-                        // get_battery_status emits "percent" + "charging" — see BatteryTool.kt.
+                        // device_info(kind = battery) emits "percent" + "charging".
                         val pct = result["percent"]?.jsonPrimitive?.contentOrNull ?: "?"
                         val charging = result["charging"]?.jsonPrimitive?.contentOrNull?.toBoolean() ?: false
                         if (charging) "Battery is at $pct% and charging."
@@ -126,10 +126,10 @@ object FastPathRouter {
                 if (!pat.matches(normalized)) return null
                 return Match(
                     intent = "storage",
-                    toolName = "get_storage_info",
-                    args = buildJsonObject { },
+                    toolName = "device_info",
+                    args = buildJsonObject { put("kind", "storage") },
                     format = { result ->
-                        // get_storage_info nests under "internal": { total_bytes, free_bytes }.
+                        // device_info(kind = storage) nests under "internal": { total_bytes, free_bytes }.
                         val internal = result["internal"] as? JsonObject
                         val freeBytes = internal?.get("free_bytes")?.jsonPrimitive?.contentOrNull?.toLongOrNull()
                         val totalBytes = internal?.get("total_bytes")?.jsonPrimitive?.contentOrNull?.toLongOrNull()
@@ -152,10 +152,10 @@ object FastPathRouter {
                 if (!pat.matches(normalized)) return null
                 return Match(
                     intent = "wifi",
-                    toolName = "get_wifi_info",
-                    args = buildJsonObject { },
+                    toolName = "device_info",
+                    args = buildJsonObject { put("kind", "wifi") },
                     format = { result ->
-                        // get_wifi_info emits "connected" + (when connected) "ssid".
+                        // device_info(kind = wifi) emits "connected" + (when connected) "ssid".
                         // The "error" branch (no permission / no service) returns just an error key.
                         val err = result["error"]?.jsonPrimitive?.contentOrNull
                         val ssid = result["ssid"]?.jsonPrimitive?.contentOrNull

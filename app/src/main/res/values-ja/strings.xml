@@ -1157,6 +1157,8 @@
   <string name="assistant_page_local_tools_audio_info_desc">着信音モード、音楽再生状態、ヘッドホン接続、出力デバイスを読み取ります。</string>
   <string name="assistant_page_local_tools_audio_info_title">オーディオ情報</string>
   <string name="assistant_page_local_tools_battery_desc">バッテリー残量、充電状態、接続タイプ、温度、状態を読み取ります。</string>
+  <string name="assistant_page_local_tools_device_info_title">デバイス情報</string>
+  <string name="assistant_page_local_tools_device_info_desc">バッテリー、オーディオ、通話、Wi-Fi、ストレージ、センサー。</string>
   <string name="assistant_page_local_tools_battery_title">バッテリー</string>
   <string name="assistant_page_local_tools_brightness_desc">画面の明るさを読み取り、設定します。設定には WRITE_SETTINGS 権限が必要です。</string>
   <string name="assistant_page_local_tools_brightness_title">明るさ</string>
@@ -2375,6 +2377,7 @@
   <string name="mcp_tool_tts">音声合成</string>
   <string name="mcp_tool_ask_user">ユーザーに質問</string>
   <string name="mcp_tool_battery">バッテリー</string>
+  <string name="mcp_tool_device_info">デバイス情報</string>
   <string name="mcp_tool_audio_info">オーディオ情報</string>
   <string name="mcp_tool_telephony_info">電話情報</string>
   <string name="mcp_tool_wifi_info">Wi-Fi 情報</string>
@@ -2996,6 +2999,7 @@
   <string name="doctor_msg_notif_missing">フォアグラウンドサービス通知、ツール承認、ワークフロー警告にはこの権限が必要です。</string>
   <string name="doctor_tool_location">位置情報</string>
   <string name="doctor_tool_wifi">WiFi 情報</string>
+  <string name="doctor_tool_device_info">デバイス情報</string>
   <string name="doctor_tool_nl">通知リスナー</string>
   <string name="doctor_tool_screen">画面自動化</string>
   <string name="doctor_tool_stt">音声認識</string>

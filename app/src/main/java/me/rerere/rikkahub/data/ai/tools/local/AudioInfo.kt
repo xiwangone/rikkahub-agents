@@ -3,13 +3,11 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import android.media.AudioDeviceInfo
 import android.media.AudioManager
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import me.rerere.ai.core.InputSchema
-import me.rerere.ai.core.Tool
-import me.rerere.ai.ui.UIMessagePart
 
 private fun audioDeviceTypeName(type: Int): String = when (type) {
     AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "builtin_earpiece"
@@ -34,16 +32,7 @@ private fun audioDeviceTypeName(type: Int): String = when (type) {
     else -> "unknown"
 }
 
-fun audioInfoTool(context: Context): Tool = Tool(
-    name = "get_audio_info",
-    description = """
-        Get the device's current audio state, including ringer mode, whether music is
-        currently playing, and whether wired/Bluetooth headphones are connected.
-    """.trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(properties = buildJsonObject { })
-    },
-    execute = {
+internal fun audioPayload(context: Context): JsonObject {
         val am = context.getSystemService(AudioManager::class.java)
         val payload = if (am == null) {
             buildJsonObject { put("error", "AudioManager unavailable") }
@@ -78,6 +67,5 @@ fun audioInfoTool(context: Context): Tool = Tool(
                 })
             }
         }
-        listOf(UIMessagePart.Text(payload.toString()))
-    }
-)
+    return payload
+}

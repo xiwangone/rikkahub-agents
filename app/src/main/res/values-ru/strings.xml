@@ -1150,6 +1150,8 @@
   <string name="assistant_page_local_tools_audio_info_desc">Чтение режима звонка, состояния воспроизведения музыки, подключения наушников и устройств вывода.</string>
   <string name="assistant_page_local_tools_audio_info_title">Сведения об аудио</string>
   <string name="assistant_page_local_tools_battery_desc">Чтение уровня заряда, состояния зарядки, типа подключения, температуры и состояния батареи.</string>
+  <string name="assistant_page_local_tools_device_info_title">Сведения об устройстве</string>
+  <string name="assistant_page_local_tools_device_info_desc">Батарея, звук, связь, Wi-Fi, память и датчики.</string>
   <string name="assistant_page_local_tools_battery_title">Батарея</string>
   <string name="assistant_page_local_tools_brightness_desc">Чтение и установка яркости экрана. Для установки требуется WRITE_SETTINGS.</string>
   <string name="assistant_page_local_tools_brightness_title">Яркость</string>
@@ -2368,6 +2370,7 @@
   <string name="mcp_tool_tts">Синтез речи</string>
   <string name="mcp_tool_ask_user">Спросить пользователя</string>
   <string name="mcp_tool_battery">Батарея</string>
+  <string name="mcp_tool_device_info">Сведения об устройстве</string>
   <string name="mcp_tool_audio_info">Аудио</string>
   <string name="mcp_tool_telephony_info">Телефония</string>
   <string name="mcp_tool_wifi_info">Wi-Fi</string>
@@ -2989,6 +2992,7 @@
   <string name="doctor_msg_notif_missing">Это разрешение нужно для уведомлений foreground-службы, одобрений инструментов и предупреждений рабочих процессов.</string>
   <string name="doctor_tool_location">Геолокация</string>
   <string name="doctor_tool_wifi">Данные WiFi</string>
+  <string name="doctor_tool_device_info">Сведения об устройстве</string>
   <string name="doctor_tool_nl">Прослушиватель уведомлений</string>
   <string name="doctor_tool_screen">Автоматизация экрана</string>
   <string name="doctor_tool_stt">Распознавание речи</string>

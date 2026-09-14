@@ -32,8 +32,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.ai.tools.local.CameraResultBuffer
 import me.rerere.rikkahub.data.ai.tools.local.InteractiveToolStreamer
-import me.rerere.rikkahub.data.ai.tools.local.audioInfoTool
-import me.rerere.rikkahub.data.ai.tools.local.batteryTool
+import me.rerere.rikkahub.data.ai.tools.local.deviceInfoTool
 import me.rerere.rikkahub.data.ai.tools.local.callLogTool
 import me.rerere.rikkahub.data.ai.tools.local.cameraPhotoTool
 import me.rerere.rikkahub.data.ai.tools.local.clickNodeTool
@@ -54,7 +53,6 @@ import me.rerere.rikkahub.data.ai.tools.local.readCrashSnapshotTool
 import me.rerere.rikkahub.data.ai.tools.local.readLifecycleLogsTool
 import me.rerere.rikkahub.data.ai.tools.local.testModelTool
 import me.rerere.rikkahub.data.ai.tools.local.listContactsTool
-import me.rerere.rikkahub.data.ai.tools.local.listSensorsTool
 import me.rerere.rikkahub.data.ai.tools.local.listSmsInboxTool
 import me.rerere.rikkahub.data.ai.tools.local.locationTool
 import me.rerere.rikkahub.data.ai.tools.local.longPressTool
@@ -66,7 +64,6 @@ import me.rerere.rikkahub.data.ai.tools.local.pauseMediaTool
 import me.rerere.rikkahub.data.ai.tools.local.playMediaTool
 import me.rerere.rikkahub.data.ai.tools.local.resumeMediaTool
 import me.rerere.rikkahub.data.ai.tools.local.seekMediaTool
-import me.rerere.rikkahub.data.ai.tools.local.readSensorTool
 import me.rerere.rikkahub.data.ai.tools.local.readWindowTreeTool
 import me.rerere.rikkahub.data.ai.tools.local.scrollTool
 import me.rerere.rikkahub.data.ai.tools.local.searchContactsTool
@@ -76,15 +73,12 @@ import me.rerere.rikkahub.data.ai.tools.local.setVolumeTool
 import me.rerere.rikkahub.data.ai.tools.local.shareTool
 import me.rerere.rikkahub.data.ai.tools.local.speechToTextTool
 import me.rerere.rikkahub.data.ai.tools.local.stopMediaTool
-import me.rerere.rikkahub.data.ai.tools.local.storageTool
 import me.rerere.rikkahub.data.ai.tools.local.swipeTool
 import me.rerere.rikkahub.data.ai.tools.local.takeScreenshotTool
 import me.rerere.rikkahub.data.ai.tools.local.tapTool
-import me.rerere.rikkahub.data.ai.tools.local.telephonyInfoTool
 import me.rerere.rikkahub.data.ai.tools.local.toastTool
 import me.rerere.rikkahub.data.ai.tools.local.torchTool
 import me.rerere.rikkahub.data.ai.tools.local.vibrateTool
-import me.rerere.rikkahub.data.ai.tools.local.wifiInfoTool
 import me.rerere.rikkahub.data.ai.tools.local.deleteSshHostTool
 import me.rerere.rikkahub.data.ai.tools.local.forgetSshHostKeyTool
 import me.rerere.rikkahub.data.ai.tools.local.listSshHostsTool
@@ -165,12 +159,7 @@ sealed class LocalToolOption {
     @SerialName("ask_user")
     data object AskUser : LocalToolOption()
 
-    @Serializable @SerialName("battery")        data object Battery        : LocalToolOption()
-    @Serializable @SerialName("audio_info")     data object AudioInfo      : LocalToolOption()
-    @Serializable @SerialName("telephony_info") data object TelephonyInfo  : LocalToolOption()
-    @Serializable @SerialName("wifi_info")      data object WifiInfo       : LocalToolOption()
-    @Serializable @SerialName("sensors")        data object Sensors        : LocalToolOption()
-    @Serializable @SerialName("storage_info")   data object StorageInfo    : LocalToolOption()
+    @Serializable @SerialName("device_info")    data object DeviceInfo     : LocalToolOption()
     @Serializable @SerialName("toast")          data object Toast          : LocalToolOption()
     @Serializable @SerialName("notification")   data object Notification   : LocalToolOption()
     @Serializable @SerialName("share")          data object Share          : LocalToolOption()
@@ -235,6 +224,11 @@ sealed class LocalToolOption {
  * (see the legacy-backup restore path). Encoding is unchanged and known tools decode exactly
  * as before, so this only ever discards options this build could not represent anyway.
  */
+/** Reading-family entries that resolve to [LocalToolOption.DeviceInfo] when restoring old settings. */
+private val LEGACY_DEVICE_INFO_TYPES = setOf(
+    "battery", "audio_info", "telephony_info", "wifi_info", "sensors", "storage_info",
+)
+
 object LenientLocalToolListSerializer : KSerializer<List<LocalToolOption>> {
     private val delegate = ListSerializer(LocalToolOption.serializer())
 
@@ -254,23 +248,22 @@ object LenientLocalToolListSerializer : KSerializer<List<LocalToolOption>> {
             return jsonDecoder.json.decodeFromJsonElement(delegate, element)
         }
         return element.mapNotNull { item ->
+            val mapped = if (item is JsonObject && item["type"]?.jsonPrimitive?.contentOrNull in LEGACY_DEVICE_INFO_TYPES) {
+                JsonObject(mapOf("type" to JsonPrimitive("device_info")))
+            } else {
+                item
+            }
             try {
-                jsonDecoder.json.decodeFromJsonElement(LocalToolOption.serializer(), item)
+                jsonDecoder.json.decodeFromJsonElement(LocalToolOption.serializer(), mapped)
             } catch (e: SerializationException) {
                 null // a tool type this build does not define; drop it, don't fail the import
             }
-        }
+        }.distinct()
     }
 }
 
 private val TOP_TOOL_EXAMPLES: Map<String, String> = mapOf(
-    "get_battery_status" to "get_battery_status()",
-    "get_audio_info" to "get_audio_info()",
-    "get_telephony_info" to "get_telephony_info()",
-    "get_wifi_info" to "get_wifi_info()",
-    "list_sensors" to "list_sensors()",
-    "read_sensor" to "read_sensor(type=\"accelerometer\", duration_ms=500)",
-    "get_storage_info" to "get_storage_info()",
+    "device_info" to "device_info(kind=\"battery\")",
     "show_toast" to "show_toast(text=\"Done\")",
     "post_notification" to "post_notification(title=\"Reminder\", body=\"Take a break\")",
     "share" to "share(text=\"Hello\")",
@@ -755,24 +748,8 @@ class LocalTools(
         if (options.contains(LocalToolOption.AskUser)) {
             tools.add(askUserTool)
         }
-        if (options.contains(LocalToolOption.Battery)) {
-            tools.add(batteryTool(context))
-        }
-        if (options.contains(LocalToolOption.AudioInfo)) {
-            tools.add(audioInfoTool(context))
-        }
-        if (options.contains(LocalToolOption.TelephonyInfo)) {
-            tools.add(telephonyInfoTool(context))
-        }
-        if (options.contains(LocalToolOption.WifiInfo)) {
-            tools.add(wifiInfoTool(context))
-        }
-        if (options.contains(LocalToolOption.Sensors)) {
-            tools.add(listSensorsTool(context))
-            tools.add(readSensorTool(context))
-        }
-        if (options.contains(LocalToolOption.StorageInfo)) {
-            tools.add(storageTool(context))
+        if (options.contains(LocalToolOption.DeviceInfo)) {
+            tools.add(deviceInfoTool(context))
         }
         if (options.contains(LocalToolOption.Toast)) {
             tools.add(toastTool(context, invocationContext, interactiveToolStreamer))

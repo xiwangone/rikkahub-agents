@@ -6,26 +6,13 @@ import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.wifi.WifiManager
 import android.text.format.Formatter
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import me.rerere.ai.core.InputSchema
-import me.rerere.ai.core.Tool
-import me.rerere.ai.ui.UIMessagePart
 import java.net.Inet4Address
 
-fun wifiInfoTool(context: Context): Tool = Tool(
-    name = "get_wifi_info",
-    description = """
-        Get the device's current Wi-Fi connection info including SSID, BSSID, IP address,
-        link speed, and signal strength (RSSI). Returns connected=false if not connected.
-        On Android 11+ the SSID and BSSID may be redacted by the OS for privacy; the
-        response sets ssid_redacted=true in that case while still reporting other fields.
-    """.trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(properties = buildJsonObject { })
-    },
-    execute = {
+internal fun wifiPayload(context: Context): JsonObject {
         val payload = if (!PermissionHelper.hasRuntime(
                 context,
                 listOf(Manifest.permission.ACCESS_FINE_LOCATION)
@@ -35,9 +22,8 @@ fun wifiInfoTool(context: Context): Tool = Tool(
         } else {
             buildWifiInfoPayload(context.applicationContext)
         }
-        listOf(UIMessagePart.Text(payload.toString()))
-    }
-)
+    return payload
+}
 
 /**
  * Use [ConnectivityManager] as the source of truth for "are we on Wi-Fi" — `WifiManager`

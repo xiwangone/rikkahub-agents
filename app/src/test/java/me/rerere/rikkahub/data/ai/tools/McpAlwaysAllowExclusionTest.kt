@@ -37,7 +37,7 @@ class McpAlwaysAllowExclusionTest {
     @Test fun `unrelated tools allow always-allow`() {
         assertTrue(ToolApprovalDefaults.allowsAlwaysAllow("ssh_exec"))
         assertTrue(ToolApprovalDefaults.allowsAlwaysAllow("termux_run_command"))
-        assertTrue(ToolApprovalDefaults.allowsAlwaysAllow("get_battery_status"))
+        assertTrue(ToolApprovalDefaults.allowsAlwaysAllow("device_info"))
     }
 
     @Test fun `mcp_add and mcp_update are in ALWAYS_ASK set`() {

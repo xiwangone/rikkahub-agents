@@ -1,7 +1,7 @@
 ---
 name: morning-briefing
 description: 生成用户的晨间摘要——当前天气、今日日程、未读邮件数、接下来的定时任务，以及电池/存储告警。输出一个短段落，让用户 10 秒读完。
-allowed-tools: get_time_info get_battery_status get_storage_info list_active_notifications list_recent_notifications get_jobs_history list_call_log get_location launch_app read_window_tree
+allowed-tools: get_time_info device_info list_active_notifications list_recent_notifications get_jobs_history list_call_log get_location launch_app read_window_tree
 ---
 
 # 晨间简报
@@ -18,8 +18,8 @@ allowed-tools: get_time_info get_battery_status get_storage_info list_active_not
 
 1. **时间锚点。** `get_time_info` — 确认本地日期/星期。问候语取决于它（"周五早上" vs "周六早上" vs 节假日称呼）。
 2. **设备健康。**
-   - `get_battery_status` — 仅在电量 < 30%，或用户平时夜间充电但现在没充时提示。
-   - `get_storage_info` — 仅在剩余空间 < 5% 时提示。
+   - `device_info(kind="battery")` — 仅在电量 < 30%，或用户平时夜间充电但现在没充时提示。
+   - `device_info(kind="storage")` — 仅在剩余空间 < 5% 时提示。
 3. **通讯。**
    - `list_active_notifications` 过滤到用户在 `notification_listener` 设置里白名单的包——按包分组，统计未读。
    - `list_call_log(type = "missed", limit = 5)` — 提示用户上次交互以来错过的来电。

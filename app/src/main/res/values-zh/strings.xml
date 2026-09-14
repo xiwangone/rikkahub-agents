@@ -1322,6 +1322,8 @@
   <string name="assistant_page_local_tools_audio_info_desc">读取响铃模式、音乐播放状态、耳机连接和输出设备。</string>
   <string name="assistant_page_local_tools_audio_info_title">音频信息</string>
   <string name="assistant_page_local_tools_battery_desc">读取电量、充电状态、充电方式、温度和健康度。</string>
+  <string name="assistant_page_local_tools_device_info_title">设备信息</string>
+  <string name="assistant_page_local_tools_device_info_desc">电池、音频、通话、Wi-Fi、存储与传感器。</string>
   <string name="assistant_page_local_tools_battery_title">电池</string>
   <string name="assistant_page_local_tools_brightness_desc">读取和设置屏幕亮度。设置需要 WRITE_SETTINGS 权限。</string>
   <string name="assistant_page_local_tools_brightness_title">亮度</string>
@@ -2767,6 +2769,7 @@
   <string name="doctor_msg_notif_missing">前台服务通知、工具审批和工作流告警需要此权限。</string>
   <string name="doctor_tool_location">定位</string>
   <string name="doctor_tool_wifi">WiFi 信息</string>
+  <string name="doctor_tool_device_info">设备信息</string>
   <string name="doctor_tool_nl">通知监听</string>
   <string name="doctor_tool_screen">屏幕自动化</string>
   <string name="doctor_tool_stt">语音转文字</string>
@@ -2838,6 +2841,7 @@
   <string name="mcp_tool_tts">语音合成</string>
   <string name="mcp_tool_ask_user">向用户提问</string>
   <string name="mcp_tool_battery">电量</string>
+  <string name="mcp_tool_device_info">设备信息</string>
   <string name="mcp_tool_audio_info">音频信息</string>
   <string name="mcp_tool_telephony_info">通话网络信息</string>
   <string name="mcp_tool_wifi_info">Wi-Fi 信息</string>

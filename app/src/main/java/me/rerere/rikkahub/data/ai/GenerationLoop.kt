@@ -421,16 +421,11 @@ private const val MAX_STREAM_DURATION_MS = 15 * 60 * 1000L
  * identical args is a loop, not a refresh. Add new freshness-sensitive tools here.
  */
 private val FRESHNESS_TTL_MS_BY_TOOL: Map<String, Long> = mapOf(
-    "get_battery_status" to 30_000L,
-    "get_audio_info" to 30_000L,
-    "get_telephony_info" to 30_000L,
-    "get_wifi_info" to 30_000L,
-    "get_storage_info" to 60_000L,
+    "device_info" to 30_000L,
     "get_brightness" to 10_000L,
     "get_volume" to 10_000L,
     "get_location" to 30_000L,
     "get_time_info" to 5_000L,
-    "read_sensor" to 5_000L,
     "take_screenshot" to 5_000L,
     "read_window_tree" to 5_000L,
     "list_active_notifications" to 5_000L,

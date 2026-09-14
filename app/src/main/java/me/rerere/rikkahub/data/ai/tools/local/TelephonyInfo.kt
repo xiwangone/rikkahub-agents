@@ -3,11 +3,9 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.Manifest
 import android.content.Context
 import android.telephony.TelephonyManager
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import me.rerere.ai.core.InputSchema
-import me.rerere.ai.core.Tool
-import me.rerere.ai.ui.UIMessagePart
 
 private fun networkTypeName(type: Int): String = when (type) {
     1 -> "GPRS"
@@ -32,16 +30,7 @@ private fun phoneTypeName(type: Int): String = when (type) {
     else -> "unknown"
 }
 
-fun telephonyInfoTool(context: Context): Tool = Tool(
-    name = "get_telephony_info",
-    description = """
-        Get telephony / SIM information including carrier, network operator, network type,
-        phone type, and whether a SIM is present.
-    """.trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(properties = buildJsonObject { })
-    },
-    execute = {
+internal fun telephonyPayload(context: Context): JsonObject {
         val payload = if (!PermissionHelper.hasRuntime(
                 context,
                 listOf(Manifest.permission.READ_PHONE_STATE)
@@ -75,6 +64,5 @@ fun telephonyInfoTool(context: Context): Tool = Tool(
                 }
             }
         }
-        listOf(UIMessagePart.Text(payload.toString()))
-    }
-)
+    return payload
+}

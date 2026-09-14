@@ -29,12 +29,7 @@ object LocalToolCatalog {
         mapOf(
             LocalToolCategory.DEVICE_INFO to
                 listOf(
-                    LocalToolOption.Battery,
-                    LocalToolOption.AudioInfo,
-                    LocalToolOption.TelephonyInfo,
-                    LocalToolOption.WifiInfo,
-                    LocalToolOption.Sensors,
-                    LocalToolOption.StorageInfo,
+                    LocalToolOption.DeviceInfo,
                     LocalToolOption.AppDiagnostics,
                     LocalToolOption.AppLogs,
                 ),
@@ -128,12 +123,7 @@ object LocalToolCatalog {
             LocalToolOption.Clipboard -> R.string.mcp_tool_clipboard
             LocalToolOption.Tts -> R.string.mcp_tool_tts
             LocalToolOption.AskUser -> R.string.mcp_tool_ask_user
-            LocalToolOption.Battery -> R.string.mcp_tool_battery
-            LocalToolOption.AudioInfo -> R.string.mcp_tool_audio_info
-            LocalToolOption.TelephonyInfo -> R.string.mcp_tool_telephony_info
-            LocalToolOption.WifiInfo -> R.string.mcp_tool_wifi_info
-            LocalToolOption.Sensors -> R.string.mcp_tool_sensors
-            LocalToolOption.StorageInfo -> R.string.mcp_tool_storage_info
+            LocalToolOption.DeviceInfo -> R.string.mcp_tool_device_info
             LocalToolOption.Toast -> R.string.mcp_tool_toast
             LocalToolOption.Notification -> R.string.mcp_tool_notification
             LocalToolOption.Share -> R.string.mcp_tool_share

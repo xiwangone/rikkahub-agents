@@ -1327,6 +1327,8 @@
   <string name="assistant_page_local_tools_audio_info_desc">Read ringer mode, music-active state, headphone connection, and output devices.</string>
   <string name="assistant_page_local_tools_audio_info_title">Audio info</string>
   <string name="assistant_page_local_tools_battery_desc">Read battery level, charging state, plug type, temperature, and health.</string>
+  <string name="assistant_page_local_tools_device_info_title">Device info</string>
+  <string name="assistant_page_local_tools_device_info_desc">Battery, audio, telephony, Wi-Fi, storage and sensors.</string>
   <string name="assistant_page_local_tools_battery_title">Battery</string>
   <string name="assistant_page_local_tools_brightness_desc">Read and set screen brightness. Setting requires WRITE_SETTINGS.</string>
   <string name="assistant_page_local_tools_brightness_title">Brightness</string>
@@ -2767,6 +2769,7 @@
   <string name="doctor_msg_notif_missing">Required for foreground-service notifications, tool approvals and workflow alerts.</string>
   <string name="doctor_tool_location">Location</string>
   <string name="doctor_tool_wifi">WiFi info</string>
+  <string name="doctor_tool_device_info">Device info</string>
   <string name="doctor_tool_nl">Notification listener</string>
   <string name="doctor_tool_screen">Screen automation</string>
   <string name="doctor_tool_stt">Speech to text</string>
@@ -2838,6 +2841,7 @@
   <string name="mcp_tool_tts">Text to speech</string>
   <string name="mcp_tool_ask_user">Ask user</string>
   <string name="mcp_tool_battery">Battery</string>
+  <string name="mcp_tool_device_info">Device info</string>
   <string name="mcp_tool_audio_info">Audio info</string>
   <string name="mcp_tool_telephony_info">Telephony info</string>
   <string name="mcp_tool_wifi_info">Wi-Fi info</string>

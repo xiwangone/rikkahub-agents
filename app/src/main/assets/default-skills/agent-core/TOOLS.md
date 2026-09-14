@@ -12,12 +12,12 @@ Every tool the agent can call, grouped by capability surface. Each entry lists: 
 
 ## Device info (Phase 1)
 
-- **`get_battery_status`** — percent, charging, plug type, temperature.
-- **`get_audio_info`** — current audio mode, headphones connected, ringer mode.
-- **`get_telephony_info`** — SIM operator, network type, signal strength. Requires READ_PHONE_STATE.
-- **`get_wifi_info`** — current SSID, BSSID, IP, signal. Requires fine location.
-- **`list_sensors`** / **`read_sensor`** — enumerate and sample any device sensor.
-- **`get_storage_info`** — free / used / total bytes for internal + external storage.
+- **`device_info(kind="battery")`** — percent, charging, plug type, temperature.
+- **`device_info(kind="audio")`** — current audio mode, headphones connected, ringer mode.
+- **`device_info(kind="telephony")`** — SIM operator, network type, signal strength. Requires READ_PHONE_STATE.
+- **`device_info(kind="wifi")`** — current SSID, BSSID, IP, signal. Requires fine location.
+- **`device_info(kind="sensors")`** — enumerate sensors, or pass `sensor="accelerometer"` to sample one.
+- **`device_info(kind="storage")`** — free / used / total bytes for internal + external storage.
 
 ## Output / notify (Phase 1)
 
@@ -82,7 +82,7 @@ said is a serious failure.
 **Troubleshooting media:** if the user says "I can't hear anything" while a session
 is active, DO NOT call `play_media` — that restarts from 0 and loses the user's
 position. Instead: `get_media_status` (is it actually playing?), `get_volume` and
-`get_audio_info` (volume / mute state), `set_volume` if needed. Only fall back to
+`device_info(kind="audio")` (volume / mute state), `set_volume` if needed. Only fall back to
 `play_media` if the session is genuinely gone.
 
 ## File manager (new)

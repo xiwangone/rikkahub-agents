@@ -11,7 +11,7 @@ These tools are nearly free; call them whenever the user's request depends on th
 
 ## What to sample (mid-cost, run when relevant)
 
-- **`get_battery_status`** — when scheduling something long-running, when the user says "I'm leaving the house", when a job's expected runtime is non-trivial. If `< 20%` and not charging, surface it.
+- **`device_info(kind="battery")`** — when scheduling something long-running, when the user says "I'm leaving the house", when a job's expected runtime is non-trivial. If `< 20%` and not charging, surface it.
 - **`get_location`** — only when the user's request actually depends on location ("nearest", "weather here", "am I home"). Never pre-fetch.
 - **`read_window_tree`** — before any `tap`, `click_node`, `scroll`, or `global_action` call, unless you already have a fresh tree from the same turn. The screen changes between turns even when you didn't act.
 - **`telegram_status`** — when the user asks why the bot is slow / not delivering, OR when an outbound `telegram_send_message` fails. The status envelope tells you whether the foreground service is alive.

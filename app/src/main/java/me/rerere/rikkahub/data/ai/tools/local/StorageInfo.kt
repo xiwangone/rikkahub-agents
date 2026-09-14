@@ -7,9 +7,6 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import me.rerere.ai.core.InputSchema
-import me.rerere.ai.core.Tool
-import me.rerere.ai.ui.UIMessagePart
 
 private fun statsFor(path: String): JsonObject {
     val stat = StatFs(path)
@@ -22,15 +19,7 @@ private fun statsFor(path: String): JsonObject {
     }
 }
 
-fun storageTool(@Suppress("UNUSED_PARAMETER") context: Context): Tool = Tool(
-    name = "get_storage_info",
-    description = """
-        Get total, free, and used storage space on the device's internal and external storage.
-    """.trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(properties = buildJsonObject { })
-    },
-    execute = {
+internal fun storagePayload(@Suppress("UNUSED_PARAMETER") context: Context): JsonObject {
         val internal = statsFor(Environment.getDataDirectory().path)
         val external = if (Environment.getExternalStorageState() == Environment.MEDIA_MOUNTED) {
             statsFor(Environment.getExternalStorageDirectory().path)
@@ -41,6 +30,5 @@ fun storageTool(@Suppress("UNUSED_PARAMETER") context: Context): Tool = Tool(
             put("internal", internal)
             put("external", external ?: JsonNull)
         }
-        listOf(UIMessagePart.Text(payload.toString()))
-    }
-)
+    return payload
+}

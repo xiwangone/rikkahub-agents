@@ -82,6 +82,8 @@
   <string name="assistant_page_local_tools_audio_info_desc">قراءة وضع الرنين وحالة تشغيل الموسيقى واتصال السماعات وأجهزة الإخراج.</string>
   <string name="assistant_page_local_tools_audio_info_title">معلومات الصوت</string>
   <string name="assistant_page_local_tools_battery_desc">قراءة مستوى البطارية وحالة الشحن ونوع التوصيل ودرجة الحرارة والصحة.</string>
+  <string name="assistant_page_local_tools_device_info_title">معلومات الجهاز</string>
+  <string name="assistant_page_local_tools_device_info_desc">البطارية والصوت والاتصال وWi-Fi والتخزين والمستشعرات.</string>
   <string name="assistant_page_local_tools_battery_title">البطارية</string>
   <string name="assistant_page_local_tools_brightness_desc">قراءة وتعيين سطوع الشاشة. يتطلب التعيين إذن WRITE_SETTINGS.</string>
   <string name="assistant_page_local_tools_brightness_title">السطوع</string>
@@ -2028,6 +2030,7 @@
   <string name="mcp_tool_tts">تحويل النص إلى كلام</string>
   <string name="mcp_tool_ask_user">سؤال المستخدم</string>
   <string name="mcp_tool_battery">البطارية</string>
+  <string name="mcp_tool_device_info">معلومات الجهاز</string>
   <string name="mcp_tool_audio_info">معلومات الصوت</string>
   <string name="mcp_tool_telephony_info">معلومات الاتصال</string>
   <string name="mcp_tool_wifi_info">معلومات Wi-Fi</string>
@@ -2649,6 +2652,7 @@
   <string name="doctor_msg_notif_missing">يلزم هذا الإذن لإشعارات الخدمة الأمامية وموافقات الأدوات وتنبيهات سير العمل.</string>
   <string name="doctor_tool_location">الموقع</string>
   <string name="doctor_tool_wifi">معلومات WiFi</string>
+  <string name="doctor_tool_device_info">معلومات الجهاز</string>
   <string name="doctor_tool_nl">مستمع الإشعارات</string>
   <string name="doctor_tool_screen">أتمتة الشاشة</string>
   <string name="doctor_tool_stt">تحويل الكلام إلى نص</string>

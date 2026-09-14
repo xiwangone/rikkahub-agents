@@ -4,22 +4,11 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import me.rerere.ai.core.InputSchema
-import me.rerere.ai.core.Tool
-import me.rerere.ai.ui.UIMessagePart
 
-fun batteryTool(context: Context): Tool = Tool(
-    name = "get_battery_status",
-    description = """
-        Get the current battery status of the device, including charge percentage,
-        charging state, plug type, health, temperature, voltage, and battery technology.
-    """.trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(properties = buildJsonObject { })
-    },
-    execute = {
+internal fun batteryPayload(context: Context): JsonObject {
         val intent: Intent? = context.registerReceiver(
             null,
             IntentFilter(Intent.ACTION_BATTERY_CHANGED)
@@ -64,6 +53,5 @@ fun batteryTool(context: Context): Tool = Tool(
                 put("technology", technology ?: "")
             }
         }
-        listOf(UIMessagePart.Text(payload.toString()))
-    }
-)
+    return payload
+}

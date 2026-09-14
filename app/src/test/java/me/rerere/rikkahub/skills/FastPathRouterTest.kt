@@ -19,7 +19,7 @@ class FastPathRouterTest {
             val m = FastPathRouter.route(variant)
             assertNotNull("expected match for '$variant'", m)
             assertEquals("battery", m!!.intent)
-            assertEquals("get_battery_status", m.toolName)
+            assertEquals("device_info", m.toolName)
         }
     }
 

@@ -46,12 +46,7 @@ class LocalMcpServerManager(
         val MCP_EXPOSED_TOOLS = listOf(
             LocalToolOption.TimeInfo,
             LocalToolOption.Clipboard,
-            LocalToolOption.Battery,
-            LocalToolOption.AudioInfo,
-            LocalToolOption.TelephonyInfo,
-            LocalToolOption.WifiInfo,
-            LocalToolOption.Sensors,
-            LocalToolOption.StorageInfo,
+            LocalToolOption.DeviceInfo,
             LocalToolOption.Toast,
             LocalToolOption.Notification,
             LocalToolOption.Share,

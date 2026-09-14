@@ -252,9 +252,9 @@ class HardlineCommandGuardTest {
     }
 
     @Test fun `tool we don't gate returns null`() {
-        // get_battery_status and friends aren't shell-content tools — guard returns null.
+        // device_info and friends aren't shell-content tools — guard returns null.
         val reason = HardlineCommandGuard.checkTool(
-            "get_battery_status",
+            "device_info",
             """{}"""
         )
         assertNull("non-shell tool should not be checked", reason)

@@ -98,15 +98,15 @@ class LoopGuardTest {
     fun freshnessTtlBypass_letsStaleRealtimeReadThrough() {
         // Three identical battery reads, but the most recent is older than the 30s TTL, so the
         // next one is a legitimate refresh, not a loop.
-        val prior = List(3) { call("get_battery_status", epochMs = 0L) }
-        val decision = evaluate(prior, "get_battery_status", nowMs = 31_000L)
+        val prior = List(3) { call("device_info", epochMs = 0L) }
+        val decision = evaluate(prior, "device_info", nowMs = 31_000L)
         assertFalse(decision.block)
     }
 
     @Test
     fun freshnessTtlBypass_doesNotFireWithinTtl() {
-        val prior = List(3) { call("get_battery_status", epochMs = 0L) }
-        val decision = evaluate(prior, "get_battery_status", nowMs = 5_000L)
+        val prior = List(3) { call("device_info", epochMs = 0L) }
+        val decision = evaluate(prior, "device_info", nowMs = 5_000L)
         assertTrue(decision.block)
     }
 }
