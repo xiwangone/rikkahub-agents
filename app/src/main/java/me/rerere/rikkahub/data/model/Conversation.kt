@@ -62,6 +62,13 @@ data class Conversation(
 
     fun updateCurrentMessages(messages: List<UIMessage>): Conversation {
         val newNodes = this.messageNodes.toMutableList()
+        // 一次性建立 messageId -> 节点下标 的索引：原实现对每条消息都全量扫描节点，
+        // 长会话（数百个节点 × 每块携带的全量消息）下是 O(N²)，流式期间每 120ms
+        // 触发一次会明显拖慢；索引化后为 O(N)。
+        val nodeIndexByMessageId = HashMap<Uuid, Int>(newNodes.size * 2)
+        newNodes.forEachIndexed { nodeIndex, node ->
+            node.messages.forEach { m -> nodeIndexByMessageId[m.id] = nodeIndex }
+        }
 
         messages.forEachIndexed { index, message ->
             // 先按 id 定位消息原本所属的节点：请求链路上的 transformer
@@ -69,8 +76,8 @@ data class Conversation(
             // 导致 messages 的下标与 messageNodes 的下标错位。若仍按 index 对应，
             // 同一节点的消息会被写到别的节点上、并被当成「新消息」追加，
             // 表现为节点内出现多余分支（UI 上的「2/2」）。
-            val existingNodeIndex = newNodes.indexOfFirst { node -> node.messages.any { it.id == message.id } }
-            val targetIndex = if (existingNodeIndex >= 0) existingNodeIndex else index
+            val existingNodeIndex = nodeIndexByMessageId[message.id]
+            val targetIndex = existingNodeIndex ?: index
 
             val node = newNodes.getOrElse(targetIndex) { message.toMessageNode() }
 
@@ -92,8 +99,10 @@ data class Conversation(
 
             if (targetIndex > newNodes.lastIndex) {
                 newNodes.add(newNode)
+                nodeIndexByMessageId[message.id] = newNodes.lastIndex
             } else {
                 newNodes[targetIndex] = newNode
+                nodeIndexByMessageId[message.id] = targetIndex
             }
         }
 
