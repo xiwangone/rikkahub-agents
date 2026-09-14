@@ -26,7 +26,7 @@ data class SshHostEntity(
     val templateRef: String? = null,
     /** 备用主机名列表（JSON 数组字符串，如 ["host-b","host-c"]）。主 host 连不上时按序尝试 */
     val fallbackHostsJson: String? = null,
-    /** 跳板主机名（saved host 名）。非空时先连跳板再经它连目标（ProxyJump 语义，预留） */
+    /** 跳板主机名（saved host 名）。非空时先连跳板再经它连目标（ProxyJump 语义，单层） */
     val jumpHost: String? = null,
     /** 自定义 ssh 选项，每行一个 "键 值"（如 "ConnectTimeout 5"），透传 JSch setConfig */
     val sshOptions: String? = null,

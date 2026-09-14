@@ -147,7 +147,7 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
                     put("items", buildJsonObject { put("type", "string") })
                     put("description", "Optional array of saved-host names tried in order when this host is unreachable (connection-level failures only). Items are resolved at call time.")
                 })
-                put("jump_host", buildJsonObject { put("type", "string"); put("description", "Optional saved-host name used as a jump/bastion host. Reserved; connectivity via jump is not yet wired end-to-end.") })
+                put("jump_host", buildJsonObject { put("type", "string"); put("description", "Optional saved-host name used as a jump/bastion host. The connection is established through it (single hop; the jump host itself is not chained further).") })
                 put("ssh_options", buildJsonObject { put("type", "string"); put("description", "Optional custom ssh config, one 'key value' per line (e.g. ConnectTimeout 5 / Ciphers ...). Applied as JSch config overrides for this host; # starts a comment line.") })
             },
             required = listOf("name", "host", "user")
