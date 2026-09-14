@@ -69,9 +69,10 @@ import androidx.compose.ui.util.fastForEach
 import androidx.core.graphics.toColorInt
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.mapLatest
+import kotlinx.coroutines.flow.map
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.ui.components.table.DataTable
@@ -144,7 +145,10 @@ fun MarkdownNew(
     LaunchedEffect(Unit) {
         snapshotFlow { updatedContent }
             .distinctUntilChanged()
-            .mapLatest { generateMarkdownHtml(it) }
+            // 串行生成并丢弃积压的中间值：避免反复取消已在进行的生成，
+            // 同时保证最新内容一定被处理（不会停在旧结果上）
+            .conflate()
+            .map { generateMarkdownHtml(it) }
             .catch { Log.e(TAG, "MarkdownNew: failed to generate markdown HTML", it) }
             .flowOn(Dispatchers.Default)
             .collect { html = it }

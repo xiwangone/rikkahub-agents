@@ -85,9 +85,10 @@ import androidx.compose.ui.util.fastForEach
 import androidx.core.net.toUri
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.flowOn
-import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
@@ -255,7 +256,10 @@ fun MarkdownBlock(
     LaunchedEffect(Unit) {
         snapshotFlow { updatedContent }
             .distinctUntilChanged()
-            .mapLatest { parseMarkdown(it) }
+            // 串行解析并丢弃积压的中间值：避免反复取消已在进行的解析，
+            // 同时保证最新内容一定被解析（不会停在旧结果上）
+            .conflate()
+            .map { parseMarkdown(it) }
             .catch { exception -> Log.e(TAG, "MarkdownBlock: failed to parse markdown", exception) }
             .flowOn(Dispatchers.Default)
             .collect { setData(it) }
