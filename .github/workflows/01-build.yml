@@ -50,6 +50,7 @@ jobs:
           distribution: 'temurin'
 
       - name: 设置 Android SDK
+        continue-on-error: true # 组件下载偶发损坏, runner 预装 SDK + AGP 自动补齐即可
         uses: android-actions/setup-android@v3
 
       - name: Ktlint 静态检查（不阻断，输出风格报告）
