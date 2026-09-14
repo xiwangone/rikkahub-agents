@@ -222,7 +222,10 @@ fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
             FailureKind.MODEL_NOT_FOUND
         listOf("timeout", "sockettimeout", "connectexception", "unknownhost", "unreachable", "timed out", "超时", "网络").any { text.contains(it) } ->
             FailureKind.NETWORK
-        listOf("500", "502", "503", "server_error", "internalerror", "internal error", "服务端").any { text.contains(it) } ->
+        listOf(
+            "500", "502", "503", "server_error", "internalerror", "internal error", "服务端",
+            "unavailable", "upstream", "overloaded", "bad gateway", "gateway timeout", "capacity",
+        ).any { text.contains(it) } ->
             FailureKind.SERVER
         listOf("context_length", "token limit", "context_window", "maximum context", "上下文", "超长").any { text.contains(it) } ->
             FailureKind.CONTEXT_LENGTH
