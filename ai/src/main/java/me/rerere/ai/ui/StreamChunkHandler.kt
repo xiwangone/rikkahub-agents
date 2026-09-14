@@ -286,7 +286,8 @@ class StreamChunkHandler(private val model: Model? = null) {
             is StreamChunk.Annotations -> copy(annotations = (annotations + chunk.annotations).distinct())
             is StreamChunk.Usage -> copy(usage = usage.merge(chunk.usage))
             is StreamChunk.Finish -> copy(
-                finishedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
+                finishedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
+                finishReason = chunk.finishReason,
             ).finishReasoning().also {
                 // Finish 同时结束尚未显式结束的 reasoning，并释放本次响应流的索引状态。
                 textPartIndexes.clear()

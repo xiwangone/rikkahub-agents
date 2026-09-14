@@ -24,6 +24,9 @@ data class UIMessage(
     val finishedAt: LocalDateTime? = null,
     val modelId: Uuid? = null,
     val usage: TokenUsage? = null,
+    // 上报的终止原因（stop/length/tool_calls 等）；null = 流结束但模型端未报告，
+    // 多为中途断开被伪装成正常关闭——排查「回复截断」的关键线索
+    val finishReason: String? = null,
     val translation: String? = null,
     // 请求期间生成的内部消息；该标记仅在内存中使用
     @Transient

@@ -1183,7 +1183,7 @@ class ChatService(
                         },
                     outputTransformers = outputTransformers,
                     tools = tools,
-                ).onCompletion {
+                ).onCompletion { cause ->
                     // 取消 Live Update 通知
                     cancelLiveUpdateNotification(conversationId)
 
@@ -1196,6 +1196,17 @@ class ChatService(
                                 },
                             updateAt = Instant.now(),
                         )
+                    // 截断排查留痕：正常收尾的流会带终止原因；正常关闭却缺原因,
+                    // 多为模型端提前停止 / 断流被伪装成正常结束
+                    if (cause == null) {
+                        val missing = updatedConversation.messageNodes
+                            .asSequence()
+                            .flatMap { it.messages.asSequence() }
+                            .count { it.role == MessageRole.ASSISTANT && it.finishedAt != null && it.finishReason == null }
+                        if (missing > 0) {
+                            AppLog.w(TAG, "turn ended without finishReason on $missing assistant message(s) (possible upstream abort/truncation)")
+                        }
+                    }
                     updateConversation(conversationId, updatedConversation)
 
                     // Show notification if app is not in foreground
