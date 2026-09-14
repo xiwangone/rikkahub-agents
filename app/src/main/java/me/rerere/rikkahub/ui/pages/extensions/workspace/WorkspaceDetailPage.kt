@@ -121,7 +121,6 @@ fun WorkspaceDetailPage(id: String) {
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
     var showInstallDialog by remember { mutableStateOf(false) }
-    var mirrorPicker by remember { mutableStateOf<MirrorPick?>(null) }
     val mirrors by vm.mirrors.collectAsStateWithLifecycle()
     var previewImageUri by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
@@ -220,9 +219,11 @@ fun WorkspaceDetailPage(id: String) {
                         workspace = state.workspace,
                         distro = state.distro,
                         installProgress = installProgress,
+                        mirrors = mirrors,
                         onInstallRootfs = { showInstallDialog = true },
                         onToolApprovalChange = vm::setToolApproval,
                         onShellCompatibilityModeChange = vm::setShellCompatibilityMode,
+                        onApplyMirrors = vm::applyMirrors,
                     )
                 }
 
@@ -323,7 +324,7 @@ fun WorkspaceDetailPage(id: String) {
                 mirrors = mirrors,
                 onDismiss = { mirrorPicker = null },
                 onSelect = { url ->
-                    vm.applyMirrors(
+                    onApplyMirrors(
                         when (mirrorPicker) {
                             MirrorPick.APK -> mirrors.copy(apk = url)
                             MirrorPick.PIP -> mirrors.copy(pip = url)
@@ -412,10 +413,13 @@ private fun WorkspaceBasicPage(
     workspace: WorkspaceEntity?,
     distro: WorkspaceDistroInfo?,
     installProgress: RootfsInstallProgress?,
+    mirrors: WorkspaceMirrors,
     onInstallRootfs: () -> Unit,
     onToolApprovalChange: (String, Boolean) -> Unit,
     onShellCompatibilityModeChange: (Boolean) -> Unit,
+    onApplyMirrors: (WorkspaceMirrors) -> Unit,
 ) {
+    var mirrorPicker by remember { mutableStateOf<MirrorPick?>(null) }
     val shellStatus = workspace?.shellStatus
     val installing = installProgress != null || shellStatus == WorkspaceShellStatus.INSTALLING.name
     val rootfsReady = shellStatus == WorkspaceShellStatus.READY.name
