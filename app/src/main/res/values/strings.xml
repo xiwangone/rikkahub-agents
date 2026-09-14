@@ -1397,6 +1397,15 @@
   <string name="assistant_page_local_tools_perm_special_dialog_message">This tool needs system access. You\'ll be sent to the system settings page to grant it. Return here when done.</string>
   <string name="assistant_page_local_tools_perm_special_dialog_title">Permission needed</string>
   <string name="assistant_page_local_tools_section_device_info">Device info</string>
+  <string name="assistant_page_local_tools_section_tiers">Tiers</string>
+  <string name="assistant_page_local_tools_tier_observe_title">L0 · Observe</string>
+  <string name="assistant_page_local_tools_tier_observe_desc">Read-only, no personal data (%1$d/%2$d enabled)</string>
+  <string name="assistant_page_local_tools_tier_self_manage_title">L1 · Self-management</string>
+  <string name="assistant_page_local_tools_tier_self_manage_desc">Affects this app only (%1$d/%2$d enabled)</string>
+  <string name="assistant_page_local_tools_tier_device_control_title">L2 · Device control</string>
+  <string name="assistant_page_local_tools_tier_device_control_desc">Operates the device, personal data or external systems (%1$d/%2$d enabled)</string>
+  <string name="assistant_page_local_tools_tier_developer_title">L3 · Developer</string>
+  <string name="assistant_page_local_tools_tier_developer_desc">Arbitrary code execution and other destructive capabilities (%1$d/%2$d enabled)</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI diagnostics</string>
   <string name="assistant_page_local_tools_diagnostics_title">Diagnostics</string>
   <string name="assistant_page_local_tools_diagnostics_desc">App health, build info, logs, crash and lifecycle reports.</string>

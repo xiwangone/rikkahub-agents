@@ -2590,6 +2590,15 @@
   <string name="auto_compress_invalid_input">유효한 값을 입력하세요</string>
   <string name="setting_model_page_tool_output">도구 출력 제한</string>
   <string name="setting_model_page_tool_output_max_chars">도구 출력 제한(K자, 1~20; 예: 5 = 5000자)</string>
+  <string name="assistant_page_local_tools_section_tiers">등급별 일괄 설정</string>
+  <string name="assistant_page_local_tools_tier_observe_title">L0 · 관측</string>
+  <string name="assistant_page_local_tools_tier_observe_desc">읽기 전용, 개인 정보 없음 (%1$d/%2$d 사용 중)</string>
+  <string name="assistant_page_local_tools_tier_self_manage_title">L1 · 자기 관리</string>
+  <string name="assistant_page_local_tools_tier_self_manage_desc">이 앱에만 영향 (%1$d/%2$d 사용 중)</string>
+  <string name="assistant_page_local_tools_tier_device_control_title">L2 · 기기 제어</string>
+  <string name="assistant_page_local_tools_tier_device_control_desc">기기, 개인 데이터 또는 외부 시스템 조작 (%1$d/%2$d 사용 중)</string>
+  <string name="assistant_page_local_tools_tier_developer_title">L3 · 개발자</string>
+  <string name="assistant_page_local_tools_tier_developer_desc">임의 코드 실행 등 파괴적 기능 (%1$d/%2$d 사용 중)</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 진단</string>
   <string name="assistant_page_local_tools_diagnostics_title">진단 및 로그</string>
   <string name="assistant_page_local_tools_diagnostics_desc">앱 상태, 빌드 정보, 로그, 충돌, 수명주기 기록.</string>

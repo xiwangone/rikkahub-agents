@@ -1377,6 +1377,15 @@
   <string name="assistant_page_local_tools_section_automation">自动化</string>
   <string name="assistant_page_local_tools_section_browser">浏览器</string>
   <string name="assistant_page_local_tools_section_device_info">设备信息</string>
+  <string name="assistant_page_local_tools_section_tiers">按档位批量设置</string>
+  <string name="assistant_page_local_tools_tier_observe_title">L0 · 观测</string>
+  <string name="assistant_page_local_tools_tier_observe_desc">纯读取、不含个人隐私（已启用 %1$d/%2$d）</string>
+  <string name="assistant_page_local_tools_tier_self_manage_title">L1 · 自管理</string>
+  <string name="assistant_page_local_tools_tier_self_manage_desc">只影响本应用自身（已启用 %1$d/%2$d）</string>
+  <string name="assistant_page_local_tools_tier_device_control_title">L2 · 设备控制</string>
+  <string name="assistant_page_local_tools_tier_device_control_desc">操作设备、个人数据或外部系统（已启用 %1$d/%2$d）</string>
+  <string name="assistant_page_local_tools_tier_developer_title">L3 · 开发者</string>
+  <string name="assistant_page_local_tools_tier_developer_desc">任意代码执行等破坏性能力（已启用 %1$d/%2$d）</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 诊断</string>
   <string name="assistant_page_local_tools_diagnostics_title">诊断与日志</string>
   <string name="assistant_page_local_tools_diagnostics_desc">应用健康、构建信息、日志、崩溃与生命周期记录。</string>

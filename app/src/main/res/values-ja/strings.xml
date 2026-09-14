@@ -2590,6 +2590,15 @@
   <string name="auto_compress_invalid_input">有効な値を入力してください</string>
   <string name="setting_model_page_tool_output">ツール出力の上限</string>
   <string name="setting_model_page_tool_output_max_chars">ツール出力の上限（K 文字、1〜20。例: 5 = 5000 文字）</string>
+  <string name="assistant_page_local_tools_section_tiers">ティア別一括設定</string>
+  <string name="assistant_page_local_tools_tier_observe_title">L0 · 参照</string>
+  <string name="assistant_page_local_tools_tier_observe_desc">読み取りのみ、個人情報なし（有効 %1$d/%2$d）</string>
+  <string name="assistant_page_local_tools_tier_self_manage_title">L1 · 自己管理</string>
+  <string name="assistant_page_local_tools_tier_self_manage_desc">このアプリのみに影響（有効 %1$d/%2$d）</string>
+  <string name="assistant_page_local_tools_tier_device_control_title">L2 · デバイス操作</string>
+  <string name="assistant_page_local_tools_tier_device_control_desc">デバイス・個人データ・外部システムの操作（有効 %1$d/%2$d）</string>
+  <string name="assistant_page_local_tools_tier_developer_title">L3 · 開発者</string>
+  <string name="assistant_page_local_tools_tier_developer_desc">任意コード実行など破壊的な機能（有効 %1$d/%2$d）</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 診断</string>
   <string name="assistant_page_local_tools_diagnostics_title">診断とログ</string>
   <string name="assistant_page_local_tools_diagnostics_desc">アプリのヘルス、ビルド情報、ログ、クラッシュ、ライフサイクル記録。</string>

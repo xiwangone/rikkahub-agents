@@ -2583,6 +2583,15 @@
   <string name="auto_compress_invalid_input">Введите корректное значение</string>
   <string name="setting_model_page_tool_output">Ограничение вывода инструментов</string>
   <string name="setting_model_page_tool_output_max_chars">Лимит вывода инструментов (K символов, 1-20; напр. 5 = 5000 символов)</string>
+  <string name="assistant_page_local_tools_section_tiers">По уровням</string>
+  <string name="assistant_page_local_tools_tier_observe_title">L0 · Наблюдение</string>
+  <string name="assistant_page_local_tools_tier_observe_desc">Только чтение, без личных данных (включено %1$d/%2$d)</string>
+  <string name="assistant_page_local_tools_tier_self_manage_title">L1 · Самоуправление</string>
+  <string name="assistant_page_local_tools_tier_self_manage_desc">Влияет только на это приложение (включено %1$d/%2$d)</string>
+  <string name="assistant_page_local_tools_tier_device_control_title">L2 · Управление устройством</string>
+  <string name="assistant_page_local_tools_tier_device_control_desc">Управление устройством, личными данными или внешними системами (включено %1$d/%2$d)</string>
+  <string name="assistant_page_local_tools_tier_developer_title">L3 · Разработчик</string>
+  <string name="assistant_page_local_tools_tier_developer_desc">Выполнение произвольного кода и другие опасные возможности (включено %1$d/%2$d)</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">Диагностика ИИ</string>
   <string name="assistant_page_local_tools_diagnostics_title">Диагностика и журналы</string>
   <string name="assistant_page_local_tools_diagnostics_desc">Состояние приложения, сведения о сборке, журналы, сбои и жизненный цикл.</string>

@@ -2146,6 +2146,15 @@
     <string name="setting_page_preferences_network_proxy_desc">支援 HTTP 和 SOCKS5 代理 URL。留空以使用系統設定。</string>
     <string name="setting_page_preferences_network_proxy_invalid">請輸入包含主機和埠的有效代理 URL。</string>
     <string name="auto_compress_cache_reset_notice">上下文已壓縮 — prompt 快取字首已重置，下一條訊息將按全價輸入計費。</string>
+    <string name="assistant_page_local_tools_section_tiers">按檔位批次設定</string>
+    <string name="assistant_page_local_tools_tier_observe_title">L0 · 觀測</string>
+    <string name="assistant_page_local_tools_tier_observe_desc">純讀取、不含個人隱私（已啟用 %1$d/%2$d）</string>
+    <string name="assistant_page_local_tools_tier_self_manage_title">L1 · 自管理</string>
+    <string name="assistant_page_local_tools_tier_self_manage_desc">只影響本應用程式自身（已啟用 %1$d/%2$d）</string>
+    <string name="assistant_page_local_tools_tier_device_control_title">L2 · 裝置控制</string>
+    <string name="assistant_page_local_tools_tier_device_control_desc">操作裝置、個人資料或外部系統（已啟用 %1$d/%2$d）</string>
+    <string name="assistant_page_local_tools_tier_developer_title">L3 · 開發者</string>
+    <string name="assistant_page_local_tools_tier_developer_desc">任意程式碼執行等破壞性能力（已啟用 %1$d/%2$d）</string>
     <string name="assistant_page_local_tools_section_ai_diagnostics">AI 診斷</string>
     <string name="assistant_page_local_tools_diagnostics_title">診斷與日誌</string>
     <string name="assistant_page_local_tools_diagnostics_desc">應用健康、建置資訊、日誌、當機與生命週期記錄。</string>
