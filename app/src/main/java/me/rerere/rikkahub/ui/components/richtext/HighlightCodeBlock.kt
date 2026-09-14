@@ -87,6 +87,44 @@ private const val TAG = "HighlightCodeBlock"
 private const val COLLAPSE_LINES = 10
 private val PREVIEWABLE_LANGUAGES = setOf("html", "svg")
 
+// 高亮结果 LRU：filter 在滚动/重组时会被反复调用，
+// 同一段代码重复分词并重建 AnnotatedString 是长会话卡顿的来源之一。
+private const val HIGHLIGHT_CACHE_MAX_ENTRIES = 16
+private const val HIGHLIGHT_CACHE_MAX_CHARS = 20_000
+
+private val highlightCacheLru =
+    object : LinkedHashMap<Triple<String, Boolean, String>, AnnotatedString>(16, 0.75f, true) {
+        override fun removeEldestEntry(
+            eldest: MutableMap.MutableEntry<Triple<String, Boolean, String>, AnnotatedString>,
+        ): Boolean = size > HIGHLIGHT_CACHE_MAX_ENTRIES
+    }
+
+/** 带 LRU 的高亮构建：超长代码不走缓存，避免把大对象长期留在内存里。 */
+private fun highlightCached(
+    code: String,
+    language: String,
+    darkMode: Boolean,
+    highlighter: CodeHighlighter,
+    colorPalette: HighlightTextColorPalette,
+): AnnotatedString {
+    val build = {
+        val tokens = highlighter.highlight(code, language)
+        buildAnnotatedString {
+            tokens.forEach { token ->
+                buildHighlightText(token, colorPalette)
+            }
+        }
+    }
+    if (code.length > HIGHLIGHT_CACHE_MAX_CHARS) return build()
+    val key = Triple(language, darkMode, code)
+    synchronized(highlightCacheLru) {
+        highlightCacheLru[key]?.let { return it }
+    }
+    val built = build()
+    synchronized(highlightCacheLru) { highlightCacheLru[key] = built }
+    return built
+}
+
 @Composable
 fun HighlightCodeBlock(
     code: String,
@@ -535,12 +573,7 @@ class HighlightCodeVisualTransformation(
                 if (text.text.isEmpty()) {
                     AnnotatedString("")
                 } else {
-                    val tokens = highlighter.highlight(text.text, language)
-                    buildAnnotatedString {
-                        tokens.forEach { token ->
-                            buildHighlightText(token, colorPalette)
-                        }
-                    }
+                    highlightCached(text.text, language, darkMode, highlighter, colorPalette)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "HighlightCodeVisualTransformation: failed to highlight code", e)

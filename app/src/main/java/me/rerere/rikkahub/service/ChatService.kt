@@ -1083,6 +1083,9 @@ class ChatService(
             var lastStreamPersistAtMs = 0L
             // 流式界面提交的节流时间戳（见 STREAM_UI_INTERVAL_MS）
             var lastUiCommitAtMs = 0L
+            // 节流窗口内被跳过的最后一次快照：流结束时必须补一次提交，
+            // 否则尾部内容既不会进内存态也不会落盘（只有后续数据块才会覆盖它）。
+            var pendingUiConversation: Conversation? = null
             generationLoop
                 .generateText(
                     settings = settings,
@@ -1187,6 +1190,13 @@ class ChatService(
                     // 取消 Live Update 通知
                     cancelLiveUpdateNotification(conversationId)
 
+                    // 节流兜底：把最后一次被节流跳过的快照补进内存态，
+                    // 否则尾部内容既不入内存也不落盘（见 STREAM_UI_INTERVAL_MS）。
+                    pendingUiConversation?.let { latest ->
+                        pendingUiConversation = null
+                        updateConversation(conversationId, latest)
+                    }
+
                     // 可能被取消了，或者意外结束，兜底更新
                     val updatedConversation =
                         getConversationFlow(conversationId).value.copy(
@@ -1224,10 +1234,14 @@ class ChatService(
                                 getConversationFlow(conversationId)
                                     .value
                                     .updateCurrentMessages(chunk.messages)
-                            // 界面提交节流（见 STREAM_UI_INTERVAL_MS）：落盘与通知逻辑不受影响
+                            // 界面提交节流（见 STREAM_UI_INTERVAL_MS）：落盘与通知逻辑不受影响。
+                            // 被跳过的快照记入 pending，流结束时兜底提交（见 onCompletion），
+                            // 避免最后一个数据块恰好落在窗口内时丢失尾部内容。
+                            pendingUiConversation = updatedConversation
                             val nowUiMs = System.currentTimeMillis()
                             if (nowUiMs - lastUiCommitAtMs >= STREAM_UI_INTERVAL_MS) {
                                 lastUiCommitAtMs = nowUiMs
+                                pendingUiConversation = null
                                 updateConversation(conversationId, updatedConversation)
                             }
 
