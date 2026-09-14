@@ -74,11 +74,13 @@ jobs:
           key: ${{ runner.os }}-gradle-buildcache
           save-always: true
 
-      - name: 安装 bun & pnpm
-        run: |
-          curl -fsSL https://bun.sh/install | bash
-          echo "$HOME/.bun/bin" >> $GITHUB_PATH
-          npm install -g pnpm
+      - name: 安装 bun（官方 action，自带缓存与重试）
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 安装 pnpm
+        run: npm install -g pnpm
 
       - name: 缓存 web-ui 依赖（bun.lock 变化才重建）
         uses: actions/cache@v4
@@ -165,11 +167,13 @@ jobs:
           key: ${{ runner.os }}-gradle-buildcache
           save-always: true
 
-      - name: 安装 bun & pnpm
-        run: |
-          curl -fsSL https://bun.sh/install | bash
-          echo "$HOME/.bun/bin" >> $GITHUB_PATH
-          npm install -g pnpm
+      - name: 安装 bun（官方 action，自带缓存与重试）
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: 安装 pnpm
+        run: npm install -g pnpm
 
       - name: 缓存 web-ui 依赖（bun.lock 变化才重建）
         uses: actions/cache@v4
