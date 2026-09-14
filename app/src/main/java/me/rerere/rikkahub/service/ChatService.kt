@@ -1209,12 +1209,17 @@ class ChatService(
                     // 截断排查留痕：正常收尾的流会带终止原因；正常关闭却缺原因,
                     // 多为模型端提前停止 / 断流被伪装成正常结束
                     if (cause == null) {
-                        val missing = updatedConversation.messageNodes
-                            .asSequence()
-                            .flatMap { it.messages.asSequence() }
-                            .count { it.role == MessageRole.ASSISTANT && it.finishedAt != null && it.finishReason == null }
-                        if (missing > 0) {
-                            AppLog.w(TAG, "turn ended without finishReason on $missing assistant message(s) (possible upstream abort/truncation)")
+                        // 只判定本回合的最终 assistant 消息：历史消息可能本就没有 finishReason
+                        // （早期版本写入的数据），若把它们一并统计，每轮都会误报同样的数量，
+                        // 反而淹没真正的新截断信号。
+                        val lastAssistant =
+                            updatedConversation.messageNodes.lastOrNull()?.currentMessage
+                                ?.takeIf { it.role == MessageRole.ASSISTANT }
+                        if (lastAssistant != null &&
+                            lastAssistant.finishedAt != null &&
+                            lastAssistant.finishReason == null
+                        ) {
+                            AppLog.w(TAG, "turn ended without finishReason on the final assistant message (possible upstream abort/truncation)")
                         }
                     }
                     updateConversation(conversationId, updatedConversation)
