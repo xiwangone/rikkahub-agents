@@ -31,6 +31,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -73,6 +74,7 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.ui.components.table.DataTable
@@ -154,10 +156,15 @@ fun MarkdownNew(
             .collect { html = it }
     }
 
-    val document =
-        remember(html) {
-            runCatching { Jsoup.parse(html) }.getOrElse { Jsoup.parse("") }
+    // HTML 解析放到后台线程：文档较长时 Jsoup.parse 在组合期同步执行会拖慢首帧
+    val documentState =
+        produceState<org.jsoup.nodes.Document?>(initialValue = null, html) {
+            value =
+                withContext(Dispatchers.Default) {
+                    runCatching { Jsoup.parse(html) }.getOrElse { Jsoup.parse("") }
+                }
         }
+    val document = documentState.value ?: return
 
     ProvideTextStyle(style) {
         Column(modifier = modifier.padding(start = 4.dp)) {
