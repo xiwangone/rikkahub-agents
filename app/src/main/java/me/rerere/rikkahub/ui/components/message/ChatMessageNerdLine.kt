@@ -371,10 +371,10 @@ internal fun formatCost(cost: Double): String {
     return "$" + s
 }
 
-@Composable
 /** 以 K 为单位展示 token 数（与自动压缩设置同一口径），避免同一行里 K/M 混用。 */
 private fun formatTokensAsK(tokens: Long): String = tokens.formatK()
 
+@Composable
 fun StatsItem(
     icon: @Composable () -> Unit,
     content: @Composable () -> Unit,
