@@ -41,6 +41,23 @@ class WorkspaceDetailVM(
     private val _settingsError = MutableStateFlow<String?>(null)
     val settingsError = _settingsError.asStateFlow()
 
+    /** 沙箱镜像配置（全局）。 */
+    val mirrors: kotlinx.coroutines.flow.StateFlow<me.rerere.workspace.WorkspaceMirrors> =
+        repository.mirrorsFlow()
+            .stateIn(
+                viewModelScope,
+                kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+                me.rerere.workspace.WorkspaceMirrors(),
+            )
+
+    /** 保存镜像配置并应用到已安装的 rootfs。 */
+    fun applyMirrors(mirrors: me.rerere.workspace.WorkspaceMirrors) {
+        viewModelScope.launch {
+            runCatching { repository.setMirrors(mirrors) }
+                .onFailure { _settingsError.value = it.message }
+        }
+    }
+
     fun dismissSettingsError() {
         _settingsError.value = null
     }

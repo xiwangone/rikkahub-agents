@@ -5,6 +5,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
+import me.rerere.workspace.WorkspaceMirrors
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -34,6 +37,36 @@ class WorkspaceRepository(
     private val settingsStore: SettingsStore,
 ) {
     fun listFlow(): Flow<List<WorkspaceEntity>> = dao.listFlow()
+
+    /** 当前沙箱镜像配置（全局配置，应用时写入所有已安装 rootfs）。 */
+    fun mirrorsFlow(): Flow<WorkspaceMirrors> =
+        settingsStore.settingsFlow.map { s ->
+            WorkspaceMirrors(
+                apk = s.workspaceApkMirror,
+                pip = s.workspacePipMirror,
+                npm = s.workspaceNpmMirror,
+            )
+        }
+
+    /** 保存镜像配置并应用到所有已安装的 rootfs；返回实际写入成功的沙箱数量。 */
+    suspend fun setMirrors(mirrors: WorkspaceMirrors): Int = withContext(Dispatchers.IO) {
+        val current = settingsStore.settingsFlow.first()
+        settingsStore.update(
+            current.copy(
+                workspaceApkMirror = mirrors.apk,
+                workspacePipMirror = mirrors.pip,
+                workspaceNpmMirror = mirrors.npm,
+            ),
+        )
+        var applied = 0
+        for (workspace in dao.getAll()) {
+            if (!manager.hasRootfs(workspace.root)) continue
+            if (me.rerere.workspace.applyWorkspaceMirrors(manager.linuxDir(workspace.root), mirrors).isSuccess) {
+                applied++
+            }
+        }
+        applied
+    }
 
     suspend fun checkIntegrity() = withContext(Dispatchers.IO) {
         val workspaces = dao.getAll()

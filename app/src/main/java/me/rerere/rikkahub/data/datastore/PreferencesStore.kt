@@ -905,6 +905,10 @@ data class Settings(
     val webServerAccessPassword: String = "",
     /** 设置页快捷区：用户自选的有序入口 id 列表（id 见 SettingCatalog）。 */
     val settingShortcutIds: List<String> = emptyList(),
+    /** 沙箱包管理器镜像（空 = 官方源）：apk / pip / npm。 */
+    val workspaceApkMirror: String = "",
+    val workspacePipMirror: String = "",
+    val workspaceNpmMirror: String = "",
     val webServerLocalhostOnly: Boolean = true,
     val aiLogLevel: AiLogLevel = AiLogLevel.INFO,
     val backupReminderConfig: BackupReminderConfig = BackupReminderConfig(),
