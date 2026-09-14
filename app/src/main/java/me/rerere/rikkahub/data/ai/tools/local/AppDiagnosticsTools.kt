@@ -20,6 +20,8 @@ import java.security.MessageDigest
 import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.RikkaHubApp
 import kotlinx.serialization.json.booleanOrNull
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -370,29 +372,100 @@ private suspend fun <T : ProviderSetting> probeProvider(
 internal fun crashSnapshotPayload(context: Context, params: JsonObject): String {
         val which = params["which"]?.jsonPrimitive?.contentOrNull
             ?.trim()?.lowercase(Locale.US)?.takeIf { s -> s.isNotEmpty() } ?: "latest"
-        val fileName =
-            when (which) {
-                "1" -> "crash-1.txt"
-                "2" -> "crash-2.txt"
-                else -> "crash-latest.txt"
-            }
         val dir = context.getDir("crash", Context.MODE_PRIVATE)
-        val file = java.io.File(dir, fileName)
+        // 快照按时间归档（crash-<时间戳>.txt），取修改时间最新的几份；which=latest/1/2 依次新→旧
+        val snapshots = dir.listFiles { f -> f.name.startsWith("crash-") && f.name.endsWith(".txt") }
+            ?.sortedByDescending { it.lastModified() }?.toList().orEmpty()
+        val file = when (which) {
+            "1" -> snapshots.getOrNull(1)
+            "2" -> snapshots.getOrNull(2)
+            else -> snapshots.firstOrNull()
+        }
         val text =
-            if (file.exists()) {
-                runCatching { file.readText(Charsets.UTF_8) }.getOrDefault("")
-            } else {
-                ""
-            }
-        val available =
-            listOf("crash-latest.txt", "crash-1.txt", "crash-2.txt")
-                .filter { java.io.File(dir, it).exists() }
-                .joinToString(", ")
-        val header = "[$fileName] available snapshots: ${available.ifEmpty { "(none)" }}"
+            file?.let { runCatching { it.readText(Charsets.UTF_8) }.getOrDefault("") } ?: ""
+        val available = snapshots.take(6).joinToString(", ") { it.name }
+        val header = "[${file?.name ?: "-"}] available snapshots: ${available.ifEmpty { "(none)" }}"
         val body = text.take(20_000)
         // 快照写入时已脱敏，这里再兜底一次（旧快照或异常路径可能未覆盖）
         val out = if (body.isBlank()) "$header\n(no crash snapshot)" else "$header\n$body"
     return LogRedactor.maskText(out)
+}
+
+// ---------- conversations ----------
+
+/**
+ * conversation kind: 无 id 时列出当前助手最近会话; 携带 id 时导出该会话的消息文本。
+ * 单条超 2000 字符截断、总量 40k 字符封顶——用于回溯历史会话现场(崩溃/截断排查)。
+ */
+internal suspend fun conversationsPayload(
+    conversationRepo: ConversationRepository,
+    settingsStore: SettingsStore,
+    params: JsonObject,
+): String {
+    val idRaw = params["id"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+    if (idRaw.isEmpty()) {
+        val settings = settingsStore.settingsFlow.first()
+        val assistant = settings.getCurrentAssistant()
+        val limit = params["limit"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 50) ?: 20
+        val list = conversationRepo.getRecentConversations(assistant.id, limit)
+        return buildJsonObject {
+            put("assistantId", assistant.id.toString())
+            put("count", list.size)
+            put("conversations", JsonArray(list.map { c ->
+                buildJsonObject {
+                    put("id", c.id.toString())
+                    put("title", c.title)
+                    put("pinned", c.isPinned)
+                    put("updatedAt", c.updateAt.toString())
+                }
+            }))
+        }.toString()
+    }
+    val uuid = runCatching { kotlin.uuid.Uuid.parse(idRaw) }.getOrElse {
+        return buildJsonObject { put("error", "invalid conversation id '$idRaw'") }.toString()
+    }
+    val conversation = conversationRepo.getConversationById(uuid)
+        ?: return buildJsonObject { put("error", "conversation not found: $idRaw") }.toString()
+    var totalChars = 0
+    val messagesJson = buildJsonArray {
+        loop@ for ((index, node) in conversation.messageNodes.withIndex()) {
+            for (m in node.messages) {
+                val text = m.parts.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
+                if (text.isBlank()) continue
+                if (totalChars > 40_000) break@loop
+                val clipped = if (text.length > 2000) text.take(2000) + "…(truncated)" else text
+                totalChars += clipped.length
+                add(buildJsonObject {
+                    put("index", index)
+                    put("role", m.role.name.lowercase())
+                    put("finishReason", m.finishReason)
+                    put("text", clipped)
+                })
+            }
+        }
+    }
+    return buildJsonObject {
+        put("id", conversation.id.toString())
+        put("title", conversation.title)
+        put("messages", messagesJson)
+        put("truncated", totalChars > 40_000)
+    }.toString()
+}
+
+// ---------- perf ----------
+
+/**
+ * perf kind: 进程运行时长 / 堆占用 / 线程数。启动时刻由 Application 进程级记录（见 RikkaHubApp）。
+ */
+internal fun perfPayload(context: Context): String {
+    val runtime = Runtime.getRuntime()
+    val uptimeMs = android.os.SystemClock.elapsedRealtime() - RikkaHubApp.processStartElapsedMs
+    return buildJsonObject {
+        put("uptimeMinutes", uptimeMs / 60_000)
+        put("heapUsedMb", (runtime.totalMemory() - runtime.freeMemory()) / 1_048_576)
+        put("heapMaxMb", runtime.maxMemory() / 1_048_576)
+        put("activeThreads", Thread.activeCount())
+    }.toString()
 }
 
 // ---------- read_lifecycle_logs ----------
@@ -543,6 +616,7 @@ internal suspend fun usageStatsPayload(
 
 private val DIAGNOSTICS_KINDS = listOf(
     "health", "build", "enabled_tools", "usage", "settings", "logs", "requests", "crash", "lifecycle",
+    "conversation", "perf",
 )
 
 /**
@@ -555,13 +629,16 @@ fun diagnosticsTool(
     context: Context,
     settingsStore: SettingsStore,
     doctorChecks: DoctorChecks,
+    conversationRepo: ConversationRepository,
 ): Tool = Tool(
     name = "diagnostics",
     description = """
         Inspect this app itself. Choose one kind: health (built-in Doctor checks), build (installed
         build identity and signing certificate), enabled_tools (which tool options are on), usage
         (per-tool call counts), settings (configuration summary), logs (in-memory app log), requests
-        (HTTP request summary log), crash (last crash snapshot), or lifecycle (process lifecycle log).
+        (HTTP request summary log), crash (last crash snapshot), lifecycle (process lifecycle log),
+        conversation (list recent chats, or export one conversation's messages by id), or perf
+        (process uptime / heap / threads).
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -591,6 +668,10 @@ fun diagnosticsTool(
                     put("type", "string")
                     put("description", "crash only: latest (default), 1 or 2.")
                 })
+                put("id", buildJsonObject {
+                    put("type", "string")
+                    put("description", "conversation only: conversation UUID. Omit to list recent chats.")
+                })
                 put("reset", buildJsonObject {
                     put("type", "boolean")
                     put("description", "usage only: clear the counters after reporting.")
@@ -612,6 +693,8 @@ fun diagnosticsTool(
             "requests" -> requestLogsPayload(context, params)
             "crash" -> crashSnapshotPayload(context, params)
             "lifecycle" -> lifecycleLogsPayload(context, params)
+            "conversation" -> conversationsPayload(conversationRepo, settingsStore, params)
+            "perf" -> perfPayload(context)
             else -> buildJsonObject {
                 put("error", "unknown kind '$kind'")
                 put("hint", "kind must be one of: ${DIAGNOSTICS_KINDS.joinToString(" | ")}")

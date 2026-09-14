@@ -54,7 +54,7 @@ object CrashHandler {
                 putString(KEY_STACKTRACE, stackTrace)
             } // commit() 同步写入，确保崩溃前写完
 
-        // 崩溃快照：堆栈 + 应用日志尾部 + 请求日志尾部，写 crash-latest.txt（尽力同步，崩溃时不再开线程）
+        // 崩溃快照：堆栈 + 应用日志尾部 + 请求日志尾部，写带时间戳的归档文件（尽力同步，崩溃时不再开线程）
         persistCrashSnapshot(context, thread, throwable)
     }
 
@@ -65,7 +65,6 @@ object CrashHandler {
     ) {
         val dir = context.getDir("crash", Context.MODE_PRIVATE)
         dir.mkdirs()
-        val file = java.io.File(dir, "crash-latest.txt")
         val appLogTail = me.rerere.rikkahub.data.log.AppLog.getLogs().takeLast(50).joinToString("\n") {
             java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.getDefault()).format(it.timestamp) +
                 " ${it.level} ${it.tag}: ${it.message}"
@@ -94,16 +93,14 @@ object CrashHandler {
                 appendLine(lifecycleTail)
             }
         runCatching {
-            // 快照轮转：此前只保留最新一份，下一次崩溃即覆盖上一次现场，导致复发问题
-            // 无法回溯比对。保留最近 3 次（crash-latest / crash-1 / crash-2），
-            // 诊断时可按文件时间逐个读取。
-            java.io.File(dir, "crash-2.txt").takeIf { it.exists() }?.delete()
-            java.io.File(dir, "crash-1.txt")
-                .takeIf { it.exists() }
-                ?.renameTo(java.io.File(dir, "crash-2.txt"))
-            java.io.File(dir, "crash-latest.txt")
-                .takeIf { it.exists() }
-                ?.renameTo(java.io.File(dir, "crash-1.txt"))
+            // 快照按时间归档：crash-<时间戳>.txt，便于按日期回溯多起崩溃现场；
+            // 清理 7 天前的旧快照，避免目录无限增长
+            val stamp = java.text.SimpleDateFormat("yyyyMMdd-HHmmss", java.util.Locale.US)
+                .format(java.util.Date())
+            val file = java.io.File(dir, "crash-$stamp.txt")
+            val cutoff = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
+            dir.listFiles { f -> f.name.startsWith("crash-") && f.lastModified() < cutoff }
+                ?.forEach { it.delete() }
             file.writeText(content, Charsets.UTF_8)
         }
         me.rerere.rikkahub.data.log.FileLogSink.flush()

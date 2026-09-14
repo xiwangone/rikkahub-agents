@@ -56,6 +56,12 @@ const val WEB_SERVER_NOTIFICATION_CHANNEL_ID = "web_server"
 class RikkaHubApp : Application() {
     private val appStartElapsedMs = android.os.SystemClock.elapsedRealtime()
 
+    companion object {
+        /** 进程启动时刻（elapsedRealtime），供诊断 perf kind 读取运行时长 */
+        @JvmField
+        val processStartElapsedMs: Long = android.os.SystemClock.elapsedRealtime()
+    }
+
     override fun onCreate() {
         super.onCreate()
         // 兼容老 SSH 服务端（如小米路由 dropbear 2017.75 只提供 ssh-rsa host key）：

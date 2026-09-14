@@ -1142,7 +1142,7 @@ class LocalTools(
         }
         // AI 自诊断/自管理（第一批，纯读工具）。
         if (enabled(LocalToolOption.Diagnostics)) {
-            tools.add(diagnosticsTool(context, settingsStore, doctorChecks))
+            tools.add(diagnosticsTool(context, settingsStore, doctorChecks, conversationRepo))
         }
         if (enabled(LocalToolOption.ModelTesting)) {
             tools.add(testModelTool(providerManager, settingsStore, context))
