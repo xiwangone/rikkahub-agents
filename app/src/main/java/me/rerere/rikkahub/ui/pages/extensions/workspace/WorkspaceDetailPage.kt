@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.extensions.workspace
 
+import me.rerere.workspace.WorkspaceMirrorPresets
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
@@ -319,23 +320,6 @@ fun WorkspaceDetailPage(id: String) {
 
     state.workspace?.let { workspace ->
         if (showInstallDialog) {
-            MirrorPickerDialog(
-                pick = mirrorPicker,
-                mirrors = mirrors,
-                onDismiss = { mirrorPicker = null },
-                onSelect = { url ->
-                    onApplyMirrors(
-                        when (mirrorPicker) {
-                            MirrorPick.APK -> mirrors.copy(apk = url)
-                            MirrorPick.PIP -> mirrors.copy(pip = url)
-                            MirrorPick.NPM -> mirrors.copy(npm = url)
-                            null -> mirrors
-                        },
-                    )
-                    mirrorPicker = null
-                },
-            )
-
             InstallRootfsDialog(
                 workspace = workspace,
                 onDismiss = { showInstallDialog = false },
@@ -566,6 +550,23 @@ private fun WorkspaceBasicPage(
             )
         }
     }
+
+                MirrorPickerDialog(
+            pick = mirrorPicker,
+            mirrors = mirrors,
+            onDismiss = { mirrorPicker = null },
+            onSelect = { url ->
+                onApplyMirrors(
+                    when (mirrorPicker) {
+                        MirrorPick.APK -> mirrors.copy(apk = url)
+                        MirrorPick.PIP -> mirrors.copy(pip = url)
+                        MirrorPick.NPM -> mirrors.copy(npm = url)
+                        null -> mirrors
+                    },
+                )
+                mirrorPicker = null
+            },
+        )
 }
 
 @Composable
