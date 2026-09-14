@@ -48,6 +48,12 @@ fun Long.fileSizeToString(): String {
     return "%.${precision}f %s".format(value, units[unitIndex])
 }
 
+/** 以 K 为单位展示 token 数（1K = 1,000），用于需要统一口径的展示位。 */
+fun Long.formatK(): String {
+    val k = this / 1000.0
+    return if (k == k.toLong().toDouble()) "${k.toLong()}K" else String.format(java.util.Locale.US, "%.1fK", k)
+}
+
 fun Int.formatNumber(): String {
     val absValue = kotlin.math.abs(this)
     val sign = if (this < 0) "-" else ""

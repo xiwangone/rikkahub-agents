@@ -124,6 +124,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.utils.SoundEffectPlayer
+import me.rerere.rikkahub.utils.formatK
 import me.rerere.rikkahub.utils.formatNumber
 import org.koin.compose.koinInject
 import kotlin.time.Duration.Companion.seconds
@@ -777,9 +778,13 @@ keyboardOptions =
                     tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
                     modifier = Modifier.size(12.dp),
                 )
+                // 复制用：保持原有缩写格式（用户指定，勿改）
                 val totalInput = sessionTotals.inputTokens.toInt().formatNumber()
                 val totalCached = sessionTotals.cachedTokens.toInt().formatNumber()
                 val totalOutput = sessionTotals.outputTokens.toInt().formatNumber()
+                // 展示用：统一 K 口径，避免同一行里 M/K 混显
+                val totalInputK = sessionTotals.inputTokens.formatK()
+                val totalOutputK = sessionTotals.outputTokens.formatK()
                 // 平均命中率：累计 cached / 累计 input
                 val avgPct =
                     if (sessionTotals.cachedTokens > 0 && sessionTotals.inputTokens > 0) {
@@ -792,7 +797,7 @@ keyboardOptions =
                         "0.0%"
                     }
                 Text(
-                    text = stringResource(R.string.stats_format, totalInput, avgPct, totalOutput),
+                    text = stringResource(R.string.stats_format, totalInputK, avgPct, totalOutputK),
                     style =
                         MaterialTheme.typography.labelSmall.copy(
                             color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),

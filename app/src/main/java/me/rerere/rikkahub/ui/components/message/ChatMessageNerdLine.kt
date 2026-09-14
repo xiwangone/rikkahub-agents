@@ -50,6 +50,7 @@ import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.costguards.TokenBudgetTracker
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.utils.formatK
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
 import org.koin.compose.koinInject
@@ -372,10 +373,7 @@ internal fun formatCost(cost: Double): String {
 
 @Composable
 /** 以 K 为单位展示 token 数（与自动压缩设置同一口径），避免同一行里 K/M 混用。 */
-private fun formatTokensAsK(tokens: Long): String {
-    val k = tokens / 1000.0
-    return if (k == k.toLong().toDouble()) "${k.toLong()}K" else String.format(java.util.Locale.US, "%.1fK", k)
-}
+private fun formatTokensAsK(tokens: Long): String = tokens.formatK()
 
 fun StatsItem(
     icon: @Composable () -> Unit,
