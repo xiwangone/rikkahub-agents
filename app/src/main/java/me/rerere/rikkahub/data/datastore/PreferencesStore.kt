@@ -213,6 +213,10 @@ class SettingsStore(
         val WEB_SERVER_LISTEN_SCOPE = stringPreferencesKey("web_server_listen_scope")
         val WEB_SERVER_ALLOWED_NETWORKS = stringPreferencesKey("web_server_allowed_networks")
         val WEB_SERVER_ACCESS_PASSWORD = stringPreferencesKey("web_server_access_password")
+        val SETTING_SHORTCUT_IDS = stringPreferencesKey("setting_shortcut_ids")
+        val WORKSPACE_APK_MIRROR = stringPreferencesKey("workspace_apk_mirror")
+        val WORKSPACE_PIP_MIRROR = stringPreferencesKey("workspace_pip_mirror")
+        val WORKSPACE_NPM_MIRROR = stringPreferencesKey("workspace_npm_mirror")
         val WEB_SERVER_LOCALHOST_ONLY = booleanPreferencesKey("web_server_localhost_only")
 
         // Web 桥（全局配置，SSH 反向隧道到 ECS）
@@ -398,6 +402,14 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 webServerListenScope = preferences[WEB_SERVER_LISTEN_SCOPE] ?: "loopback",
                 webServerAllowedNetworks = preferences[WEB_SERVER_ALLOWED_NETWORKS] ?: "",
                 webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD] ?: "",
+                settingShortcutIds =
+                    preferences[SETTING_SHORTCUT_IDS]
+                        ?.split('\u0001')
+                        ?.filter { it.isNotBlank() }
+                        ?: emptyList(),
+                workspaceApkMirror = preferences[WORKSPACE_APK_MIRROR] ?: "",
+                workspacePipMirror = preferences[WORKSPACE_PIP_MIRROR] ?: "",
+                workspaceNpmMirror = preferences[WORKSPACE_NPM_MIRROR] ?: "",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
                 aiLogLevel = AiLogLevel.fromPreference(preferences[AI_LOG_LEVEL]),
                 backupReminderConfig = preferences[BACKUP_REMINDER_CONFIG]?.let {
@@ -675,6 +687,10 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[WEB_SERVER_LISTEN_SCOPE] = settings.webServerListenScope
             preferences[WEB_SERVER_ALLOWED_NETWORKS] = settings.webServerAllowedNetworks
             preferences[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
+            preferences[SETTING_SHORTCUT_IDS] = settings.settingShortcutIds.joinToString("\u0001")
+            preferences[WORKSPACE_APK_MIRROR] = settings.workspaceApkMirror
+            preferences[WORKSPACE_PIP_MIRROR] = settings.workspacePipMirror
+            preferences[WORKSPACE_NPM_MIRROR] = settings.workspaceNpmMirror
             preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
             preferences[AI_LOG_LEVEL] = settings.aiLogLevel.preferenceName
             preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
