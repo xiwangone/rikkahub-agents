@@ -57,7 +57,7 @@ import java.util.concurrent.ConcurrentHashMap
  * 对 [DoctorChecks.runAll] 的完整诊断快照做结构化输出。
  * 复用 Doctor 页全部检查项，返回 JSON：健康计数 + 每项 id/category/label/detail/severity。
  */
-internal fun appHealthPayload(
+internal suspend fun appHealthPayload(
     doctorChecks: DoctorChecks,
     context: Context,
 ): String {
@@ -146,7 +146,7 @@ internal fun requestLogsPayload(context: Context, params: JsonObject): String {
  * - 关键偏好：默认聊天模型/自动压缩开关/流式重试/工具输出限制等
  * 对齐规划 #6「配置真相」+ get_providers V1 读侧：AI 能看见自己配了什么，才能谈管理。
  */
-internal fun appSettingsPayload(settingsStore: SettingsStore): String {
+internal suspend fun appSettingsPayload(settingsStore: SettingsStore): String {
         val settings = runCatching { settingsStore.settingsFlow.first() }.getOrNull()
             ?: return "{\"error\":\"settings_unavailable\"}"
         val out = buildJsonObject {
@@ -227,6 +227,7 @@ fun testModelTool(
         )
     },
     execute = {
+        val params = it.jsonObject
         val providerName = params["provider"]?.jsonPrimitive?.contentOrNull ?: error("provider is required")
         val modelId = params["model_id"]?.jsonPrimitive?.contentOrNull
         val force = params["force"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
@@ -367,7 +368,7 @@ private suspend fun <T : ProviderSetting> probeProvider(
  * CrashHandler 在崩溃时同步写出，因此即使进程随即退出也可读。
  */
 internal fun crashSnapshotPayload(context: Context, params: JsonObject): String {
-        val which = it.jsonObject["which"]?.jsonPrimitive?.contentOrNull
+        val which = params["which"]?.jsonPrimitive?.contentOrNull
             ?.trim()?.lowercase(Locale.US)?.takeIf { s -> s.isNotEmpty() } ?: "latest"
         val fileName =
             when (which) {
@@ -404,7 +405,7 @@ internal fun crashSnapshotPayload(context: Context, params: JsonObject): String 
  * PROCESS_START 且原因为「疑似被系统杀死」，说明是进程级回收而非界面问题。
  */
 internal fun lifecycleLogsPayload(context: Context, params: JsonObject): String {
-        val lines = (it.jsonObject["lines"]?.jsonPrimitive?.intOrNull ?: 60).coerceIn(1, 500)
+        val lines = (params["lines"]?.jsonPrimitive?.intOrNull ?: 60).coerceIn(1, 500)
         val raw =
             me.rerere.rikkahub.data.log.FileLogSink.recentLines(
                 me.rerere.rikkahub.data.log.FileLogSink.KIND_LIFECYCLE,
@@ -453,7 +454,7 @@ internal fun buildInfoPayload(context: Context): String {
  * 当前启用的本地工具选项（按分类）。只读。
  * 用于回答"我现在能用哪些工具"，也可与 [tool_usage_stats] 对照找出"启用了却从未用过"的项。
  */
-internal fun enabledToolsPayload(settingsStore: SettingsStore): String {
+internal suspend fun enabledToolsPayload(settingsStore: SettingsStore): String {
             val settings = settingsStore.settingsFlow.first()
             val assistant = settings.getCurrentAssistant()
             val enabled = assistant.localTools
@@ -485,12 +486,13 @@ internal fun enabledToolsPayload(settingsStore: SettingsStore): String {
  * 本地工具的调用统计（次数/失败数/平均耗时/最近调用时间），可 reset 清零。
  * 只记录工具名与计数，不含任何参数。与 tool_surface_report 对照可得出"从未使用"清单。
  */
-internal fun usageStatsPayload(
+internal suspend fun usageStatsPayload(
     context: Context,
     settingsStore: SettingsStore,
-, params: JsonObject): String {
-            val limit = (input.jsonObject["limit"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 200)
-            val reset = input.jsonObject["reset"]?.jsonPrimitive?.booleanOrNull ?: false
+    params: JsonObject,
+): String {
+            val limit = (params["limit"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 200)
+            val reset = params["reset"]?.jsonPrimitive?.booleanOrNull ?: false
             if (reset) ToolUsageTracker.clear(context)
             val snapshot = ToolUsageTracker.snapshot(context)
             val settings = settingsStore.settingsFlow.first()
