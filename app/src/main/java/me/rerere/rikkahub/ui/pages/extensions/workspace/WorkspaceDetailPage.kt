@@ -1,5 +1,11 @@
 package me.rerere.rikkahub.ui.pages.extensions.workspace
 
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.RadioButton
+import me.rerere.workspace.WorkspaceMirrors
+import me.rerere.workspace.WorkspaceMirrorPreset
 import android.content.Intent
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
@@ -115,6 +121,8 @@ fun WorkspaceDetailPage(id: String) {
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
     var showInstallDialog by remember { mutableStateOf(false) }
+    var mirrorPicker by remember { mutableStateOf<MirrorPick?>(null) }
+    val mirrors by vm.mirrors.collectAsStateWithLifecycle()
     var previewImageUri by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val filePicker =
@@ -310,6 +318,23 @@ fun WorkspaceDetailPage(id: String) {
 
     state.workspace?.let { workspace ->
         if (showInstallDialog) {
+            MirrorPickerDialog(
+                pick = mirrorPicker,
+                mirrors = mirrors,
+                onDismiss = { mirrorPicker = null },
+                onSelect = { url ->
+                    vm.applyMirrors(
+                        when (mirrorPicker) {
+                            MirrorPick.APK -> mirrors.copy(apk = url)
+                            MirrorPick.PIP -> mirrors.copy(pip = url)
+                            MirrorPick.NPM -> mirrors.copy(npm = url)
+                            null -> mirrors
+                        },
+                    )
+                    mirrorPicker = null
+                },
+            )
+
             InstallRootfsDialog(
                 workspace = workspace,
                 onDismiss = { showInstallDialog = false },
@@ -436,6 +461,31 @@ private fun WorkspaceBasicPage(
                         )
                     }
                 }
+            }
+        }
+
+        item {
+            CardGroup(
+                title = { Text(stringResource(R.string.workspace_detail_mirrors)) },
+            ) {
+                MirrorRow(
+                    title = stringResource(R.string.workspace_detail_mirror_apk),
+                    current = mirrors.apk,
+                    presets = WorkspaceMirrorPresets.APK,
+                    onClick = { mirrorPicker = MirrorPick.APK },
+                )
+                MirrorRow(
+                    title = stringResource(R.string.workspace_detail_mirror_pip),
+                    current = mirrors.pip,
+                    presets = WorkspaceMirrorPresets.PIP,
+                    onClick = { mirrorPicker = MirrorPick.PIP },
+                )
+                MirrorRow(
+                    title = stringResource(R.string.workspace_detail_mirror_npm),
+                    current = mirrors.npm,
+                    presets = WorkspaceMirrorPresets.NPM,
+                    onClick = { mirrorPicker = MirrorPick.NPM },
+                )
             }
         }
 
@@ -1168,3 +1218,77 @@ private val PRESET_ROOTFS_URLS =
             "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz",
         ),
     )
+
+
+/** Which package-manager mirror is being picked. */
+private enum class MirrorPick { APK, PIP, NPM }
+
+@Composable
+private fun CardGroupScope.MirrorRow(
+    title: String,
+    current: String,
+    presets: List<WorkspaceMirrorPreset>,
+    onClick: () -> Unit,
+) {
+    val label =
+        presets.firstOrNull { it.url == current }?.label
+            ?: current.takeIf { it.isNotBlank() }
+            ?: presets.firstOrNull()?.label.orEmpty()
+    item(
+        onClick = onClick,
+        headlineContent = { Text(title) },
+        supportingContent = { Text(label) },
+    )
+}
+
+@Composable
+private fun MirrorPickerDialog(
+    pick: MirrorPick?,
+    mirrors: WorkspaceMirrors,
+    onDismiss: () -> Unit,
+    onSelect: (String) -> Unit,
+) {
+    if (pick == null) return
+    val presets =
+        when (pick) {
+            MirrorPick.APK -> WorkspaceMirrorPresets.APK
+            MirrorPick.PIP -> WorkspaceMirrorPresets.PIP
+            MirrorPick.NPM -> WorkspaceMirrorPresets.NPM
+        }
+    val current =
+        when (pick) {
+            MirrorPick.APK -> mirrors.apk
+            MirrorPick.PIP -> mirrors.pip
+            MirrorPick.NPM -> mirrors.npm
+        }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.workspace_detail_mirrors)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                presets.forEach { preset ->
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        RadioButton(
+                            selected = preset.url == current || (current.isBlank() && preset == presets.first()),
+                            onClick = { onSelect(preset.url) },
+                        )
+                        Column {
+                            Text(preset.label, style = MaterialTheme.typography.bodyMedium)
+                            Text(
+                                preset.region,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+        },
+    )
+}

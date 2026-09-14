@@ -1647,6 +1647,10 @@
   <string name="workspace_detail_installing">インストール中</string>
   <string name="workspace_detail_reinstall_rootfs">Rootfs 再インストール</string>
   <string name="workspace_detail_install_rootfs">Rootfs をインストール</string>
+  <string name="workspace_detail_mirrors">パッケージミラー</string>
+  <string name="workspace_detail_mirror_apk">Alpine パッケージ</string>
+  <string name="workspace_detail_mirror_pip">Python パッケージ</string>
+  <string name="workspace_detail_mirror_npm">Node パッケージ</string>
   <string name="workspace_detail_workspace_info">ワークスペース</string>
   <string name="workspace_detail_name">名前</string>
   <string name="workspace_detail_shell_status">Shell ステータス</string>

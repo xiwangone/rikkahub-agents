@@ -1960,6 +1960,10 @@
   <string name="workspace_detail_installing">Installing</string>
   <string name="workspace_detail_reinstall_rootfs">Reinstall Rootfs</string>
   <string name="workspace_detail_install_rootfs">Install Rootfs</string>
+  <string name="workspace_detail_mirrors">Package mirrors</string>
+  <string name="workspace_detail_mirror_apk">Alpine packages</string>
+  <string name="workspace_detail_mirror_pip">Python packages</string>
+  <string name="workspace_detail_mirror_npm">Node packages</string>
   <string name="workspace_detail_workspace_info">Workspace</string>
   <string name="workspace_detail_name">Name</string>
   <string name="workspace_detail_shell_status">Shell Status</string>

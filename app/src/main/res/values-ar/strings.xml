@@ -2887,6 +2887,10 @@
   <string name="workspace_detail_installing">جارٍ التثبيت</string>
   <string name="workspace_detail_reinstall_rootfs">إعادة تثبيت Rootfs</string>
   <string name="workspace_detail_install_rootfs">تثبيت Rootfs</string>
+  <string name="workspace_detail_mirrors">مرايا الحزم</string>
+  <string name="workspace_detail_mirror_apk">حزم Alpine</string>
+  <string name="workspace_detail_mirror_pip">حزم Python</string>
+  <string name="workspace_detail_mirror_npm">حزم Node</string>
   <string name="workspace_detail_workspace_info">مساحة العمل</string>
   <string name="workspace_detail_name">الاسم</string>
   <string name="workspace_detail_shell_status">حالة الصدفة</string>
