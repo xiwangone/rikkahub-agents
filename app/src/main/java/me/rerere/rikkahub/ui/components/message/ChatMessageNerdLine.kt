@@ -266,7 +266,7 @@ fun ChatMessageNerdLine(
                     usedRatio == null -> color
                     usedRatio >= 0.8 -> Color(0xFFD32F2F)
                     usedRatio >= 0.6 -> Color(0xFFE0A100)
-                    else -> Color(0xFF2E7D32)
+                    else -> Color(0xFF43A047)
                 }
                 var showWindowDialog by remember { mutableStateOf(false) }
                 var windowInput by remember(windowTokens) {
