@@ -2147,6 +2147,8 @@
     <string name="setting_page_preferences_network_proxy_invalid">請輸入包含主機和埠的有效代理 URL。</string>
     <string name="auto_compress_cache_reset_notice">上下文已壓縮 — prompt 快取字首已重置，下一條訊息將按全價輸入計費。</string>
     <string name="assistant_page_local_tools_section_ai_diagnostics">AI 診斷</string>
+    <string name="assistant_page_local_tools_diagnostics_title">診斷與日誌</string>
+    <string name="assistant_page_local_tools_diagnostics_desc">應用健康、建置資訊、日誌、當機與生命週期記錄。</string>
     <string name="assistant_page_local_tools_app_health_title">應用診斷</string>
     <string name="assistant_page_local_tools_app_health_desc">執行內建 Doctor 檢查並返回結構化健康快照（許可權、服務、資料庫、網路、維護）。</string>
     <string name="assistant_page_local_tools_app_logs_title">日誌讀取</string>
@@ -2911,6 +2913,7 @@
   <string name="mcp_tool_keyboard_control">鍵盤控制</string>
   <string name="mcp_tool_app_diagnostics">應用診斷</string>
   <string name="mcp_tool_app_logs">應用日誌</string>
+  <string name="mcp_tool_diagnostics">診斷與日誌</string>
   <string name="mcp_tool_model_testing">模型測試</string>
   <string name="mcp_category_device_control">裝置控制</string>
   <string name="mcp_category_media">媒體與輸入</string>

@@ -1398,6 +1398,8 @@
   <string name="assistant_page_local_tools_perm_special_dialog_title">Permission needed</string>
   <string name="assistant_page_local_tools_section_device_info">Device info</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI diagnostics</string>
+  <string name="assistant_page_local_tools_diagnostics_title">Diagnostics</string>
+  <string name="assistant_page_local_tools_diagnostics_desc">App health, build info, logs, crash and lifecycle reports.</string>
   <string name="assistant_page_local_tools_app_health_title">App health</string>
   <string name="assistant_page_local_tools_app_health_desc">Run the built-in Doctor checks and return a structured health snapshot (permissions, services, database, network, maintenance).</string>
   <string name="assistant_page_local_tools_app_logs_title">App logs</string>
@@ -2896,6 +2898,7 @@
   <string name="mcp_tool_keyboard_control">Keyboard control</string>
   <string name="mcp_tool_app_diagnostics">App diagnostics</string>
   <string name="mcp_tool_app_logs">App logs</string>
+  <string name="mcp_tool_diagnostics">Diagnostics</string>
   <string name="mcp_tool_model_testing">Model testing</string>
   <string name="mcp_category_device_control">Device control</string>
   <string name="mcp_category_media">Media and input</string>

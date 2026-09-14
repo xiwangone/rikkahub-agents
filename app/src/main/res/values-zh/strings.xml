@@ -1378,6 +1378,8 @@
   <string name="assistant_page_local_tools_section_browser">浏览器</string>
   <string name="assistant_page_local_tools_section_device_info">设备信息</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 诊断</string>
+  <string name="assistant_page_local_tools_diagnostics_title">诊断与日志</string>
+  <string name="assistant_page_local_tools_diagnostics_desc">应用健康、构建信息、日志、崩溃与生命周期记录。</string>
   <string name="assistant_page_local_tools_app_health_title">应用诊断</string>
   <string name="assistant_page_local_tools_app_health_desc">运行内置 Doctor 检查并返回结构化健康快照（权限、服务、数据库、网络、维护）。</string>
   <string name="assistant_page_local_tools_app_logs_title">日志读取</string>
@@ -2896,6 +2898,7 @@
   <string name="mcp_tool_keyboard_control">键盘控制</string>
   <string name="mcp_tool_app_diagnostics">应用诊断</string>
   <string name="mcp_tool_app_logs">应用日志</string>
+  <string name="mcp_tool_diagnostics">诊断与日志</string>
   <string name="mcp_tool_model_testing">模型测试</string>
   <string name="mcp_category_device_control">设备控制</string>
   <string name="mcp_category_media">媒体与输入</string>

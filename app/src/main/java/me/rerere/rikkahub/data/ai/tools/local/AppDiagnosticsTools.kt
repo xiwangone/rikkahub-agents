@@ -57,18 +57,10 @@ import java.util.concurrent.ConcurrentHashMap
  * 对 [DoctorChecks.runAll] 的完整诊断快照做结构化输出。
  * 复用 Doctor 页全部检查项，返回 JSON：健康计数 + 每项 id/category/label/detail/severity。
  */
-fun getAppHealthTool(
+internal fun appHealthPayload(
     doctorChecks: DoctorChecks,
     context: Context,
-): Tool = Tool(
-    name = "get_app_health",
-    description = """
-        Run the built-in Doctor checks and return a structured health snapshot with per-item severity (OK/INFO/WARN/FAIL). Use to detect misconfigured or broken subsystems.
-    """.trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(properties = buildJsonObject { })
-    },
-    execute = {
+): String {
         val checks = doctorChecks.runAll()
         val ok = checks.count { it.severity == Severity.OK }
         val info = checks.count { it.severity == Severity.INFO }
@@ -90,9 +82,8 @@ fun getAppHealthTool(
                 }
             }))
         }
-        listOf(UIMessagePart.Text(payload.toString()))
-    },
-)
+    return payload.toString()
+}
 
 // ---------- read_app_logs ----------
 
@@ -100,32 +91,7 @@ fun getAppHealthTool(
  * 按级别 / 关键字 / 条数读取应用日志，返回前先过 [LogRedactor.maskText] 脱敏，
  * 防止崩溃堆栈泄露 API key / 连接串。
  */
-fun readAppLogsTool(context: Context): Tool = Tool(
-    name = "read_app_logs",
-    description = """
-        Read the in-memory app log buffer; optional level (D/I/W/E) and keyword filters. Secrets are masked before returning.
-    """.trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(
-            properties = buildJsonObject {
-                put("level", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Optional log level filter: D (debug) / I (info) / W (warn) / E (error). Omit for all.")
-                })
-                put("keyword", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Optional case-insensitive substring to match against tag or message. Omit for all.")
-                })
-                put("limit", buildJsonObject {
-                    put("type", "integer")
-                    put("description", "Max number of log lines to return (default 50).")
-                })
-            },
-            required = emptyList(),
-        )
-    },
-    execute = {
-        val params = it.jsonObject
+internal fun appLogsPayload(context: Context, params: JsonObject): String {
         val level = params["level"]?.jsonPrimitive?.contentOrNull
             ?.trim()?.uppercase(Locale.US)?.take(1)
         val keyword = params["keyword"]?.jsonPrimitive?.contentOrNull
@@ -145,9 +111,8 @@ fun readAppLogsTool(context: Context): Tool = Tool(
         val raw = entries.joinToString("\n") { e ->
             "${fmt.format(e.timestamp)} ${e.level} ${e.tag}: ${e.message}"
         }
-        listOf(UIMessagePart.Text(LogRedactor.maskText(raw)))
-    },
-)
+    return LogRedactor.maskText(raw)
+}
 
 // ---------- read_request_logs ----------
 
@@ -156,26 +121,7 @@ fun readAppLogsTool(context: Context): Tool = Tool(
  * 返回前过 [LogRedactor.maskText] 脱敏。用于排查 API 调用失败/限流/端点错误等
  * 一手证据——read_app_logs 只覆盖 AppLog，请求日志是唯一能看到实际请求结果的入口。
  */
-fun readRequestLogsTool(context: Context): Tool = Tool(
-    name = "read_request_logs",
-    description = """Read the HTTP request/response summary log (time, method, url, code, duration, error). Secrets masked. Use for provider/API failures, rate limits, endpoint errors."""".trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(
-            properties = buildJsonObject {
-                put("limit", buildJsonObject {
-                    put("type", "integer")
-                    put("description", "Max number of entries to return (default 50).")
-                })
-                put("keyword", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Optional case-insensitive substring to match against url/error. Omit for all.")
-                })
-            },
-            required = emptyList(),
-        )
-    },
-    execute = {
-        val params = it.jsonObject
+internal fun requestLogsPayload(context: Context, params: JsonObject): String {
         val keyword = params["keyword"]?.jsonPrimitive?.contentOrNull
             ?.trim()?.lowercase(Locale.getDefault())?.takeIf { s -> s.isNotEmpty() }
         val limit = params["limit"]?.jsonPrimitive?.intOrNull ?: 50
@@ -188,9 +134,8 @@ fun readRequestLogsTool(context: Context): Tool = Tool(
         val raw = entries.joinToString("\n") { e ->
             "${fmt.format(e.timestamp)} [HTTP] ${e.method} ${e.url} code=${e.responseCode ?: "-"} dur=${e.durationMs ?: "-"}ms err=${e.error ?: "-"}"
         }
-        listOf(UIMessagePart.Text(LogRedactor.maskText(raw)))
-    },
-)
+    return LogRedactor.maskText(raw)
+}
 
 // ---------- get_app_settings ----------
 
@@ -201,15 +146,9 @@ fun readRequestLogsTool(context: Context): Tool = Tool(
  * - 关键偏好：默认聊天模型/自动压缩开关/流式重试/工具输出限制等
  * 对齐规划 #6「配置真相」+ get_providers V1 读侧：AI 能看见自己配了什么，才能谈管理。
  */
-fun getAppSettingsTool(settingsStore: SettingsStore): Tool = Tool(
-    name = "get_app_settings",
-    description = """Read the app's configuration summary (assistants / providers / key preferences). API keys are never included. Read-only. Use before managing anything, to see what is actually configured."""".trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(properties = buildJsonObject { }, required = emptyList())
-    },
-    execute = {
+internal fun appSettingsPayload(settingsStore: SettingsStore): String {
         val settings = runCatching { settingsStore.settingsFlow.first() }.getOrNull()
-            ?: return@Tool listOf(UIMessagePart.Text("{\"error\":\"settings_unavailable\"}"))
+            ?: return "{\"error\":\"settings_unavailable\"}"
         val out = buildJsonObject {
             put("assistants", buildJsonArray {
                 settings.assistants.forEach { a ->
@@ -247,9 +186,8 @@ fun getAppSettingsTool(settingsStore: SettingsStore): Tool = Tool(
                 put("provider_count", settings.providers.size)
             })
         }
-        listOf(UIMessagePart.Text(out.toString()))
-    },
-)
+    return out.toString()
+}
 
 // ---------- test_model ----------
 
@@ -289,7 +227,6 @@ fun testModelTool(
         )
     },
     execute = {
-        val params = it.jsonObject
         val providerName = params["provider"]?.jsonPrimitive?.contentOrNull ?: error("provider is required")
         val modelId = params["model_id"]?.jsonPrimitive?.contentOrNull
         val force = params["force"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
@@ -429,21 +366,7 @@ private suspend fun <T : ProviderSetting> probeProvider(
  * 快照保留最近 3 次（crash-latest / crash-1 / crash-2），便于回溯复发问题；文件由
  * CrashHandler 在崩溃时同步写出，因此即使进程随即退出也可读。
  */
-fun readCrashSnapshotTool(context: Context): Tool = Tool(
-    name = "read_crash_snapshot",
-    description = """Read the crash snapshot (stack trace + tails of app log, request log and lifecycle log) written on an uncaught exception. Latest 3 are kept; `which` selects latest/1/2. Use to explain an unexpected restart or a reported crash.""".trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(
-            properties = buildJsonObject {
-                put("which", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Which snapshot: latest (default), 1, or 2 (older).")
-                })
-            },
-            required = emptyList(),
-        )
-    },
-    execute = {
+internal fun crashSnapshotPayload(context: Context, params: JsonObject): String {
         val which = it.jsonObject["which"]?.jsonPrimitive?.contentOrNull
             ?.trim()?.lowercase(Locale.US)?.takeIf { s -> s.isNotEmpty() } ?: "latest"
         val fileName =
@@ -468,9 +391,8 @@ fun readCrashSnapshotTool(context: Context): Tool = Tool(
         val body = text.take(20_000)
         // 快照写入时已脱敏，这里再兜底一次（旧快照或异常路径可能未覆盖）
         val out = if (body.isBlank()) "$header\n(no crash snapshot)" else "$header\n$body"
-        listOf(UIMessagePart.Text(LogRedactor.maskText(out)))
-    },
-)
+    return LogRedactor.maskText(out)
+}
 
 // ---------- read_lifecycle_logs ----------
 
@@ -481,34 +403,15 @@ fun readCrashSnapshotTool(context: Context): Tool = Tool(
  * 这是判断「退到后台再回来像重启、会话历史不见」类问题的直接证据：若日志里出现
  * PROCESS_START 且原因为「疑似被系统杀死」，说明是进程级回收而非界面问题。
  */
-fun readLifecycleLogsTool(context: Context): Tool = Tool(
-    name = "read_lifecycle_logs",
-    description = """Read the process lifecycle log: process starts with inferred reason (fresh / killed by system / after crash), foreground-background transitions, memory trims. Use for "looks like a restart" or "killed in background" reports. Newest lines last.""".trimIndent().replace("\n", " "),
-    parameters = {
-        InputSchema.Obj(
-            properties = buildJsonObject {
-                put("lines", buildJsonObject {
-                    put("type", "integer")
-                    put("description", "How many trailing lines to return (default 60, max 500).")
-                })
-            },
-            required = emptyList(),
-        )
-    },
-    execute = {
+internal fun lifecycleLogsPayload(context: Context, params: JsonObject): String {
         val lines = (it.jsonObject["lines"]?.jsonPrimitive?.intOrNull ?: 60).coerceIn(1, 500)
         val raw =
             me.rerere.rikkahub.data.log.FileLogSink.recentLines(
                 me.rerere.rikkahub.data.log.FileLogSink.KIND_LIFECYCLE,
                 lines,
             )
-        listOf(
-            UIMessagePart.Text(
-                if (raw.isBlank()) "(no lifecycle records yet)" else raw
-            )
-        )
-    },
-)
+    return if (raw.isBlank()) "(no lifecycle records yet)" else raw
+}
 
 // ---------- get_build_info ----------
 
@@ -517,17 +420,7 @@ fun readLifecycleLogsTool(context: Context): Tool = Tool(
  * 用于 AI 在测试前确认"测的是哪个包"，以及排查"改了没生效"（装错包 / 进程跑旧码）。
  */
 @SuppressLint("PackageManagerGetSignatures")
-fun getBuildInfoTool(context: Context): Tool =
-    Tool(
-        name = "get_build_info",
-        description = """Report the installed build identity: versionName, versionCode, debug flag, first-install/update time and the signing certificate SHA-256. Use before verifying a change, or when a fix seems not to take effect (stale package / wrong build).""".trimIndent().replace("\n", " "),
-        parameters = {
-            InputSchema.Obj(
-                properties = buildJsonObject {},
-                required = emptyList(),
-            )
-        },
-        execute = {
+internal fun buildInfoPayload(context: Context): String {
             val pm = context.packageManager
             val packageName = context.packageName
             val info =
@@ -551,9 +444,8 @@ fun getBuildInfoTool(context: Context): Tool =
                     put("signerSha256", signerSha256 ?: "unknown")
                     put("processId", android.os.Process.myPid())
                 }
-            listOf(UIMessagePart.Text(payload.toString()))
-        },
-    )
+    return payload.toString()
+}
 
 // ---------- list_enabled_tools ----------
 
@@ -561,17 +453,7 @@ fun getBuildInfoTool(context: Context): Tool =
  * 当前启用的本地工具选项（按分类）。只读。
  * 用于回答"我现在能用哪些工具"，也可与 [tool_usage_stats] 对照找出"启用了却从未用过"的项。
  */
-fun listEnabledToolsTool(settingsStore: SettingsStore): Tool =
-    Tool(
-        name = "list_enabled_tools",
-        description = """List which local tool options are enabled for the active assistant, grouped by category. Read-only. Use to answer "what can I do right now" and to compare against tool_usage_stats (enabled but never used).""".trimIndent().replace("\n", " "),
-        parameters = {
-            InputSchema.Obj(
-                properties = buildJsonObject {},
-                required = emptyList(),
-            )
-        },
-        execute = {
+internal fun enabledToolsPayload(settingsStore: SettingsStore): String {
             val settings = settingsStore.settingsFlow.first()
             val assistant = settings.getCurrentAssistant()
             val enabled = assistant.localTools
@@ -594,9 +476,8 @@ fun listEnabledToolsTool(settingsStore: SettingsStore): Tool =
                         "本地工具按「设置 → 工具」的分类勾选；未勾选的工具不会注入给模型。选项名对应一组工具，具体工具名见 tool_surface_report。",
                     )
                 }
-            listOf(UIMessagePart.Text(payload.toString()))
-        },
-    )
+    return payload.toString()
+}
 
 // ---------- tool_usage_stats ----------
 
@@ -604,30 +485,10 @@ fun listEnabledToolsTool(settingsStore: SettingsStore): Tool =
  * 本地工具的调用统计（次数/失败数/平均耗时/最近调用时间），可 reset 清零。
  * 只记录工具名与计数，不含任何参数。与 tool_surface_report 对照可得出"从未使用"清单。
  */
-fun toolUsageStatsTool(
+internal fun usageStatsPayload(
     context: Context,
     settingsStore: SettingsStore,
-): Tool =
-    Tool(
-        name = "tool_usage_stats",
-        description = """Report per-tool call statistics (count, failures, average duration, last used time). Read-only unless reset=true (which clears all counters). Tracked locally by name only - never records arguments. Combine with tool_surface_report to find enabled-but-never-used tools.""".trimIndent().replace("\n", " "),
-        parameters = {
-            InputSchema.Obj(
-                properties =
-                    buildJsonObject {
-                        put("limit", buildJsonObject {
-                            put("type", "integer")
-                            put("description", "Top N by call count (default 30, max 200).")
-                        })
-                        put("reset", buildJsonObject {
-                            put("type", "boolean")
-                            put("description", "If true, clears all usage counters before reporting. Default false.")
-                        })
-                    },
-                required = emptyList(),
-            )
-        },
-        execute = { input ->
+, params: JsonObject): String {
             val limit = (input.jsonObject["limit"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 200)
             val reset = input.jsonObject["reset"]?.jsonPrimitive?.booleanOrNull ?: false
             if (reset) ToolUsageTracker.clear(context)
@@ -660,6 +521,87 @@ fun toolUsageStatsTool(
                         "统计只覆盖被调用过的工具；「从未使用」需与 tool_surface_report 的工具清单做差集。",
                     )
                 }
-            listOf(UIMessagePart.Text(payload.toString()))
-        },
-    )
+    return payload.toString()
+}
+
+// ---------- grouped entry point ----------
+
+private val DIAGNOSTICS_KINDS = listOf(
+    "health", "build", "enabled_tools", "usage", "settings", "logs", "requests", "crash", "lifecycle",
+)
+
+/**
+ * App diagnostics and logs behind a single tool so the tool surface stays small.
+ *
+ * Each kind delegates to the per-area payload function above; the payload shapes are unchanged.
+ * Read-only.
+ */
+fun diagnosticsTool(
+    context: Context,
+    settingsStore: SettingsStore,
+    doctorChecks: DoctorChecks,
+): Tool = Tool(
+    name = "diagnostics",
+    description = """
+        Inspect this app itself. Choose one kind: health (built-in Doctor checks), build (installed
+        build identity and signing certificate), enabled_tools (which tool options are on), usage
+        (per-tool call counts), settings (configuration summary), logs (in-memory app log), requests
+        (HTTP request summary log), crash (last crash snapshot), or lifecycle (process lifecycle log).
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("kind", buildJsonObject {
+                    put("type", "string")
+                    put("description", "What to inspect: ${DIAGNOSTICS_KINDS.joinToString(" | ")}")
+                    put("enum", JsonArray(DIAGNOSTICS_KINDS.map { JsonPrimitive(it) }))
+                })
+                put("level", buildJsonObject {
+                    put("type", "string")
+                    put("description", "logs only: level filter D / I / W / E.")
+                })
+                put("keyword", buildJsonObject {
+                    put("type", "string")
+                    put("description", "logs and requests: case-insensitive substring filter.")
+                })
+                put("limit", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "logs, requests and usage: max entries to return.")
+                })
+                put("lines", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "lifecycle only: trailing line count (default 60, max 500).")
+                })
+                put("which", buildJsonObject {
+                    put("type", "string")
+                    put("description", "crash only: latest (default), 1 or 2.")
+                })
+                put("reset", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "usage only: clear the counters after reporting.")
+                })
+            },
+            required = listOf("kind")
+        )
+    },
+    execute = { input ->
+        val params = input.jsonObject
+        val kind = params["kind"]?.jsonPrimitive?.contentOrNull.orEmpty().trim().lowercase()
+        val text = when (kind) {
+            "health" -> appHealthPayload(doctorChecks, context)
+            "build" -> buildInfoPayload(context)
+            "enabled_tools" -> enabledToolsPayload(settingsStore)
+            "usage" -> usageStatsPayload(context, settingsStore, params)
+            "settings" -> appSettingsPayload(settingsStore)
+            "logs" -> appLogsPayload(context, params)
+            "requests" -> requestLogsPayload(context, params)
+            "crash" -> crashSnapshotPayload(context, params)
+            "lifecycle" -> lifecycleLogsPayload(context, params)
+            else -> buildJsonObject {
+                put("error", "unknown kind '$kind'")
+                put("hint", "kind must be one of: ${DIAGNOSTICS_KINDS.joinToString(" | ")}")
+            }.toString()
+        }
+        listOf(UIMessagePart.Text(text))
+    }
+)

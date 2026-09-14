@@ -2085,6 +2085,7 @@
   <string name="mcp_tool_keyboard_control">التحكم بلوحة المفاتيح</string>
   <string name="mcp_tool_app_diagnostics">تشخيص التطبيق</string>
   <string name="mcp_tool_app_logs">سجلات التطبيق</string>
+  <string name="mcp_tool_diagnostics">التشخيص</string>
   <string name="mcp_tool_model_testing">اختبار النماذج</string>
   <string name="mcp_category_device_control">التحكم بالجهاز</string>
   <string name="mcp_category_media">الوسائط والإدخال</string>
@@ -2243,6 +2244,8 @@
   <string name="setting_model_page_tool_output">حد مخرجات الأدوات</string>
   <string name="setting_model_page_tool_output_max_chars">حد مخرجات الأدوات (K حرف، 1-20؛ مثل 5 = 5000 حرف)</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">تشخيص الذكاء الاصطناعي</string>
+  <string name="assistant_page_local_tools_diagnostics_title">التشخيص والسجلات</string>
+  <string name="assistant_page_local_tools_diagnostics_desc">صحة التطبيق ومعلومات البناء والسجلات والأعطال ودورة الحياة.</string>
   <string name="assistant_page_local_tools_app_health_title">تشخيص التطبيق</string>
   <string name="assistant_page_local_tools_app_health_desc">يشغّل فحص Doctor المدمج ويعيد لقطة حالة منظّمة (الأذونات، الخدمات، قاعدة البيانات، الشبكة، الصيانة).</string>
   <string name="assistant_page_local_tools_app_logs_title">قراءة السجلات</string>

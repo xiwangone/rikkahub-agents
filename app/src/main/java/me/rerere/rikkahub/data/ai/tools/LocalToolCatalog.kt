@@ -30,8 +30,7 @@ object LocalToolCatalog {
             LocalToolCategory.DEVICE_INFO to
                 listOf(
                     LocalToolOption.DeviceInfo,
-                    LocalToolOption.AppDiagnostics,
-                    LocalToolOption.AppLogs,
+                    LocalToolOption.Diagnostics,
                 ),
             LocalToolCategory.DEVICE_CONTROL to
                 listOf(
@@ -171,8 +170,7 @@ object LocalToolCatalog {
             LocalToolOption.ExternalStorage -> R.string.mcp_tool_external_storage
             LocalToolOption.Archive -> R.string.mcp_tool_archive
             LocalToolOption.KeyboardControl -> R.string.mcp_tool_keyboard_control
-            LocalToolOption.AppDiagnostics -> R.string.mcp_tool_app_diagnostics
-            LocalToolOption.AppLogs -> R.string.mcp_tool_app_logs
+            LocalToolOption.Diagnostics -> R.string.mcp_tool_diagnostics
             LocalToolOption.ModelTesting -> R.string.mcp_tool_model_testing
         }
 

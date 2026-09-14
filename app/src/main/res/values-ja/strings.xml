@@ -2432,6 +2432,7 @@
   <string name="mcp_tool_keyboard_control">キーボード制御</string>
   <string name="mcp_tool_app_diagnostics">アプリ診断</string>
   <string name="mcp_tool_app_logs">アプリログ</string>
+  <string name="mcp_tool_diagnostics">診断とログ</string>
   <string name="mcp_tool_model_testing">モデルテスト</string>
   <string name="mcp_category_device_control">デバイス操作</string>
   <string name="mcp_category_media">メディアと入力</string>
@@ -2590,6 +2591,8 @@
   <string name="setting_model_page_tool_output">ツール出力の上限</string>
   <string name="setting_model_page_tool_output_max_chars">ツール出力の上限（K 文字、1〜20。例: 5 = 5000 文字）</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 診断</string>
+  <string name="assistant_page_local_tools_diagnostics_title">診断とログ</string>
+  <string name="assistant_page_local_tools_diagnostics_desc">アプリのヘルス、ビルド情報、ログ、クラッシュ、ライフサイクル記録。</string>
   <string name="assistant_page_local_tools_app_health_title">アプリ診断</string>
   <string name="assistant_page_local_tools_app_health_desc">内蔵 Doctor チェックを実行し、構造化されたヘルススナップショット（権限・サービス・データベース・ネットワーク・メンテナンス）を返します。</string>
   <string name="assistant_page_local_tools_app_logs_title">ログの読み取り</string>

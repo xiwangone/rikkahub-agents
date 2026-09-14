@@ -33,6 +33,7 @@ import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.ai.tools.local.CameraResultBuffer
 import me.rerere.rikkahub.data.ai.tools.local.InteractiveToolStreamer
 import me.rerere.rikkahub.data.ai.tools.local.deviceInfoTool
+import me.rerere.rikkahub.data.ai.tools.local.diagnosticsTool
 import me.rerere.rikkahub.data.ai.tools.local.callLogTool
 import me.rerere.rikkahub.data.ai.tools.local.cameraPhotoTool
 import me.rerere.rikkahub.data.ai.tools.local.clickNodeTool
@@ -41,16 +42,7 @@ import me.rerere.rikkahub.data.ai.tools.local.fingerprintTool
 import me.rerere.rikkahub.data.ai.tools.local.findNodeTool
 import me.rerere.rikkahub.data.ai.tools.local.getBrightnessTool
 import me.rerere.rikkahub.data.ai.tools.local.getVolumeTool
-import me.rerere.rikkahub.data.ai.tools.local.getAppHealthTool
-import me.rerere.rikkahub.data.ai.tools.local.getBuildInfoTool
-import me.rerere.rikkahub.data.ai.tools.local.toolUsageStatsTool
-import me.rerere.rikkahub.data.ai.tools.local.listEnabledToolsTool
-import me.rerere.rikkahub.data.ai.tools.local.getAppSettingsTool
 import me.rerere.rikkahub.data.ai.tools.local.globalActionTool
-import me.rerere.rikkahub.data.ai.tools.local.readAppLogsTool
-import me.rerere.rikkahub.data.ai.tools.local.readRequestLogsTool
-import me.rerere.rikkahub.data.ai.tools.local.readCrashSnapshotTool
-import me.rerere.rikkahub.data.ai.tools.local.readLifecycleLogsTool
 import me.rerere.rikkahub.data.ai.tools.local.testModelTool
 import me.rerere.rikkahub.data.ai.tools.local.listContactsTool
 import me.rerere.rikkahub.data.ai.tools.local.listSmsInboxTool
@@ -210,8 +202,7 @@ sealed class LocalToolOption {
     @Serializable @SerialName("external_storage")     data object ExternalStorage     : LocalToolOption()
     @Serializable @SerialName("archive")              data object Archive             : LocalToolOption()
     @Serializable @SerialName("keyboard_control")     data object KeyboardControl     : LocalToolOption()
-    @Serializable @SerialName("app_diagnostics")      data object AppDiagnostics      : LocalToolOption()
-    @Serializable @SerialName("app_logs")             data object AppLogs             : LocalToolOption()
+    @Serializable @SerialName("diagnostics")          data object Diagnostics        : LocalToolOption()
     @Serializable @SerialName("model_testing")        data object ModelTesting        : LocalToolOption()
 }
 
@@ -228,6 +219,9 @@ sealed class LocalToolOption {
 private val LEGACY_DEVICE_INFO_TYPES = setOf(
     "battery", "audio_info", "telephony_info", "wifi_info", "sensors", "storage_info",
 )
+
+/** Older diagnostics / log entries that now resolve to [LocalToolOption.Diagnostics]. */
+private val LEGACY_DIAGNOSTICS_TYPES = setOf("app_diagnostics", "app_logs")
 
 object LenientLocalToolListSerializer : KSerializer<List<LocalToolOption>> {
     private val delegate = ListSerializer(LocalToolOption.serializer())
@@ -248,10 +242,11 @@ object LenientLocalToolListSerializer : KSerializer<List<LocalToolOption>> {
             return jsonDecoder.json.decodeFromJsonElement(delegate, element)
         }
         return element.mapNotNull { item ->
-            val mapped = if (item is JsonObject && item["type"]?.jsonPrimitive?.contentOrNull in LEGACY_DEVICE_INFO_TYPES) {
-                JsonObject(mapOf("type" to JsonPrimitive("device_info")))
-            } else {
-                item
+            val typeName = (item as? JsonObject)?.get("type")?.jsonPrimitive?.contentOrNull
+            val mapped = when {
+                typeName in LEGACY_DEVICE_INFO_TYPES -> JsonObject(mapOf("type" to JsonPrimitive("device_info")))
+                typeName in LEGACY_DIAGNOSTICS_TYPES -> JsonObject(mapOf("type" to JsonPrimitive("diagnostics")))
+                else -> item
             }
             try {
                 jsonDecoder.json.decodeFromJsonElement(LocalToolOption.serializer(), mapped)
@@ -1088,18 +1083,8 @@ class LocalTools(
             tools.add(keyboardSelectRangeTool(keyboardApiClient))
         }
         // AI 自诊断/自管理（第一批，纯读工具）。
-        if (options.contains(LocalToolOption.AppDiagnostics)) {
-            tools.add(getAppHealthTool(doctorChecks, context))
-            tools.add(getBuildInfoTool(context))
-            tools.add(listEnabledToolsTool(settingsStore))
-            tools.add(toolUsageStatsTool(context, settingsStore))
-            tools.add(getAppSettingsTool(settingsStore))
-            tools.add(readCrashSnapshotTool(context))
-            tools.add(readLifecycleLogsTool(context))
-        }
-        if (options.contains(LocalToolOption.AppLogs)) {
-            tools.add(readAppLogsTool(context))
-            tools.add(readRequestLogsTool(context))
+        if (options.contains(LocalToolOption.Diagnostics)) {
+            tools.add(diagnosticsTool(context, settingsStore, doctorChecks))
         }
         if (options.contains(LocalToolOption.ModelTesting)) {
             tools.add(testModelTool(providerManager, settingsStore, context))

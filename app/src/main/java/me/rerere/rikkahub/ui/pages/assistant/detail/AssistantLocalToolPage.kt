@@ -400,29 +400,15 @@ private fun AssistantLocalToolContent(
         CardGroup {
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_app_health_title))
+                    Text(stringResource(R.string.assistant_page_local_tools_diagnostics_title))
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_app_health_desc))
+                    Text(stringResource(R.string.assistant_page_local_tools_diagnostics_desc))
                 },
                 trailingContent = {
                     Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.AppDiagnostics),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.AppDiagnostics, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_app_logs_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_app_logs_desc))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.AppLogs),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.AppLogs, it) },
+                        checked = assistant.localTools.contains(LocalToolOption.Diagnostics),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Diagnostics, it) },
                     )
                 },
             )

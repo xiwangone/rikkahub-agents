@@ -2432,6 +2432,7 @@
   <string name="mcp_tool_keyboard_control">키보드 제어</string>
   <string name="mcp_tool_app_diagnostics">앱 진단</string>
   <string name="mcp_tool_app_logs">앱 로그</string>
+  <string name="mcp_tool_diagnostics">진단 및 로그</string>
   <string name="mcp_tool_model_testing">모델 테스트</string>
   <string name="mcp_category_device_control">기기 제어</string>
   <string name="mcp_category_media">미디어 및 입력</string>
@@ -2590,6 +2591,8 @@
   <string name="setting_model_page_tool_output">도구 출력 제한</string>
   <string name="setting_model_page_tool_output_max_chars">도구 출력 제한(K자, 1~20; 예: 5 = 5000자)</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 진단</string>
+  <string name="assistant_page_local_tools_diagnostics_title">진단 및 로그</string>
+  <string name="assistant_page_local_tools_diagnostics_desc">앱 상태, 빌드 정보, 로그, 충돌, 수명주기 기록.</string>
   <string name="assistant_page_local_tools_app_health_title">앱 진단</string>
   <string name="assistant_page_local_tools_app_health_desc">내장 Doctor 검사를 실행하고 구조화된 상태 스냅숏(권한, 서비스, 데이터베이스, 네트워크, 유지 관리)을 반환합니다.</string>
   <string name="assistant_page_local_tools_app_logs_title">로그 읽기</string>
