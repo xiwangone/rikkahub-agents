@@ -283,7 +283,7 @@ class SettingsStore(
                 autoCompressEnabled = preferences[AUTO_COMPRESS_ENABLED] ?: false,
                 autoCompressThreshold = preferences[AUTO_COMPRESS_THRESHOLD] ?: 80,
                 autoCompressTokenLimit = preferences[AUTO_COMPRESS_TOKEN_LIMIT] ?: 0L,
-                autoCompressTokenBase = preferences[AUTO_COMPRESS_TOKEN_BASE] ?: 0L,
+                autoCompressTokenBase = preferences[AUTO_COMPRESS_TOKEN_BASE] ?: 1_000L * 1000L,
                 autoCompressMode = preferences[AUTO_COMPRESS_MODE] ?: 0,
                 toolOutputEnabled = preferences[TOOL_OUTPUT_ENABLED] ?: true,
                 toolOutputMaxChars = preferences[TOOL_OUTPUT_MAX_CHARS] ?: 4 * 1000,
@@ -829,7 +829,7 @@ data class Settings(
     /** 对话累计 token 上限：会话累计输入 token 达到该值即自动压缩（0 = 不启用） */
     val autoCompressTokenLimit: Long = 0L,
     /** 自动压缩基准 token 数：百分比模式下模型 context 基准（0 = 沿用默认 512K 估算） */
-    val autoCompressTokenBase: Long = 0L,
+    val autoCompressTokenBase: Long = 1_000L * 1000L,
     /** 自动压缩模式：0 = 百分比模式（基准×阈值），1 = token 消耗模式（累计上限） */
     val autoCompressMode: Int = 0,
     /** 工具输出限制开关：启用后对工具输出进行截断（默认关） */

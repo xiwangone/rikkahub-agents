@@ -1295,10 +1295,10 @@
   <string name="setting_model_page_auto_compress_enable">启用自动压缩</string>
   <string name="setting_model_page_auto_compress_mode_percent">百分比模式（基准 × 阈值）</string>
   <string name="setting_model_page_auto_compress_mode_token">Token 消耗模式</string>
-  <string name="setting_model_page_auto_compress_base">基准（M）</string>
+  <string name="setting_model_page_auto_compress_base">基准（K）</string>
   <string name="setting_model_page_auto_compress_m_unit">单位 K：1K = 1,000 token</string>
   <string name="setting_model_page_auto_compress_threshold">触发阈值（上下文百分比，50-95）</string>
-  <string name="setting_model_page_auto_compress_token_limit">Token 消耗（M）</string>
+  <string name="setting_model_page_auto_compress_token_limit">Token 消耗（K）</string>
   <string name="setting_model_page_auto_compress_token_limit_desc">累计 Token 消耗超过该值即自动压缩（0 = 不启用）</string>
   <string name="auto_compress_confirm_title">是否确认压缩？</string>
   <string name="auto_compress_confirm_desc">压缩将摘要并重置当前对话的历史消息，是否继续？</string>

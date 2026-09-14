@@ -1310,10 +1310,10 @@
   <string name="setting_model_page_auto_compress_enable">Enable auto compress</string>
   <string name="setting_model_page_auto_compress_mode_percent">Percentage mode (base × threshold)</string>
   <string name="setting_model_page_auto_compress_mode_token">Token consumption mode</string>
-  <string name="setting_model_page_auto_compress_base">Base (M)</string>
+  <string name="setting_model_page_auto_compress_base">Base (K)</string>
   <string name="setting_model_page_auto_compress_m_unit">Unit K: 1K = 1,000 tokens</string>
   <string name="setting_model_page_auto_compress_threshold">Trigger threshold (% of context, 50-95)</string>
-  <string name="setting_model_page_auto_compress_token_limit">Token consumption (M)</string>
+  <string name="setting_model_page_auto_compress_token_limit">Token usage (K)</string>
   <string name="setting_model_page_auto_compress_token_limit_desc">Auto compress when accumulated token consumption exceeds this value (0 = disabled)</string>
   <string name="auto_compress_confirm_title">Compress context?</string>
   <string name="auto_compress_confirm_desc">Compressing will summarize and reset the current conversation history. Continue?</string>

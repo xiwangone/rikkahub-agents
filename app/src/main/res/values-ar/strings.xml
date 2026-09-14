@@ -2227,10 +2227,10 @@
   <string name="setting_model_page_auto_compress_enable">تفعيل الضغط التلقائي</string>
   <string name="setting_model_page_auto_compress_mode_percent">وضع النسبة المئوية (الأساس × العتبة)</string>
   <string name="setting_model_page_auto_compress_mode_token">وضع استهلاك الرموز</string>
-  <string name="setting_model_page_auto_compress_base">الأساس (M)</string>
+  <string name="setting_model_page_auto_compress_base">الأساس (K)</string>
   <string name="setting_model_page_auto_compress_m_unit">الوحدة K: 1K = 1,000 رمز</string>
   <string name="setting_model_page_auto_compress_threshold">عتبة التشغيل (نسبة السياق، 50-95)</string>
-  <string name="setting_model_page_auto_compress_token_limit">استهلاك الرموز (M)</string>
+  <string name="setting_model_page_auto_compress_token_limit">استهلاك الرموز (K)</string>
   <string name="setting_model_page_auto_compress_token_limit_desc">يُضغط تلقائيًا عند تجاوز استهلاك الرموز التراكمي هذه القيمة (0 = معطّل)</string>
   <string name="auto_compress_confirm_title">تأكيد الضغط؟</string>
   <string name="auto_compress_confirm_desc">سيؤدي الضغط إلى تلخيص رسائل سجل المحادثة الحالية وإعادة ضبطها. المتابعة؟</string>

@@ -2574,10 +2574,10 @@
   <string name="setting_model_page_auto_compress_enable">자동 압축 사용</string>
   <string name="setting_model_page_auto_compress_mode_percent">백분율 모드(기준 × 임계값)</string>
   <string name="setting_model_page_auto_compress_mode_token">토큰 소모 모드</string>
-  <string name="setting_model_page_auto_compress_base">기준(M)</string>
+  <string name="setting_model_page_auto_compress_base">기준(K)</string>
   <string name="setting_model_page_auto_compress_m_unit">단위 K: 1K = 1,000 토큰</string>
   <string name="setting_model_page_auto_compress_threshold">트리거 임계값(컨텍스트 백분율, 50-95)</string>
-  <string name="setting_model_page_auto_compress_token_limit">토큰 소모(M)</string>
+  <string name="setting_model_page_auto_compress_token_limit">토큰 소모(K)</string>
   <string name="setting_model_page_auto_compress_token_limit_desc">누적 토큰 소모가 이 값을 넘으면 자동 압축(0 = 사용 안 함)</string>
   <string name="auto_compress_confirm_title">압축할까요?</string>
   <string name="auto_compress_confirm_desc">압축하면 현재 대화의 기록 메시지가 요약·초기화됩니다. 계속할까요?</string>
