@@ -32,6 +32,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.ai.tools.local.CameraResultBuffer
 import me.rerere.rikkahub.data.ai.tools.local.InteractiveToolStreamer
+import me.rerere.rikkahub.data.ai.tools.local.AccessibilityServiceHandle
 import me.rerere.rikkahub.data.ai.tools.local.deviceInfoTool
 import me.rerere.rikkahub.data.ai.tools.local.diagnosticsTool
 import me.rerere.rikkahub.data.ai.tools.local.callLogTool
@@ -334,6 +335,48 @@ private val STANDARD_ERROR_KEYS = setOf("error", "detail", "reason", "recovery",
 // so this is enforced from the coroutine side: past this the turn returns a structured timeout
 // error and the isolated worker thread is left to wind down on its own.
 private const val EVAL_JS_TIMEOUT_MS = 5_000L
+
+/**
+ * Runtime capability snapshot — decides whether tools that depend on a system service are injected
+ * at all.
+ *
+ * When the capability is unavailable the tool never reaches the schema, so the model cannot even
+ * attempt a call that would fail anyway (same idea as gating a tool list on capability flags).
+ * Cached briefly: probing means a binder ping / package lookup, and assembly runs on every
+ * generation.
+ */
+private object ToolCapabilities {
+    private const val TTL_MS = 30_000L
+
+    data class Snapshot(
+        val shizukuReady: Boolean,
+        val accessibilityReady: Boolean,
+        val termuxInstalled: Boolean,
+    )
+
+    private var cachedAt = 0L
+    private var cached = Snapshot(false, false, false)
+
+    fun of(context: Context): Snapshot {
+        val now = System.currentTimeMillis()
+        if (now - cachedAt < TTL_MS) return cached
+        val snapshot = Snapshot(
+            shizukuReady = runCatching {
+                me.rerere.rikkahub.shizuku.ShizukuManager.isBinderAlive()
+            }.getOrDefault(false),
+            accessibilityReady = runCatching {
+                AccessibilityServiceHandle.isEnabledInSettings(context)
+            }.getOrDefault(false),
+            termuxInstalled = runCatching {
+                context.packageManager.getPackageInfo("com.termux", 0)
+                true
+            }.getOrDefault(false),
+        )
+        cached = snapshot
+        cachedAt = now
+        return snapshot
+    }
+}
 
 class LocalTools(
     private val context: Context,
@@ -728,6 +771,7 @@ class LocalTools(
         invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
     ): List<Tool> {
         val tools = mutableListOf<Tool>()
+        val capabilities = ToolCapabilities.of(context)
         if (options.contains(LocalToolOption.JavascriptEngine)) {
             tools.add(javascriptTool)
         }
@@ -849,7 +893,7 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.data.ai.tools.local.triggerJobNowTool(scheduledJobRepository, cronJobScheduler))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.getJobHistoryTool(scheduledJobRepository, scheduledJobRunRepository))
         }
-        if (options.contains(LocalToolOption.ScreenAutomation)) {
+        if (options.contains(LocalToolOption.ScreenAutomation) && capabilities.accessibilityReady) {
             tools.add(tapTool(invocationContext, interactiveToolStreamer))
             tools.add(longPressTool(invocationContext, interactiveToolStreamer))
             tools.add(swipeTool(invocationContext, interactiveToolStreamer))
@@ -869,7 +913,7 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.data.ai.tools.local.launchActivityTool(context, invocationContext, interactiveToolStreamer))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.openUrlTool(context, invocationContext, interactiveToolStreamer))
         }
-        if (options.contains(LocalToolOption.Termux)) {
+        if (options.contains(LocalToolOption.Termux) && capabilities.termuxInstalled) {
             tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxRunCommandTool(context))
             // Persistent interactive (tmux-backed) sessions: ssh-with-prompts, sudo, REPLs,
             // stateful shells. start is approval-gated; send is hardline-guarded per call.
@@ -976,7 +1020,7 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.data.vault.vaultImportLoadCredsTool(context, vaultRepository))
             tools.add(me.rerere.rikkahub.data.vault.vaultCompareLoadCredsTool(context, vaultRepository))
         }
-        if (options.contains(LocalToolOption.Shizuku)) {
+        if (options.contains(LocalToolOption.Shizuku) && capabilities.shizukuReady) {
             tools.add(me.rerere.rikkahub.data.ai.tools.local.shizukuExecTool(context))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.appForceStopTool(context))
             tools.add(me.rerere.rikkahub.data.ai.tools.local.appDisableTool(context))
