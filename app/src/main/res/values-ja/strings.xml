@@ -1968,6 +1968,7 @@
   <string name="setting_page_security_degraded_title">端末が安全な暗号化に対応していません</string>
   <string name="setting_page_security_degraded_desc">お使いの端末はハードウェアセキュリティ暗号化に対応していないため、資格情報は弱い暗号化で保存されます</string>
   <string name="setting_page_section_model">モデルとコンテンツ</string>
+  <string name="setting_page_section_tools">外部ツール</string>
   <string name="setting_page_section_connection">接続とバックエンド</string>
   <string name="setting_page_section_security">セキュリティと資格情報</string>
   <string name="setting_page_section_automation">自動化と診断</string>

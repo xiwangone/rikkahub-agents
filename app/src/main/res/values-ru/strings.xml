@@ -1961,6 +1961,7 @@
   <string name="setting_page_security_degraded_title">Устройство не поддерживает надёжное шифрование</string>
   <string name="setting_page_security_degraded_desc">Устройство не поддерживает аппаратное шифрование — учётные данные хранятся со слабым шифрованием</string>
   <string name="setting_page_section_model">Модели и контент</string>
+  <string name="setting_page_section_tools">Внешние инструменты</string>
   <string name="setting_page_section_connection">Подключение и бэкенд</string>
   <string name="setting_page_section_security">Безопасность и учётные данные</string>
   <string name="setting_page_section_automation">Автоматизация и диагностика</string>

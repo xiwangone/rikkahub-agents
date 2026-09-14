@@ -35,6 +35,7 @@ enum class SettingGroup(val id: String, val titleRes: Int) {
     GENERAL("general", R.string.setting_page_general_settings),
     MODEL("model", R.string.setting_page_section_model),
     CONNECTION("connection", R.string.setting_page_section_connection),
+    TOOLS("tools", R.string.setting_page_section_tools),
     SECURITY("security", R.string.setting_page_section_security),
     AUTOMATION("automation", R.string.setting_page_section_automation),
     DATA("data", R.string.setting_page_data_settings),
@@ -153,7 +154,7 @@ object SettingCatalog {
         ),
         SettingEntry(
             id = "browser",
-            group = SettingGroup.CONNECTION,
+            group = SettingGroup.TOOLS,
             icon = HugeIcons.Earth,
             titleRes = R.string.setting_page_browser,
             descRes = R.string.setting_page_browser_desc,
@@ -161,7 +162,7 @@ object SettingCatalog {
         ),
         SettingEntry(
             id = "ssh_hosts",
-            group = SettingGroup.CONNECTION,
+            group = SettingGroup.TOOLS,
             icon = HugeIcons.Console,
             titleRes = R.string.setting_page_ssh_hosts,
             descRes = R.string.setting_page_ssh_hosts_desc,
@@ -169,7 +170,7 @@ object SettingCatalog {
         ),
         SettingEntry(
             id = "shizuku",
-            group = SettingGroup.CONNECTION,
+            group = SettingGroup.TOOLS,
             icon = HugeIcons.Console,
             titleRes = R.string.setting_page_shizuku,
             descRes = R.string.setting_page_shizuku_desc,
@@ -177,7 +178,7 @@ object SettingCatalog {
         ),
         SettingEntry(
             id = "termux",
-            group = SettingGroup.CONNECTION,
+            group = SettingGroup.TOOLS,
             icon = HugeIcons.Console,
             titleRes = R.string.setting_page_termux,
             descRes = R.string.setting_page_termux_desc,
@@ -265,7 +266,7 @@ object SettingCatalog {
         ),
         SettingEntry(
             id = "request_logs",
-            group = SettingGroup.ABOUT,
+            group = SettingGroup.AUTOMATION,
             icon = HugeIcons.Bookshelf01,
             titleRes = R.string.setting_page_request_logs,
             descRes = R.string.setting_page_request_logs_desc,

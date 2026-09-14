@@ -1968,6 +1968,7 @@
   <string name="setting_page_security_degraded_title">기기가 안전한 암호화를 지원하지 않습니다</string>
   <string name="setting_page_security_degraded_desc">기기가 하드웨어 보안 암호화를 지원하지 않아 자격 증명이 약한 암호화로 저장됩니다</string>
   <string name="setting_page_section_model">모델 및 콘텐츠</string>
+  <string name="setting_page_section_tools">외부 도구</string>
   <string name="setting_page_section_connection">연결 및 백엔드</string>
   <string name="setting_page_section_security">보안 및 자격 증명</string>
   <string name="setting_page_section_automation">자동화 및 진단</string>

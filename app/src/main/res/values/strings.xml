@@ -974,6 +974,7 @@
   <string name="setting_page_message_display_settings">Message Display</string>
   <string name="setting_page_model_and_services">Models &amp; Services</string>
   <string name="setting_page_section_model">Model &amp; Content</string>
+  <string name="setting_page_section_tools">External tools</string>
   <string name="setting_page_section_connection">Connection &amp; Backend</string>
   <string name="setting_page_section_security">Security &amp; Credentials</string>
   <string name="setting_page_section_automation">Automation &amp; Diagnostics</string>
