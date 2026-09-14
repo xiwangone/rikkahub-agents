@@ -50,6 +50,9 @@ object LogRedactor {
         )
 
     /** 自由文本中「敏感键名 = 值」形态的键名集合（大小写不敏感，见 [KEYED_SECRET_REGEX]） */
+    /** 文本脱敏的字符上限：超大文本直接跳过，避免连续正则替换在堆上复制数份等大字符串。 */
+    private const val MAX_REDACT_CHARS = 1024 * 1024
+
     private const val KEYED_SECRET_KEYS =
         "authorization|proxy-authorization|x-api-key|api[-_]?key|apikey|x-auth-token|x-access-token|" +
             "access[-_]?token|auth[-_]?token|refresh[-_]?token|client[-_]?secret|secret|password|passwd|pwd|" +
@@ -169,6 +172,9 @@ object LogRedactor {
      * 不改变文本结构，可安全用于 JSON body / 崩溃堆栈 / 日志导出。
      */
     fun maskText(text: String): String {
+        if (text.length > MAX_REDACT_CHARS) {
+            return "[text too large to redact: ${text.length} chars]"
+        }
         var out = SECRET_PREFIX_REGEX.replace(text) { match ->
             val raw = match.value
             if (BEARER_PREFIX_REGEX.containsMatchIn(raw)) {

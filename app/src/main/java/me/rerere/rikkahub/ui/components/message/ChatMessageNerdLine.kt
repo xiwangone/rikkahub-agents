@@ -261,11 +261,11 @@ fun ChatMessageNerdLine(
                 val ctxTokens = contextUsage.promptTokens.toLong()
                 val windowTokens = LocalSettings.current.autoCompressTokenBase.takeIf { it > 0 }
                 val usedRatio = windowTokens?.let { ctxTokens.toDouble() / it.toDouble() }
-                // 红黄绿三档：<60% 绿（充裕）／60~80% 黄（注意）／≥80% 红（危险）
+                // 红黄绿三档（阈值提前，便于尽早察觉）：<50% 绿／50~75% 黄／≥75% 红
                 val contextColor = when {
                     usedRatio == null -> color
-                    usedRatio >= 0.8 -> Color(0xFFD32F2F)
-                    usedRatio >= 0.6 -> Color(0xFFE0A100)
+                    usedRatio >= 0.75 -> Color(0xFFD32F2F)
+                    usedRatio >= 0.5 -> Color(0xFFE0A100)
                     else -> Color(0xFF43A047)
                 }
                 var showWindowDialog by remember { mutableStateOf(false) }
@@ -288,7 +288,7 @@ fun ChatMessageNerdLine(
                                 imageVector = HugeIcons.DashboardSquare01,
                                 contentDescription = stringResource(R.string.chat_context_window_title),
                                 tint = contextColor,
-                                modifier = Modifier.size(12.dp),
+                                modifier = Modifier.size(14.dp),
                             )
                         },
                         content = {
@@ -307,6 +307,8 @@ fun ChatMessageNerdLine(
                                         )
                                     } ?: stringResource(R.string.chat_nerd_context_only, formatTokensAsK(ctxTokens)),
                                 color = contextColor,
+                                // 比同组统计大一号，便于一眼看到当前上下文占用
+                                style = MaterialTheme.typography.labelMedium,
                             )
                         },
                     )
