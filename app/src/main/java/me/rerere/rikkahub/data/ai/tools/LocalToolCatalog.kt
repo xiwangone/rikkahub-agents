@@ -18,6 +18,12 @@ enum class LocalToolCategory(val id: String) {
 }
 
 /**
+ * 运行时能力依赖：能力不可用时，该选项下的工具不会注入 schema
+ * （模型看不到，也就不会去尝试必然失败的调用）。
+ */
+enum class ToolCapability { NONE, SHIZUKU, ACCESSIBILITY, TERMUX }
+
+/**
  * 本地工具目录：分类归属与全量列表。
  *
  * 新增工具时在此登记（分类决定其在配置界面中的分组与批量勾选行为）。
@@ -110,6 +116,21 @@ object LocalToolCatalog {
                     LocalToolOption.ModelTesting,
                 ),
         )
+
+
+    /**
+     * 该选项的运行时能力依赖（未列出的默认 [ToolCapability.NONE]）。
+     *
+     * 只登记"服务/组件未启用时该族工具整体不可用"的情形；能力可用性由装配层探测。
+     */
+    fun capabilityOf(tool: LocalToolOption): ToolCapability =
+        when (tool) {
+            LocalToolOption.Shizuku -> ToolCapability.SHIZUKU
+            LocalToolOption.ScreenAutomation -> ToolCapability.ACCESSIBILITY
+            LocalToolOption.Termux -> ToolCapability.TERMUX
+            LocalToolOption.SpeechToText -> ToolCapability.TERMUX
+            else -> ToolCapability.NONE
+        }
 
     /** 全量列表（按分类顺序展开） */
     val all: List<LocalToolOption> = LocalToolCategory.entries.flatMap { byCategory[it].orEmpty() }
