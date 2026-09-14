@@ -46,6 +46,7 @@ import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ChatFontFamily
 import me.rerere.rikkahub.data.datastore.DisplaySetting
+import me.rerere.rikkahub.data.datastore.RenderPerformance
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FileUtils
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -447,6 +448,35 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
             item {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
+                    title = { Text(stringResource(R.string.setting_page_render_performance_settings)) },
+                ) {
+                    item(
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.setting_display_page_render_performance_title),
+                            )
+                        },
+                        supportingContent = {
+                            Select(
+                                options = RenderPerformance.entries,
+                                selectedOption = displaySetting.renderPerformance,
+                                onOptionSelected = { value ->
+                                    updateDisplaySetting(displaySetting.copy(renderPerformance = value))
+                                },
+                                modifier =
+                                    Modifier
+                                        .padding(top = 4.dp)
+                                        .fillMaxWidth(),
+                                optionToString = { it.labelUI() },
+                            )
+                        },
+                    )
+                }
+            }
+
+            item {
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
                     title = { Text(stringResource(R.string.setting_page_code_display_settings)) },
                 ) {
                     item(
@@ -548,6 +578,15 @@ private fun ChatFontFamily.toFontFamilyUI(customFontFamily: FontFamily): FontFam
         ChatFontFamily.MONOSPACE -> FontFamily.Monospace
         ChatFontFamily.CUSTOM -> customFontFamily
     }
+
+@Composable
+private fun RenderPerformance.labelUI(): String = stringResource(
+    when (this) {
+        RenderPerformance.AUTO -> R.string.setting_display_page_render_performance_auto
+        RenderPerformance.SMOOTH -> R.string.setting_display_page_render_performance_smooth
+        RenderPerformance.FULL -> R.string.setting_display_page_render_performance_full
+    },
+)
 
 private fun importCustomChatFontInternal(
     context: Context,

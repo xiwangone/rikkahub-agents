@@ -651,6 +651,12 @@
   <string name="setting_display_page_chat_font_family_default">기본</string>
   <string name="setting_display_page_chat_font_family_monospace">고정폭</string>
   <string name="setting_display_page_chat_font_family_serif">명조체</string>
+  <string name="setting_page_render_performance_settings">렌더링</string>
+  <string name="setting_display_page_render_performance_title">렌더링 성능</string>
+  <string name="setting_display_page_render_performance_desc">기기 성능에 맞춰 렌더링 조절을 적용합니다. '완전 우선'은 모든 병합을 해제합니다</string>
+  <string name="setting_display_page_render_performance_auto">자동</string>
+  <string name="setting_display_page_render_performance_smooth">부드러움 우선</string>
+  <string name="setting_display_page_render_performance_full">완전 우선</string>
   <string name="setting_display_page_chat_font_family_title">채팅 글꼴</string>
   <string name="setting_display_page_chat_list_model_icon_desc">채팅 목록 메시지에 모델 아이콘을 표시할지 여부</string>
   <string name="setting_display_page_chat_list_model_icon_title">채팅 목록 모델 아이콘</string>

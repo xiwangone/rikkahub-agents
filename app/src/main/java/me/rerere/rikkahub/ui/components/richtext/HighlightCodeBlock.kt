@@ -92,12 +92,9 @@ private val PREVIEWABLE_LANGUAGES = setOf("html", "svg")
 private const val HIGHLIGHT_CACHE_MAX_ENTRIES = 16
 private const val HIGHLIGHT_CACHE_MAX_CHARS = 20_000
 
+/** accessOrder = true：按访问顺序淘汰，容量在写入后由 [highlightCached] 按当前档位裁剪 */
 private val highlightCacheLru =
-    object : LinkedHashMap<Triple<String, Boolean, String>, AnnotatedString>(16, 0.75f, true) {
-        override fun removeEldestEntry(
-            eldest: MutableMap.MutableEntry<Triple<String, Boolean, String>, AnnotatedString>,
-        ): Boolean = size > HIGHLIGHT_CACHE_MAX_ENTRIES
-    }
+    LinkedHashMap<Triple<String, Boolean, String>, AnnotatedString>(16, 0.75f, true)
 
 /** 带 LRU 的高亮构建：超长代码不走缓存，避免把大对象长期留在内存里。 */
 private fun highlightCached(
@@ -106,6 +103,7 @@ private fun highlightCached(
     darkMode: Boolean,
     highlighter: CodeHighlighter,
     colorPalette: HighlightTextColorPalette,
+    maxEntries: Int = HIGHLIGHT_CACHE_MAX_ENTRIES,
 ): AnnotatedString {
     val build = {
         val tokens = highlighter.highlight(code, language)
@@ -121,7 +119,15 @@ private fun highlightCached(
         highlightCacheLru[key]?.let { return it }
     }
     val built = build()
-    synchronized(highlightCacheLru) { highlightCacheLru[key] = built }
+    synchronized(highlightCacheLru) {
+        highlightCacheLru[key] = built
+        // 超出当前档位容量即淘汰最久未访问的条目
+        val limit = maxEntries.coerceAtLeast(1)
+        while (highlightCacheLru.size > limit) {
+            val eldest = highlightCacheLru.entries.firstOrNull() ?: break
+            highlightCacheLru.remove(eldest.key)
+        }
+    }
     return built
 }
 
@@ -565,6 +571,8 @@ class HighlightCodeVisualTransformation(
     val language: String,
     val highlighter: CodeHighlighter,
     val darkMode: Boolean,
+    /** 高亮结果缓存容量，由当前渲染档位给出（见 data/perf/RenderProfile.kt） */
+    val maxCacheEntries: Int = HIGHLIGHT_CACHE_MAX_ENTRIES,
 ) : VisualTransformation {
     override fun filter(text: AnnotatedString): TransformedText {
         val annotatedString =
@@ -573,7 +581,7 @@ class HighlightCodeVisualTransformation(
                 if (text.text.isEmpty()) {
                     AnnotatedString("")
                 } else {
-                    highlightCached(text.text, language, darkMode, highlighter, colorPalette)
+                    highlightCached(text.text, language, darkMode, highlighter, colorPalette, maxCacheEntries)
                 }
             } catch (e: Exception) {
                 Log.e(TAG, "HighlightCodeVisualTransformation: failed to highlight code", e)

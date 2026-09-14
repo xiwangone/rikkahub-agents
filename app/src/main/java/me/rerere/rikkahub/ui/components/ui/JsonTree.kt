@@ -41,11 +41,12 @@ import kotlinx.serialization.json.longOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.rikkahub.ui.context.rememberRenderProfile
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 
-// 单个容器默认最多组合的子节点数: 大对象/大数组一次展开会组合上千个节点,
-// 直接拖慢首帧与滚动; 超出部分先折叠, 点击后再继续展开
-private const val INITIAL_VISIBLE_CHILDREN = 100
+// 单个容器默认最多组合的子节点数由当前渲染档位决定（见 data/perf/RenderProfile.kt）:
+// 大对象/大数组一次展开会组合上千个节点, 直接拖慢首帧与滚动;
+// 超出部分先折叠, 点击后再继续展开
 
 // 内联展示的字符串最大长度: 超长字符串单行测量昂贵, 只预览前若干字符,
 // 完整内容仍可点击在底部面板查看
@@ -58,6 +59,8 @@ fun JsonTree(
     initialExpandLevel: Int = 1,
 ) {
     var selectedString by remember { mutableStateOf<String?>(null) }
+    // 单个容器按当前渲染档位限制默认组合的子节点数（完整优先档为不限）
+    val visibleChildren = rememberRenderProfile().jsonVisibleChildren
 
     Column(modifier = modifier.horizontalScroll(rememberScrollState())) {
         JsonNode(
@@ -65,6 +68,7 @@ fun JsonTree(
             key = null,
             depth = 0,
             initialExpandLevel = initialExpandLevel,
+            visibleChildren = visibleChildren,
             onStringClick = { selectedString = it },
         )
     }
@@ -98,11 +102,14 @@ private fun JsonNode(
     key: String?,
     depth: Int,
     initialExpandLevel: Int,
+    maxVisibleChildren: Int,
     onStringClick: (String) -> Unit,
 ) {
     when (element) {
-        is JsonObject -> JsonObjectNode(element, key, depth, initialExpandLevel, onStringClick)
-        is JsonArray -> JsonArrayNode(element, key, depth, initialExpandLevel, onStringClick)
+        is JsonObject ->
+            JsonObjectNode(element, key, depth, initialExpandLevel, maxVisibleChildren, onStringClick)
+        is JsonArray ->
+            JsonArrayNode(element, key, depth, initialExpandLevel, maxVisibleChildren, onStringClick)
         is JsonPrimitive -> JsonPrimitiveNode(element, key, depth, onStringClick)
         is JsonNull -> JsonNullNode(key, depth)
     }
@@ -114,12 +121,13 @@ private fun JsonObjectNode(
     key: String?,
     depth: Int,
     initialExpandLevel: Int,
+    maxVisibleChildren: Int,
     onStringClick: (String) -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(depth < initialExpandLevel) }
     var showAllChildren by rememberSaveable(obj) { mutableStateOf(false) }
     val entries = remember(obj) { obj.entries.toList() }
-    val visibleEntries = if (showAllChildren) entries else entries.take(INITIAL_VISIBLE_CHILDREN)
+    val visibleEntries = if (showAllChildren) entries else entries.take(maxVisibleChildren)
 
     Column {
         Row(
@@ -161,6 +169,7 @@ private fun JsonObjectNode(
                         key = childKey,
                         depth = depth + 1,
                         initialExpandLevel = initialExpandLevel,
+                        maxVisibleChildren = maxVisibleChildren,
                         onStringClick = onStringClick,
                     )
                 }
@@ -192,11 +201,12 @@ private fun JsonArrayNode(
     key: String?,
     depth: Int,
     initialExpandLevel: Int,
+    maxVisibleChildren: Int,
     onStringClick: (String) -> Unit,
 ) {
     var expanded by rememberSaveable { mutableStateOf(depth < initialExpandLevel) }
     var showAllChildren by rememberSaveable(array) { mutableStateOf(false) }
-    val visibleChildren = if (showAllChildren) array.size else minOf(array.size, INITIAL_VISIBLE_CHILDREN)
+    val visibleChildren = if (showAllChildren) array.size else minOf(array.size, maxVisibleChildren)
 
     Column {
         Row(
@@ -238,6 +248,7 @@ private fun JsonArrayNode(
                         key = index.toString(),
                         depth = depth + 1,
                         initialExpandLevel = initialExpandLevel,
+                        maxVisibleChildren = maxVisibleChildren,
                         onStringClick = onStringClick,
                     )
                 }

@@ -644,6 +644,12 @@
   <string name="setting_display_page_chat_font_family_default">По умолчанию</string>
   <string name="setting_display_page_chat_font_family_monospace">Моноширинный</string>
   <string name="setting_display_page_chat_font_family_serif">С засечками</string>
+  <string name="setting_page_render_performance_settings">Отрисовка</string>
+  <string name="setting_display_page_render_performance_title">Производительность отрисовки</string>
+  <string name="setting_display_page_render_performance_desc">Подстраивает отрисовку под возможности устройства; «Полный приоритет» отключает все объединения</string>
+  <string name="setting_display_page_render_performance_auto">Авто</string>
+  <string name="setting_display_page_render_performance_smooth">Приоритет плавности</string>
+  <string name="setting_display_page_render_performance_full">Полный приоритет</string>
   <string name="setting_display_page_chat_font_family_title">Шрифт чата</string>
   <string name="setting_display_page_chat_list_model_icon_desc">Отображать значки моделей в списке сообщений чата</string>
   <string name="setting_display_page_chat_list_model_icon_title">Значок модели в списке чатов</string>

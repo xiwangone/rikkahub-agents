@@ -641,6 +641,12 @@
   <string name="setting_display_page_chat_font_family_default">預設</string>
   <string name="setting_display_page_chat_font_family_monospace">等寬字體</string>
   <string name="setting_display_page_chat_font_family_serif">Serif</string>
+  <string name="setting_page_render_performance_settings">渲染</string>
+  <string name="setting_display_page_render_performance_title">渲染效能</string>
+  <string name="setting_display_page_render_performance_desc">依裝置能力自動調整渲染節流；「完整優先」關閉全部合併與節流</string>
+  <string name="setting_display_page_render_performance_auto">自動</string>
+  <string name="setting_display_page_render_performance_smooth">流暢優先</string>
+  <string name="setting_display_page_render_performance_full">完整優先</string>
   <string name="setting_display_page_chat_font_family_title">聊天字型</string>
   <string name="setting_display_page_chat_list_model_icon_desc">是否在聊天列表消息中顯示模型圖標</string>
   <string name="setting_display_page_chat_list_model_icon_title">聊天列表模型圖標</string>

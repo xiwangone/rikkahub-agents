@@ -1039,7 +1039,21 @@ data class DisplaySetting(
     val enableVolumeKeyScroll: Boolean = false,
     val volumeKeyScrollRatio: Float = 1.0f,
     val chatInputButtons: ChatInputButtons = ChatInputButtons(),
+    /** 渲染性能：自动（按设备能力）/ 流畅优先 / 完整优先；完整优先等价于关闭全部合并与节流 */
+    val renderPerformance: RenderPerformance = RenderPerformance.AUTO,
 )
+
+@Serializable
+enum class RenderPerformance {
+    @SerialName("auto")
+    AUTO,
+
+    @SerialName("smooth")
+    SMOOTH,
+
+    @SerialName("full")
+    FULL,
+}
 
 @Serializable
 enum class InputButtonType {

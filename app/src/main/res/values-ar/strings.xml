@@ -664,6 +664,12 @@
   <string name="setting_display_page_chat_font_family_default">افتراضي</string>
   <string name="setting_display_page_chat_font_family_monospace">أحادي المسافة</string>
   <string name="setting_display_page_chat_font_family_serif">مذيّل</string>
+  <string name="setting_page_render_performance_settings">العرض</string>
+  <string name="setting_display_page_render_performance_title">أداء العرض</string>
+  <string name="setting_display_page_render_performance_desc">يضبط تخفيف العرض حسب قدرات الجهاز؛ «الأولوية الكاملة» تعطّل كل الدمج</string>
+  <string name="setting_display_page_render_performance_auto">تلقائي</string>
+  <string name="setting_display_page_render_performance_smooth">أولوية السلاسة</string>
+  <string name="setting_display_page_render_performance_full">أولوية كاملة</string>
   <string name="setting_display_page_chat_font_family_title">خط الدردشة</string>
   <string name="setting_display_page_chat_list_model_icon_desc">ما إذا كانت أيقونات النماذج ستُعرض في رسائل قائمة الدردشة</string>
   <string name="setting_display_page_chat_list_model_icon_title">أيقونة النموذج في قائمة الدردشة</string>

@@ -766,6 +766,12 @@
   <string name="setting_display_page_chat_font_family_custom">自定义</string>
   <string name="setting_display_page_chat_font_family_monospace">等宽字体</string>
   <string name="setting_display_page_chat_font_family_serif">衬线体</string>
+  <string name="setting_page_render_performance_settings">渲染</string>
+  <string name="setting_display_page_render_performance_title">渲染性能</string>
+  <string name="setting_display_page_render_performance_desc">按设备能力自动调整渲染节流；「完整优先」关闭全部合并与节流</string>
+  <string name="setting_display_page_render_performance_auto">自动</string>
+  <string name="setting_display_page_render_performance_smooth">流畅优先</string>
+  <string name="setting_display_page_render_performance_full">完整优先</string>
   <string name="setting_display_page_chat_font_family_title">聊天字体</string>
   <string name="setting_display_page_chat_list_model_icon_desc">是否在聊天列表消息中显示模型图标</string>
   <string name="setting_display_page_chat_list_model_icon_title">聊天列表模型图标</string>

@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.ai
 
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.data.perf.detectDeviceProfile
+import me.rerere.rikkahub.data.perf.resolveRenderProfile
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
@@ -393,14 +395,13 @@ private const val MAX_LOOP_GUARD_TRIPS_PER_TURN = 6
 // 轮预算将尽时提前注入收尾指令的宽限窗口：让模型总结收场，而不是被硬掐在半句话上
 private const val WRAP_UP_GRACE_MS = 120_000L
 
-// 流式期间「输出变换 + 界面投递」的合并窗口：每个 token 都做一次全量变换，
-// 在长会话下开销随消息数增长。同一窗口内只保留最新快照，并在 step 边界与生成结束时
-// 强制补齐，最终结果与逐次变换一致（设为 0 即恢复逐次处理）。
-private const val OUTPUT_FLUSH_INTERVAL_MS = 200L
+// 流式期间「输出变换 + 界面投递」的合并窗口由当前渲染档位给出（见 data/perf/RenderProfile.kt）：
+// 每个 token 都做一次全量变换，在长会话下开销随消息数增长。同一窗口内只保留最新快照，
+// 并在 step 边界与生成结束时强制补齐，最终结果与逐次变换一致（窗口为 0 即恢复逐次处理）。
 
-// 流式分块的合并窗口：文本 delta 到达频率很高，逐块拼接与投递在长回复下代价是 O(n²)。
-// 窗口内先累积再按序应用，流终止时补齐，最终内容与逐块处理一致（设为 0 即恢复逐块处理）。
-private const val STREAM_APPLY_INTERVAL_MS = 150L
+// 流式分块的合并窗口同样来自当前渲染档位（见 data/perf/RenderProfile.kt）：文本 delta 到达
+// 频率很高，逐块拼接与投递在长回复下代价是 O(n²)。窗口内先累积再按序应用，流终止时补齐，
+// 最终内容与逐块处理一致（窗口为 0 即恢复逐块处理）。
 
 private const val WRAP_UP_PROMPT =
     "TIME BUDGET NOTICE: this turn is about to hit its wall-clock limit. Stop starting new " +
@@ -612,12 +613,19 @@ class GenerationLoop(
             if (newParts == msg.parts) msg else msg.copy(parts = newParts)
         }
 
+        // 渲染 / 合并档位：按「用户偏好 + 设备能力」解析（探测异常回落默认档）。
+        // 只影响中间帧的频率与数量，不改变最终结果，也不改变模型上下文。
+        val renderProfile = resolveRenderProfile(
+            settings.displaySetting.renderPerformance,
+            detectDeviceProfile(context),
+        )
+
         val turnStartMs = android.os.SystemClock.elapsedRealtime()
         var loopGuardTripCount = 0
         var wrapUpInjected = false
         // 断流续写计数（见 MAX_AUTO_CONTINUE）
         var autoContinueCount = 0
-        // 输出变换节流状态（见 OUTPUT_FLUSH_INTERVAL_MS）：窗口内被合并掉的最新快照，
+        // 输出变换节流状态（窗口见渲染档位）：窗口内被合并掉的最新快照，
         // 由 step 边界 / 生成结束补齐；任何"直接投递"点都会把它清空，避免旧快照回退内容。
         var lastOutputFlushAtMs = 0L
         var pendingOutputMessages: List<UIMessage>? = null
@@ -714,7 +722,7 @@ class GenerationLoop(
                         messages = messages,
                         onUpdateMessages = {
                             val nowFlushMs = android.os.SystemClock.elapsedRealtime()
-                            if (nowFlushMs - lastOutputFlushAtMs >= OUTPUT_FLUSH_INTERVAL_MS) {
+                            if (nowFlushMs - lastOutputFlushAtMs >= renderProfile.outputFlushIntervalMs) {
                                 lastOutputFlushAtMs = nowFlushMs
                                 pendingOutputMessages = null
                                 messages = it.transforms(
@@ -1358,6 +1366,11 @@ class GenerationLoop(
         conversationLorebookIds: Set<Uuid> = emptySet(),
         workspaceCwd: String? = null,
     ) {
+        // 流式分块合并窗口同样取自渲染档位（0 = 逐块处理，与未优化的原始行为一致）
+        val renderProfile = resolveRenderProfile(
+            settings.displaySetting.renderPerformance,
+            detectDeviceProfile(context),
+        )
         val internalMessages = buildList {
             // Conversation-level system prompt override: when the assistant
             // allows it and the conversation supplies one, it replaces the assistant prompt.
@@ -1537,7 +1550,7 @@ class GenerationLoop(
                 }
                 pendingStreamChunks += chunk
                 val nowApplyMs = android.os.SystemClock.elapsedRealtime()
-                if (nowApplyMs - lastStreamApplyAtMs >= STREAM_APPLY_INTERVAL_MS) {
+                if (nowApplyMs - lastStreamApplyAtMs >= renderProfile.streamApplyIntervalMs) {
                     lastStreamApplyAtMs = nowApplyMs
                     pendingStreamChunks.forEach { messages = streamChunkHandler.handle(messages, it) }
                     pendingStreamChunks.clear()

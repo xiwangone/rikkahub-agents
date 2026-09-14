@@ -651,6 +651,12 @@
   <string name="setting_display_page_chat_font_family_default">デフォルト</string>
   <string name="setting_display_page_chat_font_family_monospace">等幅</string>
   <string name="setting_display_page_chat_font_family_serif">明朝体</string>
+  <string name="setting_page_render_performance_settings">レンダリング</string>
+  <string name="setting_display_page_render_performance_title">レンダリング性能</string>
+  <string name="setting_display_page_render_performance_desc">デバイス性能に応じて描画の間引きを調整します。「完全優先」で全ての統合を無効にします</string>
+  <string name="setting_display_page_render_performance_auto">自動</string>
+  <string name="setting_display_page_render_performance_smooth">スムーズ優先</string>
+  <string name="setting_display_page_render_performance_full">完全優先</string>
   <string name="setting_display_page_chat_font_family_title">チャットフォント</string>
   <string name="setting_display_page_chat_list_model_icon_desc">チャットリストのメッセージにモデルアイコンを表示するかどうか</string>
   <string name="setting_display_page_chat_list_model_icon_title">チャットリストのモデルアイコン</string>

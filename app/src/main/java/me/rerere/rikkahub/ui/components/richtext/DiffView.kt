@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
+import me.rerere.rikkahub.ui.context.rememberRenderProfile
 
 internal val DiffAddedColor = Color(0xFF4CAF50)
 internal val DiffRemovedColor = Color(0xFFEF5350)
@@ -30,9 +31,9 @@ internal val DiffRemovedColor = Color(0xFFEF5350)
 // 测量宽度超出 Constraints 可表示上限导致崩溃, 且固有测量代价高昂
 private const val MAX_LINE_CHARS = 4000
 
-// 默认最多渲染的行数: 每个 diff 行都是一个独立 Text 节点, 大 diff 全量渲染会让
-// 消息列表的滚动与重组明显变慢; 超出部分折叠为可点击展开的提示
-private const val DEFAULT_MAX_RENDER_LINES = 300
+// 默认最多渲染的行数由当前渲染档位决定（见 data/perf/RenderProfile.kt）: 每个 diff 行
+// 都是一个独立 Text 节点, 大 diff 全量渲染会让消息列表的滚动与重组明显变慢;
+// 超出部分折叠为可点击展开的提示
 
 /** unified diff 的增删行数统计 */
 internal data class DiffStats(
@@ -62,16 +63,20 @@ internal fun parseDiffStats(diff: String): DiffStats {
 /**
  * 渲染 unified diff 文本, 按行前缀着色, 支持横向滚动; 纵向滚动由调用方容器提供
  *
- * @param maxLines 默认最多渲染的行数, 超出部分折叠为一行可点击展开的提示
+ * @param maxLines 默认最多渲染的行数; 传 null 时采用当前渲染档位的默认值,
+ *   超出部分折叠为一行可点击展开的提示
  * @param showFileHeader 是否渲染开头的 `---`/`+++` 文件头
  */
 @Composable
 fun DiffView(
     diff: String,
     modifier: Modifier = Modifier,
-    maxLines: Int = DEFAULT_MAX_RENDER_LINES,
+    maxLines: Int? = null,
     showFileHeader: Boolean = true,
 ) {
+    // 默认限行数来自渲染档位（完整优先档为不限行）；调用方可显式传入覆盖
+    val renderProfile = rememberRenderProfile()
+    val effectiveMaxLines = maxLines ?: renderProfile.diffDefaultLines
     val allLines =
         remember(diff, showFileHeader) {
             val lines = diff.lines()
@@ -85,7 +90,7 @@ fun DiffView(
         }
     // 大 diff 默认只渲染前 maxLines 行; 用户主动展开后才渲染全部
     var showAll by remember(diff) { mutableStateOf(false) }
-    val limit = if (showAll) Int.MAX_VALUE else maxLines
+    val limit = if (showAll) Int.MAX_VALUE else effectiveMaxLines
     val lines =
         remember(allLines, limit) {
             allLines.take(limit).map { line ->
