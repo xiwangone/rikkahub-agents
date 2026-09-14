@@ -26,7 +26,7 @@ class InvalidMcpServerNamesException(val names: List<String>) :
  * memory → search → local → workspace → skill → mcp
  */
 class ChatToolFactory(
-    private val context: android.content.Context,
+    private val context: android.app.Application,
     private val json: Json,
     private val memoryRepository: MemoryRepository,
     private val localTools: LocalTools,
