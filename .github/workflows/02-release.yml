@@ -93,7 +93,7 @@ jobs:
           git config user.name "Release Bot"
           git config user.email "release@rikkahub-agents.local"
           git add app/build.gradle.kts
-          git commit -m "chore: bump versionName=$TAG versionCode=$NEW_CODE（release.yml 发版）"
+          git commit -m "chore: bump versionName=$TAG versionCode=$NEW_CODE（02-release.yml 发版）"
           git push origin master || true
 
       - name: 固定签名构建 (overwrite-install)
