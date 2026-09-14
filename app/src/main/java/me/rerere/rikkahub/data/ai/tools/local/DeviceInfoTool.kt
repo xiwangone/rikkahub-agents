@@ -23,7 +23,7 @@ import me.rerere.ai.ui.UIMessagePart
  */
 private val DEVICE_INFO_KINDS = listOf("battery", "audio", "telephony", "wifi", "storage", "sensors")
 
-internal fun readDeviceInfo(context: Context, kind: String, sensor: String?, durationMs: Int?): JsonObject =
+internal suspend fun readDeviceInfo(context: Context, kind: String, sensor: String?, durationMs: Int?): JsonObject =
     when (kind) {
         "battery" -> batteryPayload(context)
         "audio" -> audioPayload(context)

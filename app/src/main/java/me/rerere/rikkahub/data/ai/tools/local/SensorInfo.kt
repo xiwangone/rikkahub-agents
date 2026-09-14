@@ -66,7 +66,7 @@ internal fun sensorsPayload(context: Context): JsonObject {
     return payload
 }
 
-internal fun sensorReadPayload(context: Context, rawTypeName: String?, rawDurationMs: Int?): JsonObject {
+internal suspend fun sensorReadPayload(context: Context, rawTypeName: String?, rawDurationMs: Int?): JsonObject {
     val typeName = rawTypeName ?: error("type is required")
     val durationMs = (rawDurationMs ?: 200).coerceIn(1, 5000)
         val typeInt = FRIENDLY_TO_TYPE[typeName]
