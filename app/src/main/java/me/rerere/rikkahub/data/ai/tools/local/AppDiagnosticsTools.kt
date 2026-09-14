@@ -495,6 +495,7 @@ internal suspend fun usageStatsPayload(
             val reset = params["reset"]?.jsonPrimitive?.booleanOrNull ?: false
             if (reset) ToolUsageTracker.clear(context)
             val snapshot = ToolUsageTracker.snapshot(context)
+            val injected = ToolUsageTracker.injectedNames(context)
             val settings = settingsStore.settingsFlow.first()
             val payload =
                 buildJsonObject {
@@ -509,6 +510,8 @@ internal suspend fun usageStatsPayload(
                                 add(
                                     buildJsonObject {
                                         put("name", entry.name)
+                                        // 是否已注入给模型（最近一次装配结果）——「开了没用」一眼可见。
+                                        put("enabled", entry.name in injected)
                                         put("count", entry.count)
                                         put("failures", entry.failures)
                                         put("avgMs", entry.avgMs)
@@ -518,9 +521,19 @@ internal suspend fun usageStatsPayload(
                             }
                         },
                     )
+                    put("injectedToolCount", injected.size)
+                    put(
+                        "enabledButNeverCalled",
+                        buildJsonArray {
+                            injected
+                                .filter { name -> snapshot.none { it.name == name } }
+                                .sorted()
+                                .forEach { add(it) }
+                        },
+                    )
                     put(
                         "hint",
-                        "统计只覆盖被调用过的工具；「从未使用」需与 tool_surface_report 的工具清单做差集。",
+                        "enabledButNeverCalled = 已注入给模型但从未被调用的工具；injectedToolCount 为最近一次注入的工具总数。",
                     )
                 }
     return payload.toString()

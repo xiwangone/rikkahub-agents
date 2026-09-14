@@ -325,6 +325,7 @@ val appModule =
 
         single {
             me.rerere.rikkahub.data.ai.tools.ChatToolFactory(
+                context = get(),
                 json = get(),
                 memoryRepository = get(),
                 localTools = get(),

@@ -1156,28 +1156,8 @@ class LocalTools(
             } else {
                 t
             }
-            // 统一埋点：只记录工具名/次数/失败数/耗时（不含参数），供工具面分档与精简评估使用。
-            val tracked =
-                withApproval.copy(
-                    execute = { args ->
-                        val startedAt = SystemClock.elapsedRealtime()
-                        var failed = false
-                        try {
-                            withApproval.execute(args)
-                        } catch (error: Throwable) {
-                            failed = true
-                            throw error
-                        } finally {
-                            ToolUsageTracker.record(
-                                context = context,
-                                name = withApproval.name,
-                                durationMs = SystemClock.elapsedRealtime() - startedAt,
-                                failed = failed,
-                            )
-                        }
-                    },
-                )
-            addHumanErrorEnvelopes(appendTopToolExample(tracked))
+            // 埋点已上移到 ChatToolFactory 的统一出口（覆盖 workspace/MCP/skills 等全部工具）。
+            addHumanErrorEnvelopes(appendTopToolExample(withApproval))
         }
     }
 }

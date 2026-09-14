@@ -16,6 +16,7 @@ import java.util.concurrent.ConcurrentHashMap
 object ToolUsageTracker {
     private const val PREFS = "tool_usage_stats"
     private const val KEY = "entries"
+private const val KEY_INJECTED = "injected_tool_names"
 
     @Serializable
     data class Entry(
@@ -83,6 +84,30 @@ object ToolUsageTracker {
                 .apply()
         }
     }
+
+    /** 记录最近一次注入给模型的工具名集合（用于识别"已启用但从未调用"）。 */
+    fun recordInjected(
+        context: Context,
+        names: List<String>,
+    ) {
+        runCatching {
+            context
+                .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .edit()
+                .putString(KEY_INJECTED, json.encodeToString(names.sorted()))
+                .apply()
+        }
+    }
+
+    /** 最近一次注入的工具名集合；从未记录过则返回空集。 */
+    fun injectedNames(context: Context): Set<String> =
+        runCatching {
+            context
+                .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getString(KEY_INJECTED, null)
+                ?.let { json.decodeFromString<List<String>>(it) }
+                ?.toSet()
+        }.getOrNull().orEmpty()
 
     /** 全量快照（按调用次数降序）。 */
     fun snapshot(context: Context): List<Entry> {

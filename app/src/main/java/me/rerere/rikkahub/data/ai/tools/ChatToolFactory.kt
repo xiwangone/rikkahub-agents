@@ -26,6 +26,7 @@ class InvalidMcpServerNamesException(val names: List<String>) :
  * memory → search → local → workspace → skill → mcp
  */
 class ChatToolFactory(
+    private val context: android.content.Context,
     private val json: Json,
     private val memoryRepository: MemoryRepository,
     private val localTools: LocalTools,
@@ -124,8 +125,40 @@ class ChatToolFactory(
         }
     }.let { full ->
         // 注入视图：低频工具精简描述；元工具基于**未精简**的完整列表，保证 get_tool_schema 能取回原文。
-        full.map { slimDescriptionForInjection(it) } + buildToolDiscoveryTools(full)
+        val injected = full.map { slimDescriptionForInjection(it) } + buildToolDiscoveryTools(full)
+        // 登记本次注入集合：让 tool_usage_stats 能直接识别"已启用但从未调用"的工具。
+        ToolUsageTracker.recordInjected(context, injected.map { it.name })
+        trackUsage(injected)
     }
+
+    /**
+     * 统一埋点：记录工具名/次数/失败/耗时（**不含参数**）。
+     *
+     * 放在装配出口而不是各工具内部，是为了覆盖所有来源（本地工具 / 工作区 / MCP / 技能），
+     * 否则统计只覆盖 LocalTools 一族，分档判断会失真。
+     */
+    private fun trackUsage(tools: List<Tool>): List<Tool> =
+        tools.map { tool ->
+            tool.copy(
+                execute = { args ->
+                    val startedAt = android.os.SystemClock.elapsedRealtime()
+                    var failed = false
+                    try {
+                        tool.execute(args)
+                    } catch (error: Throwable) {
+                        failed = true
+                        throw error
+                    } finally {
+                        ToolUsageTracker.record(
+                            context = context,
+                            name = tool.name,
+                            durationMs = android.os.SystemClock.elapsedRealtime() - startedAt,
+                            failed = failed,
+                        )
+                    }
+                },
+            )
+        }
 
     /** 工作区 shell 未就绪时不下发工作区工具（避免模型调用必然失败的工具）。 */
     private suspend fun createWorkspaceToolsIfReady(workspaceId: String?, cwd: String?): List<Tool> {
