@@ -55,6 +55,9 @@ data class SettingEntry(
     val screen: Screen,
 )
 
+/** 快捷区最多可放的入口数（3×2 网格，上下对齐）。 */
+const val SETTING_SHORTCUT_LIMIT = 6
+
 /** 设置项注册表：分组的渲染顺序与组内顺序都由这份数据决定。 */
 object SettingCatalog {
 

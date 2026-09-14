@@ -1,5 +1,10 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Checkbox
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.Spacer
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.widget.Toast
@@ -150,6 +155,14 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
 
             // 分组渲染完全由 SettingCatalog 驱动：组顺序 = SettingGroup 枚举顺序，
             // 组内顺序 = 注册表顺序。带内联控件或动作型的项在此单独处理。
+            item("settingsShortcuts") {
+                SettingsShortcutBar(
+                    settings = settings,
+                    onUpdate = { vm.updateSettings(it) },
+                    navController = navController,
+                )
+            }
+
             item("settingsGroups") {
                 SettingGroup.entries.forEach { group ->
                     val entries = SettingCatalog.entriesOf(group)
@@ -399,5 +412,174 @@ private fun CardGroupScope.ShareRow() {
         leadingContent = { Icon(HugeIcons.Share04, null) },
         supportingContent = { Text(stringResource(R.string.setting_page_share_desc)) },
         headlineContent = { Text(stringResource(R.string.setting_page_share)) },
+    )
+}
+
+
+/**
+ * 顶部快捷区：用户自选的设置入口（上限 [SETTING_SHORTCUT_LIMIT]），空态给出提示。
+ *
+ * 只保存 id 列表，图标与跳转均由 [SettingCatalog] 决定 —— 注册表变更后快捷区自动跟随。
+ */
+@Composable
+private fun SettingsShortcutBar(
+    settings: Settings,
+    onUpdate: (Settings) -> Unit,
+    navController: Navigator,
+) {
+    var showEditor by remember { mutableStateOf(false) }
+    val entries = settings.settingShortcutIds.mapNotNull { SettingCatalog.byId(it) }
+
+    if (showEditor) {
+        SettingShortcutEditor(
+            settings = settings,
+            onUpdate = onUpdate,
+            onDismiss = { showEditor = false },
+        )
+    }
+
+    CardGroup(
+        modifier = Modifier.padding(horizontal = 8.dp),
+        title = { Text(stringResource(R.string.setting_page_shortcuts)) },
+    ) {
+        item(
+            supportingContent = {
+                if (entries.isEmpty()) {
+                    Text(stringResource(R.string.setting_page_shortcuts_empty))
+                } else {
+                    Text(
+                        stringResource(
+                            R.string.setting_page_shortcuts_count,
+                            entries.size,
+                            SETTING_SHORTCUT_LIMIT,
+                        ),
+                    )
+                }
+            },
+            headlineContent = { Text(stringResource(R.string.setting_page_shortcuts)) },
+            trailingContent = {
+                TextButton(onClick = { showEditor = true }) {
+                    Text(stringResource(R.string.setting_page_shortcuts_edit))
+                }
+            },
+        )
+
+        if (entries.isNotEmpty()) {
+            item {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    entries.chunked(3).forEach { row ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            row.forEach { entry ->
+                                ShortcutTile(
+                                    entry = entry,
+                                    modifier = Modifier.weight(1f),
+                                    onClick = { navController.navigate(entry.screen) },
+                                )
+                            }
+                            repeat(3 - row.size) {
+                                Spacer(modifier = Modifier.weight(1f))
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun ShortcutTile(
+    entry: SettingEntry,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Card(
+        modifier = modifier,
+        onClick = onClick,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(entry.icon, contentDescription = null)
+            Text(
+                text = stringResource(entry.titleRes),
+                style = MaterialTheme.typography.labelMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+
+/**
+ * 快捷区编辑器：从注册表中多选（按选择先后排列），上限 [SETTING_SHORTCUT_LIMIT]。
+ */
+@Composable
+private fun SettingShortcutEditor(
+    settings: Settings,
+    onUpdate: (Settings) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    val selected = settings.settingShortcutIds
+
+    fun toggle(id: String, on: Boolean) {
+        val next =
+            if (on) {
+                if (id in selected || selected.size >= SETTING_SHORTCUT_LIMIT) selected else selected + id
+            } else {
+                selected - id
+            }
+        onUpdate(settings.copy(settingShortcutIds = next))
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.setting_page_shortcuts_edit)) },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                SettingGroup.entries.forEach { group ->
+                    val entries = SettingCatalog.entriesOf(group)
+                    if (entries.isEmpty()) return@forEach
+                    Text(
+                        text = stringResource(group.titleRes),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                    )
+                    entries.forEach { entry ->
+                        val checked = entry.id in selected
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Checkbox(
+                                checked = checked,
+                                enabled = checked || selected.size < SETTING_SHORTCUT_LIMIT,
+                                onCheckedChange = { toggle(entry.id, it) },
+                            )
+                            Text(
+                                text = stringResource(entry.titleRes),
+                                style = MaterialTheme.typography.bodyMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_confirm))
+            }
+        },
     )
 }

@@ -1189,6 +1189,10 @@
   <string name="setting_tts_page_voice_name">Voice Name</string>
   <string name="setting_tts_page_voice_name_description">Name of the voice</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
+  <string name="setting_page_shortcuts">Shortcuts</string>
+  <string name="setting_page_shortcuts_empty">Tap Edit to add up to 6 shortcuts</string>
+  <string name="setting_page_shortcuts_count">%1$d/%2$d selected</string>
+  <string name="setting_page_shortcuts_edit">Edit</string>
   <string name="settings">Settings</string>
   <string name="settings_search_no_results">No results</string>
   <string name="settings_search_page_title">Search Settings</string>

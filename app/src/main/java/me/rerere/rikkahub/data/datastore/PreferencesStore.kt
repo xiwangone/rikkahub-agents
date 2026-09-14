@@ -903,6 +903,8 @@ data class Settings(
     /** 允许访问的网段白名单（CIDR，逗号分隔；空 = 不限制）。仅非 loopback 时生效 */
     val webServerAllowedNetworks: String = "",
     val webServerAccessPassword: String = "",
+    /** 设置页快捷区：用户自选的有序入口 id 列表（id 见 SettingCatalog）。 */
+    val settingShortcutIds: List<String> = emptyList(),
     val webServerLocalhostOnly: Boolean = true,
     val aiLogLevel: AiLogLevel = AiLogLevel.INFO,
     val backupReminderConfig: BackupReminderConfig = BackupReminderConfig(),

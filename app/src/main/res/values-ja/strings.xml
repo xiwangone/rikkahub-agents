@@ -1007,6 +1007,10 @@
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
   <string name="setting_tts_page_default_playback_speed">デフォルトの再生速度</string>
   <string name="setting_tts_page_default_playback_speed_description">すべてのTTSプロバイダーにローカルで適用され、合成設定は変更されません。</string>
+  <string name="setting_page_shortcuts">ショートカット</string>
+  <string name="setting_page_shortcuts_empty">「編集」で最大 6 件まで追加できます</string>
+  <string name="setting_page_shortcuts_count">%1$d/%2$d 選択中</string>
+  <string name="setting_page_shortcuts_edit">編集</string>
   <string name="settings">設定</string>
   <string name="settings_search_no_results">結果なし</string>
   <string name="settings_search_page_title">設定を検索</string>

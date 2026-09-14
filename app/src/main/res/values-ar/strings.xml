@@ -994,6 +994,10 @@
   <string name="setting_tts_page_voice_name">اسم الصوت</string>
   <string name="setting_tts_page_voice_name_description">اسم الصوت</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
+  <string name="setting_page_shortcuts">اختصارات</string>
+  <string name="setting_page_shortcuts_empty">اضغط تعديل لإضافة حتى 6</string>
+  <string name="setting_page_shortcuts_count">المحدد %1$d/%2$d</string>
+  <string name="setting_page_shortcuts_edit">تعديل</string>
   <string name="settings">الإعدادات</string>
   <string name="settings_search_no_results">لا توجد نتائج</string>
   <string name="settings_search_page_title">البحث في الإعدادات</string>

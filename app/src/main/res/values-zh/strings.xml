@@ -1155,6 +1155,10 @@
   <string name="setting_tts_page_voice_name">语音名称</string>
   <string name="setting_tts_page_voice_name_description">语音的名称</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
+  <string name="setting_page_shortcuts">快捷入口</string>
+  <string name="setting_page_shortcuts_empty">点「编辑」添加常用设置，最多 6 个</string>
+  <string name="setting_page_shortcuts_count">已选 %1$d/%2$d</string>
+  <string name="setting_page_shortcuts_edit">编辑</string>
   <string name="settings">设置</string>
   <string name="settings_search_no_results">没有结果</string>
   <string name="settings_search_page_title">搜索设置</string>

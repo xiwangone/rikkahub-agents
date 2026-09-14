@@ -1006,6 +1006,10 @@
   <string name="setting_tts_page_voice_name">語音名稱</string>
   <string name="setting_tts_page_voice_name_description">語音的名稱</string>
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
+  <string name="setting_page_shortcuts">快捷入口</string>
+  <string name="setting_page_shortcuts_empty">點「編輯」新增常用設定，最多 6 個</string>
+  <string name="setting_page_shortcuts_count">已選 %1$d/%2$d</string>
+  <string name="setting_page_shortcuts_edit">編輯</string>
   <string name="settings">設定</string>
   <string name="settings_search_no_results">沒有結果</string>
   <string name="settings_search_page_title">搜尋設定</string>

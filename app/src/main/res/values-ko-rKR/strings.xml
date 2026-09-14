@@ -1007,6 +1007,10 @@
   <string name="setting_tts_page_voice_name_placeholder">Kore</string>
   <string name="setting_tts_page_default_playback_speed">기본 재생 속도</string>
   <string name="setting_tts_page_default_playback_speed_description">모든 TTS 제공업체에 로컬로 적용되며, 제공업체의 합성 설정은 변경하지 않습니다.</string>
+  <string name="setting_page_shortcuts">바로가기</string>
+  <string name="setting_page_shortcuts_empty">편집을 눌러 최대 6개 추가</string>
+  <string name="setting_page_shortcuts_count">%1$d/%2$d 선택됨</string>
+  <string name="setting_page_shortcuts_edit">편집</string>
   <string name="settings">설정</string>
   <string name="settings_search_no_results">결과 없음</string>
   <string name="settings_search_page_title">설정 검색</string>
