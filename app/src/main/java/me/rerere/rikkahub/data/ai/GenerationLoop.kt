@@ -407,6 +407,14 @@ private const val WRAP_UP_PROMPT =
         "tool calls, finish any in-flight work, and give a concise final summary of what was " +
         "done and what remains."
 
+// 断流续写：服务端未给出结束原因（finish_reason 缺失）时，说明流被中途切断，
+// 自动再请求一次把内容接上；每个回合最多续写次数，以及续写时注入的合成指令。
+private const val MAX_AUTO_CONTINUE = 1
+
+private const val AUTO_CONTINUE_PROMPT =
+    "AUTO-CONTINUE: your previous reply was cut off in the middle. Continue from where it " +
+        "stopped, do not repeat what you have already written, and finish the answer."
+
 /**
  * Number of most-recent tool-result-bearing messages whose `Image` parts are kept
  * verbatim in the prompt. Older tool-result images are replaced with a small text
@@ -607,6 +615,8 @@ class GenerationLoop(
         val turnStartMs = android.os.SystemClock.elapsedRealtime()
         var loopGuardTripCount = 0
         var wrapUpInjected = false
+        // 断流续写计数（见 MAX_AUTO_CONTINUE）
+        var autoContinueCount = 0
         // 输出变换节流状态（见 OUTPUT_FLUSH_INTERVAL_MS）：窗口内被合并掉的最新快照，
         // 由 step 边界 / 生成结束补齐；任何"直接投递"点都会把它清空，避免旧快照回退内容。
         var lastOutputFlushAtMs = 0L
@@ -793,6 +803,26 @@ class GenerationLoop(
                         .toLocalDateTime(TimeZone.currentSystemDefault())
                 )
                 emit(GenerationChunk.Messages(messages))
+
+                // 断流续写：服务端未给出结束原因（finish_reason 缺失）、文本非空且没有待执行工具时，
+                // 判定为流被中途切断 → 自动再请求一次把内容接上（受 MAX_AUTO_CONTINUE 限制）。
+                val lastAssistant = messages.lastOrNull()
+                val truncatedNoFinish =
+                    lastAssistant != null &&
+                        lastAssistant.role == MessageRole.ASSISTANT &&
+                        lastAssistant.finishedAt != null &&
+                        lastAssistant.finishReason == null &&
+                        lastAssistant.getTools().isEmpty() &&
+                        lastAssistant.parts.any { it is UIMessagePart.Text && it.text.isNotBlank() }
+                if (truncatedNoFinish && autoContinueCount < MAX_AUTO_CONTINUE) {
+                    autoContinueCount++
+                    AppLog.w(
+                        TAG,
+                        "generateText: reply ended without finish reason; auto-continuing ($autoContinueCount/$MAX_AUTO_CONTINUE)",
+                    )
+                    messages = messages + UIMessage.user(AUTO_CONTINUE_PROMPT).copy(isSynthetic = true)
+                    continue
+                }
 
                 val tools = messages.last().getTools().filter { !it.isExecuted }
                 if (tools.isEmpty()) {
