@@ -50,13 +50,19 @@ jobs:
           key: ${{ runner.os }}-gradle-buildcache
           save-always: true
 
-      - name: 安装 bun（官方 action，自带缓存与重试）
-        uses: oven-sh/setup-bun@v2
-        with:
-          bun-version: latest
+      - name: 安装 bun（多源回退：npm → 官方安装脚本）
+        run: |
+          set +e
+          npm install -g bun && echo "bun installed via npm" && exit 0
+          curl -fsSL https://bun.sh/install | bash && echo "$HOME/.bun/bin" >> $GITHUB_PATH && echo "bun installed via installer" && exit 0
+          echo "bun installation failed on all sources" && exit 1
 
-      - name: 安装 pnpm
-        run: npm install -g pnpm
+      - name: 安装 pnpm（多源回退：corepack → npm）
+        run: |
+          set +e
+          corepack enable && corepack prepare pnpm@latest --activate && echo "pnpm activated via corepack" && exit 0
+          npm install -g pnpm && echo "pnpm installed via npm" && exit 0
+          echo "pnpm installation failed on all sources" && exit 1
 
       - name: 解析版本号（填了=发新版；留空=刷新当前版本）
         id: ver
