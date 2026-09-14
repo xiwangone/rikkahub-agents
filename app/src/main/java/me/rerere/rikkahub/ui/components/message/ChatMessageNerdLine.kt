@@ -260,11 +260,12 @@ fun ChatMessageNerdLine(
                 val ctxTokens = contextUsage.promptTokens.toLong()
                 val windowTokens = LocalSettings.current.autoCompressTokenBase.takeIf { it > 0 }
                 val usedRatio = windowTokens?.let { ctxTokens.toDouble() / it.toDouble() }
+                // 红黄绿三档：<60% 绿（充裕）／60~80% 黄（注意）／≥80% 红（危险）
                 val contextColor = when {
                     usedRatio == null -> color
-                    usedRatio >= 0.8 -> MaterialTheme.colorScheme.error
+                    usedRatio >= 0.8 -> Color(0xFFD32F2F)
                     usedRatio >= 0.6 -> Color(0xFFE0A100)
-                    else -> color
+                    else -> Color(0xFF2E7D32)
                 }
                 var showWindowDialog by remember { mutableStateOf(false) }
                 var windowInput by remember(windowTokens) {
@@ -295,15 +296,15 @@ fun ChatMessageNerdLine(
                                     windowTokens?.let { win ->
                                         stringResource(
                                             R.string.chat_nerd_context_window,
-                                            ctxTokens.toInt().formatNumber(),
-                                            win.toInt().formatNumber(),
+                                            formatTokensAsK(ctxTokens),
+                                            formatTokensAsK(win),
                                             String.format(
                                                 java.util.Locale.US,
                                                 "%.0f%%",
                                                 ((1.0 - ctxTokens.toDouble() / win.toDouble()) * 100.0).coerceIn(0.0, 100.0),
                                             ),
                                         )
-                                    } ?: stringResource(R.string.chat_nerd_context_only, ctxTokens.toInt().formatNumber()),
+                                    } ?: stringResource(R.string.chat_nerd_context_only, formatTokensAsK(ctxTokens)),
                                 color = contextColor,
                             )
                         },
@@ -370,6 +371,12 @@ internal fun formatCost(cost: Double): String {
 }
 
 @Composable
+/** 以 K 为单位展示 token 数（与自动压缩设置同一口径），避免同一行里 K/M 混用。 */
+private fun formatTokensAsK(tokens: Long): String {
+    val k = tokens / 1000.0
+    return if (k == k.toLong().toDouble()) "${k.toLong()}K" else String.format(java.util.Locale.US, "%.1fK", k)
+}
+
 fun StatsItem(
     icon: @Composable () -> Unit,
     content: @Composable () -> Unit,

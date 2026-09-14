@@ -2567,10 +2567,10 @@
   <string name="setting_model_page_auto_compress_enable">Включить автосжатие</string>
   <string name="setting_model_page_auto_compress_mode_percent">Режим процентов (база × порог)</string>
   <string name="setting_model_page_auto_compress_mode_token">Режим расхода токенов</string>
-  <string name="setting_model_page_auto_compress_base">База (M)</string>
+  <string name="setting_model_page_auto_compress_base">База (K)</string>
   <string name="setting_model_page_auto_compress_m_unit">Единица K: 1K = 1 000 токенов</string>
   <string name="setting_model_page_auto_compress_threshold">Порог срабатывания (% контекста, 50–95)</string>
-  <string name="setting_model_page_auto_compress_token_limit">Расход токенов (M)</string>
+  <string name="setting_model_page_auto_compress_token_limit">Расход токенов (K)</string>
   <string name="setting_model_page_auto_compress_token_limit_desc">Автосжатие при превышении накопленного расхода токенов (0 = выкл.)</string>
   <string name="auto_compress_confirm_title">Подтвердить сжатие?</string>
   <string name="auto_compress_confirm_desc">Сжатие обобщит и сбросит историю текущего диалога. Продолжить?</string>

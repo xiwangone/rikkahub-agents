@@ -1145,10 +1145,10 @@
   <string name="setting_model_page_auto_compress_enable">啟用自動壓縮</string>
   <string name="setting_model_page_auto_compress_mode_percent">百分比模式（基準 × 閾值）</string>
   <string name="setting_model_page_auto_compress_mode_token">Token 消耗模式</string>
-  <string name="setting_model_page_auto_compress_base">基準（M）</string>
+  <string name="setting_model_page_auto_compress_base">基準（K）</string>
   <string name="setting_model_page_auto_compress_m_unit">單位 K：1K = 1,000 token</string>
   <string name="setting_model_page_auto_compress_threshold">觸發閾值（上下文百分比，50-95）</string>
-  <string name="setting_model_page_auto_compress_token_limit">Token 消耗（M）</string>
+  <string name="setting_model_page_auto_compress_token_limit">Token 消耗（K）</string>
   <string name="setting_model_page_auto_compress_token_limit_desc">累計 Token 消耗超過該值即自動壓縮（0 = 不啟用）</string>
   <string name="auto_compress_confirm_title">是否確認壓縮？</string>
   <string name="auto_compress_confirm_desc">壓縮會摘要並重設目前對話的歷史訊息，是否繼續？</string>
