@@ -352,18 +352,19 @@ private object ToolCapabilities {
         val shizukuReady: Boolean,
         val accessibilityReady: Boolean,
         val termuxInstalled: Boolean,
-    )
+    ) {
+        /** 该能力当前是否可用（[ToolCapability.NONE] 恒为真）。 */
+        fun satisfies(capability: ToolCapability): Boolean =
+            when (capability) {
+                ToolCapability.NONE -> true
+                ToolCapability.SHIZUKU -> shizukuReady
+                ToolCapability.ACCESSIBILITY -> accessibilityReady
+                ToolCapability.TERMUX -> termuxInstalled
+            }
+    }
 
     private var cachedAt = 0L
     private var cached = Snapshot(false, false, false)
-
-    fun satisfies(capability: ToolCapability): Boolean =
-        when (capability) {
-            ToolCapability.NONE -> true
-            ToolCapability.SHIZUKU -> shizukuReady
-            ToolCapability.ACCESSIBILITY -> accessibilityReady
-            ToolCapability.TERMUX -> termuxInstalled
-        }
 
 
     fun of(context: Context): Snapshot {
