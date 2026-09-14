@@ -398,6 +398,10 @@ private const val WRAP_UP_GRACE_MS = 120_000L
 // 强制补齐，最终结果与逐次变换一致（设为 0 即恢复逐次处理）。
 private const val OUTPUT_FLUSH_INTERVAL_MS = 200L
 
+// 流式分块的合并窗口：文本 delta 到达频率很高，逐块拼接与投递在长回复下代价是 O(n²)。
+// 窗口内先累积再按序应用，流终止时补齐，最终内容与逐块处理一致（设为 0 即恢复逐块处理）。
+private const val STREAM_APPLY_INTERVAL_MS = 150L
+
 private const val WRAP_UP_PROMPT =
     "TIME BUDGET NOTICE: this turn is about to hit its wall-clock limit. Stop starting new " +
         "tool calls, finish any in-flight work, and give a concise final summary of what was " +
@@ -1411,11 +1415,23 @@ class GenerationLoop(
             val streamChunkHandler = StreamChunkHandler(model)
             val repetitionDetector = OutputRepetitionDetector()
             val streamStartedAtMs = System.currentTimeMillis()
+            // 流式分块累积：每个 delta 都做字符串拼接与全量投递，长回复下是 O(n²)；
+            // 这里按窗口合并后**保序**应用，并在流终止（正常/异常/取消）时补齐最后一批，
+            // 保证最终内容与逐块处理完全一致。
+            val pendingStreamChunks = mutableListOf<StreamChunk>()
+            var lastStreamApplyAtMs = 0L
             providerImpl.streamText(
                 providerSetting = provider,
                 messages = internalMessages,
                 params = params
             ).onCompletion { cause ->
+                // 流终止（正常/异常/取消）：先补齐合并窗口内未应用的分块，
+                // 再走下面的传输失败判定，避免尾部内容丢失
+                if (pendingStreamChunks.isNotEmpty()) {
+                    pendingStreamChunks.forEach { messages = streamChunkHandler.handle(messages, it) }
+                    pendingStreamChunks.clear()
+                    onUpdateMessages(messages)
+                }
                 // Some SSE implementations report an abruptly closed socket through onClosed
                 // without an exception. Treat a clean close with no chunks at all as a transport
                 // failure so the retry policy can recover a background continuation. A clean
@@ -1483,13 +1499,25 @@ class GenerationLoop(
                 } else {
                     true
                 }
-            }.collect {
+            }.collect { chunk ->
                 receivedAnyChunk = true
-                if (isMeaningfulStreamChunk(it)) {
+                if (isMeaningfulStreamChunk(chunk)) {
                     receivedMeaningfulOutput = true
                     clearRetryStatus(processingStatus)
                 }
-                messages = streamChunkHandler.handle(messages, it)
+                pendingStreamChunks += chunk
+                val nowApplyMs = android.os.SystemClock.elapsedRealtime()
+                if (nowApplyMs - lastStreamApplyAtMs >= STREAM_APPLY_INTERVAL_MS) {
+                    lastStreamApplyAtMs = nowApplyMs
+                    pendingStreamChunks.forEach { messages = streamChunkHandler.handle(messages, it) }
+                    pendingStreamChunks.clear()
+                    onUpdateMessages(messages)
+                }
+            }
+            // 正常收尾：补齐最后一批（异常/取消路径由 onCompletion 兜底）
+            if (pendingStreamChunks.isNotEmpty()) {
+                pendingStreamChunks.forEach { messages = streamChunkHandler.handle(messages, it) }
+                pendingStreamChunks.clear()
                 onUpdateMessages(messages)
             }
         } else {
