@@ -277,8 +277,9 @@ fun ChatMessageNerdLine(
                         ?.takeIf { it > 0 }
                         ?.toLong()
                 val windowTokens = configuredWindow ?: reportedWindow
-                val usedRatio =
-                    windowTokens?.let { (ctxTokens.toDouble() / it.toDouble()).coerceIn(0.0, 1.0) }
+                // 真实占比可能大于 1（已超出窗口）；进度条封顶到 1，文字保留真实值
+                val usedRatio = windowTokens?.let { ctxTokens.toDouble() / it.toDouble() }
+                val barRatio = usedRatio?.coerceIn(0.0, 1.0)
                 // 占用分三档，取值来自主题色槽位，随主题与深浅色自适应：
                 // <50% 常规／50~75% 提醒／≥75% 警示。颜色只出现在进度条上，
                 // 文字保持中性色，避免同一信息重复着色。
@@ -298,7 +299,11 @@ fun ChatMessageNerdLine(
                     modifier =
                         Modifier
                             .padding(top = 2.dp)
-                            .clickable { showWindowDialog = true }
+                            .clickable {
+                                // 每次打开都回显当前已保存的值，避免显示上一次未保存的草稿
+                                windowInput = configuredWindow?.let { (it / 1000).toString() } ?: ""
+                                showWindowDialog = true
+                            }
                             .padding(2.dp),
                     contentAlignment = Alignment.Center,
                 ) {
@@ -342,7 +347,7 @@ fun ChatMessageNerdLine(
                                         Box(
                                             modifier =
                                                 Modifier
-                                                    .fillMaxWidth(usedRatio.toFloat())
+                                                    .fillMaxWidth(barRatio?.toFloat() ?: 0f)
                                                     .fillMaxHeight()
                                                     .clip(RoundedCornerShape(2.dp))
                                                     .background(contextColor),
