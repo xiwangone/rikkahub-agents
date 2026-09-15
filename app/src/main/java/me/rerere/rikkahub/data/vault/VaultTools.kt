@@ -704,6 +704,206 @@ fun vaultExportLoadCredsTool(
     },
 )
 
+
+/**
+ * 合并两条凭证：把 [source] 的引用全部指向 [target]，然后删除 [source]。
+ *
+ * 典型场景：同一密钥被重复录入两条（如 `X_TOKEN` 与 `X_TOKEN_1`）。
+ * 先比对**值指纹**（不见值）报告二者是否一致，再统一引用指向并删除多余条目——
+ * 这样既不会留下悬空引用，也不会因为"看起来一样"而误删不同内容。
+ */
+fun vaultCredentialMergeTool(
+    repository: CredentialVaultRepository,
+    settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
+    sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+): Tool = Tool(
+    name = "vault_credential_merge",
+    description =
+        "Merge one credential into another: repoint every configuration reference from `source` " +
+            "to `target`, then delete `source`. Value fingerprints are compared first (values are never " +
+            "returned) so you can report whether the two entries actually hold the same secret. " +
+            "Use to clean up duplicates without leaving dangling references.",
+    parameters = {
+        InputSchema.Obj(
+            properties =
+                buildJsonObject {
+                    put("source", buildJsonObject { put("type", "string"); put("description", "Credential to remove (its references get repointed)") })
+                    put("target", buildJsonObject { put("type", "string"); put("description", "Credential to keep") })
+                },
+            required = listOf("source", "target"),
+        )
+    },
+    execute = { params ->
+        val source = params.jsonObject["source"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val target = params.jsonObject["target"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        if (source.isEmpty() || target.isEmpty()) {
+            return@Tool listOf(UIMessagePart.Text("❌ source 与 target 均必填"))
+        }
+        if (source == target) {
+            return@Tool listOf(UIMessagePart.Text("❌ source 与 target 相同，无需合并"))
+        }
+        val sourceEntry = repository.getByName(source)
+            ?: return@Tool listOf(UIMessagePart.Text("❌ 源凭证不存在: $source"))
+        val targetEntry = repository.getByName(target)
+            ?: return@Tool listOf(UIMessagePart.Text("❌ 目标凭证不存在: $target"))
+
+        // 值指纹比对（不见值）：仅用于提示，是否合并由调用方决定
+        val sourceValue = repository.decryptValue(sourceEntry)
+        val targetValue = repository.decryptValue(targetEntry)
+        val sameValue =
+            sourceValue != null && targetValue != null &&
+                repository.fingerprint(sourceValue) == repository.fingerprint(targetValue)
+
+        val synced =
+            runCatching {
+                VaultReferenceSync.renameEverywhere(
+                    settingsStore = settingsStore,
+                    sshHostRepository = sshHostRepository,
+                    oldName = source,
+                    newName = target,
+                )
+            }.getOrDefault(0)
+
+        repository.delete(sourceEntry)
+        repository.logAccess(source, "ai-tool", "merge_from")
+        repository.logAccess(target, "ai-tool", "merge_into")
+
+        listOf(
+            UIMessagePart.Text(
+                "✅ 已合并：$source → $target\n" +
+                    "值比对：" + if (sameValue) "两者内容一致（指纹相同）" else "⚠ 两者内容**不同**，已按你的指定保留 $target" + "\n" +
+                    "引用同步：已更新 $synced 处配置引用\n" +
+                    "（值不可读写；如需回滚请从 .vault 备份恢复）",
+            ),
+        )
+    },
+)
+
+
+/**
+ * 改名（含**引用同步**）的公共实现——被 update 工具与规范化助手共用。
+ *
+ * 顺序有意为之：先建新名（含原密文）→ 同步引用 → 再删旧名；
+ * 任一步失败都不会让配置指向一个不存在的名字。
+ *
+ * @return 同步更新的配置引用处数
+ */
+suspend fun renameCredentialWithRefs(
+    repository: CredentialVaultRepository,
+    settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
+    sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+    oldName: String,
+    newName: String,
+): Int {
+    val existing = repository.getByName(oldName) ?: return 0
+    val value = repository.decryptValue(existing) ?: return 0
+    repository.save(
+        name = newName,
+        value = value,
+        description = existing.description,
+        group = existing.grp,
+        publicKey = existing.publicKey,
+        type = existing.type,
+    )
+    val synced =
+        runCatching {
+            VaultReferenceSync.renameEverywhere(settingsStore, sshHostRepository, oldName, newName)
+        }.getOrDefault(0)
+    repository.delete(existing)
+    repository.logAccess(oldName, "ai-tool", "rename_from")
+    repository.logAccess(newName, "ai-tool", "rename_to")
+    return synced
+}
+
+/**
+ * 命名规范化：把不符合命名约定的存量名字改成合规形式（并同步引用）。
+ *
+ * 背景：历史数据里常有小写、连字符、空格甚至中文的名字；手工逐条改既慢又容易漏掉引用。
+ * 默认 **dry_run**：先列出"现名 → 建议名"，确认后再执行。
+ */
+fun vaultCredentialNormalizeTool(
+    repository: CredentialVaultRepository,
+    settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
+    sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+): Tool = Tool(
+    name = "vault_credential_normalize_names",
+    description =
+        "Normalize legacy credential names into the required UPPER_SNAKE form (and rewrite references). " +
+            "Defaults to dry_run=true which only LISTS suggested renames; pass dry_run=false to apply. " +
+            "Renames are applied only when the suggested name is free — conflicting ones are reported and skipped. " +
+            "Values are never read out.",
+    parameters = {
+        InputSchema.Obj(
+            properties =
+                buildJsonObject {
+                    put(
+                        "dry_run",
+                        buildJsonObject {
+                            put("type", "boolean")
+                            put("description", "true (default) = only list suggestions; false = apply renames")
+                        },
+                    )
+                },
+        )
+    },
+    execute = { params ->
+        val dryRun = params.jsonObject["dry_run"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true
+        val entries = repository.getAll()
+        val taken = entries.map { it.name }.toMutableSet()
+
+        data class Plan(val old: String, val new: String, val conflict: Boolean)
+        val plans = mutableListOf<Plan>()
+        entries.forEach { entry ->
+            val suggested = CredentialVaultRepository.normalizeName(entry.name)
+            if (suggested != entry.name) {
+                // 目标名是否已被占用（含本轮已分配的建议名）
+                val conflict = suggested in taken
+                plans += Plan(entry.name, suggested, conflict)
+                taken += suggested
+            }
+        }
+
+        if (plans.isEmpty()) {
+            return@Tool listOf(UIMessagePart.Text("✅ 所有凭证名都符合规范，无需调整"))
+        }
+
+        if (dryRun) {
+            val body = buildString {
+                appendLine("将调整 ${plans.size} 条（dry_run，未执行）：")
+                plans.forEach { p ->
+                    appendLine("- ${p.old} → ${p.new}" + if (p.conflict) "  ⚠ 目标名可能已被占用，执行时会跳过" else "")
+                }
+                append("确认后请用 dry_run=false 执行（会自动同步配置引用）。")
+            }
+            return@Tool listOf(UIMessagePart.Text(body))
+        }
+
+        var done = 0
+        var skipped = 0
+        var syncedTotal = 0
+        plans.forEach { p ->
+            if (repository.getByName(p.new) != null) {
+                skipped++
+                return@forEach
+            }
+            val synced = runCatching {
+                renameCredentialWithRefs(repository, settingsStore, sshHostRepository, p.old, p.new)
+            }.getOrDefault(0)
+            if (synced > 0 || repository.getByName(p.new) != null) {
+                done++
+                syncedTotal += synced
+            } else {
+                skipped++
+            }
+        }
+        listOf(
+            UIMessagePart.Text(
+                "✅ 已规范化 $done 条（跳过 $skipped 条）\n引用同步：共更新 $syncedTotal 处配置引用",
+            ),
+        )
+    },
+)
+
 /** 从工作区 load-creds.sh 导入（解析含公钥/描述/分组），供 AI 全流程维护凭证库。 */
 fun vaultImportLoadCredsTool(
     context: android.content.Context,

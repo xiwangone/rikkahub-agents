@@ -47,6 +47,20 @@ object VaultReferenceLocator {
     /** 名字 → 匹配模式（并发安全；条目数有限，无需淘汰）。 */
     private val PATTERN_CACHE = java.util.concurrent.ConcurrentHashMap<String, Regex>()
 
+    /**
+     * 从一段文本中提取所有 `$$名字` 引用（按出现顺序、去重）。
+     *
+     * 用于「反向检查」：配置引用了什么，而不是「某个名字被谁引用」。
+     */
+    fun extractRefs(text: String): List<String> {
+        if (text.isBlank()) return emptyList()
+        return Regex(Regex.escape(PREFIX) + "([A-Za-z0-9_]+)")
+            .findAll(text)
+            .map { it.groupValues[1] }
+            .distinct()
+            .toList()
+    }
+
     /** 取出某提供方配置里可能与凭证有关的字段（拼接后做匹配）。 */
     fun providerSecrets(provider: ProviderSetting): String = when (provider) {
         is ProviderSetting.OpenAI -> provider.apiKey
@@ -56,6 +70,77 @@ object VaultReferenceLocator {
         else -> ""
     }
 }
+
+
+/**
+ * 检查配置里的**失效引用**：引用了不存在的凭证名。
+ *
+ * 为什么需要：引用写错、或凭证被删/改名之后，配置不会立刻报错，而是等到真正使用时
+ * 才以 401 / 连接失败的形式出现 —— 排查成本高。本工具把这类问题提前暴露。
+ *
+ * 只读：不返回值，也不改配置。
+ */
+fun vaultDanglingRefsTool(
+    repository: CredentialVaultRepository,
+    settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
+    sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+): Tool = Tool(
+    name = "vault_dangling_refs",
+    description =
+        "List configurations that reference a credential name which does NOT exist in the vault " +
+            "(dangling references). These otherwise surface much later as confusing 401 / connection errors. " +
+            "Read-only: reports locations and missing names, never values.",
+    parameters = { InputSchema.Obj(properties = buildJsonObject {}, required = emptyList()) },
+    execute = { _ ->
+        val known = repository.getAll().map { it.name }.toSet()
+        val settings = settingsStore.settingsFlow.first()
+        val issues = mutableListOf<String>()
+
+        fun checkText(location: String, text: String) {
+            VaultReferenceLocator.extractRefs(text)
+                .filter { it !in known }
+                .forEach { issues += location + " → " + "\$\$" + it + "（库中不存在）" }
+        }
+        fun checkName(location: String, name: String) {
+            if (name.isNotBlank() && name !in known) {
+                issues += location + " → " + name + "（库中不存在）"
+            }
+        }
+
+        settings.providers.forEach { p ->
+            checkText("模型提供方：" + p.name, VaultReferenceLocator.providerSecrets(p))
+        }
+        settings.mcpServers.forEach { m ->
+            checkText(
+                "MCP 服务器：" + m.commonOptions.name.ifBlank { m.id.toString().take(8) },
+                m.commonOptions.headers.joinToString(" ") { it.second },
+            )
+        }
+        (listOf(settings.s3Config) + settings.s3Configs).distinctBy { it.id }
+            .forEach { checkText("S3 备份：" + it.name.ifBlank { it.id.take(8) }, it.secretAccessKey) }
+        (listOf(settings.webDavConfig) + settings.webDavConfigs).distinctBy { it.id }
+            .forEach { checkText("WebDAV 备份：" + it.name.ifBlank { it.id.take(8) }, it.password) }
+        settings.localMcpProfiles.forEach {
+            checkName("本地 MCP：" + it.name.ifBlank { it.id }, it.authTokenRef.trim())
+        }
+        checkName("Web 桥", settings.webBridgeCredentialRef.trim())
+        sshHostRepository.getAll().forEach {
+            checkName("SSH 主机：" + it.name, it.vaultCredentialRef?.trim().orEmpty())
+        }
+
+        val body =
+            if (issues.isEmpty()) {
+                "✅ 未发现失效引用（配置里的凭证引用都能在库中找到）"
+            } else {
+                buildString {
+                    appendLine("⚠ 发现 " + issues.size + " 处失效引用：")
+                    issues.forEach { appendLine("- " + it) }
+                    append("请修正配置或补建对应凭证；改名前可用 vault_credential_refs 预检。")
+                }
+            }
+        listOf(UIMessagePart.Text(body))
+    },
+)
 
 /** 查出某凭证被哪些配置引用（只读；不含任何值）。 */
 fun vaultCredentialRefsTool(
