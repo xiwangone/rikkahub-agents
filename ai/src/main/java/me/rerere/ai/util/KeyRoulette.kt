@@ -25,11 +25,42 @@ interface KeyRoulette {
 
 private val SPLIT_KEY_REGEX = "[\\s,]+".toRegex() // 空格换行和逗号
 
+/**
+ * provider 密钥「引用解析」钩子。
+ *
+ * provider 的 apiKey 允许写成 `$$凭证名`，由上层注入的解析器替换为真实值，
+ * 使密钥不必以明文散落在配置里。
+ *
+ * - **未注入解析器时原样返回**，行为与从前完全一致（零风险）。
+ * - 所有 provider 取 key 都经 [splitKey]，因此只需在该处解析即可全覆盖。
+ * - 引用未命中（名字不存在/上层未提供）时**保留原样**，让配置错误显式暴露，
+ *   而不是静默换成空值造成难排查的失败。
+ *
+ * 注意：`$$` 不是 shell 变量语法的一部分，仅在本层解析；解析结果不会写回配置。
+ */
+object ProviderKeyRefs {
+    /** 引用前缀。 */
+    const val PREFIX = "$$"
+
+    /** 解析器：引用名 → 真实值；返回 null 表示未命中。 */
+    @Volatile
+    var resolve: ((String) -> String?)? = null
+
+    /** 展开单个 token；非引用或未命中原样返回。 */
+    fun expand(token: String): String {
+        if (!token.startsWith(PREFIX)) return token
+        val fn = resolve ?: return token
+        return fn(token.removePrefix(PREFIX)) ?: token
+    }
+}
+
 private fun splitKey(key: String): List<String> {
     return key
         .split(SPLIT_KEY_REGEX)
         .map { it.trim() }
         .filter { it.isNotBlank() }
+        // 引用展开（`$$名` → 真实值）：未注入解析器时原样通过
+        .map { ProviderKeyRefs.expand(it) }
         .distinct()
 }
 

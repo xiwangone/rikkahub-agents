@@ -62,6 +62,8 @@ class CredentialVaultRepository(
             upsertEntry(name, value, description, group, publicKey, type = type)
         }
         logAccess(name, "repository", if (existing != null) "save_update" else "save_create")
+        // provider 可能以 `$$名字` 引用本条目：值变化要反映到解析缓存，否则仍在用旧值
+        runCatching { VaultProviderKeyRefs.refresh(this) }
     }
 
     /** 批量导入（解析结果 → 逐条 upsert，返回导入条数）。 */
@@ -92,6 +94,8 @@ class CredentialVaultRepository(
             }
             imported++
         }
+        // 批量导入后同样刷新（provider 引用可能指向新导入的条目）
+        runCatching { VaultProviderKeyRefs.refresh(this) }
         return imported
     }
 
@@ -174,6 +178,8 @@ class CredentialVaultRepository(
     suspend fun delete(entry: VaultCredentialEntity) {
         logAccess(entry.name, "repository", "delete")
         dao.delete(entry)
+        // provider 可能以 `$$名字` 引用本条目：值变化要反映到解析缓存，否则仍在用旧值
+        runCatching { VaultProviderKeyRefs.refresh(this) }
     }
 
     suspend fun clearAll() = dao.clearAll()

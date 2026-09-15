@@ -184,6 +184,16 @@ class RikkaHubApp : Application() {
             }.onFailure { Log.w("RikkaHubApp", "vault type backfill failed", it) }
         }
 
+        // provider 密钥引用（`$$凭证名`）：启动时把库内容接入解析钩子，
+        // 之后由仓库在凭证变更时刷新。未配置引用时无额外开销。
+        get<AppScope>().launch(Dispatchers.IO) {
+            runCatching {
+                val cached = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
+                    .refresh(get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>())
+                Log.i("RikkaHubApp", "vault provider key refs cached: $cached")
+            }.onFailure { Log.w("RikkaHubApp", "vault provider key refs refresh failed", it) }
+        }
+
         // Increment launch count
         incrementLaunchCount()
 
