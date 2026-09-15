@@ -114,7 +114,7 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-configuration-cache --no-daemon \
             -I .github/scripts/export-runtime-deps.gradle \
-            exportRuntimeDeps -Ddeps.out="$PWD/runtime-deps.json"
+            help -Ddeps.out="$PWD/runtime-deps.json"
           python3 -c "import json;d=json.load(open('runtime-deps.json'));print('组件数:',len(d['components']))"
 
       - name: 扫描已知漏洞
