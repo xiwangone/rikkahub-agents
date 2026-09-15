@@ -8,6 +8,9 @@ import me.rerere.rikkahub.data.model.replaceRegexes
 import org.koin.core.component.KoinComponent
 
 object RegexOutputTransformer : OutputMessageTransformer, KoinComponent {
+    // 逐条独立替换，不依赖同批次其他消息，也不改变消息条数
+    override val supportsIncremental: Boolean get() = true
+
     override suspend fun visualTransform(
         ctx: TransformerContext,
         messages: List<UIMessage>,

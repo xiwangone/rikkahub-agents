@@ -61,7 +61,9 @@ import java.io.File
 import java.io.IOException
 import me.rerere.rikkahub.data.ai.transformers.onGenerationFinish
 import me.rerere.rikkahub.data.ai.transformers.transforms
+import me.rerere.rikkahub.data.ai.transformers.OutputTransformCache
 import me.rerere.rikkahub.data.ai.transformers.visualTransforms
+import me.rerere.rikkahub.data.ai.transformers.visualTransformsIncremental
 import me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
@@ -629,8 +631,12 @@ class GenerationLoop(
         // 由 step 边界 / 生成结束补齐；任何"直接投递"点都会把它清空，避免旧快照回退内容。
         var lastOutputFlushAtMs = 0L
         var pendingOutputMessages: List<UIMessage>? = null
+        // 增量输出变换缓存（见 visualTransformsIncremental）：按 step 隔离，
+        // 历史消息段复用上次结果，单块成本从 O(消息数) 降到 O(1)。
+        val outputTransformCache = OutputTransformCache()
 
         for (stepIndex in 0 until maxSteps) {
+            outputTransformCache.clear()
             // Wall-clock cap: any single user turn that has been running longer than the
             // budget is force-ended, regardless of whether the model wants more steps.
             // This is the second line of defence after maxSteps; without it a model that
@@ -674,8 +680,9 @@ class GenerationLoop(
                 )
                 emit(
                     GenerationChunk.Messages(
-                        messages.visualTransforms(
+                        messages.visualTransformsIncremental(
                             transformers = outputTransformers,
+                            cache = outputTransformCache,
                             context = context,
                             model = model,
                             assistant = assistant,
@@ -734,8 +741,9 @@ class GenerationLoop(
                                 )
                                 emit(
                                     GenerationChunk.Messages(
-                                        messages.visualTransforms(
+                                        messages.visualTransformsIncremental(
                                             transformers = outputTransformers,
+                                            cache = outputTransformCache,
                                             context = context,
                                             model = model,
                                             assistant = assistant,
@@ -792,8 +800,9 @@ class GenerationLoop(
                     }
                     throw t
                 }
-                messages = messages.visualTransforms(
+                messages = messages.visualTransformsIncremental(
                     transformers = outputTransformers,
+                    cache = outputTransformCache,
                     context = context,
                     model = model,
                     assistant = assistant,
@@ -1272,8 +1281,9 @@ class GenerationLoop(
             )
             emit(
                 GenerationChunk.Messages(
-                    messages.visualTransforms(
+                    messages.visualTransformsIncremental(
                         transformers = outputTransformers,
+                        cache = outputTransformCache,
                         context = context,
                         model = model,
                         assistant = assistant,

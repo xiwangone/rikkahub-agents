@@ -12,6 +12,9 @@ private val THINKING_REGEX = Regex("\\A\\s*<think>([\\s\\S]*?)(</think>|$)")
 
 // 部分供应商不会返回reasoning parts, 所以需要这个transformer
 object ThinkTagTransformer : OutputMessageTransformer {
+    // 只读单条助手消息自身的 parts，不依赖同批次其他消息，也不改变消息条数
+    override val supportsIncremental: Boolean get() = true
+
     override suspend fun visualTransform(
         ctx: TransformerContext,
         messages: List<UIMessage>,
