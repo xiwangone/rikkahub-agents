@@ -422,12 +422,16 @@ internal fun String.ensureTrailingNewline(): String = if (endsWith("\n")) this e
 fun vaultCredentialUpdateTool(
     context: android.content.Context,
     repository: CredentialVaultRepository,
+    settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
+    sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
 ): Tool = Tool(
     name = "vault_credential_update",
     description =
         "Update a credential entry's metadata (rename / change description / change group). " +
             "The secret VALUE is never readable or writable by the AI — this tool only touches " +
-            "name/description/group fields. Rename copies the existing encrypted value to the new name. " +
+            "name/description/group fields. Rename copies the existing encrypted value to the new name, " +
+            "and also rewrites references to the old name across configurations (providers / MCP headers / " +
+            "S3 / WebDAV / local MCP token / web bridge / saved SSH hosts) so they do not break silently. " +
             "Pass only the fields you want to change; omitted fields stay unchanged.",
     parameters = {
         InputSchema.Obj(
@@ -484,16 +488,34 @@ fun vaultCredentialUpdateTool(
                             group = group ?: existing.grp,
                             publicKey = newPub ?: existing.publicKey,
                         )
+                        var syncedRefs = 0
                         if (targetName != name) {
                             repository.delete(existing)
                             repository.logAccess(name, "ai-tool", "rename_from")
                             repository.logAccess(targetName, "ai-tool", "rename_to")
+                            // 改名同时同步配置里的引用；否则按名字引用的地方会静默失效
+                            syncedRefs =
+                                runCatching {
+                                    VaultReferenceSync.renameEverywhere(
+                                        settingsStore = settingsStore,
+                                        sshHostRepository = sshHostRepository,
+                                        oldName = name,
+                                        newName = targetName,
+                                    )
+                                }.getOrDefault(0)
                         } else {
                             repository.logAccess(name, "ai-tool", "update")
                         }
                         listOf(
                             UIMessagePart.Text(
-                                "✅ 已更新凭证元数据：${targetName}\n变更：${changed.joinToString("；")}\n（值未改动，AI 不可读写密钥值）",
+                                "✅ 已更新凭证元数据：${targetName}\n变更：${changed.joinToString("；")}\n"
+                                    + if (targetName != name) {
+                                        "引用同步：已更新 $syncedRefs 处配置引用" +
+                                            if (syncedRefs == 0) "（没有任何配置引用旧名）" else ""
+                                    } else {
+                                        ""
+                                    }
+                                    + "\n（值未改动，AI 不可读写密钥值）",
                             ),
                         )
                     }
