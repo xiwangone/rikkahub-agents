@@ -9,6 +9,9 @@ import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.vault.CredentialPurpose
+import me.rerere.rikkahub.data.vault.CredentialResolution
+import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 
 data class LocalMcpServerState(
@@ -140,7 +143,9 @@ class LocalMcpServerManager(
             } else {
                 {
                     runCatching {
-                        vaultRepository.getByName(tokenRef)?.let { vaultRepository.decryptValue(it) }
+                        val r = CredentialResolver(vaultRepository)
+                            .resolve(tokenRef, CredentialPurpose.MCP_AUTH, caller = "mcp")
+                        (r as? CredentialResolution.Granted)?.value
                     }.getOrNull()
                 }
             }

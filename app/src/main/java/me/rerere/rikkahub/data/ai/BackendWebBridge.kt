@@ -16,6 +16,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.CredentialPurpose
+import me.rerere.rikkahub.data.vault.CredentialResolution
+import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.service.WebServerService
 
 /**
@@ -111,8 +114,11 @@ class BackendWebBridge(
             var vaultPrivateKey: ByteArray? = null
             var vaultPassword: String? = null
             if (credentialRef.isNotBlank()) {
-                val entry = try { vaultRepository.getByName(credentialRef) } catch (e: Exception) { null }
-                val value = if (entry == null) null else (try { vaultRepository.decryptValue(entry) } catch (e: Exception) { null })
+                val value = try {
+                    (CredentialResolver(vaultRepository)
+                        .resolve(credentialRef, CredentialPurpose.WEB_BRIDGE, caller = "web-bridge")
+                        as? CredentialResolution.Granted)?.value
+                } catch (e: Exception) { null }
                 if (value.isNullOrBlank()) {
                     AppLog.e(TAG, "Vault credential unavailable: $credentialRef")
                     _state.value = _state.value.copy(message = context.getString(R.string.web_bridge_credential_missing, credentialRef))

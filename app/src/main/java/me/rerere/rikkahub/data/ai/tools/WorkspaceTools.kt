@@ -14,6 +14,9 @@ import me.rerere.ai.ui.DiffMetadata
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.toMetadata
 import me.rerere.rikkahub.data.files.FilesManager
+import me.rerere.rikkahub.data.vault.CredentialPurpose
+import me.rerere.rikkahub.data.vault.CredentialResolution
+import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.utils.generateUnifiedDiff
 import me.rerere.workspace.WorkspaceCommandResult
@@ -300,25 +303,20 @@ private fun createShellTool(
                 runCatching { getKoin().get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>() }.getOrNull()
                     ?: return@Tool listOf(UIMessagePart.Text("❌ env 注入失败：凭证库不可用"))
             val context = runCatching { getKoin().get<android.content.Context>() }.getOrNull()
-            val sessionManager = context?.let { me.rerere.rikkahub.data.vault.VaultSessionManager(it) }
-            val authorized = sessionManager?.hasActiveAuthorization() == true
-            if (!authorized) {
-                return@Tool listOf(UIMessagePart.Text("❌ env 注入需要 Vault 授权：请先在会话中完成 Vault 授权（30 分钟或一直有效）"))
+            // 单点解析器统一处理：会话授权 / 存在性 / 解密 / 审计（成功与拒绝都记）
+            val resolver = CredentialResolver(vaultRepository) {
+                context?.let { me.rerere.rikkahub.data.vault.VaultSessionManager(it) }
+                    ?.hasActiveAuthorization() == true
             }
             val resolved = mutableMapOf<String, String>()
             for ((envName, credNameJson) in envObj) {
                 val credName = credNameJson.jsonPrimitive.contentOrNull
                 if (credName.isNullOrBlank()) continue
-                val entry = vaultRepository.getByName(credName)
-                if (entry == null) {
-                    return@Tool listOf(UIMessagePart.Text("❌ env 注入失败：凭证不存在: $credName（用 vault_credential_names 查看可用名称）"))
+                val r = resolver.resolve(credName, CredentialPurpose.ENV_INJECT, caller = "ai-tool")
+                if (r !is CredentialResolution.Granted) {
+                    return@Tool listOf(UIMessagePart.Text("❌ env 注入失败：${r.message}"))
                 }
-                val value = vaultRepository.decryptValue(entry)
-                if (value == null) {
-                    return@Tool listOf(UIMessagePart.Text("❌ env 注入失败：凭证解密失败: $credName"))
-                }
-                resolved[envName] = value
-                vaultRepository.logAccess(credName, "ai-tool", "env_inject")
+                resolved[envName] = r.value
             }
             injectedEnv = resolved
         }

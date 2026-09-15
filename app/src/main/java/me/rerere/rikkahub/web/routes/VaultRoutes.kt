@@ -36,6 +36,8 @@ fun Route.vaultRoutes(
             val request = call.receive<DecryptRequest>()
             val token = request.token
             if (token.isBlank() || !sessionManager.verifyToken(token, VaultSessionManager.SCOPE_DECRYPT)) {
+                // 未授权尝试本身是入侵信号：留痕（名称可能为空/伪造，审计有容量上限兜底）
+                repository.logAccess(request.name.ifBlank { "(unnamed)" }, "remote-api", "decrypt_denied")
                 throw UnauthorizedException("Invalid or expired vault session token")
             }
             val entry = repository.getByName(request.name)
@@ -54,6 +56,8 @@ fun Route.vaultRoutes(
         post("/resolve") {
             val request = call.receive<ResolveRequest>()
             if (request.token.isBlank() || !sessionManager.verifyToken(request.token, VaultSessionManager.SCOPE_DECRYPT)) {
+                // 同上：批量端点的未授权尝试也留痕
+                repository.logAccess("(batch)", "remote-api", "resolve_denied")
                 throw UnauthorizedException("Invalid or expired vault session token")
             }
             if (request.names.isEmpty()) {

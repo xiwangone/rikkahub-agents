@@ -248,13 +248,13 @@ private suspend fun runVaultExportEnv(
 
     val lines = mutableListOf("#!/bin/bash", "# vault-env — vault_export_env 生成，用完请删除: rm /workspace/tmp/vault-env.sh")
     val exported = mutableListOf<String>()
+    val resolver = CredentialResolver(repository)
     for (entry in selected) {
-        val value = runCatching { repository.decryptValue(entry) }.getOrNull()
-        if (value != null) {
-            lines += "export ${entry.name}=${shellSingleQuote(value)}"
+        val r = resolver.resolve(entry.name, CredentialPurpose.EXPORT, caller = "ai-tool")
+        if (r is CredentialResolution.Granted) {
+            lines += "export ${entry.name}=${shellSingleQuote(r.value)}"
             exported += entry.name
         }
-        repository.logAccess(entry.name, "ai-tool", "export_env")
     }
     if (exported.isEmpty()) return fail("解密失败，未导出任何凭证")
 
@@ -329,9 +329,8 @@ private suspend fun runVaultSshExec(
     val command = o["command"]?.jsonPrimitive?.contentOrNull ?: return fail("command 必填")
     val timeout = (o["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(5, 300)
 
-    val entry = repository.getByName(credName) ?: return fail("凭证不存在: $credName（用 vault_credential_names 查看可用名称）")
-    val secret = repository.decryptValue(entry) ?: return fail("凭证解密失败: $credName")
-    repository.logAccess(credName, "ai-tool", "ssh_exec")
+    val resolved = CredentialResolver(repository).resolve(credName, CredentialPurpose.SSH_AUTH, caller = "ai-tool")
+    val secret = (resolved as? CredentialResolution.Granted)?.value ?: return fail(resolved.message)
 
     return try {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {

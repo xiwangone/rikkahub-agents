@@ -18,6 +18,9 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.repository.SshHostRepository
+import me.rerere.rikkahub.data.vault.CredentialPurpose
+import me.rerere.rikkahub.data.vault.CredentialResolution
+import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 
 /**
@@ -90,8 +93,10 @@ internal suspend fun resolveHostAuth(
     vaultRepository: CredentialVaultRepository,
 ): SshAuth? {
     if (h.vaultCredentialRef != null) {
-        val entry = vaultRepository.getByName(h.vaultCredentialRef)
-        val secret = entry?.let { vaultRepository.decryptValue(it) }
+        // 连接前探测：audit = false，避免候选主机探测写满审计
+        val r = CredentialResolver(vaultRepository)
+            .resolve(h.vaultCredentialRef, CredentialPurpose.SSH_AUTH, caller = "ssh", audit = false)
+        val secret = (r as? CredentialResolution.Granted)?.value
         if (secret != null) {
             // OPENSSH 私钥末尾换行标准化（缺换行 Auth fail）——统一在此容错，覆盖所有走 resolveHostAuth 的连接
             return SshAuth(password = null, privateKey = secret.ensureTrailingNewline(), passphrase = h.passphrase)
@@ -501,7 +506,6 @@ fun vaultDeployKeyTool(
         }
         val h = repo.getByName(hostName) ?: return@Tool fail("no saved host: $hostName")
         val targetUser = remoteUser ?: h.user
-        vaultRepository.logAccess(credName, "ai-tool", "deploy_key")
 
         // 2. 用 host 自身凭证连接，幂等追加公钥 + 收紧权限
         val deployCmd =
@@ -529,7 +533,8 @@ fun vaultDeployKeyTool(
 
         // 3. 验证：用刚部署的公钥（私钥在 vault）试连执行 whoami
         val verify = kotlinx.coroutines.runBlocking {
-            val secret = vaultRepository.decryptValue(entry)
+            val secret = (CredentialResolver(vaultRepository)
+                .resolve(credName, CredentialPurpose.SSH_DEPLOY_KEY, caller = "ai-tool") as? CredentialResolution.Granted)?.value
             val auth = if (secret != null) SshAuth(password = null, privateKey = secret.ensureTrailingNewline(), passphrase = null)
                 else return@runBlocking buildJsonObject { put("error", "credential decrypt failed") }
             val jsch = newJSch(context)

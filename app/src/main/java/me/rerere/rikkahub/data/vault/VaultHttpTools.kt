@@ -256,9 +256,9 @@ private suspend fun runVaultHttpExec(
         }.toMap()
     }.getOrElse { return fail("extra_headers 必须是合法 JSON 对象") }
 
-    val entry = repository.getByName(credName) ?: return fail("凭证不存在: $credName（用 vault_credential_names 查看可用名称）")
-    val secret = repository.decryptValue(entry) ?: return fail("凭证解密失败: $credName")
-    repository.logAccess(credName, "ai-tool", "http_exec")
+    // 取值统一走单点解析器：存在性 / 解密 / 审计一处实现，失败文案一致
+    val resolved = CredentialResolver(repository).resolve(credName, CredentialPurpose.HTTP_HEADER, caller = "ai-tool")
+    val secret = (resolved as? CredentialResolution.Granted)?.value ?: return fail(resolved.message)
 
     return try {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
