@@ -5,6 +5,7 @@ import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Model
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.ai.mcp.buildMcpToolName
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.log.AppLog
@@ -104,10 +105,9 @@ class ChatToolFactory(
             throw InvalidMcpServerNamesException(invalidNames)
         }
         mcpTools.forEach { (serverId, serverName, tool) ->
-            // 用服务器 id 前 8 位十六进制做命名空间，避免两个服务器同名工具相互覆盖；
-            // 保留 `mcp__` 前缀（HardlineCommandGuard 与 ToolApprovalDefaults 均按此前缀分支）。
-            val serverSlug = serverId.toString().take(8).replace("-", "")
-            val mcpToolName = "mcp__" + serverSlug + "_" + serverName + "__" + tool.name
+            // 统一走 McpManager.buildMcpToolName：名字必须与 mcp_list_tools 显示给模型的一致，
+            // 否则出现「列出来的名字调不动」。该函数同时负责归一化与长度上限。
+            val mcpToolName = buildMcpToolName(serverId, serverName, tool.name)
             add(
                 Tool(
                     name = mcpToolName,

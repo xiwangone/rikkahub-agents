@@ -949,5 +949,29 @@ private fun ToolSchema.toSchema(): InputSchema {
  */
 fun buildMcpToolName(serverId: Uuid, serverName: String, toolName: String): String {
     val serverSlug = serverId.toString().take(8).replace("-", "")
-    return "mcp__" + serverSlug + "_" + serverName + "__" + toolName
+    val head = "mcp__" + serverSlug
+    val namePart = sanitizeMcpNamePart(serverName)
+    val toolPart = sanitizeMcpNamePart(toolName)
+    // 预算 = 总长上限 - 固定前缀 - 分隔符（"_" + "__"）
+    val budget = MCP_TOOL_NAME_MAX_LENGTH - head.length - 3
+    if (budget <= 1) return head.take(MCP_TOOL_NAME_MAX_LENGTH)
+    val nameKept = if (namePart.length <= budget / 2) namePart else namePart.take(budget / 2)
+    val toolKept = toolPart.take((budget - nameKept.length).coerceAtLeast(1))
+    return head + "_" + nameKept + "__" + toolKept
 }
+
+/** 模型提供方对工具/函数名的长度硬上限（超出会被 API 直接拒绝）。 */
+internal const val MCP_TOOL_NAME_MAX_LENGTH = 64
+
+/**
+ * 模型提供方对工具/函数名的硬限制是 `^[a-zA-Z0-9_-]{1,64}$`（MCP 规范另允许 `.`，但多数
+ * provider 会直接拒绝带 `.` 的名字，报 "String should match pattern"）。
+ * 服务器名与工具名由用户自由填写，可能含空格、点、斜杠或中文 —— 直接拼进工具名会被模型 API
+ * 拒绝，表现为「MCP 装了但模型调不动」。这里统一归一化：非 ASCII 字母数字与 `_`/`-` 的字符
+ * 一律替换为 `_`，两侧下划线裁掉，空则退化为 `x`。保持纯函数与确定性（同样的输入 → 同样的名字）。
+ */
+internal fun sanitizeMcpNamePart(raw: String): String =
+    raw.map { c -> if (c.code < 128 && (c.isLetterOrDigit() || c == '_' || c == '-')) c else '_' }
+        .joinToString("")
+        .trim('_')
+        .ifBlank { "x" }
