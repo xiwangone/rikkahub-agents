@@ -66,7 +66,8 @@ fun ChatMessageNerdLine(
     color: Color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
     sessionTotals: TokenBudgetTracker.Totals? = null,
 ) {
-    val settings = LocalSettings.current.displaySetting
+    val appSettings = LocalSettings.current
+    val settings = appSettings.displaySetting
 
     @Suppress("DEPRECATION") // 与项目现有 LocalClipboardManager 用法保持一致
     val clipboardManager = LocalClipboardManager.current
@@ -259,7 +260,16 @@ fun ChatMessageNerdLine(
             val contextUsage = message.usage
             if (settings.showTokenUsage && contextUsage != null && contextUsage.promptTokens > 0) {
                 val ctxTokens = contextUsage.promptTokens.toLong()
-                val windowTokens = LocalSettings.current.autoCompressTokenBase.takeIf { it > 0 }
+                // 窗口优先取模型上报的上下文长度；模型未提供时才回落到用户设置的值。
+                // 两者都没有时只显示占用值，不显示占比。
+                val windowTokens =
+                    appSettings.providers
+                        .flatMap { it.models }
+                        .firstOrNull { it.id == message.modelId }
+                        ?.contextLength
+                        ?.takeIf { it > 0 }
+                        ?.toLong()
+                        ?: appSettings.autoCompressTokenBase.takeIf { it > 0 }
                 val usedRatio = windowTokens?.let { ctxTokens.toDouble() / it.toDouble() }
                 // 红黄绿三档（阈值提前，便于尽早察觉）：<50% 绿／50~75% 黄／≥75% 红
                 val contextColor = when {
