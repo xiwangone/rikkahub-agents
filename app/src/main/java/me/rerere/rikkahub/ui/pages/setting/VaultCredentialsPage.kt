@@ -49,6 +49,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.data.vault.VaultBiometric
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -185,16 +186,16 @@ fun VaultCredentialsPage() {
             mode = mode,
             existingGroups = (entries.map { it.grp } + "Other").distinct().sorted(),
             onDismiss = { showEditor = null },
-            onSave = { oldName, name, value, description, group, publicKey ->
+            onSave = { oldName, name, value, description, group, publicKey, type ->
                 scope.launch {
                     if (oldName != null && oldName != name) {
                         // 编辑模式改名：先删旧条目再按新名保存（值来自解密后的编辑框，留空=丢弃旧值需确认）
                         repository.delete(repository.getByName(oldName) ?: return@launch)
                         repository.logAccess(oldName, "manual", "rename_from")
-                        repository.save(name, value, description, group, publicKey)
+                        repository.save(name, value, description, group, publicKey, type = type)
                         repository.logAccess(name, "manual", "rename_to")
                     } else {
-                        repository.save(name, value, description, group, publicKey)
+                        repository.save(name, value, description, group, publicKey, type = type)
                     }
                     showEditor = null
                     refresh()
@@ -354,7 +355,7 @@ private fun CredentialEditorDialog(
     mode: EditorMode,
     existingGroups: List<String>,
     onDismiss: () -> Unit,
-    onSave: (oldName: String?, name: String, value: String, description: String, group: String, publicKey: String) -> Unit,
+    onSave: (oldName: String?, name: String, value: String, description: String, group: String, publicKey: String, type: String) -> Unit,
 ) {
     val repository: CredentialVaultRepository = koinInject()
     var name by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.name ?: (mode as? EditorMode.Create)?.initialName ?: "") }
@@ -362,6 +363,7 @@ private fun CredentialEditorDialog(
     var description by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.description ?: "") }
     var publicKey by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.publicKey ?: "") }
     var group by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.grp ?: "Other") }
+    var type by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.type ?: "") }
     var showGroupInput by remember { mutableStateOf(false) }
     var nameError by remember { mutableStateOf(false) }
     var valueError by remember { mutableStateOf(false) }
@@ -411,6 +413,15 @@ private fun CredentialEditorDialog(
                     singleLine = false,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // 凭据类型：用语言中立的标识（与通用交换格式对齐），不进翻译资源。
+                // "auto" = 保存时按名称与结构自动判断，避免要求用户先做分类。
+                Select(
+                    options = listOf("auto") + CredentialType.KNOWN.toList(),
+                    selectedOption = type.ifEmpty { "auto" },
+                    onOptionSelected = { type = if (it == "auto") "" else it },
+                    optionToString = { it },
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 if (showGroupInput) {
                     OutlinedTextField(
                         value = group,
@@ -446,7 +457,7 @@ private fun CredentialEditorDialog(
             if (!isEdit && value.isBlank()) { valueError = true; return@Button }
             // 编辑模式：value 留空 = 保留原值（在 onSave 里处理）；改名传旧名
             val oldName = (mode as? EditorMode.Edit)?.entry?.name
-            onSave(oldName, name, value, description, group, publicKey)
+            onSave(oldName, name, value, description, group, publicKey, type)
         },
             ) { Text(stringResource(R.string.vault_save)) }
         },
