@@ -25,7 +25,8 @@ object VaultReferenceSync {
      * 用负向前瞻限定 token 边界，避免把 `$$OLD_SUFFIX` 这类更长名字误改。
      */
     fun renameInText(text: String, oldName: String, newName: String): String {
-        if (text.isBlank() || oldName.isBlank() || oldName == newName) return text
+        // 空的新名会把 `$$OLD` 替换成 `$$`（无效引用，反而破坏配置）→ 防御性拒绝，保持原样
+        if (text.isBlank() || oldName.isBlank() || newName.isBlank() || oldName == newName) return text
         val pattern = Regex(Regex.escape(PREFIX + oldName) + "(?![A-Za-z0-9_])")
         // 注意：正则**替换串**里的 `$` 是特殊字符（`$1` = 分组引用），
         // 因此替换文本必须转义，否则 `$$NEW` 会被当作分组引用解析，替换结果错误。
