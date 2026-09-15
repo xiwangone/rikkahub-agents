@@ -1548,6 +1548,18 @@ class ChatService(
             }
         }
 
+        val fallback = titleFallbackFrom(conversation.currentMessages)
+
+        suspend fun applyTitle(title: String?) {
+            if (title.isNullOrBlank()) return
+            // 生成完，conversation可能不是最新了，因此需要重新获取
+            conversationRepo.getConversationById(conversation.id)?.let {
+                if (shouldWriteTitle(force, it.title)) {
+                    saveConversation(conversationId, it.copy(title = title))
+                }
+            }
+        }
+
         runCatching {
             val settings = settingsStore.settingsFlow.first()
             val model = settings.findModelById(settings.titleModelId, fallback = settings.fastModelId)
