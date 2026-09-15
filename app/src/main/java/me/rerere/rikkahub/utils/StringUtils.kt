@@ -48,10 +48,20 @@ fun Long.fileSizeToString(): String {
     return "%.${precision}f %s".format(value, units[unitIndex])
 }
 
-/** 以 K 为单位展示 token 数（1K = 1,000），用于需要统一口径的展示位。 */
+/**
+ * 以 K / M 展示 token 数（1K = 1,000，1M = 1,000,000）。
+ *
+ * 达到 100 万后进位到 M，避免出现 `1810K` 这类还要心算的数值；未达到时仍按 K 展示，
+ * 与既有口径保持一致。整数不补小数位，非整数保留一位（如 `1.8M`、`174K`）。
+ */
 fun Long.formatK(): String {
-    val k = this / 1000.0
-    return if (k == k.toLong().toDouble()) "${k.toLong()}K" else String.format(java.util.Locale.US, "%.1fK", k)
+    val (divisor, suffix) = if (this >= 1_000_000L) 1_000_000.0 to "M" else 1_000.0 to "K"
+    val value = this / divisor
+    return if (value == value.toLong().toDouble()) {
+        "${value.toLong()}$suffix"
+    } else {
+        String.format(java.util.Locale.US, "%.1f%s", value, suffix)
+    }
 }
 
 fun Int.formatNumber(): String {

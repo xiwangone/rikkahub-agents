@@ -2401,10 +2401,10 @@
   <string name="stats_copy_total">Copy total stats</string>
   <string name="stats_copy">Copy stats</string>
   <string name="stats_format">Total ↑%1$s in · cached %2$s ↓%3$s out</string>
-  <string name="chat_nerd_context_window">Context %1$s / %2$s · %3$s left</string>
-  <string name="chat_nerd_context_only">Context %1$s</string>
-  <string name="chat_context_window_title">Context window size</string>
-  <string name="chat_context_window_hint">Size in K tokens (e.g. 200 = 200K)</string>
+  <string name="chat_nerd_context_window">Context usage %1$s / %2$s · %3$s left</string>
+  <string name="chat_nerd_context_only">Context usage %1$s</string>
+  <string name="chat_context_window_title">Auto-compress threshold</string>
+  <string name="chat_context_window_hint">In K tokens (e.g. 200 = 200K). Auto-compress starts above this.</string>
   <string name="doctor_category_permissions">Permissions</string>
   <string name="doctor_category_services">Background services</string>
   <string name="doctor_category_assistant_info">Current assistant</string>

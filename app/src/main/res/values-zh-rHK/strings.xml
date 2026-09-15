@@ -1943,10 +1943,10 @@
   <string name="stats_copy_total">複製累計統計</string>
   <string name="stats_copy">複製統計</string>
   <string name="stats_format">累計 ↑%1$s 輸入 · 命中 %2$s ↓%3$s 輸出</string>
-  <string name="chat_nerd_context_window">上下文 %1$s / %2$s · 剩 %3$s</string>
-  <string name="chat_nerd_context_only">上下文 %1$s</string>
-  <string name="chat_context_window_title">上下文視窗大小</string>
-  <string name="chat_context_window_hint">以 K 為單位（如 200 = 200K）</string>
+  <string name="chat_nerd_context_window">上下文佔用 %1$s / %2$s · 剩 %3$s</string>
+  <string name="chat_nerd_context_only">上下文佔用 %1$s</string>
+  <string name="chat_context_window_title">自動壓縮閾值</string>
+  <string name="chat_context_window_hint">以 K 為單位（如 200 = 200K）。超過該值後觸發自動壓縮。</string>
   <string name="doctor_category_permissions">權限</string>
   <string name="doctor_category_services">背景服務</string>
   <string name="doctor_category_assistant_info">目前助手</string>

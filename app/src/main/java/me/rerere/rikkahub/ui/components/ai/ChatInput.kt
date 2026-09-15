@@ -782,7 +782,7 @@ keyboardOptions =
                 val totalInput = sessionTotals.inputTokens.toInt().formatNumber()
                 val totalCached = sessionTotals.cachedTokens.toInt().formatNumber()
                 val totalOutput = sessionTotals.outputTokens.toInt().formatNumber()
-                // 展示用：统一 K 口径，避免同一行里 M/K 混显
+                // 展示用：不足 100 万按 K，达到 100 万进位到 M
                 val totalInputK = sessionTotals.inputTokens.formatK()
                 val totalOutputK = sessionTotals.outputTokens.formatK()
                 // 平均命中率：累计 cached / 累计 input
@@ -802,6 +802,10 @@ keyboardOptions =
                         MaterialTheme.typography.labelSmall.copy(
                             color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
                         ),
+                    // 占满剩余空间并允许收缩：文案较长时不会把后面的复制按钮挤出可视区
+                    modifier = Modifier.weight(1f, fill = false),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Box(
                     modifier =

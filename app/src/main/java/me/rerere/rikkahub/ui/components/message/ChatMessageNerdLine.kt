@@ -373,7 +373,7 @@ internal fun formatCost(cost: Double): String {
     return "$" + s
 }
 
-/** 以 K 为单位展示 token 数（与自动压缩设置同一口径），避免同一行里 K/M 混用。 */
+/** 以 K / M 展示 token 数：不足 100 万按 K，达到 100 万进位到 M，避免 1810K 这类数值。 */
 private fun formatTokensAsK(tokens: Long): String = tokens.formatK()
 
 @Composable
