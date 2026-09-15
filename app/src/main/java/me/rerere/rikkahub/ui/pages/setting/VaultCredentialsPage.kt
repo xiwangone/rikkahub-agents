@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,6 +15,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -72,6 +74,7 @@ fun VaultCredentialsPage() {
     var deleteTarget by remember { mutableStateOf<VaultCredentialEntity?>(null) }
     var showKeyGen by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
+    var typeFilter by remember { mutableStateOf("") }
 
     suspend fun refresh() {
         entries = repository.getAll()
@@ -140,14 +143,39 @@ fun VaultCredentialsPage() {
                     )
                 }
 
+                // 类型筛选：条目多时按类型快速定位（类型标识语言中立，不额外翻译）
+                val typeOptions = entries.map { it.type }.filter { it.isNotBlank() }.distinct().sorted()
+                if (typeOptions.isNotEmpty()) {
+                    item(key = "type_filter") {
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        ) {
+                            FilterChip(
+                                selected = typeFilter.isEmpty(),
+                                onClick = { typeFilter = "" },
+                                label = { Text("all") },
+                            )
+                            typeOptions.forEach { t ->
+                                FilterChip(
+                                    selected = typeFilter == t,
+                                    onClick = { typeFilter = t },
+                                    label = { Text(t) },
+                                )
+                            }
+                        }
+                    }
+                }
+
                 // 按组展示：固定组序 + 组内名称排序 + 搜索过滤
                 val groupOrder = listOf("Git", "AI", "SSH", "Network", "MCP", "Notification", "Other")
                 val query = searchQuery.trim().lowercase()
                 val filtered = entries.filter {
-                    query.isEmpty() ||
+                    (query.isEmpty() ||
                         it.name.lowercase().contains(query) ||
                         it.description.lowercase().contains(query) ||
-                        it.grp.lowercase().contains(query)
+                        it.grp.lowercase().contains(query)) &&
+                        (typeFilter.isEmpty() || it.type == typeFilter)
                 }
                 val grouped = filtered.groupBy { it.grp }
                 val orderedGroups = grouped.keys.sortedBy { g ->

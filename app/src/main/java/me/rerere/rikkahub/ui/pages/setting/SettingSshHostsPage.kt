@@ -45,6 +45,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.vault.VaultCredentialPickerDialog
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -283,18 +284,12 @@ private fun SshHostEditDialog(
                         Text(stringResource(R.string.setting_ssh_pick_vault_key))
                     }
                     if (showVaultPicker) {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .heightIn(max = 280.dp)
-                                .verticalScroll(rememberScrollState()),
-                        ) {
-                            keyCandidates.forEach { cred ->
-                                TextButton(onClick = { vaultCredentialRef = cred.name; showVaultPicker = false }, modifier = Modifier.fillMaxWidth()) {
-                                    Text(cred.name)
-                                }
-                            }
-                        }
+                        // 统一选择器：支持搜索 + 按分组/类型筛选（条目多时快速定位）
+                        VaultCredentialPickerDialog(
+                            entries = keyCandidates,
+                            onPick = { vaultCredentialRef = it.name; showVaultPicker = false },
+                            onDismiss = { showVaultPicker = false },
+                        )
                     }
                     if (vaultCredentialRef != null) {
                         Text(stringResource(R.string.setting_ssh_vault_key_used, vaultCredentialRef!!), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
