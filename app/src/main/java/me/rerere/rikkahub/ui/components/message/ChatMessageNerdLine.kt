@@ -1,6 +1,9 @@
 package me.rerere.rikkahub.ui.components.message
 
-import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.Spacer
@@ -276,13 +279,14 @@ fun ChatMessageNerdLine(
                 val windowTokens = configuredWindow ?: reportedWindow
                 val usedRatio =
                     windowTokens?.let { (ctxTokens.toDouble() / it.toDouble()).coerceIn(0.0, 1.0) }
-                // 红黄绿三档（阈值提前，便于尽早察觉）：<50% 绿／50~75% 黄／≥75% 红；
-                // 颜色只出现在进度条上，文字保持中性色，避免同一信息重复着色
+                // 占用分三档，取值来自主题色槽位，随主题与深浅色自适应：
+                // <50% 常规／50~75% 提醒／≥75% 警示。颜色只出现在进度条上，
+                // 文字保持中性色，避免同一信息重复着色。
                 val contextColor = when {
                     usedRatio == null -> color
-                    usedRatio >= 0.75 -> Color(0xFFD32F2F)
-                    usedRatio >= 0.5 -> Color(0xFFE0A100)
-                    else -> Color(0xFF43A047)
+                    usedRatio >= 0.75 -> MaterialTheme.colorScheme.error
+                    usedRatio >= 0.5 -> MaterialTheme.colorScheme.tertiary
+                    else -> MaterialTheme.colorScheme.primary
                 }
                 var showWindowDialog by remember { mutableStateOf(false) }
                 var windowInput by remember(configuredWindow) {
@@ -302,7 +306,8 @@ fun ChatMessageNerdLine(
                         icon = {
                             Icon(
                                 imageVector = HugeIcons.DashboardSquare01,
-                                contentDescription = stringResource(R.string.chat_context_window_title),
+                                // 紧邻的文本已表达同一信息，图标不再单独朗读，避免重复
+                                contentDescription = null,
                                 tint = color,
                                 modifier = Modifier.size(14.dp),
                             )
@@ -326,12 +331,23 @@ fun ChatMessageNerdLine(
                                 )
                                 if (usedRatio != null) {
                                     Spacer(Modifier.width(6.dp))
-                                    LinearProgressIndicator(
-                                        progress = { usedRatio.toFloat() },
-                                        modifier = Modifier.width(56.dp).height(4.dp),
-                                        color = contextColor,
-                                        trackColor = contextColor.copy(alpha = 0.2f),
-                                    )
+                                    Box(
+                                        modifier =
+                                            Modifier
+                                                .width(56.dp)
+                                                .height(4.dp)
+                                                .clip(RoundedCornerShape(2.dp))
+                                                .background(contextColor.copy(alpha = 0.25f)),
+                                    ) {
+                                        Box(
+                                            modifier =
+                                                Modifier
+                                                    .fillMaxWidth(usedRatio.toFloat())
+                                                    .fillMaxHeight()
+                                                    .clip(RoundedCornerShape(2.dp))
+                                                    .background(contextColor),
+                                        )
+                                    }
                                 }
                             }
                         },
