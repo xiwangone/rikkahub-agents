@@ -672,6 +672,14 @@
   <string name="notification_agent_run_interrupted_title">자율 실행 1건이 중단되었습니다</string>
   <string name="notification_agent_run_interrupted_title_plural">자율 실행 %1$d건이 중단되었습니다</string>
   <string name="notification_agent_run_interrupted_text">실행 중 앱이 종료되었습니다(%1$s). 반복되면 배터리 허용 목록과 포그라운드 서비스 설정을 확인하세요.</string>
+  <string name="toast_failed_get_activity">현재 화면을 가져오지 못했습니다</string>
+  <string name="toast_failed_export_image">이미지 내보내기 실패: %1$s</string>
+  <string name="toast_provider_imported">%1$s을(를) 가져왔습니다</string>
+  <string name="toast_provider_import_failed">가져오기 실패: %1$s</string>
+  <string name="toast_clipboard_write_failed">클립보드에 쓰지 못했습니다</string>
+  <string name="toast_open_url_failed">링크를 열지 못했습니다: %1$s</string>
+  <string name="toast_update_failed">업데이트 실패</string>
+  <string name="toast_provider_invalid_model_file">모델 파일이 올바르지 않습니다: 파일 식별자가 .litertlm과 일치하지 않습니다</string>
   <string name="setting_page_render_performance_settings">렌더링</string>
   <string name="setting_display_page_render_performance_title">렌더링 성능</string>
   <string name="setting_display_page_render_performance_desc">기기 성능에 맞춰 렌더링 조절을 적용합니다. \'완전 우선\'은 모든 병합을 해제합니다</string>

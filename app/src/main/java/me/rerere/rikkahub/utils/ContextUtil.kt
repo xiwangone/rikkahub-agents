@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.utils
 
+import me.rerere.rikkahub.R
 import android.Manifest
 import android.app.Activity
 import android.app.AppOpsManager
@@ -74,7 +75,11 @@ fun Context.writeClipboardText(text: String) {
         Log.i(TAG, "writeClipboardText: ${text.length} chars")
     }.onFailure {
         Log.e(TAG, "writeClipboardText failed (${text.length} chars)", it)
-        Toast.makeText(this, "Failed to write text into clipboard", Toast.LENGTH_SHORT).show()
+        Toast.makeText(
+            this,
+            getString(R.string.toast_clipboard_write_failed),
+            Toast.LENGTH_SHORT,
+        ).show()
     }
 }
 
@@ -132,7 +137,7 @@ fun Context.openUrl(url: String) {
         intent.launchUrl(this, url.toUri())
     }.onFailure {
         it.printStackTrace()
-        Toast.makeText(this, "Failed to open URL: $url", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, getString(R.string.toast_open_url_failed, url), Toast.LENGTH_SHORT).show()
     }
 }
 

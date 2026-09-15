@@ -1123,17 +1123,23 @@ private fun ColumnScope.ProviderConfigureLiteRT(
                     withContext(Dispatchers.Main) {
                         if (imported) {
                             vm.registerImportedModel(fileName, target.absolutePath)
-                            toaster.show("Imported $fileName", type = ToastType.Success)
+                            toaster.show(
+                                context.getString(R.string.toast_provider_imported, fileName),
+                                type = ToastType.Success,
+                            )
                         } else {
                             toaster.show(
-                                "Invalid model file: magic bytes don't match .litertlm",
+                                context.getString(R.string.toast_provider_invalid_model_file),
                                 type = ToastType.Error,
                             )
                         }
                     }
                 } catch (e: Exception) {
                     withContext(Dispatchers.Main) {
-                        toaster.show("Import failed: ${e.message}", type = ToastType.Error)
+                        toaster.show(
+                            context.getString(R.string.toast_provider_import_failed, e.message.orEmpty()),
+                            type = ToastType.Error,
+                        )
                     }
                 }
             }

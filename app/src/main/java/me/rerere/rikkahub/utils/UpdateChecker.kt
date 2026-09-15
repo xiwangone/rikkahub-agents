@@ -149,7 +149,11 @@ class UpdateChecker(
             dm.enqueue(request)
             // 你可以保存返回的downloadId到本地，以便后续查询下载进度或状态
         }.onFailure {
-            Toast.makeText(context, "Failed to update", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                context.getString(R.string.toast_update_failed),
+                Toast.LENGTH_SHORT,
+            ).show()
             context.openUrl(download.url) // 跳转到下载页面
         }
     }

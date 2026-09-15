@@ -473,7 +473,11 @@ private suspend fun exportToImage(
     val activity = context.getActivity()
     if (activity == null) {
         withContext(Dispatchers.Main) {
-            Toast.makeText(context, "Failed to get activity", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                context.getString(R.string.toast_failed_get_activity),
+                Toast.LENGTH_SHORT,
+            ).show()
         }
         return
     }
@@ -523,7 +527,11 @@ private suspend fun exportToImage(
     } catch (e: Exception) {
         e.printStackTrace()
         withContext(Dispatchers.Main) {
-            Toast.makeText(context, "Failed to export image: ${e.message}", Toast.LENGTH_SHORT).show()
+            Toast.makeText(
+                context,
+                context.getString(R.string.toast_failed_export_image, e.message.orEmpty()),
+                Toast.LENGTH_SHORT,
+            ).show()
         }
     } finally {
         bitmap.recycle()

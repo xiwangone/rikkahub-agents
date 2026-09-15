@@ -787,6 +787,14 @@
   <string name="notification_agent_run_interrupted_title">有一个自主任务被中断</string>
   <string name="notification_agent_run_interrupted_title_plural">有 %1$d 个自主任务被中断</string>
   <string name="notification_agent_run_interrupted_text">应用在任务运行中被系统结束（%1$s）。如果反复出现，请检查电池白名单与前台服务设置。</string>
+  <string name="toast_failed_get_activity">无法获取当前界面</string>
+  <string name="toast_failed_export_image">导出图片失败：%1$s</string>
+  <string name="toast_provider_imported">已导入 %1$s</string>
+  <string name="toast_provider_import_failed">导入失败：%1$s</string>
+  <string name="toast_clipboard_write_failed">写入剪贴板失败</string>
+  <string name="toast_open_url_failed">打开链接失败：%1$s</string>
+  <string name="toast_update_failed">更新失败</string>
+  <string name="toast_provider_invalid_model_file">模型文件无效：文件标识与 .litertlm 不符</string>
   <string name="setting_page_render_performance_settings">渲染</string>
   <string name="setting_display_page_render_performance_title">渲染性能</string>
   <string name="setting_display_page_render_performance_desc">按设备能力自动调整渲染节流；「完整优先」关闭全部合并与节流</string>

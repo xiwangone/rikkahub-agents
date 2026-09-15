@@ -672,6 +672,14 @@
   <string name="notification_agent_run_interrupted_title">自律実行が 1 件中断されました</string>
   <string name="notification_agent_run_interrupted_title_plural">自律実行が %1$d 件中断されました</string>
   <string name="notification_agent_run_interrupted_text">実行中にアプリが終了しました（%1$s）。繰り返す場合は、バッテリーの許可設定とフォアグラウンド サービスの設定を確認してください。</string>
+  <string name="toast_failed_get_activity">現在の画面を取得できませんでした</string>
+  <string name="toast_failed_export_image">画像の書き出しに失敗しました: %1$s</string>
+  <string name="toast_provider_imported">%1$s を読み込みました</string>
+  <string name="toast_provider_import_failed">読み込みに失敗しました: %1$s</string>
+  <string name="toast_clipboard_write_failed">クリップボードへの書き込みに失敗しました</string>
+  <string name="toast_open_url_failed">リンクを開けませんでした: %1$s</string>
+  <string name="toast_update_failed">更新に失敗しました</string>
+  <string name="toast_provider_invalid_model_file">モデルファイルが無効です: 識別子が .litertlm と一致しません</string>
   <string name="setting_page_render_performance_settings">レンダリング</string>
   <string name="setting_display_page_render_performance_title">レンダリング性能</string>
   <string name="setting_display_page_render_performance_desc">デバイス性能に応じて描画の間引きを調整します。「完全優先」で全ての統合を無効にします</string>

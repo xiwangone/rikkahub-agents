@@ -794,6 +794,14 @@
   <string name="notification_agent_run_interrupted_title">An autonomous run was interrupted</string>
   <string name="notification_agent_run_interrupted_title_plural">%1$d autonomous runs were interrupted</string>
   <string name="notification_agent_run_interrupted_text">The app was killed mid-run (%1$s). If this keeps happening, check the battery whitelist and foreground service settings.</string>
+  <string name="toast_failed_get_activity">Failed to get activity</string>
+  <string name="toast_failed_export_image">Failed to export image: %1$s</string>
+  <string name="toast_provider_imported">Imported %1$s</string>
+  <string name="toast_provider_import_failed">Import failed: %1$s</string>
+  <string name="toast_clipboard_write_failed">Failed to write text into clipboard</string>
+  <string name="toast_open_url_failed">Failed to open URL: %1$s</string>
+  <string name="toast_update_failed">Failed to update</string>
+  <string name="toast_provider_invalid_model_file">Invalid model file: magic bytes do not match .litertlm</string>
   <string name="setting_page_render_performance_settings">Rendering</string>
   <string name="setting_display_page_render_performance_title">Render Performance</string>
   <string name="setting_display_page_render_performance_desc">Adapts rendering throttling to device capability; Full priority turns off all merging</string>

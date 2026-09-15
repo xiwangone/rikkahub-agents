@@ -685,6 +685,14 @@
   <string name="notification_agent_run_interrupted_title">تم مقاطعة مهمة ذاتية</string>
   <string name="notification_agent_run_interrupted_title_plural">تم مقاطعة %1$d مهام ذاتية</string>
   <string name="notification_agent_run_interrupted_text">تم إنهاء التطبيق أثناء التشغيل (%1$s). إذا تكرر ذلك، تحقّق من قائمة استثناءات البطارية وإعدادات الخدمة الأمامية.</string>
+  <string name="toast_failed_get_activity">تعذّر الحصول على الشاشة الحالية</string>
+  <string name="toast_failed_export_image">فشل تصدير الصورة: %1$s</string>
+  <string name="toast_provider_imported">تم استيراد %1$s</string>
+  <string name="toast_provider_import_failed">فشل الاستيراد: %1$s</string>
+  <string name="toast_clipboard_write_failed">تعذّر الكتابة إلى الحافظة</string>
+  <string name="toast_open_url_failed">تعذّر فتح الرابط: %1$s</string>
+  <string name="toast_update_failed">فشل التحديث</string>
+  <string name="toast_provider_invalid_model_file">ملف النموذج غير صالح: البصمة لا تطابق .litertlm</string>
   <string name="setting_page_render_performance_settings">العرض</string>
   <string name="setting_display_page_render_performance_title">أداء العرض</string>
   <string name="setting_display_page_render_performance_desc">يضبط تخفيف العرض حسب قدرات الجهاز؛ «الأولوية الكاملة» تعطّل كل الدمج</string>

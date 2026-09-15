@@ -665,6 +665,14 @@
   <string name="notification_agent_run_interrupted_title">Автономная задача была прервана</string>
   <string name="notification_agent_run_interrupted_title_plural">Прервано автономных задач: %1$d</string>
   <string name="notification_agent_run_interrupted_text">Приложение было закрыто во время выполнения (%1$s). Если это повторяется, проверьте список исключений батареи и настройки фоновой службы.</string>
+  <string name="toast_failed_get_activity">Не удалось получить текущий экран</string>
+  <string name="toast_failed_export_image">Не удалось экспортировать изображение: %1$s</string>
+  <string name="toast_provider_imported">Импортировано: %1$s</string>
+  <string name="toast_provider_import_failed">Ошибка импорта: %1$s</string>
+  <string name="toast_clipboard_write_failed">Не удалось записать текст в буфер обмена</string>
+  <string name="toast_open_url_failed">Не удалось открыть ссылку: %1$s</string>
+  <string name="toast_update_failed">Не удалось обновить</string>
+  <string name="toast_provider_invalid_model_file">Недопустимый файл модели: сигнатура не соответствует .litertlm</string>
   <string name="setting_page_render_performance_settings">Отрисовка</string>
   <string name="setting_display_page_render_performance_title">Производительность отрисовки</string>
   <string name="setting_display_page_render_performance_desc">Подстраивает отрисовку под возможности устройства; «Полный приоритет» отключает все объединения</string>
