@@ -1,0 +1,65 @@
+name: 准备构建环境
+description: 安装 JDK 17、Android SDK、bun 与 pnpm；每一项都有多个来源可回退，避免单点下载失败导致整条流程中断。
+
+runs:
+  using: composite
+  steps:
+    - name: JDK 17（主源）
+      id: jdk-primary
+      continue-on-error: true
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'temurin'
+
+    - name: JDK 17（回退源）
+      id: jdk-fallback
+      if: steps.jdk-primary.outcome == 'failure'
+      continue-on-error: true
+      uses: actions/setup-java@v4
+      with:
+        java-version: '17'
+        distribution: 'zulu'
+
+    - name: 校验 JDK
+      shell: bash
+      run: |
+        set -e
+        if ! command -v java >/dev/null 2>&1; then
+          echo "::error::JDK 不可用（主源与回退源均失败）"
+          exit 1
+        fi
+        java -version 2>&1 | head -2
+        echo "JAVA_HOME=${JAVA_HOME:-（未设置）}"
+
+    - name: Android SDK（预装优先，缺失时多源下载）
+      shell: bash
+      run: bash "$GITHUB_WORKSPACE/.github/scripts/setup-android-sdk.sh"
+
+    - name: bun（npm → 官方脚本）
+      shell: bash
+      run: |
+        set +e
+        if command -v bun >/dev/null 2>&1; then
+          echo "bun 已存在：$(bun --version)"; exit 0
+        fi
+        npm install -g bun >/dev/null 2>&1 && echo "bun 经 npm 安装：$(bun --version)" && exit 0
+        curl -fsSL https://bun.sh/install | bash >/dev/null 2>&1 \
+          && echo "$HOME/.bun/bin" >> "$GITHUB_PATH" \
+          && "$HOME/.bun/bin/bun" --version \
+          && exit 0
+        echo "::warning::bun 安装失败，如后续步骤需要将自行处理"
+        exit 0
+
+    - name: pnpm（已有 → corepack → npm）
+      shell: bash
+      run: |
+        set +e
+        if command -v pnpm >/dev/null 2>&1; then
+          echo "pnpm 已存在：$(pnpm --version)"; exit 0
+        fi
+        corepack enable >/dev/null 2>&1 && corepack prepare pnpm@latest --activate >/dev/null 2>&1 \
+          && echo "pnpm 经 corepack 启用：$(pnpm --version)" && exit 0
+        npm install -g pnpm >/dev/null 2>&1 && echo "pnpm 经 npm 安装：$(pnpm --version)" && exit 0
+        echo "::warning::pnpm 安装失败，如后续步骤需要将自行处理"
+        exit 0

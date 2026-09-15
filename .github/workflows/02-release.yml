@@ -26,15 +26,8 @@ jobs:
         with:
           submodules: true
 
-      - name: 设置 JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: 设置 Android SDK
-        uses: android-actions/setup-android@v3
-
+      - name: 准备构建环境
+        uses: ./.github/actions/setup-build-env
       - name: 缓存 Gradle 依赖（libs 变化才重建）
         uses: actions/cache@v4
         with:
@@ -49,20 +42,6 @@ jobs:
           path: ~/.gradle/caches/build-cache-1
           key: ${{ runner.os }}-gradle-buildcache
           save-always: true
-
-      - name: 安装 bun（多源回退：npm → 官方安装脚本）
-        run: |
-          set +e
-          npm install -g bun && echo "bun installed via npm" && exit 0
-          curl -fsSL https://bun.sh/install | bash && echo "$HOME/.bun/bin" >> $GITHUB_PATH && echo "bun installed via installer" && exit 0
-          echo "bun installation failed on all sources" && exit 1
-
-      - name: 安装 pnpm（多源回退：corepack → npm）
-        run: |
-          set +e
-          corepack enable && corepack prepare pnpm@latest --activate && echo "pnpm activated via corepack" && exit 0
-          npm install -g pnpm && echo "pnpm installed via npm" && exit 0
-          echo "pnpm installation failed on all sources" && exit 1
 
       - name: 解析版本号（填了=发新版；留空=刷新当前版本）
         id: ver

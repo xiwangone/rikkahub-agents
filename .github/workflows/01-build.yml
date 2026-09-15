@@ -43,16 +43,8 @@ jobs:
         with:
           submodules: true
 
-      - name: 设置 JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: 设置 Android SDK
-        continue-on-error: true # 组件下载偶发损坏, runner 预装 SDK + AGP 自动补齐即可
-        uses: android-actions/setup-android@v3
-
+      - name: 准备构建环境
+        uses: ./.github/actions/setup-build-env
       - name: Ktlint 静态检查（不阻断，输出风格报告）
         run: |
           # 固定版本避免每次下载 latest 波动
@@ -74,20 +66,6 @@ jobs:
           path: ~/.gradle/caches/build-cache-1
           key: ${{ runner.os }}-gradle-buildcache
           save-always: true
-
-      - name: 安装 bun（多源回退：npm → 官方安装脚本）
-        run: |
-          set +e
-          npm install -g bun && echo "bun installed via npm" && exit 0
-          curl -fsSL https://bun.sh/install | bash && echo "$HOME/.bun/bin" >> $GITHUB_PATH && echo "bun installed via installer" && exit 0
-          echo "bun installation failed on all sources" && exit 1
-
-      - name: 安装 pnpm（多源回退：corepack → npm）
-        run: |
-          set +e
-          corepack enable && corepack prepare pnpm@latest --activate && echo "pnpm activated via corepack" && exit 0
-          npm install -g pnpm && echo "pnpm installed via npm" && exit 0
-          echo "pnpm installation failed on all sources" && exit 1
 
       - name: 缓存 web-ui 依赖（bun.lock 变化才重建）
         uses: actions/cache@v4

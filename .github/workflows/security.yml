@@ -70,16 +70,8 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: 设置 JDK 17
-        uses: actions/setup-java@v4
-        with:
-          java-version: '17'
-          distribution: 'temurin'
-
-      - name: 设置 Android SDK
-        continue-on-error: true
-        uses: android-actions/setup-android@v3
-
+      - name: 准备构建环境
+        uses: ./.github/actions/setup-build-env
       - name: 缓存 Gradle 依赖
         uses: actions/cache@v4
         with:
@@ -87,20 +79,6 @@ jobs:
           key: ${{ runner.os }}-gradle-modules-${{ hashFiles('gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
           restore-keys: |
             ${{ runner.os }}-gradle-modules-
-
-      - name: 安装 bun
-        run: |
-          set +e
-          npm install -g bun && exit 0
-          curl -fsSL https://bun.sh/install | bash && echo "$HOME/.bun/bin" >> $GITHUB_PATH && exit 0
-          exit 1
-
-      - name: 安装 pnpm
-        run: |
-          set +e
-          corepack enable && corepack prepare pnpm@latest --activate && exit 0
-          npm install -g pnpm && exit 0
-          exit 1
 
       - name: 缓存 web-ui 依赖
         uses: actions/cache@v4
