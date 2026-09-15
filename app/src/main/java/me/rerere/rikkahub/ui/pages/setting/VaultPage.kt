@@ -30,6 +30,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.IconButton
+import me.rerere.hugeicons.stroke.View
+import me.rerere.hugeicons.stroke.ViewOff
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -403,12 +406,25 @@ fun VaultPage() {
                             Text(stringResource(R.string.vault_session_issue))
                         }
                         sessionToken?.let { token ->
-                            Text(
-                                text = token,
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.primary,
+                            // 会话 token 等同访问凭据：默认掩码，需要时再展开（与凭证值的处理一致）
+                            var sessionTokenVisible by remember { mutableStateOf(false) }
+                            Row(
                                 modifier = Modifier.fillMaxWidth(),
-                            )
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = if (sessionTokenVisible) token else CredentialVaultRepository.mask(token),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.weight(1f),
+                                )
+                                IconButton(onClick = { sessionTokenVisible = !sessionTokenVisible }) {
+                                    Icon(
+                                        imageVector = if (sessionTokenVisible) HugeIcons.ViewOff else HugeIcons.View,
+                                        contentDescription = null,
+                                    )
+                                }
+                            }
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.spacedBy(8.dp),
