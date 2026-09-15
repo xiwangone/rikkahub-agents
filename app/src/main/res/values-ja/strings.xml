@@ -651,6 +651,8 @@
   <string name="setting_display_page_chat_font_family_default">デフォルト</string>
   <string name="setting_display_page_chat_font_family_monospace">等幅</string>
   <string name="setting_display_page_chat_font_family_serif">明朝体</string>
+  <string name="ai_wrap_up_notice">【時間予算の通知】このターンの実行時間がまもなく上限に達します。新しいツール呼び出しを始めず、進行中の作業を終わらせ、完了した内容と残りの作業を簡潔にまとめてください。</string>
+  <string name="ai_auto_continue_prompt">【自動継続】前回の返信が途中で途切れました。途切れた箇所から続け、すでに書いた内容を繰り返さずに回答を最後まで書いてください。</string>
   <string name="setting_page_render_performance_settings">レンダリング</string>
   <string name="setting_display_page_render_performance_title">レンダリング性能</string>
   <string name="setting_display_page_render_performance_desc">デバイス性能に応じて描画の間引きを調整します。「完全優先」で全ての統合を無効にします</string>

@@ -644,6 +644,8 @@
   <string name="setting_display_page_chat_font_family_default">По умолчанию</string>
   <string name="setting_display_page_chat_font_family_monospace">Моноширинный</string>
   <string name="setting_display_page_chat_font_family_serif">С засечками</string>
+  <string name="ai_wrap_up_notice">【Уведомление о бюджете времени】Время этого хода почти исчерпано. Не начинайте новые вызовы инструментов, завершите текущую работу и кратко перескажите, что сделано и что осталось.</string>
+  <string name="ai_auto_continue_prompt">【Автопродолжение】Ваш предыдущий ответ был обрезан на середине. Продолжите с места обрыва, не повторяйте уже написанное и допишите ответ до конца.</string>
   <string name="setting_page_render_performance_settings">Отрисовка</string>
   <string name="setting_display_page_render_performance_title">Производительность отрисовки</string>
   <string name="setting_display_page_render_performance_desc">Подстраивает отрисовку под возможности устройства; «Полный приоритет» отключает все объединения</string>

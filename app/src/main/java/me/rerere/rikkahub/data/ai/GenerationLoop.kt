@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai
 
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.perf.resolveRenderProfileLogged
 import android.content.Context
@@ -404,18 +405,9 @@ private const val WRAP_UP_GRACE_MS = 120_000L
 // 频率很高，逐块拼接与投递在长回复下代价是 O(n²)。窗口内先累积再按序应用，流终止时补齐，
 // 最终内容与逐块处理一致（窗口为 0 即恢复逐块处理）。
 
-private const val WRAP_UP_PROMPT =
-    "TIME BUDGET NOTICE: this turn is about to hit its wall-clock limit. Stop starting new " +
-        "tool calls, finish any in-flight work, and give a concise final summary of what was " +
-        "done and what remains."
-
 // 断流续写：服务端未给出结束原因（finish_reason 缺失）时，说明流被中途切断，
 // 自动再请求一次把内容接上；每个回合最多续写次数，以及续写时注入的合成指令。
 private const val MAX_AUTO_CONTINUE = 1
-
-private const val AUTO_CONTINUE_PROMPT =
-    "AUTO-CONTINUE: your previous reply was cut off in the middle. Continue from where it " +
-        "stopped, do not repeat what you have already written, and finish the answer."
 
 /**
  * Number of most-recent tool-result-bearing messages whose `Image` parts are kept
@@ -648,7 +640,9 @@ class GenerationLoop(
             if (remainingBudgetMs in 1..WRAP_UP_GRACE_MS && !wrapUpInjected) {
                 wrapUpInjected = true
                 AppLog.w(TAG, "generateText: turn budget nearly exhausted (${remainingBudgetMs}ms left); injecting wrap-up reminder")
-                messages = messages + UIMessage.user(WRAP_UP_PROMPT).copy(isSynthetic = true)
+                messages = messages + UIMessage.user(
+                    context.getString(R.string.ai_wrap_up_notice),
+                ).copy(isSynthetic = true)
             }
             if (elapsedMs > ToolRuntimeLimits.turnBudgetMs) {
                 AppLog.w(TAG, "generateText: wall-clock cap (${ToolRuntimeLimits.turnBudgetMs}ms) hit at step #$stepIndex; force-ending turn")
@@ -836,7 +830,9 @@ class GenerationLoop(
                         TAG,
                         "generateText: reply ended without finish reason; auto-continuing ($autoContinueCount/$MAX_AUTO_CONTINUE)",
                     )
-                    messages = messages + UIMessage.user(AUTO_CONTINUE_PROMPT).copy(isSynthetic = true)
+                    messages = messages + UIMessage.user(
+                        context.getString(R.string.ai_auto_continue_prompt),
+                    ).copy(isSynthetic = true)
                     continue
                 }
 

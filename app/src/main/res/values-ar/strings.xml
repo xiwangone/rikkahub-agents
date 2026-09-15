@@ -664,6 +664,8 @@
   <string name="setting_display_page_chat_font_family_default">افتراضي</string>
   <string name="setting_display_page_chat_font_family_monospace">أحادي المسافة</string>
   <string name="setting_display_page_chat_font_family_serif">مذيّل</string>
+  <string name="ai_wrap_up_notice">【تنبيه الميزانية الزمنية】اقترب وقت هذه الجولة من الانتهاء. توقّف عن بدء استدعاءات أدوات جديدة، وأنهِ العمل الجاري، ولخّص بإيجاز ما تم إنجازه وما تبقّى.</string>
+  <string name="ai_auto_continue_prompt">【متابعة تلقائية】قُطع ردّك السابق في منتصفه. تابع من حيث توقّف، ولا تُعِد ما كتبته، وأكمل الإجابة.</string>
   <string name="setting_page_render_performance_settings">العرض</string>
   <string name="setting_display_page_render_performance_title">أداء العرض</string>
   <string name="setting_display_page_render_performance_desc">يضبط تخفيف العرض حسب قدرات الجهاز؛ «الأولوية الكاملة» تعطّل كل الدمج</string>

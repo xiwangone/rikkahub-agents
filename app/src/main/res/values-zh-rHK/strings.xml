@@ -641,6 +641,8 @@
   <string name="setting_display_page_chat_font_family_default">預設</string>
   <string name="setting_display_page_chat_font_family_monospace">等寬字體</string>
   <string name="setting_display_page_chat_font_family_serif">Serif</string>
+  <string name="ai_wrap_up_notice">【時間預算提醒】本輪可用時間即將耗盡。請停止發起新的工具呼叫，結束正在進行的工作，並簡要總結已完成的內容與剩餘事項。</string>
+  <string name="ai_auto_continue_prompt">【自動續寫】你上一則回覆在中途被截斷。請從中斷處繼續，不要重複已寫過的內容，把回覆寫完。</string>
   <string name="setting_page_render_performance_settings">渲染</string>
   <string name="setting_display_page_render_performance_title">渲染效能</string>
   <string name="setting_display_page_render_performance_desc">依裝置能力自動調整渲染節流；「完整優先」關閉全部合併與節流</string>
