@@ -2263,6 +2263,8 @@
   <string name="vault_editor_new_group_label">New group name</string>
   <string name="vault_new_group_option">＋New group</string>
   <string name="vault_save">Save</string>
+  <string name="vault_ref_pick">Pick from Vault</string>
+  <string name="vault_ref_store">Store in Vault</string>
   <string name="vault_show">Show</string>
   <string name="vault_hide">Hide</string>
   <string name="auto_task_desc">Set up auto tasks; the app automatically sends a message to keep the conversation going when the conditions are met.</string>

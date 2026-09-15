@@ -2398,6 +2398,8 @@
   <string name="vault_editor_new_group_label">اسم المجموعة الجديدة</string>
   <string name="vault_new_group_option">＋ مجموعة جديدة</string>
   <string name="vault_save">حفظ</string>
+  <string name="vault_ref_pick">اختيار من Vault</string>
+  <string name="vault_ref_store">حفظ في Vault</string>
   <string name="vault_show">إظهار</string>
   <string name="vault_hide">إخفاء</string>
   <string name="auto_task_desc">عيّن مهمة تلقائية ليرسل التطبيق الرسائل تلقائيًا عند تحقق الشرط، فيستمر الحوار دون تدخل يدوي.</string>

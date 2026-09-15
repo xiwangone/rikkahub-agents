@@ -1932,6 +1932,8 @@
   <string name="vault_editor_new_group_label">新分組名稱</string>
   <string name="vault_new_group_option">＋新建分組</string>
   <string name="vault_save">儲存</string>
+  <string name="vault_ref_pick">從憑證庫選擇</string>
+  <string name="vault_ref_store">存入憑證庫</string>
   <string name="vault_show">顯示</string>
   <string name="vault_hide">隱藏</string>
   <string name="auto_task_desc">設定自動回覆訊息，App 將在滿足條件時自動發送，無需手動操作。</string>

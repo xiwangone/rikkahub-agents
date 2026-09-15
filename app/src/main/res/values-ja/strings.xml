@@ -2749,6 +2749,8 @@
   <string name="vault_editor_new_group_label">新しいグループ名</string>
   <string name="vault_new_group_option">＋グループを新規作成</string>
   <string name="vault_save">保存</string>
+  <string name="vault_ref_pick">Vault から選択</string>
+  <string name="vault_ref_store">Vault に保存</string>
   <string name="vault_show">表示</string>
   <string name="vault_hide">非表示</string>
   <string name="auto_task_desc">自動タスクを設定すると、条件を満たしたときにアプリが自動でメッセージを送り、手動操作なしで会話を進めます。</string>

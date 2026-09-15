@@ -2228,6 +2228,8 @@
   <string name="vault_editor_new_group_label">新分组名称</string>
   <string name="vault_new_group_option">＋新建分组</string>
   <string name="vault_save">保存</string>
+  <string name="vault_ref_pick">从凭证库选择</string>
+  <string name="vault_ref_store">存入凭证库</string>
   <string name="vault_show">显示</string>
   <string name="vault_hide">隐藏</string>
   <string name="auto_task_desc">设置自动任务，满足条件时 App 自动发送消息保持对话推进，无需手动操作。</string>

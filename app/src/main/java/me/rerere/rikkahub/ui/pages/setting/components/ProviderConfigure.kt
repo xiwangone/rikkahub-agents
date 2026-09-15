@@ -78,6 +78,7 @@ import me.rerere.locallm.ModelInstall
 import me.rerere.locallm.litert.LiteRtCatalog
 import me.rerere.locallm.litert.LiteRtCatalogEntry
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.setting.locallm.SettingLocalLlmViewModel
@@ -491,19 +492,13 @@ private fun ProviderConfigureOpenAI(
         modifier = Modifier.fillMaxWidth(),
     )
 
-    var keyVisible by remember { mutableStateOf(false) }
-    OutlinedTextField(
+    // 统一改为"引用 / 粘贴即入库"输入：默认不在此处留存明文，
+    // 引用（$$名字）由运行时解析层取真值
+    SecretRefField(
         value = provider.apiKey,
         onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
-        label = { Text(stringResource(R.string.setting_provider_page_api_key)) },
-        modifier = Modifier.fillMaxWidth(),
-        maxLines = 3,
-        visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-        trailingIcon = {
-            IconButton(onClick = { keyVisible = !keyVisible }) {
-                Icon(if (keyVisible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
-            }
-        },
+        label = stringResource(R.string.setting_provider_page_api_key),
+        nameHint = provider.name,
     )
 
     OutlinedTextField(
@@ -768,19 +763,13 @@ private fun ProviderConfigureClaude(
         maxLines = 3,
     )
 
-    var keyVisible by remember { mutableStateOf(false) }
-    OutlinedTextField(
+    // 统一改为"引用 / 粘贴即入库"输入：默认不在此处留存明文，
+    // 引用（$$名字）由运行时解析层取真值
+    SecretRefField(
         value = provider.apiKey,
         onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
-        label = { Text(stringResource(R.string.setting_provider_page_api_key)) },
-        modifier = Modifier.fillMaxWidth(),
-        maxLines = 3,
-        visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-        trailingIcon = {
-            IconButton(onClick = { keyVisible = !keyVisible }) {
-                Icon(if (keyVisible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
-            }
-        },
+        label = stringResource(R.string.setting_provider_page_api_key),
+        nameHint = provider.name,
     )
 
     OutlinedTextField(
@@ -901,19 +890,12 @@ private fun ProviderConfigureGoogle(
     )
 
     if (!(provider.vertexAI && provider.useServiceAccount)) {
-        var keyVisible by remember { mutableStateOf(false) }
-        OutlinedTextField(
+        // 统一改为"引用 / 粘贴即入库"输入（同上）
+        SecretRefField(
             value = provider.apiKey,
             onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
-            label = { Text(stringResource(R.string.setting_provider_page_api_key)) },
-            modifier = Modifier.fillMaxWidth(),
-            maxLines = 3,
-            visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { keyVisible = !keyVisible }) {
-                    Icon(if (keyVisible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
-                }
-            },
+            label = stringResource(R.string.setting_provider_page_api_key),
+            nameHint = provider.name,
         )
     }
 

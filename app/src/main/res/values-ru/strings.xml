@@ -2742,6 +2742,8 @@
   <string name="vault_editor_new_group_label">Название новой группы</string>
   <string name="vault_new_group_option">＋ Новая группа</string>
   <string name="vault_save">Сохранить</string>
+  <string name="vault_ref_pick">Выбрать из Vault</string>
+  <string name="vault_ref_store">Сохранить в Vault</string>
   <string name="vault_show">Показать</string>
   <string name="vault_hide">Скрыть</string>
   <string name="auto_task_desc">Настройте авто-задачу: при выполнении условия приложение само отправит сообщение, продолжая диалог без вашего участия.</string>

@@ -2749,6 +2749,8 @@
   <string name="vault_editor_new_group_label">새 그룹 이름</string>
   <string name="vault_new_group_option">＋ 새 그룹</string>
   <string name="vault_save">저장</string>
+  <string name="vault_ref_pick">Vault에서 선택</string>
+  <string name="vault_ref_store">Vault에 저장</string>
   <string name="vault_show">표시</string>
   <string name="vault_hide">숨기기</string>
   <string name="auto_task_desc">자동 작업을 설정하면 조건을 충족할 때 앱이 자동으로 메시지를 보내 대화를 이어갑니다.</string>
