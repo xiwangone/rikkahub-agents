@@ -174,7 +174,17 @@ fun VaultPage() {
                             } ?: ""
                         val restored = VaultExporter.import(content, backupPassword)
                         restored.forEach { q ->
-                            repository.save(q.name, q.plaintext, q.description, q.group.ifEmpty { "Other" }, q.publicKey, type = q.type)
+                            // 名字统一规范化；且逐条容错——单条异常不应让整批恢复失败
+                            runCatching {
+                                repository.save(
+                                    CredentialVaultRepository.normalizeName(q.name),
+                                    q.plaintext,
+                                    q.description,
+                                    q.group.ifEmpty { "Other" },
+                                    q.publicKey,
+                                    type = q.type,
+                                )
+                            }
                         }
                         backupResult = restoreSuccessStr.format(restored.size)
                     }.onFailure { e ->

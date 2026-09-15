@@ -61,7 +61,7 @@ fun SshKeyPairDialog(
     val context = LocalContext.current
     val clipboard = LocalClipboardManager.current
 
-    var name by remember { mutableStateOf(credentialName.ifBlank { "ssh-key-${System.currentTimeMillis() % 100000}" }) }
+    var name by remember { mutableStateOf(credentialName.ifBlank { "SSH_KEY_${System.currentTimeMillis() % 100000}" }) }
     var group by remember { mutableStateOf(defaultGroup.ifBlank { "SSH" }) }
     var description by remember { mutableStateOf(context.getString(R.string.ssh_key_default_desc)) }
     var keyType by remember { mutableStateOf(SshKeyGenerator.KeyType.RSA) }
@@ -172,15 +172,17 @@ fun SshKeyPairDialog(
                             }
                             result.onSuccess { pair ->
                                 try {
+                                    // 统一走命名规范化：用户输入小写/空格/连字符也能存进去
+                                    val finalName = CredentialVaultRepository.normalizeName(name)
                                     repository.save(
-                                        name = name.trim(),
+                                        name = finalName,
                                         value = pair.privateKeyPem,
                                         description = description.trim().ifBlank { context.getString(R.string.ssh_key_default_desc_with_type, keyType) },
                                         group = group.trim().ifBlank { "SSH" },
                                         publicKey = pair.publicKeyLine,
                                     )
                                     publicKey = pair.publicKeyLine
-                                    savedName = name.trim()
+                                    savedName = finalName
                                 } catch (e: Throwable) {
                                     error = context.getString(R.string.ssh_key_save_failed, e.message)
                                 }
