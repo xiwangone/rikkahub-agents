@@ -96,6 +96,7 @@ import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.rikkahub.data.ai.diagnoseFailure
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
@@ -510,6 +511,7 @@ private fun ModelList(
 ) {
     val providerManager = koinInject<ProviderManager>()
     val toaster = LocalToaster.current
+    val context = LocalContext.current
     val modelList by produceState(emptyList(), providerSetting) {
         runCatching {
             value =
@@ -527,8 +529,10 @@ private fun ModelList(
             error.printStackTrace()
             // Surface real failures (missing/invalid API key, providers like
             // Minimax that return an HTTP 200 error envelope instead of a 4xx).
+            val diagnosis = diagnoseFailure(context, error)
             toaster.show(
-                error.message ?: "Failed to load models",
+                // 原因分类走本地化标签，服务端原话保留在末尾，便于排查。
+                if (diagnosis.raw.isNotBlank()) "${diagnosis.label} — ${diagnosis.raw}" else diagnosis.label,
                 type = ToastType.Error,
             )
         }
