@@ -26,6 +26,13 @@ data class VaultCredentialEntity(
     val publicKey: String = "",
     /** 分组：Git / AI / ECS / MCP / Notification / Other */
     val grp: String = "Other",
+    /**
+     * 凭据类型（与通用凭据交换格式的类型名对齐：ssh-key / api-key / basic-auth /
+     * totp / custom-fields；空 = 未分类）。写入时由 `CredentialType.infer` 尽量补全，
+     * 使用方据此选对方式（SSH 握手 / 请求头注入 / 表单填充），而不是靠名字猜。
+     */
+    @ColumnInfo(defaultValue = "")
+    val type: String = "",
     /** AES-GCM 密文：Base64(IV(12B) + ciphertext) */
     val valueEncrypted: String,
     /** 明文长度（脱敏展示用，不存明文） */

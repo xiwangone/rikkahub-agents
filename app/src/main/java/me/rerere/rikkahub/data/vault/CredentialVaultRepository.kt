@@ -36,6 +36,7 @@ class CredentialVaultRepository(
         description: String,
         group: String,
         publicKey: String = "",
+        type: String = "",
     ) {
         // 命名规范校验（大写蛇形）。存量脏名改到此名时同样拦截；导入路径见 importEntries
         require(validateCredentialName(name)) {
@@ -58,7 +59,7 @@ class CredentialVaultRepository(
                 )
             )
         } else {
-            upsertEntry(name, value, description, group, publicKey)
+            upsertEntry(name, value, description, group, publicKey, type = type)
         }
         logAccess(name, "repository", if (existing != null) "save_update" else "save_create")
     }
@@ -87,7 +88,7 @@ class CredentialVaultRepository(
                     )
                 )
             } else {
-                upsertEntry(e.name, e.value, e.description, e.group, e.publicKey, keepPub = keepPub)
+                upsertEntry(e.name, e.value, e.description, e.group, e.publicKey, keepPub = keepPub, type = e.type)
             }
             imported++
         }
@@ -102,6 +103,7 @@ class CredentialVaultRepository(
         group: String,
         publicKey: String = "",
         keepPub: Boolean = false,
+        type: String = "",
     ) {
         val now = System.currentTimeMillis()
         // 落库前统一清洗（剔除不可见控制符）；长度字段以清洗后的值为准，避免展示与实际不一致
@@ -109,13 +111,15 @@ class CredentialVaultRepository(
         val encrypted = ProviderCredentialCipher.encrypt(cleanValue)
         val existing = dao.getByName(name)
         if (existing != null) {
+            val finalPub = if (keepPub) existing.publicKey else publicKey.ifEmpty { existing.publicKey }
             dao.update(
                 existing.copy(
                     description = description.ifEmpty { existing.description },
                     grp = group.ifEmpty { existing.grp },
-                    publicKey = if (keepPub) existing.publicKey else publicKey.ifEmpty { existing.publicKey },
+                    publicKey = finalPub,
                     valueEncrypted = encrypted,
                     valueLength = cleanValue.length,
+                    type = resolveType(type, existing.type, name, cleanValue, finalPub),
                     updatedAt = now,
                 )
             )
@@ -128,12 +132,25 @@ class CredentialVaultRepository(
                     publicKey = publicKey,
                     valueEncrypted = encrypted,
                     valueLength = cleanValue.length,
+                    type = resolveType(type, "", name, cleanValue, publicKey),
                     createdAt = now,
                     updatedAt = now,
                 )
             )
         }
     }
+
+    /**
+     * 类型解析：显式传入优先 → 否则沿用库内已有值 → 再否则按名称与结构推断。
+     * 历史数据 type 为空，首次保存/导入时自动补全，无需用户手工分类。
+     */
+    private fun resolveType(
+        requested: String,
+        existing: String,
+        name: String,
+        value: String,
+        publicKey: String,
+    ): String = requested.ifBlank { existing.ifBlank { CredentialType.infer(name, value, publicKey) } }
 
     suspend fun delete(entry: VaultCredentialEntity) {
         logAccess(entry.name, "repository", "delete")

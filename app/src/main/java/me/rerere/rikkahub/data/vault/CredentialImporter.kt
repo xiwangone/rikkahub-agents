@@ -29,6 +29,8 @@ object CredentialImporter {
         val description: String,
         val group: String,
         val publicKey: String = "",
+        /** 类型（缺省为空 = 未分类，写入时由推断补全） */
+        val type: String = "",
     )
 
     fun parse(content: String): List<ParsedEntry> {

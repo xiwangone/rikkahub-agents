@@ -85,7 +85,8 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
             sb.append("凭证库条目（${entries.size}）：\n")
             entries.forEach { e ->
                 val fp = if (e.publicKey.isNotBlank()) " fp=${SshKeyGenerator.fingerprint(e.publicKey) ?: "?"}" else ""
-                sb.append("${e.name}  [${e.grp}] len=${e.valueLength}$fp  ${e.description}\n")
+                val tt = if (e.type.isNotBlank()) " <${e.type}>" else ""
+                sb.append("${e.name}  [${e.grp}]$tt len=${e.valueLength}$fp  ${e.description}\n")
             }
         }
         listOf(UIMessagePart.Text(sb.toString().trimEnd()))
