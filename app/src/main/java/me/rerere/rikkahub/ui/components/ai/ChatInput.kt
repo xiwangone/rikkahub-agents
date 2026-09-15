@@ -806,7 +806,8 @@ keyboardOptions =
                         ),
                     // 占满剩余空间并允许收缩：文案较长时不会把后面的复制按钮挤出可视区
                     modifier = Modifier.weight(1f, fill = false),
-                    maxLines = 1,
+                    // 允许两行：累计文案较长时不再被截断到"看不清后面"
+                    maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
                 // 累计花费：仅当服务商上报 usage.cost 时显示
