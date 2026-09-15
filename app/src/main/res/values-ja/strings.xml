@@ -2186,10 +2186,10 @@
   <string name="stats_copy_total">累計統計をコピー</string>
   <string name="stats_copy">統計をコピー</string>
   <string name="stats_format">累計 ↑%1$s 入力 · ヒット %2$s ↓%3$s 出力</string>
-  <string name="chat_nerd_context_window">コンテキスト使用量 %1$s / %2$s · 残り %3$s</string>
+  <string name="chat_nerd_context_window">コンテキスト %1$s / %2$s · 使用 %3$s</string>
   <string name="chat_nerd_context_only">コンテキスト使用量 %1$s</string>
-  <string name="chat_context_window_title">自動圧縮のしきい値</string>
-  <string name="chat_context_window_hint">K トークン単位（例: 200 = 200K）。この値を超えると自動圧縮が始まります。</string>
+  <string name="chat_context_window_title">コンテキスト ウィンドウ サイズ（任意）</string>
+  <string name="chat_context_window_hint">K トークン単位（例: 200 = 200K）。入力すると優先して使われ、空欄ならモデルが報告したサイズを使います。</string>
   <string name="doctor_category_permissions">権限</string>
   <string name="doctor_category_services">バックグラウンドサービス</string>
   <string name="doctor_category_assistant_info">現在のアシスタント</string>

@@ -155,6 +155,7 @@ class SettingsStore(
         val AUTO_COMPRESS_THRESHOLD = intPreferencesKey("auto_compress_threshold")
         val AUTO_COMPRESS_TOKEN_LIMIT = longPreferencesKey("auto_compress_token_limit")
         val AUTO_COMPRESS_TOKEN_BASE = longPreferencesKey("auto_compress_token_base")
+        val CONTEXT_WINDOW_SIZE = longPreferencesKey("context_window_size")
         val AUTO_COMPRESS_MODE = intPreferencesKey("auto_compress_mode")
         val TOOL_OUTPUT_ENABLED = booleanPreferencesKey("tool_output_enabled")
         val TOOL_OUTPUT_MAX_CHARS = intPreferencesKey("tool_output_max_chars")
@@ -291,6 +292,7 @@ class SettingsStore(
                 autoCompressTokenLimit = preferences[AUTO_COMPRESS_TOKEN_LIMIT] ?: 0L,
                 autoCompressTokenBase = preferences[AUTO_COMPRESS_TOKEN_BASE] ?: 1_000L * 1000L,
                 autoCompressMode = preferences[AUTO_COMPRESS_MODE] ?: 0,
+                contextWindowSize = preferences[CONTEXT_WINDOW_SIZE] ?: 0L,
                 toolOutputEnabled = preferences[TOOL_OUTPUT_ENABLED] ?: true,
                 toolOutputMaxChars = preferences[TOOL_OUTPUT_MAX_CHARS] ?: 4 * 1000,
                 assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
@@ -624,6 +626,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[AUTO_COMPRESS_TOKEN_LIMIT] = settings.autoCompressTokenLimit
             preferences[AUTO_COMPRESS_TOKEN_BASE] = settings.autoCompressTokenBase
             preferences[AUTO_COMPRESS_MODE] = settings.autoCompressMode
+            preferences[CONTEXT_WINDOW_SIZE] = settings.contextWindowSize
             preferences[TOOL_OUTPUT_ENABLED] = settings.toolOutputEnabled
             preferences[TOOL_OUTPUT_MAX_CHARS] = settings.toolOutputMaxChars
 
@@ -854,6 +857,11 @@ data class Settings(
     val autoCompressTokenBase: Long = 1_000L * 1000L,
     /** 自动压缩模式：0 = 百分比模式（基准×阈值），1 = token 消耗模式（累计上限） */
     val autoCompressMode: Int = 0,
+    /**
+     * 手动填写的上下文窗口大小（token）。0 = 未填写，此时使用模型上报的窗口；
+     * 仅影响占用比例的展示，与自动压缩阈值互不影响。
+     */
+    val contextWindowSize: Long = 0L,
     /** 工具输出限制开关：启用后对工具输出进行截断（默认关） */
     val toolOutputEnabled: Boolean = true,
     /** 工具输出落盘阈值（字符数）：超过后截断落盘 + 返回预览，范围 4K-20K */

@@ -2368,10 +2368,10 @@
   <string name="stats_copy_total">复制累计统计</string>
   <string name="stats_copy">复制统计</string>
   <string name="stats_format">累计 ↑%1$s 输入 · 命中 %2$s ↓%3$s 输出</string>
-  <string name="chat_nerd_context_window">上下文占用 %1$s / %2$s · 剩 %3$s</string>
+  <string name="chat_nerd_context_window">上下文 %1$s / %2$s · 已用 %3$s</string>
   <string name="chat_nerd_context_only">上下文占用 %1$s</string>
-  <string name="chat_context_window_title">自动压缩阈值</string>
-  <string name="chat_context_window_hint">以 K 为单位（如 200 = 200K）。超过该值后触发自动压缩。</string>
+  <string name="chat_context_window_title">上下文窗口大小（选填）</string>
+  <string name="chat_context_window_hint">以 K 为单位（如 200 = 200K）。填写后优先采用该值，留空则使用模型上报的窗口大小。</string>
   <string name="doctor_category_permissions">权限</string>
   <string name="doctor_category_services">后台服务</string>
   <string name="doctor_category_assistant_info">当前助手</string>

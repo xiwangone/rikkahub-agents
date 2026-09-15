@@ -1835,10 +1835,10 @@
   <string name="stats_copy_total">نسخ الإحصاء التراكمي</string>
   <string name="stats_copy">نسخ الإحصاء</string>
   <string name="stats_format">الإجمالي ↑%1$s إدخال · إصابة %2$s ↓%3$s إخراج</string>
-  <string name="chat_nerd_context_window">استخدام السياق %1$s / %2$s · المتبقي %3$s</string>
+  <string name="chat_nerd_context_window">السياق %1$s / %2$s · مستخدم %3$s</string>
   <string name="chat_nerd_context_only">استخدام السياق %1$s</string>
-  <string name="chat_context_window_title">حد الضغط التلقائي</string>
-  <string name="chat_context_window_hint">بوحدة K من الرموز (مثال: 200 = 200K). يبدأ الضغط التلقائي عند تجاوزها.</string>
+  <string name="chat_context_window_title">حجم نافذة السياق (اختياري)</string>
+  <string name="chat_context_window_hint">بوحدة K من الرموز (مثال: 200 = 200K). عند تعبئته يُستخدم هذا القيمة أولًا، وإلا يُستخدم الحجم الذي يبلّغ عنه النموذج.</string>
   <string name="doctor_category_permissions">الأذونات</string>
   <string name="doctor_category_services">الخدمات الخلفية</string>
   <string name="doctor_category_assistant_info">المساعد الحالي</string>

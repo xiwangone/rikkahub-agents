@@ -1,5 +1,9 @@
 package me.rerere.rikkahub.ui.components.message
 
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Spacer
 import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -256,22 +260,24 @@ fun ChatMessageNerdLine(
                     }
                 }
             }
-            // 当前上下文占用：已用 / 窗口大小 / 剩余百分比；点击可设置窗口大小
+            // 上下文占用：已用 / 窗口 · 已用比例（进度条）。点击可填写窗口大小（选填）
             val contextUsage = message.usage
             if (settings.showTokenUsage && contextUsage != null && contextUsage.promptTokens > 0) {
                 val ctxTokens = contextUsage.promptTokens.toLong()
-                // 窗口优先取模型上报的上下文长度；模型未提供时才回落到用户设置的值。
-                // 两者都没有时只显示占用值，不显示占比。
-                val windowTokens =
+                // 窗口取手动填写值，其次是模型上报值；两者都没有时只显示占用量。
+                val configuredWindow = appSettings.contextWindowSize.takeIf { it > 0 }
+                val reportedWindow =
                     appSettings.providers
                         .flatMap { it.models }
                         .firstOrNull { it.id == message.modelId }
                         ?.contextLength
                         ?.takeIf { it > 0 }
                         ?.toLong()
-                        ?: appSettings.autoCompressTokenBase.takeIf { it > 0 }
-                val usedRatio = windowTokens?.let { ctxTokens.toDouble() / it.toDouble() }
-                // 红黄绿三档（阈值提前，便于尽早察觉）：<50% 绿／50~75% 黄／≥75% 红
+                val windowTokens = configuredWindow ?: reportedWindow
+                val usedRatio =
+                    windowTokens?.let { (ctxTokens.toDouble() / it.toDouble()).coerceIn(0.0, 1.0) }
+                // 红黄绿三档（阈值提前，便于尽早察觉）：<50% 绿／50~75% 黄／≥75% 红；
+                // 颜色只出现在进度条上，文字保持中性色，避免同一信息重复着色
                 val contextColor = when {
                     usedRatio == null -> color
                     usedRatio >= 0.75 -> Color(0xFFD32F2F)
@@ -279,8 +285,8 @@ fun ChatMessageNerdLine(
                     else -> Color(0xFF43A047)
                 }
                 var showWindowDialog by remember { mutableStateOf(false) }
-                var windowInput by remember(windowTokens) {
-                    mutableStateOf(windowTokens?.let { (it / 1000).toString() } ?: "")
+                var windowInput by remember(configuredWindow) {
+                    mutableStateOf(configuredWindow?.let { (it / 1000).toString() } ?: "")
                 }
                 val settingsStore = koinInject<SettingsStore>()
                 val coroutineScope = rememberCoroutineScope()
@@ -297,29 +303,37 @@ fun ChatMessageNerdLine(
                             Icon(
                                 imageVector = HugeIcons.DashboardSquare01,
                                 contentDescription = stringResource(R.string.chat_context_window_title),
-                                tint = contextColor,
+                                tint = color,
                                 modifier = Modifier.size(14.dp),
                             )
                         },
                         content = {
-                            Text(
-                                text =
-                                    windowTokens?.let { win ->
-                                        stringResource(
-                                            R.string.chat_nerd_context_window,
-                                            formatTokensAsK(ctxTokens),
-                                            formatTokensAsK(win),
-                                            String.format(
-                                                java.util.Locale.US,
-                                                "%.0f%%",
-                                                ((1.0 - ctxTokens.toDouble() / win.toDouble()) * 100.0).coerceIn(0.0, 100.0),
-                                            ),
-                                        )
-                                    } ?: stringResource(R.string.chat_nerd_context_only, formatTokensAsK(ctxTokens)),
-                                color = contextColor,
-                                // 比同组统计大一号，便于一眼看到当前上下文占用
-                                style = MaterialTheme.typography.labelMedium,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text =
+                                        if (windowTokens != null && usedRatio != null) {
+                                            stringResource(
+                                                R.string.chat_nerd_context_window,
+                                                formatTokensAsK(ctxTokens),
+                                                formatTokensAsK(windowTokens),
+                                                String.format(java.util.Locale.US, "%.0f%%", usedRatio * 100.0),
+                                            )
+                                        } else {
+                                            stringResource(R.string.chat_nerd_context_only, formatTokensAsK(ctxTokens))
+                                        },
+                                    // 比同组统计大一号，便于一眼看到当前上下文占用
+                                    style = MaterialTheme.typography.labelMedium,
+                                )
+                                if (usedRatio != null) {
+                                    Spacer(Modifier.width(6.dp))
+                                    LinearProgressIndicator(
+                                        progress = { usedRatio.toFloat() },
+                                        modifier = Modifier.width(56.dp).height(4.dp),
+                                        color = contextColor,
+                                        trackColor = contextColor.copy(alpha = 0.2f),
+                                    )
+                                }
+                            }
                         },
                     )
                 }
@@ -347,7 +361,7 @@ fun ChatMessageNerdLine(
                                     val newBase = if (k > 0L) k * 1000L else 0L
                                     showWindowDialog = false
                                     coroutineScope.launch {
-                                        settingsStore.update { current -> current.copy(autoCompressTokenBase = newBase) }
+                                        settingsStore.update { current -> current.copy(contextWindowSize = newBase) }
                                     }
                                 },
                             ) {
