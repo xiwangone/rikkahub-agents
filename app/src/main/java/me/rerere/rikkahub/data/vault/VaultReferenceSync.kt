@@ -27,7 +27,9 @@ object VaultReferenceSync {
     fun renameInText(text: String, oldName: String, newName: String): String {
         if (text.isBlank() || oldName.isBlank() || oldName == newName) return text
         val pattern = Regex(Regex.escape(PREFIX + oldName) + "(?![A-Za-z0-9_])")
-        return pattern.replace(text, PREFIX + newName)
+        // 注意：正则**替换串**里的 `$` 是特殊字符（`$1` = 分组引用），
+        // 因此替换文本必须转义，否则 `$$NEW` 会被当作分组引用解析，替换结果错误。
+        return pattern.replace(text, Regex.escapeReplacement(PREFIX + newName))
     }
 
     /** 提供方配置里与凭证相关的字段，逐个做引用替换（值不做任何其它改动）。 */

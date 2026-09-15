@@ -58,6 +58,8 @@ fun SecretRefField(
     singleLine: Boolean = false,
     /** 非单行时的最大行数（多行密钥/私钥等场景用）。 */
     maxLines: Int = 3,
+    /** 空值时的占位提示；默认提示可直接写 `$$名字` 引用（语法可发现性）。 */
+    placeholder: String? = null,
 ) {
     val repository: CredentialVaultRepository = koinInject()
     val scope = rememberCoroutineScope()
@@ -81,6 +83,7 @@ fun SecretRefField(
             notice = null
         },
         label = { Text(label) },
+        placeholder = { Text(placeholder ?: stringResource(R.string.vault_ref_hint)) },
         supportingText = {
             val hint = notice ?: description
             if (hint != null) Text(hint)
