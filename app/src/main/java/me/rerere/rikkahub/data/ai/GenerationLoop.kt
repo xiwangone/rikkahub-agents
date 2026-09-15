@@ -208,7 +208,8 @@ private fun retryFailureReason(failure: Throwable): String =
 
 /** 错误分类：根据失败原因与异常类型定位问题，命中→资源化标签，未命中→UNKNOWN（原文兜底）。 */
 enum class FailureKind {
-    CONTENT_SAFETY, AUTH, QUOTA, RATE_LIMIT, MODEL_NOT_FOUND, NETWORK, SERVER, CONTEXT_LENGTH, BAD_REQUEST, UNKNOWN,
+    CONTENT_SAFETY, AUTH, QUOTA, RATE_LIMIT, MODEL_NOT_FOUND, NETWORK, SERVER, CONTEXT_LENGTH,
+    PERMISSION, STORAGE, UNSUPPORTED, BAD_REQUEST, UNKNOWN,
 }
 
 fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
@@ -224,6 +225,12 @@ fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
             FailureKind.RATE_LIMIT
         listOf("model_not_found", "invalid_model", "modelnotfound", "not found", "404").any { text.contains(it) } ->
             FailureKind.MODEL_NOT_FOUND
+        listOf("permission denied", "eperm", "eacces", "securityexception", "not granted", "权限", "拒绝访问").any { text.contains(it) } ->
+            FailureKind.PERMISSION
+        listOf("enospc", "no space", "disk full", "read-only file system", "存储空间", "磁盘").any { text.contains(it) } ->
+            FailureKind.STORAGE
+        listOf("unsupported", "not supported", "不支持", "格式不支持").any { text.contains(it) } ->
+            FailureKind.UNSUPPORTED
         listOf("timeout", "sockettimeout", "connectexception", "unknownhost", "unreachable", "timed out", "超时", "网络").any { text.contains(it) } ->
             FailureKind.NETWORK
         listOf(
@@ -253,6 +260,9 @@ fun diagnoseFailure(context: Context, failure: Throwable): FailureDiagnosis {
         FailureKind.NETWORK -> context.getString(me.rerere.rikkahub.R.string.error_kind_network)
         FailureKind.SERVER -> context.getString(me.rerere.rikkahub.R.string.error_kind_server)
         FailureKind.CONTEXT_LENGTH -> context.getString(me.rerere.rikkahub.R.string.error_kind_context_length)
+        FailureKind.PERMISSION -> context.getString(me.rerere.rikkahub.R.string.error_kind_permission)
+        FailureKind.STORAGE -> context.getString(me.rerere.rikkahub.R.string.error_kind_storage)
+        FailureKind.UNSUPPORTED -> context.getString(me.rerere.rikkahub.R.string.error_kind_unsupported)
         FailureKind.BAD_REQUEST -> context.getString(me.rerere.rikkahub.R.string.error_kind_bad_request)
         FailureKind.UNKNOWN -> context.getString(me.rerere.rikkahub.R.string.error_kind_unknown)
     }

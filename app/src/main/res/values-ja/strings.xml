@@ -1879,6 +1879,9 @@
     <string name="error_kind_server">モデルサービスが一時的に利用できません（自動で再試行します）</string>
     <string name="error_kind_context_length">会話がモデルのコンテキスト上限を超えています（短くするか新規チャット）</string>
     <string name="error_kind_bad_request">リクエストパラメータが不正です</string>
+    <string name="error_kind_permission">権限がありません（システム設定で許可してください）</string>
+    <string name="error_kind_storage">ストレージ不足、またはファイルに書き込めません</string>
+    <string name="error_kind_unsupported">形式またはパラメータが未対応です</string>
     <string name="error_kind_unknown">判別できないエラーです（下のサーバー原文を参照）</string>
     <string name="error_context_injected">生成失敗：%1$s。元の応答：%2$s</string>
     <string name="error_context_retry_succeeded">再試行成功。以前の失敗：%1$s。元の応答：%2$s</string>

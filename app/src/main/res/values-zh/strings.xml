@@ -2743,6 +2743,9 @@
     <string name="error_kind_server">模型服务暂时不可用（稍后会自动重试）</string>
     <string name="error_kind_context_length">对话内容超出模型上下文上限（请精简或新开会话）</string>
     <string name="error_kind_bad_request">请求参数有误</string>
+    <string name="error_kind_permission">权限不足或未授权（请到系统设置中授予）</string>
+    <string name="error_kind_storage">存储空间不足或文件不可写</string>
+    <string name="error_kind_unsupported">格式或参数不受支持</string>
     <string name="error_kind_unknown">未能识别的错误（详见下方服务端原话）</string>
     <string name="error_context_injected">生成失败：%1$s。返回原文：%2$s</string>
     <string name="error_context_retry_succeeded">重试成功。之前失败：%1$s。返回原文：%2$s</string>

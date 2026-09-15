@@ -1556,6 +1556,9 @@
     <string name="error_kind_server">خدمة النموذج غير متاحة مؤقتاً (ستُعاد المحاولة تلقائياً)</string>
     <string name="error_kind_context_length">تجاوزت المحادثة حد سياق النموذج (اختصر أو ابدأ محادثة جديدة)</string>
     <string name="error_kind_bad_request">معلمات الطلب غير صحيحة</string>
+    <string name="error_kind_permission">لا توجد صلاحية (امنحها من إعدادات النظام)</string>
+    <string name="error_kind_storage">مساحة التخزين ممتلئة أو الملف غير قابل للكتابة</string>
+    <string name="error_kind_unsupported">التنسيق أو المعامل غير مدعوم</string>
     <string name="error_kind_unknown">خطأ غير معروف (راجع نص الخادم أدناه)</string>
     <string name="error_context_injected">فشل التوليد: %1$s. الرد الأصلي: %2$s</string>
     <string name="error_context_retry_succeeded">نجحت إعادة المحاولة. الخطأ السابق: %1$s. الرد الأصلي: %2$s</string>

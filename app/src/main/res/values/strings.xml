@@ -2743,6 +2743,9 @@
     <string name="error_kind_server">Model service temporarily unavailable (retries automatically)</string>
     <string name="error_kind_context_length">Conversation exceeds the model context limit (trim or start a new chat)</string>
     <string name="error_kind_bad_request">Invalid request parameters</string>
+    <string name="error_kind_permission">Permission denied (grant it in system settings)</string>
+    <string name="error_kind_storage">Storage full or file not writable</string>
+    <string name="error_kind_unsupported">Format or parameter not supported</string>
     <string name="error_kind_unknown">Unrecognized error (see the raw server message below)</string>
     <string name="error_context_injected">Generation failed: %1$s. Raw response: %2$s</string>
     <string name="error_context_retry_succeeded">Retry succeeded. Previous failure: %1$s. Raw response: %2$s</string>

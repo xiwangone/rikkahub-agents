@@ -1876,6 +1876,9 @@
     <string name="error_kind_server">모델 서비스를 일시적으로 사용할 수 없습니다(자동으로 재시도)</string>
     <string name="error_kind_context_length">대화가 모델 컨텍스트 한도를 초과했습니다(줄이거나 새 대화 시작)</string>
     <string name="error_kind_bad_request">요청 매개변수가 잘못되었습니다</string>
+    <string name="error_kind_permission">권한이 없습니다(시스템 설정에서 허용하세요)</string>
+    <string name="error_kind_storage">저장 공간 부족 또는 파일 쓰기 불가</string>
+    <string name="error_kind_unsupported">형식 또는 매개변수가 지원되지 않습니다</string>
     <string name="error_kind_unknown">식별할 수 없는 오류입니다(아래 서버 원문 참조)</string>
     <string name="error_context_injected">생성 실패: %1$s. 원본 응답: %2$s</string>
     <string name="error_context_retry_succeeded">재시도 성공. 이전 실패: %1$s. 원본 응답: %2$s</string>

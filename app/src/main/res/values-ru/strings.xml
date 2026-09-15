@@ -1872,6 +1872,9 @@
     <string name="error_kind_server">Сервис модели временно недоступен (повторим автоматически)</string>
     <string name="error_kind_context_length">Диалог превышает лимит контекста модели (сократите или создайте новый чат)</string>
     <string name="error_kind_bad_request">Некорректные параметры запроса</string>
+    <string name="error_kind_permission">Нет разрешения (выдайте его в настройках системы)</string>
+    <string name="error_kind_storage">Недостаточно места или файл недоступен для записи</string>
+    <string name="error_kind_unsupported">Формат или параметр не поддерживается</string>
     <string name="error_kind_unknown">Неопознанная ошибка (см. ответ сервера ниже)</string>
     <string name="error_context_injected">Сбой генерации: %1$s. Исходный ответ: %2$s</string>
     <string name="error_context_retry_succeeded">Повтор успешен. Предыдущая ошибка: %1$s. Исходный ответ: %2$s</string>
