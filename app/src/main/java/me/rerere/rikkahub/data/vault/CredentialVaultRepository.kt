@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.vault
 
 import me.rerere.rikkahub.data.datastore.ProviderCredentialCipher
+import java.security.MessageDigest
 import me.rerere.rikkahub.data.db.dao.VaultAuditLogDao
 import me.rerere.rikkahub.data.db.dao.VaultCredentialDao
 import me.rerere.rikkahub.data.db.entity.VaultAuditDefaults
@@ -16,12 +17,79 @@ import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
  * - 脱敏展示（明文仅内存解密，展示前 mask）
  * - 密钥使用审计：记录每次查看/导出/备份，双上限清理（500 条 / 30 天）
  */
+/**
+ * 快速入库结果（供"引用处直接粘贴明文"使用）。
+ *
+ * @param name 最终使用的凭证名（可能复用已有条目）
+ * @param reusedExisting 是否**复用**了库内已有的同值条目（避免重复入库）
+ * @param type 最终类型（显式传入或自动推断）
+ */
+data class QuickImportResult(
+    val name: String,
+    val reusedExisting: Boolean,
+    val type: String,
+)
+
 class CredentialVaultRepository(
     private val dao: VaultCredentialDao,
     private val auditDao: VaultAuditLogDao,
 ) {
 
     suspend fun getAll(): List<VaultCredentialEntity> = dao.getAll()
+
+    /** 找出库内与给定值**完全相同**的条目名（比对指纹，不比明文）；已清洗后的值传入。 */
+    suspend fun findSameValueNames(value: String): List<String> {
+        val target = fingerprint(CredentialValueSanitizer.sanitize(value))
+        return dao.getAll().mapNotNull { e ->
+            val v = decryptValue(e) ?: return@mapNotNull null
+            if (fingerprint(v) == target) e.name else null
+        }
+    }
+
+    /** 全库重复分组：指纹相同的条目归为一组（只返回成员 >1 的组）。 */
+    suspend fun findDuplicateGroups(): List<List<String>> {
+        val byHash = LinkedHashMap<String, MutableList<String>>()
+        dao.getAll().forEach { e ->
+            val v = decryptValue(e) ?: return@forEach
+            byHash.getOrPut(fingerprint(v)) { mutableListOf() }.add(e.name)
+        }
+        return byHash.values.filter { it.size > 1 }.map { it.toList() }
+    }
+
+    /**
+     * 快速入库（供"引用处直接粘贴明文"使用）。
+     *
+     * 流程：清洗 → **查重**（同值已存在则直接复用，不重复建条目）→ 保存（类型自动推断）
+     * → 返回最终凭证名。调用方据此把该处改成引用，而不是留下明文。
+     */
+    suspend fun quickImport(
+        rawValue: String,
+        preferredName: String,
+        description: String = "",
+        group: String = "Other",
+    ): QuickImportResult {
+        val sanitized = CredentialValueSanitizer.sanitize(rawValue)
+        require(sanitized.isNotBlank()) { "凭证值为空或只含不可见字符" }
+
+        // 查重：同值已在库里就直接复用，顺带避免用户重复粘贴造成多份副本
+        val sameName = findSameValueNames(sanitized).firstOrNull()
+        if (sameName != null) {
+            val existing = dao.getByName(sameName)
+            return QuickImportResult(
+                name = sameName,
+                reusedExisting = true,
+                type = existing?.type.orEmpty(),
+            )
+        }
+
+        val name = normalizeName(preferredName)
+        save(name = name, value = sanitized, description = description, group = group)
+        return QuickImportResult(
+            name = name,
+            reusedExisting = false,
+            type = dao.getByName(name)?.type.orEmpty(),
+        )
+    }
 
     suspend fun getByName(name: String): VaultCredentialEntity? = dao.getByName(name)
 
@@ -227,6 +295,30 @@ class CredentialVaultRepository(
          * 语义后缀（建议非强制）：_TOKEN / _API_KEY / _KEY / _PUB / _PWD / _PASS / _PATH / _ACCOUNT。
          */
         private val NAME_REGEX = Regex("^[A-Z][A-Z0-9_]*$")
+
+        /**
+         * 值指纹：明文取 SHA-256 后截断为 16 位十六进制。
+         *
+         * 用途是**不见值比对**——回答"两条是否相同 / 值是否变过"，而不暴露明文。
+         * 高熵密钥无需加盐；此指纹仅用于本地比对，不要写进配置或日志。
+         */
+        fun fingerprint(value: String): String =
+            MessageDigest.getInstance("SHA-256")
+                .digest(value.toByteArray())
+                .joinToString("") { "%02x".format(it) }
+                .take(16)
+
+        /**
+         * 把任意输入规范化成合规凭证名（`^[A-Z][A-Z0-9_]*$`）。
+         *
+         * 用于"粘贴即入库"：用户往往直接粘一段描述或小写名，这里统一转大写蛇形，
+         * 非法字符折成下划线；首字符不是字母时补前缀，保证结果始终合法。
+         */
+        fun normalizeName(raw: String): String {
+            val folded = raw.trim().uppercase().replace(Regex("[^A-Z0-9_]+"), "_").trim('_')
+            val prefixed = if (folded.isEmpty() || !folded[0].isLetter()) "CRED_$folded" else folded
+            return prefixed.take(64).trim('_').ifEmpty { "CRED_UNNAMED" }
+        }
 
         /** 校验凭证名是否合规。空名/小写/连字符/空格/中文均不合规。 */
         fun validateCredentialName(name: String): Boolean =
