@@ -1020,6 +1020,15 @@
   <string name="setting_tts_page_stability">安定性</string>
   <string name="setting_tts_page_stability_description">音声の安定性を制御（0.0 - 1.0、低いほど表現力豊か）</string>
   <string name="setting_tts_page_speech_rate_description">音声の再生速度を制御 (0.1 - 3.0、1.0が標準)</string>
+  <string name="setting_tts_page_provider_volcengine">Volcengine</string>
+  <string name="tts_api_key_show">API Key を表示</string>
+  <string name="tts_api_key_hide">API Key を非表示</string>
+  <string name="tts_volcengine_api_key_desc">豆包音声コンソールの API Key を入力してください（Volcengine Ark コンソールのものではありません）。</string>
+  <string name="tts_volcengine_resource_id">リソース ID</string>
+  <string name="tts_volcengine_resource_id_desc">有効化したサービスと音色に合わせてください。既定は seed-tts-2.0 です。</string>
+  <string name="tts_volcengine_speaker">音色 ID</string>
+  <string name="tts_volcengine_speaker_desc">コンソールの音色 ID を入力します。既定は VV 音色です。</string>
+  <string name="tts_volcengine_speed_desc">範囲は -50～100。0 が標準、-50 で半分、100 で 2 倍の速さです。</string>
   <string name="setting_tts_page_speed">速度</string>
   <string name="setting_tts_page_speed_description">音声合成の速度 (0.25 - 4.0)</string>
   <string name="setting_tts_page_test_text">こんにちは、これはテキスト読み上げのテストです。</string>

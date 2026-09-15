@@ -69,7 +69,7 @@ fun TTSProviderConfigure(
                             is TTSProviderSetting.Step -> "Step"
                             is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
                             is TTSProviderSetting.FishAudio -> "Fish Audio"
-                            is TTSProviderSetting.Volcengine -> "火山引擎"
+                            is TTSProviderSetting.Volcengine -> stringResource(R.string.setting_tts_page_provider_volcengine)
                         },
                     onValueChange = {},
                     readOnly = true,
@@ -101,7 +101,7 @@ fun TTSProviderConfigure(
                                         TTSProviderSetting.ElevenLabs::class -> "ElevenLabs"
                                         TTSProviderSetting.FishAudio::class -> "Fish Audio"
                                         TTSProviderSetting.Step::class -> "Step"
-                                        TTSProviderSetting.Volcengine::class -> "火山引擎"
+                                        TTSProviderSetting.Volcengine::class -> stringResource(R.string.setting_tts_page_provider_volcengine)
                                         else -> providerClass.simpleName ?: "Unknown"
                                     },
                                 )
@@ -190,7 +190,7 @@ fun TTSProviderConfigure(
                                         TTSProviderSetting.Volcengine::class -> {
                                             TTSProviderSetting.Volcengine(
                                                 id = setting.id,
-                                                name = "火山引擎 TTS",
+                                                name = "Volcengine TTS",
                                             )
                                         }
 
@@ -1600,7 +1600,7 @@ private fun VolcengineTTSConfiguration(
 
     FormItem(
         label = { Text("API Key") },
-        description = { Text("请填写豆包语音控制台的 API Key，不是火山方舟控制台的 API Key。") }
+        description = { Text(stringResource(R.string.tts_volcengine_api_key_desc)) }
     ) {
         OutlinedTextField(
             value = setting.apiKey,
@@ -1610,7 +1610,7 @@ private fun VolcengineTTSConfiguration(
                 IconButton(onClick = { keyVisible = !keyVisible }) {
                     Icon(
                         imageVector = if (keyVisible) HugeIcons.ViewOff else HugeIcons.View,
-                        contentDescription = if (keyVisible) "隐藏 API Key" else "显示 API Key",
+                        contentDescription = if (keyVisible) stringResource(R.string.tts_api_key_hide) else stringResource(R.string.tts_api_key_show),
                     )
                 }
             },
@@ -1628,8 +1628,8 @@ private fun VolcengineTTSConfiguration(
         )
     }
     FormItem(
-        label = { Text("资源 ID") },
-        description = { Text("需与已开通的服务和音色匹配，默认 seed-tts-2.0。") }
+        label = { Text(stringResource(R.string.tts_volcengine_resource_id)) },
+        description = { Text(stringResource(R.string.tts_volcengine_resource_id_desc)) }
     ) {
         OutlinedTextField(
             value = setting.resourceId,
@@ -1639,8 +1639,8 @@ private fun VolcengineTTSConfiguration(
         )
     }
     FormItem(
-        label = { Text("音色 ID") },
-        description = { Text("填写控制台中的音色 ID，默认使用 VV 音色。") }
+        label = { Text(stringResource(R.string.tts_volcengine_speaker)) },
+        description = { Text(stringResource(R.string.tts_volcengine_speaker_desc)) }
     ) {
         OutlinedTextField(
             value = setting.speaker,
@@ -1651,7 +1651,7 @@ private fun VolcengineTTSConfiguration(
     }
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_speed)) },
-        description = { Text("范围 -50～100，0 为正常语速，-50 为半速，100 为两倍速。") }
+        description = { Text(stringResource(R.string.tts_volcengine_speed_desc)) }
     ) {
         OutlinedNumberInput(
             value = setting.speechRate,

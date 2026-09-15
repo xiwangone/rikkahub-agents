@@ -435,7 +435,9 @@ private fun TTSProviderItem(
                                 }
 
                                 is TTSProviderSetting.Volcengine -> {
-                                    "火山引擎"
+                                    stringResource(
+                                        R.string.setting_tts_page_provider_volcengine,
+                                    )
                                 }
                             },
                         style = MaterialTheme.typography.bodySmall,
