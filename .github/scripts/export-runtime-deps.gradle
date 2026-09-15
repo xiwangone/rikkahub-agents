@@ -3,54 +3,90 @@
 // 通过 --init-script 注入，不修改项目自身的构建配置。
 // 用法：./gradlew --no-configuration-cache -I <本文件> exportRuntimeDeps -Ddeps.out=<输出路径>
 //
-// 只解析 release 变体的 runtimeClasspath：这些才是随产物分发的依赖；
-// 插件 classpath（构建工具自身）不在此列。
+// 只取 release 变体的 runtimeClasspath：这些才是随产物分发的依赖。
+// 插件 classpath（构建工具自身）不在此列，两者的漏洞含义完全不同。
 
-gradle.rootProject { root ->
+gradle.projectsEvaluated { g ->
+    def root = g.rootProject
     root.tasks.register("exportRuntimeDeps") {
         group = "verification"
         description = "导出运行时依赖清单为 CycloneDX JSON"
 
         doLast {
             def outputPath = System.getProperty("deps.out") ?: "runtime-deps.json"
-            def seen = new TreeSet<String>()
-            def components = []
+            def projects = root.allprojects
+            println("exportRuntimeDeps: 扫描 ${projects.size()} 个模块")
 
-            root.allprojects.each { p ->
-                p.configurations.findAll { c ->
+            // 「可解析 + release 运行时 + 非测试」的配置才是分发内容
+            def isCandidate = { c ->
+                try {
+                    def n = c.name.toLowerCase()
                     c.canBeResolved &&
-                        c.name.endsWith("RuntimeClasspath") &&
-                        !c.name.contains("Debug") &&
-                        !c.name.contains("Test")
-                }.each { c ->
-                    try {
-                        c.resolvedConfiguration.lenientConfiguration.artifacts.each { a ->
-                            def id = a.moduleVersion.id
-                            def key = "${id.group}:${id.name}:${id.version}"
-                            if (seen.add(key)) {
-                                components << [id.group.toString(), id.name.toString(), id.version.toString()]
-                            }
-                        }
-                    } catch (Exception ignored) {
-                        p.logger.warn("跳过配置 ${p.name}:${c.name}：${ignored.message}")
-                    }
+                        n.endsWith("runtimeclasspath") &&
+                        !n.contains("debug") && !n.contains("test") && !n.contains("androidtest")
+                } catch (Exception e) {
+                    false
                 }
             }
 
+            // 两条取用路径：优先 lenient 配置（容忍单个依赖解析失败），
+            // 为空时退回 artifactView（新版 API），避免因 API 差异漏采。
+            def collect = { c ->
+                def out = new LinkedHashSet<String>()
+                try {
+                    c.resolvedConfiguration.lenientConfiguration.artifacts.each { a ->
+                        def id = a.moduleVersion.id
+                        out << "${id.group}:${id.name}:${id.version}"
+                    }
+                } catch (Exception e) {
+                    println("    [lenient 失败] ${c.name}: ${e.class.simpleName}: ${e.message}")
+                }
+                if (out.isEmpty()) {
+                    try {
+                        c.incoming.artifactView { it.lenient(true) }.artifacts.artifacts.each { a ->
+                            def id = a.id.componentIdentifier
+                            out << "${id.group}:${id.module}:${id.version}"
+                        }
+                    } catch (Exception e) {
+                        println("    [artifactView 失败] ${c.name}: ${e.class.simpleName}: ${e.message}")
+                    }
+                }
+                out
+            }
+
+            def seen = new TreeSet<String>()
+            int candidateCount = 0
+
+            projects.each { p ->
+                def candidates = p.configurations.findAll(isCandidate)
+                candidateCount += candidates.size()
+                println("  ${p.path}: 候选配置 ${candidates.size()} 个" +
+                    (candidates.isEmpty() ? "" : " -> ${candidates.collect { it.name }.join(', ')}"))
+                candidates.each { c -> seen.addAll(collect(c)) }
+            }
+
+            def components = seen.collect { it.split(":", 3) }
+
             def esc = { String s -> s.replace("\\", "\\\\").replace("\"", "\\\"") }
-            def body = components.collect { g ->
-                def purl = "pkg:maven/${g[0]}/${g[1]}@${g[2]}"
-                "{\"type\":\"library\",\"group\":\"${esc(g[0])}\",\"name\":\"${esc(g[1])}\"," +
-                    "\"version\":\"${esc(g[2])}\",\"purl\":\"${esc(purl)}\"}"
+            def body = components.collect { g2 ->
+                def purl = "pkg:maven/${g2[0]}/${g2[1]}@${g2[2]}"
+                "{\"type\":\"library\",\"group\":\"${esc(g2[0])}\",\"name\":\"${esc(g2[1])}\",\"version\":\"${esc(g2[2])}\",\"purl\":\"${esc(purl)}\"}"
             }.join(",")
 
             def out = new File(outputPath)
             if (out.parentFile != null) {
                 out.parentFile.mkdirs()
             }
-            out.text = '{"bomFormat":"CycloneDX","specVersion":"1.5","version":1,"components":[' +
-                body + ']}'
-            println("exportRuntimeDeps: ${components.size()} 个组件 -> ${out.absolutePath}")
+            out.text = '{"bomFormat":"CycloneDX","specVersion":"1.5","version":1,"components":[' + body + ']}'
+            println("exportRuntimeDeps: 候选配置 ${candidateCount} 个，解析出 ${components.size()} 个组件 -> ${out.absolutePath}")
+
+            // 解析不到任何组件说明本任务没有生效，必须显式失败，
+            // 否则作业会绿色通过，形成「看起来在扫、其实没扫」的假象。
+            if (components.isEmpty()) {
+                throw new GradleException(
+                    "未解析到任何运行时依赖；请检查上面的候选配置输出（预期含 releaseRuntimeClasspath）"
+                )
+            }
         }
     }
 }
