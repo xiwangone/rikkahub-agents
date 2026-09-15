@@ -268,7 +268,8 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
             baseUrl = setting.baseUrl,
             username = setting.username,
             password = setting.password,
-            token = setting.token,
+            // 支持 `$$凭证名` 引用（未命中保持原样，便于暴露配置错误）
+            token = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(setting.token),
         )
 
     private fun ensureReceiverRegistered() {

@@ -58,6 +58,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
@@ -128,7 +129,10 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         return if (providerSetting.vertexAI && providerSetting.useServiceAccount) {
             val accessToken = serviceAccountTokenProvider.fetchAccessToken(
                 serviceAccountEmail = providerSetting.serviceAccountEmail.trim(),
-                privateKeyPem = StringEscapeUtils.unescapeJson(providerSetting.privateKey.trim()),
+                // 支持写成 `$$凭证名`：由上层注入的解析器换取真值（未注入时原样）
+                privateKeyPem = ProviderKeyRefs.expand(
+                    StringEscapeUtils.unescapeJson(providerSetting.privateKey.trim()),
+                ),
             )
             request.newBuilder()
                 .addHeader("Authorization", "Bearer $accessToken")
