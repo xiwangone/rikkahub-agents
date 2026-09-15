@@ -653,7 +653,7 @@ fun vaultExportLoadCredsTool(
             val entries = repository.getAll()
             val quads =
                 entries.mapNotNull { e ->
-                    repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp, e.publicKey) }
+                    repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp, e.publicKey, e.type) }
                 }
             if (quads.isEmpty()) {
                 listOf(UIMessagePart.Text("❌ 凭证库为空，无可导出条目"))

@@ -38,6 +38,7 @@ object CredentialImporter {
         var currentGroup = "Other"
         var pendingComment: String? = null
         var pendingPublicKey: String? = null
+        var pendingType: String? = null
         val lines = content.lineSequence().iterator()
         while (lines.hasNext()) {
             val rawLine = lines.next()
@@ -58,6 +59,12 @@ object CredentialImporter {
                     if (pub.startsWith("ssh-") || pub.startsWith("ecdsa-") || pub.startsWith("sk-")) {
                         pendingPublicKey = pub
                     }
+                }
+
+                // 类型注释：如 "# type: api-key"（导出时写入，用于往返保留类型；不认识的值忽略）
+                line.startsWith("#") && line.removePrefix("#").trim().startsWith("type:") -> {
+                    val t = line.substringAfter(':').trim()
+                    if (CredentialType.isValid(t)) pendingType = t
                 }
 
                 // 普通注释：作为下一条 export 的描述
@@ -91,9 +98,11 @@ object CredentialImporter {
                         description = pendingComment ?: "",
                         group = currentGroup,
                         publicKey = pendingPublicKey ?: "",
+                        type = pendingType ?: "",
                     )
                     pendingComment = null
                     pendingPublicKey = null
+                    pendingType = null
                 }
             }
         }

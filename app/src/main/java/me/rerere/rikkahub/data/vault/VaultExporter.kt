@@ -53,6 +53,7 @@ object VaultExporter {
         val desc: String = "",
         val group: String = "",
         val publicKey: String = "",
+        val type: String = "",
     )
 
     @Serializable
@@ -87,6 +88,7 @@ object VaultExporter {
                 desc = e.description,
                 group = e.group,
                 publicKey = e.publicKey,
+                type = e.type,
             )
         }
         val bundle = VaultBundle(
@@ -114,7 +116,7 @@ object VaultExporter {
             val ct = Base64.getDecoder().decode(entry.ct)
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_LENGTH, iv))
             val plaintext = cipher.doFinal(ct).decodeToString()
-            Quad(name, plaintext, entry.desc, entry.group, entry.publicKey)
+            Quad(name, plaintext, entry.desc, entry.group, entry.publicKey, entry.type)
         }
     }
 
@@ -125,6 +127,7 @@ object VaultExporter {
         val description: String,
         val group: String,
         val publicKey: String = "",
+        val type: String = "",
     )
 
     private fun deriveKey(password: String, salt: ByteArray): javax.crypto.SecretKey {
@@ -156,6 +159,7 @@ object VaultExporter {
             first = false
             sb.append("# ============ $group ============\n")
             byGroup.getValue(group).sortedBy { it.name }.forEach { e ->
+                if (e.type.isNotBlank()) sb.append("# type: ${e.type}\n")
                 if (e.description.isNotBlank()) sb.append("# ${e.description}\n")
                 if (e.publicKey.isNotBlank()) sb.append("# SSH公钥: ${e.publicKey}\n")
                 val quoted = shellDoubleQuote(e.plaintext)
