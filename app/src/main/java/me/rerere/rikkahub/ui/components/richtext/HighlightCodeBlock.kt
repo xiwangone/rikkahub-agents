@@ -121,11 +121,11 @@ private fun highlightCached(
     val built = build()
     synchronized(highlightCacheLru) {
         highlightCacheLru[key] = built
-        // 超出当前档位容量即淘汰最久未访问的条目
+        // 超出当前档位容量即按访问顺序淘汰（accessOrder 保证最久未访问的排在前面）
         val limit = maxEntries.coerceAtLeast(1)
-        while (highlightCacheLru.size > limit) {
-            val eldest = highlightCacheLru.entries.firstOrNull() ?: break
-            highlightCacheLru.remove(eldest.key)
+        val excess = highlightCacheLru.size - limit
+        if (excess > 0) {
+            highlightCacheLru.keys.take(excess).forEach { highlightCacheLru.remove(it) }
         }
     }
     return built
