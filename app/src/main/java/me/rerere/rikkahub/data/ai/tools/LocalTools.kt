@@ -1022,6 +1022,10 @@ class LocalTools(
             tools.add(me.rerere.rikkahub.data.vault.vaultCredentialPrepareTool(vaultRepository))
             tools.add(me.rerere.rikkahub.data.vault.vaultCredentialMetaTool(vaultRepository))
             tools.add(me.rerere.rikkahub.data.vault.vaultCredentialAuditTool(vaultRepository))
+            // 引用反查：改名/删除前先看有哪些配置按名字引用它（只读，返回值不含值）
+            tools.add(
+                me.rerere.rikkahub.data.vault.vaultCredentialRefsTool(settingsStore, sshHostRepository),
+            )
             tools.add(me.rerere.rikkahub.data.vault.vaultCredentialUpdateTool(context, vaultRepository))
             tools.add(me.rerere.rikkahub.data.vault.vaultCredentialDeleteTool(context, vaultRepository))
             tools.add(me.rerere.rikkahub.data.vault.vaultGenKeyTool(context, vaultRepository))
