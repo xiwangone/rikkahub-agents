@@ -3134,4 +3134,22 @@
   <string name="search_page_scope_current_assistant">現在のアシスタント</string>
   <string name="search_page_scope_all_assistants">すべてのアシスタント</string>
   <string name="workspace_detail_distro">ディストリビューション</string>
+
+  <!-- 自动任务的预设列表（通用措辞，不绑定具体服务/路径） -->
+  <string-array name="auto_task_default_list">
+    <item>リポジトリと作業領域の状態を確認して報告</item>
+    <item>ドキュメントと変更履歴を更新</item>
+    <item>主要な成果物をバックアップして検証</item>
+    <item>一時ファイルと古い出力を整理</item>
+    <item>保留項目を確認し優先度順に列挙</item>
+  </string-array>
+  <string-array name="auto_task_ai_preset_list">
+    <item>リポジトリの状態と直近のビルド結果を確認して報告</item>
+    <item>保留項目を確認し優先度順に列挙</item>
+    <item>ドキュメント・変更履歴・ナレッジを一貫して更新</item>
+    <item>主要な成果物をバックアップして検証</item>
+    <item>一時ファイルと古い出力を整理</item>
+    <item>今回の成果を振り返り状態記録を更新</item>
+  </string-array>
+
 </resources>

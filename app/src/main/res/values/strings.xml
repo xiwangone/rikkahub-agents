@@ -3142,4 +3142,22 @@
   <string name="search_page_scope_current_assistant">Current Assistant</string>
   <string name="search_page_scope_all_assistants">All Assistants</string>
   <string name="workspace_detail_distro">Distribution</string>
+
+  <!-- 自动任务的预设列表（通用措辞，不绑定具体服务/路径） -->
+  <string-array name="auto_task_default_list">
+    <item>Check repository and workspace status, then report</item>
+    <item>Update docs and changelog</item>
+    <item>Back up key artifacts and verify integrity</item>
+    <item>Clean up temp files and stale outputs</item>
+    <item>Review pending items and list them by priority</item>
+  </string-array>
+  <string-array name="auto_task_ai_preset_list">
+    <item>Check repository status and the latest build result, then report</item>
+    <item>Review pending items and list them by priority</item>
+    <item>Update docs, changelog and knowledge base consistently</item>
+    <item>Back up key artifacts and verify integrity</item>
+    <item>Clean up temp files and stale outputs</item>
+    <item>Review this round outcome and update the status record</item>
+  </string-array>
+
 </resources>

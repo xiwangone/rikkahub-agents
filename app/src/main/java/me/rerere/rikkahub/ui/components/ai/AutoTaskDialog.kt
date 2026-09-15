@@ -27,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
@@ -83,22 +84,14 @@ fun AutoTaskDialog(
     // TimePicker（24 小时制）弹窗状态
     var showTimePicker by remember { mutableStateOf(false) }
 
-    /** 任务列表默认/预设（可一键应用） */
-    val DEFAULT_AUTO_TASK_LIST = listOf(
-        "查 CI 状态并汇报",
-        "更新 CHANGELOG 与文档",
-        "备份 kb 到 ECS",
-        "清理临时文件",
-        "回顾待办清单",
-    )
-    val AI_PRESET_TASK_LIST = listOf(
-        "检查 CI 与仓库状态并汇报",
-        "自查待办与挂起事项，按优先级推进",
-        "更新 CHANGELOG/文档/知识库（三处同步）",
-        "备份 kb 到 ECS 并验证 md5",
-        "清理临时文件与过期产物",
-        "回顾今日成果，更新状态文件（交流目录）",
-    )
+    /**
+     * 任务列表预设（可一键应用）。
+     *
+     * 内容取自资源数组，且**刻意保持通用措辞**（不绑定具体服务名/路径）：
+     * 预设一旦写死环境（如某个已停用的备份目标），就会随基础设施变动而过时。
+     */
+    val DEFAULT_AUTO_TASK_LIST = stringArrayResource(R.array.auto_task_default_list).toList()
+    val AI_PRESET_TASK_LIST = stringArrayResource(R.array.auto_task_ai_preset_list).toList()
 
     /** 同步任务列表联动开关（触发模式区 与 执行内容区共用） */
     fun setTaskListEnabled(enabled: Boolean) {

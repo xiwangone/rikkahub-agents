@@ -3123,4 +3123,22 @@
   <string name="search_page_scope_current_assistant">المساعد الحالي</string>
   <string name="search_page_scope_all_assistants">كل المساعدين</string>
   <string name="workspace_detail_distro">التوزيعة</string>
+
+  <!-- 自动任务的预设列表（通用措辞，不绑定具体服务/路径） -->
+  <string-array name="auto_task_default_list">
+    <item>تحقّق من حالة المستودع ومساحة العمل ثم أبلغ</item>
+    <item>حدِّث الوثائق وسجل التغييرات</item>
+    <item>انسخ المخرجات المهمة احتياطيًا وتحقّق من سلامتها</item>
+    <item>نظّف الملفات المؤقتة والمخرجات القديمة</item>
+    <item>راجع المهام المعلّقة واذكرها حسب الأولوية</item>
+  </string-array>
+  <string-array name="auto_task_ai_preset_list">
+    <item>تحقّق من حالة المستودع وآخر عملية بناء ثم أبلغ</item>
+    <item>راجع المهام المعلّقة واذكرها حسب الأولوية</item>
+    <item>حدِّث الوثائق وسجل التغييرات وقاعدة المعرفة بشكل متسق</item>
+    <item>انسخ المخرجات المهمة احتياطيًا وتحقّق من سلامتها</item>
+    <item>نظّف الملفات المؤقتة والمخرجات القديمة</item>
+    <item>راجع نتائج هذه الجولة وحدِّث سجل الحالة</item>
+  </string-array>
+
 </resources>

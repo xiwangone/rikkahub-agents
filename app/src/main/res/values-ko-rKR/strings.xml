@@ -3134,4 +3134,22 @@
   <string name="search_page_scope_current_assistant">현재 어시스턴트</string>
   <string name="search_page_scope_all_assistants">모든 어시스턴트</string>
   <string name="workspace_detail_distro">배포판</string>
+
+  <!-- 自动任务的预设列表（通用措辞，不绑定具体服务/路径） -->
+  <string-array name="auto_task_default_list">
+    <item>저장소와 작업 영역 상태를 확인하여 보고</item>
+    <item>문서와 변경 기록 업데이트</item>
+    <item>주요 산출물 백업 및 무결성 검증</item>
+    <item>임시 파일과 오래된 산출물 정리</item>
+    <item>보류 항목을 확인하여 우선순위대로 정리</item>
+  </string-array>
+  <string-array name="auto_task_ai_preset_list">
+    <item>저장소 상태와 최근 빌드 결과를 확인하여 보고</item>
+    <item>보류 항목을 확인하여 우선순위대로 정리</item>
+    <item>문서·변경 기록·지식을 일관되게 업데이트</item>
+    <item>주요 산출물 백업 및 무결성 검증</item>
+    <item>임시 파일과 오래된 산출물 정리</item>
+    <item>이번 결과를 돌아보고 상태 기록 업데이트</item>
+  </string-array>
+
 </resources>

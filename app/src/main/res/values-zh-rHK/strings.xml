@@ -3120,4 +3120,22 @@
   <string name="search_page_scope_current_assistant">當前助手</string>
   <string name="search_page_scope_all_assistants">所有助手</string>
   <string name="workspace_detail_distro">發行版</string>
+
+  <!-- 自动任务的预设列表（通用措辞，不绑定具体服务/路径） -->
+  <string-array name="auto_task_default_list">
+    <item>檢查倉庫與工作區狀態並匯報</item>
+    <item>更新文件與變更記錄</item>
+    <item>備份關鍵產物並校驗完整性</item>
+    <item>清理臨時檔案與過期產物</item>
+    <item>自查待辦與掛起事項，按優先級列出</item>
+  </string-array>
+  <string-array name="auto_task_ai_preset_list">
+    <item>檢查倉庫狀態與最近建置結果並匯報</item>
+    <item>自查待辦與掛起事項，按優先級列出</item>
+    <item>更新文件、變更記錄與知識庫並保持一致</item>
+    <item>備份關鍵產物並校驗完整性</item>
+    <item>清理臨時檔案與過期產物</item>
+    <item>回顧本輪成果並更新狀態記錄</item>
+  </string-array>
+
 </resources>
