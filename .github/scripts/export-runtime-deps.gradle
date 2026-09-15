@@ -1,0 +1,56 @@
+// 把各模块的运行时依赖导出为 CycloneDX JSON，供依赖漏洞扫描使用。
+//
+// 通过 --init-script 注入，不修改项目自身的构建配置。
+// 用法：./gradlew --no-configuration-cache -I <本文件> exportRuntimeDeps -Ddeps.out=<输出路径>
+//
+// 只解析 release 变体的 runtimeClasspath：这些才是随产物分发的依赖；
+// 插件 classpath（构建工具自身）不在此列。
+
+gradle.rootProject { root ->
+    root.tasks.register("exportRuntimeDeps") {
+        group = "verification"
+        description = "导出运行时依赖清单为 CycloneDX JSON"
+
+        doLast {
+            def outputPath = System.getProperty("deps.out") ?: "runtime-deps.json"
+            def seen = new TreeSet<String>()
+            def components = []
+
+            root.allprojects.each { p ->
+                p.configurations.findAll { c ->
+                    c.canBeResolved &&
+                        c.name.endsWith("RuntimeClasspath") &&
+                        !c.name.contains("Debug") &&
+                        !c.name.contains("Test")
+                }.each { c ->
+                    try {
+                        c.resolvedConfiguration.lenientConfiguration.artifacts.each { a ->
+                            def id = a.moduleVersion.id
+                            def key = "${id.group}:${id.name}:${id.version}"
+                            if (seen.add(key)) {
+                                components << [id.group.toString(), id.name.toString(), id.version.toString()]
+                            }
+                        }
+                    } catch (Exception ignored) {
+                        p.logger.warn("跳过配置 ${p.name}:${c.name}：${ignored.message}")
+                    }
+                }
+            }
+
+            def esc = { String s -> s.replace("\\", "\\\\").replace("\"", "\\\"") }
+            def body = components.collect { g ->
+                def purl = "pkg:maven/${g[0]}/${g[1]}@${g[2]}"
+                "{\"type\":\"library\",\"group\":\"${esc(g[0])}\",\"name\":\"${esc(g[1])}\"," +
+                    "\"version\":\"${esc(g[2])}\",\"purl\":\"${esc(purl)}\"}"
+            }.join(",")
+
+            def out = new File(outputPath)
+            if (out.parentFile != null) {
+                out.parentFile.mkdirs()
+            }
+            out.text = '{"bomFormat":"CycloneDX","specVersion":"1.5","version":1,"components":[' +
+                body + ']}'
+            println("exportRuntimeDeps: ${components.size()} 个组件 -> ${out.absolutePath}")
+        }
+    }
+}
