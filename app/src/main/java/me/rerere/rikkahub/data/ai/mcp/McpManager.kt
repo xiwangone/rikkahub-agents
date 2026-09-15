@@ -270,7 +270,10 @@ class McpManager(
 
     /** 合并用户自定义请求头与 OAuth Bearer 令牌。 */
     private fun McpServerConfig.resolveHeaders(): List<Pair<String, String>> {
-        val base = commonOptions.headers
+        // 头部值支持 `$$凭证名`：出站前解析为真值（未命中保持原样）
+        val base = commonOptions.headers.map { (n, v) ->
+            n to me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(v)
+        }
         val token = commonOptions.oauth?.takeIf { it.enabled }?.accessToken
         val hasAuthHeader = base.any { it.first.equals("Authorization", ignoreCase = true) }
         return if (!token.isNullOrBlank() && !hasAuthHeader) {

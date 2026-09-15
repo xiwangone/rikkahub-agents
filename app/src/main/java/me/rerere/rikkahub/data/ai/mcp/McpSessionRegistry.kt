@@ -520,7 +520,10 @@ private fun hasSameConnectionParameters(
 ): Boolean = left != null && right != null && left.connectionKey() == right.connectionKey()
 
 private fun McpServerConfig.resolvedHeaders(): List<Pair<String, String>> {
-    val base = commonOptions.headers
+    // 同上：头部值支持 `$$凭证名`
+    val base = commonOptions.headers.map { (n, v) ->
+        n to me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(v)
+    }
     val token = commonOptions.oauth?.takeIf { it.enabled }?.accessToken
     val hasAuthorization = base.any { it.first.equals("Authorization", ignoreCase = true) }
     return if (!token.isNullOrBlank() && !hasAuthorization) {
