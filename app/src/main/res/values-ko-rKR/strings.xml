@@ -2753,6 +2753,7 @@
   <string name="vault_dupes_title">중복 확인</string>
   <string name="vault_dupes_empty">중복 항목이 없습니다</string>
   <string name="vault_ref_pick">Vault에서 선택</string>
+  <string name="vault_ref_hint">또는 $$NAME 으로 보관소 항목 참조</string>
   <string name="vault_ref_store">Vault에 저장</string>
   <string name="vault_show">표시</string>
   <string name="vault_hide">숨기기</string>
@@ -2852,6 +2853,7 @@
   <string name="vault_export_success">자격 증명 %1$d개를 %2$s 형식으로 내보냈습니다</string>
   <string name="vault_export_failed">내보내기 실패: %1$s</string>
   <string name="vault_import_success">자격 증명 %1$d개를 가져왔습니다(총 %2$d개 분석)</string>
+  <string name="vault_import_overwritten">%1$d개 항목이 같은 이름에 다른 값으로 덮어쓰였습니다</string>
   <string name="vault_import_failed">가져오기 실패: %1$s</string>
   <string name="vault_biometric_export_title">자격 증명을 내보내려면 인증</string>
   <string name="vault_biometric_view_title">자격 증명을 보려면 인증</string>

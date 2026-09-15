@@ -30,6 +30,18 @@ data class QuickImportResult(
     val type: String,
 )
 
+/**
+ * 批量导入结果。
+ *
+ * @param overwrittenDifferentValue 同名但**值不同**、因而被覆盖的条目名
+ *   —— 导入常用于恢复/合并，静默覆盖会悄悄丢掉正在用的密钥，所以要回报出来
+ */
+data class ImportResult(
+    val imported: Int,
+    val overwrittenDifferentValue: List<String> = emptyList(),
+    val skipped: Int = 0,
+)
+
 class CredentialVaultRepository(
     private val dao: VaultCredentialDao,
     private val auditDao: VaultAuditLogDao,
@@ -135,18 +147,28 @@ class CredentialVaultRepository(
     }
 
     /** 批量导入（解析结果 → 逐条 upsert，返回导入条数）。 */
-    suspend fun importEntries(entries: List<CredentialImporter.ParsedEntry>): Int {
+    suspend fun importEntries(entries: List<CredentialImporter.ParsedEntry>): ImportResult {
         var imported = 0
+        var skipped = 0
+        val overwritten = mutableListOf<String>()
         entries.forEach { e ->
             val existing = dao.getByName(e.name)
             // 命名规范：新名称必须合规才导入（存量脏名已存在则放行，不阻断旧数据回导）
-            if (existing == null && !validateCredentialName(e.name)) return@forEach
+            if (existing == null && !validateCredentialName(e.name)) { skipped++; return@forEach }
             // 只含不可见字符的值视为无效：跳过该条（与命名不合规同策略，不中断整批导入）
-            if (e.value.isNotBlank() && CredentialValueSanitizer.sanitize(e.value).isEmpty()) return@forEach
+            if (e.value.isNotBlank() && CredentialValueSanitizer.sanitize(e.value).isEmpty()) { skipped++; return@forEach }
             // 导入留空 = 保留原值（与 save 语义一致：避免重导清空已存密钥）
             val keepValue = existing != null && e.value.isBlank()
             // 导入公钥留空 = 保留原公钥（防重导清空已存公钥）
             val keepPub = existing != null && e.publicKey.isBlank()
+            // 同名且值不同 → 记为"被覆盖"（用指纹比对，不比较明文）
+            if (!keepValue && existing != null && e.value.isNotBlank()) {
+                val oldValue = decryptValue(existing)
+                val newValue = CredentialValueSanitizer.sanitize(e.value)
+                if (oldValue != null && fingerprint(oldValue) != fingerprint(newValue)) {
+                    overwritten += e.name
+                }
+            }
             if (keepValue) {
                 // 只更新元数据
                 dao.update(
@@ -164,7 +186,7 @@ class CredentialVaultRepository(
         }
         // 批量导入涉及多条：保留全量刷新（一次性，避免逐条解密带来的重复开销）
         runCatching { VaultProviderKeyRefs.refresh(this) }
-        return imported
+        return ImportResult(imported = imported, overwrittenDifferentValue = overwritten, skipped = skipped)
     }
 
     /** 新增/覆盖写入：加密后 upsert（同名单覆盖，描述/分组用传入值）。 */

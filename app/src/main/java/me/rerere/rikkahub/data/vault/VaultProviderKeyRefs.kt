@@ -56,6 +56,28 @@ object VaultProviderKeyRefs {
         return cache[raw.removePrefix(PREFIX)] ?: raw
     }
 
+    /**
+     * 增量更新单条（保存后调用）。
+     *
+     * 相比全量刷新，避免「改一条就解密整库」的无谓消耗；条目不存在或解密失败时按删除处理。
+     */
+    suspend fun updateOne(repository: CredentialVaultRepository, name: String) {
+        val entry = repository.getByName(name)
+        if (entry == null) {
+            cache = cache - name
+            return
+        }
+        val value = repository.decryptValue(entry)
+        cache = if (value == null) cache - name else cache + (name to value)
+        ProviderKeyRefs.resolve = { n -> cache[n] }
+        installed = true
+    }
+
+    /** 增量删除单条（删除后调用）。 */
+    fun removeOne(name: String) {
+        cache = cache - name
+    }
+
     /** 当前是否能解析某个引用名（只回答存在性，不返回值）。 */
     fun canResolve(name: String): Boolean = cache.containsKey(name)
 }

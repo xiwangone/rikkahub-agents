@@ -2753,6 +2753,7 @@
   <string name="vault_dupes_title">重複を確認</string>
   <string name="vault_dupes_empty">重複は見つかりません</string>
   <string name="vault_ref_pick">Vault から選択</string>
+  <string name="vault_ref_hint">または $$NAME で保管庫の項目を参照</string>
   <string name="vault_ref_store">Vault に保存</string>
   <string name="vault_show">表示</string>
   <string name="vault_hide">非表示</string>
@@ -2852,6 +2853,7 @@
   <string name="vault_export_success">%1$d 件の資格情報を %2$s 形式でエクスポートしました</string>
   <string name="vault_export_failed">エクスポートに失敗: %1$s</string>
   <string name="vault_import_success">%1$d 件の資格情報をインポートしました（解析 %2$d 件）</string>
+  <string name="vault_import_overwritten">%1$d 件は同名で値が異なり、上書きされました</string>
   <string name="vault_import_failed">インポートに失敗: %1$s</string>
   <string name="vault_biometric_export_title">資格情報をエクスポートするため認証</string>
   <string name="vault_biometric_view_title">資格情報を表示するため認証</string>

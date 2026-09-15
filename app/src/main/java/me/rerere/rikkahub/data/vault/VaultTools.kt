@@ -752,7 +752,8 @@ fun vaultCredentialMergeTool(
         val targetValue = repository.decryptValue(targetEntry)
         val sameValue =
             sourceValue != null && targetValue != null &&
-                repository.fingerprint(sourceValue) == repository.fingerprint(targetValue)
+                CredentialVaultRepository.fingerprint(sourceValue) ==
+                    CredentialVaultRepository.fingerprint(targetValue)
 
         val synced =
             runCatching {
@@ -948,9 +949,20 @@ fun vaultImportLoadCredsTool(
                 if (parsed.isEmpty()) {
                     listOf(UIMessagePart.Text("❌ 未解析到任何条目（格式不符 load-creds.sh？）"))
                 } else {
-                    val imported = repository.importEntries(parsed)
+                    val result = repository.importEntries(parsed)
                     parsed.forEach { p -> repository.logAccess(p.name, "ai-tool", "import_loadcreds") }
-                    listOf(UIMessagePart.Text("✅ 已导入/更新 $imported 条凭证（解析 ${parsed.size} 条）"))
+                    listOf(
+                        UIMessagePart.Text(
+                            buildString {
+                                append("✅ 已导入/更新 ${result.imported} 条凭证（解析 ${parsed.size} 条）")
+                                if (result.skipped > 0) append("；跳过 ${result.skipped} 条（名称不合规或值非法）")
+                                if (result.overwrittenDifferentValue.isNotEmpty()) {
+                                    append("\n⚠ 以下条目同名但值不同，已被导入内容覆盖：")
+                                    result.overwrittenDifferentValue.forEach { append("\n- " + it) }
+                                }
+                            },
+                        ),
+                    )
                 }
             }
         }

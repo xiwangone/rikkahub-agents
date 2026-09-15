@@ -1935,6 +1935,7 @@
   <string name="vault_dupes_title">檢查重複</string>
   <string name="vault_dupes_empty">未發現重複條目</string>
   <string name="vault_ref_pick">從憑證庫選擇</string>
+  <string name="vault_ref_hint">也可寫 $$名稱 引用憑證庫條目</string>
   <string name="vault_ref_store">存入憑證庫</string>
   <string name="vault_show">顯示</string>
   <string name="vault_hide">隱藏</string>
@@ -2023,6 +2024,7 @@
   <string name="vault_export_success">已匯出 %1$d 條憑證（%2$s 格式）</string>
   <string name="vault_export_failed">匯出失敗: %1$s</string>
   <string name="vault_import_success">已匯入 %1$d 條憑證（共解析 %2$d 條）</string>
+  <string name="vault_import_overwritten">%1$d 條同名但值不同，已被覆蓋</string>
   <string name="vault_import_failed">匯入失敗: %1$s</string>
   <string name="vault_biometric_export_title">驗證以匯出憑證</string>
   <string name="vault_biometric_view_title">驗證以檢視憑證</string>

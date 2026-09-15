@@ -2746,6 +2746,7 @@
   <string name="vault_dupes_title">Проверить дубликаты</string>
   <string name="vault_dupes_empty">Дубликаты не найдены</string>
   <string name="vault_ref_pick">Выбрать из Vault</string>
+  <string name="vault_ref_hint">Или укажите $$ИМЯ для ссылки на запись хранилища</string>
   <string name="vault_ref_store">Сохранить в Vault</string>
   <string name="vault_show">Показать</string>
   <string name="vault_hide">Скрыть</string>
@@ -2845,6 +2846,7 @@
   <string name="vault_export_success">Экспортировано %1$d записей в формате %2$s</string>
   <string name="vault_export_failed">Ошибка экспорта: %1$s</string>
   <string name="vault_import_success">Импортировано %1$d записей (разобрано %2$d)</string>
+  <string name="vault_import_overwritten">%1$d записей с тем же именем, но другим значением были перезаписаны</string>
   <string name="vault_import_failed">Ошибка импорта: %1$s</string>
   <string name="vault_biometric_export_title">Подтвердите для экспорта</string>
   <string name="vault_biometric_view_title">Подтвердите для просмотра</string>

@@ -293,7 +293,7 @@ fun VaultCredentialsPage() {
                             runCatching {
                                 repository.decryptValue(target)?.let { v ->
                                     val masked = if (v.length <= 8) "****" else v.take(4) + "…" + v.takeLast(4)
-                                    masked + "　·　fp " + repository.fingerprint(v).take(8)
+                                    masked + "　·　fp " + CredentialVaultRepository.fingerprint(v).take(8)
                                 }
                             }.getOrNull()
                         }

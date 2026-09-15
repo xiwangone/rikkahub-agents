@@ -2402,6 +2402,7 @@
   <string name="vault_dupes_title">فحص التكرار</string>
   <string name="vault_dupes_empty">لا توجد عناصر مكررة</string>
   <string name="vault_ref_pick">اختيار من Vault</string>
+  <string name="vault_ref_hint">أو اكتب $$NAME للإشارة إلى عنصر في الخزنة</string>
   <string name="vault_ref_store">حفظ في Vault</string>
   <string name="vault_show">إظهار</string>
   <string name="vault_hide">إخفاء</string>
@@ -2501,6 +2502,7 @@
   <string name="vault_export_success">تم تصدير %1$d من البيانات السرية بصيغة %2$s</string>
   <string name="vault_export_failed">فشل التصدير: %1$s</string>
   <string name="vault_import_success">تم استيراد %1$d من البيانات السرية (حُلّل %2$d)</string>
+  <string name="vault_import_overwritten">تم استبدال %1$d عنصر بالاسم نفسه بقيمة مختلفة</string>
   <string name="vault_import_failed">فشل الاستيراد: %1$s</string>
   <string name="vault_biometric_export_title">تحقق لتصدير البيانات السرية</string>
   <string name="vault_biometric_view_title">تحقق لعرض البيانات السرية</string>

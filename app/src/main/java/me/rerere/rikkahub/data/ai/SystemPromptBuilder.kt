@@ -47,6 +47,18 @@ class SystemPromptBuilder {
             if (toolPrompts.isNotEmpty()) {
                 appendLine("Context economy: for large tool outputs (API responses, logs, file dumps), save the full result to a file and return only a summary or key lines instead of pasting everything into the conversation. Run searches in small focused batches (2-3 queries at a time) with precise keywords rather than one broad multi-query blast, and wait to see results before issuing the next batch.")
                 appendLine("Token usage: on long conversations, call check_token_usage (when available) to self-monitor token consumption and cached-token ratio; proactively suggest or trigger context compression when nearing the context limit.")
+                // 凭证使用约定：仅在确实注入了凭证相关工具时才追加，避免无关会话被塞入无用规则。
+                // 放在 volatile 段（缓存断点之后），调整这段话不会让 stable 缓存前缀失效。
+                if (toolPrompts.any { it.contains("vault_") }) {
+                    appendLine(
+                        "Credentials: when something needs a secret (API key, token, password, private key), " +
+                            "refer to it BY NAME instead of handling plaintext — never ask the user to paste a secret " +
+                            "into chat, and never write secret values into configuration, tool arguments, or files. " +
+                            "Use vault_credential_names to discover available names; before renaming or deleting a " +
+                            "credential, check vault_credential_refs and vault_dangling_refs so no configuration is " +
+                            "left broken. References are resolved inside the app; the secret value is never returned.",
+                    )
+                }
             }
             if (memoryPrompt.isNotBlank()) {
                 if (isNotEmpty()) appendLine()

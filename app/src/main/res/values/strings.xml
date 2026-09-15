@@ -2266,6 +2266,7 @@
   <string name="vault_dupes_title">Check duplicates</string>
   <string name="vault_dupes_empty">No duplicates found</string>
   <string name="vault_ref_pick">Pick from Vault</string>
+  <string name="vault_ref_hint">Or type $$NAME to use a vault entry</string>
   <string name="vault_ref_store">Store in Vault</string>
   <string name="vault_show">Show</string>
   <string name="vault_hide">Hide</string>
@@ -2499,6 +2500,7 @@
   <string name="vault_export_success">Exported %1$d credentials to %2$s format</string>
   <string name="vault_export_failed">Export failed: %1$s</string>
   <string name="vault_import_success">Imported %1$d credentials (%2$d parsed)</string>
+  <string name="vault_import_overwritten">%1$d entry(ies) had a different value under the same name and were overwritten</string>
   <string name="vault_import_failed">Import failed: %1$s</string>
   <string name="vault_biometric_export_title">Verify to export credentials</string>
   <string name="vault_biometric_view_title">Verify to view credential</string>

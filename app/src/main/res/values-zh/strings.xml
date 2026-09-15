@@ -2231,6 +2231,7 @@
   <string name="vault_dupes_title">检查重复</string>
   <string name="vault_dupes_empty">未发现重复条目</string>
   <string name="vault_ref_pick">从凭证库选择</string>
+  <string name="vault_ref_hint">也可写 $$名字 引用凭证库条目</string>
   <string name="vault_ref_store">存入凭证库</string>
   <string name="vault_show">显示</string>
   <string name="vault_hide">隐藏</string>
@@ -2466,6 +2467,7 @@
   <string name="vault_export_success">已导出 %1$d 条凭证（%2$s 格式）</string>
   <string name="vault_export_failed">导出失败: %1$s</string>
   <string name="vault_import_success">已导入 %1$d 条凭证（共解析 %2$d 条）</string>
+  <string name="vault_import_overwritten">%1$d 条同名但值不同，已被覆盖</string>
   <string name="vault_import_failed">导入失败: %1$s</string>
   <string name="vault_biometric_export_title">验证以导出凭证</string>
   <string name="vault_biometric_view_title">验证以查看凭证</string>

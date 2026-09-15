@@ -249,8 +249,17 @@ fun VaultPage() {
                                 VaultFormats.fromCsv(content).map { CredentialImporter.ParsedEntry(it.name, it.plaintext, it.description, it.group) }
                             else -> CredentialImporter.parse(content)
                         }
-                        val imported = repository.importEntries(parsed)
-                        importResult = context.getString(R.string.vault_import_success, imported, parsed.size)
+                        val result = repository.importEntries(parsed)
+                        importResult =
+                            context.getString(R.string.vault_import_success, result.imported, parsed.size) +
+                                if (result.overwrittenDifferentValue.isNotEmpty()) {
+                                    "\n" + context.getString(
+                                        R.string.vault_import_overwritten,
+                                        result.overwrittenDifferentValue.size,
+                                    )
+                                } else {
+                                    ""
+                                }
                     }.onFailure { e ->
                         importResult = context.getString(R.string.vault_import_failed, e.message ?: "")
                     }
