@@ -49,10 +49,7 @@ internal fun useCropLauncher(
                         "CropLauncher",
                         "crop failed: ${error?.message} | ${error?.stackTraceToString()}",
                     )
-                    toaster.show(
-                        "Failed to crop image: ${error?.message ?: "unknown error"}",
-                        type = ToastType.Error,
-                    )
+                    toaster.showFailure(context, error ?: IllegalStateException("UCrop"))
                 }
             }
             // 不在此处立即删除 cropOutputUri——onCroppedImageReady 的保存是异步读该文件，

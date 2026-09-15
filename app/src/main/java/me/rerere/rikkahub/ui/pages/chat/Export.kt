@@ -102,6 +102,7 @@ import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.context.showFailure
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.JsonInstant
@@ -250,10 +251,7 @@ fun ChatExportSheet(
                                             )
                                         }.onFailure {
                                             it.printStackTrace()
-                                            toaster.show(
-                                                message = "Failed to export image: ${it.message}",
-                                                type = ToastType.Error,
-                                            )
+                                            toaster.showFailure(context, it)
                                         }
                                     }
                                     toaster.show(

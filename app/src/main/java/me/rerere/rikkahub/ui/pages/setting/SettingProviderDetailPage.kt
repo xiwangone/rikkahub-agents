@@ -97,6 +97,7 @@ import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.rikkahub.data.ai.diagnoseFailure
+import me.rerere.rikkahub.ui.context.showFailure
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
@@ -529,12 +530,7 @@ private fun ModelList(
             error.printStackTrace()
             // Surface real failures (missing/invalid API key, providers like
             // Minimax that return an HTTP 200 error envelope instead of a 4xx).
-            val diagnosis = diagnoseFailure(context, error)
-            toaster.show(
-                // 原因分类走本地化标签，服务端原话保留在末尾，便于排查。
-                if (diagnosis.raw.isNotBlank()) "${diagnosis.label} — ${diagnosis.raw}" else diagnosis.label,
-                type = ToastType.Error,
-            )
+            toaster.showFailure(context, error)
         }
     }
     var expanded by rememberSaveable { mutableStateOf(true) }
