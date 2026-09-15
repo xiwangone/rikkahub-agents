@@ -68,6 +68,9 @@ import org.koin.compose.koinInject
 @Composable
 fun VaultCredentialsPage() {
     val repository: CredentialVaultRepository = koinInject()
+    // 改名需要同步配置引用（与工具路径行为一致），因此拿到这两处依赖
+    val settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore = koinInject()
+    val sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository = koinInject()
     val scope = rememberCoroutineScope()
 
     var entries by remember { mutableStateOf<List<VaultCredentialEntity>>(emptyList()) }
@@ -255,10 +258,16 @@ fun VaultCredentialsPage() {
             onSave = { oldName, name, value, description, group, publicKey, type ->
                 scope.launch {
                     if (oldName != null && oldName != name) {
-                        // 编辑模式改名：先删旧条目再按新名保存（值来自解密后的编辑框，留空=丢弃旧值需确认）
-                        repository.delete(repository.getByName(oldName) ?: return@launch)
-                        repository.logAccess(oldName, "manual", "rename_from")
+                        // 改名：先建新名（沿用编辑框里的值）→ 同步配置引用 → 再删旧名
+                        // （同步引用是必须的：配置里按名字引用，漏掉就会静默失效）
                         repository.save(name, value, description, group, publicKey, type = type)
+                        runCatching {
+                            me.rerere.rikkahub.data.vault.VaultReferenceSync.renameEverywhere(
+                                settingsStore, sshHostRepository, oldName, name,
+                            )
+                        }
+                        repository.getByName(oldName)?.let { repository.delete(it) }
+                        repository.logAccess(oldName, "manual", "rename_from")
                         repository.logAccess(name, "manual", "rename_to")
                     } else {
                         repository.save(name, value, description, group, publicKey, type = type)
@@ -275,7 +284,28 @@ fun VaultCredentialsPage() {
         AlertDialog(
             onDismissRequest = { deleteTarget = null },
             title = { Text(stringResource(R.string.vault_delete_confirm_title, target.name)) },
-            text = { Text(stringResource(R.string.vault_delete_confirm_text)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(stringResource(R.string.vault_delete_confirm_text))
+                    // 值预览：掩码 + 指纹（不是明文），用于确认删的是哪一条
+                    val preview =
+                        remember(target) {
+                            runCatching {
+                                repository.decryptValue(target)?.let { v ->
+                                    val masked = if (v.length <= 8) "****" else v.take(4) + "…" + v.takeLast(4)
+                                    masked + "　·　fp " + repository.fingerprint(v).take(8)
+                                }
+                            }.getOrNull()
+                        }
+                    if (preview != null) {
+                        Text(
+                            text = preview,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
