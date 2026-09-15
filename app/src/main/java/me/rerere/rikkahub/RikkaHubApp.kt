@@ -174,6 +174,16 @@ class RikkaHubApp : Application() {
         // is a one-time install — user edits / deletes are respected on subsequent launches.
         seedDefaultSkillsIfNeeded()
 
+        // 密钥库类型回填（一次性、幂等）：数据库迁移只新增列且默认空，存量条目类型为空，
+        // 这里统一按名称与结构补全，使 AI 清单与界面都能直接读到类型。
+        get<AppScope>().launch(Dispatchers.IO) {
+            runCatching {
+                val filled = get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>()
+                    .backfillMissingTypes()
+                if (filled > 0) Log.i("RikkaHubApp", "vault credential types backfilled: $filled")
+            }.onFailure { Log.w("RikkaHubApp", "vault type backfill failed", it) }
+        }
+
         // Increment launch count
         incrementLaunchCount()
 

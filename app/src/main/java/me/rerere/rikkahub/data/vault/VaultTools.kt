@@ -46,6 +46,8 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
         )
     },
     execute = { params ->
+        // 存量条目类型回填（幂等、便宜）：保证 AI 首次调用就能读到类型，而不是等用户逐条重存
+        runCatching { repository.backfillMissingTypes() }
         val group = params.jsonObject["group"]?.jsonPrimitive?.contentOrNull
         val keyword = params.jsonObject["keyword"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase()
         val sort = params.jsonObject["sort"]?.jsonPrimitive?.contentOrNull

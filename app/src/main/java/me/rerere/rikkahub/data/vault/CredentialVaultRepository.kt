@@ -152,6 +152,25 @@ class CredentialVaultRepository(
         publicKey: String,
     ): String = requested.ifBlank { existing.ifBlank { CredentialType.infer(name, value, publicKey) } }
 
+    /**
+     * 回填缺失的类型（历史数据一次性补全，**幂等**）。
+     *
+     * 为什么需要：数据库迁移只新增列并默认空，不会给存量条目分类；而推断只发生在
+     * 写入路径，因此存量条目的类型会长期为空、使用方读不到。这里统一按名称与结构补全。
+     *
+     * 有意**不改 updatedAt**：避免污染"最后修改"语义，也避免多余触发掩码规则刷新。
+     */
+    suspend fun backfillMissingTypes(): Int {
+        var filled = 0
+        dao.getAll().forEach { e ->
+            if (e.type.isNotBlank()) return@forEach
+            val value = decryptValue(e) ?: return@forEach
+            dao.update(e.copy(type = CredentialType.infer(e.name, value, e.publicKey)))
+            filled++
+        }
+        return filled
+    }
+
     suspend fun delete(entry: VaultCredentialEntity) {
         logAccess(entry.name, "repository", "delete")
         dao.delete(entry)
