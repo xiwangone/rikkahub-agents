@@ -38,7 +38,7 @@
   <string name="about_page_system">系统</string>
   <string name="about_page_title">关于</string>
   <string name="about_page_version">版本</string>
-  <string name="about_page_website">官网</string>
+  <string name="about_page_website">RikkaHub 官网</string>
   <string name="add">添加</string>
   <string name="app_name">RikkaHub Agents</string>
   <string name="asr_button_content_description">语音识别</string>
@@ -420,11 +420,6 @@
   <string name="deep_thinking">深度思考</string>
   <string name="deep_thinking_seconds">思考了 %1$.1f 秒</string>
   <string name="delete">删除</string>
-  <string name="donate_page_afdian_desc">适用于🇨🇳用户</string>
-  <string name="donate_page_donation_methods">赞助方式</string>
-  <string name="donate_page_kofi_desc">面向全球用户</string>
-  <string name="donate_page_sponsor_list">赞助用户列表</string>
-  <string name="donate_page_title">赞助</string>
   <string name="edit">编辑</string>
   <string name="editing">编辑中</string>
   <string name="emoji_picker_search_placeholder">搜索表情符号...</string>
@@ -967,7 +962,7 @@
   <string name="setting_page_default_model_desc">设置各个功能的默认模型</string>
   <string name="setting_page_display_setting">显示设置</string>
   <string name="setting_page_display_setting_desc">管理显示设置</string>
-  <string name="setting_page_documentation">使用文档</string>
+  <string name="setting_page_documentation">RikkaHub 文档</string>
   <string name="setting_page_documentation_desc">查看应用使用说明和帮助文档</string>
   <string name="setting_page_donate">赞助</string>
   <string name="setting_page_donate_desc">如果你喜欢这个应用，请赞助作者的工作</string>
@@ -1004,11 +999,7 @@
   <string name="setting_page_search_title">搜索服务</string>
   <string name="setting_page_share">分享</string>
   <string name="setting_page_share_desc">分享本APP给朋友</string>
-  <string name="setting_page_share_text">RikkaHub - 开源安卓AI助手\n\n官网: https://rikka-ai.com/</string>
-  <string name="setting_page_sponsor_alert_confirm">捐赠</string>
-  <string name="setting_page_sponsor_alert_desc">您已启动应用超过100次！如果您喜欢使用它，请考虑支持开发者。</string>
-  <string name="setting_page_sponsor_alert_dismiss">暂不</string>
-  <string name="setting_page_sponsor_alert_title">支持开发者</string>
+  <string name="setting_page_share_text">RikkaHub Agents - 开源安卓 AI 助手（基于 RikkaHub）\n\n仓库: https://github.com/xiwangone/rikkahub-agents</string>
   <string name="setting_page_theme_setting">主题</string>
   <string name="setting_page_theme_setting_desc">自定义应用配色方案</string>
   <string name="setting_theme_page_preset_themes">预设主题</string>
@@ -2265,7 +2256,7 @@
   <string name="setting_shizuku_toast_service_not_running">Shizuku 服务未运行</string>
   <string name="setting_shizuku_section_help">设置帮助</string>
   <string name="setting_shizuku_help_title">配置 Shizuku</string>
-  <string name="setting_shizuku_help_body">从 GitHub releases 安装 Shizuku，然后启动服务：已 root 设备从 Shizuku 应用启动；Android 11+ 用无线调试配对（开发者选项 → 无线调试 → 使用配对码配对，然后运行 Shizuku 显示的启动命令）。服务运行后，点击上方「权限」授予 RikkaHub 访问权限。</string>
+  <string name="setting_shizuku_help_body">从 GitHub releases 安装 Shizuku，然后启动服务：已 root 设备从 Shizuku 应用启动；Android 11+ 用无线调试配对（开发者选项 → 无线调试 → 使用配对码配对，然后运行 Shizuku 显示的启动命令）。服务运行后，点击上方「权限」授予 RikkaHub Agents 访问权限。</string>
   <string name="setting_ssh_hosts_title">SSH 主机</string>
   <string name="setting_ssh_host_delete">删除</string>
   <string name="setting_ssh_host_connect">连接</string>
@@ -3037,7 +3028,7 @@
   <string name="notification_label_title">%1$s: %2$s</string>
   <string name="workspace_cmd_exec_failed">命令执行失败</string>
   <string name="perm_float_window_label">悬浮窗权限</string>
-  <string name="perm_float_window_desc">允许 RikkaHub 在自动化进行时显示「智能体工作中」悬浮提示。</string>
+  <string name="perm_float_window_desc">允许 RikkaHub Agents 在自动化进行时显示「智能体工作中」悬浮提示。</string>
   <string name="perm_write_settings_label">修改系统设置</string>
   <string name="perm_write_settings_desc">允许通过 set_brightness 调节屏幕亮度。</string>
   <string name="perm_notification_policy_label">勿扰模式访问</string>
@@ -3071,7 +3062,7 @@
   <string name="perm_desc_call_log">list_call_log 使用。</string>
   <string name="perm_desc_sms">list_sms_inbox 和 search_sms 使用。</string>
   <string name="perm_desc_send_sms">send_sms 发送短信时使用。</string>
-  <string name="perm_desc_termux_cmd">允许 RikkaHub 在 Termux 中启动命令（termux_run_command 工具）。</string>
+  <string name="perm_desc_termux_cmd">允许 RikkaHub Agents 在 Termux 中启动命令（termux_run_command 工具）。</string>
   <string name="perm_desc_fallback">一个或多个已启用工具需要此运行时权限。</string>
   <string name="approve">批准</string>
   <string name="deny">拒绝</string>

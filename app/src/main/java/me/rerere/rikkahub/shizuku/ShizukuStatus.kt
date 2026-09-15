@@ -47,7 +47,7 @@ object ShizukuStatusMapper {
             put(
                 "recovery",
                 "Install Shizuku from https://github.com/RikkaApps/Shizuku/releases/latest , start its service, then grant " +
-                    "RikkaHub permission from Settings -> Shizuku."
+                    "RikkaHub Agents permission from Settings -> Shizuku."
             )
         }
 

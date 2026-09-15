@@ -178,7 +178,7 @@ internal class McpSessionRegistry(
     }
 
     suspend fun addClient(configInput: McpServerConfig) {
-        // SettingsStore 是配置真源。旧任务排队后可能晚于新配置执行，不能再写回旧快照。
+        // SettingsStore 是配置的唯一来源。旧任务排队后可能晚于新配置执行，不能再写回旧快照。
         val desiredConfig = settingsStore.settingsFlow.value.mcpServers.find { it.id == configInput.id }
         if (desiredConfig == null) {
             removeClient(configInput)

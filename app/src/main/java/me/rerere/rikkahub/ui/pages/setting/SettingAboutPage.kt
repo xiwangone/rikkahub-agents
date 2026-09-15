@@ -206,6 +206,12 @@ fun SettingAboutPage() {
                         modifier = Modifier.padding(horizontal = 8.dp),
                     ) {
                         item(
+                            onClick = { context.openUrl("https://github.com/xiwangone/rikkahub-agents") },
+                            leadingContent = { Icon(HugeIcons.Github, null) },
+                            supportingContent = { Text("https://github.com/xiwangone/rikkahub-agents") },
+                            headlineContent = { Text(stringResource(R.string.about_ai_maintained)) },
+                        )
+                        item(
                             onClick = { context.openUrl("https://rikka-ai.com/") },
                             leadingContent = { Icon(HugeIcons.Earth, null) },
                             supportingContent = { Text("https://rikka-ai.com") },
@@ -222,12 +228,6 @@ fun SettingAboutPage() {
                             leadingContent = { Icon(HugeIcons.Github, null) },
                             supportingContent = { Text("https://github.com/ExTV/rikkahub-agent") },
                             headlineContent = { Text(stringResource(R.string.about_extv_fork)) },
-                        )
-                        item(
-                            onClick = { context.openUrl("https://github.com/xiwangone/rikkahub-agents") },
-                            leadingContent = { Icon(HugeIcons.Github, null) },
-                            supportingContent = { Text("https://github.com/xiwangone/rikkahub-agents") },
-                            headlineContent = { Text(stringResource(R.string.about_ai_maintained)) },
                         )
                         item(
                             onClick = { context.openUrl("https://github.com/rikkahub/rikkahub/blob/master/LICENSE") },

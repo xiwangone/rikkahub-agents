@@ -301,7 +301,7 @@ private fun copyToClipboard(
     text: String,
 ) {
     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-    clipboard.setPrimaryClip(ClipData.newPlainText("RikkaHub App Log", text))
+    clipboard.setPrimaryClip(ClipData.newPlainText("RikkaHub Agents App Log", text))
     Toast.makeText(context, R.string.log_page_copied, Toast.LENGTH_SHORT).show()
 }
 

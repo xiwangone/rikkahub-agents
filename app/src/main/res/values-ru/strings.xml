@@ -5,7 +5,7 @@
   <string name="about_page_system">Система</string>
   <string name="about_page_title">О приложении</string>
   <string name="about_page_version">Версия</string>
-  <string name="about_page_website">Веб-сайт</string>
+  <string name="about_page_website">Сайт RikkaHub</string>
   <string name="add">Добавить</string>
   <string name="app_name">RikkaHub Agents</string>
   <string name="asr_button_content_description">Распознавание речи</string>
@@ -328,11 +328,6 @@
   <string name="deep_thinking">Глубокое мышление</string>
   <string name="deep_thinking_seconds">Думал %1$.1f секунд</string>
   <string name="delete">Удалить</string>
-  <string name="donate_page_afdian_desc">Для пользователей 🇨🇳</string>
-  <string name="donate_page_donation_methods">Способы пожертвований</string>
-  <string name="donate_page_kofi_desc">Для пользователей по всему миру</string>
-  <string name="donate_page_sponsor_list">Список спонсоров</string>
-  <string name="donate_page_title">Поддержать</string>
   <string name="edit">Редактировать</string>
   <string name="editing">Редактирование</string>
   <string name="emoji_picker_search_placeholder">Поиск эмодзи...</string>
@@ -825,7 +820,7 @@
   <string name="setting_page_default_model_desc">Установить модели по умолчанию для каждой функции</string>
   <string name="setting_page_display_setting">Настройки отображения</string>
   <string name="setting_page_display_setting_desc">Управление настройками отображения</string>
-  <string name="setting_page_documentation">Документация</string>
+  <string name="setting_page_documentation">Документация RikkaHub</string>
   <string name="setting_page_documentation_desc">Просмотрите инструкции по использованию приложения и справочную документацию</string>
   <string name="setting_page_donate">Поддержать</string>
   <string name="setting_page_donate_desc">Если вам нравится, поддержите автора</string>
@@ -857,11 +852,7 @@
   <string name="setting_page_search_title">Служба поиска</string>
   <string name="setting_page_share">Поделиться</string>
   <string name="setting_page_share_desc">Поделиться этим приложением с друзьями</string>
-  <string name="setting_page_share_text">RikkaHub — открытый Android-ассистент с ИИ\n\nСайт: https://rikka-ai.com/</string>
-  <string name="setting_page_sponsor_alert_confirm">Пожертвовать</string>
-  <string name="setting_page_sponsor_alert_desc">Вы запустили приложение более 100 раз! Если вам нравится им пользоваться, пожалуйста, поддержите разработчика.</string>
-  <string name="setting_page_sponsor_alert_dismiss">Не сейчас</string>
-  <string name="setting_page_sponsor_alert_title">Поддержать разработчика</string>
+  <string name="setting_page_share_text">RikkaHub Agents — открытый Android AI-ассистент (форк RikkaHub)\n\nРепозиторий: https://github.com/xiwangone/rikkahub-agents</string>
   <string name="setting_page_theme_setting">Тема</string>
   <string name="setting_page_theme_setting_desc">Настроить цветовую схему приложения</string>
   <string name="setting_theme_page_preset_themes">Предустановленные темы</string>
@@ -2780,7 +2771,7 @@
   <string name="setting_shizuku_toast_service_not_running">Служба Shizuku не запущена</string>
   <string name="setting_shizuku_section_help">Справка по настройке</string>
   <string name="setting_shizuku_help_title">Настройка Shizuku</string>
-  <string name="setting_shizuku_help_body">Установите Shizuku из GitHub releases и запустите службу: на root-устройствах — из приложения Shizuku; на Android 11+ — через беспроводную отладку (Для разработчиков → Беспроводная отладка → Сопряжение по коду, затем выполните команду запуска из Shizuku). После запуска нажмите «Разрешение» выше, чтобы дать доступ RikkaHub.</string>
+  <string name="setting_shizuku_help_body">Установите Shizuku из GitHub releases и запустите службу: на root-устройствах — из приложения Shizuku; на Android 11+ — через беспроводную отладку (Для разработчиков → Беспроводная отладка → Сопряжение по коду, затем выполните команду запуска из Shizuku). После запуска нажмите «Разрешение» выше, чтобы дать доступ RikkaHub Agents.</string>
   <string name="setting_ssh_hosts_title">SSH-хосты</string>
   <string name="setting_ssh_host_delete">Удалить</string>
   <string name="setting_ssh_host_connect">Подключить</string>

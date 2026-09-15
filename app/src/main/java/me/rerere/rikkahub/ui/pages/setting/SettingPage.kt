@@ -91,7 +91,6 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.Select
-import me.rerere.rikkahub.ui.components.ui.icons.DiscordIcon
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.rememberColorMode
@@ -349,24 +348,6 @@ private fun CardGroupScope.AboutRow(navController: Navigator) {
         onClick = { navController.navigate(Screen.SettingAbout) },
         leadingContent = { Icon(HugeIcons.Clapping01, null) },
         supportingContent = { Text(stringResource(R.string.setting_page_about_desc)) },
-        trailingContent = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                IconButton(
-                    onClick = {
-                        context.openUrl("https://discord.gg/9weBqxe5c4")
-                    },
-                ) {
-                    Icon(
-                        imageVector = DiscordIcon,
-                        contentDescription = "Discord",
-                        tint = MaterialTheme.colorScheme.secondary,
-                    )
-                }
-            }
-        },
         headlineContent = { Text(stringResource(R.string.setting_page_about)) },
     )
 }

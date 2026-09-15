@@ -27,7 +27,6 @@ import me.rerere.rikkahub.data.network.SettingsProxySelector
 import me.rerere.rikkahub.data.network.SettingsSocks5Authenticator
 import me.rerere.rikkahub.data.ai.transformers.AssistantTemplateLoader
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
-import me.rerere.rikkahub.data.api.RikkaHubAPI
 import me.rerere.rikkahub.data.codex.CodexAccountRepository
 import me.rerere.rikkahub.data.codex.CodexCredentialStore
 import me.rerere.rikkahub.data.codex.CodexOAuthManager
@@ -69,7 +68,6 @@ import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import retrofit2.Retrofit
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.Locale
 import java.util.concurrent.TimeUnit
@@ -521,15 +519,4 @@ val dataSourceModule =
             )
         }
 
-        single<Retrofit> {
-            Retrofit
-                .Builder()
-                .baseUrl("https://api.rikka-ai.com")
-                .addConverterFactory(get<Json>().asConverterFactory("application/json; charset=UTF8".toMediaType()))
-                .build()
-        }
-
-        single<RikkaHubAPI> {
-            get<Retrofit>().create(RikkaHubAPI::class.java)
-        }
     }

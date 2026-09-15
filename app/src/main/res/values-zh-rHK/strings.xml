@@ -5,7 +5,7 @@
   <string name="about_page_system">系統</string>
   <string name="about_page_title">關於</string>
   <string name="about_page_version">版本</string>
-  <string name="about_page_website">官網</string>
+  <string name="about_page_website">RikkaHub 官網</string>
   <string name="add">添加</string>
   <string name="app_name">RikkaHub Agents</string>
   <string name="asr_button_content_description">語音辨識</string>
@@ -325,11 +325,6 @@
   <string name="deep_thinking">深度思考</string>
   <string name="deep_thinking_seconds">思考了 %1$.1f 秒</string>
   <string name="delete">刪除</string>
-  <string name="donate_page_afdian_desc">適用於🇨🇳用戶</string>
-  <string name="donate_page_donation_methods">贊助方式</string>
-  <string name="donate_page_kofi_desc">供全球用戶使用</string>
-  <string name="donate_page_sponsor_list">贊助用戶列表</string>
-  <string name="donate_page_title">贊助</string>
   <string name="edit">編輯</string>
   <string name="editing">編輯中</string>
   <string name="emoji_picker_search_placeholder">搜尋表情符號...</string>
@@ -833,7 +828,7 @@
   <string name="setting_page_default_model_desc">設定各個功能的預設模型</string>
   <string name="setting_page_display_setting">顯示設定</string>
   <string name="setting_page_display_setting_desc">管理顯示設定</string>
-  <string name="setting_page_documentation">使用文檔</string>
+  <string name="setting_page_documentation">RikkaHub 文檔</string>
   <string name="setting_page_documentation_desc">查看應用使用說明和幫助文檔</string>
   <string name="setting_page_donate">贊助</string>
   <string name="setting_page_donate_desc">如果你喜歡這個應用，請贊助作者的工作</string>
@@ -865,11 +860,7 @@
   <string name="setting_page_search_title">搜尋服務</string>
   <string name="setting_page_share">分享</string>
   <string name="setting_page_share_desc">分享本APP給朋友</string>
-  <string name="setting_page_share_text">RikkaHub - 開源安卓AI助手\n\n官網: https://rikka-ai.com/</string>
-  <string name="setting_page_sponsor_alert_confirm">捐款</string>
-  <string name="setting_page_sponsor_alert_desc">您已啟動應用程式超過 100 次！如果您喜歡使用它，請考慮支持開發者。</string>
-  <string name="setting_page_sponsor_alert_dismiss">稍後再說</string>
-  <string name="setting_page_sponsor_alert_title">支援開發者</string>
+  <string name="setting_page_share_text">RikkaHub Agents - 開源安卓 AI 助手（基於 RikkaHub）\n\n倉庫: https://github.com/xiwangone/rikkahub-agents</string>
   <string name="setting_page_theme_setting">主題</string>
   <string name="setting_page_theme_setting_desc">自訂應用配色方案</string>
   <string name="setting_theme_page_preset_themes">預設主題</string>
@@ -891,7 +882,7 @@
   <string name="setting_page_web_server">Web伺服器</string>
   <string name="setting_page_web_server_address_note">位址備註</string>
   <string name="setting_page_web_server_address_note_desc">LAN 位址：使用裝置 WiFi IP，可供同一網路上的其他裝置存取。行動數據無法使用。\n本機位址：使用 localhost，僅供本裝置存取。\nmDNS 位址：使用 .local 主機名稱，可供同一網路上的其他裝置透過名稱存取，無需知道 IP。</string>
-  <string name="setting_page_web_server_desc">允許您透過網頁存取 RikkaHub</string>
+  <string name="setting_page_web_server_desc">允許您透過網頁存取 RikkaHub Agents</string>
   <string name="setting_page_web_server_error">錯誤</string>
   <string name="setting_page_web_server_jwt_enable">啟用身分驗證</string>
   <string name="setting_page_web_server_jwt_enable_desc">存取網頁介面時需要密碼驗證</string>
@@ -1203,7 +1194,7 @@
   <!-- fork (agent) strings preserved from merge -->
   <string name="setting_display_page_show_date_below_name_desc">是否在暱稱或模型名稱下方顯示訊息日期</string>
   <string name="setting_display_page_show_date_below_name_title">在名稱下方顯示日期</string>
-  <string name="accessibility_service_summary">當大型語言模型使用螢幕自動化工具時，允許 RikkaHub 點選、滑動、捲動、讀取螢幕內容和截圖。</string>
+  <string name="accessibility_service_summary">當大型語言模型使用螢幕自動化工具時，允許 RikkaHub Agents 點選、滑動、捲動、讀取螢幕內容和截圖。</string>
   <string name="assistant_page_fast_path_router">快速路徑路由</string>
   <string name="assistant_page_fast_path_router_desc">對於高信心度的請求（如「我的電量是多少」、「現在幾點」或「列出工作流程」），跳過大型語言模型。比對的工具直接執行，你立即得到答案。保守策略 — 任何含糊的請求仍會交給模型。記錄到 logcat（標籤：FastPathRouter）。</string>
   <string name="assistant_page_local_tools_app_launcher_desc">按套件名稱開啟已安裝的應用程式（例如 Termux、設定）並列出可用應用程式。與螢幕自動化搭配可實現完整的介面控制。</string>
@@ -1325,7 +1316,7 @@
   <string name="assistant_page_local_tools_wifi_desc">讀取目前 Wi-Fi 連線（SSID、IP、訊號）。讀取 SSID 需要位置權限。</string>
   <string name="assistant_page_local_tools_wifi_title">Wi-Fi 資訊</string>
   <string name="assistant_page_local_tools_workflows_desc">讓助理建立由觸發器執行的自動化 — WiFi 連接、排程、地理圍欄、通知到達等。</string>
-  <string name="assistant_page_local_tools_workflows_hint_message">工作流程已啟用。某些觸發器類型需要開關無法請求的權限：\n\n• 地理圍欄（你到達某地）：設定 → 應用程式 → RikkaHub → 權限 → 位置 → 一律允許。\n• 通知到達：設定 → 應用程式 → 特殊存取權限 → 通知存取權 → 啟用 RikkaHub。\n• 應用程式啟動/關閉：設定 → 無障礙 → 啟用 RikkaHub。\n• 藍牙連接/中斷：在系統詢問時授予 BLUETOOTH_CONNECT。\n\n排程、WiFi、耳機、電源、螢幕開/關和電池觸發器開箱即用。當你建立需要額外設定的工作流程時，助理會即時提示。</string>
+  <string name="assistant_page_local_tools_workflows_hint_message">工作流程已啟用。某些觸發器類型需要開關無法請求的權限：\n\n• 地理圍欄（你到達某地）：設定 → 應用程式 → RikkaHub Agents → 權限 → 位置 → 一律允許。\n• 通知到達：設定 → 應用程式 → 特殊存取權限 → 通知存取權 → 啟用 RikkaHub Agents。\n• 應用程式啟動/關閉：設定 → 無障礙 → 啟用 RikkaHub Agents。\n• 藍牙連接/中斷：在系統詢問時授予 BLUETOOTH_CONNECT。\n\n排程、WiFi、耳機、電源、螢幕開/關和電池觸發器開箱即用。當你建立需要額外設定的工作流程時，助理會即時提示。</string>
   <string name="assistant_page_local_tools_workflows_hint_title">工作流程需要額外設定</string>
   <string name="assistant_page_local_tools_workflows_title">工作流程</string>
   <string name="browser_address_bar_back">瀏覽器後退</string>
@@ -1371,7 +1362,7 @@
   <string name="local_llm_download_cancel">取消</string>
   <string name="local_llm_download_continue">下載</string>
   <string name="local_llm_download_default">下載預設模型</string>
-  <string name="local_llm_download_message">RikkaHub 需要為此服務商下載一個入門模型。下載約 1.5 GB（Qwen2.5 1.5B Q8）。繼續？</string>
+  <string name="local_llm_download_message">RikkaHub Agents 需要為此服務商下載一個入門模型。下載約 1.5 GB（Qwen2.5 1.5B Q8）。繼續？</string>
   <string name="local_llm_download_progress">正在下載… %1$d%%</string>
   <string name="local_llm_download_title">下載預設模型</string>
   <string name="local_llm_downloading_format">正在下載… %1$d%%（%2$s / %3$s）</string>
@@ -1481,7 +1472,7 @@
   <string name="setting_page_accessibility_overlay_open_settings">授予顯示在其他應用程式上層</string>
   <string name="setting_page_accessibility_overlay_section">活動浮動視窗</string>
   <string name="setting_page_accessibility_recent_section">最近操作</string>
-  <string name="setting_page_accessibility_status_help">RikkaHub 需要無障礙權限來為大型語言模型執行點選、滑動和讀取螢幕。開啟 設定 → 無障礙 → 已安裝的應用程式 → RikkaHub 並開啟它。</string>
+  <string name="setting_page_accessibility_status_help">RikkaHub Agents 需要無障礙權限來為大型語言模型執行點選、滑動和讀取螢幕。開啟 設定 → 無障礙 → 已安裝的應用程式 → RikkaHub Agents 並開啟它。</string>
   <string name="setting_page_accessibility_status_not_running">服務：未執行</string>
   <string name="setting_page_accessibility_status_running">服務：執行中</string>
   <string name="setting_page_accessibility_status_section">狀態</string>
@@ -1504,7 +1495,7 @@
   <string name="setting_page_notifications_recent_empty">尚未擷取任何通知。</string>
   <string name="setting_page_notifications_recent_section">最近活動</string>
   <string name="setting_page_notifications_status_connected">服務：已連接</string>
-  <string name="setting_page_notifications_status_help">RikkaHub 需要通知存取權限來讀取傳入的通知。開啟 設定 → 通知存取權 → 通知存取權 並啟用 RikkaHub。</string>
+  <string name="setting_page_notifications_status_help">RikkaHub Agents 需要通知存取權限來讀取傳入的通知。開啟 設定 → 通知存取權 → 通知存取權 並啟用 RikkaHub Agents。</string>
   <string name="setting_page_notifications_status_not_connected">服務：未連接</string>
   <string name="setting_page_notifications_status_section">狀態</string>
   <string name="setting_page_notifications_whitelist_help">其通知會自動轉發到你預設 Telegram 聊天的應用程式。留空 = 不轉發任何內容。在選擇器中逐個開關應用程式。</string>
@@ -1520,7 +1511,7 @@
   <string name="setting_page_notifications_whitelist_summary_n_plural">%1$d 個應用程式已加入白名單</string>
   <string name="setting_page_notifications_whitelist_summary_zero">無白名單應用程式</string>
   <string name="setting_page_permissions">權限</string>
-  <string name="setting_page_permissions_desc">自動探索的 RikkaHub 使用的所有權限清單，每項都有一鍵授予按鈕。</string>
+  <string name="setting_page_permissions_desc">自動探索的 RikkaHub Agents 使用的所有權限清單，每項都有一鍵授予按鈕。</string>
   <string name="setting_page_permissions_group_auto">自動授予</string>
   <string name="setting_page_permissions_group_runtime">執行階段權限</string>
   <string name="setting_page_permissions_group_services">服務與整合</string>
@@ -1570,7 +1561,7 @@
   <string name="setting_page_scheduled_jobs_subtitle_when">時間：%1$s</string>
   <string name="setting_page_telegram">Telegram 機器人</string>
   <string name="setting_page_telegram_battery_already_ok">已從電池最佳化中加入白名單。</string>
-  <string name="setting_page_telegram_battery_desc">螢幕關閉時，激進的 OEM 系統（小米、OPPO、一加、Vivo）會切斷非白名單應用程式的網路。機器人只能在偶爾的維護時段投遞訊息。點選將 RikkaHub 加入白名單。</string>
+  <string name="setting_page_telegram_battery_desc">螢幕關閉時，激進的 OEM 系統（小米、OPPO、一加、Vivo）會切斷非白名單應用程式的網路。機器人只能在偶爾的維護時段投遞訊息。點選將 RikkaHub Agents 加入白名單。</string>
   <string name="setting_page_telegram_battery_needed">電池最佳化：未加入白名單 - 點選修復</string>
   <string name="setting_page_telegram_battery_ok">電池最佳化：已加入白名單</string>
   <string name="setting_page_telegram_boot_note">啟動後，機器人也會在裝置開機時自動啟動。</string>
@@ -1637,7 +1628,7 @@
   <string name="setting_page_workflows_subtitle_ran_success">執行於 %1$s • 成功</string>
   <string name="setting_page_workflows_subtitle_when">時間：%1$s</string>
   <string name="setting_provider_aicore_release_stage">發布階段</string>
-  <string name="setting_provider_aicore_status_help">在裝置本地執行。需要安裝了 AICore 應用程式的 Pixel 8/9/10，並且加入 GenAI Prompt-API 搶先體驗計畫（單獨的選擇加入）。如果你在首次執行時看到 ErrorCode 606 / FEATURE_NOT_FOUND，表示你安裝了 AICore 但沒有 Prompt-API 通道 — 透過 GenAI Prompt-API 搶先體驗表單申請存取權限，然後重新開機。透過提示工程支援工具呼叫 — Gemini Nano 發出 &lt;tool_call&gt; 標記，由 RikkaHub 解析並派發。</string>
+  <string name="setting_provider_aicore_status_help">在裝置本地執行。需要安裝了 AICore 應用程式的 Pixel 8/9/10，並且加入 GenAI Prompt-API 搶先體驗計畫（單獨的選擇加入）。如果你在首次執行時看到 ErrorCode 606 / FEATURE_NOT_FOUND，表示你安裝了 AICore 但沒有 Prompt-API 通道 — 透過 GenAI Prompt-API 搶先體驗表單申請存取權限，然後重新開機。透過提示工程支援工具呼叫 — Gemini Nano 發出 &lt;tool_call&gt; 標記，由 RikkaHub Agents 解析並派發。</string>
   <string name="setting_provider_delete_body">這將永久移除 %1$s 及其所有已設定的模型。你可以稍後重新新增。</string>
   <string name="setting_provider_delete_cancel">取消</string>
   <string name="setting_provider_delete_confirm">移除</string>
@@ -2395,7 +2386,7 @@
     <string name="setting_shizuku_toast_service_not_running">Shizuku 服務未執行</string>
     <string name="setting_shizuku_section_help">設定幫助</string>
     <string name="setting_shizuku_help_title">配置 Shizuku</string>
-    <string name="setting_shizuku_help_body">從 GitHub releases 安裝 Shizuku，然後啟動服務：已 root 裝置從 Shizuku 應用啟動；Android 11+ 用無線除錯配對（開發者選項 → 無線除錯 → 使用配對碼配對，然後執行 Shizuku 顯示的啟動命令）。服務執行後，點選上方「許可權」授予 RikkaHub 訪問許可權。</string>
+    <string name="setting_shizuku_help_body">從 GitHub releases 安裝 Shizuku，然後啟動服務：已 root 裝置從 Shizuku 應用啟動；Android 11+ 用無線除錯配對（開發者選項 → 無線除錯 → 使用配對碼配對，然後執行 Shizuku 顯示的啟動命令）。服務執行後，點選上方「許可權」授予 RikkaHub Agents 訪問許可權。</string>
     <string name="setting_ssh_hosts_title">SSH 主機</string>
     <string name="setting_ssh_host_delete">刪除</string>
     <string name="setting_ssh_host_connect">連線</string>
@@ -3052,7 +3043,7 @@
   <string name="notification_label_title">%1$s: %2$s</string>
   <string name="workspace_cmd_exec_failed">命令執行失敗</string>
   <string name="perm_float_window_label">懸浮窗權限</string>
-  <string name="perm_float_window_desc">允許 RikkaHub 在自動化進行時顯示「智能體工作中」懸浮提示。</string>
+  <string name="perm_float_window_desc">允許 RikkaHub Agents 在自動化進行時顯示「智能體工作中」懸浮提示。</string>
   <string name="perm_write_settings_label">修改系統設置</string>
   <string name="perm_write_settings_desc">允許通過 set_brightness 調節屏幕亮度。</string>
   <string name="perm_notification_policy_label">勿擾模式訪問</string>
@@ -3086,7 +3077,7 @@
   <string name="perm_desc_call_log">list_call_log 使用。</string>
   <string name="perm_desc_sms">list_sms_inbox 和 search_sms 使用。</string>
   <string name="perm_desc_send_sms">send_sms 發送短信時使用。</string>
-  <string name="perm_desc_termux_cmd">允許 RikkaHub 在 Termux 中啓動命令（termux_run_command 工具）。</string>
+  <string name="perm_desc_termux_cmd">允許 RikkaHub Agents 在 Termux 中啓動命令（termux_run_command 工具）。</string>
   <string name="perm_desc_fallback">一個或多個已啓用工具需要此運行時權限。</string>
   <string name="approve">批准</string>
   <string name="deny">拒絕</string>

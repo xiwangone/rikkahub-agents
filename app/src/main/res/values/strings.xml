@@ -38,7 +38,7 @@
   <string name="about_page_system">System</string>
   <string name="about_page_title">About</string>
   <string name="about_page_version">Version</string>
-  <string name="about_page_website">Website</string>
+  <string name="about_page_website">RikkaHub website</string>
   <string name="add">Add</string>
   <string name="app_name">RikkaHub Agents</string>
   <string name="asr_button_content_description">Speech Recognition</string>
@@ -420,11 +420,6 @@
   <string name="deep_thinking">Deep Thinking</string>
   <string name="deep_thinking_seconds">Thought for %1$.1f seconds</string>
   <string name="delete">Delete</string>
-  <string name="donate_page_afdian_desc">For 🇨🇳 users</string>
-  <string name="donate_page_donation_methods">Donation Methods</string>
-  <string name="donate_page_kofi_desc">For Global Users</string>
-  <string name="donate_page_sponsor_list">Sponsor List</string>
-  <string name="donate_page_title">Donate</string>
   <string name="edit">Edit</string>
   <string name="editing">Editing</string>
   <string name="emoji_picker_search_placeholder">Search emojis...</string>
@@ -780,7 +775,7 @@
   <string name="notification_channel_telegram_bot">Telegram bot</string>
   <string name="notification_channel_telegram_bot_errors">Telegram bot errors</string>
   <string name="notification_telegram_listening_title">Telegram bot listening</string>
-  <string name="notification_telegram_routing_body">Routing inbound messages to RikkaHub</string>
+  <string name="notification_telegram_routing_body">Routing inbound messages to RikkaHub Agents</string>
   <string name="notification_telegram_rejected_sender_body">Rejected sender %1$s (chat %2$s). Add to whitelist if that was you.</string>
   <string name="notification_telegram_disabled_title">Telegram bot disabled</string>
   <string name="notification_telegram_token_rejected_text">Token rejected (HTTP %1$d). Set a new token in Settings, Telegram bot.</string>
@@ -994,7 +989,7 @@
   <string name="setting_page_preferences_network_proxy_desc">Supports HTTP and SOCKS5 proxy URLs. Leave blank to use system settings.</string>
   <string name="setting_page_preferences_network_proxy_invalid">Enter a valid proxy URL with a host and port.</string>
   <string name="setting_page_preferences_ui_desc">Message display, fonts, code blocks</string>
-  <string name="setting_page_documentation">Documentation</string>
+  <string name="setting_page_documentation">RikkaHub docs</string>
   <string name="setting_page_documentation_desc">View app usage instructions and help documentation</string>
   <string name="setting_page_donate">Donate</string>
   <string name="setting_page_donate_desc">If you like it, sponsor the author\'s work</string>
@@ -1033,11 +1028,7 @@
   <string name="setting_page_search_web_fetch_tools_desc">Let the assistant fetch and read web page content directly. On by default; turn off to rely only on your configured search provider.</string>
   <string name="setting_page_share">Share</string>
   <string name="setting_page_share_desc">Share this app with friends</string>
-  <string name="setting_page_share_text">RikkaHub - Open Source Android AI Assistant\n\nWebsite: https://rikka-ai.com/</string>
-  <string name="setting_page_sponsor_alert_confirm">Donate</string>
-  <string name="setting_page_sponsor_alert_desc">You have launched the app over 100 times! If you enjoy using it, please consider supporting the developer.</string>
-  <string name="setting_page_sponsor_alert_dismiss">Not Now</string>
-  <string name="setting_page_sponsor_alert_title">Support the Developer</string>
+  <string name="setting_page_share_text">RikkaHub Agents - Open Source Android AI assistant (fork of RikkaHub)\n\nRepo: https://github.com/xiwangone/rikkahub-agents</string>
   <string name="setting_page_theme_setting">Theme</string>
   <string name="setting_page_theme_setting_desc">Customize app color scheme</string>
   <string name="setting_theme_page_preset_themes">Preset Themes</string>
@@ -2298,7 +2289,7 @@
   <string name="setting_shizuku_toast_service_not_running">Shizuku service is not running</string>
   <string name="setting_shizuku_section_help">Setup help</string>
   <string name="setting_shizuku_help_title">Setting up Shizuku</string>
-  <string name="setting_shizuku_help_body">Install Shizuku from its GitHub releases page, then start its service: from the Shizuku app on a rooted device, or by pairing wireless debugging on Android 11+ (Developer options → Wireless debugging → Pair device with pairing code, then run the start command Shizuku shows you). Once the service is running, tap Permission above to grant RikkaHub access.</string>
+  <string name="setting_shizuku_help_body">Install Shizuku from its GitHub releases page, then start its service: from the Shizuku app on a rooted device, or by pairing wireless debugging on Android 11+ (Developer options → Wireless debugging → Pair device with pairing code, then run the start command Shizuku shows you). Once the service is running, tap Permission above to grant RikkaHub Agents access.</string>
   <string name="setting_ssh_hosts_title">SSH hosts</string>
   <string name="setting_ssh_host_delete">Delete</string>
   <string name="setting_ssh_host_connect">Connect</string>
@@ -3037,7 +3028,7 @@
   <string name="notification_label_title">%1$s: %2$s</string>
   <string name="workspace_cmd_exec_failed">Command execution failed</string>
   <string name="perm_float_window_label">Floating window</string>
-  <string name="perm_float_window_desc">Allows RikkaHub to show the agent-in-progress floating hint during automation.</string>
+  <string name="perm_float_window_desc">Allows RikkaHub Agents to show the agent-in-progress floating hint during automation.</string>
   <string name="perm_write_settings_label">Modify system settings</string>
   <string name="perm_write_settings_desc">Allows adjusting screen brightness via set_brightness.</string>
   <string name="perm_notification_policy_label">Do Not Disturb access</string>
@@ -3071,7 +3062,7 @@
   <string name="perm_desc_call_log">Used by list_call_log.</string>
   <string name="perm_desc_sms">Used by list_sms_inbox and search_sms.</string>
   <string name="perm_desc_send_sms">Used when sending SMS via send_sms.</string>
-  <string name="perm_desc_termux_cmd">Allows RikkaHub to launch commands in Termux (termux_run_command tool).</string>
+  <string name="perm_desc_termux_cmd">Allows RikkaHub Agents to launch commands in Termux (termux_run_command tool).</string>
   <string name="perm_desc_fallback">One or more enabled tools require this runtime permission.</string>
   <string name="approve">Approve</string>
   <string name="deny">Deny</string>

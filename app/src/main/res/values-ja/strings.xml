@@ -5,7 +5,7 @@
   <string name="about_page_system">システム</string>
   <string name="about_page_title">アプリについて</string>
   <string name="about_page_version">バージョン</string>
-  <string name="about_page_website">ウェブサイト</string>
+  <string name="about_page_website">RikkaHub 公式サイト</string>
   <string name="add">追加</string>
   <string name="app_name">RikkaHub Agents</string>
   <string name="asr_button_content_description">音声認識</string>
@@ -335,11 +335,6 @@
   <string name="deep_thinking">深く考える</string>
   <string name="deep_thinking_seconds">%1$.1f 秒間思考中</string>
   <string name="delete">削除</string>
-  <string name="donate_page_afdian_desc">🇨🇳ユーザー向け</string>
-  <string name="donate_page_donation_methods">寄付方法</string>
-  <string name="donate_page_kofi_desc">グローバルユーザー向け</string>
-  <string name="donate_page_sponsor_list">スポンサーリスト</string>
-  <string name="donate_page_title">寄付</string>
   <string name="edit">編集</string>
   <string name="editing">編集中</string>
   <string name="emoji_picker_search_placeholder">絵文字を検索...</string>
@@ -832,7 +827,7 @@
   <string name="setting_page_default_model_desc">各機能のデフォルトモデルを設定</string>
   <string name="setting_page_display_setting">表示設定</string>
   <string name="setting_page_display_setting_desc">表示設定を管理</string>
-  <string name="setting_page_documentation">ドキュメント</string>
+  <string name="setting_page_documentation">RikkaHub ドキュメント</string>
   <string name="setting_page_documentation_desc">アプリの使用方法とヘルプドキュメントを表示</string>
   <string name="setting_page_donate">寄付</string>
   <string name="setting_page_donate_desc">このアプリを気に入った場合は、作者の作品をスポンサーしてください</string>
@@ -864,11 +859,7 @@
   <string name="setting_page_search_title">検索サービス</string>
   <string name="setting_page_share">共有</string>
   <string name="setting_page_share_desc">このアプリを友達と共有</string>
-  <string name="setting_page_share_text">RikkaHub - オープンソースAndroid AIアシスタント\n\nウェブサイト: https://rikka-ai.com/</string>
-  <string name="setting_page_sponsor_alert_confirm">寄付</string>
-  <string name="setting_page_sponsor_alert_desc">アプリを100回以上起動しました！気に入っていただけたら、開発者をサポートしていただけると嬉しいです。</string>
-  <string name="setting_page_sponsor_alert_dismiss">今はしない</string>
-  <string name="setting_page_sponsor_alert_title">開発者を支援する</string>
+  <string name="setting_page_share_text">RikkaHub Agents - オープンソース Android AI アシスタント（RikkaHub の fork）\n\nリポジトリ: https://github.com/xiwangone/rikkahub-agents</string>
   <string name="setting_page_theme_setting">テーマ</string>
   <string name="setting_page_theme_setting_desc">アプリの配色をカスタマイズ</string>
   <string name="setting_theme_page_preset_themes">プリセットテーマ</string>
@@ -2787,7 +2778,7 @@
   <string name="setting_shizuku_toast_service_not_running">Shizuku サービスが稼働していません</string>
   <string name="setting_shizuku_section_help">設定のヘルプ</string>
   <string name="setting_shizuku_help_title">Shizuku の設定</string>
-  <string name="setting_shizuku_help_body">GitHub の releases から Shizuku をインストールし、サービスを起動します。root 化済み端末は Shizuku アプリから起動。Android 11 以降はワイヤレスデバッグでペア設定（開発者向けオプション → ワイヤレスデバッグ → ペア設定コードでペア設定し、Shizuku が表示する起動コマンドを実行）。サービスが動いたら、上の「権限」をタップして RikkaHub にアクセスを許可してください。</string>
+  <string name="setting_shizuku_help_body">GitHub の releases から Shizuku をインストールし、サービスを起動します。root 化済み端末は Shizuku アプリから起動。Android 11 以降はワイヤレスデバッグでペア設定（開発者向けオプション → ワイヤレスデバッグ → ペア設定コードでペア設定し、Shizuku が表示する起動コマンドを実行）。サービスが動いたら、上の「権限」をタップして RikkaHub Agents にアクセスを許可してください。</string>
   <string name="setting_ssh_hosts_title">SSH ホスト</string>
   <string name="setting_ssh_host_delete">削除</string>
   <string name="setting_ssh_host_connect">接続</string>
