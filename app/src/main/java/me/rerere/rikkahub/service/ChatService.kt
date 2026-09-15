@@ -128,6 +128,12 @@ private const val STREAM_PERSIST_INTERVAL_MS = 8_000L
  */
 private const val STREAM_UI_INTERVAL_MS = 120L
 
+/**
+ * 进度通知的更新节流：更新通知要走系统跨进程调用并重绘通知栏，逐块更新在长回复下既拖慢
+ * 通知栏，也容易被系统合并丢弃而停在旧内容上。按此间隔更新，内容足够接近最新。
+ */
+private const val STREAM_NOTIFICATION_INTERVAL_MS = 1_000L
+
 // 审批续跑时等待前一个生成任务结束的上限（不取消前一个，避免打断其审批写入）。
 private const val PREV_JOB_JOIN_TIMEOUT_MS = 10_000L
 
@@ -284,6 +290,9 @@ class ChatService(
     private val _generationDoneFlow = MutableSharedFlow<Uuid>()
     val generationDoneFlow: SharedFlow<Uuid> = _generationDoneFlow.asSharedFlow()
 
+    // 后台期间正在刷新的进度通知所属会话；回到前台时统一清掉，避免通知栏残留与页面对不上的旧内容
+    private val liveNotificationConversations = ConcurrentHashMap.newKeySet<Uuid>()
+
     // 前台状态管理
     private val _isForeground = MutableStateFlow(false)
     val isForeground: StateFlow<Boolean> = _isForeground.asStateFlow()
@@ -293,6 +302,9 @@ class ChatService(
             when (event) {
                 Lifecycle.Event.ON_START -> {
                     _isForeground.value = true
+                    // 用户已回到界面：清掉后台期间的进度通知，否则它会带着停止更新时的旧内容
+                    // 一直留在通知栏，与页面上的最新内容不一致。
+                    liveNotificationConversations.toList().forEach { cancelLiveUpdateNotification(it) }
                 }
 
                 Lifecycle.Event.ON_STOP -> {
@@ -1083,6 +1095,8 @@ class ChatService(
             var lastStreamPersistAtMs = 0L
             // 流式界面提交的节流时间戳（见 STREAM_UI_INTERVAL_MS）
             var lastUiCommitAtMs = 0L
+            // 进度通知的节流时间戳（见 STREAM_NOTIFICATION_INTERVAL_MS）
+            var lastNotificationAtMs = 0L
             // 节流窗口内被跳过的最后一次快照：流结束时必须补一次提交，
             // 否则尾部内容既不会进内存态也不会落盘（只有后续数据块才会覆盖它）。
             var pendingUiConversation: Conversation? = null
@@ -1278,7 +1292,11 @@ class ChatService(
                             if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration &&
                                 settings.displaySetting.enableLiveUpdateNotification
                             ) {
-                                sendLiveUpdateNotification(conversationId, chunk.messages, senderName)
+                                val nowNotifyMs = System.currentTimeMillis()
+                                if (nowNotifyMs - lastNotificationAtMs >= STREAM_NOTIFICATION_INTERVAL_MS) {
+                                    lastNotificationAtMs = nowNotifyMs
+                                    sendLiveUpdateNotification(conversationId, chunk.messages, senderName)
+                                }
                             }
                         }
                     }
@@ -1879,13 +1897,24 @@ class ChatService(
             requestPromotedOngoing = true
             shortCriticalText = chipText
         }
+        liveNotificationConversations.add(conversationId)
     }
 
     private fun determineNotificationContent(parts: List<UIMessagePart>): Triple<String, String, String> {
-        // 检查最近的 part 来确定状态
-        val lastReasoning = parts.filterIsInstance<UIMessagePart.Reasoning>().lastOrNull()
-        val lastTool = parts.filterIsInstance<UIMessagePart.Tool>().lastOrNull()
-        val lastText = parts.filterIsInstance<UIMessagePart.Text>().lastOrNull()
+        // 检查最近的 part 来确定状态：倒序扫描一次即可拿到各类 part 的最后一项，
+        // 原先三次 filterIsInstance 每次都会新建列表，在长回复下被逐块调用开销明显。
+        var lastReasoning: UIMessagePart.Reasoning? = null
+        var lastTool: UIMessagePart.Tool? = null
+        var lastText: UIMessagePart.Text? = null
+        for (index in parts.indices.reversed()) {
+            when (val part = parts[index]) {
+                is UIMessagePart.Reasoning -> if (lastReasoning == null) lastReasoning = part
+                is UIMessagePart.Tool -> if (lastTool == null) lastTool = part
+                is UIMessagePart.Text -> if (lastText == null) lastText = part
+                else -> {}
+            }
+            if (lastReasoning != null && lastTool != null && lastText != null) break
+        }
 
         return when {
             // 正在执行工具
@@ -1935,6 +1964,7 @@ class ChatService(
     }
 
     private fun cancelLiveUpdateNotification(conversationId: Uuid) {
+        liveNotificationConversations.remove(conversationId)
         context.cancelNotification(getLiveUpdateNotificationId(conversationId))
     }
 
