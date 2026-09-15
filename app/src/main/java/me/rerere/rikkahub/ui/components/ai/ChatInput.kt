@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.components.ai
 
+import me.rerere.rikkahub.ui.components.message.formatCost
+import me.rerere.hugeicons.stroke.CoinsDollar
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -807,16 +809,38 @@ keyboardOptions =
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
+                // 累计花费：仅当服务商上报 usage.cost 时显示
+                if (sessionTotals.costUsd > 0.0) {
+                    Icon(
+                        imageVector = HugeIcons.CoinsDollar,
+                        contentDescription = stringResource(R.string.accessibility_cost),
+                        tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
+                        modifier = Modifier.size(12.dp),
+                    )
+                    Text(
+                        text = formatCost(sessionTotals.costUsd),
+                        style =
+                            MaterialTheme.typography.labelSmall.copy(
+                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
+                            ),
+                    )
+                }
                 Box(
                     modifier =
                         Modifier
                             .clickable(onClick = {
                                 // 对照本轮统计（NerdLine）复制格式：↑X tokens (Y cached · Z%) ↓W tokens
-                                pendingSessionTotalsCopy =
+                                val base =
                                     if (sessionTotals.cachedTokens > 0 && sessionTotals.inputTokens > 0) {
                                         "↑${totalInput} tokens (${totalCached} cached · ${avgPct}) ↓${totalOutput} tokens"
                                     } else {
                                         "↑${totalInput} tokens ↓${totalOutput} tokens"
+                                    }
+                                pendingSessionTotalsCopy =
+                                    if (sessionTotals.costUsd > 0.0) {
+                                        "$base · ${formatCost(sessionTotals.costUsd)}"
+                                    } else {
+                                        base
                                     }
                             })
                             .padding(2.dp),
