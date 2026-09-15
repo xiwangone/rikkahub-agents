@@ -624,7 +624,7 @@
   <string name="reasoning_off">إيقاف</string>
   <string name="reasoning_off_desc">إيقاف وظيفة الاستدلال، سيجيب النموذج على الأسئلة مباشرةً.</string>
   <string name="regenerate">إعادة التوليد</string>
-  <string name="regenerate_confirm_message">هل أنت متأكد من إعادة توليد هذه الرسالة؟</string>
+  <string name="regenerate_confirm_message">هل أنت متأكد من إعادة توليد هذه الرسالة؟ سيتم حذف جميع الرسائل الواقعة أسفل هذه الرسالة.</string>
   <string name="render_with_webview">عرض باستخدام WebView</string>
   <string name="rikkahub_provider_description">خدمة ذكاء اصطناعي مجانية رسمية، تستخدم أموال رعاية المستخدمين لتوفير بعض النماذج المجانية للمستخدمين الجدد كاحتياطي، لا يلزم مفتاح API. لها حدود معدل صارمة، إذا اشتريت مزوّدك الخاص، من فضلك استخدم مزوّدك الخاص قدر الإمكان.</string>
   <string name="safe_mode_assistants">المساعدون</string>

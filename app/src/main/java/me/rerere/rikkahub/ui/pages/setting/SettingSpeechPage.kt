@@ -843,6 +843,10 @@ private fun TTSProviderItem(
                                 is TTSProviderSetting.FishAudio -> {
                                     "Fish Audio"
                                 }
+
+                                is TTSProviderSetting.Volcengine -> {
+                                    "火山引擎"
+                                }
                             },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
