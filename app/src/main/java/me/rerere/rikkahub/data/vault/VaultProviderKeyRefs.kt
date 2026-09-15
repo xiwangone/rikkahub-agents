@@ -17,6 +17,9 @@ import me.rerere.ai.util.ProviderKeyRefs
  */
 object VaultProviderKeyRefs {
 
+    /** 引用前缀：与 provider 密钥解析层一致。 */
+    const val PREFIX = "\$\$"
+
     @Volatile
     private var cache: Map<String, String> = emptyMap()
 
@@ -40,6 +43,17 @@ object VaultProviderKeyRefs {
         ProviderKeyRefs.resolve = { name -> cache[name] }
         installed = true
         return map.size
+    }
+
+    /**
+     * 解析配置里的值：形如 `$$名字` 时替换为库内真值；**非引用或未命中原样返回**。
+     *
+     * 这是各配置读取点的统一入口（provider 的密钥轮询另有同源钩子）。
+     * 同步实现：只读内存缓存，可在任意取值处直接调用。
+     */
+    fun resolveValue(raw: String): String {
+        if (!raw.startsWith(PREFIX)) return raw
+        return cache[raw.removePrefix(PREFIX)] ?: raw
     }
 
     /** 当前是否能解析某个引用名（只回答存在性，不返回值）。 */

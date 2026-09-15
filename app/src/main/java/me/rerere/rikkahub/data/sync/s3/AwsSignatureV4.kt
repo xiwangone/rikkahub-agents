@@ -89,7 +89,7 @@ internal object AwsSignatureV4 {
         }
 
         val signingKey = getSignatureKey(
-            config.secretAccessKey,
+            me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(config.secretAccessKey),
             dateStamp,
             config.region,
             SERVICE

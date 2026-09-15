@@ -92,7 +92,10 @@ class TelegramBotClient(
         val p = resolvedProxy ?: return@apply
         proxy(p)
         if (proxyConfig.proxyType == "HTTP" && proxyConfig.proxyUsername.isNotBlank()) {
-            val credential = Credentials.basic(proxyConfig.proxyUsername, proxyConfig.proxyPassword)
+            val credential = Credentials.basic(
+                proxyConfig.proxyUsername,
+                me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(proxyConfig.proxyPassword),
+            )
             proxyAuthenticator { _, response ->
                 response.request.newBuilder()
                     .header("Proxy-Authorization", credential)

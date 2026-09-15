@@ -59,7 +59,10 @@ class WebDavClient(
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod.Put
-                basicAuth(config.username, config.password)
+                basicAuth(
+                    config.username,
+                    me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(config.password),
+                )
                 headers {
                     append("Content-Type", contentType)
                     append("Content-Length", data.size.toString())
@@ -89,7 +92,10 @@ class WebDavClient(
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod.Put
-                basicAuth(config.username, config.password)
+                basicAuth(
+                    config.username,
+                    me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(config.password),
+                )
                 headers {
                     append("Content-Type", contentType)
                     append("Content-Length", file.length().toString())
@@ -116,7 +122,10 @@ class WebDavClient(
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod.Get
-                basicAuth(config.username, config.password)
+                basicAuth(
+                    config.username,
+                    me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(config.password),
+                )
             }
 
             if (!response.status.isSuccess()) {
@@ -137,7 +146,10 @@ class WebDavClient(
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod.Get
-                basicAuth(config.username, config.password)
+                basicAuth(
+                    config.username,
+                    me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(config.password),
+                )
             }
 
             if (!response.status.isSuccess()) {
@@ -157,7 +169,10 @@ class WebDavClient(
 
             httpClient.prepareRequest(url) {
                 method = HttpMethod.Get
-                basicAuth(config.username, config.password)
+                basicAuth(
+                    config.username,
+                    me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(config.password),
+                )
             }.execute { response ->
                 if (!response.status.isSuccess()) {
                     val errorBody = response.bodyAsText()
@@ -188,7 +203,10 @@ class WebDavClient(
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod.Delete
-                basicAuth(config.username, config.password)
+                basicAuth(
+                    config.username,
+                    me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(config.password),
+                )
             }
 
             if (!response.status.isSuccess()) {
@@ -209,7 +227,10 @@ class WebDavClient(
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod.Head
-                basicAuth(config.username, config.password)
+                basicAuth(
+                    config.username,
+                    me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(config.password),
+                )
             }
 
             if (!response.status.isSuccess()) {
@@ -234,7 +255,10 @@ class WebDavClient(
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod("MKCOL")
-                basicAuth(config.username, config.password)
+                basicAuth(
+                    config.username,
+                    me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(config.password),
+                )
             }
 
             // 201 Created or 405 Method Not Allowed (already exists) are acceptable
@@ -271,7 +295,10 @@ class WebDavClient(
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod("PROPFIND")
-                basicAuth(config.username, config.password)
+                basicAuth(
+                    config.username,
+                    me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(config.password),
+                )
                 headers {
                     append("Content-Type", "application/xml; charset=utf-8")
                     append("Depth", depth.toString())
