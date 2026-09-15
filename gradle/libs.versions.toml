@@ -55,6 +55,9 @@ ucrop = "2.2.11-native"
 floatingx = "2.3.7"
 haze = "2.0.0-alpha03"
 ktor = "3.5.2"
+# ktor-server-auth-jwt 及其 jwks 组件会带入 jackson；统一钉到已修复版本，
+# 避免传递依赖解析出带已知问题的版本。
+jackson = "2.22.2"
 sqlite-vector = "0.9.92"
 jmdns = "3.6.3"
 slf4j = "2.0.18"
@@ -193,6 +196,7 @@ ktor-serialization-kotlinx-json = { module = "io.ktor:ktor-serialization-kotlinx
 ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
 ktor-server-auth = { module = "io.ktor:ktor-server-auth", version.ref = "ktor" }
 ktor-server-auth-jwt = { module = "io.ktor:ktor-server-auth-jwt", version.ref = "ktor" }
+jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
 sqlite-vector = { module = "ai.sqlite:vector", version.ref = "sqlite-vector" }
 jmdns = { module = "org.jmdns:jmdns", version.ref = "jmdns" }
 xz = { module = "org.tukaani:xz", version = "1.12" }

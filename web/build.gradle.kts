@@ -75,6 +75,8 @@ dependencies {
     implementation(libs.ktor.server.cors)
     api(libs.ktor.server.auth)
     api(libs.ktor.server.auth.jwt)
+    // 统一 jackson 版本：ktor-server-auth-jwt 的传递依赖会解析出带已知问题的版本
+    implementation(platform(libs.jackson.bom))
     api(libs.ktor.server.core)
     implementation(libs.ktor.server.host.common)
     api(libs.ktor.server.content.negotiation)
