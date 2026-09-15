@@ -35,7 +35,9 @@ fun Route.vaultRoutes(
         post("/decrypt") {
             val request = call.receive<DecryptRequest>()
             val token = request.token
-            if (token.isBlank() || !sessionManager.verifyToken(token, VaultSessionManager.SCOPE_DECRYPT)) {
+            if (token.isBlank() ||
+                !sessionManager.verifyToken(token, VaultSessionManager.SCOPE_DECRYPT, request.name)
+            ) {
                 // 未授权尝试本身是入侵信号：留痕（名称可能为空/伪造，审计有容量上限兜底）
                 repository.logAccess(request.name.ifBlank { "(unnamed)" }, "remote-api", "decrypt_denied")
                 throw UnauthorizedException("Invalid or expired vault session token")
@@ -66,6 +68,11 @@ fun Route.vaultRoutes(
             val values = linkedMapOf<String, String>()
             val missing = mutableListOf<String>()
             request.names.distinct().forEach { name ->
+                // 名字级收敛：会话若被限定名字集合，这里逐名判定
+                if (!sessionManager.verifyToken(request.token, VaultSessionManager.SCOPE_DECRYPT, name)) {
+                    missing += name
+                    return@forEach
+                }
                 val entry = repository.getByName(name)
                 if (entry != null) {
                     val plaintext = repository.decryptValue(entry)

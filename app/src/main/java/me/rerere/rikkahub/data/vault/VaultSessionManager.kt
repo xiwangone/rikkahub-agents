@@ -30,6 +30,8 @@ data class VaultSessionInfo(
     val createdAt: Long,
     val lastUsedAt: Long,
     val scopes: List<String> = DEFAULT_SCOPES,
+    /** 名字级收敛：非空时该会话只能访问这些凭证（空 = 不限制，保持既有行为）。 */
+    val allowedNames: List<String> = emptyList(),
 ) {
     /** 剩余有效毫秒（当场有效 = Long.MAX_VALUE） */
     fun remainingMs(now: Long = System.currentTimeMillis()): Long =
@@ -44,6 +46,8 @@ private data class VaultSessionRecord(
     val createdAt: Long,
     val lastUsedAt: Long,
     val scopes: List<String> = DEFAULT_SCOPES,
+    /** 名字级收敛：非空时只能访问这些凭证（空 = 不限制）。 */
+    val allowedNames: List<String> = emptyList(),
 )
 
 /**
@@ -93,12 +97,18 @@ class VaultSessionManager(private val context: Context) {
      * [label] 会话用途标识；[ttlMs] 有效期（TTL_SESSION_MS=当场有效）。
      * 返回完整 token（id.expiry.HMAC）。
      */
-    suspend fun issueSessionToken(label: String = DEFAULT_LABEL, ttlMs: Long = TTL_MS): String {
+    suspend fun issueSessionToken(
+        label: String = DEFAULT_LABEL,
+        ttlMs: Long = TTL_MS,
+        /** 非空时该会话只能访问这些凭证（空 = 不限制）。 */
+        allowedNames: List<String> = emptyList(),
+    ): String {
         val master = ensureMasterSecret()
         val id = randomId()
         val now = System.currentTimeMillis()
         val record = VaultSessionRecord(
             id = id, label = label, ttlMs = ttlMs, createdAt = now, lastUsedAt = now,
+            allowedNames = allowedNames,
         )
         updateSessions { current ->
             (current + record).let { all ->
@@ -109,8 +119,17 @@ class VaultSessionManager(private val context: Context) {
         return signToken(master, id, expiry)
     }
 
-    /** 校验 token 是否有效（多会话）。[requiredScope] 指定后还需会话拥有该作用域。 */
-    suspend fun verifyToken(token: String, requiredScope: String? = null): Boolean {
+    /**
+     * 校验 token 是否有效（多会话）。
+     *
+     * @param requiredScope 指定后还需会话拥有该作用域
+     * @param requiredName 指定后需会话允许访问该凭证（会话未设名字集合 = 不限制）
+     */
+    suspend fun verifyToken(
+        token: String,
+        requiredScope: String? = null,
+        requiredName: String? = null,
+    ): Boolean {
         val master = context.vaultSessionStore.data.first()[Keys.MASTER_SECRET] ?: return legacyVerify(token)
         val parts = token.split(".")
         if (parts.size != 3) return legacyVerify(token)
@@ -124,6 +143,10 @@ class VaultSessionManager(private val context: Context) {
         val rec = sessions.find { it.id == id } ?: return false
         // 作用域校验
         if (requiredScope != null && rec.scopes.none { it == requiredScope || it == "all" }) return false
+        // 名字级收敛（会话设了集合才生效；空集合 = 不限制，保持既有行为）
+        if (requiredName != null && rec.allowedNames.isNotEmpty() && requiredName !in rec.allowedNames) {
+            return false
+        }
         // 更新 lastUsedAt（审计）
         if (System.currentTimeMillis() - rec.lastUsedAt > 60_000) {
             updateSessions { list ->
@@ -158,9 +181,12 @@ class VaultSessionManager(private val context: Context) {
     // ---------- 兼容旧单会话 API ----------
 
     /** 兼容：签发单会话（委托多会话，label=默认）。 */
-    suspend fun issueToken(sessionMode: Boolean = false): String {
+    suspend fun issueToken(
+        sessionMode: Boolean = false,
+        allowedNames: List<String> = emptyList(),
+    ): String {
         val ttl = if (sessionMode) TTL_SESSION_MS else TTL_MS
-        return issueSessionToken(label = DEFAULT_LABEL, ttlMs = ttl)
+        return issueSessionToken(label = DEFAULT_LABEL, ttlMs = ttl, allowedNames = allowedNames)
     }
 
     /** 兼容：旧字段校验（迁移期）。 */

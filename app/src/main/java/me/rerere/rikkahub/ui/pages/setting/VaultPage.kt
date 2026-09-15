@@ -334,6 +334,8 @@ fun VaultPage() {
                         )
                         var sessionMode by remember { mutableStateOf(false) }
                         var sessionToken by remember { mutableStateOf<String?>(null) }
+                        // 名字级收敛：留空 = 不限制（默认，保持既有使用方式）
+                        var allowedNamesInput by remember { mutableStateOf("") }
                         // 进入页面时从 DataStore 读回上次签发的会话模式 + 会话状态（避免退出重进丢失）
                         LaunchedEffect(Unit) {
                             sessionMode = vaultSessionManager.getSessionMode()
@@ -375,6 +377,13 @@ fun VaultPage() {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        OutlinedTextField(
+                            value = allowedNamesInput,
+                            onValueChange = { allowedNamesInput = it },
+                            label = { Text(stringResource(R.string.vault_session_allowed_names)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
                         OutlinedButton(
                             onClick = {
                                 scope.launch {
@@ -386,7 +395,15 @@ fun VaultPage() {
                                                 return@launch
                                             }
                                         }
-                                        val token = vaultSessionManager.issueToken(sessionMode = sessionMode)
+                                        val token =
+                                            vaultSessionManager.issueToken(
+                                                sessionMode = sessionMode,
+                                                allowedNames =
+                                                    allowedNamesInput
+                                                        .split(',')
+                                                        .map { it.trim() }
+                                                        .filter { it.isNotEmpty() },
+                                            )
                                         sessionToken = token
                                         // 动态文案：当场有效 vs 30 分钟（Bug 2 修复）
                                         sessionResult = if (sessionMode) {
