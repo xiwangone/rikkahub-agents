@@ -1846,22 +1846,26 @@ class ChatService(
         conversationId: Uuid,
         senderName: String,
     ) {
-        // 先取消 Live Update 通知
+        // 先取消 Live Update 通知；完成通知沿用固定 id 直接覆盖，
+        // 不再先取消再发送（同一 id 上取消与发送相邻执行时，部分系统会丢掉这一次更新，
+        // 通知栏便会停留在更早的内容上）。
         cancelLiveUpdateNotification(conversationId)
-        // 清理可能残留的旧完成通知（同会话），避免通知栏堆积旧内容
-        cancelDoneNotification(conversationId)
 
+        // 内容取最近一条助手回复：列表末条可能是用户消息（例如后台里又收到了下一条），
+        // 直接取末条会把用户的话当成回复显示，与页面内容对不上。
         val conversation = getConversationFlow(conversationId).value
+        val replyText =
+            conversation.currentMessages
+                .lastOrNull { it.role == MessageRole.ASSISTANT }
+                ?.toText()
+                ?.trim()
+                .orEmpty()
         context.sendNotification(
             channelId = CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID,
             notificationId = getDoneNotificationId(conversationId),
         ) {
             title = senderName
-            content = conversation.currentMessages
-                .lastOrNull()
-                ?.toText()
-                ?.take(50)
-                ?.trim() ?: ""
+            content = replyText.take(50)
             autoCancel = true
             useDefaults = true
             category = NotificationCompat.CATEGORY_MESSAGE
