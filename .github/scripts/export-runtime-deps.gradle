@@ -11,6 +11,12 @@
 // 因此不注册任务，直接在 projectsEvaluated 里收集并落盘。
 
 gradle.projectsEvaluated { g ->
+    // 复合构建（includeBuild）会让本回调在每个子构建上各触发一次：
+    // 只处理最外层的主构建，避免误扫工具构建、或因它解析失败而提前中断。
+    if (g.parent != null) {
+        return
+    }
+
     def outputPath = System.getProperty("deps.out")
     if (outputPath == null) {
         println("exportRuntimeDeps: 未指定 -Ddeps.out，跳过导出")
