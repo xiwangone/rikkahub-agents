@@ -120,7 +120,7 @@ fun Application.configureWebApi(
                 verifier { _ ->
                     // Dynamically read the current password on each request so that
                     // tokens signed after a password change are validated correctly.
-                    val currentPassword = settingsStore.settingsFlow.value.webServerAccessPassword
+                    val currentPassword = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(settingsStore.settingsFlow.value.webServerAccessPassword)
                     val secret = currentPassword.ifBlank {
                         // Keep protected routes closed when jwt is enabled but password is missing.
                         "__missing_password_${UUID.randomUUID()}__"
@@ -136,7 +136,7 @@ fun Application.configureWebApi(
                     }
                 }
                 validate { credential ->
-                    val currentPassword = settingsStore.settingsFlow.value.webServerAccessPassword
+                    val currentPassword = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(settingsStore.settingsFlow.value.webServerAccessPassword)
                     if (currentPassword.isBlank()) {
                         null
                     } else {
@@ -146,7 +146,7 @@ fun Application.configureWebApi(
                     }
                 }
                 challenge { _, _ ->
-                    val currentPassword = settingsStore.settingsFlow.value.webServerAccessPassword
+                    val currentPassword = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(settingsStore.settingsFlow.value.webServerAccessPassword)
                     if (currentPassword.isBlank()) {
                         call.respond(
                             HttpStatusCode.Forbidden,
@@ -171,7 +171,9 @@ fun Application.configureWebApi(
                     throw BadRequestException("JWT auth is disabled")
                 }
 
-                val accessPassword = settings.webServerAccessPassword
+                // 支持 `$$凭证名` 引用（未命中保持原样）
+                val accessPassword =
+                    me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(settings.webServerAccessPassword)
                 if (accessPassword.isBlank()) {
                     throw BadRequestException("Access password is not configured")
                 }

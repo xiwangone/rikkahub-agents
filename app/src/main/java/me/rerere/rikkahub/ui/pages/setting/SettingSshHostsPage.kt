@@ -46,6 +46,7 @@ import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.vault.VaultCredentialPickerDialog
+import me.rerere.rikkahub.ui.components.setting.SshKeyPairDialog
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -225,6 +226,8 @@ private fun SshHostEditDialog(
     val scope = rememberCoroutineScope()
     var vaultEntries by remember { mutableStateOf<List<me.rerere.rikkahub.data.db.entity.VaultCredentialEntity>>(emptyList()) }
     var showVaultPicker by remember { mutableStateOf(false) }
+    // 生成新密钥对：生成后直接回填为本主机引用的凭证
+    var showKeyGen by remember { mutableStateOf(false) }
     var showTemplatePicker by remember { mutableStateOf(false) }
     androidx.compose.runtime.LaunchedEffect(Unit) { vaultEntries = vaultRepo.getAll() }
     val serverTemplates = vaultEntries.filter { it.grp == "server" }
@@ -280,8 +283,22 @@ private fun SshHostEditDialog(
 
                 // 私钥：从 Vault 选择（引用，不明文粘贴）
                 if (keyCandidates.isNotEmpty()) {
-                    OutlinedButton(onClick = { showVaultPicker = true }, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.setting_ssh_pick_vault_key))
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedButton(
+                            onClick = { showVaultPicker = true },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(stringResource(R.string.setting_ssh_pick_vault_key))
+                        }
+                        OutlinedButton(
+                            onClick = { showKeyGen = true },
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Text(stringResource(R.string.vault_new_key))
+                        }
                     }
                     if (showVaultPicker) {
                         // 统一选择器：支持搜索 + 按分组/类型筛选（条目多时快速定位）
@@ -289,6 +306,15 @@ private fun SshHostEditDialog(
                             entries = keyCandidates,
                             onPick = { vaultCredentialRef = it.name; showVaultPicker = false },
                             onDismiss = { showVaultPicker = false },
+                        )
+                    }
+                    if (showKeyGen) {
+                        SshKeyPairDialog(
+                            credentialName = "",
+                            defaultGroup = "SSH",
+                            onDismiss = { showKeyGen = false },
+                            // 生成成功即回填为本主机的凭证引用（免去"先生成再去选"两步）
+                            onSaved = { name -> vaultCredentialRef = name; showKeyGen = false },
                         )
                     }
                     if (vaultCredentialRef != null) {

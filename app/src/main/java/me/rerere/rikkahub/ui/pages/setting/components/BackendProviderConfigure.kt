@@ -75,7 +75,7 @@ fun BackendProviderConfigure(
             FilterChip(
                 selected = provider.backendType == type,
                 onClick = { onEdit(provider.copy(backendType = type)) },
-                label = { Text(label) },
+                label = { Text(label, maxLines = 1, softWrap = false) },
             )
         }
     }
@@ -126,7 +126,7 @@ fun BackendProviderConfigure(
                 androidx.compose.material3.FilterChip(
                     selected = provider.connectionMode == mode,
                     onClick = { onEdit(provider.copy(connectionMode = mode)) },
-                    label = { Text(label) },
+                    label = { Text(label, maxLines = 1, softWrap = false) },
                 )
             }
         }
