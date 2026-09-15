@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.service
 
+import me.rerere.rikkahub.R
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -411,13 +412,17 @@ class CronJobWorker(
         val nm = ctx.getSystemService(NotificationManager::class.java)
         if (nm.getNotificationChannel(CHANNEL_ID) == null) {
             nm.createNotificationChannel(
-                NotificationChannel(CHANNEL_ID, "Scheduled jobs", NotificationManager.IMPORTANCE_DEFAULT),
+                NotificationChannel(
+                    CHANNEL_ID,
+                    ctx.getString(R.string.notification_channel_scheduled_jobs),
+                    NotificationManager.IMPORTANCE_DEFAULT,
+                ),
             )
         }
         val builder =
             NotificationCompat
                 .Builder(ctx, CHANNEL_ID)
-                .setContentTitle("Scheduled job failed")
+                .setContentTitle(ctx.getString(R.string.notification_scheduled_job_failed_title))
                 .setContentText("$jobName: $errorMessage")
                 .setStyle(NotificationCompat.BigTextStyle().bigText("$jobName: $errorMessage"))
                 .setSmallIcon(android.R.drawable.ic_dialog_info)

@@ -160,7 +160,7 @@ class LocalMcpServerService : Service() {
         NotificationManagerCompat.from(this).createNotificationChannel(
             NotificationChannelCompat
                 .Builder(CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
-                .setName("本地 MCP Server")
+                .setName(getString(R.string.notification_channel_local_mcp))
                 .build()
         )
     }
@@ -177,8 +177,8 @@ class LocalMcpServerService : Service() {
         NotificationCompat
             .Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.small_icon)
-            .setContentTitle("本地 MCP Server 启动中")
-            .setContentText("Backend 设备工具源")
+            .setContentTitle(getString(R.string.notification_mcp_starting_title))
+            .setContentText(getString(R.string.notification_mcp_starting_text))
             .setContentIntent(buildLaunchPendingIntent())
             .setOngoing(true)
             .setOnlyAlertOnce(true)
@@ -188,8 +188,10 @@ class LocalMcpServerService : Service() {
         NotificationCompat
             .Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.small_icon)
-            .setContentTitle("本地 MCP Server 运行中")
-            .setContentText("127.0.0.1:${state.port} · ${state.toolCount} 个工具")
+            .setContentTitle(getString(R.string.notification_mcp_running_title))
+            .setContentText(
+                getString(R.string.notification_mcp_running_text, state.port, state.toolCount),
+            )
             .setContentIntent(buildLaunchPendingIntent())
             .setOngoing(true)
             .setOnlyAlertOnce(true)

@@ -238,7 +238,7 @@ class TelegramBotService : Service() {
             nm.createNotificationChannel(
                 NotificationChannel(
                     CHANNEL_ID,
-                    "Telegram bot",
+                    getString(R.string.notification_channel_telegram_bot),
                     NotificationManager.IMPORTANCE_LOW,
                 ),
             )
@@ -267,13 +267,17 @@ class TelegramBotService : Service() {
         val rejected = TelegramBotRegistries.RejectedSenderLog.latest()
         val body =
             if (rejected != null) {
-                "Rejected sender ${rejected.senderId} (chat ${rejected.chatId}). Add to whitelist if that was you."
+                getString(
+                    R.string.notification_telegram_rejected_sender_body,
+                    rejected.senderId,
+                    rejected.chatId,
+                )
             } else {
-                "Routing inbound messages to RikkaHub"
+                getString(R.string.notification_telegram_routing_body)
             }
         return NotificationCompat
             .Builder(this, CHANNEL_ID)
-            .setContentTitle("Telegram bot listening")
+            .setContentTitle(getString(R.string.notification_telegram_listening_title))
             .setContentText(body)
             .setStyle(NotificationCompat.BigTextStyle().bigText(body))
             .setSmallIcon(R.drawable.ic_notif_telegram)
@@ -607,7 +611,7 @@ class TelegramBotService : Service() {
                 nm.createNotificationChannel(
                     android.app.NotificationChannel(
                         channelId,
-                        "Telegram bot errors",
+                        getString(R.string.notification_channel_telegram_bot_errors),
                         android.app.NotificationManager.IMPORTANCE_HIGH,
                     ),
                 )
@@ -615,11 +619,17 @@ class TelegramBotService : Service() {
             val builder =
                 androidx.core.app.NotificationCompat
                     .Builder(applicationContext, channelId)
-                    .setContentTitle("Telegram bot disabled")
-                    .setContentText("Token rejected (HTTP $errorCode). Set a new token in Settings → Telegram bot.")
+                    .setContentTitle(getString(R.string.notification_telegram_disabled_title))
+                    .setContentText(
+                            getString(R.string.notification_telegram_token_rejected_text, errorCode),
+                        )
                     .setStyle(
                         androidx.core.app.NotificationCompat.BigTextStyle().bigText(
-                            "Telegram returned $errorCode: $description. The bot has been disabled to stop retrying. Set a new token in Settings → Telegram bot, then re-enable.",
+                            getString(
+                                R.string.notification_telegram_token_rejected_bigtext,
+                                errorCode,
+                                description,
+                            ),
                         ),
                     ).setSmallIcon(android.R.drawable.stat_notify_error)
                     .setAutoCancel(true)

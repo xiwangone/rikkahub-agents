@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.agentrun
 
+import me.rerere.rikkahub.R
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
@@ -82,7 +83,7 @@ class AgentRunBootRecovery(
                     nm.createNotificationChannel(
                         NotificationChannel(
                             CHANNEL_ID,
-                            "Autonomous run recovery",
+                            context.getString(R.string.notification_channel_autonomous_run_recovery),
                             NotificationManager.IMPORTANCE_DEFAULT,
                         )
                     )
@@ -91,12 +92,17 @@ class AgentRunBootRecovery(
                     .eachCount()
                 val breakdown = byKind.entries.joinToString(", ") { "${it.value} ${it.key}" }
                 val title = if (stranded.size == 1) {
-                    "An autonomous run was interrupted"
+                    context.getString(R.string.notification_agent_run_interrupted_title)
                 } else {
-                    "${stranded.size} autonomous runs were interrupted"
+                    context.getString(
+                        R.string.notification_agent_run_interrupted_title_plural,
+                        stranded.size,
+                    )
                 }
-                val text = "The app was killed mid-run ($breakdown). " +
-                    "If this keeps happening, check the battery whitelist and foreground service settings."
+                val text = context.getString(
+                    R.string.notification_agent_run_interrupted_text,
+                    breakdown,
+                )
                 val builder = NotificationCompat.Builder(context, CHANNEL_ID)
                     .setContentTitle(title)
                     .setContentText(text)
