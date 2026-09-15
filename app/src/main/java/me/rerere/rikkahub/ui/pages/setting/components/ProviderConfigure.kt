@@ -971,21 +971,13 @@ private fun ProviderConfigureGoogle(
             modifier = Modifier.fillMaxWidth(),
         )
 
-        var privateKeyVisible by remember { mutableStateOf(false) }
-        OutlinedTextField(
+        // 统一为"引用 / 粘贴即入库"输入：私钥可整体存入凭证库，此处只留 `$$名字`
+        SecretRefField(
             value = provider.privateKey,
             onValueChange = { onEdit(provider.copy(privateKey = it.trim())) },
-            label = { Text(stringResource(R.string.setting_provider_page_private_key)) },
-            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(R.string.setting_provider_page_private_key),
+            nameHint = "VERTEX_SERVICE_ACCOUNT_KEY",
             maxLines = 6,
-            minLines = 3,
-            textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono),
-            visualTransformation = if (privateKeyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { privateKeyVisible = !privateKeyVisible }) {
-                    Icon(if (privateKeyVisible) HugeIcons.ViewOff else HugeIcons.View, contentDescription = null)
-                }
-            },
         )
 
         OutlinedTextField(

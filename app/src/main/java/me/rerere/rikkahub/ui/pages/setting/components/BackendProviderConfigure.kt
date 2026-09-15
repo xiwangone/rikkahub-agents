@@ -34,6 +34,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
 /**
@@ -167,22 +168,12 @@ fun BackendProviderConfigure(
         )
     }
 
-    var tokenVisible by remember { mutableStateOf(false) }
-    OutlinedTextField(
+    // 统一为"引用 / 粘贴即入库"输入
+    SecretRefField(
         value = provider.token,
         onValueChange = { onEdit(provider.copy(token = it.trim())) },
-        label = { Text(stringResource(R.string.backend_token_serve)) },
-        modifier = Modifier.fillMaxWidth(),
-        maxLines = 3,
-        visualTransformation = if (tokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
-        trailingIcon = {
-            IconButton(onClick = { tokenVisible = !tokenVisible }) {
-                Icon(
-                    if (tokenVisible) HugeIcons.ViewOff else HugeIcons.View,
-                    contentDescription = null,
-                )
-            }
-        },
+        label = stringResource(R.string.backend_token_serve),
+        nameHint = "BACKEND_TOKEN",
     )
 
     // ── Web 桥（反向隧道）──

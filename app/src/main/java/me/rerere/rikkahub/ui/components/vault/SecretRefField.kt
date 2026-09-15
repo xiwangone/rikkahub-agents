@@ -56,6 +56,8 @@ fun SecretRefField(
     showVisibilityToggle: Boolean = true,
     /** 是否单行（按各页面原有样式传入，避免接入后观感变化）。 */
     singleLine: Boolean = false,
+    /** 非单行时的最大行数（多行密钥/私钥等场景用）。 */
+    maxLines: Int = 3,
 ) {
     val repository: CredentialVaultRepository = koinInject()
     val scope = rememberCoroutineScope()
@@ -85,7 +87,7 @@ fun SecretRefField(
         },
         enabled = enabled && !busy,
         singleLine = singleLine,
-        maxLines = if (singleLine) 1 else 3,
+        maxLines = if (singleLine) 1 else maxLines,
         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
         trailingIcon = {
             Row {
