@@ -1524,18 +1524,6 @@ class ChatService(
             }
         }
 
-        val fallback = titleFallbackFrom(conversation.currentMessages)
-
-        suspend fun applyTitle(title: String?) {
-            if (title.isNullOrBlank()) return
-            // 生成完，conversation可能不是最新了，因此需要重新获取
-            conversationRepo.getConversationById(conversation.id)?.let {
-                if (shouldWriteTitle(force, it.title)) {
-                    saveConversation(conversationId, it.copy(title = title))
-                }
-            }
-        }
-
         runCatching {
             val settings = settingsStore.settingsFlow.first()
             val model = settings.findModelById(settings.titleModelId, fallback = settings.fastModelId)
@@ -1577,7 +1565,7 @@ class ChatService(
             // and the user gets a popup per message until they switch models. Match
             // the generateSuggestion pattern (log only) to keep the surface quiet.
             AppLog.w(TAG, "generateTitle failed", it)
-            // Fallback so a failed generation still leaves a usable title (absorb ExTV a6b25c624).
+            // Fallback so a failed generation still leaves a usable title.
             runCatching { applyTitle(fallback) }
                 .onFailure { e -> AppLog.w(TAG, "generateTitle fallback apply failed", e) }
         }
