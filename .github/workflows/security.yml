@@ -121,3 +121,13 @@ jobs:
 
       - name: 扫描已知漏洞
         run: python3 .github/scripts/scan-maven-deps.py runtime-deps.json --fail-on=high
+
+      - name: 保留依赖清单（便于回溯与排查）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: runtime-deps
+          path: |
+            runtime-deps.json
+            deps-raw.txt
+          retention-days: 14
