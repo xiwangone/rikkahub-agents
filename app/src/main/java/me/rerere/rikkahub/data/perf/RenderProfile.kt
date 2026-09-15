@@ -115,13 +115,19 @@ fun detectDeviceProfile(context: Context?): DeviceProfile {
     return detected
 }
 
-/** 由探测结果给出硬件档位；探测不到或异常一律 [RenderTier.MID]。 */
+/**
+ * 由探测结果给出硬件档位；探测不到或异常一律 [RenderTier.MID]。
+ *
+ * 阈值取 Android 实测常见值：[android.app.ActivityManager.getMemoryClass] 是**应用堆上限**，
+ * 主流机型落在 128 / 192 / 256，512 以上仅见于少数大内存机型——因此 HIGH 的门槛取 256，
+ * 否则「8 核 + 256MB」这种明确的中高端设备会被判成 MID。
+ */
 fun tierOf(profile: DeviceProfile): RenderTier = when {
     profile.isLowRam -> RenderTier.LOW
     profile.cpuCores <= 0 && profile.memoryClassMb <= 0 -> RenderTier.MID
-    profile.memoryClassMb in 1..192 -> RenderTier.LOW
+    profile.memoryClassMb in 1..128 -> RenderTier.LOW
     profile.cpuCores in 1..3 -> RenderTier.LOW
-    profile.cpuCores >= 8 && profile.memoryClassMb >= 512 -> RenderTier.HIGH
+    profile.cpuCores >= 8 && profile.memoryClassMb >= 256 -> RenderTier.HIGH
     else -> RenderTier.MID
 }
 
