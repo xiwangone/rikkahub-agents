@@ -1,8 +1,7 @@
 package me.rerere.rikkahub.data.ai
 
 import me.rerere.rikkahub.data.log.AppLog
-import me.rerere.rikkahub.data.perf.detectDeviceProfile
-import me.rerere.rikkahub.data.perf.resolveRenderProfile
+import me.rerere.rikkahub.data.perf.resolveRenderProfileLogged
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
@@ -617,9 +616,9 @@ class GenerationLoop(
 
         // 渲染 / 合并档位：按「用户偏好 + 设备能力」解析（探测异常回落默认档）。
         // 只影响中间帧的频率与数量，不改变最终结果，也不改变模型上下文。
-        val renderProfile = resolveRenderProfile(
+        val renderProfile = resolveRenderProfileLogged(
             settings.displaySetting.renderPerformance,
-            detectDeviceProfile(context),
+            context,
         )
 
         val turnStartMs = android.os.SystemClock.elapsedRealtime()
@@ -1377,9 +1376,9 @@ class GenerationLoop(
         workspaceCwd: String? = null,
     ) {
         // 流式分块合并窗口同样取自渲染档位（0 = 逐块处理，与未优化的原始行为一致）
-        val renderProfile = resolveRenderProfile(
+        val renderProfile = resolveRenderProfileLogged(
             settings.displaySetting.renderPerformance,
-            detectDeviceProfile(context),
+            context,
         )
         val internalMessages = buildList {
             // Conversation-level system prompt override: when the assistant

@@ -181,3 +181,19 @@ object RenderTierDiagnostics {
         )
     }
 }
+
+/**
+ * 解析当前档位并留下诊断日志。
+ *
+ * UI 路径与非 UI 路径（生成流程）都走这里，保证「当前档位 / 探测结果」在任何入口都可由
+ * 应用内日志回溯；同一档位只记一次（共享 [RenderTierDiagnostics] 状态），不会因两处调用重复刷屏。
+ */
+fun resolveRenderProfileLogged(
+    performance: RenderPerformance,
+    context: Context?,
+): RenderProfile {
+    val device = detectDeviceProfile(context)
+    return resolveRenderProfile(performance, device).also { profile ->
+        RenderTierDiagnostics.logIfChanged(performance, device, profile)
+    }
+}
