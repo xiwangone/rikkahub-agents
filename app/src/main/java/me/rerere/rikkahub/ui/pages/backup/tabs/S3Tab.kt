@@ -59,6 +59,7 @@ import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -269,23 +270,12 @@ fun S3Tab(
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_s3_secret_access_key)) },
                     supportingContent = {
-                        var passwordVisible by remember { mutableStateOf(false) }
-                        OutlinedTextField(
-                            modifier = Modifier.fillMaxWidth(),
+                        // 统一为"引用 / 粘贴即入库"输入：默认不在此留存明文
+                        SecretRefField(
                             value = s3Config.secretAccessKey,
                             onValueChange = { updateS3Config(s3Config.copy(secretAccessKey = it.trim())) },
-                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                val image =
-                                    if (passwordVisible) {
-                                        HugeIcons.ViewOff
-                                    } else {
-                                        HugeIcons.View
-                                    }
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(imageVector = image, contentDescription = null)
-                                }
-                            },
+                            label = stringResource(R.string.backup_page_s3_secret_access_key),
+                            nameHint = "S3_SECRET_KEY",
                             singleLine = true,
                         )
                     },

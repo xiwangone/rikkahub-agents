@@ -48,6 +48,7 @@ import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.network.toProxyOrNull
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -208,31 +209,12 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                         label = { Text(stringResource(R.string.backup_page_username)) },
                         singleLine = true,
                     )
-                    OutlinedTextField(
+                    // 统一为"引用 / 粘贴即入库"输入：默认不在此留存明文
+                    SecretRefField(
                         value = proxyPasswordDraft,
                         onValueChange = { proxyPasswordDraft = it },
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(stringResource(R.string.backup_page_password)) },
-                        visualTransformation = if (proxyPasswordVisible) {
-                            VisualTransformation.None
-                        } else {
-                            PasswordVisualTransformation()
-                        },
-                        trailingIcon = {
-                            IconButton(
-                                onClick = { proxyPasswordVisible = !proxyPasswordVisible },
-                            ) {
-                                Icon(
-                                    imageVector = if (proxyPasswordVisible) {
-                                        HugeIcons.ViewOff
-                                    } else {
-                                        HugeIcons.View
-                                    },
-                                    contentDescription = null,
-                                )
-                            }
-                        },
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
+                        label = stringResource(R.string.backup_page_password),
+                        nameHint = "PROXY_PASSWORD",
                         singleLine = true,
                     )
                     TextButton(

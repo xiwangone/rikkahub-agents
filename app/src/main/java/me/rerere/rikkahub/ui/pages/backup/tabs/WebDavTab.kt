@@ -59,6 +59,7 @@ import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -295,23 +296,12 @@ fun WebDavTab(
                 item(
                     headlineContent = { Text(stringResource(R.string.backup_page_password)) },
                     supportingContent = {
-                        var passwordVisible by remember { mutableStateOf(false) }
-                        OutlinedTextField(
-                            modifier = Modifier.fillMaxWidth(),
+                        // 统一为"引用 / 粘贴即入库"输入：默认不在此留存明文
+                        SecretRefField(
                             value = webDavConfig.password,
                             onValueChange = { updateWebDavConfig(webDavConfig.copy(password = it.trim())) },
-                            visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                            trailingIcon = {
-                                val image =
-                                    if (passwordVisible) {
-                                        HugeIcons.ViewOff
-                                    } else {
-                                        HugeIcons.View
-                                    }
-                                IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                    Icon(imageVector = image, contentDescription = null)
-                                }
-                            },
+                            label = stringResource(R.string.backup_page_password),
+                            nameHint = "WEBDAV_PASSWORD",
                             singleLine = true,
                         )
                     },

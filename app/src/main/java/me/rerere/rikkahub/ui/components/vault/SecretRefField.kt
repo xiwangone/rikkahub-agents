@@ -54,6 +54,8 @@ fun SecretRefField(
     enabled: Boolean = true,
     /** 是否保留"显示/隐藏"图标（原先各页面自带的那个）。 */
     showVisibilityToggle: Boolean = true,
+    /** 是否单行（按各页面原有样式传入，避免接入后观感变化）。 */
+    singleLine: Boolean = false,
 ) {
     val repository: CredentialVaultRepository = koinInject()
     val scope = rememberCoroutineScope()
@@ -82,7 +84,8 @@ fun SecretRefField(
             if (hint != null) Text(hint)
         },
         enabled = enabled && !busy,
-        maxLines = 3,
+        singleLine = singleLine,
+        maxLines = if (singleLine) 1 else 3,
         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
         trailingIcon = {
             Row {
