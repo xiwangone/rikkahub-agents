@@ -41,6 +41,10 @@ class CredentialVaultRepository(
         require(validateCredentialName(name)) {
             "凭证名不合规范：$name（须大写蛇形如 GITHUB_TOKEN；禁止小写/连字符/空格）"
         }
+        // 只含不可见字符的值等于"写入一个空密钥"：明确拒绝，而不是静默存空
+        require(value.isBlank() || CredentialValueSanitizer.sanitize(value).isNotEmpty()) {
+            "凭证值只含不可见字符，已拒绝保存：$name"
+        }
         val existing = dao.getByName(name)
         if (existing != null && value.isBlank()) {
             // 编辑留空 = 保留原值，仅更新描述/分组
@@ -66,6 +70,8 @@ class CredentialVaultRepository(
             val existing = dao.getByName(e.name)
             // 命名规范：新名称必须合规才导入（存量脏名已存在则放行，不阻断旧数据回导）
             if (existing == null && !validateCredentialName(e.name)) return@forEach
+            // 只含不可见字符的值视为无效：跳过该条（与命名不合规同策略，不中断整批导入）
+            if (e.value.isNotBlank() && CredentialValueSanitizer.sanitize(e.value).isEmpty()) return@forEach
             // 导入留空 = 保留原值（与 save 语义一致：避免重导清空已存密钥）
             val keepValue = existing != null && e.value.isBlank()
             // 导入公钥留空 = 保留原公钥（防重导清空已存公钥）
@@ -98,7 +104,9 @@ class CredentialVaultRepository(
         keepPub: Boolean = false,
     ) {
         val now = System.currentTimeMillis()
-        val encrypted = ProviderCredentialCipher.encrypt(value)
+        // 落库前统一清洗（剔除不可见控制符）；长度字段以清洗后的值为准，避免展示与实际不一致
+        val cleanValue = CredentialValueSanitizer.sanitize(value)
+        val encrypted = ProviderCredentialCipher.encrypt(cleanValue)
         val existing = dao.getByName(name)
         if (existing != null) {
             dao.update(
@@ -107,7 +115,7 @@ class CredentialVaultRepository(
                     grp = group.ifEmpty { existing.grp },
                     publicKey = if (keepPub) existing.publicKey else publicKey.ifEmpty { existing.publicKey },
                     valueEncrypted = encrypted,
-                    valueLength = value.length,
+                    valueLength = cleanValue.length,
                     updatedAt = now,
                 )
             )
@@ -119,7 +127,7 @@ class CredentialVaultRepository(
                     grp = group.ifEmpty { "Other" },
                     publicKey = publicKey,
                     valueEncrypted = encrypted,
-                    valueLength = value.length,
+                    valueLength = cleanValue.length,
                     createdAt = now,
                     updatedAt = now,
                 )
