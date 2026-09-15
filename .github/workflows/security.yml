@@ -113,8 +113,10 @@ jobs:
         run: |
           chmod +x gradlew
           ./gradlew --no-configuration-cache --no-daemon \
-            -I .github/scripts/export-runtime-deps.gradle \
-            help -Ddeps.out="$PWD/runtime-deps.json"
+            :app:dependencies --configuration releaseRuntimeClasspath > deps-raw.txt 2>&1 || true
+          # 输出里可能混有告警/下载信息，仅保留包含坐标的行由解析脚本处理
+          wc -l deps-raw.txt
+          python3 .github/scripts/parse-gradle-deps.py deps-raw.txt runtime-deps.json
           python3 -c "import json;d=json.load(open('runtime-deps.json'));print('组件数:',len(d['components']))"
 
       - name: 扫描已知漏洞
