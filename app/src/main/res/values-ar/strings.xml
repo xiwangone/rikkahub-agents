@@ -1837,6 +1837,7 @@
   <string name="stats_format">الإجمالي ↑%1$s إدخال · إصابة %2$s ↓%3$s إخراج</string>
   <string name="chat_nerd_context_window">استخدام السياق %1$s / %2$s · مستخدم %3$s</string>
   <string name="chat_nerd_context_only">استخدام السياق %1$s</string>
+  <string name="chat_nerd_suggest_compact">يُنصح بالضغط</string>
   <string name="chat_context_window_title">حجم نافذة السياق (اختياري)</string>
   <string name="chat_context_window_hint">بوحدة K من الرموز (مثال: 200 = 200K). عند تعبئته يُستخدم هذا القيمة أولًا، وإلا يُستخدم الحجم الذي يبلّغ عنه النموذج.</string>
   <string name="doctor_category_permissions">الأذونات</string>
@@ -2398,6 +2399,8 @@
   <string name="vault_editor_new_group_label">اسم المجموعة الجديدة</string>
   <string name="vault_new_group_option">＋ مجموعة جديدة</string>
   <string name="vault_save">حفظ</string>
+  <string name="vault_dupes_title">فحص التكرار</string>
+  <string name="vault_dupes_empty">لا توجد عناصر مكررة</string>
   <string name="vault_ref_pick">اختيار من Vault</string>
   <string name="vault_ref_store">حفظ في Vault</string>
   <string name="vault_show">إظهار</string>
@@ -2538,6 +2541,7 @@
   <string name="vault_session_title">إلغاء قفل الجلسة</string>
   <string name="vault_session_desc">بعد التحقق ببصمة الإصبع يُصدر إذن وصول (30 دقيقة أو سارٍ حتى الإلغاء)، وهو بوابة وصول الذكاء الاصطناعي إلى البيانات الاعتمادية ويمكن إلغاؤه في أي وقت.</string>
   <string name="vault_session_issue">إصدار رمز الجلسة</string>
+  <string name="vault_session_allowed_names">تقييد بهذه البيانات (مفصولة بفواصل؛ فارغ = بدون قيود)</string>
   <string name="vault_session_issued">تم إصدار رمز الجلسة (صالح 30 دقيقة)</string>
   <string name="vault_session_cancelled">أُلغي (فشلت المصادقة بالبصمة)</string>
   <string name="vault_session_copy">نسخ</string>

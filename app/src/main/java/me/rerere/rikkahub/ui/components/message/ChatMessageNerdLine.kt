@@ -339,18 +339,31 @@ fun ChatMessageNerdLine(
                                     Box(
                                         modifier =
                                             Modifier
-                                                .width(56.dp)
-                                                .height(4.dp)
-                                                .clip(RoundedCornerShape(2.dp))
-                                                .background(contextColor.copy(alpha = 0.25f)),
+                                                .width(72.dp)
+                                                .height(6.dp)
+                                                .clip(RoundedCornerShape(3.dp))
+                                                // 底色用中性槽位：未填充部分清晰可见
+                                                // （原先用"同色 25% 透明"，导致剩余量几乎看不出）
+                                                .background(MaterialTheme.colorScheme.surfaceVariant),
                                     ) {
                                         Box(
                                             modifier =
                                                 Modifier
                                                     .fillMaxWidth(barRatio?.toFloat() ?: 0f)
                                                     .fillMaxHeight()
-                                                    .clip(RoundedCornerShape(2.dp))
+                                                    .clip(RoundedCornerShape(3.dp))
                                                     .background(contextColor),
+                                        )
+                                    }
+                                    // 与自动压缩阈值联动（与"窗口占用"解耦）：达到阈值即给出可行动的建议，
+                                    // 而不是让用户自己换算"多少才算多"。
+                                    val compactBase = appSettings.autoCompressTokenBase
+                                    if (compactBase > 0 && ctxTokens >= compactBase) {
+                                        Spacer(Modifier.width(6.dp))
+                                        Text(
+                                            text = stringResource(R.string.chat_nerd_suggest_compact),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.error,
                                         )
                                     }
                                 }

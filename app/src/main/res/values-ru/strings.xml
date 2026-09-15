@@ -2181,6 +2181,7 @@
   <string name="stats_format">Всего ↑%1$s ввод · попадание %2$s ↓%3$s вывод</string>
   <string name="chat_nerd_context_window">Занято контекста %1$s / %2$s · использовано %3$s</string>
   <string name="chat_nerd_context_only">Занято контекста %1$s</string>
+  <string name="chat_nerd_suggest_compact">Рекомендуется сжать</string>
   <string name="chat_context_window_title">Размер контекстного окна (необязательно)</string>
   <string name="chat_context_window_hint">В K токенов (напр. 200 = 200K). Если заполнить, значение используется приоритетно; иначе берётся размер, сообщённый моделью.</string>
   <string name="doctor_category_permissions">Разрешения</string>
@@ -2742,6 +2743,8 @@
   <string name="vault_editor_new_group_label">Название новой группы</string>
   <string name="vault_new_group_option">＋ Новая группа</string>
   <string name="vault_save">Сохранить</string>
+  <string name="vault_dupes_title">Проверить дубликаты</string>
+  <string name="vault_dupes_empty">Дубликаты не найдены</string>
   <string name="vault_ref_pick">Выбрать из Vault</string>
   <string name="vault_ref_store">Сохранить в Vault</string>
   <string name="vault_show">Показать</string>
@@ -2882,6 +2885,7 @@
   <string name="vault_session_title">Разблокировка сессии</string>
   <string name="vault_session_desc">После биометрической проверки выдаётся разрешение доступа (30 минут или бессрочно). Оно служит шлюзом для доступа ИИ к учётным данным и может быть отозвано.</string>
   <string name="vault_session_issue">Выдать session token</string>
+  <string name="vault_session_allowed_names">Ограничить этими учётными данными (через запятую; пусто — без ограничений)</string>
   <string name="vault_session_issued">Session token выдан (действует 30 минут)</string>
   <string name="vault_session_cancelled">Отменено (биометрия не пройдена)</string>
   <string name="vault_session_copy">Копировать</string>

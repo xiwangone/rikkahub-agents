@@ -40,6 +40,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AddCircle
+import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.Edit02
 import me.rerere.hugeicons.stroke.View
@@ -48,6 +49,7 @@ import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.ui.CappedLazyColumn
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
@@ -75,6 +77,8 @@ fun VaultCredentialsPage() {
     var showKeyGen by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var typeFilter by remember { mutableStateOf("") }
+    // 重复检测（按值指纹精确判定；只在需要时查，避免每次进页面都全库解密）
+    var duplicateGroups by remember { mutableStateOf<List<List<String>>?>(null) }
 
     suspend fun refresh() {
         entries = repository.getAll()
@@ -89,6 +93,33 @@ fun VaultCredentialsPage() {
             else revealedNames + name
     }
 
+    duplicateGroups?.let { groups ->
+        AlertDialog(
+            onDismissRequest = { duplicateGroups = null },
+            title = { Text(stringResource(R.string.vault_dupes_title)) },
+            text = {
+                if (groups.isEmpty()) {
+                    Text(stringResource(R.string.vault_dupes_empty))
+                } else {
+                    CappedLazyColumn {
+                        items(groups.size, key = { it }) { index ->
+                            Text(
+                                text = groups[index].joinToString("  ·  "),
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.padding(vertical = 4.dp),
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { duplicateGroups = null }) {
+                    Text(stringResource(R.string.vault_cancel))
+                }
+            },
+        )
+    }
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -97,6 +128,13 @@ fun VaultCredentialsPage() {
                 actions = {
                     IconButton(onClick = { showKeyGen = true }) {
                         Icon(HugeIcons.Key01, stringResource(R.string.vault_new_key))
+                    }
+                    IconButton(
+                        onClick = {
+                            scope.launch { duplicateGroups = repository.findDuplicateGroups() }
+                        },
+                    ) {
+                        Icon(HugeIcons.Copy01, stringResource(R.string.vault_dupes_title))
                     }
                     IconButton(onClick = { showEditor = EditorMode.Create() }) {
                         Icon(HugeIcons.AddCircle, stringResource(R.string.vault_new))

@@ -2188,6 +2188,7 @@
   <string name="stats_format">累計 ↑%1$s 入力 · ヒット %2$s ↓%3$s 出力</string>
   <string name="chat_nerd_context_window">コンテキスト使用量 %1$s / %2$s · 使用 %3$s</string>
   <string name="chat_nerd_context_only">コンテキスト使用量 %1$s</string>
+  <string name="chat_nerd_suggest_compact">圧縮を推奨</string>
   <string name="chat_context_window_title">コンテキスト ウィンドウ サイズ（任意）</string>
   <string name="chat_context_window_hint">K トークン単位（例: 200 = 200K）。入力すると優先して使われ、空欄ならモデルが報告したサイズを使います。</string>
   <string name="doctor_category_permissions">権限</string>
@@ -2749,6 +2750,8 @@
   <string name="vault_editor_new_group_label">新しいグループ名</string>
   <string name="vault_new_group_option">＋グループを新規作成</string>
   <string name="vault_save">保存</string>
+  <string name="vault_dupes_title">重複を確認</string>
+  <string name="vault_dupes_empty">重複は見つかりません</string>
   <string name="vault_ref_pick">Vault から選択</string>
   <string name="vault_ref_store">Vault に保存</string>
   <string name="vault_show">表示</string>
@@ -2889,6 +2892,7 @@
   <string name="vault_session_title">セッション解除</string>
   <string name="vault_session_desc">指紋認証後にアクセス許可を発行します（30 分または無期限）。AI ツールが認証情報へアクセスするためのゲートで、いつでも取り消せます。</string>
   <string name="vault_session_issue">セッション token を発行</string>
+  <string name="vault_session_allowed_names">これらの資格情報に限定（カンマ区切り、空欄=制限なし）</string>
   <string name="vault_session_issued">セッション token を発行しました（30 分有効）</string>
   <string name="vault_session_cancelled">キャンセルしました（生体認証に失敗）</string>
   <string name="vault_session_copy">コピー</string>

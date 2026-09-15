@@ -2263,6 +2263,8 @@
   <string name="vault_editor_new_group_label">New group name</string>
   <string name="vault_new_group_option">＋New group</string>
   <string name="vault_save">Save</string>
+  <string name="vault_dupes_title">Check duplicates</string>
+  <string name="vault_dupes_empty">No duplicates found</string>
   <string name="vault_ref_pick">Pick from Vault</string>
   <string name="vault_ref_store">Store in Vault</string>
   <string name="vault_show">Show</string>
@@ -2405,6 +2407,7 @@
   <string name="stats_format">Total ↑%1$s in · cached %2$s ↓%3$s out</string>
   <string name="chat_nerd_context_window">Context usage %1$s / %2$s · %3$s used</string>
   <string name="chat_nerd_context_only">Context usage %1$s</string>
+  <string name="chat_nerd_suggest_compact">Suggest compacting</string>
   <string name="chat_context_window_title">Context window size (optional)</string>
   <string name="chat_context_window_hint">In K tokens (e.g. 200 = 200K). Takes priority when filled; left empty, the size reported by the model is used.</string>
   <string name="doctor_category_permissions">Permissions</string>
@@ -2536,6 +2539,7 @@
   <string name="vault_session_title">Unlock session</string>
   <string name="vault_session_desc">Issue an access authorization after biometric verification (30 minutes or until revoked); it gates the assistant\'s access to credentials and can be revoked anytime.</string>
   <string name="vault_session_issue">Issue session token</string>
+  <string name="vault_session_allowed_names">Restrict to these credentials (comma-separated; empty = no restriction)</string>
   <string name="vault_session_issued">Session token issued (valid 30 min)</string>
   <string name="vault_session_cancelled">Cancelled (biometric not verified)</string>
   <string name="vault_session_copy">Copy</string>

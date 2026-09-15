@@ -1932,6 +1932,8 @@
   <string name="vault_editor_new_group_label">新分組名稱</string>
   <string name="vault_new_group_option">＋新建分組</string>
   <string name="vault_save">儲存</string>
+  <string name="vault_dupes_title">檢查重複</string>
+  <string name="vault_dupes_empty">未發現重複條目</string>
   <string name="vault_ref_pick">從憑證庫選擇</string>
   <string name="vault_ref_store">存入憑證庫</string>
   <string name="vault_show">顯示</string>
@@ -1947,6 +1949,7 @@
   <string name="stats_format">累計 ↑%1$s 輸入 · 命中 %2$s ↓%3$s 輸出</string>
   <string name="chat_nerd_context_window">上下文佔用 %1$s / %2$s · 已用 %3$s</string>
   <string name="chat_nerd_context_only">上下文佔用 %1$s</string>
+  <string name="chat_nerd_suggest_compact">建議壓縮</string>
   <string name="chat_context_window_title">上下文視窗大小（選填）</string>
   <string name="chat_context_window_hint">以 K 為單位（如 200 = 200K）。填寫後優先採用此值，留空則使用模型回報的視窗大小。</string>
   <string name="doctor_category_permissions">權限</string>
@@ -2043,6 +2046,7 @@
   <string name="vault_session_title">解鎖會話</string>
   <string name="vault_session_desc">指紋驗證後簽發存取授權（30 分鐘或一直有效），作為 AI 工具存取憑證庫的閘門，可隨時撤銷。</string>
   <string name="vault_session_issue">簽發會話 token</string>
+  <string name="vault_session_allowed_names">僅允許這些憑證（逗號分隔，留空 = 不限制）</string>
   <string name="vault_session_issued">會話 token 已簽發（30 分鐘有效）</string>
   <string name="vault_session_cancelled">已取消（指紋驗證未通過）</string>
   <string name="vault_session_copy">複製</string>
