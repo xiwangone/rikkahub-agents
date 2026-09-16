@@ -141,6 +141,7 @@
   <application
     android:name=".RikkaHubApp"
     android:largeHeap="true"
+    android:localeConfig="@xml/locales_config"
     android:allowBackup="true"
     android:appCategory="productivity"
     android:dataExtractionRules="@xml/data_extraction_rules"

@@ -1,0 +1,30 @@
+# 换行符与二进制标注：避免 Windows/Linux 两侧编辑同一文件时产生「整文件都变了」的假 diff
+* text=auto eol=lf
+
+# Windows 批处理需要 CRLF
+*.bat text eol=crlf
+*.cmd text eol=crlf
+
+# 二进制文件：不做行尾转换，也不参与文本 diff
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary
+*.ico binary
+*.ttf binary
+*.otf binary
+*.so binary
+*.a binary
+*.jar binary
+*.aar binary
+*.apk binary
+*.zip binary
+*.gz binary
+*.xz binary
+*.keystore binary
+*.jks binary
+
+# 语言统计修正
+gradle/libs.versions.toml linguist-language=TOML
+bun.lock linguist-generated=true

@@ -1,0 +1,23 @@
+# 编辑器统一配置（Kotlin / Android 项目常用约定）
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 4
+
+[*.{kt,kts}]
+max_line_length = 120
+
+[*.{xml,json,yml,yaml,toml}]
+indent_size = 2
+
+[*.md]
+trim_trailing_whitespace = false
+
+# Windows 批处理必须保留 CRLF
+[*.{bat,cmd}]
+end_of_line = crlf
