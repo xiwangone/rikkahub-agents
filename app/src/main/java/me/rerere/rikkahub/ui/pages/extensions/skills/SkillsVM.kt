@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.pages.extensions.skills
 
 import android.content.Context
 import android.net.Uri
-import android.util.Log
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +29,7 @@ import java.net.URL
 import java.nio.file.Files
 import java.util.LinkedHashMap
 import kotlin.collections.iterator
+import me.rerere.rikkahub.data.log.AppLog
 
 class SkillsVM(
     private val context: Context,
@@ -186,7 +186,7 @@ class SkillsVM(
                 _skills.value = skillManager.listSkills()
                 withContext(Dispatchers.Main) { onResult(outcome.first, outcome.second) }
             } catch (t: Throwable) {
-                Log.w(TAG, "importFromLocalFile failed for $uri", t)
+                AppLog.w(TAG, "importFromLocalFile failed for $uri", t)
                 withContext(Dispatchers.Main) {
                     onResult(false, t.message ?: "skill_import_unsupported_file_type")
                 }

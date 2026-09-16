@@ -6,12 +6,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Build
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.workflow.model.TriggerSpec
 import me.rerere.rikkahub.workflow.model.WorkflowDefinition
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Phase 12 — battery transition triggers. ACTION_BATTERY_CHANGED fires very frequently
@@ -84,7 +84,7 @@ internal class BatteryTriggerFamily(
                     scope.launch(Dispatchers.IO) {
                         for ((wfId, spec) in fires) {
                             runCatching { callback.onFire(wfId, spec) }.onFailure {
-                                Log.w(TAG, "battery fire failed for wf=$wfId", it)
+                                AppLog.w(TAG, "battery fire failed for wf=$wfId", it)
                             }
                         }
                     }
@@ -106,19 +106,19 @@ internal class BatteryTriggerFamily(
                 val scale = it.getIntExtra(BatteryManager.EXTRA_SCALE, 100).coerceAtLeast(1)
                 if (level >= 0) prevLevel = (level * 100 / scale).coerceIn(0, 100)
             }
-            Log.d(TAG, "battery: receiver registered, seed=$prevLevel%, ${matching.size} wf(s)")
+            AppLog.d(TAG, "battery: receiver registered, seed=$prevLevel%, ${matching.size} wf(s)")
         } catch (t: Throwable) {
-            Log.w(TAG, "battery: registerReceiver failed", t)
+            AppLog.w(TAG, "battery: registerReceiver failed", t)
         }
     }
 
     private fun unregister() {
         val r = receiver ?: return
         runCatching { context.unregisterReceiver(r) }
-            .onFailure { Log.w(TAG, "battery: unregisterReceiver failed", it) }
+            .onFailure { AppLog.w(TAG, "battery: unregisterReceiver failed", it) }
         receiver = null
         prevLevel = null
-        Log.d(TAG, "battery: receiver unregistered")
+        AppLog.d(TAG, "battery: receiver unregistered")
     }
 
     override suspend fun shutdown() = unregister()

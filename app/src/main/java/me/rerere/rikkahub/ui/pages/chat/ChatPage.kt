@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
-import android.util.Log
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -110,6 +109,7 @@ import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import java.io.File
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 @Composable
 fun ChatPage(
@@ -837,7 +837,7 @@ private fun ChatFilesPickerSheet(
     val imagePickerLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { selectedUris ->
             if (selectedUris.isNotEmpty()) {
-                Log.d("ImagePickButton", "Selected URIs: $selectedUris")
+                AppLog.d("ImagePickButton", "Selected URIs: $selectedUris")
                 if (setting.displaySetting.skipCropImage) {
                     inputState.addImages(filesManager.createChatFilesByContents(selectedUris))
                     dismissAll()
@@ -857,7 +857,7 @@ private fun ChatFilesPickerSheet(
                         preCropTempFile = tempFile
                         launchImageCrop(tempFile.toUri())
                     }.onFailure {
-                        Log.e("ImagePickButton", "Failed to copy image to temp, falling back", it)
+                        AppLog.e("ImagePickButton", "Failed to copy image to temp, falling back", it)
                         launchImageCrop(selectedUris.first())
                     }
                 } else {
@@ -865,7 +865,7 @@ private fun ChatFilesPickerSheet(
                     dismissAll()
                 }
             } else {
-                Log.d("ImagePickButton", "No images selected")
+                AppLog.d("ImagePickButton", "No images selected")
             }
         }
 

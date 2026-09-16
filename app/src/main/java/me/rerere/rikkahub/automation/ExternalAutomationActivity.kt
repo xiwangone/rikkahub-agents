@@ -2,11 +2,11 @@ package me.rerere.rikkahub.automation
 
 import android.app.Activity
 import android.os.Bundle
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Exported activity that accepts external automation intents.
@@ -50,7 +50,7 @@ class ExternalAutomationActivity : Activity() {
             try {
                 handleAction(action, intent, callerPkg, requestId, returnAction, returnPackage)
             } catch (t: Throwable) {
-                Log.w(TAG, "external automation activity dispatch failed", t)
+                AppLog.w(TAG, "external automation activity dispatch failed", t)
             } finally {
                 runOnUiThread { finish() }
             }

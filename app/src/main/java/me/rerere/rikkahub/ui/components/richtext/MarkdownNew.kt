@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.richtext
 
-import android.util.Log
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -88,6 +87,7 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
 import org.jsoup.nodes.TextNode
+import me.rerere.rikkahub.data.log.AppLog
 
 // ---- Preprocessing (mirrors Markdown.kt logic) ----
 
@@ -151,7 +151,7 @@ fun MarkdownNew(
             // 同时保证最新内容一定被处理（不会停在旧结果上）
             .conflate()
             .map { generateMarkdownHtml(it) }
-            .catch { Log.e(TAG, "MarkdownNew: failed to generate markdown HTML", it) }
+            .catch { AppLog.e(TAG, "MarkdownNew: failed to generate markdown HTML", it) }
             .flowOn(Dispatchers.Default)
             .collect { html = it }
     }

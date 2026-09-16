@@ -4,7 +4,6 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
-import android.util.Log
 import androidx.core.content.edit
 import java.nio.charset.StandardCharsets
 import java.security.KeyStore
@@ -12,6 +11,7 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "SkillSecretsStore"
 
@@ -110,7 +110,7 @@ class SkillSecretsStore(context: Context) {
         val encrypted = cipher.doFinal(plain.toByteArray(StandardCharsets.UTF_8))
         encode(encrypted) to encode(iv)
     } catch (t: Throwable) {
-        Log.w(TAG, "Keystore-backed encrypt failed; falling back to obfuscated plaintext", t)
+        AppLog.w(TAG, "Keystore-backed encrypt failed; falling back to obfuscated plaintext", t)
         prefs.edit { putBoolean(PREF_KEY_SECURITY_DEGRADED, true) }
         encode(plain.toByteArray(StandardCharsets.UTF_8)) to FALLBACK_IV_MARKER
     }
@@ -129,7 +129,7 @@ class SkillSecretsStore(context: Context) {
             String(cipher.doFinal(decode(encrypted)), StandardCharsets.UTF_8)
         }
     } catch (t: Throwable) {
-        Log.w(TAG, "Decrypt failed", t)
+        AppLog.w(TAG, "Decrypt failed", t)
         null
     }
 

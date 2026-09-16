@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.subagent
 
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -22,6 +21,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "SubAgentEngine"
 
@@ -207,7 +207,7 @@ class SubAgentEngine(
             try {
                 executionJob.join()
             } catch (t: Throwable) {
-                Log.w(TAG, "foreground sub-agent join failed for $runId", t)
+                AppLog.w(TAG, "foreground sub-agent join failed for $runId", t)
             }
             DispatchResult.Ok(registry.get(runId) ?: initialRun)
         }
@@ -290,7 +290,7 @@ class SubAgentEngine(
             }
             notifyParentIfBackground(parentChatId, registry.get(runId))
         } catch (t: Throwable) {
-            Log.w(TAG, "sub-agent run failed", t)
+            AppLog.w(TAG, "sub-agent run failed", t)
             // CancellationException → CANCELLED, anything else → FAILED.
             val terminal = if (t is kotlinx.coroutines.CancellationException) SubAgentStatus.CANCELLED else SubAgentStatus.FAILED
             markTerminal(runId, terminal, "${t::class.simpleName}: ${t.message.orEmpty()}")
@@ -365,7 +365,7 @@ class SubAgentEngine(
             }
             chatService.sendMessage(parentUuid, listOf(UIMessagePart.Text(message)))
         }.onFailure {
-            Log.w(TAG, "failed to notify parent $parentChatId of subagent completion", it)
+            AppLog.w(TAG, "failed to notify parent $parentChatId of subagent completion", it)
         }
     }
 

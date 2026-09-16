@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.components.ui
 
 import android.net.Uri
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -65,6 +64,7 @@ import org.koin.compose.koinInject
 import java.io.File
 import java.security.MessageDigest
 import kotlin.math.abs
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "UIAvatar"
 
@@ -129,7 +129,7 @@ fun UIAvatar(
                 } catch (t: Throwable) {
                     // 失败不再静默（17168ab 曾用 getOrNull() 吞异常 → 头像静默换不了且无提示）。
                     // 报错 + 完整堆栈日志，便于定位真正断点；同时 UI 提示用户。
-                    Log.e(TAG, "saveAvatarImage failed for $uri", t)
+                    AppLog.e(TAG, "saveAvatarImage failed for $uri", t)
                     Logging.log(TAG, "saveAvatarImage failed: ${t.message} | ${t.stackTraceToString()}")
                     toaster.show(avatarSaveFailedText)
                     null

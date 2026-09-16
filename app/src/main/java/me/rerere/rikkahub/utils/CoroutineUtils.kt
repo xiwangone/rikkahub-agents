@@ -1,10 +1,10 @@
 package me.rerere.rikkahub.utils
 
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "CoroutineUtils"
 
@@ -20,7 +20,7 @@ fun <T> Flow<T>.toMutableStateFlow(
             }
         }.onFailure {
             it.printStackTrace()
-            Log.e(TAG, "Error while collecting flow: ${it.message}", it)
+            AppLog.e(TAG, "Error while collecting flow: ${it.message}", it)
         }
     }
     return stateFlow

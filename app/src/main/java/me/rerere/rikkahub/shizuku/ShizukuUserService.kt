@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.shizuku
 
-import android.util.Log
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Runs under the shell UID, in the separate process Shizuku spawns for it (bound via
@@ -16,7 +16,7 @@ import android.util.Log
 class ShizukuUserService : IShizukuUserService.Stub() {
 
     init {
-        Log.i(TAG, "constructor")
+        AppLog.i(TAG, "constructor")
     }
 
     override fun exec(command: String?, timeoutMs: Int): String {
@@ -31,7 +31,7 @@ class ShizukuUserService : IShizukuUserService.Stub() {
 
     /** Reserved method Shizuku's server calls to tear this service down. */
     override fun destroy() {
-        Log.i(TAG, "destroy")
+        AppLog.i(TAG, "destroy")
         System.exit(0)
     }
 

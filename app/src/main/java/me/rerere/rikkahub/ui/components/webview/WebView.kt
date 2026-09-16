@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.components.webview
 
 import android.annotation.SuppressLint
 import android.graphics.Bitmap
-import android.util.Log
 import android.view.ViewGroup.LayoutParams
 import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
@@ -23,6 +22,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "WebView"
 
@@ -49,7 +49,7 @@ internal class MyWebChromeClient(
         if (consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.ERROR ||
             consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.WARNING
         ) {
-            Log.e(
+            AppLog.e(
                 TAG,
                 "onConsoleMessage:  ${consoleMessage.message()}  ${consoleMessage.lineNumber()}  ${consoleMessage.sourceId()}",
             )
@@ -159,21 +159,21 @@ fun WebView(
             modifier = Modifier.fillMaxWidth(), // Make WebView fill the width
             onReset = {
                 it.resetState(state.interfaces)
-                Log.d(TAG, "AndroidView: Resetting WebView")
+                AppLog.d(TAG, "AndroidView: Resetting WebView")
             },
             onRelease = {
                 if (state.webView === it) {
                     state.webView = null
                 }
                 it.release(state.interfaces)
-                Log.d(TAG, "AndroidView: Releasing WebView")
+                AppLog.d(TAG, "AndroidView: Releasing WebView")
             },
             update = { webView ->
                 state.webView = webView
                 state.interfaces.forEach { (name, obj) ->
                     webView.addJavascriptInterface(obj, name)
                 }
-                Log.d(TAG, "AndroidView: Updating WebView")
+                AppLog.d(TAG, "AndroidView: Updating WebView")
                 // Ensure clients are updated if state changes (though unlikely here)
                 // webView.webChromeClient = webChromeClient
                 // webView.webViewClient = webViewClient

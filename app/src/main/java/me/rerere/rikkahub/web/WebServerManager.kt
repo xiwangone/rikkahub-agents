@@ -3,7 +3,6 @@ package me.rerere.rikkahub.web
 import me.rerere.rikkahub.data.log.AppLog
 
 import android.content.Context
-import android.util.Log
 import io.ktor.server.cio.CIOApplicationEngine
 import io.ktor.server.engine.EmbeddedServer
 import kotlinx.coroutines.CoroutineScope
@@ -88,7 +87,7 @@ class WebServerManager(
             )
             try {
                 _state.value = _state.value.copy(isLoading = true, startId = startId)
-                Log.i(TAG, "Starting web server on $host:$port")
+                AppLog.i(TAG, "Starting web server on $host:$port")
                 if (!isPortAvailable(port)) {
                     AppLog.w(TAG, "Port $port is already in use")
                     _state.value = baseState.copy(error = "Port $port is already in use")
@@ -126,7 +125,7 @@ class WebServerManager(
                         AppLog.w(TAG, "NSD register failed", it)
                     }
                 }
-                Log.i(TAG, "Web server started successfully on $host:$port")
+                AppLog.i(TAG, "Web server started successfully on $host:$port")
             } catch (e: Exception) {
                 AppLog.e(TAG, "Failed to start web server", e)
                 _state.value = baseState.copy(error = e.message)
@@ -143,7 +142,7 @@ class WebServerManager(
             _state.value.copy(isRunning = false, isLoading = true, hostname = null, address = null, error = null)
         appScope.launch {
             try {
-                Log.i(TAG, "Stopping web server")
+                AppLog.i(TAG, "Stopping web server")
                 server?.stop(1000, 2000)
                 server = null
                 runCatching {
@@ -152,7 +151,7 @@ class WebServerManager(
                     AppLog.w(TAG, "NSD unregister failed", it)
                 }
                 _state.value = _state.value.copy(isLoading = false)
-                Log.i(TAG, "Web server stopped")
+                AppLog.i(TAG, "Web server stopped")
             } catch (e: Exception) {
                 AppLog.e(TAG, "Failed to stop web server", e)
                 _state.value = _state.value.copy(isLoading = false, error = e.message)

@@ -5,7 +5,6 @@ import android.content.Context
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
-import android.util.Log
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
@@ -20,6 +19,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import me.rerere.rikkahub.BuildConfig
 import rikka.shizuku.Shizuku
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "ShizukuManager"
 
@@ -225,7 +225,7 @@ object ShizukuManager {
         val raw = withTimeoutOrNull(timeoutMs + CALL_TIMEOUT_SLACK_MS) {
             runInterruptible(Dispatchers.IO) {
                 runCatching { api.exec(command, timeoutMs) }
-                    .onFailure { Log.e(TAG, "user service exec() threw", it) }
+                    .onFailure { AppLog.e(TAG, "user service exec() threw", it) }
                     .getOrNull()
             }
         }
@@ -279,12 +279,12 @@ object ShizukuManager {
             }
 
             override fun onServiceDisconnected(name: ComponentName?) {
-                Log.w(TAG, "shizuku user service disconnected")
+                AppLog.w(TAG, "shizuku user service disconnected")
                 runCatching { runBlocking { resetBinding() } }
             }
 
             override fun onBindingDied(name: ComponentName?) {
-                Log.w(TAG, "shizuku user service binding died")
+                AppLog.w(TAG, "shizuku user service binding died")
                 runCatching { runBlocking { resetBinding() } }
                 if (!deferred.isCompleted) deferred.complete(BindResult.Failure.BindingDied)
             }
@@ -294,7 +294,7 @@ object ShizukuManager {
             connection = conn
         } else {
             val t = result.exceptionOrNull()!!
-            Log.e(TAG, "bindUserService threw", t)
+            AppLog.e(TAG, "bindUserService threw", t)
             runCatching { runBlocking { bindLock.withLock { bindWaiter = null } } }
             if (!deferred.isCompleted) deferred.complete(BindResult.Failure.BindThrew(t))
         }

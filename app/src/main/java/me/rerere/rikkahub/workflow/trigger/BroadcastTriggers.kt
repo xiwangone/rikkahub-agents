@@ -7,12 +7,12 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.wifi.WifiManager
 import android.os.Build
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.workflow.model.TriggerSpec
 import me.rerere.rikkahub.workflow.model.WorkflowDefinition
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Phase 12 — six trigger families that all share the same shape: register a runtime
@@ -61,14 +61,14 @@ internal abstract class BaseBroadcastTriggerFamily(
                     val event = intent ?: return
                     val matches =
                         runCatching { matchEvent(event, matchingSnapshot) }.getOrElse {
-                            Log.w(TAG, "$name match failed", it)
+                            AppLog.w(TAG, "$name match failed", it)
                             emptyList()
                         }
                     if (matches.isEmpty()) return
                     scope.launch(Dispatchers.IO) {
                         for ((wfId, spec) in matches) {
                             runCatching { callback.onFire(wfId, spec) }.onFailure {
-                                Log.w(TAG, "$name fire failed for wf=$wfId", it)
+                                AppLog.w(TAG, "$name fire failed for wf=$wfId", it)
                             }
                         }
                     }
@@ -84,18 +84,18 @@ internal abstract class BaseBroadcastTriggerFamily(
                 }
             context.registerReceiver(r, intentFilter, flags)
             receiver = r
-            Log.d(TAG, "$name: receiver registered (${matchingSnapshot.size} workflow(s))")
+            AppLog.d(TAG, "$name: receiver registered (${matchingSnapshot.size} workflow(s))")
         } catch (t: Throwable) {
-            Log.w(TAG, "$name: registerReceiver failed", t)
+            AppLog.w(TAG, "$name: registerReceiver failed", t)
         }
     }
 
     private fun unregisterReceiver() {
         val r = receiver ?: return
         runCatching { context.unregisterReceiver(r) }
-            .onFailure { Log.w(TAG, "$name: unregisterReceiver failed", it) }
+            .onFailure { AppLog.w(TAG, "$name: unregisterReceiver failed", it) }
         receiver = null
-        Log.d(TAG, "$name: receiver unregistered")
+        AppLog.d(TAG, "$name: receiver unregistered")
     }
 
     override suspend fun shutdown() = unregisterReceiver()
@@ -163,7 +163,7 @@ internal class WifiTriggerFamily(
                 it.isNotBlank() && it != "<unknown ssid>"
             }
         } catch (e: Throwable) {
-            Log.w("WorkflowTrigger", "wifi: currentSsid lookup failed", e)
+            AppLog.w("WorkflowTrigger", "wifi: currentSsid lookup failed", e)
             null
         }
 }

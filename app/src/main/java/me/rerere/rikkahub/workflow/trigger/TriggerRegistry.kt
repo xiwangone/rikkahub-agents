@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.workflow.trigger
 
 import android.content.Context
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -17,6 +16,7 @@ import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.workflow.model.TriggerSpec
 import me.rerere.rikkahub.workflow.model.WorkflowDefinition
 import me.rerere.rikkahub.workflow.repository.WorkflowRepository
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Phase 12 — orchestrates all trigger families.
@@ -113,7 +113,7 @@ class TriggerRegistry(
             for (family in families) {
                 val matching = enabled.filter { family.handles(it.trigger) }
                 runCatching { family.sync(matching, fire) }.onFailure {
-                    Log.w(TAG, "resync failed for family=${family.name}", it)
+                    AppLog.w(TAG, "resync failed for family=${family.name}", it)
                 }
             }
             // Tell AppForegroundDispatcher whether any workflow currently needs foreground-app
@@ -143,7 +143,7 @@ class TriggerRegistry(
         val fire = engineFire ?: return
         val loaded = workflowRepository.getById(workflowId) ?: return
         runCatching { fire.onFire(workflowId, loaded.definition.trigger) }.onFailure {
-            Log.w(TAG, "manual fire failed for wf=$workflowId", it)
+            AppLog.w(TAG, "manual fire failed for wf=$workflowId", it)
         }
     }
 

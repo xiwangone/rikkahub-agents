@@ -19,6 +19,7 @@ import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.workspace.RootfsPatchOptions
 import me.rerere.workspace.RootfsPatcher
 import java.io.File
+import me.rerere.rikkahub.data.log.AppLog
 
 internal fun createWorkspaceTerminalSession(
     context: Context,
@@ -173,28 +174,28 @@ internal class WorkspaceTerminalSessionClient(
         tag: String,
         message: String,
     ) {
-        Log.e(tag, message)
+        AppLog.e(tag, message)
     }
 
     override fun logWarn(
         tag: String,
         message: String,
     ) {
-        Log.w(tag, message)
+        AppLog.w(tag, message)
     }
 
     override fun logInfo(
         tag: String,
         message: String,
     ) {
-        Log.i(tag, message)
+        AppLog.i(tag, message)
     }
 
     override fun logDebug(
         tag: String,
         message: String,
     ) {
-        Log.d(tag, message)
+        AppLog.d(tag, message)
     }
 
     override fun logVerbose(
@@ -209,14 +210,14 @@ internal class WorkspaceTerminalSessionClient(
         message: String,
         e: Exception,
     ) {
-        Log.e(tag, message, e)
+        AppLog.e(tag, message, e)
     }
 
     override fun logStackTrace(
         tag: String,
         e: Exception,
     ) {
-        Log.e(tag, "Terminal error", e)
+        AppLog.e(tag, "Terminal error", e)
     }
 }
 
@@ -284,7 +285,7 @@ internal class WorkspaceTerminalViewClient(
             context.startActivity(intent)
             true
         }.getOrElse {
-            Log.w("WorkspaceTerminal", "Failed to open url: $url", it)
+            AppLog.w("WorkspaceTerminal", "Failed to open url: $url", it)
             false
         }
     }
@@ -341,28 +342,28 @@ internal class WorkspaceTerminalViewClient(
         tag: String,
         message: String,
     ) {
-        Log.e(tag, message)
+        AppLog.e(tag, message)
     }
 
     override fun logWarn(
         tag: String,
         message: String,
     ) {
-        Log.w(tag, message)
+        AppLog.w(tag, message)
     }
 
     override fun logInfo(
         tag: String,
         message: String,
     ) {
-        Log.i(tag, message)
+        AppLog.i(tag, message)
     }
 
     override fun logDebug(
         tag: String,
         message: String,
     ) {
-        Log.d(tag, message)
+        AppLog.d(tag, message)
     }
 
     override fun logVerbose(
@@ -377,14 +378,14 @@ internal class WorkspaceTerminalViewClient(
         message: String,
         e: Exception,
     ) {
-        Log.e(tag, message, e)
+        AppLog.e(tag, message, e)
     }
 
     override fun logStackTrace(
         tag: String,
         e: Exception,
     ) {
-        Log.e(tag, "Terminal view error", e)
+        AppLog.e(tag, "Terminal view error", e)
     }
 }
 

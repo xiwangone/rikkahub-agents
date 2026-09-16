@@ -3,8 +3,8 @@ package me.rerere.rikkahub.workflow.trigger
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import com.google.android.gms.location.GeofencingEvent
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Phase 12 — receives the geofence transition broadcast from Play Services and forwards
@@ -19,7 +19,7 @@ class GeofenceTriggerReceiver : BroadcastReceiver() {
         intent ?: return
         val event = GeofencingEvent.fromIntent(intent) ?: return
         if (event.hasError()) {
-            Log.w(TAG, "geofence event error code=${event.errorCode}")
+            AppLog.w(TAG, "geofence event error code=${event.errorCode}")
             return
         }
         val transition = event.geofenceTransition

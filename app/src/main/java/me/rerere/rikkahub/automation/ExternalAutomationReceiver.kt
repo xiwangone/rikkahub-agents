@@ -3,12 +3,12 @@ package me.rerere.rikkahub.automation
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Manifest-registered receiver for ADB-shell callers (`adb shell am broadcast …`).
@@ -32,7 +32,7 @@ class ExternalAutomationReceiver : BroadcastReceiver(), KoinComponent {
             try {
                 handle(intent)
             } catch (t: Throwable) {
-                Log.w(TAG, "receiver dispatch failed", t)
+                AppLog.w(TAG, "receiver dispatch failed", t)
             } finally {
                 pendingResult.finish()
             }

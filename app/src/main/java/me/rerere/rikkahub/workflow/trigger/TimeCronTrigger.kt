@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.workflow.trigger
 
 import android.content.Context
-import android.util.Log
 import androidx.work.Constraints
 import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
@@ -23,6 +22,7 @@ import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime
 import java.util.concurrent.TimeUnit
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Phase 12 — time / cron family.
@@ -85,7 +85,7 @@ internal class TimeCronTriggerFamily(
 
     fun cancelWork(workflowId: String) {
         runCatching { WorkManager.getInstance(context).cancelUniqueWork(workName(workflowId)) }
-            .onFailure { Log.w(TAG, "time_cron: cancel work failed for $workflowId", it) }
+            .onFailure { AppLog.w(TAG, "time_cron: cancel work failed for $workflowId", it) }
     }
 
     private fun scheduleWork(wf: WorkflowDefinition) {
@@ -112,7 +112,7 @@ internal class TimeCronTriggerFamily(
                     ExistingPeriodicWorkPolicy.REPLACE,
                     req,
                 )
-            }.onFailure { Log.w(TAG, "time_cron: periodic enqueue failed for ${wf.id}", it) }
+            }.onFailure { AppLog.w(TAG, "time_cron: periodic enqueue failed for ${wf.id}", it) }
             return
         }
 
@@ -130,7 +130,7 @@ internal class TimeCronTriggerFamily(
                 ExistingWorkPolicy.REPLACE,
                 req,
             )
-        }.onFailure { Log.w(TAG, "time_cron: one-shot enqueue failed for ${wf.id}", it) }
+        }.onFailure { AppLog.w(TAG, "time_cron: one-shot enqueue failed for ${wf.id}", it) }
     }
 
     /** Internal — fires the workflow then re-enqueues if needed. Called from worker. */
@@ -160,13 +160,13 @@ internal class TimeCronTriggerFamily(
                     ?: ZoneId.systemDefault()
             val today = ZonedDateTime.now(zone).dayOfWeek
             if (today !in spec.daysOfWeek.map { isoDow(it) }) {
-                Log.d(TAG, "time_cron: $workflowId skipped, $today not in days_of_week")
+                AppLog.d(TAG, "time_cron: $workflowId skipped, $today not in days_of_week")
                 return
             }
         }
         scope.launch(Dispatchers.IO) {
             runCatching { cb.onFire(wf.id, wf.trigger) }
-                .onFailure { Log.w(TAG, "time_cron: fire callback failed for $workflowId", it) }
+                .onFailure { AppLog.w(TAG, "time_cron: fire callback failed for $workflowId", it) }
         }
         // For one-shot path (period < 15min or null), re-enqueue with the next fire.
         val periodMs = (wf.trigger as? TriggerSpec.TimeCron)?.let { derivePeriodMs(it) }

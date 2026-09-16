@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.skills
 
-import android.util.Log
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -14,6 +13,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.files.SkillManager
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "SkillInstallTools"
 
@@ -99,7 +99,7 @@ private suspend fun applyAutoEnable(
         }
         outcome
     } catch (t: Throwable) {
-        Log.w(TAG, "applyAutoEnable: failed to auto-enable '$skillName'", t)
+        AppLog.w(TAG, "applyAutoEnable: failed to auto-enable '$skillName'", t)
         AutoEnableOutcome(
             autoEnabled = false,
             detail = "Skill installed but could not be auto-enabled. Toggle it on in " +

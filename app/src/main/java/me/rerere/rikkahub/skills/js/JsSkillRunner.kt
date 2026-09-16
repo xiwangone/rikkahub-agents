@@ -2,7 +2,6 @@ package me.rerere.rikkahub.skills.js
 
 import android.content.Context
 import android.os.Looper
-import android.util.Log
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface
@@ -27,6 +26,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import org.json.JSONObject
 import java.io.File
 import java.util.UUID
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "JsSkillRunner"
 
@@ -170,7 +170,7 @@ class JsSkillRunner(private val context: Context) {
                 wv.webChromeClient = object : WebChromeClient() {
                     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                         consoleMessage?.let {
-                            Log.d(TAG, "[JS console] ${it.message()} (${it.sourceId()}:${it.lineNumber()})")
+                            AppLog.d(TAG, "[JS console] ${it.message()} (${it.sourceId()}:${it.lineNumber()})")
                         }
                         return true
                     }
@@ -183,7 +183,7 @@ class JsSkillRunner(private val context: Context) {
 
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
-                        Log.d(TAG, "page finished, evaluating trigger script: $url")
+                        AppLog.d(TAG, "page finished, evaluating trigger script: $url")
                         // The trigger waits up to 10s for the page's
                         // `ai_edge_gallery_get_result` to be defined, then invokes it and
                         // hands the result back via the JS bridge. JSONObject.quote escapes
@@ -216,7 +216,7 @@ class JsSkillRunner(private val context: Context) {
                 // https://appassets.androidplatform.net/skill/<relPath> — intercepted by the
                 // asset loader and served from the skill root; never touches the network.
                 val skillUrl = "https://$ASSET_DOMAIN$SKILL_PATH$relPath"
-                Log.d(TAG, "loading: $skillUrl (data=${data.take(80)}, secret=${if (secret.isNotEmpty()) "<set>" else "<empty>"})")
+                AppLog.d(TAG, "loading: $skillUrl (data=${data.take(80)}, secret=${if (secret.isNotEmpty()) "<set>" else "<empty>"})")
                 wv.loadUrl(skillUrl)
 
                 // Suspend the calling coroutine until the bridge fires or timeout. We let the
@@ -225,15 +225,15 @@ class JsSkillRunner(private val context: Context) {
                 val resultJson = withTimeout(timeoutMs) { deferred.await() }
                 Result.Ok(parseResultJson(resultJson))
             } catch (_: TimeoutCancellationException) {
-                Log.w(TAG, "JS skill execution timed out after ${timeoutMs}ms")
+                AppLog.w(TAG, "JS skill execution timed out after ${timeoutMs}ms")
                 Result.Err("script_timeout",
                     "JS skill execution exceeded ${timeoutMs}ms — check for infinite loops or unresponsive network calls")
             } catch (t: Throwable) {
-                Log.w(TAG, "JS skill execution failed", t)
+                AppLog.w(TAG, "JS skill execution failed", t)
                 Result.Err("script_failed", "${t::class.simpleName}: ${t.message.orEmpty()}")
             } finally {
                 runCatching { webView?.destroy() }
-                    .onFailure { Log.w(TAG, "WebView.destroy failed", it) }
+                    .onFailure { AppLog.w(TAG, "WebView.destroy failed", it) }
             }
         }
     }
@@ -268,7 +268,7 @@ class JsSkillRunner(private val context: Context) {
     private class BridgeImpl(private val target: CompletableDeferred<String>) {
         @JavascriptInterface
         fun onResultReady(json: String) {
-            Log.d(TAG, "JS bridge fired: ${json.take(120)}")
+            AppLog.d(TAG, "JS bridge fired: ${json.take(120)}")
             target.complete(json)
         }
     }

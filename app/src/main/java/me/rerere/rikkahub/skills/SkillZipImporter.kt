@@ -1,11 +1,11 @@
 package me.rerere.rikkahub.skills
 
-import android.util.Log
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
 import java.nio.charset.Charset
 import java.util.zip.ZipInputStream
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Phase 19C — extract a `.zip` skill bundle into a destination directory under defensive
@@ -144,7 +144,7 @@ object SkillZipImporter {
                 }
             }
         } catch (e: Throwable) {
-            Log.w(TAG, "extractZipToDir: failed for ${destDir.absolutePath}", e)
+            AppLog.w(TAG, "extractZipToDir: failed for ${destDir.absolutePath}", e)
             cleanup(destDir)
             return Result.failure(SkillZipError.IoError(e.message ?: "zip read failed"))
         } finally {

@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.hooks
 
 import android.content.Context
-import android.util.Log
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -27,6 +26,7 @@ import me.rerere.tts.provider.TTSProviderSetting
 import org.koin.compose.koinInject
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "TTS"
 
@@ -165,12 +165,12 @@ private class CustomTtsStateImpl(
 
     override fun pause() {
         controller.pause()
-        Log.d("CustomTtsState", "TTS paused")
+        AppLog.d("CustomTtsState", "TTS paused")
     }
 
     override fun resume() {
         controller.resume()
-        Log.d("CustomTtsState", "TTS resumed")
+        AppLog.d("CustomTtsState", "TTS resumed")
     }
 
     override fun skipNext() {

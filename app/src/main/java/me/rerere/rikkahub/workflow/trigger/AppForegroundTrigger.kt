@@ -1,11 +1,11 @@
 package me.rerere.rikkahub.workflow.trigger
 
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.workflow.model.TriggerSpec
 import me.rerere.rikkahub.workflow.model.WorkflowDefinition
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Phase 12 — `app_launched` / `app_closed` triggers, fed by the existing accessibility
@@ -78,7 +78,7 @@ internal class AppForegroundTriggerFamily(
         scope.launch(Dispatchers.IO) {
             for ((wfId, spec) in fires) {
                 runCatching { cb.onFire(wfId, spec) }.onFailure {
-                    Log.w(TAG, "app_foreground: fire failed for wf=$wfId", it)
+                    AppLog.w(TAG, "app_foreground: fire failed for wf=$wfId", it)
                 }
             }
         }

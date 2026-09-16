@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.components.richtext
 
 import android.content.ClipData
 import android.content.Intent
-import android.util.Log
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -112,6 +111,7 @@ import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
 import org.intellij.markdown.parser.MarkdownParser
 import kotlin.time.Clock
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "Markdown"
 
@@ -260,7 +260,7 @@ fun MarkdownBlock(
             // 同时保证最新内容一定被解析（不会停在旧结果上）
             .conflate()
             .map { parseMarkdown(it) }
-            .catch { exception -> Log.e(TAG, "MarkdownBlock: failed to parse markdown", exception) }
+            .catch { exception -> AppLog.e(TAG, "MarkdownBlock: failed to parse markdown", exception) }
             .flowOn(Dispatchers.Default)
             .collect { setData(it) }
     }

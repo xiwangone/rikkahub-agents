@@ -2,12 +2,12 @@ package me.rerere.rikkahub.web
 
 import android.content.Context
 import android.net.wifi.WifiManager
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.net.InetAddress
 import javax.jmdns.JmDNS
 import javax.jmdns.ServiceInfo
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "NsdServiceRegistrar"
 private const val DEFAULT_SERVICE_TYPE = "_http._tcp.local."
@@ -47,11 +47,11 @@ class NsdServiceRegistrar(
 
             val address = getLocalIpAddress()
             if (address == null) {
-                Log.e(TAG, "Failed to get local IP address")
+                AppLog.e(TAG, "Failed to get local IP address")
                 return@withContext
             }
 
-            Log.i(TAG, "Creating JmDNS with hostname=$serviceName, address=$address")
+            AppLog.i(TAG, "Creating JmDNS with hostname=$serviceName, address=$address")
 
             // Create JmDNS instance with custom hostname
             // This will register hostname.local -> IP address
@@ -67,7 +67,7 @@ class NsdServiceRegistrar(
             )
             mdns.registerService(serviceInfo)
 
-            Log.i(
+            AppLog.i(
                 TAG,
                 "Service registered: $serviceName.$serviceType port=$port, hostname=$serviceName.local"
             )
@@ -81,7 +81,7 @@ class NsdServiceRegistrar(
                 )
             )
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to register service", e)
+            AppLog.e(TAG, "Failed to register service", e)
             cleanup()
         }
     }
@@ -95,7 +95,7 @@ class NsdServiceRegistrar(
             jmdns?.unregisterAllServices()
             jmdns?.close()
         }.onFailure {
-            Log.w(TAG, "Failed to close JmDNS", it)
+            AppLog.w(TAG, "Failed to close JmDNS", it)
         }
         jmdns = null
 
@@ -104,11 +104,11 @@ class NsdServiceRegistrar(
                 multicastLock?.release()
             }
         }.onFailure {
-            Log.w(TAG, "Failed to release multicast lock", it)
+            AppLog.w(TAG, "Failed to release multicast lock", it)
         }
         multicastLock = null
 
-        Log.i(TAG, "Service unregistered")
+        AppLog.i(TAG, "Service unregistered")
     }
 
     private fun getLocalIpAddress(): InetAddress? {
@@ -133,7 +133,7 @@ class NsdServiceRegistrar(
             )
             InetAddress.getByAddress(ipBytes)
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to get local IP address", e)
+            AppLog.e(TAG, "Failed to get local IP address", e)
             null
         }
     }

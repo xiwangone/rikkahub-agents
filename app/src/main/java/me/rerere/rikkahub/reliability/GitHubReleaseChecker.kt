@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.reliability
 
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -8,6 +7,7 @@ import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.BuildConfig
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "GHReleaseChecker"
 
@@ -69,7 +69,7 @@ class GitHubReleaseChecker(
                 try {
                     client.newCall(req).execute()
                 } catch (t: Throwable) {
-                    Log.w(TAG, "GitHub release fetch failed", t)
+                    AppLog.w(TAG, "GitHub release fetch failed", t)
                     return@withContext CheckResult.Failed("network error: ${t.message ?: t.javaClass.simpleName}")
                 }
             response.use { resp ->

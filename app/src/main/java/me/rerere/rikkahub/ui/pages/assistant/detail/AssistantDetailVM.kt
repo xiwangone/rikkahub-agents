@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
-import android.util.Log
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -26,6 +25,7 @@ import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "AssistantDetailVM"
 
@@ -135,7 +135,7 @@ class AssistantDetailVM(
                     tags = tagIds.toList(),
                 ),
             )
-            Log.d(TAG, "updateTags: ${tagIds.joinToString(",")}")
+            AppLog.d(TAG, "updateTags: ${tagIds.joinToString(",")}")
             cleanupUnusedTags()
         }
     }
@@ -294,7 +294,7 @@ class AssistantDetailVM(
             }.onFailure {
                 // The record may have been deleted (e.g. by the memory tool) between opening
                 // the editor and saving; don't crash the VM scope, the update is moot.
-                Log.e(TAG, "Failed to update memory #${memory.id}", it)
+                AppLog.e(TAG, "Failed to update memory #${memory.id}", it)
             }
         }
     }
@@ -328,7 +328,7 @@ class AssistantDetailVM(
                     filesManager.deleteChatFiles(listOf(oldUri))
                 }
             } catch (e: Exception) {
-                Log.w(TAG, "Failed to delete background file: $oldBackground", e)
+                AppLog.w(TAG, "Failed to delete background file: $oldBackground", e)
             }
         }
     }

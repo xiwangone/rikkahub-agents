@@ -4,7 +4,6 @@ import android.app.Application
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
-import android.util.Log
 import androidx.compose.foundation.ComposeFoundationFlags
 import androidx.compose.runtime.Composer
 import androidx.compose.runtime.tooling.ComposeStackTraceMode
@@ -46,6 +45,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.androidx.workmanager.koin.workManagerFactory
 import org.koin.core.context.startKoin
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "RikkaHubApp"
 
@@ -180,8 +180,8 @@ class RikkaHubApp : Application() {
             runCatching {
                 val filled = get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>()
                     .backfillMissingTypes()
-                if (filled > 0) Log.i("RikkaHubApp", "vault credential types backfilled: $filled")
-            }.onFailure { Log.w("RikkaHubApp", "vault type backfill failed", it) }
+                if (filled > 0) AppLog.i("RikkaHubApp", "vault credential types backfilled: $filled")
+            }.onFailure { AppLog.w("RikkaHubApp", "vault type backfill failed", it) }
         }
 
         // provider 密钥引用（`$$凭证名`）：启动时把库内容接入解析钩子，
@@ -190,8 +190,8 @@ class RikkaHubApp : Application() {
             runCatching {
                 val cached = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
                     .refresh(get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>())
-                Log.i("RikkaHubApp", "vault provider key refs cached: $cached")
-            }.onFailure { Log.w("RikkaHubApp", "vault provider key refs refresh failed", it) }
+                AppLog.i("RikkaHubApp", "vault provider key refs cached: $cached")
+            }.onFailure { AppLog.w("RikkaHubApp", "vault provider key refs refresh failed", it) }
         }
 
         // Increment launch count
@@ -282,13 +282,13 @@ class RikkaHubApp : Application() {
                     prefs.clearAccelerator(runtime)
                 }
                 prefs.setCrashRecovery(runtime, crashedAccel)
-                Log.w(
+                AppLog.w(
                     TAG,
                     "sweepLocalLlmNativeCrashes: detected native crash in liblitertlm at " +
                         "${nativeCrash.timestamp} (accel=$crashedAccel) — forcing CPU + stamping recovery banner"
                 )
             }.onFailure {
-                Log.w(TAG, "sweepLocalLlmNativeCrashes failed", it)
+                AppLog.w(TAG, "sweepLocalLlmNativeCrashes failed", it)
             }
         }
     }
@@ -306,7 +306,7 @@ class RikkaHubApp : Application() {
                 val prefs = get<me.rerere.locallm.LocalRuntimePreferences>()
                 val invalidated = prefs.maybeInvalidateOnSdkUpgrade(me.rerere.locallm.LocalRuntime.LiteRT)
                 if (invalidated) {
-                    Log.i(
+                    AppLog.i(
                         TAG,
                         "invalidateLocalLlmDecisionsOnSdkUpgrade: SDK version changed — cleared " +
                             "accelerator + vision-unavailable + crash-recovery for LiteRT (new=${prefs.currentSdkVersion})",
@@ -322,14 +322,14 @@ class RikkaHubApp : Application() {
                 // every launch.
                 val wipedVision = prefs.clearAllVisionUnavailable(me.rerere.locallm.LocalRuntime.LiteRT)
                 if (wipedVision > 0) {
-                    Log.i(
+                    AppLog.i(
                         TAG,
                         "invalidateLocalLlmDecisionsOnSdkUpgrade: wiped $wipedVision stale " +
                             "visionUnavailable entries (forcing fresh attempt next inference)",
                     )
                 }
             }.onFailure {
-                Log.w(TAG, "invalidateLocalLlmDecisionsOnSdkUpgrade failed", it)
+                AppLog.w(TAG, "invalidateLocalLlmDecisionsOnSdkUpgrade failed", it)
             }
         }
     }
@@ -344,7 +344,7 @@ class RikkaHubApp : Application() {
             runCatching {
                 get<me.rerere.rikkahub.data.agentrun.AgentRunBootRecovery>().runRecovery()
             }.onFailure {
-                Log.w(TAG, "runAgentRunBootRecovery failed", it)
+                AppLog.w(TAG, "runAgentRunBootRecovery failed", it)
             }
         }
     }
@@ -357,7 +357,7 @@ class RikkaHubApp : Application() {
                 registry.setEngineCallback(engine.triggerCallback)
                 registry.start()
             }.onFailure {
-                Log.e(TAG, "startWorkflowRegistry failed", it)
+                AppLog.e(TAG, "startWorkflowRegistry failed", it)
             }
         }
     }
@@ -367,7 +367,7 @@ class RikkaHubApp : Application() {
             val client = get<okhttp3.OkHttpClient>()
             me.rerere.rikkahub.utils.NetworkChangeMonitor.start(this, client)
         }.onFailure {
-            Log.w(TAG, "startNetworkChangeMonitor failed", it)
+            AppLog.w(TAG, "startNetworkChangeMonitor failed", it)
         }
     }
 
@@ -387,21 +387,21 @@ class RikkaHubApp : Application() {
             runCatching {
                 val orphanIds = HeadlessConversations.activeIds()
                 if (orphanIds.isEmpty()) return@runCatching
-                Log.i(TAG, "sweepOrphanHeadlessConversations: found ${orphanIds.size} candidate(s)")
+                AppLog.i(TAG, "sweepOrphanHeadlessConversations: found ${orphanIds.size} candidate(s)")
                 val convRepo = get<me.rerere.rikkahub.data.repository.ConversationRepository>()
                 for (id in orphanIds) {
                     runCatching {
                         val conv = convRepo.getConversationById(id)
                         if (conv != null && conv.title.startsWith("[Scheduled]")) {
-                            Log.i(TAG, "sweepOrphanHeadlessConversations: deleting orphan conv $id")
+                            AppLog.i(TAG, "sweepOrphanHeadlessConversations: deleting orphan conv $id")
                             convRepo.deleteConversation(conv)
                         }
-                    }.onFailure { Log.w(TAG, "sweepOrphanHeadlessConversations: error for $id", it) }
+                    }.onFailure { AppLog.w(TAG, "sweepOrphanHeadlessConversations: error for $id", it) }
                 }
                 HeadlessConversations.clearAll()
-                Log.i(TAG, "sweepOrphanHeadlessConversations: sweep complete")
+                AppLog.i(TAG, "sweepOrphanHeadlessConversations: sweep complete")
             }.onFailure {
-                Log.e(TAG, "sweepOrphanHeadlessConversations failed", it)
+                AppLog.e(TAG, "sweepOrphanHeadlessConversations failed", it)
             }
         }
     }
@@ -412,9 +412,9 @@ class RikkaHubApp : Application() {
                 val store = get<SettingsStore>()
                 val current = store.settingsFlowRaw.first()
                 store.update(current.copy(launchCount = current.launchCount + 1))
-                Log.i(TAG, "incrementLaunchCount: ${store.settingsFlowRaw.first().launchCount}")
+                AppLog.i(TAG, "incrementLaunchCount: ${store.settingsFlowRaw.first().launchCount}")
             }.onFailure {
-                Log.e(TAG, "incrementLaunchCount failed", it)
+                AppLog.e(TAG, "incrementLaunchCount failed", it)
             }
         }
     }
@@ -426,7 +426,7 @@ class RikkaHubApp : Application() {
             // which Android requires to happen on the main thread.
             get<me.rerere.rikkahub.service.ChatService>()
         } catch (t: Throwable) {
-            Log.e(TAG, "eagerlyInitChatService failed", t)
+            AppLog.e(TAG, "eagerlyInitChatService failed", t)
         }
     }
 
@@ -436,7 +436,7 @@ class RikkaHubApp : Application() {
         try {
             get<me.rerere.rikkahub.data.preferences.TermuxPreferences>()
         } catch (t: Throwable) {
-            Log.e(TAG, "eagerlyInitTermuxPreferences failed", t)
+            AppLog.e(TAG, "eagerlyInitTermuxPreferences failed", t)
         }
     }
 
@@ -445,7 +445,7 @@ class RikkaHubApp : Application() {
             runCatching {
                 val cfg = get<me.rerere.rikkahub.data.telegram.TelegramBotPreferences>().current()
                 if (cfg.isUsable) {
-                    Log.i(TAG, "startTelegramBotIfEnabled: re-starting bot service")
+                    AppLog.i(TAG, "startTelegramBotIfEnabled: re-starting bot service")
                     me.rerere.rikkahub.service.TelegramBotService.start(this@RikkaHubApp)
                     // Defense-in-depth against OEM aggressive task-killing: a 30-min
                     // periodic health probe re-starts the service if anything killed it
@@ -455,7 +455,7 @@ class RikkaHubApp : Application() {
                     me.rerere.rikkahub.service.TelegramBotHealthWorker.cancel(this@RikkaHubApp)
                 }
             }.onFailure {
-                Log.e(TAG, "startTelegramBotIfEnabled failed", it)
+                AppLog.e(TAG, "startTelegramBotIfEnabled failed", it)
             }
         }
     }
@@ -465,7 +465,7 @@ class RikkaHubApp : Application() {
             runCatching {
                 get<WorkspaceManager>().cleanupAllTempDirs()
             }.onFailure {
-                Log.e(TAG, "cleanupWorkspaceTempDirs failed", it)
+                AppLog.e(TAG, "cleanupWorkspaceTempDirs failed", it)
             }
         }
     }
@@ -475,7 +475,7 @@ class RikkaHubApp : Application() {
             runCatching {
                 get<me.rerere.rikkahub.data.files.SkillManager>().seedDefaultSkillsIfNeeded()
             }.onFailure {
-                Log.e(TAG, "seedDefaultSkillsIfNeeded failed", it)
+                AppLog.e(TAG, "seedDefaultSkillsIfNeeded failed", it)
             }
         }
     }
@@ -485,7 +485,7 @@ class RikkaHubApp : Application() {
             runCatching {
                 get<WorkspaceRepository>().checkIntegrity()
             }.onFailure {
-                Log.e(TAG, "checkWorkspaceIntegrity failed", it)
+                AppLog.e(TAG, "checkWorkspaceIntegrity failed", it)
             }
         }
     }
@@ -515,7 +515,7 @@ class RikkaHubApp : Application() {
             runCatching {
                 get<FilesManager>().syncFolder()
             }.onFailure {
-                Log.e(TAG, "syncManagedFiles failed", it)
+                AppLog.e(TAG, "syncManagedFiles failed", it)
             }
         }
     }
@@ -532,7 +532,7 @@ class RikkaHubApp : Application() {
                             android.Manifest.permission.POST_NOTIFICATIONS
                         ) != PackageManager.PERMISSION_GRANTED
                     ) {
-                        Log.w(TAG, "startWebServerIfEnabled: notification permission not granted, skipping")
+                        AppLog.w(TAG, "startWebServerIfEnabled: notification permission not granted, skipping")
                         return@launch
                     }
                     // Android 17 (API 37) requires ACCESS_LOCAL_NETWORK to bind to LAN
@@ -545,7 +545,7 @@ class RikkaHubApp : Application() {
                             android.Manifest.permission.ACCESS_LOCAL_NETWORK
                         ) != PackageManager.PERMISSION_GRANTED
                     ) {
-                        Log.w(TAG, "startWebServerIfEnabled: local network permission not granted, skipping")
+                        AppLog.w(TAG, "startWebServerIfEnabled: local network permission not granted, skipping")
                         return@launch
                     }
                     val intent = Intent(this@RikkaHubApp, WebServerService::class.java).apply {
@@ -556,7 +556,7 @@ class RikkaHubApp : Application() {
                     startForegroundService(intent)
                 }
             }.onFailure {
-                Log.e(TAG, "startWebServerIfEnabled failed", it)
+                AppLog.e(TAG, "startWebServerIfEnabled failed", it)
             }
         }
     }
@@ -573,7 +573,7 @@ class RikkaHubApp : Application() {
                     startForegroundService(intent)
                 }
             }.onFailure {
-                Log.e(TAG, "startMcpServerIfEnabled failed", it)
+                AppLog.e(TAG, "startMcpServerIfEnabled failed", it)
             }
         }
     }
@@ -621,6 +621,6 @@ class AppScope : CoroutineScope by CoroutineScope(
         + Dispatchers.Main
         + CoroutineName("AppScope")
         + CoroutineExceptionHandler { _, e ->
-        Log.e(TAG, "AppScope exception", e)
+        AppLog.e(TAG, "AppScope exception", e)
     }
 )

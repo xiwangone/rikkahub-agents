@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.pages.imggen
 
 import android.app.Application
-import android.util.Log
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.Pager
@@ -34,6 +33,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.repository.GenMediaRepository
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
+import me.rerere.rikkahub.data.log.AppLog
 
 @Serializable
 data class GeneratedImage(
@@ -122,11 +122,11 @@ class ImgGenVM(
                 val orphans = selectOrphanedGenMedia(entities, filesManager.getImagesDir())
                 orphans.forEach { genMediaRepository.deleteMedia(it.id) }
                 if (orphans.isNotEmpty()) {
-                    Log.i(TAG, "Purged ${orphans.size} orphaned gallery entries")
+                    AppLog.i(TAG, "Purged ${orphans.size} orphaned gallery entries")
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) return@launch
-                Log.e(TAG, "Failed to purge orphaned gallery entries", e)
+                AppLog.e(TAG, "Failed to purge orphaned gallery entries", e)
             }
         }
     }
@@ -216,7 +216,7 @@ class ImgGenVM(
                     )
                 } catch (e: Exception) {
                     if (e is CancellationException) return@launch
-                    Log.e(TAG, "Failed to generate image", e)
+                    AppLog.e(TAG, "Failed to generate image", e)
                     _error.value = e.message ?: "Unknown error occurred"
                 } finally {
                     _isGenerating.value = false
@@ -274,7 +274,7 @@ class ImgGenVM(
                     )
                 } catch (e: Exception) {
                     if (e is CancellationException) return@launch
-                    Log.e(TAG, "Failed to edit image", e)
+                    AppLog.e(TAG, "Failed to edit image", e)
                     _error.value = e.message ?: "Unknown error occurred"
                 } finally {
                     _isGenerating.value = false
@@ -396,7 +396,7 @@ class ImgGenVM(
                     file.delete()
                 }
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to delete image", e)
+                AppLog.e(TAG, "Failed to delete image", e)
                 _error.value = "Failed to delete image"
             }
         }
@@ -413,7 +413,7 @@ class ImgGenVM(
                 } catch (e: kotlinx.coroutines.CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    Log.e(TAG, "Failed to delete image ${image.id}", e)
+                    AppLog.e(TAG, "Failed to delete image ${image.id}", e)
                     true
                 }
             }

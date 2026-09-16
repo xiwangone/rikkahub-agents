@@ -1,10 +1,10 @@
 package me.rerere.rikkahub.skills
 
 import android.content.Context
-import android.util.Log
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Phase 19D — bundled "featured skills" catalog.
@@ -51,7 +51,7 @@ fun loadCatalogFromAssets(context: Context): SkillCatalog {
     val raw = runCatching {
         context.assets.open("skill-catalog.json").bufferedReader(Charsets.UTF_8).use { it.readText() }
     }.getOrNull() ?: run {
-        Log.w("SkillCatalog", "skill-catalog.json missing from assets — returning empty catalog")
+        AppLog.w("SkillCatalog", "skill-catalog.json missing from assets — returning empty catalog")
         return SkillCatalog()
     }
     return parseSkillCatalogJson(raw)
@@ -67,7 +67,7 @@ fun parseSkillCatalogJson(raw: String): SkillCatalog {
     return runCatching {
         skillCatalogJson.decodeFromString(SkillCatalog.serializer(), raw)
     }.getOrElse { t ->
-        runCatching { Log.w("SkillCatalog", "skill-catalog.json failed to parse", t) }
+        runCatching { AppLog.w("SkillCatalog", "skill-catalog.json failed to parse", t) }
         SkillCatalog()
     }
 }

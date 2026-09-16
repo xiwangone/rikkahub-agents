@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.skills
 
-import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -15,6 +14,7 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.service.ChatService
 import java.io.IOException
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Phase 19B — run a single skill against a user-supplied prompt in isolation, harvest the
@@ -220,7 +220,7 @@ class SkillTestRunner(
         } catch (t: Throwable) {
             // Log via a runCatching so JVM tests (which don't stub android.util.Log) don't
             // explode. The error envelope below carries the same info to the UI.
-            runCatching { Log.w(TAG, "runOnce failed for $skillName", t) }
+            runCatching { AppLog.w(TAG, "runOnce failed for $skillName", t) }
             emit(TestRunState.Error(t::class.simpleName ?: "unknown", t.message))
         } finally {
             if (registered) {

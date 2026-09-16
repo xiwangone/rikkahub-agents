@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.utils
 
 import android.database.CursorWindow
-import android.util.Log
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "DatabaseUtil"
 
@@ -12,7 +12,7 @@ object DatabaseUtil {
             field.isAccessible = true
             val oldValue = field.get(null) as Int
             field.set(null, size)
-            Log.i(TAG, "setCursorWindowSize: set $oldValue to $size")
+            AppLog.i(TAG, "setCursorWindowSize: set $oldValue to $size")
         } catch (e: Exception) {
             e.printStackTrace()
         }
@@ -23,7 +23,7 @@ object DatabaseUtil {
 //            field.isAccessible = true
 //            val oldValue = field.get(null) as Int
 //            field.set(null, size)
-//            Log.i(TAG, "setCursorWindowSize: set $oldValue to $size")
+//            AppLog.i(TAG, "setCursorWindowSize: set $oldValue to $size")
 //        } catch (e: Exception) {
 //            e.printStackTrace()
 //        }

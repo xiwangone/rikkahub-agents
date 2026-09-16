@@ -3,9 +3,9 @@ package me.rerere.rikkahub.utils
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
-import android.util.Log
 import okhttp3.OkHttpClient
 import java.lang.ref.WeakReference
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "NetworkChangeMonitor"
 
@@ -90,7 +90,7 @@ object NetworkChangeMonitor {
         clients.add(WeakReference(client))
         // android.util.Log isn't mocked in JVM unit tests; SkillUrlImporter etc.
         // construct OkHttp clients during test init and the log call would crash.
-        runCatching { Log.d(TAG, "registered OkHttp client (now ${clients.size} active)") }
+        runCatching { AppLog.d(TAG, "registered OkHttp client (now ${clients.size} active)") }
     }
 
     /**
@@ -115,7 +115,7 @@ object NetworkChangeMonitor {
                         val handle = network.networkHandle
                         val prev = lastDefaultHandle
                         if (handle != prev) {
-                            Log.i(
+                            AppLog.i(
                                 TAG,
                                 "default network changed ($prev -> $handle), evicting OkHttp pools to force DNS re-resolution",
                             )
@@ -144,9 +144,9 @@ object NetworkChangeMonitor {
                 cm.registerDefaultNetworkCallback(cb)
                 callback = cb
                 started = true
-                Log.i(TAG, "registered default network callback for ${clients.size} OkHttp client(s)")
+                AppLog.i(TAG, "registered default network callback for ${clients.size} OkHttp client(s)")
             } catch (t: Throwable) {
-                Log.w(TAG, "registerDefaultNetworkCallback failed", t)
+                AppLog.w(TAG, "registerDefaultNetworkCallback failed", t)
             }
         }
     }
@@ -161,7 +161,7 @@ object NetworkChangeMonitor {
                 continue
             }
             runCatching { c.connectionPool.evictAll() }
-                .onFailure { Log.w(TAG, "connectionPool.evictAll failed", it) }
+                .onFailure { AppLog.w(TAG, "connectionPool.evictAll failed", it) }
         }
     }
 
@@ -169,7 +169,7 @@ object NetworkChangeMonitor {
     private fun notifyNetworkChangeListeners() {
         for (listener in networkChangeListeners) {
             runCatching { listener() }
-                .onFailure { Log.w(TAG, "network change listener failed", it) }
+                .onFailure { AppLog.w(TAG, "network change listener failed", it) }
         }
     }
 }

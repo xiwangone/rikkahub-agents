@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.pages.extensions.workspace
 
 import android.content.Context
-import android.util.Log
 import com.termux.terminal.TerminalSession
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
@@ -18,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.AppScope
 import java.util.concurrent.atomic.AtomicLong
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Owns workspace terminal sessions independently from the terminal page lifecycle.
@@ -135,7 +135,7 @@ class WorkspaceTerminalSessionManager internal constructor(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                Log.e(TAG, "Failed to prepare terminal for workspace $root", error)
+                AppLog.e(TAG, "Failed to prepare terminal for workspace $root", error)
                 false
             }
         }
@@ -165,7 +165,7 @@ class WorkspaceTerminalSessionManager internal constructor(
                 shellCompatibilityMode = shellCompatibilityMode,
             )
         }.onFailure { error ->
-            Log.e(TAG, "Failed to create terminal for workspace $root", error)
+            AppLog.e(TAG, "Failed to create terminal for workspace $root", error)
         }.getOrNull()
 
         if (session == null) {

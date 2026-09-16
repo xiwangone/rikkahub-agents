@@ -16,7 +16,6 @@ import android.os.Environment
 import android.os.Process
 import android.provider.MediaStore
 import android.provider.Settings
-import android.util.Log
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.browser.customtabs.CustomTabsIntent
@@ -26,6 +25,7 @@ import androidx.core.net.toUri
 import java.io.File
 import java.io.FileOutputStream
 import java.io.OutputStream
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "ContextUtil"
 
@@ -72,9 +72,9 @@ fun Context.writeClipboardText(text: String) {
         clipboardManager.setPrimaryClip(android.content.ClipData.newPlainText("text", text))
         // Never log the payload: clipboard writes routinely carry passwords/tokens, and
         // logcat is readable via adb and bugreports.
-        Log.i(TAG, "writeClipboardText: ${text.length} chars")
+        AppLog.i(TAG, "writeClipboardText: ${text.length} chars")
     }.onFailure {
-        Log.e(TAG, "writeClipboardText failed (${text.length} chars)", it)
+        AppLog.e(TAG, "writeClipboardText failed (${text.length} chars)", it)
         Toast.makeText(
             this,
             getString(R.string.toast_clipboard_write_failed),
@@ -119,7 +119,7 @@ fun Context.openUsageAccessSettings() {
             },
         )
     }.onFailure {
-        Log.e(TAG, "openUsageAccessSettings failed", it)
+        AppLog.e(TAG, "openUsageAccessSettings failed", it)
     }
 }
 
@@ -127,7 +127,7 @@ fun Context.openUsageAccessSettings() {
  * Open a url
  */
 fun Context.openUrl(url: String) {
-    Log.i(TAG, "openUrl: $url")
+    AppLog.i(TAG, "openUrl: $url")
     runCatching {
         val intent =
             CustomTabsIntent
@@ -212,9 +212,9 @@ fun Context.exportImage(
             mediaScanIntent.data = Uri.fromFile(image)
             sendBroadcast(mediaScanIntent)
         }
-        Log.i(TAG, "Image saved successfully: $fileName")
+        AppLog.i(TAG, "Image saved successfully: $fileName")
     } catch (e: Exception) {
-        Log.e(TAG, "Failed to save image", e)
+        AppLog.e(TAG, "Failed to save image", e)
         throw e
     } finally {
         outputStream?.close()
@@ -269,9 +269,9 @@ fun Context.exportImageFile(
             mediaScanIntent.data = Uri.fromFile(image)
             sendBroadcast(mediaScanIntent)
         }
-        Log.i(TAG, "Image file saved successfully: $fileName")
+        AppLog.i(TAG, "Image file saved successfully: $fileName")
     } catch (e: Exception) {
-        Log.e(TAG, "Failed to save image file", e)
+        AppLog.e(TAG, "Failed to save image file", e)
         throw e
     } finally {
         outputStream?.close()

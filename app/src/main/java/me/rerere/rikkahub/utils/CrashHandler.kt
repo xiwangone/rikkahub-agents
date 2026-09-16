@@ -1,8 +1,8 @@
 package me.rerere.rikkahub.utils
 
 import android.content.Context
-import android.util.Log
 import androidx.core.content.edit
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "CrashHandler"
 private const val PREFS_NAME = "crash_handler"
@@ -15,7 +15,7 @@ object CrashHandler {
         val appContext = context.applicationContext
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
-            Log.e(TAG, "Uncaught exception on thread ${thread.name}", throwable)
+            AppLog.e(TAG, "Uncaught exception on thread ${thread.name}", throwable)
             markCrashed(appContext, thread, throwable)
             defaultHandler?.uncaughtException(thread, throwable)
         }

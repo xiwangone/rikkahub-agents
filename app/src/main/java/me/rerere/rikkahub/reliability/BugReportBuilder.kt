@@ -2,7 +2,6 @@ package me.rerere.rikkahub.reliability
 
 import android.content.Context
 import android.os.Build
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.BuildConfig
@@ -15,6 +14,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.zip.ZipEntry
 import java.util.zip.ZipOutputStream
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "BugReportBuilder"
 
@@ -53,7 +53,7 @@ class BugReportBuilder(
                 zip.putEntry("logcat.txt", captureLogcat())
                 zip.putEntry("README.txt", buildReadme())
             }
-            Log.i(TAG, "build: wrote ${zipFile.length()} bytes to ${zipFile.absolutePath}")
+            AppLog.i(TAG, "build: wrote ${zipFile.length()} bytes to ${zipFile.absolutePath}")
             zipFile
         }
 
@@ -115,7 +115,7 @@ class BugReportBuilder(
             proc.waitFor()
             SecretRedactor.redact(raw)
         } catch (t: Throwable) {
-            Log.w(TAG, "captureLogcat failed", t)
+            AppLog.w(TAG, "captureLogcat failed", t)
             "(logcat capture failed: ${t.message ?: t.javaClass.simpleName})"
         }
     }

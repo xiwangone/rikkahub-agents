@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.workflow.trigger
 
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -9,6 +8,7 @@ import me.rerere.rikkahub.workflow.model.TriggerSpec
 import me.rerere.rikkahub.workflow.model.WorkflowDefinition
 import me.rerere.rikkahub.workflow.repository.WorkflowRepository
 import org.koin.java.KoinJavaComponent
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Phase 12 — boot-completed family. The actual receiver is the existing
@@ -54,7 +54,7 @@ internal class BootTriggerFamily(
                 for (wf in snap) {
                     if (wf.trigger !is TriggerSpec.BootCompleted) continue
                     runCatching { cb.onFire(wf.id, wf.trigger) }.onFailure {
-                        Log.w(TAG, "boot fire failed for wf=${wf.id}", it)
+                        AppLog.w(TAG, "boot fire failed for wf=${wf.id}", it)
                     }
                 }
                 return@launch
@@ -63,7 +63,7 @@ internal class BootTriggerFamily(
             for (wf in defs) {
                 if (wf.trigger !is TriggerSpec.BootCompleted) continue
                 runCatching { repoFire.onFire(wf.id, wf.trigger) }.onFailure {
-                    Log.w(TAG, "boot fire failed for wf=${wf.id}", it)
+                    AppLog.w(TAG, "boot fire failed for wf=${wf.id}", it)
                 }
             }
         }

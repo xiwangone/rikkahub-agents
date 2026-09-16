@@ -22,6 +22,7 @@ import me.rerere.rikkahub.workflow.repository.WorkflowRepository
 import me.rerere.rikkahub.workflow.trigger.TriggerFireCallback
 import java.time.LocalDate
 import java.time.ZoneId
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Phase 12 — workflow execution engine. The single entry point for any workflow fire.
@@ -238,7 +239,7 @@ class WorkflowEngine(
                     byId
                 } else {
                     if (storedId != null) {
-                        Log.w(
+                        AppLog.w(
                             TAG,
                             "fire: authoring assistant $storedId for workflow $workflowId no longer exists; falling back to first-with-Workflows",
                         )
@@ -384,7 +385,7 @@ class WorkflowEngine(
                 durationMs = durationMs,
                 errorMessage = error,
             )
-        }.onFailure { Log.w(TAG, "recordFire failed for $workflowId", it) }
+        }.onFailure { AppLog.w(TAG, "recordFire failed for $workflowId", it) }
         // Phase 24 — mirror the terminal outcome into the cross-pillar ledger. Every
         // WorkflowRunStatus is terminal from the ledger's point of view: SUCCESS →
         // succeeded; FAILED → failed; every SKIPPED_* variant → cancelled (the fire was
@@ -511,7 +512,7 @@ class WorkflowActionRunner {
      * don't crash before the runner can return its actual result.
      */
     private fun logSafe(msg: String) {
-        runCatching { Log.w(TAG, msg) }
+        runCatching { AppLog.w(TAG, msg) }
     }
 
     companion object {

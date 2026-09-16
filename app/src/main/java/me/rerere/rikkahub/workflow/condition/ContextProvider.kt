@@ -10,9 +10,9 @@ import android.location.LocationManager
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.PowerManager
-import android.util.Log
 import androidx.core.content.ContextCompat
 import me.rerere.rikkahub.workflow.model.WorkflowContext
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Phase 12 — builds a [WorkflowContext] snapshot at evaluation time.
@@ -59,7 +59,7 @@ class ContextProvider(
                 return loc.latitude to loc.longitude
             } catch (e: Throwable) {
                 // permission revoked between the check and the call — give up
-                Log.w(TAG, "lastKnownLocation: provider=$p lookup failed", e)
+                AppLog.w(TAG, "lastKnownLocation: provider=$p lookup failed", e)
                 return null to null
             }
         }
@@ -88,7 +88,7 @@ class ContextProvider(
                 it.isNotBlank() && it != "<unknown ssid>"
             }
         } catch (e: Throwable) {
-            Log.w(TAG, "currentWifiSsid: lookup failed", e)
+            AppLog.w(TAG, "currentWifiSsid: lookup failed", e)
             null
         }
 

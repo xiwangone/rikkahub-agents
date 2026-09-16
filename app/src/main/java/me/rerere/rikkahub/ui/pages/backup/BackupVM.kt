@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.backup
 
-import android.util.Log
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -29,6 +28,7 @@ import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.rikkahub.utils.UiState
 import java.io.File
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "BackupVM"
 
@@ -288,7 +288,7 @@ class BackupVM(
             )
         }
 
-        Log.i(
+        AppLog.i(
             TAG,
             "restoreFromChatBox: import ${result.providers.size} providers, " +
                 "$importedConversations conversations, skip $skippedExistingConversations existing, " +
@@ -314,7 +314,7 @@ class BackupVM(
             throw IllegalArgumentException("No importable providers found in Cherry Studio backup")
         }
 
-        Log.i(TAG, "restoreFromCherryStudio: import ${importProviders.size} providers: $importProviders")
+        AppLog.i(TAG, "restoreFromCherryStudio: import ${importProviders.size} providers: $importProviders")
 
         updateSettings(
             settings.value.copy(

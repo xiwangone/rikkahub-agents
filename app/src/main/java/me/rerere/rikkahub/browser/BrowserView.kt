@@ -30,6 +30,7 @@ import me.rerere.rikkahub.BuildConfig
 import java.io.File
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Top-level Compose root for [BrowserActivity]. Lays out:
@@ -206,7 +207,7 @@ private fun WebViewHost(
                         })
                         """.trimIndent(),
                     ) { json ->
-                        Log.d("RikkaWebView", "onPageFinished $url -> $json")
+                        AppLog.d("RikkaWebView", "onPageFinished $url -> $json")
                     }
                 }
 
@@ -217,7 +218,7 @@ private fun WebViewHost(
                 ) {
                     super.onReceivedError(view, request, error)
                     val isMainFrame = request?.isForMainFrame == true
-                    Log.w(
+                    AppLog.w(
                         "RikkaWebView",
                         "onReceivedError mainFrame=$isMainFrame url=${request?.url} code=${error?.errorCode} desc=${error?.description}",
                     )

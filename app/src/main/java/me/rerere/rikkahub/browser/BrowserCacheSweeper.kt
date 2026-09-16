@@ -1,8 +1,8 @@
 package me.rerere.rikkahub.browser
 
 import android.content.Context
-import android.util.Log
 import java.io.File
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Best-effort cleanup of the browser screenshot cache directories. Every PNG capture
@@ -56,7 +56,7 @@ internal object BrowserCacheSweeper {
                     if (runCatching { f.delete() }.getOrDefault(false)) totalDeleted++
                 }
             }.onFailure {
-                Log.w(TAG, "sweep failed for $sub", it)
+                AppLog.w(TAG, "sweep failed for $sub", it)
             }
         }
         return totalDeleted
