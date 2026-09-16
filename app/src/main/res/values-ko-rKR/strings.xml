@@ -3173,4 +3173,5 @@
   <string name="setting_provider_page_match_abilities_done">모델 %1$d개의 기능을 업데이트했습니다</string>
   <string name="workspace_detail_export_folder">폴더 내보내기</string>
   <string name="workspace_detail_export_folder_done">파일 %1$d개 내보냄, 실패 %2$d개</string>
+  <string name="chat_page_compress_model_unavailable">압축에 사용할 모델이 없습니다. 설정에서 압축 모델을 지정하거나 제공자를 활성화하세요.</string>
 </resources>

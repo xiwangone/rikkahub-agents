@@ -3169,4 +3169,5 @@
   <string name="setting_provider_page_match_abilities_done">已更新 %1$d 个模型的能力</string>
   <string name="workspace_detail_export_folder">导出文件夹</string>
   <string name="workspace_detail_export_folder_done">已导出 %1$d 个文件，失败 %2$d 个</string>
+  <string name="chat_page_compress_model_unavailable">没有可用于压缩的模型：请在设置中指定压缩模型，或启用一个提供商。</string>
 </resources>

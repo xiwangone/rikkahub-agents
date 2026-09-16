@@ -109,6 +109,7 @@ import java.time.Instant
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.datastore.DEFAULT_AUTO_MODEL_ID
 
 private const val TAG = "ChatService"
 
@@ -1637,6 +1638,26 @@ class ChatService(
 
     // ---- 压缩对话历史 ----
 
+/**
+ * 解析压缩用的模型：跳过「Auto」占位（它属于内置但默认禁用的 provider）以及任何被禁用的
+ * provider，依次回退 —— 配置的压缩模型 → 当前聊天模型 → 任意启用 provider 下的第一个模型。
+ * 都不可用时返回 null，由调用方给出可行动的提示。纯函数，便于单测。
+ */
+internal fun resolveCompressionModel(settings: Settings): Model? {
+    fun Model.takeIfUsable(): Model? {
+        if (id == DEFAULT_AUTO_MODEL_ID) return null
+        val provider = findProvider(settings.providers) ?: return null
+        return if (provider.enabled) this else null
+    }
+
+    settings.findModelById(settings.compressModelId)?.takeIfUsable()?.let { return it }
+    settings.getCurrentChatModel()?.takeIfUsable()?.let { return it }
+    return settings.providers
+        .filter { it.enabled }
+        .flatMap { it.models }
+        .firstNotNullOfOrNull { it.takeIfUsable() }
+}
+
     suspend fun compressConversation(
         conversationId: Uuid,
         conversation: Conversation,
@@ -1646,20 +1667,17 @@ class ChatService(
     ): Result<Unit> =
         runCatching {
             val settings = settingsStore.settingsFlow.first()
+            // 「Auto」压缩模型是内置 provider 下的占位项，而该 provider 默认禁用：
+            // 直接解析它会在「provider 被禁用」处失败，看起来像"点了压缩没反应"。
+            // 这里跳过占位与被禁用的 provider，依次回退到当前聊天模型、再到任意启用 provider 的模型。
             val model =
-                settings.findModelById(settings.compressModelId)
-                    ?: settings.getCurrentChatModel()
-                    ?: throw IllegalStateException("No model available for compression")
+                resolveCompressionModel(settings)
+                    ?: throw IllegalStateException(
+                        context.getString(R.string.chat_page_compress_model_unavailable),
+                    )
             val provider =
                 model.findProvider(settings.providers)
-                    ?: throw IllegalStateException("Provider not found")
-            // Same defence as handleLlmTurn — refuse to compress against a disabled provider.
-            if (!provider.enabled) {
-                throw IllegalStateException(
-                    "Provider '${provider.name}' is disabled — cannot compress. " +
-                        "Re-enable it in Settings → Providers, or set a different compression model.",
-                )
-            }
+                    ?: throw IllegalStateException("Provider not found"
 
             val providerHandler = providerManager.getProviderByType(provider)
 

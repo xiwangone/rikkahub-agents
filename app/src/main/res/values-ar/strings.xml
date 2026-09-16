@@ -3172,4 +3172,5 @@
   <string name="setting_provider_page_match_abilities_done">تم التحديث: %1$d نموذج</string>
   <string name="workspace_detail_export_folder">تصدير المجلد</string>
   <string name="workspace_detail_export_folder_done">تم تصدير %1$d ملف، وفشل %2$d</string>
+  <string name="chat_page_compress_model_unavailable">لا يوجد نموذج صالح للضغط. حدّد نموذج الضغط في الإعدادات أو فعّل مزودًا.</string>
 </resources>
