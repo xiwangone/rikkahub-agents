@@ -283,7 +283,7 @@ private fun AppLogCard(
                 )
             }
             Text(
-                text = entry.message,
+                text = if (entry.repeat > 1) "${entry.message} (×${entry.repeat})" else entry.message,
                 style = MaterialTheme.typography.bodySmall,
                 fontFamily = JetbrainsMono,
             )
@@ -293,7 +293,8 @@ private fun AppLogCard(
 
 private fun formatEntry(entry: AppLog.Entry): String {
     val time = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(entry.timestamp)
-    return "$time ${entry.level} ${entry.tag}: ${entry.message}"
+    val repeatSuffix = if (entry.repeat > 1) " (×${entry.repeat})" else ""
+    return "$time ${entry.level} ${entry.tag}: ${entry.message}$repeatSuffix"
 }
 
 private fun copyToClipboard(

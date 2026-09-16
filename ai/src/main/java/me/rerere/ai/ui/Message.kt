@@ -275,16 +275,16 @@ fun UIMessage.finishPendingTools(
     transform: (UIMessagePart.Tool) -> UIMessagePart.Tool
 ): UIMessage {
     val updatedParts = parts.map { part ->
-        // Skip tools whose approvalState is ALREADY in a terminal state (Denied, Answered)
-        // even though `!isExecuted` is true. Without this skip, a hardline-blocked tool
-        // (Denied with empty output, set by GenerationHandler at hardline-check time)
-        // gets its reason overwritten with "Generation cancelled by user" — losing the
-        // safety-floor explanation. Approved+empty stays cancellable: it represents an
-        // approval the user granted but the tool never finished executing, so `/stop`
-        // should still flip it to Denied("cancelled by user").
+        // 只改写「用户已表态但尚未执行」的工具：
+        // - Pending：等待批准时用户继续对话 = 放弃本次批准窗口 → 记 cancelled；
+        // - Approved：用户批准了但工具没跑完（`/stop`）→ 仍应按取消处理。
+        // 刻意**排除** Denied/Answered（终态，理由不能被覆盖，例如安全底线拦截的说明），
+        // 以及 **Auto**：Auto 表示「用户根本没被问到」（本轮未标记 Pending，或状态被过期
+        // 快照回退），把它写成 Denied("cancelled by user") 是把「没问过」冤判成「用户拒绝」，
+        // 既误导模型，也污染历史。
         if (part is UIMessagePart.Tool && !part.isExecuted &&
-            part.approvalState !is ToolApprovalState.Denied &&
-            part.approvalState !is ToolApprovalState.Answered
+            (part.approvalState is ToolApprovalState.Pending ||
+                part.approvalState is ToolApprovalState.Approved)
         ) {
             transform(part)
         } else {
