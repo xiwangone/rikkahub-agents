@@ -3157,4 +3157,16 @@
     <item>Подвести итоги этого раунда и обновить запись состояния</item>
   </string-array>
 
+  <string name="setting_update_reminder_enabled">Напоминания об обновлениях включены</string>
+  <string name="setting_update_reminder_pause_days">%1$d дн.</string>
+  <string name="setting_update_reminder_pause_description">Выберите, на сколько приостановить напоминания об обновлениях. Они возобновятся автоматически.</string>
+  <string name="setting_update_reminder_pause_title">Приостановить напоминания об обновлениях</string>
+  <string name="setting_update_reminder_paused_until">Приостановлено до %1$s</string>
+  <string name="setting_update_reminder_resume_now">Возобновить сейчас</string>
+  <string name="workspace_detail_delete_saved_url">Удалить</string>
+  <string name="workspace_detail_import_local_rootfs">Импорт из локального файла</string>
+  <string name="workspace_detail_import_local_rootfs_desc">Выберите архив rootfs (tar.gz / tar.xz) на устройстве. Полезно, когда источник загрузки недоступен.</string>
+  <string name="workspace_detail_preset_rootfs_urls">Предустановки</string>
+  <string name="workspace_detail_save_rootfs_url">Сохранить текущий URL</string>
+  <string name="workspace_detail_saved_rootfs_urls">Сохранённые URL</string>
 </resources>

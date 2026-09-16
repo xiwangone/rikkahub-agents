@@ -3157,4 +3157,16 @@
     <item>今回の成果を振り返り状態記録を更新</item>
   </string-array>
 
+  <string name="setting_update_reminder_enabled">更新通知は有効です</string>
+  <string name="setting_update_reminder_pause_days">%1$d 日</string>
+  <string name="setting_update_reminder_pause_description">更新通知を停止する期間を選択してください。期間が過ぎると自動的に再開します。</string>
+  <string name="setting_update_reminder_pause_title">更新通知を一時停止</string>
+  <string name="setting_update_reminder_paused_until">%1$s まで一時停止中</string>
+  <string name="setting_update_reminder_resume_now">今すぐ再開</string>
+  <string name="workspace_detail_delete_saved_url">削除</string>
+  <string name="workspace_detail_import_local_rootfs">ローカルファイルから取り込む</string>
+  <string name="workspace_detail_import_local_rootfs_desc">端末内にある rootfs アーカイブ（tar.gz / tar.xz）を選択します。ダウンロード元に接続できない場合に便利です。</string>
+  <string name="workspace_detail_preset_rootfs_urls">プリセット</string>
+  <string name="workspace_detail_save_rootfs_url">現在の URL を保存</string>
+  <string name="workspace_detail_saved_rootfs_urls">保存済み URL</string>
 </resources>

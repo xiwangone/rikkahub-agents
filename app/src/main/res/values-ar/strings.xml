@@ -3146,4 +3146,26 @@
     <item>راجع نتائج هذه الجولة وحدِّث سجل الحالة</item>
   </string-array>
 
+  <string name="chat_generation_network_disconnected">انقطع اتصال الشبكة</string>
+  <string name="chat_generation_network_retrying">%1$s. إعادة المحاولة (%2$d/%3$d)…</string>
+  <string name="chat_generation_network_timeout">انتهت مهلة الاتصال</string>
+  <string name="chat_generation_network_unknown_host">تعذّر تحليل عنوان الخادم</string>
+  <string name="chat_generation_network_unreachable">تعذّر الاتصال بالخادم</string>
+  <string name="setting_provider_page_test_non_streaming">بدون بث</string>
+  <string name="setting_provider_page_test_streaming">بث</string>
+  <string name="setting_provider_page_test_tool_call">استدعاء أداة</string>
+  <string name="setting_provider_page_test_tool_called">تم الاستدعاء: %1$s  الوسائط: %2$s</string>
+  <string name="setting_provider_page_test_tool_not_called">لم يتم استدعاء الأداة، الرد: %s</string>
+  <string name="setting_update_reminder_enabled">تم تفعيل تنبيهات التحديث</string>
+  <string name="setting_update_reminder_pause_days">%1$d يوم</string>
+  <string name="setting_update_reminder_pause_description">اختر مدة إيقاف تنبيهات التحديث مؤقتًا. ستُستأنف تلقائيًا.</string>
+  <string name="setting_update_reminder_pause_title">إيقاف تنبيهات التحديث مؤقتًا</string>
+  <string name="setting_update_reminder_paused_until">موقوف حتى %1$s</string>
+  <string name="setting_update_reminder_resume_now">الاستئناف الآن</string>
+  <string name="workspace_detail_delete_saved_url">حذف</string>
+  <string name="workspace_detail_import_local_rootfs">استيراد من ملف محلي</string>
+  <string name="workspace_detail_import_local_rootfs_desc">اختر أرشيف rootfs (tar.gz / tar.xz) الموجود على الجهاز. مفيد عندما يتعذّر الوصول إلى مصدر التنزيل.</string>
+  <string name="workspace_detail_preset_rootfs_urls">الإعدادات المسبقة</string>
+  <string name="workspace_detail_save_rootfs_url">حفظ عنوان URL الحالي</string>
+  <string name="workspace_detail_saved_rootfs_urls">عناوين URL المحفوظة</string>
 </resources>

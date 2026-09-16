@@ -3143,4 +3143,29 @@
     <item>回顧本輪成果並更新狀態記錄</item>
   </string-array>
 
+  <string name="chat_generation_network_disconnected">網路連線已中斷</string>
+  <string name="chat_generation_network_retrying">%1$s。正在重試（%2$d/%3$d）…</string>
+  <string name="chat_generation_network_timeout">連線逾時</string>
+  <string name="chat_generation_network_unknown_host">無法解析伺服器位址</string>
+  <string name="chat_generation_network_unreachable">無法連線到伺服器</string>
+  <string name="setting_provider_page_test_non_streaming">非串流</string>
+  <string name="setting_provider_page_test_streaming">串流</string>
+  <string name="setting_provider_page_test_tool_call">工具呼叫</string>
+  <string name="setting_provider_page_test_tool_called">已呼叫：%1$s  參數：%2$s</string>
+  <string name="setting_provider_page_test_tool_not_called">未呼叫工具，回應：%s</string>
+  <string name="setting_update_reminder_enabled">更新提醒已開啟</string>
+  <string name="setting_update_reminder_pause_days">%1$d 天</string>
+  <string name="setting_update_reminder_pause_description">選擇暫停更新提醒的時長，到期後會自動恢復。</string>
+  <string name="setting_update_reminder_pause_title">暫停更新提醒</string>
+  <string name="setting_update_reminder_paused_until">已暫停至 %1$s</string>
+  <string name="setting_update_reminder_resume_now">立即恢復</string>
+  <string name="workspace_detail_compatibility_mode">相容模式</string>
+  <string name="workspace_detail_compatibility_mode_desc">若終端機無法啟動，可嘗試開啟此項。可能會降低效能。僅適用於新開的終端分頁與後續指令。</string>
+  <string name="workspace_detail_delete_saved_url">刪除</string>
+  <string name="workspace_detail_import_local_rootfs">從本機檔案匯入</string>
+  <string name="workspace_detail_import_local_rootfs_desc">選擇裝置上已有的 rootfs 壓縮檔（tar.gz / tar.xz）。當下載來源無法連線時很有用。</string>
+  <string name="workspace_detail_preset_rootfs_urls">預設</string>
+  <string name="workspace_detail_save_rootfs_url">儲存目前網址</string>
+  <string name="workspace_detail_saved_rootfs_urls">已儲存的網址</string>
+  <string name="workspace_detail_settings_save_failed">儲存設定失敗</string>
 </resources>

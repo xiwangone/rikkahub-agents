@@ -3149,4 +3149,20 @@
     <item>回顾本轮成果并更新状态记录</item>
   </string-array>
 
+  <string name="chat_generation_network_disconnected">网络连接已断开</string>
+  <string name="chat_generation_network_retrying">%1$s。正在重试（%2$d/%3$d）…</string>
+  <string name="chat_generation_network_timeout">连接超时</string>
+  <string name="chat_generation_network_unknown_host">无法解析服务器地址</string>
+  <string name="chat_generation_network_unreachable">无法连接到服务器</string>
+  <string name="setting_provider_page_test_non_streaming">非流式</string>
+  <string name="setting_provider_page_test_streaming">流式</string>
+  <string name="setting_provider_page_test_tool_call">工具调用</string>
+  <string name="setting_provider_page_test_tool_called">已调用：%1$s  参数：%2$s</string>
+  <string name="setting_provider_page_test_tool_not_called">未调用工具，响应：%s</string>
+  <string name="setting_update_reminder_enabled">更新提醒已开启</string>
+  <string name="setting_update_reminder_pause_days">%1$d 天</string>
+  <string name="setting_update_reminder_pause_description">选择暂停更新提醒的时长，到期后会自动恢复。</string>
+  <string name="setting_update_reminder_pause_title">暂停更新提醒</string>
+  <string name="setting_update_reminder_paused_until">已暂停至 %1$s</string>
+  <string name="setting_update_reminder_resume_now">立即恢复</string>
 </resources>
