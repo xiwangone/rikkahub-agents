@@ -479,7 +479,7 @@ internal fun parsePasteLongTextThreshold(text: String): Int? {
 /** 应用内可选语言：标签用 BCP 47（与 res/values* 对应），名称用该语言自身写法，不翻译。 */
 private val APP_LANGUAGE_OPTIONS: List<Pair<String, String>> = listOf(
     "en" to "English",
-    "zh-Hans" to "简体中文",
+    "zh" to "简体中文",
     "zh-Hant" to "繁體中文",
     "ja" to "日本語",
     "ko-KR" to "한국어",
