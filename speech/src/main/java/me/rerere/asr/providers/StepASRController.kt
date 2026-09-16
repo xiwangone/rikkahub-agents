@@ -9,7 +9,6 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.SystemClock
 import android.util.Base64
-import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +38,7 @@ import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.Collections
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "StepASR"
 
@@ -125,7 +125,7 @@ class StepASRController(
                 flushJob?.join()
                 flushSegment()
             } catch (e: Exception) {
-                Log.e(TAG, "Final flush failed", e)
+                AppLogger.e(TAG, "Final flush failed", e)
                 setError(e.message ?: "Step ASR final flush failed")
             } finally {
                 _state.update { it.copy(status = ASRStatus.Idle) }
@@ -197,7 +197,7 @@ class StepASRController(
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Audio recording failed", e)
+                    AppLogger.e(TAG, "Audio recording failed", e)
                     setError(e.message ?: "Audio recording failed")
                 } finally {
                     releaseRecorder()
@@ -211,7 +211,7 @@ class StepASRController(
         flushJob =
             scope.launch(Dispatchers.IO) {
                 runCatching { flushSegment() }
-                    .onFailure { Log.e(TAG, "Segment flush failed", it) }
+                    .onFailure { AppLogger.e(TAG, "Segment flush failed", it) }
             }
     }
 
@@ -234,7 +234,7 @@ class StepASRController(
         // 太短的段直接丢弃, 避免服务端因音频过短返回 400
         // (16kHz/16bit/mono 下 6400 字节 = 200ms, 短于这个长度服务端通常无法识别)
         if (pcmBytes.size < MIN_SEGMENT_BYTES) {
-            Log.d(TAG, "Skip flush: PCM too short (${pcmBytes.size} bytes)")
+            AppLogger.d(TAG, "Skip flush: PCM too short (${pcmBytes.size} bytes)")
             return
         }
 
@@ -304,7 +304,7 @@ class StepASRController(
                 }
             } catch (e: IOException) {
                 lastError = e
-                Log.w(TAG, "flushSegment attempt $attempt/$MAX_RETRY failed: ${e.message}")
+                AppLogger.w(TAG, "flushSegment attempt $attempt/$MAX_RETRY failed: ${e.message}")
                 if (attempt < MAX_RETRY) {
                     kotlinx.coroutines.delay(300L * attempt) // 指数退避: 300ms, 600ms
                 }

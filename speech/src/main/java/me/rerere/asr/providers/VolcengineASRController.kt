@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.media.AudioFormat
 import android.media.AudioRecord
 import android.media.MediaRecorder
-import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -39,6 +38,7 @@ import okhttp3.WebSocketListener
 import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import kotlin.uuid.Uuid
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "VolcengineASR"
 private const val MAX_WEBSOCKET_QUEUE_BYTES = 100_000L
@@ -116,7 +116,7 @@ class VolcengineASRController(
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 scope.launch {
                     if (this@VolcengineASRController.webSocket !== webSocket) return@launch
-                    Log.e(TAG, "Volcengine ASR websocket failed", t)
+                    AppLogger.e(TAG, "Volcengine ASR websocket failed", t)
                     setError(t.message ?: "ASR websocket failed")
                 }
             }
@@ -196,7 +196,7 @@ class VolcengineASRController(
                 socket.close(1000, "recognition finished")
             }
         } catch (e: Exception) {
-            Log.w(TAG, "Failed to decode ASR response", e)
+            AppLogger.w(TAG, "Failed to decode ASR response", e)
             setError(e.message ?: "Invalid ASR response")
         }
     }
@@ -234,7 +234,7 @@ class VolcengineASRController(
                             val frame = VolcengineASRProtocol.audioFrame(buffer.copyOfRange(0, read))
                             socket.send(frame.toByteString())
                         } else {
-                            Log.w(TAG, "WebSocket queue full, dropping audio frame")
+                            AppLogger.w(TAG, "WebSocket queue full, dropping audio frame")
                         }
                     } else if (read < 0) {
                         throw IllegalStateException("AudioRecord read error: $read")

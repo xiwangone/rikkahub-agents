@@ -3,7 +3,6 @@ package me.rerere.tts.provider.providers
 import android.content.Context
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
-import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -17,6 +16,7 @@ import java.util.Locale
 import java.util.UUID
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "SystemTTSProvider"
 
@@ -42,7 +42,7 @@ class SystemTTSProvider : TTSProvider<TTSProviderSetting.SystemTTS> {
                                 if (langResult == TextToSpeech.LANG_MISSING_DATA ||
                                     langResult == TextToSpeech.LANG_NOT_SUPPORTED
                                 ) {
-                                    Log.w(TAG, "generateSpeech: Language $locale not supported")
+                                    AppLogger.w(TAG, "generateSpeech: Language $locale not supported")
                                 }
 
                                 // Set speech parameters
@@ -58,7 +58,7 @@ class SystemTTSProvider : TTSProvider<TTSProviderSetting.SystemTTS> {
                                 ttsInstance.setOnUtteranceProgressListener(
                                     object : UtteranceProgressListener() {
                                         override fun onStart(utteranceId: String?) {
-                                            Log.i(TAG, "onStart: TTS engine started!")
+                                            AppLogger.i(TAG, "onStart: TTS engine started!")
                                         }
 
                                         override fun onDone(utteranceId: String?) {
@@ -86,7 +86,7 @@ class SystemTTSProvider : TTSProvider<TTSProviderSetting.SystemTTS> {
                                             "UtteranceProgressListener.onError(String) was deprecated in API 21 in favor of onError(String, Int); kept for back-compat",
                                         )
                                         override fun onError(utteranceId: String?) {
-                                            Log.e(TAG, "onError: TTS synthesis failed!")
+                                            AppLogger.e(TAG, "onError: TTS synthesis failed!")
                                             audioFile.delete()
                                             if (continuation.isActive) {
                                                 continuation.resumeWithException(

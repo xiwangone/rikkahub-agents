@@ -1,7 +1,6 @@
 package me.rerere.tts.controller
 
 import android.content.Context
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -25,6 +24,7 @@ import me.rerere.tts.provider.TTSProviderException
 import me.rerere.tts.provider.TTSProviderSetting
 import java.io.IOException
 import java.util.UUID
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "TtsController"
 private const val MAX_SYNTHESIS_ATTEMPTS = 3
@@ -291,7 +291,7 @@ class TtsController(
                                 awaitOrCreate(chunk, provider)
                             } catch (e: Exception) {
                                 if (e is CancellationException) throw e
-                                Log.e(TAG, "Synthesis error", e)
+                                AppLogger.e(TAG, "Synthesis error", e)
                                 _error.update { e.message ?: "TTS synthesis error" }
                                 processedCount++
                                 continue
@@ -302,7 +302,7 @@ class TtsController(
                             audio.play(response)
                         } catch (e: Exception) {
                             if (e is CancellationException) throw e
-                            Log.e(TAG, "Playback error", e)
+                            AppLogger.e(TAG, "Playback error", e)
                             _error.update { e.message ?: "Audio playback error" }
                         }
 
@@ -368,7 +368,7 @@ class TtsController(
                 if (!e.isRetryableSynthesisError() || attempt >= MAX_SYNTHESIS_ATTEMPTS) throw e
 
                 val retryDelayMs = SYNTHESIS_RETRY_BASE_DELAY_MS * (1L shl (attempt - 1))
-                Log.w(
+                AppLogger.w(
                     TAG,
                     "Synthesis attempt $attempt/$MAX_SYNTHESIS_ATTEMPTS failed for chunk ${chunk.index}; " +
                         "retrying in ${retryDelayMs}ms",

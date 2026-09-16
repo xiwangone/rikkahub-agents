@@ -204,6 +204,24 @@ class RikkaHubApp : Application() {
 
         // 应用层日志：开关开启时启动 logcat 流式记录（ChatService 等）
         me.rerere.rikkahub.data.log.AppLog.startIfEnabled(this)
+        // 让 ai / speech / search 等下游模块的日志也进入应用内日志（设置页可查看/导出、并落盘）
+        me.rerere.common.log.AppLogger.install(
+            object : me.rerere.common.log.AppLogger.Sink {
+                override fun d(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.d(tag, message)
+
+                override fun i(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.i(tag, message)
+
+                override fun w(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.w(tag, message)
+
+                override fun w(tag: String, message: String, tr: Throwable) =
+                    me.rerere.rikkahub.data.log.AppLog.w(tag, message, tr)
+
+                override fun e(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.e(tag, message)
+
+                override fun e(tag: String, message: String, tr: Throwable) =
+                    me.rerere.rikkahub.data.log.AppLog.e(tag, message, tr)
+            },
+        )
 
         // Phase-17 stability — register a network-change monitor that evicts OkHttp's
         // connection pool on every default-network transition. Fixes the post-Termux-

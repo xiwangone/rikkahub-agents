@@ -36,6 +36,7 @@ import okhttp3.WebSocketListener
 import org.json.JSONObject
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "OpenAIRealtimeASR"
 private const val MAX_WEBSOCKET_QUEUE_BYTES = 100_000L
@@ -102,7 +103,7 @@ class OpenAIRealtimeASRController(
 
             override fun onFailure(webSocket: WebSocket, t: Throwable, response: Response?) {
                 if (this@OpenAIRealtimeASRController.webSocket !== webSocket) return
-                Log.e(TAG, "Realtime ASR websocket failed", t)
+                AppLogger.e(TAG, "Realtime ASR websocket failed", t)
                 releaseRecorder()
                 setError(t.message ?: "ASR websocket failed")
             }
@@ -193,7 +194,7 @@ class OpenAIRealtimeASRController(
                                 .put("audio", encoded)
                             socket.send(event.toString())
                         } else {
-                            Log.w(TAG, "WebSocket queue full, dropping audio frame")
+                            AppLogger.w(TAG, "WebSocket queue full, dropping audio frame")
                         }
                     } else if (read < 0) {
                         throw IllegalStateException("AudioRecord read error: $read")
@@ -201,7 +202,7 @@ class OpenAIRealtimeASRController(
                 }
             } catch (e: Exception) {
                 if (isActive) {
-                    Log.e(TAG, "Audio recording failed", e)
+                    AppLogger.e(TAG, "Audio recording failed", e)
                     setError(e.message ?: "Audio recording failed")
                 }
             } finally {
@@ -212,7 +213,7 @@ class OpenAIRealtimeASRController(
 
     private fun handleServerEvent(text: String) {
         val event = runCatching { JSONObject(text) }.getOrElse {
-            Log.w(TAG, "Invalid realtime event: $text", it)
+            AppLogger.w(TAG, "Invalid realtime event: $text", it)
             return
         }
 

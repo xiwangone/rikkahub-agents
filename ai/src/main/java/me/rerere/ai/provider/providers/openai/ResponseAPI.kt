@@ -1,6 +1,5 @@
 package me.rerere.ai.provider.providers.openai
 
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -76,6 +75,7 @@ import okhttp3.sse.EventSources
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Clock
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "ResponseAPI"
 private val USER_CANCELLATION_MARKERS = listOf(
@@ -213,7 +213,7 @@ class ResponseAPI(
             .build()
 
         if (Logging.isDebugLoggingEnabled()) {
-            Log.i(TAG, "generateText: ${json.encodeToString(redactSecrets(requestBody))}")
+            AppLogger.i(TAG, "generateText: ${json.encodeToString(redactSecrets(requestBody))}")
         }
 
         // await() waits for the response headers; reading the body can still block.
@@ -224,7 +224,7 @@ class ResponseAPI(
 
             val bodyStr = response.body.string()
             if (Logging.isDebugLoggingEnabled()) {
-                Log.i(TAG, "generateText: ${redactSecrets(json.parseToJsonElement(bodyStr))}")
+                AppLogger.i(TAG, "generateText: ${redactSecrets(json.parseToJsonElement(bodyStr))}")
             }
             val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
             parseResponseOutput(bodyJson)
@@ -255,7 +255,7 @@ class ResponseAPI(
             .build()
 
         if (Logging.isDebugLoggingEnabled()) {
-            Log.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
+            AppLogger.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
         }
 
         val completionReceived = AtomicBoolean(false)
@@ -267,7 +267,7 @@ class ResponseAPI(
         fun sendChunks(chunks: Iterable<StreamChunk>) {
             chunks.forEach { chunk ->
                 trySend(chunk).onFailure { e ->
-                    Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                    AppLogger.w(TAG, "onEvent: chunk dropped (${e?.message})")
                 }
             }
         }
@@ -279,12 +279,12 @@ class ResponseAPI(
                 type: String?,
                 data: String
             ) {
-                Log.d(TAG, "onEvent: $id/$type $data")
+                AppLogger.d(TAG, "onEvent: $id/$type $data")
                 if (data.trim() == "[DONE]") {
                     try {
                         sendChunks(decoder.accept(SseEvent(id = id, event = type, data = data)).chunks)
                     } catch (e: Throwable) {
-                        Log.w(TAG, "onEvent: failed to finish decoder for [DONE]", e)
+                        AppLogger.w(TAG, "onEvent: failed to finish decoder for [DONE]", e)
                     }
                     completionReceived.set(true)
                     close()
@@ -339,13 +339,13 @@ class ResponseAPI(
                     "Response stream failed${response?.code?.let { " (HTTP $it)" }.orEmpty()}"
                 )
 
-                Log.w(TAG, "onFailure: ${t?.javaClass?.name} ${t?.message} / $response", t)
+                AppLogger.w(TAG, "onFailure: ${t?.javaClass?.name} ${t?.message} / $response", t)
 
                 val bodyRaw = response?.body?.stringSafe()
                 try {
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
-                        Log.d(TAG, "onFailure: error body $bodyElement")
+                        AppLogger.d(TAG, "onFailure: error body $bodyElement")
                         val detail = bodyElement.parseErrorDetail()
                         val code = (bodyElement as? JsonObject)?.responseErrorText("code")
                         exception = if (code != null && !detail.message.orEmpty().contains(code, ignoreCase = true)) {
@@ -353,10 +353,10 @@ class ResponseAPI(
                         } else {
                             detail
                         }
-                        Log.i(TAG, "onFailure: $exception")
+                        AppLogger.i(TAG, "onFailure: $exception")
                     }
                 } catch (e: Throwable) {
-                    Log.w(TAG, "onFailure: failed to parse from $bodyRaw", e)
+                    AppLogger.w(TAG, "onFailure: failed to parse from $bodyRaw", e)
                 }
                 if (receivedMeaningfulOutput.get()) {
                     exception = ResponseStreamFailureException(
@@ -772,7 +772,7 @@ class ResponseAPI(
                                             put("type", "input_image")
                                             put("image_url", encodedImage.base64)
                                         }.onFailure {
-                                            Log.w(TAG, "failed to encode image to base64", it)
+                                            AppLogger.w(TAG, "failed to encode image to base64", it)
                                             put("type", "input_text")
                                             put("text", "Error: Failed to encode image to base64")
                                         }

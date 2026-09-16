@@ -1,7 +1,6 @@
 package me.rerere.tts.provider.providers
 
 import android.content.Context
-import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.rerere.tts.model.AudioChunk
@@ -16,6 +15,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "GroqTTSProvider"
 
@@ -40,7 +40,7 @@ class GroqTTSProvider : TTSProvider<TTSProviderSetting.Groq> {
                     put("response_format", "wav")
                 }
 
-            Log.i(TAG, "generateSpeech: $requestBody")
+            AppLogger.i(TAG, "generateSpeech: $requestBody")
 
             val httpRequest =
                 Request
@@ -54,8 +54,8 @@ class GroqTTSProvider : TTSProvider<TTSProviderSetting.Groq> {
             val response = httpClient.newCall(httpRequest).execute()
 
             if (!response.isSuccessful) {
-                Log.e(TAG, "generateSpeech: ${response.code} ${response.message}")
-                Log.e(TAG, "generateSpeech: ${response.body.string()}")
+                AppLogger.e(TAG, "generateSpeech: ${response.code} ${response.message}")
+                AppLogger.e(TAG, "generateSpeech: ${response.body.string()}")
                 throw TTSProviderException(
                     message = "Groq TTS request failed: ${response.code} ${response.message}",
                     statusCode = response.code,

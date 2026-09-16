@@ -1,7 +1,6 @@
 package me.rerere.tts.provider.providers
 
 import android.content.Context
-import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.rerere.tts.model.AudioChunk
@@ -16,6 +15,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "FishAudioTTSProvider"
 
@@ -52,7 +52,7 @@ class FishAudioTTSProvider : TTSProvider<TTSProviderSetting.FishAudio> {
                     put("latency", providerSetting.latency)
                 }
 
-            Log.i(TAG, "generateSpeech: model=${providerSetting.model}, referenceId=${providerSetting.referenceId}")
+            AppLogger.i(TAG, "generateSpeech: model=${providerSetting.model}, referenceId=${providerSetting.referenceId}")
 
             val httpRequest =
                 Request
@@ -68,8 +68,8 @@ class FishAudioTTSProvider : TTSProvider<TTSProviderSetting.FishAudio> {
 
             if (!response.isSuccessful) {
                 val errorBody = response.body?.string()
-                Log.e(TAG, "generateSpeech: ${response.code} ${response.message}")
-                Log.e(TAG, "generateSpeech: $errorBody")
+                AppLogger.e(TAG, "generateSpeech: ${response.code} ${response.message}")
+                AppLogger.e(TAG, "generateSpeech: $errorBody")
                 throw TTSProviderException(
                     message = "Fish Audio TTS request failed: ${response.code} ${response.message}",
                     statusCode = response.code,

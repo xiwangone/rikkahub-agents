@@ -4,7 +4,6 @@ import android.app.ActivityManager
 import android.content.Context
 import android.content.Intent
 import android.os.Process
-import android.util.Log
 import kotlinx.coroutines.delay
 import com.google.mlkit.genai.common.FeatureStatus
 import com.google.mlkit.genai.prompt.Generation
@@ -41,6 +40,7 @@ import me.rerere.ai.ui.ImageGenerationItem
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "AICoreProvider"
 
@@ -80,7 +80,7 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
             val status: Int = try {
                 generativeModel.checkStatus()
             } catch (t: Throwable) {
-                Log.w(TAG, "checkStatus threw", t)
+                AppLogger.w(TAG, "checkStatus threw", t)
                 error(translateAICoreError(t))
             }
             if (status != FeatureStatus.AVAILABLE) {
@@ -89,7 +89,7 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
             try {
                 generativeModel.warmup()
             } catch (t: Throwable) {
-                Log.w(TAG, "warmup threw", t)
+                AppLogger.w(TAG, "warmup threw", t)
                 error(translateAICoreError(t))
             }
 
@@ -177,12 +177,12 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
                     }
                 }
             } catch (t: Throwable) {
-                Log.w(TAG, "generateContentStream threw", t)
+                AppLogger.w(TAG, "generateContentStream threw", t)
                 error(translateAICoreError(t))
             }
         } finally {
             try { generativeModel.close() } catch (t: Throwable) {
-                Log.w(TAG, "close failed", t)
+                AppLogger.w(TAG, "close failed", t)
             }
             // Mark the preference as used so the inline cache is consistent
             require(preference.isNotEmpty())
@@ -232,7 +232,7 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
         return try {
             generativeModel.checkStatus()
         } catch (t: Throwable) {
-            Log.w(TAG, "checkStatus failed", t)
+            AppLogger.w(TAG, "checkStatus failed", t)
             FeatureStatus.UNAVAILABLE
         } finally {
             try { generativeModel.close() } catch (_: Throwable) {}
@@ -305,7 +305,7 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
      */
     private suspend fun ensureAppForeground(ctx: Context, maxWaitMs: Long = 2500L) {
         if (isAppForeground(ctx)) return
-        Log.i(TAG, "ensureAppForeground: launching ${ctx.packageName} to clear AICore background block")
+        AppLogger.i(TAG, "ensureAppForeground: launching ${ctx.packageName} to clear AICore background block")
         val launchIntent = ctx.packageManager.getLaunchIntentForPackage(ctx.packageName)
             ?: return
         launchIntent.addFlags(
@@ -314,7 +314,7 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
         try {
             ctx.startActivity(launchIntent)
         } catch (t: Throwable) {
-            Log.w(TAG, "ensureAppForeground: startActivity threw", t)
+            AppLogger.w(TAG, "ensureAppForeground: startActivity threw", t)
             return
         }
         val deadline = System.currentTimeMillis() + maxWaitMs
@@ -322,7 +322,7 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
             if (isAppForeground(ctx)) return
             delay(100)
         }
-        Log.w(TAG, "ensureAppForeground: timed out waiting for foreground transition")
+        AppLogger.w(TAG, "ensureAppForeground: timed out waiting for foreground transition")
     }
 
     private fun isAppForeground(ctx: Context): Boolean {

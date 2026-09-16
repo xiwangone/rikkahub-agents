@@ -1,7 +1,6 @@
 package me.rerere.tts.provider.providers
 
 import android.content.Context
-import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
@@ -21,6 +20,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "MiniMaxTTSProvider"
 
@@ -76,7 +76,7 @@ class MiniMaxTTSProvider : TTSProvider<TTSProviderSetting.MiniMax> {
                     )
                 }
 
-            Log.i(TAG, "generateSpeech: $requestBody")
+            AppLogger.i(TAG, "generateSpeech: $requestBody")
 
             val httpRequest =
                 Request
@@ -92,7 +92,7 @@ class MiniMaxTTSProvider : TTSProvider<TTSProviderSetting.MiniMax> {
             httpClient.sseFlow(httpRequest).collect {
                 when (it) {
                     is SseEvent.Open -> {
-                        Log.i(TAG, "SSE connection opened")
+                        AppLogger.i(TAG, "SSE connection opened")
                     }
 
                     is SseEvent.Event -> {
@@ -120,12 +120,12 @@ class MiniMaxTTSProvider : TTSProvider<TTSProviderSetting.MiniMax> {
                             )
                             hasEmittedAudio = true
                         } catch (e: Exception) {
-                            Log.e(TAG, "Failed to process audio chunk", e)
+                            AppLogger.e(TAG, "Failed to process audio chunk", e)
                         }
                     }
 
                     is SseEvent.Closed -> {
-                        Log.i(TAG, "SSE connection closed")
+                        AppLogger.i(TAG, "SSE connection closed")
                         // Emit final chunk if we haven't already
                         if (hasEmittedAudio) {
                             emit(
@@ -141,7 +141,7 @@ class MiniMaxTTSProvider : TTSProvider<TTSProviderSetting.MiniMax> {
                     }
 
                     is SseEvent.Failure -> {
-                        Log.e(TAG, "SSE connection failed", it.throwable)
+                        AppLogger.e(TAG, "SSE connection failed", it.throwable)
                         val statusCode = it.response?.code
                         if (statusCode != null) {
                             throw TTSProviderException(

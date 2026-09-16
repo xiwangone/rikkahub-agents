@@ -1,7 +1,6 @@
 package me.rerere.ai.provider.providers.google
 
 import android.content.Context
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
@@ -84,6 +83,7 @@ import okhttp3.sse.EventSources
 import org.apache.commons.text.StringEscapeUtils
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "GoogleProvider"
 
@@ -164,7 +164,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             val response = client.newCall(request).await()
             if (response.isSuccessful) {
                 val body = response.body.string()
-                Log.d(TAG, "listModels: $body")
+                AppLogger.d(TAG, "listModels: $body")
                 val bodyObject = json.parseToJsonElement(body).jsonObject
                 val models = bodyObject["models"]?.jsonArray ?: return@withContext emptyList()
 
@@ -268,7 +268,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         )
 
         if (Logging.isDebugLoggingEnabled()) {
-            Log.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
+            AppLogger.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
         }
 
         val responseId = Uuid.random().toString()
@@ -277,7 +277,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         fun sendChunks(chunks: Iterable<StreamChunk>) {
             chunks.forEach { chunk ->
                 trySend(chunk).onFailure { e ->
-                    Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                    AppLogger.w(TAG, "onEvent: chunk dropped (${e?.message})")
                 }
             }
         }
@@ -289,7 +289,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 type: String?,
                 data: String
             ) {
-                Log.i(TAG, "onEvent: $data")
+                AppLogger.i(TAG, "onEvent: $data")
 
                 try {
                     val result = decoder.accept(SseEvent(id = id, event = type, data = data))
@@ -298,13 +298,13 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 } catch (e: IllegalStateException) {
                     // Deliberate stream termination raised by the decoder itself
                     // (e.g. a prompt-feedback block reason), not a parse failure.
-                    Log.e(TAG, "Stream terminated: $data", e)
+                    AppLogger.e(TAG, "Stream terminated: $data", e)
                     close(e)
                 } catch (e: Throwable) {
                     // A single malformed/unparseable chunk must not escape this callback:
                     // an uncaught exception here propagates through OkHttp's SSE reader and
                     // aborts the whole stream instead of just skipping this one line.
-                    Log.w(TAG, "onEvent: skipping malformed chunk (${e.message})", e)
+                    AppLogger.w(TAG, "onEvent: skipping malformed chunk (${e.message})", e)
                 }
             }
 
@@ -315,14 +315,14 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             ) {
                 var exception = t
 
-                Log.w(TAG, "onFailure: ${t?.message}", t)
+                AppLogger.w(TAG, "onFailure: ${t?.message}", t)
 
                 try {
                     if (t == null && response != null) {
                         val bodyStr = response.body.stringSafe()
                         if (!bodyStr.isNullOrEmpty()) {
                             val bodyElement = json.parseToJsonElement(bodyStr)
-                            Log.d(TAG, "onFailure: error body $bodyElement")
+                            AppLogger.d(TAG, "onFailure: error body $bodyElement")
                             if (bodyElement is JsonObject) {
                                 exception = Exception(
                                     bodyElement["error"]?.jsonObject?.get("message")?.jsonPrimitive?.content
@@ -334,7 +334,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                         }
                     }
                 } catch (e: Throwable) {
-                    Log.w(TAG, "onFailure: failed to parse error body", e)
+                    AppLogger.w(TAG, "onFailure: failed to parse error body", e)
                     exception = e
                 } finally {
                     close(exception ?: Exception("Stream failed"))
@@ -567,7 +567,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         } ?: emptyList()
 
         val groundingMetadata = message["groundingMetadata"]?.jsonObject
-        Log.i(TAG, "parseMessage: $groundingMetadata")
+        AppLogger.i(TAG, "parseMessage: $groundingMetadata")
         val annotations = parseSearchGroundingMetadata(groundingMetadata)
 
         return UIMessage(
@@ -589,7 +589,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 url = uri
             )
         }
-        Log.i(TAG, "parseSearchGroundingMetadata: $chunks")
+        AppLogger.i(TAG, "parseSearchGroundingMetadata: $chunks")
         return chunks
     }
 
@@ -648,7 +648,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             }
 
             else -> {
-                Log.w(TAG, "parseMessagePart: skipping unrecognized part, keys=${jsonObject.keys}")
+                AppLogger.w(TAG, "parseMessagePart: skipping unrecognized part, keys=${jsonObject.keys}")
                 null
             }
         }
@@ -812,7 +812,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
     // even though the caller passes a base64 payload's URL.
     private fun logDroppedPart(partType: String, url: String) {
         val scheme = url.substringBefore(':', missingDelimiterValue = "none")
-        Log.w(TAG, "toGooglePart: dropping unencodable $partType part, url scheme=$scheme")
+        AppLogger.w(TAG, "toGooglePart: dropping unencodable $partType part, url scheme=$scheme")
     }
 
     private fun UIMessagePart.Tool.toFunctionCallPart() = buildJsonObject {

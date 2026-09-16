@@ -9,7 +9,6 @@ import android.media.AudioRecord
 import android.media.MediaRecorder
 import android.os.SystemClock
 import android.util.Base64
-import android.util.Log
 import androidx.core.content.ContextCompat
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +37,7 @@ import org.json.JSONObject
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.Collections
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "MiMoASR"
 
@@ -118,7 +118,7 @@ class MiMoASRController(
                 flushJob?.join()
                 flushSegment()
             } catch (e: Exception) {
-                Log.e(TAG, "Final flush failed", e)
+                AppLogger.e(TAG, "Final flush failed", e)
                 setError(e.message ?: "MiMo ASR final flush failed")
             } finally {
                 _state.update { it.copy(status = ASRStatus.Idle) }
@@ -190,7 +190,7 @@ class MiMoASRController(
                         }
                     }
                 } catch (e: Exception) {
-                    Log.e(TAG, "Audio recording failed", e)
+                    AppLogger.e(TAG, "Audio recording failed", e)
                     setError(e.message ?: "Audio recording failed")
                 } finally {
                     releaseRecorder()
@@ -204,7 +204,7 @@ class MiMoASRController(
         flushJob =
             scope.launch(Dispatchers.IO) {
                 runCatching { flushSegment() }
-                    .onFailure { Log.e(TAG, "Segment flush failed", it) }
+                    .onFailure { AppLogger.e(TAG, "Segment flush failed", it) }
             }
     }
 

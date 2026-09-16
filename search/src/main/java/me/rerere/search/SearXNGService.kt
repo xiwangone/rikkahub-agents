@@ -1,6 +1,5 @@
 package me.rerere.search
 
-import android.util.Log
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
@@ -27,6 +26,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
 import java.net.URLEncoder
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "SearXNGService"
 
@@ -105,7 +105,7 @@ object SearXNGService : SearchService<SearchServiceOptions.SearXNGOptions> {
                 }
                 .build()
 
-            Log.i(TAG, "search: $url")
+            AppLogger.i(TAG, "search: $url")
 
             val response = httpClient.newCall(request).await()
             if (response.isSuccessful) {
@@ -113,7 +113,7 @@ object SearXNGService : SearchService<SearchServiceOptions.SearXNGOptions> {
                 val searchResponse = runCatching {
                     json.decodeFromString<SearXNGResponse>(bodyRaw)
                 }.onFailure {
-                    Log.e(TAG, "Failed to decode SearXNG response: $bodyRaw", it)
+                    AppLogger.e(TAG, "Failed to decode SearXNG response: $bodyRaw", it)
                     error("Failed to decode SearXNG response: ${it.message}")
                 }.getOrThrow()
 
@@ -131,7 +131,7 @@ object SearXNGService : SearchService<SearchServiceOptions.SearXNGOptions> {
                 return@withContext Result.success(SearchResult(items = items))
             } else {
                 val errorBody = response.body.string()
-                Log.e(TAG, "SearXNG API error: ${response.code} - $errorBody")
+                AppLogger.e(TAG, "SearXNG API error: ${response.code} - $errorBody")
                 error("SearXNG request failed with status ${response.code}")
             }
         }

@@ -1,6 +1,5 @@
 package me.rerere.ai.provider.providers.openai
 
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
@@ -75,6 +74,7 @@ import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import kotlin.time.Clock
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "ChatCompletionsAPI"
 
@@ -109,7 +109,7 @@ class ChatCompletionsAPI(
             .build()
 
         if (Logging.isDebugLoggingEnabled()) {
-            Log.i(TAG, "generateText: ${json.encodeToString(redactSecrets(requestBody))}")
+            AppLogger.i(TAG, "generateText: ${json.encodeToString(redactSecrets(requestBody))}")
         }
 
         val response = client.newCall(request).await()
@@ -164,7 +164,7 @@ class ChatCompletionsAPI(
             .build()
 
         if (Logging.isDebugLoggingEnabled()) {
-            Log.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
+            AppLogger.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
         }
 
         // just for debugging response body
@@ -175,7 +175,7 @@ class ChatCompletionsAPI(
         fun sendChunks(chunks: Iterable<StreamChunk>) {
             chunks.forEach { chunk ->
                 trySend(chunk).onFailure { e ->
-                    Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                    AppLogger.w(TAG, "onEvent: chunk dropped (${e?.message})")
                 }
             }
         }
@@ -187,7 +187,7 @@ class ChatCompletionsAPI(
                 type: String?,
                 data: String
             ) {
-                Log.d(TAG, "onEvent: $data")
+                AppLogger.d(TAG, "onEvent: $data")
                 try {
                     val result = decoder.accept(SseEvent(id = id, event = type, data = data))
                     sendChunks(result.chunks)
@@ -199,25 +199,25 @@ class ChatCompletionsAPI(
                     // callback: an uncaught exception here propagates through
                     // OkHttp's SSE reader and aborts the whole stream instead of
                     // just skipping this one line.
-                    Log.w(TAG, "onEvent: skipping malformed chunk (${e.message})", e)
+                    AppLogger.w(TAG, "onEvent: skipping malformed chunk (${e.message})", e)
                 }
             }
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
                 var exception = t
 
-                Log.w(TAG, "onFailure: ${t?.javaClass?.name} ${t?.message} / $response", t)
+                AppLogger.w(TAG, "onFailure: ${t?.javaClass?.name} ${t?.message} / $response", t)
 
                 val bodyRaw = response?.body?.stringSafe()
                 try {
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
-                        Log.d(TAG, "onFailure: error body $bodyElement")
+                        AppLogger.d(TAG, "onFailure: error body $bodyElement")
                         exception = bodyElement.parseErrorDetail()
-                        Log.i(TAG, "onFailure: $exception")
+                        AppLogger.i(TAG, "onFailure: $exception")
                     }
                 } catch (e: Throwable) {
-                    Log.w(TAG, "onFailure: failed to parse from $bodyRaw", e)
+                    AppLogger.w(TAG, "onFailure: failed to parse from $bodyRaw", e)
                     exception = e
                 } finally {
                     close(exception)
@@ -766,7 +766,7 @@ class ChatCompletionsAPI(
                                                 put("url", encodedImage.base64)
                                             })
                                         }.onFailure {
-                                            Log.w(TAG, "failed to encode image to base64", it)
+                                            AppLogger.w(TAG, "failed to encode image to base64", it)
                                             put("type", "text")
                                             put("text", "")
                                         }
@@ -854,7 +854,7 @@ class ChatCompletionsAPI(
                                                 put("url", encodedImage.base64)
                                             })
                                         }.onFailure {
-                                            Log.w(TAG, "failed to encode image to base64", it)
+                                            AppLogger.w(TAG, "failed to encode image to base64", it)
                                             put("type", "text")
                                             put("text", "")
                                         }
@@ -903,7 +903,7 @@ class ChatCompletionsAPI(
                                         put("url", encodedImage.base64)
                                     })
                                 }.onFailure {
-                                    Log.w(TAG, "encode tool result image failed: ${part.url}", it)
+                                    AppLogger.w(TAG, "encode tool result image failed: ${part.url}", it)
                                     put("type", "text")
                                     put("text", "Error: Failed to encode image to base64")
                                 }
@@ -967,7 +967,7 @@ class ChatCompletionsAPI(
                     if (!type.isNullOrEmpty() && type != "function") {
                         // Skip unsupported tool-call types rather than throwing, which would
                         // crash the stream. Today only "function" is handled.
-                        Log.w(TAG, "skipping unsupported tool call type: $type")
+                        AppLogger.w(TAG, "skipping unsupported tool call type: $type")
                         return@forEach
                     }
                     val toolCallId = toolCalls.jsonObject["id"]?.jsonPrimitive?.contentOrNull
@@ -1023,7 +1023,7 @@ class ChatCompletionsAPI(
                     // Newer providers add annotation types (file_citation, web_search_result,
                     // ...). Skip unknown/missing types instead of throwing, which would crash
                     // the whole stream for the user.
-                    Log.w(TAG, "skipping unknown annotation type: $type")
+                    AppLogger.w(TAG, "skipping unknown annotation type: $type")
                     null
                 }
             }

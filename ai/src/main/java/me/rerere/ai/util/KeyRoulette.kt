@@ -1,11 +1,11 @@
 package me.rerere.ai.util
 
 import android.content.Context
-import android.util.Log
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
 import java.util.concurrent.Executors
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "KeyRoulette"
 
@@ -144,7 +144,7 @@ private class LruKeyRoulette(
             if (!file.exists()) return emptyMap()
             Json.decodeFromString(file.readText())
         } catch (e: Exception) {
-            Log.w(TAG, "loadCache: failed to read LRU key cache, starting empty", e)
+            AppLogger.w(TAG, "loadCache: failed to read LRU key cache, starting empty", e)
             emptyMap()
         }
     }
@@ -153,7 +153,7 @@ private class LruKeyRoulette(
         try {
             File(context.cacheDir, LRU_CACHE_FILE).writeText(Json.encodeToString(cache))
         } catch (e: Exception) {
-            Log.w(TAG, "saveCache: failed to persist LRU key cache", e)
+            AppLogger.w(TAG, "saveCache: failed to persist LRU key cache", e)
         }
     }
 }

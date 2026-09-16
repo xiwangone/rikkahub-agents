@@ -1,6 +1,5 @@
 package me.rerere.ai.provider.providers.google
 
-import android.util.Log
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
@@ -22,6 +21,7 @@ import me.rerere.ai.ui.toMetadata
 import me.rerere.ai.util.json
 import me.rerere.common.http.jsonPrimitiveOrNull
 import kotlin.time.Clock
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "GoogleStreamDecoder"
 
@@ -112,7 +112,7 @@ internal class GoogleStreamDecoder(
             }
         }
         else -> {
-            Log.w(TAG, "parsePart: skipping unrecognized part, keys=${part.keys}")
+            AppLogger.w(TAG, "parsePart: skipping unrecognized part, keys=${part.keys}")
             null
         }
     }

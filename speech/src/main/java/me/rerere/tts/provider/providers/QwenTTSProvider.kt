@@ -2,7 +2,6 @@ package me.rerere.tts.provider.providers
 
 import android.content.Context
 import android.util.Base64
-import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import me.rerere.tts.model.AudioChunk
@@ -17,6 +16,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "QwenTTSProvider"
 
@@ -49,7 +49,7 @@ class QwenTTSProvider : TTSProvider<TTSProviderSetting.Qwen> {
             })
         }
 
-        Log.i(TAG, "generateSpeech: $requestBody")
+        AppLogger.i(TAG, "generateSpeech: $requestBody")
 
         val httpRequest = Request.Builder()
             .url("${providerSetting.baseUrl.trimEnd('/')}/services/audio/tts/SpeechSynthesizer")
@@ -62,7 +62,7 @@ class QwenTTSProvider : TTSProvider<TTSProviderSetting.Qwen> {
         httpClient.newCall(httpRequest).execute().use { response ->
             if (!response.isSuccessful) {
                 val errorBody = response.body.string()
-                Log.e(
+                AppLogger.e(
                     TAG,
                     "Qwen TTS request failed: ${response.code} ${response.message}, body: $errorBody"
                 )
@@ -132,7 +132,7 @@ class QwenTTSProvider : TTSProvider<TTSProviderSetting.Qwen> {
                 null
             }
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to parse SSE data: $data", e)
+            AppLogger.e(TAG, "Failed to parse SSE data: $data", e)
             null
         }
     }

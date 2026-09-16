@@ -1,7 +1,6 @@
 package me.rerere.tts.provider.providers
 
 import android.content.Context
-import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.json.Json
@@ -17,6 +16,7 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "OpenAITTSProvider"
 
@@ -41,7 +41,7 @@ class OpenAITTSProvider : TTSProvider<TTSProviderSetting.OpenAI> {
                     put("response_format", "mp3") // Default to MP3
                 }
 
-            Log.i(TAG, "generateSpeech: $requestBody")
+            AppLogger.i(TAG, "generateSpeech: $requestBody")
 
             val httpRequest =
                 Request

@@ -2,7 +2,6 @@ package me.rerere.tts.provider.providers
 
 import android.content.Context
 import android.util.Base64
-import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.serialization.Serializable
@@ -20,6 +19,7 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "GeminiTTSProvider"
 
@@ -114,7 +114,7 @@ class GeminiTTSProvider : TTSProvider<TTSProviderSetting.Gemini> {
                     put("model", providerSetting.model)
                 }
 
-            Log.i(TAG, "generateSpeech: $requestBody")
+            AppLogger.i(TAG, "generateSpeech: $requestBody")
 
             val httpRequest =
                 Request

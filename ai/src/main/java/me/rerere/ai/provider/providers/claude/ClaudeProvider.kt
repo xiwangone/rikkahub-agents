@@ -1,7 +1,6 @@
 package me.rerere.ai.provider.providers.claude
 
 import android.content.Context
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
@@ -80,6 +79,7 @@ import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import kotlin.time.Clock
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "ClaudeProvider"
 private const val ANTHROPIC_VERSION = "2023-06-01"
@@ -354,7 +354,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
             .build()
 
         if (Logging.isDebugLoggingEnabled()) {
-            Log.i(TAG, "generateText: ${json.encodeToString(redactSecrets(requestBody))}")
+            AppLogger.i(TAG, "generateText: ${json.encodeToString(redactSecrets(requestBody))}")
         }
 
         val response = client.newCall(request).await()
@@ -407,10 +407,10 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
             .build()
 
         if (Logging.isDebugLoggingEnabled()) {
-            Log.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
+            AppLogger.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
 
             requestBody["messages"]!!.jsonArray.forEach {
-                Log.i(TAG, "streamText: ${redactSecrets(it)}")
+                AppLogger.i(TAG, "streamText: ${redactSecrets(it)}")
             }
         }
 
@@ -419,7 +419,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         fun sendChunks(chunks: Iterable<StreamChunk>) {
             chunks.forEach { chunk ->
                 trySend(chunk).onFailure { e ->
-                    Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                    AppLogger.w(TAG, "onEvent: chunk dropped (${e?.message})")
                 }
             }
         }
@@ -431,7 +431,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                 type: String?,
                 data: String
             ) {
-                Log.d(TAG, "onEvent: type=$type, data=$data")
+                AppLogger.d(TAG, "onEvent: type=$type, data=$data")
                 try {
                     val result = decoder.accept(SseEvent(id = id, event = type, data = data))
                     sendChunks(result.chunks)
@@ -442,24 +442,24 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                     // A single malformed/unparseable chunk must not escape this callback:
                     // an uncaught exception here propagates through OkHttp's SSE reader and
                     // aborts the whole stream instead of just skipping this one line.
-                    Log.w(TAG, "onEvent: skipping malformed chunk (${e.message})", e)
+                    AppLogger.w(TAG, "onEvent: skipping malformed chunk (${e.message})", e)
                 }
             }
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
                 var exception = t
 
-                Log.e(TAG, "onFailure: ${t?.javaClass?.name} ${t?.message} / $response", t)
+                AppLogger.e(TAG, "onFailure: ${t?.javaClass?.name} ${t?.message} / $response", t)
 
                 val bodyRaw = response?.body?.stringSafe()
                 try {
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
-                        Log.i(TAG, "Error response: $bodyElement")
+                        AppLogger.i(TAG, "Error response: $bodyElement")
                         exception = bodyElement.parseErrorDetail()
                     }
                 } catch (e: Throwable) {
-                    Log.w(TAG, "onFailure: failed to parse from $bodyRaw", e)
+                    AppLogger.w(TAG, "onFailure: failed to parse from $bodyRaw", e)
                 } finally {
                     close(exception)
                 }
@@ -475,7 +475,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
             .newEventSource(request, listener)
 
         awaitClose {
-            Log.d(TAG, "Closing eventSource")
+            AppLogger.d(TAG, "Closing eventSource")
             eventSource.cancel()
         }
         // trySend 在缓冲满时会静默丢弃 delta，导致回复中间缺字 (#1295)，因此缓冲必须无界
@@ -794,7 +794,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                     put("data", encoded.base64)
                 })
             }.onFailure {
-                Log.w(TAG, "encode image failed: $url", it)
+                AppLogger.w(TAG, "encode image failed: $url", it)
                 put("type", "text")
                 put("text", "")
             }
