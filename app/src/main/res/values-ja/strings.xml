@@ -46,7 +46,7 @@
   <string name="assistant_page_allow_conversation_system_prompt_desc">会話ごとにシステムプロンプトを個別に設定可能にする</string>
   <string name="assistant_page_allow_conversation_prompt_injection">会話別プロンプトインジェクション</string>
   <string name="assistant_page_allow_conversation_prompt_injection_desc">会話ごとにプロンプトインジェクションとロアブックを個別にバインド可能にする</string>
-  <string name="assistant_page_available_variables">"利用可能な変数: "</string>
+  <string name="assistant_page_available_variables">\"利用可能な変数: \"</string>
   <string name="assistant_page_background_opacity">背景の透明度</string>
   <string name="assistant_page_background_opacity_desc">チャット背景画像の表示透明度を調整します</string>
   <string name="assistant_page_background_opacity_value">透明度: %1$d%%</string>
@@ -532,7 +532,7 @@
   <string name="prompt_page_unnamed_lorebook">名前なしのルアーブック</string>
   <string name="prompt_page_use_regex">正規表現を使用</string>
   <string name="quick_messages_page_add_title">クイックメッセージを追加</string>
-  <string name="quick_messages_page_delete_message">"%s"を削除してもよろしいですか？この操作は元に戻せません。</string>
+  <string name="quick_messages_page_delete_message">\"%s\"を削除してもよろしいですか？この操作は元に戻せません。</string>
   <string name="quick_messages_page_delete_title">クイックメッセージを削除</string>
   <string name="quick_messages_page_edit_title">クイックメッセージを編集</string>
   <string name="quick_messages_page_empty_content">コンテンツがありません</string>
@@ -1057,7 +1057,7 @@
   <string name="silicon_flow_website">公式サイト: [https://cloud.siliconflow.cn/](https://cloud.siliconflow.cn/i/u1Ia4Ycf)</string>
   <string name="skill_detail_page_content">コンテンツ</string>
   <string name="skill_detail_page_create">作成</string>
-  <string name="skill_detail_page_delete_confirm">ファイル"%s"を削除してもよろしいですか？</string>
+  <string name="skill_detail_page_delete_confirm">ファイル\"%s\"を削除してもよろしいですか？</string>
   <string name="skill_detail_page_delete_failed">削除に失敗しました</string>
   <string name="skill_detail_page_delete_file">ファイルを削除</string>
   <string name="skill_detail_page_file_name">ファイル名</string>
@@ -1065,7 +1065,7 @@
   <string name="skill_detail_page_new_file">新規ファイル</string>
   <string name="skill_detail_page_save">保存</string>
   <string name="skills_page_add_title">スキルを追加</string>
-  <string name="skills_page_delete_message">"%s"を削除してもよろしいですか？この操作は元に戻せません。</string>
+  <string name="skills_page_delete_message">\"%s\"を削除してもよろしいですか？この操作は元に戻せません。</string>
   <string name="skills_page_delete_title">スキルを削除</string>
   <string name="skills_page_downloading">ダウンロード中…</string>
   <string name="skills_page_empty_hint">右下の+ボタンをタップしてスキルを追加</string>
@@ -1859,7 +1859,7 @@
   <string name="chat_page_rename">名前を変更</string>
   <string name="chat_page_folder_default">チャット</string>
   <string name="chat_page_folder_add">新規</string>
-  <string name="chat_page_delete_folder_confirm">フォルダ "%1$s" を削除しますか？内部の会話は削除されず、フォルダから取り除かれるだけです。</string>
+  <string name="chat_page_delete_folder_confirm">フォルダ \"%1$s\" を削除しますか？内部の会話は削除されず、フォルダから取り除かれるだけです。</string>
   <string name="chat_page_delete_folder_generating">フォルダ内の一部の会話がまだ生成中です。削除する前にそれらを停止してください。</string>
   <string name="setting_display_page_tts_read_outside_brackets_title">TTS 括弧内を読み上げない</string>
   <string name="setting_display_page_tts_read_outside_brackets_desc">有効にすると、TTS は括弧内の内容を読み上げません</string>
@@ -2123,7 +2123,7 @@
   <string name="vault_fingerprint_desc">認証情報の表示・エクスポート前に指紋 / 画面ロック認証を要求</string>
   <string name="vault_fingerprint_plan">有効にすると、認証情報の表示・エクスポート時に指紋（または画面ロック）認証が必要になります。</string>
   <string name="vault_import_title">ファイルからインポート</string>
-  <string name="vault_import_desc">load-creds.sh 形式（export KEY="value" と # によるブロックコメント）に対応。端末上の資格情報ファイルを選ぶと一括インポートできます。</string>
+  <string name="vault_import_desc">load-creds.sh 形式（export KEY=\"value\" と # によるブロックコメント）に対応。端末上の資格情報ファイルを選ぶと一括インポートできます。</string>
   <string name="vault_import_button">ファイルを選択してインポート</string>
   <string name="tts_label_25">元気な男性音声 (yuanqinansheng)</string>
   <string name="tts_label_26">誠実な青年 (zhengpaiqingnian)</string>

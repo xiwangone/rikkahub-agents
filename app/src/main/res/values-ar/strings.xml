@@ -40,7 +40,7 @@
   <string name="assistant_page_add">إضافة</string>
   <string name="assistant_page_add_body">إضافة جسم</string>
   <string name="assistant_page_add_header">إضافة ترويسة</string>
-  <string name="assistant_page_available_variables">"المتغيرات المتاحة: "</string>
+  <string name="assistant_page_available_variables">\"المتغيرات المتاحة: \"</string>
   <string name="assistant_page_background_opacity">شفافية الخلفية</string>
   <string name="assistant_page_background_opacity_desc">ضبط وضوح صورة خلفية الدردشة</string>
   <string name="assistant_page_background_opacity_value">الشفافية: %1$d%%</string>
@@ -425,7 +425,7 @@
   <string name="error_title_translate_message">فشلت ترجمة الرسالة</string>
   <string name="expand_translation">توسيع الترجمة</string>
   <string name="export_cancel">إلغاء</string>
-  <string name="export_image_warning">"المحتوى أعلاه مُولَّد بواسطة الذكاء الاصطناعي وقد يحتوي على معلومات غير دقيقة. "</string>
+  <string name="export_image_warning">\"المحتوى أعلاه مُولَّد بواسطة الذكاء الاصطناعي وقد يحتوي على معلومات غير دقيقة. \"</string>
   <string name="export_import_failed">فشل الاستيراد: %s</string>
   <string name="export_import_success">تم الاستيراد بنجاح</string>
   <string name="export_share">مشاركة</string>
@@ -917,7 +917,7 @@
   <string name="setting_provider_page_api_path">مسار API</string>
   <string name="setting_provider_page_avaliable_models">النماذج المتاحة</string>
   <string name="setting_provider_page_balance_api_path">مسار API للرصيد</string>
-  <string name="setting_provider_page_balance_info">"الحصول على رصيد الحساب "</string>
+  <string name="setting_provider_page_balance_info">\"الحصول على رصيد الحساب \"</string>
   <string name="setting_provider_page_balance_json_key">مفتاح Json للنتيجة</string>
   <string name="setting_provider_page_basic_settings">الإعدادات الأساسية</string>
   <string name="setting_provider_page_chat_model">دردشة</string>
@@ -1770,7 +1770,7 @@
   <string name="vault_fingerprint_desc">يتطلب التحقق ببصمة الإصبع أو قفل الشاشة قبل عرض البيانات الاعتمادية أو تصديرها</string>
   <string name="vault_fingerprint_plan">عند التفعيل، يتطلب عرض قيم البيانات الاعتمادية أو تصديرها التحقق ببصمة الإصبع أو قفل الشاشة.</string>
   <string name="vault_import_title">استيراد من ملف</string>
-  <string name="vault_import_desc">يدعم صيغة load-creds.sh (export KEY="value" ومجموعات التعليقات #). اختر ملف البيانات السرية على الجهاز للاستيراد الجماعي.</string>
+  <string name="vault_import_desc">يدعم صيغة load-creds.sh (export KEY=\"value\" ومجموعات التعليقات #). اختر ملف البيانات السرية على الجهاز للاستيراد الجماعي.</string>
   <string name="vault_import_button">اختر ملفًا للاستيراد</string>
   <string name="tts_label_25">صوت رجالي مفعم بالحيوية (yuanqinansheng)</string>
   <string name="tts_label_26">شاب مستقيم (zhengpaiqingnian)</string>

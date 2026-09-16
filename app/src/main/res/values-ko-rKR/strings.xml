@@ -532,7 +532,7 @@
   <string name="prompt_page_unnamed_lorebook">이름 없는 롤북</string>
   <string name="prompt_page_use_regex">정규식 사용</string>
   <string name="quick_messages_page_add_title">빠른 메시지 추가</string>
-  <string name="quick_messages_page_delete_message">"%s"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</string>
+  <string name="quick_messages_page_delete_message">\"%s\"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</string>
   <string name="quick_messages_page_delete_title">빠른 메시지 삭제</string>
   <string name="quick_messages_page_edit_title">빠른 메시지 편집</string>
   <string name="quick_messages_page_empty_content">콘텐츠 없음</string>
@@ -1057,7 +1057,7 @@
   <string name="silicon_flow_website">웹사이트: [https://cloud.siliconflow.cn/](https://cloud.siliconflow.cn/i/u1Ia4Ycf)</string>
   <string name="skill_detail_page_content">콘텐츠</string>
   <string name="skill_detail_page_create">생성</string>
-  <string name="skill_detail_page_delete_confirm">파일 "%s"을(를) 삭제하시겠습니까?</string>
+  <string name="skill_detail_page_delete_confirm">파일 \"%s\"을(를) 삭제하시겠습니까?</string>
   <string name="skill_detail_page_delete_failed">삭제 실패</string>
   <string name="skill_detail_page_delete_file">파일 삭제</string>
   <string name="skill_detail_page_file_name">파일 이름</string>
@@ -1065,7 +1065,7 @@
   <string name="skill_detail_page_new_file">새 파일</string>
   <string name="skill_detail_page_save">저장</string>
   <string name="skills_page_add_title">스킬 추가</string>
-  <string name="skills_page_delete_message">"%s"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</string>
+  <string name="skills_page_delete_message">\"%s\"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</string>
   <string name="skills_page_delete_title">스킬 삭제</string>
   <string name="skills_page_downloading">다운로드 중...</string>
   <string name="skills_page_empty_hint">오른쪽 하단의 + 버튼을 눌러 스킬을 추가하세요</string>
@@ -1856,7 +1856,7 @@
   <string name="chat_page_rename">이름 변경</string>
   <string name="chat_page_folder_default">채팅</string>
   <string name="chat_page_folder_add">새로 만들기</string>
-  <string name="chat_page_delete_folder_confirm">폴더 "%1$s"를 삭제하시겠습니까? 내부의 대화는 삭제되지 않고 폴더에서만 제거됩니다.</string>
+  <string name="chat_page_delete_folder_confirm">폴더 \"%1$s\"를 삭제하시겠습니까? 내부의 대화는 삭제되지 않고 폴더에서만 제거됩니다.</string>
   <string name="chat_page_delete_folder_generating">이 폴더의 일부 대화가 아직 생성 중입니다. 삭제하기 전에 중지해 주세요.</string>
   <string name="setting_display_page_tts_read_outside_brackets_title">TTS 괄호 안 내용 읽지 않기</string>
   <string name="setting_display_page_tts_read_outside_brackets_desc">활성화하면 TTS가 괄호 안의 내용을 읽지 않습니다</string>
@@ -2123,7 +2123,7 @@
   <string name="vault_fingerprint_desc">자격 증명을 보거나 내보내기 전에 지문 / 화면 잠금 인증 필요</string>
   <string name="vault_fingerprint_plan">활성화하면 자격 증명 값을 보거나 내보낼 때 지문(또는 화면 잠금) 인증이 필요합니다.</string>
   <string name="vault_import_title">파일에서 가져오기</string>
-  <string name="vault_import_desc">load-creds.sh 형식(export KEY="value" + # 주석 그룹)을 지원합니다. 기기의 자격 증명 파일을 선택하면 일괄 가져옵니다.</string>
+  <string name="vault_import_desc">load-creds.sh 형식(export KEY=\"value\" + # 주석 그룹)을 지원합니다. 기기의 자격 증명 파일을 선택하면 일괄 가져옵니다.</string>
   <string name="vault_import_button">파일 선택하여 가져오기</string>
   <string name="tts_label_25">활기찬 남성 음성 (yuanqinansheng)</string>
   <string name="tts_label_26">정직한 청년 (zhengpaiqingnian)</string>

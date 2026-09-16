@@ -79,7 +79,7 @@
   <string name="assistant_page_allow_conversation_system_prompt_desc">允许每个对话单独设置系统提示词</string>
   <string name="assistant_page_allow_conversation_prompt_injection">独立对话提示词注入</string>
   <string name="assistant_page_allow_conversation_prompt_injection_desc">允许每个对话单独绑定提示词注入和世界书</string>
-  <string name="assistant_page_available_variables">"可用变量: "</string>
+  <string name="assistant_page_available_variables">\"可用变量: \"</string>
   <string name="assistant_page_background_opacity">背景透明度</string>
   <string name="assistant_page_background_opacity_desc">调整聊天背景图显示透明度</string>
   <string name="assistant_page_background_opacity_value">透明度：%1$d%%</string>
@@ -2062,7 +2062,7 @@
   <string name="chat_page_rename">重命名</string>
   <string name="chat_page_folder_default">聊天</string>
   <string name="chat_page_folder_add">新建</string>
-  <string name="chat_page_delete_folder_confirm">删除文件夹 "%1$s"？其中的对话不会被删除，只会从文件夹中移除。</string>
+  <string name="chat_page_delete_folder_confirm">删除文件夹 \"%1$s\"？其中的对话不会被删除，只会从文件夹中移除。</string>
   <string name="chat_page_delete_folder_generating">此文件夹中有对话仍在生成中，请停止后再删除。</string>
   <string name="assistant_page_local_tools_archive_desc">直接在设备上创建和解压 .zip 文件。v1 不支持密码加密。适用于 file:// 和 content:// URI。</string>
   <string name="assistant_page_local_tools_archive_title">压缩文件 (zip)</string>
@@ -2205,7 +2205,7 @@
   <string name="vault_fingerprint_desc">查看或导出凭证前需指纹 / 锁屏验证</string>
   <string name="vault_fingerprint_plan">开启后，查看或导出凭证值需先通过指纹（或锁屏）验证。</string>
   <string name="vault_import_title">从文件导入</string>
-  <string name="vault_import_desc">支持 load-creds.sh 格式（export KEY="value" + # 注释分组）。选择手机上的凭证文件即可批量导入。</string>
+  <string name="vault_import_desc">支持 load-creds.sh 格式（export KEY=\"value\" + # 注释分组）。选择手机上的凭证文件即可批量导入。</string>
   <string name="vault_import_button">选择文件导入</string>
   <string name="vault_export_title">应急导出</string>
   <string name="vault_export_desc">支持口令加密的 .vault 包，以及明文 CSV / Bitwarden JSON（后两者请谨慎保管）。</string>

@@ -525,7 +525,7 @@
   <string name="prompt_page_unnamed_lorebook">Безымянная книга знаний</string>
   <string name="prompt_page_use_regex">Использовать регулярные выражения</string>
   <string name="quick_messages_page_add_title">Добавить быстрое сообщение</string>
-  <string name="quick_messages_page_delete_message">Вы уверены, что хотите удалить "%s"? Это действие нельзя отменить.</string>
+  <string name="quick_messages_page_delete_message">Вы уверены, что хотите удалить \"%s\"? Это действие нельзя отменить.</string>
   <string name="quick_messages_page_delete_title">Удалить быстрое сообщение</string>
   <string name="quick_messages_page_edit_title">Редактировать быстрое сообщение</string>
   <string name="quick_messages_page_empty_content">Нет содержимого</string>
@@ -1050,7 +1050,7 @@
   <string name="silicon_flow_website">Веб-сайт: [https://cloud.siliconflow.cn/](https://cloud.siliconflow.cn/i/u1Ia4Ycf)</string>
   <string name="skill_detail_page_content">Контент</string>
   <string name="skill_detail_page_create">Создать</string>
-  <string name="skill_detail_page_delete_confirm">Вы уверены, что хотите удалить файл "%s"?</string>
+  <string name="skill_detail_page_delete_confirm">Вы уверены, что хотите удалить файл \"%s\"?</string>
   <string name="skill_detail_page_delete_failed">Не удалось удалить</string>
   <string name="skill_detail_page_delete_file">Удалить файл</string>
   <string name="skill_detail_page_file_name">Имя файла</string>
@@ -1058,7 +1058,7 @@
   <string name="skill_detail_page_new_file">Новый файл</string>
   <string name="skill_detail_page_save">Сохранить</string>
   <string name="skills_page_add_title">Добавить навык</string>
-  <string name="skills_page_delete_message">Вы уверены, что хотите удалить "%s"? Это действие нельзя отменить.</string>
+  <string name="skills_page_delete_message">Вы уверены, что хотите удалить \"%s\"? Это действие нельзя отменить.</string>
   <string name="skills_page_delete_title">Удалить навык</string>
   <string name="skills_page_downloading">Загрузка...</string>
   <string name="skills_page_empty_hint">Нажмите кнопку + в правом нижнем углу, чтобы добавить навык</string>
@@ -1852,7 +1852,7 @@
   <string name="chat_page_rename">Переименовать</string>
   <string name="chat_page_folder_default">Чат</string>
   <string name="chat_page_folder_add">Новая</string>
-  <string name="chat_page_delete_folder_confirm">Удалить папку "%1$s"? Беседы внутри не будут удалены, только исключены из папки.</string>
+  <string name="chat_page_delete_folder_confirm">Удалить папку \"%1$s\"? Беседы внутри не будут удалены, только исключены из папки.</string>
   <string name="chat_page_delete_folder_generating">Некоторые беседы в этой папке все еще генерируются. Пожалуйста, остановите их перед удалением.</string>
   <string name="setting_display_page_tts_read_outside_brackets_title">TTS не читает текст в скобках</string>
   <string name="setting_display_page_tts_read_outside_brackets_desc">Если включено, TTS не будет читать содержимое в скобках</string>
@@ -2116,7 +2116,7 @@
   <string name="vault_fingerprint_desc">Требовать отпечаток пальца / блокировку экрана перед просмотром и экспортом</string>
   <string name="vault_fingerprint_plan">При включении для просмотра или экспорта значений требуется проверка отпечатком пальца (или блокировкой экрана).</string>
   <string name="vault_import_title">Импорт из файла</string>
-  <string name="vault_import_desc">Поддерживает формат load-creds.sh (export KEY="value" и группы-комментарии #). Выберите файл на устройстве для пакетного импорта.</string>
+  <string name="vault_import_desc">Поддерживает формат load-creds.sh (export KEY=\"value\" и группы-комментарии #). Выберите файл на устройстве для пакетного импорта.</string>
   <string name="vault_import_button">Выбрать файл для импорта</string>
   <string name="tts_label_25">Бодрый мужской голос (yuanqinansheng)</string>
   <string name="tts_label_26">Порядочный юноша (zhengpaiqingnian)</string>
