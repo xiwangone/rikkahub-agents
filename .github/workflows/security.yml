@@ -168,8 +168,11 @@ jobs:
     name: Android Lint（含无障碍规则）
     runs-on: ubuntu-latest
     steps:
+      # 编译依赖子模块（material-color-utilities 等），与构建作业保持一致
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          submodules: true
 
       # 复用统一构建环境：JDK / Android SDK 均带多源回退
       - name: 准备构建环境
