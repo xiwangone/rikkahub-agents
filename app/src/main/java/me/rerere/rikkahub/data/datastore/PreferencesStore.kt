@@ -1050,9 +1050,12 @@ data class DisplaySetting(
      *
      * 它影响的是「注入给模型的工具描述与参数表」这一视图层，故归入显示设置；
      * 与 `ToolSurfacePolicy.TRIM_ENABLED`（编译期总开关）取**与**关系，任一关闭即完全不裁剪。
-     * 置 false 即恢复完整 schema —— 排查「模型选不到工具 / 参数调不对」时的单点回退。
+     *
+     * ⚠ **默认关闭**：关闭时 = 治理前的行为（所有工具都带完整描述与参数表）。
+     * 之所以默认关：这是「按需 schema」这类会影响所有用户默认行为的能力，属可选项 ——
+     * 需要的人（例如重度工具调用的助手）再打开，避免替所有人改变默认。
      */
-    val toolSurfaceTrimming: Boolean = true,
+    val toolSurfaceTrimming: Boolean = false,
     val codeBlockAutoWrap: Boolean = false,
     val codeBlockAutoCollapse: Boolean = true,
     /** 输入框功能按钮行（Zap/LockKey/ASR 等）默认折叠；用户展开过则记住，下次启动保持 */

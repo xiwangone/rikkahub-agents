@@ -654,7 +654,7 @@
   <string name="setting_display_page_amoled_dark_mode_title">الوضع الداكن AMOLED</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">طي محتوى التفكير تلقائيًا بعد اكتمال التفكير</string>
   <string name="setting_display_page_tool_surface_trim_title">تقليص وصف الأدوات</string>
-  <string name="setting_display_page_tool_surface_trim_desc">تُرسل الأدوات قليلة الاستخدام بوصف مختصر فقط، وتُجلب المعاملات الكاملة عند الحاجة. أوقف هذا الخيار لإرسال المخططات الكاملة دائمًا.</string>
+  <string name="setting_display_page_tool_surface_trim_desc">معطّل افتراضيًا. عند التفعيل تُرسل الأدوات قليلة الاستخدام وصفًا قصيرًا فقط وتُجلب المعاملات الكاملة عند الحاجة (رموز أقل وتشويش أقل). عند التعطيل تُرسل جميع الأدوات تعريفاتها الكاملة.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">طي التفكير تلقائيًا</string>
   <string name="setting_display_page_auto_play_tts_desc">تشغيل تحويل النص إلى كلام تلقائيًا بعد اكتمال توليد رسالة المساعد</string>
   <string name="setting_display_page_auto_play_tts_title">تشغيل تحويل النص إلى كلام تلقائيًا بعد التوليد</string>
@@ -2298,6 +2298,12 @@
   <string name="assistant_page_local_tools_tier_device_control_desc">التحكم بالجهاز أو البيانات الشخصية أو الأنظمة الخارجية (مفعّل %1$d/%2$d)</string>
   <string name="assistant_page_local_tools_tier_developer_title">L3 · مطوّر</string>
   <string name="assistant_page_local_tools_tier_developer_desc">تنفيذ أكواد عشوائية وغيرها من القدرات الخطرة (مفعّل %1$d/%2$d)</string>
+  <string name="assistant_page_extra_cold_section">حقن الأدوات (متقدم)</string>
+  <string name="assistant_page_extra_cold_title">تحميل هذه الأدوات كباردة دائمًا</string>
+  <string name="assistant_page_extra_cold_desc">تم الضبط: %1$d. تُرسل الأدوات الباردة سطرًا واحدًا للغرض، وتُجلب المعاملات الكاملة عند الحاجة.</string>
+  <string name="assistant_page_extra_cold_action">تعديل</string>
+  <string name="assistant_page_extra_cold_dialog_desc">اسم أداة واحد في كل سطر (أو مفصولة بفواصل). استخدم الأسماء الدقيقة الظاهرة في list_tools، مثل ssh_upload. يغيّر هذا طريقة عرض سطح الأدوات لهذا المساعد فقط، وتبقى الأدوات قابلة للاستدعاء.</string>
+  <string name="assistant_page_extra_cold_hint">مثال: ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">تشخيص الذكاء الاصطناعي</string>
   <string name="assistant_page_local_tools_diagnostics_title">التشخيص والسجلات</string>
   <string name="assistant_page_local_tools_diagnostics_desc">صحة التطبيق ومعلومات البناء والسجلات والأعطال ودورة الحياة.</string>

@@ -33,8 +33,8 @@ object ToolSurfacePolicy {
      * 治理约定要求「所有裁剪由一个开关控制，出问题一键关」。此处用**单点常量**实现：
      * 置 false 即恢复完整 description/参数表（等价于未启用裁剪），回退改动集中在这一行。
      *
-     * 之所以不做成设置项：裁剪只影响**注入给模型的视图**、不影响可调用性，风险低；
-     * 而设置项要引入多语言文案与设置页注册，属过度设计。
+     * 与设置项 `DisplaySetting.toolSurfaceTrimming` 取**与**关系；后者**默认关闭** ——
+     * 即出厂行为等于"治理前"（工具面不裁剪），需要的人再打开，不替所有用户改默认。
      */
     const val TRIM_ENABLED = true
 
@@ -82,8 +82,13 @@ object ToolSurfacePolicy {
             "whisper_status", "check_app_updates", "generate_bug_report",
         )
 
-    fun tierOf(toolName: String): SurfaceTier =
+    fun tierOf(
+        toolName: String,
+        extraCold: Set<String> = emptySet(),
+    ): SurfaceTier =
         when {
+            // 助手级下调优先：只会把非冷档降为冷档，不会升档（见 Assistant.extraColdTools）
+            toolName in extraCold -> SurfaceTier.COLD
             toolName in HOT -> SurfaceTier.HOT
             toolName in COLD_EXTRAS -> SurfaceTier.COLD
             COLD_PREFIXES.any { toolName.startsWith(it) } -> SurfaceTier.COLD

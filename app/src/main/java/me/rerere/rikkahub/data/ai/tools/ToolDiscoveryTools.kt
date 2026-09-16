@@ -24,13 +24,18 @@ import me.rerere.ai.ui.UIMessagePart
 internal fun buildToolDiscoveryTools(
     allTools: List<Tool>,
     conversationId: String? = null,
+    extraCold: Set<String> = emptySet(),
 ): List<Tool> =
     listOf(
-        listToolsTool(allTools, conversationId),
-        getToolSchemaTool(allTools, conversationId),
+        listToolsTool(allTools, conversationId, extraCold),
+        getToolSchemaTool(allTools, conversationId, extraCold),
     )
 
-private fun listToolsTool(allTools: List<Tool>, conversationId: String?): Tool =
+private fun listToolsTool(
+    allTools: List<Tool>,
+    conversationId: String?,
+    extraCold: Set<String> = emptySet(),
+): Tool =
     Tool(
         name = "list_tools",
         description = """
@@ -69,7 +74,7 @@ private fun listToolsTool(allTools: List<Tool>, conversationId: String?): Tool =
                                     buildJsonObject {
                                         put("name", tool.name)
                                         put("purpose", tool.description.toSingleLine())
-                                        val tier = ToolSurfacePolicy.tierOf(tool.name)
+                                        val tier = ToolSurfacePolicy.tierOf(tool.name, extraCold)
                                         put("tier", tier.name.lowercase())
                                         // Only cold tools can lack a full schema; hot/warm always ship
                                         // the complete one. Reporting false for them is misleading and
@@ -92,7 +97,11 @@ private fun listToolsTool(allTools: List<Tool>, conversationId: String?): Tool =
         },
     )
 
-private fun getToolSchemaTool(allTools: List<Tool>, conversationId: String?): Tool =
+private fun getToolSchemaTool(
+    allTools: List<Tool>,
+    conversationId: String?,
+    extraCold: Set<String> = emptySet(),
+): Tool =
     Tool(
         name = "get_tool_schema",
         description = """
@@ -114,7 +123,7 @@ private fun getToolSchemaTool(allTools: List<Tool>, conversationId: String?): To
         execute = { input ->
             val name = input.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
             val tool = allTools.firstOrNull { it.name == name }
-            if (tool != null && ToolSurfacePolicy.tierOf(tool.name) == SurfaceTier.COLD) {
+            if (tool != null && ToolSurfacePolicy.tierOf(tool.name, extraCold) == SurfaceTier.COLD) {
                 ToolSurfaceSession.markLoaded(conversationId, tool.name)
             }
             val payload =

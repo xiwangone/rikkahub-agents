@@ -634,7 +634,7 @@
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED-тёмная тема</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">Автоматически сворачивать блок мышления после его завершения</string>
   <string name="setting_display_page_tool_surface_trim_title">Сокращение описаний инструментов</string>
-  <string name="setting_display_page_tool_surface_trim_desc">Для редких инструментов отправляется только краткое описание, полные параметры — по запросу. Отключите, чтобы всегда отправлять полные схемы.</string>
+  <string name="setting_display_page_tool_surface_trim_desc">По умолчанию выключено. При включении редкие инструменты отправляют только краткое описание, полные параметры — по запросу (меньше токенов и шума выбора). При выключении все инструменты отправляют полные определения.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">Автоматически сворачивать мысли</string>
   <string name="setting_display_page_auto_play_tts_desc">Автоматически воспроизводить TTS после завершения генерации ответа ассистента</string>
   <string name="setting_display_page_auto_play_tts_title">Автовоспроизведение TTS после генерации</string>
@@ -2644,6 +2644,12 @@
   <string name="assistant_page_local_tools_tier_device_control_desc">Управление устройством, личными данными или внешними системами (включено %1$d/%2$d)</string>
   <string name="assistant_page_local_tools_tier_developer_title">L3 · Разработчик</string>
   <string name="assistant_page_local_tools_tier_developer_desc">Выполнение произвольного кода и другие опасные возможности (включено %1$d/%2$d)</string>
+  <string name="assistant_page_extra_cold_section">Внедрение инструментов (дополнительно)</string>
+  <string name="assistant_page_extra_cold_title">Всегда загружать эти инструменты как холодные</string>
+  <string name="assistant_page_extra_cold_desc">Настроено: %1$d. Холодные инструменты отправляют только краткое назначение, полные параметры — по запросу.</string>
+  <string name="assistant_page_extra_cold_action">Изменить</string>
+  <string name="assistant_page_extra_cold_dialog_desc">По одному имени инструмента в строке (или через запятую). Используйте точные имена из list_tools, например ssh_upload. Меняется только то, как этот ассистент видит набор инструментов; сами инструменты остаются вызываемыми.</string>
+  <string name="assistant_page_extra_cold_hint">напр. ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">Диагностика ИИ</string>
   <string name="assistant_page_local_tools_diagnostics_title">Диагностика и журналы</string>
   <string name="assistant_page_local_tools_diagnostics_desc">Состояние приложения, сведения о сборке, журналы, сбои и жизненный цикл.</string>

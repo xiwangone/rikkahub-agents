@@ -631,7 +631,7 @@
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED 暗色模式</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">思考完成自動折疊思考內容</string>
   <string name="setting_display_page_tool_surface_trim_title">工具面裁剪</string>
-  <string name="setting_display_page_tool_surface_trim_desc">低頻工具只傳送簡短說明，需要時再取回完整參數表；關閉後一律傳送完整定義。</string>
+  <string name="setting_display_page_tool_surface_trim_desc">預設關閉。開啟後低頻工具只傳送簡短說明、完整參數按需取回，可減少上下文佔用與選擇干擾；關閉則所有工具都傳送完整定義。</string>
   <string name="setting_display_page_auto_collapse_thinking_title">自動折疊思考</string>
   <string name="setting_display_page_auto_play_tts_desc">助理訊息產生完成後自動播放語音</string>
   <string name="setting_display_page_auto_play_tts_title">產生後自動播放 TTS</string>
@@ -2212,6 +2212,12 @@
     <string name="assistant_page_local_tools_tier_device_control_desc">操作裝置、個人資料或外部系統（已啟用 %1$d/%2$d）</string>
     <string name="assistant_page_local_tools_tier_developer_title">L3 · 開發者</string>
     <string name="assistant_page_local_tools_tier_developer_desc">任意程式碼執行等破壞性能力（已啟用 %1$d/%2$d）</string>
+    <string name="assistant_page_extra_cold_section">工具注入（進階）</string>
+    <string name="assistant_page_extra_cold_title">這些工具按冷檔注入</string>
+    <string name="assistant_page_extra_cold_desc">已設定 %1$d 個。冷檔只傳送一行用途，需要時再取回完整參數表。</string>
+    <string name="assistant_page_extra_cold_action">編輯</string>
+    <string name="assistant_page_extra_cold_dialog_desc">每行一個工具名稱（也可用逗號分隔），請用 list_tools 顯示的確切名稱，例如 ssh_upload。只影響該助手看到的工具面視圖，工具仍可正常呼叫。</string>
+    <string name="assistant_page_extra_cold_hint">例如 ssh_upload\n     batch_copy</string>
     <string name="assistant_page_local_tools_section_ai_diagnostics">AI 診斷</string>
     <string name="assistant_page_local_tools_diagnostics_title">診斷與日誌</string>
     <string name="assistant_page_local_tools_diagnostics_desc">應用健康、建置資訊、日誌、當機與生命週期記錄。</string>
