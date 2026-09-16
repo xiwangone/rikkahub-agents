@@ -183,6 +183,16 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                         modelId = modelObject["name"]!!.jsonPrimitive.content.substringAfter("/"),
                         displayName = modelObject["displayName"]!!.jsonPrimitive.content,
                         type = if ("generateContent" in supportedGenerationMethods) ModelType.CHAT else ModelType.EMBEDDING,
+                        // 与其它通道一致：用注册表推断能力（视觉输入 / 工具 / 推理）
+                        inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(
+                            modelObject["name"]!!.jsonPrimitive.content.substringAfter("/"),
+                        ),
+                        outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(
+                            modelObject["name"]!!.jsonPrimitive.content.substringAfter("/"),
+                        ),
+                        abilities = ModelRegistry.MODEL_ABILITIES.getData(
+                            modelObject["name"]!!.jsonPrimitive.content.substringAfter("/"),
+                        ),
                     )
                 }
             } else {

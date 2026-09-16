@@ -32,6 +32,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.core.merge
+import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.ClaudePromptCacheTtl
 import me.rerere.ai.provider.ImageGenerationParams
@@ -316,6 +317,10 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                 Model(
                     modelId = id,
                     displayName = displayName,
+                    // 与 OpenAI 兼容通道一致：用注册表推断能力，未登记保持默认
+                    inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(id),
+                    outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(id),
+                    abilities = ModelRegistry.MODEL_ABILITIES.getData(id),
                 )
             }
         }

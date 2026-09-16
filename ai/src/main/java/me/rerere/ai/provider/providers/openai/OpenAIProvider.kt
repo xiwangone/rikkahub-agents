@@ -17,6 +17,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
+import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.provider.EmbeddingGenerationParams
 import me.rerere.ai.provider.EmbeddingGenerationResult
 import me.rerere.ai.provider.ImageEditParams
@@ -124,9 +125,15 @@ class OpenAIProvider(
                     openRouterModelFromJson(modelObj)
                 } else {
                     val id = modelObj["id"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
+                    // 用注册表推断能力（输入/输出模态、工具与推理）：模型 id 命中登记项才带对应能力，
+                    // 未命中保持默认（纯文本）。否则新增的模型一律是「纯文本」，即使它其实支持图像输入，
+                    // 图片也只能走 OCR 转述而不是直接送进模型。
                     Model(
                         modelId = id,
                         displayName = id,
+                        inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(id),
+                        outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(id),
+                        abilities = ModelRegistry.MODEL_ABILITIES.getData(id),
                     )
                 }
             }

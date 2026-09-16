@@ -593,6 +593,56 @@ object ModelRegistry {
         tokens("qwen", "mt")
     }
 
+    // ---- 2026-09 补齐：本仓此前完全没有登记的主流模型（能力取自 OpenRouter 目录元数据）----
+
+    private val GEMINI_3_6_FLASH = defineModel {
+        tokens("gemini", "3", "6", "flash")
+        visionInput()
+        toolReasoningAbility()
+    }
+
+    private val GEMINI_3_7_FLASH = defineModel {
+        tokens("gemini", "3", "7", "flash")
+        visionInput()
+        toolReasoningAbility()
+    }
+
+    private val GEMINI_3_8_FLASH = defineModel {
+        tokens("gemini", "3", "8", "flash")
+        visionInput()
+        toolReasoningAbility()
+    }
+
+    private val CLAUDE_FABLE_5 = defineModel {
+        tokens("claude", "fable", "5")
+        visionInput()
+        toolReasoningAbility()
+    }
+
+    private val MISTRAL_MEDIUM_3_5 = defineModel {
+        tokens("mistral", "medium", "3", "5")
+        visionInput()
+        toolReasoningAbility()
+    }
+
+    private val NOVA_2_LITE = defineModel {
+        tokens("nova", "2", "lite")
+        visionInput()
+        toolReasoningAbility()
+    }
+
+    private val NOVA_PREMIER = defineModel {
+        tokens("nova", "premier")
+        visionInput()
+        toolAbility()
+    }
+
+    private val LING_3_FLASH_VL = defineModel {
+        tokens("ling", "3", "0", "flash", "vl")
+        visionInput()
+        toolReasoningAbility()
+    }
+
     private val ALL_MODELS = listOf(
         GPT4O,
         GPT_4_1,
@@ -609,6 +659,14 @@ object ModelRegistry {
         GPT_5_6,
         GPT_6,
         GEMINI_20_FLASH,
+        GEMINI_3_6_FLASH,
+        GEMINI_3_7_FLASH,
+        GEMINI_3_8_FLASH,
+        CLAUDE_FABLE_5,
+        MISTRAL_MEDIUM_3_5,
+        NOVA_2_LITE,
+        NOVA_PREMIER,
+        LING_3_FLASH_VL,
         GEMINI_2_5_FLASH,
         GEMINI_2_5_PRO,
         GEMINI_2_5_IMAGE,
