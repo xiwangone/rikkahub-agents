@@ -5,6 +5,9 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.ConversationCompaction
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.toMessageNode
+import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toLocalDateTime
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 data class CompactedMessageView(
@@ -16,6 +19,21 @@ data class CompactedMessageView(
 )
 
 object ContextCompactionView {
+    /**
+     * 合成摘要消息的身份必须对同一份 [compaction] 保持稳定：`UIMessage.user()` 默认每次
+     * 生成随机 id 与"当前时间"，而时间提醒会被注入到请求里第一条用户消息之前 —— 身份每次
+     * 都变，等于整段请求前缀每次都不同，压缩之后提供方的提示词缓存会完全命中不了。
+     *
+     * `sourceEndNodeId` 是 MessageNode 的 id（不是消息 id），复用它做这条合成消息的 id 不会
+     * 与真实消息冲突。
+     */
+    internal fun summaryMessage(compaction: ConversationCompaction): UIMessage =
+        UIMessage.user(compaction.summary).copy(
+            createdAt = Instant.fromEpochMilliseconds(compaction.createdAt.toEpochMilli())
+                .toLocalDateTime(TimeZone.currentSystemDefault()),
+            id = compaction.sourceEndNodeId,
+        )
+
     fun build(
         conversation: Conversation,
         compaction: ConversationCompaction?,
@@ -42,7 +60,7 @@ object ContextCompactionView {
 
         return CompactedMessageView(
             messages = ContextCompactionPresentation.stripDisplayTools(
-                listOf(UIMessage.user(compaction.summary)) +
+                listOf(summaryMessage(compaction)) +
                     conversation.currentMessages.drop(tailStartIndex),
             ),
             compaction = compaction,
