@@ -227,6 +227,8 @@ private fun createEditFileTool(
         val batch = (params["edits"] as? JsonArray)?.takeIf { it.isNotEmpty() }
         val updatedText: String
         val replacementCount: Int
+        // 「匹配策略」只有单条替换才有意义（批量由多条组成，策略可能不同，故不报）。
+        var matchStrategy: String? = null
         if (batch != null) {
             var working = original
             var count = 0
@@ -260,6 +262,7 @@ private fun createEditFileTool(
                 }
             updatedText = r.updated
             replacementCount = r.replacements
+            matchStrategy = r.strategy
         }
         val entry = workspaceRepository.writeTextInRootfs(workspaceId, path, updatedText, overwrite = true)
         val diff = me.rerere.rikkahub.data.vault.SecretMasker.mask(generateUnifiedDiff(original, updatedText, entry.path).orEmpty())
@@ -268,7 +271,7 @@ private fun createEditFileTool(
                 text = buildJsonObject {
                     put("path", entry.path)
                     put("replacements", replacementCount)
-                    if (result.strategy != ExactReplacer.name) put("matchStrategy", result.strategy)
+                    matchStrategy?.let { if (it != ExactReplacer.name) put("matchStrategy", it) }
                     put("sizeBytes", entry.sizeBytes)
                     put("updatedAt", entry.updatedAt)
                 }.toString(),
@@ -286,7 +289,7 @@ private fun createEditFileTool(
 internal const val SHELL_PRESETS_PATH = "/workspace/.agents/shell-presets.json"
 
 /** 读取预设库；文件缺失或不是合法 JSON 时返回空表，由调用方给出友好提示。 */
-private fun loadShellPresets(
+private suspend fun loadShellPresets(
     workspaceRepository: WorkspaceRepository,
     workspaceId: String,
 ): JsonObject =
