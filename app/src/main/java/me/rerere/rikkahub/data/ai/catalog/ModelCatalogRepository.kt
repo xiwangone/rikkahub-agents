@@ -124,47 +124,60 @@ class ModelCatalogRepository(
 
     // ---------------- 过滤与解析 ----------------
 
+    /** 目录里的一个可留用条目：所属厂商、创建时间与解析出的能力。 */
+    private data class CatalogItem(
+        val vendor: String,
+        val created: Long,
+        val entry: Entry,
+    )
+
+    /**
+     * 解析目录中的单个条目；厂商不在白名单、或属于变体/非目标命名时返回 null。
+     * 拆出来是为了让 [buildEntries] 的主循环保持简单（复杂度规则会卡住长函数）。
+     */
+    private fun parseCatalogItem(obj: JsonObject): CatalogItem? {
+        val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: return null
+        if (id.startsWith("~")) return null
+        val slash = id.indexOf('/')
+        val vendor = (if (slash > 0) id.substring(0, slash) else "").lowercase()
+        if (vendor !in VENDOR_ALLOWLIST) return null
+        val name = if (slash > 0) id.substring(slash + 1) else id
+        if (name.any { it.isUpperCase() } && name.contains(":")) return null
+        if (EXCLUDED_SUFFIXES.any { name.lowercase().contains(it) }) return null
+
+        val arch = obj["architecture"]?.jsonObject
+        val inputs =
+            (arch?.get("input_modalities") as? JsonArray)
+                ?.mapNotNull { it.jsonPrimitive.contentOrNull }?.toSet() ?: emptySet()
+        val params =
+            (obj["supported_parameters"] as? JsonArray)
+                ?.mapNotNull { it.jsonPrimitive.contentOrNull }?.toSet() ?: emptySet()
+        return CatalogItem(
+            vendor = vendor,
+            created = obj["created"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 0L,
+            entry =
+                Entry(
+                    name = name,
+                    kind = classifyKind(name, arch),
+                    inputImage = "image" in inputs,
+                    tool = "tools" in params,
+                    reasoning = "reasoning" in params || "include_reasoning" in params,
+                    contextLength = obj["context_length"]?.jsonPrimitive?.intOrNull,
+                ),
+        )
+    }
+
     private fun buildEntries(data: JsonArray): Map<String, Entry> {
-        val byVendor = mutableMapOf<String, MutableList<Pair<Long, Entry>>>()
+        val byVendor = mutableMapOf<String, MutableList<CatalogItem>>()
         for (item in data) {
-            val obj = item.jsonObject
-            val id = obj["id"]?.jsonPrimitive?.contentOrNull ?: continue
-            if (id.startsWith("~")) continue
-            val slash = id.indexOf('/')
-            val vendor = (if (slash > 0) id.substring(0, slash) else "").lowercase()
-            if (vendor !in VENDOR_ALLOWLIST) continue
-            val name = if (slash > 0) id.substring(slash + 1) else id
-            if (name.any { it.isUpperCase() } && name.contains(":")) continue
-            if (EXCLUDED_SUFFIXES.any { name.lowercase().contains(it) }) continue
-            val arch = obj["architecture"]?.jsonObject
-            val inputs = (arch?.get("input_modalities") as? JsonArray)
-                ?.mapNotNull { it.jsonPrimitive.contentOrNull }?.toSet() ?: emptySet()
-            val params = (obj["supported_parameters"] as? JsonArray)
-                ?.mapNotNull { it.jsonPrimitive.contentOrNull }?.toSet() ?: emptySet()
-            val created = obj["created"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 0L
-            val ctx = obj["context_length"]?.jsonPrimitive?.intOrNull
-            // 刻意不按类别排除：图像生成 / 嵌入 / 重排 / 语音等「非聊天类」同样保留通道，
-            // 只标注类型（kind）供后续分类使用（App 侧栏就有生图功能）。
-            val kind = classifyKind(name, arch)
-
-            val entry = Entry(
-                name = name,
-                kind = kind,
-                inputImage = "image" in inputs,
-                tool = "tools" in params,
-                reasoning = "reasoning" in params || "include_reasoning" in params,
-                contextLength = ctx,
-            )
-            byVendor.getOrPut(vendor) { mutableListOf() }.add(created to entry)
+            val parsed = parseCatalogItem(item.jsonObject) ?: continue
+            byVendor.getOrPut(parsed.vendor) { mutableListOf() }.add(parsed)
         }
-
         val result = mutableMapOf<String, Entry>()
         for ((_, list) in byVendor) {
             // 只保留该厂商最近创建的若干个（"最新热门"）
-            list.sortedByDescending { it.first }.take(MAX_PER_VENDOR).forEach { (_, e) ->
-                result[normalize(e.name)] = e
-                // 也登记「厂商/名称」全名，便于用完整 id 查询
-                result.putIfAbsent(normalize("${e.name}"), e)
+            list.sortedByDescending { it.created }.take(MAX_PER_VENDOR).forEach { item ->
+                result[normalize(item.entry.name)] = item.entry
             }
         }
         return result

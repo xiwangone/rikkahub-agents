@@ -514,6 +514,8 @@ private fun ModelList(
     val providerManager = koinInject<ProviderManager>()
     val toaster = LocalToaster.current
     val context = LocalContext.current
+    // 资源在组合期取好：回调里再读 LocalContext 的配置值会被 Lint 判为"非配置感知"
+    val matchedDoneFormat = stringResource(R.string.setting_provider_page_match_abilities_done)
     val modelList by produceState(emptyList(), providerSetting) {
         runCatching {
             value =
@@ -595,12 +597,7 @@ private fun ModelList(
                                         }
                                     onUpdateProvider(applied)
                                 }
-                                toaster.show(
-                                    context.getString(
-                                        R.string.setting_provider_page_match_abilities_done,
-                                        changed,
-                                    ),
-                                )
+                                toaster.show(matchedDoneFormat.format(changed))
                             },
                         ) {
                             Icon(HugeIcons.MagicWand01, contentDescription = null)
