@@ -3169,5 +3169,5 @@
   <string name="workspace_detail_save_rootfs_url">حفظ عنوان URL الحالي</string>
   <string name="workspace_detail_saved_rootfs_urls">عناوين URL المحفوظة</string>
   <string name="setting_provider_page_match_abilities">مطابقة القدرات</string>
-  <string name="setting_provider_page_match_abilities_done">تم تحديث قدرات %1$d نموذج</string>
+  <string name="setting_provider_page_match_abilities_done">تم التحديث: %1$d نموذج</string>
 </resources>

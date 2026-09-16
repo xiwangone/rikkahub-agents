@@ -230,6 +230,23 @@ class RikkaHubApp : Application() {
                     }
             },
         )
+        // 模型能力目录：注册表未登记的新模型走它兜底，因此新模型无需发版即可识别能力。
+        // 缓存超过 7 天时在后台静默刷新一次（只拉公开目录，不发送任何本地数据）。
+        runCatching {
+            val catalog =
+                org.koin.java.KoinJavaComponent
+                    .getKoin()
+                    .get<me.rerere.rikkahub.data.ai.catalog.ModelCatalogRepository>()
+            catalog.installBridge()
+            val stale = System.currentTimeMillis() - catalog.lastUpdatedMs > 7L * 24 * 3600 * 1000
+            if (stale) {
+                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                    catalog.refresh()
+                }
+            }
+        }.onFailure {
+            me.rerere.rikkahub.data.log.AppLog.w(TAG, "model catalog init failed: ${it.message}")
+        }
 
         // Phase-17 stability — register a network-change monitor that evicts OkHttp's
         // connection pool on every default-network transition. Fixes the post-Termux-

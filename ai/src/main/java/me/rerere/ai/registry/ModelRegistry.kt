@@ -772,20 +772,36 @@ object ModelRegistry {
     )
 
     val MODEL_INPUT_MODALITIES = ModelData { modelId ->
-        resolveModalities(modelId) { it.inputModalities }
+        if (resolveModels(modelId).isNotEmpty()) {
+            // 内置登记表命中：人工核实过，优先
+            resolveModalities(modelId) { it.inputModalities }
+        } else {
+            // 未登记：交给外部能力目录（若已注入），再不行退回默认
+            ModelCatalogBridge.inputModalities(modelId)?.toList()
+                ?: resolveModalities(modelId) { it.inputModalities }
+        }
     }
 
     val MODEL_OUTPUT_MODALITIES = ModelData { modelId ->
-        resolveModalities(modelId) { it.outputModalities }
+        if (resolveModels(modelId).isNotEmpty()) {
+            resolveModalities(modelId) { it.outputModalities }
+        } else {
+            ModelCatalogBridge.outputModalities(modelId)?.toList()
+                ?: resolveModalities(modelId) { it.outputModalities }
+        }
     }
 
     val MODEL_ABILITIES = ModelData { modelId ->
-        val abilities = resolveModels(modelId)
-            .flatMap { it.abilities }
-            .toSet()
-        buildList {
-            if (ModelAbility.TOOL in abilities) add(ModelAbility.TOOL)
-            if (ModelAbility.REASONING in abilities) add(ModelAbility.REASONING)
+        val matched = resolveModels(modelId)
+        if (matched.isEmpty()) {
+            // 未登记：交给外部能力目录，再不行即无额外能力
+            ModelCatalogBridge.abilities(modelId)?.toList() ?: emptyList()
+        } else {
+            val abilities = matched.flatMap { it.abilities }.toSet()
+            buildList {
+                if (ModelAbility.TOOL in abilities) add(ModelAbility.TOOL)
+                if (ModelAbility.REASONING in abilities) add(ModelAbility.REASONING)
+            }
         }
     }
 

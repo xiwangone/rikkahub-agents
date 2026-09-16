@@ -240,6 +240,14 @@ val dataSourceModule =
                 .SystemPromptBuilder()
         }
 
+        // 模型能力目录：联网可更新的能力表（内置登记表未命中时兜底）
+        single {
+            me.rerere.rikkahub.data.ai.catalog.ModelCatalogRepository(
+                context = get(),
+                client = get(),
+            )
+        }
+
         single<OkHttpClient> {
             val settingsStore: SettingsStore = get()
             val acceptLang = AcceptLanguageBuilder.fromAndroid(get())

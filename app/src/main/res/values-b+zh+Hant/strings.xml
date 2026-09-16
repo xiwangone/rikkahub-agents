@@ -3168,6 +3168,6 @@
   <string name="workspace_detail_save_rootfs_url">儲存目前網址</string>
   <string name="workspace_detail_saved_rootfs_urls">已儲存的網址</string>
   <string name="workspace_detail_settings_save_failed">儲存設定失敗</string>
-  <string name="setting_provider_page_match_abilities">一鍵匹配能力</string>
+  <string name="setting_provider_page_match_abilities">匹配能力</string>
   <string name="setting_provider_page_match_abilities_done">已更新 %1$d 個模型的能力</string>
 </resources>

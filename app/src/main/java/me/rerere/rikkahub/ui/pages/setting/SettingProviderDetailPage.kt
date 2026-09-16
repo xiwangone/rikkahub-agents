@@ -556,8 +556,7 @@ private fun ModelList(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             state = lazyListState,
         ) {
-            // 一键按内置能力表匹配：把每个模型的 id 与登记表对照，补齐
-            // 输入/输出模态与工具、推理能力（未登记的模型保持原样）。
+            // 「匹配」：用现有能力表（内置登记表 + 已缓存目录）回填模型能力，纯本地操作
             if (providerSetting.models.isNotEmpty()) {
                 item {
                     Row(
