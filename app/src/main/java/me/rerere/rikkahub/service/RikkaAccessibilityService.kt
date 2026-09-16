@@ -7,7 +7,6 @@ import android.graphics.Path
 import android.os.Build
 import android.os.Handler
 import android.os.HandlerThread
-import android.util.Log
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.coroutines.currentCoroutineContext
@@ -19,6 +18,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.Executors
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "RikkaAccService"
 private const val GESTURE_TIMEOUT_MS = 5_000L
@@ -62,14 +62,14 @@ class RikkaAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         _running.value = true
-        Log.i(TAG, "AccessibilityService connected")
+        AppLog.i(TAG, "AccessibilityService connected")
     }
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         instance = null
         _running.value = false
         _lastActions.value = emptyList()
-        Log.i(TAG, "AccessibilityService unbound")
+        AppLog.i(TAG, "AccessibilityService unbound")
         return super.onUnbind(intent)
     }
 

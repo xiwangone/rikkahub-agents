@@ -658,7 +658,7 @@ class ChatService(
             )
         val tool =
             tools.firstOrNull { it.name == match.toolName } ?: run {
-                android.util.Log.d(
+                android.util.AppLog.d(
                     "FastPathRouter",
                     "matched intent=${match.intent} but tool=${match.toolName} not registered for assistant; falling through",
                 )
@@ -672,7 +672,7 @@ class ChatService(
             me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
                 .checkTool(match.toolName, match.args.toString())
         if (hardlineReason != null) {
-            android.util.Log.w(
+            android.util.AppLog.w(
                 "FastPathRouter",
                 "hardline-blocked intent=${match.intent} tool=${match.toolName}: $hardlineReason; falling through to LLM",
             )
@@ -705,7 +705,7 @@ class ChatService(
                 // Fall back to raw text if formatter throws or produces nothing.
                 formatted?.takeIf { it.isNotBlank() } ?: rawText
             } catch (t: Throwable) {
-                android.util.Log.w("FastPathRouter", "tool ${match.toolName} threw, falling back to LLM", t)
+                android.util.AppLog.w("FastPathRouter", "tool ${match.toolName} threw, falling back to LLM", t)
                 me.rerere.rikkahub.skills.FastPathRouterLog.record(
                     me.rerere.rikkahub.skills.FastPathRouterLog.Entry(
                         whenMs = System.currentTimeMillis(),

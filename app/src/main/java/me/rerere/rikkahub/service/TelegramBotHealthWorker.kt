@@ -2,7 +2,6 @@ package me.rerere.rikkahub.service
 
 import android.app.ActivityManager
 import android.content.Context
-import android.util.Log
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
@@ -12,6 +11,7 @@ import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.util.concurrent.TimeUnit
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "TelegramBotHealth"
 private const val HEALTH_WORK_NAME = "telegram_bot_health"
@@ -40,17 +40,17 @@ class TelegramBotHealthWorker(
     override suspend fun doWork(): Result {
         val cfg = runCatching { telegramPrefs.current() }.getOrNull()
         if (cfg == null || !cfg.isUsable) {
-            Log.i(TAG, "doWork: bot disabled or unconfigured, no-op")
+            AppLog.i(TAG, "doWork: bot disabled or unconfigured, no-op")
             return Result.success()
         }
         if (isServiceRunning()) {
             return Result.success()
         }
-        Log.w(TAG, "doWork: bot is enabled but service isn't running — restarting")
+        AppLog.w(TAG, "doWork: bot is enabled but service isn't running — restarting")
         runCatching {
             TelegramBotService.start(applicationContext)
         }.onFailure {
-            Log.e(TAG, "doWork: failed to restart service", it)
+            AppLog.e(TAG, "doWork: failed to restart service", it)
         }
         return Result.success()
     }

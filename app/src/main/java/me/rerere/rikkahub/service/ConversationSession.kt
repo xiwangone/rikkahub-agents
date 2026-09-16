@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.service
 
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Job
@@ -13,6 +12,7 @@ import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.model.Conversation
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "ConversationSession"
 private const val IDLE_TIMEOUT_MS = 5_000L
@@ -46,12 +46,12 @@ class ConversationSession(
     fun acquire(): Int =
         refCount.incrementAndGet().also {
             cancelIdleCheck()
-            Log.d(TAG, "acquire $id (refs=$it)")
+            AppLog.d(TAG, "acquire $id (refs=$it)")
         }
 
     fun release(): Int =
         refCount.decrementAndGet().also {
-            Log.d(TAG, "release $id (refs=$it)")
+            AppLog.d(TAG, "release $id (refs=$it)")
             if (it <= 0) scheduleIdleCheck()
         }
 

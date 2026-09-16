@@ -4,7 +4,6 @@ import me.rerere.rikkahub.R
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
@@ -33,6 +32,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "CronJobWorker"
 
@@ -160,7 +160,7 @@ class CronJobWorker(
             if (!isManual) {
                 val priorRow = runRepo.getMostRecent(jobId)
                 if (shouldSuppressAsReplay(priorRow, scheduledAtMs, nowMs)) {
-                    Log.w(
+                    AppLog.w(
                         TAG,
                         "doWork: suppressing likely WorkManager replay for $jobId " +
                             "(prior row ${priorRow!!.id} same scheduledAtMs=$scheduledAtMs outcome=${priorRow.outcome})",
@@ -401,7 +401,7 @@ class CronJobWorker(
                     errorMessage = errorMessage?.take(500),
                 ),
             )
-        }.onFailure { Log.w(TAG, "recordRun failed", it) }
+        }.onFailure { AppLog.w(TAG, "recordRun failed", it) }
     }
 
     private fun postFailureNotification(

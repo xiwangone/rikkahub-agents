@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import kotlinx.coroutines.CoroutineScope
@@ -21,6 +20,7 @@ import me.rerere.rikkahub.WEB_SERVER_NOTIFICATION_CHANNEL_ID
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.web.WebServerManager
 import org.koin.android.ext.android.inject
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "WebServerService"
 
@@ -136,7 +136,7 @@ class WebServerService : Service() {
         } catch (e: Exception) {
             // 部分 OEM ROM (如 realme UI/ColorOS) 会在系统侧拒绝 FGS 类型权限，
             // 即使 Manifest 已声明 FOREGROUND_SERVICE_SPECIAL_USE 也会抛 SecurityException
-            Log.e(TAG, "Failed to start foreground service", e)
+            AppLog.e(TAG, "Failed to start foreground service", e)
             webServerManager.reportError("Failed to start foreground service: ${e.message}")
             false
         }

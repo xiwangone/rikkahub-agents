@@ -6,7 +6,6 @@ import android.app.Notification
 import android.content.pm.PackageManager
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
-import android.util.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -77,14 +76,14 @@ class RikkaNotificationListenerService : NotificationListenerService() {
         super.onListenerConnected()
         instance = this
         _bound.value = true
-        Log.i(TAG, "listener connected")
+        AppLog.i(TAG, "listener connected")
     }
 
     override fun onListenerDisconnected() {
         instance = null
         _bound.value = false
         lastForwarded.clear()
-        Log.i(TAG, "listener disconnected")
+        AppLog.i(TAG, "listener disconnected")
         super.onListenerDisconnected()
     }
 
@@ -387,7 +386,7 @@ private fun StatusBarNotification.toEntry(pm: PackageManager): NotificationEntry
             pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
         } catch (t: Throwable) {
             // Uninstalled / restricted package — fall back to the raw package name.
-            Log.d(TAG, "getApplicationLabel failed for $packageName", t)
+            AppLog.d(TAG, "getApplicationLabel failed for $packageName", t)
             packageName
         }
     val actionTitles = n.actions?.mapNotNull { it.title?.toString() } ?: emptyList()

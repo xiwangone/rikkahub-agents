@@ -1,10 +1,10 @@
 package me.rerere.rikkahub.service
 
-import android.util.Log
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import me.rerere.rikkahub.data.telegram.TelegramPollStallTracker
 import kotlin.coroutines.coroutineContext
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "TelegramPollStall"
 
@@ -69,7 +69,7 @@ class TelegramPollStallChecker(
      * slow trickle of restarts over hours doesn't falsely trip the flap escalation.
      */
     suspend fun monitor() {
-        logSafe { Log.i(TAG, "monitor: starting (interval=${checkIntervalMs}ms threshold=${stallThresholdMs}ms)") }
+        logSafe { AppLog.i(TAG, "monitor: starting (interval=${checkIntervalMs}ms threshold=${stallThresholdMs}ms)") }
         var windowStartMs = System.currentTimeMillis()
         var restartsInWindow = 0
         while (coroutineContext.isActive) {
@@ -88,7 +88,7 @@ class TelegramPollStallChecker(
 
                 Action.RESTART_POLL_LOOP -> {
                     logSafe {
-                        Log.w(
+                        AppLog.w(
                             TAG,
                             "monitor: poll stalled for ${tracker.millisSinceLastUpdate()}ms — restarting poll loop",
                         )
@@ -96,7 +96,7 @@ class TelegramPollStallChecker(
                     tracker.onPollLoopRestarted()
                     restartsInWindow++
                     runCatching { restartPollLoop() }
-                        .onFailure { logSafe { Log.w(TAG, "monitor: restartPollLoop failed", it) } }
+                        .onFailure { logSafe { AppLog.w(TAG, "monitor: restartPollLoop failed", it) } }
                     // Reset the baseline so the next tick doesn't immediately re-fire on the
                     // same stall while the fresh poll loop is warming up.
                     tracker.markUpdate()
@@ -104,13 +104,13 @@ class TelegramPollStallChecker(
 
                 Action.ESCALATE -> {
                     logSafe {
-                        Log.w(
+                        AppLog.w(
                             TAG,
                             "monitor: poll loop flapping ($restartsInWindow restarts in window) — escalating to FGS restart",
                         )
                     }
                     runCatching { onEscalate() }
-                        .onFailure { logSafe { Log.w(TAG, "monitor: onEscalate failed", it) } }
+                        .onFailure { logSafe { AppLog.w(TAG, "monitor: onEscalate failed", it) } }
                     // Escalation hands off to TelegramBotHealthWorker / a service restart;
                     // reset the window so we don't escalate again on the very next tick.
                     windowStartMs = nowMs
@@ -119,7 +119,7 @@ class TelegramPollStallChecker(
                 }
             }
         }
-        logSafe { Log.i(TAG, "monitor: stopped") }
+        logSafe { AppLog.i(TAG, "monitor: stopped") }
     }
 
     companion object {

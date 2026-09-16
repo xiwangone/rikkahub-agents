@@ -8,7 +8,6 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.provider.Settings
-import android.util.Log
 import android.util.TypedValue
 import android.view.Gravity
 import android.view.WindowManager
@@ -94,7 +93,7 @@ object AgentOverlay {
                 observerRegistered = true
             }.onFailure {
                 // 注册失败不要留下"已注册"假状态，否则永不重试
-                Log.w(TAG, "addObserver failed", it)
+                AppLog.w(TAG, "addObserver failed", it)
                 log("addObserver failed: ${it.message}")
             }
         }
@@ -102,7 +101,7 @@ object AgentOverlay {
 
     /** 诊断：同时写系统日志与 App 内存日志（后者可被 read_app_logs 读到）。 */
     private fun log(message: String) {
-        Log.d(TAG, message)
+        AppLog.d(TAG, message)
         runCatching { AppLog.d(TAG, message) }
     }
 

@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.service
 
-import android.util.Log
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.ui.UIMessagePart
@@ -8,6 +7,7 @@ import me.rerere.rikkahub.data.telegram.AttachmentKind
 import me.rerere.rikkahub.data.telegram.TelegramAttachment
 import me.rerere.rikkahub.data.telegram.TelegramBotClient
 import java.io.File
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Helpers for downloading inbound Telegram photos / documents / voice notes to a per-chat
@@ -92,7 +92,7 @@ internal suspend fun downloadInboundPhotos(
             val info = client.getFile(fileId)
             val filePath = info["file_path"]?.jsonPrimitive?.contentOrNull
             if (filePath == null) {
-                Log.w(TAG, "downloadInboundPhotos: getFile returned no file_path for id=$fileId")
+                AppLog.w(TAG, "downloadInboundPhotos: getFile returned no file_path for id=$fileId")
                 continue
             }
             val ext = filePath.substringAfterLast('.', "jpg")
@@ -101,9 +101,9 @@ internal suspend fun downloadInboundPhotos(
             client.downloadFile(filePath, dest)
             images.add(UIMessagePart.Image(url = "file://${dest.absolutePath}"))
             paths.add(dest.absolutePath)
-            Log.i(TAG, "downloadInboundPhotos: saved ${dest.name} (${dest.length()} bytes)")
+            AppLog.i(TAG, "downloadInboundPhotos: saved ${dest.name} (${dest.length()} bytes)")
         } catch (e: Throwable) {
-            Log.w(TAG, "downloadInboundPhotos: failed for $fileId", e)
+            AppLog.w(TAG, "downloadInboundPhotos: failed for $fileId", e)
         }
     }
     return images to paths
@@ -148,7 +148,7 @@ internal suspend fun downloadInboundAttachments(
             val info = client.getFile(att.fileId)
             val filePath = info["file_path"]?.jsonPrimitive?.contentOrNull
             if (filePath == null) {
-                Log.w(TAG, "downloadInboundAttachments: no file_path for ${att.fileId}")
+                AppLog.w(TAG, "downloadInboundAttachments: no file_path for ${att.fileId}")
                 continue
             }
             val ext = filePath.substringAfterLast('.', "bin")
@@ -156,14 +156,14 @@ internal suspend fun downloadInboundAttachments(
             val dest = uniqueFile(inboxDir, safeName)
             client.downloadFile(filePath, dest)
             out.add(DownloadedAttachment(att, savedPath = dest.absolutePath, skipReason = null))
-            Log.i(TAG, "downloadInboundAttachments: saved ${dest.name} (${dest.length()} bytes)")
+            AppLog.i(TAG, "downloadInboundAttachments: saved ${dest.name} (${dest.length()} bytes)")
         } catch (c: kotlinx.coroutines.CancellationException) {
             // Cancellation is not a download failure — rethrow so structured concurrency
             // unwinds cleanly instead of emitting a misleading "download failed" note and
             // silently swallowing the cancel.
             throw c
         } catch (e: Throwable) {
-            Log.w(TAG, "downloadInboundAttachments: failed for ${att.fileId}", e)
+            AppLog.w(TAG, "downloadInboundAttachments: failed for ${att.fileId}", e)
             // Surface the failure as a SKIPPED note instead of dropping the file: the LLM/user
             // still learns the attachment arrived (e.g. getFile rejects files near the 20 MB edge).
             out.add(

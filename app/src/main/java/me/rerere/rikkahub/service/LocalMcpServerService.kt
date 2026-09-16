@@ -6,7 +6,6 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
@@ -23,6 +22,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.server.LocalMcpServerManager
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import org.koin.android.ext.android.inject
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "LocalMcpServerService"
 
@@ -119,7 +119,7 @@ class LocalMcpServerService : Service() {
             }
             true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to start foreground service", e)
+            AppLog.e(TAG, "Failed to start foreground service", e)
             false
         }
 

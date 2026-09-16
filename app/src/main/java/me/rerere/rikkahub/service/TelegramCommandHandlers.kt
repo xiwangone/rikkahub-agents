@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.service
 
-import android.util.Log
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
@@ -25,6 +24,7 @@ import me.rerere.rikkahub.service.TelegramBotRegistries.SlashCommandLog
 import me.rerere.rikkahub.service.TelegramBotService.Companion.TAG
 import me.rerere.rikkahub.service.TelegramBotService.Companion.isRunning
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Built-in slash-command handlers + the per-turn helpers (auto-cancel, image rescue,
@@ -194,7 +194,7 @@ internal suspend fun TelegramBotService.cancelStaleApprovalKeyboards(
                 parseMode = null,
             )
         } catch (e: Throwable) {
-            Log.w(TAG, "cancelStaleApprovalKeyboards: edit failed for $toolCallId", e)
+            AppLog.w(TAG, "cancelStaleApprovalKeyboards: edit failed for $toolCallId", e)
         }
     }
     ApprovalPromptRegistry.clearChat(chatId)
@@ -757,10 +757,10 @@ internal suspend fun TelegramBotService.tryRescueImageFromTurn(
             }
         return runCatching {
             client.sendPhoto(chatId, file, caption)
-            Log.i(TAG, "tryRescueImageFromTurn: sent ${tool.toolName} artifact to chat=$chatId path=$path")
+            AppLog.i(TAG, "tryRescueImageFromTurn: sent ${tool.toolName} artifact to chat=$chatId path=$path")
             true
         }.getOrElse {
-            Log.w(TAG, "tryRescueImageFromTurn: sendPhoto failed", it)
+            AppLog.w(TAG, "tryRescueImageFromTurn: sendPhoto failed", it)
             false
         }
     }
@@ -822,7 +822,7 @@ internal suspend fun TelegramBotService.handleDoctorCommand(chatId: Long) {
             if (!matchesSeverity || !hasAutoFix) return@filter false
             val payloadBytes = (DOCTOR_FIX_CB_PREFIX + c.id).toByteArray(Charsets.UTF_8).size
             if (payloadBytes > 64) {
-                android.util.Log.w(
+                android.util.AppLog.w(
                     TAG,
                     "handleDoctorCommand: skipping AutoFix button for check.id=${c.id} " +
                         "($payloadBytes bytes > 64 cap)",
@@ -970,12 +970,12 @@ internal suspend fun TelegramBotService.registerBuiltInCommandsWithTelegram() {
             }
         val merged = BUILT_IN_COMMANDS + custom
         val ok = client.setMyCommands(merged)
-        Log.i(
+        AppLog.i(
             TAG,
             "registerBuiltInCommandsWithTelegram: setMyCommands ok=$ok " +
                 "(builtins=${BUILT_IN_COMMANDS.size}, custom=${custom.size})",
         )
     } catch (e: Throwable) {
-        Log.w(TAG, "registerBuiltInCommandsWithTelegram failed", e)
+        AppLog.w(TAG, "registerBuiltInCommandsWithTelegram failed", e)
     }
 }

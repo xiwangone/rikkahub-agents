@@ -8,13 +8,13 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import android.os.PowerManager
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
 import me.rerere.rikkahub.CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID
 import me.rerere.rikkahub.R
 import java.util.concurrent.atomic.AtomicBoolean
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "ChatGenerationFgs"
 
@@ -93,7 +93,7 @@ class ChatGenerationForegroundService : Service() {
     } catch (error: Exception) {
         // Generation keeps running on the app scope when an OEM rejects the FGS request. The
         // failure is logged because the device's battery policy can then still interrupt it.
-        Log.w(TAG, "Unable to start chat-generation foreground service", error)
+        AppLog.w(TAG, "Unable to start chat-generation foreground service", error)
         false
     }
 
@@ -118,7 +118,7 @@ class ChatGenerationForegroundService : Service() {
     private fun releaseWakeLock() {
         runCatching {
             wakeLock?.takeIf { it.isHeld }?.release()
-        }.onFailure { Log.w(TAG, "Unable to release chat-generation wake lock", it) }
+        }.onFailure { AppLog.w(TAG, "Unable to release chat-generation wake lock", it) }
         wakeLock = null
     }
 
@@ -141,7 +141,7 @@ class ChatGenerationForegroundService : Service() {
                 )
             }.onFailure {
                 readiness.markUnavailable()
-                Log.w(TAG, "Unable to request chat-generation foreground service", it)
+                AppLog.w(TAG, "Unable to request chat-generation foreground service", it)
             }
         }
 
@@ -161,7 +161,7 @@ class ChatGenerationForegroundService : Service() {
                 // If the platform refuses a normal background start, there is no active work
                 // left according to the tracker, so a direct stop is safe as a last resort.
                 context.applicationContext.stopService(serviceIntent)
-            }.onFailure { Log.w(TAG, "Unable to stop chat-generation foreground service", it) }
+            }.onFailure { AppLog.w(TAG, "Unable to stop chat-generation foreground service", it) }
         }
     }
 }

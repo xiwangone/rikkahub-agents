@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.service
 
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.Serializable
@@ -13,6 +12,7 @@ import kotlinx.serialization.json.contentOrNull
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Parses + executes mode='direct' action sequences. Each action is a single
@@ -109,7 +109,7 @@ class DirectModeActionRunner(
     ): StepResult {
         val hardlineReason = HardlineCommandGuard.checkTool(action.tool, action.args.toString())
         if (hardlineReason != null) {
-            Log.w(TAG, "direct-mode hardline-blocked action $idx tool=${action.tool}: $hardlineReason")
+            AppLog.w(TAG, "direct-mode hardline-blocked action $idx tool=${action.tool}: $hardlineReason")
             return StepResult.HardlineBlocked(hardlineReason)
         }
         val tool =
@@ -123,7 +123,7 @@ class DirectModeActionRunner(
             // a failed step (same contract as WorkflowActionRunner.run).
             throw c
         } catch (t: Throwable) {
-            Log.w(TAG, "direct-mode action $idx tool=${action.tool} threw", t)
+            AppLog.w(TAG, "direct-mode action $idx tool=${action.tool} threw", t)
             StepResult.Failed("${t::class.simpleName}: ${t.message.orEmpty()}".take(500))
         }
     }

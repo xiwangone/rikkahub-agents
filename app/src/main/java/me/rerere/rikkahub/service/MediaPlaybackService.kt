@@ -18,11 +18,11 @@ import android.os.IBinder
 import android.support.v4.media.MediaMetadataCompat
 import android.support.v4.media.session.MediaSessionCompat
 import android.support.v4.media.session.PlaybackStateCompat
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media.session.MediaButtonReceiver
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "MediaPlaybackSvc"
 
@@ -258,7 +258,7 @@ class MediaPlaybackService : Service() {
                     }
                 }
             } catch (t: Throwable) {
-                Log.d(TAG, "metadata extraction failed (best-effort)", t)
+                AppLog.d(TAG, "metadata extraction failed (best-effort)", t)
             }
         }
 
@@ -343,7 +343,7 @@ class MediaPlaybackService : Service() {
             // Logged (was silently swallowed) so a "media won't play" report has a
             // diagnostic — typically a bad source URI / unsupported scheme from
             // setDataSource. Control flow is unchanged: error state, drop foreground, stop.
-            Log.w(TAG, "startPlayback failed for source=$source", e)
+            AppLog.w(TAG, "startPlayback failed for source=$source", e)
             setPlaybackState(PlaybackStateCompat.STATE_ERROR, 0L)
             stopForeground(STOP_FOREGROUND_DETACH)
             stopSelf()
@@ -473,12 +473,12 @@ class MediaPlaybackService : Service() {
             try {
                 if (it.isPlaying) it.stop()
             } catch (t: Throwable) {
-                Log.d(TAG, "stop during release", t)
+                AppLog.d(TAG, "stop during release", t)
             }
             try {
                 it.release()
             } catch (t: Throwable) {
-                Log.d(TAG, "release failed", t)
+                AppLog.d(TAG, "release failed", t)
             }
         }
         mediaPlayer = null
