@@ -1678,7 +1678,7 @@ internal fun resolveCompressionModel(settings: Settings): Model? {
                     )
             val provider =
                 model.findProvider(settings.providers)
-                    ?: throw IllegalStateException("Provider not found"
+                    ?: throw IllegalStateException("Provider not found")
 
             val providerHandler = providerManager.getProviderByType(provider)
 
