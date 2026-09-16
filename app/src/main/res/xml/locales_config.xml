@@ -5,7 +5,7 @@
   标签使用 BCP 47；资源目录对应关系：
     en       → values
     zh-Hans  → values-zh（简体）
-    zh-HK    → values-zh-rHK（繁体，香港用词）
+    zh-Hant  → values-b+zh+Hant（繁体中文，不分地区）
     ja       → values-ja
     ko-KR    → values-ko-rKR
     ru       → values-ru
@@ -14,7 +14,7 @@
 <locale-config xmlns:android="http://schemas.android.com/apk/res/android">
     <locale android:name="en"/>
     <locale android:name="zh-Hans"/>
-    <locale android:name="zh-HK"/>
+    <locale android:name="zh-Hant"/>
     <locale android:name="ja"/>
     <locale android:name="ko-KR"/>
     <locale android:name="ru"/>

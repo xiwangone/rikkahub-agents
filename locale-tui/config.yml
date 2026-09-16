@@ -43,7 +43,7 @@ languages:
     is_source: true
   - code: "values-zh"
     name: "Chinese (Simplified)"
-  - code: "values-zh-rHK"
+  - code: "values-b+zh+Hant"
     name: "Chinese (Traditional)"
   - code: "values-ja"
     name: "Japanese"
