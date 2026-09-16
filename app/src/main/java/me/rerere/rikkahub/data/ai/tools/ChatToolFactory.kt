@@ -213,9 +213,19 @@ class ChatToolFactory(
  * 会话内后续请求恢复完整 schema。工具集合和顺序不变，避免前缀缓存抖动。
  */
 private fun surfaceView(tool: Tool, conversationId: String?): Tool {
-    if (ToolSurfacePolicy.tierOf(tool.name) != SurfaceTier.COLD ||
-        ToolSurfaceSession.isLoaded(conversationId, tool.name)
-    ) return tool
+    val tier = ToolSurfacePolicy.tierOf(tool.name)
+    if (tier == SurfaceTier.HOT) return tool
+
+    if (tier == SurfaceTier.WARM) {
+        // WARM 档：描述收敛为首段以压低常驻体积，**参数表完整保留** ——
+        // 与 COLD 的「空 schema + 拦截」不同，模型据此仍可直接调用，无需 get_tool_schema 往返。
+        // 只对「明显偏长」的描述动手：短描述原样保留，避免白白丢信息。
+        if (tool.description.length <= WARM_DESCRIPTION_KEEP_CHARS) return tool
+        val compact = tool.description.toCompactDescription()
+        return if (compact.isBlank() || compact == tool.description) tool else tool.copy(description = compact)
+    }
+
+    if (ToolSurfaceSession.isLoaded(conversationId, tool.name)) return tool
 
     return tool.copy(
         description = tool.description.toSingleLine() +
@@ -246,9 +256,23 @@ private fun surfaceView(tool: Tool, conversationId: String?): Tool {
     )
 }
 
+/** 描述长度阈值：超过它才做 WARM 档收敛（短的保持原样，不丢信息）。 */
+private const val WARM_DESCRIPTION_KEEP_CHARS = 200
+
 /** 取描述的首句（英文句点或换行分隔），并限制长度。 */
 private fun String.toSingleLine(maxChars: Int = 120): String {
     val normalized = replace("\n", " ").trim()
     val head = normalized.substringBefore(". ").substringBefore("。")
     return if (head.length <= maxChars) head else head.take(maxChars).trimEnd() + "…"
+}
+
+/**
+ * WARM 档描述收敛：保留**首段**（首个空行之前）并限制长度。
+ *
+ * 相比 [toSingleLine] 只取首句，这里保留整段，确保「用途 + 关键用法」不丢；
+ * 且 WARM 档的参数表（schema）**完整保留**，模型据此仍可直接调用、无需额外往返。
+ */
+private fun String.toCompactDescription(maxChars: Int = 400): String {
+    val normalized = substringBefore("\n\n").replace("\n", " ").trim()
+    return if (normalized.length <= maxChars) normalized else normalized.take(maxChars).trimEnd() + "…"
 }
