@@ -12,12 +12,16 @@ import java.util.Locale
  * READ_LOGS 权限即可查看 ChatService 等核心日志。
  *
  * 每个方法在调用 android.util.Log 的同时（保留原有 logcat 输出），同步将日志条目
- * 写入内存 buffer（上限 500 条，超过丢弃最旧）。开关持久化在 SharedPreferences
+ * 写入内存 buffer（上限 2000 条，超过丢弃最旧；长会话/多工具调用下 500 条会被迅速冲掉，
+ * 导致事后无法回溯关键事件）。开关持久化在 SharedPreferences
  * （key = "rikkahub.preferences" / "app_log_enabled"）。
  */
 object AppLog {
-    /** 内存缓存上限：超过后丢弃最旧的日志 */
-    private const val MAX_APP_LOGS = 500
+    /**
+     * 内存缓存上限：超过后丢弃最旧的日志。
+     * 2000 条 ≈ 单条最长 2KB 时最多 4MB，实际远低于此；换取长会话下仍然可回溯。
+     */
+    private const val MAX_APP_LOGS = 2000
 
     /** 单条消息最大长度，防止超长消息撑爆内存 */
     private const val MAX_MESSAGE_LENGTH = 2000
