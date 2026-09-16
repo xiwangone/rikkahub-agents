@@ -125,6 +125,7 @@ fun WorkspaceDetailPage(id: String) {
     val mirrors by vm.mirrors.collectAsStateWithLifecycle()
     var previewImageUri by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
     val filePicker =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument(),
@@ -143,6 +144,30 @@ fun WorkspaceDetailPage(id: String) {
             vm.importFile(inputStream, fileName)
         }
     var exportTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
+    var exportFolderTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
+    val exportFolderLauncher =
+        rememberLauncherForActivityResult(
+            contract = ActivityResultContracts.OpenDocumentTree(),
+        ) { uri ->
+            val entry =
+                exportFolderTarget.also { exportFolderTarget = null }
+                    ?: return@rememberLauncherForActivityResult
+            if (uri == null) return@rememberLauncherForActivityResult
+            val tree =
+                androidx.documentfile.provider.DocumentFile.fromTreeUri(context, uri)
+                    ?: return@rememberLauncherForActivityResult
+            // 在所选目录下新建同名文件夹，避免把内容直接铺进用户选中的目录
+            val targetDir = tree.createDirectory(entry.name) ?: tree
+            vm.exportFolder(entry, targetDir) { outcome ->
+                toaster.show(
+                    context.getString(
+                        R.string.workspace_detail_export_folder_done,
+                        outcome.fileCount,
+                        outcome.failures,
+                    ),
+                )
+            }
+        }
     val exportLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.CreateDocument("*/*"),
@@ -292,8 +317,14 @@ fun WorkspaceDetailPage(id: String) {
                         },
                         onDelete = { deleteTarget = it },
                         onExport = { entry ->
-                            exportTarget = entry
-                            exportLauncher.launch(entry.name)
+                            if (entry.isDirectory) {
+                                // 目录：整棵子树导出到用户选定的目录（SAF 目录树）
+                                exportFolderTarget = entry
+                                exportFolderLauncher.launch(null)
+                            } else {
+                                exportTarget = entry
+                                exportLauncher.launch(entry.name)
+                            }
                         },
                         onShare = { entry ->
                             vm.exportToCacheFile(entry, context.cacheDir) { file ->

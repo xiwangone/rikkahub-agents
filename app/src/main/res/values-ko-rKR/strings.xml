@@ -3171,4 +3171,6 @@
   <string name="workspace_detail_saved_rootfs_urls">저장된 URL</string>
   <string name="setting_provider_page_match_abilities">기능 매칭</string>
   <string name="setting_provider_page_match_abilities_done">모델 %1$d개의 기능을 업데이트했습니다</string>
+  <string name="workspace_detail_export_folder">폴더 내보내기</string>
+  <string name="workspace_detail_export_folder_done">파일 %1$d개 내보냄, 실패 %2$d개</string>
 </resources>

@@ -3167,4 +3167,6 @@
   <string name="setting_update_reminder_resume_now">立即恢复</string>
   <string name="setting_provider_page_match_abilities">匹配能力</string>
   <string name="setting_provider_page_match_abilities_done">已更新 %1$d 个模型的能力</string>
+  <string name="workspace_detail_export_folder">导出文件夹</string>
+  <string name="workspace_detail_export_folder_done">已导出 %1$d 个文件，失败 %2$d 个</string>
 </resources>

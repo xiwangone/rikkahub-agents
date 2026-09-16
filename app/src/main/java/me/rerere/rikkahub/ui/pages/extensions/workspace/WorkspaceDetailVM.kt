@@ -20,6 +20,10 @@ import me.rerere.workspace.WorkspaceStorageArea
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import androidx.documentfile.provider.DocumentFile
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.log.AppLog
 
 class WorkspaceDetailVM(
     private val id: String,
@@ -211,6 +215,89 @@ class WorkspaceDetailVM(
         }
     }
 
+    /**
+     * 把 [entry]（目录）整棵子树导出到 SAF 目标目录 [destinationTree]。
+     *
+     * 列目录用 `Int.MAX_VALUE`：默认列表上限（500）会把大目录截断成"只导出前 500 项"。
+     * 单个文件失败只计入 [FolderExportOutcome.failures]，不中断整单导出。
+     */
+    fun exportFolder(
+        entry: WorkspaceFileEntry,
+        destinationTree: DocumentFile,
+        onResult: (FolderExportOutcome) -> Unit,
+    ) {
+        viewModelScope.launch {
+            val area = state.value.area
+            val outcome =
+                withContext(Dispatchers.IO) {
+                    val listing = mutableMapOf<String, List<WorkspaceFileEntry>>()
+                    var failures = 0
+
+                    suspend fun collect(path: String) {
+                        val children =
+                            runCatching {
+                                repository.listFiles(id = id, area = area, path = path, limit = Int.MAX_VALUE)
+                            }.getOrElse {
+                                failures++
+                                emptyList()
+                            }
+                        listing[path] = children
+                        children.filter { it.isDirectory }.forEach { collect(it.path) }
+                    }
+
+                    val rootListing =
+                        runCatching {
+                            repository.listFiles(id = id, area = area, path = entry.path, limit = Int.MAX_VALUE)
+                        }.getOrElse {
+                            failures++
+                            emptyList()
+                        }
+                    listing[entry.path] = rootListing
+                    rootListing.filter { it.isDirectory }.forEach { collect(it.path) }
+
+                    val plan = planWorkspaceFolderExport(entry.path, listing)
+                    val dirDocs = mutableMapOf(entry.path to destinationTree)
+                    var fileCount = 0
+                    for (item in plan) {
+                        val parent = dirDocs[item.parentPath]
+                        if (parent == null) {
+                            failures++
+                            continue
+                        }
+                        if (item.isDirectory) {
+                            val created = parent.createDirectory(item.name)
+                            if (created == null) {
+                                failures++
+                            } else {
+                                dirDocs[item.sourcePath] = created
+                            }
+                        } else {
+                            runCatching {
+                                val fileDoc = parent.createFile("application/octet-stream", item.name)
+                                    ?: error("create failed: ${item.name}")
+                                val out = context.contentResolver.openOutputStream(fileDoc.uri)
+                                    ?: error("openOutputStream failed: ${item.name}")
+                                out.use { stream ->
+                                    repository.exportFile(
+                                        id = id,
+                                        area = area,
+                                        path = item.sourcePath,
+                                        outputStream = stream,
+                                    )
+                                }
+                                fileCount++
+                            }.onFailure {
+                                failures++
+                                AppLog.w("WorkspaceExport", "folder export failed: ${item.sourcePath}: ${it.message}")
+                            }
+                        }
+                    }
+                    FolderExportOutcome(folderName = entry.name, fileCount = fileCount, failures = failures)
+                }
+            onResult(outcome)
+        }
+    }
+
     fun setShellCompatibilityMode(enabled: Boolean) {
         viewModelScope.launch {
             try {
@@ -371,3 +458,10 @@ sealed interface WorkspaceTerminalEntry {
         val message: String,
     ) : WorkspaceTerminalEntry
 }
+
+/** 文件夹导出结果：导出的文件数与失败项数。 */
+data class FolderExportOutcome(
+    val folderName: String,
+    val fileCount: Int,
+    val failures: Int,
+)

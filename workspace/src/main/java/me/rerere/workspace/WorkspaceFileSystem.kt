@@ -15,6 +15,7 @@ class WorkspaceFileSystem(
     fun list(
         root: File,
         path: String = "",
+        limit: Int = config.maxListEntries,
     ): List<WorkspaceFileEntry> {
         val dir = resolvePath(root, path)
         require(dir.exists()) { "Path does not exist: $path" }
@@ -24,7 +25,7 @@ class WorkspaceFileSystem(
             .orEmpty()
             .filter { !it.name.startsWith(".l2s.") }
             .sortedWith(compareBy<File> { !it.isDirectory }.thenBy { it.name.lowercase() })
-            .take(config.maxListEntries)
+            .take(limit)
             .map { it.toEntry(root) }
     }
 
@@ -195,7 +196,7 @@ class WorkspaceFileSystem(
                 .filter { Files.isRegularFile(it) || Files.isDirectory(it) }
                 .filter { !it.toFile().name.startsWith(".l2s.") }
                 .filter { matcher.matches(root.toPath().relativize(it).normalizeForMatch()) }
-                .take(config.maxListEntries)
+                .take(limit)
                 .map { it.toFile().toEntry(root) }
                 .toList()
         }

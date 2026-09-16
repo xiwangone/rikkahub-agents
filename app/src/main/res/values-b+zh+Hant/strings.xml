@@ -3170,4 +3170,6 @@
   <string name="workspace_detail_settings_save_failed">儲存設定失敗</string>
   <string name="setting_provider_page_match_abilities">匹配能力</string>
   <string name="setting_provider_page_match_abilities_done">已更新 %1$d 個模型的能力</string>
+  <string name="workspace_detail_export_folder">匯出資料夾</string>
+  <string name="workspace_detail_export_folder_done">已匯出 %1$d 個檔案，失敗 %2$d 個</string>
 </resources>

@@ -3171,4 +3171,6 @@
   <string name="workspace_detail_saved_rootfs_urls">Сохранённые URL</string>
   <string name="setting_provider_page_match_abilities">Сопоставить</string>
   <string name="setting_provider_page_match_abilities_done">Сопоставлено: обновлено %1$d модели(ей)</string>
+  <string name="workspace_detail_export_folder">Экспорт папки</string>
+  <string name="workspace_detail_export_folder_done">Экспортировано файлов: %1$d, ошибок: %2$d</string>
 </resources>
