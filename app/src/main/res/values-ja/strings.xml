@@ -3169,4 +3169,6 @@
   <string name="workspace_detail_preset_rootfs_urls">プリセット</string>
   <string name="workspace_detail_save_rootfs_url">現在の URL を保存</string>
   <string name="workspace_detail_saved_rootfs_urls">保存済み URL</string>
+  <string name="setting_provider_page_match_abilities">能力を一括照合</string>
+  <string name="setting_provider_page_match_abilities_done">%1$d 件のモデルの能力を更新しました</string>
 </resources>

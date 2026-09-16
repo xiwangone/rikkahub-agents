@@ -3169,4 +3169,6 @@
   <string name="workspace_detail_preset_rootfs_urls">Предустановки</string>
   <string name="workspace_detail_save_rootfs_url">Сохранить текущий URL</string>
   <string name="workspace_detail_saved_rootfs_urls">Сохранённые URL</string>
+  <string name="setting_provider_page_match_abilities">Сопоставить возможности</string>
+  <string name="setting_provider_page_match_abilities_done">Обновлены возможности для %1$d модели(ей)</string>
 </resources>

@@ -3169,4 +3169,6 @@
   <string name="workspace_detail_preset_rootfs_urls">프리셋</string>
   <string name="workspace_detail_save_rootfs_url">현재 URL 저장</string>
   <string name="workspace_detail_saved_rootfs_urls">저장된 URL</string>
+  <string name="setting_provider_page_match_abilities">기능 일괄 매칭</string>
+  <string name="setting_provider_page_match_abilities_done">모델 %1$d개의 기능을 업데이트했습니다</string>
 </resources>

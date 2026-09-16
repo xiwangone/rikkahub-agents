@@ -148,6 +148,7 @@ import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
+import me.rerere.hugeicons.stroke.MagicWand01
 
 @Composable
 fun SettingProviderDetailPage(
@@ -555,6 +556,56 @@ private fun ModelList(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             state = lazyListState,
         ) {
+            // 一键按内置能力表匹配：把每个模型的 id 与登记表对照，补齐
+            // 输入/输出模态与工具、推理能力（未登记的模型保持原样）。
+            if (providerSetting.models.isNotEmpty()) {
+                item {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Button(
+                            onClick = {
+                                var changed = 0
+                                val updated =
+                                    providerSetting.models.map { m ->
+                                        val inputs = ModelRegistry.MODEL_INPUT_MODALITIES.getData(m.modelId)
+                                        val outputs = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(m.modelId)
+                                        val abilities = ModelRegistry.MODEL_ABILITIES.getData(m.modelId)
+                                        if (
+                                            inputs != m.inputModalities ||
+                                                outputs != m.outputModalities ||
+                                                abilities != m.abilities
+                                        ) {
+                                            changed++
+                                            m.copy(
+                                                inputModalities = inputs,
+                                                outputModalities = outputs,
+                                                abilities = abilities,
+                                            )
+                                        } else {
+                                            m
+                                        }
+                                    }
+                                if (changed > 0) {
+                                    onUpdateProvider(providerSetting.copy(models = updated))
+                                }
+                                toaster.show(
+                                    context.getString(
+                                        R.string.setting_provider_page_match_abilities_done,
+                                        changed,
+                                    ),
+                                )
+                            },
+                        ) {
+                            Icon(HugeIcons.MagicWand01, contentDescription = null)
+                            Text(stringResource(R.string.setting_provider_page_match_abilities))
+                        }
+                    }
+                }
+            }
+
             // 模型列表
             if (providerSetting.models.isEmpty()) {
                 item {
