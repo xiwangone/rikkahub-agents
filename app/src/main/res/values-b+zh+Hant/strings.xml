@@ -630,6 +630,8 @@
   <string name="setting_display_page_amoled_dark_mode_desc">在暗色主題中使用純黑背景，適合 AMOLED 螢幕</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED 暗色模式</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">思考完成自動折疊思考內容</string>
+  <string name="setting_display_page_tool_surface_trim_title">工具面裁剪</string>
+  <string name="setting_display_page_tool_surface_trim_desc">低頻工具只傳送簡短說明，需要時再取回完整參數表；關閉後一律傳送完整定義。</string>
   <string name="setting_display_page_auto_collapse_thinking_title">自動折疊思考</string>
   <string name="setting_display_page_auto_play_tts_desc">助理訊息產生完成後自動播放語音</string>
   <string name="setting_display_page_auto_play_tts_title">產生後自動播放 TTS</string>

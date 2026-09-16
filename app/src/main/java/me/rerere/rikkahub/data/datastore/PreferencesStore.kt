@@ -1045,6 +1045,14 @@ data class DisplaySetting(
     val skipCropImage: Boolean = true,
     val enableNotificationOnMessageGeneration: Boolean = false,
     val enableLiveUpdateNotification: Boolean = false,
+    /**
+     * 工具面裁剪（冷档空 schema 拦截 + 温档描述收敛）。
+     *
+     * 它影响的是「注入给模型的工具描述与参数表」这一视图层，故归入显示设置；
+     * 与 `ToolSurfacePolicy.TRIM_ENABLED`（编译期总开关）取**与**关系，任一关闭即完全不裁剪。
+     * 置 false 即恢复完整 schema —— 排查「模型选不到工具 / 参数调不对」时的单点回退。
+     */
+    val toolSurfaceTrimming: Boolean = true,
     val codeBlockAutoWrap: Boolean = false,
     val codeBlockAutoCollapse: Boolean = true,
     /** 输入框功能按钮行（Zap/LockKey/ASR 等）默认折叠；用户展开过则记住，下次启动保持 */

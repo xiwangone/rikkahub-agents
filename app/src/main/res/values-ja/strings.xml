@@ -640,6 +640,8 @@
   <string name="setting_display_page_amoled_dark_mode_desc">ダークテーマで純粋な黒色背景を使用、AMOLED画面に適しています</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED ダークモード</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">思考が完了したら思考内容を自動的に折りたたむ</string>
+  <string name="setting_display_page_tool_surface_trim_title">ツール面の整理</string>
+  <string name="setting_display_page_tool_surface_trim_desc">低頻度ツールは短い説明のみを送信し、必要時に完全なパラメータを取得します。オフにすると常に完全な定義を送信します。</string>
   <string name="setting_display_page_auto_collapse_thinking_title">思考を自動折りたたむ</string>
   <string name="setting_display_page_auto_play_tts_desc">アシスタントのメッセージ生成完了後にTTSを自動再生</string>
   <string name="setting_display_page_auto_play_tts_title">生成後にTTSを自動再生</string>

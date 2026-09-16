@@ -653,6 +653,8 @@
   <string name="setting_display_page_amoled_dark_mode_desc">استخدام خلفية سوداء نقية في السمة الداكنة، مناسب لشاشات AMOLED</string>
   <string name="setting_display_page_amoled_dark_mode_title">الوضع الداكن AMOLED</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">طي محتوى التفكير تلقائيًا بعد اكتمال التفكير</string>
+  <string name="setting_display_page_tool_surface_trim_title">تقليص وصف الأدوات</string>
+  <string name="setting_display_page_tool_surface_trim_desc">تُرسل الأدوات قليلة الاستخدام بوصف مختصر فقط، وتُجلب المعاملات الكاملة عند الحاجة. أوقف هذا الخيار لإرسال المخططات الكاملة دائمًا.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">طي التفكير تلقائيًا</string>
   <string name="setting_display_page_auto_play_tts_desc">تشغيل تحويل النص إلى كلام تلقائيًا بعد اكتمال توليد رسالة المساعد</string>
   <string name="setting_display_page_auto_play_tts_title">تشغيل تحويل النص إلى كلام تلقائيًا بعد التوليد</string>

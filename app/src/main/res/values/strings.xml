@@ -761,6 +761,8 @@
   <string name="setting_display_page_amoled_dark_mode_desc">Use pure black background in dark theme, suitable for AMOLED screens</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED Dark Mode</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">Automatically collapse thinking content after thinking is complete</string>
+  <string name="setting_display_page_tool_surface_trim_title">Tool surface trimming</string>
+  <string name="setting_display_page_tool_surface_trim_desc">Send only a short description for low-frequency tools and reveal the full parameters on demand. Turn this off to always send complete schemas.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">Auto Collapse Thinking</string>
   <string name="setting_display_page_auto_play_tts_desc">Automatically play TTS after assistant message generation completes</string>
   <string name="setting_display_page_auto_play_tts_title">Auto-play TTS After Generation</string>

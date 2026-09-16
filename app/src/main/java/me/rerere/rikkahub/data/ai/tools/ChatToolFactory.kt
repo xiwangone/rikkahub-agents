@@ -142,7 +142,13 @@ class ChatToolFactory(
         // 容易被误读成"顺序抖动"）。顺序本来稳定，这里只是让它同时自洽、可观测。
         val injected =
             (
-                stableFull.map { surfaceView(it, invocationCtx.callerConversationId) } +
+                stableFull.map {
+                    surfaceView(
+                        it,
+                        invocationCtx.callerConversationId,
+                        trimEnabled = settings.displaySetting.toolSurfaceTrimming && ToolSurfacePolicy.TRIM_ENABLED,
+                    )
+                } +
                     buildToolDiscoveryTools(stableFull, invocationCtx.callerConversationId)
             ).sortedBy { it.name }
         // L4 观测必须量的是**实际注入给模型的内容**：LocalTools 里 tool_surface_report 绑的是裁剪前的
@@ -212,9 +218,9 @@ class ChatToolFactory(
  * 冷档工具保留固定名称，但首次只带一行说明和空 schema；get_tool_schema 成功后，
  * 会话内后续请求恢复完整 schema。工具集合和顺序不变，避免前缀缓存抖动。
  */
-private fun surfaceView(tool: Tool, conversationId: String?): Tool {
-    // 总开关：置 false 时完全不做裁剪（见 ToolSurfacePolicy.TRIM_ENABLED）。
-    if (!ToolSurfacePolicy.TRIM_ENABLED) return tool
+private fun surfaceView(tool: Tool, conversationId: String?, trimEnabled: Boolean): Tool {
+    // 开关：设置页的「工具面裁剪」与编译期总开关取与关系，任一关闭即完全不做裁剪。
+    if (!trimEnabled) return tool
     val tier = ToolSurfacePolicy.tierOf(tool.name)
     if (tier == SurfaceTier.HOT) return tool
 

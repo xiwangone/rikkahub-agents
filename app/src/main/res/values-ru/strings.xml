@@ -633,6 +633,8 @@
   <string name="setting_display_page_amoled_dark_mode_desc">Использовать чёрный фон в тёмной теме, подходит для AMOLED-экранов</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED-тёмная тема</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">Автоматически сворачивать блок мышления после его завершения</string>
+  <string name="setting_display_page_tool_surface_trim_title">Сокращение описаний инструментов</string>
+  <string name="setting_display_page_tool_surface_trim_desc">Для редких инструментов отправляется только краткое описание, полные параметры — по запросу. Отключите, чтобы всегда отправлять полные схемы.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">Автоматически сворачивать мысли</string>
   <string name="setting_display_page_auto_play_tts_desc">Автоматически воспроизводить TTS после завершения генерации ответа ассистента</string>
   <string name="setting_display_page_auto_play_tts_title">Автовоспроизведение TTS после генерации</string>

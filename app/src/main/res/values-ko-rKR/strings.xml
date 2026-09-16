@@ -640,6 +640,8 @@
   <string name="setting_display_page_amoled_dark_mode_desc">다크 테마에서 순수 검정 배경 사용, AMOLED 화면에 적합</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED 다크 모드</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">사고 완료 후 자동으로 사고 내용 접기</string>
+  <string name="setting_display_page_tool_surface_trim_title">도구 목록 정리</string>
+  <string name="setting_display_page_tool_surface_trim_desc">저빈도 도구는 짧은 설명만 전송하고 필요할 때 전체 파라미터를 가져옵니다. 끄면 항상 전체 정의를 전송합니다.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">사고 자동 접기</string>
   <string name="setting_display_page_auto_play_tts_desc">어시스턴트 메시지 생성 완료 후 TTS 자동 재생</string>
   <string name="setting_display_page_auto_play_tts_title">생성 후 TTS 자동 재생</string>
