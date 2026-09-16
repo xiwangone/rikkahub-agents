@@ -37,11 +37,18 @@ import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+import androidx.appcompat.app.AppCompatDelegate
+import androidx.core.os.LocaleListCompat
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.RadioButton
+import androidx.compose.material3.TextButton
+import androidx.compose.foundation.clickable
 
 @Composable
 fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
+    var showLanguageDialog by remember { mutableStateOf(false) }
 
     fun updateDisplaySetting(setting: DisplaySetting) {
         displaySetting = setting
@@ -49,6 +56,22 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+
+    if (showLanguageDialog) {
+        LanguagePickerDialog(
+            onDismiss = { showLanguageDialog = false },
+            onPick = { tag ->
+                AppCompatDelegate.setApplicationLocales(
+                    if (tag.isEmpty()) {
+                        LocaleListCompat.getEmptyLocaleList()
+                    } else {
+                        LocaleListCompat.forLanguageTags(tag)
+                    },
+                )
+                showLanguageDialog = false
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -83,6 +106,11 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
                 ) {
+                    item(
+                        onClick = { showLanguageDialog = true },
+                        headlineContent = { Text(stringResource(R.string.setting_language_title)) },
+                        supportingContent = { Text(currentAppLanguageLabel()) },
+                    )
                     item(
                         headlineContent = {
                             Text(
@@ -446,4 +474,61 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
 internal fun parsePasteLongTextThreshold(text: String): Int? {
     val value = text.toIntOrNull() ?: return null
     return value.takeIf { it in 100..10000 }
+}
+
+/** 应用内可选语言：标签用 BCP 47（与 res/values* 对应），名称用该语言自身写法，不翻译。 */
+private val APP_LANGUAGE_OPTIONS: List<Pair<String, String>> = listOf(
+    "en" to "English",
+    "zh-Hans" to "简体中文",
+    "zh-Hant" to "繁體中文",
+    "ja" to "日本語",
+    "ko-KR" to "한국어",
+    "ru" to "Русский",
+    "ar" to "العربية",
+)
+
+/** 当前生效的语言名；未显式设置时（跟随系统）显示「跟随系统」。 */
+@Composable
+private fun currentAppLanguageLabel(): String {
+    val tag = AppCompatDelegate.getApplicationLocales().toLanguageTags()
+    if (tag.isBlank()) return stringResource(R.string.setting_language_system)
+    val base = tag.substringBefore(',').trim()
+    return APP_LANGUAGE_OPTIONS.firstOrNull { it.first.equals(base, ignoreCase = true) }?.second ?: base
+}
+
+@Composable
+private fun LanguagePickerDialog(
+    onDismiss: () -> Unit,
+    onPick: (String) -> Unit,
+) {
+    val current = AppCompatDelegate.getApplicationLocales().toLanguageTags().substringBefore(',').trim()
+    val options = remember { listOf("" to "") + APP_LANGUAGE_OPTIONS }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.setting_language_title)) },
+        text = {
+            LazyColumn {
+                items(options.size) { index ->
+                    val (tag, label) = options[index]
+                    val shown = if (tag.isEmpty()) stringResource(R.string.setting_language_system) else label
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { onPick(tag) }
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = if (tag.isEmpty()) current.isBlank() else current.equals(tag, true),
+                            onClick = { onPick(tag) },
+                        )
+                        Text(shown, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
 }

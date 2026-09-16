@@ -978,6 +978,8 @@
   <string name="setting_page_preferences_theme_desc">Dynamic color, theme, AMOLED dark mode</string>
   <string name="setting_page_preferences_notification">Notifications</string>
   <string name="setting_page_preferences_notification_desc">Update alerts, message generation notifications</string>
+  <string name="setting_language_title">Language</string>
+  <string name="setting_language_system">System default</string>
   <string name="setting_page_preferences_general">General</string>
   <string name="setting_page_preferences_general_desc">Interaction behavior, scrolling, input settings</string>
   <string name="setting_page_preferences_ui">UI Preferences</string>

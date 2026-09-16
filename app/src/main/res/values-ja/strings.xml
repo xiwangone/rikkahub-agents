@@ -1163,6 +1163,8 @@
   <string name="setting_page_preferences_theme_desc">ダイナミックカラー、テーマ、AMOLEDダークモード</string>
   <string name="setting_page_preferences_notification">通知</string>
   <string name="setting_page_preferences_notification_desc">アップデート通知、メッセージ生成通知</string>
+  <string name="setting_language_title">言語</string>
+  <string name="setting_language_system">システムに従う</string>
   <string name="setting_page_preferences_general">一般</string>
   <string name="setting_page_preferences_general_desc">操作動作、スクロール、入力設定</string>
   <string name="setting_page_preferences_ui">UI設定</string>

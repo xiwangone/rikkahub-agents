@@ -1307,6 +1307,8 @@
   <string name="setting_page_preferences_theme_desc">动态配色、主题、AMOLED深色模式</string>
   <string name="setting_page_preferences_notification">通知</string>
   <string name="setting_page_preferences_notification_desc">更新提醒、消息生成通知</string>
+  <string name="setting_language_title">语言</string>
+  <string name="setting_language_system">跟随系统</string>
   <string name="setting_page_preferences_general">常规</string>
   <string name="setting_page_preferences_general_desc">交互行为、滚动、输入设置</string>
   <string name="setting_page_preferences_ui">界面偏好设置</string>

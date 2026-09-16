@@ -2883,6 +2883,8 @@
   <string name="setting_page_preferences_theme_desc">الألوان الديناميكية والسمات ووضع AMOLED الداكن</string>
   <string name="setting_page_preferences_notification">الإشعارات</string>
   <string name="setting_page_preferences_notification_desc">تنبيهات التحديث وإشعارات إنشاء الرسائل</string>
+  <string name="setting_language_title">اللغة</string>
+  <string name="setting_language_system">حسب النظام</string>
   <string name="setting_page_preferences_general">عام</string>
   <string name="setting_page_preferences_general_desc">سلوك التفاعل والتمرير وإعدادات الإدخال</string>
   <string name="setting_page_preferences_ui">إعدادات الواجهة</string>

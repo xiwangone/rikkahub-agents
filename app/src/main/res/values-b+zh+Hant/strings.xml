@@ -1163,6 +1163,8 @@
   <string name="setting_page_preferences_theme_desc">動態色彩、主題、AMOLED 深色模式</string>
   <string name="setting_page_preferences_notification">通知</string>
   <string name="setting_page_preferences_notification_desc">更新提醒、訊息產生通知</string>
+  <string name="setting_language_title">語言</string>
+  <string name="setting_language_system">跟隨系統</string>
   <string name="setting_page_preferences_general">一般</string>
   <string name="setting_page_preferences_general_desc">互動行為、捲動、輸入設定</string>
   <string name="setting_page_preferences_ui">UI 偏好設定</string>

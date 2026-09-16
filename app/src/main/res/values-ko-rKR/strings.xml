@@ -1163,6 +1163,8 @@
   <string name="setting_page_preferences_theme_desc">다이나믹 색상, 테마, AMOLED 다크 모드</string>
   <string name="setting_page_preferences_notification">알림</string>
   <string name="setting_page_preferences_notification_desc">업데이트 알림, 메시지 생성 알림</string>
+  <string name="setting_language_title">언어</string>
+  <string name="setting_language_system">시스템 설정 따르기</string>
   <string name="setting_page_preferences_general">일반</string>
   <string name="setting_page_preferences_general_desc">상호작용 방식, 스크롤, 입력 설정</string>
   <string name="setting_page_preferences_ui">UI 환경설정</string>

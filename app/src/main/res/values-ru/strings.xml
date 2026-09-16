@@ -1156,6 +1156,8 @@
   <string name="setting_page_preferences_theme_desc">Динамические цвета, тема, тёмный режим AMOLED</string>
   <string name="setting_page_preferences_notification">Уведомления</string>
   <string name="setting_page_preferences_notification_desc">Уведомления об обновлениях и генерации сообщений</string>
+  <string name="setting_language_title">Язык</string>
+  <string name="setting_language_system">Как в системе</string>
   <string name="setting_page_preferences_general">Общие</string>
   <string name="setting_page_preferences_general_desc">Поведение взаимодействия, прокрутка, настройки ввода</string>
   <string name="setting_page_preferences_ui">Настройки интерфейса</string>
