@@ -327,6 +327,7 @@ class ChatService(
             sessions.values.forEach { it.cleanup() }
             sessions.clear()
             sessionMutexes.clear()
+            me.rerere.rikkahub.data.ai.tools.ToolSurfaceSession.clearAll()
         }.onFailure {
             // Don't let a teardown hiccup escape, but don't swallow it silently either —
             // a failure here can leave the lifecycle observer registered (slow leak).
@@ -385,6 +386,7 @@ class ChatService(
             // was previously missing this cleanup, causing a slow leak on heavy-use
             // sessions where many conversations cycle in and out of memory.
             sessionMutexes.remove(conversationId)
+            me.rerere.rikkahub.data.ai.tools.ToolSurfaceSession.clear(conversationId.toString())
             _sessionsVersion.value++
             AppLog.i(TAG, "removeSession: $conversationId (remaining: ${sessions.size})")
         }
@@ -401,6 +403,7 @@ class ChatService(
         persistSnapshotBeforeEvict(conversationId, session)
         session.cleanup()
         sessionMutexes.remove(conversationId)
+        me.rerere.rikkahub.data.ai.tools.ToolSurfaceSession.clear(conversationId.toString())
         _sessionsVersion.value++
         AppLog.i(TAG, "dropSession: $conversationId (remaining: ${sessions.size})")
     }

@@ -1,8 +1,12 @@
 package me.rerere.rikkahub.data.ai.tools
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.put
+import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
+import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.provider.Model
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.buildMcpToolName
@@ -127,8 +131,10 @@ class ChatToolFactory(
         // 固定按工具名排序：工具顺序参与请求前缀，排序后集合与顺序稳定，避免
         // MCP/技能装配顺序抖动击穿缓存。元工具也基于同一稳定列表生成。
         val stableFull = full.sortedBy { it.name }
-        // 注入视图：低频工具精简描述；元工具基于**未精简**的完整列表，保证 get_tool_schema 能取回原文。
-        val injected = stableFull.map { slimDescriptionForInjection(it) } + buildToolDiscoveryTools(stableFull)
+        // 注入视图：冷档固定保留工具名，但未解锁时只发空 schema；工具集合/顺序不变。
+        // get_tool_schema 成功后按会话记忆，下一次请求恢复完整 schema。
+        val injected = stableFull.map { surfaceView(it, invocationCtx.callerConversationId) } +
+            buildToolDiscoveryTools(stableFull, invocationCtx.callerConversationId)
         // 登记本次注入集合：让 tool_usage_stats 能直接识别"已启用但从未调用"的工具。
         ToolUsageTracker.recordInjected(context, injected.map { it.name })
         trackUsage(injected)
@@ -180,16 +186,42 @@ class ChatToolFactory(
 
 
 /**
- * 低频工具只保留一行用途，压缩常驻提示体积（渐进式披露的 S2）。
- *
- * 只裁剪 description，**完整保留参数表**——工具仍可被正常调用；需要完整说明时由检索类工具按需提供。
- * 高频工具（[SurfaceTier.HOT] / [SurfaceTier.WARM]）不作改动。
+ * 冷档工具保留固定名称，但首次只带一行说明和空 schema；get_tool_schema 成功后，
+ * 会话内后续请求恢复完整 schema。工具集合和顺序不变，避免前缀缓存抖动。
  */
-private fun slimDescriptionForInjection(tool: Tool): Tool =
-    when (ToolSurfacePolicy.tierOf(tool.name)) {
-        SurfaceTier.COLD -> tool.copy(description = tool.description.toSingleLine())
-        else -> tool
-    }
+private fun surfaceView(tool: Tool, conversationId: String?): Tool {
+    if (ToolSurfacePolicy.tierOf(tool.name) != SurfaceTier.COLD ||
+        ToolSurfaceSession.isLoaded(conversationId, tool.name)
+    ) return tool
+
+    return tool.copy(
+        description = tool.description.toSingleLine() +
+            " Before calling, use get_tool_schema with this exact tool name, then retry with the returned parameters.",
+        // 动态读取会话状态：get_tool_schema 在同一生成回合执行后，下一次请求无需重建 Tool 列表。
+        parameters = {
+            if (ToolSurfaceSession.isLoaded(conversationId, tool.name)) {
+                tool.parameters()
+            } else {
+                InputSchema.Obj(properties = buildJsonObject {}, required = emptyList())
+            }
+        },
+        execute = { args ->
+            if (!ToolSurfaceSession.isLoaded(conversationId, tool.name)) {
+                listOf(
+                    UIMessagePart.Text(
+                        buildJsonObject {
+                            put("error", "tool_schema_not_loaded")
+                            put("tool", tool.name)
+                            put("hint", "Call get_tool_schema with this exact tool name, then retry the tool.")
+                        }.toString(),
+                    ),
+                )
+            } else {
+                tool.execute(args)
+            }
+        },
+    )
+}
 
 /** 取描述的首句（英文句点或换行分隔），并限制长度。 */
 private fun String.toSingleLine(maxChars: Int = 120): String {

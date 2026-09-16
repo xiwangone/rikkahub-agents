@@ -21,13 +21,16 @@ import me.rerere.ai.ui.UIMessagePart
  *
  * 注意：[allTools] 必须是**未精简**的完整工具列表，否则取不到完整说明。
  */
-internal fun buildToolDiscoveryTools(allTools: List<Tool>): List<Tool> =
+internal fun buildToolDiscoveryTools(
+    allTools: List<Tool>,
+    conversationId: String? = null,
+): List<Tool> =
     listOf(
-        listToolsTool(allTools),
-        getToolSchemaTool(allTools),
+        listToolsTool(allTools, conversationId),
+        getToolSchemaTool(allTools, conversationId),
     )
 
-private fun listToolsTool(allTools: List<Tool>): Tool =
+private fun listToolsTool(allTools: List<Tool>, conversationId: String?): Tool =
     Tool(
         name = "list_tools",
         description = """
@@ -67,6 +70,7 @@ private fun listToolsTool(allTools: List<Tool>): Tool =
                                         put("name", tool.name)
                                         put("purpose", tool.description.toSingleLine())
                                         put("tier", ToolSurfacePolicy.tierOf(tool.name).name.lowercase())
+                                        put("schema_loaded", ToolSurfaceSession.isLoaded(conversationId, tool.name))
                                     },
                                 )
                             }
@@ -80,7 +84,7 @@ private fun listToolsTool(allTools: List<Tool>): Tool =
         },
     )
 
-private fun getToolSchemaTool(allTools: List<Tool>): Tool =
+private fun getToolSchemaTool(allTools: List<Tool>, conversationId: String?): Tool =
     Tool(
         name = "get_tool_schema",
         description = """
@@ -102,6 +106,9 @@ private fun getToolSchemaTool(allTools: List<Tool>): Tool =
         execute = { input ->
             val name = input.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
             val tool = allTools.firstOrNull { it.name == name }
+            if (tool != null && ToolSurfacePolicy.tierOf(tool.name) == SurfaceTier.COLD) {
+                ToolSurfaceSession.markLoaded(conversationId, tool.name)
+            }
             val payload =
                 if (tool == null) {
                     buildJsonObject {
