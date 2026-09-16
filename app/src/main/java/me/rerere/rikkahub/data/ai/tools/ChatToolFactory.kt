@@ -213,6 +213,8 @@ class ChatToolFactory(
  * 会话内后续请求恢复完整 schema。工具集合和顺序不变，避免前缀缓存抖动。
  */
 private fun surfaceView(tool: Tool, conversationId: String?): Tool {
+    // 总开关：置 false 时完全不做裁剪（见 ToolSurfacePolicy.TRIM_ENABLED）。
+    if (!ToolSurfacePolicy.TRIM_ENABLED) return tool
     val tier = ToolSurfacePolicy.tierOf(tool.name)
     if (tier == SurfaceTier.HOT) return tool
 

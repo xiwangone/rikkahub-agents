@@ -27,6 +27,17 @@ enum class SurfaceTier {
  */
 object ToolSurfacePolicy {
 
+    /**
+     * 工具面裁剪总开关（COLD 空 schema 拦截 + WARM 描述收敛）。
+     *
+     * 治理约定要求「所有裁剪由一个开关控制，出问题一键关」。此处用**单点常量**实现：
+     * 置 false 即恢复完整 description/参数表（等价于未启用裁剪），回退改动集中在这一行。
+     *
+     * 之所以不做成设置项：裁剪只影响**注入给模型的视图**、不影响可调用性，风险低；
+     * 而设置项要引入多语言文案与设置页注册，属过度设计。
+     */
+    const val TRIM_ENABLED = true
+
     /** 高频工具：完整 schema。保持这一集合稳定，避免注入集抖动影响前缀缓存。 */
     val HOT: Set<String> =
         setOf(
