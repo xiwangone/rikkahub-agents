@@ -9,7 +9,16 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceShellStatus
 import java.io.ByteArrayOutputStream
 import java.nio.file.Paths
+import java.util.Collections
+import java.util.concurrent.ConcurrentHashMap
 import me.rerere.rikkahub.data.log.AppLog
+
+/**
+ * 「AGENTS.md 不存在」的提示去重：每个进程、每个路径只提示一次。
+ * 多数工作区并没有该文件，属**预期状态**；此前每个请求的每次变换都会打一行，纯噪音。
+ */
+private val absentInstructionsNotified: MutableSet<String> =
+    Collections.newSetFromMap(ConcurrentHashMap<String, Boolean>())
 
 /**
  * Workspace 系统提示注入转换器
@@ -81,7 +90,21 @@ class WorkspaceReminderTransformer(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                AppLog.d("WorkspaceReminder", "Skipping workspace instructions: $path", e)
+                // AGENTS.md 属**可选**文件：绝大多数工作区根本没有它，因此「不存在」是预期状态、
+                // 不是错误。此前一律按异常处理并连堆栈打印，导致每个请求都刷十几行噪音
+                // （/root/.agents/AGENTS.md 与 /workspace/AGENTS.md 各一条）。
+                val absent = e is java.io.FileNotFoundException ||
+                    e.message?.contains("does not exist", ignoreCase = true) == true ||
+                    e.message?.contains("No such file", ignoreCase = true) == true
+                if (absent) {
+                    // 每个进程、每个路径只提示一次（「不存在」是常态，无需每请求重复）
+                    if (absentInstructionsNotified.add(path)) {
+                        AppLog.d("WorkspaceReminder", "no workspace instructions at $path")
+                    }
+                } else {
+                    // 真实错误（超限、IO、路径非法等）才记录，且保留堆栈便于排查。
+                    AppLog.w("WorkspaceReminder", "failed reading workspace instructions: $path", e)
+                }
                 null
             }
         }

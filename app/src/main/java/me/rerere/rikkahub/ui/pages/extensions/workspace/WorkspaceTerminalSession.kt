@@ -188,7 +188,7 @@ internal class WorkspaceTerminalSessionClient(
         tag: String,
         message: String,
     ) {
-        AppLog.i(tag, message)
+        AppLog.d(tag, message) // 终端输出属详单（长命令每块一行），避免挤占重要日志队列
     }
 
     override fun logDebug(
@@ -356,7 +356,7 @@ internal class WorkspaceTerminalViewClient(
         tag: String,
         message: String,
     ) {
-        AppLog.i(tag, message)
+        AppLog.d(tag, message) // 终端输出属详单（长命令每块一行），避免挤占重要日志队列
     }
 
     override fun logDebug(

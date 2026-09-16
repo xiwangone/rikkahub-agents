@@ -49,6 +49,7 @@ import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.StreamChunkHandler
 import me.rerere.ai.ui.handleTextGenerationResult
 import me.rerere.ai.ui.limitContext
+import me.rerere.ai.ui.mergeApprovalProgress
 import me.rerere.ai.util.HttpException
 import me.rerere.ai.util.redactSecrets
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -666,20 +667,22 @@ class GenerationLoop(
                 break
             }
 
-            AppLog.i(TAG, "streamText: start step #$stepIndex (${model.id})")
+            AppLog.d(TAG, "streamText: start step #$stepIndex (${model.id})")
 
             // step 边界：把上一轮流式期间合并掉的输出变换补上，
             // 保证本 step 的请求上下文与界面状态与逐次变换完全一致
             pendingOutputMessages?.let { pending ->
                 pendingOutputMessages = null
                 lastOutputFlushAtMs = android.os.SystemClock.elapsedRealtime()
+                // 审批状态单调：这份待处理快照可能早于本轮的审批迁移（Pending/Approved…），
+                // 回灌时把已进展的状态回贴，避免把 Pending 打回 Auto。
                 messages = pending.transforms(
                     transformers = outputTransformers,
                     context = context,
                     model = model,
                     assistant = assistant,
                     settings = settings
-                )
+                ).mergeApprovalProgress(messages)
                 emit(
                     GenerationChunk.Messages(
                         messages.visualTransformsIncremental(
@@ -740,7 +743,7 @@ class GenerationLoop(
                                     model = model,
                                     assistant = assistant,
                                     settings = settings
-                                )
+                                ).mergeApprovalProgress(messages)
                                 emit(
                                     GenerationChunk.Messages(
                                         messages.visualTransformsIncremental(
@@ -755,9 +758,11 @@ class GenerationLoop(
                                 )
                             } else {
                                 // 合并窗口内：只记录最新快照，跳过的中间帧由下一次投递或
-                                // step 边界/结束时的补齐覆盖（最终结果与逐次处理一致）
-                                messages = it
-                                pendingOutputMessages = it
+                                // step 边界/结束时的补齐覆盖（最终结果与逐次处理一致）。
+                                // 审批状态单调：该快照来自 provider 原始流，不含本轮写入的审批迁移，
+                                // 回灌时必须回贴，否则会把 Pending 打回 Auto（审批按钮一闪即没）。
+                                messages = it.mergeApprovalProgress(messages)
+                                pendingOutputMessages = it.mergeApprovalProgress(messages)
                             }
                         },
                         transformers = inputTransformers,
@@ -861,6 +866,22 @@ class GenerationLoop(
                 val updatedTools = ArrayList<UIMessagePart.Tool>(tools.size)
                 for (tool in tools) {
                     val toolDef = toolsInternal.find { it.name == tool.toolName }
+                    // 诊断（「审批停住但无按钮」排查）：把判定输入与结果一次性打出来。
+                    // 这一步回答的问题是：GenLoop 到底有没有走到「需要审批」分支。
+                    val needsApprovalResolved = toolDef?.needsApproval(tool.inputAsJson()) == true
+                    // 诊断（「审批停住但无按钮」排查）：把判定输入与结果一次性打出来。
+                    // 这一步回答的问题是：GenLoop 到底有没有走到「需要审批」分支。
+                    // 降噪：只有「本次真的需要审批」才进重要日志；常规的 Auto + 免审批判定
+                    // （每次工具调用都会出现）降到详细级，避免把排查主线挤出缓冲。
+                    val approvalDiagnostic =
+                        "approval-check ${tool.toolName}: toolDefFound=${toolDef != null} " +
+                            "needsApproval=$needsApprovalResolved state=${tool.approvalState} " +
+                            "available=${toolsInternal.size}"
+                    if (needsApprovalResolved) {
+                        AppLog.i(TAG, approvalDiagnostic)
+                    } else {
+                        AppLog.d(TAG, approvalDiagnostic)
+                    }
                     // HARDLINE check: certain command patterns (rm -rf /, mkfs, shutdown,
                     // fork bomb, …) are blocked unconditionally — even "Always Allow"
                     // can't override. We check BEFORE the auto-approval lookup so a
@@ -881,16 +902,18 @@ class GenerationLoop(
                             ))
                         }
                         // Tool needs approval and state is Auto:
-                        toolDef?.needsApproval(tool.inputAsJson()) == true &&
+                        needsApprovalResolved &&
                             tool.approvalState is ToolApprovalState.Auto -> {
                             // Fresh per-tool auto-approval check (was a frozen pre-
                             // resolved set). Costs a DataStore.first() per tool but tools
                             // are typically <5 per turn so the latency is negligible, and
                             // freshness matters for the YOLO toggle / mid-iteration grants.
                             if (isToolAutoApproved(tool.toolName)) {
+                                AppLog.i(TAG, "approval-auto ${tool.toolName}: auto-approved, running without prompt")
                                 tool  // leave as Auto so the executor runs it without prompting
                             } else {
                                 hasPendingApproval = true
+                                AppLog.i(TAG, "approval-pending ${tool.toolName}: marked Pending, waiting for user")
                                 tool.copy(approvalState = ToolApprovalState.Pending)
                             }
                         }
@@ -1303,7 +1326,9 @@ class GenerationLoop(
             }
         }
 
-        // 生成结束：补齐最后一次被合并的输出变换（保证界面与落盘拿到最终状态）
+        // 生成结束：补齐最后一次被合并的输出变换（保证界面与落盘拿到最终状态）。
+        // 审批状态单调：这份快照同样可能早于本轮的审批迁移，回灌时必须回贴已进展的状态，
+        // 否则「刚标记 Pending 就收尾」会把 Pending 打回 Auto —— 这正是审批按钮一闪即没的根因。
         pendingOutputMessages?.let { pending ->
             pendingOutputMessages = null
             messages = pending.transforms(
@@ -1312,7 +1337,7 @@ class GenerationLoop(
                 model = model,
                 assistant = assistant,
                 settings = settings
-            )
+            ).mergeApprovalProgress(messages)
             emit(
                 GenerationChunk.Messages(
                     messages.visualTransformsIncremental(

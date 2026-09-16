@@ -315,7 +315,7 @@ class WorkspaceDocumentsProvider : DocumentsProvider() {
             root.isNotBlank() &&
                 root != "." && root != ".." &&
                 !root.contains('/') && !root.contains('\\') &&
-                !root.contains("..") && !root.contains(' ')
+                !root.contains("..") && !root.contains('\u0000')
         ) { "Invalid workspace root" }
         require(allWorkspaces().any { it.root == root }) { "Unknown workspace: $root" }
     }

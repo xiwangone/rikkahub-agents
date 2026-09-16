@@ -5,6 +5,7 @@ import android.content.Context
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
@@ -151,6 +152,9 @@ internal fun requestLogsPayload(context: Context, params: JsonObject): String {
 internal suspend fun appSettingsPayload(settingsStore: SettingsStore): String {
         val settings = runCatching { settingsStore.settingsFlow.first() }.getOrNull()
             ?: return "{\"error\":\"settings_unavailable\"}"
+        // 模型索引：把 chatModelId（UUID）解析成「提供商 / 模型名」，否则 AI 只看到一串 id，
+        // 无法判断自己跑在哪个模型上、成本与能力如何。
+        val modelIndex = settings.providers.flatMap { p -> p.models.map { p to it } }.associateBy { it.second.id }
         val out = buildJsonObject {
             put("assistants", buildJsonArray {
                 settings.assistants.forEach { a ->
@@ -158,6 +162,13 @@ internal suspend fun appSettingsPayload(settingsStore: SettingsStore): String {
                         put("id", a.id.toString())
                         put("name", a.name)
                         put("chat_model_id", a.chatModelId?.toString() ?: "inherit")
+                        val resolved = a.chatModelId?.let { id -> modelIndex[id] }
+                        put(
+                            "chat_model",
+                            resolved?.let { (p, m) -> "${p.name} / ${m.displayName.ifBlank { m.modelId }}" }
+                                ?: "inherit",
+                        )
+                        put("provider", resolved?.first?.name ?: "inherit")
                         put("local_tool_groups", a.localTools.size)
                         put("enabled_skills", buildJsonArray { a.enabledSkills.forEach { add(JsonPrimitive(it)) } })
                     })
@@ -616,8 +627,84 @@ internal suspend fun usageStatsPayload(
 
 private val DIAGNOSTICS_KINDS = listOf(
     "health", "build", "enabled_tools", "usage", "settings", "logs", "requests", "crash", "lifecycle",
-    "conversation", "perf",
+    "conversation", "generation", "perf",
 )
+
+/**
+ * 最近一轮生成的**自省信息**：生效参数 + 该轮 usage（含缓存命中与费用）。
+ *
+ * 存在意义：AI 需要知道「我此刻跑在哪个模型、什么参数下、这一轮花了多少 token、
+ * 缓存命中多少、花了多少钱」，否则谈成本与自我诊断都是空的。
+ *
+ * 口径纪律：usage 由 provider 上报 —— **未上报时返回字符串 "unknown"，不用 0 冒充**，
+ * 否则跨平台对比会得出错误结论（原生平台详细 / 兼容端点只回总量 / 部分代理不回）。
+ */
+internal suspend fun generationPayload(
+    conversationRepo: ConversationRepository,
+    settingsStore: SettingsStore,
+    params: JsonObject,
+): String {
+    val settings = settingsStore.settingsFlow.first()
+    val assistant = settings.getCurrentAssistant()
+    val idRaw = params["id"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+    // 仓库没有「按 id 直取」，从最近若干条里找（缺省即最近一条）
+    val recent = runCatching { conversationRepo.getRecentConversations(assistant.id, 20) }.getOrElse { emptyList() }
+    val conversation =
+        (if (idRaw.isNotBlank()) recent.firstOrNull { it.id.toString() == idRaw } else recent.firstOrNull())
+            ?: return buildJsonObject { put("error", "conversation_not_found") }.toString()
+
+    val lastAssistant =
+        conversation.messageNodes.asReversed().firstNotNullOfOrNull { node ->
+            node.messages.asReversed().firstOrNull { it.role == me.rerere.ai.core.MessageRole.ASSISTANT }
+        }
+
+    return buildJsonObject {
+        put("conversation_id", conversation.id.toString())
+        put("conversation_title", conversation.title)
+        put("assistant", assistant.name)
+        put(
+            "model",
+            assistant.chatModelId?.let { id ->
+                settings.providers.firstNotNullOfOrNull { p -> p.models.firstOrNull { it.id == id }?.let { m -> "${p.name} / ${m.displayName.ifBlank { m.modelId }}" } }
+            } ?: "inherit",
+        )
+        put("settings", buildJsonObject {
+            put("temperature", assistant.temperature?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("top_p", assistant.topP?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("max_tokens", assistant.maxTokens?.let { JsonPrimitive(it) } ?: JsonNull)
+            put("context_message_limit", assistant.contextMessageLimit)
+            put("reasoning_level", assistant.reasoningLevel.name)
+        })
+        if (lastAssistant == null) {
+            put("last_turn", JsonNull)
+            put("note", "no assistant message in this conversation yet")
+        } else {
+            put("last_turn", buildJsonObject {
+                put("message_id", lastAssistant.id.toString())
+                put("finish_reason", lastAssistant.finishReason ?: "unknown")
+                val usage = lastAssistant.usage
+                if (usage == null) {
+                    put("usage", "unknown")
+                    put("usage_source", "provider did not report")
+                } else {
+                    put("usage", buildJsonObject {
+                        put("prompt_tokens", usage.promptTokens)
+                        put("completion_tokens", usage.completionTokens)
+                        put("cached_tokens", usage.cachedTokens)
+                        put("total_tokens", usage.totalTokens)
+                        put("cost_usd", usage.cost?.let { JsonPrimitive(it) } ?: JsonNull)
+                        val denom = usage.promptTokens + usage.cachedTokens
+                        put(
+                            "cache_hit_ratio",
+                            if (denom > 0) JsonPrimitive((usage.cachedTokens * 1000.0 / denom).toInt() / 1000.0) else JsonNull,
+                        )
+                    })
+                    put("usage_source", "provider reported")
+                }
+            })
+        }
+    }.toString()
+}
 
 /**
  * App diagnostics and logs behind a single tool so the tool surface stays small.
@@ -637,7 +724,9 @@ fun diagnosticsTool(
         build identity and signing certificate), enabled_tools (which tool options are on), usage
         (per-tool call counts), settings (configuration summary), logs (in-memory app log), requests
         (HTTP request summary log), crash (last crash snapshot), lifecycle (process lifecycle log),
-        conversation (list recent chats, or export one conversation's messages by id), or perf
+        conversation (list recent chats, or export one conversation's messages by id), generation
+        (the latest turn: effective parameters plus that turn's usage — prompt/completion/cached
+        tokens and cost when the provider reports them), or perf
         (process uptime / heap / threads).
     """.trimIndent().replace("\n", " "),
     parameters = {
@@ -694,6 +783,7 @@ fun diagnosticsTool(
             "crash" -> crashSnapshotPayload(context, params)
             "lifecycle" -> lifecycleLogsPayload(context, params)
             "conversation" -> conversationsPayload(conversationRepo, settingsStore, params)
+            "generation" -> generationPayload(conversationRepo, settingsStore, params)
             "perf" -> perfPayload(context)
             else -> buildJsonObject {
                 put("error", "unknown kind '$kind'")

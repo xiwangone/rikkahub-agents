@@ -40,7 +40,7 @@
   <string name="assistant_page_add">إضافة</string>
   <string name="assistant_page_add_body">إضافة جسم</string>
   <string name="assistant_page_add_header">إضافة ترويسة</string>
-  <string name="assistant_page_available_variables">"المتغيرات المتاحة: "</string>
+  <string name="assistant_page_available_variables">\"المتغيرات المتاحة: \"</string>
   <string name="assistant_page_background_opacity">شفافية الخلفية</string>
   <string name="assistant_page_background_opacity_desc">ضبط وضوح صورة خلفية الدردشة</string>
   <string name="assistant_page_background_opacity_value">الشفافية: %1$d%%</string>
@@ -425,7 +425,7 @@
   <string name="error_title_translate_message">فشلت ترجمة الرسالة</string>
   <string name="expand_translation">توسيع الترجمة</string>
   <string name="export_cancel">إلغاء</string>
-  <string name="export_image_warning">"المحتوى أعلاه مُولَّد بواسطة الذكاء الاصطناعي وقد يحتوي على معلومات غير دقيقة. "</string>
+  <string name="export_image_warning">\"المحتوى أعلاه مُولَّد بواسطة الذكاء الاصطناعي وقد يحتوي على معلومات غير دقيقة. \"</string>
   <string name="export_import_failed">فشل الاستيراد: %s</string>
   <string name="export_import_success">تم الاستيراد بنجاح</string>
   <string name="export_share">مشاركة</string>
@@ -653,6 +653,8 @@
   <string name="setting_display_page_amoled_dark_mode_desc">استخدام خلفية سوداء نقية في السمة الداكنة، مناسب لشاشات AMOLED</string>
   <string name="setting_display_page_amoled_dark_mode_title">الوضع الداكن AMOLED</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">طي محتوى التفكير تلقائيًا بعد اكتمال التفكير</string>
+  <string name="setting_display_page_tool_surface_trim_title">تقليص وصف الأدوات</string>
+  <string name="setting_display_page_tool_surface_trim_desc">معطّل افتراضيًا. عند التفعيل تُرسل الأدوات قليلة الاستخدام وصفًا قصيرًا فقط وتُجلب المعاملات الكاملة عند الحاجة (رموز أقل وتشويش أقل). عند التعطيل تُرسل جميع الأدوات تعريفاتها الكاملة.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">طي التفكير تلقائيًا</string>
   <string name="setting_display_page_auto_play_tts_desc">تشغيل تحويل النص إلى كلام تلقائيًا بعد اكتمال توليد رسالة المساعد</string>
   <string name="setting_display_page_auto_play_tts_title">تشغيل تحويل النص إلى كلام تلقائيًا بعد التوليد</string>
@@ -917,7 +919,7 @@
   <string name="setting_provider_page_api_path">مسار API</string>
   <string name="setting_provider_page_avaliable_models">النماذج المتاحة</string>
   <string name="setting_provider_page_balance_api_path">مسار API للرصيد</string>
-  <string name="setting_provider_page_balance_info">"الحصول على رصيد الحساب "</string>
+  <string name="setting_provider_page_balance_info">\"الحصول على رصيد الحساب \"</string>
   <string name="setting_provider_page_balance_json_key">مفتاح Json للنتيجة</string>
   <string name="setting_provider_page_basic_settings">الإعدادات الأساسية</string>
   <string name="setting_provider_page_chat_model">دردشة</string>
@@ -1770,7 +1772,7 @@
   <string name="vault_fingerprint_desc">يتطلب التحقق ببصمة الإصبع أو قفل الشاشة قبل عرض البيانات الاعتمادية أو تصديرها</string>
   <string name="vault_fingerprint_plan">عند التفعيل، يتطلب عرض قيم البيانات الاعتمادية أو تصديرها التحقق ببصمة الإصبع أو قفل الشاشة.</string>
   <string name="vault_import_title">استيراد من ملف</string>
-  <string name="vault_import_desc">يدعم صيغة load-creds.sh (export KEY="value" ومجموعات التعليقات #). اختر ملف البيانات السرية على الجهاز للاستيراد الجماعي.</string>
+  <string name="vault_import_desc">يدعم صيغة load-creds.sh (export KEY=\"value\" ومجموعات التعليقات #). اختر ملف البيانات السرية على الجهاز للاستيراد الجماعي.</string>
   <string name="vault_import_button">اختر ملفًا للاستيراد</string>
   <string name="tts_label_25">صوت رجالي مفعم بالحيوية (yuanqinansheng)</string>
   <string name="tts_label_26">شاب مستقيم (zhengpaiqingnian)</string>
@@ -2296,6 +2298,12 @@
   <string name="assistant_page_local_tools_tier_device_control_desc">التحكم بالجهاز أو البيانات الشخصية أو الأنظمة الخارجية (مفعّل %1$d/%2$d)</string>
   <string name="assistant_page_local_tools_tier_developer_title">L3 · مطوّر</string>
   <string name="assistant_page_local_tools_tier_developer_desc">تنفيذ أكواد عشوائية وغيرها من القدرات الخطرة (مفعّل %1$d/%2$d)</string>
+  <string name="assistant_page_extra_cold_section">حقن الأدوات (متقدم)</string>
+  <string name="assistant_page_extra_cold_title">تحميل هذه الأدوات كباردة دائمًا</string>
+  <string name="assistant_page_extra_cold_desc">تم الضبط: %1$d. تُرسل الأدوات الباردة سطرًا واحدًا للغرض، وتُجلب المعاملات الكاملة عند الحاجة.</string>
+  <string name="assistant_page_extra_cold_action">تعديل</string>
+  <string name="assistant_page_extra_cold_dialog_desc">اسم أداة واحد في كل سطر (أو مفصولة بفواصل). استخدم الأسماء الدقيقة الظاهرة في list_tools، مثل ssh_upload. يغيّر هذا طريقة عرض سطح الأدوات لهذا المساعد فقط، وتبقى الأدوات قابلة للاستدعاء.</string>
+  <string name="assistant_page_extra_cold_hint">مثال: ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">تشخيص الذكاء الاصطناعي</string>
   <string name="assistant_page_local_tools_diagnostics_title">التشخيص والسجلات</string>
   <string name="assistant_page_local_tools_diagnostics_desc">صحة التطبيق ومعلومات البناء والسجلات والأعطال ودورة الحياة.</string>
@@ -2338,6 +2346,7 @@
   <string name="log_page_record_app_logs">تسجيل سجل طبقة التطبيق</string>
   <string name="log_page_record_app_logs_desc">يسجّل سجل logcat لطبقة التطبيق في العملية الحالية (OcrTransformer / ChatService / performLocalOcr).</string>
   <string name="log_page_search_hint">البحث بكلمة مفتاحية في السجل</string>
+  <string name="log_page_important_only">المهم فقط</string>
   <string name="log_page_copy_all">نسخ الكل</string>
   <string name="log_page_export">تصدير</string>
   <string name="log_page_export_empty">لا توجد سجلات للتصدير</string>

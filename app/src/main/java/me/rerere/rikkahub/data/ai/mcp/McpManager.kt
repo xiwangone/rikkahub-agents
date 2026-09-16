@@ -142,9 +142,11 @@ class McpManager(
                             currentConfigs.firstOrNull { it.id == newCfg.id }
                                 ?.let { connectionFieldsDiffer(it, newCfg) } == true
                         }
-                        AppLog.i(TAG, "to_add: $toAdd")
-                        AppLog.i(TAG, "to_remove: $toRemove")
-                        AppLog.i(TAG, "to_replace: $toReplace")
+                        // 只打服务器名：完整配置里含 Authorization 等**出站头部明文**，
+                        // 在日志里整段打印等于把密钥写进内存缓冲与文件日志。
+                        AppLog.i(TAG, "to_add: ${toAdd.map { it.commonOptions.name }}")
+                        AppLog.i(TAG, "to_remove: ${toRemove.map { it.commonOptions.name }}")
+                        AppLog.i(TAG, "to_replace: ${toReplace.map { it.commonOptions.name }}")
                         toAdd.forEach { cfg ->
                             appScope.launch {
                                 runCatching { addClient(cfg) }
@@ -202,7 +204,8 @@ class McpManager(
             config = newEntry.key
         }
 
-        AppLog.i(TAG, "callTool: $toolName / $args (server: ${config.commonOptions.name})")
+        // 参数可能含敏感内容，且每次调用都会打：降为详单级并去掉参数正文。
+        AppLog.d(TAG, "callTool: $toolName (server: ${config.commonOptions.name})")
 
         if (client.transport == null) client.connect(getTransport(config))
         val result = client.callTool(
@@ -357,7 +360,8 @@ class McpManager(
             client.connect(getTransport(config))
         }
         val serverTools = client.listTools().tools
-        AppLog.i(TAG, "sync: tools: $serverTools")
+        // 只记工具名：完整工具定义（含长描述与参数表）体积巨大且属详单，不该占重要日志。
+        AppLog.d(TAG, "sync: tools: ${serverTools.joinToString { it.name }}")
         settingsStore.update { old ->
             old.copy(
                 mcpServers = old.mcpServers.map { serverConfig ->
@@ -471,7 +475,8 @@ class McpManager(
             }
             clients.remove(entry.key)
             syncingStatus.emit(syncingStatus.value.toMutableMap().apply { remove(entry.key.id) })
-            AppLog.i(TAG, "removeClient: ${entry.key} / ${entry.key.commonOptions.name}")
+            // 不要打印整个连接对象：它含 headers（Authorization 等明文）。
+            AppLog.i(TAG, "removeClient: ${entry.key.commonOptions.name}")
         }
         reconnectAttempts.remove(config.id)
     }
@@ -914,7 +919,9 @@ private fun redactConfigForLog(config: McpServerConfig): String {
         append("McpServer(id=").append(config.id)
         append(", name='").append(config.commonOptions.name).append('\'')
         append(", transport=").append(transport)
-        append(", url=").append(url)
+        // URL 可能把密钥放在 query 上（如 `?tavilyApiKey=…`）：必须过脱敏器，
+        // 否则这条 I 级日志会把明文密钥带进内存缓冲与文件日志。
+        append(", url=").append(me.rerere.rikkahub.utils.LogRedactor.maskUrl(url))
         append(", enabled=").append(config.commonOptions.enable)
         append(", tools=").append(config.commonOptions.tools.size)
         append(", headers=[").append(redactedHeaders.joinToString { "${it.first}=${it.second}" }).append("]")

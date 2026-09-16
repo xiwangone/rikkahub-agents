@@ -55,7 +55,10 @@ object FileLogSink {
         line: String,
     ) {
         if (logsDir == null) return
-        executor.execute { appendLineSync(kind, line) }
+        // 落盘兜底脱敏：日志一旦写文件就长期留存（7 天 × 5 份轮转）。任何调用方疏漏
+        // （例如把带密钥的 URL 原样打进来）都会变成磁盘上的明文，所以这里统一再过一遍脱敏器。
+        val safe = me.rerere.rikkahub.utils.LogRedactor.maskText(line)
+        executor.execute { appendLineSync(kind, safe) }
     }
 
     /** 等待队列排空（进程被杀/崩溃快照前调用，最多等 3s） */

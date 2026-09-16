@@ -27,6 +27,17 @@ enum class SurfaceTier {
  */
 object ToolSurfacePolicy {
 
+    /**
+     * 工具面裁剪总开关（COLD 空 schema 拦截 + WARM 描述收敛）。
+     *
+     * 治理约定要求「所有裁剪由一个开关控制，出问题一键关」。此处用**单点常量**实现：
+     * 置 false 即恢复完整 description/参数表（等价于未启用裁剪），回退改动集中在这一行。
+     *
+     * 与设置项 `DisplaySetting.toolSurfaceTrimming` 取**与**关系；后者**默认关闭** ——
+     * 即出厂行为等于"治理前"（工具面不裁剪），需要的人再打开，不替所有用户改默认。
+     */
+    const val TRIM_ENABLED = true
+
     /** 高频工具：完整 schema。保持这一集合稳定，避免注入集抖动影响前缀缓存。 */
     val HOT: Set<String> =
         setOf(
@@ -38,6 +49,9 @@ object ToolSurfacePolicy {
             "read_file", "write_text_file", "list_files", "find_files",
             // 凭证
             "vault_http_exec", "vault_export_env", "vault_credential_names",
+            // vault_ssh_exec 实测 79 次、排第 6 高频（xEdge 不可达时是连 PC 的主力备用通道），
+            // 属高频而非低频，故留在热档：每会话首次调用都要多一次 get_tool_schema 往返。
+            "vault_ssh_exec",
             // 设备与诊断
             "device_info", "diagnostics",
             // 网络与协作
@@ -64,12 +78,17 @@ object ToolSurfacePolicy {
             "vault_export_loadcreds", "vault_import_loadcreds", "vault_compare_loadcreds",
             "vault_gen_key", "vault_deploy_ssh_key", "vault_credential_prepare",
             "vault_credential_update", "vault_credential_delete", "vault_credential_audit",
-            "vault_credential_meta", "vault_ssh_exec",
+            "vault_credential_meta",
             "whisper_status", "check_app_updates", "generate_bug_report",
         )
 
-    fun tierOf(toolName: String): SurfaceTier =
+    fun tierOf(
+        toolName: String,
+        extraCold: Set<String> = emptySet(),
+    ): SurfaceTier =
         when {
+            // 助手级下调优先：只会把非冷档降为冷档，不会升档（见 Assistant.extraColdTools）
+            toolName in extraCold -> SurfaceTier.COLD
             toolName in HOT -> SurfaceTier.HOT
             toolName in COLD_EXTRAS -> SurfaceTier.COLD
             COLD_PREFIXES.any { toolName.startsWith(it) } -> SurfaceTier.COLD

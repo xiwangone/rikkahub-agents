@@ -525,7 +525,7 @@
   <string name="prompt_page_unnamed_lorebook">Безымянная книга знаний</string>
   <string name="prompt_page_use_regex">Использовать регулярные выражения</string>
   <string name="quick_messages_page_add_title">Добавить быстрое сообщение</string>
-  <string name="quick_messages_page_delete_message">Вы уверены, что хотите удалить "%s"? Это действие нельзя отменить.</string>
+  <string name="quick_messages_page_delete_message">Вы уверены, что хотите удалить \"%s\"? Это действие нельзя отменить.</string>
   <string name="quick_messages_page_delete_title">Удалить быстрое сообщение</string>
   <string name="quick_messages_page_edit_title">Редактировать быстрое сообщение</string>
   <string name="quick_messages_page_empty_content">Нет содержимого</string>
@@ -633,6 +633,8 @@
   <string name="setting_display_page_amoled_dark_mode_desc">Использовать чёрный фон в тёмной теме, подходит для AMOLED-экранов</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED-тёмная тема</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">Автоматически сворачивать блок мышления после его завершения</string>
+  <string name="setting_display_page_tool_surface_trim_title">Сокращение описаний инструментов</string>
+  <string name="setting_display_page_tool_surface_trim_desc">По умолчанию выключено. При включении редкие инструменты отправляют только краткое описание, полные параметры — по запросу (меньше токенов и шума выбора). При выключении все инструменты отправляют полные определения.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">Автоматически сворачивать мысли</string>
   <string name="setting_display_page_auto_play_tts_desc">Автоматически воспроизводить TTS после завершения генерации ответа ассистента</string>
   <string name="setting_display_page_auto_play_tts_title">Автовоспроизведение TTS после генерации</string>
@@ -1050,7 +1052,7 @@
   <string name="silicon_flow_website">Веб-сайт: [https://cloud.siliconflow.cn/](https://cloud.siliconflow.cn/i/u1Ia4Ycf)</string>
   <string name="skill_detail_page_content">Контент</string>
   <string name="skill_detail_page_create">Создать</string>
-  <string name="skill_detail_page_delete_confirm">Вы уверены, что хотите удалить файл "%s"?</string>
+  <string name="skill_detail_page_delete_confirm">Вы уверены, что хотите удалить файл \"%s\"?</string>
   <string name="skill_detail_page_delete_failed">Не удалось удалить</string>
   <string name="skill_detail_page_delete_file">Удалить файл</string>
   <string name="skill_detail_page_file_name">Имя файла</string>
@@ -1058,7 +1060,7 @@
   <string name="skill_detail_page_new_file">Новый файл</string>
   <string name="skill_detail_page_save">Сохранить</string>
   <string name="skills_page_add_title">Добавить навык</string>
-  <string name="skills_page_delete_message">Вы уверены, что хотите удалить "%s"? Это действие нельзя отменить.</string>
+  <string name="skills_page_delete_message">Вы уверены, что хотите удалить \"%s\"? Это действие нельзя отменить.</string>
   <string name="skills_page_delete_title">Удалить навык</string>
   <string name="skills_page_downloading">Загрузка...</string>
   <string name="skills_page_empty_hint">Нажмите кнопку + в правом нижнем углу, чтобы добавить навык</string>
@@ -1852,7 +1854,7 @@
   <string name="chat_page_rename">Переименовать</string>
   <string name="chat_page_folder_default">Чат</string>
   <string name="chat_page_folder_add">Новая</string>
-  <string name="chat_page_delete_folder_confirm">Удалить папку "%1$s"? Беседы внутри не будут удалены, только исключены из папки.</string>
+  <string name="chat_page_delete_folder_confirm">Удалить папку \"%1$s\"? Беседы внутри не будут удалены, только исключены из папки.</string>
   <string name="chat_page_delete_folder_generating">Некоторые беседы в этой папке все еще генерируются. Пожалуйста, остановите их перед удалением.</string>
   <string name="setting_display_page_tts_read_outside_brackets_title">TTS не читает текст в скобках</string>
   <string name="setting_display_page_tts_read_outside_brackets_desc">Если включено, TTS не будет читать содержимое в скобках</string>
@@ -2116,7 +2118,7 @@
   <string name="vault_fingerprint_desc">Требовать отпечаток пальца / блокировку экрана перед просмотром и экспортом</string>
   <string name="vault_fingerprint_plan">При включении для просмотра или экспорта значений требуется проверка отпечатком пальца (или блокировкой экрана).</string>
   <string name="vault_import_title">Импорт из файла</string>
-  <string name="vault_import_desc">Поддерживает формат load-creds.sh (export KEY="value" и группы-комментарии #). Выберите файл на устройстве для пакетного импорта.</string>
+  <string name="vault_import_desc">Поддерживает формат load-creds.sh (export KEY=\"value\" и группы-комментарии #). Выберите файл на устройстве для пакетного импорта.</string>
   <string name="vault_import_button">Выбрать файл для импорта</string>
   <string name="tts_label_25">Бодрый мужской голос (yuanqinansheng)</string>
   <string name="tts_label_26">Порядочный юноша (zhengpaiqingnian)</string>
@@ -2642,6 +2644,12 @@
   <string name="assistant_page_local_tools_tier_device_control_desc">Управление устройством, личными данными или внешними системами (включено %1$d/%2$d)</string>
   <string name="assistant_page_local_tools_tier_developer_title">L3 · Разработчик</string>
   <string name="assistant_page_local_tools_tier_developer_desc">Выполнение произвольного кода и другие опасные возможности (включено %1$d/%2$d)</string>
+  <string name="assistant_page_extra_cold_section">Внедрение инструментов (дополнительно)</string>
+  <string name="assistant_page_extra_cold_title">Всегда загружать эти инструменты как холодные</string>
+  <string name="assistant_page_extra_cold_desc">Настроено: %1$d. Холодные инструменты отправляют только краткое назначение, полные параметры — по запросу.</string>
+  <string name="assistant_page_extra_cold_action">Изменить</string>
+  <string name="assistant_page_extra_cold_dialog_desc">По одному имени инструмента в строке (или через запятую). Используйте точные имена из list_tools, например ssh_upload. Меняется только то, как этот ассистент видит набор инструментов; сами инструменты остаются вызываемыми.</string>
+  <string name="assistant_page_extra_cold_hint">напр. ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">Диагностика ИИ</string>
   <string name="assistant_page_local_tools_diagnostics_title">Диагностика и журналы</string>
   <string name="assistant_page_local_tools_diagnostics_desc">Состояние приложения, сведения о сборке, журналы, сбои и жизненный цикл.</string>
@@ -2684,6 +2692,7 @@
   <string name="log_page_record_app_logs">Записывать журнал приложения</string>
   <string name="log_page_record_app_logs_desc">Записывает logcat уровня приложения текущего процесса (OcrTransformer / ChatService / performLocalOcr).</string>
   <string name="log_page_search_hint">Поиск по ключевому слову</string>
+  <string name="log_page_important_only">Только важные</string>
   <string name="log_page_copy_all">Копировать всё</string>
   <string name="log_page_export">Экспорт</string>
   <string name="log_page_export_empty">Нет журналов для экспорта</string>

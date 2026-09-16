@@ -11,12 +11,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
@@ -194,6 +196,10 @@ private fun AssistantLocalToolContent(
     var keyboardDialogShownThisVisit by remember { mutableStateOf(false) }
 
     // Import tool config from another assistant (one-shot copy, no live sync).
+    var showExtraColdDialog by remember { mutableStateOf(false) }
+    var extraColdDraft by remember(assistant.extraColdTools) {
+        mutableStateOf(assistant.extraColdTools.joinToString("\n"))
+    }
     var showImportSourcePicker by remember { mutableStateOf(false) }
     var importCandidate by remember { mutableStateOf<Assistant?>(null) }
     var importIncludeMcp by remember { mutableStateOf(true) }
@@ -238,6 +244,48 @@ private fun AssistantLocalToolContent(
             dismissButton = {
                 TextButton(onClick = { showTermuxPostGrantDialog = false }) {
                     Text(stringResource(R.string.assistant_page_local_tools_dialog_dismiss))
+                }
+            },
+        )
+    }
+
+    if (showExtraColdDialog) {
+        AlertDialog(
+            onDismissRequest = { showExtraColdDialog = false },
+            title = { Text(stringResource(R.string.assistant_page_extra_cold_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.assistant_page_extra_cold_dialog_desc))
+                    OutlinedTextField(
+                        value = extraColdDraft,
+                        onValueChange = { extraColdDraft = it },
+                        placeholder = { Text(stringResource(R.string.assistant_page_extra_cold_hint)) },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 120.dp),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val names =
+                            extraColdDraft
+                                .split(',', '\n', ' ', '\t')
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+                                .distinct()
+                        onUpdateAssistant { it.copy(extraColdTools = names) }
+                        showExtraColdDialog = false
+                    },
+                ) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showExtraColdDialog = false }) {
+                    Text(stringResource(R.string.cancel))
                 }
             },
         )
@@ -442,6 +490,26 @@ private fun AssistantLocalToolContent(
                     },
                 )
             }
+        }
+
+        // 助手级「额外降冷档」：只做少注入（不提供升档 —— 扩大注入集会改变请求前缀、击穿缓存）
+        Text(
+            text = stringResource(R.string.assistant_page_extra_cold_section),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+        )
+        CardGroup {
+            item(
+                headlineContent = { Text(stringResource(R.string.assistant_page_extra_cold_title)) },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_extra_cold_desc, assistant.extraColdTools.size))
+                },
+                trailingContent = {
+                    TextButton(onClick = { showExtraColdDialog = true }) {
+                        Text(stringResource(R.string.assistant_page_extra_cold_action))
+                    }
+                },
+            )
         }
 
         // AI diagnostics section (first batch of self-diagnosis tools)

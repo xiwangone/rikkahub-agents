@@ -26,6 +26,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -52,6 +53,7 @@ import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRegistry
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
@@ -122,6 +124,17 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     val isPending = tool.isPending
     val isDenied = tool.approvalState is ToolApprovalState.Denied
     val images = tool.output.filterIsInstance<UIMessagePart.Image>()
+
+    // 诊断（「审批停住但无按钮」排查）：渲染侧看到的审批状态与回调可用性。
+    // 只有它和 GenLoop 的 approval-check 一起看，才能区分「状态没到 UI」与「到了但回调为空」。
+    // 降噪：key 只保留影响「按钮是否出现」的量，同一状态下的重复重组不再重复打印；
+    // 且只有进入「待审批」这种需要人工介入的状态才进重要日志。
+    LaunchedEffect(tool.toolCallId, isPending, onToolApproval != null) {
+        val line =
+            "render ${tool.toolName} id=${tool.toolCallId} isPending=$isPending " +
+                "state=${tool.approvalState} executed=${tool.isExecuted} hasCallback=${onToolApproval != null}"
+        if (isPending) AppLog.i("ToolApprovalUI", line) else AppLog.d("ToolApprovalUI", line)
+    }
 
     // Summary detection is delegated to the registered renderer; image output and
     // denial reasons are common to all tools.
@@ -421,6 +434,15 @@ private fun ChainOfThoughtScope.AskUserToolStep(
     val isPending = tool.isPending
     val isAnswered = tool.approvalState is ToolApprovalState.Answered
     val arguments = tool.inputAsJson()
+
+    // 诊断（同审批排查）：ask_user 走独立渲染分支，需单独记录其审批状态与回调可用性。
+    // 降噪同审批卡：key 去掉 approvalState，且只有「待回答」才进重要日志。
+    LaunchedEffect(tool.toolCallId, isPending, onToolAnswer != null) {
+        val line =
+            "ask_user id=${tool.toolCallId} isPending=$isPending state=${tool.approvalState} " +
+                "hasAnswerCallback=${onToolAnswer != null}"
+        if (isPending) AppLog.i("ToolApprovalUI", line) else AppLog.d("ToolApprovalUI", line)
+    }
 
     // Parse questions from arguments
     val questions =

@@ -73,7 +73,9 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
         messages: List<UIMessage>,
     ): List<UIMessage> {
         if (ctx.model.inputModalities.contains(Modality.IMAGE)) {
-            AppLog.i(TAG, "transform: model supports image input — passing images through (no OCR)")
+            // 模型本身支持图片输入 → 直接透传，不做 OCR。
+            // 注意：此处不再打日志 —— 每个 step 的每次消息变换都会走到这里，
+            // 「no OCR」属于零信息量的高频噪音，会挤掉真正的排查线索。
             return messages
         }
 

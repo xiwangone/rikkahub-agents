@@ -7,10 +7,14 @@ import kotlinx.serialization.Transient
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.mergeApprovalProgress
 import me.rerere.ai.util.InstantSerializer
 import me.rerere.rikkahub.data.datastore.DEFAULT_ASSISTANT_ID
+import me.rerere.rikkahub.data.log.AppLog
 import java.time.Instant
 import kotlin.uuid.Uuid
+
+private const val TAG_CONVERSATION = "Conversation"
 
 @Serializable
 data class Conversation(
@@ -85,7 +89,17 @@ data class Conversation(
             var newMessageIndex = node.selectIndex
             val existingMessageIndex = newMessages.indexOfFirst { it.id == message.id }
             if (existingMessageIndex >= 0) {
-                newMessages[existingMessageIndex] = message
+                // 审批状态单调：新快照只能带来「更进展」的审批状态，过期的 Auto 不得把
+                // 已经置位的 Pending / Approved / Denied / Answered 回退（详见 ToolApprovalMerge.kt）。
+                // 这是「审批按钮一闪即没」类故障的根本防护：闪回由后续旧快照回灌引起。
+                val merged = message.mergeApprovalProgress(newMessages[existingMessageIndex])
+                if (merged !== message) {
+                    AppLog.w(
+                        TAG_CONVERSATION,
+                        "mergeApprovalProgress: blocked stale snapshot regression on message ${message.id}",
+                    )
+                }
+                newMessages[existingMessageIndex] = merged
                 newMessageIndex = existingMessageIndex
             } else {
                 newMessages.add(message)

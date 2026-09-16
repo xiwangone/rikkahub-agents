@@ -46,7 +46,7 @@
   <string name="assistant_page_allow_conversation_system_prompt_desc">会話ごとにシステムプロンプトを個別に設定可能にする</string>
   <string name="assistant_page_allow_conversation_prompt_injection">会話別プロンプトインジェクション</string>
   <string name="assistant_page_allow_conversation_prompt_injection_desc">会話ごとにプロンプトインジェクションとロアブックを個別にバインド可能にする</string>
-  <string name="assistant_page_available_variables">"利用可能な変数: "</string>
+  <string name="assistant_page_available_variables">\"利用可能な変数: \"</string>
   <string name="assistant_page_background_opacity">背景の透明度</string>
   <string name="assistant_page_background_opacity_desc">チャット背景画像の表示透明度を調整します</string>
   <string name="assistant_page_background_opacity_value">透明度: %1$d%%</string>
@@ -532,7 +532,7 @@
   <string name="prompt_page_unnamed_lorebook">名前なしのルアーブック</string>
   <string name="prompt_page_use_regex">正規表現を使用</string>
   <string name="quick_messages_page_add_title">クイックメッセージを追加</string>
-  <string name="quick_messages_page_delete_message">"%s"を削除してもよろしいですか？この操作は元に戻せません。</string>
+  <string name="quick_messages_page_delete_message">\"%s\"を削除してもよろしいですか？この操作は元に戻せません。</string>
   <string name="quick_messages_page_delete_title">クイックメッセージを削除</string>
   <string name="quick_messages_page_edit_title">クイックメッセージを編集</string>
   <string name="quick_messages_page_empty_content">コンテンツがありません</string>
@@ -640,6 +640,8 @@
   <string name="setting_display_page_amoled_dark_mode_desc">ダークテーマで純粋な黒色背景を使用、AMOLED画面に適しています</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED ダークモード</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">思考が完了したら思考内容を自動的に折りたたむ</string>
+  <string name="setting_display_page_tool_surface_trim_title">ツール面の整理</string>
+  <string name="setting_display_page_tool_surface_trim_desc">既定ではオフ。オンにすると低頻度ツールは短い説明のみを送信し、完全なパラメータは必要時に取得します（トークンと選択ノイズを削減）。オフでは全ツールが完全な定義を送信します。</string>
   <string name="setting_display_page_auto_collapse_thinking_title">思考を自動折りたたむ</string>
   <string name="setting_display_page_auto_play_tts_desc">アシスタントのメッセージ生成完了後にTTSを自動再生</string>
   <string name="setting_display_page_auto_play_tts_title">生成後にTTSを自動再生</string>
@@ -1057,7 +1059,7 @@
   <string name="silicon_flow_website">公式サイト: [https://cloud.siliconflow.cn/](https://cloud.siliconflow.cn/i/u1Ia4Ycf)</string>
   <string name="skill_detail_page_content">コンテンツ</string>
   <string name="skill_detail_page_create">作成</string>
-  <string name="skill_detail_page_delete_confirm">ファイル"%s"を削除してもよろしいですか？</string>
+  <string name="skill_detail_page_delete_confirm">ファイル\"%s\"を削除してもよろしいですか？</string>
   <string name="skill_detail_page_delete_failed">削除に失敗しました</string>
   <string name="skill_detail_page_delete_file">ファイルを削除</string>
   <string name="skill_detail_page_file_name">ファイル名</string>
@@ -1065,7 +1067,7 @@
   <string name="skill_detail_page_new_file">新規ファイル</string>
   <string name="skill_detail_page_save">保存</string>
   <string name="skills_page_add_title">スキルを追加</string>
-  <string name="skills_page_delete_message">"%s"を削除してもよろしいですか？この操作は元に戻せません。</string>
+  <string name="skills_page_delete_message">\"%s\"を削除してもよろしいですか？この操作は元に戻せません。</string>
   <string name="skills_page_delete_title">スキルを削除</string>
   <string name="skills_page_downloading">ダウンロード中…</string>
   <string name="skills_page_empty_hint">右下の+ボタンをタップしてスキルを追加</string>
@@ -1859,7 +1861,7 @@
   <string name="chat_page_rename">名前を変更</string>
   <string name="chat_page_folder_default">チャット</string>
   <string name="chat_page_folder_add">新規</string>
-  <string name="chat_page_delete_folder_confirm">フォルダ "%1$s" を削除しますか？内部の会話は削除されず、フォルダから取り除かれるだけです。</string>
+  <string name="chat_page_delete_folder_confirm">フォルダ \"%1$s\" を削除しますか？内部の会話は削除されず、フォルダから取り除かれるだけです。</string>
   <string name="chat_page_delete_folder_generating">フォルダ内の一部の会話がまだ生成中です。削除する前にそれらを停止してください。</string>
   <string name="setting_display_page_tts_read_outside_brackets_title">TTS 括弧内を読み上げない</string>
   <string name="setting_display_page_tts_read_outside_brackets_desc">有効にすると、TTS は括弧内の内容を読み上げません</string>
@@ -2123,7 +2125,7 @@
   <string name="vault_fingerprint_desc">認証情報の表示・エクスポート前に指紋 / 画面ロック認証を要求</string>
   <string name="vault_fingerprint_plan">有効にすると、認証情報の表示・エクスポート時に指紋（または画面ロック）認証が必要になります。</string>
   <string name="vault_import_title">ファイルからインポート</string>
-  <string name="vault_import_desc">load-creds.sh 形式（export KEY="value" と # によるブロックコメント）に対応。端末上の資格情報ファイルを選ぶと一括インポートできます。</string>
+  <string name="vault_import_desc">load-creds.sh 形式（export KEY=\"value\" と # によるブロックコメント）に対応。端末上の資格情報ファイルを選ぶと一括インポートできます。</string>
   <string name="vault_import_button">ファイルを選択してインポート</string>
   <string name="tts_label_25">元気な男性音声 (yuanqinansheng)</string>
   <string name="tts_label_26">誠実な青年 (zhengpaiqingnian)</string>
@@ -2649,6 +2651,12 @@
   <string name="assistant_page_local_tools_tier_device_control_desc">デバイス・個人データ・外部システムの操作（有効 %1$d/%2$d）</string>
   <string name="assistant_page_local_tools_tier_developer_title">L3 · 開発者</string>
   <string name="assistant_page_local_tools_tier_developer_desc">任意コード実行など破壊的な機能（有効 %1$d/%2$d）</string>
+  <string name="assistant_page_extra_cold_section">ツール注入（詳細設定）</string>
+  <string name="assistant_page_extra_cold_title">これらのツールをコールドで扱う</string>
+  <string name="assistant_page_extra_cold_desc">%1$d 件を設定済み。コールドでは一行の用途のみを送信し、完全なパラメータは必要時に取得します。</string>
+  <string name="assistant_page_extra_cold_action">編集</string>
+  <string name="assistant_page_extra_cold_dialog_desc">1 行に 1 つのツール名（カンマ区切りも可）。list_tools に表示される正確な名前を使ってください（例: ssh_upload）。このアシスタントの見え方だけが変わり、ツールは引き続き呼び出せます。</string>
+  <string name="assistant_page_extra_cold_hint">例: ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 診断</string>
   <string name="assistant_page_local_tools_diagnostics_title">診断とログ</string>
   <string name="assistant_page_local_tools_diagnostics_desc">アプリのヘルス、ビルド情報、ログ、クラッシュ、ライフサイクル記録。</string>
@@ -2691,6 +2699,7 @@
   <string name="log_page_record_app_logs">アプリ層ログを記録</string>
   <string name="log_page_record_app_logs_desc">現在のプロセスの logcat のアプリ層ログを記録します（OcrTransformer / ChatService / performLocalOcr 関連）</string>
   <string name="log_page_search_hint">ログのキーワードを検索</string>
+  <string name="log_page_important_only">重要のみ</string>
   <string name="log_page_copy_all">すべてコピー</string>
   <string name="log_page_export">エクスポート</string>
   <string name="log_page_export_empty">エクスポートできるログがありません</string>

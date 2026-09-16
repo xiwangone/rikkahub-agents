@@ -12,16 +12,33 @@ import java.util.Locale
  * READ_LOGS 权限即可查看 ChatService 等核心日志。
  *
  * 每个方法在调用 android.util.Log 的同时（保留原有 logcat 输出），同步将日志条目
- * 写入内存 buffer（上限 2000 条，超过丢弃最旧；长会话/多工具调用下 500 条会被迅速冲掉，
- * 导致事后无法回溯关键事件）。开关持久化在 SharedPreferences
+ * 写入内存 buffer。缓冲按级别分档（I/W/E 与 D 分开，见 [MAX_IMPORTANT_LOGS] /
+ * [MAX_VERBOSE_LOGS]），并对相邻重复条目做合并计数，避免逐 token 的详细日志把关键
+ * 事件冲掉。开关持久化在 SharedPreferences
  * （key = "rikkahub.preferences" / "app_log_enabled"）。
  */
 object AppLog {
     /**
-     * 内存缓存上限：超过后丢弃最旧的日志。
-     * 2000 条 ≈ 单条最长 2KB 时最多 4MB，实际远低于此；换取长会话下仍然可回溯。
+     * 内存缓存上限：按级别分两档，避免逐 token 的详细日志把关键事件挤掉。
+     *
+     * - 重要级（I/W/E）：保底 [MAX_IMPORTANT_LOGS] 条。审批、取消、错误等排查主线都在这里；
+     *   过去与详细日志共用 2000 条时，长会话/多工具调用下会被迅速冲掉（实测一份 04:44 的
+     *   审批时间线几分钟后已无法回溯，诊断窗口全部落在「抓不到」上）。
+     * - 详细级（D）：provider 逐 token 的 `onEvent`、渲染/审批诊断等噪音大户，单列
+     *   [MAX_VERBOSE_LOGS] 条，互不挤占。
+     *
+     * 另有**去重（按内容 + 时间窗）**：同一「级别 + TAG + 内容」在 [DEDUP_WINDOW_MS] 内
+     * 无论是否相邻，都只保留一条并累加计数（展示为 `(×N)`），且按其**首次出现**时间定位；
+     * 跨窗口仍会生成新条目，因此时间线不丢（能看出「这个错误在 10 分钟前也出现过」）。
      */
-    private const val MAX_APP_LOGS = 2000
+    private const val MAX_VERBOSE_LOGS = 2000
+    private const val MAX_IMPORTANT_LOGS = 800
+
+    /**
+     * 同内容合并窗口（毫秒）。取 3 秒是经验值：逐 token / 逐块刷屏的间隔远小于它（会被合并），
+     * 而周期性任务这类「有意义的重复」间隔通常更大（不会被误并到一条里）。
+     */
+    private const val DEDUP_WINDOW_MS = 3000L
 
     /** 单条消息最大长度，防止超长消息撑爆内存 */
     private const val MAX_MESSAGE_LENGTH = 2000
@@ -29,15 +46,29 @@ object AppLog {
     private const val PREFS_NAME = "rikkahub.preferences"
     private const val PREF_APP_LOG_ENABLED = "app_log_enabled"
 
-    /** 一行日志：时间戳 / 级别 / tag / 消息 */
+    /** 一行日志：时间戳 / 级别 / tag / 消息（[repeat] 为去重合并计数） */
     data class Entry(
         val timestamp: Long,
         val level: Char,
         val tag: String,
         val message: String,
+        /** 同一时间窗内的重复次数：重复只累加计数，不新增条目 */
+        val repeat: Int = 1,
+        /** 末次出现时间（窗口内重复时刷新）；排序以 [timestamp]（首现）为准 */
+        val lastTimestamp: Long = timestamp,
     )
 
-    private val buffer = ArrayDeque<Entry>()
+    /** 保护两个缓冲区的锁 */
+    private val lock = Any()
+
+    /**
+     * 详细级（D）缓冲：逐 token 的 onEvent、渲染诊断等。
+     * key = `级别|TAG|时间桶|内容` —— 同一时间桶内的相同日志合并计数。
+     */
+    private val verboseBuffer = LinkedHashMap<String, Entry>()
+
+    /** 重要级（I/W/E）缓冲：审批、取消、错误等排查主线（key 规则同上） */
+    private val importantBuffer = LinkedHashMap<String, Entry>()
 
     @Volatile
     private var enabled = false
@@ -129,15 +160,18 @@ object AppLog {
 
     // ---- Buffer 读取 / 清理 / 导出 ----
 
-    /** 当前缓存的应用层日志快照（最新在前）。 */
+    /** 当前缓存的应用层日志快照（按**首次出现**时间倒序，最新在前）。 */
     fun getLogs(): List<Entry> =
-        synchronized(buffer) {
-            buffer.reversed()
+        synchronized(lock) {
+            (importantBuffer.values + verboseBuffer.values)
+                .sortedBy { it.timestamp }
+                .reversed()
         }
 
     fun clear() {
-        synchronized(buffer) {
-            buffer.clear()
+        synchronized(lock) {
+            importantBuffer.clear()
+            verboseBuffer.clear()
         }
     }
 
@@ -180,25 +214,49 @@ object AppLog {
         message: String,
     ) {
         if (!enabled) return
-        val entry =
-            Entry(
-                timestamp = System.currentTimeMillis(),
-                level = level,
-                tag = tag.take(64),
-                message = message.take(MAX_MESSAGE_LENGTH),
-            )
-        synchronized(buffer) {
-            buffer.addLast(entry)
-            while (buffer.size > MAX_APP_LOGS) {
-                buffer.removeFirst()
+        val safeTag = tag.take(64)
+        val safeMessage = message.take(MAX_MESSAGE_LENGTH)
+        val important = level != 'D'
+        val buffer = if (important) importantBuffer else verboseBuffer
+        val cap = if (important) MAX_IMPORTANT_LOGS else MAX_VERBOSE_LOGS
+        val now = System.currentTimeMillis()
+        // 时间桶参与 key：同一窗口内合并计数，跨窗口生成新条目（时间线不丢）
+        val key = "$level|$safeTag|${now / DEDUP_WINDOW_MS}|$safeMessage"
+        val isNewEntry =
+            synchronized(lock) {
+                val existing = buffer[key]
+                if (existing != null) {
+                    // 窗口内重复：只累加计数、刷新末次时间；不新增条目、不写文件
+                    buffer[key] = existing.copy(repeat = existing.repeat + 1, lastTimestamp = now)
+                    false
+                } else {
+                    buffer[key] =
+                        Entry(
+                            timestamp = now,
+                            level = level,
+                            tag = safeTag,
+                            message = safeMessage,
+                        )
+                    // 容量淘汰：LinkedHashMap 迭代顺序 = 插入顺序，最旧的在最前
+                    while (buffer.size > cap) {
+                        val oldest = buffer.keys.firstOrNull() ?: break
+                        buffer.remove(oldest)
+                    }
+                    true
+                }
             }
-        }
+        if (!isNewEntry) return
+        // 详细级（D）只留内存与 logcat，**不落盘**：逐 token 的原始流、渲染详单这类内容
+        // 写文件等于每块一次 IO，且会把 5×2MB / 7 天的文件日志刷满，真出问题时反而翻不到重点。
+        // 重要级（I/W/E）照旧持久化。
+        if (!important) return
         // 文件持久化（与内存开关一致；时间戳由 FileLogSink 统一加）
-        FileLogSink.append(FileLogSink.KIND_APP, "${entry.level} ${entry.tag}: ${entry.message}")
+        FileLogSink.append(FileLogSink.KIND_APP, "$level $safeTag: $safeMessage")
     }
 
     private fun formatLine(entry: Entry): String {
         val time = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(entry.timestamp)
-        return "$time ${entry.level} ${entry.tag}: ${entry.message}"
+        val repeatSuffix = if (entry.repeat > 1) " (×${entry.repeat})" else ""
+        return "$time ${entry.level} ${entry.tag}: ${entry.message}$repeatSuffix"
     }
 }

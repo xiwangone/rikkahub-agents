@@ -327,6 +327,10 @@ class ChatService(
             sessions.values.forEach { it.cleanup() }
             sessions.clear()
             sessionMutexes.clear()
+            // Only the in-memory view is dropped here; the persisted unlocked-tool set is kept
+            // on purpose so a process restart cannot regress a cold tool back to an empty schema
+            // (that would invalidate the provider's prefix cache for the whole conversation).
+            me.rerere.rikkahub.data.ai.tools.ToolSurfaceSession.clearAllInMemory()
         }.onFailure {
             // Don't let a teardown hiccup escape, but don't swallow it silently either —
             // a failure here can leave the lifecycle observer registered (slow leak).
@@ -385,6 +389,9 @@ class ChatService(
             // was previously missing this cleanup, causing a slow leak on heavy-use
             // sessions where many conversations cycle in and out of memory.
             sessionMutexes.remove(conversationId)
+            // Deliberately NOT clearing ToolSurfaceSession here: idle eviction is not a reset.
+            // Dropping the unlocked-tool set would shrink cold tools' schemas on the next visit,
+            // breaking the provider prefix cache and re-pricing the entire history.
             _sessionsVersion.value++
             AppLog.i(TAG, "removeSession: $conversationId (remaining: ${sessions.size})")
         }
@@ -401,6 +408,10 @@ class ChatService(
         persistSnapshotBeforeEvict(conversationId, session)
         session.cleanup()
         sessionMutexes.remove(conversationId)
+        // Unlike idle eviction (removeSession), /new genuinely resets the conversation content,
+        // so the cached prefix is rebuilt anyway — clearing the unlocked-tool set here only
+        // frees memory and cannot cause a cache regression.
+        me.rerere.rikkahub.data.ai.tools.ToolSurfaceSession.clear(conversationId.toString())
         _sessionsVersion.value++
         AppLog.i(TAG, "dropSession: $conversationId (remaining: ${sessions.size})")
     }
@@ -1277,9 +1288,20 @@ class ChatService(
                             val needsImmediatePersist =
                                 chunk.messages.lastOrNull()?.parts?.any { p ->
                                     p is UIMessagePart.Tool &&
-                                        p.executionStartedAt != null &&
                                         p.output.isEmpty() &&
-                                        p.approvalState is ToolApprovalState.Approved
+                                        (
+                                            // 执行刚开始（Approved + executionStartedAt）——落盘面包屑，
+                                            // 供进程被杀后的 replay 安全检查识别「中断的尝试」。
+                                            (
+                                                p.executionStartedAt != null &&
+                                                    p.approvalState is ToolApprovalState.Approved
+                                                ) ||
+                                                // 刚转为「待审批」：这是必须立刻可见的状态迁移。
+                                                // 若被节流吞掉，UI 拿到的仍是 Auto → isPending=false →
+                                                // 审批按钮不渲染；而 Auto 又恰好满足 finishPendingTools 的
+                                                // 改写条件，于是用户一发消息就被标成「已拒绝」。
+                                                p.approvalState is ToolApprovalState.Pending
+                                            )
                                 } ?: false
                             // 生成中的周期落盘：保住已被进程回收时丢失的中间内容。
                             val nowMs = System.currentTimeMillis()

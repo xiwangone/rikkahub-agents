@@ -79,7 +79,7 @@
   <string name="assistant_page_allow_conversation_system_prompt_desc">允许每个对话单独设置系统提示词</string>
   <string name="assistant_page_allow_conversation_prompt_injection">独立对话提示词注入</string>
   <string name="assistant_page_allow_conversation_prompt_injection_desc">允许每个对话单独绑定提示词注入和世界书</string>
-  <string name="assistant_page_available_variables">"可用变量: "</string>
+  <string name="assistant_page_available_variables">\"可用变量: \"</string>
   <string name="assistant_page_background_opacity">背景透明度</string>
   <string name="assistant_page_background_opacity_desc">调整聊天背景图显示透明度</string>
   <string name="assistant_page_background_opacity_value">透明度：%1$d%%</string>
@@ -754,6 +754,8 @@
   <string name="setting_display_page_amoled_dark_mode_desc">在暗色主题中使用纯黑背景，适合 AMOLED 屏幕</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED 暗色模式</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">思考完成自动折叠思考内容</string>
+  <string name="setting_display_page_tool_surface_trim_title">工具面裁剪</string>
+  <string name="setting_display_page_tool_surface_trim_desc">默认关闭。开启后低频工具只发送简短说明、完整参数按需取回，可减少上下文占用与选择干扰；关闭则所有工具都发送完整定义。</string>
   <string name="setting_display_page_auto_collapse_thinking_title">自动折叠思考</string>
   <string name="setting_display_page_auto_play_tts_desc">助手消息生成完成后自动播放TTS</string>
   <string name="setting_display_page_auto_play_tts_title">生成后自动播放TTS</string>
@@ -1428,6 +1430,12 @@
   <string name="assistant_page_local_tools_tier_device_control_desc">操作设备、个人数据或外部系统（已启用 %1$d/%2$d）</string>
   <string name="assistant_page_local_tools_tier_developer_title">L3 · 开发者</string>
   <string name="assistant_page_local_tools_tier_developer_desc">任意代码执行等破坏性能力（已启用 %1$d/%2$d）</string>
+  <string name="assistant_page_extra_cold_section">工具注入（高级）</string>
+  <string name="assistant_page_extra_cold_title">这些工具按冷档注入</string>
+  <string name="assistant_page_extra_cold_desc">已配置 %1$d 个。冷档只发送一行用途，需要时再取回完整参数表。</string>
+  <string name="assistant_page_extra_cold_action">编辑</string>
+  <string name="assistant_page_extra_cold_dialog_desc">每行一个工具名（也可用逗号分隔），请用 list_tools 里显示的确切名称，例如 ssh_upload。只影响该助手看到的工具面视图，工具仍可正常调用。</string>
+  <string name="assistant_page_extra_cold_hint">例如 ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 诊断</string>
   <string name="assistant_page_local_tools_diagnostics_title">诊断与日志</string>
   <string name="assistant_page_local_tools_diagnostics_desc">应用健康、构建信息、日志、崩溃与生命周期记录。</string>
@@ -2002,6 +2010,7 @@
   <string name="log_page_record_app_logs">记录应用层日志</string>
   <string name="log_page_record_app_logs_desc">记录当前进程的 logcat 应用层日志（OcrTransformer / ChatService / performLocalOcr 相关）</string>
   <string name="log_page_search_hint">搜索日志关键字</string>
+  <string name="log_page_important_only">仅重要</string>
   <string name="log_page_copy_all">复制全部</string>
   <string name="log_page_export">导出</string>
   <string name="log_page_export_empty">暂无日志可导出</string>
@@ -2061,7 +2070,7 @@
   <string name="chat_page_rename">重命名</string>
   <string name="chat_page_folder_default">聊天</string>
   <string name="chat_page_folder_add">新建</string>
-  <string name="chat_page_delete_folder_confirm">删除文件夹 "%1$s"？其中的对话不会被删除，只会从文件夹中移除。</string>
+  <string name="chat_page_delete_folder_confirm">删除文件夹 \"%1$s\"？其中的对话不会被删除，只会从文件夹中移除。</string>
   <string name="chat_page_delete_folder_generating">此文件夹中有对话仍在生成中，请停止后再删除。</string>
   <string name="assistant_page_local_tools_archive_desc">直接在设备上创建和解压 .zip 文件。v1 不支持密码加密。适用于 file:// 和 content:// URI。</string>
   <string name="assistant_page_local_tools_archive_title">压缩文件 (zip)</string>
@@ -2204,7 +2213,7 @@
   <string name="vault_fingerprint_desc">查看或导出凭证前需指纹 / 锁屏验证</string>
   <string name="vault_fingerprint_plan">开启后，查看或导出凭证值需先通过指纹（或锁屏）验证。</string>
   <string name="vault_import_title">从文件导入</string>
-  <string name="vault_import_desc">支持 load-creds.sh 格式（export KEY="value" + # 注释分组）。选择手机上的凭证文件即可批量导入。</string>
+  <string name="vault_import_desc">支持 load-creds.sh 格式（export KEY=\"value\" + # 注释分组）。选择手机上的凭证文件即可批量导入。</string>
   <string name="vault_import_button">选择文件导入</string>
   <string name="vault_export_title">应急导出</string>
   <string name="vault_export_desc">支持口令加密的 .vault 包，以及明文 CSV / Bitwarden JSON（后两者请谨慎保管）。</string>

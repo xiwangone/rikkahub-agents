@@ -532,7 +532,7 @@
   <string name="prompt_page_unnamed_lorebook">이름 없는 롤북</string>
   <string name="prompt_page_use_regex">정규식 사용</string>
   <string name="quick_messages_page_add_title">빠른 메시지 추가</string>
-  <string name="quick_messages_page_delete_message">"%s"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</string>
+  <string name="quick_messages_page_delete_message">\"%s\"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</string>
   <string name="quick_messages_page_delete_title">빠른 메시지 삭제</string>
   <string name="quick_messages_page_edit_title">빠른 메시지 편집</string>
   <string name="quick_messages_page_empty_content">콘텐츠 없음</string>
@@ -640,6 +640,8 @@
   <string name="setting_display_page_amoled_dark_mode_desc">다크 테마에서 순수 검정 배경 사용, AMOLED 화면에 적합</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED 다크 모드</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">사고 완료 후 자동으로 사고 내용 접기</string>
+  <string name="setting_display_page_tool_surface_trim_title">도구 목록 정리</string>
+  <string name="setting_display_page_tool_surface_trim_desc">기본값은 꺼짐. 켜면 저빈도 도구는 짧은 설명만 보내고 전체 파라미터는 필요할 때 가져옵니다(토큰과 선택 노이즈 감소). 끄면 모든 도구가 전체 정의를 보냅니다.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">사고 자동 접기</string>
   <string name="setting_display_page_auto_play_tts_desc">어시스턴트 메시지 생성 완료 후 TTS 자동 재생</string>
   <string name="setting_display_page_auto_play_tts_title">생성 후 TTS 자동 재생</string>
@@ -1057,7 +1059,7 @@
   <string name="silicon_flow_website">웹사이트: [https://cloud.siliconflow.cn/](https://cloud.siliconflow.cn/i/u1Ia4Ycf)</string>
   <string name="skill_detail_page_content">콘텐츠</string>
   <string name="skill_detail_page_create">생성</string>
-  <string name="skill_detail_page_delete_confirm">파일 "%s"을(를) 삭제하시겠습니까?</string>
+  <string name="skill_detail_page_delete_confirm">파일 \"%s\"을(를) 삭제하시겠습니까?</string>
   <string name="skill_detail_page_delete_failed">삭제 실패</string>
   <string name="skill_detail_page_delete_file">파일 삭제</string>
   <string name="skill_detail_page_file_name">파일 이름</string>
@@ -1065,7 +1067,7 @@
   <string name="skill_detail_page_new_file">새 파일</string>
   <string name="skill_detail_page_save">저장</string>
   <string name="skills_page_add_title">스킬 추가</string>
-  <string name="skills_page_delete_message">"%s"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</string>
+  <string name="skills_page_delete_message">\"%s\"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.</string>
   <string name="skills_page_delete_title">스킬 삭제</string>
   <string name="skills_page_downloading">다운로드 중...</string>
   <string name="skills_page_empty_hint">오른쪽 하단의 + 버튼을 눌러 스킬을 추가하세요</string>
@@ -1856,7 +1858,7 @@
   <string name="chat_page_rename">이름 변경</string>
   <string name="chat_page_folder_default">채팅</string>
   <string name="chat_page_folder_add">새로 만들기</string>
-  <string name="chat_page_delete_folder_confirm">폴더 "%1$s"를 삭제하시겠습니까? 내부의 대화는 삭제되지 않고 폴더에서만 제거됩니다.</string>
+  <string name="chat_page_delete_folder_confirm">폴더 \"%1$s\"를 삭제하시겠습니까? 내부의 대화는 삭제되지 않고 폴더에서만 제거됩니다.</string>
   <string name="chat_page_delete_folder_generating">이 폴더의 일부 대화가 아직 생성 중입니다. 삭제하기 전에 중지해 주세요.</string>
   <string name="setting_display_page_tts_read_outside_brackets_title">TTS 괄호 안 내용 읽지 않기</string>
   <string name="setting_display_page_tts_read_outside_brackets_desc">활성화하면 TTS가 괄호 안의 내용을 읽지 않습니다</string>
@@ -2123,7 +2125,7 @@
   <string name="vault_fingerprint_desc">자격 증명을 보거나 내보내기 전에 지문 / 화면 잠금 인증 필요</string>
   <string name="vault_fingerprint_plan">활성화하면 자격 증명 값을 보거나 내보낼 때 지문(또는 화면 잠금) 인증이 필요합니다.</string>
   <string name="vault_import_title">파일에서 가져오기</string>
-  <string name="vault_import_desc">load-creds.sh 형식(export KEY="value" + # 주석 그룹)을 지원합니다. 기기의 자격 증명 파일을 선택하면 일괄 가져옵니다.</string>
+  <string name="vault_import_desc">load-creds.sh 형식(export KEY=\"value\" + # 주석 그룹)을 지원합니다. 기기의 자격 증명 파일을 선택하면 일괄 가져옵니다.</string>
   <string name="vault_import_button">파일 선택하여 가져오기</string>
   <string name="tts_label_25">활기찬 남성 음성 (yuanqinansheng)</string>
   <string name="tts_label_26">정직한 청년 (zhengpaiqingnian)</string>
@@ -2649,6 +2651,12 @@
   <string name="assistant_page_local_tools_tier_device_control_desc">기기, 개인 데이터 또는 외부 시스템 조작 (%1$d/%2$d 사용 중)</string>
   <string name="assistant_page_local_tools_tier_developer_title">L3 · 개발자</string>
   <string name="assistant_page_local_tools_tier_developer_desc">임의 코드 실행 등 파괴적 기능 (%1$d/%2$d 사용 중)</string>
+  <string name="assistant_page_extra_cold_section">도구 주입(고급)</string>
+  <string name="assistant_page_extra_cold_title">이 도구들은 콜드로 취급</string>
+  <string name="assistant_page_extra_cold_desc">%1$d개 설정됨. 콜드 도구는 한 줄 설명만 전송하고 전체 파라미터는 필요할 때 가져옵니다.</string>
+  <string name="assistant_page_extra_cold_action">편집</string>
+  <string name="assistant_page_extra_cold_dialog_desc">한 줄에 도구 이름 하나(쉼표 구분도 가능). list_tools에 표시된 정확한 이름을 사용하세요(예: ssh_upload). 이 어시스턴트가 보는 방식만 바뀌며 도구는 계속 호출할 수 있습니다.</string>
+  <string name="assistant_page_extra_cold_hint">예: ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 진단</string>
   <string name="assistant_page_local_tools_diagnostics_title">진단 및 로그</string>
   <string name="assistant_page_local_tools_diagnostics_desc">앱 상태, 빌드 정보, 로그, 충돌, 수명주기 기록.</string>
@@ -2691,6 +2699,7 @@
   <string name="log_page_record_app_logs">앱 계층 로그 기록</string>
   <string name="log_page_record_app_logs_desc">현재 프로세스의 logcat 앱 계층 로그를 기록합니다(OcrTransformer / ChatService / performLocalOcr 관련)</string>
   <string name="log_page_search_hint">로그 키워드 검색</string>
+  <string name="log_page_important_only">중요 항목만</string>
   <string name="log_page_copy_all">전체 복사</string>
   <string name="log_page_export">내보내기</string>
   <string name="log_page_export_empty">내보낼 로그가 없습니다</string>

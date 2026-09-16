@@ -46,7 +46,7 @@
   <string name="assistant_page_allow_conversation_system_prompt_desc">允許每個對話單獨設定系統提示詞</string>
   <string name="assistant_page_allow_conversation_prompt_injection">獨立對話提示詞注入</string>
   <string name="assistant_page_allow_conversation_prompt_injection_desc">允許每個對話單獨綁定提示詞注入和世界書</string>
-  <string name="assistant_page_available_variables">"可用變數: "</string>
+  <string name="assistant_page_available_variables">\"可用變數: \"</string>
   <string name="assistant_page_background_opacity">背景透明度</string>
   <string name="assistant_page_background_opacity_desc">調整聊天背景圖片顯示透明度</string>
   <string name="assistant_page_background_opacity_value">透明度：%1$d%%</string>
@@ -630,6 +630,8 @@
   <string name="setting_display_page_amoled_dark_mode_desc">在暗色主題中使用純黑背景，適合 AMOLED 螢幕</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED 暗色模式</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">思考完成自動折疊思考內容</string>
+  <string name="setting_display_page_tool_surface_trim_title">工具面裁剪</string>
+  <string name="setting_display_page_tool_surface_trim_desc">預設關閉。開啟後低頻工具只傳送簡短說明、完整參數按需取回，可減少上下文佔用與選擇干擾；關閉則所有工具都傳送完整定義。</string>
   <string name="setting_display_page_auto_collapse_thinking_title">自動折疊思考</string>
   <string name="setting_display_page_auto_play_tts_desc">助理訊息產生完成後自動播放語音</string>
   <string name="setting_display_page_auto_play_tts_title">產生後自動播放 TTS</string>
@@ -1295,7 +1297,7 @@
   <string name="assistant_page_local_tools_system_intents_desc">讓助理為你預先填寫系統應用程式，由你最終確認：日曆活動、新增聯絡人、電子郵件編輯器、簡訊編輯器、WiFi 設定、地圖。沒有你在目標應用程式中的點選，不會儲存或傳送任何內容。</string>
   <string name="assistant_page_local_tools_system_intents_title">系統 Intent</string>
   <string name="assistant_page_local_tools_telegram_desc">將助理作為 Telegram 機器人執行 — 收發訊息、檔案，管理 /指令。完全透過工具設定（設定 token、白名單、預設聊天，然後啟用）。前景服務處理長輪詢。</string>
-  <string name="assistant_page_local_tools_telegram_notoken_message">開關已開啟，但尚未設定機器人 Token。\n\n簡單方法：在聊天中讓助理 — "設定 Telegram 機器人，我的 token 是 …，我的使用者 ID 是 …，把我設為預設聊天，並啟用它。"\n\n手動方法：在 Telegram 上向 @BotFather 傳送 /newbot 取得 token，向 @userinfobot 傳送 /start 取得你的數字使用者 ID。然後讓助理設定，或在 設定 → Telegram 機器人 中貼上。</string>
+  <string name="assistant_page_local_tools_telegram_notoken_message">開關已開啟，但尚未設定機器人 Token。\n\n簡單方法：在聊天中讓助理 — \"設定 Telegram 機器人，我的 token 是 …，我的使用者 ID 是 …，把我設為預設聊天，並啟用它。\"\n\n手動方法：在 Telegram 上向 @BotFather 傳送 /newbot 取得 token，向 @userinfobot 傳送 /start 取得你的數字使用者 ID。然後讓助理設定，或在 設定 → Telegram 機器人 中貼上。</string>
   <string name="assistant_page_local_tools_telegram_notoken_title">Telegram 機器人需要 Token</string>
   <string name="assistant_page_local_tools_telegram_title">Telegram 機器人</string>
   <string name="assistant_page_local_tools_telephony_desc">讀取 SIM 卡和網路資訊（電信業者、網路類型）。需要 READ_PHONE_STATE 權限。</string>
@@ -1909,7 +1911,7 @@
   <string name="vault_fingerprint_desc">檢視或匯出憑證前需指紋 / 螢幕鎖定驗證</string>
   <string name="vault_fingerprint_plan">開啟後，檢視或匯出憑證值需先通過指紋（或螢幕鎖定）驗證。</string>
   <string name="vault_import_title">從檔案匯入</string>
-  <string name="vault_import_desc">支援 load-creds.sh 格式（export KEY="value" + # 註解分組）。選擇手機上的憑證檔案即可批次匯入。</string>
+  <string name="vault_import_desc">支援 load-creds.sh 格式（export KEY=\"value\" + # 註解分組）。選擇手機上的憑證檔案即可批次匯入。</string>
   <string name="vault_import_button">選擇檔案匯入</string>
   <string name="vault_export_title">應急匯出</string>
   <string name="vault_export_desc">支援口令加密的 .vault 套件，以及明文 CSV / Bitwarden JSON（後兩者請謹慎保管）。</string>
@@ -2047,6 +2049,7 @@
   <string name="log_tab_text">文字</string>
   <string name="log_tab_app">應用</string>
   <string name="log_page_search_hint">搜尋…</string>
+  <string name="log_page_important_only">僅重要</string>
   <string name="vault_session_title">解鎖會話</string>
   <string name="vault_session_desc">指紋驗證後簽發存取授權（30 分鐘或一直有效），作為 AI 工具存取憑證庫的閘門，可隨時撤銷。</string>
   <string name="vault_session_issue">簽發會話 token</string>
@@ -2209,6 +2212,12 @@
     <string name="assistant_page_local_tools_tier_device_control_desc">操作裝置、個人資料或外部系統（已啟用 %1$d/%2$d）</string>
     <string name="assistant_page_local_tools_tier_developer_title">L3 · 開發者</string>
     <string name="assistant_page_local_tools_tier_developer_desc">任意程式碼執行等破壞性能力（已啟用 %1$d/%2$d）</string>
+    <string name="assistant_page_extra_cold_section">工具注入（進階）</string>
+    <string name="assistant_page_extra_cold_title">這些工具按冷檔注入</string>
+    <string name="assistant_page_extra_cold_desc">已設定 %1$d 個。冷檔只傳送一行用途，需要時再取回完整參數表。</string>
+    <string name="assistant_page_extra_cold_action">編輯</string>
+    <string name="assistant_page_extra_cold_dialog_desc">每行一個工具名稱（也可用逗號分隔），請用 list_tools 顯示的確切名稱，例如 ssh_upload。只影響該助手看到的工具面視圖，工具仍可正常呼叫。</string>
+    <string name="assistant_page_extra_cold_hint">例如 ssh_upload\n     batch_copy</string>
     <string name="assistant_page_local_tools_section_ai_diagnostics">AI 診斷</string>
     <string name="assistant_page_local_tools_diagnostics_title">診斷與日誌</string>
     <string name="assistant_page_local_tools_diagnostics_desc">應用健康、建置資訊、日誌、當機與生命週期記錄。</string>
