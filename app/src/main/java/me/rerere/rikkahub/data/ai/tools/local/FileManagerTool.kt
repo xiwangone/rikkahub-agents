@@ -843,163 +843,27 @@ fun fileInfoTool(): Tool = Tool(
 
 // ---------- find_files ----------
 
-/** 内容搜索：单文件大小上限（超过跳过，避免把大文件整体读进内存）。 */
-private const val CONTENT_MAX_FILE_BYTES = 1_048_576L
-
-/** 内容搜索：总扫描行数上限（防止超大目录树把一次工具调用拖成长任务）。 */
-private const val CONTENT_MAX_SCANNED_LINES = 300_000L
-
-/** 内容搜索：单行文本最大字符数（防止超长行灌爆上下文）。 */
-private const val CONTENT_LINE_MAX_CHARS = 400
-
-/** 内容搜索：context_lines 允许的最大值。 */
-internal const val CONTENT_CONTEXT_MAX = 5
-
-/**
- * 内容搜索（`find_files` 的内容模式）。
- *
- * 逐文件按行匹配 [pattern]，返回 `file` / `line` / `text`（[contextLines] > 0 时附 `context`）。
- * 性能与安全边界：单文件大小、总扫描行数、结果条数、访问条目数均有上限；
- * 含 NUL 的文件按二进制跳过（与 git/grep 的处理一致，避免把二进制读成乱码文本）。
- */
-private fun searchFileContents(
-    rootDir: File,
-    pattern: String,
-    contextLines: Int,
-    ignoreCase: Boolean,
-    fileGlob: String?,
-    recursive: Boolean,
-    limit: Int,
-): List<UIMessagePart> {
-    val regex =
-        try {
-            Regex(pattern, if (ignoreCase) setOf(RegexOption.IGNORE_CASE) else emptySet())
-        } catch (e: Exception) {
-            return fmTextPart(fmErrEnvelope("invalid_pattern", "content_pattern is not a valid regex: ${e.message}"))
-        }
-    val fileRegex = fileGlob?.trim()?.takeIf { it.isNotEmpty() }?.let { globToRegex(it) }
-
-    val matches = mutableListOf<JsonObject>()
-    var visited = 0
-    var scannedLines = 0L
-    var truncated = false
-
-    fun scanFile(f: File) {
-        if (matches.size >= limit || scannedLines >= CONTENT_MAX_SCANNED_LINES) {
-            truncated = true
-            return
-        }
-        if (fileRegex != null && !fileRegex.matches(f.name)) return
-        if (f.length() > CONTENT_MAX_FILE_BYTES) return
-        val bytes =
-            try {
-                f.readBytes()
-            } catch (_: Exception) {
-                return
-            }
-        if (bytes.any { it == 0.toByte() }) return
-        val lines = bytes.toString(Charsets.UTF_8).lines()
-        lines.forEachIndexed { index, line ->
-            if (matches.size >= limit || scannedLines >= CONTENT_MAX_SCANNED_LINES) {
-                truncated = true
-                return@forEachIndexed
-            }
-            scannedLines++
-            if (!regex.containsMatchIn(line)) return@forEachIndexed
-            matches.add(
-                buildJsonObject {
-                    put("file", f.absolutePath)
-                    put("line", index + 1)
-                    put("text", line.take(CONTENT_LINE_MAX_CHARS))
-                    if (contextLines > 0) {
-                        val from = maxOf(0, index - contextLines)
-                        val to = minOf(lines.lastIndex, index + contextLines)
-                        put(
-                            "context",
-                            buildJsonArray {
-                                for (i in from..to) add(JsonPrimitive(lines[i].take(CONTENT_LINE_MAX_CHARS)))
-                            },
-                        )
-                    }
-                },
-            )
-        }
-    }
-
-    fun walk(d: File) {
-        val entries =
-            try {
-                d.listFiles() ?: emptyArray()
-            } catch (_: SecurityException) {
-                emptyArray()
-            }
-        for (f in entries) {
-            if (visited >= FIND_VISIT_CAP || matches.size >= limit || scannedLines >= CONTENT_MAX_SCANNED_LINES) {
-                truncated = true
-                return
-            }
-            visited++
-            if (f.isDirectory) {
-                if (recursive) walk(f)
-            } else {
-                scanFile(f)
-            }
-        }
-    }
-    walk(rootDir)
-
-    return fmTextPart(
-        buildJsonObject {
-            put("matches", buildJsonArray { matches.forEach { add(it) } })
-            put("scannedLines", scannedLines)
-            put("truncated", truncated)
-        }.toString(),
-    )
-}
-
 private const val FIND_VISIT_CAP = 10_000
 
 fun findFilesTool(): Tool = Tool(
     name = "find_files",
     description = """
-        Search files under a root directory — by NAME (default) or by CONTENT.
-        Name mode: `query` is matched against the filename (substring, or glob when it contains * or ?).
-        Content mode: pass `content_pattern` (regex, case-insensitive by default) to search inside file
-        contents and get file + line (+ optional surrounding context). Prefer this over a separate
-        grep-then-read round trip.
-        recursive defaults true. limit caps results (default 50, max 500). Visits at most 10,000 entries.
-        Content mode reads text files only; binary and oversized files are skipped.
+        Search for files by name substring or glob under a root directory.
+        query is matched against the filename (not the full path). recursive defaults true.
+        limit caps results (default 50, max 500). Visits at most 10,000 entries to avoid OOM.
+        Returns same shape as list_files.
     """.trimIndent().replace("\n", " ") + CONTENT_URI_DESC,
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("root", buildJsonObject { put("type", "string") })
-                put("query", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Filename substring or glob (name mode). Omit when using content_pattern.")
-                })
-                put("content_pattern", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Regex matched against each line; supplying it switches to content mode.")
-                })
-                put("context_lines", buildJsonObject {
-                    put("type", "integer"); put("minimum", 0); put("maximum", CONTENT_CONTEXT_MAX)
-                    put("description", "Context lines around each match (content mode; default 0).")
-                })
-                put("ignore_case", buildJsonObject {
-                    put("type", "boolean")
-                    put("description", "Case-insensitive content match (default true).")
-                })
-                put("file_glob", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Restrict content search to filenames matching this glob, e.g. *.kt.")
-                })
+                put("query", buildJsonObject { put("type", "string") })
                 put("recursive", buildJsonObject { put("type", "boolean") })
                 put("limit", buildJsonObject {
                     put("type", "integer"); put("minimum", 1); put("maximum", 500)
                 })
             },
-            required = listOf("root"),
+            required = listOf("root", "query"),
         )
     },
     execute = { input ->
@@ -1017,25 +881,8 @@ fun findFilesTool(): Tool = Tool(
         if (!rootDir.exists()) return@Tool fmTextPart(fmErrEnvelope("not_found", "Root does not exist: $rawRoot"))
         if (!rootDir.isDirectory) return@Tool fmTextPart(fmErrEnvelope("not_a_directory", "Root is not a directory."))
 
-        // —— 内容模式（可选）：给 content_pattern 时按文件内容搜索，返回 文件 + 行号 (+上下文)。
-        // 目的：把「先 grep 定位、再读片段」的两步往返收敛成一次调用。与名称模式共用同一工具，
-        // 不新增工具 —— 工具数量与顺序不变，避免击穿请求前缀缓存、也不增加模型的选择噪声。
-        obj["content_pattern"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }?.let { pattern ->
-            return@Tool searchFileContents(
-                rootDir = rootDir,
-                pattern = pattern,
-                contextLines = (obj["context_lines"]?.jsonPrimitive?.intOrNull ?: 0).coerceIn(0, CONTENT_CONTEXT_MAX),
-                ignoreCase = obj["ignore_case"]?.jsonPrimitive?.booleanOrNull ?: true,
-                fileGlob = obj["file_glob"]?.jsonPrimitive?.contentOrNull,
-                recursive = obj["recursive"]?.jsonPrimitive?.booleanOrNull ?: true,
-                limit = (obj["limit"]?.jsonPrimitive?.intOrNull ?: 50).coerceIn(1, 500),
-            )
-        }
-
         val query = obj["query"]?.jsonPrimitive?.contentOrNull
-            ?: return@Tool fmTextPart(
-                fmErrEnvelope("missing_query", "Provide `query` (name mode) or `content_pattern` (content mode)."),
-            )
+            ?: return@Tool fmTextPart(fmErrEnvelope("missing_query", "query is required"))
         val recursive = obj["recursive"]?.jsonPrimitive?.booleanOrNull ?: true
         val limit = (obj["limit"]?.jsonPrimitive?.intOrNull ?: 50).coerceIn(1, 500)
 
