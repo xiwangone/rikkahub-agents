@@ -76,6 +76,15 @@ object AppLog {
         append('D', tag, message)
     }
 
+    fun d(
+        tag: String,
+        message: String,
+        tr: Throwable,
+    ) {
+        Log.d(tag, message, tr)
+        append('D', tag, "$message\n${Log.getStackTraceString(tr)}".take(MAX_MESSAGE_LENGTH))
+    }
+
     fun w(
         tag: String,
         message: String,

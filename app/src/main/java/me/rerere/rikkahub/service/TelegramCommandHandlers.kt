@@ -822,7 +822,7 @@ internal suspend fun TelegramBotService.handleDoctorCommand(chatId: Long) {
             if (!matchesSeverity || !hasAutoFix) return@filter false
             val payloadBytes = (DOCTOR_FIX_CB_PREFIX + c.id).toByteArray(Charsets.UTF_8).size
             if (payloadBytes > 64) {
-                android.util.AppLog.w(
+                AppLog.w(
                     TAG,
                     "handleDoctorCommand: skipping AutoFix button for check.id=${c.id} " +
                         "($payloadBytes bytes > 64 cap)",

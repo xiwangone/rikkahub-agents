@@ -305,14 +305,14 @@ class TelegramBotService : Service() {
      * the device's brief maintenance bursts.
      */
     private suspend fun pollLoop() {
-        android.util.AppLog.i(TAG, "pollLoop: starting")
+        AppLog.i(TAG, "pollLoop: starting")
         val pm = applicationContext.getSystemService(android.os.PowerManager::class.java)
         // Persisted offset survives process death: a cold start replays no more than
         // the updates that arrived in the gap. Without this, an OEM kill -> next boot
         // re-processes up to 24 h of cached updates (Telegram retains unconfirmed
         // server-side) and the bot replies to ancient messages.
         var offset = runCatching { prefs.lastOffset() }.getOrDefault(0L)
-        android.util.AppLog.i(TAG, "pollLoop: starting at offset=$offset")
+        AppLog.i(TAG, "pollLoop: starting at offset=$offset")
         var cycle = 0L
         // Exponential backoff state. Bumped on every transient error, reset on every
         // successful cycle. Without this, a brief network blip used to spin every 5s
@@ -340,7 +340,7 @@ class TelegramBotService : Service() {
                 return
             }
             if (lastTokenSeen != null && lastTokenSeen != cfg.token) {
-                android.util.AppLog.i(TAG, "pollLoop: token changed; resetting offset")
+                AppLog.i(TAG, "pollLoop: token changed; resetting offset")
                 offset = 0L
                 runCatching { prefs.setLastOffset(0L) }
                 consecutiveErrors = 0
@@ -370,7 +370,7 @@ class TelegramBotService : Service() {
                 // fires when this stamp goes stale for >90s.
                 pollStallTracker.markUpdate()
                 if (cycle <= 2 || updates.isNotEmpty()) {
-                    android.util.AppLog.i(TAG, "pollLoop: cycle=$cycle offset=$offset updates=${updates.size}")
+                    AppLog.i(TAG, "pollLoop: cycle=$cycle offset=$offset updates=${updates.size}")
                 }
                 val offsetBefore = offset
                 for (u in updates.map { it as kotlinx.serialization.json.JsonObject }) {
@@ -384,7 +384,7 @@ class TelegramBotService : Service() {
                     if (updateId != null && updateId >= offset) offset = updateId + 1
                     val incoming = parseIncoming(u)
                     if (incoming != null) {
-                        android.util.AppLog.i(
+                        AppLog.i(
                             TAG,
                             "pollLoop: dispatching message ${incoming.messageId} from chat=${incoming.chatId} sender=${incoming.senderId}",
                         )
@@ -401,7 +401,7 @@ class TelegramBotService : Service() {
                     }
                     val cq = parseCallbackQuery(u)
                     if (cq != null) {
-                        android.util.AppLog.i(
+                        AppLog.i(
                             TAG,
                             "pollLoop: dispatching callback_query ${cq.callbackQueryId} from chat=${cq.chatId} sender=${cq.senderId}",
                         )
@@ -418,7 +418,7 @@ class TelegramBotService : Service() {
                     }
                     val mcm = parseMyChatMember(u)
                     if (mcm != null) {
-                        android.util.AppLog.i(
+                        AppLog.i(
                             TAG,
                             "pollLoop: my_chat_member chat=${mcm.chatId} newStatus=${mcm.newStatus}",
                         )
@@ -557,12 +557,12 @@ class TelegramBotService : Service() {
                 }.getOrDefault("")
 
             if (text.isBlank()) {
-                android.util.AppLog.i(TAG, "external-gen-pump: convId=$convId → empty assistant text, skipping")
+                AppLog.i(TAG, "external-gen-pump: convId=$convId → empty assistant text, skipping")
                 return@collect
             }
             runCatching {
                 sendChunked(mapping.chatId, text, replyTo = null)
-                android.util.AppLog.i(
+                AppLog.i(
                     TAG,
                     "external-gen-pump: convId=$convId → pushed ${text.length} chars to Telegram chat ${mapping.chatId}",
                 )
@@ -751,7 +751,7 @@ class TelegramBotService : Service() {
         m: TelegramIncomingMessage,
     ) {
         val (convId, wasCreated) = lookupOrCreateConversation(cfg, m.chatId)
-        android.util.AppLog.i(
+        AppLog.i(
             TAG,
             "handleIncoming: routing to conv=$convId wasCreated=$wasCreated text='${m.text.take(
                 80,
@@ -1069,7 +1069,7 @@ class TelegramBotService : Service() {
             // We must NOT swallow CancellationException: if we do, the post-loop finalisation
             // block (renderAssistantStream → sendChunked) fires on stale state after cancel,
             // potentially sending a partial/incorrect reply to Telegram.
-            android.util.AppLog.i(TAG, "handleIncoming: cancelled (CancellationException) — not sending final reply")
+            AppLog.i(TAG, "handleIncoming: cancelled (CancellationException) — not sending final reply")
             turnCancelled = true
             throw e
         } catch (e: Throwable) {
@@ -1111,7 +1111,7 @@ class TelegramBotService : Service() {
         }
 
         val finalReply = renderAssistantStream(convId, finalizing = true, baselineMessageCount)
-        android.util.AppLog.i(TAG, "handleIncoming: finalizing ${finalReply.length} chars to chat=${m.chatId}")
+        AppLog.i(TAG, "handleIncoming: finalizing ${finalReply.length} chars to chat=${m.chatId}")
 
         when {
             finalReply.isBlank() -> {
@@ -1123,7 +1123,7 @@ class TelegramBotService : Service() {
                 //     produces a take_screenshot call but no telegram_send_photo and the
                 //     user just sees "(model didn't reply)" — burying the file they asked
                 //     for behind a generic fallback string.
-                android.util.AppLog.i(
+                AppLog.i(
                     TAG,
                     "handleIncoming: empty final reply (model finished with no text after tool calls) chat=${m.chatId}",
                 )
@@ -2123,7 +2123,7 @@ class TelegramBotService : Service() {
         cq: TelegramCallbackQuery,
     ) {
         val cbStartMs = System.currentTimeMillis()
-        android.util.AppLog.i(TAG, "cb:${cq.callbackQueryId} START data=${cq.data} chat=${cq.chatId}")
+        AppLog.i(TAG, "cb:${cq.callbackQueryId} START data=${cq.data} chat=${cq.chatId}")
         val sender = cq.senderId
         if (sender == null || (sender !in cfg.whitelist && cq.chatId !in cfg.whitelist)) {
             AppLog.w(TAG, "handleCallbackQuery: dropping non-whitelisted sender=$sender chat=${cq.chatId}")
@@ -2252,7 +2252,7 @@ class TelegramBotService : Service() {
             // double-taps.
             val ackStart = System.currentTimeMillis()
             client.answerCallbackQuery(cq.callbackQueryId, label)
-            android.util.AppLog.i(
+            AppLog.i(
                 TAG,
                 "cb:${cq.callbackQueryId} ACKED in ${System.currentTimeMillis() - ackStart} ms (total ${System.currentTimeMillis() - cbStartMs} ms since START)",
             )
@@ -2285,7 +2285,7 @@ class TelegramBotService : Service() {
                 try {
                     val editStart = System.currentTimeMillis()
                     client.editMessageText(cq.chatId, cq.messageId, newText, parseMode = PARSE_MODE_HTML)
-                    android.util.AppLog.i(
+                    AppLog.i(
                         TAG,
                         "cb:${cq.callbackQueryId} EDITED in ${System.currentTimeMillis() - editStart} ms (total ${System.currentTimeMillis() - cbStartMs} ms since START)",
                     )
@@ -2302,7 +2302,7 @@ class TelegramBotService : Service() {
             // hit the isPending early-out anyway, but no need to keep the entry around.
             approvalMutexes.remove(toolCallId)
         }
-        android.util.AppLog.i(TAG, "cb:${cq.callbackQueryId} END after ${System.currentTimeMillis() - cbStartMs} ms")
+        AppLog.i(TAG, "cb:${cq.callbackQueryId} END after ${System.currentTimeMillis() - cbStartMs} ms")
     }
 
     companion object {
