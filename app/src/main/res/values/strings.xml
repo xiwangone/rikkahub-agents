@@ -2099,6 +2099,7 @@
   <string name="log_page_record_app_logs">Record app logs</string>
   <string name="log_page_record_app_logs_desc">Capture app-level logcat logs from this process (OcrTransformer / ChatService / performLocalOcr)</string>
   <string name="log_page_search_hint">Search log keywords</string>
+  <string name="log_page_important_only">Important only</string>
   <string name="log_page_copy_all">Copy all</string>
   <string name="log_page_export">Export</string>
   <string name="log_page_export_empty">No logs to export</string>

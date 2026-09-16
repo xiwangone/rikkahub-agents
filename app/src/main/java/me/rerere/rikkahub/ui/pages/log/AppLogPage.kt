@@ -14,10 +14,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -69,6 +71,9 @@ fun AppLogPage(onBack: () -> Unit) {
     val context = LocalContext.current
     var enabled by remember { mutableStateOf(AppLog.isEnabled(context)) }
     var keyword by remember { mutableStateOf("") }
+
+    // 抓重点：只保留 I/W/E，过滤掉逐 token / 逐块渲染等详单
+    var importantOnly by remember { mutableStateOf(false) }
     var logs by remember { mutableStateOf(AppLog.getLogs()) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -82,12 +87,13 @@ fun AppLogPage(onBack: () -> Unit) {
 
     val keywordTrimmed = keyword.trim()
     val filteredLogs =
-        remember(logs, keywordTrimmed) {
+        remember(logs, keywordTrimmed, importantOnly) {
+            val byLevel = if (importantOnly) logs.filter { it.level != 'D' } else logs
             if (keywordTrimmed.isEmpty()) {
-                logs
+                byLevel
             } else {
                 val filter = keywordTrimmed.lowercase(Locale.getDefault())
-                logs.filter { entry ->
+                byLevel.filter { entry ->
                     entry.tag.lowercase(Locale.getDefault()).contains(filter) ||
                         entry.message.lowercase(Locale.getDefault()).contains(filter)
                 }
@@ -192,6 +198,12 @@ fun AppLogPage(onBack: () -> Unit) {
                         .padding(horizontal = 16.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
+                FilterChip(
+                    selected = importantOnly,
+                    onClick = { importantOnly = !importantOnly },
+                    label = { Text(stringResource(R.string.log_page_important_only)) },
+                )
+                Spacer(modifier = Modifier.width(8.dp))
                 Text(
                     text = stringResource(R.string.log_page_log_count, filteredLogs.size),
                     style = MaterialTheme.typography.labelMedium,

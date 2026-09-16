@@ -2338,6 +2338,7 @@
   <string name="log_page_record_app_logs">تسجيل سجل طبقة التطبيق</string>
   <string name="log_page_record_app_logs_desc">يسجّل سجل logcat لطبقة التطبيق في العملية الحالية (OcrTransformer / ChatService / performLocalOcr).</string>
   <string name="log_page_search_hint">البحث بكلمة مفتاحية في السجل</string>
+  <string name="log_page_important_only">المهم فقط</string>
   <string name="log_page_copy_all">نسخ الكل</string>
   <string name="log_page_export">تصدير</string>
   <string name="log_page_export_empty">لا توجد سجلات للتصدير</string>

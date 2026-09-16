@@ -299,7 +299,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 type: String?,
                 data: String
             ) {
-                AppLogger.i(TAG, "onEvent: $data")
+                AppLogger.d(TAG, "onEvent: $data")
 
                 try {
                     val result = decoder.accept(SseEvent(id = id, event = type, data = data))

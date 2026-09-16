@@ -2002,6 +2002,7 @@
   <string name="log_page_record_app_logs">记录应用层日志</string>
   <string name="log_page_record_app_logs_desc">记录当前进程的 logcat 应用层日志（OcrTransformer / ChatService / performLocalOcr 相关）</string>
   <string name="log_page_search_hint">搜索日志关键字</string>
+  <string name="log_page_important_only">仅重要</string>
   <string name="log_page_copy_all">复制全部</string>
   <string name="log_page_export">导出</string>
   <string name="log_page_export_empty">暂无日志可导出</string>

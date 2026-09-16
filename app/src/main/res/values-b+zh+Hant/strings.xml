@@ -2047,6 +2047,7 @@
   <string name="log_tab_text">文字</string>
   <string name="log_tab_app">應用</string>
   <string name="log_page_search_hint">搜尋…</string>
+  <string name="log_page_important_only">僅重要</string>
   <string name="vault_session_title">解鎖會話</string>
   <string name="vault_session_desc">指紋驗證後簽發存取授權（30 分鐘或一直有效），作為 AI 工具存取憑證庫的閘門，可隨時撤銷。</string>
   <string name="vault_session_issue">簽發會話 token</string>

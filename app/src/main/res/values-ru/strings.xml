@@ -2684,6 +2684,7 @@
   <string name="log_page_record_app_logs">Записывать журнал приложения</string>
   <string name="log_page_record_app_logs_desc">Записывает logcat уровня приложения текущего процесса (OcrTransformer / ChatService / performLocalOcr).</string>
   <string name="log_page_search_hint">Поиск по ключевому слову</string>
+  <string name="log_page_important_only">Только важные</string>
   <string name="log_page_copy_all">Копировать всё</string>
   <string name="log_page_export">Экспорт</string>
   <string name="log_page_export_empty">Нет журналов для экспорта</string>
