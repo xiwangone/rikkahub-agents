@@ -209,6 +209,9 @@ class SkillsVM(
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             if (entry.isBundled) {
+                // 这里可能是「技能已在磁盘上」，也可能是「用户删过、这次是重新安装」——
+                // reinstallBundledSkill 会清除删除记录并重新种入；没有记录时是空操作。
+                skillManager.reinstallBundledSkill(entry.name)
                 _skills.value = skillManager.listSkills()
                 withContext(Dispatchers.Main) { onResult(true, entry.name) }
                 return@launch

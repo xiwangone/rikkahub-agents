@@ -168,6 +168,9 @@ class SettingsStore(
         // Names of bundled default-on skills already seeded once; the re-seed pass
         // skips these so a later user disable sticks across app restarts.
         val AUTO_ENABLED_DEFAULT_SKILLS = stringPreferencesKey("auto_enabled_default_skills")
+        // 用户显式删除的内置技能名。删除会连带清掉技能目录里的哨兵文件，只有把这个记录
+        // 放在目录之外，才能区分「从未安装」与「装过又被删」，避免重启后被重新种回来。
+        val DELETED_BUNDLED_SKILLS = stringPreferencesKey("deleted_bundled_skills")
 
         // 助手
         val SELECT_ASSISTANT = stringPreferencesKey("select_assistant")
@@ -321,6 +324,12 @@ class SettingsStore(
                             JsonInstant.decodeFromString<Set<String>>(raw)
                         }.getOrNull()
                     } ?: emptySet(),
+                deletedBundledSkills = preferences[DELETED_BUNDLED_SKILLS]?.let { raw ->
+                    runCatching { JsonInstant.decodeFromString<Set<String>>(raw) }.getOrElse {
+                        AppLog.w(TAG, "Failed to decode deletedBundledSkills, using default", it)
+                        emptySet()
+                    }
+                } ?: emptySet(),
                 assistants = JsonInstant.decodeFromString(preferences[ASSISTANTS] ?: "[]"),
                 dynamicColor = preferences[DYNAMIC_COLOR] != false,
                 themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
@@ -641,6 +650,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[AUTO_ENABLED_DEFAULT_SKILLS] = JsonInstant.encodeToString(
                 settings.autoEnabledDefaultSkills
             )
+            preferences[DELETED_BUNDLED_SKILLS] = JsonInstant.encodeToString(settings.deletedBundledSkills)
 
             preferences[ASSISTANTS] = JsonInstant.encodeToString(settings.assistants)
             preferences[SELECT_ASSISTANT] = settings.assistantId.toString()
@@ -882,6 +892,14 @@ data class Settings(
      * runtime effect and new installs store an empty set.
      */
     val autoEnabledDefaultSkills: Set<String> = emptySet(),
+    /**
+     * 用户显式删除的内置技能名（由 SkillManager.deleteSkill 记录）。
+     *
+     * 删除会连同技能目录内的哨兵文件一起清掉，仅凭磁盘状态无法区分「从未安装」与
+     * 「装过又被删」，会导致重启后又被种回来。该记录存放于技能目录之外，
+     * 重新安装时清除；非内置技能不会被记录。
+     */
+    val deletedBundledSkills: Set<String> = emptySet(),
     val assistantTags: List<Tag> = emptyList(),
     val searchServices: List<SearchServiceOptions> = listOf(SearchServiceOptions.DEFAULT),
     val searchCommonOptions: SearchCommonOptions = SearchCommonOptions(),

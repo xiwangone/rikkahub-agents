@@ -154,10 +154,18 @@ class SkillManager(
 
     suspend fun deleteSkill(name: String): Boolean = withContext(Dispatchers.IO) {
         val skillDir = resolveSkillDir(name) ?: return@withContext false
+        // 目录一删，里面的 .seeded 哨兵也没了，单看磁盘分不清「没装过」和「装过又删」。
+        // 因此删除前先判断是否内置技能，并把这次删除记到技能目录之外。
+        val isBundled = name in bundledSkillNames()
         val deleted = skillDir.deleteRecursively()
         if (deleted) {
             settingsStore.update { settings ->
                 settings.copy(
+                    deletedBundledSkills = deletedBundledSkillsAfterDelete(
+                        current = settings.deletedBundledSkills,
+                        deletedName = name,
+                        isBundled = isBundled,
+                    ),
                     assistants = settings.assistants.map { assistant ->
                         if (assistant.enabledSkills.contains(name)) {
                             assistant.copy(enabledSkills = assistant.enabledSkills - name)
@@ -169,6 +177,17 @@ class SkillManager(
             }
         }
         deleted
+    }
+
+    /**
+     * 清除 [name] 的删除记录并重新种入，供用户从技能目录重新安装一个此前删掉的内置技能。
+     * 对从未删除过的技能是数据无操作 —— 种入流程会因哈希一致而跳过。
+     */
+    suspend fun reinstallBundledSkill(name: String) {
+        settingsStore.update { settings ->
+            settings.copy(deletedBundledSkills = settings.deletedBundledSkills - name)
+        }
+        seedDefaultSkillsIfNeeded()
     }
 
     /**
@@ -291,6 +310,10 @@ class SkillManager(
     fun seedDefaultSkillsIfNeeded() {
         val assetRoot = "default-skills"
         val assetMgr = context.assets
+        // 用户显式删除过的内置技能不再种回（删除记录存放在技能目录之外，不随目录被删）
+        val deletedBundledSkills = runCatching {
+            settingsStore.settingsFlow.value.deletedBundledSkills
+        }.getOrDefault(emptySet())
         val skillNames = try {
             assetMgr.list(assetRoot).orEmpty()
         } catch (e: Exception) {
@@ -298,6 +321,7 @@ class SkillManager(
             return
         }
         for (skillName in skillNames) {
+            if (skillName in deletedBundledSkills) continue
             val targetDir = SkillPaths.resolveSkillDir(getSkillsDir(), skillName) ?: continue
 
             // Read the bundled SKILL.md once to decide what to do.
@@ -476,6 +500,16 @@ internal enum class SeedDecision { SKIP, SEED }
  * user-owned).
  * @param targetDirNonEmpty ignored when [ownedByUs] is `true`.
  */
+/**
+ * 删除内置技能后应记录的名称集合。只有内置技能名会被记录：
+ * 用户自建技能不参与种入流程，记录下来没有意义。
+ */
+internal fun deletedBundledSkillsAfterDelete(
+    current: Set<String>,
+    deletedName: String,
+    isBundled: Boolean,
+): Set<String> = if (isBundled) current + deletedName else current
+
 internal fun decideSeedAction(
     ownedByUs: Boolean,
     targetDirExists: Boolean,
