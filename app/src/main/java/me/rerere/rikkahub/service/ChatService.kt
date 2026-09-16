@@ -1644,7 +1644,7 @@ class ChatService(
  * provider，依次回退 —— 配置的压缩模型 → 当前聊天模型 → 任意启用 provider 下的第一个模型。
  * 都不可用时返回 null，由调用方给出可行动的提示。纯函数，便于单测。
  */
-internal fun resolveCompressionModel(settings: Settings): Model? {
+fun resolveCompressionModel(settings: Settings): Model? {
     fun Model.takeIfUsable(): Model? {
         if (id == DEFAULT_AUTO_MODEL_ID) return null
         val provider = findProvider(settings.providers) ?: return null
