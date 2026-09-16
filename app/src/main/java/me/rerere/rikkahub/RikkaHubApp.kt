@@ -94,6 +94,11 @@ class RikkaHubApp : Application() {
         // before any cron worker fires so mark/unmark are consistent.
         HeadlessConversations.init(this)
 
+        // Restore, per conversation, which cold tools already had their full schema unlocked.
+        // Must run before the first tool injection: a restart that forgot this would regress those
+        // tools to an empty schema and invalidate the provider prefix cache for long conversations.
+        me.rerere.rikkahub.data.ai.tools.ToolSurfaceSession.init(this)
+
         // Sweep orphan headless conversations created by workers that were killed mid-execute.
         sweepOrphanHeadlessConversations()
 

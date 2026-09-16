@@ -69,8 +69,16 @@ private fun listToolsTool(allTools: List<Tool>, conversationId: String?): Tool =
                                     buildJsonObject {
                                         put("name", tool.name)
                                         put("purpose", tool.description.toSingleLine())
-                                        put("tier", ToolSurfacePolicy.tierOf(tool.name).name.lowercase())
-                                        put("schema_loaded", ToolSurfaceSession.isLoaded(conversationId, tool.name))
+                                        val tier = ToolSurfacePolicy.tierOf(tool.name)
+                                        put("tier", tier.name.lowercase())
+                                        // Only cold tools can lack a full schema; hot/warm always ship
+                                        // the complete one. Reporting false for them is misleading and
+                                        // invites pointless get_tool_schema round trips.
+                                        put(
+                                            "schema_loaded",
+                                            tier != SurfaceTier.COLD ||
+                                                ToolSurfaceSession.isLoaded(conversationId, tool.name),
+                                        )
                                     },
                                 )
                             }

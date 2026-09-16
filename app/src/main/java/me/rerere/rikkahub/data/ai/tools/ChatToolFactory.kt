@@ -133,12 +133,18 @@ class ChatToolFactory(
         }
     }.let { full ->
         // 固定按工具名排序：工具顺序参与请求前缀，排序后集合与顺序稳定，避免
-        // MCP/技能装配顺序抖动击穿缓存。元工具也基于同一稳定列表生成。
+        // MCP/技能装配顺序抖动击穿缓存。
         val stableFull = full.sortedBy { it.name }
         // 注入视图：冷档固定保留工具名，但未解锁时只发空 schema；工具集合/顺序不变。
         // get_tool_schema 成功后按会话记忆，下一次请求恢复完整 schema。
-        val injected = stableFull.map { surfaceView(it, invocationCtx.callerConversationId) } +
-            buildToolDiscoveryTools(stableFull, invocationCtx.callerConversationId)
+        // 检索元工具与其余工具**一起参与排序**：此前它们是追加在列表末尾的，使注入集
+        // 并非全局有序（tool_surface_report 的 order_is_sorted 恒为 false，观测口径失真，
+        // 容易被误读成"顺序抖动"）。顺序本来稳定，这里只是让它同时自洽、可观测。
+        val injected =
+            (
+                stableFull.map { surfaceView(it, invocationCtx.callerConversationId) } +
+                    buildToolDiscoveryTools(stableFull, invocationCtx.callerConversationId)
+            ).sortedBy { it.name }
         // L4 观测必须量的是**实际注入给模型的内容**：LocalTools 里 tool_surface_report 绑的是裁剪前的
         // 内建列表，S2/S4 的裁剪（描述精简、冷档空 schema）不会体现在它的数字里。这里在装配出口把该
         // 工具重绑到与模型看到的一致的那份列表上，否则「省了多少」永远是 0。

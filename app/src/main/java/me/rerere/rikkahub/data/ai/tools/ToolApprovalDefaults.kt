@@ -261,6 +261,14 @@ object ToolApprovalDefaults {
         "keyboard_clear",
         "keyboard_set_cursor",
         "keyboard_select_range",
+
+        // Credential vault destructive operations. Deleting an entry is irreversible and no
+        // in-app path can restore it, yet `vault_credential_delete`'s own description already
+        // promised "requires explicit user approval" — the promise was never wired up here.
+        // Also excluded from "Always Allow" (see NO_ALWAYS_ALLOW): a standing grant would let a
+        // single bad turn wipe several credentials in a row.
+        "vault_credential_delete",
+        "vault_credential_merge",
     )
 
     /**
@@ -301,6 +309,11 @@ object ToolApprovalDefaults {
         "keystore_decrypt",
         "nfc_write_tag",
         "grant_directory_access",
+        // Credential vault destructive operations: deleting a credential is irreversible and
+        // nothing in the app can undo it, so a permanent "Always Allow" would be a standing
+        // licence for the model to prune the user's vault unattended.
+        "vault_credential_delete",
+        "vault_credential_merge",
     )
 
     fun allowsAlwaysAllow(toolName: String): Boolean = toolName !in NO_ALWAYS_ALLOW

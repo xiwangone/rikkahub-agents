@@ -38,6 +38,9 @@ object ToolSurfacePolicy {
             "read_file", "write_text_file", "list_files", "find_files",
             // 凭证
             "vault_http_exec", "vault_export_env", "vault_credential_names",
+            // vault_ssh_exec 实测 79 次、排第 6 高频（xEdge 不可达时是连 PC 的主力备用通道），
+            // 属高频而非低频，故留在热档：每会话首次调用都要多一次 get_tool_schema 往返。
+            "vault_ssh_exec",
             // 设备与诊断
             "device_info", "diagnostics",
             // 网络与协作
@@ -64,7 +67,7 @@ object ToolSurfacePolicy {
             "vault_export_loadcreds", "vault_import_loadcreds", "vault_compare_loadcreds",
             "vault_gen_key", "vault_deploy_ssh_key", "vault_credential_prepare",
             "vault_credential_update", "vault_credential_delete", "vault_credential_audit",
-            "vault_credential_meta", "vault_ssh_exec",
+            "vault_credential_meta",
             "whisper_status", "check_app_updates", "generate_bug_report",
         )
 
