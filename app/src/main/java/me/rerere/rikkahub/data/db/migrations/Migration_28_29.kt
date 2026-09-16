@@ -1,8 +1,8 @@
 package me.rerere.rikkahub.data.db.migrations
 
-import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "Migration_28_29"
 
@@ -23,7 +23,7 @@ private const val TAG = "Migration_28_29"
  */
 val Migration_28_29 = object : Migration(28, 29) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        Log.i(TAG, "migrate: start migrate from 28 to 29 (creating vault_audit_log table)")
+        AppLog.i(TAG, "migrate: start migrate from 28 to 29 (creating vault_audit_log table)")
         db.beginTransaction()
         try {
             db.execSQL(
@@ -40,7 +40,7 @@ val Migration_28_29 = object : Migration(28, 29) {
             db.execSQL("CREATE INDEX IF NOT EXISTS `idx_audit_ts` ON `vault_audit_log` (`tsMs`)")
             db.execSQL("CREATE INDEX IF NOT EXISTS `idx_audit_name` ON `vault_audit_log` (`credentialName`)")
             db.setTransactionSuccessful()
-            Log.i(TAG, "migrate: migrate from 28 to 29 success")
+            AppLog.i(TAG, "migrate: migrate from 28 to 29 success")
         } finally {
             db.endTransaction()
         }

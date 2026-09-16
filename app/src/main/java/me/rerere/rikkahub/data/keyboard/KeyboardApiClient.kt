@@ -6,13 +6,13 @@ import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.os.IBinder
-import android.util.Log
 import dev.patrickgold.florisboard.api.EditorInfoBundle
 import dev.patrickgold.florisboard.api.IKeyboardApi
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Binds RikkaHub to the co-signed agent-keyboard ([KEYBOARD_PACKAGE]) AIDL service and
@@ -154,7 +154,7 @@ class KeyboardApiClient(private val context: Context) {
             ?: return Result.Err(Failure.BIND_REFUSED)
         val value = withTimeoutOrNull(CALL_TIMEOUT_MS) {
             runCatching { block(api, sessionToken) }.getOrElse { t ->
-                Log.w(TAG, "AIDL call threw — dropping binding", t)
+                AppLog.w(TAG, "AIDL call threw — dropping binding", t)
                 resetBinding()
                 null
             }
@@ -204,12 +204,12 @@ class KeyboardApiClient(private val context: Context) {
             }
 
             override fun onServiceDisconnected(name: ComponentName?) {
-                Log.w(TAG, "agent-keyboard service disconnected")
+                AppLog.w(TAG, "agent-keyboard service disconnected")
                 runCatchingBlocking { resetBinding() }
             }
 
             override fun onBindingDied(name: ComponentName?) {
-                Log.w(TAG, "agent-keyboard binding died")
+                AppLog.w(TAG, "agent-keyboard binding died")
                 runCatchingBlocking { resetBinding() }
                 if (!deferred.isCompleted) deferred.complete(null)
             }
@@ -221,7 +221,7 @@ class KeyboardApiClient(private val context: Context) {
         if (ok) {
             lock.withLock { connection = conn }
         } else {
-            Log.w(TAG, "bindService refused for agent-keyboard (co-signing / permission?)")
+            AppLog.w(TAG, "bindService refused for agent-keyboard (co-signing / permission?)")
             runCatching { context.unbindService(conn) }
             lock.withLock { bindWaiter = null }
             deferred.complete(null)

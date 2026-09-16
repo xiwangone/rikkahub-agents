@@ -1,9 +1,9 @@
 package me.rerere.rikkahub.data.telegram
 
-import android.util.Log
 import me.rerere.rikkahub.browser.BrowserScreenshotStreamer
 import me.rerere.rikkahub.data.repository.TelegramChatRepository
 import java.io.File
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "TelegramBrowserStreamer"
 private const val MAX_CAPTION_CHARS = 1024  // Telegram's hard photo-caption cap
@@ -45,12 +45,12 @@ class TelegramBrowserScreenshotStreamer(
         // Telegram conversation — and there's nothing to send. That's not an error; just
         // the wrong streamer.
         val mapping = runCatching { chatRepo.getByConversationId(callerConvId) }
-            .onFailure { Log.w(TAG, "send: chatRepo.getByConversationId failed for $callerConvId", it) }
+            .onFailure { AppLog.w(TAG, "send: chatRepo.getByConversationId failed for $callerConvId", it) }
             .getOrNull() ?: return
 
         val file = File(screenshotPath)
         if (!file.exists() || !file.isFile) {
-            Log.w(TAG, "send: screenshot file does not exist: $screenshotPath")
+            AppLog.w(TAG, "send: screenshot file does not exist: $screenshotPath")
             return
         }
 
@@ -58,8 +58,8 @@ class TelegramBrowserScreenshotStreamer(
         runCatching {
             client.sendPhoto(mapping.chatId, file, caption)
             TelegramStreamSignal.noteScreenshot(callerConvId)
-            Log.i(TAG, "send: posted browser screenshot ($actionLabel) to chat=${mapping.chatId} url=$currentUrl")
-        }.onFailure { Log.w(TAG, "send: sendPhoto failed", it) }
+            AppLog.i(TAG, "send: posted browser screenshot ($actionLabel) to chat=${mapping.chatId} url=$currentUrl")
+        }.onFailure { AppLog.w(TAG, "send: sendPhoto failed", it) }
     }
 
     private fun buildCaption(actionLabel: String, currentUrl: String?): String {

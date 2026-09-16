@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.data.ai.mcp.server
 
 import android.content.Context
-import android.util.Log
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -13,6 +12,7 @@ import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.CredentialResolution
 import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.log.AppLog
 
 data class LocalMcpServerState(
     val isRunning: Boolean = false,
@@ -107,7 +107,7 @@ class LocalMcpServerManager(
         allowedNetworks: String = "",
     ) {
         if (server != null) {
-            Log.w(TAG, "MCP server already running")
+            AppLog.w(TAG, "MCP server already running")
             return
         }
         registry.sync(tools)
@@ -124,13 +124,13 @@ class LocalMcpServerManager(
         runCatching {
             candidate.start()
         }.onFailure { e ->
-            Log.e(TAG, "Failed to start MCP server", e)
+            AppLog.e(TAG, "Failed to start MCP server", e)
             _state.value = LocalMcpServerState(isRunning = false, toolCount = toolCount, port = port, error = e.message)
             return
         }
         server = candidate
         _state.value = LocalMcpServerState(isRunning = true, toolCount = toolCount, port = port, error = null)
-        Log.i(TAG, "MCP server started on $host:$port with $toolCount tools")
+        AppLog.i(TAG, "MCP server started on $host:$port with $toolCount tools")
     }
 
     fun start(profile: LocalMcpProfile) {
@@ -162,7 +162,7 @@ class LocalMcpServerManager(
         server?.stop()
         server = null
         _state.value = LocalMcpServerState()
-        Log.i(TAG, "MCP server stopped")
+        AppLog.i(TAG, "MCP server stopped")
     }
 
     fun restart(port: Int = _state.value.port) {

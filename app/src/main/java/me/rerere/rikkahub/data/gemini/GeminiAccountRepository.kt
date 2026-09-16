@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.data.gemini
 
 import android.os.Build
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,6 +26,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import me.rerere.rikkahub.data.log.AppLog
 
 class GeminiAccountRepository internal constructor(
     private val store: GeminiCredentialStore,
@@ -207,7 +207,7 @@ class GeminiAccountRepository internal constructor(
         if (snapshot == null) {
             // Keeping the previous snapshot beats blanking the card, but the user is then looking
             // at a stale reading, so say why rather than failing silently.
-            Log.w(TAG, "fetchAvailableModels reported no quota; keeping the previous snapshot")
+            AppLog.w(TAG, "fetchAvailableModels reported no quota; keeping the previous snapshot")
             return account
         }
         val updated = account.copy(usage = snapshot)

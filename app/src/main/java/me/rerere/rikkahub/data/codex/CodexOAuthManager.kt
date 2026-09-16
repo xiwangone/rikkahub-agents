@@ -6,7 +6,6 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import io.ktor.http.ContentType
 import io.ktor.server.application.call
 import io.ktor.server.cio.CIO
@@ -33,6 +32,7 @@ import java.security.SecureRandom
 import java.util.Base64
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.coroutines.resume
+import me.rerere.rikkahub.data.log.AppLog
 
 class CodexOAuthManager(
     private val context: Context,
@@ -132,7 +132,7 @@ class CodexOAuthManager(
                                             _status.value = CodexOAuthStatus.Success(account.id)
                                             runCatching { repository.refreshAccount(account.id) }
                                         } catch (error: Throwable) {
-                                            Log.e(
+                                            AppLog.e(
                                                 TAG,
                                                 "OAuth token exchange failed: " +
                                                     "${error::class.java.name}: ${error.message}",

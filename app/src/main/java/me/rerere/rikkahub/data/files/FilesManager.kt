@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.files
 import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
-import android.util.Log
 import me.rerere.rikkahub.data.log.AppLog
 import androidx.core.net.toFile
 import androidx.core.net.toUri
@@ -247,7 +246,7 @@ class FilesManager(
                 newUris.add(file.toUri())
             }.onFailure {
                 it.printStackTrace()
-                Log.e(TAG, "createChatFilesByContents: Failed to save file from $uri", it)
+                AppLog.e(TAG, "createChatFilesByContents: Failed to save file from $uri", it)
                 Logging.log(
                     TAG,
                     "createChatFilesByContents: Failed to save file from $uri ${it.message} | ${it.stackTraceToString()}"
@@ -296,7 +295,7 @@ class FilesManager(
                                 val bitmap = BitmapFactory.decodeByteArray(sourceByteArray, 0, sourceByteArray.size)
                                 val byteArray = FileUtils.compressBitmapToPng(bitmap)
                                 val urls = createChatFilesByByteArrays(listOf(byteArray))
-                                Log.i(
+                                AppLog.i(
                                     TAG,
                                     "convertBase64ImagePartToLocalFile: convert base64 img to ${urls.joinToString(", ")}"
                                 )
@@ -424,7 +423,7 @@ class FilesManager(
                         val bitmap = BitmapFactory.decodeStream(connection.inputStream)
                         activityContext.exportImage(activity, bitmap)
                     } else {
-                        Log.e(
+                        AppLog.e(
                             TAG,
                             "saveMessageImage: Failed to download image from $image, response code: ${connection.responseCode}"
                         )
@@ -615,7 +614,7 @@ class FilesManager(
                     )
                 )
             }.onFailure {
-                Log.e(TAG, "trackManagedFile: Failed to track file ${file.absolutePath}", it)
+                AppLog.e(TAG, "trackManagedFile: Failed to track file ${file.absolutePath}", it)
                 Logging.log(
                     TAG,
                     "trackManagedFile: Failed to track file ${file.absolutePath} ${it.message} | ${it.stackTraceToString()}"

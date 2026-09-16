@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.data.ai.transformers
 
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
@@ -10,6 +9,7 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceShellStatus
 import java.io.ByteArrayOutputStream
 import java.nio.file.Paths
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Workspace 系统提示注入转换器
@@ -81,7 +81,7 @@ class WorkspaceReminderTransformer(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.d("WorkspaceReminder", "Skipping workspace instructions: $path", e)
+                AppLog.d("WorkspaceReminder", "Skipping workspace instructions: $path", e)
                 null
             }
         }

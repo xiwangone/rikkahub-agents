@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.data.db.fts
 
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.rerere.ai.ui.UIMessage
@@ -8,6 +7,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.model.Conversation
 import java.time.Instant
+import me.rerere.rikkahub.data.log.AppLog
 
 data class MessageSearchResult(
     val nodeId: String,
@@ -132,7 +132,7 @@ class MessageFtsManager(private val database: AppDatabase) {
             """.trimIndent(),
             if (assistantId != null) arrayOf(keyword, assistantId) else arrayOf(keyword)
         )
-        Log.i(TAG, "search: $keyword")
+        AppLog.i(TAG, "search: $keyword")
         cursor.use {
             while (it.moveToNext()) {
                 results.add(

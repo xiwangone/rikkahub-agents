@@ -2,10 +2,10 @@ package me.rerere.rikkahub.data.ai.tools
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.util.Log
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "HeadlessConversations"
 private const val PREFS_NAME = "headless_conversations"
@@ -61,16 +61,16 @@ object HeadlessConversations {
         p.getString(PREFS_KEY, null)?.split(',')?.forEach { raw ->
             if (raw.isNotBlank()) {
                 runCatching { ids.add(Uuid.parse(raw.trim())) }
-                    .onFailure { Log.w(TAG, "init: could not parse stored UUID '$raw'") }
+                    .onFailure { AppLog.w(TAG, "init: could not parse stored UUID '$raw'") }
             }
         }
         p.getString(PREFS_KEY_AUTO_APPROVE, null)?.split(',')?.forEach { raw ->
             if (raw.isNotBlank()) {
                 runCatching { autoApproveIds.add(Uuid.parse(raw.trim())) }
-                    .onFailure { Log.w(TAG, "init: could not parse stored auto-approve UUID '$raw'") }
+                    .onFailure { AppLog.w(TAG, "init: could not parse stored auto-approve UUID '$raw'") }
             }
         }
-        Log.d(TAG, "init: restored ${ids.size} headless IDs + ${autoApproveIds.size} auto-approve IDs from prefs")
+        AppLog.d(TAG, "init: restored ${ids.size} headless IDs + ${autoApproveIds.size} auto-approve IDs from prefs")
     }
 
     /**

@@ -1,18 +1,18 @@
 package me.rerere.rikkahub.data.db.migrations
 
-import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.db.DatabaseMigrationTracker
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "Migration_6_7"
 
 val Migration_6_7 = object : Migration(6, 7) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        Log.i(TAG, "migrate: start migrate from 6 to 7")
+        AppLog.i(TAG, "migrate: start migrate from 6 to 7")
         DatabaseMigrationTracker.onMigrationStart(6, 7)
         db.beginTransaction()
         try {
@@ -74,7 +74,7 @@ val Migration_6_7 = object : Migration(6, 7) {
                     // Parsing failed — old format corrupt or already new format.
                     // Preserve the row as an empty node list rather than aborting the
                     // entire migration (which would leave the user permanently bricked).
-                    Log.w(TAG, "migrate: could not migrate conversation $id — keeping as empty nodes: ${e.message}")
+                    AppLog.w(TAG, "migrate: could not migrate conversation $id — keeping as empty nodes: ${e.message}")
                     updates.add(
                         arrayOf(id, assistantId, title, "[]", usage, createAt, updateAt, truncateIndex)
                     )
@@ -98,7 +98,7 @@ val Migration_6_7 = object : Migration(6, 7) {
 
             db.setTransactionSuccessful()
 
-            Log.i(TAG, "migrate: migrate from 6 to 7 success (${updates.size} conversations updated)")
+            AppLog.i(TAG, "migrate: migrate from 6 to 7 success (${updates.size} conversations updated)")
         } finally {
             db.endTransaction()
             DatabaseMigrationTracker.onMigrationEnd()

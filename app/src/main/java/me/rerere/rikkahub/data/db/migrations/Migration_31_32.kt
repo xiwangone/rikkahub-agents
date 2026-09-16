@@ -1,8 +1,8 @@
 package me.rerere.rikkahub.data.db.migrations
 
-import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "Migration_31_32"
 
@@ -19,12 +19,12 @@ private const val TAG = "Migration_31_32"
  */
 val Migration_31_32 = object : Migration(31, 32) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        Log.i(TAG, "migrate: start migrate from 31 to 32 (memoryentity add tier)")
+        AppLog.i(TAG, "migrate: start migrate from 31 to 32 (memoryentity add tier)")
         db.beginTransaction()
         try {
             db.execSQL("ALTER TABLE `memoryentity` ADD COLUMN `tier` TEXT NOT NULL DEFAULT 'core'")
             db.setTransactionSuccessful()
-            Log.i(TAG, "migrate: migrate from 31 to 32 success")
+            AppLog.i(TAG, "migrate: migrate from 31 to 32 success")
         } finally {
             db.endTransaction()
         }

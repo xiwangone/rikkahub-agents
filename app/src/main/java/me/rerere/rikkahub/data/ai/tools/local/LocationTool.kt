@@ -4,7 +4,6 @@ import android.Manifest
 import android.content.Context
 import android.location.Location
 import android.location.LocationManager
-import android.util.Log
 import com.google.android.gms.common.ConnectionResult
 import com.google.android.gms.common.GoogleApiAvailability
 import com.google.android.gms.location.LocationServices
@@ -22,6 +21,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG_LOC = "LocationTool"
 
@@ -114,7 +114,7 @@ fun locationTool(context: Context): Tool = Tool(
                             GoogleApiAvailability.getInstance()
                                 .isGooglePlayServicesAvailable(context) == ConnectionResult.SUCCESS
                         } catch (t: Throwable) {
-                            Log.w(TAG_LOC, "GMS availability check failed", t)
+                            AppLog.w(TAG_LOC, "GMS availability check failed", t)
                             false
                         }
 
@@ -127,7 +127,7 @@ fun locationTool(context: Context): Tool = Tool(
                                 client.lastLocation.await()
                             } else null
                         } catch (t: Throwable) {
-                            Log.w(TAG_LOC, "fused lastLocation failed", t)
+                            AppLog.w(TAG_LOC, "fused lastLocation failed", t)
                             null
                         }
                             ?: try { lm.getLastKnownLocation(LocationManager.GPS_PROVIDER) } catch (_: SecurityException) { null }
@@ -138,7 +138,7 @@ fun locationTool(context: Context): Tool = Tool(
                         // 30s timeout dance for cases where the OS already knows where we are.
                         val cachedAgeMs = cachedNow?.let { System.currentTimeMillis() - it.time }
                         if (cachedNow != null && cachedAgeMs != null && cachedAgeMs < 120_000) {
-                            Log.i(TAG_LOC, "returning fresh cached fix age=${cachedAgeMs}ms provider=${cachedNow.provider}")
+                            AppLog.i(TAG_LOC, "returning fresh cached fix age=${cachedAgeMs}ms provider=${cachedNow.provider}")
                             buildJsonObject {
                                 putLocation(cachedNow, cachedNow.provider ?: "cached")
                                 put("cached", true)
@@ -154,7 +154,7 @@ fun locationTool(context: Context): Tool = Tool(
                                     client.getCurrentLocation(priority, null).await()
                                 }
                             } catch (t: Throwable) {
-                                Log.w(TAG_LOC, "getCurrentLocation failed", t)
+                                AppLog.w(TAG_LOC, "getCurrentLocation failed", t)
                                 null
                             }
                             when {
@@ -166,7 +166,7 @@ fun locationTool(context: Context): Tool = Tool(
                                     put("note", "fresh fix timed out after ${timeoutMs}ms; returning last known")
                                 }
                                 else -> {
-                                    Log.w(TAG_LOC, "no fix at all (gms): timeout=${timeoutMs}ms gps=$gpsEnabled net=$networkEnabled")
+                                    AppLog.w(TAG_LOC, "no fix at all (gms): timeout=${timeoutMs}ms gps=$gpsEnabled net=$networkEnabled")
                                     errorPayload(
                                         "no fix yet",
                                         "No location available. Try moving near a window / outdoors, or ask the user to open a maps app once to seed the location cache."
@@ -182,7 +182,7 @@ fun locationTool(context: Context): Tool = Tool(
                                     if (cachedAgeMs != null) put("age_ms", cachedAgeMs)
                                 }
                             } else {
-                                Log.w(TAG_LOC, "no fix at all (no gms): gps=$gpsEnabled net=$networkEnabled")
+                                AppLog.w(TAG_LOC, "no fix at all (no gms): gps=$gpsEnabled net=$networkEnabled")
                                 errorPayload(
                                     "no fix available",
                                     "Google Play Services unavailable and no cached fix. Ask the user to open a maps app once, or enable Wi-Fi to allow network-based location."

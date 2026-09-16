@@ -2,8 +2,8 @@ package me.rerere.rikkahub.data.db
 
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
-import android.util.Log
 import java.io.File
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Reconciles a database file that was just restored from a backup so Room can open it.
@@ -124,7 +124,7 @@ object ImportedDatabaseReconciler {
      */
     internal fun reconcileDatabaseFile(dbFile: File) {
         if (!dbFile.exists()) {
-            Log.i(TAG, "reconcile: no database file at ${dbFile.absolutePath}, skipping")
+            AppLog.i(TAG, "reconcile: no database file at ${dbFile.absolutePath}, skipping")
             return
         }
         try {
@@ -135,7 +135,7 @@ object ImportedDatabaseReconciler {
             ).use { db ->
                 val version = db.version // PRAGMA user_version
                 if (version > EXPECTED_VERSION) {
-                    Log.w(TAG, "reconcile: backup db version $version is newer than $EXPECTED_VERSION; leaving untouched")
+                    AppLog.w(TAG, "reconcile: backup db version $version is newer than $EXPECTED_VERSION; leaving untouched")
                     return
                 }
 
@@ -176,12 +176,12 @@ object ImportedDatabaseReconciler {
                 } finally {
                     db.endTransaction()
                 }
-                Log.i(TAG, "reconcile: reconciled imported db (version=$version, alreadyCurrent=$alreadyCurrent)")
+                AppLog.i(TAG, "reconcile: reconciled imported db (version=$version, alreadyCurrent=$alreadyCurrent)")
             }
         } catch (t: Throwable) {
             // Never let reconciliation break the restore. Worst case is the pre-existing
             // behaviour (a crash on next open); the user's rows are still on disk.
-            Log.w(TAG, "reconcile: failed to reconcile imported db", t)
+            AppLog.w(TAG, "reconcile: failed to reconcile imported db", t)
         }
     }
 
@@ -199,7 +199,7 @@ object ImportedDatabaseReconciler {
                 found
             }
         } catch (t: Throwable) {
-            Log.w(TAG, "hasColumn: failed to inspect $table.$column", t)
+            AppLog.w(TAG, "hasColumn: failed to inspect $table.$column", t)
             false
         }
     }

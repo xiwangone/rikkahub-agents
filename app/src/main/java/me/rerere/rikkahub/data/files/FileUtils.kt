@@ -5,12 +5,12 @@ import android.graphics.Bitmap
 import android.net.Uri
 import android.provider.DocumentsContract
 import android.provider.OpenableColumns
-import android.util.Log
 import android.webkit.MimeTypeMap
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.FileInputStream
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 object FileUtils {
     private const val TAG = "FileUtils"
@@ -65,7 +65,7 @@ object FileUtils {
             }
             fileName
         }.onFailure {
-            Log.w(TAG, "getFileNameFromUri: Failed to query display name for $uri", it)
+            AppLog.w(TAG, "getFileNameFromUri: Failed to query display name for $uri", it)
         }.getOrNull()
     }
 
@@ -74,7 +74,7 @@ object FileUtils {
             "content" -> runCatching {
                 context.contentResolver.getType(uri)
             }.onFailure {
-                Log.w(TAG, "getFileMimeType: Failed to resolve MIME for $uri", it)
+                AppLog.w(TAG, "getFileMimeType: Failed to resolve MIME for $uri", it)
             }.getOrNull()
             else -> null
         }

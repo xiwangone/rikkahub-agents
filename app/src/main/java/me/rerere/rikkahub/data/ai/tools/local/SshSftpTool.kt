@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import android.content.Context
-import android.util.Log
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.Session
 import kotlinx.coroutines.Dispatchers
@@ -20,6 +19,7 @@ import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import java.io.File
 import java.util.concurrent.atomic.AtomicReference
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG_SFTP = "SshSftpTool"
 
@@ -63,7 +63,7 @@ private suspend fun withSavedHostSession(
         val session = try {
             openSshSession(jsch, h.host, h.port, h.user, auth, timeoutMs, network = outcome.winningNetwork)
         } catch (e: Throwable) {
-            Log.w(TAG_SFTP, "ssh handshake failed", e)
+            AppLog.w(TAG_SFTP, "ssh handshake failed", e)
             return@runInterruptible wrapConnectError(h.host, e)
         }
         sessionRef.set(session)

@@ -2,7 +2,6 @@ package me.rerere.rikkahub.data.sync.webdav
 
 import me.rerere.rikkahub.data.log.AppLog
 import android.content.Context
-import android.util.Log
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -46,7 +45,7 @@ class WebDavSync(
         val client = getClient(config)
         // Test by listing the root directory
         client.propfind(depth = 0).getOrThrow()
-        Log.i(TAG, "testConnection: Connection successful")
+        AppLog.i(TAG, "testConnection: Connection successful")
     }
 
     suspend fun backup(config: WebDavConfig) = withContext(Dispatchers.IO) {
@@ -66,7 +65,7 @@ class WebDavSync(
                 contentType = "application/zip"
             ).getOrThrow()
 
-            Log.i(TAG, "backup: Uploaded ${file.name} (${file.length().fileSizeToString()})")
+            AppLog.i(TAG, "backup: Uploaded ${file.name} (${file.length().fileSizeToString()})")
         } finally {
             // Clean up temp files（明文 zip 与加密产物都清）
             if (plainFile.exists()) plainFile.delete()
@@ -110,10 +109,10 @@ class WebDavSync(
 
         try {
             // Download backup file directly to file to avoid OOM
-            Log.i(TAG, "restore: Downloading ${item.displayName}")
+            AppLog.i(TAG, "restore: Downloading ${item.displayName}")
             client.downloadToFile(item.displayName, backupFile).getOrThrow()
 
-            Log.i(TAG, "restore: Downloaded ${backupFile.length().fileSizeToString()}")
+            AppLog.i(TAG, "restore: Downloaded ${backupFile.length().fileSizeToString()}")
 
             // 若为加密容器则用记住口令解密；缺口令/口令错 → 保留已下载文件并抛 NeedsPassword
             val plainFile =
@@ -140,7 +139,7 @@ class WebDavSync(
             // 恢复成功后才清理下载的备份文件（NeedsPassword 场景保留供输口令后解密）
             if (backupFile.exists()) {
                 backupFile.delete()
-                Log.i(TAG, "restore: Cleaned up temporary backup file")
+                AppLog.i(TAG, "restore: Cleaned up temporary backup file")
             }
         } catch (e: BackupNeedsPasswordException) {
             // 保留 backupFile（调用方输口令后用 restoreWithPassword 复用）；本处不再清理
@@ -182,7 +181,7 @@ class WebDavSync(
 
         try {
             if (!backupFile.exists() || cachedEncFile == null) {
-                Log.i(TAG, "restoreWithPassword: Downloading ${item.displayName}")
+                AppLog.i(TAG, "restoreWithPassword: Downloading ${item.displayName}")
                 client.downloadToFile(item.displayName, backupFile).getOrThrow()
             }
 
@@ -204,12 +203,12 @@ class WebDavSync(
     suspend fun deleteBackupFile(config: WebDavConfig, item: WebDavBackupItem) = withContext(Dispatchers.IO) {
         val client = getClient(config)
         client.delete(item.displayName).getOrThrow()
-        Log.i(TAG, "deleteBackupFile: Deleted ${item.displayName}")
+        AppLog.i(TAG, "deleteBackupFile: Deleted ${item.displayName}")
     }
 
     suspend fun restoreFromLocalFile(file: File, config: WebDavConfig) = withContext(Dispatchers.IO) {
         val config = config.withLegacyExpanded()
-        Log.i(TAG, "restoreFromLocalFile: Starting restore from ${file.absolutePath}")
+        AppLog.i(TAG, "restoreFromLocalFile: Starting restore from ${file.absolutePath}")
 
         if (!file.exists()) {
             throw Exception("Backup file does not exist")
@@ -223,7 +222,7 @@ class WebDavSync(
             val plainFile = backupEncryptionManager.maybeDecrypt(file)
             try {
                 restoreFromBackupFile(plainFile, config)
-                Log.i(TAG, "restoreFromLocalFile: Restore completed successfully")
+                AppLog.i(TAG, "restoreFromLocalFile: Restore completed successfully")
             } finally {
                 if (plainFile != file && plainFile.exists()) {
                     plainFile.delete()
@@ -325,7 +324,7 @@ class WebDavSync(
             }
         }
 
-        Log.i(
+        AppLog.i(
             TAG,
             "prepareBackupFile: Created backup file ${backupFile.name} (${backupFile.length().fileSizeToString()})"
         )
@@ -350,7 +349,7 @@ class WebDavSync(
                 if (name == "tmp" || name == "linux" || name == ".git" || name == "node_modules" ||
                     name == "local-models" || name == "cache" || name == ".gradle" || name == "build"
                 ) {
-                    Log.i(TAG, "backupWorkspaceDocs: skip workspace top-level $wsName/$name")
+                    AppLog.i(TAG, "backupWorkspaceDocs: skip workspace top-level $wsName/$name")
                     return@forEach
                 }
                 if (top.isFile) {
@@ -440,7 +439,7 @@ class WebDavSync(
     }
 
     private suspend fun restoreFromBackupFile(backupFile: File, config: WebDavConfig) = withContext(Dispatchers.IO) {
-        Log.i(TAG, "restoreFromBackupFile: Starting restore from ${backupFile.absolutePath}")
+        AppLog.i(TAG, "restoreFromBackupFile: Starting restore from ${backupFile.absolutePath}")
 
         // Track whether the backup itself shipped a WAL/SHM. If it didn't, any -wal/-shm
         // left on disk belongs to the PRE-restore database and must be removed before Room
@@ -465,7 +464,7 @@ class WebDavSync(
             var entry: ZipEntry?
             while (zipIn.nextEntry.also { entry = it } != null) {
                 entry?.let { zipEntry ->
-                    Log.i(TAG, "restoreFromBackupFile: Processing entry ${zipEntry.name}")
+                    AppLog.i(TAG, "restoreFromBackupFile: Processing entry ${zipEntry.name}")
 
                     when {
                         zipEntry.name == "settings.json" -> {
@@ -474,18 +473,18 @@ class WebDavSync(
                                 config.items.none { it in NEW_ITEM_KINDS }
                             ) {
                                 val settingsJson = zipIn.readBytes().toString(Charsets.UTF_8)
-                                Log.i(TAG, "restoreFromBackupFile: Restoring settings")
+                                AppLog.i(TAG, "restoreFromBackupFile: Restoring settings")
                                 try {
                                     val migratedJson = SettingsJsonMigrator.migrate(settingsJson)
                                     val settings = json.decodeFromString<Settings>(migratedJson)
                                     settingsStore.update(settings)
-                                    Log.i(TAG, "restoreFromBackupFile: Settings restored successfully")
+                                    AppLog.i(TAG, "restoreFromBackupFile: Settings restored successfully")
                                 } catch (e: Exception) {
                                     AppLog.e(TAG, "restoreFromBackupFile: Failed to restore settings", e)
                                     throw Exception("Failed to restore settings: ${e.message}")
                                 }
                             } else {
-                                Log.i(TAG, "restoreFromBackupFile: Skipping settings.json (SETTINGS not selected)")
+                                AppLog.i(TAG, "restoreFromBackupFile: Skipping settings.json (SETTINGS not selected)")
                             }
                         }
 
@@ -509,7 +508,7 @@ class WebDavSync(
                                 }
 
                                 dbFile?.let { targetFile ->
-                                    Log.i(
+                                    AppLog.i(
                                         TAG,
                                         "restoreFromBackupFile: Restoring ${zipEntry.name} to ${targetFile.absolutePath}"
                                     )
@@ -518,7 +517,7 @@ class WebDavSync(
                                         "rikka_hub-wal" -> restoredWal = true
                                         "rikka_hub-shm" -> restoredShm = true
                                     }
-                                    Log.i(
+                                    AppLog.i(
                                         TAG,
                                         "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
                                     )
@@ -596,7 +595,7 @@ class WebDavSync(
                         }
 
                         else -> {
-                            Log.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
+                            AppLog.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
                         }
                     }
 
@@ -618,7 +617,7 @@ class WebDavSync(
             ImportedDatabaseReconciler.reconcile(context)
         }
 
-        Log.i(TAG, "restoreFromBackupFile: Restore completed successfully")
+        AppLog.i(TAG, "restoreFromBackupFile: Restore completed successfully")
     }
 
     /**
@@ -652,7 +651,7 @@ class WebDavSync(
         try {
             appDatabase.openHelper.writableDatabase
                 .query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
-            Log.i(TAG, "checkpointDatabase: WAL checkpoint(TRUNCATE) done")
+            AppLog.i(TAG, "checkpointDatabase: WAL checkpoint(TRUNCATE) done")
         } catch (e: Exception) {
             // Non-fatal: the -wal/-shm files are still copied below, so no committed data
             // is lost — the snapshot just isn't guaranteed torn-free for this run.
@@ -666,7 +665,7 @@ class WebDavSync(
             zipOut.putNextEntry(zipEntry)
             fis.copyTo(zipOut)
             zipOut.closeEntry()
-            Log.d(TAG, "addFileToZip: Added $entryName (${file.length()} bytes) to zip")
+            AppLog.d(TAG, "addFileToZip: Added $entryName (${file.length()} bytes) to zip")
         }
     }
 
@@ -704,7 +703,7 @@ class WebDavSync(
         val relative = zipEntry.name.substringAfter("$folder/")
         if (relative.isEmpty()) return
         if (!allowNested && relative.contains('/')) {
-            Log.i(TAG, "restoreFolderEntry: Skipping nested $folder entry ${zipEntry.name}")
+            AppLog.i(TAG, "restoreFolderEntry: Skipping nested $folder entry ${zipEntry.name}")
             return
         }
         val folderRoot = File(context.filesDir, folder).apply { mkdirs() }
@@ -719,7 +718,7 @@ class WebDavSync(
             FileOutputStream(targetFile).use { outputStream ->
                 zipIn.copyTo(outputStream)
             }
-            Log.i(TAG, "restoreFolderEntry: Restored ${zipEntry.name} (${targetFile.length()} bytes)")
+            AppLog.i(TAG, "restoreFolderEntry: Restored ${zipEntry.name} (${targetFile.length()} bytes)")
         } catch (e: Exception) {
             AppLog.e(TAG, "restoreFolderEntry: Failed to restore ${zipEntry.name}", e)
             throw Exception("Failed to restore ${zipEntry.name}: ${e.message}")
@@ -756,7 +755,7 @@ class WebDavSync(
             FileOutputStream(targetFile).use { outputStream ->
                 zipIn.copyTo(outputStream)
             }
-            Log.i(TAG, "restoreWorkspaceEntry: Restored ${zipEntry.name} (${targetFile.length()} bytes)")
+            AppLog.i(TAG, "restoreWorkspaceEntry: Restored ${zipEntry.name} (${targetFile.length()} bytes)")
         } catch (e: Exception) {
             AppLog.e(TAG, "restoreWorkspaceEntry: Failed to restore ${zipEntry.name}", e)
             throw Exception("Failed to restore ${zipEntry.name}: ${e.message}")
@@ -786,7 +785,7 @@ class WebDavSync(
             FileOutputStream(targetFile).use { outputStream ->
                 zipIn.copyTo(outputStream)
             }
-            Log.i(TAG, "restoreFromBackupFile: Restored skill file $entryName (${targetFile.length()} bytes)")
+            AppLog.i(TAG, "restoreFromBackupFile: Restored skill file $entryName (${targetFile.length()} bytes)")
         } catch (e: Exception) {
             AppLog.e(TAG, "restoreFromBackupFile: Failed to restore skill file $entryName", e)
             throw Exception("Failed to restore skill file $entryName: ${e.message}")
@@ -798,7 +797,7 @@ class WebDavSync(
         zipOut.putNextEntry(zipEntry)
         zipOut.write(content.toByteArray())
         zipOut.closeEntry()
-        Log.i(TAG, "addVirtualFileToZip: $name (${content.length} bytes)")
+        AppLog.i(TAG, "addVirtualFileToZip: $name (${content.length} bytes)")
     }
 }
 

@@ -1,8 +1,8 @@
 package me.rerere.rikkahub.data.db.migrations
 
-import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "Migration_35_36"
 
@@ -15,14 +15,14 @@ private const val TAG = "Migration_35_36"
  */
 val Migration_35_36 = object : Migration(35, 36) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        Log.i(TAG, "migrate: start migrate from 35 to 36 (ssh_hosts sshOptions)")
+        AppLog.i(TAG, "migrate: start migrate from 35 to 36 (ssh_hosts sshOptions)")
         db.beginTransaction()
         try {
             db.execSQL(
                 "ALTER TABLE `ssh_hosts` ADD COLUMN `sshOptions` TEXT DEFAULT NULL",
             )
             db.setTransactionSuccessful()
-            Log.i(TAG, "migrate: migrate from 35 to 36 success")
+            AppLog.i(TAG, "migrate: migrate from 35 to 36 success")
         } finally {
             db.endTransaction()
         }

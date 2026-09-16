@@ -2,13 +2,13 @@ package me.rerere.rikkahub.data.telegram
 
 import android.content.Context
 import android.graphics.Bitmap
-import android.util.Log
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.data.ai.tools.local.InteractiveToolStreamer
 import me.rerere.rikkahub.data.repository.TelegramChatRepository
 import me.rerere.rikkahub.service.RikkaAccessibilityService
 import java.io.File
 import java.io.FileOutputStream
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "TelegramInteractiveStreamer"
 private const val STREAM_DIR = "interactive-stream"
@@ -85,7 +85,7 @@ class TelegramInteractiveToolStreamer(
 
         // Gate 3: resolve the Telegram chat id. Missing mapping = not a Telegram conversation.
         val mapping = runCatching { chatRepo.getByConversationId(convId) }
-            .onFailure { Log.w(TAG, "streamIfHeadless: chatRepo lookup failed for $convId", it) }
+            .onFailure { AppLog.w(TAG, "streamIfHeadless: chatRepo lookup failed for $convId", it) }
             .getOrNull() ?: return
 
         // Settle: let the launch/transition animation finish before grabbing the screen, so we
@@ -94,14 +94,14 @@ class TelegramInteractiveToolStreamer(
 
         // Step 3: capture the screen.
         val bitmap = captureScreenOrNull() ?: run {
-            Log.d(TAG, "streamIfHeadless: no screenshot available (accessibility service not bound or API < 28)")
+            AppLog.d(TAG, "streamIfHeadless: no screenshot available (accessibility service not bound or API < 28)")
             return
         }
 
         // Step 4: persist to cache dir.
         val file = writeToCacheOrNull(bitmap, actionLabel) ?: run {
             bitmap.recycle()
-            Log.w(TAG, "streamIfHeadless: failed to write screenshot to cache")
+            AppLog.w(TAG, "streamIfHeadless: failed to write screenshot to cache")
             return
         }
         bitmap.recycle()
@@ -111,8 +111,8 @@ class TelegramInteractiveToolStreamer(
         runCatching {
             client.sendPhoto(mapping.chatId, file, caption)
             TelegramStreamSignal.noteScreenshot(convId.toString())
-            Log.i(TAG, "streamIfHeadless: posted screenshot ($actionLabel) to chat=${mapping.chatId}")
-        }.onFailure { Log.w(TAG, "streamIfHeadless: sendPhoto failed", it) }
+            AppLog.i(TAG, "streamIfHeadless: posted screenshot ($actionLabel) to chat=${mapping.chatId}")
+        }.onFailure { AppLog.w(TAG, "streamIfHeadless: sendPhoto failed", it) }
     }
 
     // -----------------------------------------------------------------------------------------
@@ -126,12 +126,12 @@ class TelegramInteractiveToolStreamer(
             when (outcome) {
                 is RikkaAccessibilityService.ScreenshotOutcome.Success -> outcome.bitmap
                 is RikkaAccessibilityService.ScreenshotOutcome.Failure -> {
-                    Log.d(TAG, "captureScreenOrNull: capture failed: ${outcome.reason}")
+                    AppLog.d(TAG, "captureScreenOrNull: capture failed: ${outcome.reason}")
                     null
                 }
             }
         }.getOrElse {
-            Log.w(TAG, "captureScreenOrNull: exception during capture", it)
+            AppLog.w(TAG, "captureScreenOrNull: exception during capture", it)
             null
         }
     }
@@ -152,7 +152,7 @@ class TelegramInteractiveToolStreamer(
             }
             file
         }.getOrElse {
-            Log.w(TAG, "writeToCacheOrNull: write failed", it)
+            AppLog.w(TAG, "writeToCacheOrNull: write failed", it)
             null
         }
     }
@@ -168,7 +168,7 @@ class TelegramInteractiveToolStreamer(
             files.sortedBy { it.lastModified() }
                 .take(files.size - MAX_CACHED_FILES)
                 .forEach { it.delete() }
-        }.onFailure { Log.w(TAG, "sweepCache: sweep failed", it) }
+        }.onFailure { AppLog.w(TAG, "sweepCache: sweep failed", it) }
     }
 
     // -----------------------------------------------------------------------------------------

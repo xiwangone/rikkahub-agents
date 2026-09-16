@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.data.datastore
 
 import android.content.Context
-import android.util.Log
 import androidx.datastore.core.IOException
 import androidx.datastore.preferences.SharedPreferencesMigration
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -60,6 +59,7 @@ import org.koin.core.component.KoinComponent
 import org.koin.core.component.get
 import kotlin.uuid.Uuid
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OCR_PROMPT
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "PreferencesStore"
 
@@ -88,7 +88,7 @@ private fun decodeProvidersTolerant(raw: String): List<ProviderSetting> {
         try {
             JsonInstant.decodeFromJsonElement<ProviderSetting>(element)
         } catch (e: SerializationException) {
-            Log.w(TAG, "Skipping unrecognised provider entry during decode: ${e.message}")
+            AppLog.w(TAG, "Skipping unrecognised provider entry during decode: ${e.message}")
             null
         }
     }
@@ -256,7 +256,7 @@ class SettingsStore(
         .catch { exception ->
             if (exception is IOException) {
                 // 文件层异常静默回落默认是排查「设置变默认」时最难定位的路径, 必须留痕
-                Log.e(TAG, "settings DataStore 读取失败, 本次回落默认设置(磁盘数据不受影响)", exception)
+                AppLog.e(TAG, "settings DataStore 读取失败, 本次回落默认设置(磁盘数据不受影响)", exception)
                 emit(emptyPreferences())
             } else {
                 throw exception
@@ -346,7 +346,7 @@ class SettingsStore(
                 } ?: emptyList(),
 subAgents = preferences[SUB_AGENTS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<SubAgentProfile>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode subAgents, using default", it)
+                        AppLog.w(TAG, "Failed to decode subAgents, using default", it)
                         emptyList()
                     }
                 } ?: emptyList(),
@@ -358,14 +358,14 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 } ?: S3Config(),
                 webDavConfigs = preferences[WEBDAV_CONFIGS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<WebDavConfig>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode webDavConfigs, using empty", it)
+                        AppLog.w(TAG, "Failed to decode webDavConfigs, using empty", it)
                         emptyList()
                     }
                 } ?: emptyList(),
                 activeWebDavConfigId = preferences[ACTIVE_WEBDAV_CONFIG_ID],
                 s3Configs = preferences[S3_CONFIGS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<S3Config>>(raw) }.getOrElse {
-                        Log.w(TAG, "Failed to decode s3Configs, using empty", it)
+                        AppLog.w(TAG, "Failed to decode s3Configs, using empty", it)
                         emptyList()
                     }
                 } ?: emptyList(),
@@ -394,7 +394,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 localMcpServerEnabled = preferences[LOCAL_MCP_SERVER_ENABLED] == true,
                 localMcpProfiles = preferences[LOCAL_MCP_PROFILES]?.let {
                     runCatching { JsonInstant.decodeFromString<List<LocalMcpProfile>>(it) }
-                        .onFailure { Log.w(TAG, "localMcpProfiles 解析失败, 暂以空列表替代(原始数据保留)", it) }
+                        .onFailure { AppLog.w(TAG, "localMcpProfiles 解析失败, 暂以空列表替代(原始数据保留)", it) }
                         .getOrElse { emptyList() }
                 } ?: emptyList(),
                 activeLocalMcpProfileId = preferences[LOCAL_MCP_ACTIVE_PROFILE_ID],
@@ -586,7 +586,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
 
     suspend fun update(settings: Settings) {
         if(settings.init) {
-            Log.w(TAG, "Cannot update dummy settings")
+            AppLog.w(TAG, "Cannot update dummy settings")
             return
         }
         settingsFlow.value = settings

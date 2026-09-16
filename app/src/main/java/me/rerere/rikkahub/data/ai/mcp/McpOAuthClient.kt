@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.data.ai.mcp
 
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -23,6 +22,7 @@ import java.security.SecureRandom
 import kotlin.coroutines.resume
 import kotlin.coroutines.resumeWithException
 import kotlin.io.encoding.Base64
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "McpOAuthClient"
 
@@ -111,7 +111,7 @@ class McpOAuthClient(
             for (url in candidates) {
                 val meta = runCatching { getJson<ProtectedResourceMetadata>(url) }.getOrNull()
                 if (meta != null && meta.authorizationServers.isNotEmpty()) {
-                    Log.i(TAG, "discoverProtectedResource: found via $url -> ${meta.authorizationServers}")
+                    AppLog.i(TAG, "discoverProtectedResource: found via $url -> ${meta.authorizationServers}")
                     return@withContext meta
                 }
             }
@@ -127,7 +127,7 @@ class McpOAuthClient(
             for (url in wellKnownAsUrls(issuer)) {
                 val meta = runCatching { getJson<AuthorizationServerMetadata>(url) }.getOrNull()
                 if (meta?.authorizationEndpoint != null && meta.tokenEndpoint != null) {
-                    Log.i(TAG, "discoverAuthorizationServer: found via $url")
+                    AppLog.i(TAG, "discoverAuthorizationServer: found via $url")
                     return@withContext meta
                 }
             }

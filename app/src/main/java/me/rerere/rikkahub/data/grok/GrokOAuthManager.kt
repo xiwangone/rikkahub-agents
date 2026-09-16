@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.grok
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +22,7 @@ import me.rerere.common.http.await
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Drives the xAI Grok OAuth 2.0 Device Authorization Grant (RFC 8628): request a device+user code
@@ -57,7 +57,7 @@ class GrokOAuthManager(
             } catch (cancel: CancellationException) {
                 throw cancel
             } catch (error: Throwable) {
-                Log.e(TAG, "Grok OAuth failed: ${error::class.java.name}: ${error.message}", error)
+                AppLog.e(TAG, "Grok OAuth failed: ${error::class.java.name}: ${error.message}", error)
                 _status.value = GrokOAuthStatus.Error(error.message ?: "Grok sign-in failed")
             }
         }

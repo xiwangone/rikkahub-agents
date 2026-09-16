@@ -5,7 +5,6 @@ import android.content.Context
 import android.graphics.Rect
 import android.os.PowerManager
 import android.os.SystemClock
-import android.util.Log
 import android.view.accessibility.AccessibilityWindowInfo
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
@@ -14,6 +13,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.rikkahub.service.RikkaAccessibilityService
+import me.rerere.rikkahub.data.log.AppLog
 
 // Pure core of the post-action screen-state envelope. Everything in this section is
 // JVM-testable: no framework calls, no Context.
@@ -111,7 +111,7 @@ internal fun surfaceFactsOf(svc: RikkaAccessibilityService): List<SurfaceFacts> 
             )
         }
     } catch (t: Throwable) {
-        Log.w("ScreenState", "getWindows failed: ${t.message}")
+        AppLog.w("ScreenState", "getWindows failed: ${t.message}")
         emptyList()
     }
 
@@ -180,7 +180,7 @@ internal suspend fun withActionEnvelope(
     act: suspend (RikkaAccessibilityService) -> JsonObject,
 ): JsonObject {
     val before = try { treeHash(svc) } catch (t: Throwable) {
-        Log.w("ScreenState", "before-hash failed: ${t.message}")
+        AppLog.w("ScreenState", "before-hash failed: ${t.message}")
         null
     }
     val actionStart = SystemClock.uptimeMillis()
@@ -189,7 +189,7 @@ internal suspend fun withActionEnvelope(
     } catch (c: CancellationException) {
         throw c
     } catch (t: Throwable) {
-        Log.w("ScreenState", "action threw: ${t.message}", t)
+        AppLog.w("ScreenState", "action threw: ${t.message}", t)
         buildJsonObject {
             put("error", "tool_exception")
             put("message", t.message ?: t::class.java.simpleName)
@@ -204,7 +204,7 @@ internal suspend fun withActionEnvelope(
         floor = actionStart,
     )
     val after = try { treeHash(svc) } catch (t: Throwable) {
-        Log.w("ScreenState", "after-hash failed: ${t.message}")
+        AppLog.w("ScreenState", "after-hash failed: ${t.message}")
         null
     }
     val changed = if (before != null && after != null) before != after else null

@@ -1,11 +1,11 @@
 package me.rerere.rikkahub.data.files
 
 import android.content.Context
-import android.util.Log
 import java.io.File
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.log.AppLog
 
 class SkillManager(
     private val context: Context,
@@ -260,7 +260,7 @@ class SkillManager(
             backupDir?.deleteRecursively()
             return true
         } catch (e: Exception) {
-            Log.w(TAG, "saveSkillFilesAtomically: Failed to save $skillName", e)
+            AppLog.w(TAG, "saveSkillFilesAtomically: Failed to save $skillName", e)
             if (backupDir != null && !targetDir.exists()) {
                 backupDir.renameTo(targetDir)
             }
@@ -294,7 +294,7 @@ class SkillManager(
         val skillNames = try {
             assetMgr.list(assetRoot).orEmpty()
         } catch (e: Exception) {
-            Log.w(TAG, "seedDefaultSkillsIfNeeded: cannot list assets", e)
+            AppLog.w(TAG, "seedDefaultSkillsIfNeeded: cannot list assets", e)
             return
         }
         for (skillName in skillNames) {
@@ -324,9 +324,9 @@ class SkillManager(
                     copyAssetSkill(assetRoot, skillName, targetDir)
                     sentinel.writeText(System.currentTimeMillis().toString())
                     coreVersionFile.writeText(bundledHash)
-                    Log.i(TAG, "seedDefaultSkillsIfNeeded: re-seeded core skill $skillName (hash=$bundledHash)")
+                    AppLog.i(TAG, "seedDefaultSkillsIfNeeded: re-seeded core skill $skillName (hash=$bundledHash)")
                 } catch (e: Exception) {
-                    Log.w(TAG, "seedDefaultSkillsIfNeeded: failed to re-seed core skill $skillName", e)
+                    AppLog.w(TAG, "seedDefaultSkillsIfNeeded: failed to re-seed core skill $skillName", e)
                 }
                 continue
             }
@@ -341,9 +341,9 @@ class SkillManager(
             try {
                 copyAssetSkill(assetRoot, skillName, targetDir)
                 sentinel.writeText(System.currentTimeMillis().toString())
-                Log.i(TAG, "seedDefaultSkillsIfNeeded: seeded $skillName")
+                AppLog.i(TAG, "seedDefaultSkillsIfNeeded: seeded $skillName")
             } catch (e: Exception) {
-                Log.w(TAG, "seedDefaultSkillsIfNeeded: failed to seed $skillName", e)
+                AppLog.w(TAG, "seedDefaultSkillsIfNeeded: failed to seed $skillName", e)
             }
         }
     }
@@ -378,7 +378,7 @@ class SkillManager(
                         }
                     }.isSuccess
                     if (!ok) {
-                        Log.w(TAG, "computeBundledSkillHash: read failed for $childPath; marker mixed into digest")
+                        AppLog.w(TAG, "computeBundledSkillHash: read failed for $childPath; marker mixed into digest")
                         md.update(readFailMarker)
                     }
                 }
@@ -455,7 +455,7 @@ class SkillManager(
                 skillDir = skillDir,
             )
         }.getOrElse {
-            Log.w(TAG, "parseSkillFile: Failed to parse ${skillFile.absolutePath}", it)
+            AppLog.w(TAG, "parseSkillFile: Failed to parse ${skillFile.absolutePath}", it)
             null
         }
     }

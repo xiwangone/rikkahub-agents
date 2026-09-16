@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.data.ai.mcp
 
-import android.util.Log
 import io.ktor.client.HttpClient
 import io.ktor.client.request.HttpRequestBuilder
 import io.ktor.util.StringValues
@@ -40,6 +39,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "McpSessionRegistry"
 private const val MAX_RECONNECT_ATTEMPTS = 5
@@ -159,7 +159,7 @@ internal class McpSessionRegistry(
         val sdkClient = session.client
             ?: throw McpClientUnavailableException("MCP client $serverId is not connected")
         val config = session.connectedConfig ?: session.config
-        Log.i(TAG, "Calling tool $toolName on $serverId (${config.commonOptions.name})")
+        AppLog.i(TAG, "Calling tool $toolName on $serverId (${config.commonOptions.name})")
         return try {
             sdkClient.callTool(
                 request = CallToolRequest(
@@ -285,14 +285,14 @@ internal class McpSessionRegistry(
                 session.client = sdkClient
                 session.reconnectAttempt = 0
                 statusStore.update(config.id, McpStatus.Connected)
-                Log.i(TAG, "Connected MCP server ${config.id} (${config.commonOptions.name})")
+                AppLog.i(TAG, "Connected MCP server ${config.id} (${config.commonOptions.name})")
                 ConnectResult.Success
             } catch (e: CancellationException) {
                 closeClient(sdkClient, config.commonOptions.name)
                 throw e
             } catch (e: Exception) {
                 closeClient(sdkClient, config.commonOptions.name)
-                Log.e(TAG, "Failed to connect MCP server ${config.id}", e)
+                AppLog.e(TAG, "Failed to connect MCP server ${config.id}", e)
                 if (oauthCoordinator.needsAuthorization(config, e)) {
                     statusStore.update(config.id, McpStatus.NeedsAuthorization)
                     ConnectResult.NeedsAuthorization
@@ -346,7 +346,7 @@ internal class McpSessionRegistry(
         connectionConfig: McpServerConfig,
     ): McpServerConfig {
         val serverTools = sdkClient.listTools().tools
-        Log.i(TAG, "Synced ${serverTools.size} tools from ${connectionConfig.id}")
+        AppLog.i(TAG, "Synced ${serverTools.size} tools from ${connectionConfig.id}")
         var updatedConfig = connectionConfig
         settingsStore.update { old ->
             old.copy(
@@ -368,11 +368,11 @@ internal class McpSessionRegistry(
         transport: AbstractTransport,
     ) {
         transport.onClose {
-            Log.i(TAG, "Transport closed for ${config.id} (${config.commonOptions.name})")
+            AppLog.i(TAG, "Transport closed for ${config.id} (${config.commonOptions.name})")
             requestReconnect(config.id, sdkClient)
         }
         transport.onError { error ->
-            Log.e(TAG, "Transport error for ${config.id}: ${error.message}")
+            AppLog.e(TAG, "Transport error for ${config.id}: ${error.message}")
             if (!isSseStreamGiveUpError(error)) requestReconnect(config.id, sdkClient)
         }
     }
@@ -456,7 +456,7 @@ internal class McpSessionRegistry(
 
     private suspend fun closeClient(client: Client, serverName: String) {
         runCatching { client.close() }
-            .onFailure { Log.w(TAG, "Failed to close MCP client $serverName", it) }
+            .onFailure { AppLog.w(TAG, "Failed to close MCP client $serverName", it) }
     }
 
     private fun createSdkClient(config: McpServerConfig): Client = Client(

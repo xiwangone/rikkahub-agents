@@ -2,7 +2,6 @@ package me.rerere.rikkahub.data.sync
 
 import me.rerere.rikkahub.data.log.AppLog
 import android.content.Context
-import android.util.Log
 import io.ktor.client.HttpClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -45,7 +44,7 @@ class S3Sync(
         val client = getS3Client(config)
         // Test by listing objects with max 1 result
         client.listObjects(maxKeys = 1).getOrThrow()
-        Log.i(TAG, "testS3: Connection successful")
+        AppLog.i(TAG, "testS3: Connection successful")
     }
 
     suspend fun backupToS3(config: S3Config) = withContext(Dispatchers.IO) {
@@ -62,7 +61,7 @@ class S3Sync(
                 contentType = "application/zip"
             ).getOrThrow()
 
-            Log.i(TAG, "backupToS3: Uploaded ${file.name} (${file.length().fileSizeToString()})")
+            AppLog.i(TAG, "backupToS3: Uploaded ${file.name} (${file.length().fileSizeToString()})")
         } finally {
             if (plainFile.exists()) plainFile.delete()
             if (file != plainFile && file.exists()) file.delete()
@@ -99,10 +98,10 @@ class S3Sync(
 
         try {
             // Download backup file directly to file to avoid OOM
-            Log.i(TAG, "restoreFromS3: Downloading ${item.displayName}")
+            AppLog.i(TAG, "restoreFromS3: Downloading ${item.displayName}")
             client.downloadObjectToFile(item.key, backupFile).getOrThrow()
 
-            Log.i(TAG, "restoreFromS3: Downloaded ${backupFile.length().fileSizeToString()}")
+            AppLog.i(TAG, "restoreFromS3: Downloaded ${backupFile.length().fileSizeToString()}")
 
             // 若为加密容器则用记住口令解密；缺口令/口令错 → 保留文件并抛 NeedsPassword
             val plainFile =
@@ -128,7 +127,7 @@ class S3Sync(
             // 恢复成功后才清理下载文件（NeedsPassword 场景保留供输口令后解密）
             if (backupFile.exists()) {
                 backupFile.delete()
-                Log.i(TAG, "restoreFromS3: Cleaned up temporary backup file")
+                AppLog.i(TAG, "restoreFromS3: Cleaned up temporary backup file")
             }
         } catch (e: BackupNeedsPasswordException) {
             throw e
@@ -151,7 +150,7 @@ class S3Sync(
 
         try {
             if (!backupFile.exists() || cachedEncFile == null) {
-                Log.i(TAG, "restoreFromS3WithPassword: Downloading ${item.displayName}")
+                AppLog.i(TAG, "restoreFromS3WithPassword: Downloading ${item.displayName}")
                 client.downloadObjectToFile(item.key, backupFile).getOrThrow()
             }
 
@@ -173,7 +172,7 @@ class S3Sync(
     suspend fun deleteS3BackupFile(config: S3Config, item: S3BackupItem) = withContext(Dispatchers.IO) {
         val client = getS3Client(config)
         client.deleteObject(item.key).getOrThrow()
-        Log.i(TAG, "deleteS3BackupFile: Deleted ${item.key}")
+        AppLog.i(TAG, "deleteS3BackupFile: Deleted ${item.key}")
     }
 
     suspend fun prepareBackupFile(config: S3Config): File = withContext(Dispatchers.IO) {
@@ -219,7 +218,7 @@ class S3Sync(
             if (config.items.any { it.wantsFiles() }) {
                 val uploadFolder = File(context.filesDir, FileFolders.UPLOAD)
                 if (uploadFolder.exists() && uploadFolder.isDirectory) {
-                    Log.i(TAG, "prepareBackupFile: Backing up files from ${uploadFolder.absolutePath}")
+                    AppLog.i(TAG, "prepareBackupFile: Backing up files from ${uploadFolder.absolutePath}")
                     uploadFolder.listFiles()?.forEach { file ->
                         if (file.isFile) {
                             addFileToZip(zipOut, file, "${FileFolders.UPLOAD}/${file.name}")
@@ -231,7 +230,7 @@ class S3Sync(
 
                 val skillsFolder = File(context.filesDir, FileFolders.SKILLS)
                 if (skillsFolder.exists() && skillsFolder.isDirectory) {
-                    Log.i(TAG, "prepareBackupFile: Backing up skills from ${skillsFolder.absolutePath}")
+                    AppLog.i(TAG, "prepareBackupFile: Backing up skills from ${skillsFolder.absolutePath}")
                     addDirectoryToZip(
                         zipOut = zipOut,
                         rootDir = skillsFolder,
@@ -244,7 +243,7 @@ class S3Sync(
 
                 val fontsFolder = File(context.filesDir, FileFolders.FONTS)
                 if (fontsFolder.exists() && fontsFolder.isDirectory) {
-                    Log.i(TAG, "prepareBackupFile: Backing up fonts from ${fontsFolder.absolutePath}")
+                    AppLog.i(TAG, "prepareBackupFile: Backing up fonts from ${fontsFolder.absolutePath}")
                     fontsFolder.listFiles()?.forEach { file ->
                         if (file.isFile) {
                             addFileToZip(zipOut, file, "${FileFolders.FONTS}/${file.name}")
@@ -256,7 +255,7 @@ class S3Sync(
 
                 val imagesFolder = File(context.filesDir, FileFolders.IMAGES)
                 if (imagesFolder.exists() && imagesFolder.isDirectory) {
-                    Log.i(TAG, "prepareBackupFile: Backing up images from ${imagesFolder.absolutePath}")
+                    AppLog.i(TAG, "prepareBackupFile: Backing up images from ${imagesFolder.absolutePath}")
                     imagesFolder.listFiles()?.forEach { file ->
                         if (file.isFile) {
                             addFileToZip(zipOut, file, "${FileFolders.IMAGES}/${file.name}")
@@ -268,7 +267,7 @@ class S3Sync(
             }
         }
 
-        Log.i(
+        AppLog.i(
             TAG,
             "prepareBackupFile: Created backup file ${backupFile.name} (${backupFile.length().fileSizeToString()})"
         )
@@ -276,7 +275,7 @@ class S3Sync(
     }
 
     private suspend fun restoreFromBackupFile(backupFile: File, config: S3Config) = withContext(Dispatchers.IO) {
-        Log.i(TAG, "restoreFromBackupFile: Starting restore from ${backupFile.absolutePath}")
+        AppLog.i(TAG, "restoreFromBackupFile: Starting restore from ${backupFile.absolutePath}")
 
         // Track whether the backup itself shipped a WAL/SHM. If it didn't, any -wal/-shm
         // left on disk belongs to the PRE-restore database and must be removed before Room
@@ -301,17 +300,17 @@ class S3Sync(
             var entry: ZipEntry?
             while (zipIn.nextEntry.also { entry = it } != null) {
                 entry?.let { zipEntry ->
-                    Log.i(TAG, "restoreFromBackupFile: Processing entry ${zipEntry.name}")
+                    AppLog.i(TAG, "restoreFromBackupFile: Processing entry ${zipEntry.name}")
 
                     when (zipEntry.name) {
                         "settings.json" -> {
                             val settingsJson = zipIn.readBytes().toString(Charsets.UTF_8)
-                            Log.i(TAG, "restoreFromBackupFile: Restoring settings")
+                            AppLog.i(TAG, "restoreFromBackupFile: Restoring settings")
                             try {
                                 val migratedJson = SettingsJsonMigrator.migrate(settingsJson)
                                 val settings = json.decodeFromString<Settings>(migratedJson)
                                 settingsStore.update(settings)
-                                Log.i(TAG, "restoreFromBackupFile: Settings restored successfully")
+                                AppLog.i(TAG, "restoreFromBackupFile: Settings restored successfully")
                             } catch (e: Exception) {
                                 AppLog.e(TAG, "restoreFromBackupFile: Failed to restore settings", e)
                                 throw Exception("Failed to restore settings: ${e.message}")
@@ -336,7 +335,7 @@ class S3Sync(
                                 }
 
                                 dbFile?.let { targetFile ->
-                                    Log.i(
+                                    AppLog.i(
                                         TAG,
                                         "restoreFromBackupFile: Restoring ${zipEntry.name} to ${targetFile.absolutePath}"
                                     )
@@ -349,7 +348,7 @@ class S3Sync(
                                         "rikka_hub-wal" -> restoredWal = true
                                         "rikka_hub-shm" -> restoredShm = true
                                     }
-                                    Log.i(
+                                    AppLog.i(
                                         TAG,
                                         "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
                                     )
@@ -366,7 +365,7 @@ class S3Sync(
                                     val uploadFolder = File(context.filesDir, FileFolders.UPLOAD)
                                     if (!uploadFolder.exists()) {
                                         uploadFolder.mkdirs()
-                                        Log.i(TAG, "restoreFromBackupFile: Created upload directory")
+                                        AppLog.i(TAG, "restoreFromBackupFile: Created upload directory")
                                     }
 
                                     // Guard against zip-slip: reject entries that resolve
@@ -375,7 +374,7 @@ class S3Sync(
                                     if (targetFile == null) {
                                         AppLog.w(TAG, "restoreFromBackupFile: Rejected unsafe upload entry ${zipEntry.name}")
                                     } else {
-                                        Log.i(
+                                        AppLog.i(
                                             TAG,
                                             "restoreFromBackupFile: Restoring file ${zipEntry.name} to ${targetFile.absolutePath}"
                                         )
@@ -384,7 +383,7 @@ class S3Sync(
                                             FileOutputStream(targetFile).use { outputStream ->
                                                 zipIn.copyTo(outputStream)
                                             }
-                                            Log.i(
+                                            AppLog.i(
                                                 TAG,
                                                 "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
                                             )
@@ -408,7 +407,7 @@ class S3Sync(
                                     FileOutputStream(targetFile).use { outputStream ->
                                         zipIn.copyTo(outputStream)
                                     }
-                                    Log.i(
+                                    AppLog.i(
                                         TAG,
                                         "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
                                     )
@@ -421,7 +420,7 @@ class S3Sync(
                                     val imagesFolder = File(context.filesDir, FileFolders.IMAGES)
                                     if (!imagesFolder.exists()) {
                                         imagesFolder.mkdirs()
-                                        Log.i(TAG, "restoreFromBackupFile: Created images directory")
+                                        AppLog.i(TAG, "restoreFromBackupFile: Created images directory")
                                     }
 
                                     // Guard against zip-slip: reject entries that resolve
@@ -430,7 +429,7 @@ class S3Sync(
                                     if (targetFile == null) {
                                         AppLog.w(TAG, "restoreFromBackupFile: Rejected unsafe images entry ${zipEntry.name}")
                                     } else {
-                                        Log.i(
+                                        AppLog.i(
                                             TAG,
                                             "restoreFromBackupFile: Restoring file ${zipEntry.name} to ${targetFile.absolutePath}"
                                         )
@@ -439,7 +438,7 @@ class S3Sync(
                                             FileOutputStream(targetFile).use { outputStream ->
                                                 zipIn.copyTo(outputStream)
                                             }
-                                            Log.i(
+                                            AppLog.i(
                                                 TAG,
                                                 "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
                                             )
@@ -450,7 +449,7 @@ class S3Sync(
                                     }
                                 }
                             } else {
-                                Log.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
+                                AppLog.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
                             }
                         }
                     }
@@ -473,7 +472,7 @@ class S3Sync(
             ImportedDatabaseReconciler.reconcile(context)
         }
 
-        Log.i(TAG, "restoreFromBackupFile: Restore completed successfully")
+        AppLog.i(TAG, "restoreFromBackupFile: Restore completed successfully")
     }
 
     /**
@@ -507,7 +506,7 @@ class S3Sync(
         try {
             appDatabase.openHelper.writableDatabase
                 .query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
-            Log.i(TAG, "checkpointDatabase: WAL checkpoint(TRUNCATE) done")
+            AppLog.i(TAG, "checkpointDatabase: WAL checkpoint(TRUNCATE) done")
         } catch (e: Exception) {
             // Non-fatal: the -wal/-shm files are still copied below, so no committed data
             // is lost — the snapshot just isn't guaranteed torn-free for this run.
@@ -521,7 +520,7 @@ class S3Sync(
             zipOut.putNextEntry(zipEntry)
             fis.copyTo(zipOut)
             zipOut.closeEntry()
-            Log.d(TAG, "addFileToZip: Added $entryName (${file.length()} bytes) to zip")
+            AppLog.d(TAG, "addFileToZip: Added $entryName (${file.length()} bytes) to zip")
         }
     }
 
@@ -569,7 +568,7 @@ class S3Sync(
             FileOutputStream(targetFile).use { outputStream ->
                 zipIn.copyTo(outputStream)
             }
-            Log.i(TAG, "restoreFromBackupFile: Restored skill file $entryName (${targetFile.length()} bytes)")
+            AppLog.i(TAG, "restoreFromBackupFile: Restored skill file $entryName (${targetFile.length()} bytes)")
         } catch (e: Exception) {
             AppLog.e(TAG, "restoreFromBackupFile: Failed to restore skill file $entryName", e)
             throw Exception("Failed to restore skill file $entryName: ${e.message}")
@@ -581,7 +580,7 @@ class S3Sync(
         zipOut.putNextEntry(zipEntry)
         zipOut.write(content.toByteArray())
         zipOut.closeEntry()
-        Log.i(TAG, "addVirtualFileToZip: $name (${content.length} bytes)")
+        AppLog.i(TAG, "addVirtualFileToZip: $name (${content.length} bytes)")
     }
 }
 

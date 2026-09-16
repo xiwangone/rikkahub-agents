@@ -1,9 +1,9 @@
 package me.rerere.rikkahub.data.ai.mcp.server
 
-import android.util.Log
 import me.rerere.ai.core.Tool
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.LocalTools
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * MCP 工具注册表：按名称索引 [LocalTools] 聚合的设备工具。
@@ -30,10 +30,10 @@ class LocalToolRegistry(private val localTools: LocalTools) {
 
     fun sync(options: List<LocalToolOption>) {
         tools = runCatching { localTools.getTools(options) }.getOrElse { e ->
-            Log.w(TAG, "full tool build failed (${e.message}); falling back to core subset")
+            AppLog.w(TAG, "full tool build failed (${e.message}); falling back to core subset")
             runCatching { localTools.getTools(FALLBACK_CORE) }.getOrDefault(emptyList())
         }.associateBy { it.name }
-        Log.i(TAG, "registry synced: ${tools.size} tools")
+        AppLog.i(TAG, "registry synced: ${tools.size} tools")
     }
 
     fun all(): Collection<Tool> = tools.values

@@ -6,7 +6,6 @@ import android.net.ConnectivityManager
 import android.net.Network
 import android.net.Uri
 import android.os.Build
-import android.util.Log
 import io.ktor.http.ContentType
 import io.ktor.server.application.call
 import io.ktor.server.cio.CIO
@@ -131,7 +130,7 @@ class GeminiOAuthManager(
                                             val account = exchangeCode(code, redirectUri)
                                             _status.value = GeminiOAuthStatus.Success(account.id)
                                         } catch (error: Throwable) {
-                                            Log.e(
+                                            AppLog.e(
                                                 TAG,
                                                 "OAuth token exchange failed: " +
                                                     "${error::class.java.name}: ${error.message}",

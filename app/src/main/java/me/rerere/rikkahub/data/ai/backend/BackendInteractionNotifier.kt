@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
@@ -26,6 +25,7 @@ import me.rerere.ai.provider.providers.backend.BackendApi
 import me.rerere.ai.provider.providers.backend.BackendInteractionHandler
 import me.rerere.ai.ui.AskQuestion
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Backend 富事件的交互桥：把 serve 的 approval_request / ask_request 转成系统通知，
@@ -85,7 +85,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                         runCatching {
                             api(p.setting).approve(id = requestId, allow = approved)
                         }.onFailure {
-                            Log.w(TAG, "approve($requestId, $approved) failed", it)
+                            AppLog.w(TAG, "approve($requestId, $approved) failed", it)
                         }
                     }
                 }
@@ -110,7 +110,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                                     },
                             )
                         }.onFailure {
-                            Log.w(TAG, "answer($requestId) failed", it)
+                            AppLog.w(TAG, "answer($requestId) failed", it)
                         }
                     }
                 }
@@ -182,7 +182,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
             runCatching {
                 api(p.setting).approve(id = requestId, allow = approved)
             }.onFailure {
-                Log.w(TAG, "approve($requestId, $approved) failed", it)
+                AppLog.w(TAG, "approve($requestId, $approved) failed", it)
             }
         }
         return true
@@ -207,7 +207,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                         },
                 )
             }.onFailure {
-                Log.w(TAG, "answer($requestId) failed", it)
+                AppLog.w(TAG, "answer($requestId) failed", it)
             }
         }
         return true
@@ -314,13 +314,13 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                 android.Manifest.permission.POST_NOTIFICATIONS,
             ) != android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
-            Log.w(TAG, "POST_NOTIFICATIONS not granted; interaction stays card-only")
+            AppLog.w(TAG, "POST_NOTIFICATIONS not granted; interaction stays card-only")
             return
         }
         runCatching {
             NotificationManagerCompat.from(context).notify(id.hashCode() and 0x7fffffff, notification)
         }.onFailure {
-            Log.w(TAG, "Failed to post interaction notification", it)
+            AppLog.w(TAG, "Failed to post interaction notification", it)
         }
     }
 

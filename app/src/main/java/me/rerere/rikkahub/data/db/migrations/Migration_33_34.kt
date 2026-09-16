@@ -1,8 +1,8 @@
 ﻿package me.rerere.rikkahub.data.db.migrations
 
-import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "Migration_33_34"
 
@@ -15,14 +15,14 @@ private const val TAG = "Migration_33_34"
  */
 val Migration_33_34 = object : Migration(33, 34) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        Log.i(TAG, "migrate: start migrate from 33 to 34 (vault_credentials.publicKey)")
+        AppLog.i(TAG, "migrate: start migrate from 33 to 34 (vault_credentials.publicKey)")
         db.beginTransaction()
         try {
             db.execSQL(
                 "ALTER TABLE `vault_credentials` ADD COLUMN `publicKey` TEXT NOT NULL DEFAULT ''",
             )
             db.setTransactionSuccessful()
-            Log.i(TAG, "migrate: migrate from 33 to 34 success")
+            AppLog.i(TAG, "migrate: migrate from 33 to 34 success")
         } finally {
             db.endTransaction()
         }

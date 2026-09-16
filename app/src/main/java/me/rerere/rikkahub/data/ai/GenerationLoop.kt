@@ -7,7 +7,6 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
-import android.util.Log
 import android.widget.Toast
 import me.rerere.rikkahub.BuildConfig
 import kotlinx.coroutines.CancellationException
@@ -667,7 +666,7 @@ class GenerationLoop(
                 break
             }
 
-            Log.i(TAG, "streamText: start step #$stepIndex (${model.id})")
+            AppLog.i(TAG, "streamText: start step #$stepIndex (${model.id})")
 
             // step 边界：把上一轮流式期间合并掉的输出变换补上，
             // 保证本 step 的请求上下文与界面状态与逐次变换完全一致
@@ -714,7 +713,7 @@ class GenerationLoop(
                     p is UIMessagePart.Tool && p.isPending
                 } == true
                 if (lastHasPending) {
-                    Log.i(TAG, "generateText: last message has Pending tools; waiting for approval, not regenerating")
+                    AppLog.i(TAG, "generateText: last message has Pending tools; waiting for approval, not regenerating")
                     break
                 }
             }
@@ -922,14 +921,14 @@ class GenerationLoop(
 
                 // If there are pending approvals, break and wait for user
                 if (hasPendingApproval) {
-                    Log.i(TAG, "generateText: waiting for tool approval")
+                    AppLog.i(TAG, "generateText: waiting for tool approval")
                     break
                 }
 
                 toolsToProcess = updatedTools
             } else {
                 // Resuming after user interaction - use the resumable tools directly.
-                Log.i(TAG, "generateText: resuming with ${pendingTools.size} resumable tools")
+                AppLog.i(TAG, "generateText: resuming with ${pendingTools.size} resumable tools")
                 toolsToProcess = messages.last().getTools().filter { it.canResumeExecution }
             }
 
@@ -1117,7 +1116,7 @@ class GenerationLoop(
                         // a newly mcp_add-ed server never enabled for this assistant).
                         val toolDef = toolsInternal.find { toolDef -> toolDef.name == tool.toolName }
                         if (toolDef == null) {
-                            Log.w(TAG, "tool ${tool.toolName} not found among ${toolsInternal.size} tools available this turn")
+                            AppLog.w(TAG, "tool ${tool.toolName} not found among ${toolsInternal.size} tools available this turn")
                             executedTools += tool.copy(
                                 output = listOf(
                                     UIMessagePart.Text(
@@ -1152,7 +1151,7 @@ class GenerationLoop(
                                 )
                             val args = parsedArgs.getOrThrow()
                             if (BuildConfig.DEBUG) {
-                                Log.i(TAG, "generateText: executing tool ${toolDef.name} with args: ${redactSecrets(args)}")
+                                AppLog.i(TAG, "generateText: executing tool ${toolDef.name} with args: ${redactSecrets(args)}")
                             }
                             // Mark the tool as "execution started" BEFORE actually running.
                             // ChatService persists this when it sees the chunk so a process
@@ -1278,7 +1277,7 @@ class GenerationLoop(
             pendingOutputMessages = null
 
             onAfterToolExecution(messages)?.let { compactedMessages ->
-                Log.i(TAG, "generateText: replacing request history after tool execution")
+                AppLog.i(TAG, "generateText: replacing request history after tool execution")
                 messages = compactedMessages
             }
 
@@ -1651,7 +1650,7 @@ class GenerationLoop(
 
         if (totalChars <= MAX_TOOL_OUTPUT_CHARS || !hasShellAccess) return output
 
-        Log.i(TAG, "maybeTruncateToolOutput: truncating tool $toolCallId output ($totalChars chars)")
+        AppLog.i(TAG, "maybeTruncateToolOutput: truncating tool $toolCallId output ($totalChars chars)")
 
         val fullText = textParts.joinToString("\n") { it.text }
         val preview = fullText.take(TOOL_OUTPUT_PREVIEW_CHARS)

@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.data.preferences
 
 import android.content.Context
-import android.util.Log
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringSetPreferencesKey
@@ -9,6 +8,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "ToolApprovalPreferences"
 
@@ -79,7 +79,7 @@ class ToolApprovalPreferences(private val context: Context) {
         // through WorkspaceRepository.setToolApproval instead, so this should never be
         // called with one. Refuse rather than silently poisoning the global set.
         if (isWorkspaceToolName(toolName)) {
-            Log.w(TAG, "refusing to add workspace tool '$toolName' to the global always-allow set")
+            AppLog.w(TAG, "refusing to add workspace tool '$toolName' to the global always-allow set")
             return
         }
         store.edit { it[K_ALWAYS_ALLOW] = (it[K_ALWAYS_ALLOW].orEmpty()) + toolName }
@@ -99,7 +99,7 @@ class ToolApprovalPreferences(private val context: Context) {
         val result = store.edit { prefs ->
             val (cleaned, actuallyRemoved) = migrateWorkspaceToolsFrom(prefs[K_ALWAYS_ALLOW].orEmpty())
             if (actuallyRemoved.isNotEmpty()) {
-                Log.i(TAG, "removing stale workspace tool grants from always-allow: $actuallyRemoved")
+                AppLog.i(TAG, "removing stale workspace tool grants from always-allow: $actuallyRemoved")
                 prefs[K_ALWAYS_ALLOW] = cleaned
             }
         }

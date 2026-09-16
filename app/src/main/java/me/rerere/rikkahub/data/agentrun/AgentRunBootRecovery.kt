@@ -4,9 +4,9 @@ import me.rerere.rikkahub.R
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.content.Context
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "AgentRunBootRecovery"
 
@@ -51,17 +51,17 @@ class AgentRunBootRecovery(
             val cutoff = System.currentTimeMillis() - AgentRunDefaults.STRANDED_THRESHOLD_MS
             val stranded = repository.getStranded(cutoff)
             if (stranded.isEmpty()) {
-                logSafe { Log.i(TAG, "runRecovery: no stranded runs") }
+                logSafe { AppLog.i(TAG, "runRecovery: no stranded runs") }
                 return@runCatching 0
             }
             val flipped = repository.markAllProcessLost(stranded.map { it.id })
-            logSafe { Log.w(TAG, "runRecovery: flipped $flipped stranded run(s) to process_lost") }
+            logSafe { AppLog.w(TAG, "runRecovery: flipped $flipped stranded run(s) to process_lost") }
             if (flipped > 0) {
                 runCatching { notifyStranded(stranded) }
-                    .onFailure { logSafe { Log.w(TAG, "notifyStranded failed", it) } }
+                    .onFailure { logSafe { AppLog.w(TAG, "notifyStranded failed", it) } }
             }
             flipped
-        }.onFailure { logSafe { Log.w(TAG, "runRecovery failed", it) } }
+        }.onFailure { logSafe { AppLog.w(TAG, "runRecovery failed", it) } }
             .getOrDefault(0)
     }
 
@@ -112,7 +112,7 @@ class AgentRunBootRecovery(
                 NotificationManagerCompat.from(context).notify(AGGREGATE_NOTIF_ID, builder.build())
             }.onFailure {
                 // POST_NOTIFICATIONS not granted, or notifications restricted — non-fatal.
-                logSafe { Log.w(TAG, "postAggregateNotification failed", it) }
+                logSafe { AppLog.w(TAG, "postAggregateNotification failed", it) }
             }
         }
     }

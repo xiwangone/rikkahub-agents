@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.data.sync.s3
 
-import android.util.Log
 import android.util.Xml
 import io.ktor.client.HttpClient
 import io.ktor.client.request.headers
@@ -23,6 +22,7 @@ import java.io.InputStream
 import java.io.StringReader
 import java.security.MessageDigest
 import java.time.Instant
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "S3Client"
 
@@ -55,11 +55,11 @@ class S3Client(
 
             if (!response.status.isSuccess()) {
                 val errorBody = response.bodyAsText()
-                Log.e(TAG, "putObject failed: ${response.status} - $errorBody")
+                AppLog.e(TAG, "putObject failed: ${response.status} - $errorBody")
                 throw S3Exception("Failed to put object: ${response.status}", errorBody)
             }
 
-            Log.d(TAG, "putObject success: $key")
+            AppLog.d(TAG, "putObject success: $key")
             Unit
         }
     }
@@ -92,11 +92,11 @@ class S3Client(
 
             if (!response.status.isSuccess()) {
                 val errorBody = response.bodyAsText()
-                Log.e(TAG, "putObject(file) failed: ${response.status} - $errorBody")
+                AppLog.e(TAG, "putObject(file) failed: ${response.status} - $errorBody")
                 throw S3Exception("Failed to put object: ${response.status}", errorBody)
             }
 
-            Log.d(TAG, "putObject(file) success: $key (${file.length()} bytes)")
+            AppLog.d(TAG, "putObject(file) success: $key (${file.length()} bytes)")
             Unit
         }
     }
@@ -119,7 +119,7 @@ class S3Client(
 
             if (!response.status.isSuccess()) {
                 val errorBody = response.bodyAsText()
-                Log.e(TAG, "getObject failed: ${response.status} - $errorBody")
+                AppLog.e(TAG, "getObject failed: ${response.status} - $errorBody")
                 throw S3Exception("Failed to get object: ${response.status}", errorBody)
             }
 
@@ -146,7 +146,7 @@ class S3Client(
 
             if (!response.status.isSuccess()) {
                 val errorBody = response.bodyAsText()
-                Log.e(TAG, "getObjectStream failed: ${response.status} - $errorBody")
+                AppLog.e(TAG, "getObjectStream failed: ${response.status} - $errorBody")
                 throw S3Exception("Failed to get object stream: ${response.status}", errorBody)
             }
 
@@ -163,7 +163,7 @@ class S3Client(
                 path = path,
             )
 
-            Log.d(TAG, "GET (download to file): $key")
+            AppLog.d(TAG, "GET (download to file): $key")
 
             httpClient.prepareRequest(signed.url) {
                 method = HttpMethod.Get
@@ -173,7 +173,7 @@ class S3Client(
             }.execute { response ->
                 if (!response.status.isSuccess()) {
                     val errorBody = response.bodyAsText()
-                    Log.e(TAG, "downloadObjectToFile failed: ${response.status} - $errorBody")
+                    AppLog.e(TAG, "downloadObjectToFile failed: ${response.status} - $errorBody")
                     throw S3Exception("Failed to download object: ${response.status}", errorBody)
                 }
 
@@ -182,7 +182,7 @@ class S3Client(
                         input.copyTo(output)
                     }
                 }
-                Log.d(TAG, "downloadObjectToFile success: downloaded ${targetFile.length()} bytes")
+                AppLog.d(TAG, "downloadObjectToFile success: downloaded ${targetFile.length()} bytes")
             }
             Unit
         }
@@ -206,11 +206,11 @@ class S3Client(
 
             if (!response.status.isSuccess()) {
                 val errorBody = response.bodyAsText()
-                Log.e(TAG, "deleteObject failed: ${response.status} - $errorBody")
+                AppLog.e(TAG, "deleteObject failed: ${response.status} - $errorBody")
                 throw S3Exception("Failed to delete object: ${response.status}", errorBody)
             }
 
-            Log.d(TAG, "deleteObject success: $key")
+            AppLog.d(TAG, "deleteObject success: $key")
             Unit
         }
     }
@@ -276,7 +276,7 @@ class S3Client(
 
             if (!response.status.isSuccess()) {
                 val errorBody = response.bodyAsText()
-                Log.e(TAG, "listObjects failed: ${response.status} - $errorBody")
+                AppLog.e(TAG, "listObjects failed: ${response.status} - $errorBody")
                 throw S3Exception("Failed to list objects: ${response.status}", errorBody)
             }
 

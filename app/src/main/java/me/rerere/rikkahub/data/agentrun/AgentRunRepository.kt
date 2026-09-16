@@ -1,11 +1,11 @@
 package me.rerere.rikkahub.data.agentrun
 
-import android.util.Log
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "AgentRunRepository"
 
@@ -66,7 +66,7 @@ class AgentRunRepository(private val dao: AgentRunDao) {
                 dao.insert(row)
                 dao.purgeOldest(AgentRunDefaults.RETENTION_CAP)
             }
-        }.onFailure { logSafe { Log.w(TAG, "open($kind, $domainId) failed", it) } }
+        }.onFailure { logSafe { AppLog.w(TAG, "open($kind, $domainId) failed", it) } }
         return id
     }
 
@@ -90,7 +90,7 @@ class AgentRunRepository(private val dao: AgentRunDao) {
                     )
                 )
             }
-        }.onFailure { logSafe { Log.w(TAG, "setStatus($id, $status) failed", it) } }
+        }.onFailure { logSafe { AppLog.w(TAG, "setStatus($id, $status) failed", it) } }
     }
 
     /**
@@ -100,7 +100,7 @@ class AgentRunRepository(private val dao: AgentRunDao) {
      */
     suspend fun markTerminal(id: String, status: AgentRunStatus, lastError: String? = null) {
         if (!status.isTerminal) {
-            logSafe { Log.w(TAG, "markTerminal($id) called with non-terminal status $status — ignoring") }
+            logSafe { AppLog.w(TAG, "markTerminal($id) called with non-terminal status $status — ignoring") }
             return
         }
         runCatching {
@@ -117,7 +117,7 @@ class AgentRunRepository(private val dao: AgentRunDao) {
                     )
                 )
             }
-        }.onFailure { logSafe { Log.w(TAG, "markTerminal($id, $status) failed", it) } }
+        }.onFailure { logSafe { AppLog.w(TAG, "markTerminal($id, $status) failed", it) } }
     }
 
     fun observeRecent(limit: Int = 50): Flow<List<AgentRun>> = dao.observeRecent(limit)
@@ -168,7 +168,7 @@ class AgentRunRepository(private val dao: AgentRunDao) {
                     flipped++
                 }
             }
-        }.onFailure { logSafe { Log.w(TAG, "markAllProcessLost failed", it) } }
+        }.onFailure { logSafe { AppLog.w(TAG, "markAllProcessLost failed", it) } }
         return flipped
     }
 
@@ -180,7 +180,7 @@ class AgentRunRepository(private val dao: AgentRunDao) {
         return if (encoded.toByteArray(Charsets.UTF_8).size <= AgentRunDefaults.METADATA_MAX_BYTES) {
             encoded
         } else {
-            logSafe { Log.w(TAG, "metadata_json over ${AgentRunDefaults.METADATA_MAX_BYTES} bytes — dropping") }
+            logSafe { AppLog.w(TAG, "metadata_json over ${AgentRunDefaults.METADATA_MAX_BYTES} bytes — dropping") }
             null
         }
     }

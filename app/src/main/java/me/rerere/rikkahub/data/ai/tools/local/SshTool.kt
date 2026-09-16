@@ -7,7 +7,6 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import android.util.Log
 import com.jcraft.jsch.ChannelDirectTCPIP
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.JSch
@@ -291,7 +290,7 @@ internal fun joinCommandBatch(commands: List<String>): String {
  */
 private fun resolveToIPv4(host: String): String? {
     sshDnsCache.get(host)?.let { cached ->
-        Log.i(TAG_SSH, "resolveToIPv4: $host -> $cached (dns cache hit)")
+        AppLog.i(TAG_SSH, "resolveToIPv4: $host -> $cached (dns cache hit)")
         return cached
     }
     return try {
@@ -302,7 +301,7 @@ private fun resolveToIPv4(host: String): String? {
         val v4 = addrs.firstOrNull { it is Inet4Address } ?: return null
         v4.hostAddress?.also {
             sshDnsCache.put(host, it)
-            Log.i(TAG_SSH, "resolveToIPv4: $host -> $it (skipping ${addrs.size - 1} other records)")
+            AppLog.i(TAG_SSH, "resolveToIPv4: $host -> $it (skipping ${addrs.size - 1} other records)")
         }
     } catch (t: Throwable) {
         AppLog.w(TAG_SSH, "resolveToIPv4: $host failed", t)
@@ -571,7 +570,7 @@ internal suspend fun probeReachability(context: Context, host: String, port: Int
                     try {
                         if (candidate != null) {
                             try { candidate.bindSocket(s) } catch (t: Throwable) {
-                                Log.w(TAG_SSH, "bindSocket to $label failed", t)
+                                AppLog.w(TAG_SSH, "bindSocket to $label failed", t)
                             }
                         }
                         s.connect(java.net.InetSocketAddress(resolvedIp, port), PROBE_PER_NETWORK_TIMEOUT_MS)
@@ -589,7 +588,7 @@ internal suspend fun probeReachability(context: Context, host: String, port: Int
     val failures = results.filter { it.third != null }.map { it.first to (it.third ?: "unknown") }
     val totalMs = System.currentTimeMillis() - probeStart
     if (winner != null) {
-        Log.i(TAG_SSH, "tcp probe ok via ${winner.first} in ${totalMs}ms")
+        AppLog.i(TAG_SSH, "tcp probe ok via ${winner.first} in ${totalMs}ms")
         return ProbeOutcome(winner.second, winner.first, failures, resolvedIp, totalMs)
     }
     return ProbeOutcome(null, null, failures, resolvedIp, totalMs)
@@ -914,7 +913,7 @@ internal suspend fun execOneShot(
                 } catch (e: Throwable) {
                     val retryable = !isAuthFailure(e.message) && !isHostKeyChange(e.message)
                     if (attempt < 2 && retryable) {
-                        Log.w(TAG_SSH, "ssh handshake attempt $attempt failed, retrying: ${e.message}")
+                        AppLog.w(TAG_SSH, "ssh handshake attempt $attempt failed, retrying: ${e.message}")
                         Thread.sleep(800)
                         continue
                     }
@@ -923,12 +922,12 @@ internal suspend fun execOneShot(
             }
             checkNotNull(connected) { "ssh connect failed after retries" }
         } catch (e: Throwable) {
-            Log.w(TAG_SSH, "ssh handshake failed in ${System.currentTimeMillis() - handshakeStart}ms", e)
+            AppLog.w(TAG_SSH, "ssh handshake failed in ${System.currentTimeMillis() - handshakeStart}ms", e)
             tunnel?.close()
             return@runInterruptible wrapConnectError(host, e)
         }
         sessionRef.set(session)
-        Log.i(TAG_SSH, "ssh session up via ${outcome.winningLabel ?: "default"} in ${System.currentTimeMillis() - handshakeStart}ms")
+        AppLog.i(TAG_SSH, "ssh session up via ${outcome.winningLabel ?: "default"} in ${System.currentTimeMillis() - handshakeStart}ms")
         try {
             runOnSession(session, command, timeoutMs, stdin)
         } catch (e: Throwable) {
@@ -1034,7 +1033,7 @@ internal fun forgetHostKey(context: Context, host: String): Int {
             }
         }
     } catch (e: Throwable) {
-        Log.w(TAG_SSH, "forgetHostKey: failed to persist known_hosts after remove", e)
+        AppLog.w(TAG_SSH, "forgetHostKey: failed to persist known_hosts after remove", e)
     }
     return before
 }

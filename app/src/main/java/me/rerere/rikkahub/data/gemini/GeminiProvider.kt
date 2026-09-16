@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.data.gemini
 
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
@@ -52,6 +51,7 @@ import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Talks to Google Cloud Code Assist with a signed-in Google account instead of an API key.
@@ -165,11 +165,11 @@ class GeminiProvider(
                     val chunk = wire.parseStreamCandidates(inner, params.model) ?: return
                     adapter.translate(chunk).forEach { streamChunk ->
                         trySend(streamChunk).onFailure { e ->
-                            Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                            AppLog.w(TAG, "onEvent: chunk dropped (${e?.message})")
                         }
                     }
                 } catch (e: Exception) {
-                    Log.w(TAG, "onEvent: failed to parse chunk, payload=${data.take(PAYLOAD_LOG_LIMIT)}", e)
+                    AppLog.w(TAG, "onEvent: failed to parse chunk, payload=${data.take(PAYLOAD_LOG_LIMIT)}", e)
                 }
             }
 
@@ -295,7 +295,7 @@ internal class GeminiStreamChunkAdapter {
                         )
                     }
 
-                    else -> Log.w(TAG, "translate: unsupported delta part $part")
+                    else -> AppLog.w(TAG, "translate: unsupported delta part $part")
                 }
             }
             if (delta.annotations.isNotEmpty()) {

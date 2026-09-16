@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.data.ai.mcp
 
 import android.content.Context
-import android.util.Log
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +22,7 @@ import me.rerere.rikkahub.data.event.AppEventBus
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.time.Duration.Companion.minutes
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "McpOAuthCoordinator"
 private const val TOKEN_REFRESH_LEEWAY_MS = 60_000L
@@ -52,7 +52,7 @@ internal class McpOAuthCoordinator(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "OAuth authorization failed for ${config.commonOptions.name}", e)
+                AppLog.e(TAG, "OAuth authorization failed for ${config.commonOptions.name}", e)
                 updateStatus(config.id, McpStatus.Error.from(e, fallbackMessage = "OAuth authorization failed"))
             }
         }
@@ -111,7 +111,7 @@ internal class McpOAuthCoordinator(
                 persistOAuthState(config.id, updated)
                 config.clone(commonOptions = config.commonOptions.copy(oauth = updated))
             }.getOrElse {
-                Log.w(TAG, "Token refresh failed for ${config.commonOptions.name}: ${it.message}")
+                AppLog.w(TAG, "Token refresh failed for ${config.commonOptions.name}: ${it.message}")
                 config
             }
         }
@@ -124,7 +124,7 @@ internal class McpOAuthCoordinator(
         }
         return runCatching { oauthClient.discoverProtectedResource(config.serverUrl) }
             .onFailure {
-                Log.i(TAG, "OAuth probe failed for ${config.commonOptions.name}: ${it.message}")
+                AppLog.i(TAG, "OAuth probe failed for ${config.commonOptions.name}: ${it.message}")
             }
             .isSuccess
     }

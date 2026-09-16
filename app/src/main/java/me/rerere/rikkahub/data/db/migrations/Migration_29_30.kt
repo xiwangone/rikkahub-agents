@@ -1,8 +1,8 @@
 package me.rerere.rikkahub.data.db.migrations
 
-import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "Migration_29_30"
 
@@ -19,7 +19,7 @@ private const val TAG = "Migration_29_30"
  */
 val Migration_29_30 = object : Migration(29, 30) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        Log.i(TAG, "migrate: start migrate from 29 to 30 (creating compressed_archives table)")
+        AppLog.i(TAG, "migrate: start migrate from 29 to 30 (creating compressed_archives table)")
         db.beginTransaction()
         try {
             db.execSQL(
@@ -35,7 +35,7 @@ val Migration_29_30 = object : Migration(29, 30) {
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_compressed_archives_conversationId` ON `compressed_archives` (`conversationId`)")
             db.execSQL("CREATE INDEX IF NOT EXISTS `index_compressed_archives_conversationId_compressedAtMs` ON `compressed_archives` (`conversationId`, `compressedAtMs`)")
             db.setTransactionSuccessful()
-            Log.i(TAG, "migrate: migrate from 29 to 30 success")
+            AppLog.i(TAG, "migrate: migrate from 29 to 30 success")
         } finally {
             db.endTransaction()
         }

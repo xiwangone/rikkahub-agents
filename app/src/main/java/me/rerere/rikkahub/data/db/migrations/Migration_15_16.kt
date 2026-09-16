@@ -1,17 +1,17 @@
 package me.rerere.rikkahub.data.db.migrations
 
-import android.util.Log
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.data.db.DatabaseMigrationTracker
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "Migration_15_16"
 
 val Migration_15_16 = object : Migration(15, 16) {
     override fun migrate(db: SupportSQLiteDatabase) {
-        Log.i(TAG, "migrate: start migrate from 15 to 16 (eager tool message migration)")
+        AppLog.i(TAG, "migrate: start migrate from 15 to 16 (eager tool message migration)")
         DatabaseMigrationTracker.onMigrationStart(15, 16)
         db.beginTransaction()
         try {
@@ -44,7 +44,7 @@ val Migration_15_16 = object : Migration(15, 16) {
                         rows.add(ToolNodeMigrationRow(id, messages, selectIndex))
                     }.onFailure {
                         hasUnparsableRow = true
-                        Log.w(TAG, "migrate: failed to parse messages for node $id, conversation $conversationId will be left untouched", it)
+                        AppLog.w(TAG, "migrate: failed to parse messages for node $id, conversation $conversationId will be left untouched", it)
                     }
                 }
                 nodeCursor.close()
@@ -60,7 +60,7 @@ val Migration_15_16 = object : Migration(15, 16) {
                 val migrated = try {
                     migrateConversationNodes(rows, hasUnparsableRow)
                 } catch (e: Exception) {
-                    Log.e(TAG, "migrate: failed to migrate conversation $conversationId, leaving it untouched", e)
+                    AppLog.e(TAG, "migrate: failed to migrate conversation $conversationId, leaving it untouched", e)
                     null
                 }
 
@@ -82,7 +82,7 @@ val Migration_15_16 = object : Migration(15, 16) {
             }
 
             db.setTransactionSuccessful()
-            Log.i(
+            AppLog.i(
                 TAG,
                 "migrate: migrate from 15 to 16 success ($updatedConversations conversations updated, " +
                     "$skippedConversations skipped due to unparsable rows)"

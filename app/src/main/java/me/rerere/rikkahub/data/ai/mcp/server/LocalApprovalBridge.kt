@@ -8,7 +8,6 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
-import android.util.Log
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
@@ -20,6 +19,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * MCP 工具执行前的审批桥：`tool.needsApproval(input) == true` 时挂起执行，
@@ -111,7 +111,7 @@ class LocalApprovalBridge(private val context: Context) {
                 android.Manifest.permission.POST_NOTIFICATIONS,
             ) != android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
-            Log.w(TAG, "POST_NOTIFICATIONS not granted; approval gated on timeout-reject")
+            AppLog.w(TAG, "POST_NOTIFICATIONS not granted; approval gated on timeout-reject")
             return
         }
         ensureNotificationChannel()
@@ -155,7 +155,7 @@ class LocalApprovalBridge(private val context: Context) {
         runCatching {
             NotificationManagerCompat.from(context).notify(tool.name.hashCode(), notification)
         }.onFailure {
-            Log.w(TAG, "Failed to post approval notification", it)
+            AppLog.w(TAG, "Failed to post approval notification", it)
         }
     }
 

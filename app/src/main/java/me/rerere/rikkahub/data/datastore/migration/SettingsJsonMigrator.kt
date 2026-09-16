@@ -1,11 +1,11 @@
 package me.rerere.rikkahub.data.datastore.migration
 
-import android.util.Log
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "SettingsJsonMigrator"
 
@@ -71,7 +71,7 @@ object SettingsJsonMigrator {
 
             JsonInstant.encodeToString(JsonObject(root))
         }.onFailure {
-            Log.e(TAG, "migrate: Failed to migrate settings JSON, using original", it)
+            AppLog.e(TAG, "migrate: Failed to migrate settings JSON, using original", it)
         }.getOrDefault(settingsJson)
     }
 }
