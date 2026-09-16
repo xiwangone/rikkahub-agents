@@ -253,6 +253,6 @@ class KeyboardApiClient(private val context: Context) {
                 as android.view.inputmethod.InputMethodManager
             imm.enabledInputMethodList.any { it.packageName == KEYBOARD_PACKAGE }
         }.getOrDefault(false)
-        private const val SENTINEL_NULL = " __keyboard_api_null__"
+        private const val SENTINEL_NULL = "\u0000__keyboard_api_null__"
     }
 }

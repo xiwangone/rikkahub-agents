@@ -475,7 +475,8 @@ class McpManager(
             }
             clients.remove(entry.key)
             syncingStatus.emit(syncingStatus.value.toMutableMap().apply { remove(entry.key.id) })
-            AppLog.i(TAG, "removeClient: ${entry.key} / ${entry.key.commonOptions.name}")
+            // 不要打印整个连接键：它含 headers（Authorization 等明文）。
+            AppLog.i(TAG, "removeClient: ${entry.key.clientName} (url=${me.rerere.rikkahub.utils.LogRedactor.maskUrl(entry.key.serverUrl)})")
         }
         reconnectAttempts.remove(config.id)
     }
