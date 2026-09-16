@@ -109,3 +109,27 @@ jobs:
             runtime-deps.json
             deps-raw.txt
           retention-days: 14
+
+  detekt:
+    name: detekt（Kotlin 静态分析）
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      # 基线只登记既有问题：本作业只对「新增」问题报失败
+      - name: Run detekt
+        run: |
+          curl -sSL -o /tmp/detekt-cli.jar \
+            https://github.com/detekt/detekt/releases/download/v1.23.8/detekt-cli-1.23.8-all.jar
+          java -Xmx2g -jar /tmp/detekt-cli.jar \
+            --input app/src/main/java,ai/src/main/java \
+            --build-upon-default-config \
+            --config .github/detekt/detekt.yml \
+            --baseline .github/detekt/detekt-baseline.xml

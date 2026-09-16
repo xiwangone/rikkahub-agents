@@ -1,0 +1,673 @@
+<?xml version="1.0" ?>
+<SmellBaseline>
+  <ManuallySuppressedIssues/>
+  <CurrentIssues>
+    <ID>ComplexCondition:AutoCompactionMessageGroup.kt$groupedNodes.last().currentMessage.role == MessageRole.ASSISTANT &amp;&amp; ContextCompactionPresentation.hasDisplayTool(groupedNodes.last().currentMessage) &amp;&amp; index + 1 &lt; size &amp;&amp; this[index + 1].currentMessage.role == MessageRole.ASSISTANT</ID>
+    <ID>ComplexCondition:BrowserAddressBar.kt$lower.startsWith("http://") || lower.startsWith("https://") || lower.startsWith("file://") || lower.startsWith("about:") || lower.startsWith("data:")</ID>
+    <ID>ComplexCondition:ChatCompletionsAPI.kt$ChatCompletionsAPI$message.role == MessageRole.SYSTEM &amp;&amp; allText &amp;&amp; openRouterCache &amp;&amp; textParts.size &gt;= 2</ID>
+    <ID>ComplexCondition:ChatboxImporter.kt$ChatboxImporter$promptTokens == 0 &amp;&amp; completionTokens == 0 &amp;&amp; cachedTokens == 0 &amp;&amp; totalTokens == 0</ID>
+    <ID>ComplexCondition:ConversationDiff.kt$title != current.title || chatSuggestions != current.chatSuggestions || isPinned != current.isPinned || customSystemPrompt != current.customSystemPrompt || modeInjectionIds != current.modeInjectionIds || lorebookIds != current.lorebookIds || workspaceCwd != current.workspaceCwd || folderId != current.folderId</ID>
+    <ID>ComplexCondition:CredentialImporter.kt$CredentialImporter$s.length &gt;= 2 &amp;&amp; ((s.first() == '"' &amp;&amp; s.last() == '"') || (s.first() == '\'' &amp;&amp; s.last() == '\''))</ID>
+    <ID>ComplexCondition:CredentialType.kt$CredentialType$n.endsWith("_TOKEN") || n.endsWith("_API_KEY") || n.endsWith("_KEY") || n.contains("APIKEY") || n.contains("SECRET")</ID>
+    <ID>ComplexCondition:DataTable.kt$stretchToFillWidth &amp;&amp; viewportMaxWidth != Constraints.Infinity &amp;&amp; viewportMaxWidth &gt; naturalWidth &amp;&amp; naturalWidth &gt; 0</ID>
+    <ID>ComplexCondition:DiffView.kt$!showFileHeader &amp;&amp; lines.size &gt;= 2 &amp;&amp; lines[0].startsWith("---") &amp;&amp; lines[1].startsWith("+++")</ID>
+    <ID>ComplexCondition:FileManagerTool.kt$PathSafetyGuard$rawNorm.contains("/../") || rawNorm.endsWith("/..") || rawNorm == ".." || rawNorm.startsWith("../")</ID>
+    <ID>ComplexCondition:FindNodeTool.kt$by == null || by !in ALLOWED_BY || value == null || newText == null</ID>
+    <ID>ComplexCondition:GuardedDns.kt$isLoopbackAddress || isAnyLocalAddress || isLinkLocalAddress || isSiteLocalAddress || isMulticastAddress</ID>
+    <ID>ComplexCondition:MarkdownNew.kt$r != null &amp;&amp; g != null &amp;&amp; b != null &amp;&amp; a != null &amp;&amp; r in 0..255 &amp;&amp; g in 0..255 &amp;&amp; b in 0..255 &amp;&amp; a in 0f..1f</ID>
+    <ID>ComplexCondition:McpManager.kt$c.code &lt; 128 &amp;&amp; (c.isLetterOrDigit() || c == '_' || c == '-')</ID>
+    <ID>ComplexCondition:Message.kt$part is UIMessagePart.Tool &amp;&amp; !part.isExecuted &amp;&amp; part.approvalState !is ToolApprovalState.Denied &amp;&amp; part.approvalState !is ToolApprovalState.Answered</ID>
+    <ID>ComplexCondition:ModelList.kt$fromIndex &gt;= 0 &amp;&amp; toIndex &gt;= 0 &amp;&amp; fromIndex &lt; favoriteModels.size &amp;&amp; toIndex &lt; favoriteModels.size</ID>
+    <ID>ComplexCondition:RunJsTool.kt$raw.startsWith("http://", ignoreCase = true) || raw.startsWith("https://", ignoreCase = true) || raw.startsWith("file://", ignoreCase = true) || raw.startsWith("data:", ignoreCase = true)</ID>
+    <ID>ComplexCondition:ScheduledJobSummaries.kt$dom == "*" &amp;&amp; month == "*" &amp;&amp; minute.toIntOrNull() in 0..59 &amp;&amp; hour.toIntOrNull() in 0..23</ID>
+    <ID>ComplexCondition:ScheduledJobSummaries.kt$hour == "*" &amp;&amp; dom == "*" &amp;&amp; month == "*" &amp;&amp; dow == "*" &amp;&amp; minute.matches(Regex("\\*/\\d+"))</ID>
+    <ID>ComplexCondition:ScheduledJobSummaries.kt$minute == "0" &amp;&amp; dom == "*" &amp;&amp; month == "*" &amp;&amp; dow == "*" &amp;&amp; hour.matches(Regex("\\*/\\d+"))</ID>
+    <ID>ComplexCondition:SettingSearchPage.kt$fromIndex &gt;= 0 &amp;&amp; toIndex &gt;= 0 &amp;&amp; fromIndex &lt; settings.searchServices.size &amp;&amp; toIndex &lt; settings.searchServices.size</ID>
+    <ID>ComplexCondition:SimpleHtmlBlock.kt$r != null &amp;&amp; g != null &amp;&amp; b != null &amp;&amp; a != null &amp;&amp; r in 0..255 &amp;&amp; g in 0..255 &amp;&amp; b in 0..255 &amp;&amp; a in 0f..1f</ID>
+    <ID>ComplexCondition:SkillUrlImporter.kt$SkillUrlImporter$sniff.startsWith("&lt;!doctype") || sniff.startsWith("&lt;html") || sniff.startsWith("&lt;head") || sniff.startsWith("&lt;body") || sniff.startsWith("&lt;?xml")</ID>
+    <ID>ComplexCondition:SshHostsTool.kt$e.contains("auth") || e.contains("authentication") || e.contains("host key") || e.contains("hostkey") || e.contains("userauth") || e.contains("permission denied")</ID>
+    <ID>ComplexCondition:SwipeTool.kt$sx == null || sy == null || ex == null || ey == null</ID>
+    <ID>ComplexCondition:TimeCronTrigger.kt$TimeCronTriggerFamily$prev == null || prev.trigger != wf.trigger || prev.updatedAtMs != wf.updatedAtMs || !prev.enabled</ID>
+    <ID>ComplexCondition:VaultReferenceSync.kt$VaultReferenceSync$text.isBlank() || oldName.isBlank() || newName.isBlank() || oldName == newName</ID>
+    <ID>ComplexCondition:WebDavSync.kt$WebDavSync$name == "tmp" || name == "linux" || name == ".git" || name == "node_modules" || name == "local-models" || name == "cache" || name == ".gradle" || name == "build"</ID>
+    <ID>ComplexCondition:WebDavSync.kt$WebDavSync$wsRoot.isBlank() || wsRoot == "." || wsRoot == ".." || wsRoot.contains('\\')</ID>
+    <ID>ComplexCondition:WebView.kt$url.isNotEmpty() &amp;&amp; (currentWebViewUrl.isNullOrBlank() || url != currentWebViewUrl || state.forceReload)</ID>
+    <ID>CyclomaticComplexMethod:AICoreProvider.kt$AICoreProvider$override suspend fun streamText( providerSetting: ProviderSetting.AICore, messages: List&lt;UIMessage&gt;, params: TextGenerationParams, ): Flow&lt;StreamChunk&gt;</ID>
+    <ID>CyclomaticComplexMethod:AIIconMatcher.kt$fun computeAIIconByName(name: String): String?</ID>
+    <ID>CyclomaticComplexMethod:AppLauncherTool.kt$fun listInstalledAppsTool(context: Context): Tool</ID>
+    <ID>CyclomaticComplexMethod:ArchiveTools.kt$fun unzipFileTool(context: Context): Tool</ID>
+    <ID>CyclomaticComplexMethod:ArchiveTools.kt$fun zipFilesTool(context: Context): Tool</ID>
+    <ID>CyclomaticComplexMethod:AssistantBasicPage.kt$@Composable internal fun AssistantBasicContent( innerPadding: PaddingValues, assistant: Assistant, providers: List&lt;me.rerere.ai.provider.ProviderSetting&gt;, tags: List&lt;DataTag&gt;, workspaces: List&lt;WorkspaceEntity&gt;, onUpdate: (Assistant) -&gt; Unit, vm: AssistantDetailVM, )</ID>
+    <ID>CyclomaticComplexMethod:AssistantLocalToolPage.kt$@Composable private fun AssistantLocalToolContent( modifier: Modifier = Modifier, assistant: Assistant, onUpdate: (Assistant) -&gt; Unit, onUpdateAssistant: ((Assistant) -&gt; Assistant) -&gt; Unit, sourceAssistants: List&lt;Assistant&gt;, onImportToolConfig: (sourceId: String, includeMcp: Boolean, includeSkills: Boolean, includeWebSearch: Boolean) -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:AssistantLocalToolPage.kt$@Composable private fun PermissionedSwitch( checked: Boolean, onCheckedChange: (Boolean) -&gt; Unit, requiredRuntimePerms: List&lt;String&gt; = emptyList(), requiresWriteSettings: Boolean = false, requiresDndAccess: Boolean = false, requiresAccessibilityService: Boolean = false, requiresNotificationListener: Boolean = false, requiresAllFilesAccess: Boolean = false, enabled: Boolean = true, )</ID>
+    <ID>CyclomaticComplexMethod:AssistantLocalToolPage.kt$@Composable private fun TermuxStatusRowSubtitle(enabled: Boolean)</ID>
+    <ID>CyclomaticComplexMethod:AudioInfo.kt$private fun audioDeviceTypeName(type: Int): String</ID>
+    <ID>CyclomaticComplexMethod:AutoTaskDialog.kt$@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class) @Composable fun AutoTaskDialog( config: AutoTaskConfig, onDismiss: () -&gt; Unit, onConfirm: (AutoTaskConfig) -&gt; Unit, onStop: (() -&gt; Unit)? = null, hasActiveTask: Boolean = false, )</ID>
+    <ID>CyclomaticComplexMethod:BackendProvider.kt$BackendProvider$override suspend fun streamText( providerSetting: ProviderSetting.Backend, messages: List&lt;UIMessage&gt;, params: TextGenerationParams, ): Flow&lt;StreamChunk&gt;</ID>
+    <ID>CyclomaticComplexMethod:BrowserTools.kt$fun createBrowserTool( toolName: String, context: Context, invocationContext: ToolInvocationContext? = null, ): Tool?</ID>
+    <ID>CyclomaticComplexMethod:CameraPhotoTool.kt$fun cameraPhotoTool(context: Context, buffer: CameraResultBuffer): Tool</ID>
+    <ID>CyclomaticComplexMethod:ChatCompletionsAPI.kt$ChatCompletionsAPI$private fun buildAssistantMessageJson( contentParts: List&lt;UIMessagePart&gt;, tools: List&lt;UIMessagePart.Tool&gt;, reasoningPart: UIMessagePart.Reasoning?, supportInputModalities: List&lt;Modality&gt;, includeOpenRouterReasoningDetails: Boolean, ): JsonObject?</ID>
+    <ID>CyclomaticComplexMethod:ChatCompletionsAPI.kt$ChatCompletionsAPI$private fun buildChatCompletionRequest( messages: List&lt;UIMessage&gt;, params: TextGenerationParams, providerSetting: ProviderSetting.OpenAI, stream: Boolean = false, ): JsonObject</ID>
+    <ID>CyclomaticComplexMethod:ChatCompletionsAPI.kt$ChatCompletionsAPI$private fun parseMessage(jsonObject: JsonObject): UIMessage</ID>
+    <ID>CyclomaticComplexMethod:ChatCompletionsStreamDecoder.kt$ChatCompletionsStreamDecoder.ChatCompletionsStreamState$fun append(message: UIMessage, sourceId: String?): List&lt;StreamChunk&gt;</ID>
+    <ID>CyclomaticComplexMethod:ChatInput.kt$@Composable fun ChatInput( state: ChatInputState, loading: Boolean, /** 待发送队列长度；&gt; 0 时在输入区上方提示「待发送 N 条」。 */ pendingQueueCount: Int = 0, settings: Settings, hazeState: HazeState, enableSearch: Boolean, sessionTotals: TokenBudgetTracker.Totals? = null, onToggleSearch: (Boolean) -&gt; Unit, modifier: Modifier = Modifier, completionProviders: List&lt;ChatCompletionProvider&gt; = emptyList(), onUpdateChatModel: (Model) -&gt; Unit, onUpdateAssistant: (Assistant) -&gt; Unit, onUpdateSearchService: (Int) -&gt; Unit, onMoreClick: () -&gt; Unit, onVaultAuthorizeClick: () -&gt; Unit = {}, onAutoClick: () -&gt; Unit = {}, onCancelClick: () -&gt; Unit, onSendClick: () -&gt; Unit, onLongSendClick: () -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:ChatInput.kt$@Composable private fun TextInputRow( state: ChatInputState, completionProviders: List&lt;ChatCompletionProvider&gt;, sessionTotals: TokenBudgetTracker.Totals? = null, onSendMessage: () -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:ChatList.kt$@Composable private fun ChatListNormal( innerPadding: PaddingValues, conversation: Conversation, state: LazyListState, loading: Boolean, processingStatus: String? = null, settings: Settings, hazeState: HazeState, errors: List&lt;ChatError&gt;, onDismissError: (Uuid) -&gt; Unit, onClearAllErrors: () -&gt; Unit, onRegenerate: (UIMessage) -&gt; Unit, onEdit: (UIMessage) -&gt; Unit, onForkMessage: (UIMessage) -&gt; Unit, onDelete: (UIMessage) -&gt; Unit, onUpdateMessage: (MessageNode) -&gt; Unit, onClickSuggestion: (String) -&gt; Unit, onTranslate: ((UIMessage, java.util.Locale) -&gt; Unit)?, onClearTranslation: (UIMessage) -&gt; Unit, animatedVisibilityScope: AnimatedVisibilityScope, onToolApproval: ( ( toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String, ) -&gt; Unit )? = null, onToolAnswer: ((toolCallId: String, answer: String) -&gt; Unit)? = null, onToggleFavorite: ((MessageNode) -&gt; Unit)? = null, onConversationSystemPromptChange: ((String?) -&gt; Unit)? = null, sessionTotals: TokenBudgetTracker.Totals? = null, )</ID>
+    <ID>CyclomaticComplexMethod:ChatMessage.kt$@OptIn(FlowPreview::class) @Composable private fun MessagePartsBlock( assistant: Assistant?, role: MessageRole, model: Model?, parts: List&lt;UIMessagePart&gt;, annotations: List&lt;UIMessageAnnotation&gt;, loading: Boolean, onToolApproval: ( ( toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String, ) -&gt; Unit )? = null, onToolAnswer: ((toolCallId: String, answer: String) -&gt; Unit)? = null, onUserMessageClick: (() -&gt; Unit)? = null, )</ID>
+    <ID>CyclomaticComplexMethod:ChatMessageBackend.kt$@Composable internal fun BackendApprovalCard( requestId: String, tool: String, subject: String?, onToolApproval: ( ( toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String, ) -&gt; Unit )?, )</ID>
+    <ID>CyclomaticComplexMethod:ChatMessageEditedFiles.kt$@OptIn(ExperimentalLayoutApi::class) @Composable internal fun EditedFilesList( parts: List&lt;UIMessagePart&gt;, assistant: Assistant?, )</ID>
+    <ID>CyclomaticComplexMethod:ChatMessageNerdLine.kt$@Composable fun ChatMessageNerdLine( message: UIMessage, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f), sessionTotals: TokenBudgetTracker.Totals? = null, )</ID>
+    <ID>CyclomaticComplexMethod:ChatMessageTools.kt$@Composable fun ChainOfThoughtScope.ChatMessageToolStep( tool: UIMessagePart.Tool, loading: Boolean = false, onToolApproval: ( ( toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String, ) -&gt; Unit )? = null, onToolAnswer: ((toolCallId: String, answer: String) -&gt; Unit)? = null, )</ID>
+    <ID>CyclomaticComplexMethod:ChatMessageTools.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun ChainOfThoughtScope.AskUserToolStep( tool: UIMessagePart.Tool, loading: Boolean, onToolAnswer: ((toolCallId: String, answer: String) -&gt; Unit)?, )</ID>
+    <ID>CyclomaticComplexMethod:ChatPage.kt$@Composable private fun ChatFilesPickerSheet( inputState: ChatInputState, setting: Settings, conversation: Conversation, assistant: Assistant, vm: ChatVM, onDismiss: () -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:ChatPage.kt$@Composable private fun ChatPageContent( inputState: ChatInputState, loadingJob: Job?, processingStatus: String? = null, setting: Settings, bigScreen: Boolean, conversation: Conversation, drawerState: DrawerState, navController: Navigator, vm: ChatVM, chatListState: LazyListState, enableWebSearch: Boolean, currentChatModel: Model?, errors: List&lt;ChatError&gt;, onDismissError: (Uuid) -&gt; Unit, onClearAllErrors: () -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:ChatService.kt$ChatService$fun handleToolApproval( conversationId: Uuid, toolCallId: String, approved: Boolean, reason: String = "", answer: String? = null, scope: ApprovalScope = ApprovalScope.Once, toolName: String? = null, )</ID>
+    <ID>CyclomaticComplexMethod:ChatService.kt$ChatService$private suspend fun handleMessageComplete( conversationId: Uuid, messageRange: ClosedRange&lt;Int&gt;? = null, )</ID>
+    <ID>CyclomaticComplexMethod:ChatVM.kt$ChatVM$fun scheduleAutoTask(config: AutoTaskConfig)</ID>
+    <ID>CyclomaticComplexMethod:ChatboxImporter.kt$ChatboxImporter$private suspend fun parseSession( session: JsonObject, sessionEntry: SessionEntry, assistantId: Uuid, providers: List&lt;ProviderSetting&gt;, resolveImage: suspend (String) -&gt; String?, counters: ImportCounters, ): Conversation?</ID>
+    <ID>CyclomaticComplexMethod:ChatboxImporter.kt$ChatboxImporter$suspend fun importStreaming( file: File, assistantId: Uuid, providers: List&lt;ProviderSetting&gt;, shouldImportConversation: suspend (Uuid) -&gt; Boolean = { true }, saveImage: suspend (ChatboxImageResource) -&gt; String? = { null }, onConversation: suspend (Conversation) -&gt; Unit, ): ChatboxStreamingImportResult</ID>
+    <ID>CyclomaticComplexMethod:ClaudeProvider.kt$ClaudeProvider$internal fun parseMessage(content: JsonArray): UIMessage</ID>
+    <ID>CyclomaticComplexMethod:ClaudeProvider.kt$ClaudeProvider$private fun buildMessageRequest( providerSetting: ProviderSetting.Claude, messages: List&lt;UIMessage&gt;, params: TextGenerationParams, stream: Boolean = false ): JsonObject</ID>
+    <ID>CyclomaticComplexMethod:ClaudeStreamDecoder.kt$ClaudeStreamDecoder$override fun accept(event: SseEvent): DecodeResult</ID>
+    <ID>CyclomaticComplexMethod:ConditionEvaluator.kt$ConditionEvaluator$private fun evaluateRaw( condition: ConditionSpec, ctx: WorkflowContext, zone: ZoneId, ): Boolean</ID>
+    <ID>CyclomaticComplexMethod:ConversationRoutes.kt$fun Route.conversationRoutes( chatService: ChatService, conversationRepo: ConversationRepository, folderRepo: FolderRepository, settingsStore: SettingsStore )</ID>
+    <ID>CyclomaticComplexMethod:CredentialImporter.kt$CredentialImporter$fun parse(content: String): List&lt;ParsedEntry&gt;</ID>
+    <ID>CyclomaticComplexMethod:CronJobTool.kt$ScheduleJobValidator$fun validate(input: JsonObject, knownToolNames: List&lt;String&gt;): ValidationError?</ID>
+    <ID>CyclomaticComplexMethod:CronJobWorker.kt$CronJobWorker$override suspend fun doWork(): Result</ID>
+    <ID>CyclomaticComplexMethod:DataTable.kt$@Composable fun DataTable( headers: List&lt;@Composable () -&gt; Unit&gt;, rows: List&lt;List&lt;@Composable () -&gt; Unit&gt;&gt;, modifier: Modifier = Modifier, cellPadding: Dp = 4.dp, cellBorder: BorderStroke? = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant), headerBackground: Color = MaterialTheme.colorScheme.surfaceVariant, zebraStriping: Boolean = false, columnMinWidths: List&lt;Dp&gt; = emptyList(), columnMaxWidths: List&lt;Dp&gt; = emptyList(), cellAlignment: Alignment = Alignment.CenterStart, outerBorder: BorderStroke? = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape: Shape = MaterialTheme.shapes.small, stretchToFillWidth: Boolean = true, )</ID>
+    <ID>CyclomaticComplexMethod:DoctorChecks.kt$DoctorChecks$private fun browserChecks(enabled: Set&lt;LocalToolOption&gt;): List&lt;DoctorCheck&gt;</ID>
+    <ID>CyclomaticComplexMethod:DoctorChecks.kt$DoctorChecks$private fun diagnosticsChecks(enabled: Set&lt;LocalToolOption&gt;): List&lt;DoctorCheck&gt;</ID>
+    <ID>CyclomaticComplexMethod:DoctorChecks.kt$DoctorChecks$private suspend fun databaseChecks(enabled: Set&lt;LocalToolOption&gt;): List&lt;DoctorCheck&gt;</ID>
+    <ID>CyclomaticComplexMethod:DoctorChecks.kt$DoctorChecks$private suspend fun networkChecks(): List&lt;DoctorCheck&gt;</ID>
+    <ID>CyclomaticComplexMethod:DoctorChecks.kt$DoctorChecks$private suspend fun serviceChecks(enabled: Set&lt;LocalToolOption&gt;): List&lt;DoctorCheck&gt;</ID>
+    <ID>CyclomaticComplexMethod:DoctorChecks.kt$private fun LocalToolOption.shortName(context: Context): String</ID>
+    <ID>CyclomaticComplexMethod:Emoji.kt$@Preview @Composable fun EmojiPicker( modifier: Modifier = Modifier, onEmojiSelected: (Emoji) -&gt; Unit = {}, showSearch: Boolean = true, height: Int = 400, )</ID>
+    <ID>CyclomaticComplexMethod:EmojiBurst.kt$@Composable fun EmojiBurstHost( modifier: Modifier = Modifier, emojiOptions: List&lt;String&gt;, burstCount: Int = 12, content: @Composable (onBurst: (Offset) -&gt; Unit) -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:Export.kt$@Suppress("DEPRECATION") @Composable private fun ExportedChatMessage( message: UIMessage, prevMessage: UIMessage? = null, options: ImageExportOptions = ImageExportOptions(), )</ID>
+    <ID>CyclomaticComplexMethod:Export.kt$private fun exportToMarkdown( context: Context, conversation: Conversation, messages: List&lt;UIMessage&gt;, )</ID>
+    <ID>CyclomaticComplexMethod:FileBatchTools.kt$fun batchMoveTool(): Tool</ID>
+    <ID>CyclomaticComplexMethod:FileManagerContentOps.kt$internal fun moveOrCopyContent( context: Context, rawSrc: String?, rawDst: String?, obj: JsonObject, deleteSrc: Boolean, ): List&lt;UIMessagePart&gt;</ID>
+    <ID>CyclomaticComplexMethod:FileManagerTool.kt$fun findFilesTool(): Tool</ID>
+    <ID>CyclomaticComplexMethod:FileManagerTool.kt$fun moveFileTool(): Tool</ID>
+    <ID>CyclomaticComplexMethod:FileManagerTool.kt$fun readFileTool(): Tool</ID>
+    <ID>CyclomaticComplexMethod:FileUtils.kt$FileUtils$private fun sniffMimeType(file: File): String</ID>
+    <ID>CyclomaticComplexMethod:FilesRoutes.kt$fun Route.filesRoutes( filesManager: FilesManager, context: Context )</ID>
+    <ID>CyclomaticComplexMethod:GeminiProvider.kt$GeminiStreamChunkAdapter$fun translate(chunk: MessageChunk): List&lt;StreamChunk&gt;</ID>
+    <ID>CyclomaticComplexMethod:GenerationLoop.kt$GenerationLoop$fun generateText( settings: Settings, model: Model, messages: List&lt;UIMessage&gt;, inputTransformers: List&lt;InputMessageTransformer&gt; = emptyList(), outputTransformers: List&lt;OutputMessageTransformer&gt; = emptyList(), assistant: Assistant, memories: List&lt;AssistantMemory&gt;? = null, tools: List&lt;Tool&gt; = emptyList(), // Read live from the runtime holder, not captured once: the default expression is // evaluated per call, so a settings change takes effect on the next turn. maxSteps: Int = ToolRuntimeLimits.maxToolSteps, processingStatus: MutableStateFlow&lt;String?&gt; = MutableStateFlow(null), // Called on each retry after the failure has been diagnosed (label + raw text). // ChatService uses it to persist the last failure into the conversation when a // retry finally succeeds, so the model knows the generation recovered. onRetryDiagnosed: ((FailureDiagnosis) -&gt; Unit)? = null, // Called after a tool result has been emitted and persisted, before the next model // request is built. The callback may return a compacted request history; the returned // list is request-only and does not replace the conversation's original messages. onAfterToolExecution: suspend (List&lt;UIMessage&gt;) -&gt; List&lt;UIMessage&gt;? = { null }, // Called immediately before every model request, including the request after a tool // result. ChatService uses this to reassert the foreground service before a background // continuation opens a new socket. onBeforeModelRequest: suspend () -&gt; Unit = {}, // 取出用户在生成期间排队补充的消息，在**每个 step 结束（工具执行完）后**立即追加到 // 请求历史，使「及时修正/补充」在下一 step 就被模型看到，而不必等整轮结束。 // 返回的消息会随 GenerationChunk.Messages 一并 emit，由 ChatService 落库。 drainQueuedMessages: suspend () -&gt; List&lt;UIMessage&gt; = { emptyList() }, // Returns true when the user has pre-approved [toolName] for this turn (e.g. // "Allow for this chat" or "Always Allow" granted earlier). When true, the loop // below skips the Pending flip and lets the tool execute. ChatService injects the // closure that reads ToolApprovalAllowList + ToolApprovalPreferences. Default // returns false so callers that don't care still get vanilla approval gating. isToolAutoApproved: suspend (toolName: String) -&gt; Boolean = { false }, // Optional per-call addendum appended to the system prompt. Used by surfaces that // need the model to know runtime context (e.g. "you're talking via Telegram, the // chat_id is 12345") without polluting the user message body — without this the // preamble is replayed in user history every turn, burning ~80 tokens × N turns. systemAddendum: String? = null, conversationSystemPrompt: String? = null, conversationId: Uuid? = null, conversationModeInjectionIds: Set&lt;Uuid&gt; = emptySet(), conversationLorebookIds: Set&lt;Uuid&gt; = emptySet(), workspaceCwd: String? = null, ): Flow&lt;GenerationChunk&gt;</ID>
+    <ID>CyclomaticComplexMethod:GenerationLoop.kt$GenerationLoop$private suspend fun generateInternal( assistant: Assistant, settings: Settings, systemAddendum: String? = null, messages: List&lt;UIMessage&gt;, onUpdateMessages: suspend (List&lt;UIMessage&gt;) -&gt; Unit, transformers: List&lt;MessageTransformer&gt;, model: Model, providerImpl: Provider&lt;ProviderSetting&gt;, provider: ProviderSetting, tools: List&lt;Tool&gt;, memories: List&lt;AssistantMemory&gt;, stream: Boolean, processingStatus: MutableStateFlow&lt;String?&gt; = MutableStateFlow(null), // Called on each retry after the failure has been diagnosed (label + raw text). // ChatService uses it to persist the last failure into the conversation when a // retry finally succeeds, so the model knows the generation recovered. onRetryDiagnosed: ((FailureDiagnosis) -&gt; Unit)? = null, conversationSystemPrompt: String? = null, conversationId: Uuid? = null, conversationModeInjectionIds: Set&lt;Uuid&gt; = emptySet(), conversationLorebookIds: Set&lt;Uuid&gt; = emptySet(), workspaceCwd: String? = null, )</ID>
+    <ID>CyclomaticComplexMethod:GoogleProvider.kt$GoogleProvider$fun buildCompletionRequestBody( messages: List&lt;UIMessage&gt;, params: TextGenerationParams, safetyCategories: List&lt;String&gt; = GOOGLE_SAFETY_CATEGORIES, ): JsonObject</ID>
+    <ID>CyclomaticComplexMethod:GoogleStreamDecoder.kt$GoogleStreamDecoder.GoogleStreamState$fun append(message: UIMessage, responseId: String): List&lt;StreamChunk&gt;</ID>
+    <ID>CyclomaticComplexMethod:HardlineCommandGuard.kt$HardlineCommandGuard$fun checkToolParsed(toolName: String, input: JsonObject): String?</ID>
+    <ID>CyclomaticComplexMethod:HighlightCodeBlock.kt$@Composable private fun HighlightCodeActions( language: String, scope: CoroutineScope, clipboardManager: Clipboard, code: String, createDocumentLauncher: ManagedActivityResultLauncher&lt;String, Uri?&gt;, navController: Navigator, completeCodeBlock: Boolean = true, previewMode: Boolean = false, canInlinePreview: Boolean = false, onTogglePreviewMode: () -&gt; Unit = {}, )</ID>
+    <ID>CyclomaticComplexMethod:ImgGenPage.kt$@Composable private fun ImageGalleryScreen( vm: ImgGenVM, isActive: Boolean, )</ID>
+    <ID>CyclomaticComplexMethod:ImportExportTab.kt$@Composable fun ImportExportTab( vm: BackupVM, onShowRestartDialog: () -&gt; Unit )</ID>
+    <ID>CyclomaticComplexMethod:LocalToolCatalog.kt$LocalToolCatalog$fun labelRes(tool: LocalToolOption): Int</ID>
+    <ID>CyclomaticComplexMethod:LocalTools.kt$LocalTools$fun getTools( options: List&lt;LocalToolOption&gt;, invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY, ): List&lt;Tool&gt;</ID>
+    <ID>CyclomaticComplexMethod:LocationTool.kt$fun locationTool(context: Context): Tool</ID>
+    <ID>CyclomaticComplexMethod:Markdown.kt$@Composable private fun MarkdownNode( node: ASTNode, content: String, modifier: Modifier = Modifier, onClickCitation: (String) -&gt; Unit = {}, listLevel: Int = 0, )</ID>
+    <ID>CyclomaticComplexMethod:Markdown.kt$private fun AnnotatedString.Builder.appendMarkdownNodeContent( node: ASTNode, content: String, trim: Boolean = false, inlineContents: MutableMap&lt;String, InlineTextContent&gt;, colorScheme: ColorScheme, density: Density, style: TextStyle, enableLatexRendering: Boolean = true, latexColorArgb: Int = 0, onClickCitation: (String) -&gt; Unit = {}, )</ID>
+    <ID>CyclomaticComplexMethod:MarkdownNew.kt$@Composable private fun HtmlBlockElement( element: Element, onClickCitation: (String) -&gt; Unit, listLevel: Int = 0, )</ID>
+    <ID>CyclomaticComplexMethod:MarkdownNew.kt$private fun AnnotatedString.Builder.appendHtmlInlineElement( element: Element, colorScheme: androidx.compose.material3.ColorScheme, inlineContents: MutableMap&lt;String, InlineTextContent&gt;, density: Density, style: TextStyle, enableLatexRendering: Boolean, onClickCitation: (String) -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:MarkdownNew.kt$private fun parseColor(colorString: String): Color?</ID>
+    <ID>CyclomaticComplexMethod:MarkdownNew.kt$private fun parseFontSize( fontSize: String, density: Density, baseFontSize: TextUnit, ): TextUnit?</ID>
+    <ID>CyclomaticComplexMethod:MarkdownNew.kt$private fun parseInlineSpanStyle( style: String, density: Density, baseFontSize: TextUnit, ): SpanStyle?</ID>
+    <ID>CyclomaticComplexMethod:MarkdownNew.kt$private fun parseSpacing( spacing: String, density: Density, baseFontSize: TextUnit, ): TextUnit?</ID>
+    <ID>CyclomaticComplexMethod:McpControlTools.kt$internal fun classifyMcpError(message: String): Pair&lt;String, String&gt;</ID>
+    <ID>CyclomaticComplexMethod:ModelList.kt$@Composable private fun ColumnScope.ModelList( currentModel: Uuid? = null, providers: List&lt;ProviderSetting&gt;, modelType: ModelType, onSelect: (Model) -&gt; Unit, onDismiss: () -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:OpenRouterRequestBuilder.kt$fun buildProviderObject(routing: OpenRouterRouting, hasToolsOrSchema: Boolean): JsonObject?</ID>
+    <ID>CyclomaticComplexMethod:PromptInjectionTransformer.kt$internal fun applyInjections( messages: List&lt;UIMessage&gt;, byPosition: Map&lt;InjectionPosition, List&lt;PromptInjection&gt;&gt; ): List&lt;UIMessage&gt;</ID>
+    <ID>CyclomaticComplexMethod:ProviderConfigure.kt$@Composable private fun ColumnScope.ProviderConfigureLiteRT( provider: ProviderSetting.LiteRtLocal, onEdit: (ProviderSetting.LiteRtLocal) -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:ProviderConfigure.kt$fun ProviderSetting.convertTo(type: KClass&lt;out ProviderSetting&gt;): ProviderSetting</ID>
+    <ID>CyclomaticComplexMethod:ProviderConfigure.kt$internal fun ProviderSetting.defaultBaseUrlForReset(): String</ID>
+    <ID>CyclomaticComplexMethod:Request.kt$private fun sanitizeGeminiSchemaNode( root: JsonElement, node: JsonElement, depth: Int, refPath: Set&lt;String&gt;, ): JsonElement</ID>
+    <ID>CyclomaticComplexMethod:ResponseAPI.kt$ResponseAPI$internal fun parseResponseOutput(jsonObject: JsonObject): TextGenerationResult</ID>
+    <ID>CyclomaticComplexMethod:ResponseAPI.kt$ResponseAPI$private fun JsonArrayBuilder.addAssistantItems(message: UIMessage, supportInputModalities: List&lt;Modality&gt;)</ID>
+    <ID>CyclomaticComplexMethod:ResponseApiStreamDecoder.kt$ResponseApiStreamDecoder$private fun parseEvent(payload: JsonObject): List&lt;StreamChunk&gt;</ID>
+    <ID>CyclomaticComplexMethod:RunJsTool.kt$fun runJsTool( context: Context, skillManager: SkillManager, runner: JsSkillRunner, secretsStore: SkillSecretsStore, ): Tool</ID>
+    <ID>CyclomaticComplexMethod:S3Client.kt$S3Client$private fun parseListObjectsResponse(xml: String): S3ListResult</ID>
+    <ID>CyclomaticComplexMethod:S3Sync.kt$S3Sync$private suspend fun restoreFromBackupFile(backupFile: File, config: S3Config)</ID>
+    <ID>CyclomaticComplexMethod:S3Sync.kt$S3Sync$suspend fun prepareBackupFile(config: S3Config): File</ID>
+    <ID>CyclomaticComplexMethod:S3Tab.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun S3Tab( vm: BackupVM, onShowRestartDialog: () -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:ScheduledJobSummaries.kt$private fun prettyCron(expr: String): String?</ID>
+    <ID>CyclomaticComplexMethod:SettingMcpPage.kt$@Composable private fun McpCommonOptionsConfigure( config: McpServerConfig, update: (McpServerConfig) -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:SettingSearchDetailPage.kt$@Suppress("UNCHECKED_CAST") @Composable private fun SearchServiceOptionsEditor( options: SearchServiceOptions, onUpdateOptions: (SearchServiceOptions) -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:SettingSpeechPage.kt$@Composable private fun TTSProviderItem( provider: TTSProviderSetting, modifier: Modifier = Modifier, isSelected: Boolean = false, dragHandle: @Composable () -&gt; Unit, onSelect: () -&gt; Unit, onEdit: () -&gt; Unit, onDelete: () -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:SettingSshHostsPage.kt$@Composable private fun SshHostEditDialog( initial: SshHostEntity?, vaultRepo: me.rerere.rikkahub.data.vault.CredentialVaultRepository, onDismiss: () -&gt; Unit, onSave: (SshHostEntity) -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:SettingTTSPage.kt$@Composable private fun TTSProviderItem( provider: TTSProviderSetting, modifier: Modifier = Modifier, isSelected: Boolean = false, dragHandle: @Composable () -&gt; Unit, onSelect: () -&gt; Unit, onEdit: () -&gt; Unit, onDelete: () -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:SettingTelegramPage.kt$@Composable fun SettingTelegramPage()</ID>
+    <ID>CyclomaticComplexMethod:SettingTermuxPage.kt$@Composable fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel())</ID>
+    <ID>CyclomaticComplexMethod:SettingWebBridgePage.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingWebBridgePage()</ID>
+    <ID>CyclomaticComplexMethod:SettingWebServerPage.kt$@Composable fun SettingWebServerPage()</ID>
+    <ID>CyclomaticComplexMethod:SimpleHtmlBlock.kt$@Composable private fun RenderNode( node: Node, onLinkClick: (String) -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:SimpleHtmlBlock.kt$private fun parseColor(colorString: String): Color?</ID>
+    <ID>CyclomaticComplexMethod:SkillManager.kt$SkillManager$fun seedDefaultSkillsIfNeeded()</ID>
+    <ID>CyclomaticComplexMethod:SkillUrlImporter.kt$SkillUrlImporter$fun importFromText(rawBody: String, sourceLabel: String? = null, overrideName: String? = null): Result</ID>
+    <ID>CyclomaticComplexMethod:SkillZipImporter.kt$SkillZipImporter$fun extractZipToDir(input: InputStream, destDir: File): Result&lt;File&gt;</ID>
+    <ID>CyclomaticComplexMethod:SkillsTools.kt$fun createSkillTools( enabledSkills: Set&lt;String&gt;, allSkills: List&lt;SkillMetadata&gt;, /** * Optional disk helper: supplies the mtime-aware read cache the per-turn auto-load * path uses, and backs the read-only `skill_get_content` tool. Everything needed for * correctness already lives on [SkillMetadata], so when this is absent the files are * read straight from the skill's own directory. Same result, just uncached, and the * content tool is not offered. */ skillManager: SkillManager? = null, ): List&lt;Tool&gt;</ID>
+    <ID>CyclomaticComplexMethod:SpeechToTextTool.kt$fun speechToTextTool(context: Context): Tool</ID>
+    <ID>CyclomaticComplexMethod:SshHostsTool.kt$fun sshExecSavedTool( context: Context, repo: SshHostRepository, vaultRepository: CredentialVaultRepository, ): Tool</ID>
+    <ID>CyclomaticComplexMethod:SshTerminalPage.kt$@Composable fun SshTerminalPage(hostName: String)</ID>
+    <ID>CyclomaticComplexMethod:SshTool.kt$internal suspend fun execOneShot( context: Context, host: String, port: Int, user: String, auth: SshAuth, command: String, timeoutMs: Int, sessionRef: AtomicReference&lt;Session?&gt;, stdin: String? = null, /** 跳板（saved host 名已在 SshHostsTool 解析为 JumpSpec）。非空时目标经跳板隧道连 */ jump: JumpSpec? = null, /** 自定义 ssh 选项（每行 "键 值"），透传 openSshSession */ extraOptions: String? = null, ): JsonObject</ID>
+    <ID>CyclomaticComplexMethod:StreamChunkHandler.kt$StreamChunkHandler$private fun append(message: UIMessage, chunk: StreamChunk): UIMessage</ID>
+    <ID>CyclomaticComplexMethod:StreamChunkHandler.kt$private fun UIMessage.appendMessage(delta: UIMessage): UIMessage</ID>
+    <ID>CyclomaticComplexMethod:TTSProviderConfigure.kt$@Composable fun TTSProviderConfigure( setting: TTSProviderSetting, modifier: Modifier = Modifier, onValueChange: (TTSProviderSetting) -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:TelegramBotClient.kt$fun parseIncoming(update: JsonObject): TelegramIncomingMessage?</ID>
+    <ID>CyclomaticComplexMethod:TelegramBotService.kt$TelegramBotService$private suspend fun handleCallbackQuery( cfg: me.rerere.rikkahub.data.telegram.TelegramBotConfig, cq: TelegramCallbackQuery, )</ID>
+    <ID>CyclomaticComplexMethod:TelegramBotService.kt$TelegramBotService$private suspend fun handleLlmTurn( cfg: me.rerere.rikkahub.data.telegram.TelegramBotConfig, m: TelegramIncomingMessage, )</ID>
+    <ID>CyclomaticComplexMethod:TelegramBotService.kt$TelegramBotService$private suspend fun pollLoop()</ID>
+    <ID>CyclomaticComplexMethod:TelegramCommandHandlers.kt$internal suspend fun TelegramBotService.tryRescueImageFromTurn( convId: Uuid, baselineMessageCount: Int, chatId: Long, ): Boolean</ID>
+    <ID>CyclomaticComplexMethod:TelegramHtmlRenderer.kt$TelegramHtmlRenderer$private fun renderElement(el: Element, out: StringBuilder)</ID>
+    <ID>CyclomaticComplexMethod:TelegramMessageFormatters.kt$internal fun classifyToolOutput(executed: Boolean, raw: String): Pair&lt;String, String&gt;</ID>
+    <ID>CyclomaticComplexMethod:TermuxTool.kt$fun termuxRunCommandTool(context: Context): Tool</ID>
+    <ID>CyclomaticComplexMethod:TranscribeAudioTool.kt$fun transcribeAudioFileTool(context: Context): Tool</ID>
+    <ID>CyclomaticComplexMethod:VaultCredentialsPage.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun VaultCredentialsPage()</ID>
+    <ID>CyclomaticComplexMethod:VaultHttpTools.kt$private suspend fun runVaultHttpExec( context: Context, repository: CredentialVaultRepository, o: kotlinx.serialization.json.JsonObject, ): List&lt;UIMessagePart&gt;</ID>
+    <ID>CyclomaticComplexMethod:VaultPage.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun VaultPage()</ID>
+    <ID>CyclomaticComplexMethod:VaultTools.kt$fun vaultCompareLoadCredsTool( context: android.content.Context, repository: CredentialVaultRepository, ): Tool</ID>
+    <ID>CyclomaticComplexMethod:VaultTools.kt$fun vaultCredentialUpdateTool( context: android.content.Context, repository: CredentialVaultRepository, settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore, sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository, ): Tool</ID>
+    <ID>CyclomaticComplexMethod:VaultTools.kt$private suspend fun runVaultSshExec( context: android.content.Context, repository: CredentialVaultRepository, o: kotlinx.serialization.json.JsonObject, ): List&lt;UIMessagePart&gt;</ID>
+    <ID>CyclomaticComplexMethod:ViewText.kt$private fun TextView.setComposeTextStyle( density: Density, textStyle: TextStyle, )</ID>
+    <ID>CyclomaticComplexMethod:WebDavClient.kt$WebDavClient$private fun parsePropfindResponse(xml: String, baseUrl: String): List&lt;WebDavResourceInfo&gt;</ID>
+    <ID>CyclomaticComplexMethod:WebDavSync.kt$WebDavSync$private suspend fun restoreFromBackupFile(backupFile: File, config: WebDavConfig)</ID>
+    <ID>CyclomaticComplexMethod:WebDavTab.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun WebDavTab( vm: BackupVM, onShowRestartDialog: () -&gt; Unit, )</ID>
+    <ID>CyclomaticComplexMethod:WebFetchTool.kt$fun webFetchTool(client: OkHttpClient): Tool</ID>
+    <ID>CyclomaticComplexMethod:WorkflowApprovalRenderer.kt$WorkflowApprovalRenderer$private fun triggerSummary(t: TriggerSpec): String</ID>
+    <ID>CyclomaticComplexMethod:WorkflowJson.kt$WorkflowJson$fun parse( rawJson: String, knownToolNames: Set&lt;String&gt;, ): ParseResult</ID>
+    <ID>CyclomaticComplexMethod:WorkflowJson.kt$WorkflowJson$private fun sanityCheckCondition(c: ConditionSpec): ParseResult.Err?</ID>
+    <ID>CyclomaticComplexMethod:WorkflowJson.kt$WorkflowJson$private fun sanityCheckTrigger(t: TriggerSpec): ParseResult.Err?</ID>
+    <ID>CyclomaticComplexMethod:WorkflowsScreen.kt$internal fun oneLineTriggerSummary(def: WorkflowDefinition): String</ID>
+    <ID>CyclomaticComplexMethod:WorkspaceDetailPage.kt$@Composable fun WorkspaceDetailPage(id: String)</ID>
+    <ID>CyclomaticComplexMethod:WorkspaceToolUIs.kt$private fun languageOf(path: String?): String</ID>
+    <ID>CyclomaticComplexMethod:WriteFileTool.kt$fun writeTextFileTool(context: Context): Tool</ID>
+    <ID>EmptyElseBlock:FileLogSink.kt$FileLogSink$if (to.exists()) to.delete()</ID>
+    <ID>EmptyFunctionBlock:AppLifecycleRecorder.kt$AppLifecycleRecorder.&lt;no name provided&gt;${}</ID>
+    <ID>EmptyFunctionBlock:PreferenceStoreV1Migration.kt$PreferenceStoreV1Migration${}</ID>
+    <ID>EmptyFunctionBlock:PreferenceStoreV2Migration.kt$PreferenceStoreV2Migration${}</ID>
+    <ID>EmptyFunctionBlock:PreferenceStoreV3Migration.kt$PreferenceStoreV3Migration${}</ID>
+    <ID>EmptyFunctionBlock:PreferenceStoreV4Migration.kt$PreferenceStoreV4Migration${}</ID>
+    <ID>EmptyFunctionBlock:PreferenceStoreV5Migration.kt$PreferenceStoreV5Migration${}</ID>
+    <ID>EmptyFunctionBlock:SensorInfo.kt$&lt;no name provided&gt;${}</ID>
+    <ID>EmptyFunctionBlock:SpeechToTextTool.kt$&lt;no name provided&gt;${}</ID>
+    <ID>EmptyFunctionBlock:TemplateTransformer.kt$AssistantTemplateLoader${}</ID>
+    <ID>EmptyWhileBlock:SSE.kt$SSEEventSource${ }</ID>
+    <ID>ForEachOnRange:ImgGenPage.kt$0 until minOf(2, currentGeneratedImages.size)</ID>
+    <ID>ImplicitDefaultLocale:ComposeExt.kt$String.format("%02X%02X%02X%02X", red, green, blue, alpha)</ID>
+    <ID>ImplicitDefaultLocale:TelegramInboundAttachments.kt$String.format("%.1f MB", mb)</ID>
+    <ID>ImplicitDefaultLocale:TelegramInboundAttachments.kt$String.format("%.1f", sizeMb)</ID>
+    <ID>ImplicitDefaultLocale:TelegramInboundAttachments.kt$String.format("%d KB", bytes / 1024)</ID>
+    <ID>InstanceOfCheckForException:ChatService.kt$ChatService$e is CancellationException</ID>
+    <ID>InstanceOfCheckForException:ExternalAutomationDispatcher.kt$ExternalAutomationDispatcher$t is kotlinx.coroutines.CancellationException</ID>
+    <ID>InstanceOfCheckForException:GenerationLoop.kt$GenerationLoop$t !is CancellationException</ID>
+    <ID>InstanceOfCheckForException:ImgGenVM.kt$ImgGenVM$e is CancellationException</ID>
+    <ID>InstanceOfCheckForException:S3Sync.kt$S3Sync$e is IllegalArgumentException</ID>
+    <ID>InstanceOfCheckForException:S3Sync.kt$S3Sync$e is IllegalStateException</ID>
+    <ID>InstanceOfCheckForException:SubAgentEngine.kt$SubAgentEngine$t is kotlinx.coroutines.CancellationException</ID>
+    <ID>InstanceOfCheckForException:WebDavSync.kt$WebDavSync$e is IllegalArgumentException</ID>
+    <ID>InstanceOfCheckForException:WebDavSync.kt$WebDavSync$e is IllegalStateException</ID>
+    <ID>LargeClass:ChatCompletionsAPI.kt$ChatCompletionsAPI : OpenAIImpl</ID>
+    <ID>LargeClass:ChatService.kt$ChatService</ID>
+    <ID>LargeClass:ChatboxImporter.kt$ChatboxImporter</ID>
+    <ID>LargeClass:DoctorChecks.kt$DoctorChecks</ID>
+    <ID>LargeClass:GenerationLoop.kt$GenerationLoop</ID>
+    <ID>LargeClass:GoogleProvider.kt$GoogleProvider : Provider</ID>
+    <ID>LargeClass:LocalTools.kt$LocalTools</ID>
+    <ID>LargeClass:McpManager.kt$McpManager</ID>
+    <ID>LargeClass:ModelRegistry.kt$ModelRegistry</ID>
+    <ID>LargeClass:TelegramBotService.kt$TelegramBotService : Service</ID>
+    <ID>LongMethod:AppLauncherTool.kt$fun listInstalledAppsTool(context: Context): Tool</ID>
+    <ID>LongMethod:AppLogPage.kt$@Composable fun AppLogPage(onBack: () -&gt; Unit)</ID>
+    <ID>LongMethod:AssistantBasicPage.kt$@Composable internal fun AssistantBasicContent( innerPadding: PaddingValues, assistant: Assistant, providers: List&lt;me.rerere.ai.provider.ProviderSetting&gt;, tags: List&lt;DataTag&gt;, workspaces: List&lt;WorkspaceEntity&gt;, onUpdate: (Assistant) -&gt; Unit, vm: AssistantDetailVM, )</ID>
+    <ID>LongMethod:AssistantExtensionsPage.kt$@Composable fun AssistantExtensionsPage(id: String)</ID>
+    <ID>LongMethod:AssistantLocalToolPage.kt$@Composable private fun AssistantLocalToolContent( modifier: Modifier = Modifier, assistant: Assistant, onUpdate: (Assistant) -&gt; Unit, onUpdateAssistant: ((Assistant) -&gt; Assistant) -&gt; Unit, sourceAssistants: List&lt;Assistant&gt;, onImportToolConfig: (sourceId: String, includeMcp: Boolean, includeSkills: Boolean, includeWebSearch: Boolean) -&gt; Unit, )</ID>
+    <ID>LongMethod:AssistantLocalToolPage.kt$@Composable private fun PermissionedSwitch( checked: Boolean, onCheckedChange: (Boolean) -&gt; Unit, requiredRuntimePerms: List&lt;String&gt; = emptyList(), requiresWriteSettings: Boolean = false, requiresDndAccess: Boolean = false, requiresAccessibilityService: Boolean = false, requiresNotificationListener: Boolean = false, requiresAllFilesAccess: Boolean = false, enabled: Boolean = true, )</ID>
+    <ID>LongMethod:AssistantLocalToolPage.kt$@Composable private fun TermuxStatusRowSubtitle(enabled: Boolean)</ID>
+    <ID>LongMethod:AssistantMemoryPage.kt$@Composable private fun AssistantMemoryContent( innerPadding: PaddingValues, assistant: Assistant, memories: List&lt;AssistantMemory&gt;, onUpdateAssistant: (Assistant) -&gt; Unit, onAddMemory: (AssistantMemory) -&gt; Unit, onUpdateMemory: (AssistantMemory) -&gt; Unit, onDeleteMemory: (AssistantMemory) -&gt; Unit, )</ID>
+    <ID>LongMethod:AssistantPage.kt$@Composable fun AssistantPage(vm: AssistantVM = koinViewModel())</ID>
+    <ID>LongMethod:AssistantPromptPage.kt$@Composable private fun AssistantPromptContent( innerPadding: PaddingValues, assistant: Assistant, settings: Settings, onUpdate: (Assistant) -&gt; Unit, )</ID>
+    <ID>LongMethod:AssistantPromptPage.kt$@Composable private fun AssistantRegexCard( regex: AssistantRegex, onUpdate: (Assistant) -&gt; Unit, assistant: Assistant, index: Int, modifier: Modifier = Modifier, dragHandleModifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:AutoCompressDialog.kt$@Composable fun AutoCompressDialog( enabled: Boolean, mode: Int, base: Long, threshold: Int, tokenLimit: Long, onDismiss: () -&gt; Unit, onConfirm: (enabled: Boolean, mode: Int, base: Long, threshold: Int, tokenLimit: Long) -&gt; Unit, )</ID>
+    <ID>LongMethod:AutoTaskDialog.kt$@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class) @Composable fun AutoTaskDialog( config: AutoTaskConfig, onDismiss: () -&gt; Unit, onConfirm: (AutoTaskConfig) -&gt; Unit, onStop: (() -&gt; Unit)? = null, hasActiveTask: Boolean = false, )</ID>
+    <ID>LongMethod:BackendProvider.kt$BackendProvider$override suspend fun streamText( providerSetting: ProviderSetting.Backend, messages: List&lt;UIMessage&gt;, params: TextGenerationParams, ): Flow&lt;StreamChunk&gt;</ID>
+    <ID>LongMethod:BackendProviderConfigure.kt$@Composable fun BackendProviderConfigure( provider: ProviderSetting.Backend, onEdit: (ProviderSetting.Backend) -&gt; Unit, )</ID>
+    <ID>LongMethod:BackendServicePage.kt$@Composable fun BackendServicePage()</ID>
+    <ID>LongMethod:BackgroundPicker.kt$@Composable fun BackgroundPicker( modifier: Modifier = Modifier, background: String?, backgroundOpacity: Float = 1.0f, onUpdate: (String?) -&gt; Unit, )</ID>
+    <ID>LongMethod:BrowserAddressBar.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun BrowserAddressBar( url: String, canGoBack: Boolean, canGoForward: Boolean, onClose: () -&gt; Unit, onBack: () -&gt; Unit, onForward: () -&gt; Unit, onRefresh: () -&gt; Unit, onStopAi: () -&gt; Unit, onNavigate: (String) -&gt; Unit, )</ID>
+    <ID>LongMethod:BrowserMiniChat.kt$@Composable private fun BrowserMiniChatExpandedCard( latestAssistantText: String?, isGenerating: Boolean, onSend: (String) -&gt; Unit, onCollapse: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:BuiltinToolUIs.kt$@Composable private fun SearchWebPreview( arguments: JsonElement, content: JsonElement, )</ID>
+    <ID>LongMethod:ChainOfThought.kt$@Preview(showBackground = true) @Composable private fun ChainOfThoughtPreview()</ID>
+    <ID>LongMethod:ChatCompletionsAPI.kt$ChatCompletionsAPI$private fun buildChatCompletionRequest( messages: List&lt;UIMessage&gt;, params: TextGenerationParams, providerSetting: ProviderSetting.OpenAI, stream: Boolean = false, ): JsonObject</ID>
+    <ID>LongMethod:ChatDrawer.kt$@Composable fun ChatDrawerContent( navController: Navigator, vm: ChatVM, settings: Settings, current: Conversation, )</ID>
+    <ID>LongMethod:ChatInput.kt$@Composable fun ChatInput( state: ChatInputState, loading: Boolean, /** 待发送队列长度；&gt; 0 时在输入区上方提示「待发送 N 条」。 */ pendingQueueCount: Int = 0, settings: Settings, hazeState: HazeState, enableSearch: Boolean, sessionTotals: TokenBudgetTracker.Totals? = null, onToggleSearch: (Boolean) -&gt; Unit, modifier: Modifier = Modifier, completionProviders: List&lt;ChatCompletionProvider&gt; = emptyList(), onUpdateChatModel: (Model) -&gt; Unit, onUpdateAssistant: (Assistant) -&gt; Unit, onUpdateSearchService: (Int) -&gt; Unit, onMoreClick: () -&gt; Unit, onVaultAuthorizeClick: () -&gt; Unit = {}, onAutoClick: () -&gt; Unit = {}, onCancelClick: () -&gt; Unit, onSendClick: () -&gt; Unit, onLongSendClick: () -&gt; Unit, )</ID>
+    <ID>LongMethod:ChatInput.kt$@Composable private fun TextInputRow( state: ChatInputState, completionProviders: List&lt;ChatCompletionProvider&gt;, sessionTotals: TokenBudgetTracker.Totals? = null, onSendMessage: () -&gt; Unit, )</ID>
+    <ID>LongMethod:ChatList.kt$@Composable private fun ChatListNormal( innerPadding: PaddingValues, conversation: Conversation, state: LazyListState, loading: Boolean, processingStatus: String? = null, settings: Settings, hazeState: HazeState, errors: List&lt;ChatError&gt;, onDismissError: (Uuid) -&gt; Unit, onClearAllErrors: () -&gt; Unit, onRegenerate: (UIMessage) -&gt; Unit, onEdit: (UIMessage) -&gt; Unit, onForkMessage: (UIMessage) -&gt; Unit, onDelete: (UIMessage) -&gt; Unit, onUpdateMessage: (MessageNode) -&gt; Unit, onClickSuggestion: (String) -&gt; Unit, onTranslate: ((UIMessage, java.util.Locale) -&gt; Unit)?, onClearTranslation: (UIMessage) -&gt; Unit, animatedVisibilityScope: AnimatedVisibilityScope, onToolApproval: ( ( toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String, ) -&gt; Unit )? = null, onToolAnswer: ((toolCallId: String, answer: String) -&gt; Unit)? = null, onToggleFavorite: ((MessageNode) -&gt; Unit)? = null, onConversationSystemPromptChange: ((String?) -&gt; Unit)? = null, sessionTotals: TokenBudgetTracker.Totals? = null, )</ID>
+    <ID>LongMethod:ChatList.kt$@Composable private fun ChatListPreview( innerPadding: PaddingValues, conversation: Conversation, settings: Settings, hazeState: HazeState, animatedVisibilityScope: AnimatedVisibilityScope, onJumpToMessage: (Int) -&gt; Unit, )</ID>
+    <ID>LongMethod:ChatMessage.kt$@Composable fun ChatMessage( node: MessageNode, modifier: Modifier = Modifier, loading: Boolean = false, model: Model? = null, assistant: Assistant? = null, lastMessage: Boolean = false, onFork: () -&gt; Unit, onRegenerate: () -&gt; Unit, onEdit: () -&gt; Unit, onShare: () -&gt; Unit, onDelete: () -&gt; Unit, onUpdate: (MessageNode) -&gt; Unit, isFavorite: Boolean = false, onToggleFavorite: (() -&gt; Unit)? = null, onTranslate: ((UIMessage, Locale) -&gt; Unit)? = null, onClearTranslation: (UIMessage) -&gt; Unit = {}, onToolApproval: ( ( toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String, ) -&gt; Unit )? = null, onToolAnswer: ((toolCallId: String, answer: String) -&gt; Unit)? = null, sessionTotals: TokenBudgetTracker.Totals? = null, )</ID>
+    <ID>LongMethod:ChatMessage.kt$@OptIn(FlowPreview::class) @Composable private fun MessagePartsBlock( assistant: Assistant?, role: MessageRole, model: Model?, parts: List&lt;UIMessagePart&gt;, annotations: List&lt;UIMessageAnnotation&gt;, loading: Boolean, onToolApproval: ( ( toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String, ) -&gt; Unit )? = null, onToolAnswer: ((toolCallId: String, answer: String) -&gt; Unit)? = null, onUserMessageClick: (() -&gt; Unit)? = null, )</ID>
+    <ID>LongMethod:ChatMessageActions.kt$@Composable fun ChatMessageActionsSheet( message: UIMessage, model: Model?, onDelete: () -&gt; Unit, onEdit: () -&gt; Unit, onShare: () -&gt; Unit, onFork: () -&gt; Unit, onSelectAndCopy: () -&gt; Unit, isFavorite: Boolean = false, onToggleFavorite: (() -&gt; Unit)? = null, onWebViewPreview: () -&gt; Unit, onDismissRequest: () -&gt; Unit, )</ID>
+    <ID>LongMethod:ChatMessageActions.kt$@Composable fun ColumnScope.ChatMessageActionButtons( message: UIMessage, node: MessageNode, onUpdate: (MessageNode) -&gt; Unit, onRegenerate: () -&gt; Unit, onOpenActionSheet: () -&gt; Unit, onTranslate: ((UIMessage, Locale) -&gt; Unit)? = null, onClearTranslation: (UIMessage) -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:ChatMessageEditedFiles.kt$@OptIn(ExperimentalLayoutApi::class) @Composable internal fun EditedFilesList( parts: List&lt;UIMessagePart&gt;, assistant: Assistant?, )</ID>
+    <ID>LongMethod:ChatMessageNerdLine.kt$@Composable fun ChatMessageNerdLine( message: UIMessage, modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f), sessionTotals: TokenBudgetTracker.Totals? = null, )</ID>
+    <ID>LongMethod:ChatMessageTools.kt$@Composable fun ChainOfThoughtScope.ChatMessageToolStep( tool: UIMessagePart.Tool, loading: Boolean = false, onToolApproval: ( ( toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String, ) -&gt; Unit )? = null, onToolAnswer: ((toolCallId: String, answer: String) -&gt; Unit)? = null, )</ID>
+    <ID>LongMethod:ChatMessageTools.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun ChainOfThoughtScope.AskUserToolStep( tool: UIMessagePart.Tool, loading: Boolean, onToolAnswer: ((toolCallId: String, answer: String) -&gt; Unit)?, )</ID>
+    <ID>LongMethod:ChatPage.kt$@Composable fun ChatPage( id: Uuid, text: String?, files: List&lt;Uri&gt;, nodeId: Uuid? = null, )</ID>
+    <ID>LongMethod:ChatPage.kt$@Composable private fun ChatFilesPickerSheet( inputState: ChatInputState, setting: Settings, conversation: Conversation, assistant: Assistant, vm: ChatVM, onDismiss: () -&gt; Unit, )</ID>
+    <ID>LongMethod:ChatPage.kt$@Composable private fun ChatPageContent( inputState: ChatInputState, loadingJob: Job?, processingStatus: String? = null, setting: Settings, bigScreen: Boolean, conversation: Conversation, drawerState: DrawerState, navController: Navigator, vm: ChatVM, chatListState: LazyListState, enableWebSearch: Boolean, currentChatModel: Model?, errors: List&lt;ChatError&gt;, onDismissError: (Uuid) -&gt; Unit, onClearAllErrors: () -&gt; Unit, )</ID>
+    <ID>LongMethod:ChatPage.kt$@Composable private fun TopBar( settings: Settings, conversation: Conversation, drawerState: DrawerState, bigScreen: Boolean, previewMode: Boolean, onClickMenu: () -&gt; Unit, onNewChat: () -&gt; Unit, onUpdateTitle: (String) -&gt; Unit, onBackendChange: (String) -&gt; Unit, )</ID>
+    <ID>LongMethod:ChatService.kt$ChatService$private suspend fun handleMessageComplete( conversationId: Uuid, messageRange: ClosedRange&lt;Int&gt;? = null, )</ID>
+    <ID>LongMethod:CodexProviderConfigure.kt$@Composable fun CodexProviderConfigure( provider: ProviderSetting.Codex, onEdit: (ProviderSetting.Codex) -&gt; Unit, )</ID>
+    <ID>LongMethod:ConversationList.kt$@Composable private fun ConversationItem( conversation: Conversation, selected: Boolean, loading: Boolean, modifier: Modifier = Modifier, onDelete: (Conversation) -&gt; Unit = {}, onRegenerateTitle: (Conversation) -&gt; Unit = {}, onPin: (Conversation) -&gt; Unit = {}, onMoveToAssistant: (Conversation) -&gt; Unit = {}, onMoveToFolder: (Conversation) -&gt; Unit = {}, onClick: (Conversation) -&gt; Unit, )</ID>
+    <ID>LongMethod:ConversationRoutes.kt$fun Route.conversationRoutes( chatService: ChatService, conversationRepo: ConversationRepository, folderRepo: FolderRepository, settingsStore: SettingsStore )</ID>
+    <ID>LongMethod:CronJobWorker.kt$CronJobWorker$override suspend fun doWork(): Result</ID>
+    <ID>LongMethod:DataTable.kt$@Composable fun DataTable( headers: List&lt;@Composable () -&gt; Unit&gt;, rows: List&lt;List&lt;@Composable () -&gt; Unit&gt;&gt;, modifier: Modifier = Modifier, cellPadding: Dp = 4.dp, cellBorder: BorderStroke? = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant), headerBackground: Color = MaterialTheme.colorScheme.surfaceVariant, zebraStriping: Boolean = false, columnMinWidths: List&lt;Dp&gt; = emptyList(), columnMaxWidths: List&lt;Dp&gt; = emptyList(), cellAlignment: Alignment = Alignment.CenterStart, outerBorder: BorderStroke? = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape: Shape = MaterialTheme.shapes.small, stretchToFillWidth: Boolean = true, )</ID>
+    <ID>LongMethod:DebugPage.kt$@Composable private fun MainPage(vm: DebugVM)</ID>
+    <ID>LongMethod:DoctorChecks.kt$DoctorChecks$private fun diagnosticsChecks(enabled: Set&lt;LocalToolOption&gt;): List&lt;DoctorCheck&gt;</ID>
+    <ID>LongMethod:DoctorChecks.kt$DoctorChecks$private fun permissionChecks(enabled: Set&lt;LocalToolOption&gt;): List&lt;DoctorCheck&gt;</ID>
+    <ID>LongMethod:DoctorChecks.kt$DoctorChecks$private suspend fun databaseChecks(enabled: Set&lt;LocalToolOption&gt;): List&lt;DoctorCheck&gt;</ID>
+    <ID>LongMethod:DoctorChecks.kt$DoctorChecks$private suspend fun networkChecks(): List&lt;DoctorCheck&gt;</ID>
+    <ID>LongMethod:Emoji.kt$@Preview @Composable fun EmojiPicker( modifier: Modifier = Modifier, onEmojiSelected: (Emoji) -&gt; Unit = {}, showSearch: Boolean = true, height: Int = 400, )</ID>
+    <ID>LongMethod:EmojiBurst.kt$@Composable fun EmojiBurstHost( modifier: Modifier = Modifier, emojiOptions: List&lt;String&gt;, burstCount: Int = 12, content: @Composable (onBurst: (Offset) -&gt; Unit) -&gt; Unit, )</ID>
+    <ID>LongMethod:Export.kt$@Composable fun ChatExportSheet( visible: Boolean, onDismissRequest: () -&gt; Unit, conversation: Conversation, selectedMessages: List&lt;UIMessage&gt;, )</ID>
+    <ID>LongMethod:Export.kt$@Suppress("DEPRECATION") @Composable private fun ExportedChatMessage( message: UIMessage, prevMessage: UIMessage? = null, options: ImageExportOptions = ImageExportOptions(), )</ID>
+    <ID>LongMethod:Export.kt$private fun exportToMarkdown( context: Context, conversation: Conversation, messages: List&lt;UIMessage&gt;, )</ID>
+    <ID>LongMethod:ExtensionSelector.kt$@Composable fun ExtensionSelector( modifier: Modifier = Modifier, assistant: Assistant, settings: Settings, onUpdate: (Assistant) -&gt; Unit, conversation: Conversation? = null, onUpdateConversation: ((Conversation) -&gt; Unit)? = null, onNavigateToQuickMessages: () -&gt; Unit = {}, onNavigateToPrompts: () -&gt; Unit = {}, onNavigateToSkills: () -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:FilesPicker.kt$@Composable internal fun FilesPicker( conversation: Conversation, assistant: Assistant, state: ChatInputState, mcpManager: McpManager, onCompressContext: (additionalPrompt: String, targetTokens: Int, keepRecentMessages: Int) -&gt; Job, onUpdateAssistant: (Assistant) -&gt; Unit, onUpdateConversation: (Conversation) -&gt; Unit, showInjectionSheet: Boolean, onShowInjectionSheetChange: (Boolean) -&gt; Unit, showCompressDialog: Boolean, onShowCompressDialogChange: (Boolean) -&gt; Unit, showAutoCompressDialog: Boolean, onShowAutoCompressDialogChange: (Boolean) -&gt; Unit, showToolOutputDialog: Boolean, onShowToolOutputDialogChange: (Boolean) -&gt; Unit, onDismiss: () -&gt; Unit, onTakePic: () -&gt; Unit, onPickImage: () -&gt; Unit, onPickVideo: () -&gt; Unit, onPickAudio: () -&gt; Unit, onPickFile: () -&gt; Unit, )</ID>
+    <ID>LongMethod:GeminiProviderConfigure.kt$@Composable fun GeminiProviderConfigure( provider: ProviderSetting.GeminiOAuth, onEdit: (ProviderSetting.GeminiOAuth) -&gt; Unit, )</ID>
+    <ID>LongMethod:GenerationLoop.kt$GenerationLoop$fun generateText( settings: Settings, model: Model, messages: List&lt;UIMessage&gt;, inputTransformers: List&lt;InputMessageTransformer&gt; = emptyList(), outputTransformers: List&lt;OutputMessageTransformer&gt; = emptyList(), assistant: Assistant, memories: List&lt;AssistantMemory&gt;? = null, tools: List&lt;Tool&gt; = emptyList(), // Read live from the runtime holder, not captured once: the default expression is // evaluated per call, so a settings change takes effect on the next turn. maxSteps: Int = ToolRuntimeLimits.maxToolSteps, processingStatus: MutableStateFlow&lt;String?&gt; = MutableStateFlow(null), // Called on each retry after the failure has been diagnosed (label + raw text). // ChatService uses it to persist the last failure into the conversation when a // retry finally succeeds, so the model knows the generation recovered. onRetryDiagnosed: ((FailureDiagnosis) -&gt; Unit)? = null, // Called after a tool result has been emitted and persisted, before the next model // request is built. The callback may return a compacted request history; the returned // list is request-only and does not replace the conversation's original messages. onAfterToolExecution: suspend (List&lt;UIMessage&gt;) -&gt; List&lt;UIMessage&gt;? = { null }, // Called immediately before every model request, including the request after a tool // result. ChatService uses this to reassert the foreground service before a background // continuation opens a new socket. onBeforeModelRequest: suspend () -&gt; Unit = {}, // 取出用户在生成期间排队补充的消息，在**每个 step 结束（工具执行完）后**立即追加到 // 请求历史，使「及时修正/补充」在下一 step 就被模型看到，而不必等整轮结束。 // 返回的消息会随 GenerationChunk.Messages 一并 emit，由 ChatService 落库。 drainQueuedMessages: suspend () -&gt; List&lt;UIMessage&gt; = { emptyList() }, // Returns true when the user has pre-approved [toolName] for this turn (e.g. // "Allow for this chat" or "Always Allow" granted earlier). When true, the loop // below skips the Pending flip and lets the tool execute. ChatService injects the // closure that reads ToolApprovalAllowList + ToolApprovalPreferences. Default // returns false so callers that don't care still get vanilla approval gating. isToolAutoApproved: suspend (toolName: String) -&gt; Boolean = { false }, // Optional per-call addendum appended to the system prompt. Used by surfaces that // need the model to know runtime context (e.g. "you're talking via Telegram, the // chat_id is 12345") without polluting the user message body — without this the // preamble is replayed in user history every turn, burning ~80 tokens × N turns. systemAddendum: String? = null, conversationSystemPrompt: String? = null, conversationId: Uuid? = null, conversationModeInjectionIds: Set&lt;Uuid&gt; = emptySet(), conversationLorebookIds: Set&lt;Uuid&gt; = emptySet(), workspaceCwd: String? = null, ): Flow&lt;GenerationChunk&gt;</ID>
+    <ID>LongMethod:GenerationLoop.kt$GenerationLoop$private suspend fun generateInternal( assistant: Assistant, settings: Settings, systemAddendum: String? = null, messages: List&lt;UIMessage&gt;, onUpdateMessages: suspend (List&lt;UIMessage&gt;) -&gt; Unit, transformers: List&lt;MessageTransformer&gt;, model: Model, providerImpl: Provider&lt;ProviderSetting&gt;, provider: ProviderSetting, tools: List&lt;Tool&gt;, memories: List&lt;AssistantMemory&gt;, stream: Boolean, processingStatus: MutableStateFlow&lt;String?&gt; = MutableStateFlow(null), // Called on each retry after the failure has been diagnosed (label + raw text). // ChatService uses it to persist the last failure into the conversation when a // retry finally succeeds, so the model knows the generation recovered. onRetryDiagnosed: ((FailureDiagnosis) -&gt; Unit)? = null, conversationSystemPrompt: String? = null, conversationId: Uuid? = null, conversationModeInjectionIds: Set&lt;Uuid&gt; = emptySet(), conversationLorebookIds: Set&lt;Uuid&gt; = emptySet(), workspaceCwd: String? = null, )</ID>
+    <ID>LongMethod:GrokProviderConfigure.kt$@Composable fun GrokProviderConfigure( provider: ProviderSetting.Grok, onEdit: (ProviderSetting.Grok) -&gt; Unit, )</ID>
+    <ID>LongMethod:HighlightCodeBlock.kt$@Composable fun HighlightCodeBlock( code: String, language: String, modifier: Modifier = Modifier, completeCodeBlock: Boolean = true, style: TextStyle? = TextStyle( fontSize = 12.sp, lineHeight = 16.sp, ), )</ID>
+    <ID>LongMethod:ImgGenPage.kt$@Composable private fun ImageGalleryScreen( vm: ImgGenVM, isActive: Boolean, )</ID>
+    <ID>LongMethod:ImgGenPage.kt$@Composable private fun InputBar( prompt: String, vm: ImgGenVM, isGenerating: Boolean, referenceImages: List&lt;String&gt;, settings: Settings, onShowSettings: () -&gt; Unit, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:ImportExportTab.kt$@Composable fun ImportExportTab( vm: BackupVM, onShowRestartDialog: () -&gt; Unit )</ID>
+    <ID>LongMethod:LocalTools.kt$LocalTools$fun getTools( options: List&lt;LocalToolOption&gt;, invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY, ): List&lt;Tool&gt;</ID>
+    <ID>LongMethod:LocationTool.kt$fun locationTool(context: Context): Tool</ID>
+    <ID>LongMethod:Markdown.kt$@Composable private fun MarkdownNode( node: ASTNode, content: String, modifier: Modifier = Modifier, onClickCitation: (String) -&gt; Unit = {}, listLevel: Int = 0, )</ID>
+    <ID>LongMethod:Markdown.kt$@Composable private fun TableNode( node: ASTNode, content: String, modifier: Modifier = Modifier, )</ID>
+    <ID>LongMethod:Markdown.kt$private fun AnnotatedString.Builder.appendMarkdownNodeContent( node: ASTNode, content: String, trim: Boolean = false, inlineContents: MutableMap&lt;String, InlineTextContent&gt;, colorScheme: ColorScheme, density: Density, style: TextStyle, enableLatexRendering: Boolean = true, latexColorArgb: Int = 0, onClickCitation: (String) -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:MarkdownNew.kt$private fun AnnotatedString.Builder.appendHtmlInlineElement( element: Element, colorScheme: androidx.compose.material3.ColorScheme, inlineContents: MutableMap&lt;String, InlineTextContent&gt;, density: Density, style: TextStyle, enableLatexRendering: Boolean, onClickCitation: (String) -&gt; Unit, )</ID>
+    <ID>LongMethod:McpControlTools.kt$fun mcpAddTool(settingsStore: SettingsStore, manager: McpManager): Tool</ID>
+    <ID>LongMethod:MemoryTools.kt$fun buildMemoryTools( json: Json, onCreation: suspend (String, String) -&gt; AssistantMemory, onUpdate: suspend (Int, String, String) -&gt; AssistantMemory, onDelete: suspend (Int) -&gt; Unit, onSearch: suspend (String) -&gt; List&lt;AssistantMemory&gt;, onListAll: suspend () -&gt; List&lt;AssistantMemory&gt;, ): List&lt;Tool&gt;</ID>
+    <ID>LongMethod:Mermaid.kt$private fun buildMermaidHtml( code: String, colorScheme: ColorScheme, ): String</ID>
+    <ID>LongMethod:ModelList.kt$@Composable private fun ColumnScope.ModelList( currentModel: Uuid? = null, providers: List&lt;ProviderSetting&gt;, modelType: ModelType, onSelect: (Model) -&gt; Unit, onDismiss: () -&gt; Unit, )</ID>
+    <ID>LongMethod:PromptPage.kt$@Composable private fun LorebookEditSheet( book: Lorebook, onDismiss: () -&gt; Unit, onConfirm: () -&gt; Unit, onEdit: (Lorebook) -&gt; Unit, )</ID>
+    <ID>LongMethod:PromptPage.kt$@Composable private fun LorebookTab( lorebooks: List&lt;Lorebook&gt;, onUpdate: (List&lt;Lorebook&gt;) -&gt; Unit, )</ID>
+    <ID>LongMethod:PromptPage.kt$@Composable private fun ModeInjectionEditSheet( injection: PromptInjection.ModeInjection, onDismiss: () -&gt; Unit, onConfirm: () -&gt; Unit, onEdit: (PromptInjection.ModeInjection) -&gt; Unit, )</ID>
+    <ID>LongMethod:PromptPage.kt$@Composable private fun ModeInjectionTab( modeInjections: List&lt;PromptInjection.ModeInjection&gt;, onUpdate: (List&lt;PromptInjection.ModeInjection&gt;) -&gt; Unit, )</ID>
+    <ID>LongMethod:PromptPage.kt$@OptIn(ExperimentalLayoutApi::class) @Composable private fun RegexInjectionEditDialog( entry: PromptInjection.RegexInjection, onDismiss: () -&gt; Unit, onConfirm: () -&gt; Unit, onEdit: (PromptInjection.RegexInjection) -&gt; Unit, )</ID>
+    <ID>LongMethod:ProviderConfigure.kt$@Composable private fun ColumnScope.ProviderConfigureLiteRT( provider: ProviderSetting.LiteRtLocal, onEdit: (ProviderSetting.LiteRtLocal) -&gt; Unit, )</ID>
+    <ID>LongMethod:ProviderConfigure.kt$@Composable private fun OpenRouterRoutingSection( routing: OpenRouterRouting, onChange: (OpenRouterRouting) -&gt; Unit, )</ID>
+    <ID>LongMethod:ProviderConfigure.kt$@Composable private fun ProviderConfigureGoogle( provider: ProviderSetting.Google, onEdit: (provider: ProviderSetting.Google) -&gt; Unit, )</ID>
+    <ID>LongMethod:ProviderConfigure.kt$fun ProviderSetting.convertTo(type: KClass&lt;out ProviderSetting&gt;): ProviderSetting</ID>
+    <ID>LongMethod:ProviderConnectionTester.kt$@Composable fun ProviderConnectionTester( internalProvider: ProviderSetting, )</ID>
+    <ID>LongMethod:ReasoningPicker.kt$@Composable fun ReasoningPicker( reasoningLevel: ReasoningLevel, onDismissRequest: () -&gt; Unit = {}, onUpdateReasoningLevel: (ReasoningLevel) -&gt; Unit, )</ID>
+    <ID>LongMethod:ResponseAPI.kt$ResponseAPI$private fun JsonArrayBuilder.addAssistantItems(message: UIMessage, supportInputModalities: List&lt;Modality&gt;)</ID>
+    <ID>LongMethod:ResponseApiStreamDecoder.kt$ResponseApiStreamDecoder$private fun parseEvent(payload: JsonObject): List&lt;StreamChunk&gt;</ID>
+    <ID>LongMethod:RouteActivity.kt$RouteActivity$@OptIn(ExperimentalComposeUiApi::class) @Composable fun AppRoutes()</ID>
+    <ID>LongMethod:S3Sync.kt$S3Sync$private suspend fun restoreFromBackupFile(backupFile: File, config: S3Config)</ID>
+    <ID>LongMethod:S3Tab.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun S3Tab( vm: BackupVM, onShowRestartDialog: () -&gt; Unit, )</ID>
+    <ID>LongMethod:ScheduledJobDetailScreen.kt$@Composable fun ScheduledJobDetailScreen( jobId: String, vm: ScheduledJobsViewModel = koinViewModel(), )</ID>
+    <ID>LongMethod:SearchPage.kt$@Composable fun SearchPage(vm: SearchVM = koinViewModel())</ID>
+    <ID>LongMethod:SettingAboutPage.kt$@Composable fun SettingAboutPage()</ID>
+    <ID>LongMethod:SettingAccessibilityPage.kt$@Composable fun SettingAccessibilityPage()</ID>
+    <ID>LongMethod:SettingBrowserPage.kt$@Composable fun SettingBrowserPage(vm: SettingBrowserViewModel = koinViewModel())</ID>
+    <ID>LongMethod:SettingFilesPage.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingFilesPage(filesManager: FilesManager = koinInject())</ID>
+    <ID>LongMethod:SettingMcpPage.kt$@Composable fun SettingMcpPage(vm: SettingVM = koinViewModel())</ID>
+    <ID>LongMethod:SettingMcpPage.kt$@Composable private fun LocalMcpProfileModal( initial: LocalMcpProfile?, onConfirm: (LocalMcpProfile) -&gt; Unit, onDismiss: () -&gt; Unit, )</ID>
+    <ID>LongMethod:SettingMcpPage.kt$@Composable private fun McpCommonOptionsConfigure( config: McpServerConfig, update: (McpServerConfig) -&gt; Unit, )</ID>
+    <ID>LongMethod:SettingMcpPage.kt$@Composable private fun McpServerItem( item: McpServerConfig, modifier: Modifier = Modifier, onDelete: () -&gt; Unit, onEdit: (McpServerConfig) -&gt; Unit, )</ID>
+    <ID>LongMethod:SettingNotificationsPage.kt$@Composable fun SettingNotificationsPage()</ID>
+    <ID>LongMethod:SettingPreferencesGeneralPage.kt$@Composable fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel())</ID>
+    <ID>LongMethod:SettingPreferencesNetworkPage.kt$@Composable fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel())</ID>
+    <ID>LongMethod:SettingPreferencesUIPage.kt$@Composable fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel())</ID>
+    <ID>LongMethod:SettingProviderDetailPage.kt$@Composable fun SettingProviderDetailPage( id: Uuid, vm: SettingVM = koinViewModel(), )</ID>
+    <ID>LongMethod:SettingProviderDetailPage.kt$@Composable private fun AddModelButton( models: List&lt;Model&gt;, selectedModels: List&lt;Model&gt;, expanded: Boolean, onAddModel: (Model) -&gt; Unit, onRemoveModel: (Model) -&gt; Unit, parentProvider: ProviderSetting, onUpdateProvider: (ProviderSetting) -&gt; Unit, )</ID>
+    <ID>LongMethod:SettingProviderDetailPage.kt$@Composable private fun ModelCard( model: Model, modifier: Modifier = Modifier, onDelete: () -&gt; Unit, onEdit: (Model) -&gt; Unit, parentProvider: ProviderSetting, selectionMode: Boolean = false, selected: Boolean = false, onToggleSelect: () -&gt; Unit = {}, onEnterMultiSelect: () -&gt; Unit = {}, )</ID>
+    <ID>LongMethod:SettingProviderDetailPage.kt$@Composable private fun ModelList( providerSetting: ProviderSetting, onUpdateProvider: (ProviderSetting) -&gt; Unit, selectionMode: Boolean, selectedIds: Set&lt;Uuid&gt;, onSelectionModeChange: (Boolean) -&gt; Unit, onSelectedIdsChange: (Set&lt;Uuid&gt;) -&gt; Unit, )</ID>
+    <ID>LongMethod:SettingProviderDetailPage.kt$@Composable private fun ModelPicker( models: List&lt;Model&gt;, selectedModels: List&lt;Model&gt;, onModelSelected: (Model) -&gt; Unit, onModelDeselected: (Model) -&gt; Unit, onAllModelSelected: (List&lt;Model&gt;) -&gt; Unit, onAllModelDeselected: (List&lt;Model&gt;) -&gt; Unit, )</ID>
+    <ID>LongMethod:SettingProviderDetailPage.kt$@Composable private fun ModelSettingsForm( model: Model, onModelChange: (Model) -&gt; Unit, isEdit: Boolean, parentProvider: ProviderSetting? = null, )</ID>
+    <ID>LongMethod:SettingProviderDetailPage.kt$@Composable private fun ProviderOverrideSettings( providerOverride: ProviderSetting?, onUpdateProviderOverride: (ProviderSetting?) -&gt; Unit, parentProvider: ProviderSetting?, )</ID>
+    <ID>LongMethod:SettingProviderDetailPage.kt$@Composable private fun SettingProviderConfigPage( provider: ProviderSetting, onEdit: (ProviderSetting) -&gt; Unit, onDelete: () -&gt; Unit, )</ID>
+    <ID>LongMethod:SettingProviderPage.kt$@Composable fun SettingProviderPage(vm: SettingVM = koinViewModel())</ID>
+    <ID>LongMethod:SettingProviderPage.kt$@Composable private fun ImportProviderButton(onAdd: (ProviderSetting) -&gt; Unit)</ID>
+    <ID>LongMethod:SettingSearchPage.kt$@Composable fun SettingSearchPage(vm: SettingVM = koinViewModel())</ID>
+    <ID>LongMethod:SettingShizukuPage.kt$@Composable fun SettingShizukuPage()</ID>
+    <ID>LongMethod:SettingSpeechPage.kt$@Composable fun SettingSpeechPage(vm: SettingVM = koinViewModel())</ID>
+    <ID>LongMethod:SettingSpeechPage.kt$@Composable private fun TTSProviderItem( provider: TTSProviderSetting, modifier: Modifier = Modifier, isSelected: Boolean = false, dragHandle: @Composable () -&gt; Unit, onSelect: () -&gt; Unit, onEdit: () -&gt; Unit, onDelete: () -&gt; Unit, )</ID>
+    <ID>LongMethod:SettingSshHostsPage.kt$@Composable private fun SshHostEditDialog( initial: SshHostEntity?, vaultRepo: me.rerere.rikkahub.data.vault.CredentialVaultRepository, onDismiss: () -&gt; Unit, onSave: (SshHostEntity) -&gt; Unit, )</ID>
+    <ID>LongMethod:SettingSshHostsPage.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingSshHostsPage()</ID>
+    <ID>LongMethod:SettingTTSPage.kt$@Composable fun SettingTTSPage(vm: SettingVM = koinViewModel())</ID>
+    <ID>LongMethod:SettingTTSPage.kt$@Composable private fun TTSProviderItem( provider: TTSProviderSetting, modifier: Modifier = Modifier, isSelected: Boolean = false, dragHandle: @Composable () -&gt; Unit, onSelect: () -&gt; Unit, onEdit: () -&gt; Unit, onDelete: () -&gt; Unit, )</ID>
+    <ID>LongMethod:SettingTelegramPage.kt$@Composable fun SettingTelegramPage()</ID>
+    <ID>LongMethod:SettingTermuxPage.kt$@Composable fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel())</ID>
+    <ID>LongMethod:SettingThemePage.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingThemePage(vm: SettingVM = koinViewModel())</ID>
+    <ID>LongMethod:SettingToolApprovalsPage.kt$@Composable fun SettingToolApprovalsPage()</ID>
+    <ID>LongMethod:SettingWebBridgePage.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun SettingWebBridgePage()</ID>
+    <ID>LongMethod:SettingWebServerPage.kt$@Composable fun SettingWebServerPage()</ID>
+    <ID>LongMethod:SettingsRoutes.kt$fun Route.settingsRoutes( settingsStore: SettingsStore )</ID>
+    <ID>LongMethod:SettingsSearchIndex.kt$fun settingsSearchIndex(developerMode: Boolean): List&lt;SettingsSearchEntry&gt;</ID>
+    <ID>LongMethod:SkillDetailPage.kt$@Composable fun SkillDetailPage(skillName: String)</ID>
+    <ID>LongMethod:SkillsPage.kt$@Composable fun SkillsPage()</ID>
+    <ID>LongMethod:SkillsTools.kt$fun createSkillTools( enabledSkills: Set&lt;String&gt;, allSkills: List&lt;SkillMetadata&gt;, /** * Optional disk helper: supplies the mtime-aware read cache the per-turn auto-load * path uses, and backs the read-only `skill_get_content` tool. Everything needed for * correctness already lives on [SkillMetadata], so when this is absent the files are * read straight from the skill's own directory. Same result, just uncached, and the * content tool is not offered. */ skillManager: SkillManager? = null, ): List&lt;Tool&gt;</ID>
+    <ID>LongMethod:SshHostsTool.kt$fun sshExecSavedTool( context: Context, repo: SshHostRepository, vaultRepository: CredentialVaultRepository, ): Tool</ID>
+    <ID>LongMethod:SshKeyPairDialog.kt$@Composable fun SshKeyPairDialog( credentialName: String, defaultGroup: String, onDismiss: () -&gt; Unit, onSaved: (String) -&gt; Unit, )</ID>
+    <ID>LongMethod:StreamChunkHandler.kt$StreamChunkHandler$private fun append(message: UIMessage, chunk: StreamChunk): UIMessage</ID>
+    <ID>LongMethod:TTSProviderConfigure.kt$@Composable fun TTSProviderConfigure( setting: TTSProviderSetting, modifier: Modifier = Modifier, onValueChange: (TTSProviderSetting) -&gt; Unit, )</ID>
+    <ID>LongMethod:TTSProviderConfigure.kt$@Composable private fun QwenTTSConfiguration( setting: TTSProviderSetting.Qwen, onValueChange: (TTSProviderSetting) -&gt; Unit, )</ID>
+    <ID>LongMethod:TTSProviderConfigure.kt$@Composable private fun StepTTSConfiguration( setting: TTSProviderSetting.Step, onValueChange: (TTSProviderSetting) -&gt; Unit, )</ID>
+    <ID>LongMethod:TTSProviderConfigure.kt$@Composable private fun XAITTSConfiguration( setting: TTSProviderSetting.XAI, onValueChange: (TTSProviderSetting) -&gt; Unit, )</ID>
+    <ID>LongMethod:TagList.kt$@Composable fun TagsInput( value: List&lt;Uuid&gt;, tags: List&lt;Tag&gt;, modifier: Modifier = Modifier, onValueChange: (value: List&lt;Uuid&gt;, tags: List&lt;Tag&gt;) -&gt; Unit, )</ID>
+    <ID>LongMethod:TelegramBotService.kt$TelegramBotService$private suspend fun handleCallbackQuery( cfg: me.rerere.rikkahub.data.telegram.TelegramBotConfig, cq: TelegramCallbackQuery, )</ID>
+    <ID>LongMethod:TelegramBotService.kt$TelegramBotService$private suspend fun handleLlmTurn( cfg: me.rerere.rikkahub.data.telegram.TelegramBotConfig, m: TelegramIncomingMessage, )</ID>
+    <ID>LongMethod:TelegramBotService.kt$TelegramBotService$private suspend fun pollLoop()</ID>
+    <ID>LongMethod:TermuxTool.kt$fun termuxRunCommandTool(context: Context): Tool</ID>
+    <ID>LongMethod:TranscribeAudioTool.kt$fun transcribeAudioFileTool(context: Context): Tool</ID>
+    <ID>LongMethod:TranslatorPage.kt$@Composable fun TranslatorPage(vm: TranslatorVM = koinViewModel())</ID>
+    <ID>LongMethod:UIAvatar.kt$@Composable fun UIAvatar( name: String, value: Avatar, modifier: Modifier = Modifier, loading: Boolean = false, onUpdate: ((Avatar) -&gt; Unit)? = null, onClick: (() -&gt; Unit)? = null, )</ID>
+    <ID>LongMethod:UpdateCard.kt$@OptIn(ExperimentalTime::class) @Composable fun UpdateCard(vm: ChatVM)</ID>
+    <ID>LongMethod:VaultCredentialsPage.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun VaultCredentialsPage()</ID>
+    <ID>LongMethod:VaultPage.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun VaultPage()</ID>
+    <ID>LongMethod:WebApiModule.kt$fun Application.configureWebApi( context: Context, chatService: ChatService, conversationRepo: ConversationRepository, folderRepo: FolderRepository, settingsStore: SettingsStore, filesManager: FilesManager, vaultRepository: me.rerere.rikkahub.data.vault.CredentialVaultRepository, vaultSessionManager: me.rerere.rikkahub.data.vault.VaultSessionManager, )</ID>
+    <ID>LongMethod:WebDavSync.kt$WebDavSync$private suspend fun restoreFromBackupFile(backupFile: File, config: WebDavConfig)</ID>
+    <ID>LongMethod:WebDavTab.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun WebDavTab( vm: BackupVM, onShowRestartDialog: () -&gt; Unit, )</ID>
+    <ID>LongMethod:WebFetchTool.kt$fun webFetchTool(client: OkHttpClient): Tool</ID>
+    <ID>LongMethod:WebViewPage.kt$@OptIn(ExperimentalMaterial3Api::class) @Composable fun WebViewPage( url: String, contentId: String, )</ID>
+    <ID>LongMethod:WorkflowDetailScreen.kt$@Composable fun WorkflowDetailScreen( workflowId: String, vm: WorkflowsViewModel = koinViewModel(), )</ID>
+    <ID>LongMethod:WorkflowEngine.kt$WorkflowEngine$private suspend fun fireLocked(workflowId: String): FireOutcome</ID>
+    <ID>LongMethod:WorkflowJson.kt$WorkflowJson$fun parse( rawJson: String, knownToolNames: Set&lt;String&gt;, ): ParseResult</ID>
+    <ID>LongMethod:WorkspaceCwdPicker.kt$@Composable fun WorkspaceCwdPickerSheet( workspaceId: String, currentCwd: String?, onSelectCwd: (String?) -&gt; Unit, onDismiss: () -&gt; Unit, )</ID>
+    <ID>LongMethod:WorkspaceDetailPage.kt$@Composable fun WorkspaceDetailPage(id: String)</ID>
+    <ID>LongMethod:WorkspaceDetailPage.kt$@Composable private fun InstallRootfsDialog( workspace: WorkspaceEntity, onDismiss: () -&gt; Unit, onConfirm: (String) -&gt; Unit, onConfirmFile: (String) -&gt; Unit, )</ID>
+    <ID>LongMethod:WorkspaceDetailPage.kt$@Composable private fun WorkspaceBasicPage( workspace: WorkspaceEntity?, distro: WorkspaceDistroInfo?, installProgress: RootfsInstallProgress?, mirrors: WorkspaceMirrors, onInstallRootfs: () -&gt; Unit, onToolApprovalChange: (String, Boolean) -&gt; Unit, onShellCompatibilityModeChange: (Boolean) -&gt; Unit, onApplyMirrors: (WorkspaceMirrors) -&gt; Unit, )</ID>
+    <ID>LongMethod:WorkspaceDetailPage.kt$@Composable private fun WorkspaceFileCard( entry: WorkspaceFileEntry, area: WorkspaceStorageArea, onResolveImage: suspend () -&gt; File?, onOpen: () -&gt; Unit, onDelete: () -&gt; Unit, onExport: () -&gt; Unit, onShare: () -&gt; Unit, )</ID>
+    <ID>LongMethod:WorkspaceFileEditorPage.kt$@Composable fun WorkspaceFileEditorPage( id: String, area: WorkspaceStorageArea, path: String, )</ID>
+    <ID>LongMethod:WorkspaceTerminalPage.kt$@Composable @OptIn(ExperimentalLayoutApi::class) private fun WorkspaceTerminalContent( root: String?, state: WorkspaceTerminalTabsState, contentPadding: PaddingValues, onCreateTab: () -&gt; Unit, onSelectTab: (Long) -&gt; Unit, onCloseTab: (Long) -&gt; Unit, )</ID>
+    <ID>LongMethod:WorkspaceTools.kt$private fun createShellTool( workspaceId: String, needsApproval: (String) -&gt; Boolean, workspaceRepository: WorkspaceRepository, defaultCwd: String? = null, )</ID>
+    <ID>LongMethod:WriteFileTool.kt$fun writeTextFileTool(context: Context): Tool</ID>
+    <ID>LongParameterList:BackendSseClient.kt$BackendSseClient$( private val baseUrl: String, private val username: String = "", private val password: String = "", private val token: String = "", private val reconnectEnabled: Boolean = true, private val maxReconnectDelayMs: Long = 30_000L, private val historyLoader: (() -&gt; List&lt;HistoryMessage&gt;)? = null, /** 服务端状态读取（用于断流重连后探测是否有待应答交互） */ private val statusLoader: (() -&gt; StatusInfo?)? = null, private val client: OkHttpClient = OkHttpClient.Builder() .connectTimeout(120, TimeUnit.SECONDS) .readTimeout(0, TimeUnit.MILLISECONDS) .writeTimeout(120, TimeUnit.SECONDS) .build(), )</ID>
+    <ID>LongParameterList:BackupVM.kt$BackupVM$( private val settingsStore: SettingsStore, private val webDavSync: WebDavSync, private val s3Sync: S3Sync, private val conversationRepository: ConversationRepository, private val filesManager: FilesManager, private val appScope: AppScope, private val backupEncryptionManager: BackupEncryptionManager, )</ID>
+    <ID>LongParameterList:BrowserView.kt$( onWebViewReady: (WebView) -&gt; Unit, onUrlChange: (String) -&gt; Unit, onTitleChange: (String) -&gt; Unit, onLoadProgress: (Int) -&gt; Unit, onCanGoBackChange: (Boolean) -&gt; Unit, onCanGoForwardChange: (Boolean) -&gt; Unit, canGoBackState: MutableState&lt;Boolean&gt;, canGoForwardState: MutableState&lt;Boolean&gt;, currentUrlState: MutableState&lt;String&gt;, currentTitleState: MutableState&lt;String&gt;, loadProgressState: MutableState&lt;Int&gt;, onClose: () -&gt; Unit, onBackTap: () -&gt; Unit, onForwardTap: () -&gt; Unit, onRefreshTap: () -&gt; Unit, onStopAi: () -&gt; Unit, onNavigate: (String) -&gt; Unit, initialUrl: String, conversationId: Uuid?, )</ID>
+    <ID>LongParameterList:ChatInput.kt$( state: ChatInputState, loading: Boolean, /** 待发送队列长度；&gt; 0 时在输入区上方提示「待发送 N 条」。 */ pendingQueueCount: Int = 0, settings: Settings, hazeState: HazeState, enableSearch: Boolean, sessionTotals: TokenBudgetTracker.Totals? = null, onToggleSearch: (Boolean) -&gt; Unit, modifier: Modifier = Modifier, completionProviders: List&lt;ChatCompletionProvider&gt; = emptyList(), onUpdateChatModel: (Model) -&gt; Unit, onUpdateAssistant: (Assistant) -&gt; Unit, onUpdateSearchService: (Int) -&gt; Unit, onMoreClick: () -&gt; Unit, onVaultAuthorizeClick: () -&gt; Unit = {}, onAutoClick: () -&gt; Unit = {}, onCancelClick: () -&gt; Unit, onSendClick: () -&gt; Unit, onLongSendClick: () -&gt; Unit, )</ID>
+    <ID>LongParameterList:ChatList.kt$( innerPadding: PaddingValues, conversation: Conversation, state: LazyListState, loading: Boolean, processingStatus: String? = null, previewMode: Boolean, settings: Settings, hazeState: HazeState, errors: List&lt;ChatError&gt; = emptyList(), onDismissError: (Uuid) -&gt; Unit = {}, onClearAllErrors: () -&gt; Unit = {}, onRegenerate: (UIMessage) -&gt; Unit = {}, onEdit: (UIMessage) -&gt; Unit = {}, onForkMessage: (UIMessage) -&gt; Unit = {}, onDelete: (UIMessage) -&gt; Unit = {}, onUpdateMessage: (MessageNode) -&gt; Unit = {}, onClickSuggestion: (String) -&gt; Unit = {}, onTranslate: ((UIMessage, java.util.Locale) -&gt; Unit)? = null, onClearTranslation: (UIMessage) -&gt; Unit = {}, onJumpToMessage: (Int) -&gt; Unit = {}, onToolApproval: ( ( toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String, ) -&gt; Unit )? = null, onToolAnswer: ((toolCallId: String, answer: String) -&gt; Unit)? = null, onToggleFavorite: ((MessageNode) -&gt; Unit)? = null, onConversationSystemPromptChange: ((String?) -&gt; Unit)? = null, sessionTotals: TokenBudgetTracker.Totals? = null, )</ID>
+    <ID>LongParameterList:ChatList.kt$( innerPadding: PaddingValues, conversation: Conversation, state: LazyListState, loading: Boolean, processingStatus: String? = null, settings: Settings, hazeState: HazeState, errors: List&lt;ChatError&gt;, onDismissError: (Uuid) -&gt; Unit, onClearAllErrors: () -&gt; Unit, onRegenerate: (UIMessage) -&gt; Unit, onEdit: (UIMessage) -&gt; Unit, onForkMessage: (UIMessage) -&gt; Unit, onDelete: (UIMessage) -&gt; Unit, onUpdateMessage: (MessageNode) -&gt; Unit, onClickSuggestion: (String) -&gt; Unit, onTranslate: ((UIMessage, java.util.Locale) -&gt; Unit)?, onClearTranslation: (UIMessage) -&gt; Unit, animatedVisibilityScope: AnimatedVisibilityScope, onToolApproval: ( ( toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String, ) -&gt; Unit )? = null, onToolAnswer: ((toolCallId: String, answer: String) -&gt; Unit)? = null, onToggleFavorite: ((MessageNode) -&gt; Unit)? = null, onConversationSystemPromptChange: ((String?) -&gt; Unit)? = null, sessionTotals: TokenBudgetTracker.Totals? = null, )</ID>
+    <ID>LongParameterList:ChatMessage.kt$( node: MessageNode, modifier: Modifier = Modifier, loading: Boolean = false, model: Model? = null, assistant: Assistant? = null, lastMessage: Boolean = false, onFork: () -&gt; Unit, onRegenerate: () -&gt; Unit, onEdit: () -&gt; Unit, onShare: () -&gt; Unit, onDelete: () -&gt; Unit, onUpdate: (MessageNode) -&gt; Unit, isFavorite: Boolean = false, onToggleFavorite: (() -&gt; Unit)? = null, onTranslate: ((UIMessage, Locale) -&gt; Unit)? = null, onClearTranslation: (UIMessage) -&gt; Unit = {}, onToolApproval: ( ( toolCallId: String, approved: Boolean, reason: String, scope: me.rerere.rikkahub.service.ChatService.ApprovalScope, toolName: String, ) -&gt; Unit )? = null, onToolAnswer: ((toolCallId: String, answer: String) -&gt; Unit)? = null, sessionTotals: TokenBudgetTracker.Totals? = null, )</ID>
+    <ID>LongParameterList:ChatMessageActions.kt$( message: UIMessage, model: Model?, onDelete: () -&gt; Unit, onEdit: () -&gt; Unit, onShare: () -&gt; Unit, onFork: () -&gt; Unit, onSelectAndCopy: () -&gt; Unit, isFavorite: Boolean = false, onToggleFavorite: (() -&gt; Unit)? = null, onWebViewPreview: () -&gt; Unit, onDismissRequest: () -&gt; Unit, )</ID>
+    <ID>LongParameterList:ChatPage.kt$( inputState: ChatInputState, loadingJob: Job?, processingStatus: String? = null, setting: Settings, bigScreen: Boolean, conversation: Conversation, drawerState: DrawerState, navController: Navigator, vm: ChatVM, chatListState: LazyListState, enableWebSearch: Boolean, currentChatModel: Model?, errors: List&lt;ChatError&gt;, onDismissError: (Uuid) -&gt; Unit, onClearAllErrors: () -&gt; Unit, )</ID>
+    <ID>LongParameterList:ChatService.kt$ChatService$( private val context: Application, private val appScope: AppScope, private val appEventBus: AppEventBus, private val settingsStore: SettingsStore, private val conversationRepo: ConversationRepository, private val memoryRepository: MemoryRepository, private val generationLoop: GenerationLoop, private val chatToolFactory: ChatToolFactory, private val templateTransformer: TemplateTransformer, private val providerManager: ProviderManager, private val localTools: LocalTools, val mcpManager: McpManager, private val filesManager: FilesManager, private val skillManager: SkillManager, private val toolApprovalPreferences: me.rerere.rikkahub.data.preferences.ToolApprovalPreferences, private val workspaceRepository: WorkspaceRepository, private val folderRepository: FolderRepository, private val compressedArchiveDao: me.rerere.rikkahub.data.db.dao.CompressedArchiveDao, )</ID>
+    <ID>LongParameterList:ChatToolFactory.kt$ChatToolFactory$( private val context: android.app.Application, private val json: Json, private val memoryRepository: MemoryRepository, private val localTools: LocalTools, private val mcpManager: McpManager, private val skillManager: SkillManager, private val workspaceRepository: WorkspaceRepository, )</ID>
+    <ID>LongParameterList:ChatVM.kt$ChatVM$( id: String, private val context: Application, private val settingsStore: SettingsStore, private val conversationRepo: ConversationRepository, private val chatService: ChatService, val updateChecker: UpdateChecker, private val filesManager: FilesManager, private val favoriteRepository: FavoriteRepository, )</ID>
+    <ID>LongParameterList:ConversationList.kt$( conversation: Conversation, selected: Boolean, loading: Boolean, modifier: Modifier = Modifier, onDelete: (Conversation) -&gt; Unit = {}, onRegenerateTitle: (Conversation) -&gt; Unit = {}, onPin: (Conversation) -&gt; Unit = {}, onMoveToAssistant: (Conversation) -&gt; Unit = {}, onMoveToFolder: (Conversation) -&gt; Unit = {}, onClick: (Conversation) -&gt; Unit, )</ID>
+    <ID>LongParameterList:ConversationList.kt$( current: Conversation, conversations: LazyPagingItems&lt;ConversationListItem&gt;, conversationJobs: Collection&lt;Uuid&gt;, listState: LazyListState, modifier: Modifier = Modifier, onClick: (Conversation) -&gt; Unit = {}, onDelete: (Conversation) -&gt; Unit = {}, onRegenerateTitle: (Conversation) -&gt; Unit = {}, onPin: (Conversation) -&gt; Unit = {}, onMoveToAssistant: (Conversation) -&gt; Unit = {}, onMoveToFolder: (Conversation) -&gt; Unit = {}, )</ID>
+    <ID>LongParameterList:DataTable.kt$( headers: List&lt;@Composable () -&gt; Unit&gt;, rows: List&lt;List&lt;@Composable () -&gt; Unit&gt;&gt;, modifier: Modifier = Modifier, cellPadding: Dp = 4.dp, cellBorder: BorderStroke? = BorderStroke(0.5.dp, MaterialTheme.colorScheme.outlineVariant), headerBackground: Color = MaterialTheme.colorScheme.surfaceVariant, zebraStriping: Boolean = false, columnMinWidths: List&lt;Dp&gt; = emptyList(), columnMaxWidths: List&lt;Dp&gt; = emptyList(), cellAlignment: Alignment = Alignment.CenterStart, outerBorder: BorderStroke? = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant), shape: Shape = MaterialTheme.shapes.small, stretchToFillWidth: Boolean = true, )</ID>
+    <ID>LongParameterList:DoctorChecks.kt$DoctorChecks$( private val context: Context, private val settingsStore: SettingsStore, private val telegramPrefs: TelegramBotPreferences, private val workflowRepository: WorkflowRepository, private val scheduledJobRepository: ScheduledJobRepository, private val scheduledJobRunRepository: ScheduledJobRunRepository, private val conversationRepository: ConversationRepository, private val database: AppDatabase, // Pass 3: per-tool browser toggle store. Used by the browser write-tools-enabled INFO // row so the user can spot-check which side-effecting tools are currently switched on. // Optional + nullable so callers that don't construct this DoctorChecks via the DI // graph (a few legacy tests) keep compiling — the row is silently skipped when null. private val browserPreferences: BrowserPreferences? = null, // Phase 25 — SAF tree-grant store, backs the "granted directories" Doctor row. // Nullable + defaulted so legacy test paths that don't build the full DI graph compile. private val storageVolumeGrantStore: me.rerere.rikkahub.data.storage.StorageVolumeGrantStore? = null, // Surface the persisted LiteRT accelerator decision so the user can see whether their // local models actually engaged GPU/NPU or silently fell back to CPU. // Nullable + defaulted same as the others above for legacy test path compatibility. private val localRuntimePreferences: me.rerere.locallm.LocalRuntimePreferences? = null, )</ID>
+    <ID>LongParameterList:ExternalAutomationDispatcher.kt$ExternalAutomationDispatcher$( private val context: Context, private val config: ExternalAutomationConfig, private val chatService: ChatService, private val conversationRepo: ConversationRepository, private val settingsStore: SettingsStore, private val appScope: AppScope, /** * Phase 24 — unified AgentRun ledger writer. Every external-automation RUN_TASK is an * autonomous run that survives only as long as the process: writing it to the ledger * means a kill mid-run is reconciled to `process_lost` on next start. No DI-cycle risk. */ private val agentRunRepo: AgentRunRepository, )</ID>
+    <ID>LongParameterList:FilesPicker.kt$( conversation: Conversation, assistant: Assistant, state: ChatInputState, mcpManager: McpManager, onCompressContext: (additionalPrompt: String, targetTokens: Int, keepRecentMessages: Int) -&gt; Job, onUpdateAssistant: (Assistant) -&gt; Unit, onUpdateConversation: (Conversation) -&gt; Unit, showInjectionSheet: Boolean, onShowInjectionSheetChange: (Boolean) -&gt; Unit, showCompressDialog: Boolean, onShowCompressDialogChange: (Boolean) -&gt; Unit, showAutoCompressDialog: Boolean, onShowAutoCompressDialogChange: (Boolean) -&gt; Unit, showToolOutputDialog: Boolean, onShowToolOutputDialogChange: (Boolean) -&gt; Unit, onDismiss: () -&gt; Unit, onTakePic: () -&gt; Unit, onPickImage: () -&gt; Unit, onPickVideo: () -&gt; Unit, onPickAudio: () -&gt; Unit, onPickFile: () -&gt; Unit, )</ID>
+    <ID>LongParameterList:GenerationLoop.kt$GenerationLoop$( assistant: Assistant, settings: Settings, systemAddendum: String? = null, messages: List&lt;UIMessage&gt;, onUpdateMessages: suspend (List&lt;UIMessage&gt;) -&gt; Unit, transformers: List&lt;MessageTransformer&gt;, model: Model, providerImpl: Provider&lt;ProviderSetting&gt;, provider: ProviderSetting, tools: List&lt;Tool&gt;, memories: List&lt;AssistantMemory&gt;, stream: Boolean, processingStatus: MutableStateFlow&lt;String?&gt; = MutableStateFlow(null), // Called on each retry after the failure has been diagnosed (label + raw text). // ChatService uses it to persist the last failure into the conversation when a // retry finally succeeds, so the model knows the generation recovered. onRetryDiagnosed: ((FailureDiagnosis) -&gt; Unit)? = null, conversationSystemPrompt: String? = null, conversationId: Uuid? = null, conversationModeInjectionIds: Set&lt;Uuid&gt; = emptySet(), conversationLorebookIds: Set&lt;Uuid&gt; = emptySet(), workspaceCwd: String? = null, )</ID>
+    <ID>LongParameterList:GenerationLoop.kt$GenerationLoop$( private val context: Context, private val providerManager: ProviderManager, private val json: Json, private val memoryRepo: MemoryRepository, private val conversationRepo: ConversationRepository, private val aiLoggingManager: AILoggingManager, private val systemPromptBuilder: SystemPromptBuilder, )</ID>
+    <ID>LongParameterList:GenerationLoop.kt$GenerationLoop$( settings: Settings, model: Model, messages: List&lt;UIMessage&gt;, inputTransformers: List&lt;InputMessageTransformer&gt; = emptyList(), outputTransformers: List&lt;OutputMessageTransformer&gt; = emptyList(), assistant: Assistant, memories: List&lt;AssistantMemory&gt;? = null, tools: List&lt;Tool&gt; = emptyList(), // Read live from the runtime holder, not captured once: the default expression is // evaluated per call, so a settings change takes effect on the next turn. maxSteps: Int = ToolRuntimeLimits.maxToolSteps, processingStatus: MutableStateFlow&lt;String?&gt; = MutableStateFlow(null), // Called on each retry after the failure has been diagnosed (label + raw text). // ChatService uses it to persist the last failure into the conversation when a // retry finally succeeds, so the model knows the generation recovered. onRetryDiagnosed: ((FailureDiagnosis) -&gt; Unit)? = null, // Called after a tool result has been emitted and persisted, before the next model // request is built. The callback may return a compacted request history; the returned // list is request-only and does not replace the conversation's original messages. onAfterToolExecution: suspend (List&lt;UIMessage&gt;) -&gt; List&lt;UIMessage&gt;? = { null }, // Called immediately before every model request, including the request after a tool // result. ChatService uses this to reassert the foreground service before a background // continuation opens a new socket. onBeforeModelRequest: suspend () -&gt; Unit = {}, // 取出用户在生成期间排队补充的消息，在**每个 step 结束（工具执行完）后**立即追加到 // 请求历史，使「及时修正/补充」在下一 step 就被模型看到，而不必等整轮结束。 // 返回的消息会随 GenerationChunk.Messages 一并 emit，由 ChatService 落库。 drainQueuedMessages: suspend () -&gt; List&lt;UIMessage&gt; = { emptyList() }, // Returns true when the user has pre-approved [toolName] for this turn (e.g. // "Allow for this chat" or "Always Allow" granted earlier). When true, the loop // below skips the Pending flip and lets the tool execute. ChatService injects the // closure that reads ToolApprovalAllowList + ToolApprovalPreferences. Default // returns false so callers that don't care still get vanilla approval gating. isToolAutoApproved: suspend (toolName: String) -&gt; Boolean = { false }, // Optional per-call addendum appended to the system prompt. Used by surfaces that // need the model to know runtime context (e.g. "you're talking via Telegram, the // chat_id is 12345") without polluting the user message body — without this the // preamble is replayed in user history every turn, burning ~80 tokens × N turns. systemAddendum: String? = null, conversationSystemPrompt: String? = null, conversationId: Uuid? = null, conversationModeInjectionIds: Set&lt;Uuid&gt; = emptySet(), conversationLorebookIds: Set&lt;Uuid&gt; = emptySet(), workspaceCwd: String? = null, )</ID>
+    <ID>LongParameterList:HighlightCodeBlock.kt$( language: String, scope: CoroutineScope, clipboardManager: Clipboard, code: String, createDocumentLauncher: ManagedActivityResultLauncher&lt;String, Uri?&gt;, navController: Navigator, completeCodeBlock: Boolean = true, previewMode: Boolean = false, canInlinePreview: Boolean = false, onTogglePreviewMode: () -&gt; Unit = {}, )</ID>
+    <ID>LongParameterList:LocalTools.kt$LocalTools$( private val context: Context, private val eventBus: AppEventBus, private val cameraResultBuffer: CameraResultBuffer, private val biometricResultBuffer: BiometricResultBuffer, private val scheduledJobRepository: me.rerere.rikkahub.data.repository.ScheduledJobRepository, private val scheduledJobRunRepository: me.rerere.rikkahub.data.repository.ScheduledJobRunRepository, private val cronJobScheduler: me.rerere.rikkahub.service.CronJobScheduler, private val settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore, private val sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository, private val telegramBotPreferences: me.rerere.rikkahub.data.telegram.TelegramBotPreferences, private val telegramBotClient: me.rerere.rikkahub.data.telegram.TelegramBotClient, private val notificationListenerPreferences: me.rerere.rikkahub.data.notifications.NotificationListenerPreferences, private val mcpManager: me.rerere.rikkahub.data.ai.mcp.McpManager, private val externalAutomationConfig: me.rerere.rikkahub.automation.ExternalAutomationConfig, private val gitHubReleaseChecker: me.rerere.rikkahub.reliability.GitHubReleaseChecker, private val bugReportBuilder: me.rerere.rikkahub.reliability.BugReportBuilder, private val subAgentEngine: me.rerere.rikkahub.subagent.SubAgentEngine, private val subAgentRegistry: me.rerere.rikkahub.subagent.SubAgentRegistry, private val conversationRepo: me.rerere.rikkahub.data.repository.ConversationRepository, private val workflowRepository: me.rerere.rikkahub.workflow.repository.WorkflowRepository, private val workflowEngine: me.rerere.rikkahub.workflow.execution.WorkflowEngine, private val skillUrlImporter: me.rerere.rikkahub.skills.SkillUrlImporter, private val skillManager: me.rerere.rikkahub.data.files.SkillManager, private val jsSkillRunner: me.rerere.rikkahub.skills.js.JsSkillRunner, private val skillSecretsStore: me.rerere.rikkahub.skills.js.SkillSecretsStore, private val vaultRepository: me.rerere.rikkahub.data.vault.CredentialVaultRepository, // Browser per-tool toggle store. Pass 2 reads a [snapshotBlocking] of the map so each // tool factory gates its own registration on whether the user has flipped it on. Master // toggle ([LocalToolOption.Browser]) acts as the group on/off; per-tool toggles act as // a sub-allow-list. Both must be true for a tool to register. private val browserPreferences: me.rerere.rikkahub.browser.BrowserPreferences, // TermuxPreferences is injected here solely to force Koin to construct it at first tool // use (same trick as browserPreferences above). Koin singles are lazy; without this // constructor reference the singleton — and its init{} sync seed + async collectors — // would never build in headless sessions that skip Settings -&gt; Termux. @Suppress("UNUSED_PARAMETER") termuxPreferences: me.rerere.rikkahub.data.preferences.TermuxPreferences, // Post-action screenshot streamer for headless mode (Telegram bot / cron / sub-agent). // Injected rather than Koin-resolved inside each factory so JVM tests can pass a mock. private val interactiveToolStreamer: InteractiveToolStreamer, // Phase 25 — NFC / SAF Activity-bridge buffers + the SAF tree-grant store. private val nfcResultBuffer: me.rerere.rikkahub.data.ai.tools.local.NfcResultBuffer, private val safPickerResultBuffer: me.rerere.rikkahub.data.ai.tools.local.SafPickerResultBuffer, private val storageVolumeGrantStore: me.rerere.rikkahub.data.storage.StorageVolumeGrantStore, // Shared OkHttp singleton (NetworkChangeMonitor-registered) — backs the web_fetch tool. private val okHttpClient: okhttp3.OkHttpClient, // agent-keyboard IPC client — backs the keyboard_* tools (drives the active text field). private val keyboardApiClient: me.rerere.rikkahub.data.keyboard.KeyboardApiClient, // AI 自诊断/自管理工具（第一批）复用依赖。 private val doctorChecks: me.rerere.rikkahub.ui.pages.setting.doctor.DoctorChecks, private val providerManager: me.rerere.ai.provider.ProviderManager, )</ID>
+    <ID>LongParameterList:Markdown.kt$( node: ASTNode, content: String, trim: Boolean = false, inlineContents: MutableMap&lt;String, InlineTextContent&gt;, colorScheme: ColorScheme, density: Density, style: TextStyle, enableLatexRendering: Boolean = true, latexColorArgb: Int = 0, onClickCitation: (String) -&gt; Unit = {}, )</ID>
+    <ID>LongParameterList:SecretRefField.kt$( value: String, onValueChange: (String) -&gt; Unit, label: String, modifier: Modifier = Modifier, description: String? = null, /** "粘贴即入库"时的默认命名依据（如 provider 名）；会被规范化成合法名。 */ nameHint: String = "KEY", enabled: Boolean = true, /** 是否保留"显示/隐藏"图标（原先各页面自带的那个）。 */ showVisibilityToggle: Boolean = true, /** 是否单行（按各页面原有样式传入，避免接入后观感变化）。 */ singleLine: Boolean = false, /** 非单行时的最大行数（多行密钥/私钥等场景用）。 */ maxLines: Int = 3, /** 空值时的占位提示；默认提示可直接写 `$$名字` 引用（语法可发现性）。 */ placeholder: String? = null, )</ID>
+    <ID>LongParameterList:SshTool.kt$( context: Context, host: String, port: Int, user: String, auth: SshAuth, command: String, timeoutMs: Int, sessionRef: AtomicReference&lt;Session?&gt;, stdin: String? = null, /** 跳板（saved host 名已在 SshHostsTool 解析为 JumpSpec）。非空时目标经跳板隧道连 */ jump: JumpSpec? = null, /** 自定义 ssh 选项（每行 "键 值"），透传 openSshSession */ extraOptions: String? = null, )</ID>
+    <ID>LongParameterList:TextArea.kt$( state: TextFieldState, modifier: Modifier = Modifier, label: String = "", placeholder: String = "", minLines: Int = 5, maxLines: Int = 10, enabled: Boolean = true, readOnly: Boolean = false, supportedFileTypes: Array&lt;String&gt; = arrayOf("text/*", "application/json"), enableFullscreen: Boolean = true, onImportError: ((String) -&gt; Unit)? = null, )</ID>
+    <ID>LongParameterList:Transformer.kt$TransformerContext$( val context: Context, val model: Model, val assistant: Assistant, val settings: Settings, val conversationModeInjectionIds: Set&lt;Uuid&gt; = emptySet(), val conversationLorebookIds: Set&lt;Uuid&gt; = emptySet(), val processingStatus: MutableStateFlow&lt;String?&gt; = MutableStateFlow(null), val workspaceCwd: String? = null, )</ID>
+    <ID>LongParameterList:WebFetchTool.kt$( status: Int, ok: Boolean, finalUrl: String, html: String, contentType: String?, mode: FetchExtract, maxChars: Int, startIndex: Int, bodyTruncated: Boolean, headers: Map&lt;String, String&gt;?, )</ID>
+    <ID>LongParameterList:WebServerManager.kt$WebServerManager$( private val context: Context, private val appScope: AppScope, private val chatService: ChatService, private val conversationRepo: ConversationRepository, private val folderRepo: FolderRepository, private val settingsStore: SettingsStore, private val filesManager: FilesManager, private val vaultRepository: me.rerere.rikkahub.data.vault.CredentialVaultRepository, private val vaultSessionManager: me.rerere.rikkahub.data.vault.VaultSessionManager, )</ID>
+    <ID>NestedBlockDepth:AICoreProvider.kt$ToolTagParser$fun feed(delta: String): List&lt;UIMessagePart&gt;</ID>
+    <ID>NestedBlockDepth:ArchiveTools.kt$private fun detectZipStreamEntryNameCharset(openStream: () -&gt; InputStream?): Charset</ID>
+    <ID>NestedBlockDepth:ChatCompletionsAPI.kt$ChatCompletionsAPI$private fun JsonArrayBuilder.addAssistantMessages( message: UIMessage, includeReasoning: Boolean, includeOpenRouterReasoningDetails: Boolean, supportInputModalities: List&lt;Modality&gt;, )</ID>
+    <ID>NestedBlockDepth:ChatboxImporter.kt$ChatboxImporter$private fun ZipFile.readEntryBytes(entry: ZipEntry, maxSize: Long): ByteArray</ID>
+    <ID>NestedBlockDepth:CredentialImporter.kt$CredentialImporter$fun parse(content: String): List&lt;ParsedEntry&gt;</ID>
+    <ID>NestedBlockDepth:FileManagerContentOps.kt$internal fun moveOrCopyContent( context: Context, rawSrc: String?, rawDst: String?, obj: JsonObject, deleteSrc: Boolean, ): List&lt;UIMessagePart&gt;</ID>
+    <ID>NestedBlockDepth:GeminiAccountRepository.kt$internal fun parseGeminiQuotaUsage( root: JsonObject, nowMillis: Long = System.currentTimeMillis(), ): GeminiUsageSnapshot?</ID>
+    <ID>NestedBlockDepth:GeminiProvider.kt$GeminiStreamChunkAdapter$fun translate(chunk: MessageChunk): List&lt;StreamChunk&gt;</ID>
+    <ID>NestedBlockDepth:GoogleProvider.kt$GoogleProvider$private fun JsonArrayBuilder.addModelMessage(message: UIMessage)</ID>
+    <ID>NestedBlockDepth:ImportedDatabaseReconciler.kt$ImportedDatabaseReconciler$internal fun reconcileDatabaseFile(dbFile: File)</ID>
+    <ID>NestedBlockDepth:ImportedDatabaseReconciler.kt$ImportedDatabaseReconciler$private fun hasColumn(db: SQLiteDatabase, table: String, column: String): Boolean</ID>
+    <ID>NestedBlockDepth:LocalTools.kt$LocalTools$fun getTools( options: List&lt;LocalToolOption&gt;, invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY, ): List&lt;Tool&gt;</ID>
+    <ID>NestedBlockDepth:Markdown.kt$private fun AnnotatedString.Builder.appendMarkdownNodeContent( node: ASTNode, content: String, trim: Boolean = false, inlineContents: MutableMap&lt;String, InlineTextContent&gt;, colorScheme: ColorScheme, density: Density, style: TextStyle, enableLatexRendering: Boolean = true, latexColorArgb: Int = 0, onClickCitation: (String) -&gt; Unit = {}, )</ID>
+    <ID>NestedBlockDepth:MarkdownNew.kt$private fun AnnotatedString.Builder.appendHtmlInlineElement( element: Element, colorScheme: androidx.compose.material3.ColorScheme, inlineContents: MutableMap&lt;String, InlineTextContent&gt;, density: Density, style: TextStyle, enableLatexRendering: Boolean, onClickCitation: (String) -&gt; Unit, )</ID>
+    <ID>NestedBlockDepth:MarkdownNew.kt$private fun parseColor(colorString: String): Color?</ID>
+    <ID>NestedBlockDepth:MediaPlaybackService.kt$MediaPlaybackService$private fun startPlayback( source: String, title: String?, artist: String?, album: String?, artworkUri: String?, startPositionMs: Long = 0L, )</ID>
+    <ID>NestedBlockDepth:Message.kt$private fun List&lt;UIMessage&gt;.alignContextStart(startIndex: Int): Int</ID>
+    <ID>NestedBlockDepth:Migration_11_12.kt$&lt;no name provided&gt;$override fun migrate(db: SupportSQLiteDatabase)</ID>
+    <ID>NestedBlockDepth:Migration_15_16.kt$&lt;no name provided&gt;$override fun migrate(db: SupportSQLiteDatabase)</ID>
+    <ID>NestedBlockDepth:PromptInjectionTransformer.kt$internal fun applyInjections( messages: List&lt;UIMessage&gt;, byPosition: Map&lt;InjectionPosition, List&lt;PromptInjection&gt;&gt; ): List&lt;UIMessage&gt;</ID>
+    <ID>NestedBlockDepth:Request.kt$private fun sanitizeGeminiSchemaNode( root: JsonElement, node: JsonElement, depth: Int, refPath: Set&lt;String&gt;, ): JsonElement</ID>
+    <ID>NestedBlockDepth:ResponseAPI.kt$ResponseAPI$internal fun parseResponseOutput(jsonObject: JsonObject): TextGenerationResult</ID>
+    <ID>NestedBlockDepth:ResponseAPI.kt$ResponseAPI$private fun JsonArrayBuilder.addAssistantItems(message: UIMessage, supportInputModalities: List&lt;Modality&gt;)</ID>
+    <ID>NestedBlockDepth:S3Client.kt$S3Client$private fun parseListObjectsResponse(xml: String): S3ListResult</ID>
+    <ID>NestedBlockDepth:SSE.kt$SSEEventSource$fun processResponse(response: Response)</ID>
+    <ID>NestedBlockDepth:SimpleDictManager.kt$SimpleDictManager$private fun copyAssetDir(context: Context, assetPath: String, destDir: File)</ID>
+    <ID>NestedBlockDepth:SimpleHtmlBlock.kt$@Composable private fun RenderNode( node: Node, onLinkClick: (String) -&gt; Unit, )</ID>
+    <ID>NestedBlockDepth:SimpleHtmlBlock.kt$private fun parseColor(colorString: String): Color?</ID>
+    <ID>NestedBlockDepth:SimpleHtmlBlock.kt$private fun processElementNodes( element: Element, builder: AnnotatedString.Builder, onLinkClick: (String) -&gt; Unit, )</ID>
+    <ID>NestedBlockDepth:SkillManager.kt$SkillManager$fun seedDefaultSkillsIfNeeded()</ID>
+    <ID>NestedBlockDepth:SkillZipImporter.kt$SkillZipImporter$fun extractZipToDir(input: InputStream, destDir: File): Result&lt;File&gt;</ID>
+    <ID>NestedBlockDepth:TelegramBotService.kt$TelegramBotService$private suspend fun handleLlmTurn( cfg: me.rerere.rikkahub.data.telegram.TelegramBotConfig, m: TelegramIncomingMessage, )</ID>
+    <ID>NestedBlockDepth:TelegramBotService.kt$TelegramBotService$private suspend fun pollLoop()</ID>
+    <ID>NestedBlockDepth:TelegramTextChunker.kt$internal fun chunkForTelegram( s: String, n: Int, ): List&lt;String&gt;</ID>
+    <ID>NestedBlockDepth:TelephonyInfo.kt$internal fun telephonyPayload(context: Context): JsonObject</ID>
+    <ID>NestedBlockDepth:TermuxTool.kt$internal suspend fun runCommandCapture( ctx: Context, executable: String, arguments: Array&lt;String&gt;, workingDir: String, // Default reads from the runtime holder so callers that don't pass a timeout get the // user-configured value, not a stale compile-time constant. timeoutMs: Long = TermuxRuntime.commandTimeoutMs, ): CaptureResult</ID>
+    <ID>NestedBlockDepth:TimeReminderTransformer.kt$internal fun applyTimeReminder( messages: List&lt;UIMessage&gt;, intervalMinutes: Int = 60, ): List&lt;UIMessage&gt;</ID>
+    <ID>NestedBlockDepth:ViewText.kt$private fun TextView.setComposeTextStyle( density: Density, textStyle: TextStyle, )</ID>
+    <ID>NestedBlockDepth:WebDavClient.kt$WebDavClient$private fun parsePropfindResponse(xml: String, baseUrl: String): List&lt;WebDavResourceInfo&gt;</ID>
+    <ID>NestedBlockDepth:WorkspaceChangeDiff.kt$WorkspaceChangeDiff$suspend fun takeSnapshot( listFiles: suspend (path: String) -&gt; List&lt;me.rerere.workspace.WorkspaceFileEntry&gt;, readText: suspend (path: String) -&gt; String?, rootPath: String = "", maxDepth: Int = WorkspaceChangePolicy.MAX_DEPTH, ): WorkspaceSnapshot</ID>
+    <ID>NestedBlockDepth:WorkspaceIgnoreMatcher.kt$private fun String.toGitignoreRegex(): Regex</ID>
+    <ID>PrintStackTrace:AssistantImporter.kt$exception</ID>
+    <ID>PrintStackTrace:DatabaseUtil.kt$DatabaseUtil$e</ID>
+    <ID>PrintStackTrace:Export.kt$e</ID>
+    <ID>RethrowCaughtException:McpSessionRegistry.kt$McpSessionRegistry$throw e</ID>
+    <ID>RethrowCaughtException:S3Sync.kt$S3Sync$throw e</ID>
+    <ID>RethrowCaughtException:WebDavSync.kt$WebDavSync$throw e</ID>
+    <ID>SpreadOperator:WebDavClient.kt$WebDavClient$( path.takeIf { it.isNotBlank() }?.trim('/'), *segments.map { it.trim('/') }.toTypedArray() )</ID>
+    <ID>SpreadOperator:WorkspaceTerminalSession.kt$WorkspaceTerminalViewClient$(*URL_TRAILING_TRIM)</ID>
+    <ID>SwallowedException:ArchiveTools.kt$e: IllegalArgumentException</ID>
+    <ID>SwallowedException:ArchiveTools.kt$e: ZipBombException</ID>
+    <ID>SwallowedException:ArchiveTools.kt$e: java.util.zip.ZipException</ID>
+    <ID>SwallowedException:Assistant.kt$e: Exception</ID>
+    <ID>SwallowedException:BackendApi.kt$BackendApi$e: IOException</ID>
+    <ID>SwallowedException:BackendWebBridge.kt$BackendWebBridge$e: Exception</ID>
+    <ID>SwallowedException:CameraPhotoTool.kt$e: Throwable</ID>
+    <ID>SwallowedException:ContextUtil.kt$e: java.lang.Exception</ID>
+    <ID>SwallowedException:GuardedDns.kt$e: UnknownHostException</ID>
+    <ID>SwallowedException:KeystoreTools.kt$e: IllegalArgumentException</ID>
+    <ID>SwallowedException:LocalApprovalBridge.kt$LocalApprovalBridge$e: Exception</ID>
+    <ID>SwallowedException:LocalTools.kt$LenientLocalToolListSerializer$e: SerializationException</ID>
+    <ID>SwallowedException:PlayStoreUtil.kt$PlayStoreUtil$e: Exception</ID>
+    <ID>SwallowedException:S3Sync.kt$S3Sync$e: Exception</ID>
+    <ID>SwallowedException:ScreenState.kt$t: Throwable</ID>
+    <ID>SwallowedException:SettingPage.kt$e: ActivityNotFoundException</ID>
+    <ID>SwallowedException:SimpleHtmlBlock.kt$e: Exception</ID>
+    <ID>SwallowedException:SkillZipImporter.kt$SkillZipImporter$e: IllegalArgumentException</ID>
+    <ID>SwallowedException:SkillZipImporter.kt$SkillZipImporter$e: java.util.zip.ZipException</ID>
+    <ID>SwallowedException:SshKeyGenerator.kt$SshKeyGenerator$e: Exception</ID>
+    <ID>SwallowedException:SshKeyGenerator.kt$SshKeyGenerator$e: IllegalArgumentException</ID>
+    <ID>SwallowedException:TermuxTool.kt$t: SecurityException</ID>
+    <ID>SwallowedException:WebDavClient.kt$WebDavClient$e: Exception</ID>
+    <ID>SwallowedException:WebDavSync.kt$WebDavSync$e: Exception</ID>
+    <ID>SwallowedException:WebExtractTool.kt$e: java.io.InterruptedIOException</ID>
+    <ID>SwallowedException:WebFetchTool.kt$e: java.io.InterruptedIOException</ID>
+    <ID>SwallowedException:WebServerManager.kt$WebServerManager$e: Exception</ID>
+    <ID>SwallowedException:WriteFileTool.kt$e: SecurityException</ID>
+    <ID>TooGenericExceptionCaught:AICoreProvider.kt$AICoreProvider$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:AgentOverlay.kt$AgentOverlay$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:AppLauncherTool.kt$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ArchiveTools.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:Assistant.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:AssistantDetailVM.kt$AssistantDetailVM$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:AssistantImporter.kt$exception: Exception</ID>
+    <ID>TooGenericExceptionCaught:BackendWebBridge.kt$BackendWebBridge$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:BatteryTrigger.kt$BatteryTriggerFamily$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:BroadcastTriggers.kt$BaseBroadcastTriggerFamily$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:BroadcastTriggers.kt$WifiTriggerFamily$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:BrowserController.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:BugReportBuilder.kt$BugReportBuilder$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:CameraPhotoTool.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ChatCompletionsAPI.kt$ChatCompletionsAPI.&lt;no name provided&gt;$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ChatGenerationForegroundService.kt$ChatGenerationForegroundService$error: Exception</ID>
+    <ID>TooGenericExceptionCaught:ChatService.kt$ChatService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ChatService.kt$ChatService$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ChatToolFactory.kt$ChatToolFactory$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ClaudeProvider.kt$ClaudeProvider.&lt;no name provided&gt;$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:CodexOAuthManager.kt$CodexOAuthManager$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ContextProvider.kt$ContextProvider$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ContextUtil.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:CronJobWorker.kt$CronJobWorker$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:DatabaseUtil.kt$DatabaseUtil$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:DirectModeActionRunner.kt$DirectModeActionRunner$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:Export.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ExternalAutomationActivity.kt$ExternalAutomationActivity$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ExternalAutomationDispatcher.kt$ExternalAutomationDispatcher$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ExternalAutomationReceiver.kt$ExternalAutomationReceiver$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:FileManagerContentOps.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:GeminiOAuthManager.kt$GeminiOAuthManager$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:GeminiProvider.kt$GeminiProvider.&lt;no name provided&gt;$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:GeminiProvider.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:GenerationLoop.kt$GenerationLoop$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:GenerationLoop.kt$GenerationLoop$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:GenerationLoop.kt$failure: Throwable</ID>
+    <ID>TooGenericExceptionCaught:GitHubReleaseChecker.kt$GitHubReleaseChecker$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:GoogleProvider.kt$GoogleProvider.&lt;no name provided&gt;$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:GrokOAuthManager.kt$GrokOAuthManager$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:HighlightCodeBlock.kt$HighlightCodeVisualTransformation$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:HighlightCodeBlock.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:HuggingFaceModelSearch.kt$HuggingFaceModelSearch$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ImgGenPage.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ImgGenVM.kt$ImgGenVM$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ImportedDatabaseReconciler.kt$ImportedDatabaseReconciler$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:Input.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:JsSkillRunner.kt$JsSkillRunner$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:KeyRoulette.kt$LruKeyRoulette$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:KeystoreTools.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:LocalApprovalBridge.kt$LocalApprovalBridge$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LocalMcpServer.kt$LocalMcpServer$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LocalMcpServerService.kt$LocalMcpServerService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:LocalTools.kt$LocalTools$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:LocationTool.kt$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:Markdown.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:McpManager.kt$McpManager$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:McpOAuthCoordinator.kt$McpOAuthCoordinator$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:McpSessionRegistry.kt$McpSessionRegistry$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:McpUrlGuard.kt$McpUrlGuard$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:MediaPlaybackService.kt$MediaPlaybackService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:MediaPlaybackService.kt$MediaPlaybackService$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:Mermaid.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:Migration_15_16.kt$&lt;no name provided&gt;$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:Migration_6_7.kt$&lt;no name provided&gt;$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:NetworkChangeMonitor.kt$NetworkChangeMonitor$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:NsdServiceRegistrar.kt$NsdServiceRegistrar$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:PlayStoreUtil.kt$PlayStoreUtil$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:PropertyEditor.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ProviderConfigure.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ReasonixWebBridge.kt$ReasonixWebBridge$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:RequestLoggingInterceptor.kt$RequestLoggingInterceptor$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ResponseAPI.kt$ResponseAPI.&lt;no name provided&gt;$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:RikkaAccessibilityService.kt$RikkaAccessibilityService.&lt;no name provided&gt;$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:RikkaHubApp.kt$RikkaHubApp$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:RikkaNotificationListenerService.kt$RikkaNotificationListenerService$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:RikkaNotificationListenerService.kt$RikkaNotificationListenerService$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:RikkaNotificationListenerService.kt$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:S3Sync.kt$S3Sync$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:S3Sync.kt$S3Sync$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SSE.kt$SSEEventSource$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ScreenState.kt$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:ScreenshotTool.kt$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SetWallpaperTool.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SettingLocalLlmViewModel.kt$SettingLocalLlmViewModel$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SettingMcpPage.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SettingPreferencesUIPage.kt$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SettingThemePage.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ShareSheet.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SimpleHtmlBlock.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SkillInstallTools.kt$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SkillManager.kt$SkillManager$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SkillSecretsStore.kt$SkillSecretsStore$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SkillTestRunner.kt$SkillTestRunner$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SkillUrlImporter.kt$SkillUrlImporter$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SkillZipImporter.kt$SkillZipImporter$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SkillsVM.kt$SkillsVM$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SkillsVM.kt$SkillsVM$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SmsSendTool.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SshHostsTool.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SshKeyGenerator.kt$SshKeyGenerator$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SshKeyPairDialog.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SshSftpTool.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SshTerminalPage.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:SshTool.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SshTool.kt$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SubAgentEngine.kt$SubAgentEngine$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:SystemIntentTools.kt$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:TelegramBotClient.kt$TelegramBotClient$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:TelegramBotService.kt$TelegramBotService$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:TelegramBotService.kt$TelegramBotService$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:TelegramCommandHandlers.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:TelegramInboundAttachments.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:TelegramTool.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:TelegramTool.kt$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:TermuxTool.kt$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:TextArea.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:ToolHostActivity.kt$ToolHostActivity$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:UIAvatar.kt$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:UpdateChecker.kt$UpdateChecker$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:VaultHttpTools.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:VaultTools.kt$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:WebDavClient.kt$WebDavClient$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:WebDavSync.kt$WebDavSync$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:WebDavSync.kt$WebDavSync$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:WebServerManager.kt$WebServerManager$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:WebServerService.kt$WebServerService$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:WorkflowEngine.kt$WorkflowActionRunner$t: Throwable</ID>
+    <ID>TooGenericExceptionCaught:WorkspaceDetailVM.kt$WorkspaceDetailVM$error: Exception</ID>
+    <ID>TooGenericExceptionCaught:WorkspaceDetailVM.kt$WorkspaceDetailVM$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:WorkspaceReminderTransformer.kt$WorkspaceReminderTransformer$e: Exception</ID>
+    <ID>TooGenericExceptionCaught:WorkspaceRepository.kt$WorkspaceRepository$e: Throwable</ID>
+    <ID>TooGenericExceptionCaught:WorkspaceTerminalSessionManager.kt$WorkspaceTerminalSessionManager$error: Throwable</ID>
+    <ID>TooGenericExceptionCaught:WriteFileTool.kt$e: Throwable</ID>
+    <ID>TooGenericExceptionThrown:ChatCompletionsAPI.kt$ChatCompletionsAPI$throw Exception("Failed to get response: ${response.code} ${response.body.string()}")</ID>
+    <ID>TooGenericExceptionThrown:ChatCompletionsAPI.kt$ChatCompletionsAPI$throw Exception("message is null")</ID>
+    <ID>TooGenericExceptionThrown:ClaudeProvider.kt$ClaudeProvider$throw Exception("Failed to get response: ${response.code} ${response.body.string()}")</ID>
+    <ID>TooGenericExceptionThrown:GoogleProvider.kt$GoogleProvider$throw Exception("Failed to get response: ${response.code} ${response.body.string()}")</ID>
+    <ID>TooGenericExceptionThrown:ResponseAPI.kt$ResponseAPI$throw Exception("Failed to get response: ${response.code} ${response.body.string()}")</ID>
+    <ID>TooGenericExceptionThrown:S3Sync.kt$S3Sync$throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")</ID>
+    <ID>TooGenericExceptionThrown:S3Sync.kt$S3Sync$throw Exception("Failed to restore settings: ${e.message}")</ID>
+    <ID>TooGenericExceptionThrown:S3Sync.kt$S3Sync$throw Exception("Failed to restore skill file $entryName: ${e.message}")</ID>
+    <ID>TooGenericExceptionThrown:S3Sync.kt$S3Sync$throw Exception("Invalid skill directory: $entryName")</ID>
+    <ID>TooGenericExceptionThrown:S3Sync.kt$S3Sync$throw Exception("Invalid skill file path: $entryName")</ID>
+    <ID>TooGenericExceptionThrown:SkillUrlImporter.kt$SkillUrlImporter$throw RuntimeException("HTTP ${resp.code}")</ID>
+    <ID>TooGenericExceptionThrown:UpdateChecker.kt$UpdateChecker$throw Exception("Failed to fetch update info")</ID>
+    <ID>TooGenericExceptionThrown:UpdateChecker.kt$UpdateChecker$throw Exception("Failed to fetch update info", e)</ID>
+    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Backup file does not exist")</ID>
+    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Cannot read backup file")</ID>
+    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Failed to restore ${zipEntry.name}: ${e.message}")</ID>
+    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Failed to restore settings: ${e.message}")</ID>
+    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Failed to restore skill file $entryName: ${e.message}")</ID>
+    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Invalid skill directory: $entryName")</ID>
+    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Invalid skill file path: $entryName")</ID>
+    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Restore failed: ${e.message}")</ID>
+    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Unsafe backup file name: ${item.displayName}")</ID>
+    <ID>TooManyFunctions:AgentRunDao.kt$AgentRunDao</ID>
+    <ID>TooManyFunctions:AppLog.kt$AppLog</ID>
+    <ID>TooManyFunctions:BackupVM.kt$BackupVM : ViewModel</ID>
+    <ID>TooManyFunctions:BrowserController.kt$BrowserController</ID>
+    <ID>TooManyFunctions:ChatService.kt$ChatService</ID>
+    <ID>TooManyFunctions:ChatVM.kt$ChatVM : ViewModel</ID>
+    <ID>TooManyFunctions:ChatboxImporter.kt$ChatboxImporter</ID>
+    <ID>TooManyFunctions:ContextCompactionPlanner.kt$ContextCompactionPlanner</ID>
+    <ID>TooManyFunctions:ConversationDAO.kt$ConversationDAO</ID>
+    <ID>TooManyFunctions:ConversationRepository.kt$ConversationRepository</ID>
+    <ID>TooManyFunctions:FilesManager.kt$FilesManager</ID>
+    <ID>TooManyFunctions:McpManager.kt$McpManager</ID>
+    <ID>TooManyFunctions:MemoryDAO.kt$MemoryDAO</ID>
+    <ID>TooManyFunctions:PermissionHelper.kt$PermissionHelper</ID>
+    <ID>TooManyFunctions:ShizukuManager.kt$ShizukuManager</ID>
+    <ID>TooManyFunctions:SkillManager.kt$SkillManager</ID>
+    <ID>TooManyFunctions:SshKeyGenerator.kt$SshKeyGenerator</ID>
+    <ID>TooManyFunctions:TelegramBotService.kt$TelegramBotService : Service</ID>
+    <ID>TooManyFunctions:WorkflowApprovalRenderer.kt$WorkflowApprovalRenderer</ID>
+    <ID>TooManyFunctions:WorkflowJson.kt$WorkflowJson</ID>
+    <ID>TooManyFunctions:WorkspaceDocumentsProvider.kt$WorkspaceDocumentsProvider : DocumentsProvider</ID>
+    <ID>TooManyFunctions:WorkspaceRepository.kt$WorkspaceRepository</ID>
+    <ID>TooManyFunctions:WorkspaceTerminalSession.kt$WorkspaceTerminalViewClient : TerminalViewClient</ID>
+  </CurrentIssues>
+</SmellBaseline>

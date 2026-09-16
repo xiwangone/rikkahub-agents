@@ -1,0 +1,33 @@
+# 精简配置：只留 bug / 性能 / 异常 / 协程类，关闭风格噪音
+build:
+  maxIssues: 0
+config:
+  validation: true
+  warningsAsErrors: false
+
+complexity:
+  active: true
+  LongMethod:
+    threshold: 120
+  LongParameterList:
+    functionThreshold: 10
+  TooManyFunctions:
+    thresholdInFiles: 40
+    thresholdInClasses: 25
+  CyclomaticComplexMethod:
+    threshold: 20
+
+coroutines:
+  active: true
+empty-blocks:
+  active: true
+exceptions:
+  active: true
+naming:
+  active: false
+performance:
+  active: true
+potential-bugs:
+  active: true
+style:
+  active: false
