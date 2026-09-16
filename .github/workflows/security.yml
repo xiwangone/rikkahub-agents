@@ -117,17 +117,47 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup JDK 17
+      # JDK：主源失败时换发行版回退（与 setup-build-env 同一策略）
+      - name: JDK 17（主源）
+        id: jdk-primary
+        continue-on-error: true
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
 
+      - name: JDK 17（回退源）
+        id: jdk-fallback
+        if: steps.jdk-primary.outcome == 'failure'
+        uses: actions/setup-java@v4
+        with:
+          distribution: zulu
+          java-version: '17'
+
+      # detekt-cli：三个来源依次回退，避免单点下载失败中断作业
+      - name: 获取 detekt-cli
+        shell: bash
+        run: |
+          set -e
+          V=1.23.8
+          URLS=(
+            "https://github.com/detekt/detekt/releases/download/v$V/detekt-cli-$V-all.jar"
+            "https://repo1.maven.org/maven2/io/gitlab/arturbosch/detekt/detekt-cli/$V/detekt-cli-$V-all.jar"
+            "https://maven.aliyun.com/repository/public/io/gitlab/arturbosch/detekt/detekt-cli/$V/detekt-cli-$V-all.jar"
+          )
+          for u in "${URLS[@]}"; do
+            echo "尝试：$u"
+            if curl -fsSL --retry 2 --connect-timeout 15 -o /tmp/detekt-cli.jar "$u" && [ -s /tmp/detekt-cli.jar ]; then
+              echo "已获取 detekt-cli.jar（$(stat -c%s /tmp/detekt-cli.jar) 字节）"
+              exit 0
+            fi
+          done
+          echo "::error::detekt-cli.jar 所有来源均失败"
+          exit 1
+
       # 基线只登记既有问题：本作业只对「新增」问题报失败
       - name: Run detekt
         run: |
-          curl -sSL -o /tmp/detekt-cli.jar \
-            https://github.com/detekt/detekt/releases/download/v1.23.8/detekt-cli-1.23.8-all.jar
           java -Xmx2g -jar /tmp/detekt-cli.jar \
             --input app/src/main/java,ai/src/main/java \
             --build-upon-default-config \
