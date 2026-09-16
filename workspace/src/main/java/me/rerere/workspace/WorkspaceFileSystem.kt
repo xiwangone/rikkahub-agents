@@ -186,6 +186,7 @@ class WorkspaceFileSystem(
         root: File,
         pattern: String,
         path: String = "",
+        limit: Int = config.maxListEntries,
     ): List<WorkspaceFileEntry> {
         require(pattern.isNotBlank()) { "Glob pattern is required" }
         val start = resolvePath(root, path)
