@@ -40,6 +40,20 @@ class ModelCatalogRepository(
 
     private val cacheFile: File get() = File(context.filesDir, "model-catalog.json")
 
+    /** 依据名称与输出模态判定模型类型（不用于过滤，只用于标注）。 */
+    private fun classifyKind(name: String, arch: JsonObject?): String {
+        val lower = name.lowercase()
+        val outputs = (arch?.get("output_modalities") as? JsonArray)
+            ?.mapNotNull { it.jsonPrimitive.contentOrNull }?.toSet() ?: emptySet()
+        return when {
+            "embed" in lower -> "embedding"
+            "rerank" in lower || "reranker" in lower -> "rerank"
+            "whisper" in lower || "tts" in lower || "audio" in lower || "speech" in lower -> "audio"
+            "image" in outputs || "image-gen" in lower || "dall-e" in lower || "lyria" in lower || "veo" in lower -> "image"
+            else -> "chat"
+        }
+    }
+
     /** 内存索引：归一化名称 → 能力条目（同时登记「全名」与「末段名」两种键）。 */
     @Volatile
     private var index: Map<String, Entry> = emptyMap()
@@ -50,6 +64,7 @@ class ModelCatalogRepository(
 
     data class Entry(
         val name: String,
+        val kind: String,          // chat / image / embedding / rerank / audio / other
         val inputImage: Boolean,
         val tool: Boolean,
         val reasoning: Boolean,
@@ -121,7 +136,9 @@ class ModelCatalogRepository(
             val name = if (slash > 0) id.substring(slash + 1) else id
             if (name.any { it.isUpperCase() } && name.contains(":")) continue
             if (EXCLUDED_SUFFIXES.any { name.lowercase().contains(it) }) continue
-            if (EXCLUDED_KEYWORDS.any { name.lowercase().contains(it) }) continue
+            // 刻意不按类别排除：图像生成 / 嵌入 / 重排 / 语音等「非聊天类」同样保留通道，
+            // 由 kind 标注类型，供后续分类使用（App 侧栏就有生图功能）。
+            val kind = classifyKind(name, arch)
 
             val arch = obj["architecture"]?.jsonObject
             val inputs = (arch?.get("input_modalities") as? JsonArray)
@@ -133,6 +150,7 @@ class ModelCatalogRepository(
 
             val entry = Entry(
                 name = name,
+                kind = kind,
                 inputImage = "image" in inputs,
                 tool = "tools" in params,
                 reasoning = "reasoning" in params || "include_reasoning" in params,
@@ -182,7 +200,7 @@ class ModelCatalogRepository(
         private const val CATALOG_URL = "https://openrouter.ai/api/v1/models"
 
         /** 每个厂商保留的模型数上限。 */
-        private const val MAX_PER_VENDOR = 8
+        private const val MAX_PER_VENDOR = 20
 
         /** 只保留主流大厂（含国内大厂），避免目录无限膨胀。 */
         private val VENDOR_ALLOWLIST = setOf(
@@ -194,11 +212,6 @@ class ModelCatalogRepository(
         /** 变体后缀（免费/批处理/在线等），不单独登记。 */
         private val EXCLUDED_SUFFIXES = listOf(":free", ":batch", ":extended", ":online", ":thinking", ":nitro", "-preview:")
 
-        /** 非聊天类模型关键词。 */
-        private val EXCLUDED_KEYWORDS = listOf(
-            "embed", "rerank", "whisper", "tts", "audio", "lyria", "veo", "image-gen", "dall-e", "moderation",
-            "guard", "reranker", "ocr", "davinci", "babbage", "ada-", "curie",
-        )
     }
 
     /** 把本实例安装为注册表的能力目录（app 启动时调用一次）。 */
