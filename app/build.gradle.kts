@@ -141,6 +141,9 @@ android {
         }
     }
     lint {
+        // 存量问题登记到 baseline，只对「新增」问题报失败（与 detekt 同套路）。
+        // 生成/更新：./gradlew :app:lintDebug（文件不存在时会自动创建）
+        baseline = file("lint-baseline.xml")
         // FullBackupContent insists every <exclude> path lives under a previously
         // <include>'d root. Our backup_rules.xml + data_extraction_rules.xml use
         // include="upload/" + explicit excludes for databases / sharedpref /
