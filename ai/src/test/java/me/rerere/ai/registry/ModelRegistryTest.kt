@@ -39,6 +39,43 @@ class ModelRegistryTest {
         )
     }
 
+
+    @Test
+    fun testAggregatorEndpointModels() {
+        // 聚合端点常用模型：确认能力能被正确推断（名称即其 API 模型 id 形态）
+        assertEquals(
+            listOf(Modality.TEXT, Modality.IMAGE),
+            ModelRegistry.MODEL_INPUT_MODALITIES.getData("deepseek-v4.1-flash"),
+        )
+        assertEquals(
+            listOf(ModelAbility.TOOL, ModelAbility.REASONING),
+            ModelRegistry.MODEL_ABILITIES.getData("deepseek-v4.1-flash"),
+        )
+        // LongCat 2.0：文本 + 工具 + 推理
+        assertEquals(
+            listOf(ModelAbility.TOOL, ModelAbility.REASONING),
+            ModelRegistry.MODEL_ABILITIES.getData("longcat-2.0"),
+        )
+        assertEquals(
+            listOf(Modality.TEXT),
+            ModelRegistry.MODEL_INPUT_MODALITIES.getData("longcat-2.0"),
+        )
+        // 本轮新增的视觉模型
+        assertEquals(
+            listOf(Modality.TEXT, Modality.IMAGE),
+            ModelRegistry.MODEL_INPUT_MODALITIES.getData("gemini-3.8-flash"),
+        )
+        assertEquals(
+            listOf(Modality.TEXT, Modality.IMAGE),
+            ModelRegistry.MODEL_INPUT_MODALITIES.getData("ling-3.0-flash-vl"),
+        )
+        // 腾讯混元 HY3：文本 + 工具 + 推理
+        assertEquals(
+            listOf(ModelAbility.TOOL, ModelAbility.REASONING),
+            ModelRegistry.MODEL_ABILITIES.getData("hy3"),
+        )
+    }
+
     @Test
     fun testClaudeSeries() {
         assertTrue(ModelRegistry.CLAUDE_SERIES.match("claude-sonnet-4.5-20250929"))
