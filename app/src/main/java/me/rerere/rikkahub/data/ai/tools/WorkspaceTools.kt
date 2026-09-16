@@ -1,5 +1,9 @@
 package me.rerere.rikkahub.data.ai.tools
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -167,8 +171,10 @@ private fun createEditFileTool(
     name = "workspace_edit_file",
     description = """
         Edit a UTF-8 file in the bound workspace (paths absolute, use /workspace).
-        Replace old_text (must occur once; replace_all=true for every occurrence);
-        whitespace-tolerant match attempted if no exact hit.
+        Single mode: replace old_text (must occur once; replace_all=true for every occurrence).
+        Batch mode: pass `edits` — a list of {old_text, new_text} applied in order to the same file;
+        a failing item aborts the whole batch without writing, so you never get a half-applied file.
+        Whitespace-tolerant match is attempted when there is no exact hit.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -176,43 +182,92 @@ private fun createEditFileTool(
                 putPathProperty(required = true)
                 put("old_text", buildJsonObject {
                     put("type", "string")
-                    put("description", "Exact text to replace")
+                    put("description", "Exact text to replace (single mode)")
                 })
                 put("new_text", buildJsonObject {
                     put("type", "string")
-                    put("description", "Replacement text")
+                    put("description", "Replacement text (single mode)")
+                })
+                put("edits", buildJsonObject {
+                    put("type", "array")
+                    put(
+                        "description",
+                        "Batch mode: ordered list of {old_text, new_text} for the same file. " +
+                            "When present, top-level old_text/new_text are ignored.",
+                    )
+                    put("items", buildJsonObject {
+                        put("type", "object")
+                        put("properties", buildJsonObject {
+                            put("old_text", buildJsonObject { put("type", "string") })
+                            put("new_text", buildJsonObject { put("type", "string") })
+                        })
+                        put("required", buildJsonArray {
+                            add(JsonPrimitive("old_text")); add(JsonPrimitive("new_text"))
+                        })
+                    })
                 })
                 put("replace_all", buildJsonObject {
                     put("type", "boolean")
                     put("description", "Whether to replace every occurrence. Defaults to false.")
                 })
             },
-            required = listOf("path", "old_text", "new_text"),
+            required = listOf("path"),
         )
     },
     needsApproval = { needsApproval("workspace_edit_file") || it.pathOutsideWritableRoots("path") },
     execute = {
         val params = it.jsonObject
         val path = params.absolutePath("path")
-        val oldText = params.string("old_text") ?: error("old_text is required")
-        val newText = params.string("new_text") ?: error("new_text is required")
         val replaceAll = params["replace_all"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
-        require(oldText.isNotEmpty()) { "old_text must not be empty" }
 
         val original = workspaceRepository.readTextInRootfs(workspaceId, path)
-        // 逐级尝试 exact -> line_trimmed -> block_anchor 替换器, 见 TextReplacers.kt
-        val result = try {
-            replaceText(original, oldText, newText, replaceAll)
-        } catch (e: IllegalArgumentException) {
-            error("${e.message} (path: $path)")
+
+        // 批量模式：一次提交多处替换（顺序应用）。任一处失败即整体失败且**不写盘** ——
+        // 避免留下「改了一半」的文件（半成品比直接失败更难排查）。
+        val batch = (params["edits"] as? JsonArray)?.takeIf { it.isNotEmpty() }
+        val updatedText: String
+        val replacementCount: Int
+        if (batch != null) {
+            var working = original
+            var count = 0
+            batch.forEachIndexed { index, element ->
+                val item = element.jsonObject
+                val oldText = item.string("old_text") ?: error("edits[$index].old_text is required")
+                val newText = item.string("new_text") ?: error("edits[$index].new_text is required")
+                require(oldText.isNotEmpty()) { "edits[$index].old_text must not be empty" }
+                // 逐级尝试 exact -> line_trimmed -> block_anchor 替换器, 见 TextReplacers.kt
+                val r =
+                    try {
+                        replaceText(working, oldText, newText, replaceAll)
+                    } catch (e: IllegalArgumentException) {
+                        error("edits[$index] failed: ${e.message} (path: $path)")
+                    }
+                working = r.updated
+                count += r.replacements
+            }
+            updatedText = working
+            replacementCount = count
+        } else {
+            val oldText = params.string("old_text") ?: error("old_text is required (or provide `edits`)")
+            val newText = params.string("new_text") ?: error("new_text is required (or provide `edits`)")
+            require(oldText.isNotEmpty()) { "old_text must not be empty" }
+            // 逐级尝试 exact -> line_trimmed -> block_anchor 替换器, 见 TextReplacers.kt
+            val r =
+                try {
+                    replaceText(original, oldText, newText, replaceAll)
+                } catch (e: IllegalArgumentException) {
+                    error("${e.message} (path: $path)")
+                }
+            updatedText = r.updated
+            replacementCount = r.replacements
         }
-        val entry = workspaceRepository.writeTextInRootfs(workspaceId, path, result.updated, overwrite = true)
-        val diff = me.rerere.rikkahub.data.vault.SecretMasker.mask(generateUnifiedDiff(original, result.updated, entry.path).orEmpty())
+        val entry = workspaceRepository.writeTextInRootfs(workspaceId, path, updatedText, overwrite = true)
+        val diff = me.rerere.rikkahub.data.vault.SecretMasker.mask(generateUnifiedDiff(original, updatedText, entry.path).orEmpty())
         listOf(
             UIMessagePart.Text(
                 text = buildJsonObject {
                     put("path", entry.path)
-                    put("replacements", result.replacements)
+                    put("replacements", replacementCount)
                     if (result.strategy != ExactReplacer.name) put("matchStrategy", result.strategy)
                     put("sizeBytes", entry.sizeBytes)
                     put("updatedAt", entry.updatedAt)
@@ -223,6 +278,50 @@ private fun createEditFileTool(
         )
     },
 )
+
+/**
+ * shell 预设库在工作区内的固定位置（rootfs 绝对路径）。
+ * 故意放在 `.agents/` 下：属**本地用户数据**，不应随任何仓库提交（模板可通用，实例只留在本地）。
+ */
+internal const val SHELL_PRESETS_PATH = "/workspace/.agents/shell-presets.json"
+
+/** 读取预设库；文件缺失或不是合法 JSON 时返回空表，由调用方给出友好提示。 */
+private fun loadShellPresets(
+    workspaceRepository: WorkspaceRepository,
+    workspaceId: String,
+): JsonObject =
+    runCatching {
+        Json.parseToJsonElement(
+            workspaceRepository.readTextInRootfs(workspaceId, SHELL_PRESETS_PATH),
+        ).jsonObject
+    }.getOrElse { JsonObject(emptyMap()) }
+
+/**
+ * 用 `preset_args` 渲染 `${name}` 占位符；缺参数时**直接失败并列出缺哪些** ——
+ * 否则未替换的占位符会被原样交给 shell 执行，那种失败最难排查。
+ */
+private fun renderShellPreset(
+    presetName: String,
+    template: String,
+    args: JsonObject?,
+): String {
+    val missing = linkedSetOf<String>()
+    val rendered =
+        Regex("""\$\{([A-Za-z0-9_.\-]+)\}""").replace(template) { m ->
+            val key = m.groupValues[1]
+            val value = args?.get(key)?.jsonPrimitive?.contentOrNull
+            if (value == null) {
+                missing.add(key)
+                m.value
+            } else {
+                value
+            }
+        }
+    require(missing.isEmpty()) {
+        "preset '$presetName' 缺少参数: ${missing.joinToString()}（请通过 preset_args 提供）"
+    }
+    return rendered
+}
 
 private fun createShellTool(
     workspaceId: String,
@@ -242,9 +341,26 @@ private fun createShellTool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
+                put("preset", buildJsonObject {
+                    put("type", "string")
+                    put(
+                        "description",
+                        "Name of a saved command preset. Presets live in the workspace file " +
+                            "$SHELL_PRESETS_PATH ({\"<name>\": \"<command>\"} or {\"<name>\": {\"command\": ..., \"description\": ...}}). " +
+                            "Keep real hostnames/paths only in that local file — never in repository-tracked files. " +
+                            "When set, `command` is ignored.",
+                    )
+                })
+                put("preset_args", buildJsonObject {
+                    put("type", "object")
+                    put(
+                        "description",
+                        "Values for \${name} placeholders inside the preset command, e.g. {\"jdk\": \"...\", \"abi\": \"arm64-v8a\"}.",
+                    )
+                })
                 put("command", buildJsonObject {
                     put("type", "string")
-                    put("description", "Shell command to run")
+                    put("description", "Shell command to run (omit when using preset)")
                 })
                 put("cwd", buildJsonObject {
                     put("type", "string")
@@ -280,13 +396,53 @@ private fun createShellTool(
                     )
                 })
             },
-            required = listOf("command"),
+            required = emptyList(),
         )
     },
     needsApproval = { needsApproval("workspace_shell") },
     execute = {
         val params = it.jsonObject
-        val command = params.string("command") ?: error("command is required")
+        // 预设模式：`preset` 指向工作区内的预设库条目（模板 + ${占位符}），由 preset_args 填值。
+        // 设计意图：把「常用命令」从代码/提示词里挪到**本地工作区文件** —— 模板可通用，
+        // 真实主机名/路径只留在本地实例，公开仓库里永远不出现内部内容；增删改直接用现有文件工具。
+        val presetName = params.string("preset")?.takeIf { it.isNotBlank() }
+        val command =
+            if (presetName != null) {
+                val presets = loadShellPresets(workspaceRepository, workspaceId)
+                val node =
+                    presets[presetName]
+                        ?: return@Tool listOf(
+                            UIMessagePart.Text(
+                                buildJsonObject {
+                                    put("error", "preset_not_found")
+                                    put("preset", presetName)
+                                    put("presetsPath", SHELL_PRESETS_PATH)
+                                    put("hint", "Add it to $SHELL_PRESETS_PATH as {\"$presetName\": \"<command>\"}.")
+                                    put("available", buildJsonArray { presets.keys.forEach { add(JsonPrimitive(it)) } })
+                                }.toString(),
+                            ),
+                        )
+                val template =
+                    when (node) {
+                        is JsonPrimitive -> node.contentOrNull.orEmpty()
+                        is JsonObject -> node["command"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                        else -> ""
+                    }
+                if (template.isBlank()) {
+                    return@Tool listOf(
+                        UIMessagePart.Text(
+                            buildJsonObject {
+                                put("error", "preset_empty")
+                                put("preset", presetName)
+                                put("presetsPath", SHELL_PRESETS_PATH)
+                            }.toString(),
+                        ),
+                    )
+                }
+                renderShellPreset(presetName, template, params["preset_args"]?.jsonObject)
+            } else {
+                params.string("command") ?: error("command is required (or provide `preset`)")
+            }
         val cwd = (params.string("cwd") ?: defaultCwd.orEmpty())
             .removePrefix("/workspace/").removePrefix("/workspace")
         val timeoutMillis = params.string("timeout")?.toLongOrNull()
