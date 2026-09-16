@@ -8,6 +8,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.provider.Model
+import me.rerere.rikkahub.costguards.runToolSurfaceReport
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.buildMcpToolName
 import me.rerere.rikkahub.data.datastore.Settings
@@ -19,6 +20,9 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceShellStatus
 
 private const val TAG = "ChatToolFactory"
+
+/** L4 观测工具名；装配出口据此把报告重绑到裁剪后的实际注入集。 */
+private const val TOOL_SURFACE_REPORT_TOOL_NAME = "tool_surface_report"
 
 /** MCP 服务器名不符合 `^[a-zA-Z0-9_-]+$` 时抛出，由调用方转成用户可见错误。 */
 class InvalidMcpServerNamesException(val names: List<String>) :
@@ -135,9 +139,22 @@ class ChatToolFactory(
         // get_tool_schema 成功后按会话记忆，下一次请求恢复完整 schema。
         val injected = stableFull.map { surfaceView(it, invocationCtx.callerConversationId) } +
             buildToolDiscoveryTools(stableFull, invocationCtx.callerConversationId)
+        // L4 观测必须量的是**实际注入给模型的内容**：LocalTools 里 tool_surface_report 绑的是裁剪前的
+        // 内建列表，S2/S4 的裁剪（描述精简、冷档空 schema）不会体现在它的数字里。这里在装配出口把该
+        // 工具重绑到与模型看到的一致的那份列表上，否则「省了多少」永远是 0。
+        val measured =
+            injected.map { tool ->
+                if (tool.name != TOOL_SURFACE_REPORT_TOOL_NAME) {
+                    tool
+                } else {
+                    tool.copy(
+                        execute = { args -> runToolSurfaceReport(args, injected) },
+                    )
+                }
+            }
         // 登记本次注入集合：让 tool_usage_stats 能直接识别"已启用但从未调用"的工具。
-        ToolUsageTracker.recordInjected(context, injected.map { it.name })
-        trackUsage(injected)
+        ToolUsageTracker.recordInjected(context, measured.map { it.name })
+        trackUsage(measured)
     }
 
     /**

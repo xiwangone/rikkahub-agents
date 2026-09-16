@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.costguards
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
@@ -91,14 +92,26 @@ fun toolSurfaceReportTool(
                 required = emptyList(),
             )
         },
-        execute = { args ->
+        execute = { args -> runToolSurfaceReport(args, toolsProvider()) },
+    )
+
+/**
+ * Builds the report payload for [tools]. Extracted so the assembly exit
+ * (`ChatToolFactory`) can re-point the report at the surface the model actually receives —
+ * the tool's own provider closure is bound inside `LocalTools` before S2/S4 trimming runs,
+ * so measuring through it would always report pre-trim numbers.
+ */
+fun runToolSurfaceReport(
+    args: JsonElement?,
+    toolsInput: List<Tool>,
+): List<UIMessagePart> {
             val topN =
                 (args as? JsonObject)
                     ?.get("top_n")
                     ?.jsonPrimitive
                     ?.intOrNull
                     ?: 8
-            val tools = toolsProvider().distinctBy { it.name }
+            val tools = toolsInput.distinctBy { it.name }
             val names = tools.map { it.name }
             val sortedNames = names.sorted()
 
@@ -165,6 +178,5 @@ fun toolSurfaceReportTool(
                     // stabilisation buys nothing.
                     put("min_cacheable_note", "most providers require >=1024 prefix tokens, some >=4096; below that the prefix is never cached")
                 }
-            listOf(UIMessagePart.Text(payload.toString()))
-        },
-    )
+    return listOf(UIMessagePart.Text(payload.toString()))
+}
