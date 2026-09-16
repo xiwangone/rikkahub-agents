@@ -29,27 +29,8 @@ object LogRedactor {
             "set-cookie",
         )
 
-    /** URL query 中的敏感参数名：匹配时对值做脱敏 */
-    private val SENSITIVE_QUERY_KEYS =
-        setOf(
-            "key",
-            "api_key",
-            "apikey",
-            "api-key",
-            "x-api-key",
-            "token",
-            "access_token",
-            "auth",
-            "authorization",
-            "secret",
-            "client_secret",
-            "password",
-            "pwd",
-            "sign",
-            "sig",
-        )
-
-    /** 自由文本中「敏感键名 = 值」形态的键名集合（大小写不敏感，见 [KEYED_SECRET_REGEX]） */
+    /**
+     * 自由文本中「敏感键名 = 值」形态的键名集合（大小写不敏感，见 [KEYED_SECRET_REGEX]） */
     /** 文本脱敏的字符上限：超大文本直接跳过，避免连续正则替换在堆上复制数份等大字符串。 */
     private const val MAX_REDACT_CHARS = 1024 * 1024
 
@@ -63,9 +44,15 @@ object LogRedactor {
      * 与 [KEYED_SECRET_KEYS] 分开：query 必须带 `?` / `&` 前缀，这样普通散文里的
      * `key=xxx`（文档示例、缓存键名等）不会被误掩。
      */
-    private const val QUERY_SECRET_KEYS =
-        "key|api_key|apikey|api-key|x-api-key|token|access_token|auth|authorization|secret|client_secret|" +
-            "password|pwd|sign|sig"
+    /**
+     * URL query 敏感参数名的**后缀词表**。
+     *
+     * 用后缀而非精确匹配：真实参数名常带前缀或驼峰写法（`tavilyApiKey`、`my_api_key`、`X-Api-Key`），
+     * 精确集合会整条漏掩 —— 曾实测 `?tavilyApiKey=…` 的明文值进了应用日志与日志文件。
+     * 代价是轻微误掩（如 `monkey=`），脱敏场景下宁可保守。
+     */
+    private const val QUERY_SECRET_SUFFIXES =
+        "key|token|secret|password|passwd|pwd|auth|authorization|signature|sign|sig|credential"
 
     /**
      * 已知凭证前缀的 token（覆盖常见厂商）。分组顺序无关，正则本身按前缀区分。
@@ -84,6 +71,7 @@ object LogRedactor {
                 """|(?:AKIA|ASIA)[A-Z0-9]{12,}""" +
                 """|hf_[A-Za-z0-9]{10,}""" +
                 """|r8_[A-Za-z0-9]{10,}""" +
+                """|tvly-[A-Za-z0-9_-]{6,}""" +
                 """|ya29\.[A-Za-z0-9._-]{10,}""" +
                 """|xox[baprs]-[A-Za-z0-9-]{10,}""" +
                 """|Bearer\s+[A-Za-z0-9._~+/=-]{8,}""" +
@@ -106,7 +94,8 @@ object LogRedactor {
     /** URL query 形态（`?key=…` / `&token=…`）的值脱敏，保留参数名。 */
     private val QUERY_SECRET_REGEX =
         Regex(
-            """(?i)([?&](?:$QUERY_SECRET_KEYS)=)([^&\s"'<>]{8,})""",
+            // 参数名以敏感词**结尾**即视为敏感（覆盖 tavilyApiKey 这类驼峰 / 带前缀写法）
+            """(?i)([?&][A-Za-z0-9_.\-]*(?:$QUERY_SECRET_SUFFIXES)=)([^&\s"'<>]{8,})""",
         )
 
     private val BEARER_PREFIX_REGEX = Regex("""(?i)^Bearer\s+""")
@@ -140,6 +129,16 @@ object LogRedactor {
         headers.mapValues { (key, value) -> maskHeader(key, value) }
 
     /**
+     * query 参数名是否敏感：去掉分隔符后**以敏感词结尾**即算。
+     * 覆盖 `tavilyApiKey` / `x-api-key` / `my_token` 这类变体（精确集合会整条漏掩）。
+     */
+    private fun isSensitiveQueryKey(key: String): Boolean {
+        val normalized =
+            key.lowercase(Locale.getDefault()).replace("_", "").replace("-", "").replace(".", "")
+        return QUERY_SECRET_SUFFIXES.split("|").any { normalized.endsWith(it) }
+    }
+
+    /**
      * 对 URL 脱敏：query 中敏感参数的值替换为 `***`。
      */
     fun maskUrl(url: String): String {
@@ -154,7 +153,7 @@ object LogRedactor {
                     pair
                 } else {
                     val key = pair.substring(0, eq)
-                    if (key.lowercase(Locale.getDefault()) in SENSITIVE_QUERY_KEYS) {
+                    if (isSensitiveQueryKey(key)) {
                         "$key=***"
                     } else {
                         pair
