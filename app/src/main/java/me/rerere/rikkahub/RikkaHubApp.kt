@@ -213,13 +213,21 @@ class RikkaHubApp : Application() {
 
                 override fun w(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.w(tag, message)
 
-                override fun w(tag: String, message: String, tr: Throwable) =
-                    me.rerere.rikkahub.data.log.AppLog.w(tag, message, tr)
+                override fun w(tag: String, message: String, tr: Throwable?) =
+                    if (tr != null) {
+                        me.rerere.rikkahub.data.log.AppLog.w(tag, message, tr)
+                    } else {
+                        me.rerere.rikkahub.data.log.AppLog.w(tag, message)
+                    }
 
                 override fun e(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.e(tag, message)
 
-                override fun e(tag: String, message: String, tr: Throwable) =
-                    me.rerere.rikkahub.data.log.AppLog.e(tag, message, tr)
+                override fun e(tag: String, message: String, tr: Throwable?) =
+                    if (tr != null) {
+                        me.rerere.rikkahub.data.log.AppLog.e(tag, message, tr)
+                    } else {
+                        me.rerere.rikkahub.data.log.AppLog.e(tag, message)
+                    }
             },
         )
 

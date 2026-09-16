@@ -34,7 +34,7 @@ object AppLogger {
         fun w(
             tag: String,
             message: String,
-            tr: Throwable,
+            tr: Throwable?,
         )
 
         fun e(
@@ -45,7 +45,7 @@ object AppLogger {
         fun e(
             tag: String,
             message: String,
-            tr: Throwable,
+            tr: Throwable?,
         )
     }
 
@@ -84,7 +84,7 @@ object AppLogger {
     fun w(
         tag: String,
         message: String,
-        tr: Throwable,
+        tr: Throwable?,
     ) {
         val s = sink
         if (s != null) s.w(tag, message, tr) else Log.w(tag, message, tr)
@@ -101,7 +101,7 @@ object AppLogger {
     fun e(
         tag: String,
         message: String,
-        tr: Throwable,
+        tr: Throwable?,
     ) {
         val s = sink
         if (s != null) s.e(tag, message, tr) else Log.e(tag, message, tr)
