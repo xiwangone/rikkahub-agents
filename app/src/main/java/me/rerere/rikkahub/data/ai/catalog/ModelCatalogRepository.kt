@@ -136,10 +136,6 @@ class ModelCatalogRepository(
             val name = if (slash > 0) id.substring(slash + 1) else id
             if (name.any { it.isUpperCase() } && name.contains(":")) continue
             if (EXCLUDED_SUFFIXES.any { name.lowercase().contains(it) }) continue
-            // 刻意不按类别排除：图像生成 / 嵌入 / 重排 / 语音等「非聊天类」同样保留通道，
-            // 由 kind 标注类型，供后续分类使用（App 侧栏就有生图功能）。
-            val kind = classifyKind(name, arch)
-
             val arch = obj["architecture"]?.jsonObject
             val inputs = (arch?.get("input_modalities") as? JsonArray)
                 ?.mapNotNull { it.jsonPrimitive.contentOrNull }?.toSet() ?: emptySet()
@@ -147,6 +143,9 @@ class ModelCatalogRepository(
                 ?.mapNotNull { it.jsonPrimitive.contentOrNull }?.toSet() ?: emptySet()
             val created = obj["created"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 0L
             val ctx = obj["context_length"]?.jsonPrimitive?.intOrNull
+            // 刻意不按类别排除：图像生成 / 嵌入 / 重排 / 语音等「非聊天类」同样保留通道，
+            // 只标注类型（kind）供后续分类使用（App 侧栏就有生图功能）。
+            val kind = classifyKind(name, arch)
 
             val entry = Entry(
                 name = name,
