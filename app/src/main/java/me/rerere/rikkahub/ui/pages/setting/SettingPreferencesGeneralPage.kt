@@ -37,8 +37,9 @@ import me.rerere.rikkahub.ui.hooks.rememberSharedPreferenceBoolean
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
-import androidx.appcompat.app.AppCompatDelegate
-import androidx.core.os.LocaleListCompat
+import android.os.Build
+import androidx.compose.ui.platform.LocalContext
+import me.rerere.rikkahub.utils.AppLocale
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.TextButton
@@ -49,6 +50,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    val context = LocalContext.current
 
     fun updateDisplaySetting(setting: DisplaySetting) {
         displaySetting = setting
@@ -61,13 +63,11 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
         LanguagePickerDialog(
             onDismiss = { showLanguageDialog = false },
             onPick = { tag ->
-                AppCompatDelegate.setApplicationLocales(
-                    if (tag.isEmpty()) {
-                        LocaleListCompat.getEmptyLocaleList()
-                    } else {
-                        LocaleListCompat.forLanguageTags(tag)
-                    },
-                )
+                AppLocale.apply(context, tag)
+                // API 33+ 由系统重建 Activity；低版本需自行重建，新语言才会生效
+                if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                    (context as? android.app.Activity)?.recreate()
+                }
                 showLanguageDialog = false
             },
         )
@@ -478,7 +478,8 @@ internal fun parsePasteLongTextThreshold(text: String): Int? {
 
 /** 应用内可选语言：标签用 BCP 47（与 res/values* 对应），名称用该语言自身写法，不翻译。 */
 private val APP_LANGUAGE_OPTIONS: List<Pair<String, String>> = listOf(
-    "en" to "English",
+    // 必须与 android:localeConfig 中声明的标签一致，否则框架会静默忽略
+    "en-US" to "English",
     "zh" to "简体中文",
     "zh-Hant" to "繁體中文",
     "ja" to "日本語",
@@ -490,10 +491,9 @@ private val APP_LANGUAGE_OPTIONS: List<Pair<String, String>> = listOf(
 /** 当前生效的语言名；未显式设置时（跟随系统）显示「跟随系统」。 */
 @Composable
 private fun currentAppLanguageLabel(): String {
-    val tag = AppCompatDelegate.getApplicationLocales().toLanguageTags()
+    val tag = AppLocale.currentTag(LocalContext.current)
     if (tag.isBlank()) return stringResource(R.string.setting_language_system)
-    val base = tag.substringBefore(',').trim()
-    return APP_LANGUAGE_OPTIONS.firstOrNull { it.first.equals(base, ignoreCase = true) }?.second ?: base
+    return APP_LANGUAGE_OPTIONS.firstOrNull { it.first.equals(tag, ignoreCase = true) }?.second ?: tag
 }
 
 @Composable
@@ -501,7 +501,7 @@ private fun LanguagePickerDialog(
     onDismiss: () -> Unit,
     onPick: (String) -> Unit,
 ) {
-    val current = AppCompatDelegate.getApplicationLocales().toLanguageTags().substringBefore(',').trim()
+    val current = AppLocale.currentTag(LocalContext.current)
     val options = remember { listOf("" to "") + APP_LANGUAGE_OPTIONS }
     AlertDialog(
         onDismissRequest = onDismiss,

@@ -64,6 +64,9 @@ class RikkaHubApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // 应用内语言：API 33+ 由系统按应用语言持久化，无需处理；
+        // API 26–32 需在进程启动时把已选语言重新写回资源，否则重启后回退到系统语言。
+        me.rerere.rikkahub.utils.AppLocale.restoreOnStartup(this)
         // 兼容老 SSH 服务端（如小米路由 dropbear 2017.75 只提供 ssh-rsa host key）：
         // 全局放宽 JSch 的 server_host_key 候选，ssh-rsa 追加在末尾（新算法优先）。
         // 覆盖所有裸 new JSch() 实例（SSH 工具/终端/后端隧道/Vault SSH）。
