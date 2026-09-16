@@ -124,8 +124,11 @@ class ChatToolFactory(
             )
         }
     }.let { full ->
+        // 固定按工具名排序：工具顺序参与请求前缀，排序后集合与顺序稳定，避免
+        // MCP/技能装配顺序抖动击穿缓存。元工具也基于同一稳定列表生成。
+        val stableFull = full.sortedBy { it.name }
         // 注入视图：低频工具精简描述；元工具基于**未精简**的完整列表，保证 get_tool_schema 能取回原文。
-        val injected = full.map { slimDescriptionForInjection(it) } + buildToolDiscoveryTools(full)
+        val injected = stableFull.map { slimDescriptionForInjection(it) } + buildToolDiscoveryTools(stableFull)
         // 登记本次注入集合：让 tool_usage_stats 能直接识别"已启用但从未调用"的工具。
         ToolUsageTracker.recordInjected(context, injected.map { it.name })
         trackUsage(injected)
