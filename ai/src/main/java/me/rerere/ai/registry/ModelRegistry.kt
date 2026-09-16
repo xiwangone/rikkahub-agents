@@ -572,6 +572,25 @@ object ModelRegistry {
         toolReasoningAbility()
     }
 
+    // 腾讯混元（HY3 / HY4）：纯文本 + 工具 + 推理（能力取自聚合目录元数据）
+    private val TENCENT_HY3 = defineModel {
+        tokens("hy", "3")
+        notTokens("hy", "mt")
+        toolReasoningAbility()
+    }
+
+    private val TENCENT_HY4 = defineModel {
+        tokens("hy", "4")
+        notTokens("hy", "mt")
+        toolReasoningAbility()
+    }
+
+    // NVIDIA Nemotron 3 系列：文本 + 工具 + 推理
+    private val NEMOTRON_3 = defineModel {
+        tokens("nemotron", "3")
+        toolReasoningAbility()
+    }
+
     private val LONGCAT_2 = defineModel {
         tokens("longcat", "2", "0")
         toolReasoningAbility()
@@ -743,6 +762,9 @@ object ModelRegistry {
         XIAOMI_MIMO_V3_PRO,
         HY3,
         HY4,
+        TENCENT_HY3,
+        TENCENT_HY4,
+        NEMOTRON_3,
         LONGCAT_2,
         MUSE_SPARK,
         MUSE_GLIMMER,
