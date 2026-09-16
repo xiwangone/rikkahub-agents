@@ -1288,9 +1288,20 @@ class ChatService(
                             val needsImmediatePersist =
                                 chunk.messages.lastOrNull()?.parts?.any { p ->
                                     p is UIMessagePart.Tool &&
-                                        p.executionStartedAt != null &&
                                         p.output.isEmpty() &&
-                                        p.approvalState is ToolApprovalState.Approved
+                                        (
+                                            // 执行刚开始（Approved + executionStartedAt）——落盘面包屑，
+                                            // 供进程被杀后的 replay 安全检查识别「中断的尝试」。
+                                            (
+                                                p.executionStartedAt != null &&
+                                                    p.approvalState is ToolApprovalState.Approved
+                                                ) ||
+                                                // 刚转为「待审批」：这是必须立刻可见的状态迁移。
+                                                // 若被节流吞掉，UI 拿到的仍是 Auto → isPending=false →
+                                                // 审批按钮不渲染；而 Auto 又恰好满足 finishPendingTools 的
+                                                // 改写条件，于是用户一发消息就被标成「已拒绝」。
+                                                p.approvalState is ToolApprovalState.Pending
+                                            )
                                 } ?: false
                             // 生成中的周期落盘：保住已被进程回收时丢失的中间内容。
                             val nowMs = System.currentTimeMillis()

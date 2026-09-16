@@ -861,6 +861,15 @@ class GenerationLoop(
                 val updatedTools = ArrayList<UIMessagePart.Tool>(tools.size)
                 for (tool in tools) {
                     val toolDef = toolsInternal.find { it.name == tool.toolName }
+                    // 诊断（「审批停住但无按钮」排查）：把判定输入与结果一次性打出来。
+                    // 这一步回答的问题是：GenLoop 到底有没有走到「需要审批」分支。
+                    val needsApprovalResolved = toolDef?.needsApproval(tool.inputAsJson()) == true
+                    AppLog.i(
+                        TAG,
+                        "approval-check ${tool.toolName}: toolDefFound=${toolDef != null} " +
+                            "needsApproval=$needsApprovalResolved state=${tool.approvalState} " +
+                            "available=${toolsInternal.size}",
+                    )
                     // HARDLINE check: certain command patterns (rm -rf /, mkfs, shutdown,
                     // fork bomb, …) are blocked unconditionally — even "Always Allow"
                     // can't override. We check BEFORE the auto-approval lookup so a
@@ -881,16 +890,18 @@ class GenerationLoop(
                             ))
                         }
                         // Tool needs approval and state is Auto:
-                        toolDef?.needsApproval(tool.inputAsJson()) == true &&
+                        needsApprovalResolved &&
                             tool.approvalState is ToolApprovalState.Auto -> {
                             // Fresh per-tool auto-approval check (was a frozen pre-
                             // resolved set). Costs a DataStore.first() per tool but tools
                             // are typically <5 per turn so the latency is negligible, and
                             // freshness matters for the YOLO toggle / mid-iteration grants.
                             if (isToolAutoApproved(tool.toolName)) {
+                                AppLog.i(TAG, "approval-auto ${tool.toolName}: auto-approved, running without prompt")
                                 tool  // leave as Auto so the executor runs it without prompting
                             } else {
                                 hasPendingApproval = true
+                                AppLog.i(TAG, "approval-pending ${tool.toolName}: marked Pending, waiting for user")
                                 tool.copy(approvalState = ToolApprovalState.Pending)
                             }
                         }

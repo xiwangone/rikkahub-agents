@@ -81,7 +81,18 @@ class WorkspaceReminderTransformer(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                AppLog.d("WorkspaceReminder", "Skipping workspace instructions: $path", e)
+                // AGENTS.md 属**可选**文件：绝大多数工作区根本没有它，因此「不存在」是预期状态、
+                // 不是错误。此前一律按异常处理并连堆栈打印，导致每个请求都刷十几行噪音
+                // （/root/.agents/AGENTS.md 与 /workspace/AGENTS.md 各一条）。
+                val absent = e is java.io.FileNotFoundException ||
+                    e.message?.contains("does not exist", ignoreCase = true) == true ||
+                    e.message?.contains("No such file", ignoreCase = true) == true
+                if (absent) {
+                    AppLog.d("WorkspaceReminder", "no workspace instructions at $path")
+                } else {
+                    // 真实错误（超限、IO、路径非法等）才记录，且保留堆栈便于排查。
+                    AppLog.w("WorkspaceReminder", "failed reading workspace instructions: $path", e)
+                }
                 null
             }
         }
