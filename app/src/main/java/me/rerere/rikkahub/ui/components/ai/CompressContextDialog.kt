@@ -26,7 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.Deferred
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
 import me.rerere.rikkahub.ui.components.ui.RabbitLoadingIndicator
@@ -34,22 +34,24 @@ import me.rerere.rikkahub.ui.components.ui.RabbitLoadingIndicator
 @Composable
 fun CompressContextDialog(
     onDismiss: () -> Unit,
-    onConfirm: (additionalPrompt: String, targetTokens: Int, keepRecentMessages: Int) -> Job,
+    onConfirm: (additionalPrompt: String, targetTokens: Int, keepRecentMessages: Int) -> Deferred<Result<Unit>>,
 ) {
     var additionalPrompt by remember { mutableStateOf("") }
     var selectedTokens by remember { mutableIntStateOf(2000) }
     var keepRecentMessages by remember { mutableIntStateOf(32) }
     val tokenOptions = listOf(500, 1000, 2000, 4000)
-    var currentJob by remember { mutableStateOf<Job?>(null) }
-    val isLoading = currentJob?.isActive == true
+    var currentDeferred by remember { mutableStateOf<Deferred<Result<Unit>>?>(null) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+    val isLoading = currentDeferred?.isActive == true
 
-    // Monitor job completion
-    LaunchedEffect(currentJob) {
-        currentJob?.join()
-        if (currentJob?.isCompleted == true && currentJob?.isCancelled == false) {
-            onDismiss()
-        }
-        currentJob = null
+    // Result.failure 不是协程异常：不能只看 Job 是否正常结束，否则失败也会关闭弹窗。
+    LaunchedEffect(currentDeferred) {
+        val deferred = currentDeferred ?: return@LaunchedEffect
+        runCatching { deferred.await() }.getOrNull()?.fold(
+            onSuccess = { onDismiss() },
+            onFailure = { errorMessage = it.message ?: "Compression failed" },
+        )
+        currentDeferred = null
     }
 
     AlertDialog(
@@ -132,20 +134,29 @@ fun CompressContextDialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
+
+                    errorMessage?.let { message ->
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
         },
         confirmButton = {
             if (isLoading) {
                 TextButton(onClick = {
-                    currentJob?.cancel()
-                    currentJob = null
+                    currentDeferred?.cancel()
+                    currentDeferred = null
                 }) {
                     Text(stringResource(R.string.cancel))
                 }
             } else {
                 TextButton(onClick = {
-                    currentJob = onConfirm(additionalPrompt, selectedTokens, keepRecentMessages)
+                    errorMessage = null
+                    currentDeferred = onConfirm(additionalPrompt, selectedTokens, keepRecentMessages)
                 }) {
                     Text(stringResource(R.string.confirm))
                 }

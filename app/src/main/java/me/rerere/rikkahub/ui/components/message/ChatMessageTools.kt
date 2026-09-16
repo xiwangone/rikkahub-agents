@@ -74,6 +74,16 @@ private fun JsonElement?.getStringContent(key: String): String? =
 
 private const val ASK_USER_TOOL_NAME = "ask_user"
 
+/** 非 JSON 工具结果（例如截断提示）返回 null，交给默认渲染器显示原始文本。 */
+internal fun parseToolOutputContent(tool: UIMessagePart.Tool): JsonElement? {
+    if (!tool.isExecuted) return null
+    return runCatching {
+        JsonInstant.parseToJsonElement(
+            tool.output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text },
+        )
+    }.getOrNull()
+}
+
 @Composable
 fun ChainOfThoughtScope.ChatMessageToolStep(
     tool: UIMessagePart.Tool,
@@ -101,16 +111,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             ToolUIContext(
                 tool = tool,
                 arguments = tool.inputAsJson(),
-                content =
-                    if (tool.isExecuted) {
-                        runCatching {
-                            JsonInstant.parseToJsonElement(
-                                tool.output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text },
-                            )
-                        }.getOrElse { JsonObject(emptyMap()) }
-                    } else {
-                        null
-                    },
+                content = parseToolOutputContent(tool),
                 loading = loading,
             )
         }

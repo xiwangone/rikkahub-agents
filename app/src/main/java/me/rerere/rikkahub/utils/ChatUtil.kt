@@ -71,6 +71,7 @@ private val ALLOWED_FILE_EXTENSIONS =
         "py",
         "rb",
         "lua",
+        "luau",
         "sql",
         "java",
         "kt",

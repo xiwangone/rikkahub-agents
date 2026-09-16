@@ -25,6 +25,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -38,7 +41,7 @@ enum class SwitchSize {
 @Composable
 fun Switch(
     checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
+    onCheckedChange: ((Boolean) -> Unit)?,
     modifier: Modifier = Modifier,
     size: SwitchSize = SwitchSize.Medium,
     enabled: Boolean = true,
@@ -106,6 +109,7 @@ fun Switch(
         modifier =
             modifier
                 .size(width = dimensions.trackWidth, height = dimensions.trackHeight)
+                .semantics { role = Role.Switch }
                 .clip(RoundedCornerShape(50))
                 .background(currentTrackColor)
                 .clickable(
@@ -113,7 +117,7 @@ fun Switch(
                     indication = null,
                     interactionSource = remember { MutableInteractionSource() },
                 ) {
-                    onCheckedChange(!checked)
+                    onCheckedChange?.invoke(!checked)
                 },
         contentAlignment = Alignment.CenterStart,
     ) {

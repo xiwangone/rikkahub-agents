@@ -78,6 +78,7 @@ private val TEXT_EXTENSIONS =
         "gitignore",
         "dockerfile",
         "lua",
+        "luau",
         "php",
         "pl",
         "r",

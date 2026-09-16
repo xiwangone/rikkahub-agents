@@ -30,6 +30,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
@@ -172,7 +174,11 @@ private fun WorkflowRow(
             )
         },
         trailingContent = {
-            Switch(checked = loaded.entity.enabled, onCheckedChange = onToggle)
+            Switch(
+                checked = loaded.entity.enabled,
+                onCheckedChange = onToggle,
+                modifier = Modifier.semantics { contentDescription = loaded.entity.name },
+            )
         },
     )
     HorizontalDivider()

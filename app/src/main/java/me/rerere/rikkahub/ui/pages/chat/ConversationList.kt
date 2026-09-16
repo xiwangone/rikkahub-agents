@@ -83,7 +83,7 @@ fun ColumnScope.ConversationList(
     modifier: Modifier = Modifier,
     onClick: (Conversation) -> Unit = {},
     onDelete: (Conversation) -> Unit = {},
-    onRegenerateTitle: (Conversation) -> Unit = {},
+    onRename: (Conversation) -> Unit = {},
     onPin: (Conversation) -> Unit = {},
     onMoveToAssistant: (Conversation) -> Unit = {},
     onMoveToFolder: (Conversation) -> Unit = {},
@@ -162,7 +162,7 @@ fun ColumnScope.ConversationList(
                         loading = item.conversation.id in conversationJobs,
                         onClick = onClick,
                         onDelete = onDelete,
-                        onRegenerateTitle = onRegenerateTitle,
+                        onRename = onRename,
                         onPin = onPin,
                         onMoveToAssistant = onMoveToAssistant,
                         onMoveToFolder = onMoveToFolder,
@@ -233,7 +233,7 @@ private fun ConversationItem(
     loading: Boolean,
     modifier: Modifier = Modifier,
     onDelete: (Conversation) -> Unit = {},
-    onRegenerateTitle: (Conversation) -> Unit = {},
+    onRename: (Conversation) -> Unit = {},
     onPin: (Conversation) -> Unit = {},
     onMoveToAssistant: (Conversation) -> Unit = {},
     onMoveToFolder: (Conversation) -> Unit = {},
@@ -330,10 +330,10 @@ private fun ConversationItem(
 
                 DropdownMenuItem(
                     text = {
-                        Text(stringResource(id = R.string.chat_page_regenerate_title))
+                        Text(stringResource(id = R.string.chat_page_rename_chat))
                     },
                     onClick = {
-                        onRegenerateTitle(conversation)
+                        onRename(conversation)
                         showDropdownMenu = false
                     },
                     leadingIcon = {

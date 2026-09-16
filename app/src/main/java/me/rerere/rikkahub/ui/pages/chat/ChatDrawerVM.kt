@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FolderRepository
@@ -193,6 +194,23 @@ class ChatDrawerVM(
         viewModelScope.launch {
             // 经 ChatService 移动：活跃会话会先同步内存态，避免后续整对象保存覆盖 folder_id
             chatService.moveConversationToFolder(conversationId, folderId)
+        }
+    }
+
+    fun renameConversation(conversation: Conversation, title: String) {
+        val trimmed = title.trim()
+        if (trimmed.isBlank()) return
+        viewModelScope.launch {
+            chatService.saveConversation(
+                conversation.id,
+                conversation.copy(title = trimmed),
+            )
+        }
+    }
+
+    fun regenerateTitle(conversation: Conversation) {
+        viewModelScope.launch {
+            chatService.generateTitle(conversation.id, conversation, force = true)
         }
     }
 

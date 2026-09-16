@@ -12,6 +12,7 @@ import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -25,6 +26,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.async
 import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
@@ -365,18 +367,15 @@ class ChatVM(
         additionalPrompt: String,
         targetTokens: Int,
         keepRecentMessages: Int,
-    ): Job =
-        viewModelScope.launch {
-            chatService
-                .compressConversation(
-                    _conversationId,
-                    conversation.value,
-                    additionalPrompt,
-                    targetTokens,
-                    keepRecentMessages,
-                ).onFailure {
-                    chatService.addError(it, title = context.getString(R.string.error_title_compress_conversation))
-                }
+    ): Deferred<Result<Unit>> =
+        viewModelScope.async {
+            chatService.compressConversation(
+                _conversationId,
+                conversation.value,
+                additionalPrompt,
+                targetTokens,
+                keepRecentMessages,
+            )
         }
 
     suspend fun forkMessage(message: UIMessage): Conversation =
