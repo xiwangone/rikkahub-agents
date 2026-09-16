@@ -1779,7 +1779,7 @@
         errorLine2="                                ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
         <location
             file="src/main/java/me/rerere/rikkahub/ui/pages/setting/SettingProviderDetailPage.kt"
-            line="312"
+            line="313"
             column="33"/>
     </issue>
 
@@ -2705,6 +2705,17 @@
             file="src/main/java/me/rerere/rikkahub/workflow/ui/WorkflowDetailScreen.kt"
             line="162"
             column="37"/>
+    </issue>
+
+    <issue
+        id="LocalContextGetResourceValueCall"
+        message="Querying resource values using LocalContext.current is not configuration-aware and may return stale values if the Configuration changes"
+        errorLine1="                    context.getString("
+        errorLine2="                    ^">
+        <location
+            file="src/main/java/me/rerere/rikkahub/ui/pages/extensions/workspace/WorkspaceDetailPage.kt"
+            line="163"
+            column="21"/>
     </issue>
 
     <issue
@@ -5931,248 +5942,6 @@
     </issue>
 
     <issue
-        id="MissingTranslation"
-        message="&quot;workspace_detail_import_local_rootfs&quot; is not translated in &quot;ar&quot; (Arabic), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese)"
-        errorLine1="  &lt;string name=&quot;workspace_detail_import_local_rootfs&quot;>Import from local file&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3125"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;workspace_detail_import_local_rootfs_desc&quot; is not translated in &quot;ar&quot; (Arabic), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese)"
-        errorLine1="  &lt;string name=&quot;workspace_detail_import_local_rootfs_desc&quot;>Pick a rootfs archive (tar.gz / tar.xz) already on this device. Useful when the download source is unreachable.&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3126"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;workspace_detail_saved_rootfs_urls&quot; is not translated in &quot;ar&quot; (Arabic), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese)"
-        errorLine1="  &lt;string name=&quot;workspace_detail_saved_rootfs_urls&quot;>Saved URLs&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3127"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;workspace_detail_save_rootfs_url&quot; is not translated in &quot;ar&quot; (Arabic), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese)"
-        errorLine1="  &lt;string name=&quot;workspace_detail_save_rootfs_url&quot;>Save current URL&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3128"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;workspace_detail_delete_saved_url&quot; is not translated in &quot;ar&quot; (Arabic), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese)"
-        errorLine1="  &lt;string name=&quot;workspace_detail_delete_saved_url&quot;>Delete&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3129"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;workspace_detail_preset_rootfs_urls&quot; is not translated in &quot;ar&quot; (Arabic), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese)"
-        errorLine1="  &lt;string name=&quot;workspace_detail_preset_rootfs_urls&quot;>Presets&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3130"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;setting_update_reminder_enabled&quot; is not translated in &quot;ar&quot; (Arabic), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;setting_update_reminder_enabled&quot;>Update reminders are enabled&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3131"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;setting_update_reminder_paused_until&quot; is not translated in &quot;ar&quot; (Arabic), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;setting_update_reminder_paused_until&quot;>Paused until %1$s&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3132"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;setting_update_reminder_pause_title&quot; is not translated in &quot;ar&quot; (Arabic), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;setting_update_reminder_pause_title&quot;>Pause update reminders&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3133"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;setting_update_reminder_pause_description&quot; is not translated in &quot;ar&quot; (Arabic), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;setting_update_reminder_pause_description&quot;>Choose how long to pause update reminders. They will resume automatically.&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3134"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;setting_update_reminder_pause_days&quot; is not translated in &quot;ar&quot; (Arabic), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;setting_update_reminder_pause_days&quot;>%1$d days&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3135"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;setting_update_reminder_resume_now&quot; is not translated in &quot;ar&quot; (Arabic), &quot;ru&quot; (Russian), &quot;ko&quot; (Korean), &quot;ja&quot; (Japanese), &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;setting_update_reminder_resume_now&quot;>Resume now&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3136"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;setting_provider_page_test_non_streaming&quot; is not translated in &quot;ar&quot; (Arabic) or &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;setting_provider_page_test_non_streaming&quot;>Non-streaming&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3137"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;setting_provider_page_test_streaming&quot; is not translated in &quot;ar&quot; (Arabic) or &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;setting_provider_page_test_streaming&quot;>Streaming&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3138"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;setting_provider_page_test_tool_call&quot; is not translated in &quot;ar&quot; (Arabic) or &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;setting_provider_page_test_tool_call&quot;>Tool Call&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3139"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;setting_provider_page_test_tool_called&quot; is not translated in &quot;ar&quot; (Arabic) or &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;setting_provider_page_test_tool_called&quot;>Called: %1$s  Args: %2$s&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3140"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;setting_provider_page_test_tool_not_called&quot; is not translated in &quot;ar&quot; (Arabic) or &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;setting_provider_page_test_tool_not_called&quot;>Tool not called, response: %s&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3141"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;chat_generation_network_retrying&quot; is not translated in &quot;ar&quot; (Arabic) or &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;chat_generation_network_retrying&quot;>%1$s. Retrying (%2$d/%3$d)…&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3142"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;chat_generation_network_unknown_host&quot; is not translated in &quot;ar&quot; (Arabic) or &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;chat_generation_network_unknown_host&quot;>Unable to resolve server address&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3143"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;chat_generation_network_timeout&quot; is not translated in &quot;ar&quot; (Arabic) or &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;chat_generation_network_timeout&quot;>Connection timed out&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3144"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;chat_generation_network_unreachable&quot; is not translated in &quot;ar&quot; (Arabic) or &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;chat_generation_network_unreachable&quot;>Unable to connect to server&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3145"
-            column="11"/>
-    </issue>
-
-    <issue
-        id="MissingTranslation"
-        message="&quot;chat_generation_network_disconnected&quot; is not translated in &quot;ar&quot; (Arabic) or &quot;zh&quot; (Chinese)"
-        errorLine1="  &lt;string name=&quot;chat_generation_network_disconnected&quot;>Network connection lost&lt;/string>"
-        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
-        <location
-            file="src/main/res/values/strings.xml"
-            line="3146"
-            column="11"/>
-    </issue>
-
-    <issue
         id="Typos"
         message="&quot;Avaliable&quot; is a common misspelling; did you mean &quot;Available&quot;?"
         errorLine1="  &lt;string name=&quot;setting_provider_page_avaliable_models&quot;>Avaliable Models&lt;/string>"
@@ -6653,6 +6422,28 @@
         <location
             file="src/main/res/values/strings.xml"
             line="3135"
+            column="3"/>
+    </issue>
+
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;model&quot;): This should probably be a plural rather than a string"
+        errorLine1="  &lt;string name=&quot;setting_provider_page_match_abilities_done&quot;>Matched: updated %1$d model(s)&lt;/string>"
+        errorLine2="  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="3169"
+            column="3"/>
+    </issue>
+
+    <issue
+        id="PluralsCandidate"
+        message="Formatting %d followed by words (&quot;file&quot;): This should probably be a plural rather than a string"
+        errorLine1="  &lt;string name=&quot;workspace_detail_export_folder_done&quot;>Exported %1$d file(s), %2$d failed&lt;/string>"
+        errorLine2="  ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="3171"
             column="3"/>
     </issue>
 
@@ -9726,6 +9517,17 @@
         <location
             file="src/main/res/values/strings.xml"
             line="3146"
+            column="11"/>
+    </issue>
+
+    <issue
+        id="UnusedResources"
+        message="The resource `R.string.workspace_detail_export_folder` appears to be unused"
+        errorLine1="  &lt;string name=&quot;workspace_detail_export_folder&quot;>Export folder&lt;/string>"
+        errorLine2="          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~">
+        <location
+            file="src/main/res/values/strings.xml"
+            line="3170"
             column="11"/>
     </issue>
 
