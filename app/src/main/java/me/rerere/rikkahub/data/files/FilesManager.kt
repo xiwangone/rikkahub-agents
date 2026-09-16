@@ -4,6 +4,7 @@ import android.content.Context
 import android.graphics.BitmapFactory
 import android.net.Uri
 import android.util.Log
+import me.rerere.rikkahub.data.log.AppLog
 import androidx.core.net.toFile
 import androidx.core.net.toUri
 import java.io.File
@@ -187,19 +188,56 @@ class FilesManager(
             runCatching {
                 val sourceName = getFileNameFromUri(uri) ?: uri.lastPathSegment ?: "file"
                 val sourceMime = getFileMimeType(uri)
-                val fileName = buildUuidFileName(displayName = sourceName, mimeType = sourceMime)
-                val file = dir.resolve(fileName)
-                if (!file.exists()) {
-                    file.createNewFile()
-                }
-                val inputStream = context.contentResolver.openInputStream(uri)
-                    ?: error("Failed to open input stream for $uri")
-                inputStream.use { input ->
-                    file.outputStream().use { output ->
-                        input.copyTo(output)
+
+                // 图片优先压缩后再落盘：长边超限才等比缩小，JPEG 质量取 88。
+                // 返回 null（无需压缩 / 压缩失败）时按原样复制，保证发送链路不退化。
+                val compressedFile: File? =
+                    if (ImageCompressor.isCompressibleImage(sourceMime)) {
+                        val jpgName = buildUuidFileName(
+                            displayName = sourceName.substringBeforeLast('.') + ".jpg",
+                            mimeType = "image/jpeg",
+                        )
+                        val jpgFile = dir.resolve(jpgName)
+                        if (!jpgFile.exists()) {
+                            jpgFile.createNewFile()
+                        }
+                        val result = ImageCompressor.compressToFile(context, uri, jpgFile)
+                        if (result != null) {
+                            AppLog.i(
+                                TAG,
+                                "attachment: $sourceName compressed -> " +
+                                    "${result.width}x${result.height}, ${result.bytes / 1024}KB",
+                            )
+                            jpgFile
+                        } else {
+                            jpgFile.delete()
+                            null
+                        }
+                    } else {
+                        null
                     }
+
+                val file: File
+                val guessedMime: String
+                if (compressedFile != null) {
+                    file = compressedFile
+                    guessedMime = "image/jpeg"
+                } else {
+                    val fileName = buildUuidFileName(displayName = sourceName, mimeType = sourceMime)
+                    file = dir.resolve(fileName)
+                    if (!file.exists()) {
+                        file.createNewFile()
+                    }
+                    val inputStream = context.contentResolver.openInputStream(uri)
+                        ?: error("Failed to open input stream for $uri")
+                    inputStream.use { input ->
+                        file.outputStream().use { output ->
+                            input.copyTo(output)
+                        }
+                    }
+                    guessedMime = sourceMime ?: guessMimeType(file, sourceName)
+                    AppLog.i(TAG, "attachment: $sourceName kept as-is (${file.length() / 1024}KB, $guessedMime)")
                 }
-                val guessedMime = sourceMime ?: guessMimeType(file, sourceName)
                 trackManagedFile(
                     folder = FileFolders.UPLOAD,
                     file = file,

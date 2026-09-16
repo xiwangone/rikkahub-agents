@@ -8,6 +8,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import me.rerere.ai.core.MessageRole
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderManager
@@ -72,6 +73,7 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
         messages: List<UIMessage>,
     ): List<UIMessage> {
         if (ctx.model.inputModalities.contains(Modality.IMAGE)) {
+            AppLog.i(TAG, "transform: model supports image input — passing images through (no OCR)")
             return messages
         }
 
@@ -91,7 +93,7 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
                             .filter { it.url in uncachedSet }
                             .map { "${message.role}:${it.url}" }
                     }
-                    Log.i(
+                    AppLog.i(
                         TAG,
                         "transform: ${triggers.size} uncached image(s) trigger OCR: ${triggers.take(3)}"
                     )
@@ -119,13 +121,21 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
     suspend fun performOcr(part: UIMessagePart.Image): String = runCatching {
         // Check cache first
         cache.get(part.url)?.let { cachedResult ->
-            Log.i(TAG, "performOcr: Using cached result for ${part.url}")
+            AppLog.i(TAG, "performOcr: cache hit for ${part.url}")
             return cachedResult
         }
 
         val settings = get<SettingsStore>().settingsFlow.value
-        val model = settings.findModelById(settings.ocrModelId) ?: return "[Image]"
-        val providerSetting = model.findProvider(settings.providers) ?: return "[Image]"
+        val model = settings.findModelById(settings.ocrModelId)
+        if (model == null) {
+            AppLog.w(TAG, "performOcr: no OCR model configured (id=${settings.ocrModelId}); image NOT read: ${part.url}")
+            return "[Image: not read — no OCR model is configured, so this image's content is unavailable]"
+        }
+        val providerSetting = model.findProvider(settings.providers)
+        if (providerSetting == null) {
+            AppLog.w(TAG, "performOcr: OCR model ${model.modelId} has no usable provider; image NOT read: ${part.url}")
+            return "[Image: not read — the OCR model's provider is unavailable]"
+        }
         val provider = get<ProviderManager>().getProviderByType(providerSetting)
         val result = withTimeoutOrNull(OCR_TIMEOUT_MS) {
             provider.generateText(
@@ -145,13 +155,13 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
             )
         }
         if (result == null) {
-            Log.w(TAG, "performOcr: timed out after ${OCR_TIMEOUT_MS}ms for ${part.url}")
+            AppLog.w(TAG, "performOcr: timed out after ${OCR_TIMEOUT_MS}ms for ${part.url}")
             // Not cached: a timeout is usually transient/config-related, so a later retry
             // should be allowed to reach the model again.
             return "[Image: could not be read — the OCR model did not respond in time]"
         }
         val content = result.message.toText().ifBlank { "[ERROR, OCR failed]" }
-        Log.i(TAG, "performOcr: $content")
+        AppLog.i(TAG, "performOcr: ok (${content.length} chars) for ${part.url}: ${content.take(200)}")
         val ocrResult = """
             <image_file_ocr>
                $content
