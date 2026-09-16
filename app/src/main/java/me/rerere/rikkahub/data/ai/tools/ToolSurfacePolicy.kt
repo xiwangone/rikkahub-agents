@@ -80,9 +80,6 @@ object ToolSurfacePolicy {
             "vault_credential_update", "vault_credential_delete", "vault_credential_audit",
             "vault_credential_meta",
             "whisper_status", "check_app_updates", "generate_bug_report",
-            // find_files 实测累计 0 次调用：按文件名找文件已有 list_files，按内容搜有 shell 的
-            // grep/rg 覆盖。降冷档（保留工具名与一行说明，需要时用 get_tool_schema 取回参数表）。
-            "find_files",
         )
 
     fun tierOf(toolName: String): SurfaceTier =
