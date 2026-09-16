@@ -140,6 +140,9 @@ internal sealed class CaptureResult {
  * the wrong thing). Arguments stay literal argv entries, never interpolated into the script
  * text, so bytes like spaces, `$(...)` and `;` survive unchanged. Pure.
  */
+// 这里的 spread 会把参数数组复制一份；命令行参数通常只有几个元素、每次命令也只调用一次，
+// 复制开销可忽略，而换成手工拼装反而更易出错 —— 因此显式抑制该规则。
+@Suppress("SpreadOperator")
 internal fun buildMarkerWrappedArgv(
     bashPath: String,
     executable: String,

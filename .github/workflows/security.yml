@@ -163,3 +163,27 @@ jobs:
             --build-upon-default-config \
             --config .github/detekt/detekt.yml \
             --baseline .github/detekt/detekt-baseline.xml
+
+  lint:
+    name: Android Lint（含无障碍规则）
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 复用统一构建环境：JDK / Android SDK 均带多源回退
+      - name: 准备构建环境
+        uses: ./.github/actions/setup-build-env
+
+      # 基线（app/lint-baseline.xml）只登记既有问题：本作业只对「新增」问题报失败
+      - name: Run lint
+        run: ./gradlew :app:lintDebug --no-daemon --console=plain
+
+      - name: 保留报告（便于排查）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-report
+          path: app/build/reports/lint-results-debug.*
+          retention-days: 14
+          if-no-files-found: ignore
