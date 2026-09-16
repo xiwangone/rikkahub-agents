@@ -588,7 +588,12 @@ private fun ModelList(
                                         }
                                     }
                                 if (changed > 0) {
-                                    onUpdateProvider(providerSetting.copy(models = updated))
+                                    // ProviderSetting 是密封类，没有统一的 copy(models=...)：逐项替换变化过的模型
+                                    val applied =
+                                        providerSetting.models.zip(updated).fold(providerSetting) { acc, (old, new) ->
+                                            if (old === new) acc else acc.editModel(new)
+                                        }
+                                    onUpdateProvider(applied)
                                 }
                                 toaster.show(
                                     context.getString(

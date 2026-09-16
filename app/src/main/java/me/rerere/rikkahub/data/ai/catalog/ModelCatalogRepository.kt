@@ -200,17 +200,17 @@ class ModelCatalogRepository(
             "guard", "reranker", "ocr", "davinci", "babbage", "ada-", "curie",
         )
     }
-}
 
-/** 把目录实现安装给注册表桥（app 启动时调用一次）。 */
-fun ModelCatalogRepository.installBridge() {
-    ModelCatalogBridge.install(
-        object : ModelCatalogBridge.Provider {
-            override fun inputModalities(modelId: String): Set<Modality>? = this@installBridge.inputModalities(modelId)
+    /** 把本实例安装为注册表的能力目录（app 启动时调用一次）。 */
+    fun installBridge() {
+        ModelCatalogBridge.install(
+            object : ModelCatalogBridge.Provider {
+                override fun inputModalities(modelId: String): Set<Modality>? = this@ModelCatalogRepository.inputModalities(modelId)
 
-            override fun outputModalities(modelId: String): Set<Modality>? = this@installBridge.outputModalities(modelId)
+                override fun outputModalities(modelId: String): Set<Modality>? = this@ModelCatalogRepository.outputModalities(modelId)
 
-            override fun abilities(modelId: String): Set<ModelAbility>? = this@installBridge.abilities(modelId)
-        },
-    )
+                override fun abilities(modelId: String): Set<ModelAbility>? = this@ModelCatalogRepository.abilities(modelId)
+            },
+        )
+    }
 }
