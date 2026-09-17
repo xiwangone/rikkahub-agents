@@ -697,11 +697,18 @@ internal suspend fun generationPayload(
                         put("cached_tokens", usage.cachedTokens)
                         put("total_tokens", usage.totalTokens)
                         put("cost_usd", usage.cost?.let { JsonPrimitive(it) } ?: JsonNull)
-                        val denom = usage.promptTokens + usage.cachedTokens
-                        put(
-                            "cache_hit_ratio",
-                            if (denom > 0) JsonPrimitive((usage.cachedTokens * 1000.0 / denom).toInt() / 1000.0) else JsonNull,
-                        )
+                        // 口径：OpenAI/DeepSeek 的 prompt_tokens **已包含**缓存命中部分，
+                        // 命中率 = cached / prompt。此前写成 cached/(prompt+cached)，会把真实的
+                        // 99.7% 显示成 49.9%。Anthropic 系 input 不含 cache，此时比值会 >1，
+                        // 只标注口径而不给数值，避免跨平台误读。
+                        val ratio =
+                            if (usage.promptTokens > 0 && usage.cachedTokens in 1..usage.promptTokens) {
+                                (usage.cachedTokens * 1000.0 / usage.promptTokens).toInt() / 1000.0
+                            } else {
+                                null
+                            }
+                        put("cache_hit_ratio", ratio?.let { JsonPrimitive(it) } ?: JsonNull)
+                        put("cache_ratio_basis", "cached_tokens / prompt_tokens")
                     })
                     put("usage_source", "provider reported")
                 }
