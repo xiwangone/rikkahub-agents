@@ -327,6 +327,37 @@ private fun renderShellPreset(
 }
 
 /**
+ * 解析 `env` 参数（{环境变量名: vault凭证名}）并进程内解密注入。
+ *
+ * 独立成函数以压低 createShellTool 的圈复杂度；返回（注入映射, 错误消息），
+ * 错误消息非空时调用方应直接返回它。
+ */
+private fun resolveInjectedEnv(params: JsonObject): Pair<Map<String, String>, String?> {
+    val envObj = params["env"]?.jsonObject ?: return emptyMap<String, String>() to null
+    if (envObj.isEmpty()) return emptyMap<String, String>() to null
+    val vaultRepository =
+        runCatching { getKoin().get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>() }.getOrNull()
+            ?: return emptyMap<String, String>() to "❌ env 注入失败：凭证库不可用"
+    val context = runCatching { getKoin().get<android.content.Context>() }.getOrNull()
+    // 单点解析器统一处理：会话授权 / 存在性 / 解密 / 审计（成功与拒绝都记）
+    val resolver =
+        CredentialResolver(vaultRepository) {
+            context?.let { me.rerere.rikkahub.data.vault.VaultSessionManager(it) }
+                ?.hasActiveAuthorization() == true
+        }
+    val resolved = mutableMapOf<String, String>()
+    for ((envName, credNameJson) in envObj) {
+        val credName = credNameJson.jsonPrimitive.contentOrNull
+        if (credName.isNullOrBlank()) continue
+        when (val r = resolver.resolve(credName, CredentialPurpose.ENV_INJECT, caller = "ai-tool")) {
+            is CredentialResolution.Granted -> resolved[envName] = r.value
+            else -> return emptyMap<String, String>() to "❌ env 注入失败：${r.message}"
+        }
+    }
+    return resolved to null
+}
+
+/**
  * workspace_shell 的参数 schema。
  *
  * 独立成函数而非内联：detekt 的 CyclomaticComplexMethod 会把嵌套 lambda 内的分支
@@ -464,30 +495,8 @@ private fun createShellTool(
         val targetWorkspace = params.string("workspace")
 
         // env: { 环境变量名: vault凭证名 } —— 进程内解密注入，不落盘、AI 不见明文
-        var injectedEnv: Map<String, String> = emptyMap()
-        val envObj = params.jsonObject["env"]?.jsonObject
-        if (envObj != null && envObj.isNotEmpty()) {
-            val vaultRepository =
-                runCatching { getKoin().get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>() }.getOrNull()
-                    ?: return@Tool listOf(UIMessagePart.Text("❌ env 注入失败：凭证库不可用"))
-            val context = runCatching { getKoin().get<android.content.Context>() }.getOrNull()
-            // 单点解析器统一处理：会话授权 / 存在性 / 解密 / 审计（成功与拒绝都记）
-            val resolver = CredentialResolver(vaultRepository) {
-                context?.let { me.rerere.rikkahub.data.vault.VaultSessionManager(it) }
-                    ?.hasActiveAuthorization() == true
-            }
-            val resolved = mutableMapOf<String, String>()
-            for ((envName, credNameJson) in envObj) {
-                val credName = credNameJson.jsonPrimitive.contentOrNull
-                if (credName.isNullOrBlank()) continue
-                val r = resolver.resolve(credName, CredentialPurpose.ENV_INJECT, caller = "ai-tool")
-                if (r !is CredentialResolution.Granted) {
-                    return@Tool listOf(UIMessagePart.Text("❌ env 注入失败：${r.message}"))
-                }
-                resolved[envName] = r.value
-            }
-            injectedEnv = resolved
-        }
+        val (injectedEnv, envError) = resolveInjectedEnv(params.jsonObject)
+        if (envError != null) return@Tool listOf(UIMessagePart.Text(envError))
 
         // 执行前后各取一次快照：让脚本改动的文件也能像写文件那样显示红绿 diff。
         // 快照有遍历数与缓存上限，超限即放弃检测（退回原行为，不影响命令执行）。

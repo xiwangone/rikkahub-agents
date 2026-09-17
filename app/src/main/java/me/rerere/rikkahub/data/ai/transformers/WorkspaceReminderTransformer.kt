@@ -68,6 +68,9 @@ class WorkspaceReminderTransformer(
         }
     }
 
+    // 先 catch (Exception) 再按类型/文案判定「文件不存在」是既定策略：需要同时识别
+    // FileNotFoundException 与不同 provider 的 message 文案，多 catch 无法表达，故豁免该规则。
+    @Suppress("InstanceOfCheckForException")
     private suspend fun buildAgentsPrompt(workspaceId: String, cwd: String?): String {
         // ProotShellRunner 将 HOME 固定为 /root；相对 PWD 按 /workspace 解析。
         val workingDirectory = Paths.get("/workspace")

@@ -271,6 +271,9 @@ fun UIMessage.finishReasoning(): UIMessage {
     )
 }
 
+// 这里的多个并列条件是「审批状态单调合并」的显式判据（Pending/Approved/已执行/排除 Auto），
+// 拆开反而更难核对；故保留写法并显式豁免 ComplexCondition（阈值 4，本处恰为 4 项并列）。
+@Suppress("ComplexCondition")
 fun UIMessage.finishPendingTools(
     transform: (UIMessagePart.Tool) -> UIMessagePart.Tool
 ): UIMessage {
