@@ -653,10 +653,14 @@ internal suspend fun generationPayload(
         (if (idRaw.isNotBlank()) recent.firstOrNull { it.id.toString() == idRaw } else recent.firstOrNull())
             ?: return buildJsonObject { put("error", "conversation_not_found") }.toString()
 
-    val lastAssistant =
-        conversation.messageNodes.asReversed().firstNotNullOfOrNull { node ->
-            node.messages.asReversed().firstOrNull { it.role == me.rerere.ai.core.MessageRole.ASSISTANT }
-        }
+    // 注意：当前这一轮往往已有一条 assistant 消息（记录工具调用），但它尚未收尾、usage 仍为空。
+    // 若直接取「最后一条 assistant」，自省会永远读到 unknown —— 因此优先取最近一条**带 usage** 的，
+    // 找不到才退回最后一条（并如实标注 usage_source）。
+    val assistantMessages =
+        conversation.messageNodes.asReversed()
+            .flatMap { node -> node.messages.asReversed() }
+            .filter { it.role == me.rerere.ai.core.MessageRole.ASSISTANT }
+    val lastAssistant = assistantMessages.firstOrNull { it.usage != null } ?: assistantMessages.firstOrNull()
 
     return buildJsonObject {
         put("conversation_id", conversation.id.toString())
