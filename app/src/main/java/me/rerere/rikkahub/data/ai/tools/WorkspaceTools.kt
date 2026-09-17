@@ -332,7 +332,7 @@ private fun renderShellPreset(
  * 独立成函数以压低 createShellTool 的圈复杂度；返回（注入映射, 错误消息），
  * 错误消息非空时调用方应直接返回它。
  */
-private fun resolveInjectedEnv(params: JsonObject): Pair<Map<String, String>, String?> {
+private suspend fun resolveInjectedEnv(params: JsonObject): Pair<Map<String, String>, String?> {
     val envObj = params["env"]?.jsonObject ?: return emptyMap<String, String>() to null
     if (envObj.isEmpty()) return emptyMap<String, String>() to null
     val vaultRepository =
