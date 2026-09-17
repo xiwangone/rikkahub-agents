@@ -326,6 +326,70 @@ private fun renderShellPreset(
     return rendered
 }
 
+/**
+ * workspace_shell 的参数 schema。
+ *
+ * 独立成函数而非内联：detekt 的 CyclomaticComplexMethod 会把嵌套 lambda 内的分支
+ * 一并计入 createShellTool，导致其圈复杂度超阈值（曾达 26）。
+ */
+private fun shellToolSchema(defaultCwd: String?): JsonObject =
+    buildJsonObject {
+        put("preset", buildJsonObject {
+            put("type", "string")
+            put(
+                "description",
+                "Name of a saved command preset. Presets live in the workspace file " +
+                    "$SHELL_PRESETS_PATH ({\"<name>\": \"<command>\"} or {\"<name>\": {\"command\": ..., \"description\": ...}}). " +
+                    "Keep real hostnames/paths only in that local file — never in repository-tracked files. " +
+                    "When set, `command` is ignored.",
+            )
+        })
+        put("preset_args", buildJsonObject {
+            put("type", "object")
+            put(
+                "description",
+                "Values for \${name} placeholders inside the preset command, e.g. {\"jdk\": \"...\", \"abi\": \"arm64-v8a\"}.",
+            )
+        })
+        put("command", buildJsonObject {
+            put("type", "string")
+            put("description", "Shell command to run (omit when using preset)")
+        })
+        put("cwd", buildJsonObject {
+            put("type", "string")
+            put(
+                "description",
+                if (!defaultCwd.isNullOrBlank()) {
+                    "Working directory relative to the workspace files root. Defaults to '$defaultCwd'."
+                } else {
+                    "Working directory relative to the workspace files root. Defaults to root."
+                },
+            )
+        })
+        put("timeout", buildJsonObject {
+            put("type", "integer")
+            put(
+                "description",
+                "Command timeout in seconds. Defaults to 30, max $SHELL_TIMEOUT_MAX_SECONDS.",
+            )
+        })
+        put("workspace", buildJsonObject {
+            put("type", "string")
+            put("description", "Optional target workspace id (UUID). When set, runs the command in that workspace's rootfs instead of the current one. Use workspace_list to see available workspace ids.")
+        })
+        put("env", buildJsonObject {
+            put("type", "object")
+            put(
+                "description",
+                "Optional vault credentials to inject into the command's environment as variables, " +
+                    "mapping envVarName -> vaultCredentialName. Values are decrypted in-process and " +
+                    "injected ONLY into this command's process environment — never written to disk, " +
+                    "never shown to the AI. Requires an active vault authorization. " +
+                    "Example: {\"GITHUB_TOKEN\": \"GITHUB_TOKEN\"} makes the token available as \$GITHUB_TOKEN inside the command.",
+            )
+        })
+    }
+
 private fun createShellTool(
     workspaceId: String,
     needsApproval: (String) -> Boolean,
@@ -343,62 +407,7 @@ private fun createShellTool(
     },
     parameters = {
         InputSchema.Obj(
-            properties = buildJsonObject {
-                put("preset", buildJsonObject {
-                    put("type", "string")
-                    put(
-                        "description",
-                        "Name of a saved command preset. Presets live in the workspace file " +
-                            "$SHELL_PRESETS_PATH ({\"<name>\": \"<command>\"} or {\"<name>\": {\"command\": ..., \"description\": ...}}). " +
-                            "Keep real hostnames/paths only in that local file — never in repository-tracked files. " +
-                            "When set, `command` is ignored.",
-                    )
-                })
-                put("preset_args", buildJsonObject {
-                    put("type", "object")
-                    put(
-                        "description",
-                        "Values for \${name} placeholders inside the preset command, e.g. {\"jdk\": \"...\", \"abi\": \"arm64-v8a\"}.",
-                    )
-                })
-                put("command", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Shell command to run (omit when using preset)")
-                })
-                put("cwd", buildJsonObject {
-                    put("type", "string")
-                    put(
-                        "description",
-                        if (!defaultCwd.isNullOrBlank()) {
-                            "Working directory relative to the workspace files root. Defaults to '$defaultCwd'."
-                        } else {
-                            "Working directory relative to the workspace files root. Defaults to root."
-                        }
-                    )
-                })
-                put("timeout", buildJsonObject {
-                    put("type", "integer")
-                    put(
-                        "description",
-                        "Command timeout in seconds. Defaults to 30, max $SHELL_TIMEOUT_MAX_SECONDS."
-                    )
-                })
-                put("workspace", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Optional target workspace id (UUID). When set, runs the command in that workspace's rootfs instead of the current one. Use workspace_list to see available workspace ids.")
-                })
-                put("env", buildJsonObject {
-                    put("type", "object")
-                    put(
-                        "description",
-                        "Optional vault credentials to inject into the command's environment as variables, " +
-                            "mapping envVarName -> vaultCredentialName. Values are decrypted in-process and " +
-                            "injected ONLY into this command's process environment — never written to disk, " +
-                            "never shown to the AI. Requires an active vault authorization. " +
-                            "Example: {\"GITHUB_TOKEN\": \"GITHUB_TOKEN\"} makes the token available as \$GITHUB_TOKEN inside the command."
-                    )
-                })
-            },
+            properties = shellToolSchema(defaultCwd),
             required = emptyList(),
         )
     },

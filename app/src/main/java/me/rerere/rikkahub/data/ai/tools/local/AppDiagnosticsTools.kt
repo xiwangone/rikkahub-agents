@@ -679,43 +679,52 @@ internal suspend fun generationPayload(
             put("context_message_limit", assistant.contextMessageLimit)
             put("reasoning_level", assistant.reasoningLevel.name)
         })
-        if (lastAssistant == null) {
+        val lastTurn = lastTurnJsonOf(lastAssistant)
+        if (lastTurn == null) {
             put("last_turn", JsonNull)
             put("note", "no assistant message in this conversation yet")
         } else {
-            put("last_turn", buildJsonObject {
-                put("message_id", lastAssistant.id.toString())
-                put("finish_reason", lastAssistant.finishReason ?: "unknown")
-                val usage = lastAssistant.usage
-                if (usage == null) {
-                    put("usage", "unknown")
-                    put("usage_source", "provider did not report")
-                } else {
-                    put("usage", buildJsonObject {
-                        put("prompt_tokens", usage.promptTokens)
-                        put("completion_tokens", usage.completionTokens)
-                        put("cached_tokens", usage.cachedTokens)
-                        put("total_tokens", usage.totalTokens)
-                        put("cost_usd", usage.cost?.let { JsonPrimitive(it) } ?: JsonNull)
-                        // 口径：OpenAI/DeepSeek 的 prompt_tokens **已包含**缓存命中部分，
-                        // 命中率 = cached / prompt。此前写成 cached/(prompt+cached)，会把真实的
-                        // 99.7% 显示成 49.9%。Anthropic 系 input 不含 cache，此时比值会 >1，
-                        // 只标注口径而不给数值，避免跨平台误读。
-                        val ratio =
-                            if (usage.promptTokens > 0 && usage.cachedTokens in 1..usage.promptTokens) {
-                                (usage.cachedTokens * 1000.0 / usage.promptTokens).toInt() / 1000.0
-                            } else {
-                                null
-                            }
-                        put("cache_hit_ratio", ratio?.let { JsonPrimitive(it) } ?: JsonNull)
-                        put("cache_ratio_basis", "cached_tokens / prompt_tokens")
-                    })
-                    put("usage_source", "provider reported")
-                }
-            })
+            put("last_turn", lastTurn)
         }
     }.toString()
 }
+
+/** 单次请求的用量。命中率口径：OpenAI/DeepSeek 的 prompt_tokens 已包含缓存命中部分，
+ *  故 ratio = cached / prompt（写成 cached/(prompt+cached) 会把 99.7% 显示成 49.9%）。
+ *  Anthropic 系 input 不含 cache，此时比值会 >1，仅标口径而不给数值，避免跨平台误读。 */
+private fun usageJsonOf(usage: me.rerere.ai.core.TokenUsage): JsonObject =
+    buildJsonObject {
+        put("prompt_tokens", usage.promptTokens)
+        put("completion_tokens", usage.completionTokens)
+        put("cached_tokens", usage.cachedTokens)
+        put("total_tokens", usage.totalTokens)
+        put("cost_usd", usage.cost?.let { JsonPrimitive(it) } ?: JsonNull)
+        val ratio =
+            if (usage.promptTokens > 0 && usage.cachedTokens in 1..usage.promptTokens) {
+                (usage.cachedTokens * 1000.0 / usage.promptTokens).toInt() / 1000.0
+            } else {
+                null
+            }
+        put("cache_hit_ratio", ratio?.let { JsonPrimitive(it) } ?: JsonNull)
+        put("cache_ratio_basis", "cached_tokens / prompt_tokens")
+    }
+
+/** 最近一轮：消息标识 + finish_reason + usage（未上报时标 unknown）；无消息返回 null。 */
+private fun lastTurnJsonOf(message: UIMessage?): JsonObject? =
+    message?.let { msg ->
+        buildJsonObject {
+            put("message_id", msg.id.toString())
+            put("finish_reason", msg.finishReason ?: "unknown")
+            val usage = msg.usage
+            if (usage == null) {
+                put("usage", "unknown")
+                put("usage_source", "provider did not report")
+            } else {
+                put("usage", usageJsonOf(usage))
+                put("usage_source", "provider reported")
+            }
+        }
+    }
 
 /**
  * App diagnostics and logs behind a single tool so the tool surface stays small.

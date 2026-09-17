@@ -7,15 +7,20 @@ config:
 
 complexity:
   active: true
+  # Compose 惯例就是多参数/长函数（副作用集中在组合体），这些规则对它系统性误报，
+  # 故对 @Composable 标注的函数全部豁免；非 Compose 代码仍按阈值严格执行。
   LongMethod:
     threshold: 120
+    ignoreAnnotated: ['Composable']
   LongParameterList:
     functionThreshold: 10
+    ignoreAnnotated: ['Composable']
   TooManyFunctions:
     thresholdInFiles: 40
     thresholdInClasses: 25
   CyclomaticComplexMethod:
     threshold: 20
+    ignoreAnnotated: ['Composable']
 
 coroutines:
   active: true
