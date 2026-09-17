@@ -14,6 +14,7 @@ import androidx.datastore.preferences.preferencesDataStore
 import io.pebbletemplates.pebble.PebbleEngine
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.sync.withLock
@@ -29,6 +30,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.subagent.SubAgentProfile
 import me.rerere.rikkahub.AppScope
+import me.rerere.rikkahub.costguards.LifetimeUsage
 import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_COMPRESS_PROMPT
@@ -126,6 +128,10 @@ class SettingsStore(
         val THEME_ID = stringPreferencesKey("theme_id")
         val EXECUTION_BACKEND = stringPreferencesKey("execution_backend")
         val BACKEND_CONNECTIONS = stringPreferencesKey("backend_connections")
+        // 会话累计用量（与压缩解耦；见 LifetimeUsage 注释）：{ 会话id -> LifetimeUsage }
+        val CONV_LIFETIME_USAGE = stringPreferencesKey("conv_lifetime_usage")
+        // 该键最多保留的会话数，避免无界增长
+        const val LIFETIME_KEEP = 200
         val CUSTOM_THEMES = stringPreferencesKey("custom_themes")
         val DISPLAY_SETTING = stringPreferencesKey("display_setting")
         val NETWORK_SETTING = stringPreferencesKey("network_setting")
@@ -719,6 +725,36 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
             preferences[EXECUTION_BACKEND] = settings.executionBackend
             preferences[BACKEND_CONNECTIONS] = JsonInstant.encodeToString(settings.backendConnections)
+        }
+    }
+
+    // ---------- 会话累计用量（与压缩解耦，见 LifetimeUsage 注释） ----------
+
+    /** 读取某会话的累计用量；无记录返回 null，调用方回退到「当前聚合」显示。 */
+    suspend fun getConvLifetimeUsage(conversationId: String): LifetimeUsage? =
+        runCatching {
+            val raw = dataStore.data.first()[CONV_LIFETIME_USAGE] ?: return null
+            JsonInstant.decodeFromString<Map<String, LifetimeUsage>>(raw)[conversationId]
+        }.getOrNull()
+
+    /** 写入某会话的累计用量；只保留最近 [LIFETIME_KEEP] 个会话，避免无界增长。 */
+    suspend fun setConvLifetimeUsage(conversationId: String, usage: LifetimeUsage) {
+        dataStore.edit { preferences ->
+            val current =
+                preferences[CONV_LIFETIME_USAGE]?.let {
+                    runCatching { JsonInstant.decodeFromString<Map<String, LifetimeUsage>>(it) }.getOrNull()
+                } ?: emptyMap()
+            val updated = LinkedHashMap(current).apply {
+                remove(conversationId)
+                put(conversationId, usage)
+            }
+            val trimmed =
+                if (updated.size <= LIFETIME_KEEP) {
+                    updated
+                } else {
+                    LinkedHashMap(updated.entries.toList().takeLast(LIFETIME_KEEP).associate { it.key to it.value })
+                }
+            preferences[CONV_LIFETIME_USAGE] = JsonInstant.encodeToString<Map<String, LifetimeUsage>>(trimmed)
         }
     }
 

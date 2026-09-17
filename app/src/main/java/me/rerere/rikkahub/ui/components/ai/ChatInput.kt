@@ -141,6 +141,8 @@ fun ChatInput(
     hazeState: HazeState,
     enableSearch: Boolean,
     sessionTotals: TokenBudgetTracker.Totals? = null,
+    /** 会话累计用量（与压缩解耦）；为空时回退到 sessionTotals 的旧行为 */
+    lifetimeTotals: me.rerere.rikkahub.costguards.LifetimeUsage? = null,
     onToggleSearch: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
     completionProviders: List<ChatCompletionProvider> = emptyList(),
@@ -335,6 +337,21 @@ fun ChatInput(
                                 )
                             }
                         }
+                        // 累计行数据源：优先「与压缩解耦」的累计值，无记录时回退到当前聚合（旧行为）。
+                        // 消息下方那行（本轮/上下文占用）不受影响，仍随压缩变化。
+                        val mergedTotals =
+                            lifetimeTotals?.let { lt ->
+                                TokenBudgetTracker.Totals(
+                                    inputTokens = lt.inputTokens,
+                                    outputTokens = lt.outputTokens,
+                                    cachedTokens = lt.cachedTokens,
+                                    totalTokens = lt.inputTokens + lt.outputTokens,
+                                    perMessageMax = sessionTotals?.perMessageMax ?: 0L,
+                                    messageCount = sessionTotals?.messageCount ?: 0,
+                                    lastRequestHitPct = sessionTotals?.lastRequestHitPct ?: 0.0,
+                                    costUsd = lt.costUsd,
+                                )
+                            } ?: sessionTotals
                         Box(
                             modifier =
                                 Modifier
@@ -344,7 +361,7 @@ fun ChatInput(
                             TextInputRow(
                                 state = state,
                                 completionProviders = completionProviders,
-                                sessionTotals = sessionTotals,
+                                sessionTotals = mergedTotals,
                                 onSendMessage = { sendMessage() },
                             )
                         }

@@ -335,6 +335,7 @@ private fun ChatPageContent(
     onClearAllErrors: () -> Unit,
 ) {
     val sessionTotals by vm.sessionTotals.collectAsStateWithLifecycle()
+    val lifetimeTotals by vm.lifetimeTotals.collectAsStateWithLifecycle()
     // 待发送队列长度：> 0 时输入区上方显示「待发送 N 条」
     val pendingQueue by vm.pendingQueue.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
@@ -480,6 +481,7 @@ private fun ChatPageContent(
                     },
                     enableSearch = enableWebSearch,
                     sessionTotals = sessionTotals,
+                    lifetimeTotals = lifetimeTotals,
                     onToggleSearch = {
                         val current = setting.getCurrentAssistant()
                         vm.updateSettings(

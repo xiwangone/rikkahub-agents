@@ -23,6 +23,8 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -34,6 +36,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyInputMessage
 
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.costguards.LifetimeUsage
 import me.rerere.rikkahub.costguards.TokenBudgetTracker
 import me.rerere.rikkahub.data.ai.ContextBudgetPlanner
 import me.rerere.rikkahub.data.datastore.Settings
@@ -87,6 +90,62 @@ class ChatVM(
         conversation
             .map { TokenBudgetTracker.aggregate(it) }
             .stateIn(viewModelScope, SharingStarted.Eagerly, TokenBudgetTracker.aggregate(conversation.value))
+
+    /**
+     * 会话**累计**用量（与上下文压缩解耦）：会话每次变化时，把「当前聚合值的正向增量」累加进持久化存储。
+     * 压缩会把前缀折叠为摘要、令聚合值骤降 —— 此时增量为 0，累计保持不变，因此只增不减。
+     */
+    val lifetimeTotals: StateFlow<LifetimeUsage?> =
+        conversation
+            .transformLatest { conv ->
+                runCatching { syncLifetimeUsage(conv) }
+                emit(settingsStore.getConvLifetimeUsage(_conversationId.toString()))
+            }
+            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+
+    private suspend fun syncLifetimeUsage(conversation: Conversation) {
+        val agg = TokenBudgetTracker.aggregate(conversation)
+        val id = _conversationId.toString()
+        val prev = settingsStore.getConvLifetimeUsage(id)
+        if (prev == null) {
+            // 首次见到该会话：以当前聚合值为基准（历史消息已含 usage，视作起点）
+            settingsStore.setConvLifetimeUsage(
+                id,
+                LifetimeUsage(
+                    inputTokens = agg.inputTokens,
+                    cachedTokens = agg.cachedTokens,
+                    outputTokens = agg.outputTokens,
+                    costUsd = agg.costUsd,
+                    turns = agg.messageCount,
+                    lastInput = agg.inputTokens,
+                    lastCached = agg.cachedTokens,
+                    lastOutput = agg.outputTokens,
+                    lastCost = agg.costUsd,
+                ),
+            )
+            return
+        }
+        val unchanged =
+            agg.inputTokens == prev.lastInput && agg.cachedTokens == prev.lastCached &&
+                agg.outputTokens == prev.lastOutput && agg.costUsd == prev.lastCost
+        if (unchanged) return
+        settingsStore.setConvLifetimeUsage(
+            id,
+            prev.copy(
+                inputTokens = prev.inputTokens + (agg.inputTokens - prev.lastInput).coerceAtLeast(0),
+                cachedTokens = prev.cachedTokens + (agg.cachedTokens - prev.lastCached).coerceAtLeast(0),
+                outputTokens = prev.outputTokens + (agg.outputTokens - prev.lastOutput).coerceAtLeast(0),
+                costUsd = prev.costUsd + (agg.costUsd - prev.lastCost).coerceAtLeast(0.0),
+                turns =
+                    prev.turns +
+                        if (agg.inputTokens > prev.lastInput || agg.outputTokens > prev.lastOutput) 1 else 0,
+                lastInput = agg.inputTokens,
+                lastCached = agg.cachedTokens,
+                lastOutput = agg.outputTokens,
+                lastCost = agg.costUsd,
+            ),
+        )
+    }
     var chatListInitialized by mutableStateOf(false) // 聊天列表是否已经滚动到底部
 
     // 聊天输入状态 - 保存在 ViewModel 中避免 TransactionTooLargeException
