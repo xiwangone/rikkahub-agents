@@ -117,6 +117,7 @@ fun WorkspaceDetailPage(id: String) {
     val state by vm.state.collectAsStateWithLifecycle()
     val installProgress by vm.installProgress.collectAsStateWithLifecycle()
     val installError by vm.installError.collectAsStateWithLifecycle()
+    val folderExportProgress by vm.folderExportProgress.collectAsStateWithLifecycle()
     val settingsError by vm.settingsError.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
@@ -180,6 +181,50 @@ fun WorkspaceDetailPage(id: String) {
 
     BackHandler(enabled = pagerState.currentPage == 1 && state.path.isNotBlank()) {
         vm.goUp()
+    }
+
+    // 导出进行中：拦截返回键，避免中途离开触发取消（与 exportFolder 的取消安全处理配套）。
+    // 必须晚于上面的 BackHandler 声明，导出时才优先拦截。
+    BackHandler(enabled = folderExportProgress != null) {
+        // 有意为空：仅拦截
+    }
+
+    folderExportProgress?.let { progress ->
+        AlertDialog(
+            onDismissRequest = { },
+            title = {
+                Text(
+                    stringResource(
+                        R.string.workspace_detail_folder_export_progress_title,
+                        progress.folderName,
+                    ),
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    LinearProgressIndicator(
+                        progress = {
+                            (progress.done.toFloat() / progress.total.coerceAtLeast(1))
+                                .coerceIn(0f, 1f)
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Text(
+                        stringResource(
+                            R.string.workspace_detail_folder_export_progress_count,
+                            progress.done,
+                            progress.total,
+                        ),
+                    )
+                    Text(
+                        text = stringResource(R.string.workspace_detail_folder_export_progress_warning),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = { },
+        )
     }
 
     Scaffold(
@@ -1087,20 +1132,27 @@ private fun WorkspaceFileCard(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
                 ) {
+                    DropdownMenuItem(
+                        text = {
+                            Text(
+                                stringResource(
+                                    if (entry.isDirectory) R.string.workspace_detail_export_folder
+                                    else R.string.common_export,
+                                ),
+                            )
+                        },
+                        leadingIcon = {
+                            Icon(
+                                imageVector = HugeIcons.FileImport,
+                                contentDescription = null,
+                            )
+                        },
+                        onClick = {
+                            menuExpanded = false
+                            onExport()
+                        },
+                    )
                     if (!entry.isDirectory) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.common_export)) },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = HugeIcons.FileImport,
-                                    contentDescription = null,
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onExport()
-                            },
-                        )
                         DropdownMenuItem(
                             text = { Text(stringResource(R.string.common_share)) },
                             leadingIcon = {

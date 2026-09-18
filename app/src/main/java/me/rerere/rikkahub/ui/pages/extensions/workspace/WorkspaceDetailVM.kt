@@ -22,6 +22,8 @@ import java.io.InputStream
 import java.io.OutputStream
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.log.AppLog
 
@@ -42,6 +44,9 @@ class WorkspaceDetailVM(
 
     private val _installError = MutableStateFlow<String?>(null)
     val installError = _installError.asStateFlow()
+
+    private val _folderExportProgress = MutableStateFlow<FolderExportProgress?>(null)
+    val folderExportProgress = _folderExportProgress.asStateFlow()
 
     private val _settingsError = MutableStateFlow<String?>(null)
     val settingsError = _settingsError.asStateFlow()
@@ -229,74 +234,104 @@ class WorkspaceDetailVM(
         viewModelScope.launch {
             val area = state.value.area
             val outcome =
-                withContext(Dispatchers.IO) {
-                    val listing = mutableMapOf<String, List<WorkspaceFileEntry>>()
-                    var failures = 0
+                try {
+                    withContext(Dispatchers.IO) {
+                        val listing = mutableMapOf<String, List<WorkspaceFileEntry>>()
+                        var failures = 0
 
-                    suspend fun collect(path: String) {
-                        val children =
-                            runCatching {
-                                repository.listFiles(id = id, area = area, path = path, limit = Int.MAX_VALUE)
-                            }.getOrElse {
+                        suspend fun collect(path: String) {
+                            currentCoroutineContext().ensureActive()
+                            val children =
+                                try {
+                                    repository.listFiles(id = id, area = area, path = path, limit = Int.MAX_VALUE)
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (t: Throwable) {
+                                    failures++
+                                    emptyList()
+                                }
+                            listing[path] = children
+                            children.filter { it.isDirectory }.forEach { collect(it.path) }
+                        }
+
+                        val rootListing =
+                            try {
+                                repository.listFiles(id = id, area = area, path = entry.path, limit = Int.MAX_VALUE)
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (t: Throwable) {
                                 failures++
                                 emptyList()
                             }
-                        listing[path] = children
-                        children.filter { it.isDirectory }.forEach { collect(it.path) }
-                    }
+                        listing[entry.path] = rootListing
+                        rootListing.filter { it.isDirectory }.forEach { collect(it.path) }
 
-                    val rootListing =
-                        runCatching {
-                            repository.listFiles(id = id, area = area, path = entry.path, limit = Int.MAX_VALUE)
-                        }.getOrElse {
-                            failures++
-                            emptyList()
-                        }
-                    listing[entry.path] = rootListing
-                    rootListing.filter { it.isDirectory }.forEach { collect(it.path) }
-
-                    val plan = planWorkspaceFolderExport(entry.path, listing)
-                    val dirDocs = mutableMapOf(entry.path to destinationTree)
-                    var fileCount = 0
-                    for (item in plan) {
-                        val parent = dirDocs[item.parentPath]
-                        if (parent == null) {
-                            failures++
-                            continue
-                        }
-                        if (item.isDirectory) {
-                            val created = parent.createDirectory(item.name)
-                            if (created == null) {
+                        val plan = planWorkspaceFolderExport(entry.path, listing)
+                        val dirDocs = mutableMapOf(entry.path to destinationTree)
+                        val totalFiles = plan.count { !it.isDirectory }
+                        var fileCount = 0
+                        _folderExportProgress.value = FolderExportProgress(entry.name, 0, totalFiles)
+                        for (item in plan) {
+                            currentCoroutineContext().ensureActive()
+                            val parent = dirDocs[item.parentPath]
+                            if (parent == null) {
                                 failures++
-                            } else {
-                                dirDocs[item.sourcePath] = created
+                                continue
                             }
-                        } else {
-                            runCatching {
-                                val fileDoc = parent.createFile("application/octet-stream", item.name)
-                                    ?: error("create failed: ${item.name}")
-                                val out = context.contentResolver.openOutputStream(fileDoc.uri)
-                                    ?: error("openOutputStream failed: ${item.name}")
-                                out.use { stream ->
-                                    repository.exportFile(
-                                        id = id,
-                                        area = area,
-                                        path = item.sourcePath,
-                                        outputStream = stream,
+                            if (item.isDirectory) {
+                                val created = parent.createDirectory(item.name)
+                                if (created == null) {
+                                    failures++
+                                } else {
+                                    dirDocs[item.sourcePath] = created
+                                }
+                            } else {
+                                var createdDoc: DocumentFile? = null
+                                try {
+                                    val fileDoc = parent.createFile("application/octet-stream", item.name)
+                                        ?: error("create failed: ${item.name}")
+                                    createdDoc = fileDoc
+                                    val out = context.contentResolver.openOutputStream(fileDoc.uri)
+                                        ?: error("openOutputStream failed: ${item.name}")
+                                    out.use { stream ->
+                                        repository.exportFile(
+                                            id = id,
+                                            area = area,
+                                            path = item.sourcePath,
+                                            outputStream = stream,
+                                        )
+                                    }
+                                    fileCount++
+                                    _folderExportProgress.value =
+                                        FolderExportProgress(entry.name, fileCount, totalFiles)
+                                } catch (e: CancellationException) {
+                                    // 取消时删掉刚建出的空文件，避免留下 0 字节残留（“假成功”）
+                                    runCatching { createdDoc?.delete() }
+                                    throw e
+                                } catch (t: Throwable) {
+                                    failures++
+                                    AppLog.w(
+                                        "WorkspaceExport",
+                                        "folder export failed: ${item.sourcePath}: ${t.message}",
                                     )
                                 }
-                                fileCount++
-                            }.onFailure {
-                                failures++
-                                AppLog.w("WorkspaceExport", "folder export failed: ${item.sourcePath}: ${it.message}")
                             }
                         }
+                        FolderExportOutcome(folderName = entry.name, fileCount = fileCount, failures = failures)
                     }
-                    FolderExportOutcome(folderName = entry.name, fileCount = fileCount, failures = failures)
+                } finally {
+                    _folderExportProgress.value = null
                 }
             onResult(outcome)
         }
     }
+
+    /** 文件夹导出进度（仅导出进行中非 null）。 */
+    data class FolderExportProgress(
+        val folderName: String,
+        val done: Int,
+        val total: Int,
+    )
 
     fun setShellCompatibilityMode(enabled: Boolean) {
         viewModelScope.launch {
