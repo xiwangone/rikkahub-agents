@@ -341,7 +341,7 @@ private fun createDiffFileTool(
 )
 
 /** 超长行截断 + 总输出上限，避免 diff 撑爆消息或上下文。 */
-private fun limitDiffOutput(diff: String): String {
+internal fun limitDiffOutput(diff: String): String {
     val sb = StringBuilder()
     var total = 0
     for (line in diff.lineSequence()) {
@@ -380,7 +380,7 @@ private suspend fun loadShellPresets(
  * - `${name}`：必须由 `preset_args` 提供，缺则直接失败并列出缺哪些
  * - `${name:-default}`：`preset_args` 有值则用值覆盖；无值则保留原样交给 shell 用默认值
  */
-private fun renderShellPreset(
+internal fun renderShellPreset(
     presetName: String,
     template: String,
     args: JsonObject?,
