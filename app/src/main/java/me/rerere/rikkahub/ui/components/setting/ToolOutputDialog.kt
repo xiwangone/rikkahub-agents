@@ -86,7 +86,7 @@ fun ToolOutputDialog(
             TextButton(
                 onClick = {
                     // 空输入/非法输入回退默认 5KB；合法输入钳制在 1-20
-                    onConfirm(currentEnabled == 1, currentKB.toIntOrNull()?.coerceIn(1, 20) ?: 5)
+                    onConfirm(currentEnabled == 1, currentKB.toIntOrNull()?.coerceIn(1, 32) ?: 8)
                     onDismiss()
                 },
             ) {

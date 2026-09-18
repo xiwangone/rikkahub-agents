@@ -289,7 +289,9 @@ private fun createEditFileTool(
  */
 // —— diff_files：轻量文件对比（复用 generateUnifiedDiff, 超长行/输出截断防撑爆）——
 private const val MAX_DIFF_LINE_CHARS = 400
-private const val MAX_DIFF_TOTAL_CHARS = 40_000
+// 仅作 fallback（与设置上限 32K 一致）；正常走 settings.toolOutputMaxChars（默认 8K）。
+// 旧值 40_000 > 全局 32K，属互相矛盾的冗余值（2026-09-19 统一）。
+private const val MAX_DIFF_TOTAL_CHARS = 32 * 1024
 
 private fun createDiffFileTool(
     workspaceId: String,
@@ -333,7 +335,12 @@ private fun createDiffFileTool(
                     put("a", a)
                     put("b", b)
                     put("same", isSame)
-                    put("diff", if (isSame) "" else limitDiffOutput(diff))
+                    val diffLimit =
+                        runCatching {
+                            getKoin().get<me.rerere.rikkahub.data.datastore.SettingsStore>()
+                                .settingsFlow.value.toolOutputMaxChars
+                        }.getOrDefault(MAX_DIFF_TOTAL_CHARS)
+                    put("diff", if (isSame) "" else limitDiffOutput(diff, diffLimit))
                 }.toString(),
             ),
         )
@@ -341,15 +348,15 @@ private fun createDiffFileTool(
 )
 
 /** 超长行截断 + 总输出上限，避免 diff 撑爆消息或上下文。 */
-internal fun limitDiffOutput(diff: String): String {
+internal fun limitDiffOutput(diff: String, maxChars: Int = MAX_DIFF_TOTAL_CHARS): String {
     val sb = StringBuilder()
     var total = 0
     for (line in diff.lineSequence()) {
         val limited =
             if (line.length > MAX_DIFF_LINE_CHARS) line.take(MAX_DIFF_LINE_CHARS) + "…<line truncated>"
             else line
-        if (sb.isNotEmpty() && total + limited.length + 1 > MAX_DIFF_TOTAL_CHARS) {
-            sb.append('\n').append("…<diff truncated: exceeds $MAX_DIFF_TOTAL_CHARS chars>")
+        if (sb.isNotEmpty() && total + limited.length + 1 > maxChars) {
+            sb.append('\n').append("…<diff truncated: exceeds $maxChars chars>")
             break
         }
         if (sb.isNotEmpty()) sb.append('\n')

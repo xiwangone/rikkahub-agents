@@ -80,7 +80,8 @@ import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationLoop"
-private const val MAX_TOOL_OUTPUT_CHARS = 32 * 1024
+// 工具输出硬上限已统一到设置值（settings.toolOutputMaxChars，默认 8K / 范围 1–32K），
+// 不再写死 32K（曾与 diff_files 的 40K 矛盾）。
 private const val TOOL_OUTPUT_PREVIEW_CHARS = 4 * 1024
 private const val GENERATION_STREAM_RETRY_INITIAL_DELAY_MS = 750L
 private const val GENERATION_STREAM_RETRY_MAX_DELAY_MS = 4_000L
@@ -1230,7 +1231,7 @@ class GenerationLoop(
                             // 本地独有：工具结果写回前做凭证脱敏（SecretMasker 掩码），避免密钥进上下文
                             val maskedResult = maskToolOutput(result)
                             executedTools += markedTool.copy(
-                                output = maybeTruncateToolOutput(tool.toolCallId, maskedResult, hasShellAccess)
+                                output = maybeTruncateToolOutput(tool.toolCallId, maskedResult, hasShellAccess, settings.toolOutputMaxChars)
                             )
                         }.onFailure {
                             // Stack trace stays in logcat for debugging; the JSON envelope
@@ -1668,12 +1669,13 @@ class GenerationLoop(
         toolCallId: String,
         output: List<UIMessagePart>,
         hasShellAccess: Boolean,
+        maxChars: Int,
     ): List<UIMessagePart> {
         val textParts = output.filterIsInstance<UIMessagePart.Text>()
         val nonTextParts = output.filter { it !is UIMessagePart.Text }
         val totalChars = textParts.sumOf { it.text.length }
 
-        if (totalChars <= MAX_TOOL_OUTPUT_CHARS || !hasShellAccess) return output
+        if (totalChars <= maxChars || !hasShellAccess) return output
 
         AppLog.i(TAG, "maybeTruncateToolOutput: truncating tool $toolCallId output ($totalChars chars)")
 
