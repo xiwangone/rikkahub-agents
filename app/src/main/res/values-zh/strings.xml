@@ -1410,10 +1410,15 @@
   <string name="assistant_page_local_tools_notification_title">通知</string>
   <string name="assistant_page_local_tools_notifications_desc">让大模型读取来自其他应用的传入通知。白名单应用还会自动转发到你的默认 Telegram 聊天。在 设置 -&gt; 通知 中配置。</string>
   <string name="assistant_page_local_tools_notifications_title">通知感知</string>
+  <string name="assistant_page_local_tools_perm_accessibility_service">无障碍服务</string>
+  <string name="assistant_page_local_tools_perm_all_files_access">所有文件访问权限</string>
   <string name="assistant_page_local_tools_perm_denied_toast">%1$s 权限被拒绝</string>
+  <string name="assistant_page_local_tools_perm_dnd_access">免打扰访问权限</string>
   <string name="assistant_page_local_tools_perm_needed">需要权限 — 点击授予</string>
+  <string name="assistant_page_local_tools_perm_notification_access">通知使用权</string>
   <string name="assistant_page_local_tools_perm_special_dialog_message">此工具需要系统访问权限。你将被带到系统设置页面进行授权。完成后请返回此处。</string>
   <string name="assistant_page_local_tools_perm_special_dialog_title">需要权限</string>
+  <string name="assistant_page_local_tools_perm_write_settings">写入设置权限</string>
   <string name="assistant_page_local_tools_reliability_desc">让助手检查 GitHub 上的新版本，并按需生成已脱敏的错误报告 ZIP。错误报告包含最近的数千行 logcat 日志（敏感信息已脱敏）以及应用版本 + 设备信息 — 并明确排除你的对话、token 和已保存的主机。</string>
   <string name="assistant_page_local_tools_reliability_title">可靠性</string>
   <string name="assistant_page_local_tools_screen_automation_desc">让大模型通过 Android 无障碍服务点击、滑动、滚动、读取屏幕内容和截图。</string>

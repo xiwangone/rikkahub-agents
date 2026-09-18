@@ -1666,11 +1666,16 @@ private fun PermissionedSwitch(
                         } else {
                             val name =
                                 when {
-                                    requiresWriteSettings -> "WRITE_SETTINGS"
-                                    requiresDndAccess -> "DND access"
-                                    requiresAccessibilityService -> "Accessibility service"
-                                    requiresNotificationListener -> "Notification access"
-                                    requiresAllFilesAccess -> "All files access"
+                                    requiresWriteSettings ->
+                                        ctx.getString(R.string.assistant_page_local_tools_perm_write_settings)
+                                    requiresDndAccess ->
+                                        ctx.getString(R.string.assistant_page_local_tools_perm_dnd_access)
+                                    requiresAccessibilityService ->
+                                        ctx.getString(R.string.assistant_page_local_tools_perm_accessibility_service)
+                                    requiresNotificationListener ->
+                                        ctx.getString(R.string.assistant_page_local_tools_perm_notification_access)
+                                    requiresAllFilesAccess ->
+                                        ctx.getString(R.string.assistant_page_local_tools_perm_all_files_access)
                                     else -> ""
                                 }
                             toaster.show(

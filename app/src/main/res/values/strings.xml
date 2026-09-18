@@ -1436,10 +1436,15 @@
   <string name="assistant_page_local_tools_media_scanner_title">Media scanner</string>
   <string name="assistant_page_local_tools_notification_desc">Post Android notifications on the user\'s behalf.</string>
   <string name="assistant_page_local_tools_notification_title">Notification</string>
+  <string name="assistant_page_local_tools_perm_accessibility_service">Accessibility service</string>
+  <string name="assistant_page_local_tools_perm_all_files_access">All files access</string>
   <string name="assistant_page_local_tools_perm_denied_toast">%1$s permission denied</string>
+  <string name="assistant_page_local_tools_perm_dnd_access">DND access</string>
   <string name="assistant_page_local_tools_perm_needed">Permission required — tap to grant</string>
+  <string name="assistant_page_local_tools_perm_notification_access">Notification access</string>
   <string name="assistant_page_local_tools_perm_special_dialog_message">This tool needs system access. You\'ll be sent to the system settings page to grant it. Return here when done.</string>
   <string name="assistant_page_local_tools_perm_special_dialog_title">Permission needed</string>
+  <string name="assistant_page_local_tools_perm_write_settings">WRITE_SETTINGS</string>
   <string name="assistant_page_local_tools_section_device_info">Device info</string>
   <string name="assistant_page_local_tools_section_tiers">Tiers</string>
   <string name="assistant_page_local_tools_tier_observe_title">L0 · Observe</string>
