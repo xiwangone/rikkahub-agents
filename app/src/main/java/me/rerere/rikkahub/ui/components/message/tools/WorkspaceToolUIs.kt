@@ -679,6 +679,7 @@ object DiffFilesToolUI : ToolUIRenderer {
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.FileEdit
 
+    @Composable
     override fun title(context: ToolUIContext): String {
         val a = context.arguments.getStringContent("a").orEmpty().substringAfterLast('/')
         val b = context.arguments.getStringContent("b").orEmpty().substringAfterLast('/')
