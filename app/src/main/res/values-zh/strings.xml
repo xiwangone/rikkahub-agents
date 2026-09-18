@@ -1924,6 +1924,7 @@
   <string name="workspace_detail_tool_approval_desc">启用后，AI 调用此工具前需要用户确认</string>
   <string name="workspace_detail_tool_list_files">列出文件</string>
   <string name="workspace_detail_tool_read_file">读取文件</string>
+  <string name="workspace_detail_tool_read_folder">读取文件夹</string>
   <string name="workspace_detail_tool_write_file">写入文件</string>
   <string name="workspace_detail_tool_edit_file">编辑文件</string>
   <string name="workspace_detail_tool_create_folder">创建文件夹</string>

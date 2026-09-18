@@ -100,15 +100,51 @@ internal fun appLogsPayload(context: Context, params: JsonObject): String {
         val keyword = params["keyword"]?.jsonPrimitive?.contentOrNull
             ?.trim()?.lowercase(Locale.getDefault())?.takeIf { s -> s.isNotEmpty() }
         val limit = params["limit"]?.jsonPrimitive?.intOrNull ?: 50
+        // summary=true：只回统计（level 分布 / Top tag / 时间范围 / 总数），不给原始行——
+        // 让 AI 先看摘要再按 keyword 精准取行，避免一上来拉原始日志把上下文淹掉。
+        val summaryOnly =
+            params["summary"]?.jsonPrimitive?.contentOrNull?.equals("true", ignoreCase = true) == true
 
-        val entries = AppLog.getLogs()
+        val matched = AppLog.getLogs()
             .filter { e -> level == null || e.level.toString() == level }
             .filter { e ->
                 keyword == null ||
                     e.tag.lowercase(Locale.getDefault()).contains(keyword) ||
                     e.message.lowercase(Locale.getDefault()).contains(keyword)
             }
-            .take(limit.coerceIn(1, 500))
+
+        if (summaryOnly) {
+            val levelCounts = matched.groupingBy { it.level.toString() }.eachCount()
+            val topTags =
+                matched.groupingBy { it.tag }
+                    .eachCount()
+                    .entries
+                    .sortedByDescending { it.value }
+                    .take(10)
+            return buildJsonObject {
+                put("total", matched.size)
+                put(
+                    "levelCounts",
+                    buildJsonObject { levelCounts.forEach { (k, v) -> put(k, v) } },
+                )
+                put(
+                    "topTags",
+                    buildJsonArray {
+                        topTags.forEach { (tag, count) ->
+                            add(buildJsonObject { put("tag", tag); put("count", count) })
+                        }
+                    },
+                )
+                if (matched.isNotEmpty()) {
+                    val fmt = SimpleDateFormat("MM-dd HH:mm:ss", Locale.getDefault())
+                    put("firstAt", fmt.format(matched.first().timestamp))
+                    put("lastAt", fmt.format(matched.last().timestamp))
+                }
+                put("hint", "仅统计；要具体行时带 keyword/level 再调用（limit 默认 50）")
+            }.toString()
+        }
+
+        val entries = matched.take(limit.coerceIn(1, 500))
 
         val fmt = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
         val raw = entries.joinToString("\n") { e ->
@@ -780,6 +816,14 @@ fun diagnosticsTool(
                 put("id", buildJsonObject {
                     put("type", "string")
                     put("description", "conversation only: conversation UUID. Omit to list recent chats.")
+                })
+                put("summary", buildJsonObject {
+                   put("type", "boolean")
+                   put(
+                       "description",
+                       "logs only: return statistics only — level counts + top tags + time range + total — " +
+                           "instead of raw lines. Prefer this first, then fetch specific lines with keyword/level.",
+                   )
                 })
                 put("reset", buildJsonObject {
                     put("type", "boolean")

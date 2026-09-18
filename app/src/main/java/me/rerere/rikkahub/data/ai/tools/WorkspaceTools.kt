@@ -611,9 +611,29 @@ private fun createShellTool(
                     put("timedOut", result.timedOut)
                     if (result.truncated) put("truncated", true)
                     if (changes.isNotEmpty()) {
+                        // 结构化改动摘要（给 AI）：路径 + 变更类型 + ±行数 + 总数/截断标记；
+                        // 正文仍只放 metadata 供 UI 渲染，不进上下文。
+                        put("changedFilesTotal", changes.size)
+                        if (changes.size > WorkspaceChangePolicy.MAX_CHANGED_FILES) {
+                            put("changedFilesTruncated", true)
+                        }
                         put("changedFiles", buildJsonArray {
                             changes.take(WorkspaceChangePolicy.MAX_CHANGED_FILES).forEach { c ->
-                                add(JsonPrimitive(WorkspaceChangeDiff.kindLabel(c.kind) + " " + c.path))
+                                add(buildJsonObject {
+                                    put("path", c.path)
+                                    put("change", WorkspaceChangeDiff.kindLabel(c.kind))
+                                    val d = c.diff
+                                    if (!d.isNullOrBlank()) {
+                                        put(
+                                            "added",
+                                            d.lineSequence().count { it.startsWith("+") && !it.startsWith("+++") },
+                                        )
+                                        put(
+                                            "removed",
+                                            d.lineSequence().count { it.startsWith("-") && !it.startsWith("---") },
+                                        )
+                                    }
+                                })
                             }
                         })
                     }
