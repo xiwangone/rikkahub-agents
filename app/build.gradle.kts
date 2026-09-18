@@ -366,7 +366,7 @@ dependencies {
     // SSH client (Mwiede fork — maintained, Android-friendly)
     implementation("com.github.mwiede:jsch:2.28.6")
     // JSch 使用 ed25519/ed448 OPENSSH 私钥必需（否则 Auth fail publickey）
-    implementation("org.bouncycastle:bcprov-jdk18on:1.84")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.85")
 
     // Cron utilities (expression parsing & validation)
     implementation("com.cronutils:cron-utils:9.2.1")
