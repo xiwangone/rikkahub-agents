@@ -1042,42 +1042,4 @@ fun exportToJson(
     }
 }
 
-/**
- * 将会话压缩为分享码（GZip + Base64），用于复制粘贴分享
- */
-fun exportToShareCode(conversation: Conversation): String {
-    val jsonString = JsonInstant.encodeToString(Conversation.serializer(), conversation)
-    val deflater =
-        java.util.zip.Deflater().apply {
-            setInput(jsonString.encodeToByteArray())
-            finish()
-        }
-    val buf = java.io.ByteArrayOutputStream()
-    val tmp = ByteArray(4096)
-    while (!deflater.finished()) {
-        val count = deflater.deflate(tmp)
-        if (count > 0) buf.write(tmp, 0, count)
-    }
-    deflater.end()
-    return "rk://" + android.util.Base64.encodeToString(buf.toByteArray(), android.util.Base64.NO_WRAP)
-}
 
-/**
- * 从分享码解压还原会话
- */
-fun importFromShareCode(code: String): Conversation? {
-    if (!code.startsWith("rk://")) return null
-    val compressed = android.util.Base64.decode(code.removePrefix("rk://"), android.util.Base64.NO_WRAP)
-    val inflater =
-        java.util.zip
-            .Inflater()
-            .apply { setInput(compressed) }
-    val buf = java.io.ByteArrayOutputStream()
-    val tmp = ByteArray(4096)
-    while (!inflater.finished()) {
-        val count = inflater.inflate(tmp)
-        if (count > 0) buf.write(tmp, 0, count)
-    }
-    inflater.end()
-    return JsonInstant.decodeFromString(Conversation.serializer(), buf.toString())
-}
