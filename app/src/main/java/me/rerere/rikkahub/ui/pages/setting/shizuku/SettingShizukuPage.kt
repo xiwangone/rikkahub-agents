@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
@@ -54,6 +55,7 @@ private const val SHIZUKU_RELEASES_URL = "https://github.com/RikkaApps/Shizuku/r
 @Composable
 fun SettingShizukuPage() {
     val ctx = LocalContext.current
+    val resources = LocalResources.current
     val toaster = LocalToaster.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -70,7 +72,7 @@ fun SettingShizukuPage() {
             refresh()
             val granted = grantResult == android.content.pm.PackageManager.PERMISSION_GRANTED
             toaster.show(
-                ctx.getString(
+                resources.getString(
                     if (granted) R.string.setting_shizuku_toast_permission_granted
                     else R.string.setting_shizuku_toast_permission_denied
                 ),
@@ -165,7 +167,7 @@ fun SettingShizukuPage() {
                     onClick = {
                         if (!serviceRunning) {
                             toaster.show(
-                                ctx.getString(R.string.setting_shizuku_toast_service_not_running),
+                                resources.getString(R.string.setting_shizuku_toast_service_not_running),
                                 type = ToastType.Error,
                             )
                         } else {

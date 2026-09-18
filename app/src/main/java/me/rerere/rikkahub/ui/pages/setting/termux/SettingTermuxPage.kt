@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -57,6 +58,7 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
     val ctx = LocalContext.current
+    val resources = LocalResources.current
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
     val config by vm.config.collectAsStateWithLifecycle()
@@ -80,9 +82,9 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
             val denied = results.filter { !it.value }.keys
             if (denied.isEmpty()) {
                 integrationState = TermuxIntegration.state(ctx)
-                toaster.show(ctx.getString(R.string.setting_termux_toast_permission_granted), type = ToastType.Success)
+                toaster.show(resources.getString(R.string.setting_termux_toast_permission_granted), type = ToastType.Success)
             } else {
-                toaster.show(ctx.getString(R.string.setting_termux_status_permission_missing), type = ToastType.Error)
+                toaster.show(resources.getString(R.string.setting_termux_status_permission_missing), type = ToastType.Error)
             }
         }
 
@@ -164,7 +166,7 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
                         val perms = listOf("com.termux.permission.RUN_COMMAND")
                         if (PermissionHelper.hasRuntime(ctx, perms)) {
                             toaster.show(
-                                ctx.getString(R.string.setting_termux_toast_permission_granted),
+                                resources.getString(R.string.setting_termux_toast_permission_granted),
                                 type = ToastType.Success,
                             )
                         } else {
@@ -213,35 +215,35 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
                             val msg =
                                 when (result) {
                                     TermuxIntegration.VerifyResult.Ok -> {
-                                        ctx.getString(R.string.setting_termux_verify_ok)
+                                        resources.getString(R.string.setting_termux_verify_ok)
                                     }
 
                                     TermuxIntegration.VerifyResult.NotInstalled -> {
-                                        ctx.getString(
+                                        resources.getString(
                                             R.string.setting_termux_verify_not_installed,
                                         )
                                     }
 
                                     TermuxIntegration.VerifyResult.NoPermission -> {
-                                        ctx.getString(
+                                        resources.getString(
                                             R.string.setting_termux_verify_no_permission,
                                         )
                                     }
 
                                     TermuxIntegration.VerifyResult.AllowExternalAppsMissing -> {
-                                        ctx.getString(
+                                        resources.getString(
                                             R.string.setting_termux_verify_allow_external_apps,
                                         )
                                     }
 
                                     is TermuxIntegration.VerifyResult.UnexpectedOutput -> {
-                                        ctx.getString(
+                                        resources.getString(
                                             R.string.setting_termux_verify_unexpected_output,
                                         )
                                     }
 
                                     is TermuxIntegration.VerifyResult.OtherError -> {
-                                        ctx.getString(
+                                        resources.getString(
                                             R.string.setting_termux_verify_other_error,
                                             result.message,
                                         )

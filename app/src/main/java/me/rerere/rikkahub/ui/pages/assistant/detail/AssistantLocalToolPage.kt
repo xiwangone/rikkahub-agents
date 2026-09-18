@@ -1609,6 +1609,12 @@ private fun PermissionedSwitch(
     val ctx = LocalContext.current
     val toaster = LocalToaster.current
     val deniedToastFmt = stringResource(R.string.assistant_page_local_tools_perm_denied_toast)
+    // 权限名文案：在 Composable 作用域先取好（Lint: LocalContext.getString 非 configuration-aware，会在配置变更后拿到旧值）
+    val permWriteSettingsLabel = stringResource(R.string.assistant_page_local_tools_perm_write_settings)
+    val permDndLabel = stringResource(R.string.assistant_page_local_tools_perm_dnd_access)
+    val permAccessibilityLabel = stringResource(R.string.assistant_page_local_tools_perm_accessibility_service)
+    val permNotificationLabel = stringResource(R.string.assistant_page_local_tools_perm_notification_access)
+    val permAllFilesLabel = stringResource(R.string.assistant_page_local_tools_perm_all_files_access)
 
     var showDialog by remember { mutableStateOf(false) }
     var pendingSpecialResume by remember { mutableStateOf(false) }
@@ -1666,16 +1672,11 @@ private fun PermissionedSwitch(
                         } else {
                             val name =
                                 when {
-                                    requiresWriteSettings ->
-                                        ctx.getString(R.string.assistant_page_local_tools_perm_write_settings)
-                                    requiresDndAccess ->
-                                        ctx.getString(R.string.assistant_page_local_tools_perm_dnd_access)
-                                    requiresAccessibilityService ->
-                                        ctx.getString(R.string.assistant_page_local_tools_perm_accessibility_service)
-                                    requiresNotificationListener ->
-                                        ctx.getString(R.string.assistant_page_local_tools_perm_notification_access)
-                                    requiresAllFilesAccess ->
-                                        ctx.getString(R.string.assistant_page_local_tools_perm_all_files_access)
+                                    requiresWriteSettings -> permWriteSettingsLabel
+                                    requiresDndAccess -> permDndLabel
+                                    requiresAccessibilityService -> permAccessibilityLabel
+                                    requiresNotificationListener -> permNotificationLabel
+                                    requiresAllFilesAccess -> permAllFilesLabel
                                     else -> ""
                                 }
                             toaster.show(
@@ -1909,6 +1910,12 @@ private fun TermuxStatusRowSubtitle(enabled: Boolean) {
 
     val verifyHint = stringResource(R.string.assistant_page_local_tools_termux_verify)
     val verifyingHint = stringResource(R.string.assistant_page_local_tools_termux_verifying)
+    // 验证结果文案：同样在 Composable 作用域取好（避免 LocalContext.getString）
+    val verifyOkMsg = stringResource(R.string.assistant_page_local_tools_termux_verify_ok)
+    val verifyPropsMissingMsg = stringResource(R.string.assistant_page_local_tools_termux_verify_props_missing)
+    val verifyNoPermissionMsg = stringResource(R.string.assistant_page_local_tools_termux_verify_no_permission)
+    val verifyNotInstalledMsg = stringResource(R.string.assistant_page_local_tools_termux_status_not_installed)
+    val verifyUnexpectedFmt = stringResource(R.string.assistant_page_local_tools_termux_verify_unexpected)
 
     val canVerify = !verifying && enabled && staticState == TermuxIntegration.State.READY
 
@@ -1931,47 +1938,35 @@ private fun TermuxStatusRowSubtitle(enabled: Boolean) {
                                         TermuxIntegration.markVerifiedOk()
                                         resumeTick++ // force recompose so verifiedRecently flips
                                         toaster.show(
-                                            ctx.getString(R.string.assistant_page_local_tools_termux_verify_ok),
+                                            verifyOkMsg,
                                         )
                                     }
 
                                     TermuxIntegration.VerifyResult.AllowExternalAppsMissing -> {
                                         TermuxIntegration.clearVerified()
                                         resumeTick++
-                                        lastVerifyError =
-                                            ctx.getString(
-                                                R.string.assistant_page_local_tools_termux_verify_props_missing,
-                                            )
+                                        lastVerifyError = verifyPropsMissingMsg
                                         toaster.show(lastVerifyError ?: "", type = ToastType.Error)
                                     }
 
                                     TermuxIntegration.VerifyResult.NoPermission -> {
                                         TermuxIntegration.clearVerified()
                                         resumeTick++
-                                        lastVerifyError =
-                                            ctx.getString(
-                                                R.string.assistant_page_local_tools_termux_verify_no_permission,
-                                            )
+                                        lastVerifyError = verifyNoPermissionMsg
                                         toaster.show(lastVerifyError ?: "", type = ToastType.Error)
                                     }
 
                                     TermuxIntegration.VerifyResult.NotInstalled -> {
                                         TermuxIntegration.clearVerified()
                                         resumeTick++
-                                        lastVerifyError =
-                                            ctx.getString(
-                                                R.string.assistant_page_local_tools_termux_status_not_installed,
-                                            )
+                                        lastVerifyError = verifyNotInstalledMsg
                                     }
 
                                     is TermuxIntegration.VerifyResult.UnexpectedOutput -> {
                                         TermuxIntegration.clearVerified()
                                         resumeTick++
                                         lastVerifyError =
-                                            ctx.getString(
-                                                R.string.assistant_page_local_tools_termux_verify_unexpected,
-                                                result.stdout.take(60),
-                                            )
+                                            verifyUnexpectedFmt.format(result.stdout.take(60))
                                         toaster.show(lastVerifyError ?: "", type = ToastType.Error)
                                     }
 

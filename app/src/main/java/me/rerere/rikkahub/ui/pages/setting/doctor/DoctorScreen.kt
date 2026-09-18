@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -54,6 +55,7 @@ fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
     val state by vm.state.collectAsStateWithLifecycle()
     val nav = LocalNavController.current
     val ctx = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackbar = remember { SnackbarHostState() }
@@ -96,7 +98,7 @@ fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
                     onCopyReport = {
                         copyToClipboard(ctx, vm.buildReport())
                         scope.launch {
-                            snackbar.showSnackbar(ctx.getString(R.string.setting_page_doctor_report_copied))
+                            snackbar.showSnackbar(resources.getString(R.string.setting_page_doctor_report_copied))
                         }
                     },
                 )
@@ -139,7 +141,7 @@ fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
                                                 }.onFailure {
                                                     scope.launch {
                                                         snackbar.showSnackbar(
-                                                            ctx.getString(
+                                                            resources.getString(
                                                                 R.string.doctor_msg_open_failed,
                                                                 it.message ?: it::class.simpleName ?: "?",
                                                             ),
@@ -296,5 +298,5 @@ private fun copyToClipboard(
     text: String,
 ) {
     val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-    cm.setPrimaryClip(ClipData.newPlainText(ctx.getString(R.string.doctor_report_clip_label), text))
+    cm.setPrimaryClip(ClipData.newPlainText(resources.getString(R.string.doctor_report_clip_label), text))
 }

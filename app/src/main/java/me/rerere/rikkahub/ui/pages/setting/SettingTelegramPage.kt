@@ -38,6 +38,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
@@ -457,6 +458,7 @@ fun SettingTelegramPage() {
 @Composable
 private fun BatteryOptimizationCard() {
     val ctx = LocalContext.current
+    val resources = LocalResources.current
     val toaster = LocalToaster.current
     var resumeTick by remember { mutableStateOf(0) }
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
@@ -488,7 +490,7 @@ private fun BatteryOptimizationCard() {
         item(
             onClick = {
                 if (whitelisted) {
-                    toaster.show(ctx.getString(R.string.setting_page_telegram_battery_already_ok))
+                    toaster.show(resources.getString(R.string.setting_page_telegram_battery_already_ok))
                     return@item
                 }
                 val intent =

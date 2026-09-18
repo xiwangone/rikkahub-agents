@@ -24,6 +24,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
@@ -56,6 +57,7 @@ fun AutoCompressDialog(
 
     // Composable 作用域获取 Context（供 onClick 等非 Composable 回调使用）
     val ctx = LocalContext.current
+    val resources = LocalResources.current
 
     AlertDialog(
         onDismissRequest = { onDismiss() },
@@ -182,7 +184,7 @@ fun AutoCompressDialog(
                                     Toast
                                         .makeText(
                                             ctx,
-                                            ctx.getString(R.string.auto_compress_invalid_input),
+                                            resources.getString(R.string.auto_compress_invalid_input),
                                             Toast.LENGTH_SHORT,
                                         ).show()
                                     return@TextButton
@@ -194,7 +196,7 @@ fun AutoCompressDialog(
                                     Toast
                                         .makeText(
                                             ctx,
-                                            ctx.getString(R.string.auto_compress_invalid_input),
+                                            resources.getString(R.string.auto_compress_invalid_input),
                                             Toast.LENGTH_SHORT,
                                         ).show()
                                     return@TextButton

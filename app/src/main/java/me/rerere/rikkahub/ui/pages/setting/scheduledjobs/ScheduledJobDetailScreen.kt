@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -58,6 +59,7 @@ fun ScheduledJobDetailScreen(
 ) {
     val nav = LocalNavController.current
     val ctx = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -159,7 +161,7 @@ fun ScheduledJobDetailScreen(
                                         R.string.setting_page_scheduled_jobs_run_now_not_found
                                     }
                                 }
-                            snackbarHostState.showSnackbar(ctx.getString(msgRes))
+                            snackbarHostState.showSnackbar(resources.getString(msgRes))
                         }
                     }) {
                         Text(stringResource(R.string.setting_page_scheduled_jobs_run_now))

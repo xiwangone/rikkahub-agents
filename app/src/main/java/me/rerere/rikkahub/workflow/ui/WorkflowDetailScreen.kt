@@ -31,6 +31,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
@@ -55,6 +56,7 @@ fun WorkflowDetailScreen(
 ) {
     val nav = LocalNavController.current
     val ctx = LocalContext.current
+    val resources = LocalResources.current
     val scope = rememberCoroutineScope()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -145,7 +147,7 @@ fun WorkflowDetailScreen(
                             history = vm.history(currentLoaded.entity.id)
                             loaded = vm.get(currentLoaded.entity.id)
                             snackbarHostState.showSnackbar(
-                                ctx.getString(R.string.setting_page_workflow_detail_run_now_done, outcome.status.name),
+                                resources.getString(R.string.setting_page_workflow_detail_run_now_done, outcome.status.name),
                             )
                         }
                     }) {
