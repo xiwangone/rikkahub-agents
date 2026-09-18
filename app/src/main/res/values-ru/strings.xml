@@ -2550,6 +2550,7 @@
   <string name="chat_msg_pending_reply">Ожидает ответа</string>
   <string name="vault_pubkey_copied">Открытый ключ скопирован</string>
   <string name="vault_ssh_pubkey_label">Открытый ключ SSH (необязательно, открытый текст)</string>
+  <string name="tool_output_tokens_estimate">≈%1$sK–%2$sK токенов</string>
   <string name="tool_output_limit_desc">Ограничивает длину вывода инструментов, чтобы он не переполнял контекст</string>
   <string name="tool_output_limit_warning">⚠️ Слишком малое значение может обрезать вывод инструментов</string>
   <string name="provider_override_label">%1$s (переопределение)</string>

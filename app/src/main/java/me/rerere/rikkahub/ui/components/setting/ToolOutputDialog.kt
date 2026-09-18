@@ -73,6 +73,17 @@ fun ToolOutputDialog(
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true,
                     )
+                    // token 区间估算：英文/代码 ≈3.5 字符/token（下限），中文 ≈1 字符/token（上限）
+                    val kb = currentKB.toIntOrNull()?.coerceIn(1, 32) ?: 8
+                    Text(
+                        text = stringResource(
+                            R.string.tool_output_tokens_estimate,
+                            "%.1f".format(kb * 1000 / 3500.0),
+                            "%.1f".format(kb.toFloat()),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
                 Text(

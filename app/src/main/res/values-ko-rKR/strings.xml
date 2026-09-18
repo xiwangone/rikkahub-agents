@@ -2557,6 +2557,7 @@
   <string name="chat_msg_pending_reply">답변 대기</string>
   <string name="vault_pubkey_copied">공개 키를 복사했습니다</string>
   <string name="vault_ssh_pubkey_label">SSH 공개 키(선택, 평문)</string>
+  <string name="tool_output_tokens_estimate">≈%1$sK~%2$sK 토큰</string>
   <string name="tool_output_limit_desc">도구 출력의 최대 문자 수를 제한해 긴 출력이 컨텍스트를 차지하는 것을 방지합니다</string>
   <string name="tool_output_limit_warning">⚠️ 설정이 너무 낮으면 도구 출력이 잘릴 수 있습니다</string>
   <string name="provider_override_label">%1$s (재정의)</string>
