@@ -2218,7 +2218,7 @@
     <string name="assistant_page_extra_cold_title">這些工具按冷檔注入</string>
     <string name="assistant_page_extra_cold_desc">已設定 %1$d 個。冷檔只傳送一行用途，需要時再取回完整參數表。</string>
     <string name="assistant_page_extra_cold_action">編輯</string>
-    <string name="assistant_page_extra_cold_dialog_desc">每行一個工具名稱（也可用逗號分隔），請用 list_tools 顯示的確切名稱，例如 ssh_upload。只影響該助手看到的工具面視圖，工具仍可正常呼叫。</string>
+    <string name="assistant_page_extra_cold_dialog_desc">每行一個工具名稱（也可用逗號分隔），請用 list_tools 顯示的確切名稱，例如 ssh_upload。只影響該助手看到的工具面視圖，工具仍可正常呼叫。不知道填哪些？可直接在對話中讓助手依你的需求產生這份名單，再貼到這裡。</string>
     <string name="assistant_page_extra_cold_hint">例如 ssh_upload\n     batch_copy</string>
     <string name="assistant_page_local_tools_section_ai_diagnostics">AI 診斷</string>
     <string name="assistant_page_local_tools_diagnostics_title">診斷與日誌</string>

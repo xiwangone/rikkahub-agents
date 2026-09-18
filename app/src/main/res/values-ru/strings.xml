@@ -2651,7 +2651,7 @@
   <string name="assistant_page_extra_cold_title">Всегда загружать эти инструменты как холодные</string>
   <string name="assistant_page_extra_cold_desc">Настроено: %1$d. Холодные инструменты отправляют только краткое назначение, полные параметры — по запросу.</string>
   <string name="assistant_page_extra_cold_action">Изменить</string>
-  <string name="assistant_page_extra_cold_dialog_desc">По одному имени инструмента в строке (или через запятую). Используйте точные имена из list_tools, например ssh_upload. Меняется только то, как этот ассистент видит набор инструментов; сами инструменты остаются вызываемыми.</string>
+  <string name="assistant_page_extra_cold_dialog_desc">По одному имени инструмента в строке (или через запятую). Используйте точные имена из list_tools, например ssh_upload. Меняется только то, как этот ассистент видит набор инструментов; сами инструменты остаются вызываемыми.Не знаете, что указать? Попросите ассистента в чате сформировать список под вашу задачу и вставьте его здесь.</string>
   <string name="assistant_page_extra_cold_hint">напр. ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">Диагностика ИИ</string>
   <string name="assistant_page_local_tools_diagnostics_title">Диагностика и журналы</string>

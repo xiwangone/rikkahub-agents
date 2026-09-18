@@ -2303,7 +2303,7 @@
   <string name="assistant_page_extra_cold_title">تحميل هذه الأدوات كباردة دائمًا</string>
   <string name="assistant_page_extra_cold_desc">تم الضبط: %1$d. تُرسل الأدوات الباردة سطرًا واحدًا للغرض، وتُجلب المعاملات الكاملة عند الحاجة.</string>
   <string name="assistant_page_extra_cold_action">تعديل</string>
-  <string name="assistant_page_extra_cold_dialog_desc">اسم أداة واحد في كل سطر (أو مفصولة بفواصل). استخدم الأسماء الدقيقة الظاهرة في list_tools، مثل ssh_upload. يغيّر هذا طريقة عرض سطح الأدوات لهذا المساعد فقط، وتبقى الأدوات قابلة للاستدعاء.</string>
+  <string name="assistant_page_extra_cold_dialog_desc">اسم أداة واحد في كل سطر (أو مفصولة بفواصل). استخدم الأسماء الدقيقة الظاهرة في list_tools، مثل ssh_upload. يغيّر هذا طريقة عرض سطح الأدوات لهذا المساعد فقط، وتبقى الأدوات قابلة للاستدعاء.لا تعرف ماذا تضع؟ اطلب من المساعد في المحادثة إنشاء القائمة حسب احتياجك ثم الصقها هنا.</string>
   <string name="assistant_page_extra_cold_hint">مثال: ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">تشخيص الذكاء الاصطناعي</string>
   <string name="assistant_page_local_tools_diagnostics_title">التشخيص والسجلات</string>

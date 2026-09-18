@@ -1459,7 +1459,7 @@
   <string name="assistant_page_extra_cold_title">Always load these tools cold</string>
   <string name="assistant_page_extra_cold_desc">%1$d configured. Cold tools send only a one-line purpose; the full parameters are fetched on demand.</string>
   <string name="assistant_page_extra_cold_action">Edit</string>
-  <string name="assistant_page_extra_cold_dialog_desc">One tool name per line (or comma-separated). Use the exact names shown in list_tools, e.g. ssh_upload. This only changes how this assistant sees the tool surface; the tools stay callable.</string>
+  <string name="assistant_page_extra_cold_dialog_desc">One tool name per line (or comma-separated). Use the exact names shown in list_tools, e.g. ssh_upload. This only changes how this assistant sees the tool surface; the tools stay callable. Not sure what to list? Ask the assistant in chat to generate the list for your needs, then paste it here.</string>
   <string name="assistant_page_extra_cold_hint">e.g. ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI diagnostics</string>
   <string name="assistant_page_local_tools_diagnostics_title">Diagnostics</string>
