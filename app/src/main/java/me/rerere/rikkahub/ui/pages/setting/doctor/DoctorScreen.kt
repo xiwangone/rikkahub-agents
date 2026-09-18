@@ -298,5 +298,5 @@ private fun copyToClipboard(
     text: String,
 ) {
     val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
-    cm.setPrimaryClip(ClipData.newPlainText(resources.getString(R.string.doctor_report_clip_label), text))
+    cm.setPrimaryClip(ClipData.newPlainText(ctx.getString(R.string.doctor_report_clip_label), text))
 }
