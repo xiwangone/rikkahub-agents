@@ -3191,6 +3191,7 @@
   <string name="assistant_page_local_tools_perm_notification_access">الوصول إلى الإشعارات</string>
   <string name="assistant_page_local_tools_perm_all_files_access">الوصول إلى جميع الملفات</string>
   <string name="workspace_detail_tool_read_folder">قراءة المجلد</string>
+  <string name="workspace_detail_tool_search_code">بحث في الكود</string>
   <string name="workspace_detail_folder_export_progress_title">جارٍ تصدير %1$s…</string>
   <string name="workspace_detail_folder_export_progress_count">تم تصدير %1$d من %2$d ملفات</string>
   <string name="workspace_detail_folder_export_progress_warning">أبقِ هذه الشاشة مفتوحة حتى ينتهي التصدير.</string>

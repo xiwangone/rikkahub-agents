@@ -713,6 +713,7 @@ private fun workspaceToolApprovalItems() =
     listOf(
         "workspace_list" to stringResource(R.string.workspace_detail_tool_list_files),
         "workspace_read_folder" to stringResource(R.string.workspace_detail_tool_read_folder),
+        "workspace_search_code" to stringResource(R.string.workspace_detail_tool_search_code),
         "workspace_read_file" to stringResource(R.string.workspace_detail_tool_read_file),
         "workspace_write_file" to stringResource(R.string.workspace_detail_tool_write_file),
         "workspace_create_folder" to stringResource(R.string.workspace_detail_tool_create_folder),

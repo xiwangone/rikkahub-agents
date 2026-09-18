@@ -3192,6 +3192,7 @@
   <string name="assistant_page_local_tools_perm_notification_access">通知アクセス</string>
   <string name="assistant_page_local_tools_perm_all_files_access">すべてのファイルへのアクセス</string>
   <string name="workspace_detail_tool_read_folder">フォルダーを読み込む</string>
+  <string name="workspace_detail_tool_search_code">コード検索</string>
   <string name="workspace_detail_folder_export_progress_title">%1$s をエクスポート中…</string>
   <string name="workspace_detail_folder_export_progress_count">%1$d / %2$d ファイル</string>
   <string name="workspace_detail_folder_export_progress_warning">エクスポートが完了するまでこの画面を開いたままにしてください。</string>

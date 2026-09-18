@@ -3191,6 +3191,7 @@
   <string name="assistant_page_local_tools_perm_notification_access">通知存取權</string>
   <string name="assistant_page_local_tools_perm_all_files_access">所有檔案存取權限</string>
   <string name="workspace_detail_tool_read_folder">讀取資料夾</string>
+  <string name="workspace_detail_tool_search_code">搜尋程式碼</string>
   <string name="workspace_detail_folder_export_progress_title">正在匯出 %1$s…</string>
   <string name="workspace_detail_folder_export_progress_count">已匯出 %1$d / %2$d 個檔案</string>
   <string name="workspace_detail_folder_export_progress_warning">匯出完成前請保持此頁面開啟。</string>

@@ -3192,6 +3192,7 @@
   <string name="assistant_page_local_tools_perm_notification_access">알림 접근</string>
   <string name="assistant_page_local_tools_perm_all_files_access">모든 파일 접근</string>
   <string name="workspace_detail_tool_read_folder">폴더 읽기</string>
+  <string name="workspace_detail_tool_search_code">코드 검색</string>
   <string name="workspace_detail_folder_export_progress_title">%1$s 내보내는 중…</string>
   <string name="workspace_detail_folder_export_progress_count">%1$d / %2$d개 파일</string>
   <string name="workspace_detail_folder_export_progress_warning">내보내기가 끝날 때까지 이 화면을 열어 두세요.</string>

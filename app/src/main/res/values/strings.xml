@@ -2025,6 +2025,7 @@
   <string name="workspace_detail_tool_list_files">List Files</string>
   <string name="workspace_detail_tool_read_file">Read File</string>
   <string name="workspace_detail_tool_read_folder">Read Folder</string>
+  <string name="workspace_detail_tool_search_code">Search Code</string>
   <string name="workspace_detail_tool_write_file">Write File</string>
   <string name="workspace_detail_tool_edit_file">Edit File</string>
   <string name="workspace_detail_tool_create_folder">Create Folder</string>
