@@ -3183,4 +3183,13 @@
   <string name="workspace_detail_export_folder">폴더 내보내기</string>
   <string name="workspace_detail_export_folder_done">파일 %1$d개 내보냄, 실패 %2$d개</string>
   <string name="chat_page_compress_model_unavailable">압축에 사용할 모델이 없습니다. 설정에서 압축 모델을 지정하거나 제공자를 활성화하세요.</string>
+  <string name="assistant_page_local_tools_perm_write_settings">WRITE_SETTINGS</string>
+  <string name="assistant_page_local_tools_perm_dnd_access">방해 금지 접근</string>
+  <string name="assistant_page_local_tools_perm_accessibility_service">접근성 서비스</string>
+  <string name="assistant_page_local_tools_perm_notification_access">알림 접근</string>
+  <string name="assistant_page_local_tools_perm_all_files_access">모든 파일 접근</string>
+  <string name="workspace_detail_tool_read_folder">폴더 읽기</string>
+  <string name="workspace_detail_folder_export_progress_title">%1$s 내보내는 중…</string>
+  <string name="workspace_detail_folder_export_progress_count">%1$d / %2$d개 파일</string>
+  <string name="workspace_detail_folder_export_progress_warning">내보내기가 끝날 때까지 이 화면을 열어 두세요.</string>
 </resources>

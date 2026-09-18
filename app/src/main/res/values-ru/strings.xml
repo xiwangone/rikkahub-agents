@@ -3183,4 +3183,13 @@
   <string name="workspace_detail_export_folder">Экспорт папки</string>
   <string name="workspace_detail_export_folder_done">Экспортировано файлов: %1$d, ошибок: %2$d</string>
   <string name="chat_page_compress_model_unavailable">Нет модели для сжатия. Укажите модель сжатия в настройках или включите провайдера.</string>
+  <string name="assistant_page_local_tools_perm_write_settings">WRITE_SETTINGS</string>
+  <string name="assistant_page_local_tools_perm_dnd_access">Доступ к режиму «Не беспокоить»</string>
+  <string name="assistant_page_local_tools_perm_accessibility_service">Служба специальных возможностей</string>
+  <string name="assistant_page_local_tools_perm_notification_access">Доступ к уведомлениям</string>
+  <string name="assistant_page_local_tools_perm_all_files_access">Доступ ко всем файлам</string>
+  <string name="workspace_detail_tool_read_folder">Чтение папки</string>
+  <string name="workspace_detail_folder_export_progress_title">Экспорт %1$s…</string>
+  <string name="workspace_detail_folder_export_progress_count">%1$d из %2$d файлов</string>
+  <string name="workspace_detail_folder_export_progress_warning">Не закрывайте этот экран до завершения экспорта.</string>
 </resources>
