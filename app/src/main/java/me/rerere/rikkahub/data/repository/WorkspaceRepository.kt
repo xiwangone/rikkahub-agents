@@ -410,11 +410,12 @@ class WorkspaceRepository(
         id: String,
         command: String,
         cwd: String = "",
+        env: Map<String, String> = emptyMap(),
     ): BackgroundStatus {
         val workspace = dao.getById(id) ?: error("Workspace not found: $id")
         return withContext(NonCancellable + Dispatchers.IO) {
             manager.ensureWorkspace(workspace.root)
-            manager.startBackground(workspace.root, command, cwd)
+            manager.startBackground(workspace.root, command, cwd, env)
         }
     }
 

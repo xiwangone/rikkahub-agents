@@ -692,6 +692,17 @@ private fun createRunBackgroundTool(
                     put("description", "Working directory relative to the workspace files root" +
                         if (!defaultCwd.isNullOrBlank()) ". Defaults to '$defaultCwd'." else ". Defaults to root.")
                 })
+                put("env", buildJsonObject {
+                    put("type", "object")
+                    put(
+                        "description",
+                        "Optional vault credentials to inject into the background command's environment as variables, " +
+                            "mapping envVarName -> vaultCredentialName. Values are decrypted in-process and " +
+                            "injected ONLY into this command's process environment — never written to disk, " +
+                            "never shown to the AI. Requires an active vault authorization. " +
+                            "Example: {\"GITHUB_TOKEN\": \"GITHUB_TOKEN\"} makes the token available as \$GITHUB_TOKEN inside the command.",
+                    )
+                })
             },
             required = listOf("command"),
         )
@@ -702,7 +713,12 @@ private fun createRunBackgroundTool(
         val command = params.string("command") ?: error("command is required")
         val cwd = (params.string("cwd") ?: defaultCwd.orEmpty())
             .removePrefix("/workspace/").removePrefix("/workspace")
-        val status = workspaceRepository.startBackground(workspaceId, command, cwd)
+
+        // env: { 环境变量名: vault凭证名 } —— 同 workspace_shell：进程内解密注入，不落盘、AI 不见明文
+        val (injectedEnv, envError) = resolveInjectedEnv(params)
+        if (envError != null) return@Tool listOf(UIMessagePart.Text(envError))
+
+        val status = workspaceRepository.startBackground(workspaceId, command, cwd, injectedEnv)
         listOf(
             UIMessagePart.Text(
                 buildJsonObject {
