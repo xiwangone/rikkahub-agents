@@ -1,6 +1,11 @@
 package me.rerere.rikkahub.data.ai.tools
 
 import me.rerere.rikkahub.utils.generateUnifiedDiff
+import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.repository.WorkspaceRepository
 
 /**
  * 工作区文件变更检测：用于让 `workspace_shell` 里跑的脚本所改动的文件也能像
@@ -234,4 +239,38 @@ object WorkspaceChangeDiff {
         FileChangeKind.MODIFIED -> "修改"
         FileChangeKind.DELETED -> "删除"
     }
+}
+
+/** 执行前后各取一次快照：让脚本改动的文件也能像写文件那样显示红绿 diff。 */
+internal suspend fun takeWorkspaceChangeSnapshot(
+    workspaceRepository: WorkspaceRepository,
+    workspaceId: String,
+    rootPath: String,
+): WorkspaceSnapshot = WorkspaceChangeDiff.takeSnapshot(
+    listFiles = { path ->
+        workspaceRepository.listFiles(workspaceId, me.rerere.workspace.WorkspaceStorageArea.FILES, path)
+    },
+    readText = { path -> runCatching { workspaceRepository.readText(workspaceId, path) }.getOrNull() },
+    rootPath = rootPath,
+)
+
+/** 结构化改动摘要（给 AI，平级字段）：路径 + 变更类型 + ±行数 + 总数/截断标记；正文仍在 metadata。 */
+internal fun JsonObjectBuilder.putChangedFilesSummary(changes: List<FileChange>) {
+    put("changedFilesTotal", changes.size)
+    if (changes.size > WorkspaceChangePolicy.MAX_CHANGED_FILES) {
+        put("changedFilesTruncated", true)
+    }
+    put("changedFiles", buildJsonArray {
+        changes.take(WorkspaceChangePolicy.MAX_CHANGED_FILES).forEach { c ->
+            add(buildJsonObject {
+                put("path", c.path)
+                put("change", WorkspaceChangeDiff.kindLabel(c.kind))
+                val d = c.diff
+                if (!d.isNullOrBlank()) {
+                    put("added", d.lineSequence().count { it.startsWith("+") && !it.startsWith("+++") })
+                    put("removed", d.lineSequence().count { it.startsWith("-") && !it.startsWith("---") })
+                }
+            })
+        }
+    })
 }

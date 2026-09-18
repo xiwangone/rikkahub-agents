@@ -226,6 +226,8 @@ class WorkspaceDetailVM(
      * 列目录用 `Int.MAX_VALUE`：默认列表上限（500）会把大目录截断成"只导出前 500 项"。
      * 单个文件失败只计入 [FolderExportOutcome.failures]，不中断整单导出。
      */
+    // 目录导出是「尽力而为」的批量操作：单项失败仅计数，不中断整体，故此处兜底捕获并记录。
+    @Suppress("TooGenericExceptionCaught", "SwallowedException")
     fun exportFolder(
         entry: WorkspaceFileEntry,
         destinationTree: DocumentFile,
@@ -248,6 +250,7 @@ class WorkspaceDetailVM(
                                     throw e
                                 } catch (t: Throwable) {
                                     failures++
+                                    AppLog.w("WorkspaceExport", "list files failed: $path: ${t.message}")
                                     emptyList()
                                 }
                             listing[path] = children
@@ -261,6 +264,7 @@ class WorkspaceDetailVM(
                                 throw e
                             } catch (t: Throwable) {
                                 failures++
+                                AppLog.w("WorkspaceExport", "list files failed: ${entry.path}: ${t.message}")
                                 emptyList()
                             }
                         listing[entry.path] = rootListing

@@ -590,22 +590,14 @@ private fun createShellTool(
         // 快照有遍历数与缓存上限，超限即放弃检测（退回原行为，不影响命令执行）。
         // 扫描根取命令的 cwd（默认工作区根）：范围越小越快，也越不容易撞上条目上限
         val diffScanRoot = cwd.orEmpty()
-        val beforeSnapshot = WorkspaceChangeDiff.takeSnapshot(
-            listFiles = { path -> workspaceRepository.listFiles(workspaceId, me.rerere.workspace.WorkspaceStorageArea.FILES, path) },
-            readText = { path -> runCatching { workspaceRepository.readText(workspaceId, path) }.getOrNull() },
-            rootPath = diffScanRoot,
-        )
+        val beforeSnapshot = takeWorkspaceChangeSnapshot(workspaceRepository, workspaceId, diffScanRoot)
 
         val result = workspaceRepository.executeCommand(
             workspaceId, command, cwd, timeoutMillis,
             targetId = targetWorkspace, env = injectedEnv,
         )
 
-        val afterSnapshot = WorkspaceChangeDiff.takeSnapshot(
-            listFiles = { path -> workspaceRepository.listFiles(workspaceId, me.rerere.workspace.WorkspaceStorageArea.FILES, path) },
-            readText = { path -> runCatching { workspaceRepository.readText(workspaceId, path) }.getOrNull() },
-            rootPath = diffScanRoot,
-        )
+        val afterSnapshot = takeWorkspaceChangeSnapshot(workspaceRepository, workspaceId, diffScanRoot)
         val changes = WorkspaceChangeDiff.compare(beforeSnapshot, afterSnapshot)
         val changeDiff =
             if (changes.isNotEmpty()) WorkspaceChangeDiff.buildDiff(changes, beforeSnapshot, afterSnapshot) else ""
@@ -618,136 +610,12 @@ private fun createShellTool(
                     put("stderr", result.stderr)
                     put("timedOut", result.timedOut)
                     if (result.truncated) put("truncated", true)
-                    if (changes.isNotEmpty()) {
-                        // 结构化改动摘要（给 AI）：路径 + 变更类型 + ±行数 + 总数/截断标记；
-                        // 正文仍只放 metadata 供 UI 渲染，不进上下文。
-                        put("changedFilesTotal", changes.size)
-                        if (changes.size > WorkspaceChangePolicy.MAX_CHANGED_FILES) {
-                            put("changedFilesTruncated", true)
-                        }
-                        put("changedFiles", buildJsonArray {
-                            changes.take(WorkspaceChangePolicy.MAX_CHANGED_FILES).forEach { c ->
-                                add(buildJsonObject {
-                                    put("path", c.path)
-                                    put("change", WorkspaceChangeDiff.kindLabel(c.kind))
-                                    val d = c.diff
-                                    if (!d.isNullOrBlank()) {
-                                        put(
-                                            "added",
-                                            d.lineSequence().count { it.startsWith("+") && !it.startsWith("+++") },
-                                        )
-                                        put(
-                                            "removed",
-                                            d.lineSequence().count { it.startsWith("-") && !it.startsWith("---") },
-                                        )
-                                    }
-                                })
-                            }
-                        })
-                    }
+                    if (changes.isNotEmpty()) putChangedFilesSummary(changes)
                 }.toString(),
                 // diff 存入 metadata 供 UI 渲染（不随工具结果发给模型，不占上下文）
                 metadata = changeDiff.takeIf { it.isNotBlank() }
                     ?.let { d -> DiffMetadata(diff = d).toMetadata() },
             )
-        )
-    },
-)
-
-/**
- * `workspace_search_code` —— 结构化内容搜索（P33）。
- *
- * 痛点：宽泛 `grep` 的输出可达数十 MB，被截断后段不可见 → AI 误判"无匹配"。
- * 本工具只返回**命中行 + 总量 + 截断标记**（上下文占用恒定），参数经单引号引用防注入。
- */
-private fun createSearchCodeTool(
-    workspaceId: String,
-    needsApproval: (String) -> Boolean,
-    workspaceRepository: WorkspaceRepository,
-    defaultCwd: String? = null,
-) = Tool(
-    name = "workspace_search_code",
-    description =
-        "Search file contents in the workspace and return structured matches (file, line, text) plus total count and a truncation flag. " +
-            "Prefer this over a broad grep when you only need matching lines.",
-    parameters = {
-        InputSchema.Obj(
-            properties = buildJsonObject {
-                put("pattern", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Extended regular expression (ERE) to search for")
-                })
-                put("path", buildJsonObject {
-                    put("type", "string")
-                    put(
-                        "description",
-                        "Optional search root relative to the workspace files root" +
-                            if (!defaultCwd.isNullOrBlank()) ". Defaults to '$defaultCwd'." else ". Defaults to root.",
-                    )
-                })
-                put("glob", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Optional file name filter, e.g. '*.kt' (mapped to grep --include)")
-                })
-                put("max_results", buildJsonObject {
-                    put("type", "integer")
-                    put("description", "Maximum matched lines to return (default 100, max 500)")
-                })
-            },
-            required = listOf("pattern"),
-        )
-    },
-    needsApproval = { needsApproval("workspace_search_code") },
-    execute = {
-        val params = it.jsonObject
-        val pattern =
-            params["pattern"]?.jsonPrimitive?.contentOrNull?.takeIf { s -> s.isNotBlank() }
-                ?: error("pattern is required")
-        val relPath = (params["path"]?.jsonPrimitive?.contentOrNull ?: defaultCwd.orEmpty())
-            .removePrefix("/workspace/").removePrefix("/workspace")
-        val glob = params["glob"]?.jsonPrimitive?.contentOrNull?.takeIf { s -> s.isNotBlank() }
-        val max = (params["max_results"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 100)
-            .coerceIn(1, 500)
-
-        // 单引号引用：防命令注入（pattern/path/glob 均来自模型）
-        fun shq(s: String) = "'" + s.replace("'", "'\\''") + "'"
-        val include = if (glob != null) "--include=${shq(glob)} " else ""
-        val target = if (relPath.isBlank()) "." else shq(relPath)
-        val grep = "grep -rnE $include${shq(pattern)} $target 2>/dev/null"
-        val cmd = "{ $grep | head -n ${max + 1}; printf '\\n---TOTAL---\\n'; $grep | wc -l; }"
-
-        val result = workspaceRepository.executeCommand(workspaceId, cmd, "")
-        val raw = result.stdout
-        val totalIdx = raw.indexOf("---TOTAL---")
-        val hitsPart = if (totalIdx >= 0) raw.substring(0, totalIdx) else raw
-        val total =
-            if (totalIdx >= 0) raw.substring(totalIdx + "---TOTAL---".length).trim().toIntOrNull() ?: 0 else 0
-        val hitLines = hitsPart.lines().filter { it.isNotBlank() }
-        val truncated = hitLines.size > max
-        val matches =
-            hitLines.take(max).mapNotNull { line ->
-                val firstColon = line.indexOf(':')
-                if (firstColon <= 0) return@mapNotNull null
-                val secondColon = line.indexOf(':', firstColon + 1)
-                if (secondColon <= 0) return@mapNotNull null
-                val file = line.substring(0, firstColon)
-                val lineNo = line.substring(firstColon + 1, secondColon).toIntOrNull()
-                    ?: return@mapNotNull null
-                buildJsonObject {
-                    put("file", file)
-                    put("line", lineNo)
-                    put("text", line.substring(secondColon + 1).take(500))
-                }
-            }
-        listOf(
-            UIMessagePart.Text(
-                buildJsonObject {
-                    put("matches", buildJsonArray { matches.forEach { add(it) } })
-                    put("returned", matches.size)
-                    put("total", total)
-                    put("truncated", truncated)
-                }.toString(),
-            ),
         )
     },
 )
