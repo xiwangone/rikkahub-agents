@@ -60,6 +60,7 @@ suspend fun createWorkspaceTools(
         createReadFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createWriteFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createEditFileTool(workspaceId, ::needsApproval, workspaceRepository),
+        createDiffFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createShellTool(workspaceId, ::needsApproval, workspaceRepository, shellCwd),
         createCreateFolderTool(workspaceId, ::needsApproval, workspaceRepository),
         createReadFolderTool(workspaceId, ::needsApproval, workspaceRepository),
@@ -286,7 +287,82 @@ private fun createEditFileTool(
  * shell 预设库在工作区内的固定位置（rootfs 绝对路径）。
  * 故意放在 `.agents/` 下：属**本地用户数据**，不应随任何仓库提交（模板可通用，实例只留在本地）。
  */
+// —— diff_files：轻量文件对比（复用 generateUnifiedDiff, 超长行/输出截断防撑爆）——
+private const val MAX_DIFF_LINE_CHARS = 400
+private const val MAX_DIFF_TOTAL_CHARS = 40_000
+
+private fun createDiffFileTool(
+    workspaceId: String,
+    needsApproval: (String) -> Boolean,
+    workspaceRepository: WorkspaceRepository,
+) = Tool(
+    name = "diff_files",
+    description = """
+        Compare two files inside the Rootfs (absolute paths). Returns a unified diff of a vs b.
+        Reports explicitly when the two files are identical. Long diff lines are truncated and the
+        total output is capped so it never overflows the context. Use for cross-repo porting,
+        code review, or version comparison.
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("a", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Absolute path of the first file inside Rootfs (/workspace/...).")
+                })
+                put("b", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Absolute path of the second file inside Rootfs (/workspace/...).")
+                })
+            },
+            required = listOf("a", "b"),
+        )
+    },
+    needsApproval = { needsApproval("diff_files") },
+    execute = {
+        val params = it.jsonObject
+        val a = params.absolutePath("a")
+        val b = params.absolutePath("b")
+        val aText = workspaceRepository.readTextInRootfs(workspaceId, a)
+        val bText = workspaceRepository.readTextInRootfs(workspaceId, b)
+        val diff = me.rerere.rikkahub.data.vault.SecretMasker.mask(generateUnifiedDiff(aText, bText, b).orEmpty())
+        val isSame = diff.isEmpty()
+        listOf(
+            UIMessagePart.Text(
+                buildJsonObject {
+                    put("a", a)
+                    put("b", b)
+                    put("same", isSame)
+                    put("diff", if (isSame) "" else limitDiffOutput(diff))
+                }.toString(),
+            ),
+        )
+    },
+)
+
+/** 超长行截断 + 总输出上限，避免 diff 撑爆消息或上下文。 */
+private fun limitDiffOutput(diff: String): String {
+    val sb = StringBuilder()
+    var total = 0
+    for (line in diff.lineSequence()) {
+        val limited =
+            if (line.length > MAX_DIFF_LINE_CHARS) line.take(MAX_DIFF_LINE_CHARS) + "…<line truncated>"
+            else line
+        if (sb.isNotEmpty() && total + limited.length + 1 > MAX_DIFF_TOTAL_CHARS) {
+            sb.append('\n').append("…<diff truncated: exceeds $MAX_DIFF_TOTAL_CHARS chars>")
+            break
+        }
+        if (sb.isNotEmpty()) sb.append('\n')
+        sb.append(limited)
+        total += limited.length + 1
+    }
+    return sb.toString()
+}
+
 internal const val SHELL_PRESETS_PATH = "/workspace/.agents/shell-presets.json"
+
+/** 匹配 `${name}` 与 `${name:-default}` 两种占位符；默认值部分不含花括号、冒号紧随变量名。 */
+private val SHELL_PRESET_PLACEHOLDER = Regex("""\$\{([A-Za-z0-9_.\-]+)(:-[^{}]*)?\}""")
 
 /** 读取预设库；文件缺失或不是合法 JSON 时返回空表，由调用方给出友好提示。 */
 private suspend fun loadShellPresets(
@@ -300,8 +376,9 @@ private suspend fun loadShellPresets(
     }.getOrElse { JsonObject(emptyMap()) }
 
 /**
- * 用 `preset_args` 渲染 `${name}` 占位符；缺参数时**直接失败并列出缺哪些** ——
- * 否则未替换的占位符会被原样交给 shell 执行，那种失败最难排查。
+ * 用 `preset_args` 渲染预设命令占位符；支持两种形态：
+ * - `${name}`：必须由 `preset_args` 提供，缺则直接失败并列出缺哪些
+ * - `${name:-default}`：`preset_args` 有值则用值覆盖；无值则保留原样交给 shell 用默认值
  */
 private fun renderShellPreset(
     presetName: String,
@@ -310,14 +387,17 @@ private fun renderShellPreset(
 ): String {
     val missing = linkedSetOf<String>()
     val rendered =
-        Regex("""\$\{([A-Za-z0-9_.\-]+)\}""").replace(template) { m ->
+        SHELL_PRESET_PLACEHOLDER.replace(template) { m ->
             val key = m.groupValues[1]
+            val hasDefault = !m.groupValues[2].isNullOrEmpty()
             val value = args?.get(key)?.jsonPrimitive?.contentOrNull
-            if (value == null) {
+            if (value != null) {
+                value
+            } else if (hasDefault) {
+                m.value // 保留 `${name:-default}` 交给 shell 用默认值
+            } else {
                 missing.add(key)
                 m.value
-            } else {
-                value
             }
         }
     require(missing.isEmpty()) {
