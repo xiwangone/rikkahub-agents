@@ -1772,6 +1772,8 @@
   <string name="common_rename">重新命名</string>
   <string name="common_export">匯出</string>
   <string name="common_share">分享</string>
+  <string name="tool_ui_diff_files_title">檔案對比</string>
+  <string name="tool_ui_diff_files_same">兩檔案內容相同</string>
   <string name="tool_ui_edit_file">編輯：%s</string>
   <string name="tool_ui_edit_file_default">編輯檔案</string>
   <string name="tool_ui_read_file">讀取: %s</string>

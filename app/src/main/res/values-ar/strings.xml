@@ -3015,6 +3015,8 @@
   <string name="common_rename">إعادة تسمية</string>
   <string name="common_export">تصدير</string>
   <string name="common_share">مشاركة</string>
+  <string name="tool_ui_diff_files_title">فرق الملفات</string>
+  <string name="tool_ui_diff_files_same">الملفان متطابقان</string>
   <string name="tool_ui_edit_file">تعديل: %s</string>
   <string name="tool_ui_edit_file_default">تعديل ملف</string>
   <string name="tool_ui_read_file">قراءة: %s</string>

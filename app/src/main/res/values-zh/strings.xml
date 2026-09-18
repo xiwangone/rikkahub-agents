@@ -1987,6 +1987,8 @@
   <string name="common_preview">预览</string>
   <string name="common_open_with">打开方式</string>
   <string name="common_share">分享</string>
+  <string name="tool_ui_diff_files_title">文件对比</string>
+  <string name="tool_ui_diff_files_same">两文件内容相同</string>
   <string name="tool_ui_edit_file">编辑：%s</string>
   <string name="tool_ui_edit_file_default">编辑文件</string>
   <string name="tool_ui_read_file">读取: %s</string>

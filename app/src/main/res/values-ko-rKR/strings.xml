@@ -1754,6 +1754,8 @@
   <string name="common_rename">이름 변경</string>
   <string name="common_export">내보내기</string>
   <string name="common_share">공유</string>
+  <string name="tool_ui_diff_files_title">파일 비교</string>
+  <string name="tool_ui_diff_files_same">두 파일의 내용이 같습니다</string>
   <string name="tool_ui_edit_file">편집: %s</string>
   <string name="tool_ui_edit_file_default">파일 편집</string>
   <string name="tool_ui_read_file">읽기: %s</string>

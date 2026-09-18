@@ -24,8 +24,11 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import me.rerere.ai.ui.DiffMetadata
 import me.rerere.ai.ui.metadataAs
@@ -665,3 +668,42 @@ private fun languageOf(path: String?): String =
         "gradle" -> "groovy"
         else -> "plaintext"
     }
+
+/**
+ * `diff_files` 渲染器：把工具输出里的 diff 正文交给 [DiffView]（红绿高亮），
+ * 不再回退到默认 JSON 平铺（方案见 `工具输出上限与diff渲染-20260918.md` P28）。
+ * 内容仍由工具侧按 `settings.toolOutputMaxChars` 截断（默认 8K）。
+ */
+object DiffFilesToolUI : ToolUIRenderer {
+    override val toolName: String = "diff_files"
+
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.FileEdit
+
+    override fun title(context: ToolUIContext): String {
+        val a = context.arguments.getStringContent("a").orEmpty().substringAfterLast('/')
+        val b = context.arguments.getStringContent("b").orEmpty().substringAfterLast('/')
+        return if (a.isNotBlank() && b.isNotBlank()) "$a ↔ $b" else stringResource(R.string.tool_ui_diff_files_title)
+    }
+
+    private fun diffOf(context: ToolUIContext): String? {
+        val obj = context.content as? JsonObject ?: return null
+        return obj["diff"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+    }
+
+    private fun isSame(context: ToolUIContext): Boolean {
+        val obj = context.content as? JsonObject ?: return false
+        return obj["same"]?.jsonPrimitive?.booleanOrNull == true
+    }
+
+    override fun hasSummary(context: ToolUIContext): Boolean = diffOf(context) != null || isSame(context)
+
+    @Composable
+    override fun Summary(context: ToolUIContext) {
+        val diff = diffOf(context)
+        if (diff != null) {
+            DiffView(diff = diff)
+        } else if (isSame(context)) {
+            Text(stringResource(R.string.tool_ui_diff_files_same))
+        }
+    }
+}

@@ -1757,6 +1757,8 @@
   <string name="common_rename">名前を変更</string>
   <string name="common_export">エクスポート</string>
   <string name="common_share">共有</string>
+  <string name="tool_ui_diff_files_title">ファイル差分</string>
+  <string name="tool_ui_diff_files_same">ファイルの内容は同一です</string>
   <string name="tool_ui_edit_file">編集: %s</string>
   <string name="tool_ui_edit_file_default">ファイル編集</string>
   <string name="tool_ui_read_file">読み取り: %s</string>

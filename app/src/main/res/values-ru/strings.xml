@@ -1750,6 +1750,8 @@
   <string name="common_rename">Переименовать</string>
   <string name="common_export">Экспорт</string>
   <string name="common_share">Поделиться</string>
+  <string name="tool_ui_diff_files_title">Различия файлов</string>
+  <string name="tool_ui_diff_files_same">Файлы идентичны</string>
   <string name="tool_ui_edit_file">Редактировать: %s</string>
   <string name="tool_ui_edit_file_default">Редактировать файл</string>
   <string name="tool_ui_read_file">Чтение: %s</string>
