@@ -1456,6 +1456,8 @@ class ChatService(
     private fun checkInvalidMessages(conversationId: Uuid) {
         val conversation = getConversationFlow(conversationId).value
         var messagesNodes = conversation.messageNodes
+        // 诊断用：记录本轮被定案为「未执行(中断)」的消息。正常轮次为空 → 不产生日志。
+        val abandonedMessageIds = mutableListOf<Uuid>()
 
         // 生成开始前把「悬而未决的工具」定案（未执行的 Tool）。
         messagesNodes =
@@ -1485,6 +1487,9 @@ class ChatService(
                         "interrupted_before_execution: the turn was interrupted before this tool ran; " +
                             "it did NOT execute. Do not assume the side effect happened.",
                     )
+                if (abandoned !== node.currentMessage) {
+                    abandonedMessageIds += abandoned.id
+                }
                 node.copy(
                     messages = node.messages.map { if (it.id == abandoned.id) abandoned else it },
                 )
@@ -1500,8 +1505,23 @@ class ChatService(
                 }
             }
 
-        // 移除无效消息
+        // 移除无效消息（兜底：正常路径已不会因中断清空 node；一旦触发即为异常丢消息，需留痕）
+        val nodeCountBeforeDrop = messagesNodes.size
         messagesNodes = messagesNodes.filter { it.messages.isNotEmpty() }
+        if (messagesNodes.size != nodeCountBeforeDrop) {
+            AppLog.w(
+                TAG,
+                "checkInvalidMessages: dropped ${nodeCountBeforeDrop - messagesNodes.size} empty message node(s)",
+            )
+        }
+
+        if (abandonedMessageIds.isNotEmpty()) {
+            AppLog.i(
+                TAG,
+                "checkInvalidMessages: kept ${abandonedMessageIds.size} message(s) with unexecuted tools, " +
+                    "marked as interrupted/denied: $abandonedMessageIds",
+            )
+        }
 
         updateConversation(conversationId, conversation.copy(messageNodes = messagesNodes))
     }
@@ -2485,15 +2505,25 @@ class ChatService(
             // tools that are NOT already in a terminal state, so a hardline-blocked
             // Denied tool keeps its original reason rather than being relabeled as
             // "cancelled by user".
+            var finalizedMessages = 0
             val updatedNodes =
                 currentConversation.messageNodes.map { node ->
                     node.copy(
                         messages =
                             node.messages.map { msg ->
-                                msg.finishPendingTools(::cancelToolByUser)
+                                val next = msg.finishPendingTools(::cancelToolByUser)
+                                if (next !== msg) finalizedMessages++
+                                next
                             },
                     )
                 }
+            if (finalizedMessages > 0) {
+                AppLog.i(
+                    TAG,
+                    "stopGeneration: finalized $finalizedMessages message(s) with pending tools " +
+                        "-> Denied(cancelled by user)",
+                )
+            }
             // 无条件落库一次：打断可能正好落在「消息已进内存、入库事务尚未提交」的窗口
             // （发送/注入那两处入库是可取消调用，会被 stop 回滚），
             // 这里用 NonCancellable 把内存态固化，避免重进会话时少一条、顺序跳跃。
