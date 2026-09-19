@@ -909,7 +909,7 @@ private fun createListTool(
 internal fun kotlinx.serialization.json.JsonObject.string(name: String): String? =
     this[name]?.jsonPrimitive?.contentOrNull
 
-private suspend fun WorkspaceRepository.readTextInRootfs(
+internal suspend fun WorkspaceRepository.readTextInRootfs(
     workspaceId: String,
     path: String,
 ): String = readRootfsBuffer(workspaceId, path).toString(Charsets.UTF_8.name())
@@ -948,7 +948,7 @@ private suspend fun WorkspaceRepository.readImageInRootfs(
     )
 }
 
-private suspend fun WorkspaceRepository.writeTextInRootfs(
+internal suspend fun WorkspaceRepository.writeTextInRootfs(
     workspaceId: String,
     path: String,
     text: String,
