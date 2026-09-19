@@ -123,7 +123,7 @@ fun SettingBrowserPage(vm: SettingBrowserViewModel = koinViewModel()) {
                                     showEnginePicker = false
                                 },
                             )
-                            Text(text = engine.displayName)
+                            Text(text = stringResource(engine.labelRes))
                         }
                     }
                 }

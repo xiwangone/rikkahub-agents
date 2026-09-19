@@ -1407,6 +1407,10 @@
   <string name="setting_browser_open_desc">Запуск браузера на about:blank — удобно, чтобы войти один раз перед передачей управления ИИ.</string>
   <string name="setting_browser_per_tool_timeout">Тайм-аут на инструмент</string>
   <string name="setting_browser_search_engine">Поисковая система</string>
+  <string name="setting_browser_engine_bing">Bing</string>
+  <string name="setting_browser_engine_duckduckgo">DuckDuckGo</string>
+  <string name="setting_browser_engine_google">Google</string>
+  <string name="setting_browser_engine_baidu">Baidu</string>
   <string name="setting_browser_section_browser">Браузер</string>
   <string name="setting_browser_section_defaults">Значения по умолчанию и лимиты</string>
   <string name="setting_browser_single_task_timeout">Тайм-аут одной задачи</string>

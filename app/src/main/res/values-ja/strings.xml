@@ -1414,6 +1414,10 @@
   <string name="setting_browser_open_desc">ブラウザを about:blank で起動 — AI に引き継がせる前に一度ログインするのに便利です。</string>
   <string name="setting_browser_per_tool_timeout">ツールごとのタイムアウト</string>
   <string name="setting_browser_search_engine">検索エンジン</string>
+  <string name="setting_browser_engine_bing">Bing</string>
+  <string name="setting_browser_engine_duckduckgo">DuckDuckGo</string>
+  <string name="setting_browser_engine_google">Google</string>
+  <string name="setting_browser_engine_baidu">Baidu</string>
   <string name="setting_browser_section_browser">ブラウザ</string>
   <string name="setting_browser_section_defaults">デフォルトと制限</string>
   <string name="setting_browser_single_task_timeout">単一タスクのタイムアウト</string>
