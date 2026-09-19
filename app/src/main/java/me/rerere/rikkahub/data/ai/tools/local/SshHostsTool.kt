@@ -394,22 +394,26 @@ fun sshExecSavedTool(
         val effectiveCommand = detachedCmd
 
         var lastError: String? = null
-        val tried = mutableListOf<String>()
+        // 记录每次尝试（host → 失败类别），使「到底切到了哪条通道」可见
+        val tried = mutableListOf<Pair<String, String>>()
         var result: JsonObject? = null
+        var usedHost: String? = null
         for ((idx, cand) in candidates.withIndex()) {
             val candAuth = resolveHostAuth(cand, vaultRepository)
             if (candAuth == null) {
                 lastError = "saved host '${cand.name}' has no usable credentials (vault ref: ${cand.vaultCredentialRef ?: "none"})"
-                tried.add(cand.name)
+                tried.add(cand.name to "no_credentials")
                 continue
             }
             val jumpSpec = resolveJump(cand)
             val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
                 execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec, extraOptions = cand.sshOptions)
             }
-            tried.add(cand.name)
+            tried.add(
+                cand.name to (payload["error"]?.jsonPrimitive?.contentOrNull?.let { classifySshError(it) } ?: "ok"),
+            )
             val err = payload["error"]?.jsonPrimitive?.contentOrNull
-            if (err == null) { result = payload; break }
+            if (err == null) { result = payload; usedHost = cand.name; break }
             lastError = err
             // 连接类错误才继续试 fallback；认证/密钥类直接停（换 host 无意义）
             if (idx < candidates.size - 1 && isFallbackEligible(err)) {
@@ -421,13 +425,24 @@ fun sshExecSavedTool(
         }
 
         val finalPayload = if (result != null) {
-            if (bgLogPath != null) result.toString() + "\n[bg_log_path] $bgLogPath"
-            else result.toString()
+            // 成功：若沿 fallback 试过多个 host，把「实际用了哪条 + 各次失败类别」一并返回，
+            // 避免"静静地切了通道"导致误判主通道状态（tried 只有一个时无需冗余信息）。
+            val body =
+                if (usedHost != null && tried.size > 1) {
+                    buildJsonObject {
+                        result.forEach { (k, v) -> put(k, v) }
+                        put("used_host", usedHost)
+                        put("tried_hosts", triedHostsJson(tried))
+                    }.toString()
+                } else {
+                    result.toString()
+                }
+            if (bgLogPath != null) body + "\n[bg_log_path] $bgLogPath" else body
         } else {
             buildJsonObject {
                 put("error", lastError ?: "unknown failure")
-                put("tried_hosts", tried.toString())
-                put("hint", "primary host and all fallbacks failed")
+                put("tried_hosts", triedHostsJson(tried))
+                put("hint", "primary host and all fallbacks failed; see tried_hosts for each attempt")
             }.toString()
         }
         listOf(UIMessagePart.Text(finalPayload))
@@ -577,3 +592,25 @@ fun vaultDeployKeyTool(
         }.toString()))
     },
 )
+
+/** tried 列表转 JSON 数组（结构化，便于阅读与后续自动化）。 */
+private fun triedHostsJson(tried: List<Pair<String, String>>) = kotlinx.serialization.json.buildJsonArray {
+    tried.forEach { (h, e) ->
+        add(
+            kotlinx.serialization.json.buildJsonObject {
+                put("host", h)
+                put("error", e)
+            },
+        )
+    }
+}
+
+/** 连接失败归类：只透出类别，避免把底层长文案灌进上下文。 */
+internal fun classifySshError(err: String): String = when {
+    err.contains("timeout", true) || err.contains("timed out", true) -> "timeout"
+    err.contains("UnknownHost", true) || err.contains("resolve", true) -> "dns"
+    err.contains("refused", true) -> "refused"
+    err.contains("auth", true) || err.contains("denied", true) || err.contains("credential", true) -> "auth"
+    err.contains("host key", true) || err.contains("HostKey", true) -> "host_key"
+    else -> "other"
+}
