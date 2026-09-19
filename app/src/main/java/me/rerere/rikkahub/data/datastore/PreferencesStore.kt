@@ -910,6 +910,17 @@ data class Settings(
     val contextWindowSize: Long = 0L,
     /** 工具输出限制开关：启用后对工具输出进行截断（默认关） */
     val toolOutputEnabled: Boolean = true,
+
+    /**
+     * 工具名单（全局，默认关闭）：
+     * - `off`：不生效；`deny`：名单内工具只发简要说明（需 get_tool_schema 取回参数表）；
+     * - `allow`：只注入名单内工具（`list_tools`/`get_tool_schema`/`ask_user` 等保命工具始终保留）。
+     *
+     * ⚠ allow 会显著缩小工具集，因此 UI 上开启前必须确认一次，并提供「一键恢复默认」。
+     */
+    val toolListMode: String = "off",
+    val toolListDeny: List<String> = emptyList(),
+    val toolListAllow: List<String> = emptyList(),
     /** 工具输出落盘阈值（字符数）：超过后截断落盘 + 返回预览，范围 4K-20K */
     val toolOutputMaxChars: Int = 8 * 1000,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,

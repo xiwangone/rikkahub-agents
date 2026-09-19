@@ -140,24 +140,34 @@ class ChatToolFactory(
         // 检索元工具与其余工具**一起参与排序**：此前它们是追加在列表末尾的，使注入集
         // 并非全局有序（tool_surface_report 的 order_is_sorted 恒为 false，观测口径失真，
         // 容易被误读成"顺序抖动"）。顺序本来稳定，这里只是让它同时自洽、可观测。
+        // 工具名单（默认关闭）：allow = 只注入名单内工具（保命工具始终保留）；deny = 名单内工具只发简要说明。
+        val listMode = settings.toolListMode
+        val denySet = settings.toolListDeny.toSet()
+        val listFiltered = applyToolListFilter(stableFull, settings)
+
         val injected =
             (
-                stableFull.map {
-                    surfaceView(
-                        it,
-                        invocationCtx.callerConversationId,
-                        trimEnabled = settings.displaySetting.toolSurfaceTrimming && ToolSurfacePolicy.TRIM_ENABLED,
-                        extraCold = assistant.extraColdTools.toSet(),
-                    )
+                listFiltered.map {
+                    val view =
+                        surfaceView(
+                            it,
+                            invocationCtx.callerConversationId,
+                            trimEnabled = settings.displaySetting.toolSurfaceTrimming && ToolSurfacePolicy.TRIM_ENABLED,
+                            extraCold = assistant.extraColdTools.toSet(),
+                        )
+                    // deny：名单内工具强制「只发一行用途」，独立于「精简工具说明」总开关
+                    if (isBriefListed(it.name, listMode, denySet)) {
+                        toColdView(it, invocationCtx.callerConversationId)
+                    } else {
+                        view
+                    }
                 } +
                     buildToolDiscoveryTools(
-                        stableFull,
+                        listFiltered,
                         invocationCtx.callerConversationId,
                         extraCold = assistant.extraColdTools.toSet(),
                     )
             ).sortedBy { it.name }
-        // L4 观测必须量的是**实际注入给模型的内容**：LocalTools 里 tool_surface_report 绑的是裁剪前的
-        // 内建列表，S2/S4 的裁剪（描述精简、冷档空 schema）不会体现在它的数字里。这里在装配出口把该
         // 工具重绑到与模型看到的一致的那份列表上，否则「省了多少」永远是 0。
         val measured =
             injected.map { tool ->
@@ -243,8 +253,15 @@ private fun surfaceView(
         return if (compact.isBlank() || compact == tool.description) tool else tool.copy(description = compact)
     }
 
-    if (ToolSurfaceSession.isLoaded(conversationId, tool.name)) return tool
+    return toColdView(tool, conversationId)
+}
 
+/**
+ * 冷档注入视图：只发一行用途 + 空 schema，调用被拦截直到 get_tool_schema 解锁。
+ * 抽为独立函数，使「工具名单（deny）」在不开启全局裁剪时也能复用同一形态。
+ */
+private fun toColdView(tool: Tool, conversationId: String?): Tool {
+    if (ToolSurfaceSession.isLoaded(conversationId, tool.name)) return tool
     return tool.copy(
         description = tool.description.toSingleLine() +
             " Before calling, use get_tool_schema with this exact tool name, then retry with the returned parameters.",
@@ -274,7 +291,31 @@ private fun surfaceView(
     )
 }
 
+/**
+ * 工具名单过滤（allow 模式）：只保留名单内工具 + 保命工具。
+ *
+ * 抽为独立函数既降低 `createTools` 的圈复杂度，也让「白名单过滤」可被单测覆盖。
+ */
+private fun applyToolListFilter(tools: List<Tool>, settings: Settings): List<Tool> {
+    if (settings.toolListMode != TOOL_LIST_MODE_ALLOW) return tools
+    val allow = settings.toolListAllow.toSet()
+    return tools.filter { it.name in allow || it.name in ALWAYS_KEEP_TOOL_NAMES }
+}
+
+/** 该工具是否在「黑名单」里（deny 模式下只发简要说明）。 */
+private fun isBriefListed(name: String, mode: String, denySet: Set<String>): Boolean =
+    mode == TOOL_LIST_MODE_DENY && name in denySet
+
 /** 描述长度阈值：超过它才做 WARM 档收敛（短的保持原样，不丢信息）。 */
+/** 工具名单模式（默认关闭）：deny = 名单内工具只发简要说明；allow = 只注入名单内工具。 */
+const val TOOL_LIST_MODE_OFF = "off"
+const val TOOL_LIST_MODE_DENY = "deny"
+const val TOOL_LIST_MODE_ALLOW = "allow"
+
+/** 白名单模式下的保命工具：始终注入，避免"看不见工具也取不回参数表"的死局。 */
+private val ALWAYS_KEEP_TOOL_NAMES =
+    setOf("list_tools", "get_tool_schema", "ask_user", TOOL_SURFACE_REPORT_TOOL_NAME)
+
 private const val WARM_DESCRIPTION_KEEP_CHARS = 200
 
 /** 取描述的首句（英文句点或换行分隔），并限制长度。 */
