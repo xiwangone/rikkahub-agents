@@ -129,4 +129,55 @@ class SshCommandWrappingTest {
             me.rerere.workspace.buildEnvAssignments(mapOf("TOKEN" to "abc")),
         )
     }
+
+    // ---- env 前置语句与失败归类（SSH 工具的 env 参数 / 通道切换可见）----
+
+    @Test
+    fun `envPrelude uses dollar-env syntax on windows`() {
+        assertEquals(listOf("\$env:FOO='bar'"), envPrelude(mapOf("FOO" to "bar"), windows = true))
+    }
+
+    @Test
+    fun `envPrelude exports on posix`() {
+        assertEquals(listOf("FOO='bar'; export FOO"), envPrelude(mapOf("FOO" to "bar"), windows = false))
+    }
+
+    @Test
+    fun `envPrelude escapes single quotes per shell`() {
+        assertEquals("\$env:FOO='a''b'", envPrelude(mapOf("FOO" to "a'b"), true).single())
+        assertEquals("FOO='a'\\''b'; export FOO", envPrelude(mapOf("FOO" to "a'b"), false).single())
+    }
+
+    @Test
+    fun `envPrelude drops invalid key names`() {
+        val out = envPrelude(mapOf("OK_1" to "v", "1BAD" to "v", "A B" to "v", "A-B" to "v"), true)
+        assertEquals(1, out.size)
+        assertTrue(out.single().startsWith("\$env:OK_1="))
+    }
+
+    @Test
+    fun `readEnvParam keeps only string values`() {
+        val p =
+            kotlinx.serialization.json.buildJsonObject {
+                put(
+                    "env",
+                    kotlinx.serialization.json.buildJsonObject {
+                        put("A", kotlinx.serialization.json.JsonPrimitive("1"))
+                        put("B", kotlinx.serialization.json.JsonPrimitive(2))
+                    },
+                )
+            }
+        assertEquals(mapOf("A" to "1"), readEnvParam(p))
+        assertTrue(readEnvParam(kotlinx.serialization.json.buildJsonObject { }).isEmpty())
+    }
+
+    @Test
+    fun `classifySshError maps failures to categories`() {
+        assertEquals("timeout", classifySshError("Connect timed out after 5000ms"))
+        assertEquals("dns", classifySshError("java.net.UnknownHostException: nope"))
+        assertEquals("refused", classifySshError("Connection refused"))
+        assertEquals("auth", classifySshError("Auth fail for user"))
+        assertEquals("host_key", classifySshError("Host key verification failed"))
+        assertEquals("other", classifySshError("something odd"))
+    }
 }
