@@ -1780,7 +1780,7 @@
   <string name="vault_fingerprint_desc">يتطلب التحقق ببصمة الإصبع أو قفل الشاشة قبل عرض البيانات الاعتمادية أو تصديرها</string>
   <string name="vault_fingerprint_plan">عند التفعيل، يتطلب عرض قيم البيانات الاعتمادية أو تصديرها التحقق ببصمة الإصبع أو قفل الشاشة.</string>
   <string name="vault_import_title">استيراد من ملف</string>
-  <string name="vault_import_desc">يدعم صيغة load-creds.sh (export KEY=\"value\" ومجموعات التعليقات #). اختر ملف البيانات السرية على الجهاز للاستيراد الجماعي.</string>
+  <string name="vault_import_desc">يدعم حزم .vault المشفّرة (تتطلب كلمة مرور) وCSV وBitwarden JSON وload-creds.sh. يتم التعرّف على الصيغة تلقائيًا.</string>
   <string name="vault_import_button">اختر ملفًا للاستيراد</string>
   <string name="tts_label_25">صوت رجالي مفعم بالحيوية (yuanqinansheng)</string>
   <string name="tts_label_26">شاب مستقيم (zhengpaiqingnian)</string>
@@ -2531,6 +2531,7 @@
   <string name="vault_import_success">تم استيراد %1$d من البيانات السرية (حُلّل %2$d)</string>
   <string name="vault_import_overwritten">تم استبدال %1$d عنصر بالاسم نفسه بقيمة مختلفة</string>
   <string name="vault_import_failed">فشل الاستيراد: %1$s</string>
+  <string name="vault_import_unrecognized">صيغة ملف غير معروفة (يُتوقع .vault أو CSV أو Bitwarden JSON أو load-creds.sh)</string>
   <string name="vault_biometric_export_title">تحقق لتصدير البيانات السرية</string>
   <string name="vault_biometric_view_title">تحقق لعرض البيانات السرية</string>
   <string name="vault_authorize_shortcut">تفويض Vault</string>

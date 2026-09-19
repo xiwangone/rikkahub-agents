@@ -2135,7 +2135,7 @@
   <string name="vault_fingerprint_desc">자격 증명을 보거나 내보내기 전에 지문 / 화면 잠금 인증 필요</string>
   <string name="vault_fingerprint_plan">활성화하면 자격 증명 값을 보거나 내보낼 때 지문(또는 화면 잠금) 인증이 필요합니다.</string>
   <string name="vault_import_title">파일에서 가져오기</string>
-  <string name="vault_import_desc">load-creds.sh 형식(export KEY=\"value\" + # 주석 그룹)을 지원합니다. 기기의 자격 증명 파일을 선택하면 일괄 가져옵니다.</string>
+  <string name="vault_import_desc">.vault 암호화 패키지(암호 필요), CSV, Bitwarden JSON, load-creds.sh 지원. 형식은 자동으로 인식됩니다.</string>
   <string name="vault_import_button">파일 선택하여 가져오기</string>
   <string name="tts_label_25">활기찬 남성 음성 (yuanqinansheng)</string>
   <string name="tts_label_26">정직한 청년 (zhengpaiqingnian)</string>
@@ -2886,6 +2886,7 @@
   <string name="vault_import_success">자격 증명 %1$d개를 가져왔습니다(총 %2$d개 분석)</string>
   <string name="vault_import_overwritten">%1$d개 항목이 같은 이름에 다른 값으로 덮어쓰였습니다</string>
   <string name="vault_import_failed">가져오기 실패: %1$s</string>
+  <string name="vault_import_unrecognized">인식할 수 없는 파일 형식입니다(.vault, CSV, Bitwarden JSON, load-creds.sh 중 하나)</string>
   <string name="vault_biometric_export_title">자격 증명을 내보내려면 인증</string>
   <string name="vault_biometric_view_title">자격 증명을 보려면 인증</string>
   <string name="vault_authorize_shortcut">Vault 인증</string>

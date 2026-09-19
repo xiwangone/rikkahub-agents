@@ -2128,7 +2128,7 @@
   <string name="vault_fingerprint_desc">Требовать отпечаток пальца / блокировку экрана перед просмотром и экспортом</string>
   <string name="vault_fingerprint_plan">При включении для просмотра или экспорта значений требуется проверка отпечатком пальца (или блокировкой экрана).</string>
   <string name="vault_import_title">Импорт из файла</string>
-  <string name="vault_import_desc">Поддерживает формат load-creds.sh (export KEY=\"value\" и группы-комментарии #). Выберите файл на устройстве для пакетного импорта.</string>
+  <string name="vault_import_desc">Поддерживаются зашифрованные пакеты .vault (требуется пароль), CSV, Bitwarden JSON и load-creds.sh. Формат определяется автоматически.</string>
   <string name="vault_import_button">Выбрать файл для импорта</string>
   <string name="tts_label_25">Бодрый мужской голос (yuanqinansheng)</string>
   <string name="tts_label_26">Порядочный юноша (zhengpaiqingnian)</string>
@@ -2879,6 +2879,7 @@
   <string name="vault_import_success">Импортировано %1$d записей (разобрано %2$d)</string>
   <string name="vault_import_overwritten">%1$d записей с тем же именем, но другим значением были перезаписаны</string>
   <string name="vault_import_failed">Ошибка импорта: %1$s</string>
+  <string name="vault_import_unrecognized">Неизвестный формат файла (ожидается .vault, CSV, Bitwarden JSON или load-creds.sh)</string>
   <string name="vault_biometric_export_title">Подтвердите для экспорта</string>
   <string name="vault_biometric_view_title">Подтвердите для просмотра</string>
   <string name="vault_authorize_shortcut">Авторизация Vault</string>

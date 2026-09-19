@@ -2236,7 +2236,7 @@
   <string name="vault_fingerprint_desc">查看或导出凭证前需指纹 / 锁屏验证</string>
   <string name="vault_fingerprint_plan">开启后，查看或导出凭证值需先通过指纹（或锁屏）验证。</string>
   <string name="vault_import_title">从文件导入</string>
-  <string name="vault_import_desc">支持 load-creds.sh 格式（export KEY=\"value\" + # 注释分组）。选择手机上的凭证文件即可批量导入。</string>
+  <string name="vault_import_desc">支持加密 .vault 包（需口令）、CSV、Bitwarden JSON 与 load-creds.sh，自动识别格式。</string>
   <string name="vault_import_button">选择文件导入</string>
   <string name="vault_export_title">应急导出</string>
   <string name="vault_export_desc">支持口令加密的 .vault 包，以及明文 CSV / Bitwarden JSON（后两者请谨慎保管）。</string>
@@ -2503,6 +2503,7 @@
   <string name="vault_import_success">已导入 %1$d 条凭证（共解析 %2$d 条）</string>
   <string name="vault_import_overwritten">%1$d 条同名但值不同，已被覆盖</string>
   <string name="vault_import_failed">导入失败: %1$s</string>
+  <string name="vault_import_unrecognized">无法识别的文件格式（应为 .vault、CSV、Bitwarden JSON 或 load-creds.sh）</string>
   <string name="vault_biometric_export_title">验证以导出凭证</string>
   <string name="vault_biometric_view_title">验证以查看凭证</string>
   <string name="vault_authorize_shortcut">Vault 授权</string>

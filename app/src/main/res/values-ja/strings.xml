@@ -2135,7 +2135,7 @@
   <string name="vault_fingerprint_desc">認証情報の表示・エクスポート前に指紋 / 画面ロック認証を要求</string>
   <string name="vault_fingerprint_plan">有効にすると、認証情報の表示・エクスポート時に指紋（または画面ロック）認証が必要になります。</string>
   <string name="vault_import_title">ファイルからインポート</string>
-  <string name="vault_import_desc">load-creds.sh 形式（export KEY=\"value\" と # によるブロックコメント）に対応。端末上の資格情報ファイルを選ぶと一括インポートできます。</string>
+  <string name="vault_import_desc">暗号化 .vault パッケージ（パスワードが必要）、CSV、Bitwarden JSON、load-creds.sh に対応。形式は自動判別されます。</string>
   <string name="vault_import_button">ファイルを選択してインポート</string>
   <string name="tts_label_25">元気な男性音声 (yuanqinansheng)</string>
   <string name="tts_label_26">誠実な青年 (zhengpaiqingnian)</string>
@@ -2886,6 +2886,7 @@
   <string name="vault_import_success">%1$d 件の資格情報をインポートしました（解析 %2$d 件）</string>
   <string name="vault_import_overwritten">%1$d 件は同名で値が異なり、上書きされました</string>
   <string name="vault_import_failed">インポートに失敗: %1$s</string>
+  <string name="vault_import_unrecognized">認識できないファイル形式です（.vault、CSV、Bitwarden JSON、load-creds.sh のいずれか）</string>
   <string name="vault_biometric_export_title">資格情報をエクスポートするため認証</string>
   <string name="vault_biometric_view_title">資格情報を表示するため認証</string>
   <string name="vault_authorize_shortcut">Vault の認可</string>

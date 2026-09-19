@@ -2271,7 +2271,7 @@
   <string name="vault_fingerprint_desc">Require fingerprint / screen lock before viewing or exporting credentials</string>
   <string name="vault_fingerprint_plan">When enabled, viewing or exporting credential values requires fingerprint (or screen lock) verification.</string>
   <string name="vault_import_title">Import from file</string>
-  <string name="vault_import_desc">Supports load-creds.sh (export KEY=\"value\"), CSV (name,value,description,group) and Bitwarden JSON formats. Auto-detected.</string>
+  <string name="vault_import_desc">Supports encrypted .vault packages (password required), CSV, Bitwarden JSON and load-creds.sh. The format is detected automatically.</string>
   <string name="vault_import_button">Choose file to import</string>
   <string name="vault_export_title">Emergency export</string>
   <string name="vault_export_desc">Export to a password-protected .vault package, plaintext CSV, or Bitwarden JSON. Store plaintext exports carefully.</string>
@@ -2536,6 +2536,7 @@
   <string name="vault_import_success">Imported %1$d credentials (%2$d parsed)</string>
   <string name="vault_import_overwritten">%1$d entry(ies) had a different value under the same name and were overwritten</string>
   <string name="vault_import_failed">Import failed: %1$s</string>
+  <string name="vault_import_unrecognized">Unrecognized file format (expected .vault, CSV, Bitwarden JSON or load-creds.sh)</string>
   <string name="vault_biometric_export_title">Verify to export credentials</string>
   <string name="vault_biometric_view_title">Verify to view credential</string>
   <string name="vault_authorize_shortcut">Vault authorize</string>
