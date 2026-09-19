@@ -1969,8 +1969,8 @@
   <string name="setting_sub_agents_page_workspace">مساحة العمل</string>
   <string name="setting_sub_agents_page_workspace_desc">تُشغَّل الوكلاء الفرعية لهذا الإعداد في مساحة العمل المختارة. عند عدم الربط تتبع المساعد الأصلي.</string>
   <string name="setting_sub_agents_page_tools">قائمة الأدوات المسموح بها</string>
-  <string name="setting_sub_agents_page_tools_desc">أسماء الأدوات مفصولة بفواصل أو أسطر جديدة، مثل workspace_read_file, web_fetch. التضييق فقط: تُهمَل الأسماء غير المتاحة للأصل. فارغ يعني وراثة الكل.</string>
-  <string name="setting_sub_agents_page_tools_hint">اتركه فارغًا لوراثة كل أدوات المساعد الأصلي.</string>
+  <string name="setting_sub_agents_page_tools_desc">أسماء الأدوات مفصولة بفواصل أو أسطر جديدة. التضييق فقط: تُهمَل الأسماء غير المتاحة للأصل. تُعتمَد استدعاءات أدوات الوكيل الفرعي تلقائيًا (دون سؤال في كل مرة)، لذا أبقِها في الحد الأدنى.</string>
+  <string name="setting_sub_agents_page_tools_hint">فارغ = مجموعة قراءة فقط افتراضية (قراءة/بحث/جلب). اكتب * لوراثة كل أدوات المساعد الأصلي (تصعيد الصلاحيات).</string>
   <string name="setting_sub_agents_page_default_workspace">مساحة العمل الافتراضية للوكلاء الفرعية</string>
   <string name="setting_sub_agents_page_default_workspace_desc">أين تُشغَّل الوكلاء الفرعية افتراضيًا (تُقدَّم معلمات الإرسال أو إعدادات الملف الشخصي عند تحديدها). اختر مساحة عمل منفصلة لتجنب تعارض الكتابة مع هذه المحادثة.</string>
   <string name="setting_sub_agents_page_model">النموذج</string>

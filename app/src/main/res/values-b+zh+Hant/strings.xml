@@ -2642,8 +2642,8 @@
   <string name="setting_sub_agents_page_workspace">工作區</string>
   <string name="setting_sub_agents_page_workspace_desc">此設定派發的子代理會在選定的工作區中執行；未綁定時跟隨父助手。</string>
   <string name="setting_sub_agents_page_tools">工具白名單</string>
-  <string name="setting_sub_agents_page_tools_desc">以逗號或換行分隔的工具名稱，例如 workspace_read_file, web_fetch。僅能縮減：父助手沒有的工具會被捨棄；留空表示繼承全部工具。</string>
-  <string name="setting_sub_agents_page_tools_hint">留空則繼承父助手的全部工具。</string>
+  <string name="setting_sub_agents_page_tools_desc">以逗號或換行分隔的工具名稱。僅能縮減：父助手沒有的工具會被捨棄。子代理的工具呼叫是自動批准的（不會逐次詢問），因此建議保持最小。</string>
+  <string name="setting_sub_agents_page_tools_hint">留空 = 預設唯讀集（讀/搜/取）；填 * = 繼承父助手全部工具（提權）。</string>
   <string name="setting_sub_agents_page_default_workspace">子代理預設工作區</string>
   <string name="setting_sub_agents_page_default_workspace_desc">派發的子代理預設在哪個工作區執行（派發參數或設定有指定時以它們為準）。建議選一個與主對話不同的工作區，避免寫入互相覆蓋。</string>
     <string name="setting_sub_agents_page_model">模型</string>
