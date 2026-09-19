@@ -78,6 +78,7 @@ import org.koin.java.KoinJavaComponent.getKoin
 import java.util.Locale
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
+import me.rerere.rikkahub.data.ai.tools.HeadlessConversations
 
 private const val TAG = "GenerationLoop"
 // 工具输出硬上限已统一到设置值（settings.toolOutputMaxChars，默认 8K / 范围 1–32K），
@@ -1424,10 +1425,17 @@ class GenerationLoop(
             context,
         )
         val internalMessages = buildList {
-            // Conversation-level system prompt override: when the assistant
-            // allows it and the conversation supplies one, it replaces the assistant prompt.
+            // Conversation-level system prompt override: when the assistant allows it —
+            // **or the conversation runs headless** (a dispatched sub-agent; nobody is watching
+            // to hand-edit it) — and the conversation supplies one, it replaces the assistant prompt.
+            // 【为何 headless 也算】子代理必须摆脱父助手的系统提示词：父助手那套「每步可见」的
+            // 汇报纪律会污染子代理输出（实测：子代理反复夹带过程叙述）。子代理的宪法/配置提示词
+            // 由 SubAgentEngine 写入会话的 customSystemPrompt；若仍受 allowConversationSystemPrompt
+            // （默认 false）这道闸门限制，宪法就只能退化成「任务前缀」，约束不住。
+            val allowConversationPrompt = assistant.allowConversationSystemPrompt ||
+                (conversationId != null && HeadlessConversations.isHeadless(conversationId))
             val effectiveSystemPrompt =
-                if (assistant.allowConversationSystemPrompt && !conversationSystemPrompt.isNullOrBlank()) {
+                if (allowConversationPrompt && !conversationSystemPrompt.isNullOrBlank()) {
                     conversationSystemPrompt
                 } else {
                     assistant.systemPrompt

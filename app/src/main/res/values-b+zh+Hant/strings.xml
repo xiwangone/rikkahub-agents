@@ -2644,6 +2644,8 @@
   <string name="setting_sub_agents_page_tools">工具白名單</string>
   <string name="setting_sub_agents_page_tools_desc">逗號或換行分隔的工具名，例如 workspace_read_file, web_fetch。只減不增：父助手沒有的工具會被丟棄，子代理的工具呼叫自動批准（不會逐次詢問），請盡量精簡。</string>
   <string name="setting_sub_agents_page_tools_hint">留空 = 預設集合：唯讀與檢索工具，外加在子代理自己的工作區內讀寫；不包含指令執行、SSH 與系統檔案。填 * 繼承父助手全部工具（提權）。</string>
+  <string name="setting_sub_agents_page_foreground_receipt">前台的子代理也回執到對話</string>
+  <string name="setting_sub_agents_page_foreground_receipt_desc">開啟後，前台派發的子代理完成時也會在對話中留一則結果訊息（後台派發一律回執）。前台結果本已作為工具回傳值交給助手，開啟會多一則重複記錄。</string>
   <string name="setting_sub_agents_page_default_workspace">子代理預設工作區</string>
   <string name="setting_sub_agents_page_default_workspace_desc">派發的子代理預設在哪個工作區執行（派發參數或設定有指定時以它們為準）。建議選一個與主對話不同的工作區，避免寫入互相覆蓋。</string>
     <string name="setting_sub_agents_page_model">模型</string>

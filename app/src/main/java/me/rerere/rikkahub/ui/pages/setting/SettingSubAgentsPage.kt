@@ -163,6 +163,31 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
                     )
                 }
 
+                item {
+                    FormItem(
+                        label = {
+                            Text(stringResource(R.string.setting_sub_agents_page_foreground_receipt))
+                        },
+                        description = {
+                            Text(stringResource(R.string.setting_sub_agents_page_foreground_receipt_desc))
+                        },
+                        content = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.End,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Switch(
+                                    checked = settings.subAgentForegroundReceipt,
+                                    onCheckedChange = { checked ->
+                                        vm.updateSettings(settings.copy(subAgentForegroundReceipt = checked))
+                                    },
+                                )
+                            }
+                        },
+                    )
+                }
+
                 if (profiles.isEmpty()) {
                     item {
                         Column(

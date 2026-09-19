@@ -196,6 +196,8 @@ class SettingsStore(
         val SUB_AGENTS = stringPreferencesKey("sub_agents")
         /** 子代理默认工作区（未指定时子代理跑在哪里；null = 跟随父助手）。 */
         val SUB_AGENT_DEFAULT_WORKSPACE = stringPreferencesKey("sub_agent_default_workspace")
+        /** 前台派发的子代理完成时是否也在会话里留一条回执（默认关：前台结果已作为工具返回值）。 */
+        val SUB_AGENT_FOREGROUND_RECEIPT = booleanPreferencesKey("sub_agent_foreground_receipt")
 
         // WebDAV
         val WEBDAV_CONFIG = stringPreferencesKey("webdav_config")
@@ -371,6 +373,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 subAgentDefaultWorkspaceId = preferences[SUB_AGENT_DEFAULT_WORKSPACE]?.let { raw ->
                     runCatching { Uuid.parse(raw) }.getOrNull()
                 },
+                subAgentForegroundReceipt = preferences[SUB_AGENT_FOREGROUND_RECEIPT] ?: false,
                 webDavConfig = preferences[WEBDAV_CONFIG]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: WebDavConfig(),
@@ -609,6 +612,11 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
      * 写入「子代理默认工作区」。独立成函数：update() 已接近静态检查的行数门限。
      * 未设置时**移除 key**，避免旧值残留（其余生成器只写非空值）。
      */
+    /** 写入「前台子代理是否回执」。布尔项无「未设置」语义，直接写当前值。 */
+    private fun putSubAgentForegroundReceipt(preferences: MutablePreferences, settings: Settings) {
+        preferences[SUB_AGENT_FOREGROUND_RECEIPT] = settings.subAgentForegroundReceipt
+    }
+
     private fun putSubAgentDefaultWorkspace(preferences: MutablePreferences, settings: Settings) {
         val id = settings.subAgentDefaultWorkspaceId
         if (id == null) {
@@ -693,6 +701,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[MCP_SERVERS] = JsonInstant.encodeToString(settings.mcpServers)
             preferences[SUB_AGENTS] = JsonInstant.encodeToString(settings.subAgents)
             putSubAgentDefaultWorkspace(preferences, settings)
+            putSubAgentForegroundReceipt(preferences, settings)
             preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settings.webDavConfig)
             preferences[S3_CONFIG] = JsonInstant.encodeToString(settings.s3Config)
             preferences[WEBDAV_CONFIGS] = JsonInstant.encodeToString(settings.webDavConfigs)
@@ -971,6 +980,13 @@ data class Settings(
      * 与 "工具调用自动批准" 搭配使用：把子代理放进独立工作区可避免与主对话同区写互踩。
      */
     val subAgentDefaultWorkspaceId: Uuid? = null,
+    /**
+     * 前台派发的子代理完成后，是否也把结果作为一条消息投进父会话。
+     *
+     * 默认关：前台结果本已作为**工具返回值**交给父助手，再投一条会重复。打开则保留一条
+     * 会话记录（便于回溯）。后台派发**始终**回执，不受此项影响。
+     */
+    val subAgentForegroundReceipt: Boolean = false,
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val s3Config: S3Config = S3Config(),
     /** 多 WebDAV 配置（可保存/切换/删除）。空时回退用 [webDavConfig] 单配置（旧数据兼容）。 */

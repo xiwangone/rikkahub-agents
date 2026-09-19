@@ -367,6 +367,8 @@ class SubAgentEngine(
             val elevated: Boolean,
             val sameWorkspaceAsParent: Boolean,
             val effectiveTask: String,
+            /** 子代理宪法/配置提示词——写入会话级 customSystemPrompt（真正的 system prompt）。 */
+            val systemPrompt: String?,
         ) : RunTargets()
 
         data class Rejected(val message: String) : RunTargets()
@@ -426,7 +428,9 @@ class SubAgentEngine(
         // 而子代理只需要一个最终结论 → 在此前置一份“子代理宪法”（含“不要逐段播报进度”）。
         val basePrompt = profile?.systemPrompt?.trim()?.takeIf { it.isNotEmpty() }
             ?: SubAgentDefaults.DEFAULT_SYSTEM_PROMPT
-        val effectiveTask = "$basePrompt\n\n${request.task}"
+        // 提示词不再拼进任务文本：它走会话级 system prompt（见 RunTargets.Ready.systemPrompt），
+        // 否则只是「用户消息前缀」，权重低、约束不住（实测两次仍带过程叙述）。
+        val effectiveTask = request.task
         // A-9 互踩可见化：生效工作区与父助手相同（含“都未绑定”）且确实存在工作区时，标出风险。
         val parentWorkspaceId = settings.assistants.firstOrNull { it.id == parentAssistantId }
             ?.workspaceId?.toString()
@@ -440,6 +444,7 @@ class SubAgentEngine(
             elevated = elevated,
             sameWorkspaceAsParent = sameWorkspaceAsParent,
             effectiveTask = effectiveTask,
+            systemPrompt = basePrompt,
         )
     }
 
@@ -486,6 +491,8 @@ class SubAgentEngine(
             toolScopeOverride = targets.toolScope,
             // B2：max_trips 真正生效——映射为本次子代理会话的生成步数上限。
             maxToolStepsOverride = request.maxTrips,
+            // 子代理宪法/配置提示词：作为会话级 system prompt（覆盖父助手提示词）。
+            customSystemPrompt = targets.systemPrompt,
         )
         conversationRepo.insertConversation(conv)
         chatService.initializeConversation(conv.id)
@@ -609,6 +616,9 @@ class SubAgentEngine(
      */
     private suspend fun postRunResultToParent(parentChatId: String?, run: SubAgentRun?) {
         if (parentChatId == null || run == null) return
+        // 前台派发默认不回执（结果已在工具返回值里，再投会重复）；用户可在设置里开启留痕。
+        // 后台派发始终回执。
+        if (!run.runInBackground && !settings.subAgentForegroundReceipt) return
         val parentUuid = runCatching { Uuid.parse(parentChatId) }.getOrNull() ?: return
         if (HeadlessConversations.isHeadless(parentUuid)) return
 

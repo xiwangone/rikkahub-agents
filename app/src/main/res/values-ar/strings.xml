@@ -1971,6 +1971,8 @@
   <string name="setting_sub_agents_page_tools">قائمة الأدوات المسموح بها</string>
   <string name="setting_sub_agents_page_tools_desc">أسماء الأدوات مفصولة بفواصل أو أسطر جديدة (مثل workspace_read_file, web_fetch). التضييق فقط: تُهمل الأسماء غير المتاحة للمساعد الأب. استدعاءات أدوات الوكيل الفرعي تُعتمد تلقائيًا، لذا أبقِها في الحد الأدنى.</string>
   <string name="setting_sub_agents_page_tools_hint">فارغ = مجموعة افتراضية: أدوات القراءة والبحث بالإضافة إلى القراءة والكتابة داخل مساحة عمل الوكيل الفرعي نفسه. لا تشمل تنفيذ الأوامر أو SSH أو ملفات النظام. أدخل * لوراثة كل أدوات المساعد الأب (رفع الصلاحيات).</string>
+  <string name="setting_sub_agents_page_foreground_receipt">إشعار الوكيل الفرعي في المقدمة</string>
+  <string name="setting_sub_agents_page_foreground_receipt_desc">عند التفعيل، تُنشر نتيجة الوكيل الفرعي المُرسل في المقدمة أيضًا في المحادثة (الإرسال في الخلفية يُنشر دائمًا). نتيجة المقدمة تُعاد أصلًا إلى المساعد كنتيجة أداة، لذا ستظهر نسخة مكررة واحدة.</string>
   <string name="setting_sub_agents_page_default_workspace">مساحة العمل الافتراضية للوكلاء الفرعية</string>
   <string name="setting_sub_agents_page_default_workspace_desc">أين تُشغَّل الوكلاء الفرعية افتراضيًا (تُقدَّم معلمات الإرسال أو إعدادات الملف الشخصي عند تحديدها). اختر مساحة عمل منفصلة لتجنب تعارض الكتابة مع هذه المحادثة.</string>
   <string name="setting_sub_agents_page_model">النموذج</string>
