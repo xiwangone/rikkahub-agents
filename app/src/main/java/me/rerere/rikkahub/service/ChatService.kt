@@ -365,13 +365,37 @@ class ChatService(
      * idle 回收（切走会话 → 引用归零 → 5 秒宽限 → 回收），最后一次节流之后的内容只存在于
      * 内存会话里，会随回收一起消失（表现为「切走再回来内容变少」）。这里在移除前补一次
      * NonCancellable 落盘，保证内存与磁盘一致。
+     *
+     * 三条纪律（P2-lite，2026-09-20）：
+     * 1. **互斥在启动协程之前取**：`removeSession` 紧接着会 `sessionMutexes.remove(id)`，
+     *    若等协程真跑起来再 `mutexFor()`，拿到的是另一个新 Mutex 实例，与并发写入者互不串行
+     *    （旧快照仍能盖掉新写）；
+     * 2. **拒绝旧写**：快照是「回收那一刻」抓的，可能已落后于刚落库的版本。写库前比
+     *    `Conversation.updateAt`（每轮收尾才刷新一次），落库版本更新就跳过，不覆盖；
+     * 3. **不把会话建回来**：`saveConversation` 默认会同步内存（`updateConversation` →
+     *    `getOrCreateSession`），而回收路径此刻刚把会话移出 map，同步会把它重建成一个空会话
+     *    （随后又触发一次 idle 回收），故这里传 `syncMemory = false`。
      */
     private fun persistSnapshotBeforeEvict(conversationId: Uuid, session: ConversationSession) {
         val snapshot = session.state.value
+        // 必须在 removeSession / dropSession 清掉 map 条目之前拿到互斥量（纪律 1）
+        val mutex = mutexFor(conversationId)
         appScope.launch {
             withContext(NonCancellable) {
-                runCatching { saveConversation(conversationId, snapshot) }
-                    .onFailure { AppLog.w(TAG, "persist before evict failed: $conversationId", it) }
+                runCatching {
+                    mutex.withLock {
+                        val stored = conversationRepo.getConversationById(conversationId)
+                        if (stored != null && stored.updateAt > snapshot.updateAt) {
+                            AppLog.i(
+                                TAG,
+                                "persist before evict skipped (stored is newer): $conversationId " +
+                                    "stored=${stored.updateAt} snapshot=${snapshot.updateAt}",
+                            )
+                            return@withLock
+                        }
+                        saveConversation(conversationId, snapshot, syncMemory = false)
+                    }
+                }.onFailure { AppLog.w(TAG, "persist before evict failed: $conversationId", it) }
             }
         }
     }
@@ -2159,9 +2183,17 @@ class ChatService(
         }
     }
 
+    /**
+     * 把会话写入数据库。
+     *
+     * @param syncMemory 是否把这份快照同步回内存 flow。默认真——正常写入必须保证内存与磁盘一致；
+     *   会话回收路径（[persistSnapshotBeforeEvict]）必须传 false：那时会话刚被移出 map，
+     *   同步会经 `getOrCreateSession` 把它**重建**回来（并再次触发 idle 回收）。
+     */
     suspend fun saveConversation(
         conversationId: Uuid,
         conversation: Conversation,
+        syncMemory: Boolean = true,
     ) {
         val exists = conversationRepo.existsConversationById(conversation.id)
         if (!exists && conversation.title.isBlank() && conversation.messageNodes.isEmpty()) {
@@ -2193,7 +2225,7 @@ class ChatService(
         }
 
         val updatedConversation = conversation.copy()
-        updateConversation(conversationId, updatedConversation)
+        if (syncMemory) updateConversation(conversationId, updatedConversation)
 
         if (!exists) {
             conversationRepo.insertConversation(updatedConversation)
