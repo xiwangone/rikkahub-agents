@@ -199,10 +199,23 @@ object CredentialImporter {
         return result
     }
 
-    /** 判断双引号值是否已闭合（值以未转义的 " 结尾）。 */
+    /**
+     * 判断双引号值是否已闭合（结尾的 " **未被转义**）。
+     *
+     * 判定要看引号前面**连续反斜杠的奇偶**：奇数个才算转义。只看最后两个字符会把
+     * `"...trailing\\"`（值是「以反斜杠结尾」，导出后行尾为 `\\"`）误判成未闭合，
+     * 于是继续搜集后续行、把结构吃坏。
+     */
     private fun isQuotedClosed(s: String): Boolean {
         val trimmed = s.trimEnd()
-        return trimmed.endsWith("\"") && !trimmed.endsWith("\\\"")
+        if (!trimmed.endsWith("\"")) return false
+        var backslashes = 0
+        var i = trimmed.length - 2
+        while (i >= 0 && trimmed[i] == '\\') {
+            backslashes++
+            i--
+        }
+        return backslashes % 2 == 0
     }
 
     /**
@@ -222,11 +235,41 @@ object CredentialImporter {
         return if (looksLikeGroupId) raw else "Other"
     }
 
-    /** 去掉首尾引号（支持 "..." 和 '...'） */
+    /**
+     * 去掉首尾引号（支持 `"..."` 和 `'...'`）。
+     *
+     * 双引号值还要**反转导出时的 shell 转义**（[VaultExporter.toLoadCreds] 会把
+     * `\` `"` `$` 反引号写成带反斜杠的形式），否则「导出 → 导入」对含这些字符的值
+     * 就不对称——用户会看到值里平白多出反斜杠。单引号是 shell 里唯一的无转义引号，原样返回。
+     */
     private fun unquote(s: String): String {
-        if (s.length >= 2 && ((s.first() == '"' && s.last() == '"') || (s.first() == '\'' && s.last() == '\''))) {
+        if (s.length >= 2 && s.first() == '"' && s.last() == '"') {
+            return unescapeShellDoubleQuoted(s.substring(1, s.length - 1))
+        }
+        if (s.length >= 2 && s.first() == '\'' && s.last() == '\'') {
             return s.substring(1, s.length - 1)
         }
         return s
+    }
+
+    /** 双引号内被反斜杠转义后仍为字面量的字符（与 [VaultExporter.toLoadCreds] 的转义集合一致）。 */
+    private val escapableInDoubleQuotes = setOf('\\', '"', '$', '`')
+
+    /** 反转双引号内的 shell 转义：`\\` → `\`、`\"` → `"`、`\$` → `$`、反斜杠+反引号 → 反引号。 */
+    private fun unescapeShellDoubleQuoted(s: String): String {
+        val sb = StringBuilder(s.length)
+        var i = 0
+        while (i < s.length) {
+            val c = s[i]
+            val next = s.getOrNull(i + 1)
+            if (c == '\\' && next != null && next in escapableInDoubleQuotes) {
+                sb.append(next)
+                i += 2
+            } else {
+                sb.append(c)
+                i++
+            }
+        }
+        return sb.toString()
     }
 }
