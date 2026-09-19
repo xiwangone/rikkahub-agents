@@ -555,7 +555,10 @@ class ChatService(
         val session = getOrCreateSession(conversationId)
         val previousJob = session.getJob()
         if (previousJob?.isActive == true) {
-            AppLog.i(TAG, "msg-cancel prev conv=$conversationId")
+            AppLog.i(
+                TAG,
+                "msg-cancel prev conv=$conversationId nodes=${session.state.value.messageNodes.size}",
+            )
         }
         previousJob?.cancel()
 
@@ -564,6 +567,10 @@ class ChatService(
                 try {
                     runCatching { previousJob?.join() }
                     finishInterruptedPendingTools(conversationId)
+                    // 被「新消息」打断的上一轮不走 stopGeneration，此前从不落库：
+                    // 内容只存在内存，会话一旦重建/刷新就整轮消失（工具还会被重放改成「拒绝」）。
+                    // 这里补一次落库，使「发新消息打断」与「点停止」语义一致。
+                    withContext(NonCancellable) { saveConversation(conversationId, session.state.value) }
 
                     val currentConversation = session.state.value
                     // Resolve the assistant from the conversation's own assistantId, not the
@@ -2137,6 +2144,12 @@ class ChatService(
         if (!exists && conversation.title.isBlank() && conversation.messageNodes.isEmpty()) {
             return // 新会话且为空时不保存
         }
+        // 落库埋点：消息数与最后一条的 role/部件数 —— 排查丢消息时可直接对齐「内存有什么 / 写了什么」。
+        AppLog.d(
+            TAG,
+            "save conv=$conversationId nodes=${conversation.messageNodes.size} last=" +
+                (conversation.messageNodes.lastOrNull()?.currentMessage?.let { "${it.role}/${it.parts.size}" } ?: "none"),
+        )
         // Refuse to overwrite a non-empty stored row with an empty in-memory snapshot.
         // This is the silent-data-loss guard: handleToolApproval / stopGeneration / etc.
         // could be called against an unhydrated session (post-restart), build an empty
