@@ -220,7 +220,7 @@ fun SettingBrowserPage(vm: SettingBrowserViewModel = koinViewModel()) {
                 item(
                     onClick = { showEnginePicker = true },
                     headlineContent = { Text(stringResource(R.string.setting_browser_search_engine)) },
-                    supportingContent = { Text(searchEngine.displayName) },
+                    supportingContent = { Text(stringResource(searchEngine.labelRes)) },
                 )
                 // Per-tool timeout — editable, expressed in seconds. Clamped to 10 s..10 min
                 // in BrowserPreferences before persist (GitHub issue #4).
