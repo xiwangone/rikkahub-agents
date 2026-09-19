@@ -1223,9 +1223,14 @@ class ChatService(
 
                     // 节流兜底：把最后一次被节流跳过的快照补进内存态，
                     // 否则尾部内容既不入内存也不落盘（见 STREAM_UI_INTERVAL_MS）。
-                    pendingUiConversation?.let { latest ->
-                        pendingUiConversation = null
-                        updateConversation(conversationId, latest)
+                    // 必须 NonCancellable：打断时协程已处于取消状态，普通 suspend 会立即抛出，
+                    // 这段会整段被跳过 —— 表现为「AI 回复的尾部/本条被丢弃」（用户消息不受影响，
+                    // 因为它在发送时就已落库）。
+                    withContext(NonCancellable) {
+                        pendingUiConversation?.let { latest ->
+                            pendingUiConversation = null
+                            updateConversation(conversationId, latest)
+                        }
                     }
 
                     // 可能被取消了，或者意外结束，兜底更新
