@@ -39,6 +39,8 @@ data class SubAgentRun(
     val workspaceId: String? = null,
     /** 实际生效的工具白名单；null = 继承父助手（未收窄） */
     val toolScope: List<String>? = null,
+    /** 本次派发是否属于“提权”（含写/执行类工具，或显式继承全量） */
+    val elevated: Boolean = false,
 )
 
 @Serializable
@@ -61,6 +63,53 @@ object SubAgentDefaults {
     const val MIN_PER_ASSISTANT_CAP = 1
     const val MAX_PER_ASSISTANT_CAP = 8
     const val REGISTRY_LRU_CAP = 50
+
+    /**
+     * 子代理**默认**工具集：未显式指定时的最小权限集（只读/调研）。
+     *
+     * 设计动机（2026-09-20 核实）：headless 会话的工具调用是**自动批准**的
+     * （见 [me.rerere.rikkahub.data.ai.tools.HeadlessConversations] 的 auto-approve 集合），
+     * 而子代理此前默认“继承父助手全量工具” → 派一个子代理等于交出「全量工具 + 免审批」。
+     * 现在改为默认只给只读集；要写/执行，必须显式声明（dispatch 的 `tools`、或 profile 里
+     * 写 `"*"` 表示继承父助手全量）。
+     *
+     * ⚠ 名字必须是与工具实际注册名**完全相等**的字符串（过滤是精确匹配，没有通配）。
+     */
+    val DEFAULT_SAFE_TOOL_SCOPE: List<String> = listOf(
+        "workspace_read_file",
+        "workspace_read_folder",
+        "workspace_list",
+        "workspace_search_code",
+        "file_info",
+        "read_file",
+        "list_files",
+        "find_files",
+        "memory_search",
+        "skill_get_content",
+        "web_fetch",
+        "subagent_list",
+        "subagent_get",
+    )
+
+    /** 出现其中任一工具即视为“提权”派发（回显 elevated，让主对话知道写/执行已开放）。 */
+    val ELEVATED_TOOL_NAMES: Set<String> = setOf(
+        "workspace_write_file",
+        "workspace_edit_file",
+        "workspace_apply_edits",
+        "workspace_create_folder",
+        "workspace_shell",
+        "workspace_run_background",
+        "workspace_background_kill",
+        "write_text_file",
+        "termux_run_command",
+        "ssh_exec",
+        "ssh_exec_saved",
+        "ssh_upload",
+        "ssh_download",
+    )
+
+    /** 显式声明“继承父助手全量工具”的标记（逃生口）。 */
+    const val TOOL_SCOPE_INHERIT_ALL = "*"
 
     /** Default system prompt used when the assistant's per-sub-agent prompt is empty. */
     val DEFAULT_SYSTEM_PROMPT = """

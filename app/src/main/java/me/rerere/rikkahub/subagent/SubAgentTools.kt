@@ -44,6 +44,7 @@ internal fun encodeRun(run: SubAgentRun): kotlinx.serialization.json.JsonObject 
     }
     put("trip_count", run.tripCount)
     if (run.workspaceId != null) put("workspace_id", run.workspaceId)
+    put("elevated", run.elevated)
     run.toolScope?.takeIf { it.isNotEmpty() }?.let { scope ->
         put("tool_scope", buildJsonArray { scope.forEach { add(it) } })
     }
@@ -149,10 +150,10 @@ private fun dispatchParameters(enabledProfiles: List<SubAgentProfile>): InputSch
                         put(
                             "description",
                             "OPTIONAL allow-list of tool names for this sub-agent (narrowing " +
-                                "only - a name the parent cannot use is dropped). Pass e.g. " +
-                                "[\"workspace_read_file\",\"workspace_shell\",\"web_fetch\"] to " +
-                                "keep a read-only researcher cheap and safe. Omit to inherit " +
-                                "the parent's full tool set. Unknown names are ignored.",
+                                "only - a name the parent cannot use is dropped). Omit to get " +
+                                "the default READ-ONLY set (read/search/fetch only), because " +
+                                "sub-agent tool calls are auto-approved. Pass [\"*\"] to inherit " +
+                                "the parent's full tool set (elevated). Unknown names are ignored.",
                         )
                     },
                 )

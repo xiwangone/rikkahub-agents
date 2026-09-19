@@ -364,6 +364,7 @@ class SubAgentEngine(
             val chatModelId: Uuid?,
             val workspaceId: String?,
             val toolScope: List<String>?,
+            val elevated: Boolean,
             val effectiveTask: String,
         ) : RunTargets()
 
@@ -404,8 +405,17 @@ class SubAgentEngine(
         if (workspaceId != null && runCatching { Uuid.parse(workspaceId) }.isFailure) {
             AppLog.w(TAG, "ignoring unparseable sub-agent workspace id: $workspaceId")
         }
-        val toolScope = request.tools?.takeIf { it.isNotEmpty() }
-            ?: profile?.toolScope?.takeIf { it.isNotEmpty() }
+        // B1 会话级作用域：默认**收敛为只读集**（headless 工具调用是自动批准的，不能默认给全量）。
+        // 优先级：request.tools > profile.toolScope；显式声明 `*` 表示继承父助手全量（逃生口）。
+        val requestedScope = request.tools?.takeIf { it.isNotEmpty() } ?: profile?.toolScope
+        val inheritAll = requestedScope?.contains(SubAgentDefaults.TOOL_SCOPE_INHERIT_ALL) == true
+        val toolScope = when {
+            inheritAll -> null
+            !requestedScope.isNullOrEmpty() -> requestedScope
+            else -> SubAgentDefaults.DEFAULT_SAFE_TOOL_SCOPE
+        }
+        // 提权判定：继承全量，或作用域内含任一写/执行类工具。
+        val elevated = toolScope == null || toolScope.any { it in SubAgentDefaults.ELEVATED_TOOL_NAMES }
         // profile 的系统提示词直接前置到任务文本（子代理没有 per-run system prompt 覆盖）。
         val effectiveTask = profile?.systemPrompt?.trim()?.takeIf { it.isNotEmpty() }
             ?.let { "$it\n\n${request.task}" }
@@ -414,6 +424,7 @@ class SubAgentEngine(
             chatModelId = chatModelId,
             workspaceId = workspaceId,
             toolScope = toolScope,
+            elevated = elevated,
             effectiveTask = effectiveTask,
         )
     }
@@ -439,9 +450,13 @@ class SubAgentEngine(
             }
             is RunTargets.Ready -> resolution
         }
-        if (targets.workspaceId != null || targets.toolScope != null) {
+        if (targets.workspaceId != null || targets.toolScope != null || targets.elevated) {
             registry.update(runId) {
-                it.copy(workspaceId = targets.workspaceId, toolScope = targets.toolScope)
+                it.copy(
+                    workspaceId = targets.workspaceId,
+                    toolScope = targets.toolScope,
+                    elevated = targets.elevated,
+                )
             }
         }
         val conv = Conversation.ofId(
