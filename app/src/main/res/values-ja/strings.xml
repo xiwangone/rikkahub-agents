@@ -2328,6 +2328,9 @@
   <string name="setting_sub_agents_page_tools_hint">空欄 = 既定セット：読み取り・検索系ツールに加え、サブエージェント自身のワークスペース内の読み書きが可能。コマンド実行・SSH・システムファイルは含まれません。* を入力すると親アシスタントの全ツールを継承します（昇格）。</string>
   <string name="setting_sub_agents_page_foreground_receipt">フォアグラウンドのサブエージェントも結果を投稿</string>
   <string name="setting_sub_agents_page_foreground_receipt_desc">オンにすると、フォアグラウンドで派したサブエージェントの完了結果も会話に投稿されます（バックグラウンドは常に投稿）。フォアグラウンドの結果は既にツール結果としてアシスタントに返っているため、重複した記録が 1 件増えます。</string>
+  <string name="chat_tool_workspace_edit_title">%1$d ファイル / %2$d 箇所を編集</string>
+  <string name="chat_tool_workspace_edit_line">%1$s（%2$d 箇所）</string>
+  <string name="chat_tool_workspace_search_title">コード検索：%1$d 件一致</string>
   <string name="setting_sub_agents_page_default_workspace">サブエージェントの既定ワークスペース</string>
   <string name="setting_sub_agents_page_default_workspace_desc">派発されたサブエージェントが既定で実行されるワークスペース（派発パラメータや設定で指定があればそちらが優先）。メインと別のワークスペースを選ぶと書き込みの衝突を避けられます。</string>
   <string name="setting_sub_agents_page_model">モデル</string>

@@ -118,6 +118,8 @@ object ToolUIRegistry {
             SendEmailIntentToolUI,
             OpenWifiSettingsToolUI,
             ShowLocationOnMapToolUI,
+            WorkspaceApplyEditsToolUI,
+            WorkspaceSearchCodeToolUI,
         ).associateBy { it.toolName }
 
     /** 查找工具对应的渲染器, 未注册时返回默认渲染器 */

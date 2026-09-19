@@ -2763,6 +2763,9 @@
   <string name="setting_sub_agents_page_tools_hint">Empty = a default set: read, search and fetch tools plus read-write INSIDE the sub-agent own workspace. Command execution, SSH and system files are NOT included. Put * to inherit the full tool set of the parent assistant (elevated).</string>
   <string name="setting_sub_agents_page_foreground_receipt">Receipt for foreground sub-agents</string>
   <string name="setting_sub_agents_page_foreground_receipt_desc">When on, a foreground dispatch also posts its result into the conversation (background dispatches always post). The foreground result is already returned to the assistant as a tool result, so this adds one duplicate entry.</string>
+  <string name="chat_tool_workspace_edit_title">%1$d file(s) / %2$d edit(s)</string>
+  <string name="chat_tool_workspace_edit_line">%1$s (%2$d)</string>
+  <string name="chat_tool_workspace_search_title">Code search: %1$d match(es)</string>
   <string name="setting_sub_agents_page_default_workspace">Default workspace for sub-agents</string>
   <string name="setting_sub_agents_page_default_workspace_desc">Where dispatched sub-agents run unless the dispatch or the profile says otherwise. Pick a workspace separate from your main one so their writes cannot clash with this conversation.</string>
   <string name="setting_sub_agents_page_model">Model</string>
