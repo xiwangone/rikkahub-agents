@@ -40,23 +40,30 @@ class NormalizeBrowserQueryTest {
         assertEquals("https://192.168.1.1:8080", normalizeBrowserQuery("192.168.1.1:8080"))
     }
 
-    @Test fun `multi-word input becomes a DuckDuckGo search`() {
-        val result = normalizeBrowserQuery("hello world")
+    @Test fun `multi-word input becomes a search on the selected engine`() {
+        val result = normalizeBrowserQuery("hello world", BrowserSearchEngine.DUCKDUCKGO)
         assertTrue("expected a DuckDuckGo search URL, got $result",
             result.startsWith("https://duckduckgo.com/?q="))
         // Space must be URL-encoded.
         assertTrue("query should be url-encoded", result.contains("hello+world") || result.contains("hello%20world"))
     }
 
+    @Test fun `default engine is Bing`() {
+        // 默认引擎选择对网络环境更友好的那个（DuckDuckGo / Google 在部分地区不可访问）。
+        val result = normalizeBrowserQuery("hello world")
+        assertTrue("expected the default (Bing) search URL, got $result",
+            result.startsWith("https://www.bing.com/search?q="))
+    }
+
     @Test fun `single dotless word becomes a search not a host`() {
-        val result = normalizeBrowserQuery("kotlin")
+        val result = normalizeBrowserQuery("kotlin", BrowserSearchEngine.DUCKDUCKGO)
         assertTrue("dotless single word should search, got $result",
             result.startsWith("https://duckduckgo.com/?q="))
     }
 
     @Test fun `dotted token containing a space still searches`() {
         // Contains a dot but also a space — the !contains(' ') guard means it is NOT a host.
-        val result = normalizeBrowserQuery("what is example.com")
+        val result = normalizeBrowserQuery("what is example.com", BrowserSearchEngine.DUCKDUCKGO)
         assertTrue("dotted phrase with spaces should search, got $result",
             result.startsWith("https://duckduckgo.com/?q="))
     }

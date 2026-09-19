@@ -162,12 +162,12 @@ class ArchiveToolsTest {
         val destDir = tmp.newFolder("gbk_extracted").absolutePath
         val result = obj(execTool(
             unzipFileTool(NULL_CONTEXT),
-            """{"source":"${gbkZip.absolutePath}","destination_dir":"$destDir"}""",
+            """{"source":"${jp(gbkZip.absolutePath)}","destination_dir":"${jp(destDir)}"}""",
         ))
         assertTrue("expected success, got $result", result["success"]!!.jsonPrimitive.content.toBoolean())
         val extracted = File(destDir).walkTopDown().firstOrNull { it.name == chineseName }
         assertTrue(
-            "expected an entry named $chineseName under $destDir",
+            "expected an entry named $chineseName under ${jp(destDir)}",
             extracted != null,
         )
     }
@@ -182,7 +182,7 @@ class ArchiveToolsTest {
         }
         val result = obj(execTool(
             listZipContentsTool(NULL_CONTEXT),
-            """{"source":"${gbkZip.absolutePath}"}""",
+            """{"source":"${jp(gbkZip.absolutePath)}"}""",
         ))
         val entries = result["entries"]!!.jsonArray
         assertEquals(1, entries.size)
@@ -201,7 +201,7 @@ class ArchiveToolsTest {
             zos.write("x".toByteArray())
             zos.closeEntry()
         }
-        val result = obj(execTool(listZipContentsTool(NULL_CONTEXT), """{"source":"${zip.absolutePath}"}"""))
+        val result = obj(execTool(listZipContentsTool(NULL_CONTEXT), """{"source":"${jp(zip.absolutePath)}"}"""))
         assertEquals(name, result["entries"]!!.jsonArray[0].jsonObject["name"]!!.jsonPrimitive.content)
     }
 
@@ -211,7 +211,7 @@ class ArchiveToolsTest {
         val zipPath = "${tmp.root.absolutePath}/ascii.zip"
         execTool(
             zipFilesTool(NULL_CONTEXT),
-            """{"sources":["${srcDir.absolutePath}"],"destination":"$zipPath"}""",
+            """{"sources":["${jp(srcDir.absolutePath)}"],"destination":"$zipPath"}""",
         )
         val listed = obj(execTool(listZipContentsTool(NULL_CONTEXT), """{"source":"$zipPath"}"""))
         assertTrue(listed["entries"]!!.jsonArray[0].jsonObject["name"]!!.jsonPrimitive.content.endsWith("plain.txt"))
@@ -219,7 +219,7 @@ class ArchiveToolsTest {
         val destDir = "${tmp.root.absolutePath}/ascii_extracted"
         val unzipped = obj(execTool(
             unzipFileTool(NULL_CONTEXT),
-            """{"source":"$zipPath","destination_dir":"$destDir"}""",
+            """{"source":"$zipPath","destination_dir":"${jp(destDir)}"}""",
         ))
         assertTrue(unzipped["success"]!!.jsonPrimitive.content.toBoolean())
         assertEquals("hello", File(destDir).walkTopDown().first { it.name == "plain.txt" }.readText())
