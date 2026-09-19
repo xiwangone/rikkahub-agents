@@ -68,7 +68,8 @@ fun replaceText(
     }
     throw IllegalArgumentException(
         "old_text was not found, even with whitespace-tolerant matching; " +
-            "read the file again and copy old_text exactly from its current content"
+            "read the file again and copy old_text exactly from its current content" +
+            closestSnippetHint(content, oldText),
     )
 }
 
@@ -159,6 +160,47 @@ private class LineWithOffset(
     val endExclusive: Int,
     val text: String,
 )
+
+/** 扫描上限：未命中提示是失败路径专用，不进入正常热路径；上限避免超大文件上做无界相似度计算。 */
+private const val HINT_SCAN_LINES = 4000
+
+/**
+ * 未命中时给出「最相似行」提示：很多失败只是缩进/长块细微差异，
+ * 直接告诉调用方最像哪一行 + 附近上下文，能省下一轮试错。
+ * 仅扫描前 [HINT_SCAN_LINES] 行，逐行 2-gram 近似比较。
+ */
+private fun closestSnippetHint(content: String, oldText: String): String {
+    val needle = oldText.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+    if (needle.length < 4) return ""
+    val lines = content.lineSequence().take(HINT_SCAN_LINES).toList()
+    var bestIndex = -1
+    var bestScore = 0.0
+    lines.forEachIndexed { index, line ->
+        val trimmed = line.trim()
+        if (trimmed.isEmpty()) return@forEachIndexed
+        val score = bigramSimilarity(trimmed, needle)
+        if (score > bestScore) {
+            bestScore = score
+            bestIndex = index
+        }
+    }
+    if (bestIndex < 0 || bestScore < 0.4) return ""
+    val from = (bestIndex - 2).coerceAtLeast(0)
+    val to = (bestIndex + 3).coerceAtMost(lines.size)
+    val snippet = lines.subList(from, to).joinToString("\n") { "    $it" }
+    return "\nClosest match: line ${bestIndex + 1} (similarity ${(bestScore * 100).toInt()}%). " +
+        "Nearby context:\n$snippet"
+}
+
+/** 2-gram 交集比：轻量近似，仅用于给「最像哪一行」排序。 */
+private fun bigramSimilarity(a: String, b: String): Double {
+    if (a == b) return 1.0
+    if (a.length < 2 || b.length < 2) return 0.0
+    val ga = a.windowed(2).toSet()
+    val gb = b.windowed(2).toSet()
+    if (ga.isEmpty() || gb.isEmpty()) return 0.0
+    return (ga intersect gb).size.toDouble() / maxOf(ga.size, gb.size)
+}
 
 private fun splitLinesWithOffsets(content: String): List<LineWithOffset> {
     val lines = mutableListOf<LineWithOffset>()

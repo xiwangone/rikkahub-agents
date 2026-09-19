@@ -328,14 +328,25 @@ private fun createDiffFileTool(
         val b = params.absolutePath("b")
         val aText = workspaceRepository.readTextInRootfs(workspaceId, a)
         val bText = workspaceRepository.readTextInRootfs(workspaceId, b)
-        val diff = me.rerere.rikkahub.data.vault.SecretMasker.mask(generateUnifiedDiff(aText, bText, b).orEmpty())
+        val diff =
+            me.rerere.rikkahub.data.vault.SecretMasker.mask(
+                // 两个不同文件对比：头部分别用各自路径（否则 a/b 两侧显示同一个路径，看起来像方向反了）
+                generateUnifiedDiff(aText, bText, a, newPath = b).orEmpty(),
+            )
         val isSame = diff.isEmpty()
+        // 增量摘要：只给数字，不占上下文（正文仍走 diff 字段与落盘机制）
+        val added = diff.lineSequence().count { it.startsWith("+") && !it.startsWith("+++") }
+        val removed = diff.lineSequence().count { it.startsWith("-") && !it.startsWith("---") }
+        val hunks = diff.lineSequence().count { it.startsWith("@@") }
         listOf(
             UIMessagePart.Text(
                 buildJsonObject {
                     put("a", a)
                     put("b", b)
                     put("same", isSame)
+                    put("added", added)
+                    put("removed", removed)
+                    put("hunks", hunks)
                     val diffLimit =
                         runCatching {
                             getKoin().get<me.rerere.rikkahub.data.datastore.SettingsStore>()

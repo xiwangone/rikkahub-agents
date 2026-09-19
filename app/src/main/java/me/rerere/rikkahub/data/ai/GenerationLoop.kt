@@ -1693,6 +1693,25 @@ class GenerationLoop(
                     appendLine("Full output saved to: /tool_outputs/$fileName")
                     appendLine("Use shell to read: `cat /tool_outputs/$fileName`")
                     appendLine("Use shell to search: `grep \"pattern\" /tool_outputs/$fileName`")
+                    // 关键行预览：省一次「落盘后再 grep」的往返（错误行 + 末尾若干行 + 总行数）
+                    val lines = fullText.split('\n')
+                    val errorLines =
+                        lines.withIndex()
+                            .filter { (_, l) ->
+                                l.contains("FAILED") || l.contains("error", ignoreCase = true) ||
+                                    l.contains("Exception") || l.startsWith("✗")
+                            }
+                            .take(5)
+                    appendLine(
+                        "Total lines: ${lines.size}" +
+                            if (errorLines.isEmpty()) "" else " · error-like: ${errorLines.size}",
+                    )
+                    errorLines.forEach { (i, l) -> appendLine("  ! line ${i + 1}: ${l.take(160)}") }
+                    val tail = lines.takeLast(5).filter { it.isNotBlank() }
+                    if (tail.isNotEmpty()) {
+                        appendLine("  … last ${tail.size} non-blank line(s):")
+                        tail.forEach { appendLine("  | ${it.take(160)}") }
+                    }
                     appendLine()
                     append(preview)
                 }
