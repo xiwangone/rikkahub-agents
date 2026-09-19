@@ -775,16 +775,11 @@ fun diagnosticsTool(
     conversationRepo: ConversationRepository,
 ): Tool = Tool(
     name = "diagnostics",
-    description = """
-        Inspect this app itself. Choose one kind: health (built-in Doctor checks), build (installed
-        build identity and signing certificate), enabled_tools (which tool options are on), usage
-        (per-tool call counts), settings (configuration summary), logs (in-memory app log), requests
-        (HTTP request summary log), crash (last crash snapshot), lifecycle (process lifecycle log),
-        conversation (list recent chats, or export one conversation's messages by id), generation
-        (the latest turn: effective parameters plus that turn's usage — prompt/completion/cached
-        tokens and cost when the provider reports them), or perf
-        (process uptime / heap / threads).
-    """.trimIndent().replace("\n", " "),
+    // 描述只留用途与关键用法：kind 全量枚举已在 parameters.kind（enum + joinToString）给出，
+    // 再抄一遍是纯冗余（实测该工具 626 token 全场最大，相当一部分来自这层重复枚举）。
+    description =
+        "Inspect this app itself (kind list and semantics are in the `kind` enum). " +
+            "For logs prefer summary:true or level/keyword filters — raw logs are noisy.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
