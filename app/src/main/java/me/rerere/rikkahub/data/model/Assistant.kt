@@ -52,6 +52,14 @@ data class Assistant(
      * 击穿长会话的 provider 前缀缓存（代价远超省下的那点 schema）。
      */
     val extraColdTools: List<String> = emptyList(),
+
+    /**
+     * 只注入这些工具（助手级白名单）；留空 = 不限制。
+     *
+     * `list_tools` / `get_tool_schema` / `ask_user` 等保命工具始终保留 ——
+     * 否则会出现"看不见工具、也取不回参数表"的死局。
+     */
+    val onlyTools: List<String> = emptyList(),
     val workspaceId: Uuid? = null,
     val background: String? = null, // 聊天页背景图地址(本地文件 URI 或网络 URL), 为 null 时无背景
     val backgroundOpacity: Float = 1.0f, // 背景图不透明度(0~1)

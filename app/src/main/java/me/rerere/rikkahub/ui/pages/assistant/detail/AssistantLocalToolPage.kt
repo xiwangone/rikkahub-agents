@@ -200,6 +200,11 @@ private fun AssistantLocalToolContent(
     var extraColdDraft by remember(assistant.extraColdTools) {
         mutableStateOf(assistant.extraColdTools.joinToString("\n"))
     }
+
+    var showOnlyToolsDialog by remember { mutableStateOf(false) }
+    var onlyToolsDraft by remember(assistant.onlyTools) {
+        mutableStateOf(assistant.onlyTools.joinToString("\n"))
+    }
     var showImportSourcePicker by remember { mutableStateOf(false) }
     var importCandidate by remember { mutableStateOf<Assistant?>(null) }
     var importIncludeMcp by remember { mutableStateOf(true) }
@@ -285,6 +290,48 @@ private fun AssistantLocalToolContent(
             },
             dismissButton = {
                 TextButton(onClick = { showExtraColdDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    if (showOnlyToolsDialog) {
+        AlertDialog(
+            onDismissRequest = { showOnlyToolsDialog = false },
+            title = { Text(stringResource(R.string.assistant_page_only_tools_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.assistant_page_only_tools_dialog_desc))
+                    OutlinedTextField(
+                        value = onlyToolsDraft,
+                        onValueChange = { onlyToolsDraft = it },
+                        placeholder = { Text(stringResource(R.string.assistant_page_extra_cold_hint)) },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 120.dp),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val names =
+                            onlyToolsDraft
+                                .split(',', '\n', ' ', '\t')
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+                                .distinct()
+                        onUpdateAssistant { it.copy(onlyTools = names) }
+                        showOnlyToolsDialog = false
+                    },
+                ) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showOnlyToolsDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -506,6 +553,17 @@ private fun AssistantLocalToolContent(
                 },
                 trailingContent = {
                     TextButton(onClick = { showExtraColdDialog = true }) {
+                        Text(stringResource(R.string.assistant_page_extra_cold_action))
+                    }
+                },
+            )
+            item(
+                headlineContent = { Text(stringResource(R.string.assistant_page_only_tools_title)) },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_only_tools_desc, assistant.onlyTools.size))
+                },
+                trailingContent = {
+                    TextButton(onClick = { showOnlyToolsDialog = true }) {
                         Text(stringResource(R.string.assistant_page_extra_cold_action))
                     }
                 },

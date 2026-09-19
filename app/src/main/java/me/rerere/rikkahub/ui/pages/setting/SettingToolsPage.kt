@@ -33,9 +33,6 @@ import me.rerere.hugeicons.stroke.ArrowLeft01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
-import me.rerere.rikkahub.data.ai.tools.TOOL_LIST_MODE_ALLOW
-import me.rerere.rikkahub.data.ai.tools.TOOL_LIST_MODE_DENY
-import me.rerere.rikkahub.data.ai.tools.TOOL_LIST_MODE_OFF
 import me.rerere.rikkahub.ui.components.setting.ToolOutputDialog
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -62,28 +59,10 @@ fun SettingToolsPage(
     val termuxConfig by termuxVm.config.collectAsStateWithLifecycle()
     val displaySetting = settings.displaySetting
     var showOutputDialog by remember { mutableStateOf(false) }
-    var pendingAllowConfirm by remember { mutableStateOf(false) }
-    var editingList by remember { mutableStateOf<String?>(null) }
-    var listDraft by remember { mutableStateOf("") }
     var budgetDraft by remember(termuxConfig.turnBudgetMs) {
         mutableStateOf((termuxConfig.turnBudgetMs / 60_000L).toString())
     }
 
-    fun applyList(raw: String): List<String> =
-        raw.split(',', '\n')
-            .map { it.trim() }
-            .filter { it.isNotEmpty() }
-            .distinct()
-
-    fun rollbackToolList() {
-        vm.updateSettings(
-            settings.copy(
-                toolListMode = TOOL_LIST_MODE_OFF,
-                toolListDeny = emptyList(),
-                toolListAllow = emptyList(),
-            ),
-        )
-    }
 
     Scaffold(
         topBar = {
@@ -144,74 +123,6 @@ fun SettingToolsPage(
                 )
             }
 
-            // 工具名单（默认关闭）：模式直接三行可选 —— 省去「点行→弹窗→再选」两步，
-            // 状态一眼可见；白名单首次开启前确认一次。
-            CardGroup(title = { Text(stringResource(R.string.setting_tools_section_list)) }) {
-                item(
-                    headlineContent = { Text(stringResource(R.string.setting_tools_list_mode_title)) },
-                    supportingContent = { Text(stringResource(R.string.setting_tools_list_mode_desc)) },
-                )
-                listOf(
-                    TOOL_LIST_MODE_OFF to R.string.setting_tools_list_mode_off,
-                    TOOL_LIST_MODE_DENY to R.string.setting_tools_list_mode_deny,
-                    TOOL_LIST_MODE_ALLOW to R.string.setting_tools_list_mode_allow,
-                ).forEach { (mode, labelRes) ->
-                    item(
-                        headlineContent = { Text(stringResource(labelRes)) },
-                        trailingContent = {
-                            if (settings.toolListMode == mode) {
-                                Text(stringResource(R.string.setting_tools_list_selected))
-                            }
-                        },
-                        modifier =
-                            Modifier.clickable {
-                                when {
-                                    // 白名单会显著缩小工具集：首次开启前确认一次（已在白名单则忽略）
-                                    mode == TOOL_LIST_MODE_ALLOW && settings.toolListMode != TOOL_LIST_MODE_ALLOW ->
-                                        pendingAllowConfirm = true
-                                    settings.toolListMode == mode -> Unit
-                                    else -> vm.updateSettings(settings.copy(toolListMode = mode))
-                                }
-                            },
-                    )
-                }
-                if (settings.toolListMode == TOOL_LIST_MODE_DENY) {
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_tools_list_deny_title)) },
-                        supportingContent = {
-                            Text(stringResource(R.string.setting_tools_list_count, settings.toolListDeny.size))
-                        },
-                        modifier =
-                            Modifier.clickable {
-                                listDraft = settings.toolListDeny.joinToString("\n")
-                                editingList = TOOL_LIST_MODE_DENY
-                            },
-                    )
-                }
-                if (settings.toolListMode == TOOL_LIST_MODE_ALLOW) {
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_tools_list_allow_title)) },
-                        supportingContent = {
-                            Text(stringResource(R.string.setting_tools_list_count, settings.toolListAllow.size))
-                        },
-                        modifier =
-                            Modifier.clickable {
-                                listDraft = settings.toolListAllow.joinToString("\n")
-                                editingList = TOOL_LIST_MODE_ALLOW
-                            },
-                    )
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_tools_list_always_keep)) },
-                        supportingContent = { Text(stringResource(R.string.setting_tools_list_always_keep_desc)) },
-                    )
-                }
-                item(
-                    headlineContent = { Text(stringResource(R.string.setting_tools_list_reset)) },
-                    supportingContent = { Text(stringResource(R.string.setting_tools_list_reset_desc)) },
-                    modifier = Modifier.clickable { rollbackToolList() },
-                )
-            }
-
             CardGroup(title = { Text(stringResource(R.string.setting_tools_section_advanced)) }) {
                 item(
                     headlineContent = { Text(stringResource(R.string.setting_termux_turn_budget)) },
@@ -260,79 +171,5 @@ fun SettingToolsPage(
         )
     }
 
-    if (pendingAllowConfirm) {
-        AlertDialog(
-            onDismissRequest = { pendingAllowConfirm = false },
-            title = { Text(stringResource(R.string.setting_tools_list_allow_warning_title)) },
-            text = { Text(stringResource(R.string.setting_tools_list_allow_warning_desc)) },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        vm.updateSettings(settings.copy(toolListMode = TOOL_LIST_MODE_ALLOW))
-                        pendingAllowConfirm = false
-                    },
-                ) {
-                    Text(stringResource(R.string.settings_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingAllowConfirm = false }) {
-                    Text(stringResource(R.string.settings_cancel))
-                }
-            },
-        )
-    }
-
-    editingList?.let { mode ->
-        AlertDialog(
-            onDismissRequest = { editingList = null },
-            title = {
-                Text(
-                    stringResource(
-                        if (mode == TOOL_LIST_MODE_ALLOW) {
-                            R.string.setting_tools_list_allow_title
-                        } else {
-                            R.string.setting_tools_list_deny_title
-                        },
-                    ),
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.setting_tools_list_dialog_desc))
-                    OutlinedTextField(
-                        value = listDraft,
-                        onValueChange = { listDraft = it },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 120.dp),
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val parsed = applyList(listDraft)
-                        vm.updateSettings(
-                            if (mode == TOOL_LIST_MODE_ALLOW) {
-                                settings.copy(toolListAllow = parsed)
-                            } else {
-                                settings.copy(toolListDeny = parsed)
-                            },
-                        )
-                        editingList = null
-                    },
-                ) {
-                    Text(stringResource(R.string.settings_confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { editingList = null }) {
-                    Text(stringResource(R.string.settings_cancel))
-                }
-            },
-        )
-    }
 }
 

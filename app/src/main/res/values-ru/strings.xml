@@ -1561,25 +1561,6 @@
   <string name="setting_page_telegram_default_chat_desc">Куда идут исходящие сообщения, когда LLM опускает chat_id (например, оповещения cron-задач). Используйте свой числовой ID пользователя Telegram.</string>
   <string name="setting_page_telegram_desc">Запуск LLM как Telegram-бота — общайтесь с ним удалённо с любого устройства.</string>
   <string name="setting_page_tools">Инструменты</string>
-  <string name="setting_tools_section_list">Списки инструментов</string>
-  <string name="setting_tools_list_mode_title">Режим списка</string>
-  <string name="setting_tools_list_mode_desc">По умолчанию выключено. Запрет: перечисленные инструменты передают только краткое описание. Разрешение: передаются только перечисленные инструменты.</string>
-  <string name="setting_tools_list_mode_off">Выключено</string>
-  <string name="setting_tools_list_mode_deny">Список запрета (кратко для этих)</string>
-  <string name="setting_tools_list_mode_allow">Список разрешения (только эти)</string>
-  <string name="setting_tools_list_mode_deny_short">Запрет</string>
-  <string name="setting_tools_list_mode_allow_short">Разрешение</string>
-  <string name="setting_tools_list_deny_title">Инструменты в запрете</string>
-  <string name="setting_tools_list_allow_title">Инструменты в разрешении</string>
-  <string name="setting_tools_list_count">Настроено: %1$d</string>
-  <string name="setting_tools_list_always_keep">Всегда доступны</string>
-  <string name="setting_tools_list_always_keep_desc">list_tools / get_tool_schema / ask_user доступны всегда, даже в режиме разрешения.</string>
-  <string name="setting_tools_list_selected">Текущий</string>
-  <string name="setting_tools_list_reset">Сбросить к умолчанию</string>
-  <string name="setting_tools_list_reset_desc">Очищает оба списка и выключает функцию.</string>
-  <string name="setting_tools_list_allow_warning_title">Включить список разрешения?</string>
-  <string name="setting_tools_list_allow_warning_desc">В режиме разрешения ассистент видит только перечисленные инструменты (list_tools / get_tool_schema / ask_user остаются всегда). Ошибка в списке может заблокировать другие задачи — в любой момент можно нажать «Сбросить к умолчанию».</string>
-  <string name="setting_tools_list_dialog_desc">По одному имени инструмента в строке (можно через запятую). Используйте точные имена из list_tools, например ssh_upload. Можно попросить ассистента в чате подготовить список, но он не может изменить эту настройку — вставьте и сохраните список самостоятельно.</string>
   <string name="setting_page_tools_desc">Детализация инструментов, лимит вывода, бюджет времени на ход и подтверждения.</string>
   <string name="setting_tools_section_detail">Детализация</string>
   <string name="setting_tools_section_output">Лимит вывода</string>
@@ -2683,6 +2664,9 @@
   <string name="assistant_page_extra_cold_desc">Настроено: %1$d. Они передают только одну строку назначения, полные параметры запрашиваются по необходимости.</string>
   <string name="assistant_page_extra_cold_action">Изменить</string>
   <string name="assistant_page_extra_cold_dialog_desc">По одному имени инструмента в строке (можно через запятую). Используйте точные имена из list_tools, например ssh_upload. Это меняет только подробность описаний для этого ассистента — инструменты остаются вызываемыми. Не знаете, что указать? Попросите ассистента в чате сформировать список и вставьте его здесь.</string>
+  <string name="assistant_page_only_tools_title">Оставить только эти инструменты</string>
+  <string name="assistant_page_only_tools_desc">Настроено: %1$d. Если не пусто, ассистент видит только перечисленные инструменты (list_tools / get_tool_schema / ask_user доступны всегда).</string>
+  <string name="assistant_page_only_tools_dialog_desc">По одному имени инструмента в строке (можно через запятую). Используйте точные имена из list_tools. Пусто = без ограничений. Ошибка в списке может заблокировать задачи — очистите список для восстановления. Не знаете, что указать? Попросите ассистента в чате подготовить список.</string>
   <string name="assistant_page_extra_cold_hint">напр. ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">Диагностика ИИ</string>
   <string name="assistant_page_local_tools_diagnostics_title">Диагностика и журналы</string>

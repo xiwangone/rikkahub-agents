@@ -257,6 +257,9 @@ class AssistantDetailVM(
                 val next =
                     target.copy(
                         localTools = source.localTools,
+                        // 工具详略/范围同属「工具配置」：此前漏复制，导入后名单不会跟过来
+                        extraColdTools = source.extraColdTools,
+                        onlyTools = source.onlyTools,
                         mcpServers = if (includeMcp) source.mcpServers else target.mcpServers,
                         enabledSkills = if (includeSkills) source.enabledSkills else target.enabledSkills,
                         enableWebSearch = if (includeWebSearch) source.enableWebSearch else target.enableWebSearch,

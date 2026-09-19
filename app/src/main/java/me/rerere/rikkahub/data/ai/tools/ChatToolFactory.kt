@@ -140,27 +140,18 @@ class ChatToolFactory(
         // 检索元工具与其余工具**一起参与排序**：此前它们是追加在列表末尾的，使注入集
         // 并非全局有序（tool_surface_report 的 order_is_sorted 恒为 false，观测口径失真，
         // 容易被误读成"顺序抖动"）。顺序本来稳定，这里只是让它同时自洽、可观测。
-        // 工具名单（默认关闭）：allow = 只注入名单内工具（保命工具始终保留）；deny = 名单内工具只发简要说明。
-        val listMode = settings.toolListMode
-        val denySet = settings.toolListDeny.toSet()
-        val listFiltered = applyToolListFilter(stableFull, settings)
+        // 工具范围（助手级白名单）：留空 = 不限制；非空 = 只注入名单内工具（保命工具始终保留）。
+        val listFiltered = applyToolScopeFilter(stableFull, assistant.onlyTools)
 
         val injected =
             (
                 listFiltered.map {
-                    val view =
-                        surfaceView(
-                            it,
-                            invocationCtx.callerConversationId,
-                            trimEnabled = settings.displaySetting.toolSurfaceTrimming && ToolSurfacePolicy.TRIM_ENABLED,
-                            extraCold = assistant.extraColdTools.toSet(),
-                        )
-                    // deny：名单内工具强制「只发一行用途」，独立于「精简工具说明」总开关
-                    if (isBriefListed(it.name, listMode, denySet)) {
-                        toColdView(it, invocationCtx.callerConversationId)
-                    } else {
-                        view
-                    }
+                    surfaceView(
+                        it,
+                        invocationCtx.callerConversationId,
+                        trimEnabled = settings.displaySetting.toolSurfaceTrimming && ToolSurfacePolicy.TRIM_ENABLED,
+                        extraCold = assistant.extraColdTools.toSet(),
+                    )
                 } +
                     buildToolDiscoveryTools(
                         listFiltered,
@@ -292,26 +283,17 @@ private fun toColdView(tool: Tool, conversationId: String?): Tool {
 }
 
 /**
- * 工具名单过滤（allow 模式）：只保留名单内工具 + 保命工具。
+ * 工具范围过滤（助手级白名单）：非空时只保留名单内工具 + 保命工具。
  *
  * 抽为独立函数既降低 `createTools` 的圈复杂度，也让「白名单过滤」可被单测覆盖。
  */
-private fun applyToolListFilter(tools: List<Tool>, settings: Settings): List<Tool> {
-    if (settings.toolListMode != TOOL_LIST_MODE_ALLOW) return tools
-    val allow = settings.toolListAllow.toSet()
+private fun applyToolScopeFilter(tools: List<Tool>, only: List<String>): List<Tool> {
+    if (only.isEmpty()) return tools
+    val allow = only.toSet()
     return tools.filter { it.name in allow || it.name in ALWAYS_KEEP_TOOL_NAMES }
 }
 
-/** 该工具是否在「黑名单」里（deny 模式下只发简要说明）。 */
-private fun isBriefListed(name: String, mode: String, denySet: Set<String>): Boolean =
-    mode == TOOL_LIST_MODE_DENY && name in denySet
-
 /** 描述长度阈值：超过它才做 WARM 档收敛（短的保持原样，不丢信息）。 */
-/** 工具名单模式（默认关闭）：deny = 名单内工具只发简要说明；allow = 只注入名单内工具。 */
-const val TOOL_LIST_MODE_OFF = "off"
-const val TOOL_LIST_MODE_DENY = "deny"
-const val TOOL_LIST_MODE_ALLOW = "allow"
-
 /** 白名单模式下的保命工具：始终注入，避免"看不见工具也取不回参数表"的死局。 */
 private val ALWAYS_KEEP_TOOL_NAMES =
     setOf("list_tools", "get_tool_schema", "ask_user", TOOL_SURFACE_REPORT_TOOL_NAME)
