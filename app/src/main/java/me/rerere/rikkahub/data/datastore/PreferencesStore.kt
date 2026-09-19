@@ -605,6 +605,19 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
         .distinctUntilChanged()
         .toMutableStateFlow(scope, Settings.dummy())
 
+    /**
+     * 写入「子代理默认工作区」。独立成函数：update() 已接近静态检查的行数门限。
+     * 未设置时**移除 key**，避免旧值残留（其余生成器只写非空值）。
+     */
+    private fun putSubAgentDefaultWorkspace(preferences: MutablePreferences, settings: Settings) {
+        val id = settings.subAgentDefaultWorkspaceId
+        if (id == null) {
+            preferences.remove(SUB_AGENT_DEFAULT_WORKSPACE)
+        } else {
+            preferences[SUB_AGENT_DEFAULT_WORKSPACE] = id.toString()
+        }
+    }
+
     suspend fun update(settings: Settings) {
         if(settings.init) {
             AppLog.w(TAG, "Cannot update dummy settings")
@@ -1367,15 +1380,3 @@ val DEFAULT_MODE_INJECTIONS = listOf(
     )
 )
 
-/**
- * 写入「子代理默认工作区」。独立成函数：PreferencesStore.update 已接近静态检查的行数门限。
- * 未设置时**移除 key**，避免旧值残留（其余生成器只写非空值）。
- */
-private fun putSubAgentDefaultWorkspace(preferences: MutablePreferences, settings: Settings) {
-    val id = settings.subAgentDefaultWorkspaceId
-    if (id == null) {
-        preferences.remove(SUB_AGENT_DEFAULT_WORKSPACE)
-    } else {
-        preferences[SUB_AGENT_DEFAULT_WORKSPACE] = id.toString()
-    }
-}
