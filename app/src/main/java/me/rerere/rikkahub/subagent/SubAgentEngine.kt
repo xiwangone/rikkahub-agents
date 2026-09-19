@@ -518,7 +518,7 @@ class SubAgentEngine(
             }
             if (timedOut) {
                 markTerminal(runId, SubAgentStatus.TIMED_OUT, "exceeded ${request.timeoutSeconds}-second cap")
-                notifyParentIfBackground(parentChatId, registry.get(runId))
+                postRunResultToParent(parentChatId, registry.get(runId))
                 return
             }
             // Harvest the assistant's final text from the conversation. Best-effort —
@@ -542,13 +542,13 @@ class SubAgentEngine(
             ledgerIds.remove(runId)?.let {
                 agentRunRepo.markTerminal(it, AgentRunStatus.succeeded)
             }
-            notifyParentIfBackground(parentChatId, registry.get(runId))
+            postRunResultToParent(parentChatId, registry.get(runId))
         } catch (t: Throwable) {
             AppLog.w(TAG, "sub-agent run failed", t)
             // CancellationException → CANCELLED, anything else → FAILED.
             val terminal = if (t is kotlinx.coroutines.CancellationException) SubAgentStatus.CANCELLED else SubAgentStatus.FAILED
             markTerminal(runId, terminal, "${t::class.simpleName}: ${t.message.orEmpty()}")
-            notifyParentIfBackground(parentChatId, registry.get(runId))
+            postRunResultToParent(parentChatId, registry.get(runId))
         } finally {
             HeadlessConversations.unmark(conv.id)
             registry.clearJob(runId)
@@ -594,13 +594,36 @@ class SubAgentEngine(
      * to 5 minutes for the parent to be idle before posting. After 5 minutes we post anyway
      * — better to interrupt than to silently lose the completion.
      */
-    private suspend fun notifyParentIfBackground(parentChatId: String?, run: SubAgentRun?) {
-        if (parentChatId == null || run == null || !run.runInBackground) return
+    /**
+     * 把子代理的终态回执投递到父会话。
+     *
+     * 投递策略（2026-09-20 重做）：
+     *  - **不再轮询等父会话空闲**：[me.rerere.rikkahub.service.ChatService.sendMessage] 自身
+     *    已带排队语义——会话忙则 enqueue（不打断本轮，本轮结束自动派发队首），空闲则立即发。
+     *    此前的「等空闲最多 5 分钟」是排队机制出现之前写的，只会造成滞后（极端情况还要靠
+     *    超时兜底硬发，反而打断）。
+     *  - **前台派发也投**（此前只有后台投）：前台结果虽已作为工具返回值交给父助手，但在会话
+     *    里留一条记录便于回溯；前台时父会话正在生成 → 自动入队，不会打断。
+     *  - `answer`：后台 = true（唤醒父助手继续处理该结果）；前台 = false（只留痕，不再多跑一轮）。
+     *  - 消息体带**本次用量**（in/cached/out + 回合数 + 耗时）：此前只回状态与结果，消耗看不见。
+     */
+    private suspend fun postRunResultToParent(parentChatId: String?, run: SubAgentRun?) {
+        if (parentChatId == null || run == null) return
         val parentUuid = runCatching { Uuid.parse(parentChatId) }.getOrNull() ?: return
         if (HeadlessConversations.isHeadless(parentUuid)) return
 
+        val elapsedSec = if (run.startedAtMs > 0 && run.finishedAtMs > 0) {
+            String.format(java.util.Locale.US, "%.1f", (run.finishedAtMs - run.startedAtMs) / 1000.0)
+        } else {
+            null
+        }
         val message = buildString {
             appendLine("[Sub-agent ${run.label} — ${run.status.name}]")
+            appendLine(
+                "用量: in ${run.tokensIn} (cached ${run.tokensCached}) / out ${run.tokensOut}" +
+                    " · ${run.tripCount} 回合" +
+                    (elapsedSec?.let { " · 耗时 ${it}s" } ?: ""),
+            )
             run.error?.takeIf { it.isNotBlank() }?.let {
                 appendLine("Error: $it")
             }
@@ -613,11 +636,11 @@ class SubAgentEngine(
         }.trimEnd()
 
         runCatching {
-            withTimeoutOrNull(5 * 60_000L) {
-                chatService.getGenerationJobStateFlow(parentUuid).first { it == null }
-                Unit
-            }
-            chatService.sendMessage(parentUuid, listOf(UIMessagePart.Text(message)))
+            chatService.sendMessage(
+                parentUuid,
+                listOf(UIMessagePart.Text(message)),
+                answer = run.runInBackground,
+            )
         }.onFailure {
             AppLog.w(TAG, "failed to notify parent $parentChatId of subagent completion", it)
         }

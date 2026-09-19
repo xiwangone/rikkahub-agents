@@ -131,7 +131,7 @@ class TelegramBotService : Service() {
      * turn, it streams the final text to Telegram itself, so the listener must skip.
      *
      * The listener fires for the OTHER case: a generation that wasn't kicked off by an
-     * inbound Telegram message — e.g. the [SubAgentEngine.notifyParentIfBackground] wake
+     * inbound Telegram message — e.g. the [SubAgentEngine.postRunResultToParent] wake
      * message, where a sub-agent finished and posted a synthetic user message into the
      * parent's conversation. Without this listener, the parent's LLM responds silently
      * to the wake — its reply lands in the in-app chat history but never reaches Telegram.
@@ -521,7 +521,7 @@ class TelegramBotService : Service() {
     /**
      * Long-lived listener for generations completing on chat-mapped conversations that
      * AREN'T currently being pumped by [handleIncoming]. Without this, sub-agent wake
-     * messages — posted via [SubAgentEngine.notifyParentIfBackground] →
+     * messages — posted via [SubAgentEngine.postRunResultToParent] →
      * `chatService.sendMessage(parentConvId, …)` — kick off a generation in the parent's
      * Telegram conversation, but its assistant reply never reaches Telegram because
      * handleIncoming isn't running for that turn.
