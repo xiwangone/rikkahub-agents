@@ -73,7 +73,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         VaultAuditLogEntity::class,
         CompressedArchiveEntity::class,
     ],
-    version = 38,
+    version = 39,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -125,6 +125,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // v38: 密钥库凭据类型字段（vault_credentials 新增 type，带默认值可自动迁移；
         // 旧数据落在空串 = 未分类，下次保存/导入时按名称与结构自动补全）
         AutoMigration(from = 37, to = 38),
+        AutoMigration(from = 38, to = 39),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)

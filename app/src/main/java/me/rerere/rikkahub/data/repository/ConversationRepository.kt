@@ -383,6 +383,9 @@ class ConversationRepository(
             lorebookIds = JsonInstant.encodeToString(conversation.lorebookIds),
             workspaceCwd = conversation.workspaceCwd ?: "",
             folderId = conversation.folderId?.toString() ?: "",
+            toolScopeOverride = conversation.toolScopeOverride?.let { JsonInstant.encodeToString(it) } ?: "",
+            workspaceIdOverride = conversation.workspaceIdOverride?.toString() ?: "",
+            maxToolStepsOverride = conversation.maxToolStepsOverride ?: 0,
         )
     }
 
@@ -404,6 +407,13 @@ class ConversationRepository(
             lorebookIds = JsonInstant.decodeFromString(conversationEntity.lorebookIds),
             workspaceCwd = conversationEntity.workspaceCwd.ifEmpty { null },
             folderId = conversationEntity.folderId.ifEmpty { null }?.let { Uuid.parse(it) },
+            toolScopeOverride = conversationEntity.toolScopeOverride
+                .ifEmpty { null }
+                ?.let { runCatching { JsonInstant.decodeFromString<List<String>>(it) }.getOrNull() },
+            workspaceIdOverride = conversationEntity.workspaceIdOverride
+                .ifEmpty { null }
+                ?.let { runCatching { Uuid.parse(it) }.getOrNull() },
+            maxToolStepsOverride = conversationEntity.maxToolStepsOverride.takeIf { it > 0 },
         )
     }
 

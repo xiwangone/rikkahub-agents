@@ -44,4 +44,14 @@ data class ConversationEntity(
     val folderId: String = "",
     @ColumnInfo("chat_model_id", defaultValue = "")
     val chatModelId: String = "",
+    // 会话级「工具/工作区/步数」覆盖（子代理按此收敛，见 SubAgentEngine）。
+    // 【为何必须落库】子代理会话创建后走 insertConversation → initializeConversation(id) 按 id
+    // 重新加载；此前这三项只存在于内存对象里，重载即丢失 → 回退成「不限制」（实测：子代理
+    // 声明只读集却拿到全量 139 个工具、写工具可用）。空串/0 = 未设置。
+    @ColumnInfo("tool_scope_override", defaultValue = "")
+    val toolScopeOverride: String = "",
+    @ColumnInfo("workspace_id_override", defaultValue = "")
+    val workspaceIdOverride: String = "",
+    @ColumnInfo("max_tool_steps_override", defaultValue = "0")
+    val maxToolStepsOverride: Int = 0,
 )
