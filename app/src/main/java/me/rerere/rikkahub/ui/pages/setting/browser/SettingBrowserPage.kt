@@ -1,8 +1,11 @@
 package me.rerere.rikkahub.ui.pages.setting.browser
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
@@ -12,6 +15,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
@@ -22,6 +26,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -33,6 +38,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.browser.BrowserActivity
+import me.rerere.rikkahub.browser.BrowserSearchEngine
 import me.rerere.rikkahub.browser.BrowserToolDefaults
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -51,8 +57,8 @@ import org.koin.androidx.compose.koinViewModel
  *     write tools default OFF, loop-control ON. Per the spec, the per-tool granularity
  *     is intentional — the AI controlling a real browser is the highest-trust surface
  *     in the app, so the user must be able to grant only what they trust.
- *  3. Defaults & limits — search engine (forward-compat dropdown, no-op in v1),
- *     per-tool timeout, single-task timeout. The two timeouts are editable (GitHub issue
+ *  3. Defaults & limits — search engine (pickable, default Bing), per-tool timeout,
+ *     single-task timeout. The two timeouts are editable (GitHub issue
  *     #4): values are clamped into a generous-but-bounded range in BrowserPreferences.
  */
 @Composable
@@ -62,9 +68,11 @@ fun SettingBrowserPage(vm: SettingBrowserViewModel = koinViewModel()) {
     val toolStates by vm.toolStates.collectAsStateWithLifecycle()
     val perToolTimeoutMs by vm.perToolTimeoutMs.collectAsStateWithLifecycle()
     val singleTaskTimeoutMs by vm.singleTaskTimeoutMs.collectAsStateWithLifecycle()
+    val searchEngine by vm.searchEngine.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var showClearConfirm by remember { mutableStateOf(false) }
+    var showEnginePicker by remember { mutableStateOf(false) }
     val cleared = stringResource(R.string.setting_browser_clear_data_done)
 
     if (showClearConfirm) {
@@ -84,6 +92,44 @@ fun SettingBrowserPage(vm: SettingBrowserViewModel = koinViewModel()) {
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirm = false }) {
+                    Text(stringResource(android.R.string.cancel))
+                }
+            },
+        )
+    }
+
+    // 搜索引擎选择：列出全部内置引擎，高亮当前项，点选后立即持久化并关闭。
+    if (showEnginePicker) {
+        AlertDialog(
+            onDismissRequest = { showEnginePicker = false },
+            title = { Text(stringResource(R.string.setting_browser_search_engine)) },
+            text = {
+                Column {
+                    BrowserSearchEngine.ALL.forEach { engine ->
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        vm.setSearchEngine(engine)
+                                        showEnginePicker = false
+                                    }.padding(vertical = 4.dp),
+                        ) {
+                            RadioButton(
+                                selected = engine == searchEngine,
+                                onClick = {
+                                    vm.setSearchEngine(engine)
+                                    showEnginePicker = false
+                                },
+                            )
+                            Text(text = engine.displayName)
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showEnginePicker = false }) {
                     Text(stringResource(android.R.string.cancel))
                 }
             },
@@ -172,8 +218,9 @@ fun SettingBrowserPage(vm: SettingBrowserViewModel = koinViewModel()) {
                 title = { Text(stringResource(R.string.setting_browser_section_defaults)) },
             ) {
                 item(
+                    onClick = { showEnginePicker = true },
                     headlineContent = { Text(stringResource(R.string.setting_browser_search_engine)) },
-                    supportingContent = { Text(stringResource(R.string.setting_browser_search_engine_desc)) },
+                    supportingContent = { Text(searchEngine.displayName) },
                 )
                 // Per-tool timeout — editable, expressed in seconds. Clamped to 10 s..10 min
                 // in BrowserPreferences before persist (GitHub issue #4).

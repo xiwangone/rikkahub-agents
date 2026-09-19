@@ -1845,7 +1845,6 @@
   <string name="setting_browser_tool_done_desc">Let the AI signal it has finished a task.</string>
   <string name="setting_browser_section_defaults">Defaults &amp; limits</string>
   <string name="setting_browser_search_engine">Search engine</string>
-  <string name="setting_browser_search_engine_desc">DuckDuckGo (default) — switching takes effect once browser_search ships.</string>
   <string name="setting_browser_per_tool_timeout">Per-tool timeout</string>
   <string name="setting_browser_per_tool_timeout_desc">Hard time budget for each browser tool call. Range 10 s to 10 min.</string>
   <string name="setting_browser_per_tool_timeout_unit">seconds</string>

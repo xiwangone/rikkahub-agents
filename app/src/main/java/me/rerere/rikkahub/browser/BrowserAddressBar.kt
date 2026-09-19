@@ -223,13 +223,17 @@ fun BrowserAddressBar(
  * Normalise raw user input into a navigable URL.
  *
  *  - already absolute (`http://`, `https://`, `file://`, `about:`, `data:`) → unchanged
- *  - looks like a host (`example.com`, `foo.bar/baz`, `192.168.1.1:8080`) → prepend `https://`
- *  - everything else (no dot, no colon, has a space) → search query via DuckDuckGo
+ *  - looks like a host (`example.com`, `foo.bar/baz`, `example.com:8080`) → prepend `https://`
+ *  - everything else (no dot, no colon, has a space) → search query via [engine]
  *
- * Search engine is hardcoded to DuckDuckGo in v1 — the spec's pref dropdown is a no-op
- * stub for v1.5. Wire through `BrowserPreferences` once Pass 2 lands the read path.
+ * 搜索引擎由用户在 Settings → Browser 中选择（默认 [BrowserSearchEngine.DEFAULT]），
+ * 运行时通过 [BrowserController.searchEngine] 同步读取。[engine] 的默认值只是让旧调用点
+ * 保持可用。
  */
-fun normalizeBrowserQuery(raw: String): String {
+fun normalizeBrowserQuery(
+    raw: String,
+    engine: BrowserSearchEngine = BrowserSearchEngine.DEFAULT,
+): String {
     val q = raw.trim()
     if (q.isEmpty()) return "about:blank"
     val lower = q.lowercase()
@@ -241,5 +245,5 @@ fun normalizeBrowserQuery(raw: String): String {
     ) return q
     // Heuristic: if it contains a dot OR a colon (port/scheme), treat as URL.
     val looksLikeHost = (q.contains('.') || q.contains(':')) && !q.contains(' ')
-    return if (looksLikeHost) "https://$q" else "https://duckduckgo.com/?q=${java.net.URLEncoder.encode(q, "UTF-8")}"
+    return if (looksLikeHost) "https://$q" else engine.searchUrl(q)
 }

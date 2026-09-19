@@ -5,6 +5,7 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.longPreferencesKey
+import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -30,6 +31,8 @@ private val Context.browserDataStore by preferencesDataStore(name = "browser_pre
  * Defaults come from [BrowserToolDefaults.DEFAULT_ENABLED] so users get a sensible
  * read-only browser on first install: navigate, screenshot, read text — but no clicks
  * or JS until they explicitly opt in.
+ *
+ * 除工具开关与超时外，这里还存了地址栏的搜索引擎偏好（默认 [BrowserSearchEngine.DEFAULT]）。
  */
 class BrowserPreferences(private val context: Context) {
 
@@ -61,6 +64,31 @@ class BrowserPreferences(private val context: Context) {
                 .onEach { BrowserController.singleTaskTimeoutMs = it }
                 .collect {}
         }
+        // 搜索引擎同理：地址栏的提交回调不是挂起函数，来不及去读 DataStore，所以把当前值
+        // 推给 [BrowserController.searchEngine] 这个同步可读的静态源；用户改选后自动同步。
+        scope.launch {
+            searchEngineFlow()
+                .distinctUntilChanged()
+                .onEach { BrowserController.searchEngine = it }
+                .collect {}
+        }
+    }
+
+    // --- 搜索引擎 ----------------------------------------------------------------------------
+
+    private val searchEngineKey = stringPreferencesKey("search_engine")
+
+    /**
+     * 当前搜索引擎。未写过或写入值无法识别（旧版本遗留 / 被手工改坏）时回落到
+     * [BrowserSearchEngine.DEFAULT]。
+     */
+    fun searchEngineFlow(): Flow<BrowserSearchEngine> = store.data.map { prefs ->
+        BrowserSearchEngine.fromId(prefs[searchEngineKey])
+    }
+
+    /** 持久化用户选择的搜索引擎（只存 [BrowserSearchEngine.id]）。 */
+    suspend fun setSearchEngine(engine: BrowserSearchEngine) {
+        store.edit { it[searchEngineKey] = engine.id }
     }
 
     /** Per-tool timeout (ms). Missing-key safe; always clamped into the supported range. */

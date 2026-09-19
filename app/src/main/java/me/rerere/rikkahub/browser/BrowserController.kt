@@ -93,6 +93,16 @@ object BrowserController {
      */
     @Volatile
     var perToolTimeoutMs: Long = BrowserToolDefaults.DEFAULT_PER_TOOL_TIMEOUT_MS
+
+    /**
+     * 地址栏提交纯文本（非 URL）时使用的搜索引擎。用户在 Settings → Browser 选择，
+     * [BrowserPreferences] 在应用启动时写入并在每次改动后同步过来。
+     *
+     * 之所以放在这里而不是让调用方去读 DataStore：地址栏的提交回调是同步的，
+     * 而 DataStore 读取是挂起的。默认 [BrowserSearchEngine.DEFAULT]，首次读取落地前也安全。
+     */
+    @Volatile
+    var searchEngine: BrowserSearchEngine = BrowserSearchEngine.DEFAULT
     /** Cache subdir for streamed (headless) screenshots — separate from the `browser-shots`
      *  subdir the explicit browser_screenshot tool writes into so the streamer pipe can be
      *  swept independently if it ever grows unbounded. */

@@ -104,7 +104,8 @@ class BrowserActivity : ComponentActivity() {
                     onRefreshTap = { webView?.reload() },
                     onStopAi = { BrowserController.stopCurrentTask() },
                     onNavigate = { raw ->
-                        webView?.loadUrl(normalizeBrowserQuery(raw))
+                        // 搜索引擎取运行时同步值，随 Settings 里的选择变化（默认 Bing）。
+                        webView?.loadUrl(normalizeBrowserQuery(raw, BrowserController.searchEngine))
                     },
                     initialUrl = intent?.getStringExtra(EXTRA_INITIAL_URL) ?: "about:blank",
                     conversationId = conversationId,

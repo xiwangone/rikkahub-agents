@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.browser.BrowserPreferences
+import me.rerere.rikkahub.browser.BrowserSearchEngine
 import me.rerere.rikkahub.browser.BrowserToolDefaults
 import java.io.File
 
@@ -41,11 +42,24 @@ class SettingBrowserViewModel(
             initialValue = BrowserToolDefaults.DEFAULT_SINGLE_TASK_TIMEOUT_MS,
         )
 
+    /** 地址栏的搜索引擎偏好。默认 [BrowserSearchEngine.DEFAULT]（Bing）。 */
+    val searchEngine: StateFlow<BrowserSearchEngine> =
+        prefs.searchEngineFlow().stateIn(
+            scope = viewModelScope,
+            started = SharingStarted.WhileSubscribed(5_000),
+            initialValue = BrowserSearchEngine.DEFAULT,
+        )
+
     fun setToolEnabled(
         toolName: String,
         enabled: Boolean,
     ) {
         viewModelScope.launch { prefs.setToolEnabled(toolName, enabled) }
+    }
+
+    /** 持久化搜索引擎选择。 */
+    fun setSearchEngine(engine: BrowserSearchEngine) {
+        viewModelScope.launch { prefs.setSearchEngine(engine) }
     }
 
     /** Persist a per-tool timeout given in seconds. Clamping happens in [BrowserPreferences]. */
