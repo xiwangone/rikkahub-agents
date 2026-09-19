@@ -40,6 +40,19 @@ class TextReplacersTest {
     }
 
     @Test
+    fun `ambiguous occurrences also list the offending lines`() {
+        val content = "alpha\nbeta\nmarker\ngamma\nmarker\n"
+        val e = assertThrows(IllegalArgumentException::class.java) {
+            replaceText(content, "marker", "x", replaceAll = false)
+        }
+        val msg = e.message.orEmpty()
+        assertEquals(true, msg.contains("2 locations"))
+        assertEquals(true, msg.contains("first matches at:"))
+        assertEquals(true, msg.contains("line 3:"))
+        assertEquals(true, msg.contains("line 5:"))
+    }
+
+    @Test
     fun `throws when old_text is not found anywhere`() {
         assertThrows(IllegalArgumentException::class.java) {
             replaceText("hello world", "missing", "x", replaceAll = false)

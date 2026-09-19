@@ -47,7 +47,8 @@ fun replaceText(
         if (!replaceAll) {
             require(matches.size == 1) {
                 "old_text matches ${matches.size} locations (strategy: ${replacer.name}); " +
-                    "add more surrounding context to make it unique, or set replace_all=true"
+                    "add more surrounding context to make it unique, or set replace_all=true" +
+                    matchLocationHints(content, matches.map { it.start })
             }
         }
         val applied = if (replaceAll) matches.sortedBy { it.start } else listOf(matches.minBy { it.start })
@@ -71,6 +72,30 @@ fun replaceText(
             "read the file again and copy old_text exactly from its current content" +
             closestSnippetHint(content, oldText),
     )
+}
+
+/**
+ * 把匹配偏移换算成「行号 + 该行内容」的前几处提示，用于「命中多处」时给出定位线索。
+ * （未命中场景由 [closestSnippetHint] 负责。）
+ */
+private fun matchLocationHints(content: String, starts: List<Int>, max: Int = 3): String {
+    if (starts.isEmpty()) return ""
+    val lines = content.split('\n')
+    // 偏移 → 行号（单次扫描，避免每处匹配都重算前缀换行数）
+    val lineOfOffset = IntArray(content.length + 1)
+    var line = 0
+    for (i in content.indices) {
+        lineOfOffset[i] = line
+        if (content[i] == '\n') line++
+    }
+    lineOfOffset[content.length] = line
+    val hints = starts.sorted().take(max).map { start ->
+        val idx = lineOfOffset[start.coerceIn(0, content.length)]
+        val text = lines.getOrNull(idx)?.trim()?.take(80).orEmpty()
+        "line ${idx + 1}: $text"
+    }
+    val more = if (starts.size > max) " (+${starts.size - max} more)" else ""
+    return " (first matches at: ${hints.joinToString(" | ")})$more"
 }
 
 /**
