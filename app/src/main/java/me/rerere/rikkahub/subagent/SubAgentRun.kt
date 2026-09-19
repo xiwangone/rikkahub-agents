@@ -41,6 +41,8 @@ data class SubAgentRun(
     val toolScope: List<String>? = null,
     /** 本次派发是否属于“提权”（含写/执行类工具，或显式继承全量） */
     val elevated: Boolean = false,
+    /** 生效工作区与父会话相同 → 写入可能互相覆盖（互踩风险可见化） */
+    val sameWorkspaceAsParent: Boolean = false,
 )
 
 @Serializable
@@ -119,10 +121,12 @@ object SubAgentDefaults {
         Rules:
         - Stay tightly scoped to the task you were given. Do not expand scope.
         - Use tools to gather facts before answering when accuracy matters.
-        - Return a clear, structured final summary as your last message — that summary is
-          what the parent will see. Aim for 100-500 words unless the task asks otherwise.
+        - Do NOT narrate progress step by step and do not emit progress lines. The parent
+          only receives your FINAL message; intermediate narration is wasted tokens.
+        - End with one short structured summary: what you did, what you found, and where any
+          artifacts are (file paths). Aim for 100-500 words unless the task asks otherwise.
         - If the task is impossible, return a single short paragraph explaining why.
-        - Do not ask the parent for clarification — make the best judgment call you can
+        - Do not ask the parent for clarification - make the best judgment call you can
           and proceed.
     """.trimIndent()
 }

@@ -365,6 +365,7 @@ class SubAgentEngine(
             val workspaceId: String?,
             val toolScope: List<String>?,
             val elevated: Boolean,
+            val sameWorkspaceAsParent: Boolean,
             val effectiveTask: String,
         ) : RunTargets()
 
@@ -378,7 +379,10 @@ class SubAgentEngine(
      *
      * 优先级：显式 request > agent profile > 父助手（null/空 = 继承父助手）。
      */
-    private suspend fun resolveRunTargets(request: SubAgentRequest): RunTargets {
+    private suspend fun resolveRunTargets(
+        request: SubAgentRequest,
+        parentAssistantId: Uuid,
+    ): RunTargets {
         val settings = settingsStore.settingsFlow.first()
         val profile = when (
             val r = SubAgentProfileResolver.resolve(request.agentName, settings.subAgents)
@@ -417,15 +421,24 @@ class SubAgentEngine(
         }
         // 提权判定：继承全量，或作用域内含任一写/执行类工具。
         val elevated = toolScope == null || toolScope.any { it in SubAgentDefaults.ELEVATED_TOOL_NAMES }
-        // profile 的系统提示词直接前置到任务文本（子代理没有 per-run system prompt 覆盖）。
-        val effectiveTask = profile?.systemPrompt?.trim()?.takeIf { it.isNotEmpty() }
-            ?.let { "$it\n\n${request.task}" }
-            ?: request.task
+        // profile 的系统提示词优先；否则用内置默认。
+        // 【为何必要】子代理会话用的是**父助手**（继承其系统提示词，含父助手的汇报纪律），
+        // 而子代理只需要一个最终结论 → 在此前置一份“子代理宪法”（含“不要逐段播报进度”）。
+        val basePrompt = profile?.systemPrompt?.trim()?.takeIf { it.isNotEmpty() }
+            ?: SubAgentDefaults.DEFAULT_SYSTEM_PROMPT
+        val effectiveTask = "$basePrompt\n\n${request.task}"
+        // A-9 互踩可见化：生效工作区与父助手相同（含“都未绑定”）且确实存在工作区时，标出风险。
+        val parentWorkspaceId = settings.assistants.firstOrNull { it.id == parentAssistantId }
+            ?.workspaceId?.toString()
+        val effectiveWorkspaceId = workspaceId ?: parentWorkspaceId
+        val sameWorkspaceAsParent =
+            effectiveWorkspaceId != null && effectiveWorkspaceId == parentWorkspaceId
         return RunTargets.Ready(
             chatModelId = chatModelId,
             workspaceId = workspaceId,
             toolScope = toolScope,
             elevated = elevated,
+            sameWorkspaceAsParent = sameWorkspaceAsParent,
             effectiveTask = effectiveTask,
         )
     }
@@ -444,21 +457,21 @@ class SubAgentEngine(
                 markTerminal(runId, SubAgentStatus.FAILED, "bad parent assistant id")
                 return
             }
-        val targets = when (val resolution = resolveRunTargets(request)) {
+        val targets = when (val resolution = resolveRunTargets(request, parentAsstUuid)) {
             is RunTargets.Rejected -> {
                 markTerminal(runId, SubAgentStatus.FAILED, resolution.message)
                 return
             }
             is RunTargets.Ready -> resolution
         }
-        if (targets.workspaceId != null || targets.toolScope != null || targets.elevated) {
-            registry.update(runId) {
-                it.copy(
-                    workspaceId = targets.workspaceId,
-                    toolScope = targets.toolScope,
-                    elevated = targets.elevated,
-                )
-            }
+        // 生效作用域/风险标记始终回写一次（toolScope 现在默认非空，无需再判空）
+        registry.update(runId) {
+            it.copy(
+                workspaceId = targets.workspaceId,
+                toolScope = targets.toolScope,
+                elevated = targets.elevated,
+                sameWorkspaceAsParent = targets.sameWorkspaceAsParent,
+            )
         }
         val conv = Conversation.ofId(
             id = Uuid.random(),

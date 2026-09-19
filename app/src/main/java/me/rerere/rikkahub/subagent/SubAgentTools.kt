@@ -44,6 +44,7 @@ internal fun encodeRun(run: SubAgentRun): kotlinx.serialization.json.JsonObject 
     }
     put("trip_count", run.tripCount)
     if (run.workspaceId != null) put("workspace_id", run.workspaceId)
+    if (run.sameWorkspaceAsParent) put("workspace_shared_with_parent", true)
     put("elevated", run.elevated)
     run.toolScope?.takeIf { it.isNotEmpty() }?.let { scope ->
         put("tool_scope", buildJsonArray { scope.forEach { add(it) } })
