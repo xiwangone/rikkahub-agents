@@ -5,6 +5,8 @@ import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.util.json
@@ -303,6 +305,48 @@ fun UIMessage.finishPendingTools(
         parts = updatedParts,
         finishedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
     ).finishReasoning()
+}
+
+/**
+ * 把消息里「尚未执行」的工具定案为「未执行的中断」：[UIMessagePart.Tool.output] 补一个合成的
+ * envelope，审批态置为 [ToolApprovalState.Denied]，其余 part 与消息本体保留。
+ *
+ * 与 [finishPendingTools] 的分工：后者只改写「用户已表态」的 `Pending`/`Approved`，并刻意放过
+ * `Auto`（Auto 可能只是过期快照回退，写成 Denied 会把「从未被问到」冤判成「用户拒绝」）。本函数
+ * 用于生成开始前的遗留清理 —— 此时状态已稳定、不会再被旧快照回退，凡是「未执行」的工具都确定
+ * 不会执行了（含自动批准后被中断的 `Auto`）。
+ *
+ * 之所以补结果而非丢弃整条消息：整条删除会连带丢掉本轮已生成的 AI 文本与工具调用记录，用户与
+ * 模型都失去这段上下文（模型以为什么都没发生，可能重复执行同一副作用）。补一个「未执行」的确定
+ * 性 envelope 后，消息成为合法终态（`isExecuted == true`），可安全进入后续上下文。
+ *
+ * 无未执行工具时返回自身（保持引用相等，避免无谓重组与落盘）。
+ */
+fun UIMessage.abandonUnexecutedTools(reason: String): UIMessage {
+    var changed = false
+    val newParts =
+        parts.map { part ->
+            if (part is UIMessagePart.Tool && !part.isExecuted) {
+                changed = true
+                part.copy(
+                    output =
+                        listOf(
+                            UIMessagePart.Text(
+                                json.encodeToString(
+                                    buildJsonObject {
+                                        put("status", JsonPrimitive("interrupted"))
+                                        put("error", JsonPrimitive(reason))
+                                    },
+                                ),
+                            ),
+                        ),
+                    approvalState = ToolApprovalState.Denied(reason),
+                )
+            } else {
+                part
+            }
+        }
+    return if (!changed) this else copy(parts = newParts).finishReasoning()
 }
 
 /**

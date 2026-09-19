@@ -49,6 +49,7 @@ import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.ui.abandonUnexecutedTools
 import me.rerere.ai.ui.canResumeToolExecution
 import me.rerere.ai.ui.finishPendingTools
 import me.rerere.ai.ui.finishReasoning
@@ -1456,35 +1457,37 @@ class ChatService(
         val conversation = getConversationFlow(conversationId).value
         var messagesNodes = conversation.messageNodes
 
-        // 移除无效 tool (未执行的 Tool)
+        // 生成开始前把「悬而未决的工具」定案（未执行的 Tool）。
         messagesNodes =
             messagesNodes.mapIndexed { _, node ->
                 // Check for Tool type with non-executed tools
                 val hasPendingTools = node.currentMessage.getTools().any { !it.isExecuted }
-
-                if (hasPendingTools) {
-                    // Keep messages that are ready to resume, such as approved/denied/answered tools.
-                    val hasResumableTool =
-                        node.currentMessage.getTools().any {
-                            !it.isExecuted && it.approvalState.canResumeToolExecution()
-                        }
-                    if (hasResumableTool) {
-                        return@mapIndexed node
-                    }
-
-                    // If all tools are executed, it's valid
-                    val allToolsExecuted = node.currentMessage.getTools().all { it.isExecuted }
-                    if (allToolsExecuted && node.currentMessage.getTools().isNotEmpty()) {
-                        return@mapIndexed node
-                    }
-
-                    // Remove messages that still have unresolved tool approvals.
-                    return@mapIndexed node.copy(
-                        messages = node.messages.filter { it.id != node.currentMessage.id },
-                        selectIndex = node.selectIndex - 1,
-                    )
+                if (!hasPendingTools) {
+                    return@mapIndexed node
                 }
-                node
+
+                // Keep messages that are ready to resume, such as approved/denied/answered tools.
+                val hasResumableTool =
+                    node.currentMessage.getTools().any {
+                        !it.isExecuted && it.approvalState.canResumeToolExecution()
+                    }
+                if (hasResumableTool) {
+                    return@mapIndexed node
+                }
+
+                // 到这里只剩「未执行且不可续跑」的工具：Pending（等审批却没被处理）或 Auto
+                // （自动批准后在执行前被打断）。**不再整条删除该消息**——那会连带丢掉本轮已生成的
+                // AI 文本与工具调用记录，表现为「用户两条消息之间的 AI 回复凭空消失」，且模型从此
+                // 不知道发生过什么（可能重复执行同一副作用）。改为补一个「未执行（中断）」的合成
+                // 结果后保留消息，使其成为合法终态（isExecuted=true）并可安全进入后续上下文。
+                val abandoned =
+                    node.currentMessage.abandonUnexecutedTools(
+                        "interrupted_before_execution: the turn was interrupted before this tool ran; " +
+                            "it did NOT execute. Do not assume the side effect happened.",
+                    )
+                node.copy(
+                    messages = node.messages.map { if (it.id == abandoned.id) abandoned else it },
+                )
             }
 
         // 更新index
