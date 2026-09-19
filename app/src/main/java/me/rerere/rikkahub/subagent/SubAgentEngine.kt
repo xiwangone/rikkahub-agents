@@ -616,14 +616,19 @@ class SubAgentEngine(
      */
     private suspend fun postRunResultToParent(parentChatId: String?, run: SubAgentRun?) {
         if (parentChatId == null || run == null) return
+        // 设置在本函数内自行读取：`settings` 是 executeRun/其它私有函数的局部变量，不在此作用域；
+        // 而 settingsStore 是类属性，取一次即可（也省掉给私有函数穿参数）。
+        val settings = settingsStore.settingsFlow.first()
         // 前台派发默认不回执（结果已在工具返回值里，再投会重复）；用户可在设置里开启留痕。
         // 后台派发始终回执。
         if (!run.runInBackground && !settings.subAgentForegroundReceipt) return
         val parentUuid = runCatching { Uuid.parse(parentChatId) }.getOrNull() ?: return
         if (HeadlessConversations.isHeadless(parentUuid)) return
 
-        val elapsedSec = if (run.startedAtMs > 0 && run.finishedAtMs > 0) {
-            String.format(java.util.Locale.US, "%.1f", (run.finishedAtMs - run.startedAtMs) / 1000.0)
+        // finishedAtMs 可空（Long?），必须在计算前显式判空。
+        val finishedMs = run.finishedAtMs
+        val elapsedSec = if (finishedMs != null && run.startedAtMs > 0) {
+            String.format(java.util.Locale.US, "%.1f", (finishedMs - run.startedAtMs) / 1000.0)
         } else {
             null
         }
