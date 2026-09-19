@@ -43,7 +43,7 @@ object VaultFormats {
 
     // ================= CSV =================
 
-    /** 导出 CSV：name,value,description,group（值做 CSV 转义）。 */
+    /** 导出 CSV：name,value,description,group（值做 CSV 转义）——与 [fromCsv] 对称（导入识别见 [CredentialImporter.detectFormat]）。 */
     fun toCsv(entries: List<VaultExporter.Quad>): String {
         val sb = StringBuilder()
         sb.append("name,value,description,group\n")
@@ -56,14 +56,15 @@ object VaultFormats {
         return sb.toString()
     }
 
-    /** 解析 CSV（兼容简单引号转义）。返回 Quad 列表。 */
+    /** 解析 CSV（兼容引号转义与**带换行的引号字段**，如 PEM）——与 [toCsv] 对称。返回 Quad 列表。 */
     fun fromCsv(content: String): List<VaultExporter.Quad> {
-        val lines = content.lineSequence().filter { it.isNotBlank() }.toList()
-        if (lines.isEmpty()) return emptyList()
-        // 跳过表头（若有 name/value/description/group 之一）
-        val start = if (lines[0].contains("name") || lines[0].startsWith("name,")) 1 else 0
-        return lines.drop(start).mapNotNull { line ->
-            val cols = csvSplit(line)
+        val records = csvRecords(content)
+        if (records.isEmpty()) return emptyList()
+        // 跳过表头（首列 name；表头由 [toCsv] 写出）
+        val header = records.first()
+        val start = if (header.substringBefore(',').trim().trim('"').equals("name", ignoreCase = true)) 1 else 0
+        return records.drop(start).mapNotNull { record ->
+            val cols = csvSplit(record)
             if (cols.size >= 2) {
                 VaultExporter.Quad(
                     name = cols[0].trim(),
@@ -73,6 +74,28 @@ object VaultFormats {
                 )
             } else null
         }
+    }
+
+    /**
+     * 按「记录」切分 CSV：引号内的换行不是记录边界。
+     * 导出侧会把含换行的值（如 PEM）用引号包住原样写出，故导入必须成对处理。
+     */
+    private fun csvRecords(content: String): List<String> {
+        val records = mutableListOf<String>()
+        val sb = StringBuilder()
+        var inQuotes = false
+        for (c in content) {
+            when {
+                c == '"' -> { inQuotes = !inQuotes; sb.append(c) }
+                (c == '\n' || c == '\r') && !inQuotes -> {
+                    if (sb.isNotBlank()) records.add(sb.toString())
+                    sb.clear()
+                }
+                else -> sb.append(c)
+            }
+        }
+        if (sb.isNotBlank()) records.add(sb.toString())
+        return records
     }
 
     private fun csvEscape(s: String): String {
@@ -138,7 +161,7 @@ object VaultFormats {
         val items: List<BitwardenItem> = emptyList(),
     )
 
-    /** 导出 Bitwarden JSON（folder 映射 group）。 */
+    /** 导出 Bitwarden JSON（folder 映射 group）——与 [fromBitwarden] 对称。 */
     fun toBitwarden(entries: List<VaultExporter.Quad>): String {
         val groups = entries.map { it.group }.distinct().filter { it.isNotBlank() }
         val folders = groups.map { BitwardenFolder(id = it, name = it) }
@@ -157,7 +180,7 @@ object VaultFormats {
         return Json { prettyPrint = true }.encodeToString(BitwardenExport(folders = folders, items = items))
     }
 
-    /** 解析 Bitwarden JSON（兼容 encrypted=false 明文导出）。 */
+    /** 解析 Bitwarden JSON（兼容 encrypted=false 明文导出）——与 [toBitwarden] 对称。 */
     fun fromBitwarden(content: String): List<VaultExporter.Quad> {
         val json = Json { ignoreUnknownKeys = true }.parseToJsonElement(content).jsonObject
         val folderIdToName = (json["folders"] as? kotlinx.serialization.json.JsonArray)

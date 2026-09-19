@@ -120,7 +120,17 @@ object VaultExporter {
         }
     }
 
-    /** 导出条目（name, plaintext, description, group）。 */
+    /**
+     * 导入：.vault JSON + 口令 → 统一的导入条目（与导出 [exportWithGroups] 对称，供「从文件导入」使用）。
+     * 解密与格式校验由 [import] 完成，这里只把结果映射为导入模型 [CredentialImporter.ParsedEntry]。
+     */
+    fun importEntries(
+        vaultJson: String,
+        password: String,
+    ): List<CredentialImporter.ParsedEntry> =
+        import(vaultJson, password).map { it.toParsedEntry() }
+
+    /** 导出条目（name, plaintext, description, group）——导出与导入（[importEntries]）共用。 */
     data class Quad(
         val name: String,
         val plaintext: String,
@@ -173,3 +183,19 @@ object VaultExporter {
     private fun shellDoubleQuote(s: String): String =
         s.replace("\\", "\\\\").replace("\"", "\\\"").replace("\$", "\\\$").replace("`", "\\`")
 }
+
+/**
+ * 通用条目 → 导入模型（供「从文件导入」统一走 [CredentialImporter.ParsedEntry]）。
+ *
+ * 与 [VaultExporter.Quad] 完全对称：CSV / Bitwarden 解析结果（同为 Quad）也复用本映射，
+ * 因此新增字段时只需改这一处。
+ */
+fun VaultExporter.Quad.toParsedEntry(): CredentialImporter.ParsedEntry =
+    CredentialImporter.ParsedEntry(
+        name = name,
+        value = plaintext,
+        description = description,
+        group = group,
+        publicKey = publicKey,
+        type = type,
+    )

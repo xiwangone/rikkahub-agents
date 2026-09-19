@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -46,11 +47,11 @@ import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
-import me.rerere.rikkahub.data.vault.CredentialImporter
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultBiometric
 import me.rerere.rikkahub.data.vault.VaultExporter
 import me.rerere.rikkahub.data.vault.VaultFormats
+import me.rerere.rikkahub.data.vault.VaultImportOutcome
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.data.vault.VaultSessionManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -77,6 +78,7 @@ fun VaultPage() {
 
     var credentialCount by remember { mutableStateOf(0) }
     var importResult by remember { mutableStateOf<String?>(null) }
+    var importPassword by remember { mutableStateOf("") }
     var showClearDialog by remember { mutableStateOf(false) }
     var exportPassword by remember { mutableStateOf("") }
     var exportResult by remember { mutableStateOf<String?>(null) }
@@ -241,7 +243,7 @@ fun VaultPage() {
             }
         }
 
-    // SAF 文件选择：导入 load-creds.sh / CSV / Bitwarden JSON（自动识别）
+    // SAF 文件选择：导入 .vault 加密包 / CSV / Bitwarden JSON / load-creds.sh（自动识别，与导出对称）
     val importLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null) {
@@ -251,25 +253,38 @@ fun VaultPage() {
                             context.contentResolver.openInputStream(uri)?.use { input ->
                                 BufferedReader(InputStreamReader(input)).readText()
                             } ?: ""
-                        // 自动识别格式
-                        val parsed = when {
-                            content.trimStart().startsWith("{") && content.contains("\"items\"") ->
-                                VaultFormats.fromBitwarden(content).map { CredentialImporter.ParsedEntry(it.name, it.plaintext, it.description, it.group) }
-                            content.trimStart().startsWith("name,") ->
-                                VaultFormats.fromCsv(content).map { CredentialImporter.ParsedEntry(it.name, it.plaintext, it.description, it.group) }
-                            else -> CredentialImporter.parse(content)
-                        }
-                        val result = repository.importEntries(parsed)
-                        importResult =
-                            context.getString(R.string.vault_import_success, result.imported, parsed.size) +
-                                if (result.overwrittenDifferentValue.isNotEmpty()) {
-                                    "\n" + context.getString(
-                                        R.string.vault_import_overwritten,
-                                        result.overwrittenDifferentValue.size,
-                                    )
-                                } else {
-                                    ""
+                        // 扩展名兜底用：优先取 SAF 显示名，取不到再退回 URI 末段
+                        val displayName =
+                            runCatching {
+                                context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
+                                    if (cursor.moveToFirst()) {
+                                        cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME))
+                                    } else null
                                 }
+                            }.getOrNull() ?: uri.lastPathSegment
+                        when (val outcome = repository.importFromContent(content, displayName, importPassword)) {
+                            is VaultImportOutcome.Success -> {
+                                val result = outcome.result
+                                importResult =
+                                    context.getString(R.string.vault_import_success, result.imported, result.parsed) +
+                                        if (result.overwrittenDifferentValue.isNotEmpty()) {
+                                            "\n" + context.getString(
+                                                R.string.vault_import_overwritten,
+                                                result.overwrittenDifferentValue.size,
+                                            )
+                                        } else {
+                                            ""
+                                        }
+                            }
+
+                            // 识别失败：明确报错，不当成空内容静默导入 0 条
+                            VaultImportOutcome.Unrecognized ->
+                                importResult = context.getString(R.string.vault_import_unrecognized)
+
+                            // 加密包缺口令：复用导出侧提示文案
+                            VaultImportOutcome.PasswordRequired ->
+                                importResult = context.getString(R.string.vault_export_password_required)
+                        }
                     }.onFailure { e ->
                         importResult = context.getString(R.string.vault_import_failed, e.message ?: "")
                     }
@@ -631,6 +646,16 @@ fun VaultPage() {
                             text = stringResource(R.string.vault_import_desc),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        // 加密包导入需要口令（明文格式忽略本输入）；文案复用导出侧
+                        OutlinedTextField(
+                            value = importPassword,
+                            onValueChange = { importPassword = it },
+                            label = { Text(stringResource(R.string.vault_export_password_label)) },
+                            singleLine = true,
+                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.Password),
+                            visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                            modifier = Modifier.fillMaxWidth(),
                         )
                         OutlinedButton(
                             onClick = {

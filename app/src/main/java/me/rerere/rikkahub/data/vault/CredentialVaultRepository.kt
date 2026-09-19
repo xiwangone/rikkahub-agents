@@ -13,7 +13,7 @@ import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
  *
  * 职责：
  * - 增删改查凭证条目（value 以 AES-GCM 密文存 Room，复用 ProviderCredentialCipher）
- * - 导入 load-creds.sh（解析 → 逐条 upsert）
+ * - 导入凭证文件（.vault / CSV / Bitwarden JSON / load-creds.sh，解析 → 逐条 upsert）
  * - 脱敏展示（明文仅内存解密，展示前 mask）
  * - 密钥使用审计：记录每次查看/导出/备份，双上限清理（500 条 / 30 天）
  */
@@ -35,12 +35,29 @@ data class QuickImportResult(
  *
  * @param overwrittenDifferentValue 同名但**值不同**、因而被覆盖的条目名
  *   —— 导入常用于恢复/合并，静默覆盖会悄悄丢掉正在用的密钥，所以要回报出来
+ * @param parsed 解析出的条目总数（= imported + skipped），供 UI 展示「已导入 N 条（共解析 M 条）」
  */
 data class ImportResult(
     val imported: Int,
     val overwrittenDifferentValue: List<String> = emptyList(),
     val skipped: Int = 0,
+    val parsed: Int = 0,
 )
+
+/**
+ * 文件导入结果（区分成功与两类**可预期**的失败，便于调用方给出本地化提示）。
+ * 加密包口令错/包被篡改属于异常，不经本类型返回。
+ */
+sealed interface VaultImportOutcome {
+    /** 成功：已按导入策略逐条 upsert。 */
+    data class Success(val result: ImportResult) : VaultImportOutcome
+
+    /** 无法识别格式（既非 .vault / CSV / Bitwarden JSON / load-creds.sh）。 */
+    data object Unrecognized : VaultImportOutcome
+
+    /** 是 .vault 加密包但未提供口令。 */
+    data object PasswordRequired : VaultImportOutcome
+}
 
 class CredentialVaultRepository(
     private val dao: VaultCredentialDao,
@@ -186,7 +203,31 @@ class CredentialVaultRepository(
         }
         // 批量导入涉及多条：保留全量刷新（一次性，避免逐条解密带来的重复开销）
         runCatching { VaultProviderKeyRefs.refresh(this) }
-        return ImportResult(imported = imported, overwrittenDifferentValue = overwritten, skipped = skipped)
+        return ImportResult(
+            imported = imported,
+            overwrittenDifferentValue = overwritten,
+            skipped = skipped,
+            parsed = entries.size,
+        )
+    }
+
+    /**
+     * 从文件内容导入：按格式自动识别 → 解析 → 逐条 upsert。
+     *
+     * - 语义与 [importEntries] 完全一致（即与既有 load-creds.sh 导入同一策略：同名条目值留空保留原值/
+     *   值不同则覆盖并回报、名称不合规或值非法则跳过）；
+     * - 支持的四种格式与导出侧**一一对称**，识别规则见 [CredentialImporter.detectFormat]；
+     * - [password] 仅 .vault 加密包需要；口令错/包被篡改时抛异常（由调用方提示）。
+     */
+    suspend fun importFromContent(
+        content: String,
+        fileName: String? = null,
+        password: String = "",
+    ): VaultImportOutcome {
+        val format = CredentialImporter.detectFormat(fileName, content) ?: return VaultImportOutcome.Unrecognized
+        if (format == CredentialImporter.Format.VAULT && password.isBlank()) return VaultImportOutcome.PasswordRequired
+        val parsed = CredentialImporter.parseAsEntries(content, format, password)
+        return VaultImportOutcome.Success(importEntries(parsed))
     }
 
     /** 新增/覆盖写入：加密后 upsert（同名单覆盖，描述/分组用传入值）。 */

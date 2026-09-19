@@ -1,13 +1,92 @@
 package me.rerere.rikkahub.data.vault
 
 /**
- * 解析 load-creds.sh 风格的凭证文件：
+ * 凭证文件导入：格式识别 + 各格式解析分发。
+ *
+ * 支持与「导出」**一一对称**的四种格式，识别顺序为「内容特征优先、扩展名兜底」：
+ * - [Format.VAULT]     加密包 .vault（需口令）—— 解析在 [VaultExporter.importEntries]（与导出 [VaultExporter.exportWithGroups] 对称）
+ * - [Format.CSV]       明文 CSV            —— 解析在 [VaultFormats.fromCsv]（与导出 [VaultFormats.toCsv] 对称）
+ * - [Format.BITWARDEN] 明文 Bitwarden JSON —— 解析在 [VaultFormats.fromBitwarden]（与导出 [VaultFormats.toBitwarden] 对称）
+ * - [Format.LOADCREDS] load-creds.sh       —— 解析在本文件 [parse]（与导出 [VaultExporter.toLoadCreds] 对称）
+ *
+ * 各格式统一解析为 [ParsedEntry]，交由 [CredentialVaultRepository.importEntries] 逐条 upsert，
+ * 与既有 load-creds.sh 导入保持同一策略（同名条目：值留空保留原值、值不同则覆盖并回报）。
+ *
+ * load-creds.sh 文本格式：
  *   export KEY="value"          # 描述
  *   # ============ 分组名 ============
- *
- * 解析出 (name, value, description, group) 列表，供导入。
  */
 object CredentialImporter {
+
+    /** 导入格式（与 [VaultFormats] 的 FORMAT_* 导出格式一一对应）。 */
+    enum class Format {
+        VAULT,
+        CSV,
+        BITWARDEN,
+        LOADCREDS,
+    }
+
+    /** 内容特征不足时的扩展名兜底映射。 */
+    private val formatByExtension = mapOf(
+        "vault" to Format.VAULT,
+        "csv" to Format.CSV,
+        "json" to Format.BITWARDEN,
+        "sh" to Format.LOADCREDS,
+        "bash" to Format.LOADCREDS,
+    )
+
+    /** load-creds.sh 特征：export 赋值行（跨行匹配）。 */
+    private val exportLineRegex = Regex("""(?m)^\s*export\s+[A-Za-z_][A-Za-z0-9_]*\s*=""")
+
+    /**
+     * 识别导入格式：内容特征优先（改文件名不改变内容，故比扩展名可靠），扩展名兜底。
+     *
+     * 无法识别时返回 null——调用方据此给出明确错误，而不是当成空内容静默导入 0 条。
+     */
+    fun detectFormat(fileName: String?, content: String): Format? {
+        val text = content.trimStart()
+        // 1) JSON 类：靠格式标识区分加密包与 Bitwarden
+        if (text.startsWith("{")) {
+            if (text.contains("\"rikkahub-vault\"")) return Format.VAULT
+            if (text.contains("\"items\"")) return Format.BITWARDEN
+        }
+        // 2) shell 风格（load-creds.sh）
+        if (exportLineRegex.containsMatchIn(content) || text.startsWith("#!")) return Format.LOADCREDS
+        // 3) CSV 特征：首行为表头（首列 name）
+        if (looksLikeCsv(content)) return Format.CSV
+        // 4) 扩展名兜底（含无表头的 CSV 等）
+        val ext = fileName?.substringAfterLast('.', "")?.lowercase().orEmpty()
+        return formatByExtension[ext]
+    }
+
+    /** CSV 特征：首个非空行是表头（首列 name 且存在列分隔符）。表头由 [VaultFormats.toCsv] 写出。 */
+    private fun looksLikeCsv(content: String): Boolean {
+        val firstLine = content.lineSequence().firstOrNull { it.isNotBlank() }?.trim() ?: return false
+        val firstCol = firstLine.substringBefore(',').trim().trim('"')
+        return firstLine.contains(',') && firstCol.equals("name", ignoreCase = true)
+    }
+
+    /**
+     * 按格式解析为统一的导入条目。
+     *
+     * 各格式的解析实现与其导出实现在同一文件或相邻文件，改动需成对同步（见各分支注释）。
+     *
+     * @param password 仅 [Format.VAULT] 需要；口令错或包被篡改时由 [VaultExporter.importEntries] 抛异常。
+     */
+    fun parseAsEntries(
+        content: String,
+        format: Format,
+        password: String = "",
+    ): List<ParsedEntry> = when (format) {
+        // 与导出 VaultExporter.toLoadCreds 对称
+        Format.LOADCREDS -> parse(content)
+        // 与导出 VaultExporter.exportWithGroups 对称
+        Format.VAULT -> VaultExporter.importEntries(content, password)
+        // 与导出 VaultFormats.toCsv 对称
+        Format.CSV -> VaultFormats.fromCsv(content).map { it.toParsedEntry() }
+        // 与导出 VaultFormats.toBitwarden 对称
+        Format.BITWARDEN -> VaultFormats.fromBitwarden(content).map { it.toParsedEntry() }
+    }
 
     /** 分组注释行 → 组名映射（load-creds.sh 中文化注释） */
     private val groupByKeyword = listOf(
@@ -33,6 +112,13 @@ object CredentialImporter {
         val type: String = "",
     )
 
+    /**
+     * 解析 load-creds.sh 风格的凭证文件（与导出 [VaultExporter.toLoadCreds] 完全对称）：
+     *   export KEY="value"          # 描述
+     *   # ============ 分组名 ============
+     *
+     * 解析出 (name, value, description, group, publicKey, type) 列表，供导入。
+     */
     fun parse(content: String): List<ParsedEntry> {
         val result = mutableListOf<ParsedEntry>()
         var currentGroup = "Other"
