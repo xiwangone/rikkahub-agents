@@ -2319,6 +2319,8 @@
   <string name="setting_sub_agents_page_tools">Список разрешённых инструментов</string>
   <string name="setting_sub_agents_page_tools_desc">Имена инструментов через запятую или с новой строки, например workspace_read_file, web_fetch. Только сужение: недоступные родителю имена отбрасываются. Пусто — наследовать все.</string>
   <string name="setting_sub_agents_page_tools_hint">Оставьте пустым, чтобы наследовать все инструменты родительского ассистента.</string>
+  <string name="setting_sub_agents_page_default_workspace">Рабочее пространство субагентов по умолчанию</string>
+  <string name="setting_sub_agents_page_default_workspace_desc">Где по умолчанию выполняются субагенты (параметры отправки или настройки профиля имеют приоритет). Выберите отдельное пространство, чтобы записи не конфликтовали с этим диалогом.</string>
   <string name="setting_sub_agents_page_model">Модель</string>
   <string name="setting_sub_agents_page_model_desc">Пусто — наследуется модель родительского ассистента.</string>
   <string name="setting_sub_agents_page_enabled">Включено</string>

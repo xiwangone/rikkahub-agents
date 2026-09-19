@@ -2761,6 +2761,8 @@
   <string name="setting_sub_agents_page_tools">Tool allow-list</string>
   <string name="setting_sub_agents_page_tools_desc">Comma or newline separated tool names, for example workspace_read_file, web_fetch. Narrowing only: names the parent cannot use are dropped. Empty means inherit all tools.</string>
   <string name="setting_sub_agents_page_tools_hint">Leave empty to inherit the full tool set of the parent assistant.</string>
+  <string name="setting_sub_agents_page_default_workspace">Default workspace for sub-agents</string>
+  <string name="setting_sub_agents_page_default_workspace_desc">Where dispatched sub-agents run unless the dispatch or the profile says otherwise. Pick a workspace separate from your main one so their writes cannot clash with this conversation.</string>
   <string name="setting_sub_agents_page_model">Model</string>
   <string name="setting_sub_agents_page_model_desc">Leave unset to inherit the parent assistant\'s model.</string>
   <string name="setting_sub_agents_page_enabled">Enabled</string>

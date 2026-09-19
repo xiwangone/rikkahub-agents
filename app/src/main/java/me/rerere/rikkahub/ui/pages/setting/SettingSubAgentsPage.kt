@@ -95,6 +95,7 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val profiles = settings.subAgents
     var expanded by rememberSaveable { mutableStateOf(true) }
+    var showDefaultWorkspaceSheet by remember { mutableStateOf(false) }
     // 工作区列表：与聊天页/助手页共用同一仓储与选择组件；子代理可绑定独立工作区（隔离主区）。
     val workspaceRepository: WorkspaceRepository = koinInject()
     val workspaces by workspaceRepository.listFlow().collectAsStateWithLifecycle(initialValue = emptyList())
@@ -134,6 +135,34 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
                 contentPadding = innerPadding + PaddingValues(16.dp) + PaddingValues(bottom = 128.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
+                item {
+                    FormItem(
+                        label = { Text(stringResource(R.string.setting_sub_agents_page_default_workspace)) },
+                        description = {
+                            Text(stringResource(R.string.setting_sub_agents_page_default_workspace_desc))
+                        },
+                        content = {
+                            val selected =
+                                workspaces.find { it.id == settings.subAgentDefaultWorkspaceId?.toString() }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(MaterialTheme.shapes.large)
+                                    .clickable { showDefaultWorkspaceSheet = true }
+                                    .padding(vertical = 10.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(
+                                    text = selected?.name ?: stringResource(R.string.workspace_no_binding),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Icon(HugeIcons.ArrowDown01, contentDescription = null)
+                            }
+                        },
+                    )
+                }
+
                 if (profiles.isEmpty()) {
                     item {
                         Column(
@@ -187,6 +216,26 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
                 }
             }
         }
+    }
+
+    if (showDefaultWorkspaceSheet) {
+        WorkspaceSelectSheet(
+            assistant = Assistant(workspaceId = settings.subAgentDefaultWorkspaceId),
+            workspaces = workspaces,
+            onSelect = { id ->
+                vm.updateSettings(
+                    settings.copy(
+                        subAgentDefaultWorkspaceId = id?.let { runCatching { Uuid.parse(it) }.getOrNull() },
+                    )
+                )
+                showDefaultWorkspaceSheet = false
+            },
+            onManage = {
+                showDefaultWorkspaceSheet = false
+                navController.navigate(Screen.Workspaces)
+            },
+            onDismiss = { showDefaultWorkspaceSheet = false },
+        )
     }
 
     if (editState.isEditing) {

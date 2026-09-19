@@ -2670,6 +2670,8 @@
   <string name="setting_sub_agents_page_tools">工具白名单</string>
   <string name="setting_sub_agents_page_tools_desc">逗号或换行分隔的工具名，例如 workspace_read_file, web_fetch。只减不增：父助手没有的工具会被丢弃；留空表示继承全部工具。</string>
   <string name="setting_sub_agents_page_tools_hint">留空则继承父助手的全部工具。</string>
+  <string name="setting_sub_agents_page_default_workspace">子代理默认工作区</string>
+  <string name="setting_sub_agents_page_default_workspace_desc">派发的子代理默认在哪个工作区运行（派发参数或配置里指定时以它们为准）。建议选一个与主对话不同的工作区，避免写入互相覆盖。</string>
   <string name="setting_sub_agents_page_model">模型</string>
   <string name="setting_sub_agents_page_model_desc">留空则继承父助手的模型。</string>
   <string name="setting_sub_agents_page_enabled">启用</string>

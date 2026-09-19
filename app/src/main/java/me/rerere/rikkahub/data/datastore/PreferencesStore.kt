@@ -193,6 +193,8 @@ class SettingsStore(
 
         // 子代理
         val SUB_AGENTS = stringPreferencesKey("sub_agents")
+        /** 子代理默认工作区（未指定时子代理跑在哪里；null = 跟随父助手）。 */
+        val SUB_AGENT_DEFAULT_WORKSPACE = stringPreferencesKey("sub_agent_default_workspace")
 
         // WebDAV
         val WEBDAV_CONFIG = stringPreferencesKey("webdav_config")
@@ -365,7 +367,9 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                         emptyList()
                     }
                 } ?: emptyList(),
-                webDavConfig = preferences[WEBDAV_CONFIG]?.let {
+                subAgentDefaultWorkspaceId = preferences[SUB_AGENT_DEFAULT_WORKSPACE]?.let { raw ->
+                    runCatching { Uuid.parse(raw) }.getOrNull()
+                },
                     JsonInstant.decodeFromString(it)
                 } ?: WebDavConfig(),
                 s3Config = preferences[S3_CONFIG]?.let {
@@ -673,6 +677,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
 
             preferences[MCP_SERVERS] = JsonInstant.encodeToString(settings.mcpServers)
             preferences[SUB_AGENTS] = JsonInstant.encodeToString(settings.subAgents)
+            putSubAgentDefaultWorkspace(preferences, settings)
             preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settings.webDavConfig)
             preferences[S3_CONFIG] = JsonInstant.encodeToString(settings.s3Config)
             preferences[WEBDAV_CONFIGS] = JsonInstant.encodeToString(settings.webDavConfigs)
@@ -946,6 +951,11 @@ data class Settings(
      * 命名子代理配置：subagent_dispatch 按名分发，默认空列表。
      */
     val subAgents: List<SubAgentProfile> = emptyList(),
+    /**
+     * 子代理默认工作区：子代理未显式指定工作区时用哪个（null = 跟随父助手）。
+     * 与 "工具调用自动批准" 搭配使用：把子代理放进独立工作区可避免与主对话同区写互踩。
+     */
+    val subAgentDefaultWorkspaceId: Uuid? = null,
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val s3Config: S3Config = S3Config(),
     /** 多 WebDAV 配置（可保存/切换/删除）。空时回退用 [webDavConfig] 单配置（旧数据兼容）。 */
@@ -1354,3 +1364,16 @@ val DEFAULT_MODE_INJECTIONS = listOf(
         name = "Learning Mode"
     )
 )
+
+/**
+ * 写入「子代理默认工作区」。独立成函数：PreferencesStore.update 已接近静态检查的行数门限。
+ * 未设置时**移除 key**，避免旧值残留（其余生成器只写非空值）。
+ */
+private fun putSubAgentDefaultWorkspace(preferences: MutablePreferences, settings: Settings) {
+    val id = settings.subAgentDefaultWorkspaceId
+    if (id == null) {
+        preferences.remove(SUB_AGENT_DEFAULT_WORKSPACE)
+    } else {
+        preferences[SUB_AGENT_DEFAULT_WORKSPACE] = id.toString()
+    }
+}

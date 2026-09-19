@@ -398,10 +398,11 @@ class SubAgentEngine(
             is SubAgentModelResolver.Result.Resolved -> r.modelId
             is SubAgentModelResolver.Result.Failed -> return RunTargets.Rejected(r.message)
         }
-        // B1 会话级作用域：显式 request > profile > 父助手。
+        // B1 会话级作用域：显式 request > profile > **全局默认子代理工作区** > 父助手。
         // 子代理因此可以只拿"本地读写 + 搜索"类工具，并跑在独立工作区里。
         val workspaceId = request.workspaceId?.takeIf { it.isNotBlank() }
             ?: profile?.workspaceId?.toString()
+            ?: settings.subAgentDefaultWorkspaceId?.toString()
         if (workspaceId != null && runCatching { Uuid.parse(workspaceId) }.isFailure) {
             AppLog.w(TAG, "ignoring unparseable sub-agent workspace id: $workspaceId")
         }

@@ -2326,6 +2326,8 @@
   <string name="setting_sub_agents_page_tools">ツール許可リスト</string>
   <string name="setting_sub_agents_page_tools_desc">カンマまたは改行区切りのツール名（例: workspace_read_file, web_fetch）。絞り込みのみ可能で、親が使えないツールは除外されます。空欄は全ツールを継承します。</string>
   <string name="setting_sub_agents_page_tools_hint">空欄にすると親アシスタントの全ツールを継承します。</string>
+  <string name="setting_sub_agents_page_default_workspace">サブエージェントの既定ワークスペース</string>
+  <string name="setting_sub_agents_page_default_workspace_desc">派発されたサブエージェントが既定で実行されるワークスペース（派発パラメータや設定で指定があればそちらが優先）。メインと別のワークスペースを選ぶと書き込みの衝突を避けられます。</string>
   <string name="setting_sub_agents_page_model">モデル</string>
   <string name="setting_sub_agents_page_model_desc">空欄なら親アシスタントのモデルを継承します。</string>
   <string name="setting_sub_agents_page_enabled">有効</string>

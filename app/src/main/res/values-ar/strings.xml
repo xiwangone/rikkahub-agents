@@ -1971,6 +1971,8 @@
   <string name="setting_sub_agents_page_tools">قائمة الأدوات المسموح بها</string>
   <string name="setting_sub_agents_page_tools_desc">أسماء الأدوات مفصولة بفواصل أو أسطر جديدة، مثل workspace_read_file, web_fetch. التضييق فقط: تُهمَل الأسماء غير المتاحة للأصل. فارغ يعني وراثة الكل.</string>
   <string name="setting_sub_agents_page_tools_hint">اتركه فارغًا لوراثة كل أدوات المساعد الأصلي.</string>
+  <string name="setting_sub_agents_page_default_workspace">مساحة العمل الافتراضية للوكلاء الفرعية</string>
+  <string name="setting_sub_agents_page_default_workspace_desc">أين تُشغَّل الوكلاء الفرعية افتراضيًا (تُقدَّم معلمات الإرسال أو إعدادات الملف الشخصي عند تحديدها). اختر مساحة عمل منفصلة لتجنب تعارض الكتابة مع هذه المحادثة.</string>
   <string name="setting_sub_agents_page_model">النموذج</string>
   <string name="setting_sub_agents_page_model_desc">اتركه فارغًا ليرث نموذج المساعد الأصل.</string>
   <string name="setting_sub_agents_page_enabled">مفعّل</string>
