@@ -205,6 +205,7 @@ private fun AssistantLocalToolContent(
     var onlyToolsDraft by remember(assistant.onlyTools) {
         mutableStateOf(assistant.onlyTools.joinToString("\n"))
     }
+    var pendingOnlyTools by remember { mutableStateOf<List<String>?>(null) }
     var showImportSourcePicker by remember { mutableStateOf(false) }
     var importCandidate by remember { mutableStateOf<Assistant?>(null) }
     var importIncludeMcp by remember { mutableStateOf(true) }
@@ -323,8 +324,13 @@ private fun AssistantLocalToolContent(
                                 .map { it.trim() }
                                 .filter { it.isNotEmpty() }
                                 .distinct()
-                        onUpdateAssistant { it.copy(onlyTools = names) }
                         showOnlyToolsDialog = false
+                        if (names.isEmpty()) {
+                            onUpdateAssistant { it.copy(onlyTools = emptyList()) }
+                        } else {
+                            // 白名单会让助手丢掉名单外的能力，保存前再确认一次。
+                            pendingOnlyTools = names
+                        }
                     },
                 ) {
                     Text(stringResource(R.string.confirm))
@@ -332,6 +338,35 @@ private fun AssistantLocalToolContent(
             },
             dismissButton = {
                 TextButton(onClick = { showOnlyToolsDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    pendingOnlyTools?.let { names ->
+        AlertDialog(
+            onDismissRequest = { pendingOnlyTools = null },
+            title = { Text(stringResource(R.string.assistant_page_only_tools_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.assistant_page_only_tools_desc, names.size))
+                    Text(stringResource(R.string.assistant_page_only_tools_dialog_desc))
+                    Text(names.joinToString("\n"))
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onUpdateAssistant { it.copy(onlyTools = names) }
+                        pendingOnlyTools = null
+                    },
+                ) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingOnlyTools = null }) {
                     Text(stringResource(R.string.cancel))
                 }
             },

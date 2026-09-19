@@ -143,7 +143,12 @@ object LineTrimmedReplacer : LineWindowReplacer() {
 }
 
 /**
- * 第三级: old_text 至少 3 行时, 仅用首尾行做锚点匹配, 容忍中间行的细微差异。
+ * 第三级: old_text 至少 3 行时, 用首尾行做锚点匹配, 并要求**中间行也足够相似**。
+ *
+ * 只比首尾行会让「首尾相同、中间完全不同」的块照样命中, 进而整块替换 —— 静默改错
+ * (实证: `alpha/zeta/gamma` 命中 `alpha/beta/gamma`, 把中间的 beta 一起吞掉)。
+ * 这里加一道中间行闸门: 逐行比对, 相同行占比须 >= [BLOCK_ANCHOR_MID_RATIO]。
+ * 未过闸即不命中, 从而降级到「未命中 + 最相似行提示」, 由调用方重新读取内容。
  */
 object BlockAnchorReplacer : LineWindowReplacer() {
     override val name: String = "block_anchor"
@@ -151,9 +156,23 @@ object BlockAnchorReplacer : LineWindowReplacer() {
     override fun isApplicable(oldTrimmed: List<String>): Boolean =
         oldTrimmed.size >= 3 && oldTrimmed.first().isNotEmpty() && oldTrimmed.last().isNotEmpty()
 
-    override fun windowMatches(windowTrimmed: List<String>, oldTrimmed: List<String>): Boolean =
-        windowTrimmed.first() == oldTrimmed.first() && windowTrimmed.last() == oldTrimmed.last()
+    override fun windowMatches(windowTrimmed: List<String>, oldTrimmed: List<String>): Boolean {
+        if (windowTrimmed.first() != oldTrimmed.first()) return false
+        if (windowTrimmed.last() != oldTrimmed.last()) return false
+        val midStart = 1
+        val midEnd = oldTrimmed.size - 1
+        val midCount = midEnd - midStart
+        if (midCount <= 0) return true
+        var same = 0
+        for (i in midStart until midEnd) {
+            if (windowTrimmed[i] == oldTrimmed[i]) same++
+        }
+        return same.toDouble() / midCount >= BLOCK_ANCHOR_MID_RATIO
+    }
 }
+
+/** 锚点匹配的中间行相似度下限: 低于此值视为「锚点巧合」, 不认为命中。 */
+private const val BLOCK_ANCHOR_MID_RATIO = 0.5
 
 private class LineWithOffset(
     val start: Int,

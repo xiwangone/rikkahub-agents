@@ -415,9 +415,7 @@ fun sshExecSavedTool(
             val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
                 execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec, extraOptions = cand.sshOptions)
             }
-            tried.add(
-                cand.name to (payload["error"]?.jsonPrimitive?.contentOrNull?.let { classifySshError(it) } ?: "ok"),
-            )
+            tried.add(cand.name to classifySshPayload(payload))
             val err = payload["error"]?.jsonPrimitive?.contentOrNull
             if (err == null) { result = payload; usedHost = cand.name; break }
             lastError = err
@@ -616,7 +614,23 @@ internal fun classifySshError(err: String): String = when {
     err.contains("timeout", true) || err.contains("timed out", true) -> "timeout"
     err.contains("UnknownHost", true) || err.contains("resolve", true) -> "dns"
     err.contains("refused", true) -> "refused"
+    err.contains("host key", true) || err.contains("host_key", true) || err.contains("HostKey", true) -> "host_key"
     err.contains("auth", true) || err.contains("denied", true) || err.contains("credential", true) -> "auth"
-    err.contains("host key", true) || err.contains("HostKey", true) -> "host_key"
     else -> "other"
+}
+
+/**
+ * 从失败 payload 归类：**不能只看 error 标签**——标签本身是 `tcp_unreachable` /
+ * `connect_failed` 这类抽象词, 不含 refused/host key 等关键词, 直接归会一律落进 "other"
+ * (实测 ECONNREFUSED 被归为 other)。故把底层 raw 与逐网络 attempts 一并纳入判定。
+ */
+internal fun classifySshPayload(payload: JsonObject): String {
+    val err = payload["error"]?.jsonPrimitive?.contentOrNull ?: return "ok"
+    val detail =
+        buildString {
+            append(err)
+            payload["raw"]?.jsonPrimitive?.contentOrNull?.let { append(' ').append(it) }
+            payload["attempts"]?.let { append(' ').append(it.toString()) }
+        }
+    return classifySshError(detail)
 }

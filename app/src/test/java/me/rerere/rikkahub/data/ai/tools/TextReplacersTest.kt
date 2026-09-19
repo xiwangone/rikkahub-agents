@@ -138,4 +138,18 @@ class TextReplacersTest {
             replaceText("start\nend", "start oops\nend", "x", replaceAll = false)
         }
     }
+
+    @Test
+    fun `block anchor rejects blocks whose middle lines all differ`() {
+        // 首尾行相同、中间行完全不同：旧实现会命中并整块替换（吞掉中间内容 = 静默改错），
+        // 现在应由中间行相似度闸门拦下，最终报未找到。
+        assertThrows(IllegalArgumentException::class.java) {
+            replaceText(
+                content = "alpha\nbeta\ngamma\ndelta\nepsilon",
+                oldText = "alpha\nZETA\nYOLO\ndelta\nepsilon",
+                newText = "x",
+                replaceAll = false,
+            )
+        }
+    }
 }

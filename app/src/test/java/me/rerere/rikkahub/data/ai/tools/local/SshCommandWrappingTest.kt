@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.serialization.json.buildJsonObject
 
 /**
  * Unit tests for the pure shell-command wrapping helpers used by the SSH and Termux tools.
@@ -180,5 +181,36 @@ class SshCommandWrappingTest {
         assertEquals("auth", classifySshError("Auth fail for user"))
         assertEquals("host_key", classifySshError("Host key verification failed"))
         assertEquals("other", classifySshError("something odd"))
+    }
+
+    @Test
+    fun `classifySshPayload reads raw and attempts not just the label`() {
+        // 标签是抽象词（tcp_unreachable / connect_failed），关键词只出现在 raw / attempts 里，
+        // 只看标签会一律归成 other（实测 ECONNREFUSED 被判 other）。
+        val refused =
+            buildJsonObject {
+                put("error", "tcp_unreachable")
+                put(
+                    "attempts",
+                    buildJsonObject {
+                        put("cellular", "ConnectException: ECONNREFUSED (Connection refused)")
+                    },
+                )
+            }
+        assertEquals("refused", classifySshPayload(refused))
+
+        val changed =
+            buildJsonObject {
+                put("error", "host_key_changed")
+                put("raw", "HostKey verification failed")
+            }
+        assertEquals("host_key", classifySshPayload(changed))
+
+        assertEquals("ok", classifySshPayload(buildJsonObject { }))
+    }
+
+    @Test
+    fun `classifySshError maps underscore host_key label`() {
+        assertEquals("host_key", classifySshError("host_key_changed"))
     }
 }

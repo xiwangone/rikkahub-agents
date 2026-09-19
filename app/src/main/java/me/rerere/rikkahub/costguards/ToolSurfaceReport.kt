@@ -104,6 +104,7 @@ fun toolSurfaceReportTool(
 fun runToolSurfaceReport(
     args: JsonElement?,
     toolsInput: List<Tool>,
+    onlyToolsUnmatched: List<String> = emptyList(),
 ): List<UIMessagePart> {
             val topN =
                 (args as? JsonObject)
@@ -136,6 +137,13 @@ fun runToolSurfaceReport(
                     put("est_chars", totalChars)
                     put("est_tokens", totalTokens)
                     put("order_is_sorted", names == sortedNames)
+                    // 白名单里拼错/过期的名字：不报错但静默失效，这里显式列出来便于自查。
+                    if (onlyToolsUnmatched.isNotEmpty()) {
+                        put(
+                            "only_tools_unmatched",
+                            buildJsonArray { onlyToolsUnmatched.forEach { add(it) } },
+                        )
+                    }
                     put("surface_hash", names.joinToString("\u0000").hashCode().toUInt().toString(16))
                     // Content hash: catches a re-worded description / schema that keeps the same
                     // names and order but still busts the cached prefix.

@@ -142,6 +142,18 @@ class ChatToolFactory(
         // 容易被误读成"顺序抖动"）。顺序本来稳定，这里只是让它同时自洽、可观测。
         // 工具范围（助手级白名单）：留空 = 不限制；非空 = 只注入名单内工具（保命工具始终保留）。
         val listFiltered = applyToolScopeFilter(stableFull, assistant.onlyTools)
+        // 白名单（onlyTools）里拼错/过期的名字不会报错, 只会静默失效; 统一算出未匹配项,
+        // 记一条日志并透出给 tool_surface_report, 便于事后自查。
+        val onlyToolsUnmatched =
+            if (assistant.onlyTools.isEmpty()) {
+                emptyList()
+            } else {
+                val knownNames = stableFull.mapTo(HashSet()) { it.name }
+                assistant.onlyTools.filterNot { it in knownNames }
+            }
+        if (onlyToolsUnmatched.isNotEmpty()) {
+            AppLog.w(TAG, "onlyTools has ${onlyToolsUnmatched.size} unmatched name(s): $onlyToolsUnmatched")
+        }
 
         val injected =
             (
@@ -166,7 +178,7 @@ class ChatToolFactory(
                     tool
                 } else {
                     tool.copy(
-                        execute = { args -> runToolSurfaceReport(args, injected) },
+                        execute = { args -> runToolSurfaceReport(args, injected, onlyToolsUnmatched) },
                     )
                 }
             }
@@ -230,7 +242,10 @@ private fun surfaceView(
     trimEnabled: Boolean,
     extraCold: Set<String>,
 ): Tool {
-    // 开关：设置页的「工具面裁剪」与编译期总开关取与关系，任一关闭即完全不做裁剪。
+    // 助手级黑名单（「这些工具只发简要说明」）**独立于**全局裁剪开关：名单非空即生效，
+    // 与助手级白名单（onlyTools）语义对齐——填了就生效、清空保存即恢复。
+    if (tool.name in extraCold) return toColdView(tool, conversationId)
+    // 全局开关：设置页的「精简工具说明」与编译期总开关取与关系，任一关闭即完全不做裁剪。
     if (!trimEnabled) return tool
     val tier = ToolSurfacePolicy.tierOf(tool.name, extraCold)
     if (tier == SurfaceTier.HOT) return tool
@@ -296,7 +311,7 @@ private fun applyToolScopeFilter(tools: List<Tool>, only: List<String>): List<To
 /** 描述长度阈值：超过它才做 WARM 档收敛（短的保持原样，不丢信息）。 */
 /** 白名单模式下的保命工具：始终注入，避免"看不见工具也取不回参数表"的死局。 */
 private val ALWAYS_KEEP_TOOL_NAMES =
-    setOf("list_tools", "get_tool_schema", "ask_user", TOOL_SURFACE_REPORT_TOOL_NAME)
+    setOf("list_tools", "get_tool_schema", "ask_user")
 
 private const val WARM_DESCRIPTION_KEEP_CHARS = 200
 
