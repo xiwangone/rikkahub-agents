@@ -370,6 +370,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 subAgentDefaultWorkspaceId = preferences[SUB_AGENT_DEFAULT_WORKSPACE]?.let { raw ->
                     runCatching { Uuid.parse(raw) }.getOrNull()
                 },
+                webDavConfig = preferences[WEBDAV_CONFIG]?.let {
                     JsonInstant.decodeFromString(it)
                 } ?: WebDavConfig(),
                 s3Config = preferences[S3_CONFIG]?.let {
