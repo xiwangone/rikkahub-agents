@@ -16,9 +16,11 @@ import me.rerere.ai.ui.UIMessagePart
  *
  * 输出形状：
  * ```json
- * {"error": "<code>", "detail": "<message>", "hint": "<下一步建议，可选>"}
+ * {"error": "<code>", "detail": "<message>", "recovery": "<下一步建议，可选>"}
  * ```
- * `extra` 里的键会被合并，但**不得覆盖** error / detail / hint。
+ * ⚠ 建议字段的键名用**已有的 `recovery`**（不是新造的 `hint`）：仓库多处（`BrowserController`、
+ * 生成循环的 loop/tool_not_found 信封、`KeyboardTools`）与单测都已约定这个键名，中途改名会破坏契约。
+ * `extra` 里的键会被合并，但**不得覆盖** error / detail / recovery。
  *
  * 约定（与脚本侧的统一报错约定对齐）：
  *  - `code` 用稳定的 snake_case 机器可读串（见下方常量）；
@@ -40,7 +42,7 @@ object ToolErrors {
     /** 单次工具执行撞上墙钟预算（未开始 / 执行中被取消）。 */
     const val TOOL_CANCELLED_WALL_CLOCK = "tool_cancelled_wall_clock"
 
-    private val RESERVED = setOf("error", "detail", "hint")
+    private val RESERVED = setOf("error", "detail", "recovery")
 
     fun envelope(
         code: String,
@@ -50,7 +52,8 @@ object ToolErrors {
     ): JsonObject = buildJsonObject {
         put("error", code)
         put("detail", message)
-        if (!hint.isNullOrBlank()) put("hint", hint)
+        // 键名保持既有的 `recovery`（见文件头注释）。
+        if (!hint.isNullOrBlank()) put("recovery", hint)
         for ((k, v) in extra) {
             if (k !in RESERVED) put(k, v)
         }
