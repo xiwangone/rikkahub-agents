@@ -1205,21 +1205,18 @@ class GenerationLoop(
                                 (android.os.SystemClock.elapsedRealtime() - turnStartMs)
                             val result = if (remainingMs <= 0L) {
                                 AppLog.w(TAG, "generateText: ${toolDef.name} skipped — wall-clock budget already exceeded")
-                                listOf(UIMessagePart.Text(json.encodeToString(buildJsonObject {
-                                    put("error", JsonPrimitive("tool_cancelled_wall_clock"))
-                                    put("detail", JsonPrimitive("turn budget exceeded before tool started"))
-                                })))
+                                me.rerere.rikkahub.data.ai.tools.ToolErrors.parts(
+                                    me.rerere.rikkahub.data.ai.tools.ToolErrors.TOOL_CANCELLED_WALL_CLOCK,
+                                    "turn budget exceeded before tool started",
+                                )
                             } else {
                                 withTimeoutOrNull(remainingMs) { toolDef.execute(args) }
                                     ?: run {
                                         AppLog.w(TAG, "generateText: ${toolDef.name} cancelled — wall-clock budget exhausted mid-execution")
-                                        listOf(UIMessagePart.Text(json.encodeToString(buildJsonObject {
-                                            put("error", JsonPrimitive("tool_cancelled_wall_clock"))
-                                            put(
-                                                "detail",
-                                                JsonPrimitive("tool execution exceeded the ${ToolRuntimeLimits.turnBudgetMs / 1000}s turn budget")
-                                            )
-                                        })))
+                                        me.rerere.rikkahub.data.ai.tools.ToolErrors.parts(
+                                            me.rerere.rikkahub.data.ai.tools.ToolErrors.TOOL_CANCELLED_WALL_CLOCK,
+                                            "tool execution exceeded the ${ToolRuntimeLimits.turnBudgetMs / 1000}s turn budget",
+                                        )
                                     }
                             }
                             // Tool-output truncation: when the workspace shell is
@@ -1243,29 +1240,14 @@ class GenerationLoop(
                             // for what was usually a one-line "name is required" problem.
                             AppLog.w(TAG, "tool ${tool.toolName} threw", it)
                             executedTools += tool.copy(
-                                output = listOf(
-                                    UIMessagePart.Text(
-                                        json.encodeToString(
-                                            buildJsonObject {
-                                                put("error", JsonPrimitive("tool_failed"))
-                                                put(
-                                                    "detail",
-                                                    // Cap at 500 chars so a tool that throws with
-                                                    // a giant message (e.g. an OkHttp body dump or
-                                                    // an echoed input arg) doesn't ship 8000+
-                                                    // tokens back to the LLM on every failure.
-                                                    JsonPrimitive((it.message ?: it.javaClass.simpleName).take(500)),
-                                                )
-                                                // Class name as a separate hint so the LLM can
-                                                // distinguish validation (IllegalStateException /
-                                                // IllegalArgumentException) from runtime issues.
-                                                put(
-                                                    "exception",
-                                                    JsonPrimitive(it.javaClass.simpleName),
-                                                )
-                                            }
-                                        )
-                                    )
+                                output = me.rerere.rikkahub.data.ai.tools.ToolErrors.parts(
+                                    me.rerere.rikkahub.data.ai.tools.ToolErrors.TOOL_FAILED,
+                                    // Cap at 500 chars so a tool that throws with a giant message
+                                    // (e.g. an OkHttp body dump or an echoed input arg) doesn't ship
+                                    // 8000+ tokens back to the LLM on every failure.
+                                    (it.message ?: it.javaClass.simpleName).take(500),
+                                    // 异常类名单独给出，便于区分校验类（IllegalState/Argument）与运行期问题。
+                                    extra = mapOf("exception" to JsonPrimitive(it.javaClass.simpleName)),
                                 )
                             )
                         }

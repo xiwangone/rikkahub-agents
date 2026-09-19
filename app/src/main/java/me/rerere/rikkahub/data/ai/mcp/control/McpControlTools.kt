@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.mcp.control
 
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
@@ -51,14 +52,11 @@ private const val MAX_CONNECT_TIMEOUT_SECONDS = 60
 
 /** ---------- Shared helpers ---------- */
 
-private fun errEnv(error: String, detail: String, extra: Map<String, JsonElement> = emptyMap()): List<UIMessagePart> {
-    val obj = buildJsonObject {
-        put("error", error)
-        put("detail", detail)
-        for ((k, v) in extra) put(k, v)
-    }
-    return listOf(UIMessagePart.Text(obj.toString()))
-}
+private fun errEnv(
+    error: String,
+    detail: String,
+    extra: Map<String, JsonElement> = emptyMap(),
+): List<UIMessagePart> = ToolErrors.parts(error, detail, extra = extra)
 
 private fun okEnv(builder: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): List<UIMessagePart> {
     return listOf(UIMessagePart.Text(buildJsonObject(builder).toString()))

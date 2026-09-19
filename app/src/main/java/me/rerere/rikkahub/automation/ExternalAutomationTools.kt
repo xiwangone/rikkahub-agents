@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.automation
 
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.add
@@ -35,13 +36,8 @@ import me.rerere.ai.ui.UIMessagePart
  * in the current build, but they ARE in [ToolApprovalDefaults.ALWAYS_ASK].
  */
 
-private fun errEnv(error: String, detail: String): List<UIMessagePart> {
-    val obj = buildJsonObject {
-        put("error", error)
-        put("detail", detail)
-    }
-    return listOf(UIMessagePart.Text(obj.toString()))
-}
+private fun errEnv(error: String, detail: String): List<UIMessagePart> =
+    ToolErrors.parts(error, detail)
 
 private fun okEnv(builder: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): List<UIMessagePart> {
     return listOf(UIMessagePart.Text(buildJsonObject(builder).toString()))

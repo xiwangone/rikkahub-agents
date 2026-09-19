@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import android.content.Context
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -178,10 +179,7 @@ fun writeTextFileTool(context: Context): Tool = Tool(
 )
 
 private fun errEnvelope(code: String, detail: String): List<UIMessagePart> =
-    listOf(UIMessagePart.Text(buildJsonObject {
-        put("error", code)
-        put("detail", detail)
-    }.toString()))
+    ToolErrors.parts(code, detail)
 
 internal fun shouldAutoCreateParent(rawPath: String, expandedPath: String): Boolean =
     rawPath.startsWith("~/") ||

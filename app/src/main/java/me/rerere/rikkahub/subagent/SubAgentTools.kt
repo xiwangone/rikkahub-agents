@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.subagent
 
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.booleanOrNull
@@ -15,13 +16,8 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 
-private fun errEnv(error: String, detail: String): List<UIMessagePart> {
-    val obj = buildJsonObject {
-        put("error", error)
-        put("detail", detail)
-    }
-    return listOf(UIMessagePart.Text(obj.toString()))
-}
+private fun errEnv(error: String, detail: String): List<UIMessagePart> =
+    ToolErrors.parts(error, detail)
 
 internal fun encodeRun(run: SubAgentRun): kotlinx.serialization.json.JsonObject = buildJsonObject {
     put("id", run.id)

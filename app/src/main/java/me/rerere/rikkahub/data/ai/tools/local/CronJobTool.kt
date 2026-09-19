@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import kotlin.uuid.Uuid
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -31,11 +32,7 @@ import java.time.ZoneId
 
 private fun textPart(s: String) = listOf(UIMessagePart.Text(s))
 private fun errEnvelope(code: String, detail: String, extra: JsonObject? = null): String =
-    buildJsonObject {
-        put("error", code)
-        put("detail", detail)
-        extra?.forEach { (k, v) -> put(k, v) }
-    }.toString()
+    ToolErrors.text(code, detail, extra = extra ?: emptyMap())
 
 /**
  * Pure validator for schedule_job inputs. Returns null on success, a structured error

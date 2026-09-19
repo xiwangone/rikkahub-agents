@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.costguards
 
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -37,14 +38,7 @@ import kotlin.uuid.Uuid
 private fun errEnv(
     error: String,
     detail: String,
-): List<UIMessagePart> {
-    val obj =
-        buildJsonObject {
-            put("error", error)
-            put("detail", detail)
-        }
-    return listOf(UIMessagePart.Text(obj.toString()))
-}
+): List<UIMessagePart> = ToolErrors.parts(error, detail)
 
 fun checkTokenUsageTool(
     settingsStore: SettingsStore,

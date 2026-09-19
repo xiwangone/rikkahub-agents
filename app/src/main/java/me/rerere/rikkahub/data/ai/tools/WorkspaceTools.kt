@@ -4,6 +4,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -38,6 +39,7 @@ val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(
     "workspace_read_file" to false,
     "workspace_write_file" to false,
     "workspace_edit_file" to false,
+    "workspace_apply_edits" to false,
     "workspace_shell" to true,
 )
 
@@ -60,6 +62,7 @@ suspend fun createWorkspaceTools(
         createReadFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createWriteFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createEditFileTool(workspaceId, ::needsApproval, workspaceRepository),
+        createApplyEditsTool(workspaceId, ::needsApproval, workspaceRepository),
         createDiffFileTool(workspaceId, ::needsApproval, workspaceRepository),
         createShellTool(workspaceId, ::needsApproval, workspaceRepository, shellCwd),
         createCreateFolderTool(workspaceId, ::needsApproval, workspaceRepository),
@@ -91,30 +94,75 @@ private fun createReadFileTool(
         Read a file using the assistant's bound workspace Rootfs. Paths must be absolute inside Rootfs.
         Use /workspace for the workspace files area.
         Supports UTF-8 text files and image files (png, jpg, jpeg, gif, webp, bmp, svg, heic, heif, avif, ico).
+        Large text files can be read in slices: pass start_line / end_line (1-based, inclusive).
+        Set with_line_numbers=true to prefix each returned line with its line number.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
                 putPathProperty(required = true)
+                put("start_line", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Optional 1-based first line to return (inclusive). Omit to start at line 1.")
+                })
+                put("end_line", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "Optional 1-based last line to return (inclusive). Omit to read to the end.")
+                })
+                put("with_line_numbers", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Prefix each returned line with its line number (e.g. '12| ...'). Defaults to false.")
+                })
             },
             required = listOf("path"),
         )
     },
     needsApproval = { needsApproval("workspace_read_file") },
     execute = {
-        val path = it.jsonObject.absolutePath("path")
+        val args = it.jsonObject
+        val path = args.absolutePath("path")
         if (path.isImagePath()) {
             workspaceRepository.readImageInRootfs(workspaceId, path)
         } else {
             val text = workspaceRepository.readTextInRootfs(workspaceId, path)
-            listOf(
-                UIMessagePart.Text(
-                    buildJsonObject {
-                        put("path", path)
-                        put("text", text)
-                    }.toString()
+            val startLine = args["start_line"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+            val endLine = args["end_line"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+            val withLineNumbers =
+                args["with_line_numbers"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+            // 不传范围也不要求行号 → 与旧行为完全一致（返回体只有 path/text）。
+            if (startLine == null && endLine == null && !withLineNumbers) {
+                listOf(
+                    UIMessagePart.Text(
+                        buildJsonObject {
+                            put("path", path)
+                            put("text", text)
+                        }.toString()
+                    )
                 )
-            )
+            } else {
+                val lines = text.split("\n")
+                val total = lines.size
+                val from = (startLine ?: 1).coerceIn(1, maxOf(1, total))
+                val to = (endLine ?: total).coerceIn(from, maxOf(from, total))
+                val slice = lines.subList(from - 1, minOf(to, total))
+                val body = if (withLineNumbers) {
+                    slice.mapIndexed { i, line -> "${from + i}| $line" }.joinToString("\n")
+                } else {
+                    slice.joinToString("\n")
+                }
+                listOf(
+                    UIMessagePart.Text(
+                        buildJsonObject {
+                            put("path", path)
+                            put("text", body)
+                            put("start_line", from)
+                            put("end_line", minOf(to, total))
+                            put("total_lines", total)
+                            put("truncated", from > 1 || to < total)
+                        }.toString()
+                    )
+                )
+            }
         }
     },
 )
@@ -283,6 +331,7 @@ private fun createEditFileTool(
         )
     },
 )
+
 
 /**
  * shell 预设库在工作区内的固定位置（rootfs 绝对路径）。
@@ -857,7 +906,7 @@ private fun createListTool(
     },
 )
 
-private fun kotlinx.serialization.json.JsonObject.string(name: String): String? =
+internal fun kotlinx.serialization.json.JsonObject.string(name: String): String? =
     this[name]?.jsonPrimitive?.contentOrNull
 
 private suspend fun WorkspaceRepository.readTextInRootfs(
@@ -984,7 +1033,7 @@ private fun String.parseRootfsEntries(): List<WorkspaceFileEntry> {
     }
 }
 
-private fun kotlinx.serialization.json.JsonObject.absolutePath(name: String): String {
+internal fun kotlinx.serialization.json.JsonObject.absolutePath(name: String): String {
     val path = string(name)?.replace('\\', '/')?.trim() ?: error("$name is required")
     require(path.isNotBlank()) { "$name is required" }
     require(path.startsWith("/")) { "$name must be an absolute path inside Rootfs" }

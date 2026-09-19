@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import android.content.Context
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
@@ -466,10 +467,7 @@ fun whisperStatusTool(context: Context, settingsStore: SettingsStore): Tool = To
 )
 
 private fun errEnv(code: String, detail: String): List<UIMessagePart> =
-    listOf(UIMessagePart.Text(buildJsonObject {
-        put("error", code)
-        put("detail", detail)
-    }.toString()))
+    ToolErrors.parts(code, detail)
 
 // Re-export Termux internals needed by this file (they are internal to the package,
 // so no import is needed — they share the same package).
