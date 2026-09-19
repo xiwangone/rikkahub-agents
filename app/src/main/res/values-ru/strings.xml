@@ -1559,6 +1559,14 @@
   <string name="setting_page_telegram_default_chat">Чат по умолчанию</string>
   <string name="setting_page_telegram_default_chat_desc">Куда идут исходящие сообщения, когда LLM опускает chat_id (например, оповещения cron-задач). Используйте свой числовой ID пользователя Telegram.</string>
   <string name="setting_page_telegram_desc">Запуск LLM как Telegram-бота — общайтесь с ним удалённо с любого устройства.</string>
+  <string name="setting_page_tools">Инструменты</string>
+  <string name="setting_page_tools_desc">Детализация инструментов, лимит вывода, бюджет времени на ход и подтверждения.</string>
+  <string name="setting_tools_section_detail">Детализация</string>
+  <string name="setting_tools_section_output">Лимит вывода</string>
+  <string name="setting_tools_section_advanced">Дополнительно</string>
+  <string name="setting_tools_apply_budget">Применить бюджет хода</string>
+  <string name="setting_tools_apply_budget_desc">Сохраняет введённое выше значение в минутах.</string>
+  <string name="setting_tools_section_approval">Подтверждения</string>
   <string name="setting_page_telegram_no_token_toast">Сначала задайте токен бота.</string>
   <string name="setting_page_telegram_start">Запустить</string>
   <string name="setting_page_telegram_status_running">Работает</string>

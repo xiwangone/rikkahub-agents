@@ -764,13 +764,11 @@ private fun ChatFilesPickerSheet(
     var showInjectionSheet by remember { mutableStateOf(false) }
     var showCompressDialog by remember { mutableStateOf(false) }
     var showAutoCompressDialog by remember { mutableStateOf(false) }
-    var showToolOutputDialog by remember { mutableStateOf(false) }
 
     fun dismissAll() {
         showInjectionSheet = false
         showCompressDialog = false
         showAutoCompressDialog = false
-        showToolOutputDialog = false
         onDismiss()
     }
 
@@ -961,8 +959,6 @@ private fun ChatFilesPickerSheet(
             onShowCompressDialogChange = { showCompressDialog = it },
             showAutoCompressDialog = showAutoCompressDialog,
             onShowAutoCompressDialogChange = { showAutoCompressDialog = it },
-            showToolOutputDialog = showToolOutputDialog,
-            onShowToolOutputDialogChange = { showToolOutputDialog = it },
             onDismiss = { dismissAll() },
             onTakePic = onLaunchCamera,
             onPickImage = { imagePickerLauncher.launch("image/*") },
@@ -992,16 +988,6 @@ private fun ChatFilesPickerSheet(
                 vm.updateSettings(newSettings)
                 // 用户重设阈值/模式 → 触发点 = 当前累计值 + 新阈值
                 vm.resetAutoCompressTriggerPoint(newSettings)
-            },
-        )
-    }
-    if (showToolOutputDialog) {
-        ToolOutputDialog(
-            enabled = setting.toolOutputEnabled,
-            maxCharsKB = setting.toolOutputMaxChars / 1000,
-            onDismiss = { showToolOutputDialog = false },
-            onConfirm = { enabled, maxChars ->
-                vm.updateSettings(setting.copy(toolOutputEnabled = enabled, toolOutputMaxChars = maxChars * 1000))
             },
         )
     }

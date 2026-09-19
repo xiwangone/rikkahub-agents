@@ -1790,6 +1790,14 @@
   <string name="setting_page_telegram_default_chat">默认聊天</string>
   <string name="setting_page_telegram_default_chat_desc">当大模型省略 chat_id 时（例如定时任务提醒），外发消息的去向。使用你的 Telegram 数字用户 ID。</string>
   <string name="setting_page_telegram_desc">将大模型作为 Telegram 机器人运行 — 从任何设备远程与它聊天。</string>
+  <string name="setting_page_tools">工具</string>
+  <string name="setting_page_tools_desc">工具详略、输出上限、每轮时间预算与审批。</string>
+  <string name="setting_tools_section_detail">工具详略</string>
+  <string name="setting_tools_section_output">输出上限</string>
+  <string name="setting_tools_section_advanced">高级</string>
+  <string name="setting_tools_apply_budget">应用每轮预算</string>
+  <string name="setting_tools_apply_budget_desc">保存上方填写的分钟数。</string>
+  <string name="setting_tools_section_approval">审批</string>
   <string name="setting_page_telegram_no_token_toast">请先设置机器人 Token。</string>
   <string name="setting_page_telegram_start">启动</string>
   <string name="setting_page_telegram_status_running">运行中</string>

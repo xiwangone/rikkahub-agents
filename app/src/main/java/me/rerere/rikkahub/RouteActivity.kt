@@ -617,6 +617,10 @@ class RouteActivity : ComponentActivity() {
                                 me.rerere.rikkahub.ui.pages.setting.SettingToolApprovalsPage()
                             }
 
+                            entry<Screen.SettingTools> {
+                                me.rerere.rikkahub.ui.pages.setting.SettingToolsPage()
+                            }
+
                             entry<Screen.SettingAccessibility> {
                                 SettingAccessibilityPage()
                             }
@@ -899,6 +903,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingDoctor : Screen
+
+    @Serializable
+    data object SettingTools : Screen
 
     @Serializable
     data object SettingToolApprovals : Screen

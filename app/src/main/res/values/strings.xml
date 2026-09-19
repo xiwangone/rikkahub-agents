@@ -1389,6 +1389,14 @@
   <string name="assistant_page_local_tools_telegram_desc">Run the assistant as a Telegram bot — send/receive messages, files, manage /commands. Configured entirely via tools (set token, whitelist, default chat, then enable). Foreground service handles long-poll.</string>
   <string name="setting_page_telegram">Telegram bot</string>
   <string name="setting_page_telegram_desc">Run the LLM as a Telegram bot — chat with it remotely from any device.</string>
+  <string name="setting_page_tools">Tools</string>
+  <string name="setting_page_tools_desc">Tool detail level, output limit, per-turn time budget, and approvals.</string>
+  <string name="setting_tools_section_detail">Detail level</string>
+  <string name="setting_tools_section_output">Output limit</string>
+  <string name="setting_tools_section_advanced">Advanced</string>
+  <string name="setting_tools_apply_budget">Apply turn budget</string>
+  <string name="setting_tools_apply_budget_desc">Save the value entered above (minutes).</string>
+  <string name="setting_tools_section_approval">Approvals</string>
   <string name="setting_page_workflows">Workflows</string>
   <string name="setting_page_workflows_desc">Trigger-based automations: when something happens on the device, run a sequence of tools.</string>
   <string name="setting_page_scheduled_jobs">Scheduled jobs</string>

@@ -1581,6 +1581,14 @@
   <string name="setting_page_telegram_default_chat">預設聊天</string>
   <string name="setting_page_telegram_default_chat_desc">當大型語言模型省略 chat_id 時（例如排程任務提醒），外發訊息的去向。使用你的 Telegram 數字使用者 ID。</string>
   <string name="setting_page_telegram_desc">將大型語言模型作為 Telegram 機器人執行 — 從任何裝置遠端與它聊天。</string>
+  <string name="setting_page_tools">工具</string>
+  <string name="setting_page_tools_desc">工具詳略、輸出上限、每輪時間預算與審批。</string>
+  <string name="setting_tools_section_detail">工具詳略</string>
+  <string name="setting_tools_section_output">輸出上限</string>
+  <string name="setting_tools_section_advanced">進階</string>
+  <string name="setting_tools_apply_budget">套用每輪預算</string>
+  <string name="setting_tools_apply_budget_desc">儲存上方填寫的分鐘數。</string>
+  <string name="setting_tools_section_approval">審批</string>
   <string name="setting_page_telegram_no_token_toast">請先設定機器人 Token。</string>
   <string name="setting_page_telegram_start">啟動</string>
   <string name="setting_page_telegram_status_running">執行中</string>

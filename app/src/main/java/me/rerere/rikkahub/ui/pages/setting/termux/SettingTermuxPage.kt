@@ -299,17 +299,6 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
                     },
                 )
                 item(
-                    headlineContent = { Text(stringResource(R.string.setting_termux_turn_budget)) },
-                    supportingContent = { Text(stringResource(R.string.setting_termux_turn_budget_desc)) },
-                    trailingContent = {
-                        TimeoutInput(
-                            currentValue = config.turnBudgetMs / 60_000L,
-                            unitLabel = stringResource(R.string.setting_termux_unit_minutes),
-                            onCommit = vm::setTurnBudgetMinutes,
-                        )
-                    },
-                )
-                item(
                     headlineContent = { Text(stringResource(R.string.setting_termux_verify_timeout)) },
                     supportingContent = { Text(stringResource(R.string.setting_termux_verify_timeout_desc)) },
                     trailingContent = {

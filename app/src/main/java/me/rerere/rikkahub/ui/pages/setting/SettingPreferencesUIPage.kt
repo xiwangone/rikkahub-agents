@@ -290,26 +290,6 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                     item(
                         headlineContent = {
                             Text(
-                                stringResource(R.string.setting_display_page_tool_surface_trim_title),
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_tool_surface_trim_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.toolSurfaceTrimming,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(toolSurfaceTrimming = it))
-                                },
-                            )
-                        },
-                    )
-                    item(
-                        headlineContent = {
-                            Text(
                                 stringResource(R.string.setting_display_page_auto_collapse_thinking_title),
                             )
                         },

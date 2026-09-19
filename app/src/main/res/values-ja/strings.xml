@@ -1566,6 +1566,14 @@
   <string name="setting_page_telegram_default_chat">デフォルトチャット</string>
   <string name="setting_page_telegram_default_chat_desc">LLM が chat_id を省略したとき（例：cron ジョブの通知）に送信メッセージが届く先。あなたの Telegram 数値ユーザー ID を使用してください。</string>
   <string name="setting_page_telegram_desc">LLM を Telegram ボットとして実行 — 任意のデバイスからリモートでチャットできます。</string>
+  <string name="setting_page_tools">ツール</string>
+  <string name="setting_page_tools_desc">ツールの詳しさ、出力上限、1ターンの時間予算、承認。</string>
+  <string name="setting_tools_section_detail">ツールの詳しさ</string>
+  <string name="setting_tools_section_output">出力上限</string>
+  <string name="setting_tools_section_advanced">詳細設定</string>
+  <string name="setting_tools_apply_budget">ターン予算を適用</string>
+  <string name="setting_tools_apply_budget_desc">上に入力した分数を保存します。</string>
+  <string name="setting_tools_section_approval">承認</string>
   <string name="setting_page_telegram_no_token_toast">先にボットトークンを設定してください。</string>
   <string name="setting_page_telegram_start">開始</string>
   <string name="setting_page_telegram_status_running">実行中</string>

@@ -1563,6 +1563,14 @@
   <string name="setting_page_telegram_default_chat">기본 채팅</string>
   <string name="setting_page_telegram_default_chat_desc">LLM이 chat_id를 생략할 때(예: cron 작업 알림) 발신 메시지가 가는 곳. 본인의 Telegram 숫자 사용자 ID를 사용하세요.</string>
   <string name="setting_page_telegram_desc">LLM을 Telegram 봇으로 실행 — 어떤 기기에서든 원격으로 대화하세요.</string>
+  <string name="setting_page_tools">도구</string>
+  <string name="setting_page_tools_desc">도구 상세 수준, 출력 한도, 턴당 시간 예산, 승인.</string>
+  <string name="setting_tools_section_detail">도구 상세 수준</string>
+  <string name="setting_tools_section_output">출력 한도</string>
+  <string name="setting_tools_section_advanced">고급</string>
+  <string name="setting_tools_apply_budget">턴 예산 적용</string>
+  <string name="setting_tools_apply_budget_desc">위에 입력한 분 값을 저장합니다.</string>
+  <string name="setting_tools_section_approval">승인</string>
   <string name="setting_page_telegram_no_token_toast">먼저 봇 토큰을 설정하세요.</string>
   <string name="setting_page_telegram_start">시작</string>
   <string name="setting_page_telegram_status_running">실행 중</string>

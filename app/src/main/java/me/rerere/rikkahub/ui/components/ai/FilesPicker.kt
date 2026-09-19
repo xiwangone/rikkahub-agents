@@ -105,8 +105,6 @@ internal fun FilesPicker(
     onShowCompressDialogChange: (Boolean) -> Unit,
     showAutoCompressDialog: Boolean,
     onShowAutoCompressDialogChange: (Boolean) -> Unit,
-    showToolOutputDialog: Boolean,
-    onShowToolOutputDialogChange: (Boolean) -> Unit,
     onDismiss: () -> Unit,
     onTakePic: () -> Unit,
     onPickImage: () -> Unit,
@@ -284,35 +282,6 @@ internal fun FilesPicker(
                     .clickable { onShowAutoCompressDialogChange(true) },
         )
 
-        // Tool output limit
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = HugeIcons.Tools,
-                    contentDescription = stringResource(R.string.setting_model_page_tool_output),
-                )
-            },
-            headlineContent = {
-                Text(stringResource(R.string.setting_model_page_tool_output))
-            },
-            supportingContent = {
-                Text(stringResource(R.string.setting_model_page_tool_output_desc))
-            },
-            trailingContent = {
-                Switch(
-                    checked = settings.toolOutputEnabled,
-                    onCheckedChange = { onShowToolOutputDialogChange(true) },
-                )
-            },
-            colors =
-                ListItemDefaults.colors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            modifier =
-                Modifier
-                    .clip(MaterialTheme.shapes.large)
-                    .clickable { onShowToolOutputDialogChange(true) },
-        )
 
         // Workspace CWD
         val boundWorkspace =

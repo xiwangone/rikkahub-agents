@@ -20,6 +20,7 @@ import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.Robot01
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.Tools
 import me.rerere.hugeicons.stroke.Shield01
 import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.hugeicons.stroke.Telegram
@@ -151,6 +152,14 @@ object SettingCatalog {
             titleRes = R.string.setting_page_telegram,
             descRes = R.string.setting_page_telegram_desc,
             screen = Screen.SettingTelegram,
+        ),
+        SettingEntry(
+            id = "tools",
+            group = SettingGroup.TOOLS,
+            icon = HugeIcons.Tools,
+            titleRes = R.string.setting_page_tools,
+            descRes = R.string.setting_page_tools_desc,
+            screen = Screen.SettingTools,
         ),
         SettingEntry(
             id = "browser",
