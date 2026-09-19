@@ -2668,8 +2668,8 @@
   <string name="setting_sub_agents_page_workspace">工作区</string>
   <string name="setting_sub_agents_page_workspace_desc">该配置派发的子代理在选定工作区里运行；不绑定时跟随父助手。</string>
   <string name="setting_sub_agents_page_tools">工具白名单</string>
-  <string name="setting_sub_agents_page_tools_desc">逗号或换行分隔的工具名。只减不增：父助手没有的工具会被丢弃。子代理的工具调用是自动批准的（不会逐次询问），因此建议保持最小。</string>
-  <string name="setting_sub_agents_page_tools_hint">留空 = 默认只读集（读/搜/取）；填 * = 继承父助手全部工具（提权）。</string>
+  <string name="setting_sub_agents_page_tools_desc">逗号或换行分隔的工具名，例如 workspace_read_file, web_fetch。只减不增：父助手没有的工具会被丢弃，子代理的工具调用自动批准（不会逐次询问），请尽量精简。</string>
+  <string name="setting_sub_agents_page_tools_hint">留空 = 默认集合：只读与检索工具，外加在子代理自己的工作区内读写；不包含命令执行、SSH 与系统文件。填 * 继承父助手全部工具（提权）。</string>
   <string name="setting_sub_agents_page_default_workspace">子代理默认工作区</string>
   <string name="setting_sub_agents_page_default_workspace_desc">派发的子代理默认在哪个工作区运行（派发参数或配置里指定时以它们为准）。建议选一个与主对话不同的工作区，避免写入互相覆盖。</string>
   <string name="setting_sub_agents_page_model">模型</string>

@@ -67,13 +67,14 @@ object SubAgentDefaults {
     const val REGISTRY_LRU_CAP = 50
 
     /**
-     * 子代理**默认**工具集：未显式指定时的最小权限集（只读/调研）。
+     * 子代理**默认**工具集：未显式指定时的最小权限集——**只读/检索 + 在自己的工作区内读写**。
      *
      * 设计动机（2026-09-20 核实）：headless 会话的工具调用是**自动批准**的
      * （见 [me.rerere.rikkahub.data.ai.tools.HeadlessConversations] 的 auto-approve 集合），
      * 而子代理此前默认“继承父助手全量工具” → 派一个子代理等于交出「全量工具 + 免审批」。
-     * 现在改为默认只给只读集；要写/执行，必须显式声明（dispatch 的 `tools`、或 profile 里
-     * 写 `"*"` 表示继承父助手全量）。
+     * 现在默认只给：只读/检索类，加上**工作区沙箱内**的读写类（工作区本身是隔离边界，
+     * 写自己的沙箱不越权）；命令执行、SSH、系统文件（write_text_file 等）**不在**默认集内，
+     * 要它们必须显式声明（dispatch 的 `tools`、或 profile 里写 `"*"` 继承父助手全量）。
      *
      * ⚠ 名字必须是与工具实际注册名**完全相等**的字符串（过滤是精确匹配，没有通配）。
      */
@@ -91,14 +92,21 @@ object SubAgentDefaults {
         "web_fetch",
         "subagent_list",
         "subagent_get",
-    )
-
-    /** 出现其中任一工具即视为“提权”派发（回显 elevated，让主对话知道写/执行已开放）。 */
-    val ELEVATED_TOOL_NAMES: Set<String> = setOf(
+        // 工作区内读写：工作区是隔离边界，默认允许子代理在自己的沙箱里产出文件。
         "workspace_write_file",
         "workspace_edit_file",
         "workspace_apply_edits",
         "workspace_create_folder",
+    )
+
+    /**
+     * 出现其中任一工具即视为“提权”派发（回显 elevated）。
+     *
+     * 口径：**越过工作区沙箱**或**能执行/触达外部**者才算提权——命令执行、后台任务、SSH、
+     * 系统文件读写（write_text_file 可写手机任意路径）。**工作区内的读写不算**：那仍在
+     * 隔离边界内（互踩风险另有 `workspace_shared_with_parent` 单独标记）。
+     */
+    val ELEVATED_TOOL_NAMES: Set<String> = setOf(
         "workspace_shell",
         "workspace_run_background",
         "workspace_background_kill",
@@ -220,6 +228,11 @@ data class SubAgentProfile(
     val enabled: Boolean = true,
     /** 该 profile 默认使用的工作区；null = 跟随父助手 */
     val workspaceId: Uuid? = null,
-    /** 该 profile 默认的工具白名单（只减不增）；null/空 = 继承父助手全量 */
+    /**
+     * 该 profile 默认的工具白名单（只减不增）。
+     *
+     * null/空 = 落到 [SubAgentDefaults.DEFAULT_SAFE_TOOL_SCOPE]（工作区内读写），**不是**
+     * 继承父助手全量；要继承全量请显式写 `["*"]`。
+     */
     val toolScope: List<String>? = null,
 )

@@ -2760,7 +2760,7 @@
   <string name="setting_sub_agents_page_workspace_desc">Sub-agents of this profile run in the selected workspace. Unbound means it follows the parent assistant.</string>
   <string name="setting_sub_agents_page_tools">Tool allow-list</string>
   <string name="setting_sub_agents_page_tools_desc">Comma or newline separated tool names. Narrowing only: names that the parent cannot use are dropped. Sub-agent tool calls are AUTO-APPROVED (no per-call prompt), so keep this minimal.</string>
-  <string name="setting_sub_agents_page_tools_hint">Empty = a default read-only set (read / search / fetch). Put * to inherit the full tool set of the parent assistant (elevated).</string>
+  <string name="setting_sub_agents_page_tools_hint">Empty = a default set: read, search and fetch tools plus read-write INSIDE the sub-agent own workspace. Command execution, SSH and system files are NOT included. Put * to inherit the full tool set of the parent assistant (elevated).</string>
   <string name="setting_sub_agents_page_default_workspace">Default workspace for sub-agents</string>
   <string name="setting_sub_agents_page_default_workspace_desc">Where dispatched sub-agents run unless the dispatch or the profile says otherwise. Pick a workspace separate from your main one so their writes cannot clash with this conversation.</string>
   <string name="setting_sub_agents_page_model">Model</string>

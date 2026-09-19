@@ -2324,8 +2324,8 @@
   <string name="setting_sub_agents_page_workspace">ワークスペース</string>
   <string name="setting_sub_agents_page_workspace_desc">この設定のサブエージェントは選択したワークスペースで実行されます。未設定の場合は親アシスタントに従います。</string>
   <string name="setting_sub_agents_page_tools">ツール許可リスト</string>
-  <string name="setting_sub_agents_page_tools_desc">カンマまたは改行区切りのツール名。絞り込みのみ可能で、親が使えないツールは除外されます。サブエージェントのツール呼び出しは自動承認（毎回の確認なし）なので、最小限に留めてください。</string>
-  <string name="setting_sub_agents_page_tools_hint">空欄 = 既定の読み取り専用セット（読む/検索/取得）。* を指定すると親の全ツールを継承します（権限昇格）。</string>
+  <string name="setting_sub_agents_page_tools_desc">カンマまたは改行区切りのツール名（例: workspace_read_file, web_fetch）。絞り込みのみ：親アシスタントが使えない名前は破棄されます。サブエージェントのツール呼び出しは自動承認されるため、最小限にしてください。</string>
+  <string name="setting_sub_agents_page_tools_hint">空欄 = 既定セット：読み取り・検索系ツールに加え、サブエージェント自身のワークスペース内の読み書きが可能。コマンド実行・SSH・システムファイルは含まれません。* を入力すると親アシスタントの全ツールを継承します（昇格）。</string>
   <string name="setting_sub_agents_page_default_workspace">サブエージェントの既定ワークスペース</string>
   <string name="setting_sub_agents_page_default_workspace_desc">派発されたサブエージェントが既定で実行されるワークスペース（派発パラメータや設定で指定があればそちらが優先）。メインと別のワークスペースを選ぶと書き込みの衝突を避けられます。</string>
   <string name="setting_sub_agents_page_model">モデル</string>
