@@ -83,6 +83,9 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.material3.FilterChip
 
 /**
  * #36: named sub-agent profiles - a name, description, custom system prompt and model,
@@ -90,6 +93,23 @@ import org.koin.compose.koinInject
  * delete, mirroring the Lorebook/ModeInjection tabs in PromptPage. Model selection reuses the
  * shared [ModelSelector] component rather than a new picker.
  */
+/** 「工具白名单」快捷芯片的常用集合（顺序即展示顺序）：只读 → 工作区写 → 继承全部。 */
+private val SUB_AGENT_TOOL_PRESETS = listOf(
+    "workspace_read_file",
+    "workspace_list",
+    "workspace_search_code",
+    "file_info",
+    "read_file",
+    "list_files",
+    "find_files",
+    "memory_search",
+    "web_fetch",
+    "workspace_write_file",
+    "workspace_edit_file",
+    "workspace_apply_edits",
+    "*",
+)
+
 @Composable
 fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -492,16 +512,38 @@ private fun SubAgentProfileEditSheet(
                     label = { Text(stringResource(R.string.setting_sub_agents_page_tools)) },
                     description = { Text(stringResource(R.string.setting_sub_agents_page_tools_desc)) },
                     content = {
-                        OutlinedTextField(
-                            value = profile.toolScope?.joinToString(", ") ?: "",
-                            onValueChange = { raw ->
-                                val parsed = raw.split(',', '\n').map { it.trim() }.filter { it.isNotEmpty() }
-                                onEdit(profile.copy(toolScope = parsed.takeIf { it.isNotEmpty() }))
-                            },
-                            supportingText = { Text(stringResource(R.string.setting_sub_agents_page_tools_hint)) },
-                            minLines = 2,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        Column(modifier = Modifier.fillMaxWidth()) {
+                            OutlinedTextField(
+                                value = profile.toolScope?.joinToString(", ") ?: "",
+                                onValueChange = { raw ->
+                                    val parsed = raw.split(',', '\n').map { it.trim() }.filter { it.isNotEmpty() }
+                                    onEdit(profile.copy(toolScope = parsed.takeIf { it.isNotEmpty() }))
+                                },
+                                supportingText = { Text(stringResource(R.string.setting_sub_agents_page_tools_hint)) },
+                                minLines = 2,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            // 快捷芯片：手打工具名既容易拼错、又记不全（拼错的名字会被静默丢弃），
+                            // 这里给出常用集合，点一下即加入/移出名单；仍可在上面的输入框里自由编辑。
+                            Spacer(Modifier.height(8.dp))
+                            Row(
+                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            ) {
+                                SUB_AGENT_TOOL_PRESETS.forEach { preset ->
+                                    val selected = profile.toolScope?.contains(preset) == true
+                                    FilterChip(
+                                        selected = selected,
+                                        onClick = {
+                                            val current = profile.toolScope.orEmpty().toMutableList()
+                                            if (selected) current.remove(preset) else current.add(preset)
+                                            onEdit(profile.copy(toolScope = current.takeIf { it.isNotEmpty() }))
+                                        },
+                                        label = { Text(preset) },
+                                    )
+                                }
+                            }
+                        }
                     },
                 )
 
