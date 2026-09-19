@@ -90,6 +90,7 @@ object LocalToolCatalog {
                     LocalToolOption.Files,
                     LocalToolOption.ExternalStorage,
                     LocalToolOption.Archive,
+                    LocalToolOption.AppBackup,
                 ),
             LocalToolCategory.PERSONAL to
                 listOf(
@@ -174,6 +175,7 @@ object LocalToolCatalog {
             LocalToolOption.CostGuards,
             LocalToolOption.ModelTesting,
             LocalToolOption.SkillImport,
+            LocalToolOption.AppBackup,
             -> ToolTier.SELF_MANAGE
 
             // L3 开发者
@@ -244,6 +246,7 @@ object LocalToolCatalog {
             LocalToolOption.McpControl -> R.string.mcp_tool_mcp_control
             LocalToolOption.ExternalAutomation -> R.string.mcp_tool_external_automation
             LocalToolOption.Reliability -> R.string.mcp_tool_reliability
+            LocalToolOption.AppBackup -> R.string.mcp_tool_app_backup
             LocalToolOption.SubAgents -> R.string.mcp_tool_sub_agents
             LocalToolOption.CostGuards -> R.string.mcp_tool_cost_guards
             LocalToolOption.Workflows -> R.string.mcp_tool_workflows

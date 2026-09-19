@@ -2966,6 +2966,9 @@
   <string name="mcp_tool_mcp_control">MCP 管理</string>
   <string name="mcp_tool_external_automation">外部自动化</string>
   <string name="mcp_tool_reliability">稳定性守护</string>
+  <string name="mcp_tool_app_backup">应用备份</string>
+  <string name="assistant_page_local_tools_app_backup_title">应用备份</string>
+  <string name="assistant_page_local_tools_app_backup_desc">生成应用数据的备份压缩包（数据库含密钥库密文、设置、技能、工作区文档），并让助手拿到文件路径。每次执行都需要你确认。</string>
   <string name="mcp_tool_sub_agents">子代理</string>
   <string name="mcp_tool_cost_guards">成本守卫</string>
   <string name="mcp_tool_workflows">工作流</string>

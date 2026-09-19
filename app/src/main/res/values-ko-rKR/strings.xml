@@ -2467,6 +2467,9 @@
   <string name="mcp_tool_mcp_control">MCP 관리</string>
   <string name="mcp_tool_external_automation">외부 자동화</string>
   <string name="mcp_tool_reliability">안정성 가드</string>
+  <string name="mcp_tool_app_backup">앱 백업</string>
+  <string name="assistant_page_local_tools_app_backup_title">앱 백업</string>
+  <string name="assistant_page_local_tools_app_backup_desc">앱 데이터 백업 zip(데이터베이스·키스토어 암호문·설정·스킬·워크스페이스 문서)을 만들고 어시스턴트가 파일 경로를 받습니다. 실행할 때마다 확인이 필요합니다.</string>
   <string name="mcp_tool_sub_agents">하위 에이전트</string>
   <string name="mcp_tool_cost_guards">비용 보호</string>
   <string name="mcp_tool_workflows">워크플로</string>

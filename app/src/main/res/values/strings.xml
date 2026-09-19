@@ -2966,6 +2966,9 @@
   <string name="mcp_tool_mcp_control">MCP control</string>
   <string name="mcp_tool_external_automation">External automation</string>
   <string name="mcp_tool_reliability">Reliability</string>
+  <string name="mcp_tool_app_backup">App backup</string>
+  <string name="assistant_page_local_tools_app_backup_title">App backup</string>
+  <string name="assistant_page_local_tools_app_backup_desc">Create a backup zip of app data (database incl. vault ciphertext, settings, skills, workspace docs) and let the assistant read the file path. Requires your confirmation each run.</string>
   <string name="mcp_tool_sub_agents">Sub-agents</string>
   <string name="mcp_tool_cost_guards">Cost guards</string>
   <string name="mcp_tool_workflows">Workflows</string>

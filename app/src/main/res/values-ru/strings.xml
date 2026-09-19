@@ -2460,6 +2460,9 @@
   <string name="mcp_tool_mcp_control">Управление MCP</string>
   <string name="mcp_tool_external_automation">Внешняя автоматизация</string>
   <string name="mcp_tool_reliability">Защита надёжности</string>
+  <string name="mcp_tool_app_backup">Резервная копия приложения</string>
+  <string name="assistant_page_local_tools_app_backup_title">Резервная копия приложения</string>
+  <string name="assistant_page_local_tools_app_backup_desc">Создаёт zip-архив с данными приложения (база с шифротекстом хранилища ключей, настройки, навыки, документы рабочей области) и передаёт ассистенту путь к файлу. Требуется подтверждение при каждом запуске.</string>
   <string name="mcp_tool_sub_agents">Подагенты</string>
   <string name="mcp_tool_cost_guards">Контроль затрат</string>
   <string name="mcp_tool_workflows">Рабочие процессы</string>

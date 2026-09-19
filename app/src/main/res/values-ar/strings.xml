@@ -2112,6 +2112,9 @@
   <string name="mcp_tool_mcp_control">إدارة MCP</string>
   <string name="mcp_tool_external_automation">الأتمتة الخارجية</string>
   <string name="mcp_tool_reliability">حماية الاستقرار</string>
+  <string name="mcp_tool_app_backup">نسخ احتياطي للتطبيق</string>
+  <string name="assistant_page_local_tools_app_backup_title">نسخ احتياطي للتطبيق</string>
+  <string name="assistant_page_local_tools_app_backup_desc">ينشئ ملفًا مضغوطًا لبيانات التطبيق (قاعدة البيانات بما فيها النص المشفَّر لخزنة المفاتيح، والإعدادات، والمهارات، ومستندات مساحة العمل) ويمنح المساعد مسار الملف. يلزم تأكيدك في كل مرة.</string>
   <string name="mcp_tool_sub_agents">وكلاء فرعيون</string>
   <string name="mcp_tool_cost_guards">حماية التكلفة</string>
   <string name="mcp_tool_workflows">سير العمل</string>

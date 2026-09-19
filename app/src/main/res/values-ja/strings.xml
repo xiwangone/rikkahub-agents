@@ -2467,6 +2467,9 @@
   <string name="mcp_tool_mcp_control">MCP 管理</string>
   <string name="mcp_tool_external_automation">外部自動化</string>
   <string name="mcp_tool_reliability">信頼性ガード</string>
+  <string name="mcp_tool_app_backup">アプリのバックアップ</string>
+  <string name="assistant_page_local_tools_app_backup_title">アプリのバックアップ</string>
+  <string name="assistant_page_local_tools_app_backup_desc">アプリデータのバックアップ ZIP（データベース＝鍵ストア暗号文を含む、設定・スキル・ワークスペース文書）を作成し、助手がファイルパスを取得します。実行のたびに確認が必要です。</string>
   <string name="mcp_tool_sub_agents">サブエージェント</string>
   <string name="mcp_tool_cost_guards">コストガード</string>
   <string name="mcp_tool_workflows">ワークフロー</string>

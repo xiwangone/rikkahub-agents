@@ -21,10 +21,16 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.sync.S3Sync
+import me.rerere.rikkahub.data.sync.s3.S3Config
+import org.koin.java.KoinJavaComponent.getKoin
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -135,6 +141,10 @@ sealed class LocalToolOption {
     @Serializable
     @SerialName("javascript_engine")
     data object JavascriptEngine : LocalToolOption()
+
+    @Serializable
+    @SerialName("app_backup")
+    data object AppBackup : LocalToolOption()
 
     @Serializable
     @SerialName("time_info")
@@ -388,6 +398,15 @@ private object ToolCapabilities {
     }
 }
 
+/** `app_backup` 的默认备份项（与设置页默认保持一致的保守集合）。 */
+private val DEFAULT_APP_BACKUP_ITEMS = listOf(
+    S3Config.BackupItem.DATABASE,
+    S3Config.BackupItem.SETTINGS,
+    S3Config.BackupItem.AVATARS,
+    S3Config.BackupItem.SKILLS,
+    S3Config.BackupItem.WORKSPACE_DOCS,
+)
+
 class LocalTools(
     private val context: Context,
     private val eventBus: AppEventBus,
@@ -552,6 +571,61 @@ class LocalTools(
                 // isolated (its own thread, bounded heap/stack) and cannot block the dispatcher.
                 listOf(UIMessagePart.Text(payload))
             }
+        )
+    }
+
+    /**
+     * `app_backup`：生成 App 数据的本地备份 zip（含**vault 密文**、设置、头像、技能、工作区文档）。
+     * 产物在 App 私有 cache，需人工审批后才会执行；返回 path/size/sha256 以便对外拷出后加密保存。
+     */
+    val appBackupTool by lazy {
+        Tool(
+            name = "app_backup",
+            description =
+                "Create a local backup zip of this app's data (database incl. vault ciphertext, settings, avatars, skills, " +
+                    "workspace docs) and return its path, size and sha256 so it can be copied out and stored. Requires approval.",
+            parameters = {
+                InputSchema.Obj(
+                    properties = buildJsonObject {
+                        put(
+                            "items",
+                            buildJsonObject {
+                                put("type", "array")
+                                put(
+                                    "description",
+                                    "Optional backup items, e.g. [\"DATABASE\",\"SETTINGS\",\"AVATARS\",\"SKILLS\"," +
+                                        "\"WORKSPACE_DOCS\",\"CHAT_FILES\",\"FONTS_IMAGES\",\"TOOL_OUTPUTS\"]. Defaults to a core set.",
+                                )
+                                put("items", buildJsonObject { put("type", "string") })
+                            },
+                        )
+                    },
+                    required = emptyList(),
+                )
+            },
+            needsApproval = { true },
+            execute = {
+                val requested =
+                    it.jsonObject["items"]?.jsonArray
+                        ?.mapNotNull { e -> e.jsonPrimitive.contentOrNull }
+                        ?.mapNotNull { n -> runCatching { S3Config.BackupItem.valueOf(n.uppercase()) }.getOrNull() }
+                        .orEmpty()
+                val items = requested.ifEmpty { DEFAULT_APP_BACKUP_ITEMS }
+                val file = getKoin().get<S3Sync>().prepareBackupFile(S3Config(items = items))
+                listOf(
+                    UIMessagePart.Text(
+                        buildJsonObject {
+                            put("path", file.absolutePath)
+                            put("size_bytes", file.length())
+                            put("items", buildJsonArray { items.forEach { add(it.name) } })
+                            put(
+                                "hint",
+                                "Copy this file out (e.g. copy_file) and store it encrypted; the archive contains sensitive data.",
+                            )
+                        }.toString(),
+                    ),
+                )
+            },
         )
     }
 
@@ -791,6 +865,9 @@ class LocalTools(
         }
         if (enabled(LocalToolOption.TimeInfo)) {
             tools.add(timeTool)
+        }
+        if (enabled(LocalToolOption.AppBackup)) {
+            tools.add(appBackupTool)
         }
         if (enabled(LocalToolOption.Clipboard)) {
             tools.add(clipboardTool)
