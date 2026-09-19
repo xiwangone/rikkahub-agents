@@ -1440,10 +1440,10 @@
   <string name="assistant_page_extra_cold_title">这些工具只发简要说明</string>
   <string name="assistant_page_extra_cold_desc">已配置 %1$d 个。它们只发送一行用途，需要时再取回完整参数表。</string>
   <string name="assistant_page_extra_cold_action">编辑</string>
-  <string name="assistant_page_extra_cold_dialog_desc">每行一个工具名（也可用逗号分隔），请用 list_tools 里显示的确切名称，例如 ssh_upload。只影响该助手的工具说明详略，工具仍可正常调用。不知道填哪些？可直接在对话中让助手按你的需求生成这份名单，再粘贴到这里。</string>
+  <string name="assistant_page_extra_cold_dialog_desc">每行一个工具名（也可用逗号分隔），请用 list_tools 里显示的确切名称，例如 ssh_upload。只影响该助手的工具说明详略，工具仍可正常调用。不知道填哪些？可让助手在对话中按你的需求生成这份名单；但助手无权修改此设置，需要你粘贴并保存。</string>
   <string name="assistant_page_only_tools_title">只保留这些工具</string>
   <string name="assistant_page_only_tools_desc">已配置 %1$d 个。非空时助手只能看到名单内的工具（list_tools / get_tool_schema / ask_user 始终保留）。</string>
-  <string name="assistant_page_only_tools_dialog_desc">每行一个工具名（也可用逗号分隔），请用 list_tools 里显示的确切名称。留空表示不限制。填错可能让助手无法完成其他任务，清空即可恢复。不知道填哪些？可在对话中让助手按你的需求生成这份名单，再粘贴到这里。</string>
+  <string name="assistant_page_only_tools_dialog_desc">每行一个工具名（也可用逗号分隔），请用 list_tools 里显示的确切名称。留空表示不限制。填错可能让助手无法完成其他任务，清空即可恢复。不知道填哪些？可让助手在对话中按你的需求生成这份名单；但助手无权修改此设置，需要你粘贴并保存。</string>
   <string name="assistant_page_extra_cold_hint">例如 ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 诊断</string>
   <string name="assistant_page_local_tools_diagnostics_title">诊断与日志</string>

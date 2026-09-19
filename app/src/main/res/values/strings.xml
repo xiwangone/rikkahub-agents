@@ -1468,10 +1468,10 @@
   <string name="assistant_page_extra_cold_title">Send these tools as brief only</string>
   <string name="assistant_page_extra_cold_desc">%1$d configured. These tools send only a one-line purpose; the full parameters are fetched on demand.</string>
   <string name="assistant_page_extra_cold_action">Edit</string>
-  <string name="assistant_page_extra_cold_dialog_desc">One tool name per line (or comma-separated). Use the exact names shown in list_tools, e.g. ssh_upload. This only changes how detailed the descriptions are for this assistant; the tools stay callable. Not sure what to list? Ask the assistant in chat to generate the list for your needs, then paste it here.</string>
+  <string name="assistant_page_extra_cold_dialog_desc">One tool name per line (or comma-separated). Use the exact names shown in list_tools, e.g. ssh_upload. This only changes how detailed the descriptions are for this assistant; the tools stay callable. Not sure what to list? Ask the assistant in chat to draft it — but the assistant cannot change this setting, so paste and save it yourself.</string>
   <string name="assistant_page_only_tools_title">Only keep these tools</string>
   <string name="assistant_page_only_tools_desc">%1$d configured. When non-empty the assistant only sees the listed tools (list_tools / get_tool_schema / ask_user are always kept).</string>
-  <string name="assistant_page_only_tools_dialog_desc">One tool name per line (or comma-separated). Use the exact names shown in list_tools. Leave empty to lift the limit. A wrong list can block other tasks — clear it to restore. Not sure what to list? Ask the assistant in chat to draft it, then paste it here.</string>
+  <string name="assistant_page_only_tools_dialog_desc">One tool name per line (or comma-separated). Use the exact names shown in list_tools. Leave empty to lift the limit. A wrong list can block other tasks — clear it to restore. Not sure what to list? Ask the assistant in chat to draft it — but the assistant cannot change this setting, so paste and save it yourself.</string>
   <string name="assistant_page_extra_cold_hint">e.g. ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI diagnostics</string>
   <string name="assistant_page_local_tools_diagnostics_title">Diagnostics</string>

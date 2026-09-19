@@ -2670,10 +2670,10 @@
   <string name="assistant_page_extra_cold_title">これらのツールは簡単な説明のみ送信</string>
   <string name="assistant_page_extra_cold_desc">%1$d 個を設定済み。これらは一行の用途のみ送信し、完全なパラメータは必要時に取得します。</string>
   <string name="assistant_page_extra_cold_action">編集</string>
-  <string name="assistant_page_extra_cold_dialog_desc">1 行に 1 つのツール名（カンマ区切りも可）。list_tools に表示される正確な名前を使います（例: ssh_upload）。これはこのアシスタントの説明の詳しさだけを変え、ツールは引き続き呼び出せます。どれを入れるか迷ったら、チャットでアシスタントに用途を伝えてリストを作らせ、ここに貼り付けられます。</string>
+  <string name="assistant_page_extra_cold_dialog_desc">1 行に 1 つのツール名（カンマ区切りも可）。list_tools に表示される正確な名前を使います（例: ssh_upload）。これはこのアシスタントの説明の詳しさだけを変え、ツールは引き続き呼び出せます。どれを入れるか迷ったら、チャットで助手にリストを作らせられます — ただし助手はこの設定を変更できないので、ご自身で貼り付けて保存してください。</string>
   <string name="assistant_page_only_tools_title">これらのツールのみ保持</string>
   <string name="assistant_page_only_tools_desc">%1$d 個を設定済み。空でない場合、助手はリスト内のツールだけを見ます（list_tools / get_tool_schema / ask_user は常に保持）。</string>
-  <string name="assistant_page_only_tools_dialog_desc">1 行に 1 つのツール名（カンマ区切りも可）。list_tools に表示される正確な名前を使います。空にすると制限なし。間違えると他のタスクが実行できない場合がありますが、空にすれば元に戻ります。迷ったらチャットで助手にリストを作らせて貼り付けてください。</string>
+  <string name="assistant_page_only_tools_dialog_desc">1 行に 1 つのツール名（カンマ区切りも可）。list_tools に表示される正確な名前を使います。空にすると制限なし。間違えると他のタスクが実行できない場合がありますが、空にすれば元に戻ります。どれを入れるか迷ったら、チャットで助手にリストを作らせられます — ただし助手はこの設定を変更できないので、ご自身で貼り付けて保存してください。</string>
   <string name="assistant_page_extra_cold_hint">例: ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 診断</string>
   <string name="assistant_page_local_tools_diagnostics_title">診断とログ</string>

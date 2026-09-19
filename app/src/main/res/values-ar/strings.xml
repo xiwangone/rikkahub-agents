@@ -2315,10 +2315,10 @@
   <string name="assistant_page_extra_cold_title">إرسال هذه الأدوات بوصف مختصر فقط</string>
   <string name="assistant_page_extra_cold_desc">تم إعداد %1$d. ترسل سطرًا واحدًا للغرض فقط وتُجلب المعاملات الكاملة عند الحاجة.</string>
   <string name="assistant_page_extra_cold_action">تعديل</string>
-  <string name="assistant_page_extra_cold_dialog_desc">اسم أداة واحد في كل سطر (أو مفصولة بفواصل). استخدم الأسماء الدقيقة كما تظهر في list_tools مثل ssh_upload. يغيّر هذا مستوى تفصيل الأوصاف لهذا المساعد فقط وتبقى الأدوات قابلة للاستدعاء. لا تعرف ماذا تضع؟ اطلب من المساعد في المحادثة إنشاء القائمة ثم الصقها هنا.</string>
+  <string name="assistant_page_extra_cold_dialog_desc">اسم أداة واحد في كل سطر (أو مفصولة بفواصل). استخدم الأسماء الدقيقة كما تظهر في list_tools مثل ssh_upload. يغيّر هذا مستوى تفصيل الأوصاف لهذا المساعد فقط وتبقى الأدوات قابلة للاستدعاء. لا تعرف ماذا تضع؟ اطلب من المساعد في المحادثة إعداد القائمة — لكن المساعد لا يستطيع تعديل هذا الإعداد، فالصقها واحفظها بنفسك.</string>
   <string name="assistant_page_only_tools_title">الاحتفاظ بهذه الأدوات فقط</string>
   <string name="assistant_page_only_tools_desc">تم إعداد %1$d. عند وجود عناصر يرى المساعد الأدوات المُدرجة فقط (تظل list_tools / get_tool_schema / ask_user متاحة دائمًا).</string>
-  <string name="assistant_page_only_tools_dialog_desc">اسم أداة واحد في كل سطر (أو مفصولة بفواصل). استخدم الأسماء الدقيقة كما تظهر في list_tools. اتركه فارغًا لإلغاء القيد. القائمة الخاطئة قد تعطّل مهام أخرى — أفرغها للاستعادة. لا تعرف ماذا تضع؟ اطلب من المساعد إعداد القائمة.</string>
+  <string name="assistant_page_only_tools_dialog_desc">اسم أداة واحد في كل سطر (أو مفصولة بفواصل). استخدم الأسماء الدقيقة كما تظهر في list_tools. اتركه فارغًا لإلغاء القيد. القائمة الخاطئة قد تعطّل مهام أخرى — أفرغها للاستعادة. لا تعرف ماذا تضع؟ اطلب من المساعد إعداد القائمة — لكن المساعد لا يستطيع تعديل هذا الإعداد، فالصقها واحفظها بنفسك.</string>
   <string name="assistant_page_extra_cold_hint">مثال: ssh_upload\n     batch_copy</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">تشخيص الذكاء الاصطناعي</string>
   <string name="assistant_page_local_tools_diagnostics_title">التشخيص والسجلات</string>
