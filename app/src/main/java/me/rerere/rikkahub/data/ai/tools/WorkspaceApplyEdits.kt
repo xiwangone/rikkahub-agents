@@ -19,7 +19,7 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
  * 跨文件事务编辑工具（App 侧对应物：`工具/multi-edit.py` 的工作区版本）。
  *
  * 语义：所有文件的替换先在**内存**里做完，全部成功才统一写盘；任何一条失败都
- * **不写任何文件**。用于「同一改动跨多文件」（例如给每个 values-*/strings.xml 插同一个键），
+ * **不写任何文件**。用于「同一改动跨多文件」（例如给每个语言目录下的 strings.xml 插同一个键），
  * 避免逐个 `workspace_edit_file` 造成半套改动。
  *
  * 单独成文件（而不是塞进 WorkspaceTools.kt）：职责独立，且该文件函数数已到静态检查门限。
