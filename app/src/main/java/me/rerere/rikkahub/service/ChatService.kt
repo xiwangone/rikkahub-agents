@@ -1122,6 +1122,9 @@ class ChatService(
                     model = model,
                     invocationCtx = invocationCtx,
                     workspaceCwd = conversation.workspaceCwd,
+                    // 会话级覆盖（子代理）：工作区 + 工具白名单
+                    workspaceIdOverride = conversation.workspaceIdOverride?.toString(),
+                    toolScopeOverride = conversation.toolScopeOverride,
                 )
             } catch (error: InvalidMcpServerNamesException) {
                 addError(
@@ -1151,6 +1154,10 @@ class ChatService(
                 .generateText(
                     settings = settings,
                     model = model,
+                    // 会话级步数上限（子代理的 max_trips）；普通会话为 null → 用全局默认。
+                    maxSteps =
+                        conversation.maxToolStepsOverride
+                            ?: me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits.maxToolSteps,
                     processingStatus = session.processingStatus,
                     onRetryDiagnosed = { retryDiagnosis = it },
                     // 生成期间用户补充的消息：在本轮每个 step 结束后立即注入请求历史，

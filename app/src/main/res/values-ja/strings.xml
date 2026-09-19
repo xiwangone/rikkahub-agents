@@ -2321,6 +2321,11 @@
   <string name="setting_sub_agents_page_description_hint">モデルに提示し、いつこの設定へ派発すべきかの判断を助けます。</string>
   <string name="setting_sub_agents_page_system_prompt">システムプロンプト</string>
   <string name="setting_sub_agents_page_system_prompt_hint">この設定へ派発するとき、サブエージェントのタスクの先頭に付加されます。</string>
+  <string name="setting_sub_agents_page_workspace">ワークスペース</string>
+  <string name="setting_sub_agents_page_workspace_desc">この設定のサブエージェントは選択したワークスペースで実行されます。未設定の場合は親アシスタントに従います。</string>
+  <string name="setting_sub_agents_page_tools">ツール許可リスト</string>
+  <string name="setting_sub_agents_page_tools_desc">カンマまたは改行区切りのツール名（例: workspace_read_file, web_fetch）。絞り込みのみ可能で、親が使えないツールは除外されます。空欄は全ツールを継承します。</string>
+  <string name="setting_sub_agents_page_tools_hint">空欄にすると親アシスタントの全ツールを継承します。</string>
   <string name="setting_sub_agents_page_model">モデル</string>
   <string name="setting_sub_agents_page_model_desc">空欄なら親アシスタントのモデルを継承します。</string>
   <string name="setting_sub_agents_page_enabled">有効</string>

@@ -1966,6 +1966,11 @@
   <string name="setting_sub_agents_page_description_hint">يُعرض على النموذج ليساعده في تحديد وقت الإرسال إلى هذا الإعداد.</string>
   <string name="setting_sub_agents_page_system_prompt">مطالبة النظام</string>
   <string name="setting_sub_agents_page_system_prompt_hint">عند الإرسال إلى هذا الإعداد تُضاف قبل مهمة الوكيل الفرعي.</string>
+  <string name="setting_sub_agents_page_workspace">مساحة العمل</string>
+  <string name="setting_sub_agents_page_workspace_desc">تُشغَّل الوكلاء الفرعية لهذا الإعداد في مساحة العمل المختارة. عند عدم الربط تتبع المساعد الأصلي.</string>
+  <string name="setting_sub_agents_page_tools">قائمة الأدوات المسموح بها</string>
+  <string name="setting_sub_agents_page_tools_desc">أسماء الأدوات مفصولة بفواصل أو أسطر جديدة، مثل workspace_read_file, web_fetch. التضييق فقط: تُهمَل الأسماء غير المتاحة للأصل. فارغ يعني وراثة الكل.</string>
+  <string name="setting_sub_agents_page_tools_hint">اتركه فارغًا لوراثة كل أدوات المساعد الأصلي.</string>
   <string name="setting_sub_agents_page_model">النموذج</string>
   <string name="setting_sub_agents_page_model_desc">اتركه فارغًا ليرث نموذج المساعد الأصل.</string>
   <string name="setting_sub_agents_page_enabled">مفعّل</string>

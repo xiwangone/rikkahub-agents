@@ -2321,6 +2321,11 @@
   <string name="setting_sub_agents_page_description_hint">모델에 표시되어 언제 이 구성으로 전달할지 판단을 돕습니다.</string>
   <string name="setting_sub_agents_page_system_prompt">시스템 프롬프트</string>
   <string name="setting_sub_agents_page_system_prompt_hint">이 구성으로 전달할 때 하위 에이전트 작업 앞에 추가됩니다.</string>
+  <string name="setting_sub_agents_page_workspace">워크스페이스</string>
+  <string name="setting_sub_agents_page_workspace_desc">이 설정의 서브 에이전트는 선택한 워크스페이스에서 실행됩니다. 바인딩하지 않으면 상위 어시스턴트를 따릅니다.</string>
+  <string name="setting_sub_agents_page_tools">도구 허용 목록</string>
+  <string name="setting_sub_agents_page_tools_desc">쉼표 또는 줄바꿈으로 구분한 도구 이름(예: workspace_read_file, web_fetch). 축소만 가능하며 상위에서 쓸 수 없는 도구는 제외됩니다. 비우면 모든 도구를 상속합니다.</string>
+  <string name="setting_sub_agents_page_tools_hint">비우면 상위 어시스턴트의 모든 도구를 상속합니다.</string>
   <string name="setting_sub_agents_page_model">모델</string>
   <string name="setting_sub_agents_page_model_desc">비워두면 상위 어시스턴트의 모델을 상속합니다.</string>
   <string name="setting_sub_agents_page_enabled">사용</string>

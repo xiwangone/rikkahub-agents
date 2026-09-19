@@ -2314,6 +2314,11 @@
   <string name="setting_sub_agents_page_description_hint">Показывается модели, помогает решить, когда направлять сюда.</string>
   <string name="setting_sub_agents_page_system_prompt">Системный промпт</string>
   <string name="setting_sub_agents_page_system_prompt_hint">При направлении сюда добавляется перед задачей субагента.</string>
+  <string name="setting_sub_agents_page_workspace">Рабочее пространство</string>
+  <string name="setting_sub_agents_page_workspace_desc">Субагенты этого профиля выполняются в выбранном рабочем пространстве. Без привязки используется пространство родительского ассистента.</string>
+  <string name="setting_sub_agents_page_tools">Список разрешённых инструментов</string>
+  <string name="setting_sub_agents_page_tools_desc">Имена инструментов через запятую или с новой строки, например workspace_read_file, web_fetch. Только сужение: недоступные родителю имена отбрасываются. Пусто — наследовать все.</string>
+  <string name="setting_sub_agents_page_tools_hint">Оставьте пустым, чтобы наследовать все инструменты родительского ассистента.</string>
   <string name="setting_sub_agents_page_model">Модель</string>
   <string name="setting_sub_agents_page_model_desc">Пусто — наследуется модель родительского ассистента.</string>
   <string name="setting_sub_agents_page_enabled">Включено</string>

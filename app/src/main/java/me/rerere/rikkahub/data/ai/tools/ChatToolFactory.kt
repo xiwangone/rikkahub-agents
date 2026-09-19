@@ -49,35 +49,14 @@ class ChatToolFactory(
         model: Model,
         invocationCtx: ToolInvocationContext,
         workspaceCwd: String? = null,
+        // 会话级作用域覆盖（目前由 SubAgentEngine 写入；null = 跟随助手设置）：
+        //  - workspaceIdOverride：workspace_* 工具绑定到哪个工作区
+        //  - toolScopeOverride：工具白名单（只减不增）
+        workspaceIdOverride: String? = null,
+        toolScopeOverride: List<String>? = null,
     ): List<Tool> = buildList {
         // 记忆分层：只注入 core 常驻；conditional 由模型按需检索。
-        if (assistant.enableMemory) {
-            val memoryAssistantId = if (assistant.useGlobalMemory) {
-                MemoryRepository.GLOBAL_MEMORY_ID
-            } else {
-                assistant.id.toString()
-            }
-            addAll(
-                buildMemoryTools(
-                    json = json,
-                    onCreation = { content, tier ->
-                        memoryRepository.addMemory(memoryAssistantId, content, tier)
-                    },
-                    onUpdate = { id, content, tier ->
-                        memoryRepository.updateContent(id, content, tier)
-                    },
-                    onDelete = { id ->
-                        memoryRepository.deleteMemory(id)
-                    },
-                    onSearch = { keyword ->
-                        memoryRepository.searchConditionalMemories(keyword)
-                    },
-                    onListAll = {
-                        memoryRepository.getMemoriesOfAssistant(memoryAssistantId)
-                    },
-                )
-            )
-        }
+        addAll(memoryToolsIfEnabled(assistant))
 
         if (assistant.enableWebSearch) {
             addAll(createSearchTools(settings))
@@ -85,17 +64,7 @@ class ChatToolFactory(
 
         addAll(localTools.getTools(assistant.localTools, invocationCtx))
 
-        addAll(createWorkspaceToolsIfReady(assistant.workspaceId?.toString(), workspaceCwd))
-
-        if (assistant.enabledSkills.isNotEmpty()) {
-            addAll(
-                createSkillTools(
-                    enabledSkills = assistant.enabledSkills,
-                    allSkills = skillManager.listSkills(),
-                    skillManager = skillManager,
-                )
-            )
-        }
+        addAll(workspaceAndSkillTools(assistant, workspaceIdOverride, workspaceCwd))
 
         val mcpTools = mcpManager.getAllAvailableTools()
         // 服务器名不是纯英文+数字（允许 _ 和 -）时无法组成合法的 mcp__<name>__tool 名，
@@ -141,18 +110,20 @@ class ChatToolFactory(
         // 并非全局有序（tool_surface_report 的 order_is_sorted 恒为 false，观测口径失真，
         // 容易被误读成"顺序抖动"）。顺序本来稳定，这里只是让它同时自洽、可观测。
         // 工具范围（助手级白名单）：留空 = 不限制；非空 = 只注入名单内工具（保命工具始终保留）。
-        val listFiltered = applyToolScopeFilter(stableFull, assistant.onlyTools)
-        // 白名单（onlyTools）里拼错/过期的名字不会报错, 只会静默失效; 统一算出未匹配项,
+        // 工具范围：会话级覆盖优先（子代理），否则助手级白名单；留空 = 不限制；非空 = 只注入名单内工具（保命工具始终保留）。
+        val effectiveToolScope = toolScopeOverride ?: assistant.onlyTools
+        val listFiltered = applyToolScopeFilter(stableFull, effectiveToolScope)
+        // 白名单里拼错/过期的名字不会报错, 只会静默失效; 统一算出未匹配项,
         // 记一条日志并透出给 tool_surface_report, 便于事后自查。
         val onlyToolsUnmatched =
-            if (assistant.onlyTools.isEmpty()) {
+            if (effectiveToolScope.isEmpty()) {
                 emptyList()
             } else {
                 val knownNames = stableFull.mapTo(HashSet()) { it.name }
-                assistant.onlyTools.filterNot { it in knownNames }
+                effectiveToolScope.filterNot { it in knownNames }
             }
         if (onlyToolsUnmatched.isNotEmpty()) {
-            AppLog.w(TAG, "onlyTools has ${onlyToolsUnmatched.size} unmatched name(s): $onlyToolsUnmatched")
+            AppLog.w(TAG, "tool scopes has ${onlyToolsUnmatched.size} unmatched name(s): $onlyToolsUnmatched")
         }
 
         val injected =
@@ -217,6 +188,50 @@ class ChatToolFactory(
         }
 
     /** 工作区 shell 未就绪时不下发工作区工具（避免模型调用必然失败的工具）。 */
+    /** 记忆工具：按助手开关注入（独立函数仅为压低工具装配主函数的复杂度）。 */
+    private suspend fun memoryToolsIfEnabled(assistant: Assistant): List<Tool> {
+        if (!assistant.enableMemory) return emptyList()
+        val memoryAssistantId = if (assistant.useGlobalMemory) {
+            MemoryRepository.GLOBAL_MEMORY_ID
+        } else {
+            assistant.id.toString()
+        }
+        return buildMemoryTools(
+            json = json,
+            onCreation = { content, tier -> memoryRepository.addMemory(memoryAssistantId, content, tier) },
+            onUpdate = { id, content, tier -> memoryRepository.updateContent(id, content, tier) },
+            onDelete = { id -> memoryRepository.deleteMemory(id) },
+            onSearch = { keyword -> memoryRepository.searchConditionalMemories(keyword) },
+            onListAll = { memoryRepository.getMemoriesOfAssistant(memoryAssistantId) },
+        )
+    }
+
+    /**
+     * 工作区工具（会话级覆盖优先于助手级）+ 技能工具。
+     * 抽成独立函数：既让主装配函数保持可读，也避免复杂度门限（detekt）。
+     */
+    private suspend fun workspaceAndSkillTools(
+        assistant: Assistant,
+        workspaceIdOverride: String?,
+        workspaceCwd: String?,
+    ): List<Tool> = buildList {
+        addAll(
+            createWorkspaceToolsIfReady(
+                workspaceIdOverride ?: assistant.workspaceId?.toString(),
+                workspaceCwd,
+            )
+        )
+        if (assistant.enabledSkills.isNotEmpty()) {
+            addAll(
+                createSkillTools(
+                    enabledSkills = assistant.enabledSkills,
+                    allSkills = skillManager.listSkills(),
+                    skillManager = skillManager,
+                )
+            )
+        }
+    }
+
     private suspend fun createWorkspaceToolsIfReady(workspaceId: String?, cwd: String?): List<Tool> {
         if (workspaceId.isNullOrBlank()) return emptyList()
         val workspace = workspaceRepository.getById(workspaceId) ?: return emptyList()

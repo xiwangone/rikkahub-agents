@@ -2639,6 +2639,11 @@
     <string name="setting_sub_agents_page_description_hint">展示給模型，幫助其決定何時派發到此配置。</string>
     <string name="setting_sub_agents_page_system_prompt">系統提示詞</string>
     <string name="setting_sub_agents_page_system_prompt_hint">派發到此配置時，會前置到子代理的任務中。</string>
+  <string name="setting_sub_agents_page_workspace">工作區</string>
+  <string name="setting_sub_agents_page_workspace_desc">此設定派發的子代理會在選定的工作區中執行；未綁定時跟隨父助手。</string>
+  <string name="setting_sub_agents_page_tools">工具白名單</string>
+  <string name="setting_sub_agents_page_tools_desc">以逗號或換行分隔的工具名稱，例如 workspace_read_file, web_fetch。僅能縮減：父助手沒有的工具會被捨棄；留空表示繼承全部工具。</string>
+  <string name="setting_sub_agents_page_tools_hint">留空則繼承父助手的全部工具。</string>
     <string name="setting_sub_agents_page_model">模型</string>
     <string name="setting_sub_agents_page_model_desc">留空則繼承父助手的模型。</string>
     <string name="setting_sub_agents_page_enabled">啟用</string>

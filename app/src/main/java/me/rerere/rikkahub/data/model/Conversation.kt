@@ -37,6 +37,13 @@ data class Conversation(
     val lorebookIds: Set<Uuid> = emptySet(),
     // Absolute path inside the workspace rootfs
     val workspaceCwd: String? = null,
+    // 会话级作用域覆盖（目前由 SubAgentEngine 写入；null = 跟随助手设置）：
+    //  - workspaceIdOverride：该会话的 workspace_* 工具绑定到哪个工作区（子代理可跑在独立工作区）
+    //  - toolScopeOverride：工具白名单（只减不增，未知/失效名字静默丢弃并回显）
+    val workspaceIdOverride: Uuid? = null,
+    val toolScopeOverride: List<String>? = null,
+    // 生成循环的步数上限覆盖（子代理会话用 max_trips 映射而来；null = 用全局默认）
+    val maxToolStepsOverride: Int? = null,
     // 所属文件夹（助手内分组），null 表示未归入任何文件夹
     val folderId: Uuid? = null,
     @Transient

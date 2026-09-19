@@ -32,7 +32,13 @@ data class SubAgentRun(
     val finishedAtMs: Long? = null,
     val tokensIn: Long = 0,
     val tokensOut: Long = 0,
+    /** 输入侧命中缓存的 token 数（命中率 = cached / in）；用于成本判读 */
+    val tokensCached: Long = 0,
     val tripCount: Int = 0,
+    /** 实际生效的工作区（会话级覆盖解析后）；null = 继承父助手 */
+    val workspaceId: String? = null,
+    /** 实际生效的工具白名单；null = 继承父助手（未收窄） */
+    val toolScope: List<String>? = null,
 )
 
 @Serializable
@@ -89,6 +95,11 @@ data class SubAgentRequest(
     val timeoutSeconds: Int = SubAgentDefaults.DEFAULT_TIMEOUT_SECONDS,
     val maxTrips: Int = SubAgentDefaults.DEFAULT_MAX_TRIPS,
     val label: String? = null,
+    /**
+     * 会话级工作区覆盖（工作区 uuid 字符串）。优先级：request.workspaceId > profile.workspaceId >
+     * 父助手的工作区。子代理因此可以跑在与父对话隔离的工作区里（P45/P46 的隔离从惯例变成配置项）。
+     */
+    val workspaceId: String? = null,
 )
 
 object SubAgentRequestValidator {
@@ -154,4 +165,8 @@ data class SubAgentProfile(
     val systemPrompt: String = "",
     val modelId: Uuid? = null,
     val enabled: Boolean = true,
+    /** 该 profile 默认使用的工作区；null = 跟随父助手 */
+    val workspaceId: Uuid? = null,
+    /** 该 profile 默认的工具白名单（只减不增）；null/空 = 继承父助手全量 */
+    val toolScope: List<String>? = null,
 )

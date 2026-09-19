@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,12 +49,14 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import kotlin.uuid.Uuid
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
@@ -63,8 +66,14 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.model.Assistant
+import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.subagent.SubAgentProfile
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
+import me.rerere.rikkahub.ui.components.ai.WorkspaceSelectSheet
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Tag
@@ -73,6 +82,7 @@ import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 /**
  * #36: named sub-agent profiles - a name, description, custom system prompt and model,
@@ -85,6 +95,10 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val profiles = settings.subAgents
     var expanded by rememberSaveable { mutableStateOf(true) }
+    // 工作区列表：与聊天页/助手页共用同一仓储与选择组件；子代理可绑定独立工作区（隔离主区）。
+    val workspaceRepository: WorkspaceRepository = koinInject()
+    val workspaces by workspaceRepository.listFlow().collectAsStateWithLifecycle(initialValue = emptyList())
+    val navController = LocalNavController.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val editState = useEditState<SubAgentProfile> { edited ->
         val index = profiles.indexOfFirst { it.id == edited.id }
@@ -181,6 +195,8 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
                 profile = state,
                 providers = settings.providers,
                 existingProfiles = profiles,
+                workspaces = workspaces,
+                onManageWorkspaces = { navController.navigate(Screen.Workspaces) },
                 onDismiss = { editState.dismiss() },
                 onConfirm = { editState.confirm() },
                 onEdit = { editState.currentState = it },
@@ -273,10 +289,13 @@ private fun SubAgentProfileEditSheet(
     profile: SubAgentProfile,
     providers: List<ProviderSetting>,
     existingProfiles: List<SubAgentProfile>,
+    workspaces: List<WorkspaceEntity>,
+    onManageWorkspaces: () -> Unit,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
     onEdit: (SubAgentProfile) -> Unit,
 ) {
+    var showWorkspaceSheet by remember { mutableStateOf(false) }
     val sheetState = rememberBottomSheetState(
         initialValue = SheetValue.Hidden,
         enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
@@ -372,6 +391,41 @@ private fun SubAgentProfileEditSheet(
                     },
                 )
 
+                FormItem(
+                    label = { Text(stringResource(R.string.setting_sub_agents_page_workspace)) },
+                    description = { Text(stringResource(R.string.setting_sub_agents_page_workspace_desc)) },
+                    content = {
+                        val selected = workspaces.find { it.id == profile.workspaceId?.toString() }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.large)
+                                .clickable { showWorkspaceSheet = true }
+                                .padding(vertical = 10.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = selected?.name ?: stringResource(R.string.workspace_no_binding),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Icon(HugeIcons.ArrowDown01, contentDescription = null)
+                        }
+                    },
+                )
+
+                OutlinedTextField(
+                    value = profile.toolScope?.joinToString(", ") ?: "",
+                    onValueChange = { raw ->
+                        val parsed = raw.split(',', '\n').map { it.trim() }.filter { it.isNotEmpty() }
+                        onEdit(profile.copy(toolScope = parsed.takeIf { it.isNotEmpty() }))
+                    },
+                    label = { Text(stringResource(R.string.setting_sub_agents_page_tools)) },
+                    supportingText = { Text(stringResource(R.string.setting_sub_agents_page_tools_hint)) },
+                    minLines = 2,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+
                 OutlinedTextField(
                     value = profile.systemPrompt,
                     onValueChange = { onEdit(profile.copy(systemPrompt = it)) },
@@ -396,5 +450,21 @@ private fun SubAgentProfileEditSheet(
                 }
             }
         }
+    }
+
+    if (showWorkspaceSheet) {
+        WorkspaceSelectSheet(
+            assistant = Assistant(workspaceId = profile.workspaceId),
+            workspaces = workspaces,
+            onSelect = { id ->
+                onEdit(profile.copy(workspaceId = id?.let { runCatching { Uuid.parse(it) }.getOrNull() }))
+                showWorkspaceSheet = false
+            },
+            onManage = {
+                showWorkspaceSheet = false
+                onManageWorkspaces()
+            },
+            onDismiss = { showWorkspaceSheet = false },
+        )
     }
 }
