@@ -585,7 +585,9 @@ class ChatService(
                                         parts = processedContent,
                                     ).toMessageNode(),
                         )
-                    saveConversation(conversationId, withUser)
+                    // 用户消息入库必须不被取消：stop 若正好落在入库事务窗口内，
+                    // 可取消的写会被回滚，而内存里已经有这条 → 重进会话时消息丢失。
+                    withContext(NonCancellable) { saveConversation(conversationId, withUser) }
 
                     // Phase 16 — fast-path router. If the assistant has it enabled and the user's
                     // message matches a deterministic intent, run the matching tool and inject the
@@ -1135,7 +1137,9 @@ class ChatService(
                                 conv.copy(
                                     messageNodes = conv.messageNodes + queuedMessages.map { it.toMessageNode() },
                                 )
-                            saveConversation(conversationId, withQueued)
+                            // NonCancellable：这批发消息已经出队（内存队列），必须保证落库，
+                            // 否则打断落在事务窗口内会出现「已出队但未进库」→ 消息丢失。
+                            withContext(NonCancellable) { saveConversation(conversationId, withQueued) }
                             AppLog.i(TAG, "msg-inject conv=$conversationId count=${queuedMessages.size}")
                         }
                         queuedMessages
@@ -2460,22 +2464,20 @@ class ChatService(
             // tools that are NOT already in a terminal state, so a hardline-blocked
             // Denied tool keeps its original reason rather than being relabeled as
             // "cancelled by user".
-            var changed = false
             val updatedNodes =
                 currentConversation.messageNodes.map { node ->
                     node.copy(
                         messages =
                             node.messages.map { msg ->
-                                val updated = msg.finishPendingTools(::cancelToolByUser)
-                                if (updated !== msg) changed = true
-                                updated
+                                msg.finishPendingTools(::cancelToolByUser)
                             },
                     )
                 }
-            if (!changed) return@withLock
-
+            // 无条件落库一次：打断可能正好落在「消息已进内存、入库事务尚未提交」的窗口
+            // （发送/注入那两处入库是可取消调用，会被 stop 回滚），
+            // 这里用 NonCancellable 把内存态固化，避免重进会话时少一条、顺序跳跃。
             val updatedConversation = currentConversation.copy(messageNodes = updatedNodes)
-            saveConversation(conversationId, updatedConversation)
+            withContext(NonCancellable) { saveConversation(conversationId, updatedConversation) }
         }
 
         // 停止生成后立刻给队列一次机会：用户「打断 → 继续发送排队的消息」不必再等下一次交互。
