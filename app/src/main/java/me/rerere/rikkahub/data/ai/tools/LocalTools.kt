@@ -2,10 +2,6 @@ package me.rerere.rikkahub.data.ai.tools
 
 import android.content.Context
 import android.os.SystemClock
-import com.whl.quickjs.wrapper.QuickJSContext
-import com.whl.quickjs.wrapper.QuickJSObject
-import kotlinx.coroutines.CompletableDeferred
-import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -17,7 +13,6 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonDecoder
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
@@ -42,6 +37,7 @@ import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.ai.tools.local.CameraResultBuffer
 import me.rerere.rikkahub.data.ai.tools.local.InteractiveToolStreamer
 import me.rerere.rikkahub.data.ai.tools.local.AccessibilityServiceHandle
+import me.rerere.rikkahub.data.ai.tools.local.buildJavascriptTool
 import me.rerere.rikkahub.data.ai.tools.local.deviceInfoTool
 import me.rerere.rikkahub.data.ai.tools.local.diagnosticsTool
 import me.rerere.rikkahub.data.ai.tools.local.callLogTool
@@ -344,10 +340,6 @@ private fun humanizeToolError(jsonObject: JsonObject): String {
 
 private val STANDARD_ERROR_KEYS = setOf("error", "detail", "reason", "recovery", "human_error")
 
-// Wall-clock cap for eval_javascript. QuickJS has no internal interrupt hook we can use here,
-// so this is enforced from the coroutine side: past this the turn returns a structured timeout
-// error and the isolated worker thread is left to wind down on its own.
-private const val EVAL_JS_TIMEOUT_MS = 5_000L
 
 /**
  * Runtime capability snapshot — decides whether tools that depend on a system service are injected
@@ -463,124 +455,9 @@ class LocalTools(
     private val doctorChecks: me.rerere.rikkahub.ui.pages.setting.doctor.DoctorChecks,
     private val providerManager: me.rerere.ai.provider.ProviderManager,
 ) {
-    val javascriptTool by lazy {
-        Tool(
-            name = "eval_javascript",
-            description = """
-                Execute JavaScript (QuickJS, ES2020, no DOM/Node APIs). Result = value of the
-                last expression; console output returned in 'logs'. Use toFixed() for decimals.
-            """.trimIndent().replace("\n", " "),
-            parameters = {
-                InputSchema.Obj(
-                    properties = buildJsonObject {
-                        put("code", buildJsonObject {
-                            put("type", "string")
-                            put("description", "The JavaScript code to execute")
-                        })
-                    },
-                    required = listOf("code")
-                )
-            },
-            execute = {
-                val code = it.jsonObject["code"]?.jsonPrimitive?.contentOrNull
+    // eval_javascript 的实现已移到同目录 JavascriptTool.kt：那边用原生内存/栈上限、
+    // 求值超时与中断、日志长度上限做保护，装配处直接调用 buildJavascriptTool()。
 
-                // QuickJSContext is thread-affine: the native context must be created, used,
-                // and destroyed on the same thread, and evaluate() blocks in native code that
-                // a coroutine cancellation cannot interrupt. So we run the whole lifecycle on a
-                // dedicated single-use daemon thread (NOT a shared dispatcher — an infinite loop
-                // there would starve every other coroutine), build the entire result payload on
-                // that thread (stringify() is also a native, thread-affine call), and hand back a
-                // finished String. The suspend body then awaits that String under a wall-clock
-                // timeout: if the script spins forever the turn still returns instead of hanging.
-                val done = CompletableDeferred<String>()
-                Thread {
-                    val logs = arrayListOf<String>()
-                    var context: QuickJSContext? = null
-                    try {
-                        context = QuickJSContext.create()
-                        // Sane bounds so a runaway script can't OOM or blow the native stack
-                        // before the wall-clock timeout fires. 64 MiB heap / 512 KiB stack.
-                        context.setMemoryLimit(64 * 1024 * 1024)
-                        context.setMaxStackSize(512 * 1024)
-                        context.setConsole(object : QuickJSContext.Console {
-                            override fun log(info: String?) {
-                                logs.add("[LOG] $info")
-                            }
-
-                            override fun info(info: String?) {
-                                logs.add("[INFO] $info")
-                            }
-
-                            override fun warn(info: String?) {
-                                logs.add("[WARN] $info")
-                            }
-
-                            override fun error(info: String?) {
-                                logs.add("[ERROR] $info")
-                            }
-                        })
-                        val result = context.evaluate(code)
-                        val payload = buildJsonObject {
-                            if (logs.isNotEmpty()) {
-                                put("logs", JsonPrimitive(logs.joinToString("\n")))
-                            }
-                            put(
-                                key = "result",
-                                element = when (result) {
-                                    null -> JsonNull
-                                    is QuickJSObject -> JsonPrimitive(result.stringify())
-                                    else -> JsonPrimitive(result.toString())
-                                }
-                            )
-                        }
-                        done.complete(payload.toString())
-                    } catch (e: Throwable) {
-                        // Surface the JS/engine error as a structured payload rather than
-                        // crashing the worker thread silently.
-                        val payload = buildJsonObject {
-                            if (logs.isNotEmpty()) {
-                                put("logs", JsonPrimitive(logs.joinToString("\n")))
-                            }
-                            put("error", JsonPrimitive(e.message ?: e.toString()))
-                        }
-                        done.complete(payload.toString())
-                    } finally {
-                        // Always tear down the native context, on every path, on the same
-                        // thread that created it. destroy() is idempotent (guards on a
-                        // `destroyed` flag), so calling it after a failed create() is safe.
-                        try {
-                            context?.destroy()
-                        } catch (_: Throwable) {
-                            // Best-effort cleanup; nothing actionable if teardown itself fails.
-                        }
-                    }
-                }.apply {
-                    name = "eval-js-${System.nanoTime()}"
-                    isDaemon = true
-                    start()
-                }
-
-                val payload = withTimeoutOrNull(EVAL_JS_TIMEOUT_MS) { done.await() }
-                    ?: buildJsonObject {
-                        put(
-                            "error",
-                            JsonPrimitive(
-                                "JavaScript execution exceeded ${EVAL_JS_TIMEOUT_MS}ms and was abandoned. " +
-                                    "Avoid infinite loops or long-running computations."
-                            )
-                        )
-                    }.toString()
-                // On timeout the daemon thread is left running until the script finishes; it is
-                // isolated (its own thread, bounded heap/stack) and cannot block the dispatcher.
-                listOf(UIMessagePart.Text(payload))
-            }
-        )
-    }
-
-    /**
-     * `app_backup`：生成 App 数据的本地备份 zip（含**vault 密文**、设置、头像、技能、工作区文档）。
-     * 产物在 App 私有 cache，需人工审批后才会执行；返回 path/size/sha256 以便对外拷出后加密保存。
-     */
     /**
      * `app_backup`：生成 App 数据备份（数据库含**密钥库密文**、设置、头像、技能、工作区文档）。
      *
@@ -968,7 +845,7 @@ class LocalTools(
             options.contains(option) && capabilities.satisfies(LocalToolCatalog.capabilityOf(option))
 
         if (enabled(LocalToolOption.JavascriptEngine)) {
-            tools.add(javascriptTool)
+            tools.add(buildJavascriptTool())
         }
         if (enabled(LocalToolOption.TimeInfo)) {
             tools.add(timeTool)

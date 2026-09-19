@@ -26,7 +26,6 @@ import me.rerere.common.android.Logging
 import me.rerere.common.android.appTempFolder
 import me.rerere.rikkahub.data.log.AppLifecycleRecorder
 import me.rerere.rikkahub.data.log.FileLogSink
-import com.whl.quickjs.android.QuickJSLoader
 import me.rerere.rikkahub.di.appModule
 import me.rerere.rikkahub.di.dataSourceModule
 import me.rerere.rikkahub.di.repositoryModule
@@ -126,9 +125,6 @@ class RikkaHubApp : Application() {
             }
         }
         AppLifecycleRecorder.install(this, appStartElapsedMs)
-
-        // Init QuickJS native library
-        QuickJSLoader.init()
 
         // delete temp files
         deleteTempFiles()

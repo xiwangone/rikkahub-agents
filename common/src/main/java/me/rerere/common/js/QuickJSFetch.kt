@@ -1,9 +1,12 @@
 package me.rerere.common.js
 
-import com.whl.quickjs.wrapper.JSCallFunction
-import com.whl.quickjs.wrapper.QuickJSContext
+import com.dokar.quickjs.QuickJs
+import com.dokar.quickjs.binding.function
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.job
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.builtins.serializer
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -31,8 +34,8 @@ private data class HttpResponseDto(
     val body: String,
 )
 
-// fetch() returns a Response object synchronously (not a Promise)
-// because this QuickJS wrapper doesn't support microtask scheduling.
+// Keep fetch() synchronous for compatibility with existing custom search scripts.
+// Both direct use and `await fetch(...)` work with this Response object.
 private const val FETCH_POLYFILL = """
 globalThis.fetch = function(url, options) {
     options = options || {};
@@ -59,75 +62,71 @@ globalThis.fetch = function(url, options) {
 };
 """
 
-fun QuickJSContext.injectFetch(httpClient: OkHttpClient) {
-    globalObject.setProperty(
-        "__httpRequest",
-        JSCallFunction { args ->
-            val url = args[0] as? String ?: error("url is required")
-            val method = (args[1] as? String ?: "GET").uppercase()
-            val headersJson = args[2] as? String
-            val body = args[3] as? String
+suspend fun QuickJs.injectFetch(httpClient: OkHttpClient) {
+    val parentJob = currentCoroutineContext().job
+    function("__httpRequest") { args ->
+        val url = args[0] as? String ?: error("url is required")
+        val method = (args[1] as? String ?: "GET").uppercase()
+        val headersJson = args[2] as? String
+        val body = args[3] as? String
 
-            val requestBuilder = Request.Builder().url(url)
+        val requestBuilder = Request.Builder().url(url)
 
-            val parsedHeaders =
-                if (!headersJson.isNullOrBlank() && headersJson != "null") {
-                    json.parseToJsonElement(headersJson).jsonObject
-                } else {
-                    null
-                }
+        val parsedHeaders = if (!headersJson.isNullOrBlank() && headersJson != "null") {
+            json.parseToJsonElement(headersJson).jsonObject
+        } else null
 
-            parsedHeaders?.entries?.forEach { (key, value) ->
-                requestBuilder.addHeader(key, value.jsonPrimitive.content)
+        parsedHeaders?.entries?.forEach { (key, value) ->
+            requestBuilder.addHeader(key, value.jsonPrimitive.content)
+        }
+
+        val contentType = try {
+            parsedHeaders?.get("Content-Type")?.jsonPrimitive?.content
+        } catch (_: Exception) {
+            null
+        }
+
+        val mediaType = (contentType ?: "application/json").toMediaType()
+        when (method) {
+            "GET" -> requestBuilder.get()
+            "HEAD" -> requestBuilder.head()
+            else -> {
+                val reqBody = body?.toRequestBody(mediaType)
+                    ?: if (method in setOf("POST", "PUT", "PATCH")) {
+                        "".toRequestBody(mediaType)
+                    } else {
+                        null
+                    }
+                requestBuilder.method(method, reqBody)
             }
+        }
 
-            val contentType =
-                try {
-                    parsedHeaders?.get("Content-Type")?.jsonPrimitive?.content
-                } catch (_: Exception) {
-                    null
-                }
-
-            val mediaType = (contentType ?: "application/json").toMediaType()
-            when (method) {
-                "GET" -> {
-                    requestBuilder.get()
-                }
-
-                "HEAD" -> {
-                    requestBuilder.head()
-                }
-
-                else -> {
-                    val reqBody =
-                        body?.toRequestBody(mediaType)
-                            ?: if (method in setOf("POST", "PUT", "PATCH")) {
-                                "".toRequestBody(mediaType)
-                            } else {
-                                null
-                            }
-                    requestBuilder.method(method, reqBody)
-                }
+        val call = httpClient.newCall(requestBuilder.build())
+        // 整次调用超时（连接 + 读写）：脚本 fetch 打到自己配置的地址时，避免永久挂住
+        call.timeout().timeout(FETCH_CALL_TIMEOUT_SECONDS, TimeUnit.SECONDS)
+        // Native JS interruption cannot interrupt a blocking HTTP callback. A child job
+        // observes cancellation immediately, even while evaluate() is still running.
+        val cancellation = Job(parentJob)
+        cancellation.invokeOnCompletion { cause ->
+            if (cause is CancellationException) call.cancel()
+        }
+        try {
+            call.execute().use { response ->
+                json.encodeToString(
+                    HttpResponseDto(
+                        status = response.code,
+                        ok = response.isSuccessful,
+                        statusText = response.message,
+                        body = readBoundedBody(response, FETCH_BODY_CAP_BYTES),
+                    )
+                )
             }
+        } finally {
+            cancellation.complete()
+        }
+    }
 
-            val response = httpClient.newCall(requestBuilder.build()).execute()
-            val responseBody = response.body.string()
-            val code = response.code
-            val message = response.message
-            response.close()
-
-            json.encodeToString(
-                HttpResponseDto(
-                    status = code,
-                    ok = code in 200..299,
-                    statusText = message,
-                    body = responseBody,
-                ),
-            )
-        },
-    )
-
-    evaluate(FETCH_POLYFILL)
+    evaluate<Unit>(FETCH_POLYFILL + "\nvoid 0;")
 }
 
 /**
