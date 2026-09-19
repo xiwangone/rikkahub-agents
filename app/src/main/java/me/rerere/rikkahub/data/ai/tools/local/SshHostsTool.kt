@@ -309,6 +309,10 @@ fun sshExecSavedTool(
                     put("type", "object")
                     put("description", "Optional env vars for this call, e.g. {\"TOKEN\":\"abc\"}. Avoids inline `set X=...` quoting. Not supported when background=true.")
                 })
+                put("env_style", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Environment syntax for `env`: 'auto' (default; assumes a Windows/pwsh remote, where `\$env:NAME` is used) or 'posix' (Linux/其他远端，使用 `NAME=... ; export NAME`).")
+                })
                 put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Total timeout, default 30, max 300") })
             },
             required = listOf("name", "command")
@@ -355,7 +359,9 @@ fun sshExecSavedTool(
         // env：以「同会话前置赋值语句」注入（background 走 detached 双层包装，不支持 env）
         val env = readEnvParam(p)
         if (env.isNotEmpty() && !background) {
-            finalCommand = joinCommandBatch(envPrelude(env, looksLikeWindowsCommand(finalCommand)) + listOf(finalCommand))
+            // 同 ssh_exec：默认按 Windows($env:)，Linux 远端显式传 env_style=posix
+            val envWindows = !p["env_style"]?.jsonPrimitive?.contentOrNull.equals("posix", ignoreCase = true)
+            finalCommand = joinCommandBatch(envPrelude(env, envWindows) + listOf(finalCommand))
         }
         val h = repo.getByName(name)
             ?: return@Tool listOf(UIMessagePart.Text(

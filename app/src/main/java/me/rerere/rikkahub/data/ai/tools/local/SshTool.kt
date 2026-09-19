@@ -779,6 +779,10 @@ fun sshExecTool(context: Context): Tool = Tool(
                     put("type", "object")
                     put("description", "Optional env vars for this call, e.g. {\"TOKEN\":\"abc\"}. Avoids inline `set X=...` quoting. Not supported when background=true.")
                 })
+                put("env_style", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Environment syntax for `env`: 'auto' (default; assumes a Windows/pwsh remote, where `\$env:NAME` is used) or 'posix' (Linux/其他远端，使用 `NAME=... ; export NAME`).")
+                })
                 put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Total timeout including connect+exec, default 30, max 300") })
             },
             required = listOf("host", "user")
@@ -822,8 +826,11 @@ fun sshExecTool(context: Context): Tool = Tool(
         val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(command) else (withUtf8ConsoleEncoding(command) to null)
         // env：以「同会话前置赋值语句」注入（background 走 detached 双层包装，不支持 env）
         val env = readEnvParam(p)
+        // 远端平台无法从命令内容可靠推断（实测：`cmd /c ...` 曾被判成 POSIX → 远端 pwsh 报错），
+        // 因此默认按 Windows($env:) 处理，Linux 远端显式传 env_style=posix。
+        val envWindows = !p["env_style"]?.jsonPrimitive?.contentOrNull.equals("posix", ignoreCase = true)
         val envPrefix =
-            if (!background && env.isNotEmpty()) envPrelude(env, looksLikeWindowsCommand(command)) else emptyList()
+            if (!background && env.isNotEmpty()) envPrelude(env, envWindows) else emptyList()
         val effectiveCommand =
             if (envPrefix.isEmpty()) detachedCmd else joinCommandBatch(envPrefix + listOf(detachedCmd))
         val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->

@@ -1693,8 +1693,11 @@ class GenerationLoop(
                     appendLine("Full output saved to: /tool_outputs/$fileName")
                     appendLine("Use shell to read: `cat /tool_outputs/$fileName`")
                     appendLine("Use shell to search: `grep \"pattern\" /tool_outputs/$fileName`")
-                    // 关键行预览：省一次「落盘后再 grep」的往返（错误行 + 末尾若干行 + 总行数）
-                    val lines = fullText.split('\n')
+                    // 关键行预览：省一次「落盘后再 grep」的往返（错误行 + 末尾若干行 + 总行数）。
+                    // ⚠ 很多工具输出是 JSON（如 shell 的 {"stdout":"a\nb"}），其中的换行是**字面 `\n`**，
+                    // 直接按真实换行切分会得到「1 行」并失去全部意义 —— 先展开转义换行再统计。
+                    val logical = fullText.replace("\\n", "\n").replace("\\r", "")
+                    val lines = logical.split('\n')
                     val errorLines =
                         lines.withIndex()
                             .filter { (_, l) ->

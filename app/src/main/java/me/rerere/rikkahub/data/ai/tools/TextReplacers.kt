@@ -170,7 +170,8 @@ private const val HINT_SCAN_LINES = 4000
  * 仅扫描前 [HINT_SCAN_LINES] 行，逐行 2-gram 近似比较。
  */
 private fun closestSnippetHint(content: String, oldText: String): String {
-    val needle = oldText.lineSequence().firstOrNull { it.isNotBlank() }?.trim().orEmpty()
+    // 取**最长**非空行作探针：首行常是 `}` / `)` 这类短行，做相似度比较会误报或漏报
+    val needle = oldText.lineSequence().filter { it.isNotBlank() }.maxByOrNull { it.trim().length }?.trim().orEmpty()
     if (needle.length < 4) return ""
     val lines = content.lineSequence().take(HINT_SCAN_LINES).toList()
     var bestIndex = -1
@@ -184,7 +185,9 @@ private fun closestSnippetHint(content: String, oldText: String): String {
             bestIndex = index
         }
     }
-    if (bestIndex < 0 || bestScore < 0.4) return ""
+    // 阈值放宽到 0.2：常见失配是拼写/缩进的小差异，而 2-gram 相似度天然偏低
+    // （实测 `alhpa` vs `alpha` 仅 0.25），阈值过严会出现「该提示时不提示」。
+    if (bestIndex < 0 || bestScore < 0.2) return ""
     val from = (bestIndex - 2).coerceAtLeast(0)
     val to = (bestIndex + 3).coerceAtMost(lines.size)
     val snippet = lines.subList(from, to).joinToString("\n") { "    $it" }
