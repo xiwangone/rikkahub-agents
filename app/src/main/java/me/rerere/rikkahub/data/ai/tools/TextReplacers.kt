@@ -210,8 +210,34 @@ private fun closestSnippetHint(content: String, oldText: String): String {
     val from = (bestIndex - 2).coerceAtLeast(0)
     val to = (bestIndex + 3).coerceAtMost(lines.size)
     val snippet = lines.subList(from, to).joinToString("\n") { "    $it" }
-    return "\nClosest match: line ${bestIndex + 1} (similarity ${(bestScore * 100).toInt()}%). " +
-        "Nearby context:\n$snippet"
+    // 只说「最像哪一行」还不够：真实失配常是一两个字符（大小写 / 拼写 / 标点），
+    // 调用方仍得逐字比对。把「第一处不同」连窗口一起点出来，一次就能改对。
+    val diffHint = firstDifferenceHint(needle, lines[bestIndex].trim())
+    return "\nClosest match: line ${bestIndex + 1} (similarity ${(bestScore * 100).toInt()}%)." +
+        (if (diffHint.isEmpty()) "" else "\n$diffHint") +
+        " Nearby context:\n$snippet"
+}
+
+/**
+ * 报出 [expected] 与 [actual] 的**第一处**不同：字符序号 + 前后各 14 字符的窗口，
+ * 长度不等时点明是哪一侧更长。两侧完全相同则返回空串（差异不在这一行）。
+ */
+private fun firstDifferenceHint(expected: String, actual: String): String {
+    val common = minOf(expected.length, actual.length)
+    var i = 0
+    while (i < common && expected[i] == actual[i]) i++
+    if (i == common && expected.length == actual.length) return ""
+    fun window(s: String): String {
+        val from = (i - 14).coerceAtLeast(0)
+        val to = (i + 15).coerceAtMost(s.length)
+        return (if (from > 0) "…" else "") + s.substring(from, to) + (if (to < s.length) "…" else "")
+    }
+    val note = if (i == common) {
+        "expected line is longer by ${expected.length - actual.length}"
+    } else {
+        "file has '${actual[i]}' where '${expected[i]}' was expected"
+    }
+    return "First difference at column ${i + 1}: file=[${window(actual)}] expected=[${window(expected)}] ($note)"
 }
 
 /** 2-gram 交集比：轻量近似，仅用于给「最像哪一行」排序。 */

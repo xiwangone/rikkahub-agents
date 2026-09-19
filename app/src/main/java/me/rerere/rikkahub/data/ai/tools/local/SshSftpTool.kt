@@ -94,6 +94,7 @@ fun sshUploadTool(
                 put("local_path", buildJsonObject { put("type", "string"); put("description", "Absolute path on the device") })
                 put("remote_path", buildJsonObject { put("type", "string"); put("description", "Absolute remote path (full filename)") })
                 put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Total timeout, default 60, max 600") })
+                put("hash", buildJsonObject { put("type", "string"); put("description", "Checksum algorithms for the local file, comma-separated: md5, sha1, sha256, sha512 (default sha256; 'all' for every one). Returned under `hashes`.") })
             },
             required = listOf("name", "local_path", "remote_path")
         )
@@ -119,6 +120,8 @@ fun sshUploadTool(
                         put("success", true)
                         put("remote_path", remotePath)
                         put("bytes", localFile.length())
+                        // 上传内容的指纹：便于与对端 `sha256sum` / `md5sum` 对比，确认落盘字节一致
+                        appendHashes(this, localFile, p["hash"]?.jsonPrimitive?.contentOrNull)
                     }
                 } catch (e: Throwable) {
                     buildJsonObject { put("error", "sftp put failed: ${e.message ?: "unknown"}") }
@@ -150,6 +153,7 @@ fun sshDownloadTool(
                 put("remote_path", buildJsonObject { put("type", "string"); put("description", "Absolute remote file path") })
                 put("local_path", buildJsonObject { put("type", "string"); put("description", "Absolute local path on the device") })
                 put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Total timeout, default 60, max 600") })
+                put("hash", buildJsonObject { put("type", "string"); put("description", "Checksum algorithms for the local file, comma-separated: md5, sha1, sha256, sha512 (default sha256; 'all' for every one). Returned under `hashes`.") })
             },
             required = listOf("name", "remote_path", "local_path")
         )
@@ -174,6 +178,8 @@ fun sshDownloadTool(
                         put("success", true)
                         put("local_path", localFile.absolutePath)
                         put("bytes", localFile.length())
+                        // 就地给出摘要：交付/校验不必再跑一次 file_info + 对端 Get-FileHash
+                        appendHashes(this, localFile, p["hash"]?.jsonPrimitive?.contentOrNull)
                     }
                 } catch (e: Throwable) {
                     buildJsonObject { put("error", "sftp get failed: ${e.message ?: "unknown"}") }
@@ -189,3 +195,63 @@ fun sshDownloadTool(
         listOf(UIMessagePart.Text(payload.toString()))
     }
 )
+
+/** 支持的校验算法：对外名 → JVM MessageDigest 名。 */
+private val SUPPORTED_HASH_ALGORITHMS = linkedMapOf(
+    "md5" to "MD5",
+    "sha1" to "SHA-1",
+    "sha256" to "SHA-256",
+    "sha512" to "SHA-512",
+)
+
+/**
+ * 解析 `hash` 参数：逗号 / 中文逗号 / 分号 / 空白分隔，或 `all`；缺省为 sha256。
+ * 返回（要算的算法, 不认识的名字）——不认识的名字回给调用方，而不是静默忽略。
+ */
+private fun resolveHashAlgorithms(spec: String?): Pair<List<Pair<String, String>>, List<String>> {
+    val raw = spec?.trim()?.lowercase().orEmpty()
+    val names =
+        if (raw.isEmpty() || raw == "all") SUPPORTED_HASH_ALGORITHMS.keys.toList()
+        else raw.split(',', '，', ';', ' ', '\t').map { it.trim() }.filter { it.isNotEmpty() }
+    val wanted = names.distinct()
+    val known = wanted.filter { it in SUPPORTED_HASH_ALGORITHMS }.map { it to SUPPORTED_HASH_ALGORITHMS.getValue(it) }
+    return known to wanted.filter { it !in SUPPORTED_HASH_ALGORITHMS }
+}
+
+/**
+ * **一次读盘**同时算出多个摘要（多算法共用一遍 IO），返回 算法名 → 小写十六进制。
+ * 文件读不了时返回空表——校验值是附加信息，不该让整次传输变成失败。
+ */
+private fun hashesOf(file: File, algorithms: List<Pair<String, String>>): Map<String, String> {
+    if (algorithms.isEmpty()) return emptyMap()
+    return try {
+        val digests = algorithms.map { (_, jdkName) -> java.security.MessageDigest.getInstance(jdkName) }
+        file.inputStream().use { input ->
+            val buffer = ByteArray(64 * 1024)
+            while (true) {
+                val read = input.read(buffer)
+                if (read <= 0) break
+                digests.forEach { it.update(buffer, 0, read) }
+            }
+        }
+        algorithms.mapIndexed { index, (name, _) ->
+            name to digests[index].digest().joinToString("") { "%02x".format(it) }
+        }.toMap()
+    } catch (_: Throwable) {
+        emptyMap()
+    }
+}
+
+/** 把请求的校验摘要写进返回体：`hashes`（算法名 → 摘要）+ 不认识的算法名。 */
+private fun appendHashes(
+    builder: kotlinx.serialization.json.JsonObjectBuilder,
+    file: File,
+    spec: String?,
+) {
+    val (algorithms, unsupported) = resolveHashAlgorithms(spec)
+    val digests = hashesOf(file, algorithms)
+    if (digests.isNotEmpty()) {
+        builder.put("hashes", buildJsonObject { digests.forEach { (name, value) -> put(name, value) } })
+    }
+    if (unsupported.isNotEmpty()) builder.put("hashes_unsupported", unsupported.joinToString(","))
+}

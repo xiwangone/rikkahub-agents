@@ -88,6 +88,17 @@ internal suspend fun appHealthPayload(
     return payload.toString()
 }
 
+/**
+ * keyword 支持**多个**（逗号 / 中文逗号 / 分号 / 空白分隔，命中任一即可）：排查时常要同时看
+ * 几条链路（如 `ChatService,GenerationLoop`），分开调用既费往返又容易丢时间线。
+ */
+private fun parseKeywords(params: JsonObject): List<String> =
+    params["keyword"]?.jsonPrimitive?.contentOrNull
+        ?.split(',', '，', ';', ' ', '\t')
+        ?.map { it.trim().lowercase(Locale.getDefault()) }
+        ?.filter { it.isNotEmpty() }
+        .orEmpty()
+
 // ---------- read_app_logs ----------
 
 /**
@@ -97,8 +108,7 @@ internal suspend fun appHealthPayload(
 internal fun appLogsPayload(context: Context, params: JsonObject): String {
         val level = params["level"]?.jsonPrimitive?.contentOrNull
             ?.trim()?.uppercase(Locale.US)?.take(1)
-        val keyword = params["keyword"]?.jsonPrimitive?.contentOrNull
-            ?.trim()?.lowercase(Locale.getDefault())?.takeIf { s -> s.isNotEmpty() }
+        val keywords = parseKeywords(params)
         val limit = params["limit"]?.jsonPrimitive?.intOrNull ?: 50
         // summary=true：只回统计（level 分布 / Top tag / 时间范围 / 总数），不给原始行——
         // 让 AI 先看摘要再按 keyword 精准取行，避免一上来拉原始日志把上下文淹掉。
@@ -108,9 +118,11 @@ internal fun appLogsPayload(context: Context, params: JsonObject): String {
         val matched = AppLog.getLogs()
             .filter { e -> level == null || e.level.toString() == level }
             .filter { e ->
-                keyword == null ||
-                    e.tag.lowercase(Locale.getDefault()).contains(keyword) ||
-                    e.message.lowercase(Locale.getDefault()).contains(keyword)
+                keywords.isEmpty() ||
+                    keywords.any { k ->
+                        e.tag.lowercase(Locale.getDefault()).contains(k) ||
+                            e.message.lowercase(Locale.getDefault()).contains(k)
+                    }
             }
 
         if (summaryOnly) {
@@ -161,13 +173,17 @@ internal fun appLogsPayload(context: Context, params: JsonObject): String {
  * 一手证据——read_app_logs 只覆盖 AppLog，请求日志是唯一能看到实际请求结果的入口。
  */
 internal fun requestLogsPayload(context: Context, params: JsonObject): String {
-        val keyword = params["keyword"]?.jsonPrimitive?.contentOrNull
-            ?.trim()?.lowercase(Locale.getDefault())?.takeIf { s -> s.isNotEmpty() }
+        val keywords = parseKeywords(params)
         val limit = params["limit"]?.jsonPrimitive?.intOrNull ?: 50
 
         val fmt = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault())
         val entries = Logging.getRequestLogs()
-            .filter { e -> keyword == null || e.url.lowercase(Locale.getDefault()).contains(keyword) || (e.error?.lowercase(Locale.getDefault())?.contains(keyword) == true) }
+            .filter { e ->
+                keywords.isEmpty() || keywords.any { k ->
+                    e.url.lowercase(Locale.getDefault()).contains(k) ||
+                        (e.error?.lowercase(Locale.getDefault())?.contains(k) == true)
+                }
+            }
             .take(limit.coerceIn(1, 100))
 
         val raw = entries.joinToString("\n") { e ->
@@ -473,11 +489,44 @@ internal suspend fun conversationsPayload(
     }
     val conversation = conversationRepo.getConversationById(uuid)
         ?: return buildJsonObject { put("error", "conversation not found: $idRaw") }.toString()
+    // compact=true：只回**结构**（role / finishReason / 部件数 / 工具名与审批状态），不带正文。
+    // 用于「某条消息在不在、那个工具是什么状态」这类核对——否则只能拉整段正文（上万 token）。
+    val compact =
+        params["compact"]?.jsonPrimitive?.contentOrNull?.equals("true", ignoreCase = true) == true
     var totalChars = 0
     val messagesJson = buildJsonArray {
         loop@ for ((index, node) in conversation.messageNodes.withIndex()) {
             for (m in node.messages) {
                 val text = m.parts.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
+                val tools = m.parts.filterIsInstance<UIMessagePart.Tool>()
+                if (compact) {
+                    if (text.isBlank() && tools.isEmpty()) continue
+                    add(
+                        buildJsonObject {
+                            put("index", index)
+                            put("role", m.role.name.lowercase())
+                            put("finishReason", m.finishReason)
+                            put("parts", m.parts.size)
+                            put("chars", text.length)
+                            if (tools.isNotEmpty()) {
+                                put(
+                                    "tools",
+                                    JsonArray(
+                                        tools.map { t ->
+                                            buildJsonObject {
+                                                put("name", t.toolName)
+                                                put("state", t.approvalState::class.simpleName.orEmpty())
+                                                put("executed", t.isExecuted)
+                                                put("outputParts", t.output.size)
+                                            }
+                                        },
+                                    ),
+                                )
+                            }
+                        },
+                    )
+                    continue
+                }
                 if (text.isBlank()) continue
                 if (totalChars > 40_000) break@loop
                 val clipped = if (text.length > 2000) text.take(2000) + "…(truncated)" else text
@@ -794,7 +843,11 @@ fun diagnosticsTool(
                 })
                 put("keyword", buildJsonObject {
                     put("type", "string")
-                    put("description", "logs and requests: case-insensitive substring filter.")
+                    put(
+                        "description",
+                        "logs and requests: case-insensitive substring filter; several terms may be " +
+                            "given separated by comma/space (matches any).",
+                    )
                 })
                 put("limit", buildJsonObject {
                     put("type", "integer")
@@ -819,6 +872,14 @@ fun diagnosticsTool(
                        "logs only: return statistics only — level counts + top tags + time range + total — " +
                            "instead of raw lines. Prefer this first, then fetch specific lines with keyword/level.",
                    )
+                })
+                put("compact", buildJsonObject {
+                    put("type", "boolean")
+                    put(
+                        "description",
+                        "conversation only: return message structure (role/finishReason/parts/tools) " +
+                            "without message text — for checking presence or tool state cheaply.",
+                    )
                 })
                 put("reset", buildJsonObject {
                     put("type", "boolean")
