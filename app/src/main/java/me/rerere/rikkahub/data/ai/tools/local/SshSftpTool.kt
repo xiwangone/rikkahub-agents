@@ -205,14 +205,18 @@ private val SUPPORTED_HASH_ALGORITHMS = linkedMapOf(
 )
 
 /**
- * 解析 `hash` 参数：逗号 / 中文逗号 / 分号 / 空白分隔，或 `all`；缺省为 sha256。
+ * 解析 `hash` 参数：逗号 / 中文逗号 / 分号 / 空白分隔，或 `all`；**缺省为 sha256**。
  * 返回（要算的算法, 不认识的名字）——不认识的名字回给调用方，而不是静默忽略。
  */
 private fun resolveHashAlgorithms(spec: String?): Pair<List<Pair<String, String>>, List<String>> {
     val raw = spec?.trim()?.lowercase().orEmpty()
     val names =
-        if (raw.isEmpty() || raw == "all") SUPPORTED_HASH_ALGORITHMS.keys.toList()
-        else raw.split(',', '，', ';', ' ', '\t').map { it.trim() }.filter { it.isNotEmpty() }
+        when {
+            raw == "all" -> SUPPORTED_HASH_ALGORITHMS.keys.toList()
+            // 缺省只算 sha256（与工具描述一致）；要多种就显式写 `md5,sha256`，或写 `all`
+            raw.isEmpty() -> listOf("sha256")
+            else -> raw.split(',', '，', ';', ' ', '\t').map { it.trim() }.filter { it.isNotEmpty() }
+        }
     val wanted = names.distinct()
     val known = wanted.filter { it in SUPPORTED_HASH_ALGORITHMS }.map { it to SUPPORTED_HASH_ALGORITHMS.getValue(it) }
     return known to wanted.filter { it !in SUPPORTED_HASH_ALGORITHMS }
@@ -226,19 +230,24 @@ private fun hashesOf(file: File, algorithms: List<Pair<String, String>>): Map<St
     if (algorithms.isEmpty()) return emptyMap()
     return try {
         val digests = algorithms.map { (_, jdkName) -> java.security.MessageDigest.getInstance(jdkName) }
-        file.inputStream().use { input ->
-            val buffer = ByteArray(64 * 1024)
-            while (true) {
-                val read = input.read(buffer)
-                if (read <= 0) break
-                digests.forEach { it.update(buffer, 0, read) }
-            }
-        }
+        feedDigests(file, digests)
         algorithms.mapIndexed { index, (name, _) ->
             name to digests[index].digest().joinToString("") { "%02x".format(it) }
         }.toMap()
     } catch (_: Throwable) {
         emptyMap()
+    }
+}
+
+/** 把文件内容喂给全部 digest（单次 IO、多算法共用）；供 [hashesOf] 使用，单独成函数以避免嵌套过深。 */
+private fun feedDigests(file: File, digests: List<java.security.MessageDigest>) {
+    file.inputStream().use { input ->
+        val buffer = ByteArray(64 * 1024)
+        while (true) {
+            val read = input.read(buffer)
+            if (read <= 0) break
+            digests.forEach { it.update(buffer, 0, read) }
+        }
     }
 }
 
