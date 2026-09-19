@@ -198,6 +198,7 @@
   <string name="backup_page_path">パス</string>
   <string name="backup_page_reminder">リマインダー</string>
   <string name="backup_page_reminder_dismiss">閉じる</string>
+  <string name="backup_page_assistant_hint">チャットで助手にバックアップを実行させることもできます（アプリのバックアップツール）。暗号化と保存先はこのページの設定に従います — 助手にパスワードを伝える必要はありません。</string>
   <string name="backup_page_reminder_enable">バックアップリマインダーを有効にする</string>
   <string name="backup_page_reminder_interval">リマインダー間隔</string>
   <string name="backup_page_reminder_interval_days">%1$d日</string>

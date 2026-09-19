@@ -198,6 +198,7 @@
   <string name="backup_page_path">Путь</string>
   <string name="backup_page_reminder">Напоминание</string>
   <string name="backup_page_reminder_dismiss">Отклонить</string>
+  <string name="backup_page_assistant_hint">Также можно попросить ассистента в чате выполнить резервное копирование (инструмент резервной копии приложения). Шифрование и назначение берутся из настроек этой страницы — пароль ассистенту сообщать не нужно.</string>
   <string name="backup_page_reminder_enable">Включить напоминание о резервном копировании</string>
   <string name="backup_page_reminder_interval">Интервал напоминания</string>
   <string name="backup_page_reminder_interval_days">%1$d дн.</string>

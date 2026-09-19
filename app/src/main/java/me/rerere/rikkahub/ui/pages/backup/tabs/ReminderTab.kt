@@ -44,6 +44,14 @@ fun ReminderTab(vm: BackupVM) {
                 .imePadding(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        // 助手侧提示：备份/上传可由助手执行，加密口令始终留在本机设置里（无需告诉助手）
+        CardGroup(
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            item(
+                headlineContent = { Text(stringResource(R.string.backup_page_assistant_hint)) },
+            )
+        }
         CardGroup(
             modifier = Modifier.fillMaxWidth(),
         ) {

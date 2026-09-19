@@ -198,6 +198,7 @@
   <string name="backup_page_path">경로</string>
   <string name="backup_page_reminder">알림</string>
   <string name="backup_page_reminder_dismiss">무시</string>
+  <string name="backup_page_assistant_hint">대화에서 어시스턴트에게 백업 실행을 요청할 수도 있습니다(앱 백업 도구). 암호화와 대상은 이 페이지 설정을 따르며, 어시스턴트에게 비밀번호를 알려줄 필요가 없습니다.</string>
   <string name="backup_page_reminder_enable">백업 알림 활성화</string>
   <string name="backup_page_reminder_interval">알림 간격</string>
   <string name="backup_page_reminder_interval_days">%1$d일</string>

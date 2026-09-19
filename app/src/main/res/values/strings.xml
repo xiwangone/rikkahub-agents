@@ -262,6 +262,7 @@
   <string name="backup_page_path">Path</string>
   <string name="backup_page_reminder">Reminder</string>
   <string name="backup_page_reminder_dismiss">Dismiss</string>
+  <string name="backup_page_assistant_hint">You can also ask the assistant in chat to run a backup (the app-backup tool). Encryption and the destination follow the settings on this page — the assistant never needs your password.</string>
   <string name="backup_page_reminder_enable">Enable Backup Reminder</string>
   <string name="backup_page_reminder_interval">Reminder Interval</string>
   <string name="backup_page_reminder_interval_days">%1$d days</string>

@@ -286,6 +286,7 @@
   <string name="backup_page_path">المسار</string>
   <string name="backup_page_reminder">تذكير</string>
   <string name="backup_page_reminder_dismiss">تجاهل</string>
+  <string name="backup_page_assistant_hint">يمكنك أيضًا أن تطلب من المساعد في المحادثة تنفيذ نسخة احتياطية (أداة نسخ التطبيق). يتبع التشفير والوجهة إعدادات هذه الصفحة — لا حاجة لمشاركة كلمة المرور مع المساعد.</string>
   <string name="backup_page_reminder_enable">تمكين تذكير النسخ الاحتياطي</string>
   <string name="backup_page_reminder_interval">فترة التذكير</string>
   <string name="backup_page_reminder_interval_days">%1$d أيام</string>

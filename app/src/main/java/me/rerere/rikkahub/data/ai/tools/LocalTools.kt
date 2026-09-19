@@ -28,8 +28,11 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.datastore.WebDavConfig
+import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.S3Sync
 import me.rerere.rikkahub.data.sync.s3.S3Config
+import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import org.koin.java.KoinJavaComponent.getKoin
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
@@ -578,12 +581,23 @@ class LocalTools(
      * `app_backup`：生成 App 数据的本地备份 zip（含**vault 密文**、设置、头像、技能、工作区文档）。
      * 产物在 App 私有 cache，需人工审批后才会执行；返回 path/size/sha256 以便对外拷出后加密保存。
      */
+    /**
+     * `app_backup`：生成 App 数据备份（数据库含**密钥库密文**、设置、头像、技能、工作区文档）。
+     *
+     * - `target=local`（默认）：只落本地（App 私有 cache）；备份加密开启时产出 `.enc`，
+     *   口令取「设置 → 备份」里**已记住的备份口令**——不需要、也不应该把口令发到对话里。
+     * - `target=s3` / `webdav`：复用设置里**已配置**的目标，生成后直接上传（加密同理由备份设置决定）。
+     *
+     * 需人工审批（包内含敏感数据）。
+     */
     val appBackupTool by lazy {
         Tool(
             name = "app_backup",
             description =
-                "Create a local backup zip of this app's data (database incl. vault ciphertext, settings, avatars, skills, " +
-                    "workspace docs) and return its path, size and sha256 so it can be copied out and stored. Requires approval.",
+                "Create an app-data backup (database incl. vault ciphertext, settings, avatars, skills, workspace docs) and " +
+                    "either save it locally (target=local, default: returns a file path) or upload it to the backup destination " +
+                    "already configured in Settings -> Backup (target=s3 or webdav). Encryption follows the app's backup " +
+                    "settings; the backup password never needs to be shared in chat. Requires approval.",
             parameters = {
                 InputSchema.Obj(
                     properties = buildJsonObject {
@@ -593,10 +607,19 @@ class LocalTools(
                                 put("type", "array")
                                 put(
                                     "description",
-                                    "Optional backup items, e.g. [\"DATABASE\",\"SETTINGS\",\"AVATARS\",\"SKILLS\"," +
-                                        "\"WORKSPACE_DOCS\",\"CHAT_FILES\",\"FONTS_IMAGES\",\"TOOL_OUTPUTS\"]. Defaults to a core set.",
+                                    "Optional backup items, e.g. [\"DATABASE\",\"SETTINGS\",\"AVATARS\",\"SKILLS\",\"WORKSPACE_DOCS\",\"CHAT_FILES\",\"FONTS_IMAGES\",\"TOOL_OUTPUTS\"]. Defaults to a core set.",
                                 )
                                 put("items", buildJsonObject { put("type", "string") })
+                            },
+                        )
+                        put(
+                            "target",
+                            buildJsonObject {
+                                put("type", "string")
+                                put(
+                                    "description",
+                                    "'local' (default: create the file and return its path), 's3' or 'webdav' (upload to the destination configured in Settings -> Backup).",
+                                )
                             },
                         )
                     },
@@ -605,26 +628,110 @@ class LocalTools(
             },
             needsApproval = { true },
             execute = {
+                val params = it.jsonObject
                 val requested =
-                    it.jsonObject["items"]?.jsonArray
+                    params["items"]?.jsonArray
                         ?.mapNotNull { e -> e.jsonPrimitive.contentOrNull }
                         ?.mapNotNull { n -> runCatching { S3Config.BackupItem.valueOf(n.uppercase()) }.getOrNull() }
                         .orEmpty()
                 val items = requested.ifEmpty { DEFAULT_APP_BACKUP_ITEMS }
-                val file = getKoin().get<S3Sync>().prepareBackupFile(S3Config(items = items))
-                listOf(
-                    UIMessagePart.Text(
-                        buildJsonObject {
-                            put("path", file.absolutePath)
-                            put("size_bytes", file.length())
-                            put("items", buildJsonArray { items.forEach { add(it.name) } })
-                            put(
-                                "hint",
-                                "Copy this file out (e.g. copy_file) and store it encrypted; the archive contains sensitive data.",
+                val target = params["target"]?.jsonPrimitive?.contentOrNull?.lowercase()?.takeIf { s -> s.isNotBlank() } ?: "local"
+                val settings = settingsStore.settingsFlow.value
+                val encryptedBySettings = settings.backupEncryptionEnabled
+
+                when (target) {
+                    "s3" -> {
+                        val base = settings.s3Configs.firstOrNull() ?: settings.s3Config
+                        if (base.endpoint.isBlank()) {
+                            listOf(
+                                UIMessagePart.Text(
+                                    buildJsonObject {
+                                        put("error", "s3_not_configured")
+                                        put("hint", "Configure an S3 target first: Settings -> Backup -> S3.")
+                                    }.toString(),
+                                ),
                             )
-                        }.toString(),
-                    ),
-                )
+                        } else {
+                            getKoin().get<S3Sync>().backupToS3(base.copy(items = items))
+                            listOf(
+                                UIMessagePart.Text(
+                                    buildJsonObject {
+                                        put("ok", true)
+                                        put("target", "s3")
+                                        put("uploaded", true)
+                                        put("encrypted", encryptedBySettings)
+                                        put("items", buildJsonArray { items.forEach { add(it.name) } })
+                                    }.toString(),
+                                ),
+                            )
+                        }
+                    }
+
+                    "webdav" -> {
+                        val base = settings.webDavConfigs.firstOrNull()
+                        if (base == null || base.url.isBlank()) {
+                            listOf(
+                                UIMessagePart.Text(
+                                    buildJsonObject {
+                                        put("error", "webdav_not_configured")
+                                        put("hint", "Configure a WebDAV target first: Settings -> Backup -> WebDAV.")
+                                    }.toString(),
+                                ),
+                            )
+                        } else {
+                            val webItems =
+                                items.mapNotNull { s ->
+                                    runCatching { WebDavConfig.BackupItem.valueOf(s.name) }.getOrNull()
+                                }
+                            getKoin().get<WebDavSync>().backup(base.copy(items = webItems))
+                            listOf(
+                                UIMessagePart.Text(
+                                    buildJsonObject {
+                                        put("ok", true)
+                                        put("target", "webdav")
+                                        put("uploaded", true)
+                                        put("encrypted", encryptedBySettings)
+                                        put("items", buildJsonArray { items.forEach { add(it.name) } })
+                                    }.toString(),
+                                ),
+                            )
+                        }
+                    }
+
+                    else -> {
+                        val plain = getKoin().get<S3Sync>().prepareBackupFile(S3Config(items = items))
+                        val encryptionManager = getKoin().get<BackupEncryptionManager>()
+                        val file =
+                            runCatching { encryptionManager.maybeEncrypt(plain) }.getOrElse { e ->
+                                return@Tool listOf(
+                                    UIMessagePart.Text(
+                                        buildJsonObject {
+                                            put("error", "backup_password_missing")
+                                            put(
+                                                "hint",
+                                                "Backup encryption is on but this device has no remembered password. Enter it once in Settings -> Backup (no need to share it in chat).",
+                                            )
+                                            put("detail", e.message.orEmpty())
+                                        }.toString(),
+                                    ),
+                                )
+                            }
+                        listOf(
+                            UIMessagePart.Text(
+                                buildJsonObject {
+                                    put("path", file.absolutePath)
+                                    put("size_bytes", file.length())
+                                    put("encrypted", file != plain)
+                                    put("items", buildJsonArray { items.forEach { add(it.name) } })
+                                    put(
+                                        "hint",
+                                        "Copy this file out (e.g. copy_file) and keep it safe; it contains sensitive data.",
+                                    )
+                                }.toString(),
+                            ),
+                        )
+                    }
+                }
             },
         )
     }

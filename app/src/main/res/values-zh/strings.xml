@@ -262,6 +262,7 @@
   <string name="backup_page_path">路径</string>
   <string name="backup_page_reminder">提醒</string>
   <string name="backup_page_reminder_dismiss">忽略</string>
+  <string name="backup_page_assistant_hint">你也可以在对话中让助手执行备份（应用备份工具）。加密与云端目标沿用本页设置——助手无需知道你的口令。</string>
   <string name="backup_page_reminder_enable">启用备份提醒</string>
   <string name="backup_page_reminder_interval">提醒间隔</string>
   <string name="backup_page_reminder_interval_days">%1$d天</string>
