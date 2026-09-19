@@ -156,7 +156,7 @@ class SshCommandWrappingTest {
     }
 
     @Test
-    fun `readEnvParam keeps only string values`() {
+    fun `readEnvParam coerces primitive values to strings`() {
         val p =
             kotlinx.serialization.json.buildJsonObject {
                 put(
@@ -167,7 +167,8 @@ class SshCommandWrappingTest {
                     },
                 )
             }
-        assertEquals(mapOf("A" to "1"), readEnvParam(p))
+        // 宽松：数字/布尔等原始值按其字面量转字符串（env 值本就是字符串语义）；非原始值（对象/数组）忽略
+        assertEquals(mapOf("A" to "1", "B" to "2"), readEnvParam(p))
         assertTrue(readEnvParam(kotlinx.serialization.json.buildJsonObject { }).isEmpty())
     }
 
