@@ -106,6 +106,8 @@ private fun parseKeywords(params: JsonObject): List<String> =
  * 防止崩溃堆栈泄露 API key / 连接串。
  */
 internal fun appLogsPayload(context: Context, params: JsonObject): String {
+        // 默认**排除 D 级**：逐 token / 流式分片是噪音大户（已单独缓冲），抓错误时会把有效行冲走；
+        // 要看详细仍可显式 `level=D`。I/W/E 是诊断主线（消息收发 / 落库 / 取消 / 审批），默认可见。
         val level = params["level"]?.jsonPrimitive?.contentOrNull
             ?.trim()?.uppercase(Locale.US)?.take(1)
         val keywords = parseKeywords(params)
@@ -116,7 +118,9 @@ internal fun appLogsPayload(context: Context, params: JsonObject): String {
             params["summary"]?.jsonPrimitive?.contentOrNull?.equals("true", ignoreCase = true) == true
 
         val matched = AppLog.getLogs()
-            .filter { e -> level == null || e.level.toString() == level }
+            .filter { e ->
+                if (level == null) e.level.toString() != "D" else e.level.toString() == level
+            }
             .filter { e ->
                 keywords.isEmpty() ||
                     keywords.any { k ->
@@ -152,7 +156,7 @@ internal fun appLogsPayload(context: Context, params: JsonObject): String {
                     put("firstAt", fmt.format(matched.first().timestamp))
                     put("lastAt", fmt.format(matched.last().timestamp))
                 }
-                put("hint", "仅统计；要具体行时带 keyword/level 再调用（limit 默认 50）")
+                put("hint", "仅统计；默认不含 D 级（要详细传 level=D）；要具体行时带 keyword/level 再调用（limit 默认 50）")
             }.toString()
         }
 
@@ -162,7 +166,16 @@ internal fun appLogsPayload(context: Context, params: JsonObject): String {
         val raw = entries.joinToString("\n") { e ->
             "${fmt.format(e.timestamp)} ${e.level} ${e.tag}: ${e.message}"
         }
-    return LogRedactor.maskText(raw)
+        // 头部给「命中多少 / 实际回多少」+ 当前筛选口径：截断不再靠猜，也不会把
+        // 「没匹配」与「被 limit 截掉」混为一谈。
+        val header = buildString {
+            append("[app logs] matched=${matched.size} shown=${entries.size}")
+            append(" · level=${level ?: "default(I/W/E; use level=D for verbose)"}")
+            if (keywords.isNotEmpty()) append(" · keyword=${keywords.joinToString("|")}")
+            if (entries.size < matched.size) append(" · truncated: narrow with keyword/level/limit")
+            append('\n')
+        }
+    return LogRedactor.maskText(header + raw)
 }
 
 // ---------- read_request_logs ----------
@@ -839,7 +852,7 @@ fun diagnosticsTool(
                 })
                 put("level", buildJsonObject {
                     put("type", "string")
-                    put("description", "logs only: level filter D / I / W / E.")
+                    put("description", "logs only: level filter D / I / W / E; omit to exclude verbose D (I/W/E only).")
                 })
                 put("keyword", buildJsonObject {
                     put("type", "string")
