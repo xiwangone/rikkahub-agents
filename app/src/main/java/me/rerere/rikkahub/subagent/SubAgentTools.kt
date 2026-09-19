@@ -194,7 +194,7 @@ private fun dispatchParameters(enabledProfiles: List<SubAgentProfile>): InputSch
 private suspend fun runSubAgentDispatch(
     engine: SubAgentEngine,
     callerContext: me.rerere.rikkahub.data.ai.tools.ToolInvocationContext,
-    args: kotlinx.serialization.json.JsonObject,
+    args: kotlinx.serialization.json.JsonElement,
 ): List<UIMessagePart> {
     // Hard recursion guard —— 调用方本身是 headless run（cron / 工作流 / 子代理 / 外部自动化）
     // 时拒绝派发；引擎自身的守卫依赖已登记的会话 id，cron/workflow 直连路径没有会话，故在此兜底。

@@ -414,16 +414,21 @@ private fun SubAgentProfileEditSheet(
                     },
                 )
 
-                OutlinedTextField(
-                    value = profile.toolScope?.joinToString(", ") ?: "",
-                    onValueChange = { raw ->
-                        val parsed = raw.split(',', '\n').map { it.trim() }.filter { it.isNotEmpty() }
-                        onEdit(profile.copy(toolScope = parsed.takeIf { it.isNotEmpty() }))
-                    },
+                FormItem(
                     label = { Text(stringResource(R.string.setting_sub_agents_page_tools)) },
-                    supportingText = { Text(stringResource(R.string.setting_sub_agents_page_tools_hint)) },
-                    minLines = 2,
-                    modifier = Modifier.fillMaxWidth(),
+                    description = { Text(stringResource(R.string.setting_sub_agents_page_tools_desc)) },
+                    content = {
+                        OutlinedTextField(
+                            value = profile.toolScope?.joinToString(", ") ?: "",
+                            onValueChange = { raw ->
+                                val parsed = raw.split(',', '\n').map { it.trim() }.filter { it.isNotEmpty() }
+                                onEdit(profile.copy(toolScope = parsed.takeIf { it.isNotEmpty() }))
+                            },
+                            supportingText = { Text(stringResource(R.string.setting_sub_agents_page_tools_hint)) },
+                            minLines = 2,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    },
                 )
 
                 OutlinedTextField(
