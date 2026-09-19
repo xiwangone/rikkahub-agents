@@ -305,6 +305,10 @@ fun sshExecSavedTool(
                 put("preset", buildJsonObject { put("type", "string"); put("description", "Preset command key for this host (see ssh_presets). Mutually exclusive with command. Generic platform presets include: on a Windows-class host: 系统信息/磁盘/进程/服务列表; on a POSIX host: 系统信息/磁盘/内存/进程/最近日志. When preset is used, command must be omitted.") })
                 put("stdin", buildJsonObject { put("type", "string"); put("description", "Optional data piped to the command's stdin (then EOF). Quote-free way to write a file (command=\"cat > /path\") or feed input; omit to send an immediate EOF.") })
                 put("background", buildJsonObject { put("type", "boolean"); put("description", "If true, launch the command fully detached (nohup, streams redirected) and return immediately with its PID instead of waiting. Default false.") })
+                put("env", buildJsonObject {
+                    put("type", "object")
+                    put("description", "Optional env vars for this call, e.g. {\"TOKEN\":\"abc\"}. Avoids inline `set X=...` quoting. Not supported when background=true.")
+                })
                 put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Total timeout, default 30, max 300") })
             },
             required = listOf("name", "command")
@@ -326,7 +330,7 @@ fun sshExecSavedTool(
             ))
         }
         // preset 展开：按 saved host 名匹配预设集（精确名 → 特征归类 linux/windows 通用模板）
-        val finalCommand = if (presetKey != null) {
+        var finalCommand = if (presetKey != null) {
             val presets = SshPresets.forHost(name)
             val expanded = presets[presetKey]
             if (expanded == null) {
@@ -348,6 +352,11 @@ fun sshExecSavedTool(
         val stdin = p["stdin"]?.jsonPrimitive?.contentOrNull
         val background = p["background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
         val timeoutSec = (p["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 300)
+        // env：以「同会话前置赋值语句」注入（background 走 detached 双层包装，不支持 env）
+        val env = readEnvParam(p)
+        if (env.isNotEmpty() && !background) {
+            finalCommand = joinCommandBatch(envPrelude(env, looksLikeWindowsCommand(finalCommand)) + listOf(finalCommand))
+        }
         val h = repo.getByName(name)
             ?: return@Tool listOf(UIMessagePart.Text(
                 buildJsonObject { put("error", "no saved host: $name") }.toString()

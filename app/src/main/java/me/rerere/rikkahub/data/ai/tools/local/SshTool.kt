@@ -199,6 +199,34 @@ internal fun withUtf8ConsoleEncoding(command: String): String {
 }
 
 /**
+ * env 前置语句：Windows 用 `$env:X='v'`，POSIX 用 `X='v'; export X`。
+ *
+ * 由 [joinCommandBatch] 拼在命令之前，与命令在**同一进程**内执行，故后续语句可见；
+ * 键名走白名单、值按各自语法转义，免去调用方内联 `set X=...` 的引号困扰。
+ */
+internal fun envPrelude(env: Map<String, String>, windows: Boolean): List<String> =
+    env.entries
+        .filter { (k, _) -> ENV_KEY_REGEX.matches(k) }
+        .map { (k, v) ->
+            if (windows) {
+                "\$env:$k='" + v.replace("'", "''") + "'"
+            } else {
+                "$k='" + v.replace("'", "'\\''") + "'; export $k"
+            }
+        }
+
+/** 读取工具参数里的 `env` 对象（只接受字符串值，其它忽略）。 */
+internal fun readEnvParam(p: kotlinx.serialization.json.JsonObject): Map<String, String> =
+    (p["env"] as? kotlinx.serialization.json.JsonObject)
+        ?.mapNotNull { (k, v) ->
+            (v as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull?.let { k to it }
+        }
+        ?.toMap()
+        .orEmpty()
+
+private val ENV_KEY_REGEX = Regex("[A-Za-z_][A-Za-z0-9_]*")
+
+/**
  * 平台自适应 detached 包装（POSIX 与 Windows 统一），返回 (detachedCommand, logPath)：
  * - POSIX：nohup（缺失则退 setsid，再退裸后台）落 /tmp/rikkahub_bg_<ts>.log，返回 logPath 供轮询
  * - Windows/pwsh：Start-Process 全脱钩 + 输出重定向日志，返回 logPath
@@ -747,6 +775,10 @@ fun sshExecTool(context: Context): Tool = Tool(
                 })
                 put("stdin", buildJsonObject { put("type", "string"); put("description", "Optional data piped to the command's stdin (then EOF). Quote-free way to write a file (command=\"cat > /path\") or feed input; omit to send an immediate EOF.") })
                 put("background", buildJsonObject { put("type", "boolean"); put("description", "If true, launch the command fully detached (nohup, streams redirected) and return immediately with its PID instead of waiting. Use for servers/long jobs that would otherwise block until timeout. Default false.") })
+                put("env", buildJsonObject {
+                    put("type", "object")
+                    put("description", "Optional env vars for this call, e.g. {\"TOKEN\":\"abc\"}. Avoids inline `set X=...` quoting. Not supported when background=true.")
+                })
                 put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Total timeout including connect+exec, default 30, max 300") })
             },
             required = listOf("host", "user")
@@ -788,7 +820,12 @@ fun sshExecTool(context: Context): Tool = Tool(
             ))
         }
         val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(command) else (withUtf8ConsoleEncoding(command) to null)
-        val effectiveCommand = detachedCmd
+        // env：以「同会话前置赋值语句」注入（background 走 detached 双层包装，不支持 env）
+        val env = readEnvParam(p)
+        val envPrefix =
+            if (!background && env.isNotEmpty()) envPrelude(env, looksLikeWindowsCommand(command)) else emptyList()
+        val effectiveCommand =
+            if (envPrefix.isEmpty()) detachedCmd else joinCommandBatch(envPrefix + listOf(detachedCmd))
         val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
             execOneShot(context, host, port, user, auth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin)
         }
