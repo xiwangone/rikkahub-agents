@@ -1802,17 +1802,30 @@ class ChatService(
             saveConversation(conversationId, newConversation)
         }
 
-    /** T12: 保留区消息的工具输出超过 toolOutputMaxChars 时截断为预览（完整输出走 /tool_outputs/ 落盘机制）。 */
+    /**
+     * T12 / B5: 保留区消息里工具**输出**与**入参**超过 toolOutputMaxChars 时截断为预览。
+     *
+     * 入参同样是 token 大头（长文件内容、批量编辑、整段脚本常以入参形式留在历史里），
+     * 因此与输出用同一上限分别截断。只在“已被压缩、进入保留区”的历史上生效，
+     * 不影响当轮实时调用，也不改动缓存可见的请求前缀之外的内容。
+     */
     private fun truncateKeptToolOutput(message: UIMessage, maxChars: Int): UIMessage {
         if (maxChars <= 0) return message
         return message.copy(
             parts =
                 message.parts.map { part ->
                     if (part is UIMessagePart.Tool) {
+                        val trimmedInput =
+                            if (part.input.length > maxChars) {
+                                AppLog.d(TAG, "B5 截断工具入参: tool=${part.toolName} ${part.input.length}→$maxChars chars")
+                                part.input.take(maxChars) + "\n…[truncated]"
+                            } else {
+                                part.input
+                            }
                         val textParts = part.output.filterIsInstance<UIMessagePart.Text>()
                         val totalLen = textParts.sumOf { it.text.length }
                         if (totalLen > maxChars) {
-                            me.rerere.rikkahub.data.log.AppLog.d(TAG, "T12 截断工具输出: tool=${part.toolName} ${totalLen}→$maxChars chars")
+                            AppLog.d(TAG, "T12 截断工具输出: tool=${part.toolName} $totalLen→$maxChars chars")
                             var remaining = maxChars
                             val truncated =
                                 part.output.mapNotNull { p ->
@@ -1827,7 +1840,9 @@ class ChatService(
                                         null
                                     }
                                 }
-                            part.copy(output = truncated)
+                            part.copy(input = trimmedInput, output = truncated)
+                        } else if (trimmedInput !== part.input) {
+                            part.copy(input = trimmedInput)
                         } else {
                             part
                         }
