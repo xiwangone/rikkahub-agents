@@ -258,7 +258,9 @@ fun VaultPage() {
                             runCatching {
                                 context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                                     if (cursor.moveToFirst()) {
-                                        cursor.getString(cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME))
+                                        // getColumnIndex 找不到列时返回 -1，直接拿去取值会越界（lint Range）：先判有效
+                                        val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
+                                        if (nameIndex >= 0) cursor.getString(nameIndex) else null
                                     } else null
                                 }
                             }.getOrNull() ?: uri.lastPathSegment
@@ -763,6 +765,10 @@ fun VaultPage() {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        // 配置感知地取文案：lint 的 LocalContextGetResourceValueCall 认为在回调里
+                        // 直接 context.getString 可能拿到过期资源（跟随语言/主题切换不及时）
+                        val backupPasswordRequiredMsg =
+                            stringResource(R.string.vault_backup_password_required)
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -770,7 +776,7 @@ fun VaultPage() {
                             OutlinedButton(
                                 onClick = {
                                     if (backupPassword.isBlank()) {
-                                        backupResult = context.getString(R.string.vault_backup_password_required)
+                                        backupResult = backupPasswordRequiredMsg
                                         return@OutlinedButton
                                     }
                                     backupExportLauncher.launch("RikkaHub-Vault-Backup-${System.currentTimeMillis()}.vault")
@@ -835,13 +841,14 @@ fun VaultPage() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(vertical = 12.dp),
                 )
+                val biometricOpenTitle = stringResource(R.string.vault_biometric_open_title)
                 Button(
                     onClick = {
                         scope.launch {
                             val ok = VaultBiometric.authenticate(
                                 context = context,
                                 buffer = biometricBuffer,
-                                title = context.getString(R.string.vault_biometric_open_title),
+                                title = biometricOpenTitle,
                             )
                             unlocked = ok
                         }

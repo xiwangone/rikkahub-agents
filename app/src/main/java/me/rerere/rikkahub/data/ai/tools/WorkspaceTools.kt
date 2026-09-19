@@ -621,7 +621,7 @@ private fun createShellTool(
                     put("stderr", result.stderr)
                     put("timedOut", result.timedOut)
                     if (result.truncated) put("truncated", true)
-                    if (changes.isNotEmpty()) putChangedFilesSummary(changes)
+                    if (changes.isNotEmpty()) putTouchedFilesSummary(changes)
                 }.toString(),
                 // diff 存入 metadata 供 UI 渲染（不随工具结果发给模型，不占上下文）
                 metadata = changeDiff.takeIf { it.isNotBlank() }

@@ -254,13 +254,18 @@ internal suspend fun takeWorkspaceChangeSnapshot(
     rootPath = rootPath,
 )
 
-/** 结构化改动摘要（给 AI，平级字段）：路径 + 变更类型 + ±行数 + 总数/截断标记；正文仍在 metadata。 */
-internal fun JsonObjectBuilder.putChangedFilesSummary(changes: List<FileChange>) {
-    put("changedFilesTotal", changes.size)
+/**
+ * 结构化改动摘要（给 AI，平级字段）：路径 + 变更类型 + ±行数 + 总数/截断标记；正文仍在 metadata。
+ *
+ * 字段名用 `touchedFiles*` 而非 `changedFiles*`：这是**文件系统变更探测**（命令执行前后各取一次快照再对比），
+ * 与 git 状态无关——未纳入版本控制的改动同样会出现，是否已提交/暂存也与它无关。
+ */
+internal fun JsonObjectBuilder.putTouchedFilesSummary(changes: List<FileChange>) {
+    put("touchedFilesTotal", changes.size)
     if (changes.size > WorkspaceChangePolicy.MAX_CHANGED_FILES) {
-        put("changedFilesTruncated", true)
+        put("touchedFilesTruncated", true)
     }
-    put("changedFiles", buildJsonArray {
+    put("touchedFiles", buildJsonArray {
         changes.take(WorkspaceChangePolicy.MAX_CHANGED_FILES).forEach { c ->
             add(buildJsonObject {
                 put("path", c.path)
