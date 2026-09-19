@@ -1574,6 +1574,7 @@
   <string name="setting_tools_list_count">Настроено: %1$d</string>
   <string name="setting_tools_list_always_keep">Всегда доступны</string>
   <string name="setting_tools_list_always_keep_desc">list_tools / get_tool_schema / ask_user доступны всегда, даже в режиме разрешения.</string>
+  <string name="setting_tools_list_selected">Текущий</string>
   <string name="setting_tools_list_reset">Сбросить к умолчанию</string>
   <string name="setting_tools_list_reset_desc">Очищает оба списка и выключает функцию.</string>
   <string name="setting_tools_list_allow_warning_title">Включить список разрешения?</string>

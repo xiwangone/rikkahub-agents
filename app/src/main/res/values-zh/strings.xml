@@ -1805,6 +1805,7 @@
   <string name="setting_tools_list_count">已配置 %1$d 个</string>
   <string name="setting_tools_list_always_keep">始终保留的工具</string>
   <string name="setting_tools_list_always_keep_desc">list_tools / get_tool_schema / ask_user 即使在白名单模式下也始终注入。</string>
+  <string name="setting_tools_list_selected">当前</string>
   <string name="setting_tools_list_reset">一键恢复默认</string>
   <string name="setting_tools_list_reset_desc">清空两份名单并关闭该功能。</string>
   <string name="setting_tools_list_allow_warning_title">开启白名单？</string>

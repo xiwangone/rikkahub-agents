@@ -62,7 +62,6 @@ fun SettingToolsPage(
     val termuxConfig by termuxVm.config.collectAsStateWithLifecycle()
     val displaySetting = settings.displaySetting
     var showOutputDialog by remember { mutableStateOf(false) }
-    var showModeDialog by remember { mutableStateOf(false) }
     var pendingAllowConfirm by remember { mutableStateOf(false) }
     var editingList by remember { mutableStateOf<String?>(null) }
     var listDraft by remember { mutableStateOf("") }
@@ -145,14 +144,37 @@ fun SettingToolsPage(
                 )
             }
 
-            // 工具名单：默认关闭；white 名单开启前需确认一次；始终提供「一键恢复默认」
+            // 工具名单（默认关闭）：模式直接三行可选 —— 省去「点行→弹窗→再选」两步，
+            // 状态一眼可见；白名单首次开启前确认一次。
             CardGroup(title = { Text(stringResource(R.string.setting_tools_section_list)) }) {
                 item(
                     headlineContent = { Text(stringResource(R.string.setting_tools_list_mode_title)) },
                     supportingContent = { Text(stringResource(R.string.setting_tools_list_mode_desc)) },
-                    trailingContent = { Text(toolListModeLabel(settings.toolListMode)) },
-                    modifier = Modifier.clickable { showModeDialog = true },
                 )
+                listOf(
+                    TOOL_LIST_MODE_OFF to R.string.setting_tools_list_mode_off,
+                    TOOL_LIST_MODE_DENY to R.string.setting_tools_list_mode_deny,
+                    TOOL_LIST_MODE_ALLOW to R.string.setting_tools_list_mode_allow,
+                ).forEach { (mode, labelRes) ->
+                    item(
+                        headlineContent = { Text(stringResource(labelRes)) },
+                        trailingContent = {
+                            if (settings.toolListMode == mode) {
+                                Text(stringResource(R.string.setting_tools_list_selected))
+                            }
+                        },
+                        modifier =
+                            Modifier.clickable {
+                                when {
+                                    // 白名单会显著缩小工具集：首次开启前确认一次（已在白名单则忽略）
+                                    mode == TOOL_LIST_MODE_ALLOW && settings.toolListMode != TOOL_LIST_MODE_ALLOW ->
+                                        pendingAllowConfirm = true
+                                    settings.toolListMode == mode -> Unit
+                                    else -> vm.updateSettings(settings.copy(toolListMode = mode))
+                                }
+                            },
+                    )
+                }
                 if (settings.toolListMode == TOOL_LIST_MODE_DENY) {
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_tools_list_deny_title)) },
@@ -238,48 +260,6 @@ fun SettingToolsPage(
         )
     }
 
-    if (showModeDialog) {
-        AlertDialog(
-            onDismissRequest = { showModeDialog = false },
-            title = { Text(stringResource(R.string.setting_tools_list_mode_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    ToolListModeOption(
-                        label = stringResource(R.string.setting_tools_list_mode_off),
-                        selected = settings.toolListMode == TOOL_LIST_MODE_OFF,
-                    ) {
-                        vm.updateSettings(settings.copy(toolListMode = TOOL_LIST_MODE_OFF))
-                        showModeDialog = false
-                    }
-                    ToolListModeOption(
-                        label = stringResource(R.string.setting_tools_list_mode_deny),
-                        selected = settings.toolListMode == TOOL_LIST_MODE_DENY,
-                    ) {
-                        vm.updateSettings(settings.copy(toolListMode = TOOL_LIST_MODE_DENY))
-                        showModeDialog = false
-                    }
-                    ToolListModeOption(
-                        label = stringResource(R.string.setting_tools_list_mode_allow),
-                        selected = settings.toolListMode == TOOL_LIST_MODE_ALLOW,
-                    ) {
-                        // 白名单会显著缩小工具集：首次开启前确认一次（此后可直接切换）
-                        if (settings.toolListMode == TOOL_LIST_MODE_ALLOW) {
-                            vm.updateSettings(settings.copy(toolListMode = TOOL_LIST_MODE_ALLOW))
-                        } else {
-                            pendingAllowConfirm = true
-                        }
-                        showModeDialog = false
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showModeDialog = false }) {
-                    Text(stringResource(R.string.settings_cancel))
-                }
-            },
-        )
-    }
-
     if (pendingAllowConfirm) {
         AlertDialog(
             onDismissRequest = { pendingAllowConfirm = false },
@@ -356,22 +336,3 @@ fun SettingToolsPage(
     }
 }
 
-@Composable
-private fun toolListModeLabel(mode: String): String =
-    when (mode) {
-        TOOL_LIST_MODE_DENY -> stringResource(R.string.setting_tools_list_mode_deny_short)
-        TOOL_LIST_MODE_ALLOW -> stringResource(R.string.setting_tools_list_mode_allow_short)
-        else -> stringResource(R.string.setting_tools_list_mode_off)
-    }
-
-@Composable
-private fun ToolListModeOption(label: String, selected: Boolean, onClick: () -> Unit) {
-    Text(
-        text = if (selected) "● $label" else "○ $label",
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable { onClick() }
-                .padding(vertical = 10.dp),
-    )
-}

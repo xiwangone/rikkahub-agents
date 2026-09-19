@@ -1581,6 +1581,7 @@
   <string name="setting_tools_list_count">%1$d 個を設定済み</string>
   <string name="setting_tools_list_always_keep">常に保持</string>
   <string name="setting_tools_list_always_keep_desc">list_tools / get_tool_schema / ask_user は許可モードでも常に提供されます。</string>
+  <string name="setting_tools_list_selected">現在</string>
   <string name="setting_tools_list_reset">既定に戻す</string>
   <string name="setting_tools_list_reset_desc">両方のリストを消去して機能をオフにします。</string>
   <string name="setting_tools_list_allow_warning_title">許可リストを有効にしますか？</string>

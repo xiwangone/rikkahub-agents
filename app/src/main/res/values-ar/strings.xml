@@ -118,6 +118,7 @@
   <string name="setting_tools_list_count">تم إعداد %1$d</string>
   <string name="setting_tools_list_always_keep">تظل متاحة دائمًا</string>
   <string name="setting_tools_list_always_keep_desc">تظل list_tools / get_tool_schema / ask_user متاحة دائمًا حتى في وضع السماح.</string>
+  <string name="setting_tools_list_selected">الحالي</string>
   <string name="setting_tools_list_reset">إعادة التعيين الافتراضي</string>
   <string name="setting_tools_list_reset_desc">يمسح القائمتين ويعطّل الميزة.</string>
   <string name="setting_tools_list_allow_warning_title">تفعيل قائمة السماح؟</string>

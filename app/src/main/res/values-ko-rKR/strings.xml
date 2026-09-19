@@ -1578,6 +1578,7 @@
   <string name="setting_tools_list_count">%1$d개 설정됨</string>
   <string name="setting_tools_list_always_keep">항상 유지</string>
   <string name="setting_tools_list_always_keep_desc">list_tools / get_tool_schema / ask_user는 허용 모드에서도 항상 제공됩니다.</string>
+  <string name="setting_tools_list_selected">현재</string>
   <string name="setting_tools_list_reset">기본값으로 복원</string>
   <string name="setting_tools_list_reset_desc">두 목록을 비우고 기능을 끕니다.</string>
   <string name="setting_tools_list_allow_warning_title">허용 목록을 켤까요?</string>

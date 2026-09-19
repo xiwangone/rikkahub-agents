@@ -1404,6 +1404,7 @@
   <string name="setting_tools_list_count">%1$d configured</string>
   <string name="setting_tools_list_always_keep">Always kept</string>
   <string name="setting_tools_list_always_keep_desc">list_tools / get_tool_schema / ask_user are always provided even in allow mode.</string>
+  <string name="setting_tools_list_selected">Current</string>
   <string name="setting_tools_list_reset">Reset to default</string>
   <string name="setting_tools_list_reset_desc">Clear both lists and turn the feature off.</string>
   <string name="setting_tools_list_allow_warning_title">Enable allow list?</string>
