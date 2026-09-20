@@ -23,7 +23,7 @@ they are a checklist of feature code that the local tree does not have yet.
 ## How to use this directory
 
 * Treat each file as a feature checklist item for the pending upstream port
-  (see 真源/归档/专题/upstream-跟进记录-20260910.md).
+  （详见项目内部归档记录）.
 * When a feature is ported, move its test back with `git mv` into
   `app/src/test/java/...` and make it compile against the real local API.
 * Nothing here is compiled or executed. PRs that re-add a file must also make
