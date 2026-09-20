@@ -87,19 +87,11 @@ class ChatDrawerVM(
                 }
 
             pagingSource.map { pagingData ->
+                // ⚠ 顺序不可调换：insertSeparators 只能从「传入的项」推导分组标题。
+                // 若先按折叠态过滤，被折叠分组内无存活项 → 标题不生成 → 整组连标题一起消失，
+                // 且没有可点击的标题（折叠不可逆）。故先生成标题，再过滤。
                 pagingData
-                    .filter { conversation ->
-                        if (conversation.isSubAgentRun) {
-                            // 子代理运行分组折叠时整体不发出
-                            query.subAgentExpanded
-                        } else {
-                            // 日期分组折叠时该日期下的会话不发出
-                            conversation.updateAt
-                                .atZone(ZoneId.systemDefault())
-                                .toLocalDate()
-                                .toString() !in query.collapsedDates
-                        }
-                    }.map { ConversationListItem.Item(it) }
+                    .map { ConversationListItem.Item(it) }
                     .insertSeparators<ConversationListItem.Item, ConversationListItem> { before, after ->
                         when {
                             // 跨越「子代理运行 / 普通会话」边界时插入子代理分组标题
@@ -120,42 +112,21 @@ class ChatDrawerVM(
                                 if (after.conversation.isPinned) {
                                     ConversationListItem.PinnedHeader
                                 } else {
-                                    val afterDate =
-                                        after.conversation.updateAt
-                                            .atZone(ZoneId.systemDefault())
-                                            .toLocalDate()
-                                    ConversationListItem.DateHeader(
-                                        date = afterDate,
-                                        label = getDateLabel(afterDate),
-                                    )
+                                    dateHeaderOf(after.conversation)
                                 }
                             }
 
                             before is ConversationListItem.Item && after is ConversationListItem.Item -> {
                                 if (before.conversation.isPinned && !after.conversation.isPinned) {
-                                    val afterDate =
-                                        after.conversation.updateAt
-                                            .atZone(ZoneId.systemDefault())
-                                            .toLocalDate()
-                                    ConversationListItem.DateHeader(
-                                        date = afterDate,
-                                        label = getDateLabel(afterDate),
-                                    )
+                                    dateHeaderOf(after.conversation)
                                 } else if (!after.conversation.isPinned) {
                                     val beforeDate =
-                                        before.conversation.updateAt
-                                            .atZone(ZoneId.systemDefault())
-                                            .toLocalDate()
+                                        before.conversation.localDate()
                                     val afterDate =
-                                        after.conversation.updateAt
-                                            .atZone(ZoneId.systemDefault())
-                                            .toLocalDate()
+                                        after.conversation.localDate()
 
                                     if (beforeDate != afterDate) {
-                                        ConversationListItem.DateHeader(
-                                            date = afterDate,
-                                            label = getDateLabel(afterDate),
-                                        )
+                                        dateHeaderOf(after.conversation)
                                     } else {
                                         null
                                     }
@@ -168,6 +139,14 @@ class ChatDrawerVM(
                                 null
                             }
                         }
+                    }
+                    // 折叠过滤放在标题生成之后：分组标题恒保留（可再次点击展开），只滤掉组内会话。
+                    .filter { item ->
+                        isConversationListItemVisible(
+                            item = item,
+                            subAgentExpanded = query.subAgentExpanded,
+                            collapsedDates = query.collapsedDates,
+                        )
                     }
             }
         }.cachedIn(viewModelScope)
@@ -289,6 +268,12 @@ class ChatDrawerVM(
         return targets.size
     }
 
+    /** 会话所属日期的分组标题（折叠 key 与标签均取自该日期）。 */
+    private fun dateHeaderOf(conversation: Conversation): ConversationListItem.DateHeader {
+        val date = conversation.localDate()
+        return ConversationListItem.DateHeader(date = date, label = getDateLabel(date))
+    }
+
     private fun getDateLabel(date: LocalDate): String {
         val today = LocalDate.now()
         val yesterday = today.minusDays(1)
@@ -307,3 +292,31 @@ private data class ConversationListQuery(
     val subAgentExpanded: Boolean,
     val collapsedDates: Set<String>,
 )
+
+/**
+ * 折叠态判定：**分组标题（DateHeader / PinnedHeader / SubAgentHeader）恒保留**，
+ * 只过滤被折叠分组内的会话。
+ *
+ * 标题必须保留，否则折叠后无可点击目标 → 折叠不可逆、会话被永久隐藏。
+ * 置顶会话（isPinned）不受日期折叠影响：它的分组标题是 PinnedHeader（不可点击），
+ * 若跟着一起隐藏就同样无法恢复。
+ */
+internal fun isConversationListItemVisible(
+    item: ConversationListItem,
+    subAgentExpanded: Boolean,
+    collapsedDates: Set<String>,
+): Boolean =
+    when (item) {
+        is ConversationListItem.Item -> {
+            val conversation = item.conversation
+            when {
+                conversation.isSubAgentRun -> subAgentExpanded
+                conversation.isPinned -> true
+                else -> conversation.localDate().toString() !in collapsedDates
+            }
+        }
+        else -> true
+    }
+
+/** 会话所属的本地日期（列表分组与折叠 key 都用它）。 */
+private fun Conversation.localDate(): LocalDate = updateAt.atZone(ZoneId.systemDefault()).toLocalDate()
