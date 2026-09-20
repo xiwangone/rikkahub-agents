@@ -2676,6 +2676,9 @@
   <string name="chat_tool_workspace_edit_line">%1$s（%2$d 处）</string>
   <string name="chat_tool_workspace_search_title">代码搜索：%1$d 处匹配</string>
   <string name="chat_sub_agent_group">子代理运行</string>
+  <string name="chat_sub_agent_clean">清理</string>
+  <string name="chat_sub_agent_clean_confirm_title">清理子代理会话</string>
+  <string name="chat_sub_agent_clean_confirm_message">将删除所有子代理会话（正在运行的会跳过）。此操作不可撤销。</string>
   <string name="setting_sub_agents_page_default_workspace">子代理默认工作区</string>
   <string name="setting_sub_agents_page_default_workspace_desc">派发的子代理默认在哪个工作区运行（派发参数或配置里指定时以它们为准）。建议选一个与主对话不同的工作区，避免写入互相覆盖。</string>
   <string name="setting_sub_agents_page_model">模型</string>

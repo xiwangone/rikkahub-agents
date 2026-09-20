@@ -18,12 +18,14 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -95,8 +97,10 @@ fun ColumnScope.ConversationList(
     onToggleSubAgent: () -> Unit = {},
     collapsedDates: Set<String> = emptySet(),
     onToggleDate: (String) -> Unit = {},
+    onCleanSubAgent: () -> Unit = {},
 ) {
     var hasScrolledToCurrent by remember(current.id) { mutableStateOf(false) }
+    var showCleanConfirm by remember { mutableStateOf(false) }
 
     LaunchedEffect(current.id, conversations.itemCount, hasScrolledToCurrent) {
         if (hasScrolledToCurrent) return@LaunchedEffect
@@ -170,6 +174,7 @@ fun ColumnScope.ConversationList(
                     SubAgentHeaderItem(
                         expanded = subAgentExpanded,
                         onClick = onToggleSubAgent,
+                        onClean = { showCleanConfirm = true },
                         modifier = Modifier.animateItem(),
                     )
                 }
@@ -194,6 +199,29 @@ fun ColumnScope.ConversationList(
                 }
             }
         }
+    }
+
+    if (showCleanConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCleanConfirm = false },
+            title = { Text(stringResource(R.string.chat_sub_agent_clean_confirm_title)) },
+            text = { Text(stringResource(R.string.chat_sub_agent_clean_confirm_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showCleanConfirm = false
+                        onCleanSubAgent()
+                    },
+                ) {
+                    Text(stringResource(R.string.chat_sub_agent_clean))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCleanConfirm = false }) {
+                    Text(stringResource(R.string.chat_page_cancel))
+                }
+            },
+        )
     }
 }
 
@@ -232,6 +260,7 @@ private fun DateHeaderItem(
 private fun SubAgentHeaderItem(
     expanded: Boolean,
     onClick: () -> Unit,
+    onClean: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -254,6 +283,15 @@ private fun SubAgentHeaderItem(
             text = if (expanded) "\u25BE" else "\u25B8",
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
+        )
+        Icon(
+            imageVector = HugeIcons.Delete01,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.primary,
+            modifier =
+                Modifier
+                    .clickable(onClick = onClean)
+                    .padding(4.dp),
         )
     }
 }

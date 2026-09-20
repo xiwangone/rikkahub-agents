@@ -37,7 +37,7 @@ import kotlin.uuid.Uuid
 class ChatDrawerVM(
     private val context: Application,
     private val settingsStore: SettingsStore,
-    conversationRepo: ConversationRepository,
+    private val conversationRepo: ConversationRepository,
     private val folderRepo: FolderRepository,
     private val chatService: ChatService,
     private val savedStateHandle: SavedStateHandle,
@@ -272,6 +272,21 @@ class ChatDrawerVM(
         viewModelScope.launch {
             chatService.generateTitle(conversation.id, conversation, force = true)
         }
+    }
+
+    /**
+     * 删除所有"子代理会话"（会话列表里被折叠的那些），但跳过 [exclude] 中正在生成的会话。
+     * @return 实际删除的数量
+     */
+    suspend fun cleanSubAgentRuns(exclude: Set<Uuid>): Int {
+        val assistantId = assistantIdFlow.first()
+        val targets =
+            conversationRepo
+                .getConversationsOfAssistant(assistantId)
+                .first()
+                .filter { it.isSubAgentRun && it.id !in exclude }
+        targets.forEach { conversationRepo.deleteConversation(it) }
+        return targets.size
     }
 
     private fun getDateLabel(date: LocalDate): String {

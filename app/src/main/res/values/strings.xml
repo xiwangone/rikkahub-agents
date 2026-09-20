@@ -2767,6 +2767,9 @@
   <string name="chat_tool_workspace_edit_line">%1$s (%2$d)</string>
   <string name="chat_tool_workspace_search_title">Code search: %1$d match(es)</string>
   <string name="chat_sub_agent_group">Sub-agent runs</string>
+  <string name="chat_sub_agent_clean">Clean up</string>
+  <string name="chat_sub_agent_clean_confirm_title">Clean up sub-agent runs</string>
+  <string name="chat_sub_agent_clean_confirm_message">All sub-agent runs will be deleted (any still running are skipped). This cannot be undone.</string>
   <string name="setting_sub_agents_page_default_workspace">Default workspace for sub-agents</string>
   <string name="setting_sub_agents_page_default_workspace_desc">Where dispatched sub-agents run unless the dispatch or the profile says otherwise. Pick a workspace separate from your main one so their writes cannot clash with this conversation.</string>
   <string name="setting_sub_agents_page_model">Model</string>

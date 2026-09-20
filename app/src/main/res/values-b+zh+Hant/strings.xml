@@ -2650,6 +2650,9 @@
   <string name="chat_tool_workspace_edit_line">%1$s（%2$d 處）</string>
   <string name="chat_tool_workspace_search_title">程式碼搜尋：%1$d 處符合</string>
   <string name="chat_sub_agent_group">子代理執行</string>
+  <string name="chat_sub_agent_clean">清理</string>
+  <string name="chat_sub_agent_clean_confirm_title">清理子代理執行</string>
+  <string name="chat_sub_agent_clean_confirm_message">將刪除所有子代理執行（正在執行的會略過）。此操作無法復原。</string>
   <string name="setting_sub_agents_page_default_workspace">子代理預設工作區</string>
   <string name="setting_sub_agents_page_default_workspace_desc">派發的子代理預設在哪個工作區執行（派發參數或設定有指定時以它們為準）。建議選一個與主對話不同的工作區，避免寫入互相覆蓋。</string>
     <string name="setting_sub_agents_page_model">模型</string>

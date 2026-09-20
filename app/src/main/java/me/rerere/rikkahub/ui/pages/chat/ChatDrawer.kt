@@ -291,6 +291,12 @@ fun ChatDrawerContent(
                     conversationToMoveFolder = it
                     showMoveToFolderSheet = true
                 },
+                onCleanSubAgent = {
+                    scope.launch {
+                        vm.cleanSubAgentRuns(conversationJobs.keys)
+                        conversations.refresh()
+                    }
+                },
             )
 
             // 助手选择器
