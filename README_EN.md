@@ -8,6 +8,7 @@
 
 [![Release](https://img.shields.io/github/v/release/xiwangone/rikkahub-agents?color=2ea44f&label=Latest%20Release&logo=github)](https://github.com/xiwangone/rikkahub-agents/releases/latest)
 [![Stars](https://img.shields.io/github/stars/xiwangone/rikkahub-agents?color=cb3837&label=Stars&logo=github)](https://github.com/xiwangone/rikkahub-agents)
+[![Build](https://github.com/xiwangone/rikkahub-agents/actions/workflows/01-build.yml/badge.svg)](https://github.com/xiwangone/rikkahub-agents/actions/workflows/01-build.yml)
 [![Downloads](https://img.shields.io/github/downloads/xiwangone/rikkahub-agents/total?color=blue&label=Downloads&logo=download)](https://github.com/xiwangone/rikkahub-agents/releases)
 [![License](https://img.shields.io/github/license/xiwangone/rikkahub-agents?color=ff69b4&label=License)](LICENSE)
 [![Last Commit](https://img.shields.io/github/last-commit/xiwangone/rikkahub-agents?color=yellow&label=Last%20Commit&logo=github)](https://github.com/xiwangone/rikkahub-agents/commits/master)
@@ -15,13 +16,28 @@
 [![Download Latest](https://img.shields.io/badge/⬇️-Download%20Latest-2ea44f?style=for-the-badge&logo=android)](https://github.com/xiwangone/rikkahub-agents/releases/latest)
 [![Reasonix Agents (in development)](https://img.shields.io/badge/🧪-Reasonix%20Agents%20in%20development-8b5cf6?style=for-the-badge)](https://github.com/xiwangone/reasonix-agents)
 
-> 🔧 **Prerequisite**: Reasonix Agents is a pure client — **self-deploy the Reasonix server** (DeepSeek-Reasonix protocol) locally or on a server; configure address/port/auth to connect. No cloud hosting — bring your own server resources.
+> 💡 **Also in this account**: [Reasonix Agents](https://github.com/xiwangone/reasonix-agents) — a native Android client for the Reasonix protocol (in development). Different positioning: this project treats the phone itself as the execution environment, while that one connects to your own Reasonix server.
+
+> ✅ **Runs locally**: pick your own LLM provider (OpenAI-compatible or on-device). Conversations and data only travel between the provider you choose and your device.
 
 [**简体中文**](README.md) | **English**
 
 > <span style="color:red">**❗️❗️❗️ Note: RikkaHub Agents includes 80+ tools — enable on demand, avoid excessive resident resource usage!**</span>
 
 </div>
+
+---
+
+## ✨ Highlights
+
+- 📱 **Real on-device execution** — tap, swipe, type, screenshot, launch apps, read notifications, change settings: not "here is how", but "already done"
+- 🗂️ **Files & workspaces** — find/read/edit/organize files; the **workspace sandbox** isolates reads and writes, bindable per conversation or sub-agent
+- ⏰ **Workflows & scheduled jobs** — describe triggers and actions in natural language (19 triggers / 14 conditions); survives reboot and battery saver
+- 🌐 **Built-in browser (AI-driven)** — handles cookie banners, fills forms, scrolls and reads pages; screenshots stream back at every step
+- 🤖 **Sub-agents** — split long tasks into independent parallel runs; choose model, workspace and a **tool allow-list** (read-only + workspace write by default), with usage reported back
+- 🧩 **Skills & MCP** — drop in a Markdown skill to gain new abilities; connect MCP servers to extend the tool surface
+- 🔌 **SSH & Telegram remote control** — run commands, transfer files, tail logs from chat; approve actions while away from the phone
+- 🔐 **Secure by default** — per-assistant toggles, per-call approval for mutating actions, HARDLINE blocking
 
 ---
 
@@ -40,6 +56,30 @@
 > - **❌ NOT the original release** — Not published by the ExTV developer
 > - ✅ Code sources are trustworthy (official + original), auto-merged by AI and built with a fixed signing key
 > - 💡 For issues, use the [official RikkaHub](https://github.com/rikkahub/rikkahub) or [original fork](https://github.com/ExTV/rikkahub-agent) first
+
+---
+
+## 🏗️ Architecture
+
+### Modules
+
+| Module | Responsibility |
+|---|---|
+| `app` | App shell: UI, settings, conversations, **tool assembly** and the generation loop |
+| `ai` | LLM abstraction: providers, message/stream protocol, tool-call protocol |
+| `workspace` | **Workspace sandbox**: file I/O, mounts, background tasks, command execution |
+| `agent-tools` | Tool infrastructure: registry, schema, on-demand injection, error envelope |
+| `common` / `material3` / `highlight` | Shared utilities, theme & components, syntax highlighting |
+| `document` / `search` / `speech` / `web` | Document parsing, web search, speech, built-in browser |
+| `local-llm` / `llama-cpp` / `videogen` | On-device inference, llama.cpp bindings, video generation |
+
+### Key mechanisms
+
+- **On-demand tool injection**: the tool surface is sorted by name for a stable request prefix, with a "cold tier" — locked tools send an empty schema, so 80+ tools never flood the context at once.
+- **Approval & hardline**: per-assistant toggles; mutating calls are approved one by one; dangerous commands are blocked by HARDLINE. Unattended runtimes (scheduled jobs, sub-agents) use a separate channel.
+- **Workspace isolation**: file operations stay inside the conversation's bound workspace; a sub-agent can bind its own workspace to avoid clobbering the main session.
+- **Sub-agent runtime**: each dispatch is an **independent conversation** (config and model reusable, context not inherited), with timeout and step caps; read-only workspace by default, widen it via the allow-list.
+- **Observability**: every generation reports token usage (including cache hits); sub-agent results and usage are posted back to the parent conversation.
 
 ---
 

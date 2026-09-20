@@ -4,25 +4,41 @@
 
 # RikkaHub Agents
 
-**🤖 设备端 Agent 工具** —— 80+ 设备工具按需启用，一句话实现手机自动化。
+**🤖 设备端 Agent 工具** —— 80+ 设备工具按需启用，一句话完成手机自动化。
+
+把手机本身变成 Agent 的执行环境：应用、通知、文件、媒体、SSH、浏览器、定时与工作流，全部由对话驱动。
+LLM 提供商由你自行配置（OpenAI 兼容 / 本地模型），**对话与数据只在你选择的提供商与设备之间流转**。
 
 [![Release](https://img.shields.io/github/v/release/xiwangone/rikkahub-agents?color=2ea44f&label=最新版本&logo=github)](https://github.com/xiwangone/rikkahub-agents/releases/latest)
+[![Build](https://github.com/xiwangone/rikkahub-agents/actions/workflows/01-build.yml/badge.svg)](https://github.com/xiwangone/rikkahub-agents/actions/workflows/01-build.yml)
 [![Stars](https://img.shields.io/github/stars/xiwangone/rikkahub-agents?color=cb3837&label=Stars&logo=github)](https://github.com/xiwangone/rikkahub-agents)
 [![Downloads](https://img.shields.io/github/downloads/xiwangone/rikkahub-agents/total?color=blue&label=下载量&logo=download)](https://github.com/xiwangone/rikkahub-agents/releases)
 [![License](https://img.shields.io/github/license/xiwangone/rikkahub-agents?color=ff69b4&label=许可)](LICENSE)
 [![Last Commit](https://img.shields.io/github/last-commit/xiwangone/rikkahub-agents?color=yellow&label=最近提交&logo=github)](https://github.com/xiwangone/rikkahub-agents/commits/master)
 
-[![下载最新版](https://img.shields.io/badge/⬇️-下载最新版-2ea44f?style=for-the-badge&logo=android)](https://github.com/xiwangone/rikkahub-agents/releases/latest)
-[![Reasonix Agents 开发中](https://img.shields.io/badge/🧪-Reasonix%20Agents%20开发中-8b5cf6?style=for-the-badge)](https://github.com/xiwangone/reasonix-agents)
-
-> 🔧 **使用前提**：Reasonix Agents 为纯客户端，**需在本地或服务器自部署 Reasonix 服务端**（DeepSeek-Reasonix 协议）——通过配置服务器地址/端口/认证连接使用，不支持云端托管，请自备服务资源。
-
-
 [**English**](README_EN.md) | **简体中文**
 
-> <span style="color:red">**❗️❗️❗️ 注：RikkaHub Agents 包含 80+ 工具，请按需启用，避免常驻过多增加消耗！！！**</span>
+[![📥 下载 APK](https://img.shields.io/badge/📥-下载%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/xiwangone/rikkahub-agents/releases/latest)
+[![🧪 Reasonix Agents 开发中](https://img.shields.io/badge/🧪-Reasonix%20Agents%20开发中-8b5cf6?style=for-the-badge)](https://github.com/xiwangone/reasonix-agents)
+
+> <span style="color:red">**❗️❗️❗️ 注：包含 80+ 工具，请按需启用 —— 常驻过多会持续占用上下文与额度！**</span>
+
+> 💡 **同账号另有** [Reasonix Agents](https://github.com/xiwangone/reasonix-agents)：Reasonix 协议的原生 Android 客户端（开发中），与本项目定位不同 —— 本项目把手机当执行环境，那个项目连接你自己的 Reasonix 服务端。
 
 </div>
+
+---
+
+## ✨ 核心特色
+
+- 📱 **真正的设备端执行** — 点击、滑动、打字、截图、开应用、读通知、改设置，不是「建议你去做」，而是「已经做完」
+- 🗂️ **文件与工作区** — 查找/读取/编辑/整理文件；**工作区沙箱**隔离读写，可按会话或子代理绑定
+- ⏰ **工作流与定时任务** — 自然语言描述触发与动作（19 种触发器 / 14 种条件）；重启与省电模式后依然生效
+- 🌐 **内置浏览器（AI 操控）** — 自动处理 Cookie 弹窗、填写表单、滚动取页，每一步截图流式回传
+- 🤖 **子 Agent** — 长任务拆分为独立子任务并行处理；可指定模型、工作区与**工具白名单**（默认只读 + 工作区内读写），并回传用量
+- 🧩 **Skills 与 MCP** — 拖入 Markdown 即获得新能力；连接 MCP 服务器扩展工具面
+- 🔌 **SSH 与 Telegram 远控** — 聊天里跑命令、传文件、看日志；不在手机旁也能对话与审批
+- 🔐 **安全默认** — 每个助手独立开关、修改性操作逐次审批、HARDLINE 无条件拦截
 
 ---
 
@@ -30,23 +46,47 @@
 
 | 项目 | 链接 | 说明 |
 |------|------|------|
-| 🟡 **本仓库（AI 协助维护版）** | https://github.com/xiwangone/rikkahub-agents | **AI 协助合并上游 + 编译** |
-| 🟣 **Reasonix Agents（并列项目）** | https://github.com/xiwangone/reasonix-agents | **Reasonix 的 Android 原生客户端（开发中）** |
-| 🔵 **RikkaHub（官方）** | https://github.com/rikkahub/rikkahub | **官方上游项目，本仓库的代码来源** |
-| 🟢 **ExTV/rikkahub-agent（原版）** | https://github.com/ExTV/rikkahub-agent | **原版 Fork，本仓库基于此** |
+| 🟡 **本仓库（AI 协助维护版）** | https://github.com/xiwangone/rikkahub-agents | **AI 协助合并源代码并持续编译** |
+| 🟣 **Reasonix Agents（同账号项目）** | https://github.com/xiwangone/reasonix-agents | **Reasonix 协议的原生 Android 客户端（开发中）** |
+| 🔵 **RikkaHub（官方）** | https://github.com/rikkahub/rikkahub | **官方项目，本仓库的代码来源** |
+| 🟢 **ExTV/rikkahub-agent（原版 Fork）** | https://github.com/ExTV/rikkahub-agent | **原版 Fork，本仓库基于此** |
 
 > ### ⚠️ 使用须知
 >
 > - **❌ 非官方发布** — 不是 RikkaHub 官方团队发布
 > - **❌ 非原版发布** — 不是 ExTV 原版开发者发布
-> - ✅ 代码来源可信（官方 + 原版），由 AI 协助合并上游代码并持续编译
+> - ✅ 代码来源可信（官方 + 原版），由 AI 协助合并源代码并持续编译
 > - 💡 如遇到问题，建议优先使用 [官方版](https://github.com/rikkahub/rikkahub) 或 [原版 Fork](https://github.com/ExTV/rikkahub-agent)
+
+---
+
+## 🏗️ 架构概览
+
+### 模块划分
+
+| 模块 | 职责 |
+|---|---|
+| `app` | 应用外壳：界面、设置、会话、**工具装配**与生成循环 |
+| `ai` | LLM 抽象层：提供商实现、消息与流式协议、工具调用协议 |
+| `workspace` | **工作区沙箱**：文件读写、目录挂载、后台任务、命令执行 |
+| `agent-tools` | 工具基建：注册、schema、按需注入与错误信封 |
+| `common` / `material3` / `highlight` | 通用工具、主题与组件、代码高亮 |
+| `document` / `search` / `speech` / `web` | 文档解析、联网检索、语音、内置浏览器 |
+| `local-llm` / `llama-cpp` / `videogen` | 本地模型推理、llama.cpp 绑定、视频生成 |
+
+### 关键机制
+
+- **工具按需注入**：工具面按名称稳定排序后注入请求前缀，并支持「冷档」—— 未解锁的工具只发空 schema，避免 80+ 工具一次性吃满上下文。
+- **审批与底线**：每个助手独立开关工具；修改性调用逐次审批；危险命令由 HARDLINE 无条件拦截。定时任务与子代理这类无人值守的会话走独立通道。
+- **工作区隔离**：文件操作限定在会话绑定的工作区；子代理可绑定独立工作区，避免与主会话互相覆盖。
+- **子代理执行体**：每次派发是**独立会话**（配置与模型可复用，上下文不继承），有超时与步数上限；默认只读工作区，可在配置页按需放开白名单。
+- **可观测性**：每次生成回传 token 用量（含缓存命中）；子代理完成时把结论与用量回投主会话。
 
 ---
 
 ## 功能简介
 
-一个将原生 Android LLM 聊天客户端变为真正设备端 Agent 的 Fork：**80+ 设备工具**、AI 驱动的工作流、定时任务、内置浏览器（AI 操控）、SSH、屏幕自动化、文件管理、音乐播放、语音转文字、可下载的本地 LLM，以及远程 Telegram Bot。所有功能默认关闭，按需开启。
+一个把原生 Android LLM 聊天客户端变成设备端 Agent 的项目：**80+ 设备工具**、AI 驱动的工作流、定时任务、内置浏览器（AI 操控）、SSH、屏幕自动化、文件管理、音乐播放、语音转文字、可下载的本地 LLM，以及远程 Telegram Bot。**所有功能默认关闭，按需开启。**
 
 > *"把手机上的待办事项导出为 Markdown 文件，放到工作区。"*
 > *"每两小时截一次屏，持续 4 小时，看看我今天下午都干了什么。"*
@@ -87,7 +127,7 @@
 拖入 Markdown Skill 文件，AI 即获得新能力。内置 QR 码生成器、Wikipedia 查询、钢琴、交互式地图等。
 
 ### 子 Agent
-长任务自动拆分为子 Agent 并行处理，可选择用更小更便宜的模型。`/stop` 一键取消所有子任务。
+长任务自动拆分为子 Agent 并行处理，可选择用更小更便宜的模型；可指定工作区与工具白名单。`/stop` 一键取消所有子任务。
 
 ### MCP 服务器
 连接 Model Context Protocol 服务器，AI 获取对应工具。
@@ -140,8 +180,8 @@ English、简体中文、繁體中文（香港）、日本語、한국어、Ру
 
 ## 致谢
 
-- **[RikkaHub（官方）](https://github.com/rikkahub/rikkahub)** — 上游项目
-- **[ExTV/rikkahub-agent（原版 Fork）](https://github.com/ExTV/rikkahub-agent)** — 原版 Fork
+- **[RikkaHub（官方）](https://github.com/rikkahub/rikkahub)** — 源代码来源项目
+- **[ExTV/rikkahub-agent（原版 Fork）](https://github.com/ExTV/rikkahub-agent)** — 源代码来源项目
 
 ---
 
