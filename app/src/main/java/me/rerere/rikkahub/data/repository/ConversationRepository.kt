@@ -534,6 +534,7 @@ internal fun conversationToConversationEntityImpl(conversation: Conversation): C
         toolScopeOverride = conversation.toolScopeOverride?.let { JsonInstant.encodeToString(it) } ?: "",
         workspaceIdOverride = conversation.workspaceIdOverride?.toString() ?: "",
         maxToolStepsOverride = conversation.maxToolStepsOverride ?: 0,
+        isSubAgentRun = conversation.isSubAgentRun,
     )
 }
 
@@ -562,5 +563,6 @@ internal fun conversationEntityToConversationImpl(
             .ifEmpty { null }
             ?.let { runCatching { Uuid.parse(it) }.getOrNull() },
         maxToolStepsOverride = conversationEntity.maxToolStepsOverride.takeIf { it > 0 },
+        isSubAgentRun = conversationEntity.isSubAgentRun,
     )
 }

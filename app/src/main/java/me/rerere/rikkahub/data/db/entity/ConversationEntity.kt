@@ -54,4 +54,6 @@ data class ConversationEntity(
     val workspaceIdOverride: String = "",
     @ColumnInfo("max_tool_steps_override", defaultValue = "0")
     val maxToolStepsOverride: Int = 0,
+    @ColumnInfo("is_sub_agent_run", defaultValue = "0")
+    val isSubAgentRun: Boolean = false,
 )

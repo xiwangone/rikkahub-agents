@@ -73,7 +73,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         VaultAuditLogEntity::class,
         CompressedArchiveEntity::class,
     ],
-    version = 39,
+    version = 40,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -126,6 +126,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // 旧数据落在空串 = 未分类，下次保存/导入时按名称与结构自动补全）
         AutoMigration(from = 37, to = 38),
         AutoMigration(from = 38, to = 39),
+        AutoMigration(from = 39, to = 40),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)

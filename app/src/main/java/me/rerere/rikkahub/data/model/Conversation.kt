@@ -44,6 +44,8 @@ data class Conversation(
     val toolScopeOverride: List<String>? = null,
     // 生成循环的步数上限覆盖（子代理会话用 max_trips 映射而来；null = 用全局默认）
     val maxToolStepsOverride: Int? = null,
+    /** 该会话是否由子代理派发产生（用于会话列表单独分组）。 */
+    val isSubAgentRun: Boolean = false,
     // 所属文件夹（助手内分组），null 表示未归入任何文件夹
     val folderId: Uuid? = null,
     @Transient
