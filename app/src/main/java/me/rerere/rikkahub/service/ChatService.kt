@@ -198,6 +198,19 @@ private val outputTransformers by lazy {
     )
 }
 
+/**
+ * 会话与生成的中枢：会话状态装配、消息发送与排队、生成调度、工具审批与清理。
+ *
+ * 本文件很长（2500+ 行）。**阅读时请按下面的段落名检索符号，不要依赖行号**（行号会随改动漂移）：
+ *  - 会话与状态：[getOrCreateSession] / [ensureHydrated] / [persistSnapshotBeforeEvict] / [removeSession] / [dropSession]
+ *  - 错误提示：[addError] / [dismissError] / [clearAllErrors]
+ *  - 发送与排队：[sendMessage]（忙则入队）/ [sendMessageNow]（真正发起）/ [dispatchNextQueuedMessage]（本轮结束派发队首）/ [messageQueueState]
+ *  - 生成装配：generate 系列 + 工具面装配（调用 [me.rerere.rikkahub.data.ai.tools.ChatToolFactory]）
+ *  - 审批与停止：工具批准流程 / stopGeneration / 取消与重放安全
+ *  - 引用计数与清理：[addConversationReference] / [removeConversationReference] / [launchWithConversationReference] / [cleanup]
+ *
+ * 相关文件：工具装配 `data/ai/tools/ChatToolFactory.kt`；生成循环 `data/ai/GenerationLoop.kt`。
+ */
 class ChatService(
     private val context: Application,
     private val appScope: AppScope,

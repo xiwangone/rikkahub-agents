@@ -95,6 +95,17 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
+/**
+ * 侧边栏抽屉：会话列表、分组折叠、搜索、文件夹、删除/重命名/置顶、清理等入口。
+ *
+ * 本文件较长（1000+ 行）。**注意本文件里有两个 ViewModel**：
+ *  - `vm: ChatVM`（参数传入）—— 聊天页主体状态；
+ *  - `drawerVm: ChatDrawerVM`（本文件内创建）—— 会话列表分页流、折叠状态、清理等。
+ *  改调用前务必确认用的是哪一个（两者的成员不同）。
+ *
+ * 段落（按符号名检索）：会话列表渲染 [ConversationList]；分组与折叠状态在 ChatDrawerVM；
+ * 重命名/移动/删除等对话框在本文件下半部分；会话列表项组件见 `ConversationList.kt`。
+ */
 @Composable
 fun ChatDrawerContent(
     navController: Navigator,

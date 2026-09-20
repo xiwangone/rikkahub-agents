@@ -537,6 +537,20 @@ private fun resolveBackendProvider(executionBackend: String, model: Model, provi
         providers.firstOrNull { it.id.toString() == executionBackend }?.let { p -> p to (p.models.firstOrNull() ?: model) }
     }
 
+/**
+ * 生成循环：把"一次模型调用 + 工具调用/审批 + 流式回传"串成一整轮，并处理重试与截断。
+ *
+ * 本文件很长（1800+ 行）。**按符号名定位段落**，不要依赖行号：
+ *  - 流式事件协议：`GenerationChunk`（sealed interface，本文件上方）
+ *  - 参数与上下文组装：`generateText` 的入参（系统提示、记忆、工具、会话级提示词等）
+ *  - 系统提示构建：`SystemPromptBuilder`（本文件调用；会话级提示词在此覆盖助手提示词）
+ *  - 单轮生成与工具循环：`generateText` 主体 + 工具调用/审批分支
+ *  - 收尾与自动返回：`handleAutoReturnAfterTurn`
+ *  - 输出裁剪：`maybeTruncateToolOutput`
+ *  - 其它：`translateText`（翻译用途的独立入口）
+ *
+ * 相关文件：会话中枢 `service/ChatService.kt`；工具装配 `data/ai/tools/ChatToolFactory.kt`；提示词 `data/ai/SystemPromptBuilder.kt`。
+ */
 class GenerationLoop(
     private val context: Context,
     private val providerManager: ProviderManager,
