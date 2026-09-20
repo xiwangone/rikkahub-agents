@@ -2324,6 +2324,7 @@
   <string name="chat_tool_workspace_edit_title">Файлов: %1$d / правок: %2$d</string>
   <string name="chat_tool_workspace_edit_line">%1$s (%2$d)</string>
   <string name="chat_tool_workspace_search_title">Поиск в коде: совпадений %1$d</string>
+  <string name="chat_sub_agent_group">Запуски субагентов</string>
   <string name="setting_sub_agents_page_default_workspace">Рабочее пространство субагентов по умолчанию</string>
   <string name="setting_sub_agents_page_default_workspace_desc">Где по умолчанию выполняются субагенты (параметры отправки или настройки профиля имеют приоритет). Выберите отдельное пространство, чтобы записи не конфликтовали с этим диалогом.</string>
   <string name="setting_sub_agents_page_model">Модель</string>

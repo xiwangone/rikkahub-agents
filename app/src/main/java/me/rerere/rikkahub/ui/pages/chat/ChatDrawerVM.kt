@@ -6,6 +6,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.paging.PagingData
 import androidx.paging.cachedIn
+import androidx.paging.filter
 import androidx.paging.insertSeparators
 import androidx.paging.map
 import kotlinx.coroutines.flow.Flow
@@ -56,73 +57,119 @@ class ChatDrawerVM(
             .flatMapLatest { folderRepo.getFoldersOfAssistant(it) }
             .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
+    // 子代理运行分组是否展开（默认折叠）
+    private val _subAgentExpanded = MutableStateFlow(false)
+    val subAgentExpanded: StateFlow<Boolean> = _subAgentExpanded.asStateFlow()
+
+    // 已折叠的日期分组（key = LocalDate.toString()）
+    private val _collapsedDates = MutableStateFlow<Set<String>>(emptySet())
+    val collapsedDates: StateFlow<Set<String>> = _collapsedDates.asStateFlow()
+
     val conversations: Flow<PagingData<ConversationListItem>> =
-        combine(assistantIdFlow, _selectedFolderId) { assistantId, folderId ->
-            assistantId to folderId
-        }.flatMapLatest { (assistantId, folderId) ->
-            if (folderId == null) {
-                conversationRepo.getUnfiledConversationsOfAssistantPaging(assistantId)
-            } else {
-                conversationRepo.getConversationsOfFolderPaging(folderId)
-            }
-        }.map { pagingData ->
-            pagingData
-                .map { ConversationListItem.Item(it) }
-                .insertSeparators<ConversationListItem.Item, ConversationListItem> { before, after ->
-                    when {
-                        before == null && after is ConversationListItem.Item -> {
-                            if (after.conversation.isPinned) {
-                                ConversationListItem.PinnedHeader
-                            } else {
-                                val afterDate =
-                                    after.conversation.updateAt
-                                        .atZone(ZoneId.systemDefault())
-                                        .toLocalDate()
-                                ConversationListItem.DateHeader(
-                                    date = afterDate,
-                                    label = getDateLabel(afterDate),
-                                )
-                            }
+        combine(
+            assistantIdFlow,
+            _selectedFolderId,
+            _subAgentExpanded,
+            _collapsedDates,
+        ) { assistantId, folderId, subAgentExpanded, collapsedDates ->
+            ConversationListQuery(
+                assistantId = assistantId,
+                folderId = folderId,
+                subAgentExpanded = subAgentExpanded,
+                collapsedDates = collapsedDates,
+            )
+        }.flatMapLatest { query ->
+            val pagingSource =
+                if (query.folderId == null) {
+                    conversationRepo.getUnfiledConversationsOfAssistantPaging(query.assistantId)
+                } else {
+                    conversationRepo.getConversationsOfFolderPaging(query.folderId)
+                }
+
+            pagingSource.map { pagingData ->
+                pagingData
+                    .filter { conversation ->
+                        if (conversation.isSubAgentRun) {
+                            // 子代理运行分组折叠时整体不发出
+                            query.subAgentExpanded
+                        } else {
+                            // 日期分组折叠时该日期下的会话不发出
+                            conversation.updateAt
+                                .atZone(ZoneId.systemDefault())
+                                .toLocalDate()
+                                .toString() !in query.collapsedDates
                         }
+                    }.map { ConversationListItem.Item(it) }
+                    .insertSeparators<ConversationListItem.Item, ConversationListItem> { before, after ->
+                        when {
+                            // 跨越「子代理运行 / 普通会话」边界时插入子代理分组标题
+                            before is ConversationListItem.Item &&
+                                after is ConversationListItem.Item &&
+                                before.conversation.isSubAgentRun != after.conversation.isSubAgentRun -> {
+                                ConversationListItem.SubAgentHeader
+                            }
 
-                        before is ConversationListItem.Item && after is ConversationListItem.Item -> {
-                            if (before.conversation.isPinned && !after.conversation.isPinned) {
-                                val afterDate =
-                                    after.conversation.updateAt
-                                        .atZone(ZoneId.systemDefault())
-                                        .toLocalDate()
-                                ConversationListItem.DateHeader(
-                                    date = afterDate,
-                                    label = getDateLabel(afterDate),
-                                )
-                            } else if (!after.conversation.isPinned) {
-                                val beforeDate =
-                                    before.conversation.updateAt
-                                        .atZone(ZoneId.systemDefault())
-                                        .toLocalDate()
-                                val afterDate =
-                                    after.conversation.updateAt
-                                        .atZone(ZoneId.systemDefault())
-                                        .toLocalDate()
+                            // 子代理运行分组位于列表最前时也要有标题
+                            before == null &&
+                                after is ConversationListItem.Item &&
+                                after.conversation.isSubAgentRun -> {
+                                ConversationListItem.SubAgentHeader
+                            }
 
-                                if (beforeDate != afterDate) {
+                            before == null && after is ConversationListItem.Item -> {
+                                if (after.conversation.isPinned) {
+                                    ConversationListItem.PinnedHeader
+                                } else {
+                                    val afterDate =
+                                        after.conversation.updateAt
+                                            .atZone(ZoneId.systemDefault())
+                                            .toLocalDate()
                                     ConversationListItem.DateHeader(
                                         date = afterDate,
                                         label = getDateLabel(afterDate),
                                     )
+                                }
+                            }
+
+                            before is ConversationListItem.Item && after is ConversationListItem.Item -> {
+                                if (before.conversation.isPinned && !after.conversation.isPinned) {
+                                    val afterDate =
+                                        after.conversation.updateAt
+                                            .atZone(ZoneId.systemDefault())
+                                            .toLocalDate()
+                                    ConversationListItem.DateHeader(
+                                        date = afterDate,
+                                        label = getDateLabel(afterDate),
+                                    )
+                                } else if (!after.conversation.isPinned) {
+                                    val beforeDate =
+                                        before.conversation.updateAt
+                                            .atZone(ZoneId.systemDefault())
+                                            .toLocalDate()
+                                    val afterDate =
+                                        after.conversation.updateAt
+                                            .atZone(ZoneId.systemDefault())
+                                            .toLocalDate()
+
+                                    if (beforeDate != afterDate) {
+                                        ConversationListItem.DateHeader(
+                                            date = afterDate,
+                                            label = getDateLabel(afterDate),
+                                        )
+                                    } else {
+                                        null
+                                    }
                                 } else {
                                     null
                                 }
-                            } else {
+                            }
+
+                            else -> {
                                 null
                             }
                         }
-
-                        else -> {
-                            null
-                        }
                     }
-                }
+            }
         }.cachedIn(viewModelScope)
 
     val scrollIndex: Int get() = savedStateHandle["scrollIndex"] ?: 0
@@ -148,6 +195,19 @@ class ChatDrawerVM(
 
     fun selectFolder(folderId: Uuid?) {
         _selectedFolderId.value = folderId
+    }
+
+    fun toggleSubAgentExpanded() {
+        _subAgentExpanded.value = !_subAgentExpanded.value
+    }
+
+    fun toggleDateCollapsed(key: String) {
+        _collapsedDates.value =
+            if (key in _collapsedDates.value) {
+                _collapsedDates.value - key
+            } else {
+                _collapsedDates.value + key
+            }
     }
 
     fun createFolder(name: String) {
@@ -224,3 +284,11 @@ class ChatDrawerVM(
         }
     }
 }
+
+/** 会话列表分页源所需的状态（助手 / 文件夹筛选 + 折叠态）。 */
+private data class ConversationListQuery(
+    val assistantId: Uuid,
+    val folderId: Uuid?,
+    val subAgentExpanded: Boolean,
+    val collapsedDates: Set<String>,
+)

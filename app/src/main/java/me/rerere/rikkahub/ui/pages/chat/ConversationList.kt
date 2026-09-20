@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.chat
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
@@ -69,6 +70,9 @@ sealed class ConversationListItem {
 
     data object PinnedHeader : ConversationListItem()
 
+    /** 子代理运行分组的标题行（可折叠） */
+    data object SubAgentHeader : ConversationListItem()
+
     data class Item(
         val conversation: Conversation,
     ) : ConversationListItem()
@@ -87,6 +91,10 @@ fun ColumnScope.ConversationList(
     onPin: (Conversation) -> Unit = {},
     onMoveToAssistant: (Conversation) -> Unit = {},
     onMoveToFolder: (Conversation) -> Unit = {},
+    subAgentExpanded: Boolean = false,
+    onToggleSubAgent: () -> Unit = {},
+    collapsedDates: Set<String> = emptySet(),
+    onToggleDate: (String) -> Unit = {},
 ) {
     var hasScrolledToCurrent by remember(current.id) { mutableStateOf(false) }
 
@@ -137,6 +145,7 @@ fun ColumnScope.ConversationList(
                     when (item) {
                         is ConversationListItem.DateHeader -> "date_${item.date}"
                         is ConversationListItem.PinnedHeader -> "pinned_header"
+                        is ConversationListItem.SubAgentHeader -> "sub_agent_header"
                         is ConversationListItem.Item -> item.conversation.id.toString()
                     }
                 },
@@ -145,12 +154,22 @@ fun ColumnScope.ConversationList(
                 is ConversationListItem.DateHeader -> {
                     DateHeaderItem(
                         label = item.label,
+                        collapsed = item.date.toString() in collapsedDates,
+                        onClick = { onToggleDate(item.date.toString()) },
                         modifier = Modifier.animateItem(),
                     )
                 }
 
                 is ConversationListItem.PinnedHeader -> {
                     PinnedHeader(
+                        modifier = Modifier.animateItem(),
+                    )
+                }
+
+                is ConversationListItem.SubAgentHeader -> {
+                    SubAgentHeaderItem(
+                        expanded = subAgentExpanded,
+                        onClick = onToggleSubAgent,
                         modifier = Modifier.animateItem(),
                     )
                 }
@@ -181,6 +200,8 @@ fun ColumnScope.ConversationList(
 @Composable
 private fun DateHeaderItem(
     label: String,
+    collapsed: Boolean,
+    onClick: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -188,6 +209,7 @@ private fun DateHeaderItem(
             modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .clickable(onClick = onClick)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -195,6 +217,42 @@ private fun DateHeaderItem(
             text = label,
             style = MaterialTheme.typography.labelLarge,
             fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            text = if (collapsed) "\u25B8" else "\u25BE",
+            style = MaterialTheme.typography.labelLarge,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+@Composable
+private fun SubAgentHeaderItem(
+    expanded: Boolean,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier =
+            modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                .clickable(onClick = onClick)
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Text(
+            text = stringResource(R.string.chat_sub_agent_group),
+            style = MaterialTheme.typography.labelLarge,
+            fontWeight = FontWeight.Bold,
+            color = MaterialTheme.colorScheme.primary,
+        )
+        Spacer(Modifier.weight(1f))
+        Text(
+            text = if (expanded) "\u25BE" else "\u25B8",
+            style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
         )
     }
