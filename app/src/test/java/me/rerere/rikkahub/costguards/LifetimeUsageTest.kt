@@ -4,24 +4,27 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * Coverage for [settleLifetimeUsage] / [baselineLifetimeUsage] — the per-message settlement that
- * replaced the old "aggregate delta + max(0, Δ)" accumulation.
+ * Coverage for [settleLifetimeUsage] / [baselineLifetimeUsage] / [usageFingerprint].
  *
- * Contract:
- * - first sight  -> every message counted once (baseline, no double counting later)
- * - new message  -> only the newcomer is added
- * - rewritten    -> only the difference is settled (a rewrite never double counts)
- * - fluctuation  -> up/down/up settles to the final value
- * - compaction   -> a vanished message keeps its already-counted usage (totals never shrink)
- * - cached       -> always clamped to input (hit rate can never exceed 100%)
+ * 口径：累计 = 「应用实际收到的 usage 之和」——每一次请求按它的**完整输入**各计一次，对齐平台账单。
+ *
+ * 关键性质：
+ * - 首次见到会话 → 当前用量整体登记为基线（不漏计历史，也不重复计入）
+ * - 同一条消息上的多步请求（工具调用循环）→ **每一步都计入**（usage 被覆盖式写入，指纹不同）
+ * - 同一次请求被重复观察（流式多次上报同一 usage）→ 指纹相同 → 去重
+ * - 消息被压缩 / 删除 → 已计入部分保留，累计不缩水
+ * - 命中量始终收敛到输入量（命中率不可能 >100%）
  */
 class LifetimeUsageTest {
 
     private fun snap(input: Long, cached: Long = 0, output: Long = 0) =
         MessageUsageSnapshot(input = input, cached = cached, output = output)
 
+    private fun seenOf(vararg entries: Pair<String, MessageUsageSnapshot>): MutableSet<String> =
+        entries.mapTo(mutableSetOf()) { (id, s) -> usageFingerprint(id, s) }
+
     @Test
-    fun `first sight records every message once`() {
+    fun `first sight counts every message once`() {
         val baseline = mapOf("a" to snap(100, 80, 10), "b" to snap(200, 150, 20))
         val total = baselineLifetimeUsage(baseline)
         assertEquals(300L, total.inputTokens)
@@ -32,12 +35,39 @@ class LifetimeUsageTest {
     }
 
     @Test
-    fun `appending a message adds only the newcomer`() {
+    fun `every step of one reply counts separately`() {
+        // 一条消息上跑了 3 步工具调用：usage 被逐步覆盖，账单口径要求三步都算
+        var total = baselineLifetimeUsage(mapOf("m" to snap(100, 80, 10)))
+        val seen = seenOf("m" to snap(100, 80, 10))
+
+        total = settleLifetimeUsage(total, seen, mapOf("m" to snap(200, 160, 20)))
+        val seen2 = seen + seenOf("m" to snap(200, 160, 20))
+        total = settleLifetimeUsage(total, seen2, mapOf("m" to snap(300, 250, 30)))
+
+        assertEquals(600L, total.inputTokens) // 100 + 200 + 300
+        assertEquals(490L, total.cachedTokens) // 80 + 160 + 250
+        assertEquals(60L, total.outputTokens) // 10 + 20 + 30
+        assertEquals(3, total.turns)
+    }
+
+    @Test
+    fun `re-observing the same usage is deduped`() {
+        val usage = snap(100, 80, 10)
+        val total = baselineLifetimeUsage(mapOf("m" to usage))
+        // 同一次请求被再次观察到（流式多次上报）→ 不该再计入
+        val again = settleLifetimeUsage(total, seenOf("m" to usage), mapOf("m" to usage))
+        assertEquals(100L, again.inputTokens)
+        assertEquals(80L, again.cachedTokens)
+        assertEquals(1, again.turns)
+    }
+
+    @Test
+    fun `a later message adds only its own usage`() {
         val first = baselineLifetimeUsage(mapOf("a" to snap(100, 80, 10)))
         val second = settleLifetimeUsage(
             first,
-            baseline = mapOf("a" to snap(100, 80, 10)),
-            current = mapOf("a" to snap(100, 80, 10), "b" to snap(50, 40, 5)),
+            seenOf("a" to snap(100, 80, 10)),
+            mapOf("a" to snap(100, 80, 10), "b" to snap(50, 40, 5)),
         )
         assertEquals(150L, second.inputTokens)
         assertEquals(120L, second.cachedTokens)
@@ -46,48 +76,16 @@ class LifetimeUsageTest {
     }
 
     @Test
-    fun `rewritten usage settles only the difference`() {
-        val first = baselineLifetimeUsage(mapOf("a" to snap(100, 80, 1000)))
-        // Same message, usage updated later (stream finished / retried)
-        val second = settleLifetimeUsage(
-            first,
-            baseline = mapOf("a" to snap(100, 80, 1000)),
-            current = mapOf("a" to snap(100, 80, 1200)),
-        )
-        assertEquals(100L, second.inputTokens)
-        assertEquals(80L, second.cachedTokens)
-        assertEquals(1200L, second.outputTokens) // not 2200
-    }
-
-    @Test
-    fun `fluctuating values never double count`() {
-        // Regression: the old aggregate-delta implementation double counted here.
-        var total = baselineLifetimeUsage(mapOf("a" to snap(100, 80, 1000)))
-        var baseline = mapOf("a" to snap(100, 80, 1000))
-        listOf(
-            mapOf("a" to snap(120, 90, 1100)), // up
-            mapOf("a" to snap(120, 90, 900)), // down (rewrite / retry)
-            mapOf("a" to snap(120, 90, 1500)), // up again
-        ).forEach { current ->
-            total = settleLifetimeUsage(total, baseline, current)
-            baseline = current
-        }
-        assertEquals(120L, total.inputTokens)
-        assertEquals(90L, total.cachedTokens)
-        assertEquals(1500L, total.outputTokens)
-    }
-
-    @Test
-    fun `compaction drops the snapshot but keeps the total`() {
+    fun `compaction drops the message but keeps the total`() {
         val baseline = mapOf("a" to snap(100, 80, 10), "b" to snap(200, 150, 20))
         val total = baselineLifetimeUsage(baseline)
-        // Compaction folds "a" away and adds a summary message "c"
+        // 压缩：a 被折叠掉，只剩 b（+ 新的摘要消息 c）
         val after = settleLifetimeUsage(
             total,
-            baseline = baseline,
-            current = mapOf("b" to snap(200, 150, 20), "c" to snap(30, 20, 2)),
+            seenOf("a" to snap(100, 80, 10), "b" to snap(200, 150, 20)),
+            mapOf("b" to snap(200, 150, 20), "c" to snap(30, 20, 2)),
         )
-        assertEquals(330L, after.inputTokens) // 300 + 30, never shrinks
+        assertEquals(330L, after.inputTokens) // 300 + 30，不缩水
         assertEquals(250L, after.cachedTokens)
         assertEquals(32L, after.outputTokens)
     }
@@ -100,9 +98,9 @@ class LifetimeUsageTest {
     }
 
     @Test
-    fun `unchanged input returns the same instance`() {
-        val baseline = mapOf("a" to snap(100, 80, 10))
-        val total = baselineLifetimeUsage(baseline)
-        assertEquals(total, settleLifetimeUsage(total, baseline, baseline))
+    fun `no new fingerprint returns the same instance`() {
+        val usage = snap(100, 80, 10)
+        val total = baselineLifetimeUsage(mapOf("m" to usage))
+        assertEquals(total, settleLifetimeUsage(total, seenOf("m" to usage), mapOf("m" to usage)))
     }
 }
