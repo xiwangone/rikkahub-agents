@@ -125,6 +125,10 @@ fun ChatDrawerContent(
     val conversations = drawerVm.conversations.collectAsLazyPagingItems()
     val folders by drawerVm.folders.collectAsStateWithLifecycle()
     val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
+    // 列表折叠状态：子代理分组展开态 + 日期分组折叠集合。
+    // 注意：这里是“会话列表”相关的 UI 状态，必须从 drawerVm 取（不是 vm: ChatVM）。
+    val subAgentExpanded by drawerVm.subAgentExpanded.collectAsStateWithLifecycle()
+    val collapsedDates by drawerVm.collapsedDates.collectAsStateWithLifecycle()
     val conversationListState =
         rememberLazyListState(
             initialFirstVisibleItemIndex = drawerVm.scrollIndex,
@@ -308,6 +312,12 @@ fun ChatDrawerContent(
                         conversations.refresh()
                     }
                 },
+                // 折叠相关的四个参数此前漏传，导致子代理分组与日期分组的标题点击均无反应
+                // （ConversationList 的同名参数有默认值 false / emptySet() / 空 lambda，漏传时静默失效）。
+                subAgentExpanded = subAgentExpanded,
+                onToggleSubAgent = { drawerVm.toggleSubAgentExpanded() },
+                collapsedDates = collapsedDates,
+                onToggleDate = { drawerVm.toggleDateCollapsed(it) },
             )
 
             // 助手选择器
