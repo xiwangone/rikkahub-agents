@@ -65,7 +65,9 @@ object TokenBudgetTracker {
             val usage = msg.usage ?: continue
             input += usage.promptTokens.toLong()
             output += usage.completionTokens.toLong()
-            cached += usage.cachedTokens.toLong()
+            // 命中是 prompt 的子集；个别 provider / 中转会报出 cached > prompt，直接累加会把
+            // 命中率抬到 100% 以上（口径失真）→ 这里收敛到 prompt。
+            cached += usage.cachedTokens.coerceAtMost(usage.promptTokens).toLong()
             cost += usage.cost ?: 0.0
             val totalThis =
                 (

@@ -139,4 +139,39 @@ class TokenBudgetTrackerTest {
         assertEquals(TokenBudgetTracker.BudgetStatus.UNDER_SOFT,
             TokenBudgetTracker.classify(totals, softCap = 50_000, hardCap = 200_000))
     }
+
+    private fun mkMessageWithCache(prompt: Int, cached: Int): UIMessage =
+        UIMessage(
+            id = Uuid.random(),
+            role = MessageRole.ASSISTANT,
+            parts = emptyList(),
+            usage = TokenUsage(
+                promptTokens = prompt,
+                completionTokens = 1,
+                cachedTokens = cached,
+                totalTokens = prompt + 1,
+            ),
+        )
+
+    @Test fun `aggregate sums cached tokens`() {
+        val conv = mkConversation(listOf(
+            mkMessageWithCache(prompt = 100, cached = 80),
+            mkMessageWithCache(prompt = 200, cached = 150),
+        ))
+        val totals = TokenBudgetTracker.aggregate(conv)
+        assertEquals(300L, totals.inputTokens)
+        assertEquals(230L, totals.cachedTokens)
+    }
+
+    @Test fun `aggregate coerces cached to prompt so hit rate never exceeds 100 percent`() {
+        // Some providers / relays report cached > prompt; the aggregate must keep cached <= prompt,
+        // otherwise "hit rate = cached / prompt" renders above 100%.
+        val conv = mkConversation(listOf(
+            mkMessageWithCache(prompt = 100, cached = 130),
+            mkMessageWithCache(prompt = 50, cached = 50),
+        ))
+        val totals = TokenBudgetTracker.aggregate(conv)
+        assertEquals(150L, totals.inputTokens)
+        assertEquals(150L, totals.cachedTokens)
+    }
 }

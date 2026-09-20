@@ -129,18 +129,25 @@ class ChatVM(
             agg.inputTokens == prev.lastInput && agg.cachedTokens == prev.lastCached &&
                 agg.outputTokens == prev.lastOutput && agg.costUsd == prev.lastCost
         if (unchanged) return
+        // 差分累加在聚合值波动（重试 / 同一消息 usage 被多次改写 / 分支切换）时会重复计入 → 累计虚高。
+        // 其中「命中量 > 输入量」必须收敛：命中是输入的子集，否则命中率会显示成 >100%。
+        val nextInput = prev.inputTokens + (agg.inputTokens - prev.lastInput).coerceAtLeast(0)
+        val nextCached =
+            (prev.cachedTokens + (agg.cachedTokens - prev.lastCached).coerceAtLeast(0))
+                .coerceAtMost(nextInput)
+        val nextOutput = prev.outputTokens + (agg.outputTokens - prev.lastOutput).coerceAtLeast(0)
         settingsStore.setConvLifetimeUsage(
             id,
             prev.copy(
-                inputTokens = prev.inputTokens + (agg.inputTokens - prev.lastInput).coerceAtLeast(0),
-                cachedTokens = prev.cachedTokens + (agg.cachedTokens - prev.lastCached).coerceAtLeast(0),
-                outputTokens = prev.outputTokens + (agg.outputTokens - prev.lastOutput).coerceAtLeast(0),
+                inputTokens = nextInput,
+                cachedTokens = nextCached,
+                outputTokens = nextOutput,
                 costUsd = prev.costUsd + (agg.costUsd - prev.lastCost).coerceAtLeast(0.0),
                 turns =
                     prev.turns +
                         if (agg.inputTokens > prev.lastInput || agg.outputTokens > prev.lastOutput) 1 else 0,
                 lastInput = agg.inputTokens,
-                lastCached = agg.cachedTokens,
+                lastCached = agg.cachedTokens.coerceAtMost(agg.inputTokens),
                 lastOutput = agg.outputTokens,
                 lastCost = agg.costUsd,
             ),
