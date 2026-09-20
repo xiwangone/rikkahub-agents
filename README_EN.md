@@ -85,6 +85,68 @@
 
 ---
 
+### Data flow
+
+```text
+        ┌───────────────────────────────────────────────┐
+        │            Your chosen LLM provider           │
+        │      (OpenAI-compatible API / local LiteRT)   │
+        └───────────────────────┬───────────────────────┘
+                                │ chat / tool calls
+        ┌───────────────────────▼───────────────────────┐
+        │           RikkaHub Agents (this app)          │
+        │  Assistant / chat ──▶ tool assembly (lazy +   │
+        │        ▲              cold tier)              │
+        │        │ result              │ approval · HARDLINE
+        │  Scheduled / workflows   Workspace sandbox    │
+        │  Sub-agents (parallel)   MCP / Skills         │
+        └───────────────────────┬───────────────────────┘
+                                │
+        ┌───────────────────────▼───────────────────────┐
+        │              Android device capabilities      │
+        │  apps · notifications · files · media · sensors · SSH
+        └───────────────────────────────────────────────┘
+```
+
+Unattended runtimes (scheduled jobs, sub-agents) use a separate channel: a narrowed tool surface and no per-call prompts, still bounded by HARDLINE.
+
+---
+
+## 🧱 Tech Stack
+
+| Layer | Technology |
+|---|---|
+| Language | Kotlin 2.4.20 |
+| UI | Jetpack Compose (Material 3, BOM 2026.08.00) |
+| Architecture | MVVM (ViewModel + Repository + Room / DataStore) |
+| Networking | OkHttp 5.4.0 · Ktor 3.5.2 |
+| Serialization | kotlinx.serialization |
+| Images | Coil 3.5.0 |
+| DI | Koin 4.2.2 |
+| Coroutines | kotlinx.coroutines 1.11.0 |
+| Build | Gradle 9.5.0 + AGP 9.3.1 + Version Catalog |
+| Compile / target SDK | 37 (Android 15+); minimum 26 (Android 8.0) |
+
+---
+
+## 📁 Project Structure
+
+```text
+rikkahub-agents/
+├── app/              # App shell: UI, settings, conversations, tool assembly, generation loop
+├── ai/               # LLM abstraction: providers, message/stream protocol, tool-call protocol
+├── workspace/        # Workspace sandbox: file I/O, mounts, background tasks, command execution
+├── agent-tools/      # Tool infrastructure: registry, schema, on-demand injection, error envelope
+├── common/           # Shared utilities and extensions
+├── material3/ highlight/   # Theme & components, syntax highlighting
+├── document/ search/ speech/ web/   # Document parsing, web search, speech, in-app browser
+├── local-llm/ llama-cpp/ videogen/  # On-device inference, llama.cpp bindings, video generation
+├── build-logic/      # Build convention plugins
+└── locale-tui/ trace-cli/ web-ui/   # Localization, tracing and Web helper tools
+```
+
+---
+
 ## Overview
 
 A fork that turns a native Android LLM chat client into a true on-device Agent: **80+ device tools**, AI-driven workflows, scheduled jobs, an in-app browser (AI-controlled), SSH, screen automation, file manager, music player, speech-to-text, downloadable local LLMs, and a remote Telegram Bot. All features default to OFF.
@@ -161,14 +223,26 @@ Open the app → **Settings → Providers → Add** → Choose OpenAI-compatible
 ### 5. Telegram Bot (Optional)
 Get a token from [@BotFather](https://t.me/BotFather) and tell the assistant to configure it.
 
+### 6. Build from Source (Optional)
+
+Prerequisites: **JDK 17+** and Android SDK (**API 37**).
+
+```bash
+git clone https://github.com/xiwangone/rikkahub-agents.git
+cd rikkahub-agents
+./gradlew :app:assembleDebug          # output: app/build/outputs/apk/debug/
+adb install app/build/outputs/apk/debug/app-debug.apk   # install to a connected device
+```
+
 ---
 
 ## System Requirements
 
 | | |
 |---|---|
-| **Architecture** | arm64 or x86_64 |
-| **Android** | 8.0+ (API 26) |
+| **Minimum** | Android 8.0 (API 26) |
+| **Compile / target SDK** | API 37 |
+| **Architecture** | arm64-v8a or x86_64 |
 | **Storage** | ~80 MB |
 
 ---
@@ -181,8 +255,13 @@ English, 简体中文, 繁體中文（香港）, 日本語, 한국어, Русс�
 
 ## Credits
 
-- **[RikkaHub (Official)](https://github.com/rikkahub/rikkahub)** — Upstream project
-- **[ExTV/rikkahub-agent (Original Fork)](https://github.com/ExTV/rikkahub-agent)** — Original fork
+This project exists because of others' work:
+
+- **[RikkaHub](https://github.com/rikkahub/rikkahub)** — the official project. Most of the foundation — UI, model integrations, the tool framework — comes from here. Thanks to its authors and maintainers for the long-term effort.
+- **[ExTV/rikkahub-agent](https://github.com/ExTV/rikkahub-agent)** — the original fork this repo is built on, and we continue to merge improvements from both. Thanks to its author.
+- And to the authors of every open-source library and tool those projects depend on.
+
+This repo's tidying, merging and builds are done with AI assistance. **If you hit a problem, please try the official project first**; if it is specific to this repo's changes, open an issue here — we do read them.
 
 ---
 

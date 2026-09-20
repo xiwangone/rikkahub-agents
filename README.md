@@ -86,6 +86,68 @@ LLM 提供商由你自行配置（OpenAI 兼容 / 本地模型），**对话与�
 
 ---
 
+### 数据流
+
+```text
+        ┌───────────────────────────────────────────────┐
+        │            你选择的 LLM 提供商                 │
+        │     （OpenAI 兼容 API / 本地 LiteRT 模型）     │
+        └───────────────────────┬───────────────────────┘
+                                │ 对话 / 工具调用
+        ┌───────────────────────▼───────────────────────┐
+        │            RikkaHub Agents（本应用）           │
+        │  助手 / 会话 ──▶ 工具装配（按需注入 + 冷档）    │
+        │        ▲                    │ 批准 · HARDLINE │
+        │        │ 结果               ▼                 │
+        │  定时 / 工作流      工作区沙箱（读写隔离）      │
+        │  子 Agent（并行）   MCP / Skills 扩展          │
+        └───────────────────────┬───────────────────────┘
+                                │
+        ┌───────────────────────▼───────────────────────┐
+        │                Android 设备能力                │
+        │  应用控制 · 通知 · 文件 · 媒体 · 传感器 · SSH   │
+        └───────────────────────────────────────────────┘
+```
+
+无人值守的会话（定时任务、子代理）走独立通道：工具面收敛、修改性操作不逐次询问，但仍受 HARDLINE 约束。
+
+---
+
+## 🧱 技术栈
+
+| 层面 | 技术 |
+|---|---|
+| 语言 | Kotlin 2.4.20 |
+| UI | Jetpack Compose（Material 3，BOM 2026.08.00） |
+| 架构 | MVVM（ViewModel + Repository + Room / DataStore） |
+| 网络 | OkHttp 5.4.0 · Ktor 3.5.2 |
+| 序列化 | kotlinx.serialization |
+| 图片 | Coil 3.5.0 |
+| 依赖注入 | Koin 4.2.2 |
+| 协程 | kotlinx.coroutines 1.11.0 |
+| 构建 | Gradle 9.5.0 + AGP 9.3.1 + Version Catalog |
+| 编译 / 目标 SDK | 37（Android 15+）；最低 26（Android 8.0） |
+
+---
+
+## 📁 项目结构
+
+```text
+rikkahub-agents/
+├── app/              # 应用外壳：界面、设置、会话、工具装配与生成循环
+├── ai/               # LLM 抽象层：提供商、消息与流式协议、工具调用协议
+├── workspace/        # 工作区沙箱：文件读写、目录挂载、后台任务、命令执行
+├── agent-tools/      # 工具基建：注册、schema、按需注入、错误信封
+├── common/           # 通用工具与扩展
+├── material3/ highlight/   # 主题与组件、代码高亮
+├── document/ search/ speech/ web/   # 文档解析、联网检索、语音、内置浏览器
+├── local-llm/ llama-cpp/ videogen/  # 本地推理、llama.cpp 绑定、视频生成
+├── build-logic/      # 构建约定插件
+└── locale-tui/ trace-cli/ web-ui/   # 多语言、调用追踪与 Web 辅助工具
+```
+
+---
+
 ## 功能简介
 
 一个把原生 Android LLM 聊天客户端变成设备端 Agent 的项目：**80+ 设备工具**、AI 驱动的工作流、定时任务、内置浏览器（AI 操控）、SSH、屏幕自动化、文件管理、音乐播放、语音转文字、可下载的本地 LLM，以及远程 Telegram Bot。**所有功能默认关闭，按需开启。**
@@ -162,14 +224,26 @@ AI 可读取、汇总和转发指定应用的通知。白名单默认全空。
 ### 5. Telegram Bot（可选）
 向 [@BotFather](https://t.me/BotFather) 申请 Token，告诉助手配置即可。
 
+### 6. 从源码构建（可选）
+
+前置：**JDK 17+**、Android SDK（**API 37**）。
+
+```bash
+git clone https://github.com/xiwangone/rikkahub-agents.git
+cd rikkahub-agents
+./gradlew :app:assembleDebug          # 产物：app/build/outputs/apk/debug/
+adb install app/build/outputs/apk/debug/app-debug.apk   # 安装到已连接设备
+```
+
 ---
 
 ## 系统要求
 
 | | |
 |---|---|
-| **架构** | arm64 或 x86_64 |
-| **Android** | 8.0+ (API 26) |
+| **最低版本** | Android 8.0（API 26） |
+| **编译 / 目标版本** | API 37 |
+| **架构** | arm64-v8a 或 x86_64 |
 | **存储** | ~80 MB |
 
 ---
@@ -182,8 +256,13 @@ English、简体中文、繁體中文（香港）、日本語、한국어、Ру
 
 ## 致谢
 
-- **[RikkaHub（官方）](https://github.com/rikkahub/rikkahub)** — 源代码来源项目
-- **[ExTV/rikkahub-agent（原版 Fork）](https://github.com/ExTV/rikkahub-agent)** — 源代码来源项目
+这个项目能存在，首先要感谢：
+
+- **[RikkaHub](https://github.com/rikkahub/rikkahub)** —— 官方项目。应用的界面、模型接入、工具框架等绝大部分基础都来自这里，感谢作者与维护者的长期投入。
+- **[ExTV/rikkahub-agent](https://github.com/ExTV/rikkahub-agent)** —— 原版 Fork。本仓库直接基于它构建，并持续从这两处合并改进，感谢它的作者。
+- 以及上述项目所依赖的全部开源库与工具的作者们。
+
+本仓库的整理、合并与构建由 AI 协助完成。**如果遇到问题，建议先到官方项目反馈**；如果是本仓库特有的改动，欢迎直接开 Issue，我们会认真看。
 
 ---
 
