@@ -37,7 +37,10 @@ import me.rerere.ai.ui.isEmptyInputMessage
 
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.costguards.LifetimeUsage
+import me.rerere.rikkahub.costguards.MessageUsageSnapshot
 import me.rerere.rikkahub.costguards.TokenBudgetTracker
+import me.rerere.rikkahub.costguards.baselineLifetimeUsage
+import me.rerere.rikkahub.costguards.settleLifetimeUsage
 import me.rerere.rikkahub.data.ai.ContextBudgetPlanner
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -92,66 +95,55 @@ class ChatVM(
             .stateIn(viewModelScope, SharingStarted.Eagerly, TokenBudgetTracker.aggregate(conversation.value))
 
     /**
-     * 会话**累计**用量（与上下文压缩解耦）：会话每次变化时，把「当前聚合值的正向增量」累加进持久化存储。
-     * 压缩会把前缀折叠为摘要、令聚合值骤降 —— 此时增量为 0，累计保持不变，因此只增不减。
+     * 会话**累计**用量（与上下文压缩解耦）：按消息粒度结算并持久化（见 [settleLifetimeUsage]）。
+     * 读出时再对命中量做一次收敛，保证「命中 ≤ 输入」（长期未打开过的旧记录也不会显示 >100%）。
      */
     val lifetimeTotals: StateFlow<LifetimeUsage?> =
         conversation
             .transformLatest { conv ->
                 runCatching { syncLifetimeUsage(conv) }
-                emit(settingsStore.getConvLifetimeUsage(_conversationId.toString()))
+                emit(
+                    settingsStore
+                        .getConvLifetimeUsage(_conversationId.toString())
+                        ?.let { it.copy(cachedTokens = it.cachedTokens.coerceAtMost(it.inputTokens)) },
+                )
             }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    /**
+     * 消息级基线（仅内存）：消息 id → 已计入的用量。配合持久化的 `hasBaseline` 标记使用：
+     * 重启或 ViewModel 重建后按当前消息重建基线，不会把历史消息重复计入。
+     */
+    private val lifetimeBaseline = mutableMapOf<String, MessageUsageSnapshot>()
+
     private suspend fun syncLifetimeUsage(conversation: Conversation) {
-        val agg = TokenBudgetTracker.aggregate(conversation)
         val id = _conversationId.toString()
+        // 收集当前分支「消息 id → usage」快照，按消息粒度结算（见 [settleLifetimeUsage]）
+        val current = LinkedHashMap<String, MessageUsageSnapshot>()
+        conversation.messageNodes.forEach { node ->
+            val msg = node.messages.getOrNull(node.selectIndex) ?: return@forEach
+            val usage = msg.usage ?: return@forEach
+            current[msg.id.toString()] =
+                MessageUsageSnapshot(
+                    input = usage.promptTokens.toLong(),
+                    cached = usage.cachedTokens.coerceAtMost(usage.promptTokens).toLong(),
+                    output = usage.completionTokens.toLong(),
+                    cost = usage.cost ?: 0.0,
+                )
+        }
         val prev = settingsStore.getConvLifetimeUsage(id)
-        if (prev == null) {
-            // 首次见到该会话：以当前聚合值为基准（历史消息已含 usage，视作起点）
-            settingsStore.setConvLifetimeUsage(
-                id,
-                LifetimeUsage(
-                    inputTokens = agg.inputTokens,
-                    cachedTokens = agg.cachedTokens,
-                    outputTokens = agg.outputTokens,
-                    costUsd = agg.costUsd,
-                    turns = agg.messageCount,
-                    lastInput = agg.inputTokens,
-                    lastCached = agg.cachedTokens,
-                    lastOutput = agg.outputTokens,
-                    lastCost = agg.costUsd,
-                ),
-            )
+        if (prev == null || !prev.hasBaseline) {
+            // 首次见到该会话（或旧版本遗留记录）：登记基线、保留已有累计，历史消息不重复计入
+            val seeded = prev?.copy(hasBaseline = true) ?: baselineLifetimeUsage(current)
+            lifetimeBaseline.clear()
+            lifetimeBaseline.putAll(current)
+            settingsStore.setConvLifetimeUsage(id, seeded)
             return
         }
-        val unchanged =
-            agg.inputTokens == prev.lastInput && agg.cachedTokens == prev.lastCached &&
-                agg.outputTokens == prev.lastOutput && agg.costUsd == prev.lastCost
-        if (unchanged) return
-        // 差分累加在聚合值波动（重试 / 同一消息 usage 被多次改写 / 分支切换）时会重复计入 → 累计虚高。
-        // 其中「命中量 > 输入量」必须收敛：命中是输入的子集，否则命中率会显示成 >100%。
-        val nextInput = prev.inputTokens + (agg.inputTokens - prev.lastInput).coerceAtLeast(0)
-        val nextCached =
-            (prev.cachedTokens + (agg.cachedTokens - prev.lastCached).coerceAtLeast(0))
-                .coerceAtMost(nextInput)
-        val nextOutput = prev.outputTokens + (agg.outputTokens - prev.lastOutput).coerceAtLeast(0)
-        settingsStore.setConvLifetimeUsage(
-            id,
-            prev.copy(
-                inputTokens = nextInput,
-                cachedTokens = nextCached,
-                outputTokens = nextOutput,
-                costUsd = prev.costUsd + (agg.costUsd - prev.lastCost).coerceAtLeast(0.0),
-                turns =
-                    prev.turns +
-                        if (agg.inputTokens > prev.lastInput || agg.outputTokens > prev.lastOutput) 1 else 0,
-                lastInput = agg.inputTokens,
-                lastCached = agg.cachedTokens.coerceAtMost(agg.inputTokens),
-                lastOutput = agg.outputTokens,
-                lastCost = agg.costUsd,
-            ),
-        )
+        val next = settleLifetimeUsage(prev, lifetimeBaseline, current)
+        if (next != prev) settingsStore.setConvLifetimeUsage(id, next)
+        lifetimeBaseline.clear()
+        lifetimeBaseline.putAll(current)
     }
     var chatListInitialized by mutableStateOf(false) // 聊天列表是否已经滚动到底部
 
