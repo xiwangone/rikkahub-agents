@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!--
+      local.properties 是每台构建机本地的、不入库的文件；但 lint 的 PropertyEscape 检查会把它
+      的报错原文（含真实绝对路径，例如 SDK 目录与签名密钥库路径）写进入库的 lint-baseline.xml，
+      等于把构建机本地路径带进公开仓库。直接忽略该文件的此项检查（根治，避免重新生成时再回来）。
+    -->
+    <issue id="PropertyEscape">
+        <ignore path="local.properties" />
+    </issue>
+</lint>
