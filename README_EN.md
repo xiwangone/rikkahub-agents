@@ -18,6 +18,8 @@
 
 > 💡 **Also in this account**: [Reasonix Agents](https://github.com/xiwangone/reasonix-agents) — a native Android client for the Reasonix protocol (in development). Different positioning: this project treats the phone itself as the execution environment, while that one connects to your own Reasonix server.
 
+> 🔧 **Prerequisite for Reasonix Agents**: it is a pure client — you **self-deploy the Reasonix server** (DeepSeek-Reasonix protocol) locally or on a server, then configure address / port / auth to connect. No cloud hosting — bring your own server resources.
+
 > ✅ **Runs locally**: pick your own LLM provider (OpenAI-compatible or on-device). Conversations and data only travel between the provider you choose and your device.
 
 [**简体中文**](README.md) | **English**

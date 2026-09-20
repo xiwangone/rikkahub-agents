@@ -25,6 +25,8 @@ LLM 提供商由你自行配置（OpenAI 兼容 / 本地模型），**对话与�
 
 > 💡 **同账号另有** [Reasonix Agents](https://github.com/xiwangone/reasonix-agents)：Reasonix 协议的原生 Android 客户端（开发中），与本项目定位不同 —— 本项目把手机当执行环境，那个项目连接你自己的 Reasonix 服务端。
 
+> 🔧 **关于 Reasonix Agents 的使用前提**：它是纯客户端，**需在本地或服务器自部署 Reasonix 服务端**（DeepSeek-Reasonix 协议），通过配置服务器地址 / 端口 / 认证连接使用，不支持云端托管，请自备服务资源。
+
 </div>
 
 ---
