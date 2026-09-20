@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.ai.transformers
 import kotlinx.coroutines.CancellationException
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceShellStatus
@@ -32,6 +31,8 @@ private val absentInstructionsNotified: MutableSet<String> =
  * 工具是否真正提供仍由 ChatToolFactory.createWorkspaceToolsIfReady 决定 (仅 READY 时提供),
  * 本转换器只扩展模型对 workspace 的认知, 不改变工具可用性；
  * shell 就绪时还会附带 AGENTS.md 工作区指令 (见 buildAgentsPrompt)。
+ *
+ * 注入位置：上下文插在**最后一条 user 消息之前**（不改写 system 消息，见 [injectWorkspaceContext]）。
  */
 class WorkspaceReminderTransformer(
     private val workspaceRepository: WorkspaceRepository,
@@ -56,16 +57,10 @@ class WorkspaceReminderTransformer(
             }
         val fullPrompt = prompt + instructions
 
-        // 追加到第一条 system 消息; 若不存在则插入一条
-        val systemIndex = messages.indexOfFirst { it.role == MessageRole.SYSTEM }
-        return if (systemIndex >= 0) {
-            messages.toMutableList().apply {
-                this[systemIndex] =
-                    this[systemIndex].appendText("\n\n$fullPrompt").copy(isSynthetic = true)
-            }
-        } else {
-            listOf(UIMessage.system(fullPrompt).copy(isSynthetic = true)) + messages
-        }
+        // 注入点后移：不改写 system 消息（prompt 缓存按前缀匹配，改写 system 会让下一轮
+        // 请求的缓存整体失效），改为把上下文作为独立合成 user 消息插在**最后一条 user 之前**。
+        // 合成消息不落库（isSynthetic 是 @Transient），历史每轮从数据库重建 → 每轮重新注入，不会堆积。
+        return injectWorkspaceContext(messages, fullPrompt)
     }
 
     // 先 catch (Exception) 再按类型/文案判定「文件不存在」是既定策略：需要同时识别
@@ -211,14 +206,22 @@ private fun buildWorkspaceUnboundPrompt(): String = buildString {
     append("</workspace-setup>")
 }
 
-private fun UIMessage.appendText(extra: String): UIMessage {
-    val updatedParts = parts.toMutableList()
-    val firstTextIndex = updatedParts.indexOfFirst { it is UIMessagePart.Text }
-    if (firstTextIndex >= 0) {
-        val text = updatedParts[firstTextIndex] as UIMessagePart.Text
-        updatedParts[firstTextIndex] = text.copy(text = text.text + extra)
+/**
+ * 把 workspace 上下文插到最后一条 user 消息之前（纯函数，便于单测）。
+ *
+ * - 不改写 system 消息：prompt 缓存按前缀匹配，重写 system 会让下一轮请求的缓存整体失效。
+ * - 无 user 消息（极端情况）时追加到末尾。
+ * - 合成消息不落库，故无需去重：每轮请求的历史都从数据库重建，注入物不会累积。
+ */
+internal fun injectWorkspaceContext(
+    messages: List<UIMessage>,
+    fullPrompt: String,
+): List<UIMessage> {
+    val injected = UIMessage.user(fullPrompt).copy(isSynthetic = true)
+    val lastUserIndex = messages.indexOfLast { it.role == MessageRole.USER }
+    return if (lastUserIndex >= 0) {
+        messages.toMutableList().apply { add(lastUserIndex, injected) }
     } else {
-        updatedParts.add(UIMessagePart.Text(extra))
+        messages + injected
     }
-    return copy(parts = updatedParts)
 }

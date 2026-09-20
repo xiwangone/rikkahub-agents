@@ -1,7 +1,11 @@
 package me.rerere.rikkahub.data.ai.transformers
 
+import me.rerere.ai.core.MessageRole
+import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.workspace.WorkspaceShellStatus
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -81,5 +85,51 @@ class WorkspaceReminderTransformerTest {
     fun `no workspace at all injects nothing`() {
         val prompt = buildWorkspaceReminder(workspace = null, hasAnyWorkspace = false)
         assertNull(prompt)
+    }
+
+    // ---- 注入位置（injectWorkspaceContext）：不改写 system，插在最后一条 user 之前 ----
+
+    private fun userMessage(text: String) =
+        UIMessage(role = MessageRole.USER, parts = listOf(UIMessagePart.Text(text)))
+
+    private fun systemMessage(text: String) =
+        UIMessage(role = MessageRole.SYSTEM, parts = listOf(UIMessagePart.Text(text)))
+
+    private fun textOf(message: UIMessage) =
+        message.parts.filterIsInstance<UIMessagePart.Text>().joinToString("") { it.text }
+
+    @Test
+    fun `injects before the last user message without touching system`() {
+        val messages = listOf(systemMessage("SYS"), userMessage("first"), userMessage("latest"))
+        val result = injectWorkspaceContext(messages, "<workspace>ctx</workspace>")
+        assertEquals(4, result.size)
+        // system 消息原样保留（未被改写、未被打上合成标记）
+        assertEquals("SYS", textOf(result[0]))
+        assertFalse(result[0].isSynthetic)
+        assertEquals("first", textOf(result[1]))
+        // 注入物紧邻最后一条 user 之前
+        assertTrue(result[2].isSynthetic)
+        assertEquals("<workspace>ctx</workspace>", textOf(result[2]))
+        assertEquals("latest", textOf(result[3]))
+    }
+
+    @Test
+    fun `appends to the end when there is no user message`() {
+        val result = injectWorkspaceContext(listOf(systemMessage("SYS")), "ctx")
+        assertEquals(2, result.size)
+        assertEquals("SYS", textOf(result[0]))
+        assertEquals("ctx", textOf(result[1]))
+        assertTrue(result[1].isSynthetic)
+    }
+
+    @Test
+    fun `next turn injects again right before the newest user message`() {
+        val messages = listOf(systemMessage("SYS"), userMessage("q1"), userMessage("q2"))
+        val result = injectWorkspaceContext(messages, "ctx-v2")
+        assertEquals(4, result.size)
+        assertEquals(1, result.count { it.isSynthetic })
+        assertTrue(result[2].isSynthetic)
+        assertEquals("ctx-v2", textOf(result[2]))
+        assertEquals("q2", textOf(result[3]))
     }
 }
