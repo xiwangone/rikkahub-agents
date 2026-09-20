@@ -7,7 +7,7 @@
 
 ## 0. 一分钟速览
 
-**这是什么**：一个把 Android LLM 聊天客户端变成"设备端 Agent"的应用 —— 80+ 设备工具按需启用，支持工作流、定时任务、内置浏览器、SSH、子代理、MCP、Skills。
+**这是什么**：一个把 Android LLM 聊天客户端变成"设备端 Agent"的应用 —— 140+ 设备工具按需启用，支持工作流、定时任务、内置浏览器、SSH、子代理、MCP、Skills。
 
 **技术栈**：Kotlin 2.4.20 · Jetpack Compose (Material 3) · MVVM · OkHttp/Ktor · kotlinx.serialization · Koin · Room/DataStore · Gradle 9.5 + AGP 9.3。
 
@@ -40,7 +40,7 @@
 
 4. **工具面是"按名字排序 + 按需注入"的。**
    - 注入前按工具名排序：**顺序参与请求前缀**，排序是为了稳定命中提示缓存 —— 不要随意改动注入顺序。
-   - 有"冷档"机制：未解锁的工具只发**空 schema**，避免 80+ 工具一次性吃满上下文。
+   - 有"冷档"机制：未解锁的工具只发**空 schema**，避免 140+ 工具一次性吃满上下文。
    - 调用 `list_tools` / `get_tool_schema` 之外的冷工具时，可能先被要求取 schema（`tool_schema_not_loaded`），这是预期行为。
 
 5. **工具错误有统一信封。**
