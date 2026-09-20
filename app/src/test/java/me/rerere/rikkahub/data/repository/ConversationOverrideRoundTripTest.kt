@@ -22,6 +22,7 @@ class ConversationOverrideRoundTripTest {
         toolScope: List<String>? = null,
         workspaceId: Uuid? = null,
         maxSteps: Int? = null,
+        subAgentRun: Boolean = false,
     ) = Conversation.ofId(
         id = Uuid.random(),
         assistantId = Uuid.random(),
@@ -30,6 +31,7 @@ class ConversationOverrideRoundTripTest {
         toolScopeOverride = toolScope,
         workspaceIdOverride = workspaceId,
         maxToolStepsOverride = maxSteps,
+        isSubAgentRun = subAgentRun,
     )
 
     @Test
@@ -43,6 +45,24 @@ class ConversationOverrideRoundTripTest {
         assertEquals(scope, back.toolScopeOverride)
         assertEquals(ws, back.workspaceIdOverride)
         assertEquals(7, back.maxToolStepsOverride)
+    }
+
+    @Test
+    fun subAgentRunFlagSurvivesEntityRoundTrip() {
+        val back = conversationEntityToConversationImpl(
+            conversationToConversationEntityImpl(conversation(subAgentRun = true)),
+            emptyList(),
+        )
+        assertEquals(true, back.isSubAgentRun)
+    }
+
+    @Test
+    fun defaultSubAgentRunFlagIsFalse() {
+        val back = conversationEntityToConversationImpl(
+            conversationToConversationEntityImpl(conversation()),
+            emptyList(),
+        )
+        assertEquals(false, back.isSubAgentRun)
     }
 
     @Test

@@ -493,6 +493,7 @@ class SubAgentEngine(
             maxToolStepsOverride = request.maxTrips,
             // 子代理宪法/配置提示词：作为会话级 system prompt（覆盖父助手提示词）。
             customSystemPrompt = targets.systemPrompt,
+            isSubAgentRun = true,
         )
         conversationRepo.insertConversation(conv)
         chatService.initializeConversation(conv.id)
