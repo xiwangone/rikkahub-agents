@@ -293,7 +293,7 @@ fun ChatDrawerContent(
                 },
                 onCleanSubAgent = {
                     scope.launch {
-                        vm.cleanSubAgentRuns(conversationJobs.keys)
+                        drawerVm.cleanSubAgentRuns(conversationJobs.keys)
                         conversations.refresh()
                     }
                 },
