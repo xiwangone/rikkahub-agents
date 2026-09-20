@@ -1,5 +1,5 @@
 # Gitee Go 流水线 —— 发版（构建 + 打码云 Release 并传 APK）
-# 由 GitHub 版 .github/workflows/release.yml 移植，已去除通知步骤。
+# 与 .github/workflows/release.yml 保持一致；此处不需要通知步骤。
 # 校准点：Gitee Go 手动触发输入语法/密钥名(GITEE_TOKEN 等)请按码云仓库实际核对。
 name: 发布 Release（Gitee）
 

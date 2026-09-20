@@ -1,5 +1,5 @@
 # Gitee Go 流水线 —— 编译 APK（不出包发版，仅出测试包）
-# 由 GitHub 版 .github/workflows/build-apk.yml 移植，已去除通知步骤。
+# 与 .github/workflows/build-apk.yml 保持一致；此处不需要通知步骤。
 # 校准点：Gitee Go 触发方式(secrets.*)、密钥名请按码云仓库实际配置核对。
 name: 编译 APK · 不出包（测试）
 
