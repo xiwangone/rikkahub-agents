@@ -2249,6 +2249,8 @@
   <string name="setting_vault_title">安全凭证库</string>
   <string name="setting_page_vault">安全凭证库</string>
   <string name="setting_page_vault_desc">安全管理 API 密钥与各类凭证</string>
+  <string name="vault_generate_token">随机 Token</string>
+  <string name="vault_generate_password">随机密码</string>
   <string name="vault_credential_count">密钥库凭证（%1$d 条）</string>
   <string name="vault_manage_credentials">管理密钥</string>
   <string name="vault_page_intro">凭证值由 Android Keystore（AES-GCM）加密存储；AI 全程不见明文，只能按名称引用。</string>

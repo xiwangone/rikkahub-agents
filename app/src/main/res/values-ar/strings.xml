@@ -1793,6 +1793,8 @@
   <string name="setting_vault_title">خزنة البيانات السرية</string>
   <string name="setting_page_vault">خزنة البيانات السرية</string>
   <string name="setting_page_vault_desc">إدارة مفاتيح API والبيانات السرية بأمان</string>
+  <string name="vault_generate_token">Random token</string>
+  <string name="vault_generate_password">Random password</string>
   <string name="vault_credential_count">بيانات الخزنة السرية (%1$d)</string>
   <string name="vault_manage_credentials">إدارة البيانات السرية</string>
   <string name="vault_page_intro">تُشفَّر قيم البيانات الاعتمادية بمفتاح Android Keystore (AES-GCM). لا يرى الذكاء الاصطناعي القيم الصريحة ويشير إليها بالاسم فقط.</string>

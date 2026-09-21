@@ -2141,6 +2141,8 @@
   <string name="setting_vault_title">Хранилище учётных данных</string>
   <string name="setting_page_vault">Хранилище учётных данных</string>
   <string name="setting_page_vault_desc">Безопасное управление API-ключами и учётными данными</string>
+  <string name="vault_generate_token">Случайный токен</string>
+  <string name="vault_generate_password">Случайный пароль</string>
   <string name="vault_credential_count">Учётные данные хранилища (%1$d)</string>
   <string name="vault_manage_credentials">Управление учётными данными</string>
   <string name="vault_page_intro">Значения учётных данных шифруются ключом Android Keystore (AES-GCM). ИИ не видит открытый текст и ссылается на данные только по имени.</string>

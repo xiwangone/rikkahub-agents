@@ -54,6 +54,7 @@ import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.CredentialType
+import me.rerere.rikkahub.data.vault.SecretGenerator
 import me.rerere.rikkahub.data.vault.VaultBiometric
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -495,6 +496,16 @@ private fun CredentialEditorDialog(
                     isError = valueError,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // 随机初值：生成后直接在输入框可见、可复制，只以密文入库。
+                // 已经存在的凭证也可重新生成（用于轮换密钥）。
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(
+                        onClick = { value = SecretGenerator.token(); valueError = false },
+                    ) { Text(stringResource(R.string.vault_generate_token)) }
+                    OutlinedButton(
+                        onClick = { value = SecretGenerator.password(); valueError = false },
+                    ) { Text(stringResource(R.string.vault_generate_password)) }
+                }
                 OutlinedTextField(
                     value = description,
                     onValueChange = { description = it },
