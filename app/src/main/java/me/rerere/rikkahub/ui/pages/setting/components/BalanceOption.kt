@@ -127,7 +127,7 @@ fun SettingProviderBalanceOption(
                                 label = { Text(stringResource(R.string.setting_provider_page_balance_field_path)) },
                                 isError = field.path.isNotBlank() && !isJsonExprValid(field.path),
                                 modifier = Modifier.weight(2f),
-                                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono),
+                                textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono),
                             )
                             OutlinedTextField(
                                 value = field.unit,
@@ -157,7 +157,7 @@ fun SettingProviderBalanceOption(
                         label = { Text(stringResource(R.string.setting_provider_page_balance_json_key)) },
                         isError = balanceOption.resultPath.isNotBlank() && !isJsonExprValid(balanceOption.resultPath),
                         modifier = Modifier.fillMaxWidth(),
-                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetBrainsMono),
+                        textStyle = MaterialTheme.typography.bodySmall.copy(fontFamily = JetbrainsMono),
                     )
                 }
                 IconButton(
