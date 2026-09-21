@@ -12,6 +12,10 @@ import me.rerere.rikkahub.data.db.entity.MessageNodeEntity
 
 @Dao
 interface MessageNodeDAO {
+    // 用与 messages 相同的 JSON 编码匹配，保守判断「任何会话/任何分支里是否还引用该 URL」。
+    @Query("SELECT EXISTS(SELECT 1 FROM message_node WHERE instr(messages, :encodedFileUrl) > 0)")
+    suspend fun hasFileReference(encodedFileUrl: String): Boolean
+
     @Query("SELECT * FROM message_node WHERE conversation_id = :conversationId ORDER BY node_index ASC")
     suspend fun getNodesOfConversation(conversationId: String): List<MessageNodeEntity>
 

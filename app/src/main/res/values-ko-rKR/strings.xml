@@ -264,6 +264,16 @@
   <string name="chat_message_tool_search_results_count">%1$d개 결과</string>
   <string name="chat_message_tool_search_web">웹 검색: %1$s</string>
   <string name="chat_message_tool_submit">제출</string>
+  <string name="chat_page_queue_pending_count">대기 중 · %1$d</string>
+  <string name="chat_page_queue_paused_count">대기열 일시 중지 · %1$d</string>
+  <string name="chat_page_queue_resume">전송 재개</string>
+  <string name="chat_page_queue_editing">편집 중</string>
+  <string name="chat_page_queue_remove">삭제</string>
+  <string name="chat_page_queue_edit_title">대기 중인 메시지 편집</string>
+  <string name="chat_page_queue_image">[이미지]</string>
+  <string name="chat_page_queue_file">[파일]</string>
+  <string name="chat_page_queue_audio">[오디오]</string>
+  <string name="chat_page_queue_video">[동영상]</string>
   <string name="chat_page_cancel">취소</string>
   <string name="chat_page_check_title_model_settings">제목 모델 설정 확인</string>
   <string name="chat_page_clear_all_errors">모두 지우기</string>
@@ -3171,7 +3181,6 @@
   <string name="web_bridge_keyfile_empty">개인 키 파일이 비어 있습니다: %1$s(SSH 키를 다시 생성하세요)</string>
   <string name="web_bridge_tunnel_failed">터널 설정 실패: %1$s</string>
   <string name="setting_termux_help_allow_external_apps_body">Termux에서 다음을 실행하세요:\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties\n\n그런 다음 Android 앱 정보에서 Termux를 강제 종료하고 다시 여세요. 완료 후 아래의 검증 버튼을 누르세요.</string>
-  <string name="chat_input_pending_queue">전송 대기 %1$d건 · 순서대로 자동 전송됩니다</string>
   <string name="tool_ui_shell_changed_files">명령이 변경한 파일</string>
   <string name="workspace_detail_compatibility_mode">호환 모드</string>
   <string name="workspace_detail_compatibility_mode_desc">터미널이 시작되지 않으면 이 옵션을 활성화해 보세요. 성능이 저하될 수 있습니다. 새 터미널 탭과 이후 명령에 적용됩니다.</string>

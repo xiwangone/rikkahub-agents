@@ -472,7 +472,11 @@ private fun ChatPageContent(
                 ChatInput(
                     state = inputState,
                     loading = loadingJob != null,
-                    pendingQueueCount = pendingQueue.size,
+                    messageQueue = pendingQueue,
+                    onRemoveQueuedMessage = vm::removeQueuedMessage,
+                    onBeginEditQueuedMessage = vm::beginEditQueuedMessage,
+                    onFinishEditQueuedMessage = vm::finishEditQueuedMessage,
+                    onResumeMessageQueue = vm::resumeMessageQueue,
                     settings = setting,
                     hazeState = hazeState,
                     completionProviders = completionProviders,

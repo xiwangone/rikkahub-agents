@@ -264,6 +264,16 @@
   <string name="chat_message_tool_search_results_count">%1$d результатов</string>
   <string name="chat_message_tool_search_web">Поиск в интернете: %1$s</string>
   <string name="chat_message_tool_submit">Отправить</string>
+  <string name="chat_page_queue_pending_count">В очереди · %1$d</string>
+  <string name="chat_page_queue_paused_count">Очередь приостановлена · %1$d</string>
+  <string name="chat_page_queue_resume">Возобновить отправку</string>
+  <string name="chat_page_queue_editing">Редактирование</string>
+  <string name="chat_page_queue_remove">Удалить</string>
+  <string name="chat_page_queue_edit_title">Редактировать сообщение в очереди</string>
+  <string name="chat_page_queue_image">[Изображение]</string>
+  <string name="chat_page_queue_file">[Файл]</string>
+  <string name="chat_page_queue_audio">[Аудио]</string>
+  <string name="chat_page_queue_video">[Видео]</string>
   <string name="chat_page_cancel">Отмена</string>
   <string name="chat_page_check_title_model_settings">Проверьте настройки модели заголовков</string>
   <string name="chat_page_clear_all_errors">Очистить всё</string>
@@ -3171,7 +3181,6 @@
   <string name="chat_page_import_failed">Ошибка импорта: %s</string>
   <string name="browser_address_bar_open_external">Открыть в браузере</string>
   <string name="browser_address_bar_share">Поделиться ссылкой</string>
-  <string name="chat_input_pending_queue">Ожидают отправки: %1$d · отправятся по порядку автоматически</string>
   <string name="tool_ui_shell_changed_files">Файлы, изменённые командой</string>
   <string name="workspace_detail_compatibility_mode">Режим совместимости</string>
   <string name="workspace_detail_compatibility_mode_desc">Попробуйте включить это, если терминал не запускается. Это может снизить производительность. Применяется к новым вкладкам терминала и последующим командам.</string>

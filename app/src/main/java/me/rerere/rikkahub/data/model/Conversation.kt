@@ -181,6 +181,14 @@ fun UIMessage.toMessageNode(): MessageNode {
 }
 
 /**
+ * 本地附件引用集合（含工具调用结果中的嵌套附件）。
+ *
+ * 供待发送队列的附件清理判断「这条消息撤销后，它的附件是否还有人引用」。
+ */
+internal fun List<UIMessagePart>.localFileUrls(): Set<String> =
+    collectAllParts().mapNotNull { it.fileUri()?.toString() }.toSet()
+
+/**
  * 递归展开所有 parts，包括工具调用结果中的嵌套 parts。
  */
 private fun List<UIMessagePart>.collectAllParts(): List<UIMessagePart> =

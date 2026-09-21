@@ -92,6 +92,7 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
+import me.rerere.ai.ui.UIMessagePart
 import me.rerere.asr.ASRStatus
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
@@ -113,6 +114,8 @@ import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.QuickMessage
+import me.rerere.rikkahub.service.MessageQueueState
+import me.rerere.rikkahub.service.QueuedMessage
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionContext
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionItem
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionList
@@ -130,13 +133,18 @@ import me.rerere.rikkahub.utils.formatK
 import me.rerere.rikkahub.utils.formatNumber
 import org.koin.compose.koinInject
 import kotlin.time.Duration.Companion.seconds
+import kotlin.uuid.Uuid
 
 @Composable
 fun ChatInput(
     state: ChatInputState,
     loading: Boolean,
-    /** 待发送队列长度；> 0 时在输入区上方提示「待发送 N 条」。 */
-    pendingQueueCount: Int = 0,
+    /** 待发送队列状态（条目 + 是否暂停）；非空时在输入区上方显示队列面板。 */
+    messageQueue: MessageQueueState = MessageQueueState(),
+    onRemoveQueuedMessage: (Uuid) -> Unit = {},
+    onBeginEditQueuedMessage: (Uuid) -> QueuedMessage? = { null },
+    onFinishEditQueuedMessage: (Uuid, List<UIMessagePart>?) -> Unit = { _, _ -> },
+    onResumeMessageQueue: () -> Unit = {},
     settings: Settings,
     hazeState: HazeState,
     enableSearch: Boolean,
@@ -277,29 +285,13 @@ fun ChatInput(
                         MediaFileInputRow(state = state)
                     }
 
-                    // 队列提示（克制）：仅有待发送消息时出现一行小字，不弹面板。
-                    if (pendingQueueCount > 0) {
-                        Row(
-                            modifier =
-                                Modifier
-                                    .fillMaxWidth()
-                                    .padding(horizontal = 12.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Icon(
-                                imageVector = HugeIcons.ArrowUp02,
-                                contentDescription = null,
-                                modifier = Modifier.size(12.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                                text = stringResource(R.string.chat_input_pending_queue, pendingQueueCount),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                    }
+                    MessageQueuePanel(
+                        state = messageQueue,
+                        onRemove = onRemoveQueuedMessage,
+                        onBeginEdit = onBeginEditQueuedMessage,
+                        onFinishEdit = onFinishEditQueuedMessage,
+                        onResume = onResumeMessageQueue,
+                    )
 
                     Row(
                         modifier = Modifier.fillMaxWidth(),

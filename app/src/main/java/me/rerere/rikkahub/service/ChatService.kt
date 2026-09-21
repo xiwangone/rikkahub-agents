@@ -94,6 +94,7 @@ import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.localFileUrls
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.model.toMessageNode
@@ -303,8 +304,63 @@ class ChatService(
     private val messageQueues = ConcurrentHashMap<Uuid, MessageQueue>()
 
     /** 供 UI 观察某会话的待发送队列。 */
-    fun messageQueueState(conversationId: Uuid): StateFlow<List<QueuedMessage>> =
+    fun messageQueueState(conversationId: Uuid): StateFlow<MessageQueueState> =
         messageQueues.getOrPut(conversationId) { MessageQueue() }.state
+
+    /** 撤销一条待发送消息，并清理它独占的附件。 */
+    fun removeQueuedMessage(conversationId: Uuid, messageId: Uuid) {
+        messageQueues[conversationId]?.remove(messageId)?.let(::cleanupQueuedAttachments)
+        dispatchNextQueuedMessage(conversationId)
+    }
+
+    /** 把一条待发送消息取回输入框编辑（编辑期间该条目不派发）。 */
+    fun beginEditQueuedMessage(conversationId: Uuid, messageId: Uuid): QueuedMessage? =
+        messageQueues[conversationId]?.beginEdit(messageId)
+
+    /** 结束编辑：[parts] 为 null 表示放弃编辑（仅释放占位）。 */
+    fun finishEditQueuedMessage(
+        conversationId: Uuid,
+        messageId: Uuid,
+        parts: List<UIMessagePart>? = null,
+    ) {
+        messageQueues[conversationId]?.finishEdit(messageId, parts)?.let(::cleanupQueuedAttachments)
+        dispatchNextQueuedMessage(conversationId)
+    }
+
+    /** 恢复被暂停的队列（生成失败/主动停止后由用户确认继续发送）。 */
+    fun resumeMessageQueue(conversationId: Uuid) {
+        messageQueues[conversationId]?.resume()
+        dispatchNextQueuedMessage(conversationId)
+    }
+
+    /**
+     * 撤销或改写排队消息后，清理它独占的本地附件。
+     *
+     * 三重确认后才删：① 内存中的会话与队列都不再引用；② 数据库里任何会话都查不到引用
+     * （未打开的会话、未选中的分支也可能引用同一附件）；③ 查询挂起期间重新读一次内存。
+     * 任何一步无法确认都保留文件 —— 宁可留垃圾，也不误删用户数据。
+     */
+    private fun cleanupQueuedAttachments(previous: QueuedMessage) {
+        val candidates = previous.parts.localFileUrls()
+        if (candidates.isEmpty()) return
+        appScope.launch {
+            try {
+                val persistedReferences =
+                    candidates.filter { conversationRepo.hasFileReference(it) }.toSet()
+                val unusedFiles = unreferencedQueuedAttachmentUrls(
+                    previous = previous,
+                    conversations = sessions.values.map { it.state.value },
+                    pendingMessages = messageQueues.values.flatMap { it.state.value.messages },
+                ) - persistedReferences
+                if (unusedFiles.isNotEmpty()) {
+                    filesManager.deleteChatFiles(unusedFiles.map { it.toUri() })
+                }
+            } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                AppLog.w(TAG, "cleanupQueuedAttachments failed, keep files", e)
+            }
+        }
+    }
 
     // 生成完成流
     private val _generationDoneFlow = MutableSharedFlow<Uuid>()
@@ -1398,6 +1454,11 @@ class ChatService(
                     }
                 }
         }.onFailure {
+            // 生成异常（用户主动取消除外，那条路径在 stopGeneration 里已经暂停过）：暂停队列，
+            // 避免在用户没有预期的情况下继续把排队消息发出去。
+            if (it !is kotlinx.coroutines.CancellationException) {
+                messageQueues[conversationId]?.pause()
+            }
             // 取消 Live Update 通知
             cancelLiveUpdateNotification(conversationId)
             // 失败也不留完成通知
@@ -2202,7 +2263,13 @@ class ChatService(
         newConversation: Conversation,
         oldConversation: Conversation,
     ) {
-        val newFiles = newConversation.files
+        // 仍在队列里、还没写进历史的附件同样算「在用」，否则保存会话时会连带把它们的本地
+        // 文件删掉（等消息真正发出时附件已经找不到了）。
+        val queuedFiles =
+            messageQueues[newConversation.id]?.state?.value?.messages.orEmpty()
+                .flatMap { it.parts.localFileUrls() }
+                .map { it.toUri() }
+        val newFiles = newConversation.files + queuedFiles
         val oldFiles = oldConversation.files
         val deletedFiles =
             oldFiles.filter { file ->
@@ -2547,6 +2614,9 @@ class ChatService(
     // 停止当前会话生成任务（不清理会话缓存）
     suspend fun stopGeneration(conversationId: Uuid) {
         val convMutex = mutexFor(conversationId)
+        // 用户主动停止：一并暂停待发送队列。否则「停止」之后队列会立刻把下一条发出去，
+        // 用户看到的是「停不下来」；需要继续时由面板上的「继续发送」恢复。
+        messageQueues[conversationId]?.pause()
         // cancelAndJoin BEFORE the mutex so the cancelled coroutine can drain its own
         // writes (which may try to acquire the same mutex via their save path).
         sessions[conversationId]?.let { session ->
@@ -2598,7 +2668,8 @@ class ChatService(
             withContext(NonCancellable) { saveConversation(conversationId, updatedConversation) }
         }
 
-        // 停止生成后立刻给队列一次机会：用户「打断 → 继续发送排队的消息」不必再等下一次交互。
+        // 停止生成后给队列一次机会：常规情况下队列已暂停（见上），这里主要让「未暂停但被
+        // 待审批工具挡住」的队列在 Pending 工具收尾后能立即派发，不必等下一次交互。
         // 放在锁外：dispatch 内部重新读取会话与待审批状态，此刻 Pending 工具已全部收尾。
         appScope.launch { dispatchNextQueuedMessage(conversationId) }
     }

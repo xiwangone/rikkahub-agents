@@ -26,6 +26,16 @@
   <string name="provider_action_edit">编辑</string>
   <string name="provider_action_edit_override">编辑覆盖</string>
   <string name="provider_action_remove_override">移除覆盖</string>
+  <string name="chat_page_queue_pending_count">待发送 · %1$d</string>
+  <string name="chat_page_queue_paused_count">队列已暂停 · %1$d</string>
+  <string name="chat_page_queue_resume">继续发送</string>
+  <string name="chat_page_queue_editing">编辑中</string>
+  <string name="chat_page_queue_remove">撤销</string>
+  <string name="chat_page_queue_edit_title">编辑待发送消息</string>
+  <string name="chat_page_queue_image">[图片]</string>
+  <string name="chat_page_queue_file">[文件]</string>
+  <string name="chat_page_queue_audio">[音频]</string>
+  <string name="chat_page_queue_video">[视频]</string>
   <string name="chat_page_retrying">正在重试（第 %1$d/%2$d 次）· %3$s · 服务端原话：%4$s</string>
   <string name="chat_server_tool_title">工具</string>
   <string name="chat_server_tool_in_progress">执行中…</string>
@@ -3180,7 +3190,6 @@
   <string name="assistant_page_time_reminder_interval_hint">请输入正整数。当消息间隔超过该时间间隔时，将插入一条提醒。</string>
   <string name="assistant_page_time_reminder_interval_desc">当消息间隔超过此设定值时插入提醒。始终在第一条用户消息之前提醒。</string>
   <string name="assistant_page_time_reminder_interval_value">%1$d 分钟</string>
-  <string name="chat_input_pending_queue">待发送 %1$d 条 · 将自动按序发出</string>
   <string name="tool_ui_shell_changed_files">命令改动的文件</string>
   <string name="workspace_detail_compatibility_mode">兼容模式</string>
   <string name="workspace_detail_compatibility_mode_desc">如果终端无法启动，请尝试启用此功能。这可能会降低性能。适用于新的终端标签页及后续命令。</string>

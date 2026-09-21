@@ -53,6 +53,7 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FavoriteRepository
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.service.MessageQueueState
 import me.rerere.rikkahub.ui.components.ai.AutoTaskConfig
 import me.rerere.rikkahub.ui.components.ai.MAX_AUTO_TASK_IDLE_SECONDS
 import me.rerere.rikkahub.ui.components.ai.MIN_AUTO_TASK_IDLE_SECONDS
@@ -83,8 +84,17 @@ class ChatVM(
 
     // 会话级 token 累计（当前分支所有消息 usage 之和），供聊天底部统计条展示
     /** 待发送队列（生成中发送的消息按序排队，本轮结束后自动发出）。 */
-    val pendingQueue: StateFlow<List<me.rerere.rikkahub.service.QueuedMessage>> =
+    val pendingQueue: StateFlow<MessageQueueState> =
         chatService.messageQueueState(_conversationId)
+
+    fun removeQueuedMessage(id: Uuid) = chatService.removeQueuedMessage(_conversationId, id)
+
+    fun beginEditQueuedMessage(id: Uuid) = chatService.beginEditQueuedMessage(_conversationId, id)
+
+    fun finishEditQueuedMessage(id: Uuid, parts: List<UIMessagePart>?) =
+        chatService.finishEditQueuedMessage(_conversationId, id, parts)
+
+    fun resumeMessageQueue() = chatService.resumeMessageQueue(_conversationId)
 
     val sessionTotals: StateFlow<TokenBudgetTracker.Totals> =
         conversation

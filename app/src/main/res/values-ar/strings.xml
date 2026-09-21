@@ -359,6 +359,16 @@
   <string name="chat_message_tool_search_results_count">%1$d نتائج</string>
   <string name="chat_message_tool_search_web">بحث في الويب: %1$s</string>
   <string name="chat_message_tool_submit">إرسال</string>
+  <string name="chat_page_queue_pending_count">Queued · %1$d</string>
+  <string name="chat_page_queue_paused_count">Queue paused · %1$d</string>
+  <string name="chat_page_queue_resume">Resume sending</string>
+  <string name="chat_page_queue_editing">Editing</string>
+  <string name="chat_page_queue_remove">Remove</string>
+  <string name="chat_page_queue_edit_title">Edit queued message</string>
+  <string name="chat_page_queue_image">[Image]</string>
+  <string name="chat_page_queue_file">[File]</string>
+  <string name="chat_page_queue_audio">[Audio]</string>
+  <string name="chat_page_queue_video">[Video]</string>
   <string name="chat_page_cancel">إلغاء</string>
   <string name="chat_page_clear_all_errors">مسح الكل</string>
   <string name="chat_page_compress_additional_prompt">تعليمات إضافية (اختياري)</string>
@@ -3173,7 +3183,6 @@
   <string name="assistant_page_time_reminder_interval_desc">إدراج تذكير عندما يتجاوز الفاصل بين الرسائل هذه القيمة. ويُذكَّر دائمًا قبل أول رسالة من المستخدم.</string>
   <string name="assistant_page_time_reminder_interval_value">%1$d دقيقة
 </string>
-  <string name="chat_input_pending_queue">في انتظار الإرسال: %1$d · ستُرسل تلقائيًا بالترتيب</string>
   <string name="tool_ui_shell_changed_files">الملفات التي غيّرها الأمر</string>
   <string name="workspace_detail_compatibility_mode">وضع التوافق</string>
   <string name="workspace_detail_compatibility_mode_desc">جرّب تفعيل هذا الخيار إذا فشل تشغيل الطرفية. قد يقلل من الأداء. ينطبق على علامات التبويب الجديدة والأوامر اللاحقة.</string>
