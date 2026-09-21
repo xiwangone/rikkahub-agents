@@ -91,7 +91,16 @@ jobs:
           echo "keyPassword=$KEY_PASSWORD" >> local.properties
           chmod +x gradlew
           # --build-cache 复用本地构建缓存；--configuration-cache 增量配置解析
-          ./gradlew :app:assembleRelease --stacktrace --no-daemon --parallel --build-cache --configuration-cache
+          ./gradlew :app:assembleRelease --stacktrace --no-daemon --parallel --build-cache --configuration-cache 2>&1 | tee release-build.log
+
+      - name: 上传发布构建日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-build-log
+          path: release-build.log
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: 重命名 APK（RikkaHub-Agents-版本号-架构命名）
         run: |

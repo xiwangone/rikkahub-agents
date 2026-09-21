@@ -47,7 +47,18 @@ jobs:
           chmod +x osv-scanner
 
       - name: 扫描依赖漏洞
-        run: ./osv-scanner scan -r . --format table
+        run: |
+          set -o pipefail
+          ./osv-scanner scan -r . --format table 2>&1 | tee osv-scan.log
+
+      - name: 上传扫描日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: osv-scan-log
+          path: osv-scan.log
+          retention-days: 14
+          if-no-files-found: ignore
 
   dependency-review:
     name: dependency-review（依赖变更审查）
@@ -158,11 +169,21 @@ jobs:
       # 基线只登记既有问题：本作业只对「新增」问题报失败
       - name: Run detekt
         run: |
+          set -o pipefail
           java -Xmx2g -jar /tmp/detekt-cli.jar \
             --input app/src/main/java,ai/src/main/java \
             --build-upon-default-config \
             --config .github/detekt/detekt.yml \
-            --baseline .github/detekt/detekt-baseline.xml
+            --baseline .github/detekt/detekt-baseline.xml 2>&1 | tee detekt.log
+
+      - name: 上传 detekt 日志
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detekt-log
+          path: detekt.log
+          retention-days: 14
+          if-no-files-found: ignore
 
   lint:
     name: Android Lint（含无障碍规则）
@@ -180,7 +201,18 @@ jobs:
 
       # 基线（app/lint-baseline.xml）只登记既有问题：本作业只对「新增」问题报失败
       - name: Run lint
-        run: ./gradlew :app:lintDebug --no-daemon --console=plain
+        run: |
+          set -o pipefail
+          ./gradlew :app:lintDebug --no-daemon --console=plain 2>&1 | tee lint.log
+
+      - name: 上传 lint 日志（完整 gradle 输出）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-log
+          path: lint.log
+          retention-days: 14
+          if-no-files-found: ignore
 
       - name: 保留报告（便于排查）
         if: always()
