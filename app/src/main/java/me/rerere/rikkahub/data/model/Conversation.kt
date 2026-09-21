@@ -184,9 +184,22 @@ fun UIMessage.toMessageNode(): MessageNode {
  * 本地附件引用集合（含工具调用结果中的嵌套附件）。
  *
  * 供待发送队列的附件清理判断「这条消息撤销后，它的附件是否还有人引用」。
+ * ⚠ 只做字符串比较、不经过 `Uri`：`android.net.Uri` 在纯 JVM 单测里是 stub，
+ * 一旦走到它就会报 "not mocked" 而让测试失败。
  */
 internal fun List<UIMessagePart>.localFileUrls(): Set<String> =
-    collectAllParts().mapNotNull { it.fileUri()?.toString() }.toSet()
+    collectAllParts()
+        .mapNotNull { part ->
+            when (part) {
+                is UIMessagePart.Image -> part.url
+                is UIMessagePart.Document -> part.url
+                is UIMessagePart.Video -> part.url
+                is UIMessagePart.Audio -> part.url
+                else -> null
+            }
+        }
+        .filter { it.startsWith("file://") }
+        .toSet()
 
 /**
  * 递归展开所有 parts，包括工具调用结果中的嵌套 parts。
