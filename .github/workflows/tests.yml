@@ -58,7 +58,16 @@ jobs:
       - name: 单元测试（:app:testDebugUnitTest）
         run: |
           chmod +x gradlew
-          ./gradlew :app:testDebugUnitTest --parallel --build-cache --configuration-cache
+          set -o pipefail
+          ./gradlew :app:testDebugUnitTest --parallel --build-cache --configuration-cache 2>&1 | tee unit-test.log
+
+      - name: 上传测试日志（完整 gradle 输出）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-log
+          path: unit-test.log
+          retention-days: 14
 
       - name: 上传测试报告
         if: always()

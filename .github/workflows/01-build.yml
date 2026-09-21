@@ -82,6 +82,7 @@ jobs:
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
           chmod +x gradlew
+          set -o pipefail
           if [ "$BUILD_TYPE" = "release" ]; then
             KEYSTORE="$HOME/rikkahub.jks"
             echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
@@ -89,15 +90,23 @@ jobs:
             echo "storePassword=$KEYSTORE_PASSWORD" >> local.properties
             echo "keyAlias=$KEY_ALIAS" >> local.properties
             echo "keyPassword=$KEY_PASSWORD" >> local.properties
-            ./gradlew assembleRelease --parallel --build-cache --configuration-cache
+            ./gradlew assembleRelease --parallel --build-cache --configuration-cache 2>&1 | tee gradle-build.log
           else
             # debug 不签名不发版，仅验证编译通过
-            ./gradlew assembleDebug --parallel --build-cache --configuration-cache
+            ./gradlew assembleDebug --parallel --build-cache --configuration-cache 2>&1 | tee gradle-build.log
           fi
 
       - name: 编译单元测试代码（仅验证可编译，不执行）
         if: env.BUILD_TYPE == 'debug'
         run: ./gradlew compileDebugUnitTestKotlin --parallel --build-cache --configuration-cache || true
+
+      - name: 上传编译日志（完整 gradle 输出）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: gradle-build.log
+          retention-days: 14
 
       - name: 上传 APK（debug，可做破坏性测试）
         if: env.BUILD_TYPE == 'debug'
