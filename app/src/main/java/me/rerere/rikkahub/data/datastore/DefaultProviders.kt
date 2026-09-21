@@ -8,6 +8,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
+import me.rerere.ai.provider.BalanceField
 import me.rerere.ai.provider.BalanceOption
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.R
@@ -163,7 +164,24 @@ val DEFAULT_PROVIDERS = listOf(
         balanceOption = BalanceOption(
             enabled = true,
             apiPath = "/user/balance",
-            resultPath = "balance_infos[0].total_balance"
+            resultPath = "balance_infos[0].total_balance",
+            fields = listOf(
+                BalanceField(
+                    label = "Total",
+                    path = "balance_infos[0].total_balance",
+                    unit = "¥",
+                ),
+                BalanceField(
+                    label = "Granted",
+                    path = "balance_infos[0].granted_balance",
+                    unit = "¥",
+                ),
+                BalanceField(
+                    label = "Topped up",
+                    path = "balance_infos[0].topped_up_balance",
+                    unit = "¥",
+                ),
+            ),
         )
     ),
     ProviderSetting.OpenAI(

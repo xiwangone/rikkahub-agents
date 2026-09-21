@@ -37,7 +37,7 @@ import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.toHeaders
 import me.rerere.common.http.await
-import me.rerere.common.http.getByKey
+import me.rerere.ai.provider.formatBalance
 import okhttp3.MultipartBody
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -158,13 +158,7 @@ class OpenAIProvider(
 
         val bodyStr = response.body.string()
         val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
-        val value = bodyJson.getByKey(providerSetting.balanceOption.resultPath)
-        val digitalValue = value.toFloatOrNull()
-        if(digitalValue != null) {
-            "%.2f".format(digitalValue)
-        } else {
-            value
-        }
+        formatBalance(bodyJson, providerSetting.balanceOption)
     }
 
     override suspend fun streamText(

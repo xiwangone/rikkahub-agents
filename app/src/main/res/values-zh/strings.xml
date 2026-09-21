@@ -1068,6 +1068,12 @@
   <string name="setting_provider_page_balance_api_path">余额 API 路径</string>
   <string name="setting_provider_page_balance_info">获取账户余额</string>
   <string name="setting_provider_page_balance_json_key">结果 JSON 键</string>
+  <string name="setting_provider_page_balance_fields">余额显示项（多行）</string>
+  <string name="setting_provider_page_balance_add_field">添加一项</string>
+  <string name="setting_provider_page_balance_field_label">标签</string>
+  <string name="setting_provider_page_balance_field_path">JSON 表达式</string>
+  <string name="setting_provider_page_balance_field_unit">单位</string>
+  <string name="setting_provider_page_balance_field_suffix">后缀</string>
   <string name="setting_provider_page_basic_settings">基本设置</string>
   <string name="setting_provider_page_chat_model">聊天</string>
   <string name="setting_provider_page_claude_prompt_cache_ttl">提示缓存时长</string>

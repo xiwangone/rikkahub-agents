@@ -1102,6 +1102,12 @@
   <string name="setting_provider_page_balance_api_path">Balance API Path</string>
   <string name="setting_provider_page_balance_info">\"Get account balance \"</string>
   <string name="setting_provider_page_balance_json_key">Result Json Key</string>
+  <string name="setting_provider_page_balance_fields">Balance fields (multi-line)</string>
+  <string name="setting_provider_page_balance_add_field">Add field</string>
+  <string name="setting_provider_page_balance_field_label">Label</string>
+  <string name="setting_provider_page_balance_field_path">JSON expression</string>
+  <string name="setting_provider_page_balance_field_unit">Unit</string>
+  <string name="setting_provider_page_balance_field_suffix">Suffix</string>
   <string name="setting_provider_page_basic_settings">Basic Settings</string>
   <string name="setting_provider_page_chat_model">Chat</string>
   <string name="setting_provider_page_claude_prompt_cache_ttl">Prompt cache TTL</string>

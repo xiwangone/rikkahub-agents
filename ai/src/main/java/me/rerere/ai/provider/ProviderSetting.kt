@@ -7,10 +7,26 @@ import kotlinx.serialization.Transient
 import kotlin.uuid.Uuid
 
 @Serializable
+data class BalanceField(
+    /** 显示标签（如「月度余额」）；留空则只显示值 */
+    val label: String = "",
+    /** JSON 表达式（支持 a.b / a[0] 与算术） */
+    val path: String = "",
+    /** 值前缀（单位，如 `$`） */
+    val unit: String = "",
+    /** 值后缀（如 `/14`） */
+    val suffix: String = "",
+)
+
+@Serializable
 data class BalanceOption(
     val enabled: Boolean = false, // 是否开启余额获取功能
-    val apiPath: String = "/credits", // 余额获取API路径
-    val resultPath: String = "data.total_usage", // 余额获取JSON路径
+    /** 余额接口路径；以 http 开头时按绝对地址使用，否则拼在 provider baseUrl 后 */
+    val apiPath: String = "",
+    /** 单字段的 JSON 表达式（旧配置沿用；[fields] 非空时忽略） */
+    val resultPath: String = "",
+    /** 多字段展示（如 月度余额 / 5h 窗口 / 周窗口）；为空时回退到 [resultPath] */
+    val fields: List<BalanceField> = emptyList(),
 )
 
 @Serializable
