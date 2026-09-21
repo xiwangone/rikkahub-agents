@@ -376,6 +376,8 @@ dependencies {
     implementation("com.github.mwiede:jsch:2.28.7")
     // JSch 使用 ed25519/ed448 OPENSSH 私钥必需（否则 Auth fail publickey）
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
+    // OpenPGP（GPG）密钥环生成与 armored 导出（凭证库「生成密钥」用）
+    implementation("org.bouncycastle:bcpg-jdk18on:1.86")
 
     // Cron utilities (expression parsing & validation)
     implementation("com.cronutils:cron-utils:9.2.1")

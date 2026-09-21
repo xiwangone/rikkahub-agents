@@ -31,6 +31,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.OpenPgpKeyGenerator
 import me.rerere.rikkahub.data.vault.VaultKeyGenerator
 import me.rerere.rikkahub.data.vault.VaultKeyType
 import org.koin.compose.koinInject
@@ -66,6 +67,7 @@ fun SshKeyPairDialog(
     var group by remember { mutableStateOf(defaultGroup.ifBlank { "SSH" }) }
     var description by remember { mutableStateOf(context.getString(R.string.ssh_key_default_desc)) }
     var keyType by remember { mutableStateOf(VaultKeyType.RSA2048) }
+    var uid by remember { mutableStateOf(OpenPgpKeyGenerator.DEFAULT_UID) }
     var generating by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var publicKey by remember { mutableStateOf<String?>(null) }
@@ -122,6 +124,16 @@ fun SshKeyPairDialog(
                             ) { Text(t.label) }
                         }
                     }
+                    // OpenPGP 需要身份信息（UID）才能生成自签名 —— SSH / WireGuard / age 不需要
+                    if (keyType == VaultKeyType.OPENPGP) {
+                        OutlinedTextField(
+                            value = uid,
+                            onValueChange = { uid = it },
+                            label = { Text(stringResource(R.string.vault_openpgp_uid_label)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                     if (error != null) {
                         Text(error!!, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                     }
@@ -169,7 +181,7 @@ fun SshKeyPairDialog(
                         error = null
                         scope.launch {
                             val result = withContext(Dispatchers.Default) {
-                                runCatching { VaultKeyGenerator.generate(keyType) }
+                                runCatching { VaultKeyGenerator.generate(keyType, uid = uid) }
                             }
                             result.onSuccess { pair ->
                                 try {

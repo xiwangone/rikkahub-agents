@@ -1934,6 +1934,7 @@
   <string name="setting_vault_title">安全憑證庫</string>
   <string name="setting_page_vault">安全憑證庫</string>
   <string name="setting_page_vault_desc">安全管理 API 金鑰與各類憑證</string>
+  <string name="vault_openpgp_uid_label">使用者識別（姓名 &lt;電子郵件&gt;）</string>
   <string name="vault_generate_token">隨機 Token</string>
   <string name="vault_generate_password">隨機密碼</string>
   <string name="vault_credential_count">憑證庫憑證（%1$d 條）</string>

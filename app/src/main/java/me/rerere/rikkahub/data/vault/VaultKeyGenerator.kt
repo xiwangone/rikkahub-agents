@@ -25,6 +25,7 @@ enum class VaultKeyType(val label: String) {
     ECDSA521("ECDSA (nistp521)"),
     WIREGUARD("WireGuard (X25519)"),
     AGE("age (X25519)"),
+    OPENPGP("OpenPGP (Ed25519)"),
 }
 
 /**
@@ -50,6 +51,7 @@ object VaultKeyGenerator {
     fun generate(
         type: VaultKeyType,
         comment: String = SshKeyGenerator.DEFAULT_COMMENT,
+        uid: String = OpenPgpKeyGenerator.DEFAULT_UID,
     ): GeneratedKey = when (type) {
         VaultKeyType.ED25519 -> ssh(SshKeyGenerator.KeyType.ED25519, comment)
         VaultKeyType.RSA2048 -> ssh(SshKeyGenerator.KeyType.RSA, comment)
@@ -59,6 +61,7 @@ object VaultKeyGenerator {
         VaultKeyType.ECDSA521 -> ssh(SshKeyGenerator.KeyType.ECDSA521, comment)
         VaultKeyType.WIREGUARD -> wireGuard()
         VaultKeyType.AGE -> age()
+        VaultKeyType.OPENPGP -> openPgp(uid)
     }
 
     /** 该公钥是否有 OpenSSH 风格指纹可展示（非 SSH 类型没有，返回 null）。 */
@@ -67,6 +70,12 @@ object VaultKeyGenerator {
     private fun ssh(type: SshKeyGenerator.KeyType, comment: String): GeneratedKey {
         val pair = SshKeyGenerator.generate(type, comment)
         return GeneratedKey(privateText = pair.privateKeyPem, publicText = pair.publicKeyLine)
+    }
+
+    /** OpenPGP 没有「公钥一行 + 注释」的概念，两侧都是 armored 文本块。 */
+    private fun openPgp(uid: String): GeneratedKey {
+        val key = OpenPgpKeyGenerator.generate(uid)
+        return GeneratedKey(privateText = key.privateKeyArmored, publicText = key.publicKeyArmored)
     }
 
     // ================= X25519 =================

@@ -146,12 +146,13 @@ fun vaultCredentialPrepareTool(repository: CredentialVaultRepository): Tool = To
 private fun defaultVaultKeyName(type: VaultKeyType): String = when (type) {
     VaultKeyType.WIREGUARD -> "WIREGUARD_KEY"
     VaultKeyType.AGE -> "AGE_KEY"
+    VaultKeyType.OPENPGP -> "GPG_KEY"
     else -> "WEB_SSH_KEY"
 }
 
 /** 未指定 group 时的默认分组。 */
 private fun defaultVaultKeyGroup(type: VaultKeyType): String = when (type) {
-    VaultKeyType.WIREGUARD, VaultKeyType.AGE -> "Other"
+    VaultKeyType.WIREGUARD, VaultKeyType.AGE, VaultKeyType.OPENPGP -> "Other"
     else -> "SSH"
 }
 
@@ -159,7 +160,22 @@ private fun defaultVaultKeyGroup(type: VaultKeyType): String = when (type) {
 private fun vaultKeyUsageHint(type: VaultKeyType): String = when (type) {
     VaultKeyType.WIREGUARD -> "请将该公钥配置到对端 WireGuard（peer 的 PublicKey）："
     VaultKeyType.AGE -> "age 加密时使用该公钥（-r / recipient）："
+    VaultKeyType.OPENPGP -> "请将该公钥上传到代码托管平台（GitHub 账户设置 → SSH and GPG keys）用于提交签名："
     else -> "请将以下公钥配置到服务器 ~/.ssh/authorized_keys："
+}
+
+/** 把工具参数里的 type 字符串映射到密钥类型；未知值返回 null（由调用方报错）。 */
+private fun parseVaultKeyType(raw: String?): VaultKeyType? = when (raw?.uppercase()) {
+    "ED25519" -> VaultKeyType.ED25519
+    "ECDSA", "ECDSA256" -> VaultKeyType.ECDSA256
+    "ECDSA384" -> VaultKeyType.ECDSA384
+    "ECDSA521" -> VaultKeyType.ECDSA521
+    "RSA", "RSA2048", null -> VaultKeyType.RSA2048
+    "RSA4096" -> VaultKeyType.RSA4096
+    "WIREGUARD" -> VaultKeyType.WIREGUARD
+    "AGE" -> VaultKeyType.AGE
+    "OPENPGP", "PGP", "GPG" -> VaultKeyType.OPENPGP
+    else -> null
 }
 
 /** 生成密钥对并保存到凭证库，返回公钥（SSH 类可配置到服务器 authorized_keys）。 */
@@ -172,7 +188,8 @@ fun vaultGenKeyTool(
         "Generate an SSH key pair, store the private key in the vault, and return the public key " +
             "for the user to configure on a server (e.g. ~/.ssh/authorized_keys). " +
             "Use before vault_ssh_exec when the server is new and has no key yet. " +
-            "Other key types (RSA4096 / ECDSA384 / ECDSA521 / WIREGUARD / AGE) are supported too." +
+            "Other key types (RSA4096 / ECDSA384 / ECDSA521 / WIREGUARD / AGE / OPENPGP) are supported too. " +
+            "For OPENPGP, pass uid ('Name <email>') and use the returned armored public key for commit signing." +
             "The public key line carries a comment identifying the purpose and RikkaHub Agents as generator.",
     parameters = {
         InputSchema.Obj(
@@ -181,7 +198,8 @@ fun vaultGenKeyTool(
                     put("name", buildJsonObject { put("type", "string"); put("description", "Credential name (default WEB_SSH_KEY)") })
                     put("group", buildJsonObject { put("type", "string"); put("description", "Vault group (default SSH)") })
                     put("comment", buildJsonObject { put("type", "string"); put("description", "Public key comment suffix, e.g. 'pc-main@rikkahub-agents'. Default 'generated@rikkahub-agents'. Always include purpose + @rikkahub-agents for traceability.") })
-                    put("type", buildJsonObject { put("type", "string"); put("description", "Key type: ED25519 (recommended) / RSA / RSA4096 / ECDSA / ECDSA384 / ECDSA521 / WIREGUARD / AGE (default RSA for backward compat)") })
+                    put("type", buildJsonObject { put("type", "string"); put("description", "Key type: ED25519 (recommended) / RSA / RSA4096 / ECDSA / ECDSA384 / ECDSA521 / WIREGUARD / AGE / OPENPGP (default RSA for backward compat)") })
+                    put("uid", buildJsonObject { put("type", "string"); put("description", "OPENPGP only: user id 'Name <email>' used as the key's self-signature identity. Default 'RikkaHub Agents <agent@rikkahub-agents>'.") })
                 },
         )
     },
@@ -190,23 +208,14 @@ fun vaultGenKeyTool(
         val rawGroup = params.jsonObject["group"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         val rawComment = params.jsonObject["comment"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         val typeStr = params.jsonObject["type"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-        val keyType =
-            when (typeStr?.uppercase()) {
-                "ED25519" -> VaultKeyType.ED25519
-                "ECDSA", "ECDSA256" -> VaultKeyType.ECDSA256
-                "ECDSA384" -> VaultKeyType.ECDSA384
-                "ECDSA521" -> VaultKeyType.ECDSA521
-                "RSA", "RSA2048", null -> VaultKeyType.RSA2048
-                "RSA4096" -> VaultKeyType.RSA4096
-                "WIREGUARD" -> VaultKeyType.WIREGUARD
-                "AGE" -> VaultKeyType.AGE
-                else -> return@Tool listOf(
-                    UIMessagePart.Text(
-                        "❌ 不支持的 type: $typeStr" +
-                            "（可选 ED25519 / RSA / RSA4096 / ECDSA / ECDSA384 / ECDSA521 / WIREGUARD / AGE）",
-                    ),
-                )
-            }
+        val uidStr = params.jsonObject["uid"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val keyType = parseVaultKeyType(typeStr)
+            ?: return@Tool listOf(
+                UIMessagePart.Text(
+                    "❌ 不支持的 type: $typeStr" +
+                        "（可选 ED25519 / RSA / RSA4096 / ECDSA / ECDSA384 / ECDSA521 / WIREGUARD / AGE / OPENPGP）",
+                ),
+            )
         // 默认名与分组按类型区分，避免 WireGuard/age 密钥落成 SSH 名字
         val name = rawName ?: defaultVaultKeyName(keyType)
         val group = rawGroup ?: defaultVaultKeyGroup(keyType)
@@ -217,7 +226,7 @@ fun vaultGenKeyTool(
                 "@rikkahub-agents" in rawComment || "@rikkahub" in rawComment -> rawComment
                 else -> "$rawComment@rikkahub-agents"
             }
-        val key = VaultKeyGenerator.generate(keyType, comment)
+        val key = VaultKeyGenerator.generate(keyType, comment, uidStr ?: OpenPgpKeyGenerator.DEFAULT_UID)
         val fp = VaultKeyGenerator.fingerprintOf(key.publicText)
         // 名字统一规范化（AI 传小写/空格也能落库）
         val finalName = CredentialVaultRepository.normalizeName(name)
