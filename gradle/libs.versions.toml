@@ -70,7 +70,6 @@ kotlinxCoroutinesPlayServices = "1.11.0"
 biometric = "1.2.0-alpha05"
 media = "1.7.0"
 documentfile = "1.0.1"
-jsch = "0.2.21"
 cronUtils = "9.2.1"
 # Verified with `javap -p` against the published artifact: Shizuku.newProcess is PRIVATE in
 # this version, so shizuku_exec is built on Shizuku.bindUserService + our own AIDL service
