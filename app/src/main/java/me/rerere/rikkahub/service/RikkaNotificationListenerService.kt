@@ -41,7 +41,7 @@ private const val ACTIVE_LIST_CACHE_TTL_MS = 1_000L
  * in-memory ring buffer (100 entries) for LLM lookup AND auto-forwards whitelisted
  * packages' notifications to the default Telegram chat as a plain text summary.
  *
- * Bound by the OS once the user enables RikkaHub in Settings -> Notification access.
+ * Bound by the OS once the user enables RikkaHub Agents in Settings -> Notification access.
  * The companion singleton lets tool factories reach the live instance synchronously.
  */
 class RikkaNotificationListenerService : NotificationListenerService() {

@@ -13,7 +13,7 @@ enum class ShizukuStatus {
      *  wireless debugging on Android 11+) is not running, no live binder. */
     NOT_RUNNING,
 
-    /** The binder is alive but the user has not granted RikkaHub the Shizuku permission. */
+    /** The binder is alive but the user has not granted RikkaHub Agents the Shizuku permission. */
     PERMISSION_DENIED,
 
     /** Binder alive and permission granted: shizuku_exec can bind the user service. */
@@ -64,7 +64,7 @@ object ShizukuStatusMapper {
             put("error", "shizuku_permission_denied")
             put(
                 "recovery",
-                "Grant RikkaHub the Shizuku permission from Settings -> Shizuku, then retry."
+                "Grant RikkaHub Agents the Shizuku permission from Settings -> Shizuku, then retry."
             )
         }
     }

@@ -166,7 +166,7 @@ fun Context.getComponentActivity(): ComponentActivity? {
 fun Context.exportImage(
     activity: Activity,
     bitmap: Bitmap,
-    fileName: String = "RikkaHub Agents_Agents_${System.currentTimeMillis()}.png",
+    fileName: String = "RikkaHub Agents Agents_Agents_${System.currentTimeMillis()}.png",
 ) {
     // 检查存储权限（Android 9及以下需要）
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
@@ -224,7 +224,7 @@ fun Context.exportImage(
 fun Context.exportImageFile(
     activity: Activity,
     file: File,
-    fileName: String = "RikkaHub Agents_Agents_${System.currentTimeMillis()}.png",
+    fileName: String = "RikkaHub Agents Agents_Agents_${System.currentTimeMillis()}.png",
 ) {
     // 检查存储权限（Android 9及以下需要）
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {

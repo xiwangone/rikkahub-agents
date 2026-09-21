@@ -314,8 +314,8 @@ class WorkflowEngine(
                         true
                     }
                 when {
-                    !fineGranted -> "geofence_unavailable: ACCESS_FINE_LOCATION not granted — open Settings → Apps → RikkaHub → Permissions → Location and pick Allow all the time"
-                    !bgGranted -> "geofence_unavailable: ACCESS_BACKGROUND_LOCATION not granted — open Settings → Apps → RikkaHub → Permissions → Location and pick Allow all the time"
+                    !fineGranted -> "geofence_unavailable: ACCESS_FINE_LOCATION not granted — open Settings → Apps → RikkaHub Agents → Permissions → Location and pick Allow all the time"
+                    !bgGranted -> "geofence_unavailable: ACCESS_BACKGROUND_LOCATION not granted — open Settings → Apps → RikkaHub Agents → Permissions → Location and pick Allow all the time"
                     else -> null
                 }
             }
@@ -324,7 +324,7 @@ class WorkflowEngine(
                 if (!me.rerere.rikkahub.data.ai.tools.local.NotificationListenerHandle
                         .isBound()
                 ) {
-                    "notification_listener_not_enabled: enable the RikkaHub notification listener in Settings → Apps → Special access → Notification access"
+                    "notification_listener_not_enabled: enable the RikkaHub Agents notification listener in Settings → Apps → Special access → Notification access"
                 } else {
                     null
                 }
@@ -336,7 +336,7 @@ class WorkflowEngine(
                 if (!me.rerere.rikkahub.data.ai.tools.local.AccessibilityServiceHandle
                         .isRunning()
                 ) {
-                    "accessibility_not_enabled: enable the RikkaHub accessibility service in Settings → Accessibility (required for app_launched / app_closed triggers)"
+                    "accessibility_not_enabled: enable the RikkaHub Agents accessibility service in Settings → Accessibility (required for app_launched / app_closed triggers)"
                 } else {
                     null
                 }

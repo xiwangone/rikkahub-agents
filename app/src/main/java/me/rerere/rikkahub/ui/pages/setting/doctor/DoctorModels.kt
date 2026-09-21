@@ -14,7 +14,7 @@ import androidx.annotation.StringRes
  *   - openclaw/openclaw's `doctor`: per-mutation repair pipeline where each check returns
  *     `{ changes, warnings, mutated_config }` and the orchestrator applies them in sequence.
  *
- * For RikkaHub-as-Android-app the right shape is hermes' surface (categorized list) with
+ * For RikkaHub Agents as an Android app the right shape is hermes' surface (categorized list) with
  * openclaw's per-row "apply this fix" action, since most repairs require user awareness
  * (granting permissions, restarting services) rather than silent config rewrites.
  */

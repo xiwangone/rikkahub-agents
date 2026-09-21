@@ -1385,8 +1385,8 @@ class GenerationLoop(
         .flowOn(Dispatchers.IO)
 
     /**
-     * If the agent navigated away from RikkaHub during this turn (launch_app / open_url) and
-     * the user is still on that destination, bring RikkaHub back to the foreground so the
+     * If the agent navigated away from RikkaHub Agents during this turn (launch_app / open_url) and
+     * the user is still on that destination, bring RikkaHub Agents back to the foreground so the
      * user is not stranded inside Chrome / Termux / etc. If the user manually switched apps
      * mid-turn, we skip the auto-return and surface a Toast explaining the safety behavior.
      */
@@ -1395,7 +1395,7 @@ class GenerationLoop(
         // Only auto-return when the agent actually drove the destination app via screen
         // automation (tap, click_node, set_text, swipe, scroll, global_action). A pure
         // "open Chrome and stay there" request is just launch_app + a text reply — yanking
-        // the user back to RikkaHub in that case defeats the purpose of the request.
+        // the user back to RikkaHub Agents in that case defeats the purpose of the request.
         if (!AgentTurnTracker.didAutomate()) return
         val destination = AgentTurnTracker.lastDestination()
         val currentForeground = RikkaAccessibilityService.instance

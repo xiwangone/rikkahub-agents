@@ -89,7 +89,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
     var proxyPasswordDraft by remember { mutableStateOf("") }
     var proxyPasswordVisible by remember { mutableStateOf(false) }
     var proxyDialogVisible by remember { mutableStateOf(false) }
-    val defaultUserAgent = "RikkaHub-Android/${BuildConfig.VERSION_NAME}"
+    val defaultUserAgent = "RikkaHub-Agents-Android/${BuildConfig.VERSION_NAME}"
     val proxyUrlInvalid = proxyUrlDraft.isNotBlank() && proxyUrlDraft.toProxyOrNull() == null
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scope = rememberCoroutineScope()

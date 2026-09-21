@@ -738,7 +738,7 @@ fun VaultPage() {
                                     VaultFormats.FORMAT_LOADCREDS -> ".sh"
                                     else -> ".vault"
                                 }
-                                exportLauncher.launch("RikkaHub-Vault-${System.currentTimeMillis()}$suffix")
+                                exportLauncher.launch("RikkaHub-Agents-Vault-${System.currentTimeMillis()}$suffix")
                             },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
@@ -779,7 +779,7 @@ fun VaultPage() {
                                         backupResult = backupPasswordRequiredMsg
                                         return@OutlinedButton
                                     }
-                                    backupExportLauncher.launch("RikkaHub-Vault-Backup-${System.currentTimeMillis()}.vault")
+                                    backupExportLauncher.launch("RikkaHub-Agents-Vault-Backup-${System.currentTimeMillis()}.vault")
                                 },
                                 modifier = Modifier.weight(1f),
                             ) {

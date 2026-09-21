@@ -23,7 +23,7 @@ private const val TAG = "BugReportBuilder"
  *
  * Contents (subject to availability):
  *   - meta.txt — version, device model, Android version, locale, timezone
- *   - logcat.txt — last 60 minutes of logcat, filtered to RikkaHub TAGs and ERROR level
+ *   - logcat.txt — last 60 minutes of logcat, filtered to RikkaHub Agents TAGs and ERROR level
  *                  for everything else, with secret redaction applied per
  *                  [SecretRedactor]
  *   - resolved-by-rules.txt — list of known issues this report should NOT include because

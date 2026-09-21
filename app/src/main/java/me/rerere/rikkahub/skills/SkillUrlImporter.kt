@@ -274,7 +274,7 @@ class SkillUrlImporter(
             }
             appendLine("## Source")
             appendLine()
-            appendLine("Imported from Hermes skill at $sourceUrl. Tool names were not transcoded — Hermes references its own tool surface, which doesn't always map 1:1 to RikkaHub's. Edit any tool references manually if the skill misbehaves.")
+            appendLine("Imported from Hermes skill at $sourceUrl. Tool names were not transcoded — Hermes references its own tool surface, which doesn't always map 1:1 to RikkaHub Agents'. Edit any tool references manually if the skill misbehaves.")
         }
         return ToolNameTranscoder.transcode(body)
     }
@@ -351,8 +351,8 @@ fun SkillManager.asSaver(): SkillSaver = object : SkillSaver {
 /**
  * Phase 16 — best-effort tool-name remapper.
  *
- * openclaw uses some tool names that have RikkaHub equivalents but different spellings;
- * Hermes uses an entirely different set. We map those source names to the RikkaHub
+ * openclaw uses some tool names that have RikkaHub Agents equivalents but different spellings;
+ * Hermes uses an entirely different set. We map those source names to the RikkaHub Agents
  * equivalent — but ONLY where the name appears as a code token, never in free prose.
  *
  * Why: the source names are ordinary English words (Read, Write, Edit, Task, Bash, Grep,
@@ -371,7 +371,7 @@ fun SkillManager.asSaver(): SkillSaver = object : SkillSaver {
  */
 object ToolNameTranscoder {
     private val Mappings: List<Pair<String, String>> = listOf(
-        // openclaw → RikkaHub. Keys are case-sensitive; the lowercase common-English
+        // openclaw → RikkaHub Agents. Keys are case-sensitive; the lowercase common-English
         // duplicates (bash/shell/ssh/notify/send_message-in-prose) were dropped because
         // they collide with ordinary words.
         "Bash" to "termux_run_command",
@@ -386,7 +386,7 @@ object ToolNameTranscoder {
         "TodoWrite" to "telegram_send_message",
         "WebFetch" to "ssh_exec",          // closest analogue if user has an SSH proxy
         "Notify" to "post_notification",
-        // Hermes-style → RikkaHub. These are snake_case identifiers that don't occur as
+        // Hermes-style → RikkaHub Agents. These are snake_case identifiers that don't occur as
         // English words, so they're safe within code regions.
         "send_message" to "telegram_send_message",
         "open_app" to "launch_app",

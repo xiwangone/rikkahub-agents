@@ -1368,7 +1368,7 @@ internal val DEFAULT_ASSISTANTS = listOf(
         name = "",
         systemPrompt = "",
         // The agent-core skill bundle (SOUL/HEARTBEAT/TOOLS) ships with the app and is what
-        // teaches every model "you are running on RikkaHub, here are the tools, here is how
+        // teaches every model "you are running on RikkaHub Agents, here are the tools, here is how
         // to avoid loops". Auto-enabling it on default assistants means new users get an
         // agent-aware model out of the box without having to discover the skill toggle.
         enabledSkills = setOf("agent-core"),

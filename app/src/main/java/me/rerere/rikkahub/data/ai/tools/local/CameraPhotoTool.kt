@@ -42,7 +42,7 @@ fun cameraPhotoTool(context: Context, buffer: CameraResultBuffer): Tool = Tool(
         }
 
         val timestamp = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
-        val displayName = "RikkaHub Agents_Agents_${timestamp}_${UUID.randomUUID().toString().take(8)}.jpg"
+        val displayName = "RikkaHub Agents Agents_Agents_${timestamp}_${UUID.randomUUID().toString().take(8)}.jpg"
 
         val useMediaStore = Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q
         val mediaStoreUri: Uri?

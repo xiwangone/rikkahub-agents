@@ -22,7 +22,7 @@ import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.service.WebServerService
 
 /**
- * Backend Web 桥 — 把 RikkaHub 手机端 Web 服务反向隧道到 ECS，供 backend serve/run 访问。
+ * Backend Web 桥 — 把 RikkaHub Agents 手机端 Web 服务反向隧道到 ECS，供 backend serve/run 访问。
  *
  * 原理：手机主动出站 SSH 到 ECS（阿里云公网可达），建立反向隧道
  *   `ssh -R <remotePort>:localhost:<localPort> root@<ECS>`，

@@ -212,7 +212,7 @@ internal fun allFilesAccessGuard(rawPath: String): String? {
         put(
             "detail",
             "All files access is required to enumerate or read files in shared storage. " +
-                "Open Settings → Apps → RikkaHub → Permissions → All files access, or have " +
+                "Open Settings → Apps → RikkaHub Agents → Permissions → All files access, or have " +
                 "the user re-toggle the Files tool on the assistant Local Tools page to be " +
                 "prompted."
         )

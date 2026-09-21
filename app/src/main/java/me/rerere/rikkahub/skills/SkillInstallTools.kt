@@ -135,9 +135,9 @@ fun skillInstallFromUrlTool(
 ): Tool = Tool(
     name = "skill_install_from_url",
     description = """
-        Download and install a skill from a URL. Accepts native (RikkaHub markdown +
+        Download and install a skill from a URL. Accepts native (RikkaHub Agents markdown +
         frontmatter), openclaw markdown, or Hermes JSON formats. Tool names are best-effort
-        transcoded to RikkaHub equivalents. The user reviews and approves the URL + final
+        transcoded to RikkaHub Agents equivalents. The user reviews and approves the URL + final
         skill name before save. Skills are NEVER auto-enabled — the user's toggle in
         Settings is the only thing that enables a skill; if it is not already enabled,
         `auto_enabled` is false and `auto_enabled_detail` tells where to turn it on.

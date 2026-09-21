@@ -10,7 +10,7 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 
 /**
- * 将 RikkaHub 统一的 [Tool] 模型映射为 MCP 工具定义（tools/list 输出），
+ * 将 RikkaHub Agents 统一的 [Tool] 模型映射为 MCP 工具定义（tools/list 输出），
  * 以及将工具执行结果 [List<UIMessagePart>] 映射为 MCP content 数组。
  *
  * `Tool.parameters()` 已经是 JSON Schema 形态（`InputSchema.Obj`：properties + required），

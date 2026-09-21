@@ -15,7 +15,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.rikkahub.data.log.AppLog
 
 /**
- * Binds RikkaHub to the co-signed agent-keyboard ([KEYBOARD_PACKAGE]) AIDL service and
+ * Binds RikkaHub Agents to the co-signed agent-keyboard ([KEYBOARD_PACKAGE]) AIDL service and
  * drives the active text field through it.
  *
  * Lifecycle the client manages for the caller:

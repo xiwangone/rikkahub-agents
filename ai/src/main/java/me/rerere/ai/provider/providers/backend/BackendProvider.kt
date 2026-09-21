@@ -36,9 +36,9 @@ import java.util.UUID
 import kotlin.uuid.Uuid
 
 /**
- * Backend Provider — RikkaHub 直连 Backend serve（阶段5融合）。
+ * Backend Provider — RikkaHub Agents 直连 Backend serve（阶段5融合）。
  *
- * 架构：RikkaHub 作为 Backend 的「远程 UI」——会话由服务端管理（历史/压缩/checkpoint
+ * 架构：RikkaHub Agents 作为 Backend 的「远程 UI」——会话由服务端管理（历史/压缩/checkpoint
  * 全部继承），每次对话开始 POST /new，streamText 只发增量（最后一条用户消息）→ POST /submit，
  * 然后监听 GET /events SSE 事件流并映射为 [StreamChunk]。
  *
@@ -78,9 +78,9 @@ class BackendProvider(
     private fun api(setting: ProviderSetting.Backend): BackendApi = clientFactory(setting)
 
     /**
-     * RikkaHub 对话 → serve 会话路径 的映射（2026-09-12 新增，会话复用）。
+     * RikkaHub Agents 对话 → serve 会话路径 的映射（2026-09-12 新增，会话复用）。
      *
-     * 键用「首条用户消息」的指纹：RikkaHub 新建对话 → 无映射 → `POST /new`；
+     * 键用「首条用户消息」的指纹：RikkaHub Agents 新建对话 → 无映射 → `POST /new`；
      * 同一对话续聊 → 命中映射 → `POST /resume {path}`。
      * 这样既不再每次生成都新建（消除服务端会话碎片），也不会串到别的对话。
      */

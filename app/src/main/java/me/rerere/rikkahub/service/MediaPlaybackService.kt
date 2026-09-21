@@ -204,7 +204,7 @@ class MediaPlaybackService : Service() {
             )
 
         mediaSession =
-            MediaSessionCompat(this, "RikkaHub AgentsMediaSession").apply {
+            MediaSessionCompat(this, "RikkaHub Agents AgentsMediaSession").apply {
                 @Suppress("DEPRECATION") // flags are no-ops on API 26+; harmless on the call site
                 setFlags(
                     MediaSessionCompat.FLAG_HANDLES_MEDIA_BUTTONS or
