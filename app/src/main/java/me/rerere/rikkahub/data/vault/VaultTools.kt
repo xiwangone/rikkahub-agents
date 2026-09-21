@@ -142,7 +142,27 @@ fun vaultCredentialPrepareTool(repository: CredentialVaultRepository): Tool = To
     },
 )
 
-/** 生成 SSH 密钥对并保存到凭证库，返回公钥（可配置到服务器 authorized_keys）。 */
+/** 未指定 name 时的默认凭证名（按类型区分，避免 WireGuard/age 密钥落成 SSH 名字）。 */
+private fun defaultVaultKeyName(type: VaultKeyType): String = when (type) {
+    VaultKeyType.WIREGUARD -> "WIREGUARD_KEY"
+    VaultKeyType.AGE -> "AGE_KEY"
+    else -> "WEB_SSH_KEY"
+}
+
+/** 未指定 group 时的默认分组。 */
+private fun defaultVaultKeyGroup(type: VaultKeyType): String = when (type) {
+    VaultKeyType.WIREGUARD, VaultKeyType.AGE -> "Other"
+    else -> "SSH"
+}
+
+/** 公钥该往哪儿配 —— 按类型给出提示（SSH 与 WireGuard/age 的用法完全不同）。 */
+private fun vaultKeyUsageHint(type: VaultKeyType): String = when (type) {
+    VaultKeyType.WIREGUARD -> "请将该公钥配置到对端 WireGuard（peer 的 PublicKey）："
+    VaultKeyType.AGE -> "age 加密时使用该公钥（-r / recipient）："
+    else -> "请将以下公钥配置到服务器 ~/.ssh/authorized_keys："
+}
+
+/** 生成密钥对并保存到凭证库，返回公钥（SSH 类可配置到服务器 authorized_keys）。 */
 fun vaultGenKeyTool(
     context: android.content.Context,
     repository: CredentialVaultRepository,
@@ -152,6 +172,7 @@ fun vaultGenKeyTool(
         "Generate an SSH key pair, store the private key in the vault, and return the public key " +
             "for the user to configure on a server (e.g. ~/.ssh/authorized_keys). " +
             "Use before vault_ssh_exec when the server is new and has no key yet. " +
+            "Other key types (RSA4096 / ECDSA384 / ECDSA521 / WIREGUARD / AGE) are supported too." +
             "The public key line carries a comment identifying the purpose and RikkaHub Agents as generator.",
     parameters = {
         InputSchema.Obj(
@@ -160,22 +181,35 @@ fun vaultGenKeyTool(
                     put("name", buildJsonObject { put("type", "string"); put("description", "Credential name (default WEB_SSH_KEY)") })
                     put("group", buildJsonObject { put("type", "string"); put("description", "Vault group (default SSH)") })
                     put("comment", buildJsonObject { put("type", "string"); put("description", "Public key comment suffix, e.g. 'pc-main@rikkahub-agents'. Default 'generated@rikkahub-agents'. Always include purpose + @rikkahub-agents for traceability.") })
-                    put("type", buildJsonObject { put("type", "string"); put("description", "Key type: ED25519 (recommended) / RSA / ECDSA (default RSA for backward compat)") })
+                    put("type", buildJsonObject { put("type", "string"); put("description", "Key type: ED25519 (recommended) / RSA / RSA4096 / ECDSA / ECDSA384 / ECDSA521 / WIREGUARD / AGE (default RSA for backward compat)") })
                 },
         )
     },
     execute = { params ->
-        val name = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "WEB_SSH_KEY"
-        val group = params.jsonObject["group"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "SSH"
+        val rawName = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val rawGroup = params.jsonObject["group"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         val rawComment = params.jsonObject["comment"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         val typeStr = params.jsonObject["type"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         val keyType =
             when (typeStr?.uppercase()) {
-                "ED25519" -> SshKeyGenerator.KeyType.ED25519
-                "ECDSA" -> SshKeyGenerator.KeyType.ECDSA
-                "RSA", null -> SshKeyGenerator.KeyType.RSA
-                else -> return@Tool listOf(UIMessagePart.Text("❌ 不支持的 type: $typeStr（可选 ED25519 / RSA / ECDSA）"))
+                "ED25519" -> VaultKeyType.ED25519
+                "ECDSA", "ECDSA256" -> VaultKeyType.ECDSA256
+                "ECDSA384" -> VaultKeyType.ECDSA384
+                "ECDSA521" -> VaultKeyType.ECDSA521
+                "RSA", "RSA2048", null -> VaultKeyType.RSA2048
+                "RSA4096" -> VaultKeyType.RSA4096
+                "WIREGUARD" -> VaultKeyType.WIREGUARD
+                "AGE" -> VaultKeyType.AGE
+                else -> return@Tool listOf(
+                    UIMessagePart.Text(
+                        "❌ 不支持的 type: $typeStr" +
+                            "（可选 ED25519 / RSA / RSA4096 / ECDSA / ECDSA384 / ECDSA521 / WIREGUARD / AGE）",
+                    ),
+                )
             }
+        // 默认名与分组按类型区分，避免 WireGuard/age 密钥落成 SSH 名字
+        val name = rawName ?: defaultVaultKeyName(keyType)
+        val group = rawGroup ?: defaultVaultKeyGroup(keyType)
         // 强制注释带 RikkaHub Agents 标识便于溯源；未指定时默认用途注释
         val comment =
             when {
@@ -183,27 +217,27 @@ fun vaultGenKeyTool(
                 "@rikkahub-agents" in rawComment || "@rikkahub" in rawComment -> rawComment
                 else -> "$rawComment@rikkahub-agents"
             }
-        val key = SshKeyGenerator.generate(keyType, comment)
-        val fp = SshKeyGenerator.fingerprint(key.publicKeyLine) ?: "?"
+        val key = VaultKeyGenerator.generate(keyType, comment)
+        val fp = VaultKeyGenerator.fingerprintOf(key.publicText)
         // 名字统一规范化（AI 传小写/空格也能落库）
         val finalName = CredentialVaultRepository.normalizeName(name)
         repository.save(
             name = finalName,
-            value = key.privateKeyPem,
+            value = key.privateText,
             // 与界面路径的描述保持一致，并带上 RikkaHub Agents 标识便于溯源；
             // 用英文避免硬编码中文（描述会入库并可能被多语言用户看到）
-            description = "SSH key pair (generated by RikkaHub Agents, ${keyType.label}, "
+            description = "Key pair (generated by RikkaHub Agents, ${keyType.label}, "
                 + java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date()) + ")",
             group = group,
-            publicKey = key.publicKeyLine,
+            publicKey = key.publicText,
         )
         repository.logAccess(finalName, "ai-tool", "gen_key")
         listOf(
             UIMessagePart.Text(
                 "✅ 密钥对已生成并保存到凭证库（$finalName）\n" +
-                    "类型：${keyType.label} | 指纹：$fp\n" +
+                    "类型：${keyType.label}" + (fp?.let { " | 指纹：$it" } ?: "") + "\n" +
                     "私钥已在 App 内存中存入 Vault（未落盘明文），公钥存于同条目 publicKey 字段（明文）\n" +
-                    "请将以下公钥配置到服务器 ~/.ssh/authorized_keys：\n${key.publicKeyLine}",
+                    vaultKeyUsageHint(keyType) + "\n${key.publicText}",
             ),
         )
     },
@@ -229,6 +263,7 @@ fun vaultExportEnvTool(
                         buildJsonObject {
                             put("type", "array")
                             put("description", "Credential names to export (default: all)")
+                            put("items", buildJsonObject { put("type", "string") })
                         },
                     )
                 },

@@ -31,7 +31,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
-import me.rerere.rikkahub.data.vault.SshKeyGenerator
+import me.rerere.rikkahub.data.vault.VaultKeyGenerator
+import me.rerere.rikkahub.data.vault.VaultKeyType
 import org.koin.compose.koinInject
 
 /**
@@ -40,7 +41,7 @@ import org.koin.compose.koinInject
  * 用途：需要「生成密钥对 → 私钥存凭证库 → 拿到公钥装到服务器」的所有页面
  * （后端服务页 / SSH 主机页 / 凭证库页等）。
  *
- * 流程：输入凭证名 → 点击生成 → RSA-2048 密钥对生成，
+ * 流程：输入凭证名 → 选择类型（SSH 类或 WireGuard/age）→ 生成，
  * 私钥自动存入凭证库（AES-GCM 加密），公钥显示在对话框内可复制。
  * 生成成功后通过 [onSaved] 回传凭证名，调用方回填 authRef/vaultCredentialRef。
  *
@@ -64,7 +65,7 @@ fun SshKeyPairDialog(
     var name by remember { mutableStateOf(credentialName.ifBlank { "SSH_KEY_${System.currentTimeMillis() % 100000}" }) }
     var group by remember { mutableStateOf(defaultGroup.ifBlank { "SSH" }) }
     var description by remember { mutableStateOf(context.getString(R.string.ssh_key_default_desc)) }
-    var keyType by remember { mutableStateOf(SshKeyGenerator.KeyType.RSA) }
+    var keyType by remember { mutableStateOf(VaultKeyType.RSA2048) }
     var generating by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var publicKey by remember { mutableStateOf<String?>(null) }
@@ -110,7 +111,7 @@ fun SshKeyPairDialog(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        SshKeyGenerator.KeyType.entries.forEach { t ->
+                        VaultKeyType.entries.forEach { t ->
                             OutlinedButton(
                                 onClick = { keyType = t },
                                 enabled = !generating,
@@ -168,7 +169,7 @@ fun SshKeyPairDialog(
                         error = null
                         scope.launch {
                             val result = withContext(Dispatchers.Default) {
-                                runCatching { SshKeyGenerator.generate(keyType) }
+                                runCatching { VaultKeyGenerator.generate(keyType) }
                             }
                             result.onSuccess { pair ->
                                 try {
@@ -176,12 +177,12 @@ fun SshKeyPairDialog(
                                     val finalName = CredentialVaultRepository.normalizeName(name)
                                     repository.save(
                                         name = finalName,
-                                        value = pair.privateKeyPem,
+                                        value = pair.privateText,
                                         description = description.trim().ifBlank { context.getString(R.string.ssh_key_default_desc_with_type, keyType) },
                                         group = group.trim().ifBlank { "SSH" },
-                                        publicKey = pair.publicKeyLine,
+                                        publicKey = pair.publicText,
                                     )
-                                    publicKey = pair.publicKeyLine
+                                    publicKey = pair.publicText
                                     savedName = finalName
                                 } catch (e: Throwable) {
                                     error = context.getString(R.string.ssh_key_save_failed, e.message)

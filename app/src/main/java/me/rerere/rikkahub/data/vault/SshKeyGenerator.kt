@@ -12,10 +12,11 @@ import java.util.Base64
 /**
  * SSH 密钥对生成器（Web 桥 / 凭证库「生成 SSH 密钥」用）。
  *
- * 支持三种算法，私钥统一输出 **PKCS#8 PEM**（"BEGIN PRIVATE KEY"，Bouncy Castle 标准编码）：
- * - RSA-2048：私钥 PKCS#8，公钥 ssh-rsa
+ * 支持 RSA（2048/4096）、Ed25519、ECDSA（nistp256/384/521），私钥统一输出
+ * **PKCS#8 PEM**（"BEGIN PRIVATE KEY"，Bouncy Castle 标准编码），Ed25519 例外（OpenSSH 格式）：
+ * - RSA-2048 / RSA-4096：私钥 PKCS#8，公钥 ssh-rsa
  * - Ed25519：私钥 PKCS#8，公钥 ssh-ed25519（BC 软件生成，可导出）
- * - ECDSA (secp256r1/nistp256)：私钥 PKCS#8，公钥 ecdsa-sha2-nistp256
+ * - ECDSA (secp256r1/384r1/521r1)：私钥 PKCS#8，公钥 ecdsa-sha2-nistp256/nistp384/nistp521
  *
  * PKCS#8 是通用标准，OpenSSH / JSch / haevn 等现代客户端均支持。
  *
@@ -27,14 +28,20 @@ object SshKeyGenerator {
     enum class KeyType(val label: String) {
         ED25519("Ed25519（推荐）"),
         RSA("RSA-2048"),
+        RSA4096("RSA-4096"),
         ECDSA("ECDSA (nistp256)"),
+        ECDSA384("ECDSA (nistp384)"),
+        ECDSA521("ECDSA (nistp521)"),
     }
 
     /** 生成指定类型的密钥对。comment 作为公钥行尾注释，缺省带 RikkaHub Agents 标识。 */
     fun generate(type: KeyType, comment: String = DEFAULT_COMMENT): SshKeyPair = when (type) {
-        KeyType.RSA -> generateRsa(comment)
+        KeyType.RSA -> generateRsa(comment, 2048)
+        KeyType.RSA4096 -> generateRsa(comment, 4096)
         KeyType.ED25519 -> generateEd25519(comment)
-        KeyType.ECDSA -> generateEcdsa(comment)
+        KeyType.ECDSA -> generateEcdsa(comment, "secp256r1", "nistp256", 32)
+        KeyType.ECDSA384 -> generateEcdsa(comment, "secp384r1", "nistp384", 48)
+        KeyType.ECDSA521 -> generateEcdsa(comment, "secp521r1", "nistp521", 66)
     }
 
     /** 默认生成 RSA-2048（兼容旧调用）。 */
@@ -50,9 +57,9 @@ object SshKeyGenerator {
 
     // ================= RSA =================
 
-    private fun generateRsa(comment: String): SshKeyPair {
+    private fun generateRsa(comment: String, bits: Int): SshKeyPair {
         val gen = KeyPairGenerator.getInstance("RSA")
-        gen.initialize(2048)
+        gen.initialize(bits)
         val pair = gen.generateKeyPair()
         val pub = pair.public as RSAPublicKey
         return SshKeyPair(
@@ -129,33 +136,39 @@ object SshKeyGenerator {
         return "-----BEGIN OPENSSH PRIVATE KEY-----\n$b64\n-----END OPENSSH PRIVATE KEY-----\n"
     }
 
-    // ================= ECDSA (secp256r1) =================
+    // ================= ECDSA =================
 
-    private fun generateEcdsa(comment: String): SshKeyPair {
+    /**
+     * ECDSA 密钥对。curveSpec 为 JCA 曲线名（secp256r1/secp384r1/secp521r1），
+     * sshCurve 为 OpenSSH 曲线名（nistp256/384/521），fieldBytes 为坐标定长字节数（32/48/66）。
+     */
+    private fun generateEcdsa(comment: String, curveSpec: String, sshCurve: String, fieldBytes: Int): SshKeyPair {
         val gen = KeyPairGenerator.getInstance("EC")
-        gen.initialize(ECGenParameterSpec("secp256r1"))
+        gen.initialize(ECGenParameterSpec(curveSpec))
         val pair = gen.generateKeyPair()
         val pub = pair.public as ECPublicKey
 
-        // 公钥点：0x04 + X + Y（各 32 字节）
-        val x = fixed32(pub.w.affineX.toByteArray())
-        val y = fixed32(pub.w.affineY.toByteArray())
+        // 公钥点：0x04 + X + Y（各 fieldBytes 字节）
+        val x = fixedSize(pub.w.affineX.toByteArray(), fieldBytes)
+        val y = fixedSize(pub.w.affineY.toByteArray(), fieldBytes)
         val point = byteArrayOf(0x04) + x + y
 
-        val pubBlob = sshString("ecdsa-sha2-nistp256".encodeToByteArray()) +
-            sshString("nistp256".encodeToByteArray()) +
+        val keyTypeName = "ecdsa-sha2-$sshCurve"
+        val pubBlob = sshString(keyTypeName.encodeToByteArray()) +
+            sshString(sshCurve.encodeToByteArray()) +
             sshString(point)
 
         return SshKeyPair(
             privateKeyPem = toPkcs8Pem(pair.private),
-            publicKeyLine = "ecdsa-sha2-nistp256 ${b64(pubBlob)} $comment",
+            publicKeyLine = "$keyTypeName ${b64(pubBlob)} $comment",
         )
     }
 
-    private fun fixed32(b: ByteArray): ByteArray {
-        val out = ByteArray(32)
-        val src = if (b.size > 32) b.copyOfRange(b.size - 32, b.size) else b
-        System.arraycopy(src, 0, out, 32 - src.size, src.size)
+    /** BigInteger 坐标 → 定长大端字节。 */
+    private fun fixedSize(b: ByteArray, size: Int): ByteArray {
+        val out = ByteArray(size)
+        val src = if (b.size > size) b.copyOfRange(b.size - size, b.size) else b
+        System.arraycopy(src, 0, out, size - src.size, src.size)
         return out
     }
 
