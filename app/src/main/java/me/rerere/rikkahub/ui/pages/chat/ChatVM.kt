@@ -37,11 +37,7 @@ import me.rerere.ai.ui.isEmptyInputMessage
 
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.costguards.LifetimeUsage
-import me.rerere.rikkahub.costguards.MessageUsageSnapshot
 import me.rerere.rikkahub.costguards.TokenBudgetTracker
-import me.rerere.rikkahub.costguards.baselineLifetimeUsage
-import me.rerere.rikkahub.costguards.settleLifetimeUsage
-import me.rerere.rikkahub.costguards.usageFingerprint
 import me.rerere.rikkahub.data.ai.ContextBudgetPlanner
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -96,67 +92,22 @@ class ChatVM(
             .stateIn(viewModelScope, SharingStarted.Eagerly, TokenBudgetTracker.aggregate(conversation.value))
 
     /**
-     * 会话**累计**用量（与上下文压缩解耦）：按消息粒度结算并持久化（见 [settleLifetimeUsage]）。
-     * 读出时再对命中量做一次收敛，保证「命中 ≤ 输入」（长期未打开过的旧记录也不会显示 >100%）。
+     * 会话**累计**用量：由「每次请求上报」事件驱动累加（见 `LifetimeUsage`），这里只读取并收敛显示。
+     * 读出时把命中量收敛到输入量，保证「命中 ≤ 输入」（历史脏记录也不会显示 >100%）。
      */
     val lifetimeTotals: StateFlow<LifetimeUsage?> =
         conversation
-            .transformLatest { conv ->
-                runCatching { syncLifetimeUsage(conv) }
+            .transformLatest {
                 emit(
                     settingsStore
                         .getConvLifetimeUsage(_conversationId.toString())
-                        ?.let { it.copy(cachedTokens = it.cachedTokens.coerceAtMost(it.inputTokens)) },
+                        ?.let { usage ->
+                            usage.copy(cachedTokens = usage.cachedTokens.coerceAtMost(usage.inputTokens))
+                        },
                 )
             }
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    /**
-     * 已计入的请求指纹（仅内存）。一次回复里的多步工具调用共用同一条消息、usage 被覆盖式写入，
-     * 所以按「消息 + usage」指纹去重，才能让**每次请求各计一次**（对齐平台账单口径）。
-     * 重启或 ViewModel 重建后按当前消息重建，不会把历史请求重复计入。
-     */
-    private val lifetimeSeenUsage = mutableSetOf<String>()
-
-    /** 当前分支「消息 id → usage」快照。 */
-    private fun collectUsageSnapshots(
-        conversation: Conversation,
-    ): LinkedHashMap<String, MessageUsageSnapshot> {
-        val current = LinkedHashMap<String, MessageUsageSnapshot>()
-        conversation.messageNodes.forEach { node ->
-            val msg = node.messages.getOrNull(node.selectIndex) ?: return@forEach
-            val usage = msg.usage ?: return@forEach
-            current[msg.id.toString()] =
-                MessageUsageSnapshot(
-                    input = usage.promptTokens.toLong(),
-                    cached = usage.cachedTokens.coerceAtMost(usage.promptTokens).toLong(),
-                    output = usage.completionTokens.toLong(),
-                    cost = usage.cost ?: 0.0,
-                )
-        }
-        return current
-    }
-
-    private suspend fun syncLifetimeUsage(conversation: Conversation) {
-        val id = _conversationId.toString()
-        val current = collectUsageSnapshots(conversation)
-        val prev = settingsStore.getConvLifetimeUsage(id)
-        if (prev == null || !prev.hasBaseline) {
-            // 首次见到该会话（或旧版本遗留记录）：登记基线、保留已有累计，历史请求不重复计入
-            val seeded = prev?.copy(hasBaseline = true) ?: baselineLifetimeUsage(current)
-            lifetimeSeenUsage.clear()
-            current.forEach { (messageId, snapshot) ->
-                lifetimeSeenUsage += usageFingerprint(messageId, snapshot)
-            }
-            settingsStore.setConvLifetimeUsage(id, seeded)
-            return
-        }
-        val next = settleLifetimeUsage(prev, lifetimeSeenUsage, current)
-        if (next != prev) settingsStore.setConvLifetimeUsage(id, next)
-        current.forEach { (messageId, snapshot) ->
-            lifetimeSeenUsage += usageFingerprint(messageId, snapshot)
-        }
-    }
     var chatListInitialized by mutableStateOf(false) // 聊天列表是否已经滚动到底部
 
     // 聊天输入状态 - 保存在 ViewModel 中避免 TransactionTooLargeException

@@ -43,6 +43,7 @@ import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.providers.openai.ResponseStreamErrorException
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
+import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.StreamChunk
@@ -380,6 +381,17 @@ sealed interface GenerationChunk {
     data class Messages(
         val messages: List<UIMessage>
     ) : GenerationChunk
+
+    /**
+     * 一次 API 请求的用量（每次请求上报一次，用于会话累计）。
+     *
+     * 为什么单独上报：一轮里的多步工具调用共用同一条 assistant 消息、usage 被后来的请求覆盖，
+     * 事后扫消息只能看到最后一次 → 用量统计会少算数倍。所以请求完成即上报，由上层累加
+     * （与主流客户端一致）。该事件不参与 UI 节流。
+     */
+    data class UsageIncurred(
+        val usage: TokenUsage
+    ) : GenerationChunk
 }
 
 private const val TAG_GH_LOOP = "GenHandlerLoop"
@@ -648,6 +660,8 @@ class GenerationLoop(
         // 由 step 边界 / 生成结束补齐；任何"直接投递"点都会把它清空，避免旧快照回退内容。
         var lastOutputFlushAtMs = 0L
         var pendingOutputMessages: List<UIMessage>? = null
+        // 已上报过的请求用量（去重：同一跳会被多次回调，但只应计一次）
+        var reportedUsage: TokenUsage? = null
         // 增量输出变换缓存（见 visualTransformsIncremental）：按 step 隔离，
         // 历史消息段复用上次结果，单块成本从 O(消息数) 降到 O(1)。
         val outputTransformCache = OutputTransformCache()
@@ -749,6 +763,13 @@ class GenerationLoop(
                         systemAddendum = systemAddendum,
                         messages = messages,
                         onUpdateMessages = {
+                            // 每次请求的用量单独上报（不受下方 UI 提交节流影响）：见 GenerationChunk.UsageIncurred
+                            it.lastOrNull { message -> message.usage != null }?.usage?.let { incurred ->
+                                if (incurred != reportedUsage) {
+                                    reportedUsage = incurred
+                                    emit(GenerationChunk.UsageIncurred(incurred))
+                                }
+                            }
                             val nowFlushMs = android.os.SystemClock.elapsedRealtime()
                             if (nowFlushMs - lastOutputFlushAtMs >= renderProfile.outputFlushIntervalMs) {
                                 lastOutputFlushAtMs = nowFlushMs

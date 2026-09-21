@@ -1322,6 +1322,13 @@ class ChatService(
                     }
                 }.collect { chunk ->
                     when (chunk) {
+                        is GenerationChunk.UsageIncurred -> {
+                            // 会话累计用量：每次请求各计一次（口径同平台账单）
+                            runCatching {
+                                settingsStore.accumulateConvUsage(conversationId.toString(), chunk.usage)
+                            }
+                        }
+
                         is GenerationChunk.Messages -> {
                             val updatedConversation =
                                 getConversationFlow(conversationId)

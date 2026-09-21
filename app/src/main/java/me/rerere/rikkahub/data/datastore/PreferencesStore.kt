@@ -31,7 +31,10 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.subagent.SubAgentProfile
 import me.rerere.rikkahub.AppScope
+import me.rerere.ai.core.TokenUsage
 import me.rerere.rikkahub.costguards.LifetimeUsage
+import me.rerere.rikkahub.costguards.MessageUsageSnapshot
+import me.rerere.rikkahub.costguards.accumulateLifetimeUsage
 import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_COMPRESS_PROMPT
@@ -765,6 +768,28 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             val raw = dataStore.data.first()[CONV_LIFETIME_USAGE] ?: return null
             JsonInstant.decodeFromString<Map<String, LifetimeUsage>>(raw)[conversationId]
         }.getOrNull()
+
+    /**
+     * 累加**一次请求**的用量（事件驱动：每次 API 请求各计一次，口径同平台账单）。
+     *
+     * 调用点在每次请求收到 usage 时（见 `GenerationChunk.UsageIncurred` 及其消费处）—— 不走
+     * 「事后扫消息」，因为一轮里的多步工具调用共用同一条消息、usage 被覆盖写入，那样会少算数倍。
+     */
+    suspend fun accumulateConvUsage(conversationId: String, usage: TokenUsage) {
+        val prev = getConvLifetimeUsage(conversationId) ?: LifetimeUsage()
+        setConvLifetimeUsage(
+            conversationId,
+            accumulateLifetimeUsage(
+                prev,
+                MessageUsageSnapshot(
+                    input = usage.promptTokens.toLong(),
+                    cached = usage.cachedTokens.coerceAtMost(usage.promptTokens).toLong(),
+                    output = usage.completionTokens.toLong(),
+                    cost = usage.cost ?: 0.0,
+                ),
+            ),
+        )
+    }
 
     /** 写入某会话的累计用量；只保留最近 [LIFETIME_KEEP] 个会话，避免无界增长。 */
     suspend fun setConvLifetimeUsage(conversationId: String, usage: LifetimeUsage) {
