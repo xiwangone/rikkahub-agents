@@ -87,6 +87,18 @@ class ChatVM(
     val pendingQueue: StateFlow<MessageQueueState> =
         chatService.messageQueueState(_conversationId)
 
+    /**
+     * 语音模式会话控制器（跨重组/旋转保持，因为放在 ViewModel 里）。
+     *
+     * 语音不自己持有队列：它只是往聊天队列投递消息（[ChatService.enqueueVoiceMessage]），
+     * 再按提交顺序朗读拿到的回复文本。
+     */
+    val voiceSession = VoiceSessionController(
+        sessionScope = viewModelScope,
+        stringProvider = { context.getString(it) },
+        enqueueMessage = { text -> chatService.enqueueVoiceMessage(_conversationId, text) },
+    )
+
     fun removeQueuedMessage(id: Uuid) = chatService.removeQueuedMessage(_conversationId, id)
 
     fun beginEditQueuedMessage(id: Uuid) = chatService.beginEditQueuedMessage(_conversationId, id)

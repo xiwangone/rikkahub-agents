@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.service
 
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import me.rerere.ai.ui.UIMessagePart
@@ -15,7 +16,15 @@ data class QueuedMessage(
     val answer: Boolean = true,
     /** 编辑中的条目不参与派发。 */
     val isEditing: Boolean = false,
+    /**
+     * 可选的旁观者（语音模式用）：本轮真正发完后给出助手回复文本；
+     * 值 [null] 表示该条目被撤销 / 被移出队列（不会有回复）。
+     */
+    val reply: CompletableDeferred<String?>? = null,
 )
+
+/** 队列被暂停时，等待回复的语音调用以此区分「暂停」与「生成失败」。 */
+class MessageQueuePausedException : IllegalStateException()
 
 /** 队列状态：待发送条目 + 是否暂停派发。 */
 data class MessageQueueState(
@@ -61,10 +70,18 @@ class MessageQueue {
     fun enqueue(
         parts: List<UIMessagePart>,
         answer: Boolean = true,
+        reply: CompletableDeferred<String?>? = null,
     ) {
-        if (parts.isEmptyInputMessage()) return
+        if (parts.isEmptyInputMessage()) {
+            reply?.complete(null)
+            return
+        }
         mutableState.value = mutableState.value.copy(
-            messages = mutableState.value.messages + QueuedMessage(parts = parts.toList(), answer = answer),
+            messages = mutableState.value.messages + QueuedMessage(
+                parts = parts.toList(),
+                answer = answer,
+                reply = reply,
+            ),
         )
     }
 
@@ -85,6 +102,8 @@ class MessageQueue {
         mutableState.value = mutableState.value.copy(
             messages = mutableState.value.messages.filterNot { it.id == id },
         )
+        // 已撤销的条目不可能再产生回复 —— 让等待者拿 null 而不是永久挂起
+        removed.reply?.complete(null)
         return removed
     }
 
@@ -122,6 +141,15 @@ class MessageQueue {
     @Synchronized
     fun pause() {
         mutableState.value = mutableState.value.copy(paused = true)
+        // 等待回复的语音调用需要立即得知「已暂停」，否则会一直等下去
+        mutableState.value.messages.forEach { it.reply?.completeExceptionally(MessageQueuePausedException()) }
+    }
+
+    /** 因外部阻塞（如待审批工具）让等待中的语音调用立即失败，条目本身保留在队列里。 */
+    fun failReplyWaiters(message: String) {
+        mutableState.value.messages.forEach {
+            it.reply?.completeExceptionally(IllegalStateException(message))
+        }
     }
 
     /** 恢复派发（面板上的「继续发送」）。 */

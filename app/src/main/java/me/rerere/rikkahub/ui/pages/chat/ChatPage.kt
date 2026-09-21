@@ -74,6 +74,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
+import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
@@ -168,6 +169,9 @@ fun ChatPage(
         }
     }
 
+    // 语音模式启动器（放在自适应抽屉分支之上：窗口尺寸变化不重建会话）
+    val startVoiceMode = rememberVoiceModeStarter(vm, setting)
+
     val inputState = vm.inputState
 
     // 初始化输入状态（处理传入的 files 和 text 参数）
@@ -228,6 +232,7 @@ fun ChatPage(
                 },
             ) {
                 ChatPageContent(
+                    onStartVoiceMode = startVoiceMode,
                     inputState = inputState,
                     loadingJob = loadingJob,
                     processingStatus = processingStatus,
@@ -260,6 +265,7 @@ fun ChatPage(
                 },
             ) {
                 ChatPageContent(
+                    onStartVoiceMode = startVoiceMode,
                     inputState = inputState,
                     loadingJob = loadingJob,
                     processingStatus = processingStatus,
@@ -318,6 +324,7 @@ fun ChatPage(
 
 @Composable
 private fun ChatPageContent(
+    onStartVoiceMode: () -> Unit,
     inputState: ChatInputState,
     loadingJob: Job?,
     processingStatus: String? = null,
@@ -338,6 +345,7 @@ private fun ChatPageContent(
     val lifetimeTotals by vm.lifetimeTotals.collectAsStateWithLifecycle()
     // 待发送队列长度：> 0 时输入区上方显示「待发送 N 条」
     val pendingQueue by vm.pendingQueue.collectAsStateWithLifecycle()
+    val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
     val context = LocalContext.current
@@ -477,6 +485,9 @@ private fun ChatPageContent(
                     onBeginEditQueuedMessage = vm::beginEditQueuedMessage,
                     onFinishEditQueuedMessage = vm::finishEditQueuedMessage,
                     onResumeMessageQueue = vm::resumeMessageQueue,
+                    onStartVoiceMode = onStartVoiceMode,
+                    voiceState = voiceState,
+                    onStopVoiceMode = vm.voiceSession::stop,
                     settings = setting,
                     hazeState = hazeState,
                     completionProviders = completionProviders,
@@ -661,6 +672,11 @@ private fun ChatPageContent(
                 conversation = conversation,
                 assistant = assistant,
                 vm = vm,
+                onStartVoiceMode = if (setting.getSelectedASRProvider()?.supportsServerVadVoiceMode == true) {
+                    onStartVoiceMode
+                } else {
+                    null
+                },
                 onDismiss = { showFilesSheet = false },
             )
         }
@@ -760,6 +776,7 @@ private fun ChatFilesPickerSheet(
     conversation: Conversation,
     assistant: Assistant,
     vm: ChatVM,
+    onStartVoiceMode: (() -> Unit)? = null,
     onDismiss: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -969,6 +986,12 @@ private fun ChatFilesPickerSheet(
             onPickVideo = { videoPickerLauncher.launch("video/*") },
             onPickAudio = { audioPickerLauncher.launch("audio/*") },
             onPickFile = { filePickerLauncher.launch(arrayOf("*/*")) },
+            onStartVoiceMode = onStartVoiceMode?.let { start ->
+                {
+                    onDismiss()
+                    start()
+                }
+            },
         )
     }
 

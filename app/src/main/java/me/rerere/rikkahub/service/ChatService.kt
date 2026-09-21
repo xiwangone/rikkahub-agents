@@ -10,6 +10,8 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.ProcessLifecycleOwner
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlin.coroutines.coroutineContext
@@ -18,6 +20,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.coroutines.completeWith
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -306,6 +309,28 @@ class ChatService(
     /** 供 UI 观察某会话的待发送队列。 */
     fun messageQueueState(conversationId: Uuid): StateFlow<MessageQueueState> =
         messageQueues.getOrPut(conversationId) { MessageQueue() }.state
+
+    /**
+     * 语音模式：投递一条语音消息到聊天队列，返回「本轮助手回复文本」的等待句柄。
+     *
+     * 与普通发送的两点不同：① 即使当前空闲也先入队，保证语音的提交顺序与朗读顺序一致；
+     * ② 本轮结束后把回复文本交给调用方（由语音去朗读），不再发普通自动播报事件，避免重复。
+     */
+    fun enqueueVoiceMessage(conversationId: Uuid, text: String): Deferred<String?> {
+        val reply = CompletableDeferred<String?>()
+        messageQueues.getOrPut(conversationId) { MessageQueue() }
+            .enqueue(listOf(UIMessagePart.Text(text)), answer = true, reply = reply)
+        dispatchNextQueuedMessage(conversationId)
+        return reply
+    }
+
+    /** 取最近一条助手回复文本（语音朗读用）；无回复时返回 null。 */
+    private fun collectAssistantReply(conversationId: Uuid): String? =
+        getConversationFlow(conversationId).value.currentMessages
+            .lastOrNull { it.role == MessageRole.ASSISTANT }
+            ?.toText()
+            ?.trim()
+            ?.takeIf { it.isNotEmpty() }
 
     /** 撤销一条待发送消息，并清理它独占的附件。 */
     fun removeQueuedMessage(conversationId: Uuid, messageId: Uuid) {
@@ -633,13 +658,14 @@ class ChatService(
         if (pendingToolExists) return
         val next = queue.takeNext() ?: return
         AppLog.i(TAG, "msg-dequeue conv=$conversationId remaining=${queue.size}")
-        sendMessageNow(conversationId, next.parts, next.answer)
+        sendMessageNow(conversationId, next.parts, next.answer, next.reply)
     }
 
     private fun sendMessageNow(
         conversationId: Uuid,
         content: List<UIMessagePart>,
         answer: Boolean = true,
+        reply: CompletableDeferred<String?>? = null,
     ) {
 
         // 消息事件日志（只记事件 + 会话 id，不记文本，隐私边界）
@@ -712,8 +738,14 @@ class ChatService(
                     }
 
                     AppLog.i(TAG, "msg-done conv=$conversationId routed=$routedHandled")
-                    _generationDoneFlow.emit(conversationId)
+                    if (reply != null) {
+                        // 语音模式：把本轮助手回复交给等待者；有等待者时不再发普通自动播报事件
+                        reply.completeWith(runCatching { collectAssistantReply(conversationId) })
+                    } else {
+                        _generationDoneFlow.emit(conversationId)
+                    }
                 } catch (e: Exception) {
+                    reply?.completeExceptionally(e)
                     if (e is CancellationException) {
                         // 协程取消：新消息打断/会话切换，不算失败
                         AppLog.i(TAG, "msg-cancel conv=$conversationId") // 已在上方 previousJob 取消处记录，此处仅兜底
