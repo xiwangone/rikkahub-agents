@@ -135,6 +135,17 @@ android {
         generateLocaleConfig = true
     }
     packaging {
+        resources {
+            // 多个 Bouncy Castle jar（bcprov / bcpg / bcpkix）各自携带 multi-release 元数据与
+            // 许可文件，同名条目在 release 打包时冲突（debug 编译与单测不走这条路径，因此只有
+            // 出包才暴露）。这些条目对运行时无用，直接排除。
+            excludes += "/META-INF/versions/9/module-info.class"
+            excludes += "/META-INF/versions/**"
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "/META-INF/LICENSE*"
+            excludes += "/META-INF/NOTICE*"
+            excludes += "/META-INF/DEPENDENCIES"
+        }
         jniLibs {
             useLegacyPackaging = true
             pickFirsts += "lib/*/libtermux.so"
