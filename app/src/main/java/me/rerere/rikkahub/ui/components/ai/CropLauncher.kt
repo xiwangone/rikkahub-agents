@@ -75,7 +75,9 @@ internal fun useCropLauncher(
                             UCropActivity.ROTATE,
                             UCropActivity.NONE,
                         )
-                        setCompressionFormat(Bitmap.CompressFormat.PNG)
+                        // 输出文件为 .jpg，大图走 PNG 编码开销高且无收益，改用 JPEG 让裁剪确认更快
+                        setCompressionFormat(Bitmap.CompressFormat.JPEG)
+                        setCompressionQuality(90)
                     },
                 ).withMaxResultSize(4096, 4096)
         aspectRatio?.let { (x, y) ->

@@ -145,6 +145,8 @@ private fun SwipeableFavoriteCard(
     LaunchedEffect(dismissState.currentValue) {
         when (dismissState.currentValue) {
             SwipeToDismissBoxValue.EndToStart -> {
+                // 先复位滑动状态，避免撤销恢复后仍停留在已滑出状态
+                dismissState.reset()
                 onDelete()
             }
 
