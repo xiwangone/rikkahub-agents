@@ -26,6 +26,8 @@ enum class VaultKeyType(val label: String) {
     WIREGUARD("WireGuard (X25519)"),
     AGE("age (X25519)"),
     OPENPGP("OpenPGP (Ed25519)"),
+    X509_CERT("X.509 self-signed"),
+    X509_CSR("PKCS#10 CSR"),
 }
 
 /**
@@ -51,7 +53,7 @@ object VaultKeyGenerator {
     fun generate(
         type: VaultKeyType,
         comment: String = SshKeyGenerator.DEFAULT_COMMENT,
-        uid: String = OpenPgpKeyGenerator.DEFAULT_UID,
+        uid: String = "",
     ): GeneratedKey = when (type) {
         VaultKeyType.ED25519 -> ssh(SshKeyGenerator.KeyType.ED25519, comment)
         VaultKeyType.RSA2048 -> ssh(SshKeyGenerator.KeyType.RSA, comment)
@@ -61,7 +63,9 @@ object VaultKeyGenerator {
         VaultKeyType.ECDSA521 -> ssh(SshKeyGenerator.KeyType.ECDSA521, comment)
         VaultKeyType.WIREGUARD -> wireGuard()
         VaultKeyType.AGE -> age()
-        VaultKeyType.OPENPGP -> openPgp(uid)
+        VaultKeyType.OPENPGP -> openPgp(uid.ifBlank { OpenPgpKeyGenerator.DEFAULT_UID })
+        VaultKeyType.X509_CERT -> certificateKey(X509KeyGenerator.Kind.SELF_SIGNED_CERTIFICATE, uid)
+        VaultKeyType.X509_CSR -> certificateKey(X509KeyGenerator.Kind.CSR, uid)
     }
 
     /** 该公钥是否有 OpenSSH 风格指纹可展示（非 SSH 类型没有，返回 null）。 */
@@ -109,5 +113,11 @@ object VaultKeyGenerator {
             privateText = Bech32.encode(AGE_SECRET_HRP, private).uppercase(),
             publicText = Bech32.encode(AGE_PUBLIC_HRP, public),
         )
+    }
+
+    /** X.509 家族用 uid 参数承载 Subject（`CN=host, O=Org`；只写一个名字时按 CN 处理）。 */
+    private fun certificateKey(kind: X509KeyGenerator.Kind, subject: String): GeneratedKey {
+        val key = X509KeyGenerator.generate(kind, subject.ifBlank { X509KeyGenerator.DEFAULT_SUBJECT })
+        return GeneratedKey(privateText = key.privateKeyPem, publicText = key.publicText)
     }
 }

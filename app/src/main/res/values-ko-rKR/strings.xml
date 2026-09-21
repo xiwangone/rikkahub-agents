@@ -2148,6 +2148,7 @@
   <string name="setting_vault_title">자격 증명 보관소</string>
   <string name="setting_page_vault">자격 증명 보관소</string>
   <string name="setting_page_vault_desc">API 키와 각종 자격 증명을 안전하게 관리</string>
+  <string name="vault_x509_subject_label">주체 (CN=호스트, O=조직)</string>
   <string name="vault_openpgp_uid_label">사용자 ID (이름 &lt;이메일&gt;)</string>
   <string name="vault_generate_token">임의 토큰</string>
   <string name="vault_generate_password">임의 비밀번호</string>

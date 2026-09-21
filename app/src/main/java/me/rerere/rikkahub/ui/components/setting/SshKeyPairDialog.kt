@@ -31,7 +31,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
-import me.rerere.rikkahub.data.vault.OpenPgpKeyGenerator
 import me.rerere.rikkahub.data.vault.VaultKeyGenerator
 import me.rerere.rikkahub.data.vault.VaultKeyType
 import org.koin.compose.koinInject
@@ -67,7 +66,8 @@ fun SshKeyPairDialog(
     var group by remember { mutableStateOf(defaultGroup.ifBlank { "SSH" }) }
     var description by remember { mutableStateOf(context.getString(R.string.ssh_key_default_desc)) }
     var keyType by remember { mutableStateOf(VaultKeyType.RSA2048) }
-    var uid by remember { mutableStateOf(OpenPgpKeyGenerator.DEFAULT_UID) }
+    // OpenPGP 的 UID / X.509 的 Subject；留空时由生成器按类型取默认值
+    var uid by remember { mutableStateOf("") }
     var generating by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<String?>(null) }
     var publicKey by remember { mutableStateOf<String?>(null) }
@@ -124,12 +124,17 @@ fun SshKeyPairDialog(
                             ) { Text(t.label) }
                         }
                     }
-                    // OpenPGP 需要身份信息（UID）才能生成自签名 —— SSH / WireGuard / age 不需要
-                    if (keyType == VaultKeyType.OPENPGP) {
+                    // 只有需要身份的密钥类型才显示该输入：OpenPGP 用 UID，X.509 用 Subject（CN）
+                    val identityLabel = when (keyType) {
+                        VaultKeyType.OPENPGP -> R.string.vault_openpgp_uid_label
+                        VaultKeyType.X509_CERT, VaultKeyType.X509_CSR -> R.string.vault_x509_subject_label
+                        else -> null
+                    }
+                    if (identityLabel != null) {
                         OutlinedTextField(
                             value = uid,
                             onValueChange = { uid = it },
-                            label = { Text(stringResource(R.string.vault_openpgp_uid_label)) },
+                            label = { Text(stringResource(identityLabel)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )

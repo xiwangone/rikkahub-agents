@@ -2249,6 +2249,7 @@
   <string name="setting_vault_title">安全凭证库</string>
   <string name="setting_page_vault">安全凭证库</string>
   <string name="setting_page_vault_desc">安全管理 API 密钥与各类凭证</string>
+  <string name="vault_x509_subject_label">证书主体（CN=主机名, O=组织）</string>
   <string name="vault_openpgp_uid_label">用户标识（姓名 &lt;邮箱&gt;）</string>
   <string name="vault_generate_token">随机 Token</string>
   <string name="vault_generate_password">随机密码</string>

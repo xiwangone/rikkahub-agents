@@ -2284,6 +2284,7 @@
   <string name="setting_vault_title">Credential Vault</string>
   <string name="setting_page_vault">Credential Vault</string>
   <string name="setting_page_vault_desc">Manage API keys and credentials securely</string>
+  <string name="vault_x509_subject_label">Subject (CN=host, O=Org)</string>
   <string name="vault_openpgp_uid_label">User ID (Name &lt;email&gt;)</string>
   <string name="vault_generate_token">Random token</string>
   <string name="vault_generate_password">Random password</string>

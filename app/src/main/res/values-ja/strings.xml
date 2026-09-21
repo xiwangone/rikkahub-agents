@@ -2148,6 +2148,7 @@
   <string name="setting_vault_title">資格情報庫</string>
   <string name="setting_page_vault">資格情報庫</string>
   <string name="setting_page_vault_desc">API キーや各種資格情報を安全に管理</string>
+  <string name="vault_x509_subject_label">サブジェクト（CN=ホスト名, O=組織）</string>
   <string name="vault_openpgp_uid_label">ユーザー ID（名前 &lt;メール&gt;）</string>
   <string name="vault_generate_token">ランダムトークン</string>
   <string name="vault_generate_password">ランダムパスワード</string>

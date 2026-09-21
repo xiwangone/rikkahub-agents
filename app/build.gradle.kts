@@ -378,6 +378,8 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     // OpenPGP（GPG）密钥环生成与 armored 导出（凭证库「生成密钥」用）
     implementation("org.bouncycastle:bcpg-jdk18on:1.86")
+    // X.509 自签证书 / PKCS#10 CSR 生成（凭证库「生成密钥」用）
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
 
     // Cron utilities (expression parsing & validation)
     implementation("com.cronutils:cron-utils:9.2.1")

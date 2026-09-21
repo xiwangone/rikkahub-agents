@@ -2141,6 +2141,7 @@
   <string name="setting_vault_title">Хранилище учётных данных</string>
   <string name="setting_page_vault">Хранилище учётных данных</string>
   <string name="setting_page_vault_desc">Безопасное управление API-ключами и учётными данными</string>
+  <string name="vault_x509_subject_label">Субъект (CN=узел, O=организация)</string>
   <string name="vault_openpgp_uid_label">Идентификатор (Имя &lt;почта&gt;)</string>
   <string name="vault_generate_token">Случайный токен</string>
   <string name="vault_generate_password">Случайный пароль</string>
