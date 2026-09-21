@@ -925,6 +925,12 @@
   <string name="setting_provider_page_balance_api_path">餘額 API 路徑</string>
   <string name="setting_provider_page_balance_info">取得帳戶餘額</string>
   <string name="setting_provider_page_balance_json_key">結果 JSON 鍵值</string>
+  <string name="setting_provider_page_balance_fields">餘額顯示項（多行）</string>
+  <string name="setting_provider_page_balance_add_field">新增一項</string>
+  <string name="setting_provider_page_balance_field_label">標籤</string>
+  <string name="setting_provider_page_balance_field_path">JSON 運算式</string>
+  <string name="setting_provider_page_balance_field_unit">單位</string>
+  <string name="setting_provider_page_balance_field_suffix">後綴</string>
   <string name="setting_provider_page_basic_settings">基本設定</string>
   <string name="setting_provider_page_chat_model">聊天</string>
   <string name="setting_provider_page_claude_prompt_cache_ttl">提示快取時長</string>

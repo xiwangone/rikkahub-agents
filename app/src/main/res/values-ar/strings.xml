@@ -930,6 +930,12 @@
   <string name="setting_provider_page_balance_api_path">مسار API للرصيد</string>
   <string name="setting_provider_page_balance_info">\"الحصول على رصيد الحساب \"</string>
   <string name="setting_provider_page_balance_json_key">مفتاح Json للنتيجة</string>
+  <string name="setting_provider_page_balance_fields">حقول الرصيد (متعددة الأسطر)</string>
+  <string name="setting_provider_page_balance_add_field">إضافة حقل</string>
+  <string name="setting_provider_page_balance_field_label">التسمية</string>
+  <string name="setting_provider_page_balance_field_path">تعبير JSON</string>
+  <string name="setting_provider_page_balance_field_unit">الوحدة</string>
+  <string name="setting_provider_page_balance_field_suffix">اللاحقة</string>
   <string name="setting_provider_page_basic_settings">الإعدادات الأساسية</string>
   <string name="setting_provider_page_chat_model">دردشة</string>
   <string name="setting_provider_page_claude_prompt_caching">التخزين المؤقت للتوجيهات (cache_control)</string>

@@ -924,6 +924,12 @@
   <string name="setting_provider_page_balance_api_path">残高APIパス</string>
   <string name="setting_provider_page_balance_info">アカウント残高を取得</string>
   <string name="setting_provider_page_balance_json_key">結果のJsonキー</string>
+  <string name="setting_provider_page_balance_fields">残高表示項目（複数行）</string>
+  <string name="setting_provider_page_balance_add_field">項目を追加</string>
+  <string name="setting_provider_page_balance_field_label">ラベル</string>
+  <string name="setting_provider_page_balance_field_path">JSON 式</string>
+  <string name="setting_provider_page_balance_field_unit">単位</string>
+  <string name="setting_provider_page_balance_field_suffix">接尾辞</string>
   <string name="setting_provider_page_basic_settings">基本設定</string>
   <string name="setting_provider_page_chat_model">チャット</string>
   <string name="setting_provider_page_claude_prompt_cache_ttl">プロンプトキャッシュ TTL</string>

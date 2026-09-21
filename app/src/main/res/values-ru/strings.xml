@@ -917,6 +917,12 @@
   <string name="setting_provider_page_balance_api_path">Путь API баланса</string>
   <string name="setting_provider_page_balance_info">Получить баланс аккаунта</string>
   <string name="setting_provider_page_balance_json_key">Ключ результата JSON</string>
+  <string name="setting_provider_page_balance_fields">Поля баланса (несколько строк)</string>
+  <string name="setting_provider_page_balance_add_field">Добавить поле</string>
+  <string name="setting_provider_page_balance_field_label">Метка</string>
+  <string name="setting_provider_page_balance_field_path">Выражение JSON</string>
+  <string name="setting_provider_page_balance_field_unit">Единица</string>
+  <string name="setting_provider_page_balance_field_suffix">Суффикс</string>
   <string name="setting_provider_page_basic_settings">Основные настройки</string>
   <string name="setting_provider_page_chat_model">Чат</string>
   <string name="setting_provider_page_claude_prompt_cache_ttl">TTL кэша промпта</string>

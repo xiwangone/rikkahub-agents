@@ -924,6 +924,12 @@
   <string name="setting_provider_page_balance_api_path">잔액 API 경로</string>
   <string name="setting_provider_page_balance_info">계정 잔액 확인</string>
   <string name="setting_provider_page_balance_json_key">결과 Json 키</string>
+  <string name="setting_provider_page_balance_fields">잔액 표시 항목(여러 줄)</string>
+  <string name="setting_provider_page_balance_add_field">항목 추가</string>
+  <string name="setting_provider_page_balance_field_label">레이블</string>
+  <string name="setting_provider_page_balance_field_path">JSON 표현식</string>
+  <string name="setting_provider_page_balance_field_unit">단위</string>
+  <string name="setting_provider_page_balance_field_suffix">접미사</string>
   <string name="setting_provider_page_basic_settings">기본 설정</string>
   <string name="setting_provider_page_chat_model">채팅</string>
   <string name="setting_provider_page_claude_prompt_cache_ttl">프롬프트 캐시 TTL</string>
