@@ -31,6 +31,9 @@ enum class CredentialPurpose(val action: String, val requiresAuthorization: Bool
 
     /** 后端通道桥接取用（SSH 隧道等），无 UI 会话授权门 */
     WEB_BRIDGE("web_bridge", requiresAuthorization = false),
+
+    /** 本地签名/加解密取用（GPG 等，值只在 App 进程内使用，不出进程、无授权门） */
+    LOCAL_USE("local_use", requiresAuthorization = false),
 }
 
 /**

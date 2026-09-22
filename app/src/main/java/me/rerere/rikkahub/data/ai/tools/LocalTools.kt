@@ -1118,6 +1118,10 @@ class LocalTools(
             )
             tools.add(me.rerere.rikkahub.data.vault.vaultCredentialDeleteTool(context, vaultRepository))
             tools.add(me.rerere.rikkahub.data.vault.vaultGenKeyTool(context, vaultRepository))
+            tools.add(me.rerere.rikkahub.data.vault.vaultPgpSignTool(vaultRepository))
+            tools.add(me.rerere.rikkahub.data.vault.vaultPgpVerifyTool(vaultRepository))
+            tools.add(me.rerere.rikkahub.data.vault.vaultPgpEncryptTool(vaultRepository))
+            tools.add(me.rerere.rikkahub.data.vault.vaultPgpDecryptTool(vaultRepository))
             tools.add(me.rerere.rikkahub.data.vault.vaultSshExecTool(context, vaultRepository))
             tools.add(me.rerere.rikkahub.data.vault.vaultHttpExecTool(context, vaultRepository))
         }
