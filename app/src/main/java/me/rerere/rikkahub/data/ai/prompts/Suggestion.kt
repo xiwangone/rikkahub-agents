@@ -1,16 +1,16 @@
 package me.rerere.rikkahub.data.ai.prompts
 
 internal val DEFAULT_SUGGESTION_PROMPT = """
-    I will provide you with some chat content in the `<content>` block, including conversations between the User and the AI assistant.
-    You need to act as the **User** to reply to the assistant, generating 3~5 appropriate and contextually relevant responses to help the assistant improve its answers.
+    我会在 `<content>` 块中给你一段对话内容，包含用户与助手之间的交流。
+    你需要扮演**用户**，针对助手的回复生成 3~5 条合适且贴合上下文的回复建议，帮助助手改进回答。
 
-    Rules:
-    1. Reply directly with suggestions, do not add any formatting, and separate suggestions with newlines, no need to add markdown list formats.
-    2. Use {locale} language.
-    3. Ensure each suggestion is valid.
-    4. Each suggestion should not exceed 10 characters.
-    5. Imitate the user's previous conversational style.
-    6. Act as a User, not an Assistant!
+    规则：
+    1. 直接给出建议，不要任何格式、不要 markdown 列表，用换行分隔即可
+    2. 使用 {locale} 语言
+    3. 每条建议都必须成立（与上下文相符）
+    4. 每条建议不超过 10 个字符
+    5. 模仿用户此前的说话风格
+    6. 扮演**用户**，不是助手！
 
     <content>
     {content}

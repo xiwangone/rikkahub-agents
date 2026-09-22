@@ -441,7 +441,7 @@ class ResponseAPI(
                     if (capabilities.supportsReasoningSummary) {
                         put("summary", "auto")
                     }
-                    if (level != ReasoningLevel.AUTO) {
+                    if (level.shouldSendEffort) {
                         put("effort", level.effort)
                     }
                 })

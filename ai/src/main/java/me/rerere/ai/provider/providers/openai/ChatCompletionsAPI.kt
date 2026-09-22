@@ -332,7 +332,7 @@ class ChatCompletionsAPI(
                     "dashscope.aliyuncs.com" -> {
                         // 阿里云百炼
                         // https://help.aliyun.com/zh/model-studio/qwen-api-via-openai-chat-completions
-                        if (level != ReasoningLevel.AUTO) {
+                        if (level.shouldSendEffort) {
                             put("reasoning_effort", level.effort)
                         }
                     }
@@ -422,7 +422,7 @@ class ChatCompletionsAPI(
                         put("thinking", buildJsonObject {
                             put("type", if (!level.isEnabled) "disabled" else "enabled")
                         })
-                        if (level.isEnabled && level != ReasoningLevel.AUTO) {
+                        if (level.shouldSendEffort) {
                             val effort = when (level) {
                                 ReasoningLevel.MEDIUM, ReasoningLevel.HIGH -> "high"
                                 ReasoningLevel.MAX -> "max"
@@ -434,7 +434,7 @@ class ChatCompletionsAPI(
 
                     "integrate.api.nvidia.com" -> {
                         if ("deepseek-v4" in params.model.modelId.lowercase()) {
-                            if (level != ReasoningLevel.AUTO) {
+                            if (level.shouldSendEffort) {
                                 val effort = when (level) {
                                     ReasoningLevel.XHIGH, ReasoningLevel.MAX -> "max"
                                     ReasoningLevel.OFF -> "none"
@@ -443,20 +443,20 @@ class ChatCompletionsAPI(
                                 put("reasoning_effort", effort)
                             }
                         } else {
-                            if (level != ReasoningLevel.AUTO) {
+                            if (level.shouldSendEffort) {
                                 put("reasoning_effort", if (level.effort == "none") "low" else level.effort)
                             }
                         }
                     }
 
                     "opencode.ai" -> {
-                        if (level != ReasoningLevel.AUTO) {
+                        if (level.shouldSendEffort) {
                             put("reasoning_effort", level.effort)
                         }
                     }
 
                     else -> {
-                        if (level != ReasoningLevel.AUTO) {
+                        if (level.shouldSendEffort) {
                             put("reasoning_effort", level.effort)
                         }
                     }

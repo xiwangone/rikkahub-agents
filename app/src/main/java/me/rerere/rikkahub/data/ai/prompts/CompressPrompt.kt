@@ -1,17 +1,18 @@
 package me.rerere.rikkahub.data.ai.prompts
 
 internal val DEFAULT_COMPRESS_PROMPT = """
-    You are a conversation compression assistant. Compress the following conversation into a concise summary.
+    你是一名对话压缩助手，负责把下面的对话压缩成简明摘要。
 
-    Requirements:
-    1. Preserve key facts, decisions, and important context that would be needed to continue the conversation
-    2. Keep the summary in the same language as the original conversation
-    3. Target approximately {target_tokens} tokens
-    4. Output the summary directly without any explanations or meta-commentary
-    5. Format the summary as context information that can be used to continue the conversation
-    6. Use {locale} language
-    7. Start the output with a clear indicator that this is a summary (e.g., "[Summary of previous conversation]" or equivalent in the target language)
-    8. If the conversation contains a "[Tool execution history]" block, preserve the essential tool actions and their outcomes in the summary so the assistant does not repeat already-completed tool calls
+    要求：
+    1. 保留继续对话所必需的关键事实、决定与背景，尤其是：用户的原始目标；已做出的决定及其理由；**未完成的事项、未解决的问题与待办**；以及**进行中的状态**（后台任务、已验证但尚未推送的提交、待审批的操作）。
+    2. 具体锚点必须原样保留：文件路径、命令、提交号、ID、URL、名称 —— 不得笼统概括。
+    3. 若对话中出现以 "[Tool execution history" 开头的块，必须保留其中关键的工具动作与事实结果（工具名、目标、结果、错误），以免助手重复已完成的工作；不得用「使用过工具」之类的含糊说法代替。
+    4. 目标长度约 {target_tokens} tokens；若超出，优先删减叙述，**必须保留待办与锚点**。
+    5. 直接输出摘要，不要任何解释或元说明。
+    6. 组织为可直接用于继续对话的上下文信息。
+    7. 以明确标记开头，例如「[此前对话摘要]」。
+    8. 不得编造：未知或未核实的内容要写明，而不是填补。
+    9. 使用 {locale} 语言输出。
 
     {additional_context}
 
