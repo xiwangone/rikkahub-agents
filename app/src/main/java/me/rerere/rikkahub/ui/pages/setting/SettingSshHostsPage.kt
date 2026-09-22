@@ -44,7 +44,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.repository.SshHostRepository
+import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.components.vault.VaultCredentialPickerDialog
 import me.rerere.rikkahub.ui.components.setting.SshKeyPairDialog
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -244,9 +246,35 @@ private fun SshHostEditDialog(
                 OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text(stringResource(R.string.setting_ssh_host_addr)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text(stringResource(R.string.setting_ssh_host_port)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 OutlinedTextField(value = user, onValueChange = { user = it }, label = { Text(stringResource(R.string.setting_ssh_host_user)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = password, onValueChange = { password = it }, label = { Text(stringResource(R.string.setting_ssh_host_password)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = privateKey, onValueChange = { privateKey = it }, label = { Text(stringResource(R.string.setting_ssh_host_private_key)) }, minLines = 2, maxLines = 5, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = passphrase, onValueChange = { passphrase = it }, label = { Text(stringResource(R.string.setting_ssh_host_passphrase)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                // 三个认证材料都改成统一引用位：既可直接填明文（粘贴后一键入库），也可填 `$$引用`。
+                // 口令与私钥**分开成两位**，因此"私钥走引用、口令却明文"这种假安全不会再出现。
+                SecretRefField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = stringResource(R.string.setting_ssh_host_password),
+                    nameHint = "SSH_PASSWORD",
+                    typeHint = CredentialType.BASIC_AUTH,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                SecretRefField(
+                    value = privateKey,
+                    onValueChange = { privateKey = it },
+                    label = stringResource(R.string.setting_ssh_host_private_key),
+                    nameHint = "SSH_KEY",
+                    typeHint = CredentialType.SSH_KEY,
+                    maxLines = 5,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                SecretRefField(
+                    value = passphrase,
+                    onValueChange = { passphrase = it },
+                    label = stringResource(R.string.setting_ssh_host_passphrase),
+                    nameHint = "SSH_PASSPHRASE",
+                    typeHint = CredentialType.BASIC_AUTH,
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
 
                 // 从服务器样板选择
                 if (serverTemplates.isNotEmpty()) {

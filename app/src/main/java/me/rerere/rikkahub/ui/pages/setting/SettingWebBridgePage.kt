@@ -39,6 +39,7 @@ import me.rerere.rikkahub.data.ai.BackendWebBridge
 import me.rerere.rikkahub.data.vault.SshKeyGenerator
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.CredentialType
+import me.rerere.rikkahub.data.vault.VAULT_REF_PREFIX
 import org.koin.compose.koinInject
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -70,6 +71,9 @@ import org.koin.compose.koinInject
  * 供 Backend 等 provider 选择「使用全局 Web 桥配置」复用（后续接入其他后端）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
+/** Web 桥生成密钥入库时使用的固定凭证名（回填引用与写入必须一致）。 */
+private const val WEB_BRIDGE_KEY_NAME = "WEB_BRIDGE_SSH_KEY"
+
 @Composable
 fun SettingWebBridgePage() {
     val settingsStore: SettingsStore = koinInject()
@@ -243,29 +247,32 @@ fun SettingWebBridgePage() {
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     )
 
-                    OutlinedTextField(
+                    // 私钥槽：可直接写 `$$引用`，也可粘贴私钥文本一键入库（按 SSH 类凭据预筛）
+                    SecretRefField(
                         value = webBridgePrivateKeyPath,
                         onValueChange = {
                             webBridgePrivateKeyPath = it
                             scope.launch { settingsStore.update { s -> s.copy(webBridgePrivateKeyPath = it.trim()) } }
                         },
-                        label = { Text(stringResource(R.string.setting_web_bridge_private_key)) },
-                        supportingText = { Text(stringResource(R.string.setting_web_bridge_private_key_desc)) },
-                        modifier = Modifier.fillMaxWidth(),
+                        label = stringResource(R.string.setting_web_bridge_private_key),
+                        description = stringResource(R.string.setting_web_bridge_private_key_desc),
+                        nameHint = "WEB_BRIDGE_KEY",
+                        typeHint = CredentialType.SSH_KEY,
                         singleLine = true,
                     )
 
-                    OutlinedTextField(
+                    // 密码槽：与私钥槽分开，因此"密钥 + 口令"可以同时引用
+                    SecretRefField(
                         value = webBridgePassword,
                         onValueChange = {
                             webBridgePassword = it
                             scope.launch { settingsStore.update { s -> s.copy(webBridgePassword = it.trim()) } }
                         },
-                        label = { Text(stringResource(R.string.setting_web_bridge_password)) },
-                        supportingText = { Text(stringResource(R.string.setting_web_bridge_password_desc)) },
-                        modifier = Modifier.fillMaxWidth(),
+                        label = stringResource(R.string.setting_web_bridge_password),
+                        description = stringResource(R.string.setting_web_bridge_password_desc),
+                        nameHint = "WEB_BRIDGE_PASSWORD",
+                        typeHint = CredentialType.BASIC_AUTH,
                         singleLine = true,
-                        visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
                     )
 
                     // ── Vault 凭证引用（优先于上方私钥路径 / 密码，免明文保存）──
@@ -320,22 +327,25 @@ fun SettingWebBridgePage() {
                                             file.setExecutable(false)
                                             if (saveToVault) {
                                                 vaultRepo.save(
-                                                    name = "WEB_BRIDGE_SSH_KEY",
+                                                    name = WEB_BRIDGE_KEY_NAME,
                                                     value = key.privateKeyPem,
-                                                    description = "Web 桥 SSH 私钥（全局，${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())} 生成；私钥路径：${file.absolutePath}）",
+                                                    description = "Web 桥 SSH 私钥（全局，${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())} 生成）",
                                                     group = "SSH",
                                                 )
                                             }
                                             Triple(key, file.absolutePath, saveToVault)
                                         }
                                         val (key, path, toVault) = generated
-                                        webBridgePrivateKeyPath = path
-                                        settingsStore.update { s -> s.copy(webBridgePrivateKeyPath = path) }
+                                        // 入库后**回填引用**而不是文件路径：这样"私钥免明文落库"才真正闭环，
+                                        // 同时也消除了「路径 / 引用」两套并存的语义重叠。
+                                        val ref = if (toVault) "$VAULT_REF_PREFIX$WEB_BRIDGE_KEY_NAME" else path
+                                        webBridgePrivateKeyPath = ref
+                                        settingsStore.update { s -> s.copy(webBridgePrivateKeyPath = ref) }
                                         keyInfo =
                                             if (toVault) {
                                                 context.getString(
                                                     R.string.setting_web_bridge_gen_success_vault,
-                                                    path,
+                                                    ref,
                                                     key.publicKeyLine,
                                                 )
                                             } else {

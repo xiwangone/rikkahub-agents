@@ -22,6 +22,7 @@ import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.CredentialResolution
 import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.resolveLiteralOrReference
 
 /**
  * 主机命令预设表（2026-09-03 静态内置版，后续可迁 Room 用户自定义）。
@@ -92,6 +93,13 @@ internal suspend fun resolveHostAuth(
     h: SshHostEntity,
     vaultRepository: CredentialVaultRepository,
 ): SshAuth? {
+    // 三个认证材料都允许是 `$$引用`：否则"私钥走了引用、口令却还是明文"等于白做。
+    val passphrase = resolveLiteralOrReference(
+        h.passphrase,
+        CredentialPurpose.SSH_AUTH,
+        vaultRepository,
+        caller = "ssh-passphrase",
+    )
     if (h.vaultCredentialRef != null) {
         // 连接前探测：audit = false，避免候选主机探测写满审计
         val r = CredentialResolver(vaultRepository)
@@ -99,11 +107,24 @@ internal suspend fun resolveHostAuth(
         val secret = (r as? CredentialResolution.Granted)?.value
         if (secret != null) {
             // OPENSSH 私钥末尾换行标准化（缺换行 Auth fail）——统一在此容错，覆盖所有走 resolveHostAuth 的连接
-            return SshAuth(password = null, privateKey = secret.ensureTrailingNewline(), passphrase = h.passphrase)
+            return SshAuth(password = null, privateKey = secret.ensureTrailingNewline(), passphrase = passphrase)
         }
         return null
     }
-    return SshAuth(password = h.password, privateKey = h.privateKey, passphrase = h.passphrase)
+    // 历史数据兼容：password / privateKey 既可能是明文，也可能是 `$$引用`
+    val password = resolveLiteralOrReference(
+        h.password,
+        CredentialPurpose.SSH_AUTH,
+        vaultRepository,
+        caller = "ssh-password",
+    )
+    val privateKey = resolveLiteralOrReference(
+        h.privateKey,
+        CredentialPurpose.SSH_AUTH,
+        vaultRepository,
+        caller = "ssh-key",
+    )
+    return SshAuth(password = password, privateKey = privateKey, passphrase = passphrase)
         .takeIf { it.isUsable() }
 }
 

@@ -17,6 +17,8 @@ import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.CredentialPurpose
+import me.rerere.rikkahub.data.vault.isVaultReference
+import me.rerere.rikkahub.data.vault.resolveLiteralOrReference
 import me.rerere.rikkahub.data.vault.CredentialResolution
 import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.service.WebServerService
@@ -54,6 +56,18 @@ class BackendWebBridge(
      * 1. 启动手机 Web 服务（复用 WebServerService，端口取设置，默认 8080）
      * 2. 建立 SSH 反向隧道（JSch 保持连接）
      */
+    /**
+     * 私钥位 / 密码位本身也可以填 `$$引用`：解析出真值；不是引用则返回 null（走原有处理）。
+     * 抽成独立函数是为了让 connectTunnel 主流程保持可读（detekt 圈复杂度）。
+     */
+    private suspend fun resolveBridgeSecret(raw: String, caller: String): String? =
+        if (!isVaultReference(raw)) {
+            null
+        } else {
+            resolveLiteralOrReference(raw, CredentialPurpose.WEB_BRIDGE, vaultRepository, caller = caller)
+                ?.takeIf { it.isNotBlank() }
+        }
+
     suspend fun start(
         ecsHost: String,
         ecsPort: Int = 22,
@@ -131,9 +145,17 @@ class BackendWebBridge(
                 }
                 AppLog.i(TAG, "Loaded SSH ${if (vaultPrivateKey != null) "private key" else "password"} from vault: $credentialRef")
             }
+            // 兼容写法：私钥位 / 密码位本身也可以直接填 `$$引用`（与引用位等价）——
+            // 这样就不必再区分“路径”与“引用”两套语义，旧数据照旧可用。
+            if (vaultPrivateKey == null) {
+                resolveBridgeSecret(privateKeyPath, "web-bridge-key")?.let { vaultPrivateKey = it.toByteArray() }
+            }
+            if (vaultPassword == null) {
+                resolveBridgeSecret(password, "web-bridge-password")?.let { vaultPassword = it }
+            }
             if (vaultPrivateKey != null) {
                 jsch.addIdentity("vault:$credentialRef", vaultPrivateKey, null, null)
-            } else if (privateKeyPath.isNotBlank()) {
+            } else if (privateKeyPath.isNotBlank() && !isVaultReference(privateKeyPath)) {
                 val keyFile = java.io.File(privateKeyPath)
                 if (!keyFile.exists()) {
                     AppLog.e(TAG, "SSH private key file not found: $privateKeyPath")
