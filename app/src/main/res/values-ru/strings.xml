@@ -2837,6 +2837,7 @@
   <string name="vault_dupes_empty">Дубликаты не найдены</string>
   <string name="vault_ref_pick">Выбрать из Vault</string>
   <string name="vault_ref_hint">Или укажите $$ИМЯ для ссылки на запись хранилища</string>
+  <string name="vault_ref_missing">Ссылка не найдена: %1$s (удалена или переименована)</string>
   <string name="vault_ref_store">Сохранить в Vault</string>
   <string name="vault_show">Показать</string>
   <string name="vault_hide">Скрыть</string>

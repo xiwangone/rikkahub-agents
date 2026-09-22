@@ -2489,6 +2489,7 @@
   <string name="vault_dupes_empty">لا توجد عناصر مكررة</string>
   <string name="vault_ref_pick">اختيار من Vault</string>
   <string name="vault_ref_hint">أو اكتب $$NAME للإشارة إلى عنصر في الخزنة</string>
+  <string name="vault_ref_missing">المرجع غير موجود: %1$s (ربما حُذف أو أُعيدت تسميته)</string>
   <string name="vault_ref_store">حفظ في Vault</string>
   <string name="vault_show">إظهار</string>
   <string name="vault_hide">إخفاء</string>

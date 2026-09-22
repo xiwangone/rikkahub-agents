@@ -2844,6 +2844,7 @@
   <string name="vault_dupes_empty">重複は見つかりません</string>
   <string name="vault_ref_pick">Vault から選択</string>
   <string name="vault_ref_hint">または $$NAME で保管庫の項目を参照</string>
+  <string name="vault_ref_missing">参照が見つかりません：%1$s（削除または名前変更）</string>
   <string name="vault_ref_store">Vault に保存</string>
   <string name="vault_show">表示</string>
   <string name="vault_hide">非表示</string>

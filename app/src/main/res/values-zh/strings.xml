@@ -2309,6 +2309,7 @@
   <string name="vault_dupes_empty">未发现重复条目</string>
   <string name="vault_ref_pick">从凭证库选择</string>
   <string name="vault_ref_hint">也可写 $$名字 引用凭证库条目</string>
+  <string name="vault_ref_missing">引用不存在：%1$s（可能已删除或改名）</string>
   <string name="vault_ref_store">存入凭证库</string>
   <string name="vault_show">显示</string>
   <string name="vault_hide">隐藏</string>

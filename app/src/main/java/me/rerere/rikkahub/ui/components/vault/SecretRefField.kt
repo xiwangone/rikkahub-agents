@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -26,6 +27,7 @@ import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 import org.koin.compose.koinInject
 
 /** 引用前缀：与运行时解析层（provider 密钥解析）保持一致。 */
@@ -80,6 +82,10 @@ fun SecretRefField(
     }
 
     val isReference = value.startsWith(REF_PREFIX)
+    val refName = if (isReference) value.removePrefix(REF_PREFIX).trim() else ""
+    // 只在解析层已安装时判定：启动早期 / 授权未就绪时一律不报，避免把"还没加载"误报成"引用失效"
+    val refMissing = refName.isNotEmpty() &&
+        VaultProviderKeyRefs.installed && !VaultProviderKeyRefs.canResolve(refName)
 
     OutlinedTextField(
         value = value,
@@ -90,10 +96,19 @@ fun SecretRefField(
         label = { Text(label) },
         placeholder = { Text(placeholder ?: stringResource(R.string.vault_ref_hint)) },
         supportingText = {
-            val hint = notice ?: description
-            if (hint != null) Text(hint)
+            val hint = notice
+            when {
+                hint != null -> Text(hint)
+                // 引用指向的凭证不存在（被删/改名）→ 明示失效，别等运行时 401
+                refMissing -> Text(
+                    text = stringResource(R.string.vault_ref_missing, refName),
+                    color = MaterialTheme.colorScheme.error,
+                )
+                description != null -> Text(description)
+            }
         },
         enabled = enabled && !busy,
+        isError = refMissing,
         singleLine = singleLine,
         maxLines = if (singleLine) 1 else maxLines,
         visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),

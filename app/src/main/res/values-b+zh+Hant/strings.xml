@@ -1993,6 +1993,7 @@
   <string name="vault_dupes_empty">未發現重複條目</string>
   <string name="vault_ref_pick">從憑證庫選擇</string>
   <string name="vault_ref_hint">也可寫 $$名稱 引用憑證庫條目</string>
+  <string name="vault_ref_missing">引用不存在：%1$s（可能已刪除或改名）</string>
   <string name="vault_ref_store">存入憑證庫</string>
   <string name="vault_show">顯示</string>
   <string name="vault_hide">隱藏</string>
