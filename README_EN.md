@@ -4,7 +4,7 @@
 
 # RikkaHub Agents
 
-**🤖 On-device Agent tool** — 140+ device tools enabled on demand. Automate your phone in one sentence.
+**🤖 On-device Agent tool** — 170+ built-in tools enabled on demand. Automate your phone in one sentence.
 
 [![Release](https://img.shields.io/github/v/release/xiwangone/rikkahub-agents?color=2ea44f&label=Latest%20Release&logo=github)](https://github.com/xiwangone/rikkahub-agents/releases/latest)
 [![Stars](https://img.shields.io/github/stars/xiwangone/rikkahub-agents?color=cb3837&label=Stars&logo=github)](https://github.com/xiwangone/rikkahub-agents)
@@ -24,7 +24,7 @@
 
 [**简体中文**](README.md) | **English**
 
-> <span style="color:red">**❗️❗️❗️ Note: RikkaHub Agents includes 140+ tools — enable on demand, avoid excessive resident resource usage!**</span>
+> <span style="color:red">**❗️❗️❗️ Note: RikkaHub Agents includes 170+ built-in tools — enable on demand, avoid excessive resident resource usage!**</span>
 
 </div>
 
@@ -77,7 +77,7 @@
 
 ### Key mechanisms
 
-- **On-demand tool injection**: the tool surface is sorted by name for a stable request prefix, with a "cold tier" — locked tools send an empty schema, so 140+ tools never flood the context at once.
+- **On-demand tool injection**: the tool surface is sorted by name for a stable request prefix, with a "cold tier" — locked tools send an empty schema, so 170+ tools never flood the context at once.
 - **Approval & hardline**: per-assistant toggles; mutating calls are approved one by one; dangerous commands are blocked by HARDLINE. Unattended runtimes (scheduled jobs, sub-agents) use a separate channel.
 - **Workspace isolation**: file operations stay inside the conversation's bound workspace; a sub-agent can bind its own workspace to avoid clobbering the main session.
 - **Sub-agent runtime**: each dispatch is an **independent conversation** (config and model reusable, context not inherited), with timeout and step caps; read-only workspace by default, widen it via the allow-list.
@@ -149,13 +149,16 @@ rikkahub-agents/
 
 ## Overview
 
-A fork that turns a native Android LLM chat client into a true on-device Agent: **140+ device tools**, AI-driven workflows, scheduled jobs, an in-app browser (AI-controlled), SSH, screen automation, file manager, music player, speech-to-text, downloadable local LLMs, and a remote Telegram Bot. All features default to OFF.
+A fork that turns a native Android LLM chat client into a true on-device Agent: **170+ built-in tools** (device control, credentials, workspace, SSH, subagents, …), AI-driven workflows, scheduled jobs, an in-app browser (AI-controlled), SSH, screen automation, file manager, music player, speech-to-text, downloadable local LLMs, and a remote Telegram Bot. All features default to OFF.
 
 > *"Export my phone's to-do list as a Markdown file into the workspace."*
 > *"Take a screenshot every 2 hours for 4 hours — let's see what I did this afternoon."*
 > *"When I get a delivery notification, auto-screenshot and save to gallery."*
 > *"When I connect to my work WiFi, disable the personal Telegram Bot."*
 > *"Write a Python script in Termux to check the weather forecast on a schedule."*
+> *"Store our company SSH key in the vault, then push code with my key."*
+> *"Clone my repo, fix one string, run the unit tests, then commit."*
+> *"While driving, keep a voice-mode conversation and have replies read out loud."*
 
 Each is a one-sentence setup.
 
@@ -164,7 +167,7 @@ Each is a one-sentence setup.
 ## Features
 
 ### Device Control
-Tap, swipe, scroll, type, screenshot, open apps, adjust brightness/volume, send notifications, check battery/WiFi/signal/location/sensors, read contacts & SMS, send SMS, set wallpaper, read/write NFC, manage ZIP archives. **140+ tools**, all disabled by default.
+Tap, swipe, scroll, type, screenshot, open apps, adjust brightness/volume, send notifications, check battery/WiFi/signal/location/sensors, read contacts & SMS, send SMS, set wallpaper, read/write NFC, manage ZIP archives. These are device & local capability tools; all disabled by default.
 
 ### Workflows & Scheduled Jobs
 **Workflows** — Describe triggers and actions in natural language: *"When I get home, silence the ringer."* 19 trigger types (WiFi, Bluetooth, headset, geofence, app launch, notification, time, charging, screen state, etc.) and 14 conditions.
