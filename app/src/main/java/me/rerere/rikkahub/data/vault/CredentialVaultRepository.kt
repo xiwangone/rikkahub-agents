@@ -59,6 +59,9 @@ sealed interface VaultImportOutcome {
     data object PasswordRequired : VaultImportOutcome
 }
 
+/** 清空审计的回执占位名（不是真实凭证）。 */
+private const val AUDIT_CLEAR_RECEIPT = "—"
+
 class CredentialVaultRepository(
     private val dao: VaultCredentialDao,
     private val auditDao: VaultAuditLogDao,
@@ -342,7 +345,23 @@ class CredentialVaultRepository(
     suspend fun recentAudit(limit: Int = 100): List<VaultAuditLogEntity> =
         auditDao.getRecent(limit)
 
-    suspend fun clearAudit() = auditDao.clearAll()
+    /**
+     * 清空审计记录，并留下一条**回执**。
+     *
+     * 清空这个动作本身必须留痕：否则“谁在什么时候抹掉了记录”无从查起，
+     * 审计就成了可一键销毁的形式。回执以 [AUDIT_CLEAR_RECEIPT] 作占位名，
+     * 不与真实凭证混同。
+     */
+    suspend fun clearAudit() {
+        auditDao.clearAll()
+        auditDao.insert(
+            VaultAuditLogEntity(
+                credentialName = AUDIT_CLEAR_RECEIPT,
+                caller = "manual",
+                action = "audit_cleared",
+            )
+        )
+    }
 
     companion object {
         /** 脱敏展示：前3后3+***；长度 ≤6 全掩 */

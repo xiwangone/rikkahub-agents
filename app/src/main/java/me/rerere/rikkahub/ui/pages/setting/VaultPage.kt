@@ -627,7 +627,20 @@ fun VaultPage() {
                             }
                         }
                         OutlinedButton(
-                            onClick = { scope.launch { repository.clearAudit(); refreshAudit() } },
+                            onClick = {
+                                scope.launch {
+                                    // 破坏性动作：清空会把追责链抹掉，必须过门禁（无生物识别时由设备凭据兜底）
+                                    val ok = VaultBiometric.authenticate(
+                                        context = context,
+                                        buffer = biometricBuffer,
+                                        title = context.getString(R.string.vault_audit_clear),
+                                    )
+                                    if (ok) {
+                                        repository.clearAudit()
+                                        refreshAudit()
+                                    }
+                                }
+                            },
                             modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(stringResource(R.string.vault_audit_clear))
