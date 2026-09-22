@@ -257,7 +257,7 @@ fun VaultCredentialsPage() {
             mode = mode,
             existingGroups = (entries.map { it.grp } + "Other").distinct().sorted(),
             onDismiss = { showEditor = null },
-            onSave = { oldName, name, value, description, group, publicKey, type ->
+            onSave = { oldName, name, value, description, group, publicKey, type, metaJson ->
                 scope.launch {
                     if (oldName != null && oldName != name) {
                         // 改名：先建新名（沿用编辑框里的值）→ 同步配置引用 → 再删旧名
@@ -269,7 +269,7 @@ fun VaultCredentialsPage() {
                             group = group,
                             publicKey = publicKey,
                             type = type,
-                            metaJson = CredentialMeta.encode(meta),
+                            metaJson = metaJson,
                         )
                         runCatching {
                             me.rerere.rikkahub.data.vault.VaultReferenceSync.renameEverywhere(
@@ -287,7 +287,7 @@ fun VaultCredentialsPage() {
                             group = group,
                             publicKey = publicKey,
                             type = type,
-                            metaJson = CredentialMeta.encode(meta),
+                            metaJson = metaJson,
                         )
                     }
                     showEditor = null
@@ -469,7 +469,7 @@ private fun CredentialEditorDialog(
     mode: EditorMode,
     existingGroups: List<String>,
     onDismiss: () -> Unit,
-    onSave: (oldName: String?, name: String, value: String, description: String, group: String, publicKey: String, type: String) -> Unit,
+    onSave: (oldName: String?, name: String, value: String, description: String, group: String, publicKey: String, type: String, metaJson: String) -> Unit,
 ) {
     val repository: CredentialVaultRepository = koinInject()
     var name by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.name ?: (mode as? EditorMode.Create)?.initialName ?: "") }
@@ -600,7 +600,7 @@ private fun CredentialEditorDialog(
             if (!isEdit && value.isBlank()) { valueError = true; return@Button }
             // 编辑模式：value 留空 = 保留原值（在 onSave 里处理）；改名传旧名
             val oldName = (mode as? EditorMode.Edit)?.entry?.name
-            onSave(oldName, name, value, description, group, publicKey, type)
+            onSave(oldName, name, value, description, group, publicKey, type, CredentialMeta.encode(meta))
         },
             ) { Text(stringResource(R.string.vault_save)) }
         },
