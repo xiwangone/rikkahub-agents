@@ -52,7 +52,9 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.CappedLazyColumn
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
+import me.rerere.rikkahub.data.vault.CredentialValueSanitizer
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.VaultReferenceSync
 import me.rerere.rikkahub.data.vault.CredentialMeta
 import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.data.vault.SecretGenerator
@@ -252,6 +254,7 @@ fun VaultCredentialsPage() {
     }
 
     // 新增/编辑 BottomSheet 弹窗
+    val context = androidx.compose.ui.platform.LocalContext.current
     showEditor?.let { mode ->
         CredentialEditorDialog(
             mode = mode,
@@ -259,39 +262,44 @@ fun VaultCredentialsPage() {
             onDismiss = { showEditor = null },
             onSave = { oldName, name, value, description, group, publicKey, type, metaJson ->
                 scope.launch {
-                    if (oldName != null && oldName != name) {
-                        // 改名：先建新名（沿用编辑框里的值）→ 同步配置引用 → 再删旧名
-                        // （同步引用是必须的：配置里按名字引用，漏掉就会静默失效）
-                        repository.save(
-                            name = name,
-                            value = value,
-                            description = description,
-                            group = group,
-                            publicKey = publicKey,
-                            type = type,
-                            metaJson = metaJson,
-                        )
-                        runCatching {
-                            me.rerere.rikkahub.data.vault.VaultReferenceSync.renameEverywhere(
-                                settingsStore, sshHostRepository, oldName, name,
+                    try {
+                        if (oldName != null && oldName != name) {
+                            // 改名：先建新名（沿用编辑框里的值）→ 同步配置引用 → 再删旧名
+                            // （同步引用是必须的：配置里按名字引用，漏掉就会静默失效）
+                            repository.save(
+                                name = name,
+                                value = value,
+                                description = description,
+                                group = group,
+                                publicKey = publicKey,
+                                type = type,
+                                metaJson = metaJson,
+                            )
+                            runCatching {
+                                VaultReferenceSync.renameEverywhere(
+                                    settingsStore, sshHostRepository, oldName, name,
+                                )
+                            }
+                            repository.getByName(oldName)?.let { repository.delete(it) }
+                            repository.logAccess(oldName, "manual", "rename_from")
+                            repository.logAccess(name, "manual", "rename_to")
+                        } else {
+                            repository.save(
+                                name = name,
+                                value = value,
+                                description = description,
+                                group = group,
+                                publicKey = publicKey,
+                                type = type,
+                                metaJson = metaJson,
                             )
                         }
-                        repository.getByName(oldName)?.let { repository.delete(it) }
-                        repository.logAccess(oldName, "manual", "rename_from")
-                        repository.logAccess(name, "manual", "rename_to")
-                    } else {
-                        repository.save(
-                            name = name,
-                            value = value,
-                            description = description,
-                            group = group,
-                            publicKey = publicKey,
-                            type = type,
-                            metaJson = metaJson,
-                        )
+                        showEditor = null
+                        refresh()
+                    } catch (e: IllegalArgumentException) {
+                        // 校验类失败（命名规范/值不可见）：提示并留在编辑器，不崩（2026-09-23 闪退修复）
+                        android.widget.Toast.makeText(context, e.message, android.widget.Toast.LENGTH_SHORT).show()
                     }
-                    showEditor = null
-                    refresh()
                 }
             },
         )
@@ -598,8 +606,16 @@ private fun CredentialEditorDialog(
         onClick = {
             if (name.isBlank()) { nameError = true; return@Button }
             if (!isEdit && value.isBlank()) { valueError = true; return@Button }
+            // 只含不可见字符的值等于空密钥：与 save/importEntries 同语义，前置拦截
+            if (value.isNotBlank() && CredentialValueSanitizer.sanitize(value).isEmpty()) {
+                valueError = true; return@Button
+            }
             // 编辑模式：value 留空 = 保留原值（在 onSave 里处理）；改名传旧名
             val oldName = (mode as? EditorMode.Edit)?.entry?.name
+            // 新建/改名走命名规范化（与 SshKeyPairDialog 同语义，自动转大写蛇形）；名字未改则保留存量原名
+            if (oldName != name) {
+                name = CredentialVaultRepository.normalizeName(name)
+            }
             onSave(oldName, name, value, description, group, publicKey, type, CredentialMeta.encode(meta))
         },
             ) { Text(stringResource(R.string.vault_save)) }
