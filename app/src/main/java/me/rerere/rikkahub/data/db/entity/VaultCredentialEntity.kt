@@ -33,6 +33,17 @@ data class VaultCredentialEntity(
      */
     @ColumnInfo(defaultValue = "")
     val type: String = "",
+    /**
+     * 非敏感元数据（**明文** JSON）：endpoint / path / header 名 / 账号名 / 算法参数等。
+     *
+     * 两条硬约束（2026-09-22 定）：
+     * - **只放非敏感字段**：秘密一律只进 [valueEncrypted]；
+     * - 键必须在 [CredentialMeta.ALLOWED_KEYS] 白名单内 —— 写入侧由此强制，不靠自觉。
+     *
+     * 空串 = 无元数据（历史数据默认）。
+     */
+    @ColumnInfo(defaultValue = "")
+    val metaJson: String = "",
     /** AES-GCM 密文：Base64(IV(12B) + ciphertext) */
     val valueEncrypted: String,
     /** 明文长度（脱敏展示用，不存明文） */
