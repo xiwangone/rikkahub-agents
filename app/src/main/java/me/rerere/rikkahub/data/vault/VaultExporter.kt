@@ -54,6 +54,8 @@ object VaultExporter {
         val group: String = "",
         val publicKey: String = "",
         val type: String = "",
+        /** 非敏感元数据（明文 JSON，键白名单见 CredentialMeta）。 */
+        val metaJson: String = "",
     )
 
     @Serializable
@@ -89,6 +91,7 @@ object VaultExporter {
                 group = e.group,
                 publicKey = e.publicKey,
                 type = e.type,
+                metaJson = e.metaJson,
             )
         }
         val bundle = VaultBundle(
@@ -138,6 +141,8 @@ object VaultExporter {
         val group: String,
         val publicKey: String = "",
         val type: String = "",
+        /** 非敏感元数据（明文 JSON，键白名单见 CredentialMeta）。 */
+        val metaJson: String = "",
     )
 
     private fun deriveKey(password: String, salt: ByteArray): javax.crypto.SecretKey {
@@ -170,6 +175,7 @@ object VaultExporter {
             sb.append("# ============ $group ============\n")
             byGroup.getValue(group).sortedBy { it.name }.forEach { e ->
                 if (e.type.isNotBlank()) sb.append("# type: ${e.type}\n")
+                if (e.metaJson.isNotBlank()) sb.append("# meta: ${e.metaJson}\n")
                 if (e.description.isNotBlank()) sb.append("# ${e.description}\n")
                 if (e.publicKey.isNotBlank()) sb.append("# SSH公钥: ${e.publicKey}\n")
                 val quoted = shellDoubleQuote(e.plaintext)
@@ -198,4 +204,5 @@ fun VaultExporter.Quad.toParsedEntry(): CredentialImporter.ParsedEntry =
         group = group,
         publicKey = publicKey,
         type = type,
+        metaJson = metaJson,
     )

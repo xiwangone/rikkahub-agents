@@ -24,6 +24,10 @@ class CredentialImportRoundTripTest {
             description = "示例接口密钥",
             group = "AI",
             type = CredentialType.API_KEY,
+            // 非敏感元数据（白名单产出）：验证四条通道都能往返搬运
+            metaJson = CredentialMeta.encode(
+                mapOf("endpoint" to "https://api.example.com/v1", "header" to "Authorization"),
+            ),
         ),
         VaultExporter.Quad(
             name = "EXAMPLE_SPECIAL",
@@ -66,6 +70,7 @@ class CredentialImportRoundTripTest {
             group = it.group,
             publicKey = it.publicKey,
             type = it.type,
+            metaJson = it.metaJson,
         )
     }
 
@@ -139,6 +144,8 @@ class CredentialImportRoundTripTest {
             assertEquals("${e.name} 的 group", e.group, a.group)
             if (carriesPublicKey) assertEquals("${e.name} 的 publicKey", e.publicKey, a.publicKey)
             if (carriesType) assertEquals("${e.name} 的 type", e.type, a.type)
+            // 元数据也必须往返（批 B 的验收点）；空 meta 同样比对
+            assertEquals("${e.name} 的 metaJson", e.metaJson, a.metaJson)
         }
     }
 }

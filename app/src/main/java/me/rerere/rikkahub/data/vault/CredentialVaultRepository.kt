@@ -269,11 +269,21 @@ class CredentialVaultRepository(
                         description = e.description.ifEmpty { existing.description },
                         grp = if (e.group.isBlank()) existing.grp else e.group,
                         publicKey = if (keepPub) existing.publicKey else e.publicKey,
+                        metaJson = e.metaJson.ifEmpty { existing.metaJson },
                         updatedAt = System.currentTimeMillis(),
                     )
                 )
             } else {
-                upsertEntry(e.name, e.value, e.description, e.group, e.publicKey, keepPub = keepPub, type = e.type)
+                upsertEntry(
+                    name = e.name,
+                    value = e.value,
+                    description = e.description,
+                    group = e.group,
+                    publicKey = e.publicKey,
+                    keepPub = keepPub,
+                    type = e.type,
+                    metaJson = e.metaJson,
+                )
             }
             imported++
         }
@@ -315,6 +325,7 @@ class CredentialVaultRepository(
         publicKey: String = "",
         keepPub: Boolean = false,
         type: String = "",
+        metaJson: String = "",
     ) {
         val now = System.currentTimeMillis()
         // 落库前统一清洗（剔除不可见控制符）；长度字段以清洗后的值为准，避免展示与实际不一致
@@ -331,6 +342,8 @@ class CredentialVaultRepository(
                     valueEncrypted = encrypted,
                     valueLength = cleanValue.length,
                     type = resolveType(type, existing.type, name, cleanValue, finalPub),
+                    // 导入留空 = 保留原元数据（与 publicKey 同款语义，防重导清空）
+                    metaJson = metaJson.ifEmpty { existing.metaJson },
                     updatedAt = now,
                 )
             )
@@ -344,6 +357,7 @@ class CredentialVaultRepository(
                     valueEncrypted = encrypted,
                     valueLength = cleanValue.length,
                     type = resolveType(type, "", name, cleanValue, publicKey),
+                    metaJson = metaJson,
                     createdAt = now,
                     updatedAt = now,
                 )

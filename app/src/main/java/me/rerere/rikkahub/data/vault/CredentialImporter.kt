@@ -114,6 +114,8 @@ object CredentialImporter {
         val publicKey: String = "",
         /** 类型（缺省为空 = 未分类，写入时由推断补全） */
         val type: String = "",
+        /** 非敏感元数据（明文 JSON，键白名单见 CredentialMeta） */
+        val metaJson: String = "",
     )
 
     /**
@@ -129,6 +131,7 @@ object CredentialImporter {
         var pendingComment: String? = null
         var pendingPublicKey: String? = null
         var pendingType: String? = null
+        var pendingMeta: String? = null
         val lines = content.lineSequence().iterator()
         while (lines.hasNext()) {
             val rawLine = lines.next()
@@ -155,6 +158,12 @@ object CredentialImporter {
                 line.startsWith("#") && line.removePrefix("#").trim().startsWith("type:") -> {
                     val t = line.substringAfter(':').trim()
                     if (CredentialType.isValid(t)) pendingType = t
+                }
+
+                // 元数据注释：如 "# meta: {\"endpoint\":\"https://x\"}"（导出时写入，用于往返保留；
+                // 白名单外的键由 CredentialMeta.decode 丢弃）
+                line.startsWith("#") && line.removePrefix("#").trim().startsWith("meta:") -> {
+                    pendingMeta = line.substringAfter(':').trim().takeIf { it.isNotBlank() }
                 }
 
                 // 普通注释：作为下一条 export 的描述
@@ -189,10 +198,12 @@ object CredentialImporter {
                         group = currentGroup,
                         publicKey = pendingPublicKey ?: "",
                         type = pendingType ?: "",
+                        metaJson = pendingMeta ?: "",
                     )
                     pendingComment = null
                     pendingPublicKey = null
                     pendingType = null
+                    pendingMeta = null
                 }
             }
         }

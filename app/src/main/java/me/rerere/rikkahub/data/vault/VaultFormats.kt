@@ -46,12 +46,13 @@ object VaultFormats {
     /** 导出 CSV：name,value,description,group（值做 CSV 转义）——与 [fromCsv] 对称（导入识别见 [CredentialImporter.detectFormat]）。 */
     fun toCsv(entries: List<VaultExporter.Quad>): String {
         val sb = StringBuilder()
-        sb.append("name,value,description,group\n")
+        sb.append("name,value,description,group,meta\n")
         entries.forEach { e ->
             sb.append(csvEscape(e.name)).append(',')
                 .append(csvEscape(interpolateEnv(e.plaintext))).append(',')
                 .append(csvEscape(e.description)).append(',')
-                .append(csvEscape(e.group)).append('\n')
+                .append(csvEscape(e.group)).append(',')
+                .append(csvEscape(e.metaJson)).append('\n')
         }
         return sb.toString()
     }
@@ -71,6 +72,8 @@ object VaultFormats {
                     plaintext = cols.getOrElse(1) { "" }.trim(),
                     description = cols.getOrElse(2) { "" }.trim(),
                     group = cols.getOrElse(3) { "" }.trim(),
+                    // 第 5 列（旧 CSV 无此列 → 空，容错）
+                    metaJson = cols.getOrElse(4) { "" }.trim(),
                 )
             } else null
         }
@@ -137,7 +140,16 @@ object VaultFormats {
         val notes: String? = null,
         val favorite: Boolean = false,
         val login: BitwardenLogin = BitwardenLogin(),
+        val fields: List<BitwardenField>? = null,
         val collectionIds: List<String>? = null,
+    )
+
+    /** Bitwarden 自定义字段：承载非敏感元数据 JSON（type=0 文本）。 */
+    @Serializable
+    data class BitwardenField(
+        val name: String,
+        val value: String = "",
+        val type: Int = 0,
     )
 
     @Serializable
@@ -170,6 +182,8 @@ object VaultFormats {
             BitwardenItem(
                 name = e.name,
                 notes = e.description.ifBlank { null },
+                fields = e.metaJson.takeIf { it.isNotBlank() }
+                    ?.let { listOf(BitwardenField(name = "meta", value = it)) },
                 login = BitwardenLogin(
                     username = e.name,
                     password = interpolateEnv(e.plaintext),
@@ -196,7 +210,11 @@ object VaultFormats {
             val notes = obj["notes"]?.jsonPrimitive?.content ?: ""
             val folderId = obj["folderId"]?.jsonPrimitive?.content
             val group = folderId?.let { folderIdToName[it] } ?: ""
-            VaultExporter.Quad(name, password, notes, group)
+            val meta = (obj["fields"] as? kotlinx.serialization.json.JsonArray)
+                ?.firstOrNull { it.jsonObject["name"]?.jsonPrimitive?.content == "meta" }
+                ?.jsonObject?.get("value")?.jsonPrimitive?.content
+                ?: ""
+            VaultExporter.Quad(name, password, notes, group, metaJson = meta)
         }
     }
 }
