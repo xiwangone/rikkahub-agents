@@ -60,6 +60,11 @@ fun SecretRefField(
     maxLines: Int = 3,
     /** 空值时的占位提示；默认提示可直接写 `$$名字` 引用（语法可发现性）。 */
     placeholder: String? = null,
+    /**
+     * 该引用位的**用途**（凭证类型名，如 `ssh-key` / `basic-auth`）。
+     * 选择器打开时会预筛到该类型，避免跨用途误选。
+     */
+    typeHint: String? = null,
 ) {
     val repository: CredentialVaultRepository = koinInject()
     val scope = rememberCoroutineScope()
@@ -142,6 +147,7 @@ fun SecretRefField(
     if (showPicker) {
         VaultCredentialPickerDialog(
             entries = entries,
+            initialTypeFilter = typeHint,
             onPick = {
                 onValueChange(REF_PREFIX + it.name)
                 notice = null

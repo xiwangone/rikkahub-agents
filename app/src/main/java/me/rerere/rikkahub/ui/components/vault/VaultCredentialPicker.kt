@@ -45,10 +45,15 @@ fun VaultCredentialPickerDialog(
     entries: List<VaultCredentialEntity>,
     onPick: (VaultCredentialEntity) -> Unit,
     onDismiss: () -> Unit,
+    /**
+     * 打开时预选的类型（如 `ssh-key` / `basic-auth`）；null = 全部。
+     * 按用途预筛能显著降低「把 API key 选去当 SSH 凭据」这类误选。
+     */
+    initialTypeFilter: String? = null,
 ) {
     var query by remember { mutableStateOf("") }
     var groupFilter by remember { mutableStateOf(FILTER_ALL) }
-    var typeFilter by remember { mutableStateOf(FILTER_ALL) }
+    var typeFilter by remember(initialTypeFilter) { mutableStateOf(initialTypeFilter ?: FILTER_ALL) }
 
     val groups = remember(entries) { entries.map { it.grp }.filter { it.isNotBlank() }.distinct().sorted() }
     val types = remember(entries) { entries.map { it.type }.filter { it.isNotBlank() }.distinct().sorted() }

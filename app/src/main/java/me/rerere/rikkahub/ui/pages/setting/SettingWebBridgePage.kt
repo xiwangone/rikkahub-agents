@@ -38,6 +38,7 @@ import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.ai.BackendWebBridge
 import me.rerere.rikkahub.data.vault.SshKeyGenerator
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.CredentialType
 import org.koin.compose.koinInject
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -54,9 +55,9 @@ import me.rerere.rikkahub.R
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.CustomColors
 import kotlinx.coroutines.launch
@@ -100,12 +101,6 @@ fun SettingWebBridgePage() {
     var webBridgeCredentialRef by remember(settings.webBridgeCredentialRef) {
         mutableStateOf(settings.webBridgeCredentialRef)
     }
-    val vaultRepo: CredentialVaultRepository = koinInject()
-    var vaultCredentialNames by remember { mutableStateOf<List<String>>(emptyList()) }
-    LaunchedEffect(Unit) {
-        vaultCredentialNames = runCatching { vaultRepo.getAll().map { it.name } }.getOrDefault(emptyList())
-    }
-
     /** 全局开关开启：把全局配置同步到所有 Backend provider 并启用（改一次即可）。 */
     fun syncToBackendProviders(settings: Settings, enabled: Boolean): Settings {
         val newProviders =
@@ -274,35 +269,20 @@ fun SettingWebBridgePage() {
                     )
 
                     // ── Vault 凭证引用（优先于上方私钥路径 / 密码，免明文保存）──
-                    OutlinedTextField(
+                    // 统一用引用位组件：支持「引用已有 / 粘贴即入库」，并按用途预筛（SSH 类凭据），
+                    // 取代原先“手写输入框 + 全量名字下拉”那套。
+                    SecretRefField(
                         value = webBridgeCredentialRef,
                         onValueChange = {
                             webBridgeCredentialRef = it
                             scope.launch { settingsStore.update { s -> s.copy(webBridgeCredentialRef = it.trim()) } }
                         },
-                        label = { Text(stringResource(R.string.web_bridge_credential_ref_label)) },
-                        supportingText = { Text(stringResource(R.string.web_bridge_credential_ref_desc)) },
-                        modifier = Modifier.fillMaxWidth(),
+                        label = stringResource(R.string.web_bridge_credential_ref_label),
+                        description = stringResource(R.string.web_bridge_credential_ref_desc),
+                        nameHint = "WEB_BRIDGE",
+                        typeHint = CredentialType.SSH_KEY,
                         singleLine = true,
                     )
-                    if (vaultCredentialNames.isNotEmpty()) {
-                        Select(
-                            options = vaultCredentialNames,
-                            selectedOption = webBridgeCredentialRef.takeIf { it.isNotBlank() } ?: vaultCredentialNames.first(),
-                            onOptionSelected = {
-                                webBridgeCredentialRef = it
-                                scope.launch { settingsStore.update { s -> s.copy(webBridgeCredentialRef = it) } }
-                            },
-                            optionToString = { it },
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    } else {
-                        Text(
-                            text = stringResource(R.string.web_bridge_vault_empty_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
 
                     // ── 生成 SSH 密钥 + 保存到密钥库开关 ──
                     HorizontalDivider()
