@@ -44,10 +44,11 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.oauth.CustomTabsOAuthAuthorizationLauncher
+import me.rerere.oauth.OAuthHttpClient
+import me.rerere.oauth.OAuthLoopbackCallbackServer
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.event.AppEvent
-import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
@@ -76,7 +77,6 @@ class McpManager(
     private val settingsStore: SettingsStore,
     private val appScope: AppScope,
     private val filesManager: FilesManager,
-    private val appEventBus: AppEventBus,
 ) {
     private val okHttpClient: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(20, TimeUnit.SECONDS)
@@ -100,7 +100,25 @@ class McpManager(
         install(SSE)
     }
 
-    private val oauthClient = McpOAuthClient(okHttpClient)
+    private val oauthCallbackServer = OAuthLoopbackCallbackServer(
+        port = MCP_OAUTH_CALLBACK_PORT,
+        callbackPath = MCP_OAUTH_CALLBACK_PATH,
+    )
+    private val oauthHttpClient = OAuthHttpClient(okHttpClient)
+    private val oauthDiscoveryClient = McpOAuthDiscoveryClient(okHttpClient)
+    private val oauthCoordinator = McpOAuthCoordinator(
+        settingsStore = settingsStore,
+        appScope = appScope,
+        oauthClient = oauthHttpClient,
+        discoveryClient = oauthDiscoveryClient,
+        callbackServer = oauthCallbackServer,
+        authorizationLauncher = CustomTabsOAuthAuthorizationLauncher,
+        updateStatus = { id, status ->
+            settingsStore.settingsFlow.value.mcpServers.firstOrNull { it.id == id }?.let { target ->
+                appScope.launch { setStatus(target, status) }
+            }
+        },
+    )
 
     // These maps are mutated from several coroutines at once (the settings collector, the
     // mcp_add/mcp_update/mcp_set_enabled control tools, the reconnect ladder). Plain
@@ -111,7 +129,6 @@ class McpManager(
     private val clients: ConcurrentHashMap<McpServerConfig, Client> = ConcurrentHashMap()
     private val reconnectJobs: ConcurrentHashMap<Uuid, Job> = ConcurrentHashMap()
     private val reconnectAttempts: ConcurrentHashMap<Uuid, Int> = ConcurrentHashMap()
-    private val authorizationJobs: ConcurrentHashMap<Uuid, Job> = ConcurrentHashMap()
     private val lifecycleLocks = ConcurrentHashMap<Uuid, Mutex>()
     val syncingStatus = MutableStateFlow<Map<Uuid, McpStatus>>(mapOf())
 
@@ -623,146 +640,18 @@ class McpManager(
      * 发起 OAuth 授权流程：发现元数据 -> 动态注册 -> 浏览器授权 -> 交换令牌 -> 重新连接。
      * 通过 [Context] 打开 Custom Tab，用户完成后经 deep link 回调继续。
      */
+    /**
+     * 发起 OAuth 授权流程（交由 [McpOAuthCoordinator]：发现元数据 → 回环回调 → 交换令牌 → 重连）。
+     * 用 loopback（http://127.0.0.1）回收授权码，不再依赖自定义 scheme 的 deep link。
+     */
     fun startAuthorization(config: McpServerConfig, context: Context) {
-        // 若已有进行中的授权，先取消，避免并发的挂起协程互相覆盖状态
-        authorizationJobs.remove(config.id)?.cancel()
-        val job = appScope.launch {
-            setStatus(config, McpStatus.Authorizing)
-            runCatching { authorizeInternal(config, context.applicationContext) }
-                .onFailure {
-                    // 用户主动取消：状态由 cancelAuthorization 负责回退，这里不覆盖
-                    if (it is CancellationException) return@onFailure
-                    it.printStackTrace()
-                    setStatus(config, McpStatus.Error(it.message ?: "OAuth authorization failed"))
-                }
-        }
-        authorizationJobs[config.id] = job
-        job.invokeOnCompletion { authorizationJobs.remove(config.id, job) }
+        oauthCoordinator.startAuthorization(config, context)
     }
 
-    /** 取消进行中的 OAuth 授权（用户中止），并回退到需要授权状态。 */
+    /** 取消进行中的 OAuth 授权（用户中止）。 */
     fun cancelAuthorization(config: McpServerConfig) {
-        authorizationJobs.remove(config.id)?.cancel()
-        appScope.launch { setStatus(config, McpStatus.NeedsAuthorization) }
+        oauthCoordinator.cancelAuthorization(config.id)
     }
-
-    private suspend fun authorizeInternal(config: McpServerConfig, context: Context) =
-        withContext(Dispatchers.IO) {
-            val serverUrl = config.serverUrl
-            require(serverUrl.isNotBlank()) { "Server URL 为空，无法授权" }
-
-            // 1. 发现受保护资源 & 授权服务器元数据
-            val prm = oauthClient.discoverProtectedResource(serverUrl)
-            val issuer = prm.authorizationServers.firstOrNull()
-                ?: error("受保护资源未声明授权服务器")
-            val asMeta = oauthClient.discoverAuthorizationServer(issuer)
-            val authEndpoint = asMeta.authorizationEndpoint
-                ?: error("授权服务器缺少 authorization_endpoint")
-            val tokenEndpoint = asMeta.tokenEndpoint
-                ?: error("授权服务器缺少 token_endpoint")
-
-            // 2. 计算 scope
-            val scope = config.commonOptions.oauth?.scope
-                ?: prm.scopesSupported?.joinToString(" ")
-                ?: asMeta.scopesSupported?.joinToString(" ")
-
-            // 3. 客户端注册 (复用已注册的 client_id)
-            val existing = config.commonOptions.oauth
-            var clientId = existing?.clientId
-            var clientSecret = existing?.clientSecret
-            if (clientId.isNullOrBlank()) {
-                val regEndpoint = asMeta.registrationEndpoint
-                    ?: error("授权服务器不支持动态注册，且未预配置 client_id")
-                val reg = oauthClient.registerClient(
-                    registrationEndpoint = regEndpoint,
-                    clientName = config.commonOptions.name,
-                    redirectUri = MCP_OAUTH_REDIRECT_URI,
-                    scope = scope,
-                )
-                clientId = reg.clientId
-                clientSecret = reg.clientSecret
-            }
-
-            // 4. PKCE + state；持久化中间状态(端点/clientId)以便后续刷新
-            val pkce = oauthClient.generatePkce()
-            val state = oauthClient.generateState()
-            val resource = McpOAuthClient.canonicalResource(serverUrl)
-
-            persistOAuthState(
-                config.id,
-                (existing ?: McpOAuthState()).copy(
-                    enabled = true,
-                    clientId = clientId,
-                    clientSecret = clientSecret,
-                    authorizationEndpoint = authEndpoint,
-                    tokenEndpoint = tokenEndpoint,
-                    registrationEndpoint = asMeta.registrationEndpoint,
-                    scope = scope,
-                )
-            )
-
-            // 5. 打开浏览器授权
-            val authUrl = oauthClient.buildAuthorizationUrl(
-                authorizationEndpoint = authEndpoint,
-                clientId = clientId,
-                redirectUri = MCP_OAUTH_REDIRECT_URI,
-                pkce = pkce,
-                state = state,
-                scope = scope,
-                resource = resource,
-            )
-            // 6. 先建立回调订阅，再打开浏览器，避免快速回调在订阅生效前 emit 而丢失
-            //    (AppEventBus 的 SharedFlow replay=0，无订阅者时的事件不会补发)
-            val callback = coroutineScope {
-                val subscribed = CompletableDeferred<Unit>()
-                val awaitCallback = async {
-                    withTimeoutOrNull(OAUTH_CALLBACK_TIMEOUT) {
-                        appEventBus.events
-                            .onSubscription { subscribed.complete(Unit) }
-                            .filterIsInstance<AppEvent.McpOAuthCallback>()
-                            .first { it.state == state }
-                    }
-                }
-                subscribed.await() // 确保订阅已注册
-                withContext(Dispatchers.Main) { launchOAuthAuthorization(context, authUrl) }
-                awaitCallback.await()
-            } ?: error("OAuth 授权超时")
-            if (callback.error != null) error("授权失败: ${callback.error}")
-            val code = callback.code ?: error("授权失败: 未返回授权码")
-
-            // 7. 用授权码换取令牌
-            val token = oauthClient.exchangeCode(
-                tokenEndpoint = tokenEndpoint,
-                clientId = clientId,
-                clientSecret = clientSecret,
-                code = code,
-                codeVerifier = pkce.verifier,
-                redirectUri = MCP_OAUTH_REDIRECT_URI,
-                resource = resource,
-            )
-
-            // 8. 持久化令牌
-            persistOAuthState(
-                config.id,
-                McpOAuthState(
-                    enabled = true,
-                    clientId = clientId,
-                    clientSecret = clientSecret,
-                    authorizationEndpoint = authEndpoint,
-                    tokenEndpoint = tokenEndpoint,
-                    registrationEndpoint = asMeta.registrationEndpoint,
-                    scope = token.scope ?: scope,
-                    accessToken = token.accessToken,
-                    refreshToken = token.refreshToken,
-                    expiresAt = computeExpiry(token.expiresIn),
-                )
-            )
-
-            // 9. 使用最新配置重新连接
-            val freshConfig = settingsStore.settingsFlow.value.mcpServers.find { it.id == config.id }
-                ?: config
-            addClient(freshConfig)
-        }
 
     /** 清除某个 Server 的 OAuth 授权状态（登出）。 */
     suspend fun clearAuthorization(config: McpServerConfig) {
@@ -781,13 +670,15 @@ class McpManager(
         val tokenEndpoint = oauth.tokenEndpoint ?: return config
         val clientId = oauth.clientId ?: return config
         return runCatching {
-            val token = oauthClient.refreshToken(
-                tokenEndpoint = tokenEndpoint,
-                clientId = clientId,
-                clientSecret = oauth.clientSecret,
-                refreshToken = oauth.refreshToken,
-                resource = McpOAuthClient.canonicalResource(config.serverUrl),
-                scope = oauth.scope,
+            val token = oauthHttpClient.refreshToken(
+                OAuthHttpClient.RefreshTokenRequest(
+                    tokenEndpoint = tokenEndpoint,
+                    clientId = clientId,
+                    clientSecret = oauth.clientSecret,
+                    refreshToken = oauth.refreshToken,
+                    scope = oauth.scope,
+                    resources = listOf(McpOAuthDiscoveryClient.canonicalResource(config.serverUrl)),
+                ),
             )
             val updated = oauth.copy(
                 accessToken = token.accessToken,
@@ -841,7 +732,7 @@ class McpManager(
         }
         if (hasManualAuth) return false
         // 主动探测：仅当 server 发布了受保护资源元数据 (protected resource metadata) 时才支持 OAuth
-        return runCatching { oauthClient.discoverProtectedResource(config.serverUrl) }
+        return runCatching { oauthDiscoveryClient.discoverProtectedResource(config.serverUrl) }
             .onFailure { AppLog.i(TAG, "OAuth probe failed for ${config.commonOptions.name}: ${it.message}") }
             .isSuccess
     }

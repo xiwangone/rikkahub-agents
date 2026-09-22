@@ -219,7 +219,6 @@ val dataSourceModule =
                 settingsStore = get(),
                 appScope = get(),
                 filesManager = get(),
-                appEventBus = get(),
             )
         }
 
