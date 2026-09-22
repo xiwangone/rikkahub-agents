@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting
 import android.provider.OpenableColumns
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -86,6 +87,12 @@ fun VaultPage() {
     var backupPassword by remember { mutableStateOf("") }
     var backupResult by remember { mutableStateOf<String?>(null) }
     var auditLogs by remember { mutableStateOf<List<VaultAuditLogEntity>>(emptyList()) }
+    // 审计筛选：按凭证名过滤（点条目里的凭证名即筛，再点取消）；不新增文案
+    var auditFilter by remember { mutableStateOf<String?>(null) }
+    val shownAudit = remember(auditLogs, auditFilter) {
+        val f = auditFilter
+        if (f == null) auditLogs else auditLogs.filter { it.credentialName == f }
+    }
     var sessionToken by remember { mutableStateOf<String?>(null) }
     var sessionResult by remember { mutableStateOf<String?>(null) }
     val vaultSessionManager: VaultSessionManager = koinInject()
@@ -599,20 +606,41 @@ fun VaultPage() {
                     color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
                 ) {
                     Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.vault_audit_title), style = MaterialTheme.typography.titleSmall)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(stringResource(R.string.vault_audit_title), style = MaterialTheme.typography.titleSmall)
+                            auditFilter?.let { f ->
+                                // 当前筛选态：点一下清除（沿用名字与符号，不引入新文案）
+                                Text(
+                                    text = "✕ $f",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.clickable { auditFilter = null },
+                                )
+                            }
+                        }
                         Text(
-                            text = stringResource(R.string.vault_audit_desc, auditLogs.size),
+                            text = stringResource(R.string.vault_audit_desc, shownAudit.size),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        auditLogs.take(8).forEach { log ->
+                        shownAudit.take(8).forEach { log ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 Column(Modifier.weight(1f)) {
-                                    Text(log.credentialName, style = MaterialTheme.typography.bodyMedium)
+                                    Text(
+                                        text = log.credentialName,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        modifier = Modifier.clickable {
+                                            // 点即筛；再点同一条 = 取消筛选
+                                            auditFilter = log.credentialName.takeIf { it != auditFilter }
+                                        },
+                                    )
                                     Text(
                                         "${log.caller} · ${log.action}",
                                         style = MaterialTheme.typography.bodySmall,
