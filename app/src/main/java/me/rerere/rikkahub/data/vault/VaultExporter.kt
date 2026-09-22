@@ -119,7 +119,7 @@ object VaultExporter {
             val ct = Base64.getDecoder().decode(entry.ct)
             cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_LENGTH, iv))
             val plaintext = cipher.doFinal(ct).decodeToString()
-            Quad(name, plaintext, entry.desc, entry.group, entry.publicKey, entry.type)
+            Quad(name, plaintext, entry.desc, entry.group, entry.publicKey, entry.type, metaJson = entry.metaJson)
         }
     }
 
