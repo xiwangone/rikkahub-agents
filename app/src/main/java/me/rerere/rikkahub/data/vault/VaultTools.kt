@@ -25,6 +25,37 @@ import me.rerere.ai.ui.UIMessagePart
  */
 
 /** 列出凭证库条目（不含值）。 */
+/**
+ * 列出「值本身是公钥」的凭证条目（公钥不该单列）及其可并入的宿主。
+ * 只读：不返回值、不改配置。
+ */
+fun vaultPublicKeyEntriesTool(repository: CredentialVaultRepository): Tool = Tool(
+    name = "vault_public_key_entries",
+    description =
+        "List vault entries whose **value is itself an SSH public key** — public keys belong to a " +
+            "private-key entry's `publicKey` field, not as standalone entries. Read-only: reports the " +
+            "entry name, its group, and the host entry it could merge into (matched by fingerprint " +
+            "first, then by name suffix like _PUB/.PUB). Use before cleaning up, e.g. export via " +
+            "vault_export_loadcreds, move the public key into the host entry's SSH公钥 comment, delete " +
+            "the standalone entry, then vault_import_loadcreds.",
+    parameters = { InputSchema.Obj(properties = buildJsonObject {}, required = emptyList()) },
+    execute = { _ ->
+        val rows = repository.findPublicKeyOnlyEntries()
+        if (rows.isEmpty()) {
+            listOf(UIMessagePart.Text("✅ 未发现独立公钥条目（公钥都挂在私钥条目上）"))
+        } else {
+            val body = buildString {
+                appendLine("发现 ${rows.size} 条独立公钥条目（公钥无需单列）：")
+                rows.forEach { r ->
+                    appendLine("- ${r.entry.name}（${r.entry.grp}）→ 可并入：${r.hostName ?: "未匹配到宿主（需人工确认）"}")
+                }
+                append("处理：vault_export_loadcreds 导出 → 把公钥写进宿主条目的 `# SSH公钥:` 注释、删掉该条目 → vault_import_loadcreds 导入。")
+            }
+            listOf(UIMessagePart.Text(body))
+        }
+    },
+)
+
 fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool(
     name = "vault_credential_names",
     description =

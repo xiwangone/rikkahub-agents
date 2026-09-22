@@ -1086,6 +1086,7 @@ class LocalTools(
         }
         if (enabled(LocalToolOption.VaultTools)) {
             tools.add(me.rerere.rikkahub.data.vault.vaultCredentialNamesTool(vaultRepository))
+            tools.add(me.rerere.rikkahub.data.vault.vaultPublicKeyEntriesTool(vaultRepository))
             tools.add(me.rerere.rikkahub.data.vault.vaultCredentialPrepareTool(vaultRepository))
             tools.add(me.rerere.rikkahub.data.vault.vaultCredentialMetaTool(vaultRepository))
             tools.add(me.rerere.rikkahub.data.vault.vaultCredentialAuditTool(vaultRepository))

@@ -94,6 +94,68 @@ class CredentialVaultRepository(
      * 流程：清洗 → **查重**（同值已存在则直接复用，不重复建条目）→ 保存（类型自动推断）
      * → 返回最终凭证名。调用方据此把该处改成引用，而不是留下明文。
      */
+    /** 公钥并入结果：宿主私钥条目名 + 是否靠指纹命中。 */
+    data class PublicKeyMergeResult(val hostName: String, val byFingerprint: Boolean)
+
+    /** 一条「值本身是公钥」的条目及其可并入的宿主（存量清理入口用，只读）。 */
+    data class PublicKeyOnlyEntry(val entry: VaultCredentialEntity, val hostName: String?)
+
+    /**
+     * 把一段**公钥行**并入对应私钥条目（公钥不单列）。
+     *
+     * 匹配优先级：
+     * 1. **指纹**：库里已有 `publicKey` 的条目逐个算指纹比对（精确，不怕改过名）；
+     * 2. **名称启发式**：`X.PUB` / `X_PUB` / `X_PUBLIC` → `X`（够用但可能错配，故排在指纹之后）。
+     *
+     * 返回 null = 没找到宿主，调用方自行决定（提示或按普通条目新建）。
+     */
+    suspend fun mergePublicKeyLine(publicKeyLine: String, preferredName: String = ""): PublicKeyMergeResult? {
+        val value = publicKeyLine.trim()
+        if (value.isEmpty()) return null
+        val now = System.currentTimeMillis()
+
+        // ① 指纹匹配（最可靠）
+        val target = SshKeyGenerator.fingerprint(value)
+        if (target != null) {
+            val host = dao.getAll().firstOrNull { e ->
+                e.publicKey.isNotBlank() && SshKeyGenerator.fingerprint(e.publicKey) == target
+            }
+            if (host != null) {
+                dao.update(host.copy(publicKey = value, updatedAt = now))
+                logAccess(host.name, "manual", "public_key_merged")
+                return PublicKeyMergeResult(host.name, byFingerprint = true)
+            }
+        }
+
+        // ② 名称启发式
+        for (candidate in SshKeyFormat.privateKeyNameCandidates(preferredName)) {
+            val host = dao.getByName(candidate) ?: continue
+            dao.update(host.copy(publicKey = value, updatedAt = now))
+            logAccess(host.name, "manual", "public_key_merged")
+            return PublicKeyMergeResult(host.name, byFingerprint = false)
+        }
+        return null
+    }
+
+    /**
+     * 扫描「值本身是公钥」的条目（存量清理用，只读）。
+     * 每条附上若能匹配到的宿主名（指纹优先，其次名称），供 UI 列候选。
+     */
+    suspend fun findPublicKeyOnlyEntries(): List<PublicKeyOnlyEntry> {
+        val all = dao.getAll()
+        return all.mapNotNull { e ->
+            val v = decryptValue(e) ?: return@mapNotNull null
+            if (!SshKeyFormat.isPublicKeyLine(v)) return@mapNotNull null
+            val fp = SshKeyGenerator.fingerprint(v.trim())
+            val host = all.firstOrNull { h ->
+                h.name != e.name && h.publicKey.isNotBlank() &&
+                    fp != null && SshKeyGenerator.fingerprint(h.publicKey) == fp
+            }?.name ?: SshKeyFormat.privateKeyNameCandidates(e.name)
+                .firstOrNull { cand -> all.any { it.name == cand } }
+            PublicKeyOnlyEntry(e, host)
+        }
+    }
+
     suspend fun quickImport(
         rawValue: String,
         preferredName: String,
@@ -102,6 +164,17 @@ class CredentialVaultRepository(
     ): QuickImportResult {
         val sanitized = CredentialValueSanitizer.sanitize(rawValue)
         require(sanitized.isNotBlank()) { "凭证值为空或只含不可见字符" }
+
+        // 公钥不单列：粘贴的是公钥行 → 先并入对应私钥条目（指纹 → 名称），命中即复用、不新建
+        if (SshKeyFormat.isPublicKeyLine(sanitized)) {
+            mergePublicKeyLine(sanitized, preferredName)?.let { merged ->
+                return QuickImportResult(
+                    name = merged.hostName,
+                    reusedExisting = true,
+                    type = CredentialType.SSH_KEY,
+                )
+            }
+        }
 
         // 查重：同值已在库里就直接复用，顺带避免用户重复粘贴造成多份副本
         val sameName = findSameValueNames(sanitized).firstOrNull()
