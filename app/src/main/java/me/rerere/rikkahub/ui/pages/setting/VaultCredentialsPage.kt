@@ -53,6 +53,7 @@ import me.rerere.rikkahub.ui.components.ui.CappedLazyColumn
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.CredentialMeta
 import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.data.vault.SecretGenerator
 import me.rerere.rikkahub.data.vault.VaultBiometric
@@ -261,7 +262,15 @@ fun VaultCredentialsPage() {
                     if (oldName != null && oldName != name) {
                         // 改名：先建新名（沿用编辑框里的值）→ 同步配置引用 → 再删旧名
                         // （同步引用是必须的：配置里按名字引用，漏掉就会静默失效）
-                        repository.save(name, value, description, group, publicKey, type = type)
+                        repository.save(
+                            name = name,
+                            value = value,
+                            description = description,
+                            group = group,
+                            publicKey = publicKey,
+                            type = type,
+                            metaJson = CredentialMeta.encode(meta),
+                        )
                         runCatching {
                             me.rerere.rikkahub.data.vault.VaultReferenceSync.renameEverywhere(
                                 settingsStore, sshHostRepository, oldName, name,
@@ -271,7 +280,15 @@ fun VaultCredentialsPage() {
                         repository.logAccess(oldName, "manual", "rename_from")
                         repository.logAccess(name, "manual", "rename_to")
                     } else {
-                        repository.save(name, value, description, group, publicKey, type = type)
+                        repository.save(
+                            name = name,
+                            value = value,
+                            description = description,
+                            group = group,
+                            publicKey = publicKey,
+                            type = type,
+                            metaJson = CredentialMeta.encode(meta),
+                        )
                     }
                     showEditor = null
                     refresh()
@@ -461,6 +478,10 @@ private fun CredentialEditorDialog(
     var publicKey by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.publicKey ?: "") }
     var group by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.grp ?: "Other") }
     var type by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.type ?: "") }
+    // 非敏感元数据（明文，键白名单见 CredentialMeta）：编辑时回填，按类型显示对应字段
+    var meta by remember {
+        mutableStateOf(CredentialMeta.decode((mode as? EditorMode.Edit)?.entry?.metaJson ?: ""))
+    }
     var showGroupInput by remember { mutableStateOf(false) }
     var nameError by remember { mutableStateOf(false) }
     var valueError by remember { mutableStateOf(false) }
@@ -529,6 +550,21 @@ private fun CredentialEditorDialog(
                     optionToString = { it },
                     modifier = Modifier.fillMaxWidth(),
                 )
+                // 元数据字段：按类型显示（标签用语言中立的技术词，与类型标识同款约定，不进翻译资源）
+                val metaFieldKeys = when (type) {
+                    CredentialType.API_KEY -> listOf("endpoint", "header", "prefix")
+                    CredentialType.BASIC_AUTH -> listOf("username")
+                    else -> emptyList()
+                }
+                metaFieldKeys.forEach { key ->
+                    OutlinedTextField(
+                        value = meta[key].orEmpty(),
+                        onValueChange = { v -> meta = if (v.isBlank()) meta - key else meta + (key to v) },
+                        label = { Text(key) },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
                 if (showGroupInput) {
                     OutlinedTextField(
                         value = group,

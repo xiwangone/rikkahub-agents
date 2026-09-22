@@ -210,6 +210,8 @@ class CredentialVaultRepository(
         group: String,
         publicKey: String = "",
         type: String = "",
+        /** 非敏感元数据（明文 JSON，白名单见 CredentialMeta）；编辑时留空 = 保留原值。 */
+        metaJson: String = "",
     ) {
         // 命名规范校验（大写蛇形）。存量脏名改到此名时同样拦截；导入路径见 importEntries
         require(validateCredentialName(name)) {
@@ -228,11 +230,20 @@ class CredentialVaultRepository(
                     description = description,
                     grp = group,
                     publicKey = publicKey,
+                    metaJson = metaJson.ifEmpty { existing.metaJson },
                     updatedAt = now,
                 )
             )
         } else {
-            upsertEntry(name, value, description, group, publicKey, type = type)
+            upsertEntry(
+                name = name,
+                value = value,
+                description = description,
+                group = group,
+                publicKey = publicKey,
+                type = type,
+                metaJson = metaJson,
+            )
         }
         logAccess(name, "repository", if (existing != null) "save_update" else "save_create")
         // provider 可能以 `$$名字` 引用本条目：值变化要反映到解析缓存（增量，避免整库解密）
