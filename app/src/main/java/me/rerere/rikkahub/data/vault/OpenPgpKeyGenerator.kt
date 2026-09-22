@@ -86,7 +86,9 @@ object OpenPgpKeyGenerator {
         return GeneratedKey(
             privateKeyArmored = armor { secretRing.encode(it) },
             publicKeyArmored = armor { publicRing.encode(it) },
-            keyId = java.lang.Long.toHexString(publicKey.keyID).uppercase(),
+            // Key ID 固定 16 位十六进制：直接用 Long.toHexString 会丢掉前导零
+            // （约 1/256 的密钥会命中，表现为长度 14 或 15 —— 单元测试会随机失败）
+            keyId = "%016X".format(publicKey.keyID),
             fingerprint = Hex.toHexString(publicKey.fingerprint).uppercase(),
         )
     }

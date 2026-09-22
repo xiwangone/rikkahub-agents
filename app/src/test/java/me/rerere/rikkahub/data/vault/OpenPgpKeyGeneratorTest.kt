@@ -44,7 +44,7 @@ class OpenPgpKeyGeneratorTest {
         assertEquals(PublicKeyAlgorithmTags.EDDSA, publicKey.algorithm)
         assertTrue(publicKey.isMasterKey)
         // 文本块可被重新解析本身即说明 armored 输出有效
-        assertEquals(java.lang.Long.toHexString(publicKey.keyID).uppercase(), key.keyId)
+        assertEquals("%016X".format(publicKey.keyID), key.keyId)
     }
 
     @Test
@@ -52,7 +52,7 @@ class OpenPgpKeyGeneratorTest {
         val key = OpenPgpKeyGenerator.generate("Same <same@example.com>")
         val secretKey = readSecretRing(key.privateKeyArmored).secretKey
 
-        assertEquals(key.keyId, java.lang.Long.toHexString(secretKey.keyID).uppercase())
+        assertEquals(key.keyId, "%016X".format(secretKey.keyID))
     }
 
     @Test
