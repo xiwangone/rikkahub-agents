@@ -375,6 +375,7 @@ dependencies {
     implementation(project(":highlight"))
     implementation(project(":search"))
     implementation(project(":speech"))
+    implementation(project(":oauth"))
     implementation(project(":videogen"))
     implementation(project(":common"))
     implementation(project(":material3"))
