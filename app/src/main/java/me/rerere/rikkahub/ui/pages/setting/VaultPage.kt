@@ -61,6 +61,9 @@ import org.koin.compose.koinInject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
+/** 剪贴板标签：系统剪贴板条目名，不面向界面，无需资源化。 */
+private const val CLIPBOARD_LABEL = "vault-session"
+
 /**
  * 安全凭证库（二级设置页）。
  *
@@ -492,7 +495,7 @@ fun VaultPage() {
                                 OutlinedButton(
                                     onClick = {
                                         val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText("vault-session", token))
+                                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(CLIPBOARD_LABEL, token))
                                         sessionResult = context.getString(R.string.vault_session_copied)
                                     },
                                     modifier = Modifier.weight(1f),
@@ -571,7 +574,7 @@ fun VaultPage() {
                                                 val token = vaultSessionManager.reissueTokenFor(s.id)
                                                 if (token != null) {
                                                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("vault-session", token))
+                                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(CLIPBOARD_LABEL, token))
                                                     sessionResult = context.getString(R.string.vault_session_token_copied)
                                                 }
                                             }
