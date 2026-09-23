@@ -88,6 +88,7 @@ fun WebDavBackupItemsSelector(
                 onToggle = onToggle,
             )
         },
+        desc = { item -> backupItemDescRes(item) },
     )
 }
 
@@ -109,6 +110,7 @@ fun S3BackupItemsSelector(
                 onToggle = onToggle,
             )
         },
+        desc = { item -> backupItemDescRes(item) },
     )
 }
 
@@ -119,6 +121,7 @@ private fun <T> BackupItemsSelectorContent(
     selectedItems: List<T>,
     onChange: (List<T>) -> Unit,
     chip: @Composable (T, Boolean, (Boolean) -> Unit) -> Unit,
+    desc: (T) -> Int?,
 ) {
     var showAdvanced by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -133,6 +136,8 @@ private fun <T> BackupItemsSelectorContent(
                 }
             }
         }
+        // 勾选项的内容说明：让用户知道“勾了这项到底备了什么”（文案已存在，此处接到 UI）
+        SelectedItemDescs(coreItems.filter { it in selectedItems }, desc)
         if (advancedItems.isNotEmpty()) {
             TextButton(
                 onClick = { showAdvanced = !showAdvanced },
@@ -162,6 +167,7 @@ private fun <T> BackupItemsSelectorContent(
                         }
                     }
                 }
+                SelectedItemDescs(advancedItems.filter { it in selectedItems }, desc)
             }
         }
     }
@@ -184,6 +190,50 @@ fun backupItemLabelRes(item: WebDavConfig.BackupItem): Int =
 @Composable
 fun backupItemLabel(item: S3Config.BackupItem): String =
     stringResource(backupItemLabelRes(item))
+
+/** 勾选项下方的“包含什么”说明（与 [backupItemLabelRes] 同构）。 */
+@Composable
+private fun <T> SelectedItemDescs(
+    selected: List<T>,
+    desc: (T) -> Int?,
+) {
+    selected.forEach { item ->
+        desc(item)?.let { res ->
+            Text(
+                text = stringResource(res),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+/** 备份项“包含什么”的说明资源（文案已存在，此前未接 UI）。 */
+fun backupItemDescRes(item: WebDavConfig.BackupItem): Int? =
+    when (item) {
+        WebDavConfig.BackupItem.DATABASE -> R.string.backup_page_item_database_desc
+        WebDavConfig.BackupItem.SETTINGS -> R.string.backup_page_item_settings_desc
+        WebDavConfig.BackupItem.AVATARS -> R.string.backup_page_item_avatars_desc
+        WebDavConfig.BackupItem.WORKSPACE_DOCS -> R.string.backup_page_item_workspace_docs_desc
+        WebDavConfig.BackupItem.SKILLS -> R.string.backup_page_item_skills_desc
+        WebDavConfig.BackupItem.CHAT_FILES -> R.string.backup_page_item_chat_files_desc
+        WebDavConfig.BackupItem.FONTS_IMAGES -> R.string.backup_page_item_fonts_images_desc
+        WebDavConfig.BackupItem.TOOL_OUTPUTS -> R.string.backup_page_item_tool_outputs_desc
+        WebDavConfig.BackupItem.FILES -> R.string.backup_page_item_legacy_files_desc
+    }
+
+fun backupItemDescRes(item: S3Config.BackupItem): Int? =
+    when (item) {
+        S3Config.BackupItem.DATABASE -> R.string.backup_page_item_database_desc
+        S3Config.BackupItem.SETTINGS -> R.string.backup_page_item_settings_desc
+        S3Config.BackupItem.AVATARS -> R.string.backup_page_item_avatars_desc
+        S3Config.BackupItem.WORKSPACE_DOCS -> R.string.backup_page_item_workspace_docs_desc
+        S3Config.BackupItem.SKILLS -> R.string.backup_page_item_skills_desc
+        S3Config.BackupItem.CHAT_FILES -> R.string.backup_page_item_chat_files_desc
+        S3Config.BackupItem.FONTS_IMAGES -> R.string.backup_page_item_fonts_images_desc
+        S3Config.BackupItem.TOOL_OUTPUTS -> R.string.backup_page_item_tool_outputs_desc
+        S3Config.BackupItem.FILES -> R.string.backup_page_item_legacy_files_desc
+    }
 
 @StringRes
 fun backupItemLabelRes(item: S3Config.BackupItem): Int =
