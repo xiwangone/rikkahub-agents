@@ -22,6 +22,9 @@ jobs:
         run: |
           set -o pipefail
           git remote add gitee "https://oauth2:${GITEE_TOKEN}@gitee.com/choosesheng/rikkahub-agents.git"
+          # 先取远端实际 ref：手动推送与 CI 镜像可能并发，远端已领先时
+          # 服务端的 ref CAS 会直接拒（remote rejected: cannot lock ref ... expected <old>）。
+          git fetch gitee master 2>&1 | tee -a sync.log || true
           git push gitee HEAD:master --force 2>&1 | tee -a sync.log
           git remote remove gitee
 
@@ -31,6 +34,7 @@ jobs:
         run: |
           set -o pipefail
           git remote add gitcode "https://oauth2:${GITCODE_TOKEN}@gitcode.com/xiwanhao/rikkahub-agents.git"
+          git fetch gitcode master 2>&1 | tee -a sync.log || true
           git push gitcode HEAD:master --force 2>&1 | tee -a sync.log
           git remote remove gitcode
 
