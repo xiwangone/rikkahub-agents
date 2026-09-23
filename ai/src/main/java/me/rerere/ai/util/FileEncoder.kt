@@ -14,6 +14,19 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 
+/**
+ * 发给云模型前的图片上限。
+ *
+ * 主流视觉模型内部只用到约 1.15–2 MP，超出部分只增费用/时延、易 413/超时；
+ * 与端侧 `toBitmap` 的 1536 分开维护（截屏/表格类需要更清，这里取 2048 长边）。
+ */
+private const val DEFAULT_IMAGE_MAX_DIMENSION = 2048
+private const val DEFAULT_IMAGE_MAX_PIXELS = 2_500_000L
+private const val DEFAULT_JPEG_QUALITY = 85
+
+/** 小于此体积的 data: 图直接透传（避免无谓的解码 + 重编码）。 */
+private const val DATA_URL_PASSTHROUGH_LIMIT_BYTES = 512 * 1024
+
 data class EncodedImage(
     val base64: String,
     val mimeType: String
@@ -45,7 +58,38 @@ internal fun mapExifOrientationToTransform(orientation: Int): ExifTransformType 
     else -> ExifTransformType.NONE
 }
 
-fun UIMessagePart.Image.encodeBase64(withPrefix: Boolean = true): Result<EncodedImage> = runCatching {
+/**
+ * `encodeBase64` 的结果缓存。
+ *
+ * 动因：同一张历史图**每轮请求都会被重新编码**（解码 + 缩放 + JPEG + base64），长会话多图时是纯重复劳动（P104）。
+ * key 含压缩参数与 withPrefix（参数一变自然失效）；对超长 url（data URL 可达数 MB）只取长度+哈希+前缀，
+ * 避免把图本身当 key 存内存。容量固定（最多 16 张，每张约 0.3–1 MB）。
+ */
+private object EncodedImageCache {
+    private const val MAX_ENTRIES = 16
+
+    private val cacheEntries =
+        object : LinkedHashMap<String, EncodedImage>(MAX_ENTRIES, 0.75f, true) {
+            override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, EncodedImage>?): Boolean =
+                size > MAX_ENTRIES
+        }
+
+    private fun keyOf(url: String, withPrefix: Boolean): String =
+        "${DEFAULT_IMAGE_MAX_DIMENSION}x${DEFAULT_IMAGE_MAX_PIXELS}q$DEFAULT_JPEG_QUALITY|$withPrefix|" +
+            "${url.length}|${url.hashCode()}|${url.take(48)}"
+
+    @Synchronized
+    fun get(url: String, withPrefix: Boolean): EncodedImage? = cacheEntries[keyOf(url, withPrefix)]
+
+    @Synchronized
+    fun put(url: String, withPrefix: Boolean, value: EncodedImage) {
+        cacheEntries[keyOf(url, withPrefix)] = value
+    }
+}
+
+fun UIMessagePart.Image.encodeBase64(withPrefix: Boolean = true): Result<EncodedImage> {
+    EncodedImageCache.get(url, withPrefix)?.let { return Result.success(it) }
+    return runCatching {
     when {
         this.url.startsWith("file://") -> {
             val filePath =
@@ -64,13 +108,29 @@ fun UIMessagePart.Image.encodeBase64(withPrefix: Boolean = true): Result<Encoded
         }
 
         this.url.startsWith("data:") -> {
-            // 从 data URL 提取 mime type
             val mimeType = url.substringAfter("data:").substringBefore(";")
-            // withPrefix=false must return the bare base64 payload, not the whole
-            // "data:<mime>;base64,<payload>" URL — callers that pass withPrefix=false
-            // expect exactly what the file:// branch above returns for that flag.
-            val payload = if (withPrefix) url else url.substringAfter(",", missingDelimiterValue = "")
-            EncodedImage(base64 = payload, mimeType = mimeType)
+            val rawPayload = url.substringAfter(",", missingDelimiterValue = "")
+            if (rawPayload.length <= DATA_URL_PASSTHROUGH_LIMIT_BYTES / 3 * 4 + 4) {
+                // 小图直接透传：withPrefix=false 要的是裸 payload，而不是整个 data: URL
+                val payload = if (withPrefix) url else rawPayload
+                EncodedImage(base64 = payload, mimeType = mimeType)
+            } else {
+                // 大图必须和 file:// 走同一条压缩路径，否则一张几 MB 的 data: 图会原样进请求体（见 P104）
+                val bytes = Base64.decode(rawPayload, Base64.DEFAULT)
+                val options = sampleOpts(bytes, DEFAULT_IMAGE_MAX_DIMENSION)
+                val bitmap = BitmapFactory.decodeByteArray(bytes, 0, bytes.size, options)
+                    ?: throw IllegalArgumentException("Failed to decode data URL image")
+                val encoded =
+                    try {
+                        bitmap.compressToBase64Jpeg(DEFAULT_JPEG_QUALITY)
+                    } finally {
+                        bitmap.recycle()
+                    }
+                EncodedImage(
+                    base64 = if (withPrefix) "data:image/jpeg;base64,$encoded" else encoded,
+                    mimeType = "image/jpeg",
+                )
+            }
         }
         this.url.startsWith("http") -> {
             // HTTP URL 无法确定 mime type，默认使用 image/png
@@ -78,6 +138,7 @@ fun UIMessagePart.Image.encodeBase64(withPrefix: Boolean = true): Result<Encoded
         }
         else -> throw IllegalArgumentException("Unsupported URL format: $url")
     }
+    }.onSuccess { EncodedImageCache.put(url, withPrefix, it) }
 }
 
 /**
@@ -247,9 +308,9 @@ fun UIMessagePart.Audio.encodeBase64(withPrefix: Boolean = true): Result<String>
 
 private fun File.compressAndEncode(
     mimeType: String,
-    maxDimension: Int = 10_000,
-    maxPixels: Long = 16_000_000L,
-    quality: Int = 85
+    maxDimension: Int = DEFAULT_IMAGE_MAX_DIMENSION,
+    maxPixels: Long = DEFAULT_IMAGE_MAX_PIXELS,
+    quality: Int = DEFAULT_JPEG_QUALITY,
 ): Pair<String, String> {
     // GIF 保持原样（可能是动图）
     if (mimeType == "image/gif") {
@@ -275,18 +336,22 @@ private fun File.compressAndEncode(
     val normalizedBitmap = normalizeByExif(bitmap)
 
     return try {
-        val byteArrayOutputStream = ByteArrayOutputStream()
-        // 强制使用 JPEG 格式，因为很多提供商不支持 webp
-        Base64OutputStream(byteArrayOutputStream, Base64.NO_WRAP).use { base64Stream ->
-            normalizedBitmap.compress(Bitmap.CompressFormat.JPEG, quality, base64Stream)
-        }
-        Pair(byteArrayOutputStream.toString(Charsets.ISO_8859_1.name()), "image/jpeg")
+        Pair(normalizedBitmap.compressToBase64Jpeg(quality), "image/jpeg")
     } finally {
         if (normalizedBitmap !== bitmap) {
             normalizedBitmap.recycle()
         }
         bitmap.recycle()
     }
+}
+
+/** JPEG + base64 的统一出口：强制 JPEG，因为很多提供商不支持 webp。 */
+private fun Bitmap.compressToBase64Jpeg(quality: Int): String {
+    val out = ByteArrayOutputStream()
+    Base64OutputStream(out, Base64.NO_WRAP).use { stream ->
+        compress(Bitmap.CompressFormat.JPEG, quality, stream)
+    }
+    return out.toString(Charsets.ISO_8859_1.name())
 }
 
 private fun File.normalizeByExif(bitmap: Bitmap): Bitmap {
