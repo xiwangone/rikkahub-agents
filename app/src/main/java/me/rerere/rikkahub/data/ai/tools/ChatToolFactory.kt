@@ -193,10 +193,14 @@ class ChatToolFactory(
                 execute = { args ->
                     val startedAt = android.os.SystemClock.elapsedRealtime()
                     var failed = false
+                    // 失败原因只记**异常类名**（不自造分类、不含消息/参数）：用来回答
+                    // “某工具的高失败率到底是参数错还是 IO 错”。
+                    var failureKind: String? = null
                     try {
                         tool.execute(args)
                     } catch (error: Throwable) {
                         failed = true
+                        failureKind = error::class.simpleName ?: "Throwable"
                         throw error
                     } finally {
                         ToolUsageTracker.record(
@@ -204,6 +208,7 @@ class ChatToolFactory(
                             name = tool.name,
                             durationMs = android.os.SystemClock.elapsedRealtime() - startedAt,
                             failed = failed,
+                            failureKind = failureKind,
                         )
                     }
                 },

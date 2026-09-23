@@ -100,8 +100,21 @@ class ToolUsageTrackerTest {
 
         assertEquals(
             "persisted shape must stay aggregate-only (no call payloads)",
-            setOf("name", "count", "failures", "totalMs", "lastUsedAt"),
+            setOf("name", "count", "failures", "totalMs", "lastUsedAt", "failureKinds"),
             keys,
         )
+    }
+
+    @Test
+    fun `failure kinds accumulate by exception class name only`() {
+        ToolUsageTracker.record(NULL_CONTEXT, "t", 1, failed = true, failureKind = "IllegalArgumentException")
+        ToolUsageTracker.record(NULL_CONTEXT, "t", 1, failed = true, failureKind = "IllegalArgumentException")
+        ToolUsageTracker.record(NULL_CONTEXT, "t", 1, failed = true, failureKind = "IOException")
+        // 未分类的失败（无类名）只计入 failures，不污染分布
+        ToolUsageTracker.record(NULL_CONTEXT, "t", 1, failed = true)
+
+        val entry = ToolUsageTracker.snapshot(NULL_CONTEXT).single()
+        assertEquals(4L, entry.failures)
+        assertEquals(mapOf("IllegalArgumentException" to 2L, "IOException" to 1L), entry.failureKinds)
     }
 }

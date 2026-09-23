@@ -48,6 +48,14 @@ private const val KEY_SURFACE_CHANGES = "surface_hash_changes"
         val failures: Long = 0,
         val totalMs: Long = 0,
         val lastUsedAt: Long = 0,
+        /**
+         * 失败原因：**异常类名 → 次数**。
+         *
+         * 只记类名（如 `IllegalArgumentException`），**不记消息、不记参数** —— 隐私契约要求
+         * 条目只含聚合计数（见 ToolUsageTrackerTest 的形状断言）。用途：回答“某工具的高失败率
+         * 到底是参数错还是 IO 错”。
+         */
+        val failureKinds: Map<String, Long> = emptyMap(),
     ) {
         val avgMs: Long get() = if (count > 0) totalMs / count else 0
     }
@@ -83,6 +91,7 @@ private const val KEY_SURFACE_CHANGES = "surface_hash_changes"
         name: String,
         durationMs: Long,
         failed: Boolean,
+        failureKind: String? = null,
     ) {
         if (!usageStatsEnabled) return
         ensureLoaded(context)
@@ -93,6 +102,12 @@ private const val KEY_SURFACE_CHANGES = "surface_hash_changes"
                 failures = base.failures + if (failed) 1 else 0,
                 totalMs = base.totalMs + durationMs.coerceAtLeast(0),
                 lastUsedAt = System.currentTimeMillis(),
+                failureKinds =
+                    if (failureKind == null) {
+                        base.failureKinds
+                    } else {
+                        base.failureKinds + (failureKind to (base.failureKinds[failureKind] ?: 0L) + 1L)
+                    },
             )
         }
         persist(context)

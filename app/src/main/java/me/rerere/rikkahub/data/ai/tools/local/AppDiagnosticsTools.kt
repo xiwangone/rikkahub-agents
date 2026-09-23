@@ -758,6 +758,17 @@ internal suspend fun usageStatsPayload(
                                         put("failures", entry.failures)
                                         put("avgMs", entry.avgMs)
                                         put("lastUsedAt", entry.lastUsedAt)
+                                        // 失败原因分布（异常类名 → 次数）；从未失败就不占字段。
+                                        if (entry.failureKinds.isNotEmpty()) {
+                                            put(
+                                                "failureKinds",
+                                                buildJsonObject {
+                                                    entry.failureKinds.entries
+                                                        .sortedByDescending { it.value }
+                                                        .forEach { (kind, n) -> put(kind, n) }
+                                                },
+                                            )
+                                        }
                                     },
                                 )
                             }
