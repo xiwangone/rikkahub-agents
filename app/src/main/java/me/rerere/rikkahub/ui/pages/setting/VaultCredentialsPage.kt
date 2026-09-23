@@ -562,6 +562,7 @@ private fun CredentialEditorDialog(
                 val metaFieldKeys = when (type) {
                     CredentialType.API_KEY -> listOf("endpoint", "header", "prefix")
                     CredentialType.BASIC_AUTH -> listOf("username")
+                    CredentialType.TOTP -> listOf("algorithm", "digits", "period")
                     else -> emptyList()
                 }
                 metaFieldKeys.forEach { key ->
@@ -571,6 +572,52 @@ private fun CredentialEditorDialog(
                         label = { Text(key) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+                // 自定义字段（custom-fields）：多组 k=v，键走 custom. 前缀白名单放行；值为明文备注（方案 A）
+                if (type == CredentialType.CUSTOM) {
+                    val customKeys = meta.keys.filter { it.startsWith(CredentialMeta.CUSTOM_PREFIX) }
+                    customKeys.forEach { fullKey ->
+                        val label = fullKey.removePrefix(CredentialMeta.CUSTOM_PREFIX)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedTextField(
+                                value = label,
+                                onValueChange = { newLabel ->
+                                    val newFull = CredentialMeta.CUSTOM_PREFIX + newLabel
+                                    // 保行位重建键（直接删加会把行挪到末尾，输入时会跳动）
+                                    meta = buildMap {
+                                        meta.forEach { (k, v) -> if (k == fullKey) put(newFull, v) else put(k, v) }
+                                    }
+                                },
+                                label = { Text("key") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            OutlinedTextField(
+                                value = meta[fullKey].orEmpty(),
+                                onValueChange = { v -> meta = if (v.isBlank()) meta - fullKey else meta + (fullKey to v) },
+                                label = { Text("value") },
+                                singleLine = true,
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(onClick = { meta = meta - fullKey }) {
+                                Icon(HugeIcons.Delete02, stringResource(R.string.vault_delete), tint = MaterialTheme.colorScheme.error)
+                            }
+                        }
+                    }
+                    TextButton(onClick = {
+                        var i = customKeys.size + 1
+                        var k = CredentialMeta.CUSTOM_PREFIX + "key$i"
+                        while (k in meta) { i++; k = CredentialMeta.CUSTOM_PREFIX + "key$i" }
+                        meta = meta + (k to "")
+                    }) { Text(stringResource(R.string.vault_editor_custom_add)) }
+                    Text(
+                        stringResource(R.string.vault_editor_custom_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
                 if (showGroupInput) {

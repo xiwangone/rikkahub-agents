@@ -2305,6 +2305,8 @@
   <string name="vault_editor_new_group_label">新分组名称</string>
   <string name="vault_new_group_option">＋新建分组</string>
   <string name="vault_save">保存</string>
+  <string name="vault_editor_custom_add">添加字段</string>
+  <string name="vault_editor_custom_hint">明文存储，请勿放密钥、口令等秘密。</string>
   <string name="vault_dupes_title">检查重复</string>
   <string name="vault_dupes_empty">未发现重复条目</string>
   <string name="vault_ref_pick">从凭证库选择</string>

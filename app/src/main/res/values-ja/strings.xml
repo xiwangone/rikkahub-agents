@@ -2840,6 +2840,8 @@
   <string name="vault_editor_new_group_label">新しいグループ名</string>
   <string name="vault_new_group_option">＋グループを新規作成</string>
   <string name="vault_save">保存</string>
+  <string name="vault_editor_custom_add">フィールドを追加</string>
+  <string name="vault_editor_custom_hint">平文で保存されます。機密情報は入力しないでください。</string>
   <string name="vault_dupes_title">重複を確認</string>
   <string name="vault_dupes_empty">重複は見つかりません</string>
   <string name="vault_ref_pick">Vault から選択</string>

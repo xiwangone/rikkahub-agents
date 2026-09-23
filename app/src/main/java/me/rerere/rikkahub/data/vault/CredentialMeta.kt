@@ -28,11 +28,16 @@ object CredentialMeta {
         "period",     // TOTP 周期（秒）
     )
 
+    /** 自定义字段键前缀：`custom.<标签>`。值是**明文备注**，禁止放密钥/口令（2026-09-23 定）。 */
+    const val CUSTOM_PREFIX = "custom."
+
+    private fun isAllowedKey(key: String): Boolean = key in ALLOWED_KEYS || key.startsWith(CUSTOM_PREFIX)
+
     private val jsonCodec = Json { prettyPrint = false }
 
     /** 白名单过滤后序列化；全部为空 → 返回空串（不写 "{}"）。 */
     fun encode(meta: Map<String, String>): String {
-        val kept = meta.filter { (k, v) -> k in ALLOWED_KEYS && v.isNotBlank() }
+        val kept = meta.filter { (k, v) -> isAllowedKey(k) && v.isNotBlank() }
         if (kept.isEmpty()) return ""
         return jsonCodec.encodeToString(
             JsonObject.serializer(),
@@ -47,10 +52,10 @@ object CredentialMeta {
             ?: return emptyMap()
         return obj.mapNotNull { (k, v) ->
             val s = (v as? JsonPrimitive)?.contentOrNull
-            if (k in ALLOWED_KEYS && !s.isNullOrBlank()) k to s else null
+            if (isAllowedKey(k) && !s.isNullOrBlank()) k to s else null
         }.toMap()
     }
 
     /** 非白名单键（供写入侧提示；不阻断，只是不落明文）。 */
-    fun rejectedKeys(meta: Map<String, String>): Set<String> = meta.keys - ALLOWED_KEYS
+    fun rejectedKeys(meta: Map<String, String>): Set<String> = meta.keys.filterNot { isAllowedKey(it) }.toSet()
 }

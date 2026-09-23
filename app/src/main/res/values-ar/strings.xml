@@ -2485,6 +2485,8 @@
   <string name="vault_editor_new_group_label">اسم المجموعة الجديدة</string>
   <string name="vault_new_group_option">＋ مجموعة جديدة</string>
   <string name="vault_save">حفظ</string>
+  <string name="vault_editor_custom_add">إضافة حقل</string>
+  <string name="vault_editor_custom_hint">تُحفظ كنص صريح. لا تضع هنا أي أسرار.</string>
   <string name="vault_dupes_title">فحص التكرار</string>
   <string name="vault_dupes_empty">لا توجد عناصر مكررة</string>
   <string name="vault_ref_pick">اختيار من Vault</string>

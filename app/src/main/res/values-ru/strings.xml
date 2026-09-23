@@ -2833,6 +2833,8 @@
   <string name="vault_editor_new_group_label">Название новой группы</string>
   <string name="vault_new_group_option">＋ Новая группа</string>
   <string name="vault_save">Сохранить</string>
+  <string name="vault_editor_custom_add">Добавить поле</string>
+  <string name="vault_editor_custom_hint">Хранится в открытом виде. Не размещайте здесь секреты.</string>
   <string name="vault_dupes_title">Проверить дубликаты</string>
   <string name="vault_dupes_empty">Дубликаты не найдены</string>
   <string name="vault_ref_pick">Выбрать из Vault</string>

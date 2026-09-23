@@ -40,6 +40,27 @@ class CredentialMetaTest {
     }
 
     @Test
+    fun `custom prefixed keys round trip and non-whitelist still dropped`() {
+        val meta = mapOf(
+            "custom.备用邮箱" to "a@b.c",
+            "custom.recovery-hint" to "see paper note",
+            "apiKey" to "sk-nope",
+        )
+        val decoded = CredentialMeta.decode(CredentialMeta.encode(meta))
+        assertEquals("a@b.c", decoded["custom.备用邮箱"])
+        assertEquals("see paper note", decoded["custom.recovery-hint"])
+        assertFalse("白名单外的键仍必须丢", decoded.containsKey("apiKey"))
+    }
+
+    @Test
+    fun `custom keys are not reported as rejected`() {
+        val rejected = CredentialMeta.rejectedKeys(
+            mapOf("custom.x" to "1", "endpoint" to "e", "apiKey" to "k"),
+        )
+        assertEquals(setOf("apiKey"), rejected)
+    }
+
+    @Test
     fun `decode tolerates blank and malformed json`() {
         assertEquals(emptyMap<String, String>(), CredentialMeta.decode(""))
         assertEquals(emptyMap<String, String>(), CredentialMeta.decode("   "))

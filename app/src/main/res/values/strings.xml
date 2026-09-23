@@ -2340,6 +2340,8 @@
   <string name="vault_editor_new_group_label">New group name</string>
   <string name="vault_new_group_option">＋New group</string>
   <string name="vault_save">Save</string>
+  <string name="vault_editor_custom_add">Add field</string>
+  <string name="vault_editor_custom_hint">Stored as plaintext. Do not put secrets here.</string>
   <string name="vault_dupes_title">Check duplicates</string>
   <string name="vault_dupes_empty">No duplicates found</string>
   <string name="vault_ref_pick">Pick from Vault</string>

@@ -1989,6 +1989,8 @@
   <string name="vault_editor_new_group_label">新分組名稱</string>
   <string name="vault_new_group_option">＋新建分組</string>
   <string name="vault_save">儲存</string>
+  <string name="vault_editor_custom_add">新增欄位</string>
+  <string name="vault_editor_custom_hint">明文儲存，請勿放密鑰、密碼等祕密。</string>
   <string name="vault_dupes_title">檢查重複</string>
   <string name="vault_dupes_empty">未發現重複條目</string>
   <string name="vault_ref_pick">從憑證庫選擇</string>
