@@ -4,8 +4,10 @@ import android.annotation.SuppressLint
 import android.content.Context
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.TimeZone
+import kotlinx.datetime.toInstant
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -511,7 +513,7 @@ internal suspend fun conversationsPayload(
                     // 尾部轻扫（≤3 节点）：避免大会话全量遍历；只要「最近一条 assistant」的模型与耗时
                     val tail = c.messageNodes.asReversed().take(3).flatMap { it.messages.asReversed() }
                     val lastAssistant = tail.firstOrNull { it.role == MessageRole.ASSISTANT }
-                    put("lastModelUuid", lastAssistant?.modelId?.toString() ?: JsonNull)
+                    put("lastModelUuid", lastAssistant?.modelId?.let { JsonPrimitive(it.toString()) } ?: JsonNull)
                     put("lastTurnMs", turnDurationMs(lastAssistant))
                 }
             }))
@@ -835,7 +837,7 @@ internal suspend fun modelsPayload(settingsStore: SettingsStore): String {
     val bound = assistant.chatModelId
     return buildJsonObject {
         put("assistant", assistant.name)
-        put("assistant_model_uuid", bound?.toString() ?: JsonNull)
+        put("assistant_model_uuid", bound?.let { JsonPrimitive(it.toString()) } ?: JsonNull)
         put("favorite_model_uuids", JsonArray(settings.favoriteModels.map { JsonPrimitive(it.toString()) }))
         put("provider_count", settings.providers.size)
         put(
