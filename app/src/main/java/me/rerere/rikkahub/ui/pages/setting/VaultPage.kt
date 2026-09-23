@@ -48,6 +48,7 @@ import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
+import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultBiometric
 import me.rerere.rikkahub.data.vault.VaultExporter
@@ -94,10 +95,33 @@ fun VaultPage() {
     var auditLogs by remember { mutableStateOf<List<VaultAuditLogEntity>>(emptyList()) }
     // 审计筛选：按凭证名过滤（点条目里的凭证名即筛，再点取消）；不新增文案
     var auditFilter by remember { mutableStateOf<String?>(null) }
-    val shownAudit = remember(auditLogs, auditFilter) {
-        val f = auditFilter
-        if (f == null) auditLogs else auditLogs.filter { it.credentialName == f }
+    var auditActionFilter by remember { mutableStateOf<String?>(null) }
+    var auditTimeDays by remember { mutableStateOf(0) } // 0=全部 1=近24h 7=近7天
+    val shownAudit = remember(auditLogs, auditFilter, auditActionFilter, auditTimeDays) {
+        val now = System.currentTimeMillis()
+        auditLogs.filter { log ->
+            (auditFilter == null || log.credentialName == auditFilter) &&
+                (auditActionFilter == null || log.action == auditActionFilter) &&
+                (auditTimeDays == 0 || log.tsMs >= now - auditTimeDays * 86_400_000L)
+        }
     }
+    // 链路折叠：同凭证且相邻 1.5s 内 = 同一调用链（工具层 + 用途层两条噪声折成一条）
+    val auditGroups: List<List<VaultAuditLogEntity>> = remember(shownAudit) {
+        val groups = mutableListOf<MutableList<VaultAuditLogEntity>>()
+        shownAudit.forEach { log ->
+            val last = groups.lastOrNull()?.lastOrNull()
+            if (last != null && last.credentialName == log.credentialName && last.tsMs - log.tsMs < 1500) {
+                groups.last().add(log)
+            } else {
+                groups.add(mutableListOf(log))
+            }
+        }
+        groups
+    }
+
+    // 需授权门的用途（env_inject / export_env 等）在列表里高亮
+    fun actionNeedsAuth(action: String): Boolean =
+        CredentialPurpose.values().any { it.action == action && it.requiresAuthorization }
     var sessionToken by remember { mutableStateOf<String?>(null) }
     var sessionResult by remember { mutableStateOf<String?>(null) }
     val vaultSessionManager: VaultSessionManager = koinInject()
@@ -625,13 +649,37 @@ fun VaultPage() {
                                     modifier = Modifier.clickable { auditFilter = null },
                                 )
                             }
+                            auditActionFilter?.let { a ->
+                                Text(
+                                    text = "✕ $a",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.tertiary,
+                                    modifier = Modifier.clickable { auditActionFilter = null },
+                                )
+                            }
+                        }
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(
+                                0 to stringResource(R.string.vault_audit_time_all),
+                                1 to stringResource(R.string.vault_audit_time_1d),
+                                7 to stringResource(R.string.vault_audit_time_7d),
+                            ).forEach { (days, label) ->
+                                Text(
+                                    text = label,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = if (auditTimeDays == days) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.clickable { auditTimeDays = days },
+                                )
+                            }
                         }
                         Text(
                             text = stringResource(R.string.vault_audit_desc, shownAudit.size),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
-                        shownAudit.take(8).forEach { log ->
+                        auditGroups.take(30).forEach { group ->
+                            val log = group.first()
+                            val needsAuth = actionNeedsAuth(log.action)
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
                                 horizontalArrangement = Arrangement.SpaceBetween,
@@ -647,10 +695,23 @@ fun VaultPage() {
                                         },
                                     )
                                     Text(
-                                        "${log.caller} · ${log.action}",
+                                        "${if (needsAuth) "⚠ " else ""}${log.caller} · ${log.action}",
                                         style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        // 需授权门的用途高亮（env_inject / export_env 等）；点即按用途筛
+                                        color = if (needsAuth) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.clickable {
+                                            auditActionFilter = log.action.takeIf { it != auditActionFilter }
+                                        },
                                     )
+                                    // 同链路的内层记录折叠为子行
+                                    group.drop(1).forEach { sub ->
+                                        Text(
+                                            text = "↳ ${sub.caller} · ${sub.action}",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(start = 12.dp),
+                                        )
+                                    }
                                 }
                                 Text(
                                     formatTime(log.tsMs),

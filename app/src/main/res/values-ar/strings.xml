@@ -2625,6 +2625,9 @@
   <string name="vault_backup_restore_failed">فشلت الاستعادة: %1$s</string>
   <string name="vault_audit_title">سجل استدعاءات المفاتيح</string>
   <string name="vault_audit_desc">آخر %1$d استدعاء للمفاتيح (يُحفظ 500 سجل / 30 يومًا)</string>
+  <string name="vault_audit_time_all">الكل</string>
+  <string name="vault_audit_time_1d">آخر 24 ساعة</string>
+  <string name="vault_audit_time_7d">آخر 7 أيام</string>
   <string name="vault_audit_clear">مسح سجل الاستدعاءات</string>
   <string name="log_page_title">السجلات</string>
   <string name="log_tab_request">الطلبات</string>

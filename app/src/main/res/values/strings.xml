@@ -2614,6 +2614,9 @@
   <string name="vault_backup_restore_failed">Restore failed: %1$s</string>
   <string name="vault_audit_title">Key access log</string>
   <string name="vault_audit_desc">Recent %1$d key accesses (kept 500 entries / 30 days)</string>
+  <string name="vault_audit_time_all">All</string>
+  <string name="vault_audit_time_1d">Last 24 h</string>
+  <string name="vault_audit_time_7d">Last 7 days</string>
   <string name="vault_audit_clear">Clear access log</string>
   <string name="log_page_title">Logs</string>
   <string name="log_tab_request">Requests</string>

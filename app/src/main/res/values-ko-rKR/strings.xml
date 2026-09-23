@@ -2980,6 +2980,9 @@
   <string name="vault_backup_restore_failed">복원 실패: %1$s</string>
   <string name="vault_audit_title">키 호출 기록</string>
   <string name="vault_audit_desc">최근 키 호출 %1$d건(500건/30일 보관)</string>
+  <string name="vault_audit_time_all">전체</string>
+  <string name="vault_audit_time_1d">최근 24시간</string>
+  <string name="vault_audit_time_7d">최근 7일</string>
   <string name="vault_audit_clear">호출 기록 지우기</string>
   <string name="log_page_title">로그</string>
   <string name="log_tab_request">요청</string>

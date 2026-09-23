@@ -2973,6 +2973,9 @@
   <string name="vault_backup_restore_failed">Ошибка восстановления: %1$s</string>
   <string name="vault_audit_title">Журнал обращений к ключам</string>
   <string name="vault_audit_desc">Последние %1$d обращений (хранится 500 записей / 30 дней)</string>
+  <string name="vault_audit_time_all">Все</string>
+  <string name="vault_audit_time_1d">За 24 часа</string>
+  <string name="vault_audit_time_7d">За 7 дней</string>
   <string name="vault_audit_clear">Очистить журнал обращений</string>
   <string name="log_page_title">Журналы</string>
   <string name="log_tab_request">Запросы</string>

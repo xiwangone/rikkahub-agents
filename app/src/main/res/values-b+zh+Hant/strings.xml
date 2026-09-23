@@ -2100,6 +2100,9 @@
   <string name="vault_backup_restore_failed">還原失敗: %1$s</string>
   <string name="vault_audit_title">金鑰呼叫記錄</string>
   <string name="vault_audit_desc">最近 %1$d 次金鑰呼叫（保留 500 條 / 30 天）</string>
+  <string name="vault_audit_time_all">全部</string>
+  <string name="vault_audit_time_1d">近 24 小時</string>
+  <string name="vault_audit_time_7d">近 7 天</string>
   <string name="vault_audit_clear">清空呼叫記錄</string>
   <string name="log_page_title">日誌</string>
   <string name="log_tab_request">請求</string>

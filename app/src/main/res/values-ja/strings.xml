@@ -2980,6 +2980,9 @@
   <string name="vault_backup_restore_failed">復元に失敗: %1$s</string>
   <string name="vault_audit_title">鍵の呼び出し履歴</string>
   <string name="vault_audit_desc">直近 %1$d 件の鍵呼び出し（500 件 / 30 日保持）</string>
+  <string name="vault_audit_time_all">すべて</string>
+  <string name="vault_audit_time_1d">過去 24 時間</string>
+  <string name="vault_audit_time_7d">過去 7 日間</string>
   <string name="vault_audit_clear">呼び出し履歴を消去</string>
   <string name="log_page_title">ログ</string>
   <string name="log_tab_request">リクエスト</string>
