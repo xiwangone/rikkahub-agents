@@ -2617,6 +2617,11 @@
   <string name="vault_audit_time_all">All</string>
   <string name="vault_audit_time_1d">Last 24 h</string>
   <string name="vault_audit_time_7d">Last 7 days</string>
+  <string name="vault_audit_export_json">Export JSON</string>
+  <string name="vault_audit_export_csv">Export CSV</string>
+  <string name="vault_audit_retention_days">Retention (days)</string>
+  <string name="vault_audit_retention_count">Retention (count)</string>
+  <string name="vault_audit_protected_hint">Critical actions (export / write-back / clear receipt) are kept regardless of limits.</string>
   <string name="vault_audit_clear">Clear access log</string>
   <string name="log_page_title">Logs</string>
   <string name="log_tab_request">Requests</string>

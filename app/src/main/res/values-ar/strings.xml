@@ -2628,6 +2628,11 @@
   <string name="vault_audit_time_all">الكل</string>
   <string name="vault_audit_time_1d">آخر 24 ساعة</string>
   <string name="vault_audit_time_7d">آخر 7 أيام</string>
+  <string name="vault_audit_export_json">تصدير JSON</string>
+  <string name="vault_audit_export_csv">تصدير CSV</string>
+  <string name="vault_audit_retention_days">أيام الاحتفاظ</string>
+  <string name="vault_audit_retention_count">عدد السجلات المحفوظة</string>
+  <string name="vault_audit_protected_hint">تُحفظ الإجراءات الحرجة (التصدير / الكتابة / إيصال المسح) بصرف النظر عن الحدود.</string>
   <string name="vault_audit_clear">مسح سجل الاستدعاءات</string>
   <string name="log_page_title">السجلات</string>
   <string name="log_tab_request">الطلبات</string>

@@ -47,7 +47,9 @@ import me.rerere.hugeicons.stroke.LockKey
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
+import me.rerere.rikkahub.data.db.entity.VaultAuditDefaults
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
+import me.rerere.rikkahub.data.vault.AuditExporter
 import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultBiometric
@@ -55,6 +57,7 @@ import me.rerere.rikkahub.data.vault.VaultExporter
 import me.rerere.rikkahub.data.vault.VaultFormats
 import me.rerere.rikkahub.data.vault.VaultImportOutcome
 import me.rerere.rikkahub.data.vault.VaultPreferences
+import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.data.vault.VaultSessionManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -122,6 +125,24 @@ fun VaultPage() {
     // 需授权门的用途（env_inject / export_env 等）在列表里高亮
     fun actionNeedsAuth(action: String): Boolean =
         CredentialPurpose.values().any { it.action == action && it.requiresAuthorization }
+
+    // 审计导出留档（JSON/CSV）+ 保留策略可配（D2）
+    var auditExportFormat by remember { mutableStateOf("json") }
+    val auditExportLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
+            if (uri != null) {
+                scope.launch {
+                    runCatching {
+                        val text = if (auditExportFormat == "csv") AuditExporter.toCsv(shownAudit) else AuditExporter.toJson(shownAudit)
+                        context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
+                    }
+                }
+            }
+        }
+    var auditRetentionDays by remember { mutableStateOf(VaultAuditDefaults.RETENTION_DAYS.toInt()) }
+    var auditCap by remember { mutableStateOf(VaultAuditDefaults.CAP) }
+    LaunchedEffect(Unit) { vaultPreferences.auditRetentionDays.collect { auditRetentionDays = it } }
+    LaunchedEffect(Unit) { vaultPreferences.auditCap.collect { auditCap = it } }
     var sessionToken by remember { mutableStateOf<String?>(null) }
     var sessionResult by remember { mutableStateOf<String?>(null) }
     val vaultSessionManager: VaultSessionManager = koinInject()
@@ -720,6 +741,49 @@ fun VaultPage() {
                                 )
                             }
                         }
+                        // 导出留档（只含名称/用途/时间，无秘密值）
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            OutlinedButton(
+                                onClick = {
+                                    auditExportFormat = "json"
+                                    auditExportLauncher.launch("vault-audit-${System.currentTimeMillis()}.json")
+                                },
+                                modifier = Modifier.weight(1f),
+                            ) { Text(stringResource(R.string.vault_audit_export_json)) }
+                            OutlinedButton(
+                                onClick = {
+                                    auditExportFormat = "csv"
+                                    auditExportLauncher.launch("vault-audit-${System.currentTimeMillis()}.csv")
+                                },
+                                modifier = Modifier.weight(1f),
+                            ) { Text(stringResource(R.string.vault_audit_export_csv)) }
+                        }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(stringResource(R.string.vault_audit_retention_days), style = MaterialTheme.typography.labelSmall)
+                            Select(
+                                options = listOf(30, 90, 365),
+                                selectedOption = auditRetentionDays,
+                                onOptionSelected = { d -> scope.launch { vaultPreferences.setAuditRetentionDays(d) } },
+                                optionToString = { it.toString() },
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(stringResource(R.string.vault_audit_retention_count), style = MaterialTheme.typography.labelSmall)
+                            Select(
+                                options = listOf(500, 2000, 10000),
+                                selectedOption = auditCap,
+                                onOptionSelected = { c -> scope.launch { vaultPreferences.setAuditCap(c) } },
+                                optionToString = { it.toString() },
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                        Text(
+                            stringResource(R.string.vault_audit_protected_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         OutlinedButton(
                             onClick = {
                                 scope.launch {

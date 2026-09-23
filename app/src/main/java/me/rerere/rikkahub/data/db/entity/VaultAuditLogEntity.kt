@@ -39,4 +39,6 @@ object VaultAuditDefaults {
     const val CAP = 500
     /** 保留天数 */
     const val RETENTION_DAYS = 30L
+    /** 关键动作（导出 / 写回 / 清空回执）：不受滚动上限限制，长期留存 */
+    val PROTECTED_ACTIONS: List<String> = listOf("export", "export_env", "fill_back", "audit_cleared")
 }

@@ -4,6 +4,7 @@ import me.rerere.rikkahub.data.datastore.ProviderCredentialCipher
 import java.security.MessageDigest
 import me.rerere.rikkahub.data.db.dao.VaultAuditLogDao
 import me.rerere.rikkahub.data.db.dao.VaultCredentialDao
+import kotlinx.coroutines.flow.first
 import me.rerere.rikkahub.data.db.entity.VaultAuditDefaults
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
@@ -65,6 +66,7 @@ private const val AUDIT_CLEAR_RECEIPT = "—"
 class CredentialVaultRepository(
     private val dao: VaultCredentialDao,
     private val auditDao: VaultAuditLogDao,
+    private val vaultPreferences: VaultPreferences,
 ) {
 
     suspend fun getAll(): List<VaultCredentialEntity> = dao.getAll()
@@ -432,10 +434,12 @@ class CredentialVaultRepository(
                 action = action,
             )
         )
-        val cutoff = System.currentTimeMillis() - VaultAuditDefaults.RETENTION_DAYS * 24 * 60 * 60 * 1000
-        auditDao.deleteOlderThan(cutoff)
-        if (auditDao.count() > VaultAuditDefaults.CAP) {
-            auditDao.trimTo(VaultAuditDefaults.CAP)
+        val retentionDays = vaultPreferences.auditRetentionDays.first()
+        val cutoff = System.currentTimeMillis() - retentionDays * 24L * 60 * 60 * 1000
+        auditDao.deleteOlderThan(cutoff, VaultAuditDefaults.PROTECTED_ACTIONS)
+        val cap = vaultPreferences.auditCap.first()
+        if (auditDao.count() > cap) {
+            auditDao.trimTo(cap, VaultAuditDefaults.PROTECTED_ACTIONS)
         }
     }
 

@@ -190,7 +190,7 @@ val dataSourceModule =
             get<AppDatabase>().vaultCredentialDao()
         }
         single {
-            CredentialVaultRepository(get(), get())
+            CredentialVaultRepository(get(), get(), get())
         }
         single {
             get<AppDatabase>().vaultAuditLogDao()

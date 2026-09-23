@@ -2983,6 +2983,11 @@
   <string name="vault_audit_time_all">すべて</string>
   <string name="vault_audit_time_1d">過去 24 時間</string>
   <string name="vault_audit_time_7d">過去 7 日間</string>
+  <string name="vault_audit_export_json">JSON をエクスポート</string>
+  <string name="vault_audit_export_csv">CSV をエクスポート</string>
+  <string name="vault_audit_retention_days">保持日数</string>
+  <string name="vault_audit_retention_count">保持件数</string>
+  <string name="vault_audit_protected_hint">重要アクション（エクスポート / 書き込み / 消去レシート）は上限の対象外で長期保存されます。</string>
   <string name="vault_audit_clear">呼び出し履歴を消去</string>
   <string name="log_page_title">ログ</string>
   <string name="log_tab_request">リクエスト</string>

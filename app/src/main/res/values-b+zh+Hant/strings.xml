@@ -2103,6 +2103,11 @@
   <string name="vault_audit_time_all">全部</string>
   <string name="vault_audit_time_1d">近 24 小時</string>
   <string name="vault_audit_time_7d">近 7 天</string>
+  <string name="vault_audit_export_json">匯出 JSON</string>
+  <string name="vault_audit_export_csv">匯出 CSV</string>
+  <string name="vault_audit_retention_days">保留天數</string>
+  <string name="vault_audit_retention_count">保留條數</string>
+  <string name="vault_audit_protected_hint">關鍵動作（匯出 / 寫回 / 清空回執）不受上限限制，長期保留。</string>
   <string name="vault_audit_clear">清空呼叫記錄</string>
   <string name="log_page_title">日誌</string>
   <string name="log_tab_request">請求</string>

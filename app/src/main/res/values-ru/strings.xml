@@ -2976,6 +2976,11 @@
   <string name="vault_audit_time_all">Все</string>
   <string name="vault_audit_time_1d">За 24 часа</string>
   <string name="vault_audit_time_7d">За 7 дней</string>
+  <string name="vault_audit_export_json">Экспорт JSON</string>
+  <string name="vault_audit_export_csv">Экспорт CSV</string>
+  <string name="vault_audit_retention_days">Дней хранения</string>
+  <string name="vault_audit_retention_count">Лимит записей</string>
+  <string name="vault_audit_protected_hint">Критические действия (экспорт / запись / квитанция очистки) хранятся без ограничений.</string>
   <string name="vault_audit_clear">Очистить журнал обращений</string>
   <string name="log_page_title">Журналы</string>
   <string name="log_tab_request">Запросы</string>

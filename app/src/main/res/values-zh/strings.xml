@@ -2584,6 +2584,11 @@
   <string name="vault_audit_time_all">全部</string>
   <string name="vault_audit_time_1d">近 24 小时</string>
   <string name="vault_audit_time_7d">近 7 天</string>
+  <string name="vault_audit_export_json">导出 JSON</string>
+  <string name="vault_audit_export_csv">导出 CSV</string>
+  <string name="vault_audit_retention_days">保留天数</string>
+  <string name="vault_audit_retention_count">保留条数</string>
+  <string name="vault_audit_protected_hint">关键动作（导出 / 写回 / 清空回执）不受上限限制，长期保留。</string>
   <string name="vault_audit_clear">清空调用记录</string>
   <string name="log_page_title">日志</string>
   <string name="log_tab_request">请求</string>
