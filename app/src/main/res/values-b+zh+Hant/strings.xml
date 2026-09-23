@@ -662,6 +662,8 @@
   <string name="setting_display_page_auto_collapse_thinking_desc">思考完成自動折疊思考內容</string>
   <string name="setting_display_page_tool_surface_trim_title">精簡工具說明</string>
   <string name="setting_display_page_tool_surface_trim_desc">預設關閉。開啟後不常用的工具只傳送一行用途，完整參數按需取回，可減少上下文佔用與選擇干擾；關閉則所有工具都傳送完整定義。</string>
+  <string name="setting_display_page_tool_stats_title">工具呼叫統計</string>
+  <string name="setting_display_page_tool_stats_desc">在本機記錄工具呼叫次數、耗時與失敗，用於決定哪些工具保留完整說明。預設關閉，資料不出本機。</string>
   <string name="setting_display_page_auto_collapse_thinking_title">自動折疊思考</string>
   <string name="setting_display_page_auto_play_tts_desc">助理訊息產生完成後自動播放語音</string>
   <string name="setting_display_page_auto_play_tts_title">產生後自動播放 TTS</string>

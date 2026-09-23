@@ -105,6 +105,26 @@ fun SettingToolsPage(
                         )
                     },
                 )
+                item(
+                    headlineContent = {
+                        Text(stringResource(R.string.setting_display_page_tool_stats_title))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.setting_display_page_tool_stats_desc))
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = displaySetting.toolStatsEnabled,
+                            onCheckedChange = { on ->
+                                vm.updateSettings(
+                                    settings.copy(
+                                        displaySetting = displaySetting.copy(toolStatsEnabled = on),
+                                    ),
+                                )
+                            },
+                        )
+                    },
+                )
             }
 
             CardGroup(title = { Text(stringResource(R.string.setting_tools_section_output)) }) {

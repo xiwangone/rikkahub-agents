@@ -16,6 +16,20 @@ import java.util.concurrent.ConcurrentHashMap
 // 纯 prefs 读写聚合点：按 key 拆成多个对象反而割裂（调用方要在多处注入）；函数数量在此豁免。
 @Suppress("TooManyFunctions")
 object ToolUsageTracker {
+
+    /**
+     * 统计总开关（**默认关**，由 `displaySetting.toolStatsEnabled` 在装配时同步）。
+     *
+     * 关时所有写点直接返回：不写盘、不计数，零开销。
+     */
+    @Volatile
+    private var usageStatsEnabled = false
+
+    fun setEnabled(value: Boolean) {
+        usageStatsEnabled = value
+    }
+
+    fun isStatsEnabled(): Boolean = usageStatsEnabled
     private const val PREFS = "tool_usage_stats"
     private const val KEY = "entries"
 private const val KEY_INJECTED = "injected_tool_names"
@@ -70,6 +84,7 @@ private const val KEY_SURFACE_CHANGES = "surface_hash_changes"
         durationMs: Long,
         failed: Boolean,
     ) {
+        if (!usageStatsEnabled) return
         ensureLoaded(context)
         cache.compute(name) { _, old ->
             val base = old ?: Entry(name = name)
@@ -99,6 +114,7 @@ private const val KEY_SURFACE_CHANGES = "surface_hash_changes"
         context: Context,
         names: List<String>,
     ) {
+        if (!usageStatsEnabled) return
         runCatching {
             context
                 .getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -131,6 +147,7 @@ private const val KEY_SURFACE_CHANGES = "surface_hash_changes"
      * 解锁后真调用（名单留着）/ 解锁了却从不用（降档降对了，甚至可再降）。
      */
     fun recordUnlock(context: Context, name: String) {
+        if (!usageStatsEnabled) return
         runCatching {
             val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
             val counts = decodeUnlocks(prefs.getString(KEY_UNLOCKS, null)).toMutableMap()
@@ -163,9 +180,12 @@ private const val KEY_SURFACE_CHANGES = "surface_hash_changes"
         context: Context,
         hash: String,
     ): SurfaceChange? =
-        runCatching {
-            val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
-            val previous = prefs.getString(KEY_SURFACE, null)
+        if (!usageStatsEnabled) {
+            null
+        } else {
+            runCatching {
+                val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                val previous = prefs.getString(KEY_SURFACE, null)
             val changed = previous != null && previous != hash
             val total = prefs.getLong(KEY_SURFACE_CHANGES, 0L) + if (changed) 1L else 0L
             prefs
@@ -173,8 +193,9 @@ private const val KEY_SURFACE_CHANGES = "surface_hash_changes"
                 .putString(KEY_SURFACE, hash)
                 .putLong(KEY_SURFACE_CHANGES, total)
                 .apply()
-            SurfaceChange(previous, hash, changed, total)
-        }.getOrNull()
+                SurfaceChange(previous, hash, changed, total)
+            }.getOrNull()
+        }
 
     /** 当前记录的注入集哈希与累计变化次数（只读，不写入）。 */
     fun surfaceHashState(context: Context): Pair<String, Long>? =

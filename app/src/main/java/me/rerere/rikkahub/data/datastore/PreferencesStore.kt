@@ -1159,6 +1159,14 @@ data class DisplaySetting(
      * 需要的人（例如重度工具调用的助手）再打开，避免替所有人改变默认。
      */
     val toolSurfaceTrimming: Boolean = false,
+
+    /**
+     * 工具调用统计（次数/耗时/解锁/注入集哈希）。
+     *
+     * **默认关**：这些数据只服务于“按真实使用调优工具面”，普通用户既不需要、
+     * 也不应为埋点买单；需要时在设置里打开即可（诊断的 usage / tool_scope 依赖它）。
+     */
+    val toolStatsEnabled: Boolean = false,
     val codeBlockAutoWrap: Boolean = false,
     val codeBlockAutoCollapse: Boolean = true,
     /** 输入框功能按钮行（Zap/LockKey/ASR 等）默认折叠；用户展开过则记住，下次启动保持 */

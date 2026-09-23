@@ -693,6 +693,8 @@
   <string name="setting_display_page_auto_collapse_thinking_desc">طي محتوى التفكير تلقائيًا بعد اكتمال التفكير</string>
   <string name="setting_display_page_tool_surface_trim_title">تبسيط أوصاف الأدوات</string>
   <string name="setting_display_page_tool_surface_trim_desc">معطّل افتراضيًا. عند التفعيل ترسل الأدوات الأقل استخدامًا سطرًا واحدًا للغرض فقط وتُجلب المعاملات الكاملة عند الحاجة — توفير للرموز وتقليل للتشويش. وعند التعطيل ترسل كل الأدوات تعريفها الكامل.</string>
+  <string name="setting_display_page_tool_stats_title">إحصاءات استدعاء الأدوات</string>
+  <string name="setting_display_page_tool_stats_desc">تسجيل عدد الاستدعاءات والمدّة والإخفاقات محليًا لتحديد الأدوات التي تبقى أوصافها كاملة. معطّل افتراضيًا، ولا تغادر البيانات الجهاز.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">طي التفكير تلقائيًا</string>
   <string name="setting_display_page_auto_play_tts_desc">تشغيل تحويل النص إلى كلام تلقائيًا بعد اكتمال توليد رسالة المساعد</string>
   <string name="setting_display_page_auto_play_tts_title">تشغيل تحويل النص إلى كلام تلقائيًا بعد التوليد</string>

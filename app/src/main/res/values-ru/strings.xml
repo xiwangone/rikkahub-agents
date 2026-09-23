@@ -665,6 +665,8 @@
   <string name="setting_display_page_auto_collapse_thinking_desc">Автоматически сворачивать блок мышления после его завершения</string>
   <string name="setting_display_page_tool_surface_trim_title">Сокращённые описания инструментов</string>
   <string name="setting_display_page_tool_surface_trim_desc">По умолчанию выключено. Когда включено, редко используемые инструменты передают только одну строку назначения, а полные параметры запрашиваются по необходимости — меньше токенов и шума. Когда выключено, каждый инструмент передаёт полное описание.</string>
+  <string name="setting_display_page_tool_stats_title">Статистика вызовов инструментов</string>
+  <string name="setting_display_page_tool_stats_desc">Локально записывает число вызовов, длительность и сбои инструментов, чтобы решать, какие описания оставлять полными. По умолчанию выключено; данные не покидают устройство.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">Автоматически сворачивать мысли</string>
   <string name="setting_display_page_auto_play_tts_desc">Автоматически воспроизводить TTS после завершения генерации ответа ассистента</string>
   <string name="setting_display_page_auto_play_tts_title">Автовоспроизведение TTS после генерации</string>

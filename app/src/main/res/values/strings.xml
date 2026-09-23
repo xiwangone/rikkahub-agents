@@ -794,6 +794,8 @@
   <string name="setting_display_page_auto_collapse_thinking_desc">Automatically collapse thinking content after thinking is complete</string>
   <string name="setting_display_page_tool_surface_trim_title">Simplified tool descriptions</string>
   <string name="setting_display_page_tool_surface_trim_desc">Off by default. When on, less-used tools send only a one-line purpose and their full parameters are fetched on demand — fewer tokens and less choice noise. When off, every tool sends its complete definition.</string>
+  <string name="setting_display_page_tool_stats_title">Tool usage statistics</string>
+  <string name="setting_display_page_tool_stats_desc">Record tool call counts, durations and failures locally, to decide which tools keep their full descriptions. Off by default; data never leaves the device.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">Auto Collapse Thinking</string>
   <string name="setting_display_page_auto_play_tts_desc">Automatically play TTS after assistant message generation completes</string>
   <string name="setting_display_page_auto_play_tts_title">Auto-play TTS After Generation</string>

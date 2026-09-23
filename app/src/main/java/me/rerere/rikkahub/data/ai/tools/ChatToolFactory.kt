@@ -55,6 +55,8 @@ class ChatToolFactory(
         workspaceIdOverride: String? = null,
         toolScopeOverride: List<String>? = null,
     ): List<Tool> = buildList {
+        // 统计总开关：**默认关**（普通用户不需要埋点）；开启后 usage / tool_scope 才有数据。
+        ToolUsageTracker.setEnabled(settings.displaySetting.toolStatsEnabled)
         // 记忆分层：只注入 core 常驻；conditional 由模型按需检索。
         addAll(memoryToolsIfEnabled(assistant))
 

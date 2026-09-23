@@ -672,6 +672,8 @@
   <string name="setting_display_page_auto_collapse_thinking_desc">사고 완료 후 자동으로 사고 내용 접기</string>
   <string name="setting_display_page_tool_surface_trim_title">도구 설명 간소화</string>
   <string name="setting_display_page_tool_surface_trim_desc">기본값은 꺼짐입니다. 켜면 자주 쓰지 않는 도구는 한 줄 용도만 보내고 전체 매개변수는 필요할 때 가져옵니다 — 토큰과 선택 잡음을 줄입니다. 끄면 모든 도구가 전체 정의를 보냅니다.</string>
+  <string name="setting_display_page_tool_stats_title">도구 호출 통계</string>
+  <string name="setting_display_page_tool_stats_desc">도구 호출 횟수, 소요 시간, 실패를 기기 내에서 기록해 어떤 도구의 설명을 그대로 둘지 판단합니다. 기본 꺼짐, 데이터는 기기를 벗어나지 않습니다.</string>
   <string name="setting_display_page_auto_collapse_thinking_title">사고 자동 접기</string>
   <string name="setting_display_page_auto_play_tts_desc">어시스턴트 메시지 생성 완료 후 TTS 자동 재생</string>
   <string name="setting_display_page_auto_play_tts_title">생성 후 TTS 자동 재생</string>

@@ -672,6 +672,8 @@
   <string name="setting_display_page_auto_collapse_thinking_desc">思考が完了したら思考内容を自動的に折りたたむ</string>
   <string name="setting_display_page_tool_surface_trim_title">ツール説明の簡略化</string>
   <string name="setting_display_page_tool_surface_trim_desc">既定ではオフ。オンにすると使用頻度の低いツールは一行の用途のみを送信し、完全なパラメータは必要時に取得します — トークンと選択のノイズを削減できます。オフでは全ツールが完全な定義を送信します。</string>
+  <string name="setting_display_page_tool_stats_title">ツール呼び出し統計</string>
+  <string name="setting_display_page_tool_stats_desc">ツールの呼び出し回数・所要時間・失敗を端末内で記録し、どのツールの説明を完全に保つかを判断します。既定はオフ、データは端末外に出ません。</string>
   <string name="setting_display_page_auto_collapse_thinking_title">思考を自動折りたたむ</string>
   <string name="setting_display_page_auto_play_tts_desc">アシスタントのメッセージ生成完了後にTTSを自動再生</string>
   <string name="setting_display_page_auto_play_tts_title">生成後にTTSを自動再生</string>
