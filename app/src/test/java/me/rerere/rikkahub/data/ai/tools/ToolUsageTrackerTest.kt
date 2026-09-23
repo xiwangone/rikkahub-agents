@@ -25,10 +25,18 @@ import org.junit.Test
 class ToolUsageTrackerTest {
 
     @Before
-    fun setUp() = ToolUsageTracker.clear(NULL_CONTEXT)
+    fun setUp() {
+        // 统计默认关（普通用户不需要埋点）；这些用例验证的是**计数器本身的行为**，故显式打开。
+        ToolUsageTracker.setEnabled(true)
+        ToolUsageTracker.clear(NULL_CONTEXT)
+    }
 
     @After
-    fun tearDown() = ToolUsageTracker.clear(NULL_CONTEXT)
+    fun tearDown() {
+        ToolUsageTracker.clear(NULL_CONTEXT)
+        // 关回去：开关是进程级全局态，不在用例间泄漏。
+        ToolUsageTracker.setEnabled(false)
+    }
 
     @Test
     fun `counters accumulate count failures and duration`() {
