@@ -3276,14 +3276,6 @@
   <string name="workspace_detail_folder_export_progress_title">جارٍ تصدير %1$s…</string>
   <string name="workspace_detail_folder_export_progress_count">تم تصدير %1$d من %2$d ملفات</string>
   <string name="workspace_detail_folder_export_progress_warning">أبقِ هذه الشاشة مفتوحة حتى ينتهي التصدير.</string>
-  <string name="error_solution_history_structure">كان في سجل المحادثة استدعاء أداة بدون نتيجته. يتم الآن إصلاح ذلك تلقائيًا قبل كل إرسال؛ إذا استمر الفشل، ابدأ محادثة جديدة.</string>
-  <string name="error_solution_image_not_supported">تحتوي المحادثة على صور، لكن النموذج الحالي لا يدعم إدخال الصور. احذف هذه الرسائل أو انتقل إلى نموذج يدعم الصور.</string>
-  <string name="error_solution_auth_failed">تم رفض مفتاح API. تحقق من المفتاح والأذونات في إعدادات النموذج.</string>
-  <string name="error_solution_rate_limited">الطلبات كثيرة جدًا: المزوّد يحدّ من المعدل. انتظر قليلًا ثم أعد المحاولة.</string>
-  <string name="error_solution_quota_exceeded">انتهت الحصة أو الرصيد. اشحن الحساب أو بدّل المزوّد أو النموذج.</string>
-  <string name="error_solution_model_unavailable">هذا النموذج غير متاح (الاسم أو الصلاحية). اختر نموذجًا آخر في الإعدادات.</string>
-  <string name="error_solution_context_too_long">السياق أطول من حد النموذج. اضغط المحادثة أو اختصرها.</string>
-  <string name="error_solution_content_filtered">تم حظر الطلب بسياسة الأمان لدى المزوّد. عدّل المحتوى.</string>
-  <string name="error_solution_server_unavailable">حدث خطأ في خادم المزوّد (5xx / حمل زائد). أعد المحاولة لاحقًا.</string>
-  <string name="error_solution_network_error">فشل الشبكة (مهلة أو تعذّر الاتصال). تحقق من الشبكة أو الوكيل ثم أعد المحاولة.</string>
+  <string name="error_kind_tool_pairing">استدعاء أداة بدون نتيجته (يُصلَح تلقائيًا؛ ابدأ محادثة جديدة إن استمر)</string>
+  <string name="error_kind_image_unsupported">النموذج لا يدعم الصور (احذف رسائل الصور أو بدّل النموذج)</string>
 </resources>

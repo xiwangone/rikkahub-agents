@@ -41,6 +41,7 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.FailureKind
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatErrorSolution
@@ -153,26 +154,30 @@ fun ErrorCard(
                     color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
                     overflow = TextOverflow.Ellipsis,
                 )
-                // 可操作建议统一走映射；CheckTitleModelSettings 需要跳转链接，仍单独渲染
-                val solutionRes =
-                    error.solution?.let { s ->
-                        when (s) {
-                            ChatErrorSolution.ConversationHistoryStructure -> R.string.error_solution_history_structure
-                            ChatErrorSolution.ImageNotSupported -> R.string.error_solution_image_not_supported
-                            ChatErrorSolution.AuthFailed -> R.string.error_solution_auth_failed
-                            ChatErrorSolution.RateLimited -> R.string.error_solution_rate_limited
-                            ChatErrorSolution.QuotaExceeded -> R.string.error_solution_quota_exceeded
-                            ChatErrorSolution.ModelUnavailable -> R.string.error_solution_model_unavailable
-                            ChatErrorSolution.ContextTooLong -> R.string.error_solution_context_too_long
-                            ChatErrorSolution.ContentFiltered -> R.string.error_solution_content_filtered
-                            ChatErrorSolution.ServerUnavailable -> R.string.error_solution_server_unavailable
-                            ChatErrorSolution.NetworkError -> R.string.error_solution_network_error
-                            ChatErrorSolution.CheckTitleModelSettings -> null
+                // 可操作建议：复用已有错误分类（FailureKind → error_kind_*），UNKNOWN 不提示、原文兜底
+                val kindRes =
+                    error.kind?.let { kind ->
+                        when (kind) {
+                            FailureKind.TOOL_PAIRING -> R.string.error_kind_tool_pairing
+                            FailureKind.IMAGE_UNSUPPORTED -> R.string.error_kind_image_unsupported
+                            FailureKind.CONTENT_SAFETY -> R.string.error_kind_content_safety
+                            FailureKind.AUTH -> R.string.error_kind_auth
+                            FailureKind.QUOTA -> R.string.error_kind_quota
+                            FailureKind.RATE_LIMIT -> R.string.error_kind_rate_limit
+                            FailureKind.MODEL_NOT_FOUND -> R.string.error_kind_model_not_found
+                            FailureKind.NETWORK -> R.string.error_kind_network
+                            FailureKind.SERVER -> R.string.error_kind_server
+                            FailureKind.CONTEXT_LENGTH -> R.string.error_kind_context_length
+                            FailureKind.PERMISSION -> R.string.error_kind_permission
+                            FailureKind.STORAGE -> R.string.error_kind_storage
+                            FailureKind.UNSUPPORTED -> R.string.error_kind_unsupported
+                            FailureKind.BAD_REQUEST -> R.string.error_kind_bad_request
+                            FailureKind.UNKNOWN -> null
                         }
                     }
-                if (solutionRes != null) {
+                if (kindRes != null) {
                     Text(
-                        text = stringResource(solutionRes),
+                        text = stringResource(kindRes),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f),
                     )

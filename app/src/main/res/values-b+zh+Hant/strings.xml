@@ -3276,14 +3276,6 @@
   <string name="assistant_page_only_tools_title">只保留這些工具</string>
   <string name="assistant_page_only_tools_desc">已設定 %1$d 個。非空時助手只能看到名單內的工具（list_tools / get_tool_schema / ask_user 始終保留）。</string>
   <string name="assistant_page_only_tools_dialog_desc">每行一個工具名稱（也可用逗號分隔），請用 list_tools 顯示的確切名稱。留空表示不限制。填錯可能讓助手無法完成其他任務，清空即可恢復。不知道填哪些？可讓助手在對話中依你的需求產生這份名單；但助手無權修改此設定，需要你貼上並儲存。</string>
-  <string name="error_solution_history_structure">這段對話歷史中有工具呼叫缺少結果。現在每次傳送前會自動補齊；若仍失敗，可新開對話。</string>
-  <string name="error_solution_image_not_supported">這段對話裡有圖片，但目前模型不支援圖片輸入。可刪除含圖訊息，或改用支援圖片的模型。</string>
-  <string name="error_solution_auth_failed">API 金鑰被拒絕。請檢查模型設定中的金鑰與權限。</string>
-  <string name="error_solution_rate_limited">請求過於頻繁，服務方正在限流。稍候再重試。</string>
-  <string name="error_solution_quota_exceeded">配額或餘額已用盡。請儲值，或切換服務方 / 模型。</string>
-  <string name="error_solution_model_unavailable">該模型無法使用（名稱不存在或無權限）。請在設定中改用其他模型。</string>
-  <string name="error_solution_context_too_long">上下文超過該模型長度上限。可壓縮或裁剪這段對話。</string>
-  <string name="error_solution_content_filtered">請求被服務方的安全策略攔截。請調整內容後重試。</string>
-  <string name="error_solution_server_unavailable">服務方回傳伺服器錯誤（5xx / 過載）。請稍後重試。</string>
-  <string name="error_solution_network_error">網路失敗（逾時或連不上）。請檢查網路 / 代理後重試。</string>
+  <string name="error_kind_tool_pairing">工具呼叫缺少結果（已自動補齊；若仍失敗請新開對話）</string>
+  <string name="error_kind_image_unsupported">目前模型不支援圖片（可刪除含圖訊息或切換模型）</string>
 </resources>

@@ -3277,14 +3277,6 @@
   <string name="workspace_detail_folder_export_progress_title">%1$s 내보내는 중…</string>
   <string name="workspace_detail_folder_export_progress_count">%1$d / %2$d개 파일</string>
   <string name="workspace_detail_folder_export_progress_warning">내보내기가 끝날 때까지 이 화면을 열어 두세요.</string>
-  <string name="error_solution_history_structure">이 대화 기록에 결과가 없는 도구 호출이 있었습니다. 이제 보내기 전에 자동으로 보정됩니다. 그래도 실패하면 새 대화를 시작하세요.</string>
-  <string name="error_solution_image_not_supported">이 대화에는 이미지가 있지만 현재 모델은 이미지 입력을 지원하지 않습니다. 해당 메시지를 삭제하거나 이미지 지원 모델로 전환하세요.</string>
-  <string name="error_solution_auth_failed">API 키가 거부되었습니다. 모델 설정의 키와 권한을 확인하세요.</string>
-  <string name="error_solution_rate_limited">요청이 너무 많습니다. 제공자가 제한 중입니다. 잠시 후 다시 시도하세요.</string>
-  <string name="error_solution_quota_exceeded">할당량이나 잔액이 부족합니다. 충전하거나 제공자 / 모델을 전환하세요.</string>
-  <string name="error_solution_model_unavailable">이 모델을 사용할 수 없습니다(이름 또는 권한). 설정에서 다른 모델을 선택하세요.</string>
-  <string name="error_solution_context_too_long">이 모델의 길이 한도를 초과했습니다. 대화를 압축하거나 줄이세요.</string>
-  <string name="error_solution_content_filtered">제공자의 안전 정책으로 차단되었습니다. 내용을 조정하세요.</string>
-  <string name="error_solution_server_unavailable">제공자 서버 오류(5xx / 과부하)입니다. 나중에 다시 시도하세요.</string>
-  <string name="error_solution_network_error">네트워크 실패(시간 초과 또는 연결 불가). 네트워크 / 프록시를 확인하세요.</string>
+  <string name="error_kind_tool_pairing">결과가 없는 도구 호출(자동 보정됨. 계속되면 새 대화 시작)</string>
+  <string name="error_kind_image_unsupported">이 모델은 이미지를 지원하지 않습니다(이미지 메시지 삭제 또는 모델 전환)</string>
 </resources>

@@ -213,13 +213,30 @@ private fun retryFailureReason(failure: Throwable): String =
 
 /** 错误分类：根据失败原因与异常类型定位问题，命中→资源化标签，未命中→UNKNOWN（原文兜底）。 */
 enum class FailureKind {
+    /** 会话历史里的工具调用缺少对应结果（协议配对破损）。 */
+    TOOL_PAIRING,
+
+    /** 模型不支持图片输入，而历史里有图片内容。 */
+    IMAGE_UNSUPPORTED,
+
     CONTENT_SAFETY, AUTH, QUOTA, RATE_LIMIT, MODEL_NOT_FOUND, NETWORK, SERVER, CONTEXT_LENGTH,
     PERMISSION, STORAGE, UNSUPPORTED, BAD_REQUEST, UNKNOWN,
 }
 
+// 并列判据的直译：十多类各自一组关键词，拆成数据表反而更难核对「哪类先判」；
+// 故保留 when 写法并显式豁免复杂度（阈值 20，本处因新增「工具配对 / 图片不支持」两类刚到 20）。
+@Suppress("CyclomaticComplexMethod")
 fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
     val text = raw.lowercase() + " " + failure.javaClass.name.lowercase()
     return when {
+        // 先判「结构 / 能力」两类：它们最具体，且都要求同时命中对象词与原因词，避免被泛规则截胡
+        (text.contains("tool_calls") || text.contains("tool_call_id")) &&
+            listOf("tool messages", "insufficient tool", "must be followed by").any { text.contains(it) } ->
+            FailureKind.TOOL_PAIRING
+        (text.contains("image") || text.contains("vision")) &&
+            listOf("not support", "unsupported", "does not support").any { text.contains(it) } ->
+            FailureKind.IMAGE_UNSUPPORTED
+
         listOf("data_inspection_failed", "safetyerror", "content_filter", "inappropriate", "sensitive", "安全", "敏感").any { text.contains(it) } ->
             FailureKind.CONTENT_SAFETY
         listOf("401", "invalid_api_key", "authentication", "unauthorized", "api key", "密钥", "鉴权").any { text.contains(it) } ->

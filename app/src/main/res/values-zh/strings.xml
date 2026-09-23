@@ -3273,14 +3273,6 @@
   <string name="workspace_detail_export_folder">导出文件夹</string>
   <string name="workspace_detail_export_folder_done">已导出 %1$d 个文件，失败 %2$d 个</string>
   <string name="chat_page_compress_model_unavailable">没有可用于压缩的模型：请在设置中指定压缩模型，或启用一个提供商。</string>
-  <string name="error_solution_history_structure">这段会话历史里有工具调用缺少结果。现在每次发送前会自动补齐；若仍失败，可新建会话。</string>
-  <string name="error_solution_image_not_supported">这段会话里有图片，但当前模型不支持图片输入。可删除含图消息，或改用支持图片的模型。</string>
-  <string name="error_solution_auth_failed">API 密钥被拒绝。请检查模型设置里的密钥与权限。</string>
-  <string name="error_solution_rate_limited">请求过于频繁，服务方在限流。稍等片刻再重试。</string>
-  <string name="error_solution_quota_exceeded">配额或余额已用尽。请充值，或切换服务方 / 模型。</string>
-  <string name="error_solution_model_unavailable">该模型不可用（名称不存在或无权限）。请在设置里换一个模型。</string>
-  <string name="error_solution_context_too_long">上下文超出该模型的长度上限。可压缩或裁剪这段会话。</string>
-  <string name="error_solution_content_filtered">请求被服务方的安全策略拦截。请调整内容后重试。</string>
-  <string name="error_solution_server_unavailable">服务方返回了服务端错误（5xx / 过载）。稍后重试。</string>
-  <string name="error_solution_network_error">网络失败（超时或连不上）。请检查网络 / 代理后重试。</string>
+  <string name="error_kind_tool_pairing">工具调用缺少结果（已自动补齐；若仍失败请新建会话）</string>
+  <string name="error_kind_image_unsupported">当前模型不支持图片（可删除含图消息或切换模型）</string>
 </resources>

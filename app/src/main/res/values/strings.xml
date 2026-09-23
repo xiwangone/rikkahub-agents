@@ -3273,14 +3273,6 @@
   <string name="workspace_detail_export_folder">Export folder</string>
   <string name="workspace_detail_export_folder_done">Exported %1$d file(s), %2$d failed</string>
   <string name="chat_page_compress_model_unavailable">No usable model for compression. Pick a compression model in Settings, or enable a provider.</string>
-  <string name="error_solution_history_structure">The conversation history contained a tool call without its result. This is now repaired automatically before each request — if it still fails, start a new chat.</string>
-  <string name="error_solution_image_not_supported">The conversation contains images, but the current model does not support image input. Remove those messages or switch to a vision-capable model.</string>
-  <string name="error_solution_auth_failed">The API key was rejected. Check the key and permissions in model settings.</string>
-  <string name="error_solution_rate_limited">Too many requests: the provider is rate limiting. Wait a moment and retry.</string>
-  <string name="error_solution_quota_exceeded">Quota or credit is used up. Top up the account or switch provider / model.</string>
-  <string name="error_solution_model_unavailable">This model is unavailable (name or access). Choose another model in settings.</string>
-  <string name="error_solution_context_too_long">The context is too long for this model. Compress or trim the chat.</string>
-  <string name="error_solution_content_filtered">The request was blocked by the provider safety policy. Adjust the content.</string>
-  <string name="error_solution_server_unavailable">The provider had a server error (5xx / overloaded). Retry later.</string>
-  <string name="error_solution_network_error">Network failure (timeout or cannot connect). Check network / proxy, then retry.</string>
+  <string name="error_kind_tool_pairing">Tool call without its result (repaired automatically; start a new chat if it persists)</string>
+  <string name="error_kind_image_unsupported">Model does not support images (remove image messages or switch model)</string>
 </resources>
