@@ -153,7 +153,16 @@ class ChatToolFactory(
                     tool
                 } else {
                     tool.copy(
-                        execute = { args -> runToolSurfaceReport(args, injected, onlyToolsUnmatched) },
+                        execute = { args ->
+                            runToolSurfaceReport(
+                                args = args,
+                                toolsInput = injected,
+                                onlyToolsUnmatched = onlyToolsUnmatched,
+                                // 未裁剪基准：已按白名单过滤、但**未经档位裁剪**的那份。
+                                // 报告拿它与实际注入对比，才能得出真实省幅（自己“估”会双算）。
+                                baselineInput = listFiltered,
+                            )
+                        },
                     )
                 }
             }
