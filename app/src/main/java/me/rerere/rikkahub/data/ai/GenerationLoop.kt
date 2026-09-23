@@ -274,6 +274,8 @@ fun diagnoseFailure(context: Context, failure: Throwable): FailureDiagnosis {
     val raw = retryFailureReason(failure)
     val kind = classifyFailureKind(failure, raw)
     val label = when (kind) {
+        FailureKind.TOOL_PAIRING -> context.getString(me.rerere.rikkahub.R.string.error_kind_tool_pairing)
+        FailureKind.IMAGE_UNSUPPORTED -> context.getString(me.rerere.rikkahub.R.string.error_kind_image_unsupported)
         FailureKind.CONTENT_SAFETY -> context.getString(me.rerere.rikkahub.R.string.error_kind_content_safety)
         FailureKind.AUTH -> context.getString(me.rerere.rikkahub.R.string.error_kind_auth)
         FailureKind.QUOTA -> context.getString(me.rerere.rikkahub.R.string.error_kind_quota)
