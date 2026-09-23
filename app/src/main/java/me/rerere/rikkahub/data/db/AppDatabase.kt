@@ -73,7 +73,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         VaultAuditLogEntity::class,
         CompressedArchiveEntity::class,
     ],
-    version = 41,
+    version = 42,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -130,6 +130,9 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // v41: 凭证明文元数据列（vault_credentials 新增 metaJson，带默认值可自动迁移；
         // 只放非敏感字段，键白名单见 CredentialMeta）
         AutoMigration(from = 40, to = 41),
+        // v42: 审计归属维度（vault_audit_log 加 conversationId/modelId/assistantId/source 可空列，
+        // 只记 id 不记内容；纯加列可自动迁移）
+        AutoMigration(from = 41, to = 42),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)

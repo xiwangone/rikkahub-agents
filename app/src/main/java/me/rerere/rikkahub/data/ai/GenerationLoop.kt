@@ -20,6 +20,7 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.rikkahub.service.AgentOverlay
 import me.rerere.rikkahub.service.RikkaAccessibilityService
@@ -71,6 +72,7 @@ import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
+import me.rerere.rikkahub.data.vault.AuditContext
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.SecretMasker
@@ -1246,7 +1248,17 @@ class GenerationLoop(
                                     "turn budget exceeded before tool started",
                                 )
                             } else {
-                                withTimeoutOrNull(remainingMs) { toolDef.execute(args) }
+                                withTimeoutOrNull(remainingMs) {
+                                    // 审计归属：工具执行链带上会话/模型/助手（协程上下文透传，logAccess 读取）
+                                    withContext(
+                                        AuditContext(
+                                            conversationId = conversationId?.toString(),
+                                            modelId = model.modelId,
+                                            assistantId = assistant.id.toString(),
+                                            source = "ai-tool",
+                                        )
+                                    ) { toolDef.execute(args) }
+                                }
                                     ?: run {
                                         AppLog.w(TAG, "generateText: ${toolDef.name} cancelled — wall-clock budget exhausted mid-execution")
                                         me.rerere.rikkahub.data.ai.tools.ToolErrors.parts(

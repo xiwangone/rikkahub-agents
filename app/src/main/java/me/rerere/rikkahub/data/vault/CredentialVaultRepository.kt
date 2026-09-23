@@ -4,6 +4,7 @@ import me.rerere.rikkahub.data.datastore.ProviderCredentialCipher
 import java.security.MessageDigest
 import me.rerere.rikkahub.data.db.dao.VaultAuditLogDao
 import me.rerere.rikkahub.data.db.dao.VaultCredentialDao
+import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.flow.first
 import me.rerere.rikkahub.data.db.entity.VaultAuditDefaults
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
@@ -427,11 +428,17 @@ class CredentialVaultRepository(
      * 写入后执行双上限清理：超 30 天先删，仍超 500 条则 trim。
      */
     suspend fun logAccess(credentialName: String, caller: String, action: String) {
+        // 归属维度：生成链路经协程上下文透传（AuditContext），零调用方变更；后台任务无会话则为空
+        val ctx = coroutineContext[AuditContext]
         auditDao.insert(
             VaultAuditLogEntity(
                 credentialName = credentialName,
                 caller = caller,
                 action = action,
+                conversationId = ctx?.conversationId,
+                modelId = ctx?.modelId,
+                assistantId = ctx?.assistantId,
+                source = ctx?.source,
             )
         )
         val retentionDays = vaultPreferences.auditRetentionDays.first()

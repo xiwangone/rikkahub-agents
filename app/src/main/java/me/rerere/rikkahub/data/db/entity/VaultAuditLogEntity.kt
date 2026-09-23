@@ -26,10 +26,18 @@ data class VaultAuditLogEntity(
     val id: Long = 0,
     /** 凭证名，如 DEEPSEEK_API_KEY */
     val credentialName: String,
-    /** 调用方：助手名 / "manual"（手动查看）/ "export" / "backup" */
+    /** 调用方标识：工具层（ai-tool）/ 用途层（pgp-sign、ssh…）/ manual / export / backup */
     val caller: String,
-    /** 动作：view / export / backup */
+    /** 动作：CredentialPurpose.action（local_use / http_exec / env_inject…）或 view / save_create / audit_cleared 等 */
     val action: String,
+    /** 归属会话 id（无会话的后台任务为空；只记 id 不记内容） */
+    val conversationId: String? = null,
+    /** 归属模型配置 id */
+    val modelId: String? = null,
+    /** 归属助手 id */
+    val assistantId: String? = null,
+    /** 来源标记：ai-tool / provider / backup / web-bridge 等 */
+    val source: String? = null,
     /** 时间戳（毫秒） */
     val tsMs: Long = System.currentTimeMillis(),
 )
