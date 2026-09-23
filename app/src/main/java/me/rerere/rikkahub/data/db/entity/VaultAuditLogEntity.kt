@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -41,6 +42,7 @@ data class VaultAuditLogEntity(
     /** 时间戳（毫秒）——**首次**发生时间（聚合行保持首次值，便于按“何时开始”排序/留存） */
     val tsMs: Long = System.currentTimeMillis(),
     /** 该行代表的调用次数（机械取用会被聚合，见 [VaultAuditDefaults.ROLLUP_ACTIONS]） */
+    @ColumnInfo(defaultValue = "1")
     val count: Int = 1,
     /** **末次**发生时间（聚合行更新；单次行为 null） */
     val lastTsMs: Long? = null,
