@@ -2811,6 +2811,9 @@
   <string name="vault_cancel">Отмена</string>
   <string name="vault_list_title">Список учётных данных (%1$d)</string>
   <string name="vault_search_hint">Поиск по имени, описанию или группе</string>
+  <string name="vault_sort_updated">Недавно изменённые</string>
+  <string name="vault_sort_created">Недавно добавленные</string>
+  <string name="vault_sort_name">Имя</string>
   <string name="vault_empty_title">Учётных данных пока нет</string>
   <string name="vault_empty_desc">Нажмите + справа вверху или вернитесь на страницу «Импорт из файла» и загрузите load-creds.sh пакетно.</string>
   <string name="vault_new">Создать учётные данные</string>

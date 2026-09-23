@@ -492,37 +492,53 @@ private fun turnDurationMs(m: UIMessage?): JsonElement {
     return JsonPrimitive(finished.toInstant(tz).toEpochMilliseconds() - created.toInstant(tz).toEpochMilliseconds())
 }
 
+/**
+ * 无 id 分支：列最近会话（含节点数 + 末条**已收尾** assistant 的模型与耗时）。
+ *
+ * 抽成独立函数是为了把 [conversationsPayload] 的圈复杂度压回 detekt 阈值（内联时 21 > 20）。
+ */
+private suspend fun recentConversationsJson(
+    conversationRepo: ConversationRepository,
+    settingsStore: SettingsStore,
+    params: JsonObject,
+): String {
+    val settings = settingsStore.settingsFlow.first()
+    val assistant = settings.getCurrentAssistant()
+    val limit = params["limit"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 50) ?: 20
+    val list = conversationRepo.getRecentConversations(assistant.id, limit)
+    return buildJsonObject {
+        put("assistantId", assistant.id.toString())
+        put("count", list.size)
+        put(
+            "conversations",
+            JsonArray(
+                list.map { c ->
+                    buildJsonObject {
+                        put("id", c.id.toString())
+                        put("title", c.title)
+                        put("pinned", c.isPinned)
+                        put("updatedAt", c.updateAt.toString())
+                        put("nodes", c.messageNodes.size)
+                        // 尾部轻扫（≤3 节点）：避免大会话全量遍历；只要「最近一条已收尾 assistant」的模型与耗时
+                        val tail = c.messageNodes.asReversed().take(3).flatMap { it.messages.asReversed() }
+                        val lastAssistant = tail.firstOrNull { it.role == MessageRole.ASSISTANT && it.finishedAt != null }
+                        put("lastModelUuid", lastAssistant?.modelId?.let { JsonPrimitive(it.toString()) } ?: JsonNull)
+                        put("lastTurnMs", turnDurationMs(lastAssistant))
+                    }
+                },
+            ),
+        )
+    }.toString()
+}
+
 internal suspend fun conversationsPayload(
     conversationRepo: ConversationRepository,
     settingsStore: SettingsStore,
     params: JsonObject,
 ): String {
     val idRaw = params["id"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
-    if (idRaw.isEmpty()) {
-        val settings = settingsStore.settingsFlow.first()
-        val assistant = settings.getCurrentAssistant()
-        val limit = params["limit"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 50) ?: 20
-        val list = conversationRepo.getRecentConversations(assistant.id, limit)
-        return buildJsonObject {
-            put("assistantId", assistant.id.toString())
-            put("count", list.size)
-            put("conversations", JsonArray(list.map { c ->
-                buildJsonObject {
-                    put("id", c.id.toString())
-                    put("title", c.title)
-                    put("pinned", c.isPinned)
-                    put("updatedAt", c.updateAt.toString())
-                    put("nodes", c.messageNodes.size)
-                    // 尾部轻扫（≤3 节点）：避免大会话全量遍历；只要「最近一条 assistant」的模型与耗时
-                    val tail = c.messageNodes.asReversed().take(3).flatMap { it.messages.asReversed() }
-                    // 取“已收尾”的那条：进行中的消息 finishedAt 为空，会让耗时永远读成 null
-                    val lastAssistant = tail.firstOrNull { it.role == MessageRole.ASSISTANT && it.finishedAt != null }
-                    put("lastModelUuid", lastAssistant?.modelId?.let { JsonPrimitive(it.toString()) } ?: JsonNull)
-                    put("lastTurnMs", turnDurationMs(lastAssistant))
-                }
-            }))
-        }.toString()
-    }
+    // 无 id = 列最近会话（抽成独立函数：[conversationsPayload] 的圈复杂度已逼近 detekt 阈值 20）
+    if (idRaw.isEmpty()) return recentConversationsJson(conversationRepo, settingsStore, params)
     val uuid = runCatching { kotlin.uuid.Uuid.parse(idRaw) }.getOrElse {
         return buildJsonObject { put("error", "invalid conversation id '$idRaw'") }.toString()
     }
@@ -586,12 +602,7 @@ internal suspend fun conversationsPayload(
     return buildJsonObject {
         put("id", conversation.id.toString())
         put("title", conversation.title)
-        put("counts", buildJsonObject {
-            put("messages", allMessages.size)
-            put("userTurns", allMessages.count { it.role == MessageRole.USER })
-            put("generations", allMessages.count { it.role == MessageRole.ASSISTANT })
-            put("toolCalls", allMessages.sumOf { m -> m.parts.count { it is UIMessagePart.Tool } })
-        })
+        put("counts", turnCountsJson(allMessages))
         put(
             "modelUuids",
             JsonArray(allMessages.mapNotNull { it.modelId }.distinct().map { JsonPrimitive(it.toString()) }),
@@ -827,6 +838,19 @@ internal suspend fun generationPayload(
         }
     }.toString()
 }
+
+/**
+ * 四档口径（消息 / 回合 / 生成 / 工具调用）。
+ *
+ * 抽成独立函数是为了把 [conversationsPayload] 的圈复杂度压回 detekt 阈值内（内联时 21 > 20）。
+ */
+private fun turnCountsJson(messages: List<UIMessage>): JsonObject =
+    buildJsonObject {
+        put("messages", messages.size)
+        put("userTurns", messages.count { it.role == MessageRole.USER })
+        put("generations", messages.count { it.role == MessageRole.ASSISTANT })
+        put("toolCalls", messages.sumOf { m -> m.parts.count { it is UIMessagePart.Tool } })
+    }
 
 /**
  * audit kind：凭证使用审计的**只读**查询 —— 目标是替掉“拷 218MB 私有库手查”。

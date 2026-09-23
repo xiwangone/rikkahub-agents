@@ -2283,6 +2283,9 @@
   <string name="vault_cancel">取消</string>
   <string name="vault_list_title">密钥列表（%1$d）</string>
   <string name="vault_search_hint">搜索名称 / 描述 / 分组</string>
+  <string name="vault_sort_updated">最近更新</string>
+  <string name="vault_sort_created">最近添加</string>
+  <string name="vault_sort_name">名称</string>
   <string name="vault_empty_title">还没有凭证</string>
   <string name="vault_empty_desc">点右上角 + 新建，或回上一页「从文件导入」批量导入 load-creds.sh。</string>
   <string name="vault_new">新建凭证</string>

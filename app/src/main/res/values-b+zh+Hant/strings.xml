@@ -2439,6 +2439,9 @@
     <string name="assistant_page_context_message_limit_hint">輸入 0 表示不限制，否則越大越好，推薦設定為 0 或 20 以上</string>
     <string name="assistant_page_context_message_limit_too_small">上下文訊息限制不能小於 %1$d，已自動重置為 %1$d。</string>
     <string name="vault_search_hint">搜尋名稱 / 描述 / 分組</string>
+    <string name="vault_sort_updated">最近更新</string>
+    <string name="vault_sort_created">最近新增</string>
+    <string name="vault_sort_name">名稱</string>
     <string name="auto_task_default_message">自動任務中。自主判斷並執行當前需要做什麼。</string>
     <string name="setting_page_ssh_hosts">SSH 主機</string>
     <string name="setting_page_backend_service">後端服務</string>

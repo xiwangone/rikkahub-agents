@@ -2463,6 +2463,9 @@
   <string name="vault_cancel">إلغاء</string>
   <string name="vault_list_title">قائمة البيانات السرية (%1$d)</string>
   <string name="vault_search_hint">البحث بالاسم / الوصف / المجموعة</string>
+  <string name="vault_sort_updated">الأحدث تحديثًا</string>
+  <string name="vault_sort_created">الأحدث إضافة</string>
+  <string name="vault_sort_name">الاسم</string>
   <string name="vault_empty_title">لا توجد بيانات سرية بعد</string>
   <string name="vault_empty_desc">اضغط + في الأعلى لإنشاء جديد، أو ارجع إلى صفحة «استيراد من ملف» لاستيراد load-creds.sh دفعة واحدة.</string>
   <string name="vault_new">إنشاء بيانات سرية</string>

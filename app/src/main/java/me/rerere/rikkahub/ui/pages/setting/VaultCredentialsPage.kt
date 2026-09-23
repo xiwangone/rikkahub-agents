@@ -84,6 +84,8 @@ fun VaultCredentialsPage() {
     var showKeyGen by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var typeFilter by remember { mutableStateOf("") }
+    // 排序：默认「最近更新」（凭证多时按时间比按名称常找）；可切「最近添加 / 名称」
+    var sortOrder by remember { mutableStateOf("updated") }
     // 重复检测（按值指纹精确判定；只在需要时查，避免每次进页面都全库解密）
     var duplicateGroups by remember { mutableStateOf<List<List<String>>?>(null) }
 
@@ -212,7 +214,27 @@ fun VaultCredentialsPage() {
                     }
                 }
 
-                // 按组展示：固定组序 + 组内名称排序 + 搜索过滤
+                // 排序选择：与类型筛选同风格（chips），默认为「最近更新」
+                item(key = "sort") {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    ) {
+                        listOf(
+                            "updated" to R.string.vault_sort_updated,
+                            "created" to R.string.vault_sort_created,
+                            "name" to R.string.vault_sort_name,
+                        ).forEach { (key, res) ->
+                            FilterChip(
+                                selected = sortOrder == key,
+                                onClick = { sortOrder = key },
+                                label = { Text(stringResource(res)) },
+                            )
+                        }
+                    }
+                }
+
+                // 按组展示：固定组序 + 组内排序 + 搜索过滤
                 val groupOrder = listOf("Git", "AI", "SSH", "Network", "MCP", "Notification", "Other")
                 val query = searchQuery.trim().lowercase()
                 val filtered = entries.filter {
@@ -227,7 +249,7 @@ fun VaultCredentialsPage() {
                     val idx = groupOrder.indexOf(g)
                     if (idx < 0) groupOrder.size else idx
                 }
-                // 拍平：组头 item + 组内条目（组内按 name 排序）
+                // 拍平：组头 item + 组内条目（组内排序随 sortOrder，默认最近更新）
                 orderedGroups.forEach { group ->
                     item(key = "group_$group") {
                         Text(
@@ -237,7 +259,17 @@ fun VaultCredentialsPage() {
                             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
                         )
                     }
-                    grouped[group]!!.sortedBy { it.name.lowercase() }.forEach { entry ->
+                    val groupEntries =
+                        when (sortOrder) {
+                            "created" -> grouped[group]!!.sortedWith(
+                                compareByDescending<VaultCredentialEntity> { it.createdAt }.thenBy { it.name.lowercase() },
+                            )
+                            "name" -> grouped[group]!!.sortedBy { it.name.lowercase() }
+                            else -> grouped[group]!!.sortedWith(
+                                compareByDescending<VaultCredentialEntity> { it.updatedAt }.thenBy { it.name.lowercase() },
+                            )
+                        }
+                    groupEntries.forEach { entry ->
                         item(key = entry.id) {
                             CredentialRow(
                                 entry = entry,

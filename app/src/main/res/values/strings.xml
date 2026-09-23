@@ -2318,6 +2318,9 @@
   <string name="vault_cancel">Cancel</string>
   <string name="vault_list_title">Credentials (%1$d)</string>
   <string name="vault_search_hint">Search name / description / group</string>
+  <string name="vault_sort_updated">Recently updated</string>
+  <string name="vault_sort_created">Recently added</string>
+  <string name="vault_sort_name">Name</string>
   <string name="vault_empty_title">No credentials yet</string>
   <string name="vault_empty_desc">Tap + to create one, or go back to import a load-creds.sh file.</string>
   <string name="vault_new">New credential</string>

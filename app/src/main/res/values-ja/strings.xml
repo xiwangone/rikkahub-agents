@@ -2818,6 +2818,9 @@
   <string name="vault_cancel">キャンセル</string>
   <string name="vault_list_title">資格情報一覧（%1$d）</string>
   <string name="vault_search_hint">名前 / 説明 / グループを検索</string>
+  <string name="vault_sort_updated">更新順</string>
+  <string name="vault_sort_created">追加順</string>
+  <string name="vault_sort_name">名前</string>
   <string name="vault_empty_title">資格情報がまだありません</string>
   <string name="vault_empty_desc">右上の + で新規作成するか、前のページの「ファイルからインポート」で load-creds.sh を一括取り込みできます。</string>
   <string name="vault_new">資格情報を新規作成</string>

@@ -2818,6 +2818,9 @@
   <string name="vault_cancel">취소</string>
   <string name="vault_list_title">자격 증명 목록(%1$d)</string>
   <string name="vault_search_hint">이름 / 설명 / 그룹 검색</string>
+  <string name="vault_sort_updated">최근 업데이트</string>
+  <string name="vault_sort_created">최근 추가</string>
+  <string name="vault_sort_name">이름</string>
   <string name="vault_empty_title">자격 증명이 없습니다</string>
   <string name="vault_empty_desc">오른쪽 위 + 로 새로 만들거나 이전 페이지의 \'파일에서 가져오기\'로 load-creds.sh를 일괄 가져오세요.</string>
   <string name="vault_new">자격 증명 새로 만들기</string>
