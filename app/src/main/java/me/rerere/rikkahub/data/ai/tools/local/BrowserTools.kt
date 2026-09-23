@@ -1054,16 +1054,6 @@ fun browserDoneTool(invocationContext: ToolInvocationContext? = null): Tool = To
 
 // ---- Internal helpers ---------------------------------------------------------------------
 
-private fun selectorOnlySchema(description: String): InputSchema = InputSchema.Obj(
-    properties = buildJsonObject {
-        put("selector", buildJsonObject {
-            put("type", "string")
-            put("description", description)
-        })
-    },
-    required = listOf("selector"),
-)
-
 /**
  * selector + optional full flag — used by the state-changing tools (click / submit)
  * that gain the diff-after-action toggle. selector remains required; `full` defaults

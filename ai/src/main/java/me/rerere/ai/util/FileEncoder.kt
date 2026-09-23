@@ -14,13 +14,6 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.io.InputStream
 
-private val supportedTypes = setOf(
-    "image/jpeg",
-    "image/png",
-    "image/gif",
-    "image/webp",
-)
-
 data class EncodedImage(
     val base64: String,
     val mimeType: String
