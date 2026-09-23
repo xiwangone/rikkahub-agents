@@ -46,6 +46,7 @@ import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.LockKey
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultAuditDefaults
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
@@ -373,7 +374,7 @@ fun VaultPage() {
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(stringResource(R.string.vault_credential_count, credentialCount), style = MaterialTheme.typography.titleMedium)
-                    Button(onClick = { navController.navigate(me.rerere.rikkahub.Screen.VaultCredentials) }) {
+                    Button(onClick = { navController.navigate(Screen.VaultCredentials) }) {
                         Text(stringResource(R.string.vault_manage_credentials))
                     }
                 }
@@ -731,6 +732,26 @@ fun VaultPage() {
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.padding(start = 12.dp),
+                                        )
+                                    }
+                                    // 归属维度（D3b）：有会话显示 #<cid8> · <model8>，点即跳到该会话；
+                                    // 后台任务无会话则只显示来源标记 —— 均为技术标识，零新增文案
+                                    val auditConversationId = log.conversationId
+                                    if (auditConversationId != null) {
+                                        Text(
+                                            text = "#${auditConversationId.take(8)}" +
+                                                (log.modelId?.let { " · ${it.take(8)}" } ?: ""),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier = Modifier.clickable {
+                                                navController.navigate(Screen.Chat(auditConversationId))
+                                            },
+                                        )
+                                    } else if (log.source != null) {
+                                        Text(
+                                            text = log.source,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                                         )
                                     }
                                 }
