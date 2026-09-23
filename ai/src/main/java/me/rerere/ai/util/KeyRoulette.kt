@@ -46,11 +46,23 @@ object ProviderKeyRefs {
     @Volatile
     var resolve: ((String) -> String?)? = null
 
+    /**
+     * 展开通知：成功把 `$$引用` 换成真值时回调**凭证名**（供上层写「凭据取用」审计）。
+     *
+     * 约定：同步调用、**必须极轻**（只入队，不做 IO/DB）—— 它在 provider 取 key 的热路径上；
+     * 未注入时零行为。未命中（名字不存在/无解析器）不回调。
+     */
+    @Volatile
+    var onExpanded: ((String) -> Unit)? = null
+
     /** 展开单个 token；非引用或未命中原样返回。 */
     fun expand(token: String): String {
         if (!token.startsWith(PREFIX)) return token
         val fn = resolve ?: return token
-        return fn(token.removePrefix(PREFIX)) ?: token
+        val name = token.removePrefix(PREFIX)
+        val value = fn(name) ?: return token
+        onExpanded?.invoke(name)
+        return value
     }
 }
 

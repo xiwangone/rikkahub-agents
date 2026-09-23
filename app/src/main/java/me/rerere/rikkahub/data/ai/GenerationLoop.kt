@@ -1466,6 +1466,8 @@ class GenerationLoop(
         conversationLorebookIds: Set<Uuid> = emptySet(),
         workspaceCwd: String? = null,
     ) {
+        // 清零点：丢弃上一次请求（异常/取消路径可能）遗留的引用命中，避免归属串档
+        ProviderKeyAudit.reset()
         // 流式分块合并窗口同样取自渲染档位（0 = 逐块处理，与未优化的原始行为一致）
         val renderProfile = resolveRenderProfileLogged(
             settings.displaySetting.renderPerformance,
@@ -1700,6 +1702,12 @@ class GenerationLoop(
             messages = messages.handleTextGenerationResult(result = result, model = (resolveBackendProvider(settings.executionBackend, model, settings.providers)?.second ?: model))
             onUpdateMessages(messages)
         }
+        // 请求收尾：本请求期间 provider 取用过的凭据引用落审计（归属 = 本会话/模型/助手）
+        ProviderKeyAudit.flush(
+            conversationId = conversationId?.toString(),
+            modelId = model.modelId,
+            assistantId = assistant.id.toString(),
+        )
     }
 
     private fun maybeTruncateToolOutput(

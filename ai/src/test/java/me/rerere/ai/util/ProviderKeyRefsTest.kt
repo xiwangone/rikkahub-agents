@@ -20,6 +20,7 @@ class ProviderKeyRefsTest {
     @After
     fun tearDown() {
         ProviderKeyRefs.resolve = null
+        ProviderKeyRefs.onExpanded = null
     }
 
     // ── expand 的四态 ────────────────────────────────────────────────
@@ -46,6 +47,29 @@ class ProviderKeyRefsTest {
     fun `without a resolver everything stays verbatim`() {
         ProviderKeyRefs.resolve = null
         assertEquals("\$\$OPENAI_API_KEY", ProviderKeyRefs.expand("\$\$OPENAI_API_KEY"))
+    }
+
+    // ── 展开通知（上层写审计用）────────────────────────────────────
+
+    @Test
+    fun `onExpanded reports the credential name only when a reference resolves`() {
+        val seen = mutableListOf<String>()
+        ProviderKeyRefs.resolve = { name -> if (name == "OPENAI_API_KEY") "sk-real" else null }
+        ProviderKeyRefs.onExpanded = { name -> seen.add(name) }
+
+        assertEquals("sk-real", ProviderKeyRefs.expand("\$\$OPENAI_API_KEY"))
+        assertEquals("\$\$MISSING", ProviderKeyRefs.expand("\$\$MISSING"))
+        assertEquals("sk-abc123", ProviderKeyRefs.expand("sk-abc123"))
+        assertEquals(listOf("OPENAI_API_KEY"), seen)
+    }
+
+    @Test
+    fun `onExpanded stays silent without a resolver`() {
+        val seen = mutableListOf<String>()
+        ProviderKeyRefs.resolve = null
+        ProviderKeyRefs.onExpanded = { name -> seen.add(name) }
+        assertEquals("\$\$OPENAI_API_KEY", ProviderKeyRefs.expand("\$\$OPENAI_API_KEY"))
+        assertTrue(seen.isEmpty())
     }
 
     // ── 轮询（splitKey 经 KeyRoulette.next 间接覆盖）────────────────────

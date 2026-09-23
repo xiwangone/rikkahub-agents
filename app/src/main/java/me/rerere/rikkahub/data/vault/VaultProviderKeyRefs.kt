@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.vault
 
 import me.rerere.ai.util.ProviderKeyRefs
+import java.util.concurrent.ConcurrentLinkedQueue
 
 /**
  * 把凭证库接入 provider 的密钥引用（`$$凭证名`）。
@@ -23,6 +24,14 @@ object VaultProviderKeyRefs {
     @Volatile
     private var cache: Map<String, String> = emptyMap()
 
+    /**
+     * provider 取用命中的引用名（只入队，不落库）。
+     *
+     * provider 取 key 是同步热路径 → 这里只记录名字；真正的审计写在生成链路
+     * （`ProviderKeyAudit.flush`），因为只有那里知道归属（会话/模型/助手）且有 suspend 写库能力。
+     */
+    private val expandedHits = ConcurrentLinkedQueue<String>()
+
     /** 是否已注入（便于诊断）。 */
     @Volatile
     var installed: Boolean = false
@@ -40,9 +49,36 @@ object VaultProviderKeyRefs {
         }
         cache = map
         // 每次刷新都重新注入：避免进程早期（缓存为空）时留下"解析不到"的印象
-        ProviderKeyRefs.resolve = { name -> cache[name] }
-        installed = true
+        installHooks()
         return map.size
+    }
+
+    /** 装配两个钩子：解析器 + 展开通知（后者只入队，供生成链路写审计）。 */
+    private fun installHooks() {
+        ProviderKeyRefs.resolve = { name -> cache[name] }
+        ProviderKeyRefs.onExpanded = { name -> recordExpanded(name) }
+        installed = true
+    }
+
+    /** 展开回调体（同步、轻量）：同轮去重 + 上限保护，避免高频轮询把审计表刷满。（internal 以便单测） */
+    internal fun recordExpanded(name: String) {
+        if (expandedHits.size >= MAX_HITS_PER_REQUEST) return
+        if (!expandedHits.contains(name)) expandedHits.add(name)
+    }
+
+    /** 取走并清空本次请求期间命中的引用名（由审计写入点调用）。 */
+    internal fun drainExpanded(): List<String> {
+        val out = ArrayList<String>()
+        while (true) {
+            val next = expandedHits.poll() ?: break
+            out.add(next)
+        }
+        return out
+    }
+
+    /** 清零点：丢弃遗留命中，保证归属不串到下一次请求（异常/取消路径可能留下残留）。 */
+    internal fun resetExpanded() {
+        expandedHits.clear()
     }
 
     /**
@@ -69,8 +105,7 @@ object VaultProviderKeyRefs {
         }
         val value = repository.decryptValue(entry)
         cache = if (value == null) cache - name else cache + (name to value)
-        ProviderKeyRefs.resolve = { n -> cache[n] }
-        installed = true
+        installHooks()
     }
 
     /** 增量删除单条（删除后调用）。 */
@@ -80,4 +115,7 @@ object VaultProviderKeyRefs {
 
     /** 当前是否能解析某个引用名（只回答存在性，不返回值）。 */
     fun canResolve(name: String): Boolean = cache.containsKey(name)
+
+    /** 单次请求最多记这么多条命中（超出丢弃）。（internal 以便单测） */
+    internal const val MAX_HITS_PER_REQUEST = 16
 }
