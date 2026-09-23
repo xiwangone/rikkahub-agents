@@ -54,31 +54,43 @@ fun BackupEncryptionSection(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
         shape = MaterialTheme.shapes.small,
     ) {
-        Row(
+        Column(
             modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(
-                imageVector = if (enabled) HugeIcons.Lock else HugeIcons.LockKey,
-                contentDescription = null,
-                tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp),
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(
+                    imageVector = if (enabled) HugeIcons.Lock else HugeIcons.LockKey,
+                    contentDescription = null,
+                    tint = if (enabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(16.dp),
+                )
+                Text(
+                    text = stringResource(R.string.backup_page_encryption_title),
+                    style = MaterialTheme.typography.labelMedium,
+                    modifier = Modifier.weight(1f),
+                )
+                Text(
+                    text =
+                        when {
+                            enabled && hasPassword -> stringResource(R.string.backup_page_encryption_locked)
+                            enabled -> stringResource(R.string.backup_page_encryption_not_remembered)
+                            else -> stringResource(R.string.backup_page_encryption_unlocked)
+                        },
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            // 口径提醒：备份包整体是口令加密，但包内“密钥库 / 模型密钥”是本机加密的（同一设备才能解）——
+            // 不写清楚，用户会默认“有备份就能换机恢复”，而实际上那两块会变成死数据。
             Text(
-                text = stringResource(R.string.backup_page_encryption_title),
-                style = MaterialTheme.typography.labelMedium,
-                modifier = Modifier.weight(1f),
-            )
-            Text(
-                text =
-                    when {
-                        enabled && hasPassword -> stringResource(R.string.backup_page_encryption_locked)
-                        enabled -> stringResource(R.string.backup_page_encryption_not_remembered)
-                        else -> stringResource(R.string.backup_page_encryption_unlocked)
-                    },
+                text = stringResource(R.string.backup_page_encryption_scope_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp),
             )
         }
     }

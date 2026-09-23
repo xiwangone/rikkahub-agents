@@ -180,7 +180,7 @@
   <string name="backup_page_delete">削除</string>
   <string name="backup_page_delete_failed">削除失敗: %s</string>
   <string name="backup_page_delete_success">削除成功</string>
-  <string name="backup_page_export_desc">アプリデータをファイルにエクスポート</string>
+  <string name="backup_page_export_desc">アプリデータをファイルにエクスポート（機種変更・再インストール時に）</string>
   <string name="backup_page_exporting">エクスポート中...</string>
   <string name="backup_page_files">ファイル</string>
   <string name="backup_page_import_chatbox_desc">ChatBoxプロバイダー設定と完全なチャット履歴をインポート</string>
@@ -1959,7 +1959,7 @@
   <string name="assistant_page_time_reminder_interval_hint">正の整数を入力してください。メッセージ間隔がこの値を超えると、リマインダーが挿入されます。</string>
   <string name="assistant_page_time_reminder_interval_desc">メッセージ間隔がこの間隔を超えた場合にリマインダーを挿入します。最初のユーザーメッセージの前には常にリマインドします。</string>
   <string name="assistant_page_time_reminder_interval_value">%1$d 分</string>
-<string name="backup_page_import_overwrite_confirm">バックアップをインポートするとアプリデータが上書きされます。続行しますか？</string>
+<string name="backup_page_import_overwrite_confirm">バックアップをインポートするとアプリデータが上書きされます。続行しますか？（機種変更後の復元では資格情報とモデル鍵の再入力が必要）</string>
 <string name="theme_name_minimal">ミニマルホワイト</string>
 <string name="setting_page_preferences_network">ネットワーク</string>
 <string name="setting_page_preferences_network_desc">User-Agentとネットワークリクエストの設定</string>
@@ -2015,9 +2015,9 @@
   <string name="assistant_page_memory_tier_conditional_short">conditional</string>
   <string name="avatar_save_failed">アバターの保存に失敗しました。ログをご確認ください。</string>
   <string name="backup_page_item_database">データベース</string>
-  <string name="backup_page_item_database_desc">チャット、メモリ、資格情報庫、SSH ホスト、スケジュール</string>
+  <string name="backup_page_item_database_desc">チャット、メモリ、資格情報庫、SSH ホスト、スケジュール（鍵は同一端末のみ）</string>
   <string name="backup_page_item_settings">設定</string>
-  <string name="backup_page_item_settings_desc">アシスタント、モデル、外観、バックアップチャネル</string>
+  <string name="backup_page_item_settings_desc">アシスタント、モデル、外観、バックアップチャネル（モデル鍵は同一端末のみ）</string>
   <string name="backup_page_item_avatars">アバター</string>
   <string name="backup_page_item_avatars_desc">ユーザーとアシスタントのアバター画像</string>
   <string name="backup_page_item_workspace_docs">ワークスペース文書</string>
@@ -2038,6 +2038,7 @@
   <string name="backup_page_add_config">構成を追加</string>
   <string name="backup_page_config_name">構成名</string>
   <string name="backup_page_encryption_title">バックアップの暗号化</string>
+  <string name="backup_page_encryption_scope_hint">アーカイブは合言葉で保護されますが、中の資格情報ストアとモデル鍵はこの端末用に暗号化されています（同一端末のみ復元可）。機種変更時は「ファイルに書き出す」か資格情報のパスフレーズパッケージをご利用ください。</string>
   <string name="backup_page_encryption_enabled">パスワードでバックアップを暗号化</string>
   <string name="backup_page_encryption_enabled_desc">AES-256 でアーカイブ全体を暗号化（データベース・設定・ファイル）。鍵はパスワードから導出され、任意の端末で同じパスワードを入力すれば復元できます。クラウド上の API キーや SSH ホストなどの機密情報を保護します。</string>
   <string name="backup_page_encryption_password_label">暗号化パスワード</string>

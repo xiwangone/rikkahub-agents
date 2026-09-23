@@ -242,9 +242,9 @@
   <string name="backup_page_backing_up">Backing up...</string>
   <string name="backup_page_backup_items">Backup Items</string>
   <string name="backup_page_item_database">Database</string>
-  <string name="backup_page_item_database_desc">Chats, memories, vault, SSH hosts, schedules</string>
+  <string name="backup_page_item_database_desc">Chats, memories, vault, SSH hosts, schedules (keys: same device only)</string>
   <string name="backup_page_item_settings">Settings</string>
-  <string name="backup_page_item_settings_desc">Assistants, models, appearance, backup channels</string>
+  <string name="backup_page_item_settings_desc">Assistants, models, appearance, backup channels (model keys: same device only)</string>
   <string name="backup_page_item_avatars">Avatars</string>
   <string name="backup_page_item_avatars_desc">User &amp; assistant avatar images</string>
   <string name="backup_page_item_workspace_docs">Workspace docs</string>
@@ -272,10 +272,10 @@
   <string name="backup_page_delete">Delete</string>
   <string name="backup_page_delete_failed">Delete failed: %s</string>
   <string name="backup_page_delete_success">Delete successful</string>
-  <string name="backup_page_export_desc">Export app data to a file</string>
+  <string name="backup_page_export_desc">Export app data to a file (use this when switching devices)</string>
   <string name="backup_page_exporting">Exporting...</string>
   <string name="backup_page_files">Files</string>
-  <string name="backup_page_import_overwrite_confirm">Importing a backup will overwrite app data. Continue?</string>
+  <string name="backup_page_import_overwrite_confirm">Importing a backup will overwrite app data. Continue?; on a different device the credential vault and model keys must be re-entered</string>
   <string name="backup_page_import_chatbox_desc">Import ChatBox provider configurations and full chat history</string>
   <string name="backup_page_import_cherry_studio_desc">Import Cherry Studio provider configurations</string>
   <string name="backup_page_import_desc">Import local backup file</string>
@@ -301,6 +301,7 @@
   <string name="backup_page_reminder_no_record">No backup time recorded</string>
   <string name="backup_page_reminder_title">Backup Reminder</string>
   <string name="backup_page_encryption_title">Backup Encryption</string>
+  <string name="backup_page_encryption_scope_hint">The archive is protected by your passphrase, but the credential vault and model keys inside are encrypted for this device only — same-device restore works; when switching devices use Export to file or a credential passphrase bundle.</string>
   <string name="backup_page_encryption_enabled">Encrypt backup packages with a password</string>
   <string name="backup_page_encryption_enabled_desc">AES-256 encrypts the whole backup (DB, settings, files). Password-derived key, recoverable on any device. Protects API keys &amp; SSH hosts in cloud backups.</string>
   <string name="backup_page_encryption_password_label">Encryption password</string>

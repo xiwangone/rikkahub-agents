@@ -268,7 +268,7 @@
   <string name="backup_page_delete">حذف</string>
   <string name="backup_page_delete_failed">فشل الحذف: %s</string>
   <string name="backup_page_delete_success">نجح الحذف</string>
-  <string name="backup_page_export_desc">تصدير بيانات التطبيق إلى ملف</string>
+  <string name="backup_page_export_desc">تصدير بيانات التطبيق إلى ملف (استخدمه عند تغيير الجهاز)</string>
   <string name="backup_page_exporting">جارٍ التصدير...</string>
   <string name="backup_page_files">الملفات</string>
   <string name="backup_page_import_chatbox_desc">استيراد تكوينات مزوّدي ChatBox</string>
@@ -1660,9 +1660,9 @@
   <string name="assistant_page_memory_tier_conditional_short">conditional</string>
   <string name="avatar_save_failed">فشل حفظ الصورة الرمزية. راجع السجل.</string>
   <string name="backup_page_item_database">قاعدة البيانات</string>
-  <string name="backup_page_item_database_desc">المحادثات، الذاكرة، مخزن البيانات السرية، مضيفات SSH، الجدولة</string>
+  <string name="backup_page_item_database_desc">المحادثات، الذاكرة، مخزن البيانات السرية، مضيفات SSH، الجدولة (المفاتيح: نفس الجهاز فقط)</string>
   <string name="backup_page_item_settings">الإعدادات</string>
-  <string name="backup_page_item_settings_desc">المساعدون، النماذج، المظهر، قنوات النسخ الاحتياطي</string>
+  <string name="backup_page_item_settings_desc">المساعدون، النماذج، المظهر، قنوات النسخ الاحتياطي (مفاتيح المزود: نفس الجهاز فقط)</string>
   <string name="backup_page_item_avatars">الصور الرمزية</string>
   <string name="backup_page_item_avatars_desc">صور المستخدم والمساعدين</string>
   <string name="backup_page_item_workspace_docs">مستندات مساحة العمل</string>
@@ -1683,6 +1683,7 @@
   <string name="backup_page_add_config">إضافة إعداد</string>
   <string name="backup_page_config_name">اسم الإعداد</string>
   <string name="backup_page_encryption_title">تشفير النسخ الاحتياطي</string>
+  <string name="backup_page_encryption_scope_hint">النسخة الاحتياطية محمية بعبارة المرور، لكن مخزن البيانات السرية ومفاتيح المزود داخلها مشفّرة لهذا الجهاز فقط — يمكن الاستعادة على نفس الجهاز فقط. عند تغيير الجهاز استخدم «تصدير إلى ملف» أو حزمة بيانات سرية بعبارة مرور.</string>
   <string name="backup_page_encryption_enabled">تشفير حزمة النسخ بكلمة مرور</string>
   <string name="backup_page_encryption_enabled_desc">تشفير الحزمة بالكامل بخوارزمية AES-256 (قاعدة البيانات والإعدادات والملفات). يُشتق المفتاح من كلمة المرور، ويمكن الاستعادة على أي جهاز بإدخالها. يحمي مفاتيح API ومضيفات SSH في النسخ السحابية.</string>
   <string name="backup_page_encryption_password_label">كلمة مرور التشفير</string>
@@ -2864,7 +2865,7 @@
   <string name="assistant_page_allow_conversation_system_prompt_desc">السماح بتعيين مطالبة نظام مستقلة لكل محادثة</string>
   <string name="assistant_page_allow_conversation_prompt_injection">حقن مطالبات مستقل للمحادثة</string>
   <string name="assistant_page_allow_conversation_prompt_injection_desc">السماح بربط حقن المطالبات وكتب العالم بكل محادثة على حدة</string>
-  <string name="backup_page_import_overwrite_confirm">سيؤدي استيراد النسخة إلى الكتابة فوق بيانات التطبيق. هل تريد المتابعة؟</string>
+  <string name="backup_page_import_overwrite_confirm">سيؤدي استيراد النسخة إلى الكتابة فوق بيانات التطبيق. هل تريد المتابعة؟؛ عند الاستعادة على جهاز آخر يجب إعادة إدخال البيانات السرية ومفاتيح المزود</string>
   <string name="backup_page_s3_path_style">نمط المسار</string>
   <string name="backup_page_s3_path_style_desc">استخدام endpoint/bucket/object. وعند الإيقاف يُستخدم bucket.endpoint/object.</string>
   <string name="chat_input_file_read_failed">فشل قراءة الملف: %s</string>

@@ -176,7 +176,7 @@
   <string name="backup_page_delete">刪除</string>
   <string name="backup_page_delete_failed">刪除失敗: %s</string>
   <string name="backup_page_delete_success">刪除成功</string>
-  <string name="backup_page_export_desc">導出APP數據為檔案</string>
+  <string name="backup_page_export_desc">導出APP數據為檔案（換機/重裝用這個）</string>
   <string name="backup_page_exporting">正在導出...</string>
   <string name="backup_page_files">檔案</string>
   <string name="backup_page_import_chatbox_desc">匯入 ChatBox 提供者設定和完整聊天記錄</string>
@@ -2188,9 +2188,9 @@
     <string name="assistant_page_memory_tier_conditional_short">conditional</string>
     <string name="avatar_save_failed">頭像儲存失敗，請檢視日誌。</string>
     <string name="backup_page_item_database">資料庫</string>
-    <string name="backup_page_item_database_desc">聊天、記憶、金鑰庫、SSH 主機、排程</string>
+    <string name="backup_page_item_database_desc">聊天、記憶、金鑰庫、SSH 主機、排程（密鑰類僅同機可用）</string>
     <string name="backup_page_item_settings">設定</string>
-    <string name="backup_page_item_settings_desc">助手、模型、外觀、備份通道</string>
+    <string name="backup_page_item_settings_desc">助手、模型、外觀、備份通道（模型密鑰僅同機可用）</string>
     <string name="backup_page_item_avatars">頭像</string>
     <string name="backup_page_item_avatars_desc">使用者與助手頭像圖片</string>
     <string name="backup_page_item_workspace_docs">工作區文件</string>
@@ -2210,8 +2210,9 @@
     <string name="backup_page_select_config">配置</string>
     <string name="backup_page_add_config">新增配置</string>
     <string name="backup_page_config_name">配置名稱</string>
-    <string name="backup_page_import_overwrite_confirm">匯入備份會覆蓋 App 資料，是否繼續</string>
+    <string name="backup_page_import_overwrite_confirm">匯入備份會覆蓋 App 資料，是否繼續；換機還原時密鑰庫與模型密鑰需重新填寫</string>
     <string name="backup_page_encryption_title">備份加密</string>
+    <string name="backup_page_encryption_scope_hint">備份包由口令加密，但包內密鑰庫/模型密鑰是本機加密的 —— 僅同一裝置可還原；換機請用「匯出為檔案」或憑證口令包。</string>
     <string name="backup_page_encryption_enabled">用口令加密備份包</string>
     <string name="backup_page_encryption_enabled_desc">AES-256 整包加密（資料庫/設定/檔案全加密）。金鑰由口令派生，任何裝置輸對口令即可恢復，保護雲端備份中的 API Key 與 SSH 主機等敏感資訊。</string>
     <string name="backup_page_encryption_password_label">加密口令</string>

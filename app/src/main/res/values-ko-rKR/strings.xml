@@ -180,7 +180,7 @@
   <string name="backup_page_delete">삭제</string>
   <string name="backup_page_delete_failed">삭제 실패: %s</string>
   <string name="backup_page_delete_success">삭제 성공</string>
-  <string name="backup_page_export_desc">앱 데이터를 파일로 내보내기</string>
+  <string name="backup_page_export_desc">앱 데이터를 파일로 내보내기 (기기 변경/재설치 시 사용)</string>
   <string name="backup_page_exporting">내보내는 중...</string>
   <string name="backup_page_files">파일</string>
   <string name="backup_page_import_chatbox_desc">ChatBox 공급자 구성과 전체 채팅 기록 가져오기</string>
@@ -1956,7 +1956,7 @@
   <string name="assistant_page_time_reminder_interval_hint">양의 정수를 입력하세요. 메시지 간격이 이 값을 초과하면 알림이 삽입됩니다.</string>
   <string name="assistant_page_time_reminder_interval_desc">메시지 사이의 간격이 이 간격을 초과하면 알림 메시지를 삽입합니다. 항상 첫 번째 사용자 메시지 전에 알림 메시지를 삽입합니다.</string>
   <string name="assistant_page_time_reminder_interval_value">%1$d분</string>
-<string name="backup_page_import_overwrite_confirm">백업을 가져오면 앱 데이터가 덮어써집니다. 계속하시겠습니까?</string>
+<string name="backup_page_import_overwrite_confirm">백업을 가져오면 앱 데이터가 덮어써집니다. 계속하시겠습니까?; 기기 변경 후 복원 시 자격 증명과 모델 키를 다시 입력해야 합니다</string>
 <string name="theme_name_minimal">미니멀 화이트</string>
 <string name="setting_page_preferences_network">네트워크</string>
 <string name="setting_page_preferences_network_desc">User-Agent 및 네트워크 요청 설정</string>
@@ -2015,9 +2015,9 @@
   <string name="assistant_page_memory_tier_conditional_short">conditional</string>
   <string name="avatar_save_failed">아바타 저장에 실패했습니다. 로그를 확인하세요.</string>
   <string name="backup_page_item_database">데이터베이스</string>
-  <string name="backup_page_item_database_desc">채팅, 메모리, 자격 증명 저장소, SSH 호스트, 예약</string>
+  <string name="backup_page_item_database_desc">채팅, 메모리, 자격 증명 저장소, SSH 호스트, 예약 (키는 같은 기기 전용)</string>
   <string name="backup_page_item_settings">설정</string>
-  <string name="backup_page_item_settings_desc">어시스턴트, 모델, 모양, 백업 채널</string>
+  <string name="backup_page_item_settings_desc">어시스턴트, 모델, 모양, 백업 채널 (모델 키는 같은 기기 전용)</string>
   <string name="backup_page_item_avatars">아바타</string>
   <string name="backup_page_item_avatars_desc">사용자 및 어시스턴트 아바타 이미지</string>
   <string name="backup_page_item_workspace_docs">워크스페이스 문서</string>
@@ -2038,6 +2038,7 @@
   <string name="backup_page_add_config">구성 추가</string>
   <string name="backup_page_config_name">구성 이름</string>
   <string name="backup_page_encryption_title">백업 암호화</string>
+  <string name="backup_page_encryption_scope_hint">백업 파일은 암호로 보호되지만, 내부의 자격 증명 보관소와 모델 키는 이 기기 전용으로 암호화되어 있어 같은 기기에서만 복원됩니다. 기기 변경 시에는 파일로 내보내기 또는 자격 증명 암호 패키지를 사용하세요.</string>
   <string name="backup_page_encryption_enabled">암호로 백업 암호화</string>
   <string name="backup_page_encryption_enabled_desc">AES-256로 패키지 전체 암호화(데이터베이스/설정/파일). 키는 암호에서 파생되며 어느 기기에서든 같은 암호를 입력하면 복원됩니다. 클라우드 백업의 API 키와 SSH 호스트 등 민감 정보를 보호합니다.</string>
   <string name="backup_page_encryption_password_label">암호화 암호</string>

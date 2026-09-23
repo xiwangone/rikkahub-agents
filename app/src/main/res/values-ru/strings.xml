@@ -180,7 +180,7 @@
   <string name="backup_page_delete">Удалить</string>
   <string name="backup_page_delete_failed">Не удалось удалить: %s</string>
   <string name="backup_page_delete_success">Удаление выполнено успешно</string>
-  <string name="backup_page_export_desc">Экспортировать данные приложения в файл</string>
+  <string name="backup_page_export_desc">Экспортировать данные приложения в файл (при смене устройства)</string>
   <string name="backup_page_exporting">Экспорт…</string>
   <string name="backup_page_files">Файлы</string>
   <string name="backup_page_import_chatbox_desc">Импортировать конфигурации поставщика ChatBox и полную историю чатов</string>
@@ -1952,7 +1952,7 @@
   <string name="assistant_page_time_reminder_interval_hint">Введите целое положительное число. Напоминание вставляется, когда промежуток между сообщениями превышает этот интервал.</string>
   <string name="assistant_page_time_reminder_interval_desc">Вставлять напоминание, когда промежуток между сообщениями превышает этот интервал. Всегда напоминать перед первым сообщением пользователя.</string>
   <string name="assistant_page_time_reminder_interval_value">%1$d мин</string>
-<string name="backup_page_import_overwrite_confirm">Импорт резервной копии перезапишет данные приложения. Продолжить?</string>
+<string name="backup_page_import_overwrite_confirm">Импорт резервной копии перезапишет данные приложения. Продолжить?; при восстановлении на другом устройстве потребуется заново ввести учётные данные и ключи моделей</string>
 <string name="theme_name_minimal">Минималистичный белый</string>
 <string name="setting_page_preferences_network">Сеть</string>
 <string name="setting_page_preferences_network_desc">Настройки User-Agent и сетевых запросов</string>
@@ -2008,9 +2008,9 @@
   <string name="assistant_page_memory_tier_conditional_short">conditional</string>
   <string name="avatar_save_failed">Не удалось сохранить аватар. Проверьте журнал.</string>
   <string name="backup_page_item_database">База данных</string>
-  <string name="backup_page_item_database_desc">Чаты, память, хранилище ключей, SSH-хосты, расписания</string>
+  <string name="backup_page_item_database_desc">Чаты, память, хранилище ключей, SSH-хосты, расписания (ключи — только это устройство)</string>
   <string name="backup_page_item_settings">Настройки</string>
-  <string name="backup_page_item_settings_desc">Ассистенты, модели, оформление, каналы резервного копирования</string>
+  <string name="backup_page_item_settings_desc">Ассистенты, модели, оформление, каналы резервного копирования (ключи моделей — только это устройство)</string>
   <string name="backup_page_item_avatars">Аватары</string>
   <string name="backup_page_item_avatars_desc">Изображения аватаров пользователя и ассистентов</string>
   <string name="backup_page_item_workspace_docs">Документы рабочей области</string>
@@ -2031,6 +2031,7 @@
   <string name="backup_page_add_config">Добавить профиль</string>
   <string name="backup_page_config_name">Название профиля</string>
   <string name="backup_page_encryption_title">Шифрование резервных копий</string>
+  <string name="backup_page_encryption_scope_hint">Архив защищён вашей парольной фразой, но хранилище учётных данных и ключи моделей внутри зашифрованы для этого устройства — восстановление возможно только на нём. При смене устройства используйте «Экспорт в файл» или пакет учётных данных с парольной фразой.</string>
   <string name="backup_page_encryption_enabled">Шифровать архив паролем</string>
   <string name="backup_page_encryption_enabled_desc">Шифрование AES-256 всего архива (база, настройки, файлы). Ключ выводится из пароля; на любом устройстве достаточно ввести тот же пароль. Защищает API-ключи и SSH-хосты в облачных копиях.</string>
   <string name="backup_page_encryption_password_label">Пароль шифрования</string>
