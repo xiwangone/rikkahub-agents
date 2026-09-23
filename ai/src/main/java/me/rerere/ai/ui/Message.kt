@@ -308,6 +308,26 @@ fun UIMessage.finishPendingTools(
 }
 
 /**
+ * 发送前修复「工具调用配对」：把历史里可能让服务端拒收的结构问题就地规范化。
+ *
+ * 覆盖两类（都实测过）：
+ *  1. **未执行的工具**：结果为空（工具卡住 / 被中断 / 结果被删）时，助手消息会带着没有响应的
+ *     `tool_calls` 发出去 → 服务端报 `insufficient tool messages`；[abandonUnexecutedTools]
+ *     给它补一个确定性的 envelope，使消息成为合法终态。
+ *  2. **独立的 `TOOL` 角色消息**：早期格式把工具结果存成单独消息（`toolCallId` 在 part 里，
+ *     消息本身发出去不带 `tool_call_id`）→ 服务端同样无法与 `tool_calls` 关联。数据库迁移只在
+ *     升级时跑过一次，之后新产生的这类消息不会被合并；[migrateToolMessages] 把它们并回前一条
+ *     助手消息的工具项。
+ *
+ * ⚠ 只用于**构造请求**：调用方不得把结果写回会话，否则等于为「能发出去」而篡改用户历史。
+ */
+@Suppress("DEPRECATION")
+fun List<UIMessage>.repairToolPairing(reason: String): List<UIMessage> =
+    migrateToolMessages().map { message ->
+        if (message.role == MessageRole.ASSISTANT) message.abandonUnexecutedTools(reason) else message
+    }
+
+/**
  * 把消息里「尚未执行」的工具定案为「未执行的中断」：[UIMessagePart.Tool.output] 补一个合成的
  * envelope，审批态置为 [ToolApprovalState.Denied]，其余 part 与消息本体保留。
  *

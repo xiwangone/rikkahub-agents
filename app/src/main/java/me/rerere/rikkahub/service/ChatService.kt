@@ -81,6 +81,7 @@ import me.rerere.rikkahub.data.ai.transformers.RegexOutputTransformer
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
+import me.rerere.rikkahub.data.ai.transformers.ToolPairingRepairTransformer
 import me.rerere.rikkahub.data.ai.transformers.WorkspaceReminderTransformer
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -190,6 +191,8 @@ enum class ChatErrorSolution {
 
 private val inputTransformers by lazy {
     listOf(
+        // 结构修复排最前：先把历史里未执行的工具补成合法终态，再做语义类转换
+        ToolPairingRepairTransformer,
         TimeReminderTransformer,
         PromptInjectionTransformer,
         PlaceholderTransformer,

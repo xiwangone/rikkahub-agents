@@ -23,6 +23,7 @@ import me.rerere.rikkahub.BuildConfig
 import java.security.MessageDigest
 import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.SurfaceTier
+import me.rerere.rikkahub.data.ai.tools.TierSource
 import me.rerere.rikkahub.data.ai.tools.ToolSurfacePolicy
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -733,10 +734,14 @@ internal suspend fun usageStatsPayload(
             val snapshot = ToolUsageTracker.snapshot(context)
             val injected = ToolUsageTracker.injectedNames(context)
             val settings = settingsStore.settingsFlow.first()
+            val assistant = settings.getCurrentAssistant()
+            val extraCold = assistant.extraColdTools.toSet()
+            val minCalls = (params["min_calls"]?.jsonPrimitive?.intOrNull ?: 10).coerceIn(1, 100_000)
             val payload =
                 buildJsonObject {
-                    put("assistant", settings.getCurrentAssistant().name)
+                    put("assistant", assistant.name)
                     put("trackedToolCount", snapshot.size)
+                    put("adviceThreshold", minCalls)
                     put("totalCalls", snapshot.sumOf { it.count })
                     put("resetApplied", reset)
                     put(
@@ -767,13 +772,53 @@ internal suspend fun usageStatsPayload(
                                 .forEach { add(JsonPrimitive(it)) }
                         },
                     )
+                    put("advice", usageAdviceJson(snapshot, extraCold, minCalls))
                     put(
                         "hint",
-                        "enabledButNeverCalled = 已注入给模型但从未被调用的工具；injectedToolCount 为最近一次注入的工具总数。",
+                        "enabledButNeverCalled = 已注入给模型但从未被调用的工具；injectedToolCount 为最近一次注入的工具总数。" +
+                            "advice = 可操作建议（按「调用次数 × 生效档位」算）：remove_from_extra_cold 表示该工具高频却在助手级降温名单里，" +
+                            "每次会话首用都要先 get_tool_schema 解锁，建议移出（adviceThreshold 为判定阈值，可用 min_calls 覆盖）。",
                     )
                 }
     return payload.toString()
 }
+
+/**
+ * 依据「调用次数 × 生效档位」给出**只读**建议。
+ *
+ * 目前只报一类：**高频却落在助手级降温名单**（extraColdTools）的工具 —— 它们每次会话首次调用
+ * 都要先走一次 `get_tool_schema` 解锁，比留在热/温档更贵，属"名单配错了"而非"策略如此"。
+ * 阈值默认 10 次，可用 `min_calls` 覆盖。
+ */
+private fun usageAdviceJson(
+    snapshot: List<ToolUsageTracker.Entry>,
+    extraCold: Set<String>,
+    minCalls: Int,
+): JsonArray =
+    buildJsonArray {
+        snapshot
+            .filter { entry ->
+                entry.count >= minCalls &&
+                    ToolSurfacePolicy.decide(entry.name, extraCold).source == TierSource.ASSISTANT_EXTRA_COLD
+            }
+            .sortedByDescending { it.count }
+            .forEach { entry ->
+                add(
+                    buildJsonObject {
+                        put("name", entry.name)
+                        put("count", entry.count)
+                        put("tier", SurfaceTier.COLD.name)
+                        put("tierSource", TierSource.ASSISTANT_EXTRA_COLD.name)
+                        put("suggestion", "remove_from_extra_cold")
+                        put(
+                            "reason",
+                            "调用 ${entry.count} 次（≥ 阈值 $minCalls）却生效为 COLD：每次会话首用需先 get_tool_schema 解锁，" +
+                                "成本高于留在热/温档，建议在助手设置里移出 extraColdTools。",
+                        )
+                    },
+                )
+            }
+    }
 
 // ---------- tool_scope ----------
 
@@ -1184,6 +1229,10 @@ private fun diagnosticsParameters(): InputSchema =
             put("tier", buildJsonObject {
                 put("type", "string")
                 put("description", "tool_scope only: filter rows by effective tier (HOT | WARM | COLD); omit for all.")
+            })
+            put("min_calls", buildJsonObject {
+                put("type", "integer")
+                put("description", "usage only: minimum call count for advice entries (default 10).")
             })
         },
         required = listOf("kind")
