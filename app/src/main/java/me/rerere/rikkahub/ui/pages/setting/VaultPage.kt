@@ -146,8 +146,10 @@ fun VaultPage() {
         }
     var auditRetentionDays by remember { mutableStateOf(VaultAuditDefaults.RETENTION_DAYS.toInt()) }
     var auditCap by remember { mutableStateOf(VaultAuditDefaults.CAP) }
+    var auditRollupMinutes by remember { mutableStateOf(VaultAuditDefaults.ROLLUP_MINUTES) }
     LaunchedEffect(Unit) { vaultPreferences.auditRetentionDays.collect { auditRetentionDays = it } }
     LaunchedEffect(Unit) { vaultPreferences.auditCap.collect { auditCap = it } }
+    LaunchedEffect(Unit) { vaultPreferences.auditRollupMinutes.collect { auditRollupMinutes = it } }
     var sessionToken by remember { mutableStateOf<String?>(null) }
     var sessionResult by remember { mutableStateOf<String?>(null) }
     val vaultSessionManager: VaultSessionManager = koinInject()
@@ -735,7 +737,8 @@ fun VaultPage() {
                                         },
                                     )
                                     Text(
-                                        "${if (needsAuth) "⚠ " else ""}${log.caller} · ${log.action}",
+                                        "${if (needsAuth) "⚠ " else ""}${log.caller} · ${log.action}" +
+                                            auditCountSuffix(log.count),
                                         style = MaterialTheme.typography.bodySmall,
                                         // 需授权门的用途高亮（env_inject / export_env 等）；点即按用途筛
                                         color = if (needsAuth) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
@@ -746,7 +749,7 @@ fun VaultPage() {
                                     // 同链路的内层记录折叠为子行
                                     group.drop(1).forEach { sub ->
                                         Text(
-                                            text = "↳ ${sub.caller} · ${sub.action}",
+                                            text = "↳ ${sub.caller} · ${sub.action}" + auditCountSuffix(sub.count),
                                             style = MaterialTheme.typography.bodySmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             modifier = Modifier.padding(start = 12.dp),
@@ -774,7 +777,7 @@ fun VaultPage() {
                                     }
                                 }
                                 Text(
-                                    formatTime(log.tsMs),
+                                    formatTime(log.lastTsMs ?: log.tsMs),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
@@ -818,6 +821,21 @@ fun VaultPage() {
                                 modifier = Modifier.weight(1f),
                             )
                         }
+                        Text(
+                            stringResource(R.string.vault_audit_rollup_minutes), style = MaterialTheme.typography.labelSmall
+                        )
+                        Select(
+                            options = listOf(1, 5, 10, 30, 60),
+                            selectedOption = auditRollupMinutes,
+                            onOptionSelected = { m -> scope.launch { vaultPreferences.setAuditRollupMinutes(m) } },
+                            optionToString = { it.toString() },
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Text(
+                            stringResource(R.string.vault_audit_rollup_hint),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                         Text(
                             stringResource(R.string.vault_audit_protected_hint),
                             style = MaterialTheme.typography.bodySmall,
@@ -1088,3 +1106,11 @@ fun VaultPage() {
         )
     }
 }
+
+/**
+ * 聚合行后缀：`×N`（技术标识，零新文案）；单次行为空串。
+ *
+ * 聚合只发生在机械取用上（`VaultAuditDefaults.ROLLUP_ACTIONS`），次数直接展示，
+ * 不额外造文案；想看逐次请把窗口调小或直接看导出档。
+ */
+private fun auditCountSuffix(count: Int): String = if (count > 1) " ×$count" else ""

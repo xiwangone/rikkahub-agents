@@ -14,17 +14,38 @@ class AuditAnomalyDetectorTest {
         credentialName: String = "CRED_A",
         action: String = "local_use",
         minutesAgo: Long = 1,
+        count: Int = 1,
+        lastMinutesAgo: Long? = null,
     ) = VaultAuditLogEntity(
         credentialName = credentialName,
         caller = "ai-tool",
         action = action,
         tsMs = now - minutesAgo * 60_000L,
+        count = count,
+        lastTsMs = lastMinutesAgo?.let { now - it * 60_000L },
     )
 
     @Test
     fun `安静时不报异常`() {
         val logs = List(3) { log(minutesAgo = 1) }
         assertTrue(AuditAnomalyDetector.detect(logs, now = now).isEmpty())
+    }
+
+    @Test
+    fun `聚合行跨长时间累积不算高频（按速率折算）`() {
+        // 一条聚合行：60 分钟窗口内共 25 次（首次 55 分钟前、末次 1 分钟前）
+        val logs = listOf(log(minutesAgo = 55, count = 25, lastMinutesAgo = 1))
+        assertTrue(AuditAnomalyDetector.detect(logs, now = now).isEmpty())
+    }
+
+    @Test
+    fun `聚合行短时间爆发算高频`() {
+        // 同一条聚合行：只在最近 2 分钟内 25 次
+        val logs = listOf(log(minutesAgo = 3, count = 25, lastMinutesAgo = 1))
+        val anomalies = AuditAnomalyDetector.detect(logs, now = now)
+        assertEquals(1, anomalies.size)
+        assertTrue(anomalies[0].highFrequency)
+        assertEquals(25, anomalies[0].calls)
     }
 
     @Test

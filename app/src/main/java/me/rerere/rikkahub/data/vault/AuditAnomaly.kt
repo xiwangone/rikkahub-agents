@@ -9,12 +9,19 @@ import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
  */
 data class AuditAnomaly(
     val credentialName: String,
-    /** 窗口内调用次数 */
+    /** 窗口内实际调用次数（聚合行按 count 累加，用于展示） */
     val calls: Int,
     /** 窗口内不同用途（action 去重）数量 */
     val actions: Int,
+    /**
+     * 折算到观察窗口的**等效次数**（判定用）。
+     *
+     * 聚合行会把更长时间内（最长一个聚合窗口）的发生攒在一行里，直接拿 `calls` 判会把
+     * “60 分钟里 25 次”误报成“近 5 分钟 25 次”；故按覆盖时长折算。单次行为等于 `calls`。
+     */
+    val effectiveCalls: Int,
 ) {
-    val highFrequency: Boolean get() = calls >= AuditAnomalyDetector.BURST_CALLS
+    val highFrequency: Boolean get() = effectiveCalls >= AuditAnomalyDetector.BURST_CALLS
     val wideSweep: Boolean get() = actions >= AuditAnomalyDetector.SWEEP_ACTIONS
 }
 
@@ -43,16 +50,23 @@ object AuditAnomalyDetector {
     ): List<AuditAnomaly> {
         val cutoff = now - windowMs
         return logs.asSequence()
-            .filter { it.tsMs >= cutoff }
+            // 聚合行的“最新发生”在窗口内则视为活跃（首次时间可能早于窗口，属正常）
+            .filter { (it.lastTsMs ?: it.tsMs) >= cutoff }
             .groupBy { it.credentialName }
             .mapNotNull { (name, group) ->
+                val calls = group.sumOf { it.count.coerceAtLeast(1) }
+                val spanMs = (group.maxOf { it.lastTsMs ?: it.tsMs } - group.minOf { it.tsMs }).coerceAtLeast(0L)
+                // 覆盖时长摊成几个观察窗口（至少 1，避免除零）；等效次数 = 总次数 / 窗口数
+                val windows = maxOf(1.0, spanMs.toDouble() / windowMs)
                 val anomaly = AuditAnomaly(
                     credentialName = name,
-                    calls = group.size,
+                    calls = calls,
                     actions = group.map { it.action }.distinct().size,
+                    effectiveCalls = kotlin.math.ceil(calls / windows).toInt(),
                 )
                 anomaly.takeIf { it.highFrequency || it.wideSweep }
             }
             .sortedByDescending { it.calls }
+            .toList()
     }
 }

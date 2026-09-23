@@ -19,6 +19,7 @@ class VaultPreferences(private val context: Context) {
         val BIOMETRIC_ENABLED = booleanPreferencesKey("biometric_enabled")
         val AUDIT_CAP = intPreferencesKey("audit_cap")
         val AUDIT_RETENTION_DAYS = intPreferencesKey("audit_retention_days")
+        val AUDIT_ROLLUP_MINUTES = intPreferencesKey("audit_rollup_minutes")
     }
 
     val biometricEnabled: Flow<Boolean> =
@@ -42,5 +43,28 @@ class VaultPreferences(private val context: Context) {
 
     suspend fun setAuditRetentionDays(days: Int) {
         store.edit { it[Keys.AUDIT_RETENTION_DAYS] = days }
+    }
+
+    /**
+     * 聚合窗口（分钟）：机械取用（见 [VaultAuditDefaults.ROLLUP_ACTIONS]）在该窗口内的
+     * 重复调用只计次不插新行。
+     *
+     * 读时夹取到 [[VaultAuditDefaults.ROLLUP_MINUTES_MIN], [VaultAuditDefaults.ROLLUP_MINUTES_MAX]]，
+     * 避免旧值/异常值把窗口设成离谱数字。
+     */
+    val auditRollupMinutes: Flow<Int> = store.data.map {
+        (it[Keys.AUDIT_ROLLUP_MINUTES] ?: VaultAuditDefaults.ROLLUP_MINUTES).coerceIn(
+            VaultAuditDefaults.ROLLUP_MINUTES_MIN,
+            VaultAuditDefaults.ROLLUP_MINUTES_MAX,
+        )
+    }
+
+    suspend fun setAuditRollupMinutes(minutes: Int) {
+        store.edit {
+            it[Keys.AUDIT_ROLLUP_MINUTES] = minutes.coerceIn(
+                VaultAuditDefaults.ROLLUP_MINUTES_MIN,
+                VaultAuditDefaults.ROLLUP_MINUTES_MAX,
+            )
+        }
     }
 }

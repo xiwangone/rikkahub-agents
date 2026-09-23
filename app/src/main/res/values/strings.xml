@@ -2622,6 +2622,8 @@
   <string name="vault_audit_retention_days">Retention (days)</string>
   <string name="vault_audit_retention_count">Retention (count)</string>
   <string name="vault_audit_anomaly_line">⚠ %1$s: %2$d calls / %3$d purposes in the last %4$d min — confirm this is expected.</string>
+  <string name="vault_audit_rollup_minutes">Rollup window (min)</string>
+  <string name="vault_audit_rollup_hint">Applies to routine calls only (e.g. provider key lookups); critical actions still get one row each.</string>
   <string name="vault_audit_protected_hint">Critical actions (export / write-back / clear receipt) are kept regardless of limits.</string>
   <string name="vault_audit_clear">Clear access log</string>
   <string name="log_page_title">Logs</string>

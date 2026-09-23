@@ -26,6 +26,32 @@ interface VaultAuditLogDao {
     @Query("SELECT COUNT(*) FROM vault_audit_log")
     suspend fun count(): Int
 
+    /**
+     * 聚合目标：同凭证/调用方/动作/会话，且“最近一次发生”在 `sinceMs` 之后的那条。
+     *
+     * 会话列的可空比较用 IFNULL 拉平（后台任务无会话时也该与自身聚合）。
+     */
+    @Query(
+        """
+        SELECT * FROM vault_audit_log
+        WHERE credentialName = :credentialName AND caller = :caller AND action = :action
+          AND IFNULL(conversationId, '') = IFNULL(:conversationId, '')
+          AND IFNULL(lastTsMs, tsMs) >= :sinceMs
+        ORDER BY id DESC LIMIT 1
+        """
+    )
+    suspend fun findRollupTarget(
+        credentialName: String,
+        caller: String,
+        action: String,
+        conversationId: String?,
+        sinceMs: Long,
+    ): VaultAuditLogEntity?
+
+    /** 聚合行计数 +1，并把“末次发生”推到 nowMs（首次 tsMs 不动）。 */
+    @Query("UPDATE vault_audit_log SET count = count + 1, lastTsMs = :nowMs WHERE id = :id")
+    suspend fun bumpCount(id: Long, nowMs: Long)
+
     @Query("DELETE FROM vault_audit_log")
     suspend fun clearAll()
 }

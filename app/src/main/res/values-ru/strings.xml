@@ -2981,6 +2981,8 @@
   <string name="vault_audit_retention_days">Дней хранения</string>
   <string name="vault_audit_retention_count">Лимит записей</string>
   <string name="vault_audit_anomaly_line">⚠ %1$s: %3$d вызовов / %4$d назначений за последние %2$d мин — проверьте, ожидаемо ли это.</string>
+  <string name="vault_audit_rollup_minutes">Окно объединения (мин)</string>
+  <string name="vault_audit_rollup_hint">Только для рутинных вызовов (например, получение ключа провайдера); критичные действия по-прежнему пишутся отдельно.</string>
   <string name="vault_audit_protected_hint">Критические действия (экспорт / запись / квитанция очистки) хранятся без ограничений.</string>
   <string name="vault_audit_clear">Очистить журнал обращений</string>
   <string name="log_page_title">Журналы</string>

@@ -2988,6 +2988,8 @@
   <string name="vault_audit_retention_days">보관 일수</string>
   <string name="vault_audit_retention_count">보관 개수</string>
   <string name="vault_audit_anomaly_line">⚠ %1$s: 최근 %2$d분 동안 %3$d회 호출 / %4$d가지 용도. 의도한 사용인지 확인하세요.</string>
+  <string name="vault_audit_rollup_minutes">집계 창(분)</string>
+  <string name="vault_audit_rollup_hint">일상적인 호출(예: provider 키 조회)에만 적용됩니다. 중요 작업은 매번 기록됩니다.</string>
   <string name="vault_audit_protected_hint">중요 작업(내보내기 / 쓰기 / 삭제 영수증)은 제한 대상이 아니며 장기 보관됩니다.</string>
   <string name="vault_audit_clear">호출 기록 지우기</string>
   <string name="log_page_title">로그</string>
