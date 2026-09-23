@@ -484,6 +484,19 @@ class CredentialVaultRepository(
         auditDao.getRecent(limit)
 
     /**
+     * 只读查询（`diagnostics kind=audit` 用）：按凭证/动作/时间窗口过滤。
+     *
+     * 只回**元数据行**（凭证名/caller/action/次数/时间/归属），**永不回凭证明文或密文**。
+     */
+    suspend fun queryAudit(
+        credential: String = "",
+        action: String = "",
+        sinceMs: Long = 0L,
+        limit: Int = 50,
+    ): List<VaultAuditLogEntity> =
+        auditDao.queryAudit(credential.trim(), action.trim(), sinceMs, limit.coerceIn(1, 200))
+
+    /**
      * 清空审计记录，并留下一条**回执**。
      *
      * 清空这个动作本身必须留痕：否则“谁在什么时候抹掉了记录”无从查起，

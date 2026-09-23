@@ -12,6 +12,21 @@ interface VaultAuditLogDao {
     @Query("SELECT * FROM vault_audit_log ORDER BY tsMs DESC LIMIT :limit")
     suspend fun getRecent(limit: Int = 100): List<VaultAuditLogEntity>
 
+    /**
+     * 只读查询（供 `diagnostics kind=audit`）：按凭证/动作/时间窗口过滤，倒序取前 limit 条。
+     * 传空字符串 = 不过滤（避免动态 SQL）。
+     */
+    @Query(
+        """
+        SELECT * FROM vault_audit_log
+        WHERE (:credential = '' OR credentialName = :credential)
+          AND (:action = '' OR action = :action)
+          AND tsMs >= :sinceMs
+        ORDER BY tsMs DESC LIMIT :limit
+        """
+    )
+    suspend fun queryAudit(credential: String, action: String, sinceMs: Long, limit: Int): List<VaultAuditLogEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(entry: VaultAuditLogEntity)
 

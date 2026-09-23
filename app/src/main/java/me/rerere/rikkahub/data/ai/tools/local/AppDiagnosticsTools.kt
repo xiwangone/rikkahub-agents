@@ -25,7 +25,9 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.RikkaHubApp
+import org.koin.java.KoinJavaComponent.getKoin
 import kotlinx.serialization.json.booleanOrNull
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.MessageRole
@@ -762,7 +764,7 @@ internal suspend fun usageStatsPayload(
 
 private val DIAGNOSTICS_KINDS = listOf(
     "health", "build", "enabled_tools", "usage", "settings", "logs", "requests", "crash", "lifecycle",
-    "conversation", "generation", "perf", "models",
+    "conversation", "generation", "perf", "models", "audit",
 )
 
 /**
@@ -821,6 +823,48 @@ internal suspend fun generationPayload(
         } else {
             put("last_turn", lastTurn)
         }
+    }.toString()
+}
+
+/**
+ * audit kind：凭证使用审计的**只读**查询 —— 目标是替掉“拷 218MB 私有库手查”。
+ *
+ * 只回**非敏感元数据**（凭证名 / caller / action / 次数 / 首次与末次时间 / 归属 id 前 8 位 / 来源），
+ * **永不回凭证明文或密文**；机械取用（provider 取 key 等）已按聚合行去重计次
+ * （见 `VaultAuditDefaults.ROLLUP_ACTIONS`），所以默认看到的就是降噪后的视图。
+ */
+internal suspend fun auditPayload(params: JsonObject): String {
+    val credential = params["credential"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
+    val action = params["action"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
+    val windowMinutes = params["window_minutes"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 43_200) ?: 1_440
+    val limit = params["limit"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 200) ?: 50
+    val repository =
+        runCatching { getKoin().get<CredentialVaultRepository>() }.getOrNull()
+            ?: return buildJsonObject { put("error", "vault repository unavailable") }.toString()
+    val now = System.currentTimeMillis()
+    val logs = repository.queryAudit(credential, action, now - windowMinutes * 60_000L, limit)
+    return buildJsonObject {
+        put("window_minutes", windowMinutes)
+        put("count", logs.size)
+        put("note", "aggregated rows; count = occurrences in the rollup window; values are never returned")
+        put(
+            "entries",
+            JsonArray(
+                logs.map { log ->
+                    buildJsonObject {
+                        put("credentialName", log.credentialName)
+                        put("caller", log.caller)
+                        put("action", log.action)
+                        put("count", log.count)
+                        put("tsMs", log.tsMs)
+                        log.lastTsMs?.let { put("lastTsMs", it) }
+                        put("ageMinutes", ((now - (log.lastTsMs ?: log.tsMs)) / 60_000).toInt())
+                        log.conversationId?.let { put("conversationIdPrefix", it.take(8)) }
+                        log.source?.let { put("source", it) }
+                    }
+                },
+            ),
+        )
     }.toString()
 }
 
@@ -960,6 +1004,18 @@ fun diagnosticsTool(
                     put("type", "string")
                     put("description", "crash only: latest (default), 1 or 2.")
                 })
+                put("credential", buildJsonObject {
+                    put("type", "string")
+                    put("description", "audit only: exact credential name filter; omit for all.")
+                })
+                put("action", buildJsonObject {
+                    put("type", "string")
+                    put("description", "audit only: exact action filter (e.g. env_inject / http_exec); omit for all.")
+                })
+                put("window_minutes", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "audit only: look-back window in minutes (default 1440, max 43200).")
+                })
                 put("id", buildJsonObject {
                     put("type", "string")
                     put("description", "conversation only: conversation UUID. Omit to list recent chats.")
@@ -1005,6 +1061,7 @@ fun diagnosticsTool(
             "generation" -> generationPayload(conversationRepo, settingsStore, params)
             "perf" -> perfPayload(context)
             "models" -> modelsPayload(settingsStore)
+            "audit" -> auditPayload(params)
             else -> buildJsonObject {
                 put("error", "unknown kind '$kind'")
                 put("hint", "kind must be one of: ${DIAGNOSTICS_KINDS.joinToString(" | ")}")
