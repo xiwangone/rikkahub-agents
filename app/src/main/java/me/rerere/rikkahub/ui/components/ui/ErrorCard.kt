@@ -153,6 +153,30 @@ fun ErrorCard(
                     color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
                     overflow = TextOverflow.Ellipsis,
                 )
+                // 可操作建议统一走映射；CheckTitleModelSettings 需要跳转链接，仍单独渲染
+                val solutionRes =
+                    error.solution?.let { s ->
+                        when (s) {
+                            ChatErrorSolution.ConversationHistoryStructure -> R.string.error_solution_history_structure
+                            ChatErrorSolution.ImageNotSupported -> R.string.error_solution_image_not_supported
+                            ChatErrorSolution.AuthFailed -> R.string.error_solution_auth_failed
+                            ChatErrorSolution.RateLimited -> R.string.error_solution_rate_limited
+                            ChatErrorSolution.QuotaExceeded -> R.string.error_solution_quota_exceeded
+                            ChatErrorSolution.ModelUnavailable -> R.string.error_solution_model_unavailable
+                            ChatErrorSolution.ContextTooLong -> R.string.error_solution_context_too_long
+                            ChatErrorSolution.ContentFiltered -> R.string.error_solution_content_filtered
+                            ChatErrorSolution.ServerUnavailable -> R.string.error_solution_server_unavailable
+                            ChatErrorSolution.NetworkError -> R.string.error_solution_network_error
+                            ChatErrorSolution.CheckTitleModelSettings -> null
+                        }
+                    }
+                if (solutionRes != null) {
+                    Text(
+                        text = stringResource(solutionRes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f),
+                    )
+                }
                 if (error.solution == ChatErrorSolution.CheckTitleModelSettings) {
                     Text(
                         text =

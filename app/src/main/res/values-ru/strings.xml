@@ -3277,4 +3277,14 @@
   <string name="workspace_detail_folder_export_progress_title">Экспорт %1$s…</string>
   <string name="workspace_detail_folder_export_progress_count">%1$d из %2$d файлов</string>
   <string name="workspace_detail_folder_export_progress_warning">Не закрывайте этот экран до завершения экспорта.</string>
+  <string name="error_solution_history_structure">В истории диалога был вызов инструмента без результата. Теперь это исправляется автоматически перед отправкой; если ошибка сохранится, начните новый чат.</string>
+  <string name="error_solution_image_not_supported">В диалоге есть изображения, но текущая модель не поддерживает ввод изображений. Удалите эти сообщения или переключитесь на модель с поддержкой изображений.</string>
+  <string name="error_solution_auth_failed">Ключ API отклонён. Проверьте ключ и права в настройках модели.</string>
+  <string name="error_solution_rate_limited">Слишком много запросов: провайдер ограничивает. Подождите и повторите.</string>
+  <string name="error_solution_quota_exceeded">Квота или баланс исчерпаны. Пополните счёт или смените провайдера / модель.</string>
+  <string name="error_solution_model_unavailable">Модель недоступна (имя или доступ). Выберите другую модель в настройках.</string>
+  <string name="error_solution_context_too_long">Контекст длиннее лимита модели. Сожмите или сократите диалог.</string>
+  <string name="error_solution_content_filtered">Запрос заблокирован политикой безопасности провайдера. Измените содержимое.</string>
+  <string name="error_solution_server_unavailable">Ошибка на стороне провайдера (5xx / перегрузка). Повторите позже.</string>
+  <string name="error_solution_network_error">Сбой сети (таймаут или нет связи). Проверьте сеть / прокси и повторите.</string>
 </resources>

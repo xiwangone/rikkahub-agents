@@ -187,6 +187,90 @@ data class ChatError(
 
 enum class ChatErrorSolution {
     CheckTitleModelSettings,
+
+    /**
+     * 会话历史结构问题（工具调用缺少对应结果）。发送前已由 [me.rerere.rikkahub.data.ai.transformers.ToolPairingRepairTransformer]
+     * 自动补齐，故这里只提示「已自动修复 + 必要时新建会话」，不需要用户手动删消息。
+     */
+    ConversationHistoryStructure,
+
+    /** 当前模型不支持图片输入，而会话历史里有图片内容。 */
+    ImageNotSupported,
+
+    /** 认证失败：密钥无效/无权限。 */
+    AuthFailed,
+
+    /** 请求过于频繁（限流）。 */
+    RateLimited,
+
+    /** 配额/余额不足。 */
+    QuotaExceeded,
+
+    /** 模型不可用：名称不存在或无访问权限。 */
+    ModelUnavailable,
+
+    /** 上下文超长。 */
+    ContextTooLong,
+
+    /** 内容被安全策略拦截。 */
+    ContentFiltered,
+
+    /** 服务端异常（5xx / 过载）。 */
+    ServerUnavailable,
+
+    /** 网络类失败（超时 / 连接不上）。 */
+    NetworkError,
+}
+
+/**
+ * 把 provider 抛出的错误归类到可操作建议（纯函数，便于单测）。
+ *
+ * 只做**保守匹配**：每类都要求同时命中「对象词」与「原因词」（或明确的错误码），
+ * 且判定顺序为**具体 → 泛**，避免被末档的网络规则截胡。匹配不上就返回 null，
+ * 保持现有的「原文透传」行为，不把无关错误误判成可操作提示。
+ */
+internal fun classifyChatError(error: Throwable): ChatErrorSolution? {
+    val text = "${error.message.orEmpty()} ${error.cause?.message.orEmpty()}".lowercase()
+    fun has(vararg keys: String): Boolean = keys.any { text.contains(it) }
+
+    return when {
+        has("tool_calls", "tool_call_id") && has("tool messages", "insufficient tool", "must be followed by") ->
+            ChatErrorSolution.ConversationHistoryStructure
+
+        has("image", "vision") && has("not support", "unsupported", "does not support") ->
+            ChatErrorSolution.ImageNotSupported
+
+        has("401", "403", "invalid api key", "incorrect api key", "unauthorized", "authentication") ->
+            ChatErrorSolution.AuthFailed
+
+        has("429", "rate limit", "too many requests", "requests per") -> ChatErrorSolution.RateLimited
+
+        has(
+            "insufficient quota",
+            "insufficient balance",
+            "exceeded your current quota",
+            "billing",
+            "no credit",
+            "余额",
+        ) -> ChatErrorSolution.QuotaExceeded
+
+        has("model not found", "no such model", "unknown model", "do not have access to model", "404") ->
+            ChatErrorSolution.ModelUnavailable
+
+        has("context length", "maximum context", "context_length_exceeded", "too many tokens", "token limit") ->
+            ChatErrorSolution.ContextTooLong
+
+        has("content policy", "content_filter", "filtered", "safety", "flagged") ->
+            ChatErrorSolution.ContentFiltered
+
+        has("500", "502", "503", "504", "overloaded", "service unavailable", "internal server") ->
+            ChatErrorSolution.ServerUnavailable
+
+        has("timeout", "timed out", "connection", "unreachable", "econn", "enotfound", "unknownhost", "socket") ->
+            ChatErrorSolution.NetworkError
+
+        else -> null
+    }
 }
 
 private val inputTransformers by lazy {
@@ -1537,7 +1621,12 @@ class ChatService(
                 }
 
                 it.printStackTrace()
-                addError(it, conversationId, title = context.getString(R.string.error_title_generation))
+                addError(
+                    it,
+                    conversationId,
+                    title = context.getString(R.string.error_title_generation),
+                    solution = classifyChatError(it),
+                )
                 Logging.log(TAG, "handleMessageComplete: $it")
                 Logging.log(TAG, it.stackTraceToString())
             }

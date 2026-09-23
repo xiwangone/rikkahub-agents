@@ -3277,4 +3277,14 @@
   <string name="workspace_detail_folder_export_progress_title">%1$s をエクスポート中…</string>
   <string name="workspace_detail_folder_export_progress_count">%1$d / %2$d ファイル</string>
   <string name="workspace_detail_folder_export_progress_warning">エクスポートが完了するまでこの画面を開いたままにしてください。</string>
+  <string name="error_solution_history_structure">この会話履歴に、結果が欠けたツール呼び出しがありました。送信前に自動で補正されます。それでも失敗する場合は新しいチャットを開始してください。</string>
+  <string name="error_solution_image_not_supported">この会話には画像が含まれていますが、現在のモデルは画像入力に対応していません。該当メッセージを削除するか、画像対応モデルに切り替えてください。</string>
+  <string name="error_solution_auth_failed">API キーが拒否されました。モデル設定のキーと権限を確認してください。</string>
+  <string name="error_solution_rate_limited">リクエストが多すぎます。プロバイダーが制限中です。少し待って再試行してください。</string>
+  <string name="error_solution_quota_exceeded">割当か残高が不足しています。チャージするか、プロバイダー / モデルを切り替えてください。</string>
+  <string name="error_solution_model_unavailable">このモデルは利用できません（名前または権限）。設定で別のモデルを選んでください。</string>
+  <string name="error_solution_context_too_long">このモデルの上限を超えました。会話を圧縮または短くしてください。</string>
+  <string name="error_solution_content_filtered">プロバイダーの安全ポリシーでブロックされました。内容を調整してください。</string>
+  <string name="error_solution_server_unavailable">プロバイダー側でサーバーエラー（5xx / 過負荷）。しばらくして再試行してください。</string>
+  <string name="error_solution_network_error">ネットワーク失敗（タイムアウト / 接続不可）。ネットワークやプロキシを確認してください。</string>
 </resources>
