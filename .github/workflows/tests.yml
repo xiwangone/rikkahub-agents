@@ -55,11 +55,12 @@ jobs:
           key: webui-${{ hashFiles('web-ui/bun.lock') }}
           restore-keys: webui-
 
-      - name: 单元测试（:app:testDebugUnitTest）
+      - name: 单元测试（:app + :ai）
         run: |
           chmod +x gradlew
           set -o pipefail
-          ./gradlew :app:testDebugUnitTest --parallel --build-cache --configuration-cache 2>&1 | tee unit-test.log
+          # `:ai` 是各 provider 共用的基础库，单测（303 例）此前不在 CI 里，只有本地手动跑 —— 一并纳入
+          ./gradlew :app:testDebugUnitTest :ai:testDebugUnitTest --parallel --build-cache --configuration-cache 2>&1 | tee unit-test.log
 
       - name: 上传测试日志（完整 gradle 输出）
         if: always()
@@ -74,5 +75,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-report
-          path: app/build/reports/tests/testDebugUnitTest
+          path: |
+            app/build/reports/tests/testDebugUnitTest
+            ai/build/reports/tests/testDebugUnitTest
           retention-days: 7
