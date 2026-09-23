@@ -578,7 +578,9 @@ class ChatCompletionsAPI(
         includeHistoryReasoning: Boolean = true,
         openRouterCache: Boolean = false,
         includeOpenRouterReasoningDetails: Boolean = false,
-        supportInputModalities: List<Modality> = listOf(Modality.TEXT, Modality.IMAGE),
+        // 默认与 Model.kt / 模型目录的保守口径保持一致（只 TEXT）：未知能力时不臆测支持图片。
+        // 实际调用点都会显式传入 `params.model.inputModalities`，这里只是未被依赖的兜底值。
+        supportInputModalities: List<Modality> = listOf(Modality.TEXT),
     ) = buildJsonArray {
         val filteredMessages = messages.filter { it.isValidToUpload() }
 
