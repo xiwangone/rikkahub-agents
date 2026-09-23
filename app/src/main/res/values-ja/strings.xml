@@ -180,7 +180,7 @@
   <string name="backup_page_delete">削除</string>
   <string name="backup_page_delete_failed">削除失敗: %s</string>
   <string name="backup_page_delete_success">削除成功</string>
-  <string name="backup_page_export_desc">アプリデータをファイルにエクスポート（機種変更・再インストール時に）</string>
+  <string name="backup_page_export_desc">アプリデータをファイルにエクスポート</string>
   <string name="backup_page_exporting">エクスポート中...</string>
   <string name="backup_page_files">ファイル</string>
   <string name="backup_page_import_chatbox_desc">ChatBoxプロバイダー設定と完全なチャット履歴をインポート</string>
@@ -2038,7 +2038,7 @@
   <string name="backup_page_add_config">構成を追加</string>
   <string name="backup_page_config_name">構成名</string>
   <string name="backup_page_encryption_title">バックアップの暗号化</string>
-  <string name="backup_page_encryption_scope_hint">アーカイブは合言葉で保護されますが、中の資格情報ストアとモデル鍵はこの端末用に暗号化されています（同一端末のみ復元可）。機種変更時は「ファイルに書き出す」か資格情報のパスフレーズパッケージをご利用ください。</string>
+  <string name="backup_page_encryption_scope_hint">アーカイブは合言葉で保護されますが、中の資格情報ストアとモデル鍵はこの端末用に暗号化されています（同一端末のみ復元可）。別端末への移行には資格情報とモデル設定の専用移行が必要です。</string>
   <string name="backup_page_encryption_enabled">パスワードでバックアップを暗号化</string>
   <string name="backup_page_encryption_enabled_desc">AES-256 でアーカイブ全体を暗号化（データベース・設定・ファイル）。鍵はパスワードから導出され、任意の端末で同じパスワードを入力すれば復元できます。クラウド上の API キーや SSH ホストなどの機密情報を保護します。</string>
   <string name="backup_page_encryption_password_label">暗号化パスワード</string>

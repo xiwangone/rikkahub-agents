@@ -180,7 +180,7 @@
   <string name="backup_page_delete">Удалить</string>
   <string name="backup_page_delete_failed">Не удалось удалить: %s</string>
   <string name="backup_page_delete_success">Удаление выполнено успешно</string>
-  <string name="backup_page_export_desc">Экспортировать данные приложения в файл (при смене устройства)</string>
+  <string name="backup_page_export_desc">Экспортировать данные приложения в файл</string>
   <string name="backup_page_exporting">Экспорт…</string>
   <string name="backup_page_files">Файлы</string>
   <string name="backup_page_import_chatbox_desc">Импортировать конфигурации поставщика ChatBox и полную историю чатов</string>
@@ -2031,7 +2031,7 @@
   <string name="backup_page_add_config">Добавить профиль</string>
   <string name="backup_page_config_name">Название профиля</string>
   <string name="backup_page_encryption_title">Шифрование резервных копий</string>
-  <string name="backup_page_encryption_scope_hint">Архив защищён вашей парольной фразой, но хранилище учётных данных и ключи моделей внутри зашифрованы для этого устройства — восстановление возможно только на нём. При смене устройства используйте «Экспорт в файл» или пакет учётных данных с парольной фразой.</string>
+  <string name="backup_page_encryption_scope_hint">Архив защищён вашей парольной фразой, но хранилище учётных данных и ключи моделей внутри зашифрованы для этого устройства — восстановление возможно только на нём. Для переноса на другое устройство нужен отдельный перенос учётных данных и настроек.</string>
   <string name="backup_page_encryption_enabled">Шифровать архив паролем</string>
   <string name="backup_page_encryption_enabled_desc">Шифрование AES-256 всего архива (база, настройки, файлы). Ключ выводится из пароля; на любом устройстве достаточно ввести тот же пароль. Защищает API-ключи и SSH-хосты в облачных копиях.</string>
   <string name="backup_page_encryption_password_label">Пароль шифрования</string>

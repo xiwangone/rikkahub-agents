@@ -176,7 +176,7 @@
   <string name="backup_page_delete">刪除</string>
   <string name="backup_page_delete_failed">刪除失敗: %s</string>
   <string name="backup_page_delete_success">刪除成功</string>
-  <string name="backup_page_export_desc">導出APP數據為檔案（換機/重裝用這個）</string>
+  <string name="backup_page_export_desc">導出APP數據為檔案</string>
   <string name="backup_page_exporting">正在導出...</string>
   <string name="backup_page_files">檔案</string>
   <string name="backup_page_import_chatbox_desc">匯入 ChatBox 提供者設定和完整聊天記錄</string>
@@ -2212,7 +2212,7 @@
     <string name="backup_page_config_name">配置名稱</string>
     <string name="backup_page_import_overwrite_confirm">匯入備份會覆蓋 App 資料，是否繼續；換機還原時密鑰庫與模型密鑰需重新填寫</string>
     <string name="backup_page_encryption_title">備份加密</string>
-    <string name="backup_page_encryption_scope_hint">備份包由口令加密，但包內密鑰庫/模型密鑰是本機加密的 —— 僅同一裝置可還原；換機請用「匯出為檔案」或憑證口令包。</string>
+    <string name="backup_page_encryption_scope_hint">備份包由口令加密，但包內密鑰庫/模型密鑰是本機加密的 —— 僅同一裝置可還原；跨機需另行移轉憑證與模型設定。</string>
     <string name="backup_page_encryption_enabled">用口令加密備份包</string>
     <string name="backup_page_encryption_enabled_desc">AES-256 整包加密（資料庫/設定/檔案全加密）。金鑰由口令派生，任何裝置輸對口令即可恢復，保護雲端備份中的 API Key 與 SSH 主機等敏感資訊。</string>
     <string name="backup_page_encryption_password_label">加密口令</string>

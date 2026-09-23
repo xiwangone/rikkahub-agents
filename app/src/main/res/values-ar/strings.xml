@@ -268,7 +268,7 @@
   <string name="backup_page_delete">حذف</string>
   <string name="backup_page_delete_failed">فشل الحذف: %s</string>
   <string name="backup_page_delete_success">نجح الحذف</string>
-  <string name="backup_page_export_desc">تصدير بيانات التطبيق إلى ملف (استخدمه عند تغيير الجهاز)</string>
+  <string name="backup_page_export_desc">تصدير بيانات التطبيق إلى ملف</string>
   <string name="backup_page_exporting">جارٍ التصدير...</string>
   <string name="backup_page_files">الملفات</string>
   <string name="backup_page_import_chatbox_desc">استيراد تكوينات مزوّدي ChatBox</string>
@@ -1683,7 +1683,7 @@
   <string name="backup_page_add_config">إضافة إعداد</string>
   <string name="backup_page_config_name">اسم الإعداد</string>
   <string name="backup_page_encryption_title">تشفير النسخ الاحتياطي</string>
-  <string name="backup_page_encryption_scope_hint">النسخة الاحتياطية محمية بعبارة المرور، لكن مخزن البيانات السرية ومفاتيح المزود داخلها مشفّرة لهذا الجهاز فقط — يمكن الاستعادة على نفس الجهاز فقط. عند تغيير الجهاز استخدم «تصدير إلى ملف» أو حزمة بيانات سرية بعبارة مرور.</string>
+  <string name="backup_page_encryption_scope_hint">النسخة الاحتياطية محمية بعبارة المرور، لكن مخزن البيانات السرية ومفاتيح المزود داخلها مشفّرة لهذا الجهاز فقط — يمكن الاستعادة على نفس الجهاز فقط. يتطلب النقل إلى جهاز آخر ترحيلاً منفصلاً للبيانات السرية والإعدادات.</string>
   <string name="backup_page_encryption_enabled">تشفير حزمة النسخ بكلمة مرور</string>
   <string name="backup_page_encryption_enabled_desc">تشفير الحزمة بالكامل بخوارزمية AES-256 (قاعدة البيانات والإعدادات والملفات). يُشتق المفتاح من كلمة المرور، ويمكن الاستعادة على أي جهاز بإدخالها. يحمي مفاتيح API ومضيفات SSH في النسخ السحابية.</string>
   <string name="backup_page_encryption_password_label">كلمة مرور التشفير</string>

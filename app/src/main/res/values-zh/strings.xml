@@ -272,7 +272,7 @@
   <string name="backup_page_delete">删除</string>
   <string name="backup_page_delete_failed">删除失败: %s</string>
   <string name="backup_page_delete_success">删除成功</string>
-  <string name="backup_page_export_desc">导出APP数据为文件（换机/重装用这个）</string>
+  <string name="backup_page_export_desc">导出APP数据为文件</string>
   <string name="backup_page_exporting">正在导出...</string>
   <string name="backup_page_files">文件</string>
   <string name="backup_page_import_overwrite_confirm">导入备份会覆盖 App 数据，是否继续；换机恢复时密钥库与模型密钥需重新填写</string>
@@ -301,7 +301,7 @@
   <string name="backup_page_reminder_no_record">未记录备份时间</string>
   <string name="backup_page_reminder_title">备份提醒</string>
   <string name="backup_page_encryption_title">备份加密</string>
-  <string name="backup_page_encryption_scope_hint">备份包由口令加密，但包内密钥库/模型密钥是本机加密的 —— 仅同一设备可恢复；换机请用「导出为文件」或凭证口令包。</string>
+  <string name="backup_page_encryption_scope_hint">备份包由口令加密，但包内密钥库/模型密钥是本机加密的 —— 仅同一设备可恢复；跨机需另行迁移凭证与模型配置。</string>
   <string name="backup_page_encryption_enabled">用口令加密备份包</string>
   <string name="backup_page_encryption_enabled_desc">AES-256 整包加密（数据库/设置/文件全加密）。密钥由口令派生，任何设备输对口令即可恢复，保护云端备份中的 API Key 与 SSH 主机等敏感信息。</string>
   <string name="backup_page_encryption_password_label">加密口令</string>
