@@ -2987,6 +2987,7 @@
   <string name="vault_audit_export_csv">CSV をエクスポート</string>
   <string name="vault_audit_retention_days">保持日数</string>
   <string name="vault_audit_retention_count">保持件数</string>
+  <string name="vault_audit_anomaly_line">⚠ %1$s：直近 %2$d 分間で %3$d 回の呼び出し / %4$d 種類の用途。想定どおりか確認してください。</string>
   <string name="vault_audit_protected_hint">重要アクション（エクスポート / 書き込み / 消去レシート）は上限の対象外で長期保存されます。</string>
   <string name="vault_audit_clear">呼び出し履歴を消去</string>
   <string name="log_page_title">ログ</string>

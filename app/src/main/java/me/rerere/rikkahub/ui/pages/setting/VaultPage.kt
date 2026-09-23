@@ -50,6 +50,7 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultAuditDefaults
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
+import me.rerere.rikkahub.data.vault.AuditAnomalyDetector
 import me.rerere.rikkahub.data.vault.AuditExporter
 import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
@@ -122,6 +123,9 @@ fun VaultPage() {
         }
         groups
     }
+
+    // 阈值异常信号（仅提示，不阻断）：窗口内同凭证高频 / 用途过宽
+    val auditAnomalies = remember(shownAudit) { AuditAnomalyDetector.detect(shownAudit) }
 
     // 需授权门的用途（env_inject / export_env 等）在列表里高亮
     fun actionNeedsAuth(action: String): Boolean =
@@ -699,6 +703,20 @@ fun VaultPage() {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        // 阈值异常提示（D4a，仅提示不阻断）
+                        auditAnomalies.take(3).forEach { anomaly ->
+                            Text(
+                                text = stringResource(
+                                    R.string.vault_audit_anomaly_line,
+                                    anomaly.credentialName,
+                                    AuditAnomalyDetector.WINDOW_MINUTES,
+                                    anomaly.calls,
+                                    anomaly.actions,
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        }
                         auditGroups.take(30).forEach { group ->
                             val log = group.first()
                             val needsAuth = actionNeedsAuth(log.action)
@@ -739,8 +757,8 @@ fun VaultPage() {
                                     val auditConversationId = log.conversationId
                                     if (auditConversationId != null) {
                                         Text(
-                                            text = "#${auditConversationId.take(8)}" +
-                                                (log.modelId?.let { " · ${it.take(8)}" } ?: ""),
+                                            text = "#$auditConversationId" +
+                                                (log.modelId?.let { "\n· $it" } ?: ""),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.clickable {

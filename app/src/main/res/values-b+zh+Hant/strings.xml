@@ -2107,6 +2107,7 @@
   <string name="vault_audit_export_csv">匯出 CSV</string>
   <string name="vault_audit_retention_days">保留天數</string>
   <string name="vault_audit_retention_count">保留條數</string>
+  <string name="vault_audit_anomaly_line">⚠ %1$s：近 %2$d 分鐘共 %3$d 次呼叫、%4$d 種用途，請確認是否為預期</string>
   <string name="vault_audit_protected_hint">關鍵動作（匯出 / 寫回 / 清空回執）不受上限限制，長期保留。</string>
   <string name="vault_audit_clear">清空呼叫記錄</string>
   <string name="log_page_title">日誌</string>

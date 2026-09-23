@@ -2632,6 +2632,7 @@
   <string name="vault_audit_export_csv">تصدير CSV</string>
   <string name="vault_audit_retention_days">أيام الاحتفاظ</string>
   <string name="vault_audit_retention_count">عدد السجلات المحفوظة</string>
+  <string name="vault_audit_anomaly_line">⚠ %1$s: %3$d استدعاءات / %4$d استخدامات خلال %2$d دقيقة — يُرجى التأكد من كونها متوقعة.</string>
   <string name="vault_audit_protected_hint">تُحفظ الإجراءات الحرجة (التصدير / الكتابة / إيصال المسح) بصرف النظر عن الحدود.</string>
   <string name="vault_audit_clear">مسح سجل الاستدعاءات</string>
   <string name="log_page_title">السجلات</string>
