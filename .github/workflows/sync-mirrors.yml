@@ -8,6 +8,12 @@ on:
 permissions:
   contents: read
 
+# 为什么镜像推送要「先查远端 + 失败重试」：
+#   手动 `push.sh` 也会推镜像，常与本 job 并发；Gitee/GitCode 会按客户端给出的
+#   「期望 old 值」做 ref 校验，远端在取/推之间被别人推进 → 直接拒
+#   （`cannot lock ref ... is at A but expected B`，2026-09-23 两次实测）。
+#   - 先 `ls-remote` 比对：远端已是最新就跳过（手动推送先完成的常见情形）；
+#   - 仍失败就重试：重试会重新取到新 ref，通常变成 "Everything up-to-date"。
 jobs:
   sync:
     runs-on: ubuntu-latest
@@ -22,10 +28,16 @@ jobs:
         run: |
           set -o pipefail
           git remote add gitee "https://oauth2:${GITEE_TOKEN}@gitee.com/choosesheng/rikkahub-agents.git"
-          # 先取远端实际 ref：手动推送与 CI 镜像可能并发，远端已领先时
-          # 服务端的 ref CAS 会直接拒（remote rejected: cannot lock ref ... expected <old>）。
-          git fetch gitee master 2>&1 | tee -a sync.log || true
-          git push gitee HEAD:master --force 2>&1 | tee -a sync.log
+          ok=0
+          for attempt in 1 2 3; do
+            if [ "$(git ls-remote gitee refs/heads/master | cut -f1)" = "$(git rev-parse HEAD)" ]; then
+              echo "[mirror] gitee 已是最新，跳过推送" | tee -a sync.log; ok=1; break
+            fi
+            if git push gitee HEAD:master --force 2>&1 | tee -a sync.log; then ok=1; break; fi
+            echo "[mirror] gitee 推送失败（第 $attempt 次）—— 远端 ref 可能已领先，重试" | tee -a sync.log
+            sleep 5
+          done
+          [ "$ok" = 1 ] || { echo "[mirror] gitee 推送失败（已试 3 次）" | tee -a sync.log; exit 1; }
           git remote remove gitee
 
       - name: 推送 GitCode 镜像
@@ -34,8 +46,16 @@ jobs:
         run: |
           set -o pipefail
           git remote add gitcode "https://oauth2:${GITCODE_TOKEN}@gitcode.com/xiwanhao/rikkahub-agents.git"
-          git fetch gitcode master 2>&1 | tee -a sync.log || true
-          git push gitcode HEAD:master --force 2>&1 | tee -a sync.log
+          ok=0
+          for attempt in 1 2 3; do
+            if [ "$(git ls-remote gitcode refs/heads/master | cut -f1)" = "$(git rev-parse HEAD)" ]; then
+              echo "[mirror] gitcode 已是最新，跳过推送" | tee -a sync.log; ok=1; break
+            fi
+            if git push gitcode HEAD:master --force 2>&1 | tee -a sync.log; then ok=1; break; fi
+            echo "[mirror] gitcode 推送失败（第 $attempt 次）—— 远端 ref 可能已领先，重试" | tee -a sync.log
+            sleep 5
+          done
+          [ "$ok" = 1 ] || { echo "[mirror] gitcode 推送失败（已试 3 次）" | tee -a sync.log; exit 1; }
           git remote remove gitcode
 
       - name: 上传同步日志
