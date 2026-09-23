@@ -320,14 +320,10 @@ private fun toColdView(tool: Tool, conversationId: String?): Tool {
 private fun applyToolScopeFilter(tools: List<Tool>, only: List<String>): List<Tool> {
     if (only.isEmpty()) return tools
     val allow = only.toSet()
-    return tools.filter { it.name in allow || it.name in ALWAYS_KEEP_TOOL_NAMES }
+    return tools.filter { it.name in allow || it.name in ToolSurfacePolicy.ALWAYS_KEEP_TOOL_NAMES }
 }
 
 /** 描述长度阈值：超过它才做 WARM 档收敛（短的保持原样，不丢信息）。 */
-/** 白名单模式下的保命工具：始终注入，避免"看不见工具也取不回参数表"的死局。 */
-private val ALWAYS_KEEP_TOOL_NAMES =
-    setOf("list_tools", "get_tool_schema", "ask_user")
-
 private const val WARM_DESCRIPTION_KEEP_CHARS = 200
 
 /** 取描述的首句（英文句点或换行分隔），并限制长度。 */

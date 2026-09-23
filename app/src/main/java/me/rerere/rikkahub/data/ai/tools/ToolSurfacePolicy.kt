@@ -19,6 +19,30 @@ enum class SurfaceTier {
     COLD,
 }
 
+/** 档位判定的来源：解释“这个工具为什么落在这一档”。 */
+enum class TierSource {
+    /** 命中助手级降温名单（助手级 extraColdTools 配置）。 */
+    ASSISTANT_EXTRA_COLD,
+
+    /** 命中策略热档（ToolSurfacePolicy.HOT）。 */
+    POLICY_HOT,
+
+    /** 命中策略冷档单件。 */
+    POLICY_COLD_EXTRA,
+
+    /** 命中策略冷档家族前缀。 */
+    POLICY_COLD_PREFIX,
+
+    /** 未命中任何规则 → 默认温档。 */
+    DEFAULT_WARM,
+}
+
+/** 档位判定结果：档位 + 来源。 */
+data class TierDecision(
+    val tier: SurfaceTier,
+    val source: TierSource,
+)
+
 /**
  * 档位判定。
  *
@@ -82,16 +106,37 @@ object ToolSurfacePolicy {
             "whisper_status", "check_app_updates", "generate_bug_report",
         )
 
+    /**
+     * 白名单模式下的保命工具：**零副作用的自救层**（求援 / 列工具 / 取参数表），
+     * 白名单收窄时始终注入，避免“看不见工具也取不回参数表”的死局。
+     *
+     * 单一来源：装配侧（ChatToolFactory 的范围过滤）与只读诊断（diagnostics kind=tool_scope）共用，
+     * 避免两处硬编码各自漂移。⚠ 只放**不产生副作用**的元工具——执行类工具（shell / 读写等）
+     * 不得进入本名单，否则助手级白名单（只减不增）会被静默绕过。
+     */
+    val ALWAYS_KEEP_TOOL_NAMES: Set<String> =
+        setOf("list_tools", "get_tool_schema", "ask_user")
+
+    /**
+     * 档位判定**含来源**：判据唯一，避免“诊断结果”与“实际装配”两套逻辑漂移。
+     * 判定顺序即优先级：助手级降温 > 策略热档 > 策略冷档单件 > 策略冷档家族前缀 > 默认温档。
+     */
+    fun decide(
+        toolName: String,
+        extraCold: Set<String> = emptySet(),
+    ): TierDecision =
+        when {
+            // 助手级下调优先：只会把非冷档降为冷档，不会升档（见助手级 extraColdTools 配置）
+            toolName in extraCold -> TierDecision(SurfaceTier.COLD, TierSource.ASSISTANT_EXTRA_COLD)
+            toolName in HOT -> TierDecision(SurfaceTier.HOT, TierSource.POLICY_HOT)
+            toolName in COLD_EXTRAS -> TierDecision(SurfaceTier.COLD, TierSource.POLICY_COLD_EXTRA)
+            COLD_PREFIXES.any { toolName.startsWith(it) } ->
+                TierDecision(SurfaceTier.COLD, TierSource.POLICY_COLD_PREFIX)
+            else -> TierDecision(SurfaceTier.WARM, TierSource.DEFAULT_WARM)
+        }
+
     fun tierOf(
         toolName: String,
         extraCold: Set<String> = emptySet(),
-    ): SurfaceTier =
-        when {
-            // 助手级下调优先：只会把非冷档降为冷档，不会升档（见 Assistant.extraColdTools）
-            toolName in extraCold -> SurfaceTier.COLD
-            toolName in HOT -> SurfaceTier.HOT
-            toolName in COLD_EXTRAS -> SurfaceTier.COLD
-            COLD_PREFIXES.any { toolName.startsWith(it) } -> SurfaceTier.COLD
-            else -> SurfaceTier.WARM
-        }
+    ): SurfaceTier = decide(toolName, extraCold).tier
 }

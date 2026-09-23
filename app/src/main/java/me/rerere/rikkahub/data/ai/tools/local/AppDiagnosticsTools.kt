@@ -22,6 +22,8 @@ import android.content.pm.PackageManager
 import me.rerere.rikkahub.BuildConfig
 import java.security.MessageDigest
 import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
+import me.rerere.rikkahub.data.ai.tools.SurfaceTier
+import me.rerere.rikkahub.data.ai.tools.ToolSurfacePolicy
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
@@ -773,11 +775,110 @@ internal suspend fun usageStatsPayload(
     return payload.toString()
 }
 
+// ---------- tool_scope ----------
+
+/**
+ * 当前助手的**工具面视图**（只读）：本地工具选项 / 白名单 / 助手级降温名单，
+ * 以及每个工具实际生效的档位与**档位来源**，并标注白名单模式下不可移除的保命工具。
+ *
+ * 口径与来源：
+ * - 工具清单 = 最近一次装配出的注入集合（[ToolUsageTracker.injectedNames]），与模型实际看到的一致；
+ *   白名单**同时是执行边界**（执行按注入列表查工具），故这就是“能调什么”的真实快照。
+ * - 档位/来源 = [ToolSurfacePolicy.decide]（判据与装配共用，避免两套逻辑漂移）。
+ * - 保命工具 = [ToolSurfacePolicy.ALWAYS_KEEP_TOOL_NAMES]：零副作用的自救层
+ *   （求援 / 列工具 / 取参数表），白名单模式下始终注入，不随名单收窄而消失。
+ * - 只读：不修改任何配置。
+ */
+internal suspend fun toolScopePayload(
+    context: Context,
+    settingsStore: SettingsStore,
+    params: JsonObject,
+): String {
+    val settings = settingsStore.settingsFlow.first()
+    val assistant = settings.getCurrentAssistant()
+    val onlyTools = assistant.onlyTools
+    val extraCold = assistant.extraColdTools.toSet()
+    val injected = ToolUsageTracker.injectedNames(context)
+    val trimEnabled = settings.displaySetting.toolSurfaceTrimming && ToolSurfacePolicy.TRIM_ENABLED
+    val tierFilter = params["tier"]?.jsonPrimitive?.contentOrNull?.trim()?.uppercase()?.takeIf { it.isNotEmpty() }
+    val limit = (params["limit"]?.jsonPrimitive?.intOrNull ?: 200).coerceIn(1, 500)
+
+    data class Row(val name: String, val tier: SurfaceTier, val source: String, val alwaysKept: Boolean)
+
+    val alwaysKeptToolNames = ToolSurfacePolicy.ALWAYS_KEEP_TOOL_NAMES
+    val rows =
+        injected.sorted().map { name ->
+            val decision = ToolSurfacePolicy.decide(name, extraCold)
+            Row(name, decision.tier, decision.source.name, name in alwaysKeptToolNames)
+        }
+    val visible = if (tierFilter == null) rows else rows.filter { it.tier.name == tierFilter }
+
+    val payload =
+        buildJsonObject {
+            put("assistant", assistant.name)
+            put("trimEnabled", trimEnabled)
+            put("toolCount", rows.size)
+            put(
+                "counts",
+                buildJsonObject {
+                    SurfaceTier.values().forEach { tier ->
+                        put(tier.name.lowercase(), rows.count { it.tier == tier })
+                    }
+                },
+            )
+            put(
+                "tools",
+                buildJsonArray {
+                    visible.take(limit).forEach { row ->
+                        add(
+                            buildJsonObject {
+                                put("name", row.name)
+                                put("tier", row.tier.name)
+                                put("tierSource", row.source)
+                                put("alwaysKept", row.alwaysKept)
+                            },
+                        )
+                    }
+                },
+            )
+            if (visible.size > limit) put("truncated", visible.size - limit)
+            put(
+                "localToolOptions",
+                buildJsonObject {
+                    LocalToolCatalog.groups().forEach { (category, options) ->
+                        val names = options.filter { it in assistant.localTools }.map { it.toString() }
+                        if (names.isNotEmpty()) {
+                            put(category.id, buildJsonArray { names.forEach { add(JsonPrimitive(it)) } })
+                        }
+                    }
+                },
+            )
+            put("onlyTools", buildJsonArray { onlyTools.forEach { add(JsonPrimitive(it)) } })
+            put("extraColdTools", buildJsonArray { extraCold.sorted().forEach { add(JsonPrimitive(it)) } })
+            put("alwaysKeptTools", buildJsonArray { alwaysKeptToolNames.sorted().forEach { add(JsonPrimitive(it)) } })
+            put(
+                "onlyToolsNotInjected",
+                buildJsonArray {
+                    onlyTools.filterNot { it in injected }.sorted().forEach { add(JsonPrimitive(it)) }
+                },
+            )
+            put(
+                "hint",
+                "只读快照。tools 来自最近一次装配的注入集合（白名单同时是执行边界：名单外的工具既不可见也不可调用）。" +
+                    "tierSource: ASSISTANT_EXTRA_COLD=助手级降温 / POLICY_HOT=策略热档 / POLICY_COLD_EXTRA=策略冷档单件 / " +
+                    "POLICY_COLD_PREFIX=策略冷档家族前缀 / DEFAULT_WARM=默认温档。alwaysKept 的三条是零副作用自救层" +
+                    "（求援 / 列工具 / 取参数表），白名单模式下不可移除；onlyToolsNotInjected = 白名单里未出现在当前注入集的项" +
+                    "（拼错或与其它限制冲突）；trimEnabled=false 时档位不改变注入形态。",
+            )
+        }
+    return payload.toString()
+}
+
 // ---------- grouped entry point ----------
 
 private val DIAGNOSTICS_KINDS = listOf(
     "health", "build", "enabled_tools", "usage", "settings", "logs", "requests", "crash", "lifecycle",
-    "conversation", "generation", "perf", "models", "audit",
+    "conversation", "generation", "perf", "models", "audit", "tool_scope",
 )
 
 /**
@@ -1000,6 +1101,94 @@ private fun lastTurnJsonOf(message: UIMessage?): JsonObject? =
         }
     }
 
+private fun diagnosticsParameters(): InputSchema =
+    InputSchema.Obj(
+        properties = buildJsonObject {
+            put("kind", buildJsonObject {
+                put("type", "string")
+                put("description", "What to inspect: ${DIAGNOSTICS_KINDS.joinToString(" | ")}")
+                put("enum", JsonArray(DIAGNOSTICS_KINDS.map { JsonPrimitive(it) }))
+            })
+            put("level", buildJsonObject {
+                put("type", "string")
+                put("description", "logs only: level filter D / I / W / E; omit to exclude verbose D (I/W/E only).")
+            })
+            put("keyword", buildJsonObject {
+                put("type", "string")
+                put(
+                    "description",
+                    "logs and requests: case-insensitive substring filter; several terms may be " +
+                        "given separated by comma/space (matches any).",
+                )
+            })
+            put("limit", buildJsonObject {
+                put("type", "integer")
+                put("description", "logs, requests, usage and tool_scope: max entries to return.")
+            })
+            put("lines", buildJsonObject {
+                put("type", "integer")
+                put("description", "lifecycle only: trailing line count (default 60, max 500).")
+            })
+            put("which", buildJsonObject {
+                put("type", "string")
+                put("description", "crash only: latest (default), 1 or 2.")
+            })
+            put("credential", buildJsonObject {
+                put("type", "string")
+                put("description", "audit only: exact credential name filter; omit for all.")
+            })
+            put("action", buildJsonObject {
+                put("type", "string")
+                put("description", "audit only: exact action filter (e.g. env_inject / http_exec); omit for all.")
+            })
+            put("window_minutes", buildJsonObject {
+                put("type", "integer")
+                put("description", "audit only: look-back window in minutes (default 1440, max 43200).")
+            })
+            put("min_count", buildJsonObject {
+                put("type", "integer")
+                put("description", "audit only: drop rows with fewer than this many occurrences (default 1).")
+            })
+            put("provider", buildJsonObject {
+                put("type", "string")
+                put("description", "models only: provider name or uuid filter; omit for all enabled providers.")
+            })
+            put("include_disabled", buildJsonObject {
+                put("type", "string")
+                put("description", "models only: set \"true\" to also list disabled providers.")
+            })
+            put("id", buildJsonObject {
+                put("type", "string")
+                put("description", "conversation only: conversation UUID. Omit to list recent chats.")
+            })
+            put("summary", buildJsonObject {
+               put("type", "boolean")
+               put(
+                   "description",
+                   "logs only: return statistics only — level counts + top tags + time range + total — " +
+                       "instead of raw lines. Prefer this first, then fetch specific lines with keyword/level.",
+               )
+            })
+            put("compact", buildJsonObject {
+                put("type", "boolean")
+                put(
+                    "description",
+                    "conversation only: return message structure (role/finishReason/parts/tools) " +
+                        "without message text — for checking presence or tool state cheaply.",
+                )
+            })
+            put("reset", buildJsonObject {
+                put("type", "boolean")
+                put("description", "usage only: clear the counters after reporting.")
+            })
+            put("tier", buildJsonObject {
+                put("type", "string")
+                put("description", "tool_scope only: filter rows by effective tier (HOT | WARM | COLD); omit for all.")
+            })
+        },
+        required = listOf("kind")
+    )
+
 /**
  * App diagnostics and logs behind a single tool so the tool surface stays small.
  *
@@ -1018,90 +1207,7 @@ fun diagnosticsTool(
     description =
         "Inspect this app itself (kind list and semantics are in the `kind` enum). " +
             "For logs prefer summary:true or level/keyword filters — raw logs are noisy.",
-    parameters = {
-        InputSchema.Obj(
-            properties = buildJsonObject {
-                put("kind", buildJsonObject {
-                    put("type", "string")
-                    put("description", "What to inspect: ${DIAGNOSTICS_KINDS.joinToString(" | ")}")
-                    put("enum", JsonArray(DIAGNOSTICS_KINDS.map { JsonPrimitive(it) }))
-                })
-                put("level", buildJsonObject {
-                    put("type", "string")
-                    put("description", "logs only: level filter D / I / W / E; omit to exclude verbose D (I/W/E only).")
-                })
-                put("keyword", buildJsonObject {
-                    put("type", "string")
-                    put(
-                        "description",
-                        "logs and requests: case-insensitive substring filter; several terms may be " +
-                            "given separated by comma/space (matches any).",
-                    )
-                })
-                put("limit", buildJsonObject {
-                    put("type", "integer")
-                    put("description", "logs, requests and usage: max entries to return.")
-                })
-                put("lines", buildJsonObject {
-                    put("type", "integer")
-                    put("description", "lifecycle only: trailing line count (default 60, max 500).")
-                })
-                put("which", buildJsonObject {
-                    put("type", "string")
-                    put("description", "crash only: latest (default), 1 or 2.")
-                })
-                put("credential", buildJsonObject {
-                    put("type", "string")
-                    put("description", "audit only: exact credential name filter; omit for all.")
-                })
-                put("action", buildJsonObject {
-                    put("type", "string")
-                    put("description", "audit only: exact action filter (e.g. env_inject / http_exec); omit for all.")
-                })
-                put("window_minutes", buildJsonObject {
-                    put("type", "integer")
-                    put("description", "audit only: look-back window in minutes (default 1440, max 43200).")
-                })
-                put("min_count", buildJsonObject {
-                    put("type", "integer")
-                    put("description", "audit only: drop rows with fewer than this many occurrences (default 1).")
-                })
-                put("provider", buildJsonObject {
-                    put("type", "string")
-                    put("description", "models only: provider name or uuid filter; omit for all enabled providers.")
-                })
-                put("include_disabled", buildJsonObject {
-                    put("type", "string")
-                    put("description", "models only: set \"true\" to also list disabled providers.")
-                })
-                put("id", buildJsonObject {
-                    put("type", "string")
-                    put("description", "conversation only: conversation UUID. Omit to list recent chats.")
-                })
-                put("summary", buildJsonObject {
-                   put("type", "boolean")
-                   put(
-                       "description",
-                       "logs only: return statistics only — level counts + top tags + time range + total — " +
-                           "instead of raw lines. Prefer this first, then fetch specific lines with keyword/level.",
-                   )
-                })
-                put("compact", buildJsonObject {
-                    put("type", "boolean")
-                    put(
-                        "description",
-                        "conversation only: return message structure (role/finishReason/parts/tools) " +
-                            "without message text — for checking presence or tool state cheaply.",
-                    )
-                })
-                put("reset", buildJsonObject {
-                    put("type", "boolean")
-                    put("description", "usage only: clear the counters after reporting.")
-                })
-            },
-            required = listOf("kind")
-        )
-    },
+    parameters = { diagnosticsParameters() },
     execute = { input ->
         val params = input.jsonObject
         val kind = params["kind"]?.jsonPrimitive?.contentOrNull.orEmpty().trim().lowercase()
@@ -1120,6 +1226,7 @@ fun diagnosticsTool(
             "perf" -> perfPayload(context)
             "models" -> modelsPayload(settingsStore, params)
             "audit" -> auditPayload(params)
+            "tool_scope" -> toolScopePayload(context, settingsStore, params)
             else -> buildJsonObject {
                 put("error", "unknown kind '$kind'")
                 put("hint", "kind must be one of: ${DIAGNOSTICS_KINDS.joinToString(" | ")}")
