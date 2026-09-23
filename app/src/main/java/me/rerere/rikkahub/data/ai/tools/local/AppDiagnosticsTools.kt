@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.annotation.SuppressLint
 import android.content.Context
 import kotlinx.coroutines.flow.first
+import kotlinx.datetime.TimeZone
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonNull
@@ -25,6 +26,7 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.RikkaHubApp
 import kotlinx.serialization.json.booleanOrNull
 import me.rerere.ai.core.InputSchema
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.Provider
@@ -473,6 +475,18 @@ internal fun crashSnapshotPayload(context: Context, params: JsonObject): String 
  * conversation kind: 无 id 时列出当前助手最近会话; 携带 id 时导出该会话的消息文本。
  * 单条超 2000 字符截断、总量 40k 字符封顶——用于回溯历史会话现场(崩溃/截断排查)。
  */
+/**
+ * 单轮耗时（ms）：消息自带 `createdAt` / `finishedAt` —— **无需新增采集、不加列**。
+ * 缺任一端（进行中/未收尾）返回 `null`，不猜。（注意：这是「一轮总耗时」，
+ * 思考段/生成段的拆分才需写端打点，属后续项。）
+ */
+private fun turnDurationMs(m: UIMessage?): JsonElement {
+    val created = m?.createdAt ?: return JsonNull
+    val finished = m?.finishedAt ?: return JsonNull
+    val tz = TimeZone.currentSystemDefault()
+    return JsonPrimitive(finished.toInstant(tz).toEpochMilliseconds() - created.toInstant(tz).toEpochMilliseconds())
+}
+
 internal suspend fun conversationsPayload(
     conversationRepo: ConversationRepository,
     settingsStore: SettingsStore,
@@ -493,6 +507,12 @@ internal suspend fun conversationsPayload(
                     put("title", c.title)
                     put("pinned", c.isPinned)
                     put("updatedAt", c.updateAt.toString())
+                    put("nodes", c.messageNodes.size)
+                    // 尾部轻扫（≤3 节点）：避免大会话全量遍历；只要「最近一条 assistant」的模型与耗时
+                    val tail = c.messageNodes.asReversed().take(3).flatMap { it.messages.asReversed() }
+                    val lastAssistant = tail.firstOrNull { it.role == MessageRole.ASSISTANT }
+                    put("lastModelUuid", lastAssistant?.modelId?.toString() ?: JsonNull)
+                    put("lastTurnMs", turnDurationMs(lastAssistant))
                 }
             }))
         }.toString()
@@ -553,9 +573,24 @@ internal suspend fun conversationsPayload(
             }
         }
     }
+    // 四档口径（立项 §一·补 ③）：消息 / 回合(user) / 生成(assistant) / 工具调用；
+    // 另给「出现过的模型 uuid」（回答“当时跑的是哪个模型”）+ 末轮耗时（消息自带时间戳，无需采集）。
+    val allMessages = conversation.messageNodes.flatMap { it.messages }
+    val lastAssistant = allMessages.lastOrNull { it.role == MessageRole.ASSISTANT }
     return buildJsonObject {
         put("id", conversation.id.toString())
         put("title", conversation.title)
+        put("counts", buildJsonObject {
+            put("messages", allMessages.size)
+            put("userTurns", allMessages.count { it.role == MessageRole.USER })
+            put("generations", allMessages.count { it.role == MessageRole.ASSISTANT })
+            put("toolCalls", allMessages.sumOf { m -> m.parts.count { it is UIMessagePart.Tool } })
+        })
+        put(
+            "modelUuids",
+            JsonArray(allMessages.mapNotNull { it.modelId }.distinct().map { JsonPrimitive(it.toString()) }),
+        )
+        put("lastTurnMs", turnDurationMs(lastAssistant))
         put("messages", messagesJson)
         put("truncated", totalChars > 40_000)
     }.toString()
@@ -725,7 +760,7 @@ internal suspend fun usageStatsPayload(
 
 private val DIAGNOSTICS_KINDS = listOf(
     "health", "build", "enabled_tools", "usage", "settings", "logs", "requests", "crash", "lifecycle",
-    "conversation", "generation", "perf",
+    "conversation", "generation", "perf", "models",
 )
 
 /**
@@ -784,6 +819,55 @@ internal suspend fun generationPayload(
         } else {
             put("last_turn", lastTurn)
         }
+    }.toString()
+}
+
+/**
+ * models kind：列出 provider → 模型清单（uuid / modelId / 显示名 / 能力 / 是否被当前助手绑定 / 是否收藏）。
+ *
+ * 为什么：以前要回答“某会话当时跑的是哪个模型”只能拷 `rikka_hub` 手查。
+ * **只读白名单字段** —— 本函数不读 apiKey / privateKey / baseUrl 等敏感或标识字段，
+ * 靠“只写白名单”而不是“记得别写”（provider 配置主体是加密存储的，这里只取明文元数据）。
+ */
+internal suspend fun modelsPayload(settingsStore: SettingsStore): String {
+    val settings = settingsStore.settingsFlow.first()
+    val assistant = settings.getCurrentAssistant()
+    val bound = assistant.chatModelId
+    return buildJsonObject {
+        put("assistant", assistant.name)
+        put("assistant_model_uuid", bound?.toString() ?: JsonNull)
+        put("favorite_model_uuids", JsonArray(settings.favoriteModels.map { JsonPrimitive(it.toString()) }))
+        put("provider_count", settings.providers.size)
+        put(
+            "providers",
+            JsonArray(
+                settings.providers.map { p ->
+                    buildJsonObject {
+                        put("id", p.id.toString())
+                        put("name", p.name)
+                        put("enabled", p.enabled)
+                        put("type", p::class.simpleName.orEmpty())
+                        put("builtIn", p.builtIn)
+                        put(
+                            "models",
+                            JsonArray(
+                                p.models.map { m ->
+                                    buildJsonObject {
+                                        put("uuid", m.id.toString())
+                                        put("modelId", m.modelId)
+                                        put("displayName", m.displayName)
+                                        put("type", m.type.name)
+                                        put("abilities", JsonArray(m.abilities.map { JsonPrimitive(it.name) }))
+                                        put("bound_to_assistant", m.id == bound)
+                                        put("favorite", m.id in settings.favoriteModels)
+                                    }
+                                },
+                            ),
+                        )
+                    }
+                },
+            ),
+        )
     }.toString()
 }
 
@@ -918,6 +1002,7 @@ fun diagnosticsTool(
             "conversation" -> conversationsPayload(conversationRepo, settingsStore, params)
             "generation" -> generationPayload(conversationRepo, settingsStore, params)
             "perf" -> perfPayload(context)
+            "models" -> modelsPayload(settingsStore)
             else -> buildJsonObject {
                 put("error", "unknown kind '$kind'")
                 put("hint", "kind must be one of: ${DIAGNOSTICS_KINDS.joinToString(" | ")}")
