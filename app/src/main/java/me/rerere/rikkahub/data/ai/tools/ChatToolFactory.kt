@@ -144,6 +144,7 @@ class ChatToolFactory(
                         listFiltered,
                         invocationCtx.callerConversationId,
                         extraCold = assistant.extraColdTools.toSet(),
+                        context = context,
                     )
             ).sortedBy { it.name }
         // 工具重绑到与模型看到的一致的那份列表上，否则「省了多少」永远是 0。
@@ -167,7 +168,14 @@ class ChatToolFactory(
                 }
             }
         // 登记本次注入集合：让 tool_usage_stats 能直接识别"已启用但从未调用"的工具。
-        ToolUsageTracker.recordInjected(context, measured.map { it.name })
+        val injectedNames = measured.map { it.name }
+        ToolUsageTracker.recordInjected(context, injectedNames)
+        // 注入集哈希：与上次不同就意味着“这一轮之后的前缀缓存会失效”——记下来才能解释
+        // “为什么突然全价”。算法与 `tool_surface_report` 的 surface_hash 保持一致（名字序列）。
+        ToolUsageTracker.recordSurfaceHash(
+            context,
+            injectedNames.joinToString("\u0000").hashCode().toUInt().toString(16),
+        )
         trackUsage(measured)
     }
 

@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools
 
+import android.content.Context
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
@@ -25,10 +26,12 @@ internal fun buildToolDiscoveryTools(
     allTools: List<Tool>,
     conversationId: String? = null,
     extraCold: Set<String> = emptySet(),
+    // 仅用于记录“冷档解锁”统计（可为 null，统计随之关闭）。
+    context: Context? = null,
 ): List<Tool> =
     listOf(
         listToolsTool(allTools, conversationId, extraCold),
-        getToolSchemaTool(allTools, conversationId, extraCold),
+        getToolSchemaTool(allTools, conversationId, extraCold, context),
     )
 
 private fun listToolsTool(
@@ -101,6 +104,7 @@ private fun getToolSchemaTool(
     allTools: List<Tool>,
     conversationId: String?,
     extraCold: Set<String> = emptySet(),
+    context: Context? = null,
 ): Tool =
     Tool(
         name = "get_tool_schema",
@@ -125,6 +129,8 @@ private fun getToolSchemaTool(
             val tool = allTools.firstOrNull { it.name == name }
             if (tool != null && ToolSurfacePolicy.tierOf(tool.name, extraCold) == SurfaceTier.COLD) {
                 ToolSurfaceSession.markLoaded(conversationId, tool.name)
+                // 记录解锁：与调用次数对照，判断降温名单配得对不对（解锁后是否真用得上）。
+                context?.let { ToolUsageTracker.recordUnlock(it, tool.name) }
             }
             val payload =
                 if (tool == null) {

@@ -773,6 +773,42 @@ internal suspend fun usageStatsPayload(
                                 .forEach { add(JsonPrimitive(it)) }
                         },
                     )
+                    // 注入集哈希：与上次不同 = 这轮之后的前缀缓存会失效（解释“为什么突然全价”）。
+                    ToolUsageTracker.surfaceHashState(context)?.let { (hash, changes) ->
+                        put(
+                            "surfaceHash",
+                            buildJsonObject {
+                                put("current", hash)
+                                put("totalChanges", changes)
+                            },
+                        )
+                    }
+                    // 解锁统计：与调用次数对照，判断降温名单配得对不对。
+                    val unlocks = ToolUsageTracker.unlockCounts(context)
+                    if (unlocks.isNotEmpty()) {
+                        put(
+                            "unlockStats",
+                            buildJsonArray {
+                                unlocks.entries
+                                    .sortedByDescending { it.value }
+                                    .take(20)
+                                    .forEach { (name, unlockCount) ->
+                                        val calls = snapshot.firstOrNull { it.name == name }?.count ?: 0
+                                        add(
+                                            buildJsonObject {
+                                                put("name", name)
+                                                put("unlocks", unlockCount)
+                                                put("calls", calls)
+                                                put(
+                                                    "verdict",
+                                                    if (calls > 0) "used_after_unlock" else "unlocked_but_never_called",
+                                                )
+                                            },
+                                        )
+                                    }
+                            },
+                        )
+                    }
                     put("advice", usageAdviceJson(snapshot, extraCold, minCalls))
                     put(
                         "hint",
