@@ -2708,15 +2708,6 @@
   <string name="auto_compress_invalid_input">Введите корректное значение</string>
   <string name="setting_model_page_tool_output">Ограничение вывода инструментов</string>
   <string name="setting_model_page_tool_output_max_chars">Лимит вывода инструментов (K символов, 1-20; напр. 5 = 5000 символов)</string>
-  <string name="assistant_page_local_tools_section_tiers">По уровням</string>
-  <string name="assistant_page_local_tools_tier_observe_title">Ассистент: чтение данных</string>
-  <string name="assistant_page_local_tools_tier_observe_desc">Только чтение, без личных данных (включено %1$d/%2$d)</string>
-  <string name="assistant_page_local_tools_tier_self_manage_title">Ассистент: управление приложением</string>
-  <string name="assistant_page_local_tools_tier_self_manage_desc">Влияет только на это приложение (включено %1$d/%2$d)</string>
-  <string name="assistant_page_local_tools_tier_device_control_title">Ассистент: устройство и данные</string>
-  <string name="assistant_page_local_tools_tier_device_control_desc">Управляет устройством, личными данными или внешними системами (включено %1$d/%2$d)</string>
-  <string name="assistant_page_local_tools_tier_developer_title">Ассистент: разработка</string>
-  <string name="assistant_page_local_tools_tier_developer_desc">Произвольное исполнение кода и другие разрушительные возможности (включено %1$d/%2$d)</string>
   <string name="assistant_page_extra_cold_section">Детализация инструментов (дополнительно)</string>
   <string name="assistant_page_extra_cold_title">Отправлять эти инструменты кратко</string>
   <string name="assistant_page_extra_cold_desc">Настроено: %1$d. Они передают только одну строку назначения, полные параметры запрашиваются по необходимости.</string>

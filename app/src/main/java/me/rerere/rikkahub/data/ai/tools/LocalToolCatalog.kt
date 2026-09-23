@@ -18,26 +18,6 @@ enum class LocalToolCategory(val id: String) {
 }
 
 /**
- * 授权档位：把能力按"影响面"分层，供设置页批量勾选。
- *
- * 档位只是**批量勾选的视图**——底层仍落 [LocalToolOption] 集合，审批仍走既有
- * `ALWAYS_ASK` + 会话允许 + 持久允许，不新增逐次审批。
- */
-enum class ToolTier(val id: String) {
-    /** L0 观测：纯读、无副作用。 */
-    OBSERVE("observe"),
-
-    /** L1 自管理：只影响本应用自身的配置与自检。 */
-    SELF_MANAGE("self_manage"),
-
-    /** L2 设备控制：操作设备、个人数据或外部系统。 */
-    DEVICE_CONTROL("device_control"),
-
-    /** L3 开发者：任意代码执行等破坏性能力。 */
-    DEVELOPER("developer"),
-}
-
-/**
  * 运行时能力依赖：能力不可用时，该选项下的工具不会注入 schema
  * （模型看不到，也就不会去尝试必然失败的调用）。
  */
@@ -155,40 +135,8 @@ object LocalToolCatalog {
 
 
     /**
-     * 该选项所属授权档位（未列出的默认 [ToolTier.DEVICE_CONTROL]）。
-     *
-     * 判定原则：纯读 → L0；只动本应用自身 → L1；操作设备/数据/外部系统 → L2；
-     * 任意代码执行等破坏性能力 → L3。
-     */
-    fun tierOf(tool: LocalToolOption): ToolTier =
-        when (tool) {
-            // L0 观测
-            LocalToolOption.DeviceInfo,
-            LocalToolOption.Diagnostics,
-            LocalToolOption.TimeInfo,
-            LocalToolOption.WebFetch,
-            LocalToolOption.Browser,
-            -> ToolTier.OBSERVE
-
-            // L1 自管理
-            LocalToolOption.Reliability,
-            LocalToolOption.CostGuards,
-            LocalToolOption.ModelTesting,
-            LocalToolOption.SkillImport,
-            LocalToolOption.AppBackup,
-            -> ToolTier.SELF_MANAGE
-
-            // L3 开发者
-            LocalToolOption.JavascriptEngine,
-            -> ToolTier.DEVELOPER
-
-            // 其余 → L2 设备控制
-            else -> ToolTier.DEVICE_CONTROL
-        }
-
-    /**
      * 隐私采集类：UI 上单独标记（提醒用户这些会把设备上的个人数据交给模型），
-     * 但**不额外增加开关**——它们仍归各自档位，避免把常用能力割裂成多层授权。
+     * 但**不额外增加开关**——开关一律逐工具粒度，不把常用能力割裂成多层授权。
      */
     val PRIVACY_COLLECTION: Set<LocalToolOption> =
         setOf(
@@ -200,9 +148,6 @@ object LocalToolCatalog {
             LocalToolOption.CallLog,
             LocalToolOption.SmsInbox,
         )
-
-    /** 不参与档位的交互类（人机交互，不属于能力授权）。 */
-    val TIER_EXEMPT: Set<LocalToolOption> = setOf(LocalToolOption.AskUser)
 
     /** 全量列表（按分类顺序展开） */
     val all: List<LocalToolOption> = LocalToolCategory.entries.flatMap { byCategory[it].orEmpty() }

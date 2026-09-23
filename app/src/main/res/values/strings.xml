@@ -1490,15 +1490,6 @@
   <string name="assistant_page_local_tools_perm_special_dialog_title">Permission needed</string>
   <string name="assistant_page_local_tools_perm_write_settings">WRITE_SETTINGS</string>
   <string name="assistant_page_local_tools_section_device_info">Device info</string>
-  <string name="assistant_page_local_tools_section_tiers">Tiers</string>
-  <string name="assistant_page_local_tools_tier_observe_title">Assistant: read information</string>
-  <string name="assistant_page_local_tools_tier_observe_desc">Read-only, no personal data (%1$d/%2$d enabled)</string>
-  <string name="assistant_page_local_tools_tier_self_manage_title">Assistant: manage this app</string>
-  <string name="assistant_page_local_tools_tier_self_manage_desc">Affects this app only (%1$d/%2$d enabled)</string>
-  <string name="assistant_page_local_tools_tier_device_control_title">Assistant: control device and data</string>
-  <string name="assistant_page_local_tools_tier_device_control_desc">Operates the device, personal data or external systems (%1$d/%2$d enabled)</string>
-  <string name="assistant_page_local_tools_tier_developer_title">Assistant: developer</string>
-  <string name="assistant_page_local_tools_tier_developer_desc">Arbitrary code execution and other destructive capabilities (%1$d/%2$d enabled)</string>
   <string name="assistant_page_extra_cold_section">Tool details (advanced)</string>
   <string name="assistant_page_extra_cold_title">Send these tools as brief only</string>
   <string name="assistant_page_extra_cold_desc">%1$d configured. These tools send only a one-line purpose; the full parameters are fetched on demand.</string>

@@ -2271,15 +2271,6 @@
     <string name="setting_page_preferences_network_proxy_desc">支援 HTTP 和 SOCKS5 代理 URL。留空以使用系統設定。</string>
     <string name="setting_page_preferences_network_proxy_invalid">請輸入包含主機和埠的有效代理 URL。</string>
     <string name="auto_compress_cache_reset_notice">上下文已壓縮 — prompt 快取字首已重置，下一條訊息將按全價輸入計費。</string>
-    <string name="assistant_page_local_tools_section_tiers">按檔位批次設定</string>
-    <string name="assistant_page_local_tools_tier_observe_title">助手讀取資訊</string>
-    <string name="assistant_page_local_tools_tier_observe_desc">只讀取資訊，不涉及個人資料（已啟用 %1$d/%2$d）</string>
-    <string name="assistant_page_local_tools_tier_self_manage_title">助手管理本應用</string>
-    <string name="assistant_page_local_tools_tier_self_manage_desc">只影響本應用本身（已啟用 %1$d/%2$d）</string>
-    <string name="assistant_page_local_tools_tier_device_control_title">助手控制裝置與資料</string>
-    <string name="assistant_page_local_tools_tier_device_control_desc">操作裝置、個人資料或外部系統（已啟用 %1$d/%2$d）</string>
-    <string name="assistant_page_local_tools_tier_developer_title">助手開發者</string>
-    <string name="assistant_page_local_tools_tier_developer_desc">任意程式碼執行等破壞性能力（已啟用 %1$d/%2$d）</string>
     <string name="assistant_page_extra_cold_section">工具詳略（進階）</string>
     <string name="assistant_page_extra_cold_title">這些工具只傳簡要說明</string>
     <string name="assistant_page_extra_cold_desc">已設定 %1$d 個。它們只傳送一行用途，需要時再取回完整參數表。</string>

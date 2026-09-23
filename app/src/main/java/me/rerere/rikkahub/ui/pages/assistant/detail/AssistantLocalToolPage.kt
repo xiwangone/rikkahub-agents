@@ -49,7 +49,6 @@ import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
-import me.rerere.rikkahub.data.ai.tools.ToolTier
 import me.rerere.rikkahub.data.ai.tools.local.PermissionHelper
 import me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration
 import me.rerere.rikkahub.data.model.Assistant
@@ -140,28 +139,6 @@ private fun AssistantLocalToolContent(
                         current.localTools + option
                     } else {
                         current.localTools - option
-                    },
-            )
-        }
-    }
-
-    /** 整档批量开关：底层仍是逐项 [LocalToolOption]，档位只提供批量入口。 */
-    fun toggleTier(
-        tier: ToolTier,
-        enabled: Boolean,
-    ) {
-        val targets =
-            LocalToolCatalog.all.filter {
-                LocalToolCatalog.tierOf(it) == tier && it !in LocalToolCatalog.TIER_EXEMPT
-            }
-        if (targets.isEmpty()) return
-        onUpdateAssistant { current ->
-            current.copy(
-                localTools =
-                    if (enabled) {
-                        (current.localTools + targets).distinct()
-                    } else {
-                        current.localTools - targets.toSet()
                     },
             )
         }
@@ -543,35 +520,6 @@ private fun AssistantLocalToolContent(
                     Text(stringResource(R.string.assistant_page_local_tools_import_desc))
                 },
             )
-        }
-
-        // 档位批量开关：按影响面分层，一次开关整档（细粒度仍可在下方逐项调整）。
-        Text(
-            text = stringResource(R.string.assistant_page_local_tools_section_tiers),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-        )
-        CardGroup {
-            ToolTier.entries.forEach { tier ->
-                val options =
-                    LocalToolCatalog.all.filter {
-                        LocalToolCatalog.tierOf(it) == tier && it !in LocalToolCatalog.TIER_EXEMPT
-                    }
-                if (options.isEmpty()) return@forEach
-                val enabledCount = options.count { it in assistant.localTools }
-                item(
-                    headlineContent = { Text(stringResource(tierTitleRes(tier))) },
-                    supportingContent = {
-                        Text(stringResource(tierDescRes(tier), enabledCount, options.size))
-                    },
-                    trailingContent = {
-                        Switch(
-                            checked = enabledCount == options.size,
-                            onCheckedChange = { toggleTier(tier, it) },
-                        )
-                    },
-                )
-            }
         }
 
         // 助手级「额外降冷档」：只做少注入（不提供升档 —— 扩大注入集会改变请求前缀、击穿缓存）
@@ -2110,20 +2058,3 @@ private fun TermuxStatusRowSubtitle(enabled: Boolean) {
         )
     }
 }
-
-
-private fun tierTitleRes(tier: ToolTier): Int =
-    when (tier) {
-        ToolTier.OBSERVE -> R.string.assistant_page_local_tools_tier_observe_title
-        ToolTier.SELF_MANAGE -> R.string.assistant_page_local_tools_tier_self_manage_title
-        ToolTier.DEVICE_CONTROL -> R.string.assistant_page_local_tools_tier_device_control_title
-        ToolTier.DEVELOPER -> R.string.assistant_page_local_tools_tier_developer_title
-    }
-
-private fun tierDescRes(tier: ToolTier): Int =
-    when (tier) {
-        ToolTier.OBSERVE -> R.string.assistant_page_local_tools_tier_observe_desc
-        ToolTier.SELF_MANAGE -> R.string.assistant_page_local_tools_tier_self_manage_desc
-        ToolTier.DEVICE_CONTROL -> R.string.assistant_page_local_tools_tier_device_control_desc
-        ToolTier.DEVELOPER -> R.string.assistant_page_local_tools_tier_developer_desc
-    }

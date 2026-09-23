@@ -2715,15 +2715,6 @@
   <string name="auto_compress_invalid_input">유효한 값을 입력하세요</string>
   <string name="setting_model_page_tool_output">도구 출력 제한</string>
   <string name="setting_model_page_tool_output_max_chars">도구 출력 제한(K자, 1~20; 예: 5 = 5000자)</string>
-  <string name="assistant_page_local_tools_section_tiers">등급별 일괄 설정</string>
-  <string name="assistant_page_local_tools_tier_observe_title">어시스턴트: 정보 읽기</string>
-  <string name="assistant_page_local_tools_tier_observe_desc">읽기 전용, 개인 데이터 없음(%1$d/%2$d 활성)</string>
-  <string name="assistant_page_local_tools_tier_self_manage_title">어시스턴트: 이 앱 관리</string>
-  <string name="assistant_page_local_tools_tier_self_manage_desc">이 앱에만 영향(%1$d/%2$d 활성)</string>
-  <string name="assistant_page_local_tools_tier_device_control_title">어시스턴트: 기기와 데이터 제어</string>
-  <string name="assistant_page_local_tools_tier_device_control_desc">기기, 개인 데이터 또는 외부 시스템 조작(%1$d/%2$d 활성)</string>
-  <string name="assistant_page_local_tools_tier_developer_title">어시스턴트: 개발자</string>
-  <string name="assistant_page_local_tools_tier_developer_desc">임의 코드 실행 등 파괴적 기능(%1$d/%2$d 활성)</string>
   <string name="assistant_page_extra_cold_section">도구 상세 수준(고급)</string>
   <string name="assistant_page_extra_cold_title">이 도구들은 간단한 설명만 전송</string>
   <string name="assistant_page_extra_cold_desc">%1$d개 설정됨. 이들은 한 줄 용도만 보내고 전체 매개변수는 필요할 때 가져옵니다.</string>

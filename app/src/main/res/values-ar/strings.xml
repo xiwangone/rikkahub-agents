@@ -2360,15 +2360,6 @@
   <string name="auto_compress_invalid_input">أدخل قيمة صالحة</string>
   <string name="setting_model_page_tool_output">حد مخرجات الأدوات</string>
   <string name="setting_model_page_tool_output_max_chars">حد مخرجات الأدوات (K حرف، 1-20؛ مثل 5 = 5000 حرف)</string>
-  <string name="assistant_page_local_tools_section_tiers">حسب المستوى</string>
-  <string name="assistant_page_local_tools_tier_observe_title">المساعد: قراءة المعلومات</string>
-  <string name="assistant_page_local_tools_tier_observe_desc">قراءة فقط بدون بيانات شخصية (%1$d/%2$d مُفعّل)</string>
-  <string name="assistant_page_local_tools_tier_self_manage_title">المساعد: إدارة هذا التطبيق</string>
-  <string name="assistant_page_local_tools_tier_self_manage_desc">يؤثر على هذا التطبيق فقط (%1$d/%2$d مُفعّل)</string>
-  <string name="assistant_page_local_tools_tier_device_control_title">المساعد: التحكم بالجهاز والبيانات</string>
-  <string name="assistant_page_local_tools_tier_device_control_desc">يتحكم بالجهاز أو البيانات الشخصية أو الأنظمة الخارجية (%1$d/%2$d مُفعّل)</string>
-  <string name="assistant_page_local_tools_tier_developer_title">المساعد: المطوّر</string>
-  <string name="assistant_page_local_tools_tier_developer_desc">تنفيذ تعليمات برمجية عشوائية وقدرات مدمّرة أخرى (%1$d/%2$d مُفعّل)</string>
   <string name="assistant_page_extra_cold_section">تفاصيل الأدوات (إعدادات متقدمة)</string>
   <string name="assistant_page_extra_cold_title">إرسال هذه الأدوات بوصف مختصر فقط</string>
   <string name="assistant_page_extra_cold_desc">تم إعداد %1$d. ترسل سطرًا واحدًا للغرض فقط وتُجلب المعاملات الكاملة عند الحاجة.</string>

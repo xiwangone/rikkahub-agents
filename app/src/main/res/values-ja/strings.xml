@@ -2715,15 +2715,6 @@
   <string name="auto_compress_invalid_input">有効な値を入力してください</string>
   <string name="setting_model_page_tool_output">ツール出力の上限</string>
   <string name="setting_model_page_tool_output_max_chars">ツール出力の上限（K 文字、1〜20。例: 5 = 5000 文字）</string>
-  <string name="assistant_page_local_tools_section_tiers">ティア別一括設定</string>
-  <string name="assistant_page_local_tools_tier_observe_title">アシスタント：情報の読み取り</string>
-  <string name="assistant_page_local_tools_tier_observe_desc">読み取り専用で個人データなし（有効 %1$d/%2$d）</string>
-  <string name="assistant_page_local_tools_tier_self_manage_title">アシスタント：このアプリの管理</string>
-  <string name="assistant_page_local_tools_tier_self_manage_desc">このアプリにのみ影響（有効 %1$d/%2$d）</string>
-  <string name="assistant_page_local_tools_tier_device_control_title">アシスタント：端末とデータの操作</string>
-  <string name="assistant_page_local_tools_tier_device_control_desc">端末・個人データ・外部システムを操作（有効 %1$d/%2$d）</string>
-  <string name="assistant_page_local_tools_tier_developer_title">アシスタント：開発者向け</string>
-  <string name="assistant_page_local_tools_tier_developer_desc">任意コード実行など破壊的な能力（有効 %1$d/%2$d）</string>
   <string name="assistant_page_extra_cold_section">ツールの詳しさ（詳細設定）</string>
   <string name="assistant_page_extra_cold_title">これらのツールは簡単な説明のみ送信</string>
   <string name="assistant_page_extra_cold_desc">%1$d 個を設定済み。これらは一行の用途のみ送信し、完全なパラメータは必要時に取得します。</string>
