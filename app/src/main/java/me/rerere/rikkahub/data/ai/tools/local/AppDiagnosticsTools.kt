@@ -851,9 +851,17 @@ internal suspend fun toolScopePayload(
     data class Row(val name: String, val tier: SurfaceTier, val source: String, val alwaysKept: Boolean)
 
     val alwaysKeptToolNames = ToolSurfacePolicy.ALWAYS_KEEP_TOOL_NAMES
+    // 白名单 + 裁剪同时开启 = “白名单当中间档”模式：名单外降冷水（而非硬删）。
+    // 判据必须与实际装配一致（同一函数），否则“诊断所见”又会与“装配实际”漂移。
+    val scopeAsTier = trimEnabled && onlyTools.isNotEmpty()
     val rows =
         injected.sorted().map { name ->
-            val decision = ToolSurfacePolicy.decide(name, extraCold)
+            val decision =
+                if (scopeAsTier) {
+                    ToolSurfacePolicy.tierWithScope(name, onlyTools, extraCold)
+                } else {
+                    ToolSurfacePolicy.decide(name, extraCold)
+                }
             Row(name, decision.tier, decision.source.name, name in alwaysKeptToolNames)
         }
     val visible = if (tierFilter == null) rows else rows.filter { it.tier.name == tierFilter }

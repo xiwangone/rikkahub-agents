@@ -42,6 +42,41 @@ class ToolSurfacePolicyTest {
             ToolSurfacePolicy.decide("workspace_shell", setOf("workspace_shell")).source,
         )
 
+    // ---- 白名单当“中间档”用（名单内照常判档，名单外降冷而非硬删）----
+
+    @Test
+    fun `白名单模式：名单内保持原档位`() =
+        assertEquals(
+            SurfaceTier.HOT,
+            ToolSurfacePolicy.tierOfWithScope("workspace_shell", listOf("workspace_shell")),
+        )
+
+    @Test
+    fun `白名单模式：名单外一律冷档（不硬删）`() {
+        assertEquals(
+            SurfaceTier.COLD,
+            ToolSurfacePolicy.tierOfWithScope("web_fetch", listOf("workspace_shell")),
+        )
+        assertEquals(
+            TierSource.OUTSIDE_ASSISTANT_SCOPE,
+            ToolSurfacePolicy.tierWithScope("web_fetch", listOf("workspace_shell")).source,
+        )
+    }
+
+    @Test
+    fun `白名单模式：保命工具不受名单影响`() =
+        assertEquals(
+            SurfaceTier.WARM,
+            ToolSurfacePolicy.tierOfWithScope("get_tool_schema", listOf("workspace_shell")),
+        )
+
+    @Test
+    fun `白名单模式：名单为空时退回默认判档`() =
+        assertEquals(
+            SurfaceTier.HOT,
+            ToolSurfacePolicy.tierOfWithScope("workspace_shell", emptyList()),
+        )
+
     @Test
     fun `decide 标出策略热档来源`() =
         assertEquals(TierSource.POLICY_HOT, ToolSurfacePolicy.decide("workspace_shell").source)

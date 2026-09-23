@@ -35,6 +35,9 @@ enum class TierSource {
 
     /** 未命中任何规则 → 默认温档。 */
     DEFAULT_WARM,
+
+    /** 落在助手级工具白名单之外（白名单 + 精简同时开启时，名单外降冷水而非硬删）。 */
+    OUTSIDE_ASSISTANT_SCOPE,
 }
 
 /** 档位判定结果：档位 + 来源。 */
@@ -139,4 +142,31 @@ object ToolSurfacePolicy {
         toolName: String,
         extraCold: Set<String> = emptySet(),
     ): SurfaceTier = decide(toolName, extraCold).tier
+
+    /**
+     * 带**助手级白名单**的档位判定（把白名单当"中间档"用）。
+     *
+     * 语义：`scope` 非空时，名单内工具照常判档，**名单外一律冷档** —— 与"硬过滤"的区别在于
+     * 工具**仍在注入列表里**（`list_tools` 列得到、`get_tool_schema` 查得到），只是默认只发一行
+     * 用途 + 空 schema，需要时当会话解锁。保命工具不受名单影响。
+     *
+     * ⚠ 调用方自行保证**仅在全局裁剪开启时**使用本函数；关闭裁剪时应退回硬过滤，保持既有行为。
+     */
+    fun tierWithScope(
+        toolName: String,
+        scope: List<String>,
+        extraCold: Set<String> = emptySet(),
+    ): TierDecision =
+        when {
+            scope.isEmpty() -> decide(toolName, extraCold)
+            toolName in scope -> decide(toolName, extraCold)
+            toolName in ALWAYS_KEEP_TOOL_NAMES -> decide(toolName, extraCold)
+            else -> TierDecision(SurfaceTier.COLD, TierSource.OUTSIDE_ASSISTANT_SCOPE)
+        }
+
+    fun tierOfWithScope(
+        toolName: String,
+        scope: List<String>,
+        extraCold: Set<String> = emptySet(),
+    ): SurfaceTier = tierWithScope(toolName, scope, extraCold).tier
 }

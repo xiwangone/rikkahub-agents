@@ -112,7 +112,10 @@ class ChatToolFactory(
         // 工具范围（助手级白名单）：留空 = 不限制；非空 = 只注入名单内工具（保命工具始终保留）。
         // 工具范围：会话级覆盖优先（子代理），否则助手级白名单；留空 = 不限制；非空 = 只注入名单内工具（保命工具始终保留）。
         val effectiveToolScope = toolScopeOverride ?: assistant.onlyTools
-        val listFiltered = applyToolScopeFilter(stableFull, effectiveToolScope)
+        val trimEnabled =
+            settings.displaySetting.toolSurfaceTrimming && ToolSurfacePolicy.TRIM_ENABLED
+        val (listFiltered, scopeAsTier) =
+            resolveToolScope(stableFull, effectiveToolScope, trimEnabled)
         // 白名单里拼错/过期的名字不会报错, 只会静默失效; 统一算出未匹配项,
         // 记一条日志并透出给 tool_surface_report, 便于事后自查。
         val onlyToolsUnmatched =
@@ -132,8 +135,9 @@ class ChatToolFactory(
                     surfaceView(
                         it,
                         invocationCtx.callerConversationId,
-                        trimEnabled = settings.displaySetting.toolSurfaceTrimming && ToolSurfacePolicy.TRIM_ENABLED,
+                        trimEnabled = trimEnabled,
                         extraCold = assistant.extraColdTools.toSet(),
+                        scope = if (scopeAsTier) effectiveToolScope else emptyList(),
                     )
                 } +
                     buildToolDiscoveryTools(
@@ -256,13 +260,20 @@ private fun surfaceView(
     conversationId: String?,
     trimEnabled: Boolean,
     extraCold: Set<String>,
+    // 非空 = 把助手级白名单当“中间档”用：名单内照常判档，名单外降冷水（而非硬删）；保命工具不受影响。
+    scope: List<String> = emptyList(),
 ): Tool {
     // 助手级黑名单（「这些工具只发简要说明」）**独立于**全局裁剪开关：名单非空即生效，
     // 与助手级白名单（onlyTools）语义对齐——填了就生效、清空保存即恢复。
     if (tool.name in extraCold) return toColdView(tool, conversationId)
     // 全局开关：设置页的「精简工具说明」与编译期总开关取与关系，任一关闭即完全不做裁剪。
     if (!trimEnabled) return tool
-    val tier = ToolSurfacePolicy.tierOf(tool.name, extraCold)
+    val tier =
+        if (scope.isEmpty()) {
+            ToolSurfacePolicy.tierOf(tool.name, extraCold)
+        } else {
+            ToolSurfacePolicy.tierOfWithScope(tool.name, scope, extraCold)
+        }
     if (tier == SurfaceTier.HOT) return tool
 
     if (tier == SurfaceTier.WARM) {
@@ -310,6 +321,25 @@ private fun toColdView(tool: Tool, conversationId: String?): Tool {
             }
         },
     )
+}
+
+/**
+ * 助手级白名单 + 精简开关的合成：决定“是否硬过滤”以及“是否把名单当档位用”。
+ *
+ * 白名单没配 → 不限制；配了且**裁剪开启** → **不硬删**，改由 `surfaceView` 把名单外降冷
+ * （保留“可发现 + 按需解锁”）；裁剪关闭 → 维持原有硬过滤语义（向后兼容）。
+ *
+ * 抽成独立函数：既降低 `createTools` 的圈复杂度，也让这段判定可单独阅读与测试。
+ */
+private fun resolveToolScope(
+    stableFull: List<Tool>,
+    effectiveToolScope: List<String>,
+    trimEnabled: Boolean,
+): Pair<List<Tool>, Boolean> {
+    val scopeAsTier = trimEnabled && effectiveToolScope.isNotEmpty()
+    val filtered =
+        if (scopeAsTier) stableFull else applyToolScopeFilter(stableFull, effectiveToolScope)
+    return filtered to scopeAsTier
 }
 
 /**
