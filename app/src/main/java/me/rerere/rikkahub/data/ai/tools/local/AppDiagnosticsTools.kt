@@ -24,6 +24,7 @@ import java.security.MessageDigest
 import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.SurfaceTier
 import me.rerere.rikkahub.data.ai.tools.TierSource
+import me.rerere.rikkahub.data.ai.tools.ToolCapabilities
 import me.rerere.rikkahub.data.ai.tools.ToolSurfacePolicy
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -834,6 +835,8 @@ private fun usageAdviceJson(
  *   （求援 / 列工具 / 取参数表），白名单模式下始终注入，不随名单收窄而消失。
  * - 只读：不修改任何配置。
  */
+// 只读快照：字段多但**线性直读**（拆分反而割裂“一次看全”这个用途）；detekt 的长度/复杂度在此豁免。
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 internal suspend fun toolScopePayload(
     context: Context,
     settingsStore: SettingsStore,
@@ -915,13 +918,60 @@ internal suspend fun toolScopePayload(
                     onlyTools.filterNot { it in injected }.sorted().forEach { add(JsonPrimitive(it)) }
                 },
             )
+            // 选项级范围：哪些**没启用**、为什么。与装配共用判据（LocalToolCatalog.capabilityOf +
+            // ToolCapabilities.satisfies），避开“诊断说能用、实际没注入”这类漂移。
+            put(
+                "optionScope",
+                buildJsonObject {
+                    val capabilities = ToolCapabilities.of(context)
+                    val selected = assistant.localTools.toSet()
+                    val disabled =
+                        LocalToolCatalog.all.mapNotNull { option ->
+                            val reason =
+                                when {
+                                    option !in selected -> "not_selected"
+                                    !capabilities.satisfies(LocalToolCatalog.capabilityOf(option)) ->
+                                        "capability_unavailable"
+                                    else -> null
+                                }
+                            reason?.let { option to it }
+                        }
+                    put("total", LocalToolCatalog.all.size)
+                    put("enabled", LocalToolCatalog.all.size - disabled.size)
+                    put("disabledCount", disabled.size)
+                    put(
+                        "disabled",
+                        buildJsonArray {
+                            disabled.forEach { (option, reason) ->
+                                add(
+                                    buildJsonObject {
+                                        put("option", option::class.simpleName ?: option.toString())
+                                        put("reason", reason)
+                                        put("capability", LocalToolCatalog.capabilityOf(option).name)
+                                    },
+                                )
+                            }
+                        },
+                    )
+                    put(
+                        "capabilityReady",
+                        buildJsonObject {
+                            put("shizuku", capabilities.shizukuReady)
+                            put("accessibility", capabilities.accessibilityReady)
+                            put("termux", capabilities.termuxInstalled)
+                        },
+                    )
+                },
+            )
             put(
                 "hint",
                 "只读快照。tools 来自最近一次装配的注入集合（白名单同时是执行边界：名单外的工具既不可见也不可调用）。" +
                     "tierSource: ASSISTANT_EXTRA_COLD=助手级降温 / POLICY_HOT=策略热档 / POLICY_COLD_EXTRA=策略冷档单件 / " +
                     "POLICY_COLD_PREFIX=策略冷档家族前缀 / DEFAULT_WARM=默认温档。alwaysKept 的三条是零副作用自救层" +
                     "（求援 / 列工具 / 取参数表），白名单模式下不可移除；onlyToolsNotInjected = 白名单里未出现在当前注入集的项" +
-                    "（拼错或与其它限制冲突）；trimEnabled=false 时档位不改变注入形态。",
+                    "（拼错或与其它限制冲突）；trimEnabled=false 时档位不改变注入形态。" +
+                    "optionScope = 选项级启用情况：total/enabled/disabledCount + 逐项原因（not_selected=未勾选 / " +
+                    "capability_unavailable=能力未就绪），capabilityReady 为 Shizuku/无障碍/Termux 探测结果。",
             )
         }
     return payload.toString()

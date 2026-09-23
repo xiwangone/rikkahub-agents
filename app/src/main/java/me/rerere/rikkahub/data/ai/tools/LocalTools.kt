@@ -350,7 +350,13 @@ private val STANDARD_ERROR_KEYS = setOf("error", "detail", "reason", "recovery",
  * Cached briefly: probing means a binder ping / package lookup, and assembly runs on every
  * generation.
  */
-private object ToolCapabilities {
+/**
+ * 运行时能力探测（Shizuku / 无障碍 / Termux）。
+ *
+ * 可见性为 internal：装配层用它做“能力门”，只读诊断（`diagnostics kind=tool_scope`）
+ * 也用它解释“哪些选项因能力未就绪而未启用”—— 同一份判据，避免两套逻辑漂移。
+ */
+internal object ToolCapabilities {
     private const val TTL_MS = 30_000L
 
     data class Snapshot(
