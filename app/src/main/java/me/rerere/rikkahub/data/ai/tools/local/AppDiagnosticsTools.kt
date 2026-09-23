@@ -24,6 +24,7 @@ import java.security.MessageDigest
 import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.RikkaHubApp
@@ -514,7 +515,8 @@ internal suspend fun conversationsPayload(
                     put("nodes", c.messageNodes.size)
                     // 尾部轻扫（≤3 节点）：避免大会话全量遍历；只要「最近一条 assistant」的模型与耗时
                     val tail = c.messageNodes.asReversed().take(3).flatMap { it.messages.asReversed() }
-                    val lastAssistant = tail.firstOrNull { it.role == MessageRole.ASSISTANT }
+                    // 取“已收尾”的那条：进行中的消息 finishedAt 为空，会让耗时永远读成 null
+                    val lastAssistant = tail.firstOrNull { it.role == MessageRole.ASSISTANT && it.finishedAt != null }
                     put("lastModelUuid", lastAssistant?.modelId?.let { JsonPrimitive(it.toString()) } ?: JsonNull)
                     put("lastTurnMs", turnDurationMs(lastAssistant))
                 }
@@ -580,7 +582,7 @@ internal suspend fun conversationsPayload(
     // 四档口径（立项 §一·补 ③）：消息 / 回合(user) / 生成(assistant) / 工具调用；
     // 另给「出现过的模型 uuid」（回答“当时跑的是哪个模型”）+ 末轮耗时（消息自带时间戳，无需采集）。
     val allMessages = conversation.messageNodes.flatMap { it.messages }
-    val lastAssistant = allMessages.lastOrNull { it.role == MessageRole.ASSISTANT }
+    val lastAssistant = allMessages.lastOrNull { it.role == MessageRole.ASSISTANT && it.finishedAt != null }
     return buildJsonObject {
         put("id", conversation.id.toString())
         put("title", conversation.title)
@@ -838,13 +840,23 @@ internal suspend fun auditPayload(params: JsonObject): String {
     val action = params["action"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
     val windowMinutes = params["window_minutes"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 43_200) ?: 1_440
     val limit = params["limit"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 200) ?: 50
+    // min_count：过滤“只发生过一次”的长尾（聚合行 count = 窗口内次数），默认 1 = 不过滤
+    val minCount = params["min_count"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 10_000) ?: 1
     val repository =
         runCatching { getKoin().get<CredentialVaultRepository>() }.getOrNull()
             ?: return buildJsonObject { put("error", "vault repository unavailable") }.toString()
     val now = System.currentTimeMillis()
-    val logs = repository.queryAudit(credential, action, now - windowMinutes * 60_000L, limit)
+    // 排序：次数优先（聚合行在前），其次按“最近一次发生” —— 否则 50 条额度会被 count=1 的长尾占满
+    val logs =
+        repository.queryAudit(credential, action, now - windowMinutes * 60_000L, limit)
+            .filter { it.count >= minCount }
+            .sortedWith(
+                compareByDescending { log: VaultAuditLogEntity -> log.count }
+                    .thenByDescending { it.lastTsMs ?: it.tsMs },
+            )
     return buildJsonObject {
         put("window_minutes", windowMinutes)
+        put("min_count", minCount)
         put("count", logs.size)
         put("note", "aggregated rows; count = occurrences in the rollup window; values are never returned")
         put(
@@ -875,19 +887,29 @@ internal suspend fun auditPayload(params: JsonObject): String {
  * **只读白名单字段** —— 本函数不读 apiKey / privateKey / baseUrl 等敏感或标识字段，
  * 靠“只写白名单”而不是“记得别写”（provider 配置主体是加密存储的，这里只取明文元数据）。
  */
-internal suspend fun modelsPayload(settingsStore: SettingsStore): String {
+internal suspend fun modelsPayload(settingsStore: SettingsStore, params: JsonObject): String {
     val settings = settingsStore.settingsFlow.first()
     val assistant = settings.getCurrentAssistant()
     val bound = assistant.chatModelId
+    // 过滤：默认只回**启用**的 provider（全量 37 个 ≈ 59KB，会把上下文吃掉）；
+    // 禁用的仅在 include_disabled=true 时给，或用 provider=名称/uuid 精确取。
+    val providerFilter = params["provider"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
+    val includeDisabled =
+        params["include_disabled"]?.jsonPrimitive?.contentOrNull?.equals("true", ignoreCase = true) == true
+    val shown = settings.providers.filter { p ->
+        (providerFilter.isEmpty() || p.name.equals(providerFilter, ignoreCase = true) || p.id.toString() == providerFilter) &&
+            (includeDisabled || p.enabled)
+    }
     return buildJsonObject {
         put("assistant", assistant.name)
         put("assistant_model_uuid", bound?.let { JsonPrimitive(it.toString()) } ?: JsonNull)
         put("favorite_model_uuids", JsonArray(settings.favoriteModels.map { JsonPrimitive(it.toString()) }))
         put("provider_count", settings.providers.size)
+        put("providers_shown", shown.size)
         put(
             "providers",
             JsonArray(
-                settings.providers.map { p ->
+                shown.map { p ->
                     buildJsonObject {
                         put("id", p.id.toString())
                         put("name", p.name)
@@ -1016,6 +1038,18 @@ fun diagnosticsTool(
                     put("type", "integer")
                     put("description", "audit only: look-back window in minutes (default 1440, max 43200).")
                 })
+                put("min_count", buildJsonObject {
+                    put("type", "integer")
+                    put("description", "audit only: drop rows with fewer than this many occurrences (default 1).")
+                })
+                put("provider", buildJsonObject {
+                    put("type", "string")
+                    put("description", "models only: provider name or uuid filter; omit for all enabled providers.")
+                })
+                put("include_disabled", buildJsonObject {
+                    put("type", "string")
+                    put("description", "models only: set \"true\" to also list disabled providers.")
+                })
                 put("id", buildJsonObject {
                     put("type", "string")
                     put("description", "conversation only: conversation UUID. Omit to list recent chats.")
@@ -1060,7 +1094,7 @@ fun diagnosticsTool(
             "conversation" -> conversationsPayload(conversationRepo, settingsStore, params)
             "generation" -> generationPayload(conversationRepo, settingsStore, params)
             "perf" -> perfPayload(context)
-            "models" -> modelsPayload(settingsStore)
+            "models" -> modelsPayload(settingsStore, params)
             "audit" -> auditPayload(params)
             else -> buildJsonObject {
                 put("error", "unknown kind '$kind'")
