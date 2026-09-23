@@ -76,7 +76,7 @@ import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.preferences.isWorkspaceToolName
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
-import me.rerere.rikkahub.data.ai.transformers.ImageSourceNormalizeTransformer
+import me.rerere.rikkahub.data.ai.transformers.MediaSourceNormalizeTransformer
 import me.rerere.rikkahub.data.ai.transformers.OcrTransformer
 import me.rerere.rikkahub.data.ai.transformers.PlaceholderTransformer
 import me.rerere.rikkahub.data.ai.transformers.PromptInjectionTransformer
@@ -202,8 +202,8 @@ private val inputTransformers by lazy {
     listOf(
         // 结构修复排最前：先把历史里未执行的工具补成合法终态，再做语义类转换
         ToolPairingRepairTransformer,
-        // 图片规范化：把 content:// 本地 URI 读成 data URL（否则会被静默丢图，见 P103）
-        ImageSourceNormalizeTransformer,
+        // 媒体来源规范化：content:// 读成 data URL、http(s) 图片下载后编码，失败给明确占位（见 P103/P104/P105）
+        MediaSourceNormalizeTransformer,
         TimeReminderTransformer,
         PromptInjectionTransformer,
         PlaceholderTransformer,
