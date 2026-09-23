@@ -79,6 +79,8 @@ fun VaultPage() {
     val vaultPreferences: VaultPreferences = koinInject()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    // 组合期预取文案：组合内容里用 context.getString 取资源会被 lint(LocalContextGetResourceValueCall) 判错
+    val passwordRequiredStr = stringResource(R.string.vault_export_password_required)
 
     var credentialCount by remember { mutableStateOf(0) }
     var importResult by remember { mutableStateOf<String?>(null) }
@@ -218,7 +220,7 @@ fun VaultPage() {
                 scope.launch {
                     runCatching {
                         if (exportFormat == VaultFormats.FORMAT_VAULT && exportPassword.isBlank()) {
-                            exportResult = context.getString(R.string.vault_export_password_required)
+                            exportResult = passwordRequiredStr
                             return@launch
                         }
                         if (biometricEnabled && exportFormat == VaultFormats.FORMAT_VAULT) {
@@ -773,7 +775,7 @@ fun VaultPage() {
                         OutlinedButton(
                             onClick = {
                                 if (exportFormat == VaultFormats.FORMAT_VAULT && exportPassword.isBlank()) {
-                                    exportResult = context.getString(R.string.vault_export_password_required)
+                                    exportResult = passwordRequiredStr
                                     return@OutlinedButton
                                 }
                                 val suffix = when (exportFormat) {
