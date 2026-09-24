@@ -3,6 +3,10 @@ package me.rerere.rikkahub.data.sync
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.io.File
+import java.util.zip.ZipEntry
+import java.util.zip.ZipInputStream
+import java.util.zip.ZipOutputStream
 
 /**
  * 备份「迁移包」的结构与编解码（**纯逻辑**，不碰文件系统与数据库）。
@@ -91,4 +95,41 @@ object MigrationPackage {
      */
     fun looksLikeMigrationPackage(entryNames: Collection<String>): Boolean =
         entryNames.any { name -> name.trimStart('/') == "$DIR/$MANIFEST_NAME" }
+}
+
+/**
+ * 把若干文本条目追加进一个已有 zip，**写出到 [target]**（不改动 [source]）。
+ *
+ * 为什么这样做：常规备份包由 `WebDavSync.prepareBackupFile` 直接写成 zip，迁移包只需在它之上
+ * 补 `migration/` 那几个明文段 —— 复制原条目再追加，比让备份侧知道"迁移"这件事更小也更稳。
+ *
+ * - [source] 里若已有与 [extraEntries] 同名的条目，以追加的为准（原条目被丢弃，避免 zip 内重名）；
+ * - [target] 必须与 [source] 不是同一个文件（避免边读边写）。
+ */
+internal fun appendTextEntriesToZip(
+    source: File,
+    extraEntries: Map<String, String>,
+    target: File,
+) {
+    require(source.absolutePath != target.absolutePath) { "source and target must differ" }
+    val extraNames = extraEntries.keys
+    ZipInputStream(source.inputStream().buffered()).use { zipIn ->
+        ZipOutputStream(target.outputStream().buffered()).use { zipOut ->
+            var entry = zipIn.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory && entry.name !in extraNames) {
+                    zipOut.putNextEntry(ZipEntry(entry.name))
+                    zipIn.copyTo(zipOut)
+                    zipOut.closeEntry()
+                }
+                zipIn.closeEntry()
+                entry = zipIn.nextEntry
+            }
+            extraEntries.forEach { (name, content) ->
+                zipOut.putNextEntry(ZipEntry(name))
+                zipOut.write(content.encodeToByteArray())
+                zipOut.closeEntry()
+            }
+        }
+    }
 }
