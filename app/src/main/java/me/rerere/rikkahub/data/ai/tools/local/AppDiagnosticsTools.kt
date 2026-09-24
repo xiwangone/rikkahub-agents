@@ -1311,6 +1311,9 @@ internal suspend fun modelsPayload(settingsStore: SettingsStore, params: JsonObj
     val providerFilter = params["provider"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
     val includeDisabled =
         params["include_disabled"]?.jsonPrimitive?.contentOrNull?.equals("true", ignoreCase = true) == true
+    // 每个 provider 的模型条目上限（默认 30）：有的 provider 挂几百个模型，整段回会吃掉上下文。
+    // 与 logs/usage 的 limit 同一套语义：默认摘要、按需展开；需要全量带 models_limit=0。
+    val modelsLimit = (params["models_limit"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(0, 1000)
     val shown = settings.providers.filter { p ->
         (providerFilter.isEmpty() || p.name.equals(providerFilter, ignoreCase = true) || p.id.toString() == providerFilter) &&
             (includeDisabled || p.enabled)
@@ -1325,6 +1328,7 @@ internal suspend fun modelsPayload(settingsStore: SettingsStore, params: JsonObj
             "providers",
             JsonArray(
                 shown.map { p ->
+                    val visibleModels = if (modelsLimit > 0) p.models.take(modelsLimit) else p.models
                     buildJsonObject {
                         put("id", p.id.toString())
                         put("name", p.name)
@@ -1334,7 +1338,7 @@ internal suspend fun modelsPayload(settingsStore: SettingsStore, params: JsonObj
                         put(
                             "models",
                             JsonArray(
-                                p.models.map { m ->
+                                visibleModels.map { m ->
                                     buildJsonObject {
                                         put("uuid", m.id.toString())
                                         put("modelId", m.modelId)
@@ -1347,6 +1351,9 @@ internal suspend fun modelsPayload(settingsStore: SettingsStore, params: JsonObj
                                 },
                             ),
                         )
+                        if (visibleModels.size < p.models.size) {
+                            put("models_truncated", p.models.size - visibleModels.size)
+                        }
                     }
                 },
             ),
@@ -1414,6 +1421,10 @@ private fun diagnosticsParameters(): InputSchema =
             put("limit", buildJsonObject {
                 put("type", "integer")
                 put("description", "logs, requests, usage and tool_scope: max entries to return.")
+            })
+            put("models_limit", buildJsonObject {
+                put("type", "integer")
+                put("description", "models only: max models per provider (default 30; 0 = no limit).")
             })
             put("lines", buildJsonObject {
                 put("type", "integer")
