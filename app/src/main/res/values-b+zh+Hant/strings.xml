@@ -189,6 +189,15 @@
   <string name="backup_page_importing">正在恢復...</string>
   <string name="backup_page_loading_failed">載入備份檔案失敗: %s</string>
   <string name="backup_page_local_backup_export">導出為檔案</string>
+  <string name="backup_page_migration_section">遷移包（跨裝置）</string>
+  <string name="backup_page_migration_export">匯出遷移包</string>
+  <string name="backup_page_migration_export_desc">把憑證與模型金鑰在本機解密後，用備份密碼重新加密 —— 換裝置才能讀取。需先開啟備份加密。</string>
+  <string name="backup_page_migration_import">匯入遷移包</string>
+  <string name="backup_page_migration_import_desc">從遷移包還原對話、設定、助手與憑證。現有資料會被覆寫；匯入前會先自動備份一次。</string>
+  <string name="backup_page_migration_export_success">遷移包已匯出（憑證 %1$d 筆）</string>
+  <string name="backup_page_migration_import_success">匯入完成：憑證 %1$d 筆，略過 %2$d 筆</string>
+  <string name="backup_page_migration_need_encryption">請先開啟備份加密並設定密碼 —— 遷移包內含金鑰。</string>
+  <string name="backup_page_migration_import_confirm">匯入遷移包會覆寫對話、設定與憑證；會先自動備份一次。是否繼續？</string>
   <string name="backup_page_local_backup_import">備份檔案導入</string>
   <string name="backup_page_password">密碼</string>
   <string name="backup_page_path">路徑</string>

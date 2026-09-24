@@ -193,6 +193,15 @@
   <string name="backup_page_importing">가져오는 중...</string>
   <string name="backup_page_loading_failed">백업 파일 로드 실패: %s</string>
   <string name="backup_page_local_backup_export">파일로 내보내기</string>
+  <string name="backup_page_migration_section">마이그레이션 패키지(기기 간)</string>
+  <string name="backup_page_migration_export">마이그레이션 패키지 내보내기</string>
+  <string name="backup_page_migration_export_desc">자격 증명과 모델 키를 이 기기에서 복호화한 뒤 백업 비밀번호로 다시 암호화합니다. 다른 기기에서 읽으려면 백업 암호화가 켜져 있어야 합니다.</string>
+  <string name="backup_page_migration_import">마이그레이션 패키지 가져오기</string>
+  <string name="backup_page_migration_import_desc">마이그레이션 패키지에서 대화·설정·어시스턴트·자격 증명을 복원합니다. 기존 데이터는 덮어써지며, 먼저 로컬 백업이 자동 생성됩니다.</string>
+  <string name="backup_page_migration_export_success">마이그레이션 패키지를 내보냈습니다(자격 증명 %1$d개)</string>
+  <string name="backup_page_migration_import_success">가져오기 완료: 자격 증명 %1$d개, 건너뜀 %2$d개</string>
+  <string name="backup_page_migration_need_encryption">먼저 백업 암호화를 켜고 비밀번호를 설정하세요. 패키지에 비밀 정보가 들어 있습니다.</string>
+  <string name="backup_page_migration_import_confirm">마이그레이션 패키지를 가져오면 대화·설정·자격 증명이 덮어써지고, 먼저 로컬 백업이 생성됩니다. 계속할까요?</string>
   <string name="backup_page_local_backup_import">파일에서 가져오기</string>
   <string name="backup_page_password">비밀번호</string>
   <string name="backup_page_path">경로</string>

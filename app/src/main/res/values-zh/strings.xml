@@ -286,6 +286,15 @@
   <string name="backup_page_importing">正在恢复...</string>
   <string name="backup_page_loading_failed">加载备份文件失败: %s</string>
   <string name="backup_page_local_backup_export">导出为文件</string>
+  <string name="backup_page_migration_section">迁移包（跨设备）</string>
+  <string name="backup_page_migration_export">导出迁移包</string>
+  <string name="backup_page_migration_export_desc">把凭证与模型密钥在本机解密后，用备份口令重新加密 —— 换台设备才能读出来。需先开启备份加密。</string>
+  <string name="backup_page_migration_import">导入迁移包</string>
+  <string name="backup_page_migration_import_desc">从迁移包恢复会话、设置、助手与凭证。已有数据会被覆盖；导入前会自动先做一次本机备份。</string>
+  <string name="backup_page_migration_export_success">迁移包已导出（凭证 %1$d 条）</string>
+  <string name="backup_page_migration_import_success">导入完成：凭证 %1$d 条，跳过 %2$d 条</string>
+  <string name="backup_page_migration_need_encryption">请先开启备份加密并设置口令 —— 迁移包含有密钥。</string>
+  <string name="backup_page_migration_import_confirm">导入迁移包会覆盖会话、设置与凭证；会先自动做一次本机备份。是否继续？</string>
   <string name="backup_page_local_backup_import">备份文件导入</string>
   <string name="backup_page_password">密码</string>
   <string name="backup_page_path">路径</string>

@@ -193,6 +193,15 @@
   <string name="backup_page_importing">インポート中...</string>
   <string name="backup_page_loading_failed">バックアップファイルの読み込み失敗: %s</string>
   <string name="backup_page_local_backup_export">ファイルにエクスポート</string>
+  <string name="backup_page_migration_section">移行パッケージ（端末間）</string>
+  <string name="backup_page_migration_export">移行パッケージを書き出す</string>
+  <string name="backup_page_migration_export_desc">資格情報とモデルのキーをこの端末で復号し、バックアップ用パスワードで再暗号化します。別の端末で読むにはバックアップ暗号化が必要です。</string>
+  <string name="backup_page_migration_import">移行パッケージを読み込む</string>
+  <string name="backup_page_migration_import_desc">移行パッケージから会話・設定・アシスタント・資格情報を復元します。既存データは上書きされ、事前にローカルバックアップを自動作成します。</string>
+  <string name="backup_page_migration_export_success">移行パッケージを書き出しました（資格情報 %1$d 件）</string>
+  <string name="backup_page_migration_import_success">読み込み完了：資格情報 %1$d 件、スキップ %2$d 件</string>
+  <string name="backup_page_migration_need_encryption">先にバックアップ暗号化を有効にしてパスワードを設定してください（秘密情報が含まれます）。</string>
+  <string name="backup_page_migration_import_confirm">移行パッケージを読み込むと会話・設定・資格情報が上書きされます。事前にローカルバックアップを自動作成します。続行しますか？</string>
   <string name="backup_page_local_backup_import">ファイルからインポート</string>
   <string name="backup_page_password">パスワード</string>
   <string name="backup_page_path">パス</string>

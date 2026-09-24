@@ -193,6 +193,15 @@
   <string name="backup_page_importing">Импорт…</string>
   <string name="backup_page_loading_failed">Не удалось загрузить файлы резервной копии: %s</string>
   <string name="backup_page_local_backup_export">Экспорт в файл</string>
+  <string name="backup_page_migration_section">Пакет переноса (между устройствами)</string>
+  <string name="backup_page_migration_export">Экспорт пакета переноса</string>
+  <string name="backup_page_migration_export_desc">Учётные данные и ключи моделей расшифровываются на этом устройстве и заново шифруются паролем резервной копии — так их прочитает другое устройство. Требуется включённое шифрование резервных копий.</string>
+  <string name="backup_page_migration_import">Импорт пакета переноса</string>
+  <string name="backup_page_migration_import_desc">Восстанавливает чаты, настройки, ассистентов и учётные данные. Существующие данные перезаписываются; сначала автоматически создаётся локальная копия.</string>
+  <string name="backup_page_migration_export_success">Пакет переноса экспортирован (учётных данных: %1$d)</string>
+  <string name="backup_page_migration_import_success">Импорт завершён: учётных данных %1$d, пропущено %2$d</string>
+  <string name="backup_page_migration_need_encryption">Сначала включите шифрование резервных копий и задайте пароль — в пакете есть секреты.</string>
+  <string name="backup_page_migration_import_confirm">Импорт пакета переноса перезапишет чаты, настройки и учётные данные; сначала будет создана локальная копия. Продолжить?</string>
   <string name="backup_page_local_backup_import">Импорт из файла</string>
   <string name="backup_page_password">Пароль</string>
   <string name="backup_page_path">Путь</string>

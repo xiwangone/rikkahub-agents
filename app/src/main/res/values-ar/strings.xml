@@ -281,6 +281,15 @@
   <string name="backup_page_importing">جارٍ الاستيراد...</string>
   <string name="backup_page_loading_failed">فشل تحميل ملفات النسخ الاحتياطي: %s</string>
   <string name="backup_page_local_backup_export">تصدير إلى ملف</string>
+  <string name="backup_page_migration_section">حزمة النقل (بين الأجهزة)</string>
+  <string name="backup_page_migration_export">تصدير حزمة النقل</string>
+  <string name="backup_page_migration_export_desc">يُفك تشفير بيانات الاعتماد ومفاتيح النماذج على هذا الجهاز ثم يُعاد تشفيرها بكلمة مرور النسخ الاحتياطي. يتطلب تفعيل تشفير النسخ الاحتياطي.</string>
+  <string name="backup_page_migration_import">استيراد حزمة النقل</string>
+  <string name="backup_page_migration_import_desc">يستعيد المحادثات والإعدادات والمساعدين وبيانات الاعتماد. ستُستبدل البيانات الحالية، ويُنشأ نسخ احتياطي محلي تلقائيًا أولًا.</string>
+  <string name="backup_page_migration_export_success">تم تصدير حزمة النقل (%1$d بيانات اعتماد)</string>
+  <string name="backup_page_migration_import_success">اكتمل الاستيراد: %1$d بيانات اعتماد، وتم تخطي %2$d</string>
+  <string name="backup_page_migration_need_encryption">فعّل تشفير النسخ الاحتياطي وعيّن كلمة مرور أولًا — الحزمة تحتوي على أسرار.</string>
+  <string name="backup_page_migration_import_confirm">استيراد حزمة النقل سيستبدل المحادثات والإعدادات وبيانات الاعتماد، وسيُنشأ نسخ احتياطي محلي أولًا. هل تريد المتابعة؟</string>
   <string name="backup_page_local_backup_import">استيراد من ملف</string>
   <string name="backup_page_password">كلمة المرور</string>
   <string name="backup_page_path">المسار</string>

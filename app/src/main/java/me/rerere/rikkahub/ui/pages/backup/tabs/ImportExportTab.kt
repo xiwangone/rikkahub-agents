@@ -58,8 +58,11 @@ fun ImportExportTab(
     var isRestoring by remember { mutableStateOf(false) }
     var showImportConfirmDialog by remember { mutableStateOf(false) }
 
-    // 导入类型：local 为本地备份，chatbox 为 Chatbox 导入，cherry 为 Cherry Studio 导入
+    // 导入类型：local 为本地备份，chatbox 为 Chatbox 导入，cherry 为 Cherry Studio 导入，migration 为迁移包
     var importType by remember { mutableStateOf("local") }
+
+    // 导出类型：local 为本地备份，migration 为迁移包（跨设备）
+    var exportType by remember { mutableStateOf("local") }
 
     // 创建文件保存的launcher
     val createDocumentLauncher = rememberLauncherForActivityResult(
@@ -69,8 +72,9 @@ fun ImportExportTab(
             scope.launch {
                 isExporting = true
                 runCatching {
-                    // 导出文件
-                    val exportFile = vm.exportToFile()
+                    // 导出文件（迁移包与常规包共用「写到用户选定位置」这一步）
+                    val migrationResult = if (exportType == "migration") vm.exportMigrationPackage() else null
+                    val exportFile = migrationResult?.file ?: vm.exportToFile()
 
                     // 复制到用户选择的位置
                     context.contentResolver.openOutputStream(targetUri)?.use { outputStream ->
@@ -83,14 +87,26 @@ fun ImportExportTab(
                     exportFile.delete()
 
                     toaster.show(
-                        context.getString(R.string.backup_page_backup_success),
-                        type = ToastType.Success
+                        if (migrationResult != null) {
+                            context.getString(
+                                R.string.backup_page_migration_export_success,
+                                migrationResult.credentialCount,
+                            )
+                        } else {
+                            context.getString(R.string.backup_page_backup_success)
+                        },
+                        type = ToastType.Success,
                     )
                 }.onFailure { e ->
                     e.printStackTrace()
                     toaster.show(
-                        context.getString(R.string.backup_page_restore_failed, e.message ?: ""),
-                        type = ToastType.Error
+                        if (exportType == "migration" && e is IllegalStateException) {
+                            // 含明文密钥的包必须加密后才能导出
+                            context.getString(R.string.backup_page_migration_need_encryption)
+                        } else {
+                            context.getString(R.string.backup_page_restore_failed, e.message ?: "")
+                        },
+                        type = ToastType.Error,
                     )
                 }
                 isExporting = false
@@ -160,12 +176,39 @@ fun ImportExportTab(
                             // 清理临时文件
                             tempFile.delete()
                         }
+
+                        "migration" -> {
+                            // 迁移包：覆盖恢复 + 用本机密钥重建凭证与 provider 配置
+                            val tempFile =
+                                File(context.cacheDir, "temp_migration_${System.currentTimeMillis()}.zip")
+                            try {
+                                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                                    FileOutputStream(tempFile).use { outputStream ->
+                                        inputStream.copyTo(outputStream)
+                                    }
+                                }
+                                val result = vm.importMigrationPackage(tempFile)
+                                toaster.show(
+                                    context.getString(
+                                        R.string.backup_page_migration_import_success,
+                                        result.credentialsImported,
+                                        result.credentialsSkipped,
+                                    ),
+                                    type = ToastType.Success,
+                                )
+                            } finally {
+                                tempFile.delete()
+                            }
+                        }
                     }
 
-                    toaster.show(
-                        context.getString(R.string.backup_page_restore_success),
-                        type = ToastType.Success
-                    )
+                    // 迁移包分支已给出更详细的提示（含覆盖条数），不再重复
+                    if (importType != "migration") {
+                        toaster.show(
+                            context.getString(R.string.backup_page_restore_success),
+                            type = ToastType.Success
+                        )
+                    }
                     onShowRestartDialog()
                 }.onFailure { e ->
                     e.printStackTrace()
@@ -205,6 +248,7 @@ fun ImportExportTab(
                 item(
                     onClick = if (!isExporting) {
                         {
+                            exportType = "local"
                             val timestamp = LocalDateTime.now()
                                 .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
                             createDocumentLauncher.launch("rikkahub_backup_$timestamp.zip")
@@ -245,6 +289,53 @@ fun ImportExportTab(
                             }
                         )
                     },
+                    leadingContent = {
+                        if (isRestoring) {
+                            CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
+                        } else {
+                            Icon(HugeIcons.FileImport, null)
+                        }
+                    },
+                )
+            }
+        }
+
+        stickyHeader {
+            StickyHeader {
+                Text(stringResource(R.string.backup_page_migration_section))
+            }
+        }
+
+        item {
+            CardGroup {
+                item(
+                    onClick = if (!isExporting) {
+                        {
+                            exportType = "migration"
+                            val timestamp = LocalDateTime.now()
+                                .format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+                            createDocumentLauncher.launch("rikkahub_migration_$timestamp.zip")
+                        }
+                    } else null,
+                    headlineContent = { Text(stringResource(R.string.backup_page_migration_export)) },
+                    supportingContent = { Text(stringResource(R.string.backup_page_migration_export_desc)) },
+                    leadingContent = {
+                        if (isExporting) {
+                            CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
+                        } else {
+                            Icon(HugeIcons.File01, null)
+                        }
+                    },
+                )
+                item(
+                    onClick = if (!isRestoring) {
+                        {
+                            importType = "migration"
+                            showImportConfirmDialog = true
+                        }
+                    } else null,
+                    headlineContent = { Text(stringResource(R.string.backup_page_migration_import)) },
+                    supportingContent = { Text(stringResource(R.string.backup_page_migration_import_desc)) },
                     leadingContent = {
                         if (isRestoring) {
                             CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
@@ -306,13 +397,34 @@ fun ImportExportTab(
     if (showImportConfirmDialog) {
         AlertDialog(
             onDismissRequest = { showImportConfirmDialog = false },
-            title = { Text(stringResource(R.string.backup_page_local_backup_import)) },
-            text = { Text(stringResource(R.string.backup_page_import_overwrite_confirm)) },
+            title = {
+                Text(
+                    stringResource(
+                        if (importType == "migration") {
+                            R.string.backup_page_migration_import
+                        } else {
+                            R.string.backup_page_local_backup_import
+                        },
+                    ),
+                )
+            },
+            text = {
+                Text(
+                    stringResource(
+                        if (importType == "migration") {
+                            R.string.backup_page_migration_import_confirm
+                        } else {
+                            R.string.backup_page_import_overwrite_confirm
+                        },
+                    ),
+                )
+            },
             confirmButton = {
                 TextButton(
                     onClick = {
                         showImportConfirmDialog = false
-                        importType = "local"
+                        // 迁移包保留自己的分支；其余入口维持既有行为（local）
+                        importType = if (importType == "migration") "migration" else "local"
                         openDocumentLauncher.launch(arrayOf("application/zip"))
                     }
                 ) {

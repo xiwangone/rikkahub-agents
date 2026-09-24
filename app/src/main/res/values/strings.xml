@@ -286,6 +286,15 @@
   <string name="backup_page_importing">Importing...</string>
   <string name="backup_page_loading_failed">Failed to load backup files: %s</string>
   <string name="backup_page_local_backup_export">Export to File</string>
+  <string name="backup_page_migration_section">Migration package (cross-device)</string>
+  <string name="backup_page_migration_export">Export migration package</string>
+  <string name="backup_page_migration_export_desc">Credentials and model keys are decrypted here and re-encrypted with your backup password, so another device can read them. Requires backup encryption to be on.</string>
+  <string name="backup_page_migration_import">Import migration package</string>
+  <string name="backup_page_migration_import_desc">Restores chats, settings, assistants and credentials from a migration package. Existing data is overwritten; a local backup is made automatically first.</string>
+  <string name="backup_page_migration_export_success">Migration package exported (%1$d credentials)</string>
+  <string name="backup_page_migration_import_success">Imported: %1$d credentials, skipped %2$d</string>
+  <string name="backup_page_migration_need_encryption">Turn on backup encryption and set a password first — the migration package contains secrets.</string>
+  <string name="backup_page_migration_import_confirm">Importing a migration package overwrites chats, settings and credentials. A local backup will be created first. Continue?</string>
   <string name="backup_page_local_backup_import">Import from File</string>
   <string name="backup_page_password">Password</string>
   <string name="backup_page_path">Path</string>
