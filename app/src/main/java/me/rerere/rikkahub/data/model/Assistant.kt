@@ -70,6 +70,18 @@ data class Assistant(
      * 它只影响工具结果写回 prompt 的大小，因此**不会击穿长会话缓存**。
      */
     val toolOutputCompactTools: List<String> = emptyList(),
+
+    /** 摘要模式保留哪些行（大小写不敏感的子串匹配）；默认空 = 用内置集（error/FAILED/Exception/✗/失败/异常） */
+    val toolOutputDigestKeywords: List<String> = emptyList(),
+
+    /**
+     * 这些工具的**输出**走「规则化摘要」（助手级，默认空 = 不生效）。
+     *
+     * 与 [toolOutputCompactTools] 的区别：截断只保留前 N 字符；摘要保留
+     * 「首段 + 命中关键词的行 + 末尾几行 + 落盘提示」，信息密度更高、上下文更省。
+     * 适合 diagnostics / 网页抓取这类「块大但只需要骨架」的输出。
+     */
+    val toolOutputDigestTools: List<String> = emptyList(),
     val workspaceId: Uuid? = null,
     val background: String? = null, // 聊天页背景图地址(本地文件 URI 或网络 URL), 为 null 时无背景
     val backgroundOpacity: Float = 1.0f, // 背景图不透明度(0~1)

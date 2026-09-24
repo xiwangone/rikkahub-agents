@@ -88,6 +88,12 @@ private const val TAG = "GenerationLoop"
 // 工具输出硬上限已统一到设置值（settings.toolOutputMaxChars，默认 8K / 范围 1–32K），
 // 不再写死 32K（曾与 diff_files 的 40K 矛盾）。
 private const val TOOL_OUTPUT_PREVIEW_CHARS = 4 * 1024
+// 摘要模式（助手级名单命中时）：预览更小、关键词命中的行更多 —— 规则化"摘要"，
+// 目标是「够用的骨架 + 可检索的全文落盘」，而不是把整段塞回上下文。
+private const val TOOL_OUTPUT_DIGEST_PREVIEW_CHARS = 1200
+private const val TOOL_OUTPUT_DIGEST_MAX_HITS = 20
+private val TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS =
+    listOf("FAILED", "error", "Exception", "✗", "失败", "异常")
 private const val GENERATION_STREAM_RETRY_INITIAL_DELAY_MS = 750L
 private const val GENERATION_STREAM_RETRY_MAX_DELAY_MS = 4_000L
 
@@ -1419,10 +1425,19 @@ class GenerationLoop(
                                     tool.toolCallId,
                                     maskedResult,
                                     hasShellAccess,
-                                    if (tool.toolName in assistant.toolOutputCompactTools) {
+                                    // 摘要名单与紧凑名单都按紧凑阈值触发落盘（摘要的处理结果更小）
+                                    if (tool.toolName in assistant.toolOutputCompactTools ||
+                                        tool.toolName in assistant.toolOutputDigestTools
+                                    ) {
                                         settings.toolOutputCompactMaxChars
                                     } else {
                                         settings.toolOutputMaxChars
+                                    },
+                                    // 非 null = 摘要模式；空列表 = 用内置默认关键词
+                                    if (tool.toolName in assistant.toolOutputDigestTools) {
+                                        assistant.toolOutputDigestKeywords
+                                    } else {
+                                        null
                                     },
                                 )
                             )
@@ -1918,11 +1933,18 @@ class GenerationLoop(
         )
     }
 
+    /**
+     * 工具输出超限时的处置：落盘全文 + 回一段「预览 / 摘要」。
+     *
+     * [digestKeywords] 非 null = **摘要模式**（助手级名单命中）：预览更短（首段）、关键词命中的行更多，
+     * 关键词用调用方给的（空列表 → 内置默认集）。null = 普通截断模式（行为不变）。
+     */
     private fun maybeTruncateToolOutput(
         toolCallId: String,
         output: List<UIMessagePart>,
         hasShellAccess: Boolean,
         maxChars: Int,
+        digestKeywords: List<String>? = null,
     ): List<UIMessagePart> {
         val textParts = output.filterIsInstance<UIMessagePart.Text>()
         val nonTextParts = output.filter { it !is UIMessagePart.Text }
@@ -1930,10 +1952,14 @@ class GenerationLoop(
 
         if (totalChars <= maxChars || !hasShellAccess) return output
 
-        AppLog.i(TAG, "maybeTruncateToolOutput: truncating tool $toolCallId output ($totalChars chars)")
+        AppLog.i(TAG, "maybeTruncateToolOutput: truncating tool $toolCallId output ($totalChars chars, digest=${digestKeywords != null})")
 
         val fullText = textParts.joinToString("\n") { it.text }
-        val preview = fullText.take(TOOL_OUTPUT_PREVIEW_CHARS)
+        val digestMode = digestKeywords != null
+        val preview =
+            fullText.take(
+                if (digestMode) TOOL_OUTPUT_DIGEST_PREVIEW_CHARS else TOOL_OUTPUT_PREVIEW_CHARS,
+            )
 
         val fileName = "${toolCallId}.txt"
         val outputDir = File(context.filesDir, FileFolders.TOOL_OUTPUTS).apply { mkdirs() }
@@ -1951,13 +1977,13 @@ class GenerationLoop(
                     // 直接按真实换行切分会得到「1 行」并失去全部意义 —— 先展开转义换行再统计。
                     val logical = fullText.replace("\\n", "\n").replace("\\r", "")
                     val lines = logical.split('\n')
+                    val keywords =
+                        digestKeywords?.takeIf { it.isNotEmpty() } ?: TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS
+                    val hitLimit = if (digestMode) TOOL_OUTPUT_DIGEST_MAX_HITS else 5
                     val errorLines =
                         lines.withIndex()
-                            .filter { (_, l) ->
-                                l.contains("FAILED") || l.contains("error", ignoreCase = true) ||
-                                    l.contains("Exception") || l.startsWith("✗")
-                            }
-                            .take(5)
+                            .filter { (_, l) -> keywords.any { k -> l.contains(k, ignoreCase = true) } }
+                            .take(hitLimit)
                     appendLine(
                         "Total lines: ${lines.size}" +
                             if (errorLines.isEmpty()) "" else " · error-like: ${errorLines.size}",

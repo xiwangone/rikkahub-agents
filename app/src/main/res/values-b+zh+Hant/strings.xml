@@ -3294,8 +3294,6 @@
   <string name="assistant_page_compact_output_desc">已配置 %1$d 個。名單內工具的輸出會完整存到 /tool_outputs，只把簡短預覽放進上下文；名單外的工具仍用全域上限。</string>
   <string name="assistant_page_compact_output_action">編輯</string>
   <string name="assistant_page_compact_output_dialog_desc">每行一個工具名（也可用逗號分隔），請用 list_tools 裡顯示的確切名稱。適合填「回傳內容很大」的工具，例如網頁抓取、全量清單、診斷匯出。名單內的工具按緊湊閾值（設定 → 工具）截斷並把全文存到 /tool_outputs；名單外的仍走全域上限。工具仍可正常呼叫，內容不會被刪除。留空表示不生效。</string>
-  <string name="setting_model_page_tool_output_compact_max_chars">緊湊閾值（K 字元，1-32；僅用於助手截斷名單內的工具）</string>
-  <string name="tool_output_compact_desc">緊湊閾值只對「助手 → 工具」裡填進截斷名單的工具生效：它們的輸出會完整存到 /tool_outputs，只把簡短預覽放進上下文；名單外的工具仍用上面的輸出限制。</string>
   <string name="ai_token_budget_notice">TOKEN 預算通知：本回合已達到此助理的 token 預算。請停止發起新的工具呼叫，完成進行中的工作，並簡潔地總結已完成的事項與待辦事項。</string>
   <string name="assistant_page_token_budget">Token 預算（硬性停止）</string>
   <string name="assistant_page_token_budget_desc">以最大的單一請求（≈ 實際上下文視窗）為判斷依據，而非累計總量。超過軟性上限時，助理會收到收尾通知；超過硬性上限時，本回合會立即停止。</string>
@@ -3303,4 +3301,11 @@
   <string name="assistant_page_token_budget_hard_hint">例如 200000；請設定為等於或高於軟性上限。留空 = 無限制。</string>
   <string name="assistant_page_token_budget_soft">軟性上限 — 收尾通知</string>
   <string name="assistant_page_token_budget_soft_hint">例如 100000。留空 = 無限制。</string>
+  <string name="assistant_page_digest_output_desc">已設定 %1$d 個。它們的輸出會完整儲存到 /tool_outputs，而進入上下文的是摘要 — 開頭 + 符合您關鍵字的行 + 結尾 — 不是原始的前綴。</string>
+  <string name="assistant_page_digest_output_dialog_desc">工具名稱：每行一個（或以逗號分隔），使用 list_tools 中的確切名稱。最適合輸出龐大但只關心重點的工具（診斷傾印、頁面擷取、完整清單）。超過精簡限制（設定 → 工具）的輸出會完整儲存到 /tool_outputs；摘要會保留開頭、最多 20 行符合下方關鍵字的行，以及最後幾行。請為您關心的行命名關鍵字。將清單留空以停用。如果不確定要使用什麼，請在聊天中詢問助理 — 它無法變更此設定，因此請自行貼上並儲存。</string>
+  <string name="assistant_page_digest_output_keywords_hint">留空 = error / FAILED / Exception / ✗ / 失敗 / 異常</string>
+  <string name="assistant_page_digest_output_keywords_label">要保留的關鍵行（選填，每行一個）</string>
+  <string name="assistant_page_digest_output_title">摘要這些工具的輸出</string>
+  <string name="setting_model_page_tool_output_compact_max_chars">精簡限制（K 字元，1-32；供助理的截斷/摘要清單中的工具使用）</string>
+  <string name="tool_output_compact_desc">精簡限制僅適用於助理的截斷或摘要清單中列出的工具（助理 → 工具）。這些輸出會完整儲存至 /tool_outputs，只有預覽或摘要會進入上下文；未列出的工具則使用上述限制。</string>
 </resources>

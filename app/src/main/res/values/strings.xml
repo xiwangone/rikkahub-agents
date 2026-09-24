@@ -1420,7 +1420,12 @@
   <string name="auto_compress_reset_warning">⚠️ Auto compress will reset the current conversation history</string>
   <string name="auto_compress_invalid_input">Please enter a valid value</string>
   <string name="setting_model_page_tool_output">Tool Output Limit</string>
-  <string name="setting_model_page_tool_output_compact_max_chars">Compact limit (K chars, 1-32; only for tools in an assistant\'s truncate list)</string>
+  <string name="assistant_page_digest_output_title">Digest these tools\' output</string>
+  <string name="assistant_page_digest_output_desc">%1$d configured. Their output is saved in full to /tool_outputs, and what enters the context is a digest — head + lines matching your keywords + tail — not a raw prefix.</string>
+  <string name="assistant_page_digest_output_dialog_desc">Tool names: one per line (or comma-separated), using the exact names from list_tools. Best for tools whose output is large but only the gist matters (diagnostics dumps, page fetches, full listings). Output above the compact limit (Settings → Tools) is saved in full to /tool_outputs; the digest keeps the head, up to 20 lines matching the keywords below, and the last lines. Name the keywords for the lines you care about. Leave the list empty to disable. Ask the assistant in chat if unsure what to use — it cannot change this setting, so paste and save it yourself.</string>
+  <string name="assistant_page_digest_output_keywords_label">Key lines to keep (optional, one per line)</string>
+  <string name="assistant_page_digest_output_keywords_hint">Empty = error / FAILED / Exception / ✗ / 失败 / 异常</string>
+  <string name="setting_model_page_tool_output_compact_max_chars">Compact limit (K chars, 1-32; used by tools in an assistant\'s truncate/digest lists)</string>
   <string name="setting_model_page_tool_output_max_chars">Tool output limit (K chars, 1-20; e.g. 5 = 5000 chars)</string>
   <string name="setting_display_page_bubble_opacity_title">Bubble Opacity</string>
   <string name="setting_provider_page_include_history_reasoning">Include History Reasoning</string>
@@ -3165,7 +3170,7 @@
   <string name="tool_output_tokens_estimate">≈%1$sK–%2$sK tokens</string>
   <string name="tool_output_limit_desc">Limit the maximum characters of tool output to prevent long output from occupying too much context</string>
   <string name="tool_output_limit_warning">⚠️ Setting it too low may truncate tool output</string>
-  <string name="tool_output_compact_desc">Compact limit applies only to the tools listed in an assistant\'s truncate list (Assistant → Tools). Those outputs are saved in full to /tool_outputs and only a short preview enters the context; unlisted tools use the limit above.</string>
+  <string name="tool_output_compact_desc">Compact limit applies only to the tools listed in an assistant\'s truncate or digest list (Assistant → Tools). Those outputs are saved in full to /tool_outputs and only a preview or digest enters the context; unlisted tools use the limit above.</string>
   <string name="provider_override_label">%1$s (override)</string>
   <string name="notification_no_title">(no title)</string>
   <string name="notification_label_title">%1$s: %2$s</string>

@@ -183,6 +183,14 @@ private fun AssistantLocalToolContent(
         mutableStateOf(assistant.toolOutputCompactTools.joinToString("\n"))
     }
 
+    var showDigestDialog by remember { mutableStateOf(false) }
+    var digestToolsDraft by remember(assistant.toolOutputDigestTools) {
+        mutableStateOf(assistant.toolOutputDigestTools.joinToString("\n"))
+    }
+    var digestKeywordsDraft by remember(assistant.toolOutputDigestKeywords) {
+        mutableStateOf(assistant.toolOutputDigestKeywords.joinToString("\n"))
+    }
+
     var showOnlyToolsDialog by remember { mutableStateOf(false) }
     var onlyToolsDraft by remember(assistant.onlyTools) {
         mutableStateOf(assistant.onlyTools.joinToString("\n"))
@@ -315,6 +323,70 @@ private fun AssistantLocalToolContent(
             },
             dismissButton = {
                 TextButton(onClick = { showCompactOutputDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+
+    if (showDigestDialog) {
+        AlertDialog(
+            onDismissRequest = { showDigestDialog = false },
+            title = { Text(stringResource(R.string.assistant_page_digest_output_title)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(stringResource(R.string.assistant_page_digest_output_dialog_desc))
+                    OutlinedTextField(
+                        value = digestToolsDraft,
+                        onValueChange = { digestToolsDraft = it },
+                        placeholder = { Text(stringResource(R.string.assistant_page_extra_cold_hint)) },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 100.dp),
+                    )
+                    OutlinedTextField(
+                        value = digestKeywordsDraft,
+                        onValueChange = { digestKeywordsDraft = it },
+                        label = { Text(stringResource(R.string.assistant_page_digest_output_keywords_label)) },
+                        placeholder = { Text(stringResource(R.string.assistant_page_digest_output_keywords_hint)) },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(min = 80.dp),
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        val names =
+                            digestToolsDraft
+                                .split(',', '\n', ' ', '\t')
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+                                .distinct()
+                        // 关键词用换行/逗号分隔（不用空格：关键词里可能带空格）
+                        val keywords =
+                            digestKeywordsDraft
+                                .split(',', '\n')
+                                .map { it.trim() }
+                                .filter { it.isNotEmpty() }
+                                .distinct()
+                        onUpdateAssistant {
+                            it.copy(
+                                toolOutputDigestTools = names,
+                                toolOutputDigestKeywords = keywords,
+                            )
+                        }
+                        showDigestDialog = false
+                    },
+                ) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDigestDialog = false }) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -584,6 +656,22 @@ private fun AssistantLocalToolContent(
                 trailingContent = {
                     TextButton(onClick = { showExtraColdDialog = true }) {
                         Text(stringResource(R.string.assistant_page_extra_cold_action))
+                    }
+                },
+            )
+            item(
+                headlineContent = { Text(stringResource(R.string.assistant_page_digest_output_title)) },
+                supportingContent = {
+                    Text(
+                        stringResource(
+                            R.string.assistant_page_digest_output_desc,
+                            assistant.toolOutputDigestTools.size,
+                        ),
+                    )
+                },
+                trailingContent = {
+                    TextButton(onClick = { showDigestDialog = true }) {
+                        Text(stringResource(R.string.assistant_page_compact_output_action))
                     }
                 },
             )
