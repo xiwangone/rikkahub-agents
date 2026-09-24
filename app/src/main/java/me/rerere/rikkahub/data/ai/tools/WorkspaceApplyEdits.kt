@@ -39,7 +39,7 @@ internal fun createApplyEditsTool(
     parameters = { applyEditsParameters() },
     needsApproval = { needsApproval("workspace_apply_edits") },
     execute = { args ->
-        runApplyEdits(resolveTargetWorkspaceId(workspaceRepository, args, workspaceId), workspaceRepository, args)
+        runApplyEdits(resolveTargetWorkspaceId(workspaceRepository, args.jsonObject, workspaceId), workspaceRepository, args)
     },
 )
 

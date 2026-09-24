@@ -202,8 +202,8 @@ private fun createWriteFileTool(
     },
     needsApproval = { needsApproval("workspace_write_file") || it.pathOutsideWritableRoots("path") },
     execute = {
-        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val params = it.jsonObject
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val path = params.absolutePath("path")
         val text = params.string("text") ?: error("text is required")
         val overwrite = params["overwrite"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true
@@ -276,8 +276,8 @@ private fun createEditFileTool(
     },
     needsApproval = { needsApproval("workspace_edit_file") || it.pathOutsideWritableRoots("path") },
     execute = {
-        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val params = it.jsonObject
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val path = params.absolutePath("path")
         val replaceAll = params["replace_all"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
 
@@ -384,8 +384,8 @@ private fun createDiffFileTool(
     },
     needsApproval = { needsApproval("diff_files") },
     execute = {
-        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val params = it.jsonObject
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val a = params.absolutePath("a")
         val b = params.absolutePath("b")
         val aText = workspaceRepository.readTextInRootfs(wsId, a)
@@ -781,8 +781,8 @@ private fun createRunBackgroundTool(
     },
     needsApproval = { needsApproval("workspace_run_background") },
     execute = {
-        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val params = it.jsonObject
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val command = params.string("command") ?: error("command is required")
         val cwd = (params.string("cwd") ?: defaultCwd.orEmpty())
             .removePrefix("/workspace/").removePrefix("/workspace")
