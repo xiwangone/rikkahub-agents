@@ -638,7 +638,11 @@ class GenerationLoop(
         conversationModeInjectionIds: Set<Uuid> = emptySet(),
         conversationLorebookIds: Set<Uuid> = emptySet(),
         workspaceCwd: String? = null,
-    ): Flow<GenerationChunk> = flow {
+    ): Flow<GenerationChunk> {
+        // 本次生成的归因上下文：flow 体内更新，收尾（onCompletion）时统一落一条记录。
+        // 只收集枚举与计数（不含任何内容）；统计开关关闭时记录为空操作。
+        val runCtx = GenerationRunContext(android.os.SystemClock.elapsedRealtime())
+        return flow {
         val resolvedExecution = resolveBackendProvider(settings.executionBackend, model, settings.providers) ?: error("Provider not found")
         val provider = resolvedExecution.first
         val execModel = resolvedExecution.second
@@ -688,6 +692,7 @@ class GenerationLoop(
         val outputTransformCache = OutputTransformCache()
 
         for (stepIndex in 0 until maxSteps) {
+            runCtx.steps = stepIndex + 1
             outputTransformCache.clear()
             // Wall-clock cap: any single user turn that has been running longer than the
             // budget is force-ended, regardless of whether the model wants more steps.
@@ -707,6 +712,7 @@ class GenerationLoop(
             }
             if (elapsedMs > ToolRuntimeLimits.turnBudgetMs) {
                 AppLog.w(TAG, "generateText: wall-clock cap (${ToolRuntimeLimits.turnBudgetMs}ms) hit at step #$stepIndex; force-ending turn")
+                runCtx.abortReason = GenerationOutcome.TIMEOUT
                 break
             }
             // Repeated loop-guard trips mean the model is flailing: it bumps into the
@@ -715,6 +721,7 @@ class GenerationLoop(
             // step is paid for in tokens.
             if (loopGuardTripCount >= MAX_LOOP_GUARD_TRIPS_PER_TURN) {
                 AppLog.w(TAG, "generateText: loop-guard tripped $loopGuardTripCount times this turn; force-ending")
+                runCtx.abortReason = GenerationOutcome.LOOP_GUARD
                 break
             }
 
@@ -787,6 +794,15 @@ class GenerationLoop(
                             // 每次请求的用量单独上报（不受下方 UI 提交节流影响）：见 GenerationChunk.UsageIncurred
                             it.lastOrNull { message -> message.usage != null }?.usage?.let { incurred ->
                                 if (incurred != reportedUsage) {
+                                    // 累加真实消耗：一轮里的多步请求共用同一条 assistant 消息、usage 被
+                                    // 后者覆盖，所以只加「相对上次上报的增量」。
+                                    runCtx.promptTokens +=
+                                        (incurred.promptTokens - (reportedUsage?.promptTokens ?: 0)).coerceAtLeast(0)
+                                    runCtx.completionTokens +=
+                                        (incurred.completionTokens - (reportedUsage?.completionTokens ?: 0))
+                                            .coerceAtLeast(0)
+                                    runCtx.cachedTokens +=
+                                        (incurred.cachedTokens - (reportedUsage?.cachedTokens ?: 0)).coerceAtLeast(0)
                                     reportedUsage = incurred
                                     emit(GenerationChunk.UsageIncurred(incurred))
                                 }
@@ -1354,6 +1370,7 @@ class GenerationLoop(
                 messages = compactedMessages
             }
 
+            runCtx.finishReason = messages.lastOrNull()?.finishReason ?: runCtx.finishReason
             // 队列消息在「本 step 的工具执行完毕、下一次模型请求之前」插入：
             // 用户的补充/修正能在下一 step 直接被模型看到（而不是等整轮结束）。
             val queued = drainQueuedMessages()
@@ -1409,11 +1426,44 @@ class GenerationLoop(
             AgentTurnTracker.reset()
             AgentOverlay.show(context)
         }
-        .onCompletion {
+        .onCompletion { cause ->
             AgentOverlay.hide(context)
             handleAutoReturnAfterTurn()
+            // 运行归因：唯一收尾点（正常结束 / 异常 / 取消都会到这里）。只采数据，不做结论。
+            runCatching {
+                val outcome =
+                    classifyGenerationOutcome(
+                        cause = cause,
+                        abortReason = runCtx.abortReason,
+                        cancelSource = GenerationRunTracker.consumeCancellation(conversationId?.toString()),
+                        rawError = cause?.message.orEmpty(),
+                    )
+                GenerationRunTracker.record(
+                    context = context,
+                    run =
+                        GenerationRun(
+                            ts = System.currentTimeMillis(),
+                            conversationId = conversationId?.toString(),
+                            modelId = model.id.toString(),
+                            providerId = runCatching { model.findProvider(settings.providers)?.id?.toString() }.getOrNull(),
+                            assistantId = assistant.id.toString(),
+                            outcome = outcome.name,
+                            finishReason = runCtx.finishReason,
+                            errorKind =
+                                cause
+                                    ?.takeIf { it !is CancellationException }
+                                    ?.let { classifyFailureKind(it, it.message.orEmpty()).name },
+                            durationMs = android.os.SystemClock.elapsedRealtime() - runCtx.startedAtMs,
+                            steps = runCtx.steps,
+                            promptTokens = runCtx.promptTokens.toLong(),
+                            completionTokens = runCtx.completionTokens.toLong(),
+                            cachedTokens = runCtx.cachedTokens.toLong(),
+                        ),
+                )
+            }.onFailure { AppLog.w(TAG, "run attribution failed", it) }
         }
         .flowOn(Dispatchers.IO)
+    }
 
     /**
      * If the agent navigated away from RikkaHub Agents during this turn (launch_app / open_url) and

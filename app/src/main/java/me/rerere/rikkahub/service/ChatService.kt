@@ -67,6 +67,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationLoop
+import me.rerere.rikkahub.data.ai.GenerationRunTracker
 import me.rerere.rikkahub.data.ai.FailureDiagnosis
 import me.rerere.rikkahub.data.ai.diagnoseFailure
 import me.rerere.rikkahub.data.ai.mcp.McpManager
@@ -706,6 +707,8 @@ class ChatService(
                 "msg-cancel prev conv=$conversationId nodes=${session.state.value.messageNodes.size}",
             )
         }
+        // 运行归因：被新消息打断也属「用户主动结束」，语义与点停止一致。
+        GenerationRunTracker.markCancelled(conversationId.toString(), "superseded_by_new_message")
         previousJob?.cancel()
 
         val job =
@@ -2689,6 +2692,8 @@ class ChatService(
         // 用户主动停止：一并暂停待发送队列。否则「停止」之后队列会立刻把下一条发出去，
         // 用户看到的是「停不下来」；需要继续时由面板上的「继续发送」恢复。
         messageQueues[conversationId]?.pause()
+        // 运行归因：标记这次取消是「用户主动停」，生成收尾时据此区分「用户停」与「超时 / 进程被杀」。
+        GenerationRunTracker.markCancelled(conversationId.toString(), "user_stop")
         // cancelAndJoin BEFORE the mutex so the cancelled coroutine can drain its own
         // writes (which may try to acquire the same mutex via their save path).
         sessions[conversationId]?.let { session ->

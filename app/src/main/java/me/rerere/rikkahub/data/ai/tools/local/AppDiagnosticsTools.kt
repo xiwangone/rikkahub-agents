@@ -21,6 +21,7 @@ import kotlinx.serialization.json.put
 import android.content.pm.PackageManager
 import me.rerere.rikkahub.BuildConfig
 import java.security.MessageDigest
+import me.rerere.rikkahub.data.ai.GenerationRunTracker
 import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.SurfaceTier
 import me.rerere.rikkahub.data.ai.tools.TierSource
@@ -718,6 +719,95 @@ internal suspend fun enabledToolsPayload(settingsStore: SettingsStore): String {
     return payload.toString()
 }
 
+// ---------- runs ----------
+
+/**
+ * 生成结果归因的只读视图（**App 采集与展示**；评估与结论由 AI 侧做）。
+ *
+ * 每次生成一条：`outcome` = COMPLETED / USER_CANCELLED / TIMEOUT / LOOP_GUARD /
+ * NETWORK_ERROR / RATE_LIMIT / API_ERROR / UNKNOWN；失败细分在 `errorKind`（复用 FailureKind 名字）。
+ * 只记枚举与计数，**不含消息内容**；开关 = 工具统计开关（关时不增长）。
+ */
+@Suppress("LongMethod")
+internal fun runsPayload(
+    context: Context,
+    params: JsonObject,
+): String {
+    val limit = (params["limit"]?.jsonPrimitive?.intOrNull ?: 20).coerceIn(1, 200)
+    val reset = params["reset"]?.jsonPrimitive?.booleanOrNull ?: false
+    if (reset) GenerationRunTracker.clear(context)
+    val state = GenerationRunTracker.snapshot(context)
+    val total = state.totals.values.sum()
+    val payload =
+        buildJsonObject {
+            put("enabled", ToolUsageTracker.isStatsEnabled())
+            put("totalRuns", total)
+            put(
+                "byOutcome",
+                buildJsonObject {
+                    state.totals.entries.sortedByDescending { it.value }.forEach { (k, v) -> put(k, v) }
+                },
+            )
+            put(
+                "byModel",
+                buildJsonArray {
+                    state.byModel.entries.sortedByDescending { e -> e.value.values.sum() }.forEach { (model, counts) ->
+                        add(
+                            buildJsonObject {
+                                put("modelId", model)
+                                put("runs", counts.values.sum())
+                                put(
+                                    "byOutcome",
+                                    buildJsonObject {
+                                        counts.entries.sortedByDescending { it.value }.forEach { (k, v) -> put(k, v) }
+                                    },
+                                )
+                            },
+                        )
+                    }
+                },
+            )
+            put("avgDurationMs", if (total > 0) state.totalDurationMs / total else 0)
+            put(
+                "tokens",
+                buildJsonObject {
+                    put("prompt", state.totalPromptTokens)
+                    put("completion", state.totalCompletionTokens)
+                    put("cached", state.totalCachedTokens)
+                },
+            )
+            put(
+                "recent",
+                buildJsonArray {
+                    state.recent.takeLast(limit).reversed().forEach { run ->
+                        add(
+                            buildJsonObject {
+                                put("ts", run.ts)
+                                run.conversationId?.let { put("conversationId", it) }
+                                run.modelId?.let { put("modelId", it) }
+                                put("outcome", run.outcome)
+                                run.finishReason?.let { put("finishReason", it) }
+                                run.errorKind?.let { put("errorKind", it) }
+                                put("durationMs", run.durationMs)
+                                put("steps", run.steps)
+                                put("promptTokens", run.promptTokens)
+                                put("completionTokens", run.completionTokens)
+                                put("cachedTokens", run.cachedTokens)
+                            },
+                        )
+                    }
+                },
+            )
+            put(
+                "hint",
+                "每次生成一条归因记录（COMPLETED / USER_CANCELLED / TIMEOUT / LOOP_GUARD / NETWORK_ERROR / " +
+                    "RATE_LIMIT / API_ERROR / UNKNOWN）；按 outcome 与 modelId 聚合，recent 为最近明细。" +
+                    "只记枚举与计数，不含消息内容；reset=true 可清空。",
+            )
+        }
+    return payload.toString()
+}
+
 // ---------- tool_usage_stats ----------
 
 /**
@@ -1033,7 +1123,7 @@ internal suspend fun toolScopePayload(
 
 private val DIAGNOSTICS_KINDS = listOf(
     "health", "build", "enabled_tools", "usage", "settings", "logs", "requests", "crash", "lifecycle",
-    "conversation", "generation", "perf", "models", "audit", "tool_scope",
+    "conversation", "generation", "perf", "models", "audit", "tool_scope", "runs",
 )
 
 /**
@@ -1386,6 +1476,7 @@ fun diagnosticsTool(
             "models" -> modelsPayload(settingsStore, params)
             "audit" -> auditPayload(params)
             "tool_scope" -> toolScopePayload(context, settingsStore, params)
+            "runs" -> runsPayload(context, params)
             else -> buildJsonObject {
                 put("error", "unknown kind '$kind'")
                 put("hint", "kind must be one of: ${DIAGNOSTICS_KINDS.joinToString(" | ")}")
