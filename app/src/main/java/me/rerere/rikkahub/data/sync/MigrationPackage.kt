@@ -112,24 +112,39 @@ internal fun appendTextEntriesToZip(
     target: File,
 ) {
     require(source.absolutePath != target.absolutePath) { "source and target must differ" }
-    val extraNames = extraEntries.keys
     ZipInputStream(source.inputStream().buffered()).use { zipIn ->
         ZipOutputStream(target.outputStream().buffered()).use { zipOut ->
-            var entry = zipIn.nextEntry
-            while (entry != null) {
-                if (!entry.isDirectory && entry.name !in extraNames) {
-                    zipOut.putNextEntry(ZipEntry(entry.name))
-                    zipIn.copyTo(zipOut)
-                    zipOut.closeEntry()
-                }
-                zipIn.closeEntry()
-                entry = zipIn.nextEntry
-            }
-            extraEntries.forEach { (name, content) ->
-                zipOut.putNextEntry(ZipEntry(name))
-                zipOut.write(content.encodeToByteArray())
-                zipOut.closeEntry()
-            }
+            copyZipEntriesExcept(zipIn, zipOut, extraEntries.keys)
+            writeZipTextEntries(zipOut, extraEntries)
         }
+    }
+}
+
+/** 复制原 zip 的条目（跳过 [skip] 里的名字，避免与追加段重名）。 */
+private fun copyZipEntriesExcept(
+    zipIn: ZipInputStream,
+    zipOut: ZipOutputStream,
+    skip: Set<String>,
+) {
+    var entry = zipIn.nextEntry
+    while (entry != null) {
+        if (!entry.isDirectory && entry.name !in skip) {
+            zipOut.putNextEntry(ZipEntry(entry.name))
+            zipIn.copyTo(zipOut)
+            zipOut.closeEntry()
+        }
+        zipIn.closeEntry()
+        entry = zipIn.nextEntry
+    }
+}
+
+private fun writeZipTextEntries(
+    zipOut: ZipOutputStream,
+    entries: Map<String, String>,
+) {
+    entries.forEach { (name, content) ->
+        zipOut.putNextEntry(ZipEntry(name))
+        zipOut.write(content.encodeToByteArray())
+        zipOut.closeEntry()
     }
 }
