@@ -741,6 +741,8 @@ internal suspend fun usageStatsPayload(
             val payload =
                 buildJsonObject {
                     put("assistant", assistant.name)
+                    // 统计开关的**当前生效值**（进程内由装配同步）：关时下面的数据只是历史存量、不再增长。
+                    put("toolStatsEnabled", ToolUsageTracker.isStatsEnabled())
                     put("trackedToolCount", snapshot.size)
                     put("adviceThreshold", minCalls)
                     put("totalCalls", snapshot.sumOf { it.count })
