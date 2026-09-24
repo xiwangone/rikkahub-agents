@@ -29,6 +29,7 @@ import me.rerere.workspace.BackgroundStatus
 import me.rerere.workspace.WorkspaceTreeResult
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceManager
+import me.rerere.workspace.sanitizeFileMode
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
 
@@ -189,6 +190,10 @@ private fun createWriteFileTool(
                     put("type", "boolean")
                     put("description", "Whether to overwrite an existing file. Defaults to true.")
                 })
+                put("mode", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional octal file mode, e.g. 755 for scripts and binaries or 644 for plain text. Files written without it are not executable inside the rootfs; pass 755 when the file must run.")
+                })
             },
             required = listOf("path", "text"),
         )
@@ -199,10 +204,11 @@ private fun createWriteFileTool(
         val path = params.absolutePath("path")
         val text = params.string("text") ?: error("text is required")
         val overwrite = params["overwrite"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true
+        val mode = params["mode"]?.jsonPrimitive?.contentOrNull
         // 执行前读旧内容（文件不存在 → 视为空）：新建文件 diff 全绿、覆盖写显示红绿改动。
         // 与 edit_file 保持一致：diff 存 metadata，不随工具结果发给模型、不占上下文。
         val originalText = runCatching { workspaceRepository.readTextInRootfs(workspaceId, path) }.getOrNull()
-        val entry = workspaceRepository.writeTextInRootfs(workspaceId, path, text, overwrite)
+        val entry = workspaceRepository.writeTextInRootfs(workspaceId, path, text, overwrite, mode)
         val diff = me.rerere.rikkahub.data.vault.SecretMasker.mask(generateUnifiedDiff(originalText.orEmpty(), text, entry.path).orEmpty())
         listOf(
             UIMessagePart.Text(
@@ -953,8 +959,10 @@ internal suspend fun WorkspaceRepository.writeTextInRootfs(
     path: String,
     text: String,
     overwrite: Boolean,
+    mode: String? = null,
 ): WorkspaceFileEntry {
     val pathArg = path.shellQuote()
+    val modeArg = sanitizeFileMode(mode)
     val result = runRootfsCommand(
         workspaceId = workspaceId,
         action = "Write file",
@@ -970,6 +978,7 @@ internal suspend fun WorkspaceRepository.writeTextInRootfs(
             parent=${'$'}(dirname -- $pathArg) || exit 1
             mkdir -p -- "${'$'}parent" || exit 1
             cat > $pathArg || exit 1
+            ${modeArg?.let { "chmod $it -- $pathArg || exit 1" }.orEmpty()}
             ${statEntryCommand(path)}
         """.trimIndent(),
         stdin = text.toByteArray(Charsets.UTF_8),
