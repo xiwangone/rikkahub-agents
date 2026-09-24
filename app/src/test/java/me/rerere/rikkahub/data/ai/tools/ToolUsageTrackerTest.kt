@@ -107,17 +107,18 @@ class ToolUsageTrackerTest {
 
     @Test
     fun `failure kinds are persisted only when present`() {
-        // 空 failureKinds 是默认值 → kotlinx 不写进 JSON（省体积，且与报告侧“从不失败就不占字段”一致）；
+        // 空 failureKinds 是默认值 → kotlinx 不写进 JSON（省体积，与报告侧“从不失败就不占字段”一致）；
         // 有内容时才出现，且维度**只到异常类名**（不含消息/参数）。
-        val empty = ToolUsageTracker.Entry(name = "x")
+        // 注：只传 name 时其余字段也是默认值、同样不编码，所以这里显式给 count 作锚。
+        val empty = ToolUsageTracker.Entry(name = "x", count = 1)
         assertEquals(
-            setOf("name", "count", "failures", "totalMs", "lastUsedAt"),
+            setOf("name", "count"),
             Json.parseToJsonElement(Json.encodeToString(ToolUsageTracker.Entry.serializer(), empty)).jsonObject.keys,
         )
 
-        val withKinds = ToolUsageTracker.Entry(name = "x", failureKinds = mapOf("IOException" to 2L))
+        val withKinds = ToolUsageTracker.Entry(name = "x", count = 1, failureKinds = mapOf("IOException" to 2L))
         assertEquals(
-            setOf("name", "count", "failures", "totalMs", "lastUsedAt", "failureKinds"),
+            setOf("name", "count", "failureKinds"),
             Json.parseToJsonElement(Json.encodeToString(ToolUsageTracker.Entry.serializer(), withKinds)).jsonObject.keys,
         )
     }
