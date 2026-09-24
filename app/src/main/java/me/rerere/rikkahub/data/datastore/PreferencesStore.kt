@@ -169,6 +169,7 @@ class SettingsStore(
         val AUTO_COMPRESS_MODE = intPreferencesKey("auto_compress_mode")
         val TOOL_OUTPUT_ENABLED = booleanPreferencesKey("tool_output_enabled")
         val TOOL_OUTPUT_MAX_CHARS = intPreferencesKey("tool_output_max_chars")
+        val TOOL_OUTPUT_COMPACT_MAX_CHARS = intPreferencesKey("tool_output_compact_max_chars")
 
         // 提供商
         val PROVIDERS = stringPreferencesKey("providers")
@@ -312,6 +313,7 @@ class SettingsStore(
                 contextWindowSize = preferences[CONTEXT_WINDOW_SIZE] ?: 0L,
                 toolOutputEnabled = preferences[TOOL_OUTPUT_ENABLED] ?: true,
                 toolOutputMaxChars = preferences[TOOL_OUTPUT_MAX_CHARS] ?: 8 * 1000,
+                toolOutputCompactMaxChars = preferences[TOOL_OUTPUT_COMPACT_MAX_CHARS] ?: 2 * 1000,
                 assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
                     ?: DEFAULT_ASSISTANT_ID,
                 assistantTags = preferences[ASSISTANT_TAGS]?.let {
@@ -673,7 +675,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[AUTO_COMPRESS_MODE] = settings.autoCompressMode
             preferences[CONTEXT_WINDOW_SIZE] = settings.contextWindowSize
             preferences[TOOL_OUTPUT_ENABLED] = settings.toolOutputEnabled
-            preferences[TOOL_OUTPUT_MAX_CHARS] = settings.toolOutputMaxChars
+            preferences.putToolOutputLimits(settings)
 
             // P0 凭证加密：providers 含 apiKey / 服务账号私钥等凭证，以 AES-GCM 密文入库，
             // 明文 JSON 不再落盘（密钥在 AndroidKeyStore，随应用卸载清除）。
@@ -758,6 +760,17 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[EXECUTION_BACKEND] = settings.executionBackend
             preferences[BACKEND_CONNECTIONS] = JsonInstant.encodeToString(settings.backendConnections)
         }
+    }
+
+    /**
+     * 写回工具输出阈值（全局上限 + 紧凑阈值）。
+     *
+     * 抽成独立扩展函数是为了让 [update] 保持在 detekt LongMethod 阈值内
+     * （2026-09-25 实测：直接内联两行会把它顶到 120 行而报错）。
+     */
+    private fun MutablePreferences.putToolOutputLimits(settings: Settings) {
+        this[TOOL_OUTPUT_MAX_CHARS] = settings.toolOutputMaxChars
+        this[TOOL_OUTPUT_COMPACT_MAX_CHARS] = settings.toolOutputCompactMaxChars
     }
 
     // ---------- 会话累计用量（与压缩解耦，见 LifetimeUsage 注释） ----------
@@ -967,6 +980,13 @@ data class Settings(
 
     /** 工具输出落盘阈值（字符数）：超过后截断落盘 + 返回预览，范围 4K-20K */
     val toolOutputMaxChars: Int = 8 * 1000,
+
+    /**
+     * 紧凑阈值（字符数）：**仅**命中助手 [Assistant.toolOutputCompactTools] 的工具使用，
+     * 其余工具仍走 [toolOutputMaxChars] 兜底。用于把 diagnostics / 网页抓取这类
+     * “大嘴”工具的输出收紧，同时不动其他工具。
+     */
+    val toolOutputCompactMaxChars: Int = 2 * 1000,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
     /**

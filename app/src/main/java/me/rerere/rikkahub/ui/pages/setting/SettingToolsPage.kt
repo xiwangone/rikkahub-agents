@@ -184,9 +184,16 @@ fun SettingToolsPage(
         ToolOutputDialog(
             enabled = settings.toolOutputEnabled,
             maxCharsKB = settings.toolOutputMaxChars / 1000,
+            compactMaxCharsKB = settings.toolOutputCompactMaxChars / 1000,
             onDismiss = { showOutputDialog = false },
-            onConfirm = { enabled, kb ->
-                vm.updateSettings(settings.copy(toolOutputEnabled = enabled, toolOutputMaxChars = kb * 1000))
+            onConfirm = { enabled, kb, compactKb ->
+                vm.updateSettings(
+                    settings.copy(
+                        toolOutputEnabled = enabled,
+                        toolOutputMaxChars = kb * 1000,
+                        toolOutputCompactMaxChars = compactKb * 1000,
+                    ),
+                )
             },
         )
     }

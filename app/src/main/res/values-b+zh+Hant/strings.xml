@@ -3290,4 +3290,10 @@
   <string name="assistant_page_only_tools_dialog_desc">每行一個工具名稱（也可用逗號分隔），請用 list_tools 顯示的確切名稱。留空表示不限制。填錯可能讓助手無法完成其他任務，清空即可恢復。不知道填哪些？可讓助手在對話中依你的需求產生這份名單；但助手無權修改此設定，需要你貼上並儲存。</string>
   <string name="error_kind_tool_pairing">工具呼叫缺少結果（已自動補齊；若仍失敗請新開對話）</string>
   <string name="error_kind_image_unsupported">目前模型不支援圖片（可刪除含圖訊息或切換模型）</string>
+  <string name="assistant_page_compact_output_title">提前截断这些工具的输出</string>
+  <string name="assistant_page_compact_output_desc">已配置 %1$d 個。名單內工具的輸出會完整存到 /tool_outputs，只把簡短預覽放進上下文；名單外的工具仍用全域上限。</string>
+  <string name="assistant_page_compact_output_action">編輯</string>
+  <string name="assistant_page_compact_output_dialog_desc">每行一個工具名（也可用逗號分隔），請用 list_tools 裡顯示的確切名稱。適合填「回傳內容很大」的工具，例如網頁抓取、全量清單、診斷匯出。名單內的工具按緊湊閾值（設定 → 工具）截斷並把全文存到 /tool_outputs；名單外的仍走全域上限。工具仍可正常呼叫，內容不會被刪除。留空表示不生效。</string>
+  <string name="setting_model_page_tool_output_compact_max_chars">緊湊閾值（K 字元，1-32；僅用於助手截斷名單內的工具）</string>
+  <string name="tool_output_compact_desc">緊湊閾值只對「助手 → 工具」裡填進截斷名單的工具生效：它們的輸出會完整存到 /tool_outputs，只把簡短預覽放進上下文；名單外的工具仍用上面的輸出限制。</string>
 </resources>

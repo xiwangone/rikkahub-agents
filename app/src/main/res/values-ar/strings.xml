@@ -3290,4 +3290,10 @@
   <string name="workspace_detail_folder_export_progress_warning">أبقِ هذه الشاشة مفتوحة حتى ينتهي التصدير.</string>
   <string name="error_kind_tool_pairing">استدعاء أداة بدون نتيجته (يُصلَح تلقائيًا؛ ابدأ محادثة جديدة إن استمر)</string>
   <string name="error_kind_image_unsupported">النموذج لا يدعم الصور (احذف رسائل الصور أو بدّل النموذج)</string>
+  <string name="assistant_page_compact_output_title">اقتطاع مخرجات هذه الأدوات مبكرًا</string>
+  <string name="assistant_page_compact_output_desc">تم ضبط %1$d. تُحفظ مخرجات هذه الأدوات كاملة في /tool_outputs ولا يدخل السياق سوى معاينة قصيرة. أما الأدوات غير المدرجة فتبقى على الحد العام.</string>
+  <string name="assistant_page_compact_output_action">تحرير</string>
+  <string name="assistant_page_compact_output_dialog_desc">اسم أداة واحد لكل سطر (أو مفصولة بفواصل). استخدم الأسماء الدقيقة كما تظهر في list_tools. مناسبة للأدوات ذات المخرجات الكبيرة: جلب الصفحات، القوائم الكاملة، مخرجات التشخيص. الأدوات المدرجة تُقتطع عند الحد المضغوط (الإعدادات → الأدوات) وتُحفظ كاملة في /tool_outputs؛ وغير المدرجة تبقى على الحد العام. تبقى الأدوات قابلة للاستدعاء ولا يُحذف أي محتوى. اتركه فارغًا للتعطيل. إن لم تكن متأكدًا مما يجب إدراجه، اطلب من المساعد إنشاء القائمة في المحادثة — لكن المساعد لا يمكنه تغيير هذا الإعداد، لذا الصقها واحفظها بنفسك.</string>
+  <string name="setting_model_page_tool_output_compact_max_chars">الحد المضغوط (K حرف، 1-32؛ للأدوات المدرجة في قائمة الاقتطاع فقط)</string>
+  <string name="tool_output_compact_desc">ينطبق الحد المضغوط فقط على الأدوات المدرجة في قائمة الاقتطاع (المساعد → الأدوات). تُحفظ مخرجاتها كاملة في /tool_outputs ولا يدخل السياق سوى معاينة قصيرة؛ أما الأدوات غير المدرجة فتستخدم الحد أعلاه.</string>
 </resources>

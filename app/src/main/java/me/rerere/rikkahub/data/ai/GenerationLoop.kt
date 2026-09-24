@@ -1384,7 +1384,16 @@ class GenerationLoop(
                             // 本地独有：工具结果写回前做凭证脱敏（SecretMasker 掩码），避免密钥进上下文
                             val maskedResult = maskToolOutput(result)
                             executedTools += markedTool.copy(
-                                output = maybeTruncateToolOutput(tool.toolCallId, maskedResult, hasShellAccess, settings.toolOutputMaxChars)
+                                output = maybeTruncateToolOutput(
+                                    tool.toolCallId,
+                                    maskedResult,
+                                    hasShellAccess,
+                                    if (tool.toolName in assistant.toolOutputCompactTools) {
+                                        settings.toolOutputCompactMaxChars
+                                    } else {
+                                        settings.toolOutputMaxChars
+                                    },
+                                )
                             )
                         }.onFailure {
                             // Stack trace stays in logcat for debugging; the JSON envelope

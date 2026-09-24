@@ -60,6 +60,16 @@ data class Assistant(
      * 否则会出现"看不见工具、也取不回参数表"的死局。
      */
     val onlyTools: List<String> = emptyList(),
+
+    /**
+     * 这些工具的**输出**按「紧凑阈值」截断（助手级，默认空 = 不生效）。
+     *
+     * 只做收紧：命中的工具用 `Settings.toolOutputCompactMaxChars`（默认 2K），
+     * 其余工具仍用 `Settings.toolOutputMaxChars`（默认 8K）兜底。
+     * 与 [extraColdTools] 同形（只填工具名、按行编辑），但**不改变请求前缀** ——
+     * 它只影响工具结果写回 prompt 的大小，因此**不会击穿长会话缓存**。
+     */
+    val toolOutputCompactTools: List<String> = emptyList(),
     val workspaceId: Uuid? = null,
     val background: String? = null, // 聊天页背景图地址(本地文件 URI 或网络 URL), 为 null 时无背景
     val backgroundOpacity: Float = 1.0f, // 背景图不透明度(0~1)

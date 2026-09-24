@@ -27,12 +27,14 @@ import me.rerere.rikkahub.R
 fun ToolOutputDialog(
     enabled: Boolean,
     maxCharsKB: Int,
+    compactMaxCharsKB: Int,
     onDismiss: () -> Unit,
-    onConfirm: (enabled: Boolean, maxCharsKB: Int) -> Unit,
+    onConfirm: (enabled: Boolean, maxCharsKB: Int, compactMaxCharsKB: Int) -> Unit,
 ) {
     var currentEnabled by remember { mutableIntStateOf(if (enabled) 1 else 0) }
     // 以 String 保存输入值（而非 Float/Int），支持自由删除/编辑，避免 5→50→500 追加问题
     var currentKB by remember { mutableStateOf(maxCharsKB.toString()) }
+    var currentCompactKB by remember { mutableStateOf(compactMaxCharsKB.toString()) }
 
     AlertDialog(
         onDismissRequest = { onDismiss() },
@@ -84,6 +86,21 @@ fun ToolOutputDialog(
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+
+                    OutlinedTextField(
+                        value = currentCompactKB,
+                        onValueChange = { currentCompactKB = it },
+                        label = {
+                            Text(stringResource(R.string.setting_model_page_tool_output_compact_max_chars))
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                    )
+                    Text(
+                        text = stringResource(R.string.tool_output_compact_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
 
                 Text(
@@ -96,8 +113,12 @@ fun ToolOutputDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    // 空输入/非法输入回退默认 5KB；合法输入钳制在 1-20
-                    onConfirm(currentEnabled == 1, currentKB.toIntOrNull()?.coerceIn(1, 32) ?: 8)
+                    // 空输入/非法输入回退默认值；合法输入钳制在 1-32
+                    onConfirm(
+                        currentEnabled == 1,
+                        currentKB.toIntOrNull()?.coerceIn(1, 32) ?: 8,
+                        currentCompactKB.toIntOrNull()?.coerceIn(1, 32) ?: 2,
+                    )
                     onDismiss()
                 },
             ) {

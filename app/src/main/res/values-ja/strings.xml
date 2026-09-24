@@ -3291,4 +3291,10 @@
   <string name="workspace_detail_folder_export_progress_warning">エクスポートが完了するまでこの画面を開いたままにしてください。</string>
   <string name="error_kind_tool_pairing">結果のないツール呼び出し（自動で補正済み。続く場合は新しいチャットを開始）</string>
   <string name="error_kind_image_unsupported">このモデルは画像に対応していません（画像メッセージを削除するかモデルを切替）</string>
+  <string name="assistant_page_compact_output_title">これらのツールの出力を早めに切り詰める</string>
+  <string name="assistant_page_compact_output_desc">%1$d 件設定済み。対象ツールの出力は /tool_outputs に全文保存され、コンテキストには短いプレビューだけが入ります。名前が載っていないツールは全体の上限のままです。</string>
+  <string name="assistant_page_compact_output_action">編集</string>
+  <string name="assistant_page_compact_output_dialog_desc">1 行に 1 つのツール名（カンマ区切りも可）。list_tools に表示される正確な名前を使ってください。大量の出力を返すツール（ページ取得、全件リスト、診断ダンプなど）に適しています。リストに入れたツールはコンパクト上限（設定 → ツール）で切り詰められ、全文は /tool_outputs に保存されます。リスト外のツールは全体の上限のままです。ツールは引き続き呼び出せ、内容が削除されることもありません。空欄にすると無効になります。何を入れるか分からない場合は、チャットでアシスタントにリストを作らせてください（ただしアシスタントはこの設定を変更できないため、自分で貼り付けて保存してください）。</string>
+  <string name="setting_model_page_tool_output_compact_max_chars">コンパクト上限（K 文字、1-32；アシスタントの切り詰めリストにあるツールのみ）</string>
+  <string name="tool_output_compact_desc">コンパクト上限は「アシスタント → ツール」の切り詰めリストに入れたツールだけに適用されます。それらの出力は /tool_outputs に全文保存され、コンテキストには短いプレビューだけが入ります。リスト外のツールは上記の出力制限を使います。</string>
 </resources>

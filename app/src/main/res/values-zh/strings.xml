@@ -1398,6 +1398,7 @@
   <string name="auto_compress_reset_warning">⚠️ 自动压缩将重置当前对话中的历史消息</string>
   <string name="auto_compress_invalid_input">请输入有效值</string>
   <string name="setting_model_page_tool_output">工具输出限制</string>
+  <string name="setting_model_page_tool_output_compact_max_chars">紧凑阈值（K 字符，1-32；仅用于助手截断名单内的工具）</string>
   <string name="setting_model_page_tool_output_max_chars">工具输出限制（K 字符，1-20；如 5 = 5000 字符）</string>
   <string name="setting_display_page_bubble_opacity_title">气泡不透明度</string>
   <string name="setting_provider_page_include_history_reasoning">回传历史思考过程</string>
@@ -1483,6 +1484,10 @@
   <string name="assistant_page_only_tools_desc">已配置 %1$d 个。非空时助手只能看到名单内的工具（list_tools / get_tool_schema / ask_user 始终保留）。</string>
   <string name="assistant_page_only_tools_dialog_desc">每行一个工具名（也可用逗号分隔），请用 list_tools 里显示的确切名称。留空表示不限制。填错可能让助手无法完成其他任务，清空即可恢复。不知道填哪些？可让助手在对话中按你的需求生成这份名单；但助手无权修改此设置，需要你粘贴并保存。</string>
   <string name="assistant_page_extra_cold_hint">例如 ssh_upload\n     batch_copy</string>
+  <string name="assistant_page_compact_output_title">这些工具的输出提早截断</string>
+  <string name="assistant_page_compact_output_desc">已配置 %1$d 个。名单内工具的输出会完整保存到 /tool_outputs，只把简短预览放进上下文，避免大段内容长期占用窗口；名单外的工具仍用全局上限。</string>
+  <string name="assistant_page_compact_output_action">编辑</string>
+  <string name="assistant_page_compact_output_dialog_desc">每行一个工具名（也可用逗号分隔），请用 list_tools 里显示的确切名称。适合填“返回内容很大”的工具，例如网页抓取、全量列表、诊断导出。名单内的工具按紧凑阈值（设置 → 工具）截断并把全文存到 /tool_outputs；名单外的仍走全局上限。工具仍可正常调用，内容不会被删除。留空表示不生效。不知道填哪些？可让助手在对话中按你的需求生成这份名单；但助手无权修改此设置，需要你粘贴并保存。</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI 诊断</string>
   <string name="assistant_page_local_tools_diagnostics_title">诊断与日志</string>
   <string name="assistant_page_local_tools_diagnostics_desc">应用健康、构建信息、日志、崩溃与生命周期记录。</string>
@@ -3153,6 +3158,7 @@
   <string name="tool_output_tokens_estimate">≈%1$sK–%2$sK tokens</string>
   <string name="tool_output_limit_desc">限制工具输出的最大字符数，防止长输出占用过多上下文</string>
   <string name="tool_output_limit_warning">⚠️ 设置过低可能导致工具输出被截断</string>
+  <string name="tool_output_compact_desc">紧凑阈值只对「助手 → 工具」里填进截断名单的工具生效：它们的输出会完整存到 /tool_outputs，只把简短预览放进上下文；名单外的工具仍用上面的输出限制。</string>
   <string name="provider_override_label">%1$s （覆盖）</string>
   <string name="notification_no_title">（无标题）</string>
   <string name="notification_label_title">%1$s: %2$s</string>

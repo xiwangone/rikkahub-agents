@@ -1413,6 +1413,7 @@
   <string name="auto_compress_reset_warning">⚠️ Auto compress will reset the current conversation history</string>
   <string name="auto_compress_invalid_input">Please enter a valid value</string>
   <string name="setting_model_page_tool_output">Tool Output Limit</string>
+  <string name="setting_model_page_tool_output_compact_max_chars">Compact limit (K chars, 1-32; only for tools in an assistant\'s truncate list)</string>
   <string name="setting_model_page_tool_output_max_chars">Tool output limit (K chars, 1-20; e.g. 5 = 5000 chars)</string>
   <string name="setting_display_page_bubble_opacity_title">Bubble Opacity</string>
   <string name="setting_provider_page_include_history_reasoning">Include History Reasoning</string>
@@ -1511,6 +1512,10 @@
   <string name="assistant_page_only_tools_desc">%1$d configured. When non-empty the assistant only sees the listed tools (list_tools / get_tool_schema / ask_user are always kept).</string>
   <string name="assistant_page_only_tools_dialog_desc">One tool name per line (or comma-separated). Use the exact names shown in list_tools. Leave empty to lift the limit. A wrong list can block other tasks — clear it to restore. Not sure what to list? Ask the assistant in chat to draft it — but the assistant cannot change this setting, so paste and save it yourself.</string>
   <string name="assistant_page_extra_cold_hint">e.g. ssh_upload\n     batch_copy</string>
+  <string name="assistant_page_compact_output_title">Truncate these tools\' output earlier</string>
+  <string name="assistant_page_compact_output_desc">%1$d configured. Their output is saved in full to /tool_outputs and only a short preview enters the context, so long payloads stop eating the window. Unlisted tools keep the global limit.</string>
+  <string name="assistant_page_compact_output_action">Edit</string>
+  <string name="assistant_page_compact_output_dialog_desc">One tool name per line (or comma-separated), using the exact names from list_tools. Best for tools that return large payloads — page fetches, full listings, diagnostics dumps. Listed tools are truncated at the compact limit (Settings → Tools) and fully saved to /tool_outputs; unlisted tools keep the global limit. The tools stay callable and nothing is deleted. Leave empty to disable. Ask the assistant in chat if unsure what to list — but the assistant cannot change this setting, so paste and save it yourself.</string>
   <string name="assistant_page_local_tools_section_ai_diagnostics">AI diagnostics</string>
   <string name="assistant_page_local_tools_diagnostics_title">Diagnostics</string>
   <string name="assistant_page_local_tools_diagnostics_desc">App health, build info, logs, crash and lifecycle reports.</string>
@@ -3153,6 +3158,7 @@
   <string name="tool_output_tokens_estimate">≈%1$sK–%2$sK tokens</string>
   <string name="tool_output_limit_desc">Limit the maximum characters of tool output to prevent long output from occupying too much context</string>
   <string name="tool_output_limit_warning">⚠️ Setting it too low may truncate tool output</string>
+  <string name="tool_output_compact_desc">Compact limit applies only to the tools listed in an assistant\'s truncate list (Assistant → Tools). Those outputs are saved in full to /tool_outputs and only a short preview enters the context; unlisted tools use the limit above.</string>
   <string name="provider_override_label">%1$s (override)</string>
   <string name="notification_no_title">(no title)</string>
   <string name="notification_label_title">%1$s: %2$s</string>
