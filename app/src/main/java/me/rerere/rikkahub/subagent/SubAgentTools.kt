@@ -44,7 +44,15 @@ internal fun encodeRun(run: SubAgentRun): kotlinx.serialization.json.JsonObject 
     }
     put("trip_count", run.tripCount)
     if (run.workspaceId != null) put("workspace_id", run.workspaceId)
-    if (run.sameWorkspaceAsParent) put("workspace_shared_with_parent", true)
+    if (run.sameWorkspaceAsParent) {
+        put("workspace_shared_with_parent", true)
+        // A-9：不只给一个布尔标记，把「风险与怎么办」一并回显，否则父会话/用户容易忽略。
+        put(
+            "workspace_note",
+            "本子代理与父会话使用同一工作区：双方读写互相影响（后写覆盖前写）。" +
+                "改动同一批文件前先确认子代理是否已写过，或给子代理单独指定一个工作区。",
+        )
+    }
     put("elevated", run.elevated)
     run.toolScope?.takeIf { it.isNotEmpty() }?.let { scope ->
         put("tool_scope", buildJsonArray { scope.forEach { add(it) } })

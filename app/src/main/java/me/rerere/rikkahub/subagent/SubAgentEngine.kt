@@ -431,7 +431,9 @@ class SubAgentEngine(
         // 提示词不再拼进任务文本：它走会话级 system prompt（见 RunTargets.Ready.systemPrompt），
         // 否则只是「用户消息前缀」，权重低、约束不住（实测两次仍带过程叙述）。
         val effectiveTask = request.task
-        // A-9 互踩可见化：生效工作区与父助手相同（含“都未绑定”）且确实存在工作区时，标出风险。
+        // A-9 互踩可见化：子代理的生效工作区 == 父助手绑定的工作区时标出风险。
+        // 注意：父子**都未绑定**不算共享 —— 那时 `createWorkspaceToolsIfReady` 根本不注入
+        // workspace_* 工具（id 为空即返回空集），双方没有可互踩的工作区。
         val parentWorkspaceId = settings.assistants.firstOrNull { it.id == parentAssistantId }
             ?.workspaceId?.toString()
         val effectiveWorkspaceId = workspaceId ?: parentWorkspaceId
