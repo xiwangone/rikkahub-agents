@@ -29,7 +29,6 @@ import me.rerere.workspace.BackgroundStatus
 import me.rerere.workspace.WorkspaceTreeResult
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceManager
-import me.rerere.workspace.sanitizeFileMode
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
 
