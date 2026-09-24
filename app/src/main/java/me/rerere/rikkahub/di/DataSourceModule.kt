@@ -61,6 +61,7 @@ import me.rerere.rikkahub.data.grok.GrokOAuthManager
 import me.rerere.rikkahub.data.grok.GrokProvider
 import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.MigrationExporter
+import me.rerere.rikkahub.data.sync.MigrationImporter
 import me.rerere.rikkahub.data.sync.S3Sync
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.search.SearchService
@@ -495,6 +496,15 @@ val dataSourceModule =
                 webDavSync = get(),
                 backupEncryptionManager = get(),
                 vaultRepository = get(),
+            )
+        }
+
+        single {
+            MigrationImporter(
+                webDavSync = get(),
+                backupEncryptionManager = get(),
+                vaultRepository = get(),
+                migrationSettingsStore = get(),
             )
         }
 

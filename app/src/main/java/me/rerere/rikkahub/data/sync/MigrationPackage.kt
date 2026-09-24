@@ -148,3 +148,34 @@ private fun writeZipTextEntries(
         zipOut.closeEntry()
     }
 }
+
+/** 列出 zip 里的条目名（不解压内容）。读失败返回空列表，交给调用方判「不是迁移包」。 */
+internal fun listZipEntryNames(zipFile: File): List<String> =
+    runCatching {
+        val names = mutableListOf<String>()
+        ZipInputStream(zipFile.inputStream().buffered()).use { zipIn ->
+            var entry = zipIn.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory) names += entry.name.trimStart('/')
+                zipIn.closeEntry()
+                entry = zipIn.nextEntry
+            }
+        }
+        names
+    }.getOrDefault(emptyList())
+
+/** 读取 zip 内某个文本条目的内容；不存在或读取失败返回 null。 */
+internal fun readTextEntry(zipFile: File, entryName: String): String? =
+    runCatching {
+        ZipInputStream(zipFile.inputStream().buffered()).use { zipIn ->
+            var entry = zipIn.nextEntry
+            while (entry != null) {
+                if (!entry.isDirectory && entry.name.trimStart('/') == entryName) {
+                    return@use zipIn.readBytes().decodeToString()
+                }
+                zipIn.closeEntry()
+                entry = zipIn.nextEntry
+            }
+            null
+        }
+    }.getOrNull()

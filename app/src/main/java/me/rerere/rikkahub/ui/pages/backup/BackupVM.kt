@@ -23,6 +23,8 @@ import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
 import me.rerere.rikkahub.data.sync.BackupPasswordCipher
 import me.rerere.rikkahub.data.sync.S3BackupItem
+import me.rerere.rikkahub.data.sync.MigrationImportResult
+import me.rerere.rikkahub.data.sync.MigrationImporter
 import me.rerere.rikkahub.data.sync.MigrationExportResult
 import me.rerere.rikkahub.data.sync.MigrationExporter
 import me.rerere.rikkahub.data.sync.S3Sync
@@ -47,6 +49,7 @@ class BackupVM(
     private val appScope: AppScope,
     private val backupEncryptionManager: BackupEncryptionManager,
     private val migrationExporter: MigrationExporter,
+    private val migrationImporter: MigrationImporter,
 ) : ViewModel() {
     val settings =
         settingsStore.settingsFlow.stateIn(
@@ -253,6 +256,20 @@ class BackupVM(
         migrationExporter.export(
             config = settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
             providersJson = runCatching { Json.encodeToString(settings.value.providers) }.getOrNull(),
+        )
+
+    /** 最近一次导入前生成的**回滚包**（同机备份），供 UI 告诉用户到哪里去找回退。 */
+    val lastMigrationRollback = MutableStateFlow<File?>(null)
+
+    /**
+     * 导入「迁移包」：**全量覆盖**，但导入前会先自动做一次同机备份（回滚点）。
+     * 不是迁移包 / 清单版本不兼容时直接失败，不会改到一半。
+     */
+    suspend fun importMigrationPackage(file: File): MigrationImportResult =
+        migrationImporter.import(
+            config = settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
+            file = file,
+            createRollbackPoint = { lastMigrationRollback.value = exportToFile() },
         )
 
     suspend fun restoreFromLocalFile(file: File) {
