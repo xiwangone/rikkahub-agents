@@ -1435,7 +1435,13 @@ class GenerationLoop(
                     classifyGenerationOutcome(
                         cause = cause,
                         abortReason = runCtx.abortReason,
-                        cancelSource = GenerationRunTracker.consumeCancellation(conversationId?.toString()),
+                        // 只在真的是取消时才取用标记（正常完成不用它，也避免误消化别人的标记）
+                        cancelSource =
+                            if (cause is CancellationException) {
+                                GenerationRunTracker.consumeCancellation(conversationId?.toString())
+                            } else {
+                                null
+                            },
                         rawError = cause?.message.orEmpty(),
                     )
                 GenerationRunTracker.record(

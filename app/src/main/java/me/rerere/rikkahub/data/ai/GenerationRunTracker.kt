@@ -140,7 +140,12 @@ object GenerationRunTracker {
     private val runJson = Json { ignoreUnknownKeys = true }
 
     private val lock = Any()
+
+    // @Volatile：收尾协程写、诊断读（跨线程）——不加会读到陈旧快照
+    @Volatile
     private var loaded = false
+
+    @Volatile
     private var runState: State = State()
 
     /** 取消标记（内存态，不落盘）：conversationId → (来源, 时间戳)。 */
