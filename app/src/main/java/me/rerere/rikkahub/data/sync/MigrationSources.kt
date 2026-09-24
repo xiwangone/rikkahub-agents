@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.data.sync
 
-import me.rerere.rikkahub.data.datastore.ProviderCredentialCipher
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 
@@ -50,8 +49,3 @@ internal suspend fun collectMigrationCredentials(
     return credentials to undecryptable
 }
 
-/** provider 配置段：把本机密文解成明文 JSON（原文本身就是 JSON 串）。解不开时返回 null。 */
-internal fun migrationProvidersJson(encryptedProviders: String?): String? =
-    encryptedProviders
-        ?.takeIf { it.isNotBlank() }
-        ?.let { raw -> ProviderCredentialCipher.decrypt(raw) }

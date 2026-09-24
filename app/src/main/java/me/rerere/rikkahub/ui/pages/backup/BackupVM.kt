@@ -17,10 +17,14 @@ import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.saveUploadFromBytes
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
 import me.rerere.rikkahub.data.sync.BackupPasswordCipher
 import me.rerere.rikkahub.data.sync.S3BackupItem
+import me.rerere.rikkahub.data.sync.MigrationExportResult
+import me.rerere.rikkahub.data.sync.MigrationExporter
 import me.rerere.rikkahub.data.sync.S3Sync
 import me.rerere.rikkahub.data.sync.importer.ChatboxImporter
 import me.rerere.rikkahub.data.sync.importer.CherryStudioProviderImporter
@@ -32,6 +36,8 @@ import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "BackupVM"
 
+// 依赖注入的扁平参数：比自造 holder 更直白（Koin 按类型解析），故豁免参数个数门限。
+@Suppress("LongParameterList")
 class BackupVM(
     private val settingsStore: SettingsStore,
     private val webDavSync: WebDavSync,
@@ -40,6 +46,7 @@ class BackupVM(
     private val filesManager: FilesManager,
     private val appScope: AppScope,
     private val backupEncryptionManager: BackupEncryptionManager,
+    private val migrationExporter: MigrationExporter,
 ) : ViewModel() {
     val settings =
         settingsStore.settingsFlow.stateIn(
@@ -237,6 +244,16 @@ class BackupVM(
         recordBackupTime()
         return file
     }
+
+    /**
+     * 导出「迁移包」：换机可用（凭证与 provider 配置在包内是口令加密的明文形态）。
+     * 范围固定为会话库 + 设置；未开启备份加密时**拒绝导出**（包含明文密钥）。
+     */
+    suspend fun exportMigrationPackage(): MigrationExportResult =
+        migrationExporter.export(
+            config = settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
+            providersJson = runCatching { Json.encodeToString(settings.value.providers) }.getOrNull(),
+        )
 
     suspend fun restoreFromLocalFile(file: File) {
         webDavSync.restoreFromLocalFile(
