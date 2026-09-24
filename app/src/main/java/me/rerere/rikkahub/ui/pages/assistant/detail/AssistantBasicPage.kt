@@ -562,6 +562,59 @@ internal fun AssistantBasicContent(
             FormItem(
                 modifier = Modifier.padding(8.dp),
                 label = {
+                    Text(stringResource(R.string.assistant_page_token_budget))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_token_budget_desc))
+                },
+            ) {
+                // 留空 = 不限制（null）；只收数字，边输边存（与 contextMessageLimit 同风格）
+                fun commitTokenBudget(soft: String, hard: String) {
+                    val s = soft.toIntOrNull()
+                    val h = hard.toIntOrNull()
+                    if (s != assistant.tokenBudgetSoftCap || h != assistant.tokenBudgetHardCap) {
+                        onUpdate(assistant.copy(tokenBudgetSoftCap = s, tokenBudgetHardCap = h))
+                    }
+                }
+                var tokenSoftInput by remember(assistant.id, assistant.tokenBudgetSoftCap) {
+                    mutableStateOf(assistant.tokenBudgetSoftCap?.toString().orEmpty())
+                }
+                var tokenHardInput by remember(assistant.id, assistant.tokenBudgetHardCap) {
+                    mutableStateOf(assistant.tokenBudgetHardCap?.toString().orEmpty())
+                }
+                OutlinedTextField(
+                    value = tokenSoftInput,
+                    onValueChange = { input ->
+                        if (input.all(Char::isDigit)) {
+                            tokenSoftInput = input
+                            commitTokenBudget(input, tokenHardInput)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.assistant_page_token_budget_soft)) },
+                    supportingText = { Text(stringResource(R.string.assistant_page_token_budget_soft_hint)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                    singleLine = true,
+                )
+                OutlinedTextField(
+                    value = tokenHardInput,
+                    onValueChange = { input ->
+                        if (input.all(Char::isDigit)) {
+                            tokenHardInput = input
+                            commitTokenBudget(tokenSoftInput, input)
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.assistant_page_token_budget_hard)) },
+                    supportingText = { Text(stringResource(R.string.assistant_page_token_budget_hard_hint)) },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                    singleLine = true,
+                )
+            }
+            HorizontalDivider()
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
                     Text(stringResource(R.string.assistant_page_stream_output))
                 },
                 description = {

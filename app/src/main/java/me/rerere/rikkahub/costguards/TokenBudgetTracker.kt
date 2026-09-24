@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.costguards
 
 import me.rerere.ai.core.TokenUsage
+import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.model.Conversation
 
 /**
@@ -51,7 +52,16 @@ object TokenBudgetTracker {
         val status: BudgetStatus,
     )
 
-    fun aggregate(conversation: Conversation): Totals {
+    fun aggregate(conversation: Conversation): Totals =
+        aggregateMessages(
+            conversation.messageNodes.mapNotNull { node -> node.messages.getOrNull(node.selectIndex) },
+        )
+
+    /**
+     * 从消息列表直接聚合（生成循环用：它手上只有请求历史，没有 [Conversation]）。
+     * 口径与 [aggregate] 一致：只统计带 usage 的消息。
+     */
+    fun aggregateMessages(messages: List<UIMessage>): Totals {
         var input = 0L
         var output = 0L
         var cached = 0L
@@ -60,8 +70,7 @@ object TokenBudgetTracker {
         var count = 0
         var lastHitPct = 0.0
         var cost = 0.0
-        for (node in conversation.messageNodes) {
-            val msg = node.messages.getOrNull(node.selectIndex) ?: continue
+        for (msg in messages) {
             val usage = msg.usage ?: continue
             input += usage.promptTokens.toLong()
             output += usage.completionTokens.toLong()

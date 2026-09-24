@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai
 
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.costguards.TokenBudgetTracker
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.perf.resolveRenderProfileLogged
 import android.content.Context
@@ -724,6 +725,8 @@ class GenerationLoop(
         val turnStartMs = android.os.SystemClock.elapsedRealtime()
         var loopGuardTripCount = 0
         var wrapUpInjected = false
+        // token 预算宽限提示每轮只注入一次（与 wrapUpInjected 同构）
+        var tokenBudgetWarnInjected = false
         // 断流续写计数（见 MAX_AUTO_CONTINUE）
         var autoContinueCount = 0
         // 输出变换节流状态（窗口见渲染档位）：窗口内被合并掉的最新快照，
@@ -761,6 +764,34 @@ class GenerationLoop(
                 AppLog.w(TAG, "generateText: wall-clock cap (${ToolRuntimeLimits.turnBudgetMs}ms) hit at step #$stepIndex; force-ending turn")
                 runCtx.abortReason = GenerationOutcome.TIMEOUT
                 break
+            }
+            // token 预算（Phase 15.5，2026-09-25）——与时间预算同构的两级处置：
+            //   WARN（越过 softCap）：只注入一次收尾提示（"先警告"，靠提示词收敛）；
+            //   OVER_HARD：直接收尾（模型没有继续展开的空间）。
+            // 口径 = perMessageMax（单条请求峰值 ≈ 真实上下文窗口），非累计总量；
+            // 直接在本函数内算（不入参）—— 避免改签名把 detekt baseline 整片掀掉。
+            if (assistant.tokenBudgetSoftCap != null || assistant.tokenBudgetHardCap != null) {
+                val budgetStatus =
+                    TokenBudgetTracker.classify(
+                        TokenBudgetTracker.aggregateMessages(messages),
+                        assistant.tokenBudgetSoftCap,
+                        assistant.tokenBudgetHardCap,
+                    )
+                if (budgetStatus == TokenBudgetTracker.BudgetStatus.WARN) {
+                    if (!tokenBudgetWarnInjected) {
+                        tokenBudgetWarnInjected = true
+                        AppLog.w(TAG, "generateText: token budget over soft cap; injecting wrap-up reminder")
+                        messages =
+                            messages +
+                            UIMessage.user(
+                                context.getString(R.string.ai_token_budget_notice),
+                            ).copy(isSynthetic = true)
+                    }
+                } else if (budgetStatus == TokenBudgetTracker.BudgetStatus.OVER_HARD) {
+                    AppLog.w(TAG, "generateText: token budget over hard cap at step #$stepIndex; force-ending turn")
+                    runCtx.abortReason = GenerationOutcome.TOKEN_BUDGET
+                    break
+                }
             }
             // Repeated loop-guard trips mean the model is flailing: it bumps into the
             // guard, picks a different tool, that one also gets guarded, and so on. After

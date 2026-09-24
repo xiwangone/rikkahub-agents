@@ -813,6 +813,13 @@
   <string name="setting_display_page_chat_font_family_monospace">Monospace</string>
   <string name="setting_display_page_chat_font_family_serif">Serif</string>
   <string name="ai_wrap_up_notice">TIME BUDGET NOTICE: this turn is about to hit its wall-clock limit. Stop starting new tool calls, finish any in-flight work, and give a concise final summary of what was done and what remains.</string>
+  <string name="ai_token_budget_notice">TOKEN BUDGET NOTICE: this turn has reached this assistant\'s token budget. Stop starting new tool calls, finish any in-flight work, and give a concise final summary of what was done and what remains.</string>
+  <string name="assistant_page_token_budget">Token budget (hard stop)</string>
+  <string name="assistant_page_token_budget_desc">Judged on the largest single request (≈ real context window), not the running total. Past the soft cap the assistant is told to wrap up; past the hard cap the turn is stopped outright.</string>
+  <string name="assistant_page_token_budget_soft">Soft cap — wrap-up notice</string>
+  <string name="assistant_page_token_budget_soft_hint">e.g. 100000. Empty = no limit.</string>
+  <string name="assistant_page_token_budget_hard">Hard cap — stop the turn</string>
+  <string name="assistant_page_token_budget_hard_hint">e.g. 200000; set it at or above the soft cap. Empty = no limit.</string>
   <string name="ai_auto_continue_prompt">AUTO-CONTINUE: your previous reply was cut off in the middle. Continue from where it stopped, do not repeat what you have already written, and finish the answer.</string>
   <string name="notification_channel_scheduled_jobs">Scheduled jobs</string>
   <string name="notification_scheduled_job_failed_title">Scheduled job failed</string>

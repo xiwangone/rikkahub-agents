@@ -2002,7 +2002,18 @@ class ChatService(
                     compressedSummaries.forEach { summary ->
                         add(UIMessage.user(summary).toMessageNode())
                     }
-                    addAll(messagesToKeep.map { truncateKeptToolOutput(it, settings.toolOutputMaxChars).toMessageNode() })
+                    val compactTools =
+                        settings.getAssistantById(conversation.assistantId)?.toolOutputCompactTools.orEmpty()
+                    addAll(
+                        messagesToKeep.map {
+                            truncateKeptToolOutput(
+                                it,
+                                settings.toolOutputMaxChars,
+                                compactTools,
+                                settings.toolOutputCompactMaxChars,
+                            ).toMessageNode()
+                        },
+                    )
                 }
             val newConversation =
                 conversation.copy(
@@ -2039,24 +2050,37 @@ class ChatService(
      * 因此与输出用同一上限分别截断。只在“已被压缩、进入保留区”的历史上生效，
      * 不影响当轮实时调用，也不改动缓存可见的请求前缀之外的内容。
      */
-    private fun truncateKeptToolOutput(message: UIMessage, maxChars: Int): UIMessage {
+    /**
+     * 压缩后保留消息的工具输出截断。
+     *
+     * [compactTools] 为助手级「紧凑输出」名单：命中者用 [compactMaxChars]，其余用 [maxChars] ——
+     * 与生成期 `maybeTruncateToolOutput` 的口径保持一致（2026-09-25）。
+     */
+    private fun truncateKeptToolOutput(
+        message: UIMessage,
+        maxChars: Int,
+        compactTools: List<String> = emptyList(),
+        compactMaxChars: Int = maxChars,
+    ): UIMessage {
         if (maxChars <= 0) return message
         return message.copy(
             parts =
                 message.parts.map { part ->
                     if (part is UIMessagePart.Tool) {
+                        // 命中助手「紧凑输出」名单的工具用更小阈值（与生成期口径一致）
+                        val limit = if (part.toolName in compactTools) compactMaxChars else maxChars
                         val trimmedInput =
-                            if (part.input.length > maxChars) {
-                                AppLog.d(TAG, "B5 截断工具入参: tool=${part.toolName} ${part.input.length}→$maxChars chars")
-                                part.input.take(maxChars) + "\n…[truncated]"
+                            if (part.input.length > limit) {
+                                AppLog.d(TAG, "B5 截断工具入参: tool=${part.toolName} ${part.input.length}→$limit chars")
+                                part.input.take(limit) + "\n…[truncated]"
                             } else {
                                 part.input
                             }
                         val textParts = part.output.filterIsInstance<UIMessagePart.Text>()
                         val totalLen = textParts.sumOf { it.text.length }
-                        if (totalLen > maxChars) {
-                            AppLog.d(TAG, "T12 截断工具输出: tool=${part.toolName} $totalLen→$maxChars chars")
-                            var remaining = maxChars
+                        if (totalLen > limit) {
+                            AppLog.d(TAG, "T12 截断工具输出: tool=${part.toolName} $totalLen→$limit chars")
+                            var remaining = limit
                             val truncated =
                                 part.output.mapNotNull { p ->
                                     val t = (p as? UIMessagePart.Text)?.text

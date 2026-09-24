@@ -3296,4 +3296,11 @@
   <string name="assistant_page_compact_output_dialog_desc">每行一個工具名（也可用逗號分隔），請用 list_tools 裡顯示的確切名稱。適合填「回傳內容很大」的工具，例如網頁抓取、全量清單、診斷匯出。名單內的工具按緊湊閾值（設定 → 工具）截斷並把全文存到 /tool_outputs；名單外的仍走全域上限。工具仍可正常呼叫，內容不會被刪除。留空表示不生效。</string>
   <string name="setting_model_page_tool_output_compact_max_chars">緊湊閾值（K 字元，1-32；僅用於助手截斷名單內的工具）</string>
   <string name="tool_output_compact_desc">緊湊閾值只對「助手 → 工具」裡填進截斷名單的工具生效：它們的輸出會完整存到 /tool_outputs，只把簡短預覽放進上下文；名單外的工具仍用上面的輸出限制。</string>
+  <string name="ai_token_budget_notice">TOKEN 預算通知：本回合已達到此助理的 token 預算。請停止發起新的工具呼叫，完成進行中的工作，並簡潔地總結已完成的事項與待辦事項。</string>
+  <string name="assistant_page_token_budget">Token 預算（硬性停止）</string>
+  <string name="assistant_page_token_budget_desc">以最大的單一請求（≈ 實際上下文視窗）為判斷依據，而非累計總量。超過軟性上限時，助理會收到收尾通知；超過硬性上限時，本回合會立即停止。</string>
+  <string name="assistant_page_token_budget_hard">硬性上限 — 停止本回合</string>
+  <string name="assistant_page_token_budget_hard_hint">例如 200000；請設定為等於或高於軟性上限。留空 = 無限制。</string>
+  <string name="assistant_page_token_budget_soft">軟性上限 — 收尾通知</string>
+  <string name="assistant_page_token_budget_soft_hint">例如 100000。留空 = 無限制。</string>
 </resources>

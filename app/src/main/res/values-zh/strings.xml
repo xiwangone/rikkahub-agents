@@ -806,6 +806,13 @@
   <string name="setting_display_page_chat_font_family_monospace">等宽字体</string>
   <string name="setting_display_page_chat_font_family_serif">衬线体</string>
   <string name="ai_wrap_up_notice">【时间预算提醒】本轮可用时间即将耗尽。请停止发起新的工具调用，结束正在进行的工作，并简要总结已完成的内容与剩余事项。</string>
+  <string name="ai_token_budget_notice">【token 预算提醒】本轮已达该助手的预算上限。请停止发起新的工具调用，结束正在进行的工作，并简要总结已完成的内容与剩余事项。</string>
+  <string name="assistant_page_token_budget">token 预算（硬拦）</string>
+  <string name="assistant_page_token_budget_desc">口径是「单次请求的最大 token 数」（≈ 真实上下文窗口），不是累计总量。超过软上限：助手收到收尾提示；超过硬上限：本轮直接结束。</string>
+  <string name="assistant_page_token_budget_soft">软上限 —— 只提醒收尾</string>
+  <string name="assistant_page_token_budget_soft_hint">例：100000。留空 = 不限制。</string>
+  <string name="assistant_page_token_budget_hard">硬上限 —— 到线即停</string>
+  <string name="assistant_page_token_budget_hard_hint">例：200000，建议 ≥ 软上限。留空 = 不限制。</string>
   <string name="ai_auto_continue_prompt">【自动续写】你上一条回复在中途被切断。请从断开处继续，不要重复已写过的内容，把回答写完。</string>
   <string name="notification_channel_scheduled_jobs">定时任务</string>
   <string name="notification_scheduled_job_failed_title">定时任务失败</string>

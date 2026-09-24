@@ -3297,4 +3297,11 @@
   <string name="assistant_page_compact_output_dialog_desc">1 行に 1 つのツール名（カンマ区切りも可）。list_tools に表示される正確な名前を使ってください。大量の出力を返すツール（ページ取得、全件リスト、診断ダンプなど）に適しています。リストに入れたツールはコンパクト上限（設定 → ツール）で切り詰められ、全文は /tool_outputs に保存されます。リスト外のツールは全体の上限のままです。ツールは引き続き呼び出せ、内容が削除されることもありません。空欄にすると無効になります。何を入れるか分からない場合は、チャットでアシスタントにリストを作らせてください（ただしアシスタントはこの設定を変更できないため、自分で貼り付けて保存してください）。</string>
   <string name="setting_model_page_tool_output_compact_max_chars">コンパクト上限（K 文字、1-32；アシスタントの切り詰めリストにあるツールのみ）</string>
   <string name="tool_output_compact_desc">コンパクト上限は「アシスタント → ツール」の切り詰めリストに入れたツールだけに適用されます。それらの出力は /tool_outputs に全文保存され、コンテキストには短いプレビューだけが入ります。リスト外のツールは上記の出力制限を使います。</string>
+  <string name="ai_token_budget_notice">トークン予算通知: このターンはこのアシスタントのトークン予算に達しました。新しいツール呼び出しを開始するのをやめ、進行中の作業を完了し、何が行われ、何が残っているかを簡潔にまとめてください。</string>
+  <string name="assistant_page_token_budget">トークン予算（ハードストップ）</string>
+  <string name="assistant_page_token_budget_desc">最大の単一リクエスト（≈実際のコンテキストウィンドウ）で判断され、累積合計ではありません。ソフトキャップを超えると、アシスタントは終了するように指示されます。ハードキャップを超えると、ターンは完全に停止されます。</string>
+  <string name="assistant_page_token_budget_hard">ハードキャップ — ターンを停止</string>
+  <string name="assistant_page_token_budget_hard_hint">例: 200000; ソフトキャップ以上に設定してください。空 = 制限なし。</string>
+  <string name="assistant_page_token_budget_soft">ソフトキャップ — 終了通知</string>
+  <string name="assistant_page_token_budget_soft_hint">例: 100000。空 = 制限なし。</string>
 </resources>

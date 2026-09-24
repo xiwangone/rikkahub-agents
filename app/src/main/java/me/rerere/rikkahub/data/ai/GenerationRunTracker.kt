@@ -28,6 +28,9 @@ enum class GenerationOutcome {
     /** 反复触发循环保护（模型打转），被强制收尾。 */
     LOOP_GUARD,
 
+    /** token 预算越过硬上限（助手级 soft/hard cap），被强制收尾。 */
+    TOKEN_BUDGET,
+
     /** 网络 / 传输层失败。 */
     NETWORK_ERROR,
 
