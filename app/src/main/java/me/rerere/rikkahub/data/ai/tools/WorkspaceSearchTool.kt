@@ -31,6 +31,7 @@ internal fun createSearchCodeTool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
+                putWorkspaceProperty()
                 put("pattern", buildJsonObject {
                     put("type", "string")
                     put("description", "Extended regular expression (ERE) to search for")
@@ -58,6 +59,7 @@ internal fun createSearchCodeTool(
     needsApproval = { needsApproval("workspace_search_code") },
     execute = {
         val params = it.jsonObject
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val pattern =
             params["pattern"]?.jsonPrimitive?.contentOrNull?.takeIf { s -> s.isNotBlank() }
                 ?: error("pattern is required")
@@ -74,7 +76,7 @@ internal fun createSearchCodeTool(
         val grep = "grep -rnE $include${shq(pattern)} $target 2>/dev/null"
         val cmd = "{ $grep | head -n ${max + 1}; printf '\\n---TOTAL---\\n'; $grep | wc -l; }"
 
-        val result = workspaceRepository.executeCommand(workspaceId, cmd, "")
+        val result = workspaceRepository.executeCommand(wsId, cmd, "")
         val raw = result.stdout
         val totalIdx = raw.indexOf("---TOTAL---")
         val hitsPart = if (totalIdx >= 0) raw.substring(0, totalIdx) else raw

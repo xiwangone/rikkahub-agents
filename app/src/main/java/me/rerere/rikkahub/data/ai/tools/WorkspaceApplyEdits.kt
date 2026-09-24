@@ -38,12 +38,15 @@ internal fun createApplyEditsTool(
     """.trimIndent().replace("\n", " "),
     parameters = { applyEditsParameters() },
     needsApproval = { needsApproval("workspace_apply_edits") },
-    execute = { args -> runApplyEdits(workspaceId, workspaceRepository, args) },
+    execute = { args ->
+        runApplyEdits(resolveTargetWorkspaceId(workspaceRepository, args, workspaceId), workspaceRepository, args)
+    },
 )
 
 private fun applyEditsParameters(): InputSchema.Obj =
     InputSchema.Obj(
         properties = buildJsonObject {
+            putWorkspaceProperty()
             put("files", buildJsonObject {
                 put("type", "array")
                 put(

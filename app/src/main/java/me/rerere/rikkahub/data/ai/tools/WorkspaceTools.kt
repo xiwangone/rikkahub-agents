@@ -101,6 +101,7 @@ private fun createReadFileTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 putPathProperty(required = true)
+                putWorkspaceProperty()
                 put("start_line", buildJsonObject {
                     put("type", "integer")
                     put("description", "Optional 1-based first line to return (inclusive). Omit to start at line 1.")
@@ -121,10 +122,11 @@ private fun createReadFileTool(
     execute = {
         val args = it.jsonObject
         val path = args.absolutePath("path")
+        val targetWorkspaceId = resolveTargetWorkspaceId(workspaceRepository, args, workspaceId)
         if (path.isImagePath()) {
-            workspaceRepository.readImageInRootfs(workspaceId, path)
+            workspaceRepository.readImageInRootfs(targetWorkspaceId, path)
         } else {
-            val text = workspaceRepository.readTextInRootfs(workspaceId, path)
+            val text = workspaceRepository.readTextInRootfs(targetWorkspaceId, path)
             val startLine = args["start_line"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
             val endLine = args["end_line"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
             val withLineNumbers =
@@ -181,6 +183,7 @@ private fun createWriteFileTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 putPathProperty(required = true)
+                    putWorkspaceProperty()
                 put("text", buildJsonObject {
                     put("type", "string")
                     put("description", "UTF-8 text content to write")
@@ -199,6 +202,7 @@ private fun createWriteFileTool(
     },
     needsApproval = { needsApproval("workspace_write_file") || it.pathOutsideWritableRoots("path") },
     execute = {
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val params = it.jsonObject
         val path = params.absolutePath("path")
         val text = params.string("text") ?: error("text is required")
@@ -206,8 +210,8 @@ private fun createWriteFileTool(
         val mode = params["mode"]?.jsonPrimitive?.contentOrNull
         // 执行前读旧内容（文件不存在 → 视为空）：新建文件 diff 全绿、覆盖写显示红绿改动。
         // 与 edit_file 保持一致：diff 存 metadata，不随工具结果发给模型、不占上下文。
-        val originalText = runCatching { workspaceRepository.readTextInRootfs(workspaceId, path) }.getOrNull()
-        val entry = workspaceRepository.writeTextInRootfs(workspaceId, path, text, overwrite, mode)
+        val originalText = runCatching { workspaceRepository.readTextInRootfs(wsId, path) }.getOrNull()
+        val entry = workspaceRepository.writeTextInRootfs(wsId, path, text, overwrite, mode)
         val diff = me.rerere.rikkahub.data.vault.SecretMasker.mask(generateUnifiedDiff(originalText.orEmpty(), text, entry.path).orEmpty())
         listOf(
             UIMessagePart.Text(
@@ -235,6 +239,7 @@ private fun createEditFileTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 putPathProperty(required = true)
+                    putWorkspaceProperty()
                 put("old_text", buildJsonObject {
                     put("type", "string")
                     put("description", "Exact text to replace (single mode)")
@@ -271,11 +276,12 @@ private fun createEditFileTool(
     },
     needsApproval = { needsApproval("workspace_edit_file") || it.pathOutsideWritableRoots("path") },
     execute = {
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val params = it.jsonObject
         val path = params.absolutePath("path")
         val replaceAll = params["replace_all"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
 
-        val original = workspaceRepository.readTextInRootfs(workspaceId, path)
+        val original = workspaceRepository.readTextInRootfs(wsId, path)
 
         // 批量模式：一次提交多处替换（顺序应用）。任一处失败即整体失败且**不写盘** ——
         // 避免留下「改了一半」的文件（半成品比直接失败更难排查）。
@@ -319,7 +325,7 @@ private fun createEditFileTool(
             replacementCount = r.replacements
             matchStrategy = r.strategy
         }
-        val entry = workspaceRepository.writeTextInRootfs(workspaceId, path, updatedText, overwrite = true)
+        val entry = workspaceRepository.writeTextInRootfs(wsId, path, updatedText, overwrite = true)
         val diff = me.rerere.rikkahub.data.vault.SecretMasker.mask(generateUnifiedDiff(original, updatedText, entry.path).orEmpty())
         listOf(
             UIMessagePart.Text(
@@ -363,6 +369,7 @@ private fun createDiffFileTool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
+                putWorkspaceProperty()
                 put("a", buildJsonObject {
                     put("type", "string")
                     put("description", "Absolute path of the first file inside Rootfs (/workspace/...).")
@@ -377,11 +384,12 @@ private fun createDiffFileTool(
     },
     needsApproval = { needsApproval("diff_files") },
     execute = {
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val params = it.jsonObject
         val a = params.absolutePath("a")
         val b = params.absolutePath("b")
-        val aText = workspaceRepository.readTextInRootfs(workspaceId, a)
-        val bText = workspaceRepository.readTextInRootfs(workspaceId, b)
+        val aText = workspaceRepository.readTextInRootfs(wsId, a)
+        val bText = workspaceRepository.readTextInRootfs(wsId, b)
         val diff =
             me.rerere.rikkahub.data.vault.SecretMasker.mask(
                 // 两个不同文件对比：头部分别用各自路径（否则 a/b 两侧显示同一个路径，看起来像方向反了）
@@ -696,14 +704,16 @@ private fun createCreateFolderTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 putPathProperty(required = true)
+                    putWorkspaceProperty()
             },
             required = listOf("path"),
         )
     },
     needsApproval = { needsApproval("workspace_create_folder") || it.pathOutsideWritableRoots("path") },
     execute = {
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, it.jsonObject, workspaceId)
         val path = it.jsonObject.absolutePath("path")
-        val entry = workspaceRepository.createFolderInRootfs(workspaceId, path)
+        val entry = workspaceRepository.createFolderInRootfs(wsId, path)
         listOf(UIMessagePart.Text(entry.toJson().toString()))
     },
 )
@@ -719,14 +729,16 @@ private fun createReadFolderTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 putPathProperty(required = true)
+                    putWorkspaceProperty()
             },
             required = listOf("path"),
         )
     },
     needsApproval = { needsApproval("workspace_read_folder") },
     execute = {
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, it.jsonObject, workspaceId)
         val path = it.jsonObject.absolutePath("path")
-        val result = workspaceRepository.readFolderTree(workspaceId, path)
+        val result = workspaceRepository.readFolderTree(wsId, path)
         listOf(UIMessagePart.Text(formatWorkspaceTree(path, result)))
     },
 )
@@ -742,6 +754,7 @@ private fun createRunBackgroundTool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
+                putWorkspaceProperty()
                 put("command", buildJsonObject {
                     put("type", "string")
                     put("description", "Shell command to run in the background")
@@ -768,6 +781,7 @@ private fun createRunBackgroundTool(
     },
     needsApproval = { needsApproval("workspace_run_background") },
     execute = {
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val params = it.jsonObject
         val command = params.string("command") ?: error("command is required")
         val cwd = (params.string("cwd") ?: defaultCwd.orEmpty())
@@ -777,7 +791,7 @@ private fun createRunBackgroundTool(
         val (injectedEnv, envError) = resolveInjectedEnv(params)
         if (envError != null) return@Tool listOf(UIMessagePart.Text(envError))
 
-        val status = workspaceRepository.startBackground(workspaceId, command, cwd, injectedEnv)
+        val status = workspaceRepository.startBackground(wsId, command, cwd, injectedEnv)
         listOf(
             UIMessagePart.Text(
                 buildJsonObject {
@@ -799,6 +813,7 @@ private fun createBackgroundStatusTool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
+                putWorkspaceProperty()
                 put("id", buildJsonObject {
                     put("type", "string")
                     put("description", "Task id from workspace_run_background. Omit to list all.")
@@ -809,11 +824,12 @@ private fun createBackgroundStatusTool(
     },
     needsApproval = { needsApproval("workspace_background_status") },
     execute = {
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, it.jsonObject, workspaceId)
         val taskId = it.jsonObject.string("id")
         val statuses = if (taskId != null) {
-            listOfNotNull(workspaceRepository.backgroundStatus(workspaceId, taskId))
+            listOfNotNull(workspaceRepository.backgroundStatus(wsId, taskId))
         } else {
-            workspaceRepository.listBackground(workspaceId)
+            workspaceRepository.listBackground(wsId)
         }
         listOf(
             UIMessagePart.Text(
@@ -837,6 +853,7 @@ private fun createBackgroundKillTool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
+                putWorkspaceProperty()
                 put("id", buildJsonObject {
                     put("type", "string")
                     put("description", "Task id from workspace_run_background")
@@ -847,8 +864,9 @@ private fun createBackgroundKillTool(
     },
     needsApproval = { needsApproval("workspace_background_kill") },
     execute = {
+        val wsId = resolveTargetWorkspaceId(workspaceRepository, it.jsonObject, workspaceId)
         val taskId = it.jsonObject.string("id") ?: error("id is required")
-        val killed = workspaceRepository.killBackground(workspaceId, taskId)
+        val killed = workspaceRepository.killBackground(wsId, taskId)
         listOf(
             UIMessagePart.Text(
                 buildJsonObject {

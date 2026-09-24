@@ -789,6 +789,8 @@ private fun InstallRootfsDialog(
 ) {
     var url by rememberSaveable(workspace.id) { mutableStateOf(DEFAULT_ROOTFS_URL) }
     val context = LocalContext.current
+    // Debian 预置地址含构建日期，需在线解析最新目录后再填入（见 resolveLxcDebianRootfs）
+    val scope = rememberCoroutineScope()
     // 本地导入：先把所选归档复制到应用缓存，再交给安装流程（安装线程无法直接读 SAF 流）
     val pickArchiveLauncher =
         rememberLauncherForActivityResult(
