@@ -73,6 +73,7 @@ import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.LocalTools
+import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
 import me.rerere.rikkahub.data.preferences.isWorkspaceToolName
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -1089,6 +1090,10 @@ class ChatService(
                         // /stop or a concurrent decision could have already flipped it to
                         // Denied(cancelled); we don't want to overwrite that with Approved.
                         var foundActivePending = false
+                        // 交互式工具（如 ask_user）的结果是**用户的回答**：它不经过 Tool.execute，
+                        // 因此不在统一埋点（ChatToolFactory.trackUsage）的覆盖范围内。此处把工具名捞出来，
+                        // 回答落库后补记一次调用，否则统计会把用过的交互式工具列成「已启用但从未调用」。
+                        var answeredToolName: String? = null
                         val updatedNodes =
                             conversation.messageNodes.map { node ->
                                 node.copy(
@@ -1102,6 +1107,7 @@ class ChatService(
                                                         ) {
                                                             if (part.isPending) {
                                                                 foundActivePending = true
+                                                                answeredToolName = part.toolName
                                                                 part.copy(approvalState = newApprovalState)
                                                             } else {
                                                                 part
@@ -1121,6 +1127,19 @@ class ChatService(
                         }
                         val updatedConversation = conversation.copy(messageNodes = updatedNodes)
                         saveConversation(conversationId, updatedConversation)
+
+                        // 交互式工具（如 ask_user）没有可执行体：它的结果就是用户的回答，因此不经过
+                        // Tool.execute、也就落在统一埋点之外。这里补记一次调用（无执行耗时），
+                        // 否则 usage 报告会把明明用过的交互式工具列成「已启用但从未调用」。
+                        val answeredName = answeredToolName
+                        if (answer != null && answeredName != null) {
+                            ToolUsageTracker.record(
+                                context = context,
+                                name = answeredName,
+                                durationMs = 0,
+                                failed = false,
+                            )
+                        }
 
                         // Check if there are still pending tools across the conversation
                         val hasPendingTools =

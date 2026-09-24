@@ -63,6 +63,19 @@ class ToolUsageTrackerTest {
     }
 
     @Test
+    fun `an answered interactive tool counts as one call with no execution time`() {
+        // 交互式工具（如 ask_user）没有可执行体：它的结果就是用户的回答，不经过 Tool.execute，
+        // 因此由调用方在「回答落库」处补记一次。耗时记 0（等人思考不是工具执行时间）。
+        // 锁定口径：这种补记仍要计数、且不能算失败 —— 否则 usage 报告会把用过的工具列成「从未调用」。
+        ToolUsageTracker.record(NULL_CONTEXT, "ask_user", durationMs = 0, failed = false)
+
+        val entry = ToolUsageTracker.snapshot(NULL_CONTEXT).single()
+        assertEquals(1L, entry.count)
+        assertEquals(0L, entry.failures)
+        assertEquals(0L, entry.avgMs)
+    }
+
+    @Test
     fun `snapshot orders by call count desc then by name`() {
         ToolUsageTracker.record(NULL_CONTEXT, "b", 1, false)
         ToolUsageTracker.record(NULL_CONTEXT, "b", 1, false)

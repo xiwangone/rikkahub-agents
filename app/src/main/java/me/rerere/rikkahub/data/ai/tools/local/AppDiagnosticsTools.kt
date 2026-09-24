@@ -723,6 +723,9 @@ internal suspend fun enabledToolsPayload(settingsStore: SettingsStore): String {
 /**
  * 本地工具的调用统计（次数/失败数/平均耗时/最近调用时间），可 reset 清零。
  * 只记录工具名与计数，不含任何参数。与 tool_surface_report 对照可得出"从未使用"清单。
+ *
+ * 口径：常规工具在**执行完成**时由装配层统一埋点；交互式工具（如 `ask_user`）没有可执行体，
+ * 它的"执行"就是用户的回答，由 ChatService 在回答落库时补记一次（无执行耗时，不计失败）。
  */
 internal suspend fun usageStatsPayload(
     context: Context,
