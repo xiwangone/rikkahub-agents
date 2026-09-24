@@ -60,6 +60,12 @@ class GenerationRunContext(val startedAtMs: Long) {
     var promptTokens: Int = 0
     var completionTokens: Int = 0
     var cachedTokens: Int = 0
+
+    /** 花在模型请求上的墙钟（含其内部重试）。 */
+    var modelMs: Long = 0
+
+    /** 花在工具执行上的墙钟（只统计已批准并真正执行的工具）。 */
+    var toolMs: Long = 0
 }
 
 /** 一条生成记录（不含任何内容）。 */
@@ -76,6 +82,10 @@ data class GenerationRun(
     val errorKind: String? = null,
     val durationMs: Long = 0,
     val steps: Int = 0,
+    /** 其中：模型请求耗时（含内部重试）。 */
+    val modelMs: Long = 0,
+    /** 其中：工具执行耗时。 */
+    val toolMs: Long = 0,
     val promptTokens: Long = 0,
     val completionTokens: Long = 0,
     val cachedTokens: Long = 0,
@@ -130,6 +140,9 @@ object GenerationRunTracker {
         val totals: Map<String, Long> = emptyMap(),
         val byModel: Map<String, Map<String, Long>> = emptyMap(),
         val totalDurationMs: Long = 0,
+        /** 累计：模型请求耗时 / 工具执行耗时（用于耗时分解）。 */
+        val totalModelMs: Long = 0,
+        val totalToolMs: Long = 0,
         val totalPromptTokens: Long = 0,
         val totalCompletionTokens: Long = 0,
         val totalCachedTokens: Long = 0,
@@ -197,6 +210,8 @@ object GenerationRunTracker {
                     totals = totals,
                     byModel = byModel,
                     totalDurationMs = runState.totalDurationMs + run.durationMs.coerceAtLeast(0),
+                    totalModelMs = runState.totalModelMs + run.modelMs.coerceAtLeast(0),
+                    totalToolMs = runState.totalToolMs + run.toolMs.coerceAtLeast(0),
                     totalPromptTokens = runState.totalPromptTokens + run.promptTokens,
                     totalCompletionTokens = runState.totalCompletionTokens + run.completionTokens,
                     totalCachedTokens = runState.totalCachedTokens + run.cachedTokens,

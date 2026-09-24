@@ -770,6 +770,19 @@ internal fun runsPayload(
             )
             put("avgDurationMs", if (total > 0) state.totalDurationMs / total else 0)
             put(
+                "timeSplit",
+                buildJsonObject {
+                    put("modelMs", state.totalModelMs)
+                    put("toolMs", state.totalToolMs)
+                    put("totalMs", state.totalDurationMs)
+                    put(
+                        "otherMs",
+                        (state.totalDurationMs - state.totalModelMs - state.totalToolMs).coerceAtLeast(0),
+                    )
+                    put("note", "耗时分解 = 模型请求 + 工具执行 + 其余；otherMs 含审批等待、排队、用户输入等。")
+                },
+            )
+            put(
                 "tokens",
                 buildJsonObject {
                     put("prompt", state.totalPromptTokens)
@@ -790,6 +803,8 @@ internal fun runsPayload(
                                 run.finishReason?.let { put("finishReason", it) }
                                 run.errorKind?.let { put("errorKind", it) }
                                 put("durationMs", run.durationMs)
+                                put("modelMs", run.modelMs)
+                                put("toolMs", run.toolMs)
                                 put("steps", run.steps)
                                 put("promptTokens", run.promptTokens)
                                 put("completionTokens", run.completionTokens)

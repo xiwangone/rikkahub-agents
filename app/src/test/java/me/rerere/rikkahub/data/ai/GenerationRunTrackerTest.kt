@@ -148,6 +148,35 @@ class GenerationRunTrackerTest {
     }
 
     @Test
+    fun `time split accumulates model and tool wall clock`() {
+        GenerationRunTracker.record(
+            NULL_CONTEXT,
+            run(GenerationOutcome.COMPLETED).copy(modelMs = 1_000, toolMs = 2_500, durationMs = 4_000),
+        )
+        GenerationRunTracker.record(
+            NULL_CONTEXT,
+            run(GenerationOutcome.TIMEOUT).copy(modelMs = 500, toolMs = 0, durationMs = 900),
+        )
+
+        val state = GenerationRunTracker.snapshot(NULL_CONTEXT)
+        assertEquals(1_500L, state.totalModelMs)
+        assertEquals(2_500L, state.totalToolMs)
+        assertEquals(4_900L, state.totalDurationMs)
+    }
+
+    @Test
+    fun `negative partial timings cannot rewind the split`() {
+        GenerationRunTracker.record(
+            NULL_CONTEXT,
+            run(GenerationOutcome.COMPLETED).copy(modelMs = -1_000, toolMs = -5),
+        )
+
+        val state = GenerationRunTracker.snapshot(NULL_CONTEXT)
+        assertEquals(0L, state.totalModelMs)
+        assertEquals(0L, state.totalToolMs)
+    }
+
+    @Test
     fun `clear resets every counter`() {
         GenerationRunTracker.record(NULL_CONTEXT, run(GenerationOutcome.API_ERROR))
         GenerationRunTracker.clear(NULL_CONTEXT)

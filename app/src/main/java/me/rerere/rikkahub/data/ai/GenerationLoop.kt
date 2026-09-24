@@ -830,6 +830,7 @@ class GenerationLoop(
 
             // Skip generation if we have approved/denied tool calls to handle
             if (pendingTools.isEmpty()) {
+                val modelRequestStartedAtMs = android.os.SystemClock.elapsedRealtime()
                 try {
                     onBeforeModelRequest()
                     generateInternal(
@@ -948,6 +949,9 @@ class GenerationLoop(
                         }
                     }
                     throw t
+                } finally {
+                    // 耗时分解：本次模型请求（含其内部重试）的墙钟计入 runCtx
+                    runCtx.modelMs += android.os.SystemClock.elapsedRealtime() - modelRequestStartedAtMs
                 }
                 messages = messages.visualTransformsIncremental(
                     transformers = outputTransformers,
@@ -1099,6 +1103,7 @@ class GenerationLoop(
 
             // Handle tools (execute approved tools, handle denied tools)
             val executedTools = arrayListOf<UIMessagePart.Tool>()
+            val toolsStartedAtMs = android.os.SystemClock.elapsedRealtime()
             toolsToProcess.forEach { tool ->
                 when (tool.approvalState) {
                     is ToolApprovalState.Denied -> {
@@ -1405,6 +1410,8 @@ class GenerationLoop(
                     }
                 }
             }
+            // 耗时分解：本 step 的工具执行墙钟（审批等待不在这一层，会体现在 otherMs）
+            runCtx.toolMs += android.os.SystemClock.elapsedRealtime() - toolsStartedAtMs
 
             if (executedTools.isEmpty()) {
                 // No results to add (all tools were pending)
@@ -1529,6 +1536,8 @@ class GenerationLoop(
                                     ?.let { classifyFailureKind(it, it.message.orEmpty()).name },
                             durationMs = android.os.SystemClock.elapsedRealtime() - runCtx.startedAtMs,
                             steps = runCtx.steps,
+                            modelMs = runCtx.modelMs,
+                            toolMs = runCtx.toolMs,
                             promptTokens = runCtx.promptTokens.toLong(),
                             completionTokens = runCtx.completionTokens.toLong(),
                             cachedTokens = runCtx.cachedTokens.toLong(),
