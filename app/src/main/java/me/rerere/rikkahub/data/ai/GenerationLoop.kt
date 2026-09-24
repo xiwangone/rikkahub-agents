@@ -1581,6 +1581,22 @@ class GenerationLoop(
                 toolPrompts = toolPrompts,
                 systemAddendum = systemAddendum,
             )
+            // 常驻内容账本：记录本轮系统提示词各段与工具描述的字符量（**只记长度，不存内容**）。
+            // 放在组装点是因为这里能一次看到全部输入；开关复用工具统计开关，关闭时零开销。
+            ContextLedger.record(
+                context,
+                ContextLedgerSnapshot(
+                    assistantPrompt = effectiveSystemPrompt.length,
+                    memory = memoryPrompt.length,
+                    recentChats = recentChatsPrompt.length,
+                    toolPrompts = toolPrompts.sumOf { prompt -> prompt.length },
+                    addendum = systemAddendum?.length ?: 0,
+                    stable = stableSystem.length,
+                    volatile = volatileSystem.length,
+                    toolCount = tools.size,
+                    atMs = System.currentTimeMillis(),
+                ),
+            )
             val systemParts = buildList {
                 if (stableSystem.isNotBlank()) add(UIMessagePart.Text(stableSystem))
                 if (volatileSystem.isNotBlank()) add(UIMessagePart.Text(volatileSystem))

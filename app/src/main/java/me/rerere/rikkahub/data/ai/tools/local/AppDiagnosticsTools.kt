@@ -21,6 +21,7 @@ import kotlinx.serialization.json.put
 import android.content.pm.PackageManager
 import me.rerere.rikkahub.BuildConfig
 import java.security.MessageDigest
+import me.rerere.rikkahub.data.ai.ContextLedger
 import me.rerere.rikkahub.data.ai.GenerationRunTracker
 import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.SurfaceTier
@@ -1015,6 +1016,34 @@ internal suspend fun toolScopePayload(
         buildJsonObject {
             put("assistant", assistant.name)
             put("trimEnabled", trimEnabled)
+            // 常驻内容账本：每轮固定成本的构成（只记长度；token 为 chars/3 估算）
+            ContextLedger.last(context)?.let { ledger ->
+                put(
+                    "fixedCost",
+                    buildJsonObject {
+                        put("stable", ledger.stable)
+                        put("volatile", ledger.volatile)
+                        put("totalChars", ledger.totalChars)
+                        put("estTokens", ledger.estTokens)
+                        put("toolCount", ledger.toolCount)
+                        put("atMs", ledger.atMs)
+                        put(
+                            "breakdown",
+                            buildJsonObject {
+                                put("assistantPrompt", ledger.assistantPrompt)
+                                put("toolPrompts", ledger.toolPrompts)
+                                put("memory", ledger.memory)
+                                put("recentChats", ledger.recentChats)
+                                put("addendum", ledger.addendum)
+                            },
+                        )
+                        put(
+                            "hint",
+                            "字符 → token 为 chars/3 估算（与工具面报告同口径）；toolPrompts 与工具面的工具描述有语义重叠，别重复计算。",
+                        )
+                    },
+                )
+            }
             put("toolCount", rows.size)
             put(
                 "counts",
