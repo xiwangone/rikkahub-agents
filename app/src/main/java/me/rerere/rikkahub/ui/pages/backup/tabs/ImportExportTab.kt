@@ -26,6 +26,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -53,6 +54,9 @@ fun ImportExportTab(
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
+    // 资源取值走 LocalResources（configuration-aware）：直接 LocalContext.current.getString 会被 lint 的
+    // LocalContextGetResourceValueCall 判为「配置变化后可能返回过期值」（本项目其余页面同此写法）。
+    val resources = LocalResources.current
     val selectedBackupItems by vm.localBackupItems.collectAsStateWithLifecycle()
     var isExporting by remember { mutableStateOf(false) }
     var isRestoring by remember { mutableStateOf(false) }
@@ -88,12 +92,12 @@ fun ImportExportTab(
 
                     toaster.show(
                         if (migrationResult != null) {
-                            context.getString(
+                            resources.getString(
                                 R.string.backup_page_migration_export_success,
                                 migrationResult.credentialCount,
                             )
                         } else {
-                            context.getString(R.string.backup_page_backup_success)
+                            resources.getString(R.string.backup_page_backup_success)
                         },
                         type = ToastType.Success,
                     )
@@ -102,9 +106,9 @@ fun ImportExportTab(
                     toaster.show(
                         if (exportType == "migration" && e is IllegalStateException) {
                             // 含明文密钥的包必须加密后才能导出
-                            context.getString(R.string.backup_page_migration_need_encryption)
+                            resources.getString(R.string.backup_page_migration_need_encryption)
                         } else {
-                            context.getString(R.string.backup_page_restore_failed, e.message ?: "")
+                            resources.getString(R.string.backup_page_restore_failed, e.message ?: "")
                         },
                         type = ToastType.Error,
                     )
@@ -189,7 +193,7 @@ fun ImportExportTab(
                                 }
                                 val result = vm.importMigrationPackage(tempFile)
                                 toaster.show(
-                                    context.getString(
+                                    resources.getString(
                                         R.string.backup_page_migration_import_success,
                                         result.credentialsImported,
                                         result.credentialsSkipped,
@@ -205,7 +209,7 @@ fun ImportExportTab(
                     // 迁移包分支已给出更详细的提示（含覆盖条数），不再重复
                     if (importType != "migration") {
                         toaster.show(
-                            context.getString(R.string.backup_page_restore_success),
+                            resources.getString(R.string.backup_page_restore_success),
                             type = ToastType.Success
                         )
                     }
@@ -213,7 +217,7 @@ fun ImportExportTab(
                 }.onFailure { e ->
                     e.printStackTrace()
                     toaster.show(
-                        context.getString(R.string.backup_page_restore_failed, e.message ?: ""),
+                        resources.getString(R.string.backup_page_restore_failed, e.message ?: ""),
                         type = ToastType.Error
                     )
                 }
