@@ -2065,6 +2065,7 @@
   <string name="workspace_detail_install_rootfs">Install Rootfs</string>
   <string name="workspace_detail_mirrors">Package mirrors</string>
   <string name="workspace_detail_mirror_apk">Alpine packages</string>
+  <string name="workspace_detail_mirror_apt">APT packages</string>
   <string name="workspace_detail_mirror_pip">Python packages</string>
   <string name="workspace_detail_mirror_npm">Node packages</string>
   <string name="workspace_detail_workspace_info">Workspace</string>

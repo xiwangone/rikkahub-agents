@@ -1761,6 +1761,7 @@
   <string name="workspace_detail_install_rootfs">安裝 Rootfs</string>
   <string name="workspace_detail_mirrors">套件管理器鏡像</string>
   <string name="workspace_detail_mirror_apk">Alpine 套件</string>
+  <string name="workspace_detail_mirror_apt">APT 軟體包</string>
   <string name="workspace_detail_mirror_pip">Python 套件</string>
   <string name="workspace_detail_mirror_npm">Node 套件</string>
   <string name="workspace_detail_workspace_info">工作區</string>

@@ -3040,6 +3040,7 @@
   <string name="workspace_detail_install_rootfs">تثبيت Rootfs</string>
   <string name="workspace_detail_mirrors">مرايا الحزم</string>
   <string name="workspace_detail_mirror_apk">حزم Alpine</string>
+  <string name="workspace_detail_mirror_apt">حزم APT</string>
   <string name="workspace_detail_mirror_pip">حزم Python</string>
   <string name="workspace_detail_mirror_npm">حزم Node</string>
   <string name="workspace_detail_workspace_info">مساحة العمل</string>

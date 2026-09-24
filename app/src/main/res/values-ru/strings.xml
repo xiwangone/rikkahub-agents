@@ -1739,6 +1739,7 @@
   <string name="workspace_detail_install_rootfs">Установить Rootfs</string>
   <string name="workspace_detail_mirrors">Зеркала пакетов</string>
   <string name="workspace_detail_mirror_apk">Пакеты Alpine</string>
+  <string name="workspace_detail_mirror_apt">пакеты APT</string>
   <string name="workspace_detail_mirror_pip">Пакеты Python</string>
   <string name="workspace_detail_mirror_npm">Пакеты Node</string>
   <string name="workspace_detail_workspace_info">Рабочее пространство</string>

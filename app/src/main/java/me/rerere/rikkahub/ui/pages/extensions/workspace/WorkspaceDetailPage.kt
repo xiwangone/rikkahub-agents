@@ -75,7 +75,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import coil3.request.ImageRequest
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowTurnBackward
 import me.rerere.hugeicons.stroke.Bash
@@ -539,6 +541,12 @@ private fun WorkspaceBasicPage(
                     onClick = { mirrorPicker = MirrorPick.APK },
                 )
                 MirrorRow(
+                    title = stringResource(R.string.workspace_detail_mirror_apt),
+                    current = mirrors.apt,
+                    presets = WorkspaceMirrorPresets.APT,
+                    onClick = { mirrorPicker = MirrorPick.APT },
+                )
+                MirrorRow(
                     title = stringResource(R.string.workspace_detail_mirror_pip),
                     current = mirrors.pip,
                     presets = WorkspaceMirrorPresets.PIP,
@@ -635,6 +643,7 @@ private fun WorkspaceBasicPage(
                 onApplyMirrors(
                     when (mirrorPicker) {
                         MirrorPick.APK -> mirrors.copy(apk = url)
+                        MirrorPick.APT -> mirrors.copy(apt = url)
                         MirrorPick.PIP -> mirrors.copy(pip = url)
                         MirrorPick.NPM -> mirrors.copy(npm = url)
                         null -> mirrors
@@ -830,7 +839,14 @@ private fun InstallRootfsDialog(
                 ) {
                     PRESET_ROOTFS_URLS.forEach { preset ->
                         AssistChip(
-                            onClick = { url = preset.url },
+                            onClick = {
+                                if (preset.lxcDebian) {
+                                    // 地址含构建日期：点击时解析最新目录，失败回落到写死地址
+                                    scope.launch { url = resolveLxcDebianRootfs() ?: preset.url }
+                                } else {
+                                    url = preset.url
+                                }
+                            },
                             label = {
                                 Text(text = preset.label, maxLines = 1, overflow = TextOverflow.Ellipsis)
                             },
@@ -1295,28 +1311,94 @@ private fun saveRootfsUrls(context: android.content.Context, urls: List<String>)
     context.writeStringPreference(ROOTFS_URL_HISTORY_KEY, urls.joinToString("\n"))
 }
 
-private data class PresetRootfsUrl(val label: String, val url: String)
+private data class PresetRootfsUrl(
+    val label: String,
+    val url: String,
+    /** true 表示该条来自 LXC 镜像站：地址含构建日期，点击时尝试解析最新目录，失败用 [url] 兜底。 */
+    val lxcDebian: Boolean = false,
+)
 
-/** 预置 rootfs 源：均已在移动网络下实测可达（GitHub 系地址不可达，勿加入）。 */
-private val PRESET_ROOTFS_URLS =
-    listOf(
-        PresetRootfsUrl(
-            "Ubuntu 24.04 base",
-            "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-arm64.tar.gz",
-        ),
-        PresetRootfsUrl(
-            "Ubuntu 26.04 base",
-            "https://cdimage.ubuntu.com/ubuntu-base/releases/26.04/release/ubuntu-base-26.04-base-arm64.tar.gz",
-        ),
-        PresetRootfsUrl(
-            "Alpine 3.21 minirootfs",
-            "https://dl-cdn.alpinelinux.org/alpine/v3.21/releases/aarch64/alpine-minirootfs-3.21.0-aarch64.tar.gz",
-        ),
-    )
+/** 运行设备是否为 arm64 —— 预置 rootfs 需按设备 ABI 选地址（rootfs 必须匹配设备 ABI）。 */
+private val isArm64Device: Boolean
+    get() =
+        System.getProperty("os.arch").orEmpty().lowercase().let { it == "aarch64" || it == "arm64" }
+
+/** 按设备 ABI 在 arm64 / amd64 两个下载地址间二选一。 */
+private fun presetRootfs(label: String, arm64: String, amd64: String, lxcDebian: Boolean = false) =
+    PresetRootfsUrl(label, if (isArm64Device) arm64 else amd64, lxcDebian)
+
+/** LXC 镜像站使用的架构目录名。 */
+private val lxcAbiDir: String get() = if (isArm64Device) "arm64" else "amd64"
+
+/**
+ * 解析 LXC 镜像站 Debian 的最新构建目录，返回 rootfs 地址；全部失败返回 null（调用方兜底）。
+ *
+ * 先试镜像站（只同步最新一天，取任一即可），再试官方（列多天，取最大日期）。
+ * 地址形如 `<base>/trixie/<abi>/default/<yyyyMMdd_HH:mm>/rootfs.tar.xz`。
+ */
+private suspend fun resolveLxcDebianRootfs(): String? =
+    withContext(Dispatchers.IO) {
+        val bases =
+            listOf(
+                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian",
+                "https://images.linuxcontainers.org/images/debian",
+            )
+        val stamp = Regex("""href="(\d{8}_\d{2}(?:%3A|:)\d{2})/"""")
+        for (base in bases) {
+            val dir = "$base/trixie/$lxcAbiDir/default/"
+            val html =
+                runCatching {
+                    java.net.URL(dir)
+                        .openConnection()
+                        .apply {
+                            connectTimeout = 8000
+                            readTimeout = 8000
+                        }.getInputStream()
+                        .bufferedReader()
+                        .use { it.readText() }
+                }.getOrNull() ?: continue
+            val stamps = stamp.findAll(html).map { it.groupValues[1] }.distinct().sorted()
+            val latest = stamps.lastOrNull() ?: continue
+            return@withContext "$dir$latest/rootfs.tar.xz"
+        }
+        null
+    }
+
+/**
+ * 预置 rootfs 源：均已在移动网络下实测可达（GitHub 系地址不可达，勿加入）。
+ *
+ * 地址按设备 ABI 选择。⚠ Debian 取自 LXC 镜像站，路径含构建日期：点击时会在线解析最新目录，
+ * 此处只是解析失败时的离线兜底，日期滚动后如兜底失效需更新。
+ */
+private val PRESET_ROOTFS_URLS: List<PresetRootfsUrl>
+    get() =
+        listOf(
+            presetRootfs(
+                "Ubuntu 26.04.1 base",
+                "https://cdimage.ubuntu.com/ubuntu-base/releases/26.04/release/ubuntu-base-26.04.1-base-arm64.tar.gz",
+                "https://cdimage.ubuntu.com/ubuntu-base/releases/26.04/release/ubuntu-base-26.04.1-base-amd64.tar.gz",
+            ),
+            presetRootfs(
+                "Ubuntu 24.04.5 base",
+                "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.5-base-arm64.tar.gz",
+                "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.5-base-amd64.tar.gz",
+            ),
+            presetRootfs(
+                "Debian 13 trixie base",
+                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian/trixie/arm64/default/20260924_05:24/rootfs.tar.xz",
+                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian/trixie/amd64/default/20260924_05:24/rootfs.tar.xz",
+                lxcDebian = true,
+            ),
+            presetRootfs(
+                "Alpine 3.24.2 minirootfs",
+                "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/alpine-minirootfs-3.24.2-aarch64.tar.gz",
+                "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-minirootfs-3.24.2-x86_64.tar.gz",
+            ),
+        )
 
 
 /** Which package-manager mirror is being picked. */
-private enum class MirrorPick { APK, PIP, NPM }
+private enum class MirrorPick { APK, APT, PIP, NPM }
 
 @Composable
 private fun CardGroupScope.MirrorRow(
@@ -1347,12 +1429,14 @@ private fun MirrorPickerDialog(
     val presets =
         when (pick) {
             MirrorPick.APK -> WorkspaceMirrorPresets.APK
+            MirrorPick.APT -> WorkspaceMirrorPresets.APT
             MirrorPick.PIP -> WorkspaceMirrorPresets.PIP
             MirrorPick.NPM -> WorkspaceMirrorPresets.NPM
         }
     val current =
         when (pick) {
             MirrorPick.APK -> mirrors.apk
+            MirrorPick.APT -> mirrors.apt
             MirrorPick.PIP -> mirrors.pip
             MirrorPick.NPM -> mirrors.npm
         }

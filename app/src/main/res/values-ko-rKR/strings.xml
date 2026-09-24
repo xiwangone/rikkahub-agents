@@ -1743,6 +1743,7 @@
   <string name="workspace_detail_install_rootfs">Rootfs 설치</string>
   <string name="workspace_detail_mirrors">패키지 미러</string>
   <string name="workspace_detail_mirror_apk">Alpine 패키지</string>
+  <string name="workspace_detail_mirror_apt">APT 패키지</string>
   <string name="workspace_detail_mirror_pip">Python 패키지</string>
   <string name="workspace_detail_mirror_npm">Node 패키지</string>
   <string name="workspace_detail_workspace_info">작업 공간</string>
