@@ -842,15 +842,15 @@ class GenerationLoop(
                             // 每次请求的用量单独上报（不受下方 UI 提交节流影响）：见 GenerationChunk.UsageIncurred
                             it.lastOrNull { message -> message.usage != null }?.usage?.let { incurred ->
                                 if (incurred != reportedUsage) {
-                                    // 累加真实消耗：一轮里的多步请求共用同一条 assistant 消息、usage 被
-                                    // 后者覆盖，所以只加「相对上次上报的增量」。
-                                    runCtx.promptTokens +=
-                                        (incurred.promptTokens - (reportedUsage?.promptTokens ?: 0)).coerceAtLeast(0)
-                                    runCtx.completionTokens +=
-                                        (incurred.completionTokens - (reportedUsage?.completionTokens ?: 0))
-                                            .coerceAtLeast(0)
-                                    runCtx.cachedTokens +=
-                                        (incurred.cachedTokens - (reportedUsage?.cachedTokens ?: 0)).coerceAtLeast(0)
+                                    // 按**请求**累加（与平台账单、会话累计同口径）：一轮里的多步请求各按
+                                    // 其**完整** prompt 计费 —— 第 N 步的 prompt 已含前 N-1 步的历史，这是
+                                    // 计费口径、不是重复。⚠ 早期实现只累加「相对上一步的增量」，会把前面
+                                    // 各步的 prompt 整段漏掉（实测 input 比平台少约 1/3，且 cached 会反超 prompt）
+                                    val stepPromptTokens = incurred.promptTokens.coerceAtLeast(0)
+                                    runCtx.promptTokens += stepPromptTokens
+                                    runCtx.completionTokens += incurred.completionTokens.coerceAtLeast(0)
+                                    // 单步内先夹一次：缓存命中量不可能超过该步输入量
+                                    runCtx.cachedTokens += incurred.cachedTokens.coerceIn(0, stepPromptTokens)
                                     reportedUsage = incurred
                                     emit(GenerationChunk.UsageIncurred(incurred))
                                 }

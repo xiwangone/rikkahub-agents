@@ -818,7 +818,8 @@ internal fun runsPayload(
                 "hint",
                 "每次生成一条归因记录（COMPLETED / USER_CANCELLED / TIMEOUT / LOOP_GUARD / NETWORK_ERROR / " +
                     "RATE_LIMIT / API_ERROR / UNKNOWN）；按 outcome 与 modelId 聚合，recent 为最近明细。" +
-                    "只记枚举与计数，不含消息内容；reset=true 可清空。",
+                    "token 为**按请求累加**（与平台账单同口径：多步请求各按完整 prompt 计），cached 已夹在 " +
+                    "prompt 之内。只记枚举与计数，不含消息内容；reset=true 可清空。",
             )
         }
     return payload.toString()

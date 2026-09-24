@@ -198,24 +198,27 @@ object GenerationRunTracker {
     /** 记录一次生成结果。未开启统计时直接返回（零写入）。 */
     fun record(context: Context, run: GenerationRun) {
         if (!isRunStatsEnabled()) return
+        // 口径统一收在数据层：缓存命中量不可能超过输入量（个别服务端会给出越界值），
+        // 与既有会话累计一致（`PreferencesStore.accumulateConvUsage` 同样夹过这一步）。
+        val entry = if (run.cachedTokens > run.promptTokens) run.copy(cachedTokens = run.promptTokens) else run
         ensureLoaded(context)
         synchronized(lock) {
-            val totals = runState.totals + (run.outcome to (runState.totals[run.outcome] ?: 0L) + 1L)
-            val modelKey = run.modelId ?: "unknown"
+            val totals = runState.totals + (entry.outcome to (runState.totals[entry.outcome] ?: 0L) + 1L)
+            val modelKey = entry.modelId ?: "unknown"
             val perModel = runState.byModel[modelKey].orEmpty()
             val byModel =
-                runState.byModel + (modelKey to (perModel + (run.outcome to (perModel[run.outcome] ?: 0L) + 1L)))
+                runState.byModel + (modelKey to (perModel + (entry.outcome to (perModel[entry.outcome] ?: 0L) + 1L)))
             runState =
                 runState.copy(
                     totals = totals,
                     byModel = byModel,
-                    totalDurationMs = runState.totalDurationMs + run.durationMs.coerceAtLeast(0),
-                    totalModelMs = runState.totalModelMs + run.modelMs.coerceAtLeast(0),
-                    totalToolMs = runState.totalToolMs + run.toolMs.coerceAtLeast(0),
-                    totalPromptTokens = runState.totalPromptTokens + run.promptTokens,
-                    totalCompletionTokens = runState.totalCompletionTokens + run.completionTokens,
-                    totalCachedTokens = runState.totalCachedTokens + run.cachedTokens,
-                    recent = (runState.recent + run).takeLast(MAX_RECENT),
+                    totalDurationMs = runState.totalDurationMs + entry.durationMs.coerceAtLeast(0),
+                    totalModelMs = runState.totalModelMs + entry.modelMs.coerceAtLeast(0),
+                    totalToolMs = runState.totalToolMs + entry.toolMs.coerceAtLeast(0),
+                    totalPromptTokens = runState.totalPromptTokens + entry.promptTokens,
+                    totalCompletionTokens = runState.totalCompletionTokens + entry.completionTokens,
+                    totalCachedTokens = runState.totalCachedTokens + entry.cachedTokens,
+                    recent = (runState.recent + entry).takeLast(MAX_RECENT),
                 )
             persist(context)
         }

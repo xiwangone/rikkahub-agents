@@ -177,6 +177,19 @@ class GenerationRunTrackerTest {
     }
 
     @Test
+    fun `cached tokens are clamped to prompt tokens at the data layer`() {
+        // 个别服务端会给出「命中 > 输入」的越界值 → 与既有会话累计一致，在数据层夹住
+        GenerationRunTracker.record(
+            NULL_CONTEXT,
+            run(GenerationOutcome.COMPLETED).copy(promptTokens = 1_000, cachedTokens = 1_500),
+        )
+
+        val state = GenerationRunTracker.snapshot(NULL_CONTEXT)
+        assertEquals(1_000L, state.totalCachedTokens)
+        assertEquals(1_000, state.recent.single().cachedTokens)
+    }
+
+    @Test
     fun `clear resets every counter`() {
         GenerationRunTracker.record(NULL_CONTEXT, run(GenerationOutcome.API_ERROR))
         GenerationRunTracker.clear(NULL_CONTEXT)
