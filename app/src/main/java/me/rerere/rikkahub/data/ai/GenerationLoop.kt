@@ -123,6 +123,51 @@ private fun isCancellationFailure(failure: Throwable): Boolean =
 internal fun shouldReportEmptyGenerationStream(receivedAnyChunk: Boolean): Boolean =
     !receivedAnyChunk
 
+/**
+ * 图片能力不匹配时的失败驱动降级判据（纯函数，便于单测）。
+ *
+ * 场景：模型元数据声称支持图片、服务端实际拒绝（自建网关 / 聚合商 / 模型换版）。
+ * 只认「失败分类 = IMAGE_UNSUPPORTED」；**是否含图、是否已降级过由调用方另行判断**。
+ */
+internal fun shouldDowngradeImagesOnFailure(failure: Throwable, rawError: String): Boolean =
+    classifyFailureKind(failure, rawError) == FailureKind.IMAGE_UNSUPPORTED
+
+/** 去图结果：新消息 + 被替换的图片 part 数。 */
+internal data class ImageStripResult(val messages: List<UIMessage>, val replaced: Int)
+
+/**
+ * 与 provider 适配层同语义的占位文案：告诉模型「这里原本有图，但当前模型看不了」，
+ * 而不是静默删掉（刻意不新增资源键，保持纯文本）。
+ */
+internal const val IMAGE_DOWNGRADE_PLACEHOLDER =
+    "[image omitted] The current model does not support image input; the image was removed before retrying."
+
+/**
+ * 把消息里的图片 part 换成明确占位文本（供降级重试用）。
+ */
+internal fun stripImagePartsForUnsupportedModel(messages: List<UIMessage>): ImageStripResult {
+    var replaced = 0
+    val stripped =
+        messages.map { message ->
+            if (message.parts.none { part -> part is UIMessagePart.Image }) {
+                message
+            } else {
+                message.copy(
+                    parts =
+                        message.parts.map { part ->
+                            if (part is UIMessagePart.Image) {
+                                replaced++
+                                UIMessagePart.Text(IMAGE_DOWNGRADE_PLACEHOLDER)
+                            } else {
+                                part
+                            }
+                        },
+                )
+            }
+        }
+    return ImageStripResult(stripped, replaced)
+}
+
 internal fun shouldRetryGenerationStreamFailure(
     failure: Throwable,
     retryAttempt: Long,
@@ -691,6 +736,8 @@ class GenerationLoop(
         // 历史消息段复用上次结果，单块成本从 O(消息数) 降到 O(1)。
         val outputTransformCache = OutputTransformCache()
 
+        // 图片降级重试全局只允许一次（避免「去图仍失败 → 再降级」的死循环）
+        var imageDowngradeApplied = false
         for (stepIndex in 0 until maxSteps) {
             runCtx.steps = stepIndex + 1
             outputTransformCache.clear()
@@ -858,6 +905,27 @@ class GenerationLoop(
                     // own cancelToolByUser path that marks tools cancelled. We only need
                     // to handle non-cancel failures here.
                     if (t !is CancellationException) {
+                        // 图片能力不匹配的**失败驱动降级**：模型/端点实际拒绝图片时（元数据说支持但
+                        // 服务端 4xx），去掉图片重发本次请求一次，避免用户必须手动删消息才能继续。
+                        // 触发条件：未降级过 + 分类为 IMAGE_UNSUPPORTED + 消息确实含图。
+                        if (
+                            !imageDowngradeApplied &&
+                            shouldDowngradeImagesOnFailure(t, t.message.orEmpty()) &&
+                            messages.any { msg -> msg.parts.any { part -> part is UIMessagePart.Image } }
+                        ) {
+                            imageDowngradeApplied = true
+                            val stripped = stripImagePartsForUnsupportedModel(messages)
+                            messages = stripped.messages
+                            AppLog.w(
+                                TAG,
+                                "generateText: model reported images unsupported; retrying once without " +
+                                    "${stripped.replaced} image part(s)",
+                            )
+                            processingStatus.value =
+                                context.getString(me.rerere.rikkahub.R.string.error_kind_image_unsupported)
+                            emit(GenerationChunk.Messages(messages))
+                            continue
+                        }
                         // Server 5xx, JSON parse failure, OOM during chunk-merge, etc. Without
                         // this transition, any tool already at Auto/Pending in the just-built
                         // assistant message is stranded — the next user turn replays the
