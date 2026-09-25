@@ -3296,17 +3296,19 @@
   <string name="assistant_page_compact_output_action">편집</string>
   <string name="assistant_page_compact_output_dialog_desc">한 줄에 도구 이름 하나(쉼표로 구분도 가능). list_tools에 표시되는 정확한 이름을 사용하세요. 출력이 큰 도구(페이지 가져오기, 전체 목록, 진단 덤프 등)에 적합합니다. 목록에 넣은 도구는 컴팩트 상한(설정 → 도구)으로 잘리고 전체 내용은 /tool_outputs에 저장됩니다. 목록 밖 도구는 전역 상한을 그대로 사용합니다. 도구는 계속 호출할 수 있고 내용이 삭제되지도 않습니다. 비워 두면 적용되지 않습니다. 무엇을 넣을지 모르겠다면 채팅에서 어시스턴트에게 목록을 만들어 달라고 하세요(단, 어시스턴트는 이 설정을 변경할 수 없으니 직접 붙여넣고 저장해야 합니다).</string>
   <string name="ai_token_budget_notice">토큰 예산 알림: 이 턴은 이 어시스턴트의 토큰 예산에 도달했습니다. 새로운 도구 호출을 시작하지 말고, 진행 중인 작업을 마무리한 후, 수행한 작업과 남은 작업에 대한 간결한 최종 요약을 제공하세요.</string>
-  <string name="assistant_page_token_budget">토큰 예산 (강제 중지)</string>
-  <string name="assistant_page_token_budget_desc">가장 큰 단일 요청(≈ 실제 컨텍스트 창)을 기준으로 판단하며, 누적 합계가 아닙니다. 소프트 상한을 넘으면 어시스턴트에게 마무리하라고 지시하고, 하드 상한을 넘으면 해당 턴이 완전히 중지됩니다.</string>
   <string name="assistant_page_token_budget_hard">하드 상한 — 턴 중지</string>
-  <string name="assistant_page_token_budget_hard_hint">예: 200000; 소프트 상한 이상으로 설정하세요. 비어 있으면 = 제한 없음.</string>
   <string name="assistant_page_token_budget_soft">소프트 상한 — 마무리 알림</string>
-  <string name="assistant_page_token_budget_soft_hint">예: 100000. 비어 있으면 = 제한 없음.</string>
   <string name="assistant_page_digest_output_desc">%1$d개 설정됨. 해당 출력은 /tool_outputs에 전체 저장되며, 컨텍스트에 들어가는 것은 다이제스트입니다 — 머리 + 키워드와 일치하는 줄 + 꼬리 — 원시 접두사가 아닙니다.</string>
   <string name="assistant_page_digest_output_dialog_desc">도구 이름: 한 줄에 하나 (또는 쉼표로 구분), list_tools의 정확한 이름을 사용하세요. 출력이 크지만 요점만 중요한 도구에 적합합니다 (진단 덤프, 페이지 가져오기, 전체 목록). 압축 한도(설정 → 도구)를 초과하는 출력은 /tool_outputs에 전체 저장됩니다. 다이제스트는 머리 부분, 아래 키워드와 일치하는 최대 20줄, 그리고 마지막 줄들을 유지합니다. 관심 있는 줄에 대한 키워드를 지정하세요. 비활성화하려면 목록을 비워 두세요. 무엇을 사용할지 확실하지 않으면 채팅에서 어시스턴트에게 물어보세요 — 어시스턴트는 이 설정을 변경할 수 없으므로 직접 붙여넣고 저장하세요.</string>
   <string name="assistant_page_digest_output_keywords_hint">비어 있음 = error / FAILED / Exception / ✗ / 失败 / 异常</string>
-  <string name="assistant_page_digest_output_keywords_label">유지할 핵심 줄 (선택 사항, 한 줄에 하나)</string>
   <string name="assistant_page_digest_output_title">이 도구들의 출력 다이제스트</string>
   <string name="setting_model_page_tool_output_compact_max_chars">압축 제한 (K 문자, 1-32; 어시스턴트의 잘라내기/요약 목록에 있는 도구에서 사용됨)</string>
   <string name="tool_output_compact_desc">압축 제한은 어시스턴트의 잘라내기 또는 요약 목록(어시스턴트 → 도구)에 나열된 도구에만 적용됩니다. 해당 출력은 /tool_outputs에 전체 저장되고, 미리보기나 요약만 컨텍스트에 들어갑니다; 목록에 없는 도구는 위의 제한을 사용합니다.</string>
+  <string name="assistant_page_digest_output_hint">예: 진단\n     mcp__SERVER__extract</string>
+  <string name="assistant_page_digest_output_keywords_label">유지할 핵심 라인 (선택 사항; 한 줄에 하나 또는 쉼표로 구분)</string>
+  <string name="assistant_page_token_budget_order_warning">하드 캡이 소프트 캡보다 낮습니다 — 모든 요청이 이미 이를 초과하게 되어 턴이 즉시 종료됩니다. 하드를 소프트 이상으로 설정하거나 둘 중 하나를 지우세요.</string>
+  <string name="assistant_page_token_budget">토큰 예산 (요청당)</string>
+  <string name="assistant_page_token_budget_desc">모델로 전송되는 각 요청의 크기를 측정합니다 (시스템 프롬프트 + 메모리 + 전체 기록 + 도구 출력) — 즉, 컨텍스트 창이 얼마나 가득 찼는지를 나타내는 것이지, 누적 합계가 아닙니다. 동일한 기록이 매 턴마다 다시 전송되므로, 누적 합계는 부풀려질 수 있습니다. 소프트 상한을 초과하면 어시스턴트에게 마무리하라고 알리고, 하드 상한을 초과하면 먼저 한 번의 마무리 기회를 주며, 다음 단계에서도 여전히 초과할 경우에만 중단합니다.</string>
+  <string name="assistant_page_token_budget_hard_hint">권장: 소프트 상한보다 한 단계 위 — 예: 120000 (≈120K 토큰); 소프트 상한 이상이어야 합니다. 비어 있음 = 제한 없음.</string>
+  <string name="assistant_page_token_budget_soft_hint">권장: 모델의 컨텍스트 창의 약 0.8배 — 예: 128K 창 → 100000 (≈100K 토큰). 비어 있음 = 제한 없음.</string>
 </resources>

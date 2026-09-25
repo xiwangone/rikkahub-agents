@@ -783,20 +783,27 @@ class GenerationLoop(
                         assistant.tokenBudgetSoftCap,
                         assistant.tokenBudgetHardCap,
                     )
-                if (budgetStatus == TokenBudgetTracker.BudgetStatus.WARN) {
-                    if (!tokenBudgetWarnInjected) {
+                val overHard = budgetStatus == TokenBudgetTracker.BudgetStatus.OVER_HARD
+                val overSoft = budgetStatus == TokenBudgetTracker.BudgetStatus.WARN
+                when {
+                    // 第一次越线（含越过硬上限）：先注入一次性收尾提示，给模型一次体面收尾的机会。
+                    // ⚠ 2026-09-25 真机反馈：原先「越硬上限直接 break」会让用户看到「发消息没反应」
+                    //   （配置写反时尤其致命）—— 所以硬上限也先软着陆一次。
+                    (overSoft || overHard) && !tokenBudgetWarnInjected -> {
                         tokenBudgetWarnInjected = true
-                        AppLog.w(TAG, "generateText: token budget over soft cap; injecting wrap-up reminder")
+                        AppLog.w(TAG, "generateText: token budget crossed (overHard=$overHard); injecting wrap-up reminder")
                         messages =
                             messages +
                             UIMessage.user(
                                 context.getString(R.string.ai_token_budget_notice),
                             ).copy(isSynthetic = true)
                     }
-                } else if (budgetStatus == TokenBudgetTracker.BudgetStatus.OVER_HARD) {
-                    AppLog.w(TAG, "generateText: token budget over hard cap at step #$stepIndex; force-ending turn")
-                    runCtx.abortReason = GenerationOutcome.TOKEN_BUDGET
-                    break
+                    // 已提醒过、下一步仍越硬上限 → 真停
+                    overHard -> {
+                        AppLog.w(TAG, "generateText: token budget still over hard cap at step #$stepIndex; force-ending turn")
+                        runCtx.abortReason = GenerationOutcome.TOKEN_BUDGET
+                        break
+                    }
                 }
             }
             // Repeated loop-guard trips mean the model is flailing: it bumps into the

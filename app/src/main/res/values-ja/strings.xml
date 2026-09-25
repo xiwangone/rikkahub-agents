@@ -3296,17 +3296,19 @@
   <string name="assistant_page_compact_output_action">編集</string>
   <string name="assistant_page_compact_output_dialog_desc">1 行に 1 つのツール名（カンマ区切りも可）。list_tools に表示される正確な名前を使ってください。大量の出力を返すツール（ページ取得、全件リスト、診断ダンプなど）に適しています。リストに入れたツールはコンパクト上限（設定 → ツール）で切り詰められ、全文は /tool_outputs に保存されます。リスト外のツールは全体の上限のままです。ツールは引き続き呼び出せ、内容が削除されることもありません。空欄にすると無効になります。何を入れるか分からない場合は、チャットでアシスタントにリストを作らせてください（ただしアシスタントはこの設定を変更できないため、自分で貼り付けて保存してください）。</string>
   <string name="ai_token_budget_notice">トークン予算通知: このターンはこのアシスタントのトークン予算に達しました。新しいツール呼び出しを開始するのをやめ、進行中の作業を完了し、何が行われ、何が残っているかを簡潔にまとめてください。</string>
-  <string name="assistant_page_token_budget">トークン予算（ハードストップ）</string>
-  <string name="assistant_page_token_budget_desc">最大の単一リクエスト（≈実際のコンテキストウィンドウ）で判断され、累積合計ではありません。ソフトキャップを超えると、アシスタントは終了するように指示されます。ハードキャップを超えると、ターンは完全に停止されます。</string>
   <string name="assistant_page_token_budget_hard">ハードキャップ — ターンを停止</string>
-  <string name="assistant_page_token_budget_hard_hint">例: 200000; ソフトキャップ以上に設定してください。空 = 制限なし。</string>
   <string name="assistant_page_token_budget_soft">ソフトキャップ — 終了通知</string>
-  <string name="assistant_page_token_budget_soft_hint">例: 100000。空 = 制限なし。</string>
   <string name="assistant_page_digest_output_desc">%1$d 設定済み。それらの出力は /tool_outputs に完全に保存され、コンテキストに入るのはダイジェストです — 先頭 + キーワードに一致する行 + 末尾 — 生のプレフィックスではありません。</string>
   <string name="assistant_page_digest_output_dialog_desc">ツール名: 1行に1つ（またはカンマ区切り）、list_tools の正確な名前を使用します。出力が大きく、要点だけが重要なツールに最適です（診断ダンプ、ページフェッチ、完全なリストなど）。コンパクト制限（設定 → ツール）を超える出力は /tool_outputs に完全に保存されます。ダイジェストは先頭、以下のキーワードに一致する最大20行、および最後の行を保持します。気になる行のキーワードを指定してください。無効にするにはリストを空のままにします。何を使用するかわからない場合はチャットでアシスタントに尋ねてください — アシスタントはこの設定を変更できないため、自分で貼り付けて保存してください。</string>
   <string name="assistant_page_digest_output_keywords_hint">空 = エラー / 失敗 / 例外 / ✗ / 失敗 / 異常</string>
-  <string name="assistant_page_digest_output_keywords_label">保持する重要な行（オプション、1行に1つ）</string>
   <string name="assistant_page_digest_output_title">これらのツールの出力をダイジェスト</string>
   <string name="setting_model_page_tool_output_compact_max_chars">コンパクト上限（K文字、1～32、アシスタントの切り詰め/ダイジェストリストのツールで使用）</string>
   <string name="tool_output_compact_desc">コンパクト上限は、アシスタントの切り詰めまたはダイジェストリスト（アシスタント → ツール）に記載されたツールにのみ適用されます。これらの出力は完全な形で /tool_outputs に保存され、コンテキストにはプレビューまたはダイジェストのみが入ります。リストにないツールは上記の上限を使用します。</string>
+  <string name="assistant_page_digest_output_hint">例: 診断\n     mcp__SERVER__extract</string>
+  <string name="assistant_page_digest_output_keywords_label">保持する重要な行（任意；1行に1つ、またはカンマ区切り）</string>
+  <string name="assistant_page_token_budget_order_warning">ハード上限がソフト上限を下回っています — すべてのリクエストはすでにそれを超えているため、ターンは即座に終了します。ハード ≥ ソフトに設定するか、いずれかをクリアしてください。</string>
+  <string name="assistant_page_token_budget">トークン予算（リクエストごと）</string>
+  <string name="assistant_page_token_budget_desc">モデルに送信される各リクエストのサイズ（システムプロンプト + メモリ + 全履歴 + ツール出力）を測定します — つまり、コンテキストウィンドウがどれだけ埋まっているかであり、累計ではありません。同じ履歴が毎ターン再送信されるため、累計は過大になります。ソフトキャップを超えると、アシスタントは終了するように指示されます。ハードキャップを超えると、まず1回の終了チャンスが与えられ、次のステップでまだ超えている場合にのみ停止します。</string>
+  <string name="assistant_page_token_budget_hard_hint">推奨: ソフトキャップより1段階上 — 例: 120000（≈120Kトークン）; ソフトキャップ以上である必要があります。空 = 制限なし。</string>
+  <string name="assistant_page_token_budget_soft_hint">推奨: モデルのコンテキストウィンドウの約0.8倍 — 例: 128Kウィンドウ → 100000（≈100Kトークン）。空 = 制限なし。</string>
 </resources>

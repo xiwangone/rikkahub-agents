@@ -592,7 +592,11 @@ internal fun AssistantBasicContent(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.assistant_page_token_budget_soft)) },
-                    supportingText = { Text(stringResource(R.string.assistant_page_token_budget_soft_hint)) },
+                    supportingText = {
+                        val hint = stringResource(R.string.assistant_page_token_budget_soft_hint)
+                        val n = tokenSoftInput.toIntOrNull()
+                        Text(if (n == null) hint else "$hint  ·  ≈${n / 1000}K tokens")
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
                     singleLine = true,
                 )
@@ -606,10 +610,24 @@ internal fun AssistantBasicContent(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.assistant_page_token_budget_hard)) },
-                    supportingText = { Text(stringResource(R.string.assistant_page_token_budget_hard_hint)) },
+                    supportingText = {
+                        val hint = stringResource(R.string.assistant_page_token_budget_hard_hint)
+                        val n = tokenHardInput.toIntOrNull()
+                        Text(if (n == null) hint else "$hint  ·  ≈${n / 1000}K tokens")
+                    },
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
                     singleLine = true,
                 )
+                // 配置矛盾校验：硬 < 软时，第一次请求就会命中硬上限而直接结束（2026-09-25 真机踩过）
+                val softValue = tokenSoftInput.toIntOrNull()
+                val hardValue = tokenHardInput.toIntOrNull()
+                if (softValue != null && hardValue != null && hardValue < softValue) {
+                    Text(
+                        text = stringResource(R.string.assistant_page_token_budget_order_warning),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
             HorizontalDivider()
             FormItem(

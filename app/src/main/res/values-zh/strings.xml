@@ -807,12 +807,13 @@
   <string name="setting_display_page_chat_font_family_serif">衬线体</string>
   <string name="ai_wrap_up_notice">【时间预算提醒】本轮可用时间即将耗尽。请停止发起新的工具调用，结束正在进行的工作，并简要总结已完成的内容与剩余事项。</string>
   <string name="ai_token_budget_notice">【token 预算提醒】本轮已达该助手的预算上限。请停止发起新的工具调用，结束正在进行的工作，并简要总结已完成的内容与剩余事项。</string>
-  <string name="assistant_page_token_budget">token 预算（硬拦）</string>
-  <string name="assistant_page_token_budget_desc">口径是「单次请求的最大 token 数」（≈ 真实上下文窗口），不是累计总量。超过软上限：助手收到收尾提示；超过硬上限：本轮直接结束。</string>
+  <string name="assistant_page_token_budget">token 预算（按每次请求算）</string>
+  <string name="assistant_page_token_budget_desc">量的是「每次发给模型的那一整包有多大」（系统提示词 + 记忆 + 全部历史 + 工具输出）—— 也就是上下文窗口被占了多少，不是累计消耗。同一段历史每轮都会重发，按累计算会虚高。越过软上限：助手收到收尾提示；越过硬上限：先给一次收尾机会，下一步仍超才结束本轮。</string>
   <string name="assistant_page_token_budget_soft">软上限 —— 只提醒收尾</string>
-  <string name="assistant_page_token_budget_soft_hint">例：100000。留空 = 不限制。</string>
+  <string name="assistant_page_token_budget_soft_hint">建议值：约为模型上下文窗口的 0.8 —— 例：128K 窗口 → 100000（≈100K tokens）。留空 = 不限制。</string>
+  <string name="assistant_page_token_budget_order_warning">硬上限低于软上限 —— 每次请求都会直接命中硬上限，本轮会立刻结束。请把硬上限设为 ≥ 软上限，或清空其中一个。</string>
   <string name="assistant_page_token_budget_hard">硬上限 —— 到线即停</string>
-  <string name="assistant_page_token_budget_hard_hint">例：200000，建议 ≥ 软上限。留空 = 不限制。</string>
+  <string name="assistant_page_token_budget_hard_hint">建议值：比软上限再留一档 —— 例：120000（≈120K tokens），需 ≥ 软上限。留空 = 不限制。</string>
   <string name="ai_auto_continue_prompt">【自动续写】你上一条回复在中途被切断。请从断开处继续，不要重复已写过的内容，把回答写完。</string>
   <string name="notification_channel_scheduled_jobs">定时任务</string>
   <string name="notification_scheduled_job_failed_title">定时任务失败</string>
@@ -1408,7 +1409,8 @@
   <string name="assistant_page_digest_output_title">摘要这些工具的输出</string>
   <string name="assistant_page_digest_output_desc">已配置 %1$d 个。它们的输出会完整存到 /tool_outputs，进入上下文的是「摘要」——首段 + 命中关键词的行 + 末尾几行，而不是原始前缀。</string>
   <string name="assistant_page_digest_output_dialog_desc">工具名：每行一个（也可用逗号分隔），请用 list_tools 里显示的确切名称。适合「块很大、只需要骨架」的工具，例如诊断导出、网页抓取、全量列表。超过紧凑阈值（设置 → 工具）的输出会完整存到 /tool_outputs，摘要保留首段、最多 20 行命中关键词的行、以及末尾几行。有重要行就把对应关键词填上。名单留空表示不生效。不知道填什么？可让助手在对话中生成名单；但助手无权修改此设置，需要你粘贴并保存。</string>
-  <string name="assistant_page_digest_output_keywords_label">要保留的关键行关键词（可选，每行一个）</string>
+  <string name="assistant_page_digest_output_keywords_label">要保留的关键行关键词（可选；每行一个，也可用逗号分隔）</string>
+  <string name="assistant_page_digest_output_hint">例如 diagnostics\n     mcp__服务器名__extract</string>
   <string name="assistant_page_digest_output_keywords_hint">留空 = error / FAILED / Exception / ✗ / 失败 / 异常</string>
   <string name="setting_model_page_tool_output_compact_max_chars">紧凑阈值（K 字符，1-32；用于助手「截断/摘要」名单内的工具）</string>
   <string name="setting_model_page_tool_output_max_chars">工具输出限制（K 字符，1-20；如 5 = 5000 字符）</string>

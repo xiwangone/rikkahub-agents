@@ -814,12 +814,13 @@
   <string name="setting_display_page_chat_font_family_serif">Serif</string>
   <string name="ai_wrap_up_notice">TIME BUDGET NOTICE: this turn is about to hit its wall-clock limit. Stop starting new tool calls, finish any in-flight work, and give a concise final summary of what was done and what remains.</string>
   <string name="ai_token_budget_notice">TOKEN BUDGET NOTICE: this turn has reached this assistant\'s token budget. Stop starting new tool calls, finish any in-flight work, and give a concise final summary of what was done and what remains.</string>
-  <string name="assistant_page_token_budget">Token budget (hard stop)</string>
-  <string name="assistant_page_token_budget_desc">Judged on the largest single request (≈ real context window), not the running total. Past the soft cap the assistant is told to wrap up; past the hard cap the turn is stopped outright.</string>
+  <string name="assistant_page_token_budget">Token budget (per request)</string>
+  <string name="assistant_page_token_budget_desc">Measures the size of each request sent to the model (system prompt + memory + full history + tool output) — i.e. how full the context window is — not the running total. The same history is re-sent every turn, so a running total would be inflated. Past the soft cap the assistant is told to wrap up; past the hard cap it gets one wrap-up chance first, and only stops if it is still over on the next step.</string>
   <string name="assistant_page_token_budget_soft">Soft cap — wrap-up notice</string>
-  <string name="assistant_page_token_budget_soft_hint">e.g. 100000. Empty = no limit.</string>
+  <string name="assistant_page_token_budget_soft_hint">Suggested: about 0.8 × the model\'s context window — e.g. a 128K window → 100000 (≈100K tokens). Empty = no limit.</string>
+  <string name="assistant_page_token_budget_order_warning">Hard cap is below the soft cap — every request would already be over it, so the turn ends immediately. Set hard ≥ soft, or clear one of them.</string>
   <string name="assistant_page_token_budget_hard">Hard cap — stop the turn</string>
-  <string name="assistant_page_token_budget_hard_hint">e.g. 200000; set it at or above the soft cap. Empty = no limit.</string>
+  <string name="assistant_page_token_budget_hard_hint">Suggested: one notch above the soft cap — e.g. 120000 (≈120K tokens); must be ≥ the soft cap. Empty = no limit.</string>
   <string name="ai_auto_continue_prompt">AUTO-CONTINUE: your previous reply was cut off in the middle. Continue from where it stopped, do not repeat what you have already written, and finish the answer.</string>
   <string name="notification_channel_scheduled_jobs">Scheduled jobs</string>
   <string name="notification_scheduled_job_failed_title">Scheduled job failed</string>
@@ -1423,7 +1424,8 @@
   <string name="assistant_page_digest_output_title">Digest these tools\' output</string>
   <string name="assistant_page_digest_output_desc">%1$d configured. Their output is saved in full to /tool_outputs, and what enters the context is a digest — head + lines matching your keywords + tail — not a raw prefix.</string>
   <string name="assistant_page_digest_output_dialog_desc">Tool names: one per line (or comma-separated), using the exact names from list_tools. Best for tools whose output is large but only the gist matters (diagnostics dumps, page fetches, full listings). Output above the compact limit (Settings → Tools) is saved in full to /tool_outputs; the digest keeps the head, up to 20 lines matching the keywords below, and the last lines. Name the keywords for the lines you care about. Leave the list empty to disable. Ask the assistant in chat if unsure what to use — it cannot change this setting, so paste and save it yourself.</string>
-  <string name="assistant_page_digest_output_keywords_label">Key lines to keep (optional, one per line)</string>
+  <string name="assistant_page_digest_output_keywords_label">Key lines to keep (optional; one per line or comma-separated)</string>
+  <string name="assistant_page_digest_output_hint">e.g. diagnostics\n     mcp__SERVER__extract</string>
   <string name="assistant_page_digest_output_keywords_hint">Empty = error / FAILED / Exception / ✗ / 失败 / 异常</string>
   <string name="setting_model_page_tool_output_compact_max_chars">Compact limit (K chars, 1-32; used by tools in an assistant\'s truncate/digest lists)</string>
   <string name="setting_model_page_tool_output_max_chars">Tool output limit (K chars, 1-20; e.g. 5 = 5000 chars)</string>

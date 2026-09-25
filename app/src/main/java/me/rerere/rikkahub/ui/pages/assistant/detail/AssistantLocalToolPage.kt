@@ -339,7 +339,7 @@ private fun AssistantLocalToolContent(
                     OutlinedTextField(
                         value = digestToolsDraft,
                         onValueChange = { digestToolsDraft = it },
-                        placeholder = { Text(stringResource(R.string.assistant_page_extra_cold_hint)) },
+                        placeholder = { Text(stringResource(R.string.assistant_page_digest_output_hint)) },
                         modifier =
                             Modifier
                                 .fillMaxWidth()
