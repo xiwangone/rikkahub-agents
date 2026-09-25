@@ -1,12 +1,12 @@
 package me.rerere.rikkahub.data.db
 
 import java.io.File
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertTrue
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
 
 /**
  * 守住 [ImportedDatabaseReconciler] 的两个 schema 常量与导出的 schema 文件一致。
@@ -25,21 +25,21 @@ class ImportedDatabaseReconcilerConstantsTest {
     @Test
     fun `expected version and identity hash match the exported schema`() {
         val dir = schemaDir
-        assertTrue(dir != null, "找不到 schema 导出目录（尝试过 app/schemas/… 与 schemas/…）")
+        assertTrue("找不到 schema 导出目录（尝试过 app/schemas/… 与 schemas/…）", dir != null)
 
         val schemaFile = File(dir, "${ImportedDatabaseReconciler.EXPECTED_VERSION}.json")
-        assertTrue(schemaFile.isFile, "schema 导出缺失：${schemaFile.path}")
+        assertTrue("schema 导出缺失：${schemaFile.path}", schemaFile.isFile)
 
         val database = Json.parseToJsonElement(schemaFile.readText()).jsonObject["database"]!!.jsonObject
         assertEquals(
+            "EXPECTED_VERSION 与 ${schemaFile.name} 不一致",
             ImportedDatabaseReconciler.EXPECTED_VERSION.toString(),
             database["version"]!!.jsonPrimitive.content,
-            "EXPECTED_VERSION 与 ${schemaFile.name} 不一致",
         )
         assertEquals(
+            "EXPECTED_IDENTITY_HASH 与 ${schemaFile.name} 不一致",
             ImportedDatabaseReconciler.EXPECTED_IDENTITY_HASH,
             database["identityHash"]!!.jsonPrimitive.content,
-            "EXPECTED_IDENTITY_HASH 与 ${schemaFile.name} 不一致",
         )
     }
 }
