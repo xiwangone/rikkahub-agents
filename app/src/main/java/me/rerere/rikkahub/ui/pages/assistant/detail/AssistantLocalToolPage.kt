@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS
 import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.local.PermissionHelper
@@ -355,6 +356,14 @@ private fun AssistantLocalToolContent(
                                 .fillMaxWidth()
                                 .heightIn(min = 80.dp),
                     )
+                    // 一键填入内置默认集（error / FAILED / Exception / ✗ / 失败 / 异常）—— 可改可存
+                    TextButton(
+                        onClick = {
+                            digestKeywordsDraft = TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS.joinToString("\n")
+                        },
+                    ) {
+                        Text(stringResource(R.string.assistant_page_digest_output_keywords_fill))
+                    }
                 }
             },
             confirmButton = {

@@ -92,7 +92,7 @@ private const val TOOL_OUTPUT_PREVIEW_CHARS = 4 * 1024
 // 目标是「够用的骨架 + 可检索的全文落盘」，而不是把整段塞回上下文。
 private const val TOOL_OUTPUT_DIGEST_PREVIEW_CHARS = 1200
 private const val TOOL_OUTPUT_DIGEST_MAX_HITS = 20
-private val TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS =
+internal val TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS =
     listOf("FAILED", "error", "Exception", "✗", "失败", "异常")
 private const val GENERATION_STREAM_RETRY_INITIAL_DELAY_MS = 750L
 private const val GENERATION_STREAM_RETRY_MAX_DELAY_MS = 4_000L

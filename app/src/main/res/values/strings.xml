@@ -1425,6 +1425,7 @@
   <string name="assistant_page_digest_output_desc">%1$d configured. Their output is saved in full to /tool_outputs, and what enters the context is a digest — head + lines matching your keywords + tail — not a raw prefix.</string>
   <string name="assistant_page_digest_output_dialog_desc">Tool names: one per line (or comma-separated), using the exact names from list_tools. Best for tools whose output is large but only the gist matters (diagnostics dumps, page fetches, full listings). Output above the compact limit (Settings → Tools) is saved in full to /tool_outputs; the digest keeps the head, up to 20 lines matching the keywords below, and the last lines. Name the keywords for the lines you care about. Leave the list empty to disable. Ask the assistant in chat if unsure what to use — it cannot change this setting, so paste and save it yourself.</string>
   <string name="assistant_page_digest_output_keywords_label">Key lines to keep (optional; one per line or comma-separated)</string>
+  <string name="assistant_page_digest_output_keywords_fill">Fill with defaults</string>
   <string name="assistant_page_digest_output_hint">e.g. diagnostics\n     mcp__SERVER__extract</string>
   <string name="assistant_page_digest_output_keywords_hint">Empty = error / FAILED / Exception / ✗ / 失败 / 异常</string>
   <string name="setting_model_page_tool_output_compact_max_chars">Compact limit (K chars, 1-32; used by tools in an assistant\'s truncate/digest lists)</string>

@@ -3311,4 +3311,5 @@
   <string name="assistant_page_token_budget_desc">모델로 전송되는 각 요청의 크기를 측정합니다 (시스템 프롬프트 + 메모리 + 전체 기록 + 도구 출력) — 즉, 컨텍스트 창이 얼마나 가득 찼는지를 나타내는 것이지, 누적 합계가 아닙니다. 동일한 기록이 매 턴마다 다시 전송되므로, 누적 합계는 부풀려질 수 있습니다. 소프트 상한을 초과하면 어시스턴트에게 마무리하라고 알리고, 하드 상한을 초과하면 먼저 한 번의 마무리 기회를 주며, 다음 단계에서도 여전히 초과할 경우에만 중단합니다.</string>
   <string name="assistant_page_token_budget_hard_hint">권장: 소프트 상한보다 한 단계 위 — 예: 120K; 소프트 상한보다 크거나 같아야 합니다. 120K 또는 1M을 입력할 수 있습니다. 비어 있으면 제한 없음.</string>
   <string name="assistant_page_token_budget_soft_hint">권장: 모델의 컨텍스트 창의 약 0.8배 — 예: 128K 창 → 100K. 100K 또는 1M을 입력할 수 있습니다. 비어 있으면 제한 없음.</string>
+  <string name="assistant_page_digest_output_keywords_fill">기본값으로 채우기</string>
 </resources>
