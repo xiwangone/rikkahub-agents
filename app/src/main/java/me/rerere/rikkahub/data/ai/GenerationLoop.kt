@@ -637,6 +637,30 @@ private fun resolveBackendProvider(executionBackend: String, model: Model, provi
  *
  * 相关文件：会话中枢 `service/ChatService.kt`；工具装配 `data/ai/tools/ChatToolFactory.kt`；提示词 `data/ai/SystemPromptBuilder.kt`。
  */
+/**
+ * On resume after a tool-approval decision, picks every tool from the same model step that
+ * should execute now: the ones the user acted on ([UIMessagePart.Tool.canResumeExecution] -
+ * Approved/Denied/Answered) plus any sibling that was classified `Auto` but never got to run
+ * because the step broke early on a *different*, Pending sibling (#107 - otherwise those Auto
+ * tools are orphaned forever and the model never learns their results). Order matches [tools],
+ * i.e. the original call order. A tool still Pending is never included. This does not change
+ * [canResumeToolExecution] itself - Auto stays false there (the top-of-loop Pending-detection
+ * relies on that); the inclusion happens only at this resume call site.
+ *
+ * An Auto tool with [UIMessagePart.Tool.executionStartedAt] set is excluded from the "never
+ * got to run" clause even though it isn't executed: that shape means a previous attempt was
+ * interrupted mid-execute (see [UIMessagePart.Tool.isInterruptedAttempt]), not that it's
+ * still waiting its turn. In production the top-of-generateText replay-safety pass already
+ * flips that tool to Denied before this function runs, but this pure function must not rely
+ * on that ordering to avoid re-running it.
+ */
+internal fun resumableToolsIncludingUnexecutedAuto(
+    tools: List<UIMessagePart.Tool>,
+): List<UIMessagePart.Tool> = tools.filter { tool ->
+    tool.canResumeExecution ||
+        (tool.approvalState is ToolApprovalState.Auto && !tool.isExecuted && tool.executionStartedAt == null)
+}
+
 class GenerationLoop(
     private val context: Context,
     private val providerManager: ProviderManager,
@@ -1181,9 +1205,11 @@ class GenerationLoop(
 
                 toolsToProcess = updatedTools
             } else {
-                // Resuming after user interaction - use the resumable tools directly.
-                AppLog.i(TAG, "generateText: resuming with ${pendingTools.size} resumable tools")
-                toolsToProcess = messages.last().getTools().filter { it.canResumeExecution }
+                // Resuming after user interaction - use the resumable tools, plus any Auto
+                // sibling from the same step that never executed because the step broke early
+                // on a Pending tool (#107).
+                toolsToProcess = resumableToolsIncludingUnexecutedAuto(messages.last().getTools())
+                AppLog.i(TAG, "generateText: resuming with ${toolsToProcess.size} resumable tools")
             }
 
             // Handle tools (execute approved tools, handle denied tools)
@@ -1490,6 +1516,11 @@ class GenerationLoop(
                                 )
                             )
                         }.onFailure {
+                            // runCatching 也会捕获 CancellationException（例如用户在工具执行中途按了停止）：
+                            // 那必须向外传播，不能变成 tool_failed —— 被吞掉会留下误导性的"失败"结果
+                            // （而不是 cancelToolByUser 给出的"用户取消"），循环还可能误跑同批的下一个工具。
+                            // 与上方那个 catch 同一处理方式。
+                            if (it is CancellationException) throw it
                             // Stack trace stays in logcat for debugging; the JSON envelope
                             // sent BACK to the LLM gets just the exception's message and a
                             // short class hint. Stuffing the full multi-frame R8-obfuscated
