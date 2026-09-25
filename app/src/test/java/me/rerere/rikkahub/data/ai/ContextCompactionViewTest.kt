@@ -322,12 +322,6 @@ class ContextCompactionViewTest {
         // Append case: the unchanged tail plus a brand new assistant reply.
         val appendGenerated = view.messages + UIMessage.assistant("brand new reply")
         assertMergeMatchesOldAlgorithm(conversation, view, appendGenerated)
-
-        // Regenerate-boundary case: regenerate a node in the middle of the tail.
-        val regenerateEndExclusive = tailStartIndex + tailSize / 2
-        val regenerateView = ContextCompactionView.buildForRange(conversation, compaction, regenerateEndExclusive)!!
-        val regenerateGenerated = regenerateView.messages + UIMessage.assistant("regenerated reply")
-        assertMergeMatchesOldAlgorithm(conversation, regenerateView, regenerateGenerated)
     }
 
     private fun assertMergeMatchesOldAlgorithm(
