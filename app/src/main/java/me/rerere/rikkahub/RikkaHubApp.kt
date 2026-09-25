@@ -44,6 +44,8 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.androidx.workmanager.koin.workManagerFactory
 import org.koin.core.context.startKoin
+import me.rerere.rikkahub.data.db.AppDatabase
+import me.rerere.rikkahub.data.db.ImportedDatabaseReconciler
 import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "RikkaHubApp"
@@ -88,6 +90,17 @@ class RikkaHubApp : Application() {
             modules(appModule, viewModelModule, dataSourceModule, repositoryModule)
         }
         this.createNotificationChannel()
+
+        // ---- 数据库启动自检（2026-09-25）----
+        // 迁移失败（例如导入的库已带新列 → duplicate column）会让 Room 首次打开就抛异常，
+        // 表现就是"闪退进不去"。这里主动探一次：失败且留有恢复前的备份时，把坏库换回备份并
+        // 重启进程，用户再点一次就能进（比永远进不去强）；没有备份可回退时保持原行为。
+        runCatching {
+            get<AppDatabase>().openHelper.writableDatabase
+        }.onFailure { t ->
+            AppLog.w("RikkaHubApp", "startup: database failed to open", t)
+            ImportedDatabaseReconciler.recoverFromUnopenableDatabase(this)
+        }
 
         // Restore any headless conversation IDs that survived a process kill; must run
         // before any cron worker fires so mark/unmark are consistent.

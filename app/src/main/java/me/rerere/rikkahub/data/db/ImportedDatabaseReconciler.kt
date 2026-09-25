@@ -157,6 +157,38 @@ object ImportedDatabaseReconciler {
     }
 
     /**
+     * 数据库打不开时（迁移失败、文件损坏…）的自救：把坏库改名存档，用恢复前留存的
+     * `.pre-restore-backup` 换回，然后**主动结束进程**。
+     *
+     * 为什么结束进程：调用方（Application 启动探测）此刻已经处于"打开失败"状态，Room 的
+     * openHelper 不会自己重试；重启后才能读到换回来的库 —— 用户再点一次图标即可，总好过
+     * 永远进不去。
+     *
+     * 没有任何可回退的东西时什么都不做（保持原有行为，交给 CrashHandler 记录）。
+     */
+    fun recoverFromUnopenableDatabase(context: Context) {
+        runCatching {
+            val dbFile = context.getDatabasePath(DB_NAME)
+            val backup = File(dbFile.parentFile, "${dbFile.name}.pre-restore-backup")
+            if (!backup.exists()) {
+                AppLog.w(TAG, "recoverFromUnopenableDatabase: no pre-restore copy to fall back to")
+                return
+            }
+            val damaged = File(dbFile.parentFile, "${dbFile.name}.unopenable")
+            if (damaged.exists()) damaged.delete()
+            if (!dbFile.renameTo(damaged)) {
+                AppLog.w(TAG, "recoverFromUnopenableDatabase: cannot move the unopenable db aside")
+                return
+            }
+            backup.copyTo(dbFile, overwrite = true)
+            File(dbFile.parentFile, "$DB_NAME-wal").delete()
+            File(dbFile.parentFile, "$DB_NAME-shm").delete()
+            AppLog.w(TAG, "recoverFromUnopenableDatabase: restored the pre-restore copy; damaged db kept as ${damaged.name}")
+            android.os.Process.killProcess(android.os.Process.myPid())
+        }.onFailure { AppLog.w(TAG, "recoverFromUnopenableDatabase: failed", it) }
+    }
+
+    /**
      * Testable core of [reconcile]: operate on the raw db file at [dbFile] directly, so a test
      * can exercise it against a temp file instead of the app's live `rikka_hub` database.
      */
