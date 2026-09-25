@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.browser
 
+import android.app.Application
 import android.content.Context
 import android.net.Uri
 import android.webkit.WebResourceRequest
@@ -37,7 +38,7 @@ import java.util.UUID
  * URL and asserts on that marker only.
  */
 @RunWith(RobolectricTestRunner::class)
-@Config(sdk = [34])
+@Config(sdk = [34], application = Application::class)
 class BrowserAuditTest {
     private lateinit var context: Context
 
