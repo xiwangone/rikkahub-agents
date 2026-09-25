@@ -81,13 +81,22 @@ object ContextCompactionView {
 
         val inputSize = view.messages.size
         val nodes = conversation.messageNodes.toMutableList()
-        generatedMessages.forEachIndexed { index, message ->
-            val nodeIndex = nodes.indexOfFirst { node ->
-                node.messages.any { it.id == message.id }
+        // message id -> (nodeIndex, messageIndex), built once instead of the nested
+        // `nodes.indexOfFirst { node -> node.messages.any { ... } }` scan this replaced (O(tail
+        // x totalNodes) per streamed chunk, issue #109). First occurrence wins, matching
+        // indexOfFirst. Kept in sync below whenever a node gains a message or a node is appended,
+        // so a later generated message in this same call can still resolve against it.
+        val locationByMessageId = HashMap<Uuid, Pair<Int, Int>>()
+        nodes.forEachIndexed { nodeIndex, node ->
+            node.messages.forEachIndexed { messageIndex, storedMessage ->
+                locationByMessageId.putIfAbsent(storedMessage.id, nodeIndex to messageIndex)
             }
-            if (nodeIndex >= 0) {
+        }
+        generatedMessages.forEachIndexed { index, message ->
+            val location = locationByMessageId[message.id]
+            if (location != null) {
+                val (nodeIndex, messageIndex) = location
                 val node = nodes[nodeIndex]
-                val messageIndex = node.messages.indexOfFirst { it.id == message.id }
                 val replacement = ContextCompactionPresentation.preserveDisplayTools(
                     previous = node.messages[messageIndex],
                     replacement = message,
@@ -100,7 +109,24 @@ object ContextCompactionView {
                     )
                 }
             } else if (index >= inputSize) {
-                nodes += message.toMessageNode()
+                // The generated list is [summary] + tail, so generated index i >= 1 corresponds
+                // to node view.rawTailStartIndex + i - 1. On the normal (non-regenerate) path the
+                // view's tail always runs to the end of the conversation, so this always lands
+                // past the last node and falls through to the append below - byte-identical to
+                // before this was made positional for the regenerate case.
+                val boundaryNodeIndex = view.rawTailStartIndex + index - 1
+                if (boundaryNodeIndex <= nodes.lastIndex) {
+                    val node = nodes[boundaryNodeIndex]
+                    val newMessages = node.messages + message
+                    nodes[boundaryNodeIndex] = node.copy(
+                        messages = newMessages,
+                        selectIndex = newMessages.lastIndex,
+                    )
+                    locationByMessageId.putIfAbsent(message.id, boundaryNodeIndex to newMessages.lastIndex)
+                } else {
+                    nodes += message.toMessageNode()
+                    locationByMessageId.putIfAbsent(message.id, nodes.lastIndex to 0)
+                }
             }
         }
 

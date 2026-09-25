@@ -520,8 +520,8 @@ private fun hasSameConnectionParameters(
 ): Boolean = left != null && right != null && left.connectionKey() == right.connectionKey()
 
 private fun McpServerConfig.resolvedHeaders(): List<Pair<String, String>> {
-    // 同上：头部值支持 `$$凭证名`
-    val base = commonOptions.headers.map { (n, v) ->
+    // 同上：头部值支持 `$$凭证名`；并忽略设置页留下的空名称（OkHttp 会抛 "name is empty"）
+    val base = commonOptions.headers.filter { it.first.isNotBlank() }.map { (n, v) ->
         n to me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(v)
     }
     val token = commonOptions.oauth?.takeIf { it.enabled }?.accessToken

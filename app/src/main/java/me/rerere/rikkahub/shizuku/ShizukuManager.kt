@@ -97,7 +97,13 @@ internal fun bindFailedResponse(failure: BindResult.Failure): JsonObject = build
     put("error", "shizuku_bind_failed")
     put(
         "recovery",
-        "Could not bind the Shizuku user service. Retry; if it keeps failing, restart the Shizuku service and re-grant permission from Settings -> Shizuku.",
+        if (failure is BindResult.Failure.Timeout) {
+            // The server accepted the bind (an unauthorised caller fails at bind_threw), so
+            // permission is not the problem; a running server older than the Shizuku app is (#45).
+            "The Shizuku server accepted the request but the user service never started. Open the Shizuku app: if the running server version is older than the app, or it offers to restart to upgrade, restart the Shizuku service, then retry."
+        } else {
+            "Could not bind the Shizuku user service. Retry; if it keeps failing, restart the Shizuku service and re-grant permission from Settings -> Shizuku."
+        },
     )
     put("phase", failure.phase)
     if (failure is BindResult.Failure.BindThrew) {
@@ -254,7 +260,17 @@ object ShizukuManager {
             deferred = bindWaiter!!
         }
         if (needBind) startBind(context, deferred)
-        return withTimeoutOrNull(BIND_TIMEOUT_MS) { deferred.await() } ?: BindResult.Failure.Timeout
+        val result = withTimeoutOrNull(BIND_TIMEOUT_MS) { deferred.await() }
+        if (result != null) return result
+        // No connection callback arrived in time. Clear the waiter so the next call starts a
+        // fresh bind instead of awaiting this same dead deferred forever (a bind that never
+        // calls back would otherwise wedge every future call until process restart). Only
+        // clear it if it is still ours. The stale connection is left alone: if its callback
+        // arrives late it installs a live service, and completing the orphaned deferred is harmless.
+        bindLock.withLock {
+            if (bindWaiter === deferred) bindWaiter = null
+        }
+        return BindResult.Failure.Timeout
     }
 
     private fun startBind(context: Context, deferred: CompletableDeferred<BindResult>) {
