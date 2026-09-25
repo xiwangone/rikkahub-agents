@@ -22,6 +22,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.browser.BrowserAudit
 import me.rerere.rikkahub.browser.BrowserController
 import me.rerere.rikkahub.browser.BrowserControllerHandle
 import me.rerere.rikkahub.browser.BrowserDiffHelper
@@ -199,6 +200,7 @@ fun browserOpenTool(context: Context, invocationContext: ToolInvocationContext? 
                     }
                     BrowserController.startTaskWindow()
                     BrowserController.appendAction("Open: $url")
+                    BrowserAudit.action(BrowserToolDefaults.OPEN, url, "mode=headless")
                     val result = BrowserControllerHandle.withController {
                         withContext(Dispatchers.Main) { webView.loadUrl(url) }
                         webView.awaitReadyState(8_000L)
@@ -234,6 +236,7 @@ fun browserOpenTool(context: Context, invocationContext: ToolInvocationContext? 
                     // (Re)start the 5-minute task window on every browser_open.
                     BrowserController.startTaskWindow()
                     BrowserController.appendAction("Open: $url")
+                    BrowserAudit.action(BrowserToolDefaults.OPEN, url, "mode=foreground")
                     BrowserControllerHandle.withController {
                         // When the Activity was just freshly launched, the URL was already
                         // passed as EXTRA_INITIAL_URL and the WebView began loading it
@@ -574,6 +577,7 @@ fun browserClickTool(): Tool = Tool(
                         if (res.containsKey("error")) return@withDiff res
                         webView.awaitReadyState(8_000L)
                         BrowserController.appendAction("Click: $selector")
+                        BrowserAudit.action(BrowserToolDefaults.CLICK, webView.url, "selector=$selector")
                         buildJsonObject {
                             put("success", true)
                             put("post_click_url", webView.url.orEmpty())
@@ -635,6 +639,8 @@ fun browserTypeTool(): Tool = Tool(
                         val res = parseJsResult(webView.evaluateJavascriptAsync(js))
                         if (res.containsKey("error")) return@withDiff res
                         BrowserController.appendAction("Typed into $selector")
+                        // Length only — the typed text itself may be a credential.
+                        BrowserAudit.action(BrowserToolDefaults.TYPE, webView.url, "selector=$selector len=${text.orEmpty().length}")
                         buildJsonObject { put("success", true) }
                     }
                 }
@@ -681,6 +687,7 @@ fun browserScrollTool(): Tool = Tool(
                     val res = parseJsResult(webView.evaluateJavascriptAsync(js))
                     if (res.containsKey("error")) return@withController res
                     BrowserController.appendAction("Scroll $direction")
+                    BrowserAudit.action(BrowserToolDefaults.SCROLL, webView.url, "direction=$direction")
                     buildJsonObject {
                         put("success", true)
                         put("scroll_y", res["scroll_y"]?.jsonPrimitive?.intOrNull ?: 0)
@@ -734,6 +741,7 @@ fun browserSubmitTool(): Tool = Tool(
                         if (res.containsKey("error")) return@withDiff res
                         webView.awaitReadyState(8_000L)
                         BrowserController.appendAction("Submit: $selector")
+                        BrowserAudit.action(BrowserToolDefaults.SUBMIT, webView.url, "selector=$selector")
                         buildJsonObject {
                             put("success", true)
                             put("post_submit_url", webView.url.orEmpty())
@@ -782,6 +790,8 @@ fun browserSelectTool(): Tool = Tool(
                         val res = parseJsResult(webView.evaluateJavascriptAsync(js))
                         if (res.containsKey("error")) return@withDiff res
                         BrowserController.appendAction("Select: $selector=$value")
+                        // Option value length only (the value itself can encode user data).
+                        BrowserAudit.action(BrowserToolDefaults.SELECT, webView.url, "selector=$selector value_len=${value.orEmpty().length}")
                         buildJsonObject { put("success", true) }
                     }
                 }
@@ -830,6 +840,7 @@ fun browserPressKeyTool(): Tool = Tool(
                         val res = parseJsResult(webView.evaluateJavascriptAsync(js))
                         if (res.containsKey("error")) return@withDiff res
                         BrowserController.appendAction("Press key: $key")
+                        BrowserAudit.action(BrowserToolDefaults.PRESS_KEY, webView.url, "key=$key")
                         buildJsonObject { put("success", true) }
                     }
                 }
@@ -865,6 +876,8 @@ fun browserEvalJsTool(): Tool = Tool(
                 BrowserControllerHandle.withController {
                     val raw = webView.evaluateJavascriptAsync(code, toolTimeoutMs - 1_000L)
                     BrowserController.appendAction("Run JS")
+                    // Script length only — the source can embed tokens or page data.
+                    BrowserAudit.action(BrowserToolDefaults.EVAL_JS, webView.url, "code_len=${code.orEmpty().length}")
                     // Clamp the raw result before it enters the envelope. evaluateJavascript
                     // returns whatever the page's last expression serialised to — a model that
                     // evals e.g. `document.body.outerHTML` can dump megabytes into the turn.
@@ -949,6 +962,7 @@ fun browserClickAndReadTool(): Tool = Tool(
                     if (clickRes.containsKey("error")) return@withController clickRes
                     webView.awaitReadyState(8_000L)
                     BrowserController.appendAction("Click+read: $selector")
+                    BrowserAudit.action(BrowserToolDefaults.CLICK_AND_READ, webView.url, "selector=$selector")
                     val postUrl = withContext(Dispatchers.Main) { webView.url.orEmpty() }
                     val postTitle = withContext(Dispatchers.Main) { webView.title.orEmpty() }
                     @Suppress("UNUSED_VARIABLE")

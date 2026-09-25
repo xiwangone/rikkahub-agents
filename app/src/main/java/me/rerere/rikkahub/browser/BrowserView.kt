@@ -8,6 +8,7 @@ import android.webkit.ConsoleMessage
 import android.webkit.WebChromeClient
 import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import androidx.compose.foundation.layout.Box
@@ -179,6 +180,31 @@ private fun WebViewHost(
                     // app-private files and exfiltrate them via browser_get_text.
                     val toFile = request?.url?.scheme.equals("file", ignoreCase = true)
                     return toFile && view?.url?.startsWith("file:", ignoreCase = true) != true
+                }
+
+                /**
+                 * Egress audit only — the response is never altered: returning null hands the
+                 * request back to the default handler. Non-GET requests are the ones that can
+                 * carry page data outward (form POST, fetch/XHR with a body); GET navigations
+                 * and sub-resources are the norm and would flood the log. The request body is
+                 * not observable from WebResourceRequest, so BrowserAudit records
+                 * `body=unknown` instead of inventing one.
+                 */
+                override fun shouldInterceptRequest(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                ): WebResourceResponse? {
+                    request?.let {
+                        if (!it.method.equals("GET", ignoreCase = true)) {
+                            BrowserAudit.request(
+                                method = it.method,
+                                url = it.url?.toString(),
+                                mainFrame = it.isForMainFrame,
+                                origin = "foreground",
+                            )
+                        }
+                    }
+                    return super.shouldInterceptRequest(view, request)
                 }
 
                 override fun onPageStarted(view: WebView?, url: String?, favicon: Bitmap?) {

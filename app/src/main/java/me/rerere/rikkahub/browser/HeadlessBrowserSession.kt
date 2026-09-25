@@ -6,6 +6,7 @@ import android.os.Looper
 import android.view.View
 import android.webkit.CookieManager
 import android.webkit.WebResourceRequest
+import android.webkit.WebResourceResponse
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.LinearLayout
@@ -115,6 +116,28 @@ class HeadlessBrowserSession(private val context: Context) {
                     // hop into file:// would expose app-private files to browser_get_text.
                     val toFile = request?.url?.scheme.equals("file", ignoreCase = true)
                     return toFile && view?.url?.startsWith("file:", ignoreCase = true) != true
+                }
+
+                /**
+                 * Same egress audit as the foreground BrowserView, tagged `origin=headless` so
+                 * model-driven (Telegram / cron) sessions stay distinguishable from on-screen
+                 * ones. Audit only — the response is never altered.
+                 */
+                override fun shouldInterceptRequest(
+                    view: WebView?,
+                    request: WebResourceRequest?,
+                ): WebResourceResponse? {
+                    request?.let {
+                        if (!it.method.equals("GET", ignoreCase = true)) {
+                            BrowserAudit.request(
+                                method = it.method,
+                                url = it.url?.toString(),
+                                mainFrame = it.isForMainFrame,
+                                origin = "headless",
+                            )
+                        }
+                    }
+                    return super.shouldInterceptRequest(view, request)
                 }
 
                 override fun onPageStarted(view: WebView, url: String?, favicon: android.graphics.Bitmap?) {

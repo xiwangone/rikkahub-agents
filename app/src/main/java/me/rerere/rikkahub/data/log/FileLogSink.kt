@@ -24,6 +24,12 @@ object FileLogSink {
     const val KIND_TEXT = "text"
     const val KIND_LIFECYCLE = "lifecycle"
 
+    /**
+     * 浏览器出口审计（`BrowserAudit`）：模型发起的浏览器动作 + WebView 实际发出的
+     * 非 GET 请求。单独一个类别，便于 `browser-<日期>.log` 单独排查/导出。
+     */
+    const val KIND_BROWSER = "browser"
+
     private const val MAX_FILE_SIZE = 2L * 1024 * 1024 // 2MB
     private const val MAX_FILES = 5
     private const val RETENTION_DAYS = 7L
