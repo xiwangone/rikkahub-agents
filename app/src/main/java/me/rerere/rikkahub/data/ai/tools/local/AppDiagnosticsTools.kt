@@ -48,6 +48,7 @@ import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.common.android.LogEntry
 import me.rerere.common.android.Logging
@@ -278,6 +279,134 @@ internal suspend fun appSettingsPayload(settingsStore: SettingsStore): String {
             })
         }
     return out.toString()
+}
+
+// ---------- assistants ----------
+
+/** 提示词默认预览长度（full=true 才给全文）：够判断"是不是同一版"，又不吃上下文。 */
+private const val PROMPT_PREVIEW_CHARS = 1200
+
+/**
+ * 助手的**配置快照**（不含任何凭证值）。
+ *
+ * 存在意义：助手配置存在 App 私有存储里，沙箱/shell 侧读不到 —— "当前生效的系统提示词是什么、
+ * 四份工具名单填了哪些、预算上限多少"原本只能靠用户手工粘贴。本 payload 把非敏感部分直接交给
+ * AI：既能自查配置，也能据此把配置归档进知识库（补上"助手配置无版本化"的洞）。
+ *
+ * 参数：`assistant_id`（只看一个）、`full`（提示词全文，默认截断）、`limit`（条数上限）。
+ *
+ * 脱敏纪律：`custom_headers` / `custom_bodies` **只给键名与值长度**，绝不给值 —— 它们可能被
+ * 用户填成明文 key。provider 侧 key 是 "$$凭证名" 引用，天然安全。
+ */
+internal suspend fun assistantsPayload(settingsStore: SettingsStore, params: JsonObject): String {
+    val settings = runCatching { settingsStore.settingsFlow.first() }.getOrNull()
+        ?: return "{\"error\":\"settings_unavailable\"}"
+    val onlyId = params["assistant_id"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
+    val full = params["full"]?.jsonPrimitive?.contentOrNull?.equals("true", ignoreCase = true) == true
+    val limit = (params["limit"]?.jsonPrimitive?.intOrNull ?: 200).coerceIn(1, 200)
+    val current = settings.getCurrentAssistant().id
+    val modelIndex = settings.providers.flatMap { p -> p.models.map { p to it } }.associateBy { it.second.id }
+    val selected = settings.assistants
+        .filter { onlyId.isEmpty() || it.id.toString() == onlyId }
+        .take(limit)
+
+    return buildJsonObject {
+        put("current_assistant_id", current.toString())
+        put("assistant_count", settings.assistants.size)
+        put("shown", selected.size)
+        put("prompt_full", full)
+        put("assistants", buildJsonArray {
+            selected.forEach { a ->
+                val chatModel = a.chatModelId?.let { id -> modelIndex[id] }
+                    ?.let { (p, m) -> "${p.name} / ${m.displayName.ifBlank { m.modelId }}" } ?: "inherit"
+                add(assistantConfigJson(a, chatModel, a.id == current, full))
+            }
+        })
+    }.toString()
+}
+
+/** 单个助手的**核心配置**（模型/采样/开关/提示词）；工具面与关联计数见 [assistantToolsJson]。 */
+private fun assistantConfigJson(
+    a: Assistant,
+    chatModel: String,
+    isCurrent: Boolean,
+    full: Boolean,
+): JsonObject = buildJsonObject {
+    put("id", a.id.toString())
+    put("is_current", isCurrent)
+    put("name", a.name)
+    put("avatar", when (val av = a.avatar) {
+        is Avatar.Dummy -> "dummy"
+        is Avatar.Emoji -> "emoji:${av.content}"
+        is Avatar.Image -> "image"
+    })
+    put("system_prompt_chars", a.systemPrompt.length)
+    put(
+        "system_prompt",
+        if (full || a.systemPrompt.length <= PROMPT_PREVIEW_CHARS) a.systemPrompt
+        else a.systemPrompt.take(PROMPT_PREVIEW_CHARS) + "…(截断；full=true 取全文)",
+    )
+    put("sub_agent_prompt_chars", a.subAgentSystemPrompt.length)
+    if (full) put("sub_agent_system_prompt", a.subAgentSystemPrompt)
+    put("chat_model_id", a.chatModelId?.toString() ?: "inherit")
+    put("chat_model", chatModel)
+    put("temperature", a.temperature?.toString() ?: "inherit")
+    put("top_p", a.topP?.toString() ?: "inherit")
+    put("frequency_penalty", a.frequencyPenalty?.toString() ?: "inherit")
+    put("presence_penalty", a.presencePenalty?.toString() ?: "inherit")
+    put("max_tokens", a.maxTokens?.toString() ?: "inherit")
+    put("context_message_limit", a.contextMessageLimit)
+    put("stream_output", a.streamOutput)
+    put("reasoning_level", a.reasoningLevel.toString())
+    put("enable_memory", a.enableMemory)
+    put("use_global_memory", a.useGlobalMemory)
+    put("enable_recent_chats_reference", a.enableRecentChatsReference)
+    put("enable_web_search", a.enableWebSearch)
+    put("enable_time_reminder", a.enableTimeReminder)
+    put("token_budget_soft_cap", a.tokenBudgetSoftCap?.toString() ?: "none")
+    put("token_budget_hard_cap", a.tokenBudgetHardCap?.toString() ?: "none")
+    putAll(assistantToolsJson(a))
+}
+
+/** 单个助手的**工具面与关联计数**（名单逐个列出；关联项只给数量；header/body 值只给长度）。 */
+private fun assistantToolsJson(a: Assistant): JsonObject = buildJsonObject {
+    put("extra_cold_tools", buildJsonArray { a.extraColdTools.forEach { add(JsonPrimitive(it)) } })
+    put("only_tools", buildJsonArray { a.onlyTools.forEach { add(JsonPrimitive(it)) } })
+    put("compact_tools", buildJsonArray { a.toolOutputCompactTools.forEach { add(JsonPrimitive(it)) } })
+    put("digest_tools", buildJsonArray { a.toolOutputDigestTools.forEach { add(JsonPrimitive(it)) } })
+    put("digest_keywords", buildJsonArray { a.toolOutputDigestKeywords.forEach { add(JsonPrimitive(it)) } })
+    put("enabled_skills", buildJsonArray { a.enabledSkills.forEach { add(JsonPrimitive(it)) } })
+    put("local_tools", a.localTools.size)
+    put("sub_agent_model_id", a.subAgentModelId?.toString() ?: "inherit")
+    put("max_concurrent_sub_agents", a.maxConcurrentSubAgents)
+    put("workspace_id", a.workspaceId?.toString() ?: "none")
+    put("regexes", a.regexes.size)
+    put("preset_messages", a.presetMessages.size)
+    put("quick_messages", a.quickMessageIds.size)
+    put("mode_injections", a.modeInjectionIds.size)
+    put("lorebooks", a.lorebookIds.size)
+    put("mcp_servers", a.mcpServers.size)
+    put("tags", a.tags.size)
+    put("has_background", a.background != null)
+    put("background_opacity", a.backgroundOpacity.toString())
+    put("use_gradient_background", a.useGradientBackground)
+    put("message_template", a.messageTemplate)
+    put("custom_headers", buildJsonArray {
+        a.customHeaders.forEach { h ->
+            add(buildJsonObject {
+                put("name", h.name)
+                put("value_chars", h.value.length)
+            })
+        }
+    })
+    put("custom_bodies", buildJsonArray {
+        a.customBodies.forEach { b ->
+            add(buildJsonObject {
+                put("key", b.key)
+                put("value_chars", b.value.toString().length)
+            })
+        }
+    })
 }
 
 // ---------- test_model ----------
@@ -1182,8 +1311,8 @@ internal suspend fun toolScopePayload(
 // ---------- grouped entry point ----------
 
 private val DIAGNOSTICS_KINDS = listOf(
-    "health", "build", "enabled_tools", "usage", "settings", "logs", "requests", "crash", "lifecycle",
-    "conversation", "generation", "perf", "models", "audit", "tool_scope", "runs",
+    "health", "build", "enabled_tools", "usage", "settings", "assistants", "logs", "requests", "crash",
+    "lifecycle", "conversation", "generation", "perf", "models", "audit", "tool_scope", "runs",
 )
 
 /**
@@ -1441,6 +1570,14 @@ private fun diagnosticsParameters(): InputSchema =
                 put("type", "integer")
                 put("description", "models only: max models per provider (default 30; 0 = no limit).")
             })
+            put("assistant_id", buildJsonObject {
+                put("type", "string")
+                put("description", "assistants only: show a single assistant by its uuid; omit for all.")
+            })
+            put("full", buildJsonObject {
+                put("type", "string")
+                put("description", "assistants only: \"true\" returns the full system prompt; default truncates it to ~1200 chars.")
+            })
             put("lines", buildJsonObject {
                 put("type", "integer")
                 put("description", "lifecycle only: trailing line count (default 60, max 500).")
@@ -1537,6 +1674,7 @@ fun diagnosticsTool(
             "enabled_tools" -> enabledToolsPayload(settingsStore)
             "usage" -> usageStatsPayload(context, settingsStore, params)
             "settings" -> appSettingsPayload(settingsStore)
+            "assistants" -> assistantsPayload(settingsStore, params)
             "logs" -> appLogsPayload(context, params)
             "requests" -> requestLogsPayload(context, params)
             "crash" -> crashSnapshotPayload(context, params)
