@@ -194,16 +194,7 @@ private fun WebViewHost(
                     view: WebView?,
                     request: WebResourceRequest?,
                 ): WebResourceResponse? {
-                    request?.let {
-                        if (!it.method.equals("GET", ignoreCase = true)) {
-                            BrowserAudit.request(
-                                method = it.method,
-                                url = it.url?.toString(),
-                                mainFrame = it.isForMainFrame,
-                                origin = "foreground",
-                            )
-                        }
-                    }
+                    BrowserAudit.maybeRecordRequest(request, origin = "foreground")
                     return super.shouldInterceptRequest(view, request)
                 }
 

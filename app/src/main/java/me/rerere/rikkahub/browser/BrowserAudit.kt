@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.browser
 
 import android.os.SystemClock
+import android.webkit.WebResourceRequest
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.log.FileLogSink
 import me.rerere.rikkahub.utils.LogRedactor
@@ -63,6 +64,28 @@ object BrowserAudit {
                 if (!detail.isNullOrBlank()) append(" ").append(detail)
             }
         writeLine("action|$tool|$url|$detail", line)
+    }
+
+    /**
+     * Records a request seen by a `WebViewClient` callback, if it is worth recording.
+     *
+     * The "is this worth a row" rule lives here rather than in each WebView client so the
+     * foreground and headless browsers cannot drift apart — both call this with just their
+     * origin tag. Reads are skipped (GET navigations and sub-resources are the norm and
+     * would flood the log); everything else is a potential egress.
+     */
+    fun maybeRecordRequest(
+        webRequest: WebResourceRequest?,
+        origin: String,
+    ) {
+        val method = webRequest?.method ?: return
+        if (method.equals("GET", ignoreCase = true)) return
+        request(
+            method = method,
+            url = webRequest.url?.toString(),
+            mainFrame = webRequest.isForMainFrame,
+            origin = origin,
+        )
     }
 
     /**

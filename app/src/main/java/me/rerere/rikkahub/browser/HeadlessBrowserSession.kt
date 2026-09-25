@@ -127,16 +127,7 @@ class HeadlessBrowserSession(private val context: Context) {
                     view: WebView?,
                     request: WebResourceRequest?,
                 ): WebResourceResponse? {
-                    request?.let {
-                        if (!it.method.equals("GET", ignoreCase = true)) {
-                            BrowserAudit.request(
-                                method = it.method,
-                                url = it.url?.toString(),
-                                mainFrame = it.isForMainFrame,
-                                origin = "headless",
-                            )
-                        }
-                    }
+                    BrowserAudit.maybeRecordRequest(request, origin = "headless")
                     return super.shouldInterceptRequest(view, request)
                 }
 
