@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.db.migrations
 
+import androidx.sqlite.db.SupportSQLiteDatabase
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
@@ -9,6 +10,27 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.migrateToolNodes
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
+
+/**
+ * 当 `table` 已含 `column` 时返回 true。
+ *
+ * 手写迁移可能跑在**来自备份/其他构建的库**上 —— 那些库可能已经带了该列（见
+ * `ImportedDatabaseReconciler` 与历史上 "duplicate column name" 的首启崩溃，issues #10/#11/#105）。
+ * SQLite 的 `ALTER TABLE … ADD COLUMN` **不是幂等的**，所以每条这样的语句都用本函数守卫。
+ */
+internal fun SupportSQLiteDatabase.hasColumn(table: String, column: String): Boolean =
+    runCatching {
+        query("PRAGMA table_info(`$table`)").use { cursor ->
+            val nameIndex = cursor.getColumnIndex("name")
+            var found = false
+            if (nameIndex >= 0) {
+                while (!found && cursor.moveToNext()) {
+                    found = cursor.getString(nameIndex) == column
+                }
+            }
+            found
+        }
+    }.getOrElse { false }
 
 internal val partTypeMapping = mapOf(
     "Text" to "text",

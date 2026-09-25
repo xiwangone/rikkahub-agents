@@ -22,7 +22,9 @@ val Migration_31_32 = object : Migration(31, 32) {
         AppLog.i(TAG, "migrate: start migrate from 31 to 32 (memoryentity add tier)")
         db.beginTransaction()
         try {
-            db.execSQL("ALTER TABLE `memoryentity` ADD COLUMN `tier` TEXT NOT NULL DEFAULT 'core'")
+            if (!db.hasColumn("memoryentity", "tier")) {
+                db.execSQL("ALTER TABLE `memoryentity` ADD COLUMN `tier` TEXT NOT NULL DEFAULT 'core'")
+            }
             db.setTransactionSuccessful()
             AppLog.i(TAG, "migrate: migrate from 31 to 32 success")
         } finally {

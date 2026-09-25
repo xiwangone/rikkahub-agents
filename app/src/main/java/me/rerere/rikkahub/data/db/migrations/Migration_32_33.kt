@@ -27,9 +27,11 @@ val Migration_32_33 = object : Migration(32, 33) {
         AppLog.i(TAG, "migrate: start migrate from 32 to 33 (chat_model_id + conversation_compaction)")
         db.beginTransaction()
         try {
-            db.execSQL(
-                "ALTER TABLE `ConversationEntity` ADD COLUMN `chat_model_id` TEXT NOT NULL DEFAULT ''",
-            )
+            if (!db.hasColumn("ConversationEntity", "chat_model_id")) {
+                db.execSQL(
+                    "ALTER TABLE `ConversationEntity` ADD COLUMN `chat_model_id` TEXT NOT NULL DEFAULT ''",
+                )
+            }
             db.execSQL(
                 "CREATE TABLE IF NOT EXISTS `conversation_compaction` (" +
                     "`conversation_id` TEXT NOT NULL, " +

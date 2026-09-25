@@ -19,12 +19,16 @@ val Migration_34_35 = object : Migration(34, 35) {
         AppLog.i(TAG, "migrate: start migrate from 34 to 35 (ssh_hosts fallback/jump)")
         db.beginTransaction()
         try {
-            db.execSQL(
-                "ALTER TABLE `ssh_hosts` ADD COLUMN `fallbackHostsJson` TEXT DEFAULT NULL",
-            )
-            db.execSQL(
-                "ALTER TABLE `ssh_hosts` ADD COLUMN `jumpHost` TEXT DEFAULT NULL",
-            )
+            if (!db.hasColumn("ssh_hosts", "fallbackHostsJson")) {
+                db.execSQL(
+                    "ALTER TABLE `ssh_hosts` ADD COLUMN `fallbackHostsJson` TEXT DEFAULT NULL",
+                )
+            }
+            if (!db.hasColumn("ssh_hosts", "jumpHost")) {
+                db.execSQL(
+                    "ALTER TABLE `ssh_hosts` ADD COLUMN `jumpHost` TEXT DEFAULT NULL",
+                )
+            }
             db.setTransactionSuccessful()
             AppLog.i(TAG, "migrate: migrate from 34 to 35 success")
         } finally {

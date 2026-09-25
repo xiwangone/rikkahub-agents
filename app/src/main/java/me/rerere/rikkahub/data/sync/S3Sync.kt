@@ -294,6 +294,8 @@ class S3Sync(
         if (config.items.contains(S3Config.BackupItem.DATABASE)) {
             runCatching { appDatabase.close() }
                 .onFailure { AppLog.w(TAG, "restoreFromBackupFile: appDatabase.close() before restore failed", it) }
+            // 覆盖前留后路：万一协调/迁移出问题，还能人工把 .pre-restore-backup 换回去
+            ImportedDatabaseReconciler.backupBeforeRestore(context)
         }
 
         ZipInputStream(FileInputStream(backupFile)).use { zipIn ->

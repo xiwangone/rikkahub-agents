@@ -51,11 +51,11 @@ object ImportedDatabaseReconciler {
      * from app/schemas/me.rerere.rikkahub.data.db.AppDatabase/27.json (the identity hash also
      * appears in the generated AppDatabase_Impl RoomOpenDelegate). When the schema version is
      * bumped, update BOTH constants (and the table DDL below if the app-specific tables changed,
-     * and MODERN_COLUMN_SENTINELS if newer conversation columns were added) or this
+     * and MODERN_COLUMN_SENTINELS_BY_TABLE if newer shared columns were added) or this
      * reconciliation will silently stop matching.
      */
-    private const val EXPECTED_VERSION = 27
-    private const val EXPECTED_IDENTITY_HASH = "47dc97ce825856b039f96c2769103dd1"
+    internal const val EXPECTED_VERSION = 27
+    internal const val EXPECTED_IDENTITY_HASH = "47dc97ce825856b039f96c2769103dd1"
 
     /**
      * Columns that a restored file must already have for its shared schema to be considered
@@ -65,7 +65,25 @@ object ImportedDatabaseReconciler {
      * every one of those replays. 2.4.x builds carry all three; a genuine file from this app below
      * v27 carries only a prefix, so it still migrates normally.
      */
-    private val MODERN_COLUMN_SENTINELS = listOf("custom_system_prompt", "workspace_cwd", "folder_id")
+    private val MODERN_COLUMN_SENTINELS_BY_TABLE: List<Pair<String, String>> =
+        listOf(
+            // 24→25 / 25→26 / 26→27（历史基线列）
+            "ConversationEntity" to "custom_system_prompt",
+            "ConversationEntity" to "workspace_cwd",
+            "ConversationEntity" to "folder_id",
+            // 32→33
+            "ConversationEntity" to "chat_model_id",
+            // 31→32
+            "memoryentity" to "tier",
+            // 33→34
+            "vault_credentials" to "publicKey",
+            // 30→31 / 34→35 / 35→36
+            "ssh_hosts" to "vaultCredentialRef",
+            "ssh_hosts" to "templateRef",
+            "ssh_hosts" to "fallbackHostsJson",
+            "ssh_hosts" to "jumpHost",
+            "ssh_hosts" to "sshOptions",
+        )
 
     private const val CONTEXT_COMPACTION_DDL =
         "CREATE TABLE IF NOT EXISTS `conversation_compaction` (`conversation_id` TEXT NOT NULL, `summary` TEXT NOT NULL, `tail_start_node_id` TEXT, `source_end_node_id` TEXT NOT NULL, `summary_model_id` TEXT NOT NULL, `is_auto` INTEGER NOT NULL, `source_token_estimate` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`conversation_id`), FOREIGN KEY(`conversation_id`) REFERENCES `ConversationEntity`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
@@ -119,6 +137,26 @@ object ImportedDatabaseReconciler {
     }
 
     /**
+     * 恢复/导入前把当前库另存一份（只保留最近一份），出问题时能人工回退。
+     *
+     * ⚠ **必须在恢复写库之前调用**：`reconcile()` 跑在 zip 覆盖**之后**，在那里备份只会备份到
+     * 刚恢复的新库。恢复流程是「先 close appDatabase → 覆盖 rikka_hub.db/-wal/-shm → reconcile」，
+     * 所以调用点放在 close 之后、覆盖之前。
+     */
+    fun backupBeforeRestore(context: Context) {
+        runCatching {
+            val dbFile = context.getDatabasePath(DB_NAME)
+            if (!dbFile.exists()) {
+                AppLog.i(TAG, "backupBeforeRestore: no existing db, nothing to keep")
+                return
+            }
+            val backup = File(dbFile.parentFile, "${dbFile.name}.pre-restore-backup")
+            dbFile.copyTo(backup, overwrite = true)
+            AppLog.i(TAG, "backupBeforeRestore: kept pre-restore copy at ${backup.name} (${backup.length()} bytes)")
+        }.onFailure { AppLog.w(TAG, "backupBeforeRestore: failed to keep pre-restore copy", it) }
+    }
+
+    /**
      * Testable core of [reconcile]: operate on the raw db file at [dbFile] directly, so a test
      * can exercise it against a temp file instead of the app's live `rikka_hub` database.
      */
@@ -145,8 +183,8 @@ object ImportedDatabaseReconciler {
                 // a 2.4.x backup stamps user_version 24 but carries every modern column;
                 // see issues #10, #11). Detect that case by the sentinel columns those very
                 // migrations add.
-                val alreadyCurrent = MODERN_COLUMN_SENTINELS.all {
-                    hasColumn(db, "ConversationEntity", it)
+                val alreadyCurrent = MODERN_COLUMN_SENTINELS_BY_TABLE.all { (table, column) ->
+                    hasColumn(db, table, column)
                 }
 
                 db.beginTransaction()

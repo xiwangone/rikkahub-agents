@@ -458,6 +458,7 @@ class WebDavSync(
         if (config.items.contains(WebDavConfig.BackupItem.DATABASE)) {
             runCatching { appDatabase.close() }
                 .onFailure { AppLog.w(TAG, "restoreFromBackupFile: appDatabase.close() before restore failed", it) }
+            ImportedDatabaseReconciler.backupBeforeRestore(context)
         }
 
         ZipInputStream(FileInputStream(backupFile)).use { zipIn ->

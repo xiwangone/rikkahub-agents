@@ -214,6 +214,7 @@
     <ID>LargeClass:McpManager.kt$McpManager</ID>
     <ID>LargeClass:ModelRegistry.kt$ModelRegistry</ID>
     <ID>LargeClass:TelegramBotService.kt$TelegramBotService : Service</ID>
+    <ID>LargeClass:WebDavSync.kt$WebDavSync</ID>
     <ID>LongMethod:AppLauncherTool.kt$fun listInstalledAppsTool(context: Context): Tool</ID>
     <ID>LongMethod:AppLogPage.kt$@Composable fun AppLogPage(onBack: () -&gt; Unit)</ID>
     <ID>LongMethod:AssistantBasicPage.kt$@Composable internal fun AssistantBasicContent( innerPadding: PaddingValues, assistant: Assistant, providers: List&lt;me.rerere.ai.provider.ProviderSetting&gt;, tags: List&lt;DataTag&gt;, workspaces: List&lt;WorkspaceEntity&gt;, onUpdate: (Assistant) -&gt; Unit, vm: AssistantDetailVM, )</ID>

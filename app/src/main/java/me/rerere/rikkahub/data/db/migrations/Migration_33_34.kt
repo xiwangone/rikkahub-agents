@@ -18,9 +18,11 @@ val Migration_33_34 = object : Migration(33, 34) {
         AppLog.i(TAG, "migrate: start migrate from 33 to 34 (vault_credentials.publicKey)")
         db.beginTransaction()
         try {
-            db.execSQL(
-                "ALTER TABLE `vault_credentials` ADD COLUMN `publicKey` TEXT NOT NULL DEFAULT ''",
-            )
+            if (!db.hasColumn("vault_credentials", "publicKey")) {
+                db.execSQL(
+                    "ALTER TABLE `vault_credentials` ADD COLUMN `publicKey` TEXT NOT NULL DEFAULT ''",
+                )
+            }
             db.setTransactionSuccessful()
             AppLog.i(TAG, "migrate: migrate from 33 to 34 success")
         } finally {

@@ -18,9 +18,11 @@ val Migration_35_36 = object : Migration(35, 36) {
         AppLog.i(TAG, "migrate: start migrate from 35 to 36 (ssh_hosts sshOptions)")
         db.beginTransaction()
         try {
-            db.execSQL(
-                "ALTER TABLE `ssh_hosts` ADD COLUMN `sshOptions` TEXT DEFAULT NULL",
-            )
+            if (!db.hasColumn("ssh_hosts", "sshOptions")) {
+                db.execSQL(
+                    "ALTER TABLE `ssh_hosts` ADD COLUMN `sshOptions` TEXT DEFAULT NULL",
+                )
+            }
             db.setTransactionSuccessful()
             AppLog.i(TAG, "migrate: migrate from 35 to 36 success")
         } finally {

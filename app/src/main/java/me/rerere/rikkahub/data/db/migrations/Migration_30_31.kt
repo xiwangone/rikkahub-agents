@@ -22,8 +22,12 @@ val Migration_30_31 = object : Migration(30, 31) {
         AppLog.i(TAG, "migrate: start migrate from 30 to 31 (ssh_hosts add columns)")
         db.beginTransaction()
         try {
-            db.execSQL("ALTER TABLE `ssh_hosts` ADD COLUMN `vaultCredentialRef` TEXT DEFAULT NULL")
-            db.execSQL("ALTER TABLE `ssh_hosts` ADD COLUMN `templateRef` TEXT DEFAULT NULL")
+            if (!db.hasColumn("ssh_hosts", "vaultCredentialRef")) {
+                db.execSQL("ALTER TABLE `ssh_hosts` ADD COLUMN `vaultCredentialRef` TEXT DEFAULT NULL")
+            }
+            if (!db.hasColumn("ssh_hosts", "templateRef")) {
+                db.execSQL("ALTER TABLE `ssh_hosts` ADD COLUMN `templateRef` TEXT DEFAULT NULL")
+            }
             db.setTransactionSuccessful()
             AppLog.i(TAG, "migrate: migrate from 30 to 31 success")
         } finally {
