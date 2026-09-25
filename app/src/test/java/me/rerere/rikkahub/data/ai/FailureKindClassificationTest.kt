@@ -41,5 +41,18 @@ class FailureKindClassificationTest {
         assertEquals(FailureKind.AUTH, kind("401 Unauthorized: invalid api key"))
         assertEquals(FailureKind.RATE_LIMIT, kind("429 Too Many Requests: rate limit reached"))
         assertEquals(FailureKind.CONTEXT_LENGTH, kind("This model maximum context length is 65536 tokens"))
+        assertEquals(FailureKind.QUOTA, kind("402 Payment Required: insufficient balance"))
+        // 回归：没有额度语义的 400 仍应归 BAD_REQUEST（别把 BAD_REQUEST 吃成 QUOTA）
+        assertEquals(FailureKind.BAD_REQUEST, kind("400 Bad Request: invalid parameter"))
     }
+
+    @Test
+    fun `400 携带 insufficient credits 归为额度不足（不被 BAD_REQUEST 吃掉）`() =
+        assertEquals(
+            FailureKind.QUOTA,
+            kind(
+                "com · Chat Completions: 请求格式错误 (HTTP 400)：请求体被拒绝，通常是程序缺陷。若持续出现请反馈。 " +
+                    "You have insufficient credits to make this request. Please purchase more credits to continue using the service.",
+            ),
+        )
 }

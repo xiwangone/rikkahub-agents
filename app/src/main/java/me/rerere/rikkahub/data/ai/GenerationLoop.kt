@@ -294,7 +294,7 @@ fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
             FailureKind.CONTENT_SAFETY
         listOf("401", "invalid_api_key", "authentication", "unauthorized", "api key", "密钥", "鉴权").any { text.contains(it) } ->
             FailureKind.AUTH
-        listOf("402", "insufficient_quota", "insufficientbalance", "余额", "额度", "quota", "billing").any { text.contains(it) } ->
+        listOf("402", "insufficient_quota", "insufficientbalance", "credits", "余额", "额度", "quota", "billing").any { text.contains(it) } ->
             FailureKind.QUOTA
         listOf("429", "rate_limit", "toomanyrequests", "throttl", "限流", "tpm", "rpm", "per minute", "throughput").any { text.contains(it) } ->
             FailureKind.RATE_LIMIT
