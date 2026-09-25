@@ -568,24 +568,48 @@ internal fun AssistantBasicContent(
                     Text(stringResource(R.string.assistant_page_token_budget_desc))
                 },
             ) {
-                // 留空 = 不限制（null）；只收数字，边输边存（与 contextMessageLimit 同风格）
+                // 支持「100K / 1M / 100000」三种写法：K=×1000、M=×1,000,000（2026-09-25 用户建议）。
+                fun parseTokens(raw: String): Int? {
+                    val t = raw.trim().uppercase()
+                    if (t.isEmpty()) return null
+                    val mult =
+                        when {
+                            t.endsWith("M") -> 1_000_000
+                            t.endsWith("K") -> 1_000
+                            else -> 1
+                        }
+                    val digits = if (mult == 1) t else t.dropLast(1)
+                    val n = digits.toIntOrNull() ?: return null
+                    return if (n <= Int.MAX_VALUE / mult) n * mult else null
+                }
+
+                // 回显用人类可读形式：100000 → 100K
+                fun formatTokens(v: Int): String =
+                    when {
+                        v >= 1_000_000 && v % 1_000_000 == 0 -> "${v / 1_000_000}M"
+                        v >= 1_000 && v % 1_000 == 0 -> "${v / 1_000}K"
+                        else -> v.toString()
+                    }
+
+                // 留空 = 不限制（null）；边输边存（与 contextMessageLimit 同风格）
                 fun commitTokenBudget(soft: String, hard: String) {
-                    val s = soft.toIntOrNull()
-                    val h = hard.toIntOrNull()
+                    val s = parseTokens(soft)
+                    val h = parseTokens(hard)
                     if (s != assistant.tokenBudgetSoftCap || h != assistant.tokenBudgetHardCap) {
                         onUpdate(assistant.copy(tokenBudgetSoftCap = s, tokenBudgetHardCap = h))
                     }
                 }
                 var tokenSoftInput by remember(assistant.id, assistant.tokenBudgetSoftCap) {
-                    mutableStateOf(assistant.tokenBudgetSoftCap?.toString().orEmpty())
+                    mutableStateOf(assistant.tokenBudgetSoftCap?.let { formatTokens(it) }.orEmpty())
                 }
                 var tokenHardInput by remember(assistant.id, assistant.tokenBudgetHardCap) {
-                    mutableStateOf(assistant.tokenBudgetHardCap?.toString().orEmpty())
+                    mutableStateOf(assistant.tokenBudgetHardCap?.let { formatTokens(it) }.orEmpty())
                 }
                 OutlinedTextField(
                     value = tokenSoftInput,
                     onValueChange = { input ->
-                        if (input.all(Char::isDigit)) {
+                        // 允许「100000」「100K」「1M」；其余字符忽略
+                        if (input.matches(Regex("^[0-9]{0,9}[KkMm]?$"))) {
                             tokenSoftInput = input
                             commitTokenBudget(input, tokenHardInput)
                         }
@@ -594,16 +618,16 @@ internal fun AssistantBasicContent(
                     label = { Text(stringResource(R.string.assistant_page_token_budget_soft)) },
                     supportingText = {
                         val hint = stringResource(R.string.assistant_page_token_budget_soft_hint)
-                        val n = tokenSoftInput.toIntOrNull()
-                        Text(if (n == null) hint else "$hint  ·  ≈${n / 1000}K tokens")
+                        val n = parseTokens(tokenSoftInput)
+                        Text(if (n == null) hint else "$hint  ·  = ${formatTokens(n)} tokens")
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Next),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Next),
                     singleLine = true,
                 )
                 OutlinedTextField(
                     value = tokenHardInput,
                     onValueChange = { input ->
-                        if (input.all(Char::isDigit)) {
+                        if (input.matches(Regex("^[0-9]{0,9}[KkMm]?$"))) {
                             tokenHardInput = input
                             commitTokenBudget(tokenSoftInput, input)
                         }
@@ -612,15 +636,15 @@ internal fun AssistantBasicContent(
                     label = { Text(stringResource(R.string.assistant_page_token_budget_hard)) },
                     supportingText = {
                         val hint = stringResource(R.string.assistant_page_token_budget_hard_hint)
-                        val n = tokenHardInput.toIntOrNull()
-                        Text(if (n == null) hint else "$hint  ·  ≈${n / 1000}K tokens")
+                        val n = parseTokens(tokenHardInput)
+                        Text(if (n == null) hint else "$hint  ·  = ${formatTokens(n)} tokens")
                     },
-                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number, imeAction = ImeAction.Done),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
                     singleLine = true,
                 )
                 // 配置矛盾校验：硬 < 软时，第一次请求就会命中硬上限而直接结束（2026-09-25 真机踩过）
-                val softValue = tokenSoftInput.toIntOrNull()
-                val hardValue = tokenHardInput.toIntOrNull()
+                val softValue = parseTokens(tokenSoftInput)
+                val hardValue = parseTokens(tokenHardInput)
                 if (softValue != null && hardValue != null && hardValue < softValue) {
                     Text(
                         text = stringResource(R.string.assistant_page_token_budget_order_warning),

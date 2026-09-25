@@ -817,10 +817,10 @@
   <string name="assistant_page_token_budget">Token budget (per request)</string>
   <string name="assistant_page_token_budget_desc">Measures the size of each request sent to the model (system prompt + memory + full history + tool output) — i.e. how full the context window is — not the running total. The same history is re-sent every turn, so a running total would be inflated. Past the soft cap the assistant is told to wrap up; past the hard cap it gets one wrap-up chance first, and only stops if it is still over on the next step.</string>
   <string name="assistant_page_token_budget_soft">Soft cap — wrap-up notice</string>
-  <string name="assistant_page_token_budget_soft_hint">Suggested: about 0.8 × the model\'s context window — e.g. a 128K window → 100000 (≈100K tokens). Empty = no limit.</string>
+  <string name="assistant_page_token_budget_soft_hint">Suggested: about 0.8 × the model\'s context window — e.g. a 128K window → 100K. You can type 100K or 1M. Empty = no limit.</string>
   <string name="assistant_page_token_budget_order_warning">Hard cap is below the soft cap — every request would already be over it, so the turn ends immediately. Set hard ≥ soft, or clear one of them.</string>
   <string name="assistant_page_token_budget_hard">Hard cap — stop the turn</string>
-  <string name="assistant_page_token_budget_hard_hint">Suggested: one notch above the soft cap — e.g. 120000 (≈120K tokens); must be ≥ the soft cap. Empty = no limit.</string>
+  <string name="assistant_page_token_budget_hard_hint">Suggested: one notch above the soft cap — e.g. 120K; must be ≥ the soft cap. You can type 120K or 1M. Empty = no limit.</string>
   <string name="ai_auto_continue_prompt">AUTO-CONTINUE: your previous reply was cut off in the middle. Continue from where it stopped, do not repeat what you have already written, and finish the answer.</string>
   <string name="notification_channel_scheduled_jobs">Scheduled jobs</string>
   <string name="notification_scheduled_job_failed_title">Scheduled job failed</string>

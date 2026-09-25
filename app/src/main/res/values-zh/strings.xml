@@ -810,10 +810,10 @@
   <string name="assistant_page_token_budget">token 预算（按每次请求算）</string>
   <string name="assistant_page_token_budget_desc">量的是「每次发给模型的那一整包有多大」（系统提示词 + 记忆 + 全部历史 + 工具输出）—— 也就是上下文窗口被占了多少，不是累计消耗。同一段历史每轮都会重发，按累计算会虚高。越过软上限：助手收到收尾提示；越过硬上限：先给一次收尾机会，下一步仍超才结束本轮。</string>
   <string name="assistant_page_token_budget_soft">软上限 —— 只提醒收尾</string>
-  <string name="assistant_page_token_budget_soft_hint">建议值：约为模型上下文窗口的 0.8 —— 例：128K 窗口 → 100000（≈100K tokens）。留空 = 不限制。</string>
+  <string name="assistant_page_token_budget_soft_hint">建议值：约为模型上下文窗口的 0.8 —— 例：128K 窗口 → 100K。可直接填 100K 或 1M。留空 = 不限制。</string>
   <string name="assistant_page_token_budget_order_warning">硬上限低于软上限 —— 每次请求都会直接命中硬上限，本轮会立刻结束。请把硬上限设为 ≥ 软上限，或清空其中一个。</string>
   <string name="assistant_page_token_budget_hard">硬上限 —— 到线即停</string>
-  <string name="assistant_page_token_budget_hard_hint">建议值：比软上限再留一档 —— 例：120000（≈120K tokens），需 ≥ 软上限。留空 = 不限制。</string>
+  <string name="assistant_page_token_budget_hard_hint">建议值：比软上限再留一档 —— 例：120K，需 ≥ 软上限。可直接填 120K 或 1M。留空 = 不限制。</string>
   <string name="ai_auto_continue_prompt">【自动续写】你上一条回复在中途被切断。请从断开处继续，不要重复已写过的内容，把回答写完。</string>
   <string name="notification_channel_scheduled_jobs">定时任务</string>
   <string name="notification_scheduled_job_failed_title">定时任务失败</string>

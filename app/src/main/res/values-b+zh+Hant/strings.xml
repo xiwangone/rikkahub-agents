@@ -3308,6 +3308,6 @@
   <string name="assistant_page_token_budget_order_warning">硬上限低於軟上限——每個請求都會立即超標，因此回合會馬上結束。請設定硬上限 ≥ 軟上限，或清除其中一個。</string>
   <string name="assistant_page_token_budget">Token 預算（每次請求）</string>
   <string name="assistant_page_token_budget_desc">衡量每次傳送給模型的請求大小（系統提示 + 記憶 + 完整歷史紀錄 + 工具輸出）——也就是上下文視窗有多滿——而非累計總量。相同的歷史紀錄每一輪都會重新傳送，因此累計總量會被誇大。超過軟上限後，助理會收到指示要收尾；超過硬上限時，它會先獲得一次收尾機會，只有在下一個步驟仍然超標時才會停止。</string>
-  <string name="assistant_page_token_budget_hard_hint">建議：比軟上限高一階——例如 120000（約 120K tokens）；必須 ≥ 軟上限。留空 = 不限制。</string>
-  <string name="assistant_page_token_budget_soft_hint">建議：約為模型上下文視窗的 0.8 倍——例如 128K 視窗 → 100000（約 100K tokens）。留空 = 不限制。</string>
+  <string name="assistant_page_token_budget_hard_hint">建議：比軟上限高一級，例如 120K；必須 ≥ 軟上限。你可以輸入 120K 或 1M。留空 = 無限制。</string>
+  <string name="assistant_page_token_budget_soft_hint">建議：約為模型上下文視窗的 0.8 倍，例如 128K 視窗 → 100K。你可以輸入 100K 或 1M。留空 = 無限制。</string>
 </resources>

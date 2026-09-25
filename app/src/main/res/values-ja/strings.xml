@@ -3309,6 +3309,6 @@
   <string name="assistant_page_token_budget_order_warning">ハード上限がソフト上限を下回っています — すべてのリクエストはすでにそれを超えているため、ターンは即座に終了します。ハード ≥ ソフトに設定するか、いずれかをクリアしてください。</string>
   <string name="assistant_page_token_budget">トークン予算（リクエストごと）</string>
   <string name="assistant_page_token_budget_desc">モデルに送信される各リクエストのサイズ（システムプロンプト + メモリ + 全履歴 + ツール出力）を測定します — つまり、コンテキストウィンドウがどれだけ埋まっているかであり、累計ではありません。同じ履歴が毎ターン再送信されるため、累計は過大になります。ソフトキャップを超えると、アシスタントは終了するように指示されます。ハードキャップを超えると、まず1回の終了チャンスが与えられ、次のステップでまだ超えている場合にのみ停止します。</string>
-  <string name="assistant_page_token_budget_hard_hint">推奨: ソフトキャップより1段階上 — 例: 120000（≈120Kトークン）; ソフトキャップ以上である必要があります。空 = 制限なし。</string>
-  <string name="assistant_page_token_budget_soft_hint">推奨: モデルのコンテキストウィンドウの約0.8倍 — 例: 128Kウィンドウ → 100000（≈100Kトークン）。空 = 制限なし。</string>
+  <string name="assistant_page_token_budget_hard_hint">推奨：ソフト上限より1段階上 — 例：120K；ソフト上限以上である必要があります。120Kまたは1Mを入力できます。空欄 = 制限なし。</string>
+  <string name="assistant_page_token_budget_soft_hint">推奨：モデルのコンテキストウィンドウの約0.8倍 — 例：128Kウィンドウ → 100K。100Kまたは1Mを入力できます。空欄 = 制限なし。</string>
 </resources>
