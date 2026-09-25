@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.rikkahub.service.AgentOverlay
@@ -990,6 +991,46 @@ class GenerationLoop(
                             }
                             messages = messages.dropLast(1) + lastMsg.copy(parts = newParts)
                             emit(GenerationChunk.Messages(messages))
+                        }
+                    } else {
+                        // A stop mid-turn must leave the assistant message finalized the same
+                        // way a normal completion does below (e.g. ThinkTagTransformer closing
+                        // an unclosed <think> block) — otherwise stopGeneration persists a shape
+                        // the rest of the app never produces on its own. Reuse the exact same
+                        // transformer chain calls the success path runs, just before rethrowing.
+                        // The coroutine's Job is already cancelled here, so a plain suspend call
+                        // (transformer I/O, or emit reaching the collector and its own suspend
+                        // writes) would immediately re-throw — run under NonCancellable, same as
+                        // ChatService's own onCompletion persist for this exact reason.
+                        // Best-effort only: a failure here must never replace the original
+                        // CancellationException below.
+                        runCatching {
+                            withContext(NonCancellable) {
+                                messages = messages.visualTransformsIncremental(
+                                    transformers = outputTransformers,
+                                    cache = outputTransformCache,
+                                    context = context,
+                                    model = model,
+                                    assistant = assistant,
+                                    settings = settings
+                                )
+                                messages = messages.onGenerationFinish(
+                                    transformers = outputTransformers,
+                                    context = context,
+                                    model = model,
+                                    assistant = assistant,
+                                    settings = settings
+                                )
+                                if (messages.isNotEmpty()) {
+                                    messages = messages.slice(0 until messages.lastIndex) + messages.last().copy(
+                                        finishedAt = Clock.System.now()
+                                            .toLocalDateTime(TimeZone.currentSystemDefault())
+                                    )
+                                }
+                                emit(GenerationChunk.Messages(messages))
+                            }
+                        }.onFailure { finalizeError ->
+                            AppLog.w(TAG, "generateText: cancellation finalize failed, stop proceeds without it", finalizeError)
                         }
                     }
                     throw t
