@@ -366,7 +366,8 @@ private fun assistantConfigJson(
     put("enable_time_reminder", a.enableTimeReminder)
     put("token_budget_soft_cap", a.tokenBudgetSoftCap?.toString() ?: "none")
     put("token_budget_hard_cap", a.tokenBudgetHardCap?.toString() ?: "none")
-    putAll(assistantToolsJson(a))
+    // 工具面与关联计数（buildJsonObject 没有 putAll，逐项并入）
+    assistantToolsJson(a).forEach { (key, value) -> put(key, value) }
 }
 
 /** 单个助手的**工具面与关联计数**（名单逐个列出；关联项只给数量；header/body 值只给长度）。 */
