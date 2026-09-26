@@ -17,14 +17,17 @@ class WorkspaceManagerMountsTest {
     @get:Rule
     val tmp = TemporaryFolder()
 
+    private var skillsSource: File = File("/nonexistent")
+
     private fun manager(
         enabled: Set<String>,
         onAccess: (String, String) -> Unit = { _, _ -> },
-    ): WorkspaceManager =
-        WorkspaceManager(
+    ): WorkspaceManager {
+        skillsSource = tmp.newFolder()
+        return WorkspaceManager(
             baseDir = tmp.newFolder(),
             bindMounts = listOf(
-                WorkspaceBindMount(source = tmp.newFolder(), target = "/skills"),
+                WorkspaceBindMount(source = skillsSource, target = "/skills"),
             ),
             optionalMounts =
                 OptionalMounts(
@@ -35,6 +38,7 @@ class WorkspaceManagerMountsTest {
                     onAccess = onAccess,
                 ),
         )
+    }
 
     @Test
     fun `optional mount disabled - sdcard path falls back to rootfs branch`() {
@@ -65,13 +69,13 @@ class WorkspaceManagerMountsTest {
         mgr.resolveRootfsPath("w", "/skills/a.txt")
         assertNull("fixed mounts must not trigger the audit callback", logged)
         mgr.resolveRootfsPath("w", "/sdcard/a.jpg")
-        assertEquals("sdcard:/sdcard/a.jpg", logged)
+        assertEquals("/sdcard:/sdcard/a.jpg", logged)
     }
 
     @Test
     fun `fixed mounts resolve regardless of switch`() {
         val loc = manager(enabled = emptySet()).resolveRootfsPath("w", "/skills/a.txt")
         assertEquals("a.txt", loc.relativePath)
-        assertTrue(loc.rootDir.path.contains("skills"))
+        assertEquals(skillsSource.absolutePath, loc.rootDir.absolutePath)
     }
 }
