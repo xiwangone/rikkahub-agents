@@ -1,6 +1,12 @@
 package me.rerere.workspace
 
 import java.io.File
+import java.io.IOException
+import java.nio.file.FileVisitResult
+import java.nio.file.Files
+import java.nio.file.Path
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.attribute.BasicFileAttributes
 
 /**
  * 工作区资源画像（详情页资源面板用）。全部纯文件采集，不依赖 rootfs shell 就绪；
@@ -22,11 +28,32 @@ fun collectWorkspaceStats(
     kernel = kernel?.takeIf { it.isNotBlank() },
 )
 
-/** 递归求和（不跟随符号链接，bind mount 不会重复计数）；目录缺失返回 null。 */
+/**
+ * 递归求和；显式 NOFOLLOW：java.io.File 的 listFiles 会穿透**目录**符号链接，
+ * Debian 布局的 /usr/bin/X11 -> . 自链接会让遍历永不终止（且不报错），
+ * 故用 walkFileTree（默认不跟随链接），符号链接本体不计入、访问失败跳过。
+ * 目录缺失返回 null。
+ */
 private fun dirSize(dir: File): Long? {
     if (!dir.isDirectory) return null
     var total = 0L
-    dir.walkBottomUp().forEach { f -> if (f.isFile) total += f.length() }
+    Files.walkFileTree(
+        dir.toPath(),
+        object : SimpleFileVisitor<Path>() {
+            override fun visitFile(
+                file: Path,
+                attrs: BasicFileAttributes,
+            ): FileVisitResult {
+                if (attrs.isRegularFile) total += attrs.size()
+                return FileVisitResult.CONTINUE
+            }
+
+            override fun visitFileFailed(
+                file: Path,
+                exc: IOException,
+            ): FileVisitResult = FileVisitResult.CONTINUE
+        },
+    )
     return total
 }
 

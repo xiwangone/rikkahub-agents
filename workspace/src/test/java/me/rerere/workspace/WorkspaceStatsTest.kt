@@ -6,6 +6,8 @@ import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import java.io.File
+import java.nio.file.Files
+import java.nio.file.Paths
 
 class WorkspaceStatsTest {
 
@@ -45,6 +47,23 @@ class WorkspaceStatsTest {
         assertEquals(15L, stats.rootBytes)
         assertNull(stats.packageCount)
         assertEquals("5.4.0", stats.kernel)
+    }
+
+    @Test
+    fun `dirSize ignores directory symlinks and survives self-referencing link`() {
+        val dir = tmp.newFolder()
+        val usrBin = File(dir, "usr/bin").apply { mkdirs() }
+        File(usrBin, "real.txt").writeText("1234567890")
+        // Debian 布局：/usr/bin/X11 -> .（自引用目录链接）；listFiles 穿透它会让遍历永不终止
+        Files.createSymbolicLink(File(usrBin, "X11").toPath(), Paths.get("."))
+        // 目录链接指向工作区外：不展开、不计入
+        val outside = tmp.newFolder("outside")
+        File(outside, "o.bin").writeText("xx")
+        val sub = File(dir, "sub").apply { mkdirs() }
+        Files.createSymbolicLink(sub.toPath().resolve("ext"), outside.toPath())
+
+        val stats = collectWorkspaceStats(dir, dir, kernel = null)
+        assertEquals(10L, stats.rootBytes)
     }
 
     @Test
