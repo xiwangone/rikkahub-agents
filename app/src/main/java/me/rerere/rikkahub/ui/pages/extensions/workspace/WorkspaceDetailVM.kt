@@ -177,6 +177,7 @@ class WorkspaceDetailVM(
 
     fun refresh() {
         viewModelScope.launch {
+            repository.refreshWorkspaceStats(id)
             _state.update { it.copy(loading = true, error = null) }
             runCatching {
                 repository.listFiles(
