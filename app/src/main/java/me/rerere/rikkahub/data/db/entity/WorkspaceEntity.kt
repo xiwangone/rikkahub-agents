@@ -35,10 +35,17 @@ data class WorkspaceEntity(
     val toolApprovals: String = "{}",
     @ColumnInfo("shell_compatibility_mode", defaultValue = "0")
     val shellCompatibilityMode: Boolean = false,
+    // 工作区画像标签（JSON 数组；阶段 3 任务路由的匹配键，见规划文档）
+    @ColumnInfo("tags", defaultValue = "[]")
+    val tags: String = "[]",
 ) {
     fun toolApprovalOverrides(): Map<String, Boolean> = runCatching {
         JsonInstant.decodeFromString<Map<String, Boolean>>(toolApprovals)
     }.getOrDefault(emptyMap())
+
+    fun workspaceTags(): List<String> = runCatching {
+        JsonInstant.decodeFromString<List<String>>(tags)
+    }.getOrDefault(emptyList())
 
     fun toWorkspace(): Workspace = Workspace(
         id = id,

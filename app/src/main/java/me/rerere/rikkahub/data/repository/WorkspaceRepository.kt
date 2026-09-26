@@ -106,6 +106,12 @@ class WorkspaceRepository(
         mountSwitch.sdcardEnabled = enabled
     }
 
+    /** 保存工作区画像标签（JSON 数组落库；阶段 3 任务路由的匹配键）。 */
+    suspend fun setTags(id: String, tags: List<String>) {
+        dao.getById(id) ?: error("Workspace not found: $id")
+        dao.setTags(id, JsonInstant.encodeToString(tags), System.currentTimeMillis())
+    }
+
     /** 资源面板：磁盘占用/包数/宿主内核（纯文件采集，rootfs 未装时不抛错）。 */
     suspend fun workspaceStats(id: String): WorkspaceStats = withContext(Dispatchers.IO) {
         val workspace = dao.getById(id) ?: error("Workspace not found: $id")
