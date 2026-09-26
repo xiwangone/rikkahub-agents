@@ -132,22 +132,6 @@ class WorkspaceRepository(
     private val statsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _statsById = MutableStateFlow<Map<String, WorkspaceStats>>(emptyMap())
 
-    companion object {
-        /** 缓存 TTL：超过则详情页进入时后台重采（结果落地后覆盖）。 */
-        private const val STATS_TTL_MS = 24 * 60 * 60 * 1000L
-
-        private data class CachedStats(
-            val rootBytes: Long? = null,
-            val packageCount: Int? = null,
-            val kernel: String? = null,
-            val at: Long = 0,
-        )
-
-        private fun parseCache(json: String): Map<String, CachedStats> = runCatching {
-            JsonInstant.decodeFromString<Map<String, CachedStats>>(json)
-        }.getOrDefault(emptyMap())
-    }
-
     init {
         // 跨进程持久化：进程启动即恢复上次采集结果，详情页秒显；随后按 TTL 静默刷新
         statsScope.launch {
@@ -624,5 +608,19 @@ class WorkspaceRepository(
     companion object {
         private const val TAG = "WorkspaceRepository"
         private const val MAX_PREVIEW_BYTES = 512L * 1024
+
+        /** 缓存 TTL：超过则详情页进入时后台重采（结果落地后覆盖）。 */
+        private const val STATS_TTL_MS = 24 * 60 * 60 * 1000L
+
+        private data class CachedStats(
+            val rootBytes: Long? = null,
+            val packageCount: Int? = null,
+            val kernel: String? = null,
+            val at: Long = 0,
+        )
+
+        private fun parseCache(json: String): Map<String, CachedStats> = runCatching {
+            JsonInstant.decodeFromString<Map<String, CachedStats>>(json)
+        }.getOrDefault(emptyMap())
     }
 }
