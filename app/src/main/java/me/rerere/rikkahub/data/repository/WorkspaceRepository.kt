@@ -4,6 +4,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import me.rerere.workspace.WorkspaceMirrors
@@ -132,9 +133,12 @@ class WorkspaceRepository(
     private val statsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _statsById = MutableStateFlow<Map<String, WorkspaceStats>>(emptyMap())
 
+    /** 启动恢复门闩：requestWorkspaceStats 先等它完成，避免恢复未落时误判空缓存而重采。 */
+    private var restoreJob: Job? = null
+
     init {
         // 跨进程持久化：进程启动即恢复上次采集结果，详情页秒显；随后按 TTL 静默刷新
-        statsScope.launch {
+        restoreJob = statsScope.launch {
             val json = settingsStore.settingsFlow.first().workspaceStatsCache
             val restored = parseCache(json).mapValues { (_, c) ->
                 WorkspaceStats(c.rootBytes, c.packageCount, c.kernel)
@@ -149,6 +153,7 @@ class WorkspaceRepository(
     /** 请求采集 [id] 的资源画像：缓存未过期（24h）跳过，否则后台采集并持久化（不阻塞、不随页面退出中断）。 */
     fun requestWorkspaceStats(id: String) {
         statsScope.launch {
+            restoreJob?.join()
             val cachedAt = parseCache(settingsStore.settingsFlow.first().workspaceStatsCache)[id]?.at ?: 0L
             if (_statsById.value.containsKey(id) && System.currentTimeMillis() - cachedAt < STATS_TTL_MS) {
                 return@launch
