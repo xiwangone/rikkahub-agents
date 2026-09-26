@@ -119,6 +119,7 @@ import me.rerere.workspace.RootfsInstallStage
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.workspace.WorkspaceStorageArea
+import me.rerere.workspace.WorkspaceStats
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.io.File
@@ -134,6 +135,7 @@ fun WorkspaceDetailPage(id: String) {
     val settingsError by vm.settingsError.collectAsStateWithLifecycle()
     val caRepairCount by vm.caRepairCount.collectAsStateWithLifecycle()
     val sdcardEnabled by vm.sdcardEnabled.collectAsStateWithLifecycle()
+    val stats by vm.stats.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
@@ -304,6 +306,7 @@ fun WorkspaceDetailPage(id: String) {
                     WorkspaceBasicPage(
                         workspace = state.workspace,
                         distro = state.distro,
+                        stats = stats,
                         installProgress = installProgress,
                         mirrors = mirrors,
                         onInstallRootfs = { showInstallDialog = true },
@@ -498,6 +501,7 @@ fun WorkspaceDetailPage(id: String) {
 private fun WorkspaceBasicPage(
     workspace: WorkspaceEntity?,
     distro: WorkspaceDistroInfo?,
+    stats: WorkspaceStats?,
     installProgress: RootfsInstallProgress?,
     mirrors: WorkspaceMirrors,
     onInstallRootfs: () -> Unit,
@@ -556,6 +560,18 @@ private fun WorkspaceBasicPage(
                             info.prettyName,
                         )
                     }
+                    WorkspaceInfoRow(
+                        stringResource(R.string.workspace_detail_stats_disk),
+                        stats?.rootBytes?.fileSizeToString() ?: "-",
+                    )
+                    WorkspaceInfoRow(
+                        stringResource(R.string.workspace_detail_stats_packages),
+                        stats?.packageCount?.toString() ?: "-",
+                    )
+                    WorkspaceInfoRow(
+                        stringResource(R.string.workspace_detail_stats_kernel),
+                        stats?.kernel ?: "-",
+                    )
                 }
             }
         }

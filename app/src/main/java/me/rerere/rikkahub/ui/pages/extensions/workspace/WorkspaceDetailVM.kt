@@ -5,6 +5,8 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.stateIn
@@ -17,6 +19,7 @@ import me.rerere.workspace.WorkspaceCommandResult
 import me.rerere.workspace.WorkspaceDistroInfo
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceStorageArea
+import me.rerere.workspace.WorkspaceStats
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
@@ -55,6 +58,16 @@ class WorkspaceDetailVM(
 
     /** 最近一次「修复 CA 证书」写入的沙箱数量（null = 无待提示结果）。 */
     val caRepairCount = _caRepairCount.asStateFlow()
+
+    /** 资源面板（磁盘/包数/内核）；采集失败为 null。 */
+    val stats: kotlinx.coroutines.flow.StateFlow<WorkspaceStats?> =
+        repository.statsFlow(id)
+            .catch { emit(null) }
+            .stateIn(
+                viewModelScope,
+                kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+                null,
+            )
 
     /** 沙箱镜像配置（全局）。 */
     val mirrors: kotlinx.coroutines.flow.StateFlow<me.rerere.workspace.WorkspaceMirrors> =

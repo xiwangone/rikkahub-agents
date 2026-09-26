@@ -3320,4 +3320,7 @@
   <string name="workspace_detail_repair_cacerts_desc">httpsソース、pip、npm用にAndroidシステムのCA証明書をサンドボックスに書き込む</string>
   <string name="workspace_detail_sdcard_access">スマートフォンのストレージにアクセス</string>
   <string name="workspace_detail_sdcard_access_desc">/sdcard にスマートフォンのストレージをマウントします（デフォルトではオフ、書き込みには引き続き承認が必要です）。AI のアクセスはログに記録されます。</string>
+  <string name="workspace_detail_stats_disk">ディスク使用量</string>
+  <string name="workspace_detail_stats_kernel">ホストカーネル</string>
+  <string name="workspace_detail_stats_packages">パッケージ</string>
 </resources>

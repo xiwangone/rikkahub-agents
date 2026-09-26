@@ -3319,4 +3319,7 @@
   <string name="workspace_detail_repair_cacerts_desc">كتابة شهادات CA لنظام Android في البيئة المعزولة لمصادر https و pip و npm</string>
   <string name="workspace_detail_sdcard_access">الوصول إلى تخزين الهاتف</string>
   <string name="workspace_detail_sdcard_access_desc">تركيب تخزين الهاتف في /sdcard (معطل افتراضيًا؛ لا تزال عمليات الكتابة تتطلب موافقة). يتم تسجيل وصول الذكاء الاصطناعي.</string>
+  <string name="workspace_detail_stats_disk">استخدام القرص</string>
+  <string name="workspace_detail_stats_kernel">نواة المضيف</string>
+  <string name="workspace_detail_stats_packages">الحزم</string>
 </resources>

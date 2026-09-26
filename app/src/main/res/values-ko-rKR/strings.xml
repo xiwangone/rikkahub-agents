@@ -3320,4 +3320,7 @@
   <string name="workspace_detail_repair_cacerts_desc">https 소스, pip 및 npm을 위해 Android 시스템 CA 인증서를 샌드박스에 기록</string>
   <string name="workspace_detail_sdcard_access">휴대폰 저장소 접근</string>
   <string name="workspace_detail_sdcard_access_desc">휴대폰 저장소를 /sdcard에 마운트합니다 (기본값은 꺼짐, 쓰기에는 여전히 승인이 필요함). AI 접근이 기록됩니다.</string>
+  <string name="workspace_detail_stats_disk">디스크 사용량</string>
+  <string name="workspace_detail_stats_kernel">호스트 커널</string>
+  <string name="workspace_detail_stats_packages">패키지</string>
 </resources>

@@ -3319,4 +3319,7 @@
   <string name="workspace_detail_repair_cacerts_desc">將 Android 系統 CA 憑證寫入沙箱，以供 https 來源、pip 及 npm 使用</string>
   <string name="workspace_detail_sdcard_access">存取手機儲存空間</string>
   <string name="workspace_detail_sdcard_access_desc">將手機儲存空間掛載至 /sdcard（預設關閉；寫入仍需核准）。AI 存取會記錄。</string>
+  <string name="workspace_detail_stats_disk">磁碟使用量</string>
+  <string name="workspace_detail_stats_kernel">主機核心</string>
+  <string name="workspace_detail_stats_packages">套件</string>
 </resources>

@@ -1994,6 +1994,9 @@
   <string name="workspace_detail_cacerts_repaired">已写入 %1$d 个沙箱</string>
   <string name="workspace_detail_sdcard_access">访问手机存储</string>
   <string name="workspace_detail_sdcard_access_desc">将手机存储挂载到沙箱 /sdcard（默认关；写操作仍需审批）。AI 的访问会记录日志。</string>
+  <string name="workspace_detail_stats_disk">磁盘占用</string>
+  <string name="workspace_detail_stats_packages">软件包数</string>
+  <string name="workspace_detail_stats_kernel">宿主内核</string>
   <string name="workspace_detail_mirror_pip">Python 包</string>
   <string name="workspace_detail_mirror_npm">Node 包</string>
   <string name="workspace_detail_workspace_info">工作区</string>

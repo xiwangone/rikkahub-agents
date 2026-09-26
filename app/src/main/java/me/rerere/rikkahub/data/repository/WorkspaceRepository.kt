@@ -24,7 +24,9 @@ import me.rerere.workspace.WorkspaceDistroInfo
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspaceShellStatus
+import me.rerere.workspace.WorkspaceStats
 import me.rerere.workspace.WorkspaceStorageArea
+import me.rerere.workspace.collectWorkspaceStats
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
@@ -103,6 +105,18 @@ class WorkspaceRepository(
         settingsStore.update(current.copy(workspaceSdcardEnabled = enabled))
         mountSwitch.sdcardEnabled = enabled
     }
+
+    /** 资源面板：磁盘占用/包数/宿主内核（纯文件采集，rootfs 未装时不抛错）。 */
+    suspend fun workspaceStats(id: String): WorkspaceStats = withContext(Dispatchers.IO) {
+        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
+        collectWorkspaceStats(manager.workspaceDir(workspace.root), manager.linuxDir(workspace.root))
+    }
+
+    /** 资源面板流；采集失败发 null（面板显示 "-"）。 */
+    fun statsFlow(id: String): Flow<WorkspaceStats?> =
+        kotlinx.coroutines.flow.flow {
+            emit(workspaceStats(id))
+        }
 
     suspend fun checkIntegrity() = withContext(Dispatchers.IO) {
         val workspaces = dao.getAll()
