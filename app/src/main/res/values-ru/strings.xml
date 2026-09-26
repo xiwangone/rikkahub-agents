@@ -3109,7 +3109,10 @@
   <string name="doctor_msg_termux_missing">Termux не установлен. Требуется: %1$s.</string>
   <string name="doctor_msg_termux_installed">На устройстве установлен com.termux.</string>
   <string name="doctor_msg_dns_failed">Не удалось разрешить DNS или истёк тайм-аут. При смене сети NetworkChangeMonitor очищает пул соединений OkHttp — если ошибка не проходит, проверьте сеть.</string>
-  <string name="doctor_msg_dns_ok">DNS успешно разрешён (в пределах 2,5 с).</string>
+  <string name="doctor_msg_dns_ok">%1$s разрешён за %2$d ms.</string>
+  <string name="doctor_dns_servers">DNS-серверы: %1$s</string>
+  <string name="doctor_dns_probe_ok">%1$s (%2$d ms)</string>
+  <string name="doctor_dns_probe_fail">%1$s (нет ответа)</string>
   <string name="doctor_msg_vision_unsupported">Устройство не поддерживает кодировщик зрения для моделей: </string>
   <string name="doctor_msg_rate_note">Последние известные скорости моделей (оценка по символам, </string>
   <string name="doctor_msg_litert_backend">Метка бэкенда: %1$s</string>

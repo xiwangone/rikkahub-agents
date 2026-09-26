@@ -2924,7 +2924,10 @@
   <string name="doctor_msg_termux_missing">Termux 未安装。需求方: %1$s.</string>
   <string name="doctor_msg_termux_installed">本机已安装 com.termux。</string>
   <string name="doctor_msg_dns_failed">DNS 解析失败或超时。网络变化时 NetworkChangeMonitor 会清空 OkHttp 连接池 — 如果持续红色，请检查网络连接。</string>
-  <string name="doctor_msg_dns_ok">DNS 解析成功（2.5 s 内）。</string>
+  <string name="doctor_msg_dns_ok">解析成功 · 耗时 %2$d ms（%1$s）。</string>
+  <string name="doctor_dns_servers">当前网络 DNS：%1$s</string>
+  <string name="doctor_dns_probe_ok">%1$s（%2$d ms）</string>
+  <string name="doctor_dns_probe_fail">%1$s（无响应）</string>
   <string name="doctor_msg_vision_unsupported">此设备不支持以下模型的视觉编码器: </string>
   <string name="doctor_msg_rate_note">各模型最近已知速率（基于字符估算， </string>
   <string name="doctor_msg_litert_backend">后端标签: %1$s</string>

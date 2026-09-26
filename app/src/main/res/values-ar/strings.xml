@@ -2760,7 +2760,10 @@
   <string name="doctor_msg_termux_missing">Termux غير مثبَّت. مطلوب لـ: %1$s.</string>
   <string name="doctor_msg_termux_installed">‏com.termux مثبَّت على هذا الجهاز.</string>
   <string name="doctor_msg_dns_failed">فشل تحليل DNS أو انتهت المهلة. عند تغيّر الشبكة يُفرّغ NetworkChangeMonitor مجمّع اتصالات OkHttp — وإن استمر الخطأ فتحقق من الشبكة.</string>
-  <string name="doctor_msg_dns_ok">تم تحليل DNS بنجاح (خلال 2.5 ثانية).</string>
+  <string name="doctor_msg_dns_ok">تم تحليل %1$s خلال %2$d ms.</string>
+  <string name="doctor_dns_servers">خوادم DNS: %1$s</string>
+  <string name="doctor_dns_probe_ok">%1$s (%2$d ms)</string>
+  <string name="doctor_dns_probe_fail">%1$s (لا رد)</string>
   <string name="doctor_msg_vision_unsupported">الجهاز لا يدعم مشفّر الرؤية للنماذج التالية: </string>
   <string name="doctor_msg_rate_note">معدلات النماذج المعروفة مؤخرًا (مقدّرة بالأحرف، </string>
   <string name="doctor_msg_litert_backend">وسم الواجهة الخلفية: %1$s</string>

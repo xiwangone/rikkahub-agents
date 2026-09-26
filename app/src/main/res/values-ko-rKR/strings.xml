@@ -3116,7 +3116,10 @@
   <string name="doctor_msg_termux_missing">Termux가 설치되지 않았습니다. 요구: %1$s.</string>
   <string name="doctor_msg_termux_installed">이 기기에 com.termux가 설치되어 있습니다.</string>
   <string name="doctor_msg_dns_failed">DNS 확인에 실패했거나 시간 초과했습니다. 네트워크가 바뀌면 NetworkChangeMonitor가 OkHttp 연결 풀을 비웁니다 — 계속 빨간색이면 네트워크 연결을 확인하세요.</string>
-  <string name="doctor_msg_dns_ok">DNS 확인에 성공했습니다(2.5초 이내).</string>
+  <string name="doctor_msg_dns_ok">%1$s 확인 완료(%2$d ms).</string>
+  <string name="doctor_dns_servers">DNS 서버: %1$s</string>
+  <string name="doctor_dns_probe_ok">%1$s(%2$d ms)</string>
+  <string name="doctor_dns_probe_fail">%1$s(응답 없음)</string>
   <string name="doctor_msg_vision_unsupported">다음 모델의 비전 인코더를 이 기기에서 지원하지 않습니다: </string>
   <string name="doctor_msg_rate_note">각 모델의 최근 알려진 속도(문자 기반 추정, </string>
   <string name="doctor_msg_litert_backend">백엔드 라벨: %1$s</string>

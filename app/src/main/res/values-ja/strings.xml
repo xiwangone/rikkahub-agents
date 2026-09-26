@@ -3116,7 +3116,10 @@
   <string name="doctor_msg_termux_missing">Termux がインストールされていません。需求方: %1$s.</string>
   <string name="doctor_msg_termux_installed">本機に com.termux がインストールされています。</string>
   <string name="doctor_msg_dns_failed">DNS 解決に失敗、またはタイムアウトしました。ネットワーク変化時に NetworkChangeMonitor が OkHttp の接続プールを空にします — 赤が続く場合はネットワーク接続を確認してください。</string>
-  <string name="doctor_msg_dns_ok">DNS 解決に成功しました（2.5 秒以内）。</string>
+  <string name="doctor_msg_dns_ok">%1$s を %2$d ms で解決しました。</string>
+  <string name="doctor_dns_servers">DNS サーバー: %1$s</string>
+  <string name="doctor_dns_probe_ok">%1$s（%2$d ms）</string>
+  <string name="doctor_dns_probe_fail">%1$s（応答なし）</string>
   <string name="doctor_msg_vision_unsupported">この端末は以下のモデルの視覚エンコーダに非対応: </string>
   <string name="doctor_msg_rate_note">各モデルの最近の既知レート（文字数ベースの推定、</string>
   <string name="doctor_msg_litert_backend">バックエンドラベル: %1$s</string>

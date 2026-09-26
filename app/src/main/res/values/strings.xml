@@ -2924,7 +2924,10 @@
   <string name="doctor_msg_termux_missing">Termux is not installed. Needed by: %1$s</string>
   <string name="doctor_msg_termux_installed">com.termux is installed on this device.</string>
   <string name="doctor_msg_dns_failed">DNS resolution failed or timed out. NetworkChangeMonitor clears the OkHttp connection pool on network changes; if this stays red, check your network.</string>
-  <string name="doctor_msg_dns_ok">DNS resolution succeeded within 2.5 s.</string>
+  <string name="doctor_msg_dns_ok">Resolved %1$s in %2$d ms.</string>
+  <string name="doctor_dns_servers">DNS servers: %1$s</string>
+  <string name="doctor_dns_probe_ok">%1$s (%2$d ms)</string>
+  <string name="doctor_dns_probe_fail">%1$s (no reply)</string>
   <string name="doctor_msg_vision_unsupported">This device does not support the vision encoder of: </string>
   <string name="doctor_msg_rate_note">Last known rates per model (estimated from characters)</string>
   <string name="doctor_msg_litert_backend">Backend label: %1$s</string>

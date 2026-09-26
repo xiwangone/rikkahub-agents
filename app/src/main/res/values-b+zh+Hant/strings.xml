@@ -2893,7 +2893,10 @@
   <string name="doctor_msg_termux_missing">Termux 未安裝。需求方: %1$s.</string>
   <string name="doctor_msg_termux_installed">本機已安裝 com.termux。</string>
   <string name="doctor_msg_dns_failed">DNS 解析失敗或超時。網絡變化時 NetworkChangeMonitor 會清空 OkHttp 連接池 — 如果持續紅色，請檢查網絡連接。</string>
-  <string name="doctor_msg_dns_ok">DNS 解析成功（2.5 s 內）。</string>
+  <string name="doctor_msg_dns_ok">解析成功 · 耗時 %2$d ms（%1$s）。</string>
+  <string name="doctor_dns_servers">目前網路 DNS：%1$s</string>
+  <string name="doctor_dns_probe_ok">%1$s（%2$d ms）</string>
+  <string name="doctor_dns_probe_fail">%1$s（無回應）</string>
   <string name="doctor_msg_vision_unsupported">此設備不支持以下模型的視覺編碼器: </string>
   <string name="doctor_msg_rate_note">各模型最近已知速率（基於字符估算， </string>
   <string name="doctor_msg_litert_backend">後端標籤: %1$s</string>
