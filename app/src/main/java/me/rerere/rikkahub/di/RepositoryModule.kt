@@ -13,6 +13,7 @@ import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.workspace.WorkspaceMountSwitch
+import me.rerere.workspace.OptionalMounts
 import me.rerere.workspace.ProotShellRunner
 import me.rerere.workspace.RootfsInstaller
 import me.rerere.workspace.WorkspaceBindMount
