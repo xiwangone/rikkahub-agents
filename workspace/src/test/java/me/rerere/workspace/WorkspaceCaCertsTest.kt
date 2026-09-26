@@ -21,7 +21,7 @@ class WorkspaceCaCertsTest {
     private val pem2 = "-----BEGIN CERTIFICATE-----\nBBB\n-----END CERTIFICATE-----\n"
 
     private fun fakeSystemCaDir(vararg contents: String): File {
-        val dir = tmp.newFolder("system-ca-$System.nanoTime")
+        val dir = tmp.newFolder("system-ca-${System.nanoTime()}")
         contents.forEachIndexed { i, c ->
             File(dir, "hash.${i}0").writeText(c)
         }
