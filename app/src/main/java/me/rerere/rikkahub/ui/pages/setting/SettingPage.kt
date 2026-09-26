@@ -106,6 +106,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val navController = LocalNavController.current
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val shortcutEntries by vm.shortcutEntries.collectAsStateWithLifecycle()
     val filesManager: FilesManager = koinInject()
     val secretsStore: SkillSecretsStore = koinInject()
 
@@ -158,6 +159,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             item("settingsShortcuts") {
                 SettingsShortcutBar(
                     settings = settings,
+                    entries = shortcutEntries,
                     onUpdate = { vm.updateSettings(it) },
                     navController = navController,
                 )
@@ -406,11 +408,11 @@ private fun CardGroupScope.ShareRow() {
 @Composable
 private fun SettingsShortcutBar(
     settings: Settings,
+    entries: List<SettingEntry>,
     onUpdate: (Settings) -> Unit,
     navController: Navigator,
 ) {
     var showEditor by remember { mutableStateOf(false) }
-    val entries = settings.settingShortcutIds.mapNotNull { SettingCatalog.byId(it) }
 
     if (showEditor) {
         SettingShortcutEditor(
