@@ -118,10 +118,19 @@ class WorkspaceRepository(
         collectWorkspaceStats(manager.workspaceDir(workspace.root), manager.linuxDir(workspace.root))
     }
 
-    /** 资源面板流；采集失败发 null（面板显示 "-"）。 */
+    /** 资源面板流；采集失败发 null（面板显示 "-"）并留痕（2026-09-26 实测三行全 "-" 且无日志可查，补可观测性）。 */
     fun statsFlow(id: String): Flow<WorkspaceStats?> =
         kotlinx.coroutines.flow.flow {
-            emit(workspaceStats(id))
+            val stats = workspaceStats(id)
+            AppLog.i(
+                "WorkspaceStats",
+                "collect ok: rootBytes=%s, packages=%s, kernel=%s".format(
+                    stats.rootBytes?.toString() ?: "null",
+                    stats.packageCount?.toString() ?: "null",
+                    stats.kernel ?: "null",
+                ),
+            )
+            emit(stats)
         }
 
     suspend fun checkIntegrity() = withContext(Dispatchers.IO) {

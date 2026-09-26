@@ -65,7 +65,10 @@ class WorkspaceDetailVM(
     /** 资源面板（磁盘/包数/内核）；采集失败为 null。 */
     val stats: kotlinx.coroutines.flow.StateFlow<WorkspaceStats?> =
         repository.statsFlow(id)
-            .catch { emit(null) }
+            .catch { error ->
+                AppLog.w("WorkspaceStats", "collect failed: ${error.message}", error)
+                emit(null)
+            }
             .stateIn(
                 viewModelScope,
                 kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
