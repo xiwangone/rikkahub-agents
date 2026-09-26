@@ -4,7 +4,6 @@ import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
-import android.net.ConnectivityManager
 import android.util.Log
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -20,6 +19,7 @@ import me.rerere.workspace.RootfsPatchOptions
 import me.rerere.workspace.RootfsPatcher
 import java.io.File
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.ui.pages.setting.doctor.DnsProbe
 
 internal fun createWorkspaceTerminalSession(
     context: Context,
@@ -105,7 +105,7 @@ internal fun prepareWorkspaceTerminalSession(
     File(appContext.filesDir, FileFolders.SKILLS).mkdirs()
     RootfsPatcher().patch(
         linuxDir,
-        RootfsPatchOptions(nameservers = appContext.activeDnsServers()),
+        RootfsPatchOptions(nameservers = DnsProbe.activeServers(appContext)),
     )
 }
 
@@ -400,14 +400,3 @@ private val URL_REGEX =
 
 // 终端里 URL 后面常跟标点(行尾句号、被括号包裹等), 打开前去掉这些结尾字符
 private val URL_TRAILING_TRIM = charArrayOf('.', ',', ';', ':', '!', '?', ')', ']', '}', '\'', '"')
-
-private fun Context.activeDnsServers(): List<String> {
-    val connectivityManager =
-        getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return emptyList()
-    val network = connectivityManager.activeNetwork ?: return emptyList()
-    return connectivityManager
-        .getLinkProperties(network)
-        ?.dnsServers
-        ?.mapNotNull { it.hostAddress }
-        .orEmpty()
-}

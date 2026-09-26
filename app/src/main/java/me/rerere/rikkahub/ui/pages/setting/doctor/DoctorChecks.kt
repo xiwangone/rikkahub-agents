@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting.doctor
 import android.Manifest
 import android.content.Context
 import android.os.Build
+import android.os.SystemClock
 import androidx.annotation.StringRes
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
@@ -1094,22 +1095,49 @@ class DoctorChecks(
                     }
                 }
             }
-            // DNS sanity — confirms the OkHttp clients aren't stuck on a stale resolver.
-            val dnsOk =
+            // DNS sanity — real lookup timing + per-server probe of the active
+            // network's DNS servers (the system resolver's actual upstream).
+            val dnsTarget = "qq.com"
+            val lookupStart = SystemClock.elapsedRealtime()
+            val resolvedIp =
                 withTimeoutOrNull(2_500L) {
-                    runCatching { InetAddress.getByName("dns.google") != null }.getOrDefault(false)
-                } == true
+                    runCatching { InetAddress.getByName(dnsTarget).hostAddress }.getOrNull()
+                }
+            val lookupMs = SystemClock.elapsedRealtime() - lookupStart
+            val dnsServers = DnsProbe.activeServers(context).distinct()
+            val probes =
+                if (dnsServers.isEmpty()) {
+                    emptyList()
+                } else {
+                    withTimeoutOrNull(10_000L) { DnsProbe.probeAll(dnsServers, dnsTarget) } ?: emptyList()
+                }
+            val dnsOk = resolvedIp != null
+            val probeSummary =
+                probes.joinToString(" / ") { r ->
+                    if (r.ok) {
+                        context.getString(R.string.doctor_dns_probe_ok, r.server, r.rttMs)
+                    } else {
+                        context.getString(R.string.doctor_dns_probe_fail, r.server)
+                    }
+                }
+            val dnsDetail =
+                if (dnsOk) {
+                    buildString {
+                        append(context.getString(R.string.doctor_msg_dns_ok, dnsTarget, lookupMs))
+                        if (probeSummary.isNotEmpty()) {
+                            append('\n')
+                            append(context.getString(R.string.doctor_dns_servers, probeSummary))
+                        }
+                    }
+                } else {
+                    context.getString(R.string.doctor_msg_dns_failed)
+                }
             add(
                 DoctorCheck(
                     id = "net.dns",
                     category = DoctorCategory.Network,
                     labelRes = R.string.doctor_net_16,
-                    detail =
-                        if (dnsOk) {
-                            context.getString(R.string.doctor_msg_dns_ok)
-                        } else {
-                            context.getString(R.string.doctor_msg_dns_failed)
-                        },
+                    detail = dnsDetail,
                     severity = if (dnsOk) Severity.OK else Severity.WARN,
                 ),
             )
