@@ -97,6 +97,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowTurnBackward
+import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Bash
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.data.log.AppLog
@@ -1685,6 +1686,11 @@ private fun TagEditDialog(
     LaunchedEffect(Unit) {
         AppLog.i("WorkspaceTags", "dialog open: initial=$initial")
     }
+    fun addCurrent() {
+        val trimmed = input.trim()
+        if (trimmed.isNotEmpty() && trimmed !in draft) draft = draft + trimmed
+        input = ""
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.workspace_detail_tags)) },
@@ -1721,20 +1727,28 @@ private fun TagEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = { Text(stringResource(R.string.workspace_detail_tags_hint)) },
                     singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = { addCurrent() }) {
+                            Icon(
+                                imageVector = HugeIcons.Add01,
+                                contentDescription = stringResource(R.string.add),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                        }
+                    },
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     keyboardActions =
                         KeyboardActions(
-                            onDone = {
-                                val trimmed = input.trim()
-                                if (trimmed.isNotEmpty() && trimmed !in draft) draft = draft + trimmed
-                                input = ""
-                            },
+                            onDone = { addCurrent() },
                         ),
                 )
             }
         },
         confirmButton = {
-            TextButton(onClick = { onSave(draft.filter { it.isNotBlank() }.distinct()) }) {
+            TextButton(onClick = {
+                addCurrent()
+                onSave(draft.distinct())
+            }) {
                 Text(stringResource(R.string.common_save))
             }
         },
