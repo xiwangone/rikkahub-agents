@@ -117,7 +117,7 @@ val repositoryModule =
         }
 
         single {
-            WorkspaceRepository(get(), get(), get(), get())
+            WorkspaceRepository(get(), get(), get(), get(), get())
         }
 
         single {
