@@ -3322,4 +3322,6 @@
   <string name="workspace_detail_stats_disk">磁碟使用量</string>
   <string name="workspace_detail_stats_kernel">主機核心</string>
   <string name="workspace_detail_stats_packages">套件</string>
+  <string name="workspace_detail_tags">標籤</string>
+  <string name="workspace_detail_tags_hint">輸入標籤，按 Enter 新增</string>
 </resources>

@@ -3323,4 +3323,6 @@
   <string name="workspace_detail_stats_disk">Использование диска</string>
   <string name="workspace_detail_stats_kernel">Ядро хоста</string>
   <string name="workspace_detail_stats_packages">Пакеты</string>
+  <string name="workspace_detail_tags">Теги</string>
+  <string name="workspace_detail_tags_hint">Введите тег, нажмите Enter, чтобы добавить</string>
 </resources>

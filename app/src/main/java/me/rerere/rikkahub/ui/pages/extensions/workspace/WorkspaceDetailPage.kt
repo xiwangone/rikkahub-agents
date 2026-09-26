@@ -35,6 +35,9 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -79,6 +82,8 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
@@ -92,6 +97,7 @@ import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowTurnBackward
 import me.rerere.hugeicons.stroke.Bash
+import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.File02
@@ -136,6 +142,7 @@ fun WorkspaceDetailPage(id: String) {
     val caRepairCount by vm.caRepairCount.collectAsStateWithLifecycle()
     val sdcardEnabled by vm.sdcardEnabled.collectAsStateWithLifecycle()
     val stats by vm.stats.collectAsStateWithLifecycle()
+    var tagEditing by remember { mutableStateOf(false) }
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
@@ -316,6 +323,7 @@ fun WorkspaceDetailPage(id: String) {
                         onRepairCaCerts = vm::repairCaCerts,
                         sdcardEnabled = sdcardEnabled,
                         onSdcardAccessChange = vm::setSdcardAccess,
+                        onSetTags = vm::setTags,
                     )
                 }
 
@@ -511,6 +519,7 @@ private fun WorkspaceBasicPage(
     onRepairCaCerts: () -> Unit,
     sdcardEnabled: Boolean,
     onSdcardAccessChange: (Boolean) -> Unit,
+    onSetTags: (List<String>) -> Unit,
 ) {
     var mirrorPicker by remember { mutableStateOf<MirrorPick?>(null) }
     val scope = rememberCoroutineScope()
@@ -572,6 +581,43 @@ private fun WorkspaceBasicPage(
                         stringResource(R.string.workspace_detail_stats_kernel),
                         stats?.kernel ?: "-",
                     )
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clip(MaterialTheme.shapes.small)
+                                .clickable { tagEditing = true }
+                                .padding(vertical = 6.dp, horizontal = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.workspace_detail_tags),
+                            modifier = Modifier.weight(0.35f),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        FlowRow(
+                            modifier = Modifier.weight(0.65f),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            val tags = workspace?.workspaceTags().orEmpty()
+                            if (tags.isEmpty()) {
+                                Text("-", style = MaterialTheme.typography.bodyMedium)
+                            } else {
+                                tags.fastForEach { tag ->
+                                    Surface(shape = CircleShape, tonalElevation = 1.dp) {
+                                        Text(
+                                            text = tag,
+                                            style = MaterialTheme.typography.labelSmall,
+                                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -746,6 +792,17 @@ private fun WorkspaceBasicPage(
                 mirrorPicker = null
             },
         )
+
+        if (tagEditing) {
+            TagEditDialog(
+                initial = workspace?.workspaceTags().orEmpty(),
+                onDismiss = { tagEditing = false },
+                onSave = { tags ->
+                    onSetTags(tags)
+                    tagEditing = false
+                },
+            )
+        }
 }
 
 @Composable
@@ -1610,6 +1667,73 @@ private fun MirrorPickerDialog(
             }
         },
         confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun TagEditDialog(
+    initial: List<String>,
+    onDismiss: () -> Unit,
+    onSave: (List<String>) -> Unit,
+) {
+    var draft by remember { mutableStateOf(initial) }
+    var input by remember { mutableStateOf("") }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.workspace_detail_tags)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                FlowRow(
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                    verticalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    draft.fastForEach { tag ->
+                        Surface(shape = MaterialTheme.shapes.small, tonalElevation = 2.dp) {
+                            Row(
+                                modifier = Modifier.padding(start = 10.dp, end = 4.dp, top = 4.dp, bottom = 4.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text(tag, style = MaterialTheme.typography.bodySmall)
+                                Icon(
+                                    imageVector = HugeIcons.Cancel01,
+                                    contentDescription = null,
+                                    modifier =
+                                        Modifier
+                                            .size(14.dp)
+                                            .clickable { draft = draft.filter { it != tag } },
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+                OutlinedTextField(
+                    value = input,
+                    onValueChange = { input = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    placeholder = { Text(stringResource(R.string.workspace_detail_tags_hint)) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions =
+                        KeyboardActions(
+                            onDone = {
+                                val trimmed = input.trim()
+                                if (trimmed.isNotEmpty() && trimmed !in draft) draft = draft + trimmed
+                                input = ""
+                            },
+                        ),
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onSave(draft.filter { it.isNotBlank() }.distinct()) }) {
+                Text(stringResource(R.string.common_save))
+            }
+        },
+        dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
         },
     )

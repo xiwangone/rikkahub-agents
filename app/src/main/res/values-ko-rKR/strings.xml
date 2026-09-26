@@ -3323,4 +3323,6 @@
   <string name="workspace_detail_stats_disk">디스크 사용량</string>
   <string name="workspace_detail_stats_kernel">호스트 커널</string>
   <string name="workspace_detail_stats_packages">패키지</string>
+  <string name="workspace_detail_tags">태그</string>
+  <string name="workspace_detail_tags_hint">태그를 입력하고 Enter를 눌러 추가하세요</string>
 </resources>

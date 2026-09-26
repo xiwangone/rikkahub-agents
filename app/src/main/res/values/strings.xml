@@ -2097,6 +2097,8 @@
   <string name="workspace_detail_stats_disk">Disk usage</string>
   <string name="workspace_detail_stats_packages">Packages</string>
   <string name="workspace_detail_stats_kernel">Host kernel</string>
+  <string name="workspace_detail_tags">Tags</string>
+  <string name="workspace_detail_tags_hint">Type a tag, press enter to add</string>
   <string name="workspace_detail_mirror_pip">Python packages</string>
   <string name="workspace_detail_mirror_npm">Node packages</string>
   <string name="workspace_detail_workspace_info">Workspace</string>

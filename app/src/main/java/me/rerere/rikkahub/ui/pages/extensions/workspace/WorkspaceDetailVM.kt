@@ -30,6 +30,9 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.log.AppLog
 
+@Suppress("TooManyFunctions")
+// 详情页单一 VM 固有职责（信息/镜像/CA/挂载/标签/导出等），方法数随功能自然增长；
+// 转发型逻辑已尽量下沉 Repository，此处为局部豁免而非放宽全局阈值。
 class WorkspaceDetailVM(
     private val id: String,
     private val repository: WorkspaceRepository,
@@ -115,6 +118,18 @@ class WorkspaceDetailVM(
     fun setSdcardAccess(enabled: Boolean) {
         viewModelScope.launch {
             runCatching { repository.setSdcardAccess(enabled) }
+                .onFailure { _settingsError.value = it.message }
+        }
+    }
+
+    /** 保存工作区画像标签（JSON 数组落库；阶段 3 任务路由的匹配键）。 */
+    fun setTags(tags: List<String>) {
+        viewModelScope.launch {
+            runCatching { repository.setTags(id, tags) }
+                .onSuccess {
+                    val workspace = repository.getById(id)
+                    _state.update { it.copy(workspace = workspace) }
+                }
                 .onFailure { _settingsError.value = it.message }
         }
     }

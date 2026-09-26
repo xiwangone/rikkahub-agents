@@ -30,6 +30,7 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -138,6 +139,10 @@ class McpManager(
         appScope.launch {
             settingsStore.settingsFlow
                 .map { settings -> settings.mcpServers }
+                // 任何无关设置变更都会重发 Settings → 不去重的话，MCP 配置没变也会全量重跑 diff
+                // 并打 4 行日志（实测 ~30-60s 一次，to_add/remove/replace 全空）；
+                // 子类均为 data class，equals 逐字段比较可靠。
+                .distinctUntilChanged()
                 .collect { mcpServerConfigs ->
                     runCatching {
                         AppLog.i(TAG, "update configs: ${mcpServerConfigs.joinToString { redactConfigForLog(it) }}")

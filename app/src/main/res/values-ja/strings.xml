@@ -3323,4 +3323,6 @@
   <string name="workspace_detail_stats_disk">ディスク使用量</string>
   <string name="workspace_detail_stats_kernel">ホストカーネル</string>
   <string name="workspace_detail_stats_packages">パッケージ</string>
+  <string name="workspace_detail_tags">タグ</string>
+  <string name="workspace_detail_tags_hint">タグを入力し、Enterキーで追加</string>
 </resources>
