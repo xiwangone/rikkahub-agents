@@ -1681,6 +1681,9 @@ private fun TagEditDialog(
 ) {
     var draft by remember { mutableStateOf(initial) }
     var input by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        AppLog.i("WorkspaceTags", "dialog open: initial=$initial")
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.workspace_detail_tags)) },

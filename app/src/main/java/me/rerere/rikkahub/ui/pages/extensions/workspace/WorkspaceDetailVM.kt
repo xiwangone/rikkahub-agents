@@ -131,9 +131,13 @@ class WorkspaceDetailVM(
             runCatching { repository.setTags(id, tags) }
                 .onSuccess {
                     val workspace = repository.getById(id)
+                    AppLog.i("WorkspaceTags", "saved=$tags readback.tags=${workspace?.tags}")
                     _state.update { it.copy(workspace = workspace) }
                 }
-                .onFailure { _settingsError.value = it.message }
+                .onFailure {
+                    AppLog.w("WorkspaceTags", "save failed", it)
+                    _settingsError.value = it.message
+                }
         }
     }
 
