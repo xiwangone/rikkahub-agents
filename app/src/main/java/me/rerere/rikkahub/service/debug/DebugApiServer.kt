@@ -27,8 +27,7 @@ import java.util.concurrent.atomic.AtomicReference
  * - 设置里显式开启，默认关闭；UI 需红字大字警告（暴露范围 = 所选网络）；
  * - 监听地址：127.0.0.1（默认，仅本机）/ 虚拟内网地址（Tailscale 等，推荐）/ 0.0.0.0（局域网，最危险）；
  * - CIDR 白名单复用 [isRemoteHostAllowed]；
- * - 配对：短匹配码只在 App 界面显示，POST /debug/pair 换取会话级 token（重启/关闭失效），
- *   token 是唯一通行凭证，匹配码本身不作为请求凭证；
+ * - 凭证：唯一通行凭证是 token（自动生成或引用凭证库/自定义口令），UI 内可查看/复制；
  * - 全部请求审计留痕（时间 / 端点 / 来源 / 结果码）。
  */
 class DebugApiServer(
@@ -39,6 +38,8 @@ class DebugApiServer(
     private val allowedNetworks: String = "",
     /** 审计落盘目录（App files/debug-api）；null = 不落盘（不建议） */
     private val auditDir: File? = null,
+    /** token 来源：凭证库引用或自定义口令；null = 自动生成（仅存内存，重启换新） */
+    private val tokenProvider: () -> String? = { null },
 ) {
     private companion object {
         const val HOST_LOOPBACK = "127.0.0.1"
@@ -51,13 +52,12 @@ class DebugApiServer(
     /** 会话 token；服务启动时生成，停止即失效 */
     private val sessionToken = AtomicReference<String?>(null)
 
-    /** 匹配码；仅启动期间存在于内存，配对成功后立即轮换 */
-    private val pairingCode = AtomicReference<String?>(null)
+    /** token 提供者：设置层接入凭证库（getByName/decryptValue）；返回 null 则自动生成 */
+    private val tokenProvider: () -> String? = { null }
 
     fun start() {
         if (engine != null) return
-        sessionToken.set(newSecret())
-        pairingCode.set(newSecret(6)) // 6 位短码，UI 展示给用户
+        sessionToken.set(tokenProvider() ?: newSecret())
         val server = embeddedServer(CIO, port = port, host = host, module = { routes() })
         server.start(wait = false)
         engine = server
@@ -69,9 +69,6 @@ class DebugApiServer(
         sessionToken.set(null)
         pairingCode.set(null)
     }
-
-    /** 当前展示给用户的匹配码（UI 轮询显示；停止服务时置空） */
-    fun currentPairingCode(): String? = pairingCode.get()
 
     private fun newSecret(length: Int = 40): String {
         val alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
@@ -98,26 +95,6 @@ class DebugApiServer(
     }
 
     private fun routes() = routing {
-        // 配对：短码换 token（一次性握手；成功后轮换匹配码）
-        post("/debug/pair") {
-            val remote = call.request.local.remoteHost
-            if (allowedNetworks.isNotBlank() && !isRemoteHostAllowed(remote, allowedNetworks)) {
-                audit("/debug/pair", remote, HttpStatusCode.Forbidden); call.respondText("{}",
-                    ContentType.Application.Json, HttpStatusCode.Forbidden); return@post
-            }
-            val given = call.receiveText().trim().trim('"')
-            val expected = pairingCode.getAndSet(newSecret(6))
-            if (expected != null && given == expected) {
-                val body = """{"token":"${sessionToken.get()}"}"""
-                audit("/debug/pair", remote, HttpStatusCode.OK, "paired")
-                call.respondText(body, ContentType.Application.Json)
-            } else {
-                audit("/debug/pair", remote, HttpStatusCode.Unauthorized, "bad code")
-                call.respondText("""{"error":"bad pairing code"}""",
-                    ContentType.Application.Json, HttpStatusCode.Unauthorized)
-            }
-        }
-
         get("/debug/info") {
             if (!authorized(call)) {
                 audit("/debug/info", call.request.local.remoteHost, HttpStatusCode.Unauthorized)
