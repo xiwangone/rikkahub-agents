@@ -62,13 +62,10 @@ class WorkspaceDetailVM(
     /** 最近一次「修复 CA 证书」写入的沙箱数量（null = 无待提示结果）。 */
     val caRepairCount = _caRepairCount.asStateFlow()
 
-    /** 资源面板（磁盘/包数/内核）；采集失败为 null。 */
+    /** 资源面板（磁盘/包数/内核）：仓库层进程内缓存 + 后台采集（退出页面不中断，重进即有）。 */
     val stats: kotlinx.coroutines.flow.StateFlow<WorkspaceStats?> =
-        repository.statsFlow(id)
-            .catch { error ->
-                AppLog.w("WorkspaceStats", "collect failed: ${error.message}", error)
-                emit(null)
-            }
+        repository.statsById
+            .map { it[id] }
             .stateIn(
                 viewModelScope,
                 kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
@@ -144,6 +141,7 @@ class WorkspaceDetailVM(
     init {
         loadWorkspace()
         refresh()
+        repository.requestWorkspaceStats(id)
     }
 
     fun selectArea(area: WorkspaceStorageArea) {

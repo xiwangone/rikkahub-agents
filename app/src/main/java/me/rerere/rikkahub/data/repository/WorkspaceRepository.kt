@@ -2,12 +2,18 @@ package me.rerere.rikkahub.data.repository
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import me.rerere.workspace.WorkspaceMirrors
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -118,20 +124,38 @@ class WorkspaceRepository(
         collectWorkspaceStats(manager.workspaceDir(workspace.root), manager.linuxDir(workspace.root))
     }
 
-    /** 资源面板流；采集失败发 null（面板显示 "-"）并留痕（2026-09-26 实测三行全 "-" 且无日志可查，补可观测性）。 */
-    fun statsFlow(id: String): Flow<WorkspaceStats?> =
-        kotlinx.coroutines.flow.flow {
-            val stats = workspaceStats(id)
-            AppLog.i(
-                "WorkspaceStats",
-                "collect ok: rootBytes=%s, packages=%s, kernel=%s".format(
-                    stats.rootBytes?.toString() ?: "null",
-                    stats.packageCount?.toString() ?: "null",
-                    stats.kernel ?: "null",
-                ),
-            )
-            emit(stats)
+    /** 资源面板采集（内部）：查实体 → 采集。失败向上抛，由调用方兜底。 */
+    private suspend fun workspaceStats(id: String): WorkspaceStats = withContext(Dispatchers.IO) {
+        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
+        collectWorkspaceStats(manager.workspaceDir(workspace.root), manager.linuxDir(workspace.root))
+    }
+
+    // ---------- 资源面板：采集与页面生命周期解耦 + 进程内缓存 ----------
+    // 大区（数万文件）遍历可达分钟级；挂在页面订阅生命周期上（WhileSubscribed）会随页面
+    // 退出被取消 → 大工作区永远采不完（2026-09-26 真机实测：主区反复进出始终 "-"）。
+    // 改为独立 scope 后台采集，结果驻留进程内缓存；持久化（跨进程）列为后续。
+
+    private val statsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private val _statsById = MutableStateFlow<Map<String, WorkspaceStats>>(emptyMap())
+
+    /** key = workspace id。采集失败不落缓存（下次进详情页重试）。 */
+    val statsById: StateFlow<Map<String, WorkspaceStats>> = _statsById.asStateFlow()
+
+    /** 请求采集 [id] 的资源画像：已缓存则跳过，否则后台采集（不阻塞、不随页面退出中断）。 */
+    fun requestWorkspaceStats(id: String) {
+        statsScope.launch {
+            if (_statsById.value.containsKey(id)) return@launch
+            runCatching { workspaceStats(id) }
+                .onSuccess { stats ->
+                    AppLog.i(
+                        "WorkspaceStats",
+                        "cached id=$id: rootBytes=${stats.rootBytes}, packages=${stats.packageCount}, kernel=${stats.kernel}",
+                    )
+                    _statsById.value = _statsById.value + (id to stats)
+                }
+                .onFailure { AppLog.w("WorkspaceStats", "collect failed for $id", it) }
         }
+    }
 
     suspend fun checkIntegrity() = withContext(Dispatchers.IO) {
         val workspaces = dao.getAll()
