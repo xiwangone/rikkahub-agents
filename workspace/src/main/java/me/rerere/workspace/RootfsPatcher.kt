@@ -209,8 +209,8 @@ class RootfsPatcher {
                 "127.0.0.53",
                 "::1",
             )
-        // Public anycast resolvers first (wide global coverage, fast first-query
-        // latency on CN-region networks), then a last-resort global fallback.
+        // Public anycast resolvers first (wide global coverage, low first-query
+        // latency), then a last-resort global fallback.
         private val DEFAULT_DNS_SERVERS =
             listOf(
                 "223.5.5.5",
