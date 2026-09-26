@@ -4,6 +4,8 @@ import me.rerere.workspace.MirrorProbe
 import me.rerere.workspace.MirrorSpeedResult
 import me.rerere.workspace.measureMirrorSpeeds
 import me.rerere.workspace.resolveMirrorProbeUrl
+import me.rerere.rikkahub.ui.context.LocalToaster
+import com.dokar.sonner.ToastType
 import me.rerere.workspace.WorkspaceMirrorPresets
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import androidx.compose.foundation.verticalScroll
@@ -129,6 +131,7 @@ fun WorkspaceDetailPage(id: String) {
     val installError by vm.installError.collectAsStateWithLifecycle()
     val folderExportProgress by vm.folderExportProgress.collectAsStateWithLifecycle()
     val settingsError by vm.settingsError.collectAsStateWithLifecycle()
+    val caRepairCount by vm.caRepairCount.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
@@ -305,6 +308,7 @@ fun WorkspaceDetailPage(id: String) {
                         onToolApprovalChange = vm::setToolApproval,
                         onShellCompatibilityModeChange = vm::setShellCompatibilityMode,
                         onApplyMirrors = vm::applyMirrors,
+                        onRepairCaCerts = vm::repairCaCerts,
                     )
                 }
 
@@ -447,6 +451,14 @@ fun WorkspaceDetailPage(id: String) {
         )
     }
 
+    val caRepairMessage = caRepairCount?.let { stringResource(R.string.workspace_detail_cacerts_repaired, it) }
+    LaunchedEffect(caRepairMessage) {
+        if (caRepairMessage != null) {
+            toaster.show(message = caRepairMessage, type = ToastType.Success)
+            vm.dismissCaRepairHint()
+        }
+    }
+
     previewImageUri?.let { uri ->
         ImagePreviewDialog(
             images = listOf(uri),
@@ -488,6 +500,7 @@ private fun WorkspaceBasicPage(
     onToolApprovalChange: (String, Boolean) -> Unit,
     onShellCompatibilityModeChange: (Boolean) -> Unit,
     onApplyMirrors: (WorkspaceMirrors) -> Unit,
+    onRepairCaCerts: () -> Unit,
 ) {
     var mirrorPicker by remember { mutableStateOf<MirrorPick?>(null) }
     val scope = rememberCoroutineScope()
@@ -568,6 +581,11 @@ private fun WorkspaceBasicPage(
                     current = mirrors.npm,
                     presets = WorkspaceMirrorPresets.NPM,
                     onClick = { mirrorPicker = MirrorPick.NPM },
+                )
+                item(
+                    onClick = onRepairCaCerts,
+                    headlineContent = { Text(stringResource(R.string.workspace_detail_repair_cacerts)) },
+                    supportingContent = { Text(stringResource(R.string.workspace_detail_repair_cacerts_desc)) },
                 )
             }
         }

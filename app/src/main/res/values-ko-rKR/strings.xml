@@ -3315,4 +3315,7 @@
   <string name="workspace_detail_mirror_speed_failed">실패</string>
   <string name="workspace_detail_mirror_speed_test">속도 테스트</string>
   <string name="workspace_detail_mirror_speed_testing">테스트 중…</string>
+  <string name="workspace_detail_cacerts_repaired">%1$d개의 샌드박스에 CA 인증서가 기록되었습니다</string>
+  <string name="workspace_detail_repair_cacerts">CA 인증서 복구</string>
+  <string name="workspace_detail_repair_cacerts_desc">https 소스, pip 및 npm을 위해 Android 시스템 CA 인증서를 샌드박스에 기록</string>
 </resources>

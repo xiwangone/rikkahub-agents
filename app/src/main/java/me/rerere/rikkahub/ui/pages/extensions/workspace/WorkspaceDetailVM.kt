@@ -51,6 +51,11 @@ class WorkspaceDetailVM(
     private val _settingsError = MutableStateFlow<String?>(null)
     val settingsError = _settingsError.asStateFlow()
 
+    private val _caRepairCount = MutableStateFlow<Int?>(null)
+
+    /** 最近一次「修复 CA 证书」写入的沙箱数量（null = 无待提示结果）。 */
+    val caRepairCount = _caRepairCount.asStateFlow()
+
     /** 沙箱镜像配置（全局）。 */
     val mirrors: kotlinx.coroutines.flow.StateFlow<me.rerere.workspace.WorkspaceMirrors> =
         repository.mirrorsFlow()
@@ -70,6 +75,19 @@ class WorkspaceDetailVM(
 
     fun dismissSettingsError() {
         _settingsError.value = null
+    }
+
+    /** 把系统 CA 合并写入已安装 rootfs（修复缺 CA bundle 导致 https 不可用）。 */
+    fun repairCaCerts() {
+        viewModelScope.launch {
+            runCatching { repository.repairCaCerts() }
+                .onSuccess { count -> _caRepairCount.value = count }
+                .onFailure { _settingsError.value = it.message }
+        }
+    }
+
+    fun dismissCaRepairHint() {
+        _caRepairCount.value = null
     }
 
     init {

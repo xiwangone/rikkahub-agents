@@ -43,6 +43,7 @@ class WorkspaceRepository(
         settingsStore.settingsFlow.map { s ->
             WorkspaceMirrors(
                 apk = s.workspaceApkMirror,
+                apt = s.workspaceAptMirror,
                 pip = s.workspacePipMirror,
                 npm = s.workspaceNpmMirror,
             )
@@ -54,6 +55,7 @@ class WorkspaceRepository(
         settingsStore.update(
             current.copy(
                 workspaceApkMirror = mirrors.apk,
+                workspaceAptMirror = mirrors.apt,
                 workspacePipMirror = mirrors.pip,
                 workspaceNpmMirror = mirrors.npm,
             ),
@@ -61,11 +63,29 @@ class WorkspaceRepository(
         var applied = 0
         for (workspace in dao.getAll()) {
             if (!manager.hasRootfs(workspace.root)) continue
-            if (me.rerere.workspace.applyWorkspaceMirrors(manager.linuxDir(workspace.root), mirrors).isSuccess) {
+            val linuxDir = manager.linuxDir(workspace.root)
+            if (me.rerere.workspace.applyWorkspaceMirrors(linuxDir, mirrors).isSuccess) {
                 applied++
             }
+            // 换源后 https 可用性依赖 CA bundle：缺失时顺带从系统 CA 补齐（不覆盖已有）
+            me.rerere.workspace.installCaCerts(linuxDir, force = false)
         }
         applied
+    }
+
+    /**
+     * 把 Android 系统 CA 合并写入所有已安装 rootfs（修复最小 rootfs 缺 CA bundle 导致 https 不可用）。
+     * 返回写入成功的沙箱数量。
+     */
+    suspend fun repairCaCerts(): Int = withContext(Dispatchers.IO) {
+        var repaired = 0
+        for (workspace in dao.getAll()) {
+            if (!manager.hasRootfs(workspace.root)) continue
+            if (me.rerere.workspace.installCaCerts(manager.linuxDir(workspace.root)).isSuccess) {
+                repaired++
+            }
+        }
+        repaired
     }
 
     suspend fun checkIntegrity() = withContext(Dispatchers.IO) {

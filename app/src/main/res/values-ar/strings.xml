@@ -3314,4 +3314,7 @@
   <string name="workspace_detail_mirror_speed_failed">فشل</string>
   <string name="workspace_detail_mirror_speed_test">اختبار السرعة</string>
   <string name="workspace_detail_mirror_speed_testing">جارٍ الاختبار…</string>
+  <string name="workspace_detail_cacerts_repaired">تمت كتابة شهادات CA إلى %1$d بيئة معزولة</string>
+  <string name="workspace_detail_repair_cacerts">إصلاح شهادات CA</string>
+  <string name="workspace_detail_repair_cacerts_desc">كتابة شهادات CA لنظام Android في البيئة المعزولة لمصادر https و pip و npm</string>
 </resources>

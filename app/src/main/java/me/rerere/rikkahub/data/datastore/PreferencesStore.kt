@@ -234,6 +234,7 @@ class SettingsStore(
         val WEB_SERVER_ACCESS_PASSWORD = stringPreferencesKey("web_server_access_password")
         val SETTING_SHORTCUT_IDS = stringPreferencesKey("setting_shortcut_ids")
         val WORKSPACE_APK_MIRROR = stringPreferencesKey("workspace_apk_mirror")
+        val WORKSPACE_APT_MIRROR = stringPreferencesKey("workspace_apt_mirror")
         val WORKSPACE_PIP_MIRROR = stringPreferencesKey("workspace_pip_mirror")
         val WORKSPACE_NPM_MIRROR = stringPreferencesKey("workspace_npm_mirror")
         val WEB_SERVER_LOCALHOST_ONLY = booleanPreferencesKey("web_server_localhost_only")
@@ -445,6 +446,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                         ?.filter { it.isNotBlank() }
                         ?: emptyList(),
                 workspaceApkMirror = preferences[WORKSPACE_APK_MIRROR] ?: "",
+                workspaceAptMirror = preferences[WORKSPACE_APT_MIRROR] ?: "",
                 workspacePipMirror = preferences[WORKSPACE_PIP_MIRROR] ?: "",
                 workspaceNpmMirror = preferences[WORKSPACE_NPM_MIRROR] ?: "",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
@@ -747,9 +749,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[WEB_SERVER_ALLOWED_NETWORKS] = settings.webServerAllowedNetworks
             preferences[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
             preferences[SETTING_SHORTCUT_IDS] = settings.settingShortcutIds.joinToString("\u0001")
-            preferences[WORKSPACE_APK_MIRROR] = settings.workspaceApkMirror
-            preferences[WORKSPACE_PIP_MIRROR] = settings.workspacePipMirror
-            preferences[WORKSPACE_NPM_MIRROR] = settings.workspaceNpmMirror
+            putWorkspaceMirrors(settings)
             preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
             preferences[AI_LOG_LEVEL] = settings.aiLogLevel.preferenceName
             preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
@@ -771,6 +771,18 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
     private fun MutablePreferences.putToolOutputLimits(settings: Settings) {
         this[TOOL_OUTPUT_MAX_CHARS] = settings.toolOutputMaxChars
         this[TOOL_OUTPUT_COMPACT_MAX_CHARS] = settings.toolOutputCompactMaxChars
+    }
+
+    /**
+     * 写回沙箱包管理器镜像（apk/apt/pip/npm）。
+     *
+     * 抽成独立扩展函数同 [putToolOutputLimits]：让 [update] 保持在 detekt LongMethod 阈值内。
+     */
+    private fun MutablePreferences.putWorkspaceMirrors(settings: Settings) {
+        this[WORKSPACE_APK_MIRROR] = settings.workspaceApkMirror
+        this[WORKSPACE_APT_MIRROR] = settings.workspaceAptMirror
+        this[WORKSPACE_PIP_MIRROR] = settings.workspacePipMirror
+        this[WORKSPACE_NPM_MIRROR] = settings.workspaceNpmMirror
     }
 
     // ---------- 会话累计用量（与压缩解耦，见 LifetimeUsage 注释） ----------
@@ -1076,8 +1088,9 @@ data class Settings(
     val webServerAccessPassword: String = "",
     /** 设置页快捷区：用户自选的有序入口 id 列表（id 见 SettingCatalog）。 */
     val settingShortcutIds: List<String> = emptyList(),
-    /** 沙箱包管理器镜像（空 = 官方源）：apk / pip / npm。 */
+    /** 沙箱包管理器镜像（空 = 官方源）：apk / apt / pip / npm。 */
     val workspaceApkMirror: String = "",
+    val workspaceAptMirror: String = "",
     val workspacePipMirror: String = "",
     val workspaceNpmMirror: String = "",
     val webServerLocalhostOnly: Boolean = true,

@@ -3315,4 +3315,7 @@
   <string name="workspace_detail_mirror_speed_failed">失敗</string>
   <string name="workspace_detail_mirror_speed_test">速度テスト</string>
   <string name="workspace_detail_mirror_speed_testing">テスト中…</string>
+  <string name="workspace_detail_cacerts_repaired">CA証明書が%1$d個のサンドボックスに書き込まれました</string>
+  <string name="workspace_detail_repair_cacerts">CA証明書を修復</string>
+  <string name="workspace_detail_repair_cacerts_desc">httpsソース、pip、npm用にAndroidシステムのCA証明書をサンドボックスに書き込む</string>
 </resources>

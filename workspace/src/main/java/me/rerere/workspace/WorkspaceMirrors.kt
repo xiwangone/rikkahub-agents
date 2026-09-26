@@ -152,10 +152,10 @@ private fun readAlpineBranch(linuxDir: File): String? {
 }
 
 /** rootfs 的发行版标识（取自 `/etc/os-release`）。 */
-private data class RootfsDistro(val id: String, val codename: String)
+internal data class RootfsDistro(val id: String, val codename: String)
 
 /** 读取 rootfs 的 `/etc/os-release`；缺文件或缺关键字段时返回 null（此时不改动 apt 源）。 */
-private fun readRootfsDistro(linuxDir: File): RootfsDistro? {
+internal fun readRootfsDistro(linuxDir: File): RootfsDistro? {
     val file = File(linuxDir, OS_RELEASE_PATH)
     if (!file.isFile) return null
     val text = runCatching { file.readText() }.getOrNull() ?: return null

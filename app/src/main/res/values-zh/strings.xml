@@ -1989,6 +1989,9 @@
   <string name="workspace_detail_mirror_speed_test">测速</string>
   <string name="workspace_detail_mirror_speed_testing">测速中…</string>
   <string name="workspace_detail_mirror_speed_failed">失败</string>
+  <string name="workspace_detail_repair_cacerts">修复 CA 证书</string>
+  <string name="workspace_detail_repair_cacerts_desc">将系统 CA 证书写入沙箱，供 https 源、pip、npm 使用</string>
+  <string name="workspace_detail_cacerts_repaired">已写入 %1$d 个沙箱</string>
   <string name="workspace_detail_mirror_pip">Python 包</string>
   <string name="workspace_detail_mirror_npm">Node 包</string>
   <string name="workspace_detail_workspace_info">工作区</string>
