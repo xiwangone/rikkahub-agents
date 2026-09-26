@@ -2092,6 +2092,8 @@
   <string name="workspace_detail_repair_cacerts">Repair CA certificates</string>
   <string name="workspace_detail_repair_cacerts_desc">Write Android system CA certificates into the sandbox for https sources, pip and npm</string>
   <string name="workspace_detail_cacerts_repaired">CA certificates written to %1$d sandbox(es)</string>
+  <string name="workspace_detail_sdcard_access">Access phone storage</string>
+  <string name="workspace_detail_sdcard_access_desc">Mount phone storage at /sdcard (off by default; writes still require approval). AI access is logged.</string>
   <string name="workspace_detail_mirror_pip">Python packages</string>
   <string name="workspace_detail_mirror_npm">Node packages</string>
   <string name="workspace_detail_workspace_info">Workspace</string>

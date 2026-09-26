@@ -90,6 +90,22 @@ class WorkspaceDetailVM(
         _caRepairCount.value = null
     }
 
+    /** 手机存储挂载开关（全局，默认关）。 */
+    val sdcardEnabled: kotlinx.coroutines.flow.StateFlow<Boolean> =
+        repository.sdcardEnabledFlow()
+            .stateIn(
+                viewModelScope,
+                kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+                false,
+            )
+
+    fun setSdcardAccess(enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching { repository.setSdcardAccess(enabled) }
+                .onFailure { _settingsError.value = it.message }
+        }
+    }
+
     init {
         loadWorkspace()
         refresh()

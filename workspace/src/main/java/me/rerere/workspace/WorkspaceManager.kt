@@ -6,11 +6,24 @@ import java.io.OutputStream
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 
+/**
+ * 可选挂载（开关控制，如 /sdcard）：挂载表 + 启用开关 provider + 访问留痕回调。
+ * 独立成类既让 WorkspaceManager 构造参数数保持在阈值内，也为后续更多可选挂载留扩展位。
+ */
+data class OptionalMounts(
+    val mounts: Map<String, WorkspaceBindMount>,
+    val enabled: () -> Set<String>,
+    val onAccess: (target: String, path: String) -> Unit = { _, _ -> },
+)
+
 class WorkspaceManager(
     private val baseDir: File,
     private val config: WorkspaceConfig = WorkspaceConfig(),
     private val shellRunner: WorkspaceShellRunner = HostShellRunner(),
     private val bindMounts: List<WorkspaceBindMount> = emptyList(),
+    // 可选挂载（如 /sdcard）：开关 provider 为同步函数（调用点在普通函数里，
+    // 调用方负责让它返回最新状态，如经内存缓存桥接设置项）。
+    private val optionalMounts: OptionalMounts? = null,
 ) {
     private val fileSystem = WorkspaceFileSystem(config)
     private val background = WorkspaceBackgroundProcesses()
@@ -20,8 +33,19 @@ class WorkspaceManager(
     // 缺失而失败并抛出), 不会出现"进程活着但 workspace 目录已删"的孤儿进程
     private val backgroundLifecycleLock = Any()
 
+    // 生效挂载表 = 固定表 + 已启用的可选表（每次调用重算，开关变化即时生效）
+    private val optionalMountTargets =
+        optionalMounts?.mounts.orEmpty().values.map { it.target.trimEnd('/') }.toSet()
+
+    private fun activeBindMounts(): List<WorkspaceBindMount> {
+        val optional = optionalMounts ?: return bindMounts
+        val enabled = optional.enabled().orEmpty()
+        return bindMounts + optional.mounts.filterKeys { it in enabled }.values
+    }
+
     // 按 target 长度降序, 保证 /a/b 优先于 /a 匹配
-    private val sortedBindMounts = bindMounts.sortedByDescending { it.target.trimEnd('/').length }
+    private fun sortedActiveMounts(): List<WorkspaceBindMount> =
+        activeBindMounts().sortedByDescending { it.target.trimEnd('/').length }
 
     init {
         baseDir.mkdirs()
@@ -174,10 +198,14 @@ class WorkspaceManager(
         val trimmed = path.trim().trimEnd('/').ifBlank { "/" }
         require(trimmed.startsWith("/")) { "Rootfs path must be absolute: $path" }
 
-        sortedBindMounts.forEach { mount ->
+        sortedActiveMounts().forEach { mount ->
             val target = mount.target.trimEnd('/')
-            if (trimmed == target) return RootfsLocation(mount.source, "")
+            if (trimmed == target) {
+                if (target in optionalMountTargets) optionalMounts?.onAccess?.invoke(target, trimmed)
+                return RootfsLocation(mount.source, "")
+            }
             if (trimmed.startsWith("$target/")) {
+                if (target in optionalMountTargets) optionalMounts?.onAccess?.invoke(target, trimmed)
                 return RootfsLocation(mount.source, trimmed.removePrefix("$target/"))
             }
         }
@@ -277,7 +305,7 @@ class WorkspaceManager(
                 workingDir = workingDir,
                 timeoutMillis = timeoutMillis,
                 stdin = stdin,
-                bindMounts = bindMounts,
+                bindMounts = activeBindMounts(),
                 env = env,
                 shellCompatibilityMode = shellCompatibilityMode,
             )

@@ -64,6 +64,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -132,6 +133,7 @@ fun WorkspaceDetailPage(id: String) {
     val folderExportProgress by vm.folderExportProgress.collectAsStateWithLifecycle()
     val settingsError by vm.settingsError.collectAsStateWithLifecycle()
     val caRepairCount by vm.caRepairCount.collectAsStateWithLifecycle()
+    val sdcardEnabled by vm.sdcardEnabled.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
@@ -309,6 +311,8 @@ fun WorkspaceDetailPage(id: String) {
                         onShellCompatibilityModeChange = vm::setShellCompatibilityMode,
                         onApplyMirrors = vm::applyMirrors,
                         onRepairCaCerts = vm::repairCaCerts,
+                        sdcardEnabled = sdcardEnabled,
+                        onSdcardAccessChange = vm::setSdcardAccess,
                     )
                 }
 
@@ -501,6 +505,8 @@ private fun WorkspaceBasicPage(
     onShellCompatibilityModeChange: (Boolean) -> Unit,
     onApplyMirrors: (WorkspaceMirrors) -> Unit,
     onRepairCaCerts: () -> Unit,
+    sdcardEnabled: Boolean,
+    onSdcardAccessChange: (Boolean) -> Unit,
 ) {
     var mirrorPicker by remember { mutableStateOf<MirrorPick?>(null) }
     val scope = rememberCoroutineScope()
@@ -620,6 +626,28 @@ private fun WorkspaceBasicPage(
                         Text(
                             text = installButtonText,
                             modifier = Modifier.padding(start = 8.dp),
+                        )
+                    }
+
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = stringResource(R.string.workspace_detail_sdcard_access),
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                text = stringResource(R.string.workspace_detail_sdcard_access_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        Switch(
+                            checked = sdcardEnabled,
+                            onCheckedChange = onSdcardAccessChange,
                         )
                     }
 

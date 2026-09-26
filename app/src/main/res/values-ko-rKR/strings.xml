@@ -3318,4 +3318,6 @@
   <string name="workspace_detail_cacerts_repaired">%1$d개의 샌드박스에 CA 인증서가 기록되었습니다</string>
   <string name="workspace_detail_repair_cacerts">CA 인증서 복구</string>
   <string name="workspace_detail_repair_cacerts_desc">https 소스, pip 및 npm을 위해 Android 시스템 CA 인증서를 샌드박스에 기록</string>
+  <string name="workspace_detail_sdcard_access">휴대폰 저장소 접근</string>
+  <string name="workspace_detail_sdcard_access_desc">휴대폰 저장소를 /sdcard에 마운트합니다 (기본값은 꺼짐, 쓰기에는 여전히 승인이 필요함). AI 접근이 기록됩니다.</string>
 </resources>

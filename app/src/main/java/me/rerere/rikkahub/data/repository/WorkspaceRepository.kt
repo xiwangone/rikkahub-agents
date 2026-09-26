@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.Flow
 import me.rerere.workspace.WorkspaceMirrors
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -29,12 +30,14 @@ import java.io.InputStream
 import java.io.OutputStream
 import kotlin.uuid.Uuid
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.data.workspace.WorkspaceMountSwitch
 
 class WorkspaceRepository(
     private val dao: WorkspaceDAO,
     private val manager: WorkspaceManager,
     private val rootfsInstaller: RootfsInstaller,
     private val settingsStore: SettingsStore,
+    private val mountSwitch: WorkspaceMountSwitch,
 ) {
     fun listFlow(): Flow<List<WorkspaceEntity>> = dao.listFlow()
 
@@ -86,6 +89,19 @@ class WorkspaceRepository(
             }
         }
         repaired
+    }
+
+    /** 手机存储挂载开关（/sdcard，可选挂载）：设置流，订阅时同步内存桥。 */
+    fun sdcardEnabledFlow(): Flow<Boolean> =
+        settingsStore.settingsFlow
+            .map { it.workspaceSdcardEnabled }
+            .onEach { mountSwitch.sdcardEnabled = it }
+
+    /** 开关手机存储挂载：写设置 + 同步内存桥（对后续 shell 启动/路径解析即时生效）。 */
+    suspend fun setSdcardAccess(enabled: Boolean) {
+        val current = settingsStore.settingsFlow.first()
+        settingsStore.update(current.copy(workspaceSdcardEnabled = enabled))
+        mountSwitch.sdcardEnabled = enabled
     }
 
     suspend fun checkIntegrity() = withContext(Dispatchers.IO) {
@@ -397,6 +413,10 @@ class WorkspaceRepository(
     ): WorkspaceCommandResult {
         // 多工作区：targetId 指定时在目标工作区 rootfs 执行（默认当前工作区）
         val executeRoot = if (targetId != null) (dao.getById(targetId) ?: error("Target workspace not found: $targetId")).root else id
+        // shell 触碰手机存储的留痕（文件工具已由路径解析层覆盖；此处覆盖命令串）
+        if (command.contains("/sdcard") || cwd.startsWith("/sdcard")) {
+            AppLog.i("WorkspaceSdcard", "shell: cwd=$cwd cmd=$command")
+        }
         val workspace = dao.getById(executeRoot) ?: error("Workspace not found: $executeRoot")
         // runInterruptible 让协程取消转化为线程中断，从而打断阻塞的 Process.waitFor 并杀掉进程
         return runInterruptible(Dispatchers.IO) {

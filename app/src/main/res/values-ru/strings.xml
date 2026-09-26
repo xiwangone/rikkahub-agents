@@ -3318,4 +3318,6 @@
   <string name="workspace_detail_cacerts_repaired">Сертификаты CA записаны в %1$d песочниц(ы)</string>
   <string name="workspace_detail_repair_cacerts">Исправить сертификаты CA</string>
   <string name="workspace_detail_repair_cacerts_desc">Записать системные сертификаты CA Android в песочницу для https-источников, pip и npm</string>
+  <string name="workspace_detail_sdcard_access">Доступ к памяти телефона</string>
+  <string name="workspace_detail_sdcard_access_desc">Подключение памяти телефона по пути /sdcard (по умолчанию выключено; запись по-прежнему требует подтверждения). Доступ ИИ регистрируется.</string>
 </resources>

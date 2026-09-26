@@ -11,6 +11,8 @@ import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.GenMediaRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.data.workspace.WorkspaceMountSwitch
 import me.rerere.workspace.ProotShellRunner
 import me.rerere.workspace.RootfsInstaller
 import me.rerere.workspace.WorkspaceBindMount
@@ -45,7 +47,12 @@ val repositoryModule =
         }
 
         single {
+            WorkspaceMountSwitch()
+        }
+
+        single {
             val context: Context = get()
+            val mountSwitch: WorkspaceMountSwitch = get()
             WorkspaceManager(
                 baseDir = File(context.filesDir, "workspaces"),
                 shellRunner =
@@ -76,6 +83,30 @@ val repositoryModule =
                             source = File(context.filesDir, "shared_prefs"),
                             target = "/workspace/app-shared-prefs",
                         ),
+                        // 跨工作区共享目录（常开，AI 可自由读写）
+                        WorkspaceBindMount(
+                            source = File(context.filesDir, "shared").apply { mkdirs() },
+                            target = "/mnt/shared",
+                        ),
+                    ),
+                // 可选挂载：手机存储 → /sdcard，默认关，由用户在详情页开关（写仍走审批白名单）
+                optionalMounts =
+                    OptionalMounts(
+                        mounts =
+                            mapOf(
+                                "sdcard" to
+                                    WorkspaceBindMount(
+                                        source = File("/storage/emulated/0"),
+                                        target = "/sdcard",
+                                    ),
+                            ),
+                        enabled = {
+                            if (mountSwitch.sdcardEnabled) setOf("sdcard") else emptySet()
+                        },
+                        // 可选挂载访问留痕：AI 碰手机存储的每个路径都记一条（diagnostics kind=logs 可查）
+                        onAccess = { target, path ->
+                            AppLog.i("WorkspaceSdcard", "access $target: $path")
+                        },
                     ),
             )
         }
