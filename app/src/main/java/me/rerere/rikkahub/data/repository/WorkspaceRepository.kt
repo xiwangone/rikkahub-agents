@@ -118,12 +118,6 @@ class WorkspaceRepository(
         dao.setTags(id, JsonInstant.encodeToString(tags), System.currentTimeMillis())
     }
 
-    /** 资源面板：磁盘占用/包数/宿主内核（纯文件采集，rootfs 未装时不抛错）。 */
-    suspend fun workspaceStats(id: String): WorkspaceStats = withContext(Dispatchers.IO) {
-        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
-        collectWorkspaceStats(manager.workspaceDir(workspace.root), manager.linuxDir(workspace.root))
-    }
-
     /** 资源面板采集（内部）：查实体 → 采集。失败向上抛，由调用方兜底。 */
     private suspend fun workspaceStats(id: String): WorkspaceStats = withContext(Dispatchers.IO) {
         val workspace = dao.getById(id) ?: error("Workspace not found: $id")
