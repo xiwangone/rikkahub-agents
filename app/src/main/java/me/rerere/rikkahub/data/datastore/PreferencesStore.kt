@@ -238,6 +238,9 @@ class SettingsStore(
         val WORKSPACE_PIP_MIRROR = stringPreferencesKey("workspace_pip_mirror")
         val WORKSPACE_NPM_MIRROR = stringPreferencesKey("workspace_npm_mirror")
         val WORKSPACE_SDCARD_ENABLED = booleanPreferencesKey("workspace_sdcard_enabled")
+        // 工作区资源画像缓存（JSON：id -> {rootBytes, packageCount, kernel, at}）。
+        // 大工作区全树遍历可达分钟级，跨进程持久化让详情页秒显上次结果、后台静默刷新。
+        val WORKSPACE_STATS_CACHE = stringPreferencesKey("workspace_stats_cache")
         val WEB_SERVER_LOCALHOST_ONLY = booleanPreferencesKey("web_server_localhost_only")
 
         // Web 桥（全局配置，SSH 反向隧道到 ECS）
@@ -451,6 +454,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 workspacePipMirror = preferences[WORKSPACE_PIP_MIRROR] ?: "",
                 workspaceNpmMirror = preferences[WORKSPACE_NPM_MIRROR] ?: "",
                 workspaceSdcardEnabled = preferences[WORKSPACE_SDCARD_ENABLED] ?: false,
+                workspaceStatsCache = preferences[WORKSPACE_STATS_CACHE] ?: "{}",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
                 aiLogLevel = AiLogLevel.fromPreference(preferences[AI_LOG_LEVEL]),
                 backupReminderConfig = preferences[BACKUP_REMINDER_CONFIG]?.let {
@@ -753,6 +757,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[SETTING_SHORTCUT_IDS] = settings.settingShortcutIds.joinToString("\u0001")
             preferences.putWorkspaceMirrors(settings)
             preferences[WORKSPACE_SDCARD_ENABLED] = settings.workspaceSdcardEnabled
+            preferences[WORKSPACE_STATS_CACHE] = settings.workspaceStatsCache
             preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
             preferences[AI_LOG_LEVEL] = settings.aiLogLevel.preferenceName
             preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
@@ -1098,6 +1103,8 @@ data class Settings(
     val workspaceNpmMirror: String = "",
     /** 手机存储挂载到沙箱 /sdcard（可选挂载，默认关；写操作仍走审批白名单）。 */
     val workspaceSdcardEnabled: Boolean = false,
+    /** 工作区资源画像缓存（JSON 字符串：id -> {rootBytes, packageCount, kernel, at}）。 */
+    val workspaceStatsCache: String = "{}",
     val webServerLocalhostOnly: Boolean = true,
     val aiLogLevel: AiLogLevel = AiLogLevel.INFO,
     val backupReminderConfig: BackupReminderConfig = BackupReminderConfig(),

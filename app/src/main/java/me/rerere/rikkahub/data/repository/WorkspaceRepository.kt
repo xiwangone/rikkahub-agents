@@ -132,13 +132,43 @@ class WorkspaceRepository(
     private val statsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val _statsById = MutableStateFlow<Map<String, WorkspaceStats>>(emptyMap())
 
-    /** key = workspace id。采集失败不落缓存（下次进详情页重试）。 */
+    companion object {
+        /** 缓存 TTL：超过则详情页进入时后台重采（结果落地后覆盖）。 */
+        private const val STATS_TTL_MS = 24 * 60 * 60 * 1000L
+
+        private data class CachedStats(
+            val rootBytes: Long? = null,
+            val packageCount: Int? = null,
+            val kernel: String? = null,
+            val at: Long = 0,
+        )
+
+        private fun parseCache(json: String): Map<String, CachedStats> = runCatching {
+            JsonInstant.decodeFromString<Map<String, CachedStats>>(json)
+        }.getOrDefault(emptyMap())
+    }
+
+    init {
+        // 跨进程持久化：进程启动即恢复上次采集结果，详情页秒显；随后按 TTL 静默刷新
+        statsScope.launch {
+            val json = settingsStore.settingsFlow.first().workspaceStatsCache
+            val restored = parseCache(json).mapValues { (_, c) ->
+                WorkspaceStats(c.rootBytes, c.packageCount, c.kernel)
+            }
+            if (restored.isNotEmpty()) _statsById.value = restored
+        }
+    }
+
+    /** key = workspace id。采集成功即持久化（跨进程），失败不落缓存。 */
     val statsById: StateFlow<Map<String, WorkspaceStats>> = _statsById.asStateFlow()
 
-    /** 请求采集 [id] 的资源画像：已缓存则跳过，否则后台采集（不阻塞、不随页面退出中断）。 */
+    /** 请求采集 [id] 的资源画像：缓存未过期（24h）跳过，否则后台采集并持久化（不阻塞、不随页面退出中断）。 */
     fun requestWorkspaceStats(id: String) {
         statsScope.launch {
-            if (_statsById.value.containsKey(id)) return@launch
+            val cachedAt = parseCache(settingsStore.settingsFlow.first().workspaceStatsCache)[id]?.at ?: 0L
+            if (_statsById.value.containsKey(id) && System.currentTimeMillis() - cachedAt < STATS_TTL_MS) {
+                return@launch
+            }
             runCatching { workspaceStats(id) }
                 .onSuccess { stats ->
                     AppLog.i(
@@ -146,8 +176,32 @@ class WorkspaceRepository(
                         "cached id=$id: rootBytes=${stats.rootBytes}, packages=${stats.packageCount}, kernel=${stats.kernel}",
                     )
                     _statsById.value = _statsById.value + (id to stats)
+                    persistStats(id, stats)
                 }
                 .onFailure { AppLog.w("WorkspaceStats", "collect failed for $id", it) }
+        }
+    }
+
+    /** 强制重采（详情页手动刷新用），无视 TTL。 */
+    fun refreshWorkspaceStats(id: String) {
+        statsScope.launch {
+            runCatching { workspaceStats(id) }
+                .onSuccess { stats ->
+                    _statsById.value = _statsById.value + (id to stats)
+                    persistStats(id, stats)
+                }
+                .onFailure { AppLog.w("WorkspaceStats", "refresh failed for $id", it) }
+        }
+    }
+
+    private suspend fun persistStats(id: String, stats: WorkspaceStats) {
+        runCatching {
+            val current = settingsStore.settingsFlow.first()
+            val map = parseCache(current.workspaceStatsCache).toMutableMap()
+            map[id] = CachedStats(stats.rootBytes, stats.packageCount, stats.kernel, System.currentTimeMillis())
+            // 上限保护：只留最近 50 个工作区的画像
+            val trimmed = map.entries.sortedByDescending { it.value.at }.take(50).associate { it.toPair() }
+            settingsStore.update(current.copy(workspaceStatsCache = JsonInstant.encodeToString(trimmed)))
         }
     }
 
