@@ -3312,4 +3312,7 @@
   <string name="assistant_page_token_budget_hard_hint">Рекомендуется: на один шаг выше мягкого лимита — например, 120K; должно быть ≥ мягкого лимита. Можно ввести 120K или 1M. Пусто = без ограничений.</string>
   <string name="assistant_page_token_budget_soft_hint">Рекомендуется: около 0.8 × контекстного окна модели — например, окно 128K → 100K. Можно ввести 100K или 1M. Пусто = без ограничений.</string>
   <string name="assistant_page_digest_output_keywords_fill">Заполнить значениями по умолчанию</string>
+  <string name="workspace_detail_mirror_speed_failed">Не удалось</string>
+  <string name="workspace_detail_mirror_speed_test">Проверка скорости</string>
+  <string name="workspace_detail_mirror_speed_testing">Проверка…</string>
 </resources>

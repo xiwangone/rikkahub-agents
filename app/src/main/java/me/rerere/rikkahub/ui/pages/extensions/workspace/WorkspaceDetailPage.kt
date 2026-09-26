@@ -1,5 +1,9 @@
 package me.rerere.rikkahub.ui.pages.extensions.workspace
 
+import me.rerere.workspace.MirrorProbe
+import me.rerere.workspace.MirrorSpeedResult
+import me.rerere.workspace.measureMirrorSpeeds
+import me.rerere.workspace.resolveMirrorProbeUrl
 import me.rerere.workspace.WorkspaceMirrorPresets
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import androidx.compose.foundation.verticalScroll
@@ -23,10 +27,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
@@ -36,6 +42,7 @@ import androidx.compose.material3.AssistChip
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -56,6 +63,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -482,6 +490,9 @@ private fun WorkspaceBasicPage(
     onApplyMirrors: (WorkspaceMirrors) -> Unit,
 ) {
     var mirrorPicker by remember { mutableStateOf<MirrorPick?>(null) }
+    val scope = rememberCoroutineScope()
+    val speedResults = remember { mutableStateMapOf<MirrorPick, Map<String, MirrorSpeedResult>>() }
+    var speedTestingPick by remember { mutableStateOf<MirrorPick?>(null) }
     val shellStatus = workspace?.shellStatus
     val installing = installProgress != null || shellStatus == WorkspaceShellStatus.INSTALLING.name
     val rootfsReady = shellStatus == WorkspaceShellStatus.READY.name
@@ -638,7 +649,28 @@ private fun WorkspaceBasicPage(
                 MirrorPickerDialog(
             pick = mirrorPicker,
             mirrors = mirrors,
+            speedResults = mirrorPicker?.let { speedResults[it] }.orEmpty(),
+            speedTesting = speedTestingPick != null && speedTestingPick == mirrorPicker,
             onDismiss = { mirrorPicker = null },
+            onSpeedTest = onSpeedTest@{
+                val pick = mirrorPicker ?: return@onSpeedTest
+                if (speedTestingPick != null) return@onSpeedTest
+                val probes =
+                    pick.presets().mapNotNull { preset ->
+                        resolveMirrorProbeUrl(preset, distro?.prettyName)?.let { MirrorProbe(preset.id, it) }
+                    }
+                if (probes.isEmpty()) return@onSpeedTest
+                speedResults.remove(pick)
+                speedTestingPick = pick
+                scope.launch {
+                    val results =
+                        withContext(Dispatchers.IO) {
+                            measureMirrorSpeeds(probes)
+                        }
+                    speedResults[pick] = results.associate { it.id to it }
+                    speedTestingPick = null
+                }
+            },
             onSelect = { url ->
                 onApplyMirrors(
                     when (mirrorPicker) {
@@ -1402,6 +1434,14 @@ private val PRESET_ROOTFS_URLS: List<PresetRootfsUrl>
 /** Which package-manager mirror is being picked. */
 private enum class MirrorPick { APK, APT, PIP, NPM }
 
+private fun MirrorPick.presets(): List<WorkspaceMirrorPreset> =
+    when (this) {
+        MirrorPick.APK -> WorkspaceMirrorPresets.APK
+        MirrorPick.APT -> WorkspaceMirrorPresets.APT
+        MirrorPick.PIP -> WorkspaceMirrorPresets.PIP
+        MirrorPick.NPM -> WorkspaceMirrorPresets.NPM
+    }
+
 @Composable
 private fun CardGroupScope.MirrorRow(
     title: String,
@@ -1424,17 +1464,14 @@ private fun CardGroupScope.MirrorRow(
 private fun MirrorPickerDialog(
     pick: MirrorPick?,
     mirrors: WorkspaceMirrors,
+    speedResults: Map<String, MirrorSpeedResult>,
+    speedTesting: Boolean,
     onDismiss: () -> Unit,
+    onSpeedTest: () -> Unit,
     onSelect: (String) -> Unit,
 ) {
     if (pick == null) return
-    val presets =
-        when (pick) {
-            MirrorPick.APK -> WorkspaceMirrorPresets.APK
-            MirrorPick.APT -> WorkspaceMirrorPresets.APT
-            MirrorPick.PIP -> WorkspaceMirrorPresets.PIP
-            MirrorPick.NPM -> WorkspaceMirrorPresets.NPM
-        }
+    val presets = pick.presets()
     val current =
         when (pick) {
             MirrorPick.APK -> mirrors.apk
@@ -1447,7 +1484,9 @@ private fun MirrorPickerDialog(
         title = { Text(stringResource(R.string.workspace_detail_mirrors)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                val fastestMs = speedResults.values.mapNotNull { it.latencyMs }.minOrNull()
                 presets.forEach { preset ->
+                    val result = speedResults[preset.id]
                     Row(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.fillMaxWidth(),
@@ -1456,7 +1495,7 @@ private fun MirrorPickerDialog(
                             selected = preset.url == current || (current.isBlank() && preset == presets.first()),
                             onClick = { onSelect(preset.url) },
                         )
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(preset.label, style = MaterialTheme.typography.bodyMedium)
                             Text(
                                 preset.region,
@@ -1464,7 +1503,47 @@ private fun MirrorPickerDialog(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
+                        when {
+                            speedTesting && result == null ->
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(16.dp),
+                                    strokeWidth = 2.dp,
+                                )
+
+                            result != null && result.latencyMs != null ->
+                                Text(
+                                    text = "${result.latencyMs} ms",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color =
+                                        if (result.latencyMs == fastestMs) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurfaceVariant
+                                        },
+                                )
+
+                            result?.failed == true ->
+                                Text(
+                                    text = stringResource(R.string.workspace_detail_mirror_speed_failed),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                        }
                     }
+                }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onSpeedTest, enabled = !speedTesting) {
+                if (speedTesting) {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(stringResource(R.string.workspace_detail_mirror_speed_testing))
+                } else {
+                    Text(stringResource(R.string.workspace_detail_mirror_speed_test))
                 }
             }
         },

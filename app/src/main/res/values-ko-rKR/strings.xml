@@ -3312,4 +3312,7 @@
   <string name="assistant_page_token_budget_hard_hint">권장: 소프트 상한보다 한 단계 위 — 예: 120K; 소프트 상한보다 크거나 같아야 합니다. 120K 또는 1M을 입력할 수 있습니다. 비어 있으면 제한 없음.</string>
   <string name="assistant_page_token_budget_soft_hint">권장: 모델의 컨텍스트 창의 약 0.8배 — 예: 128K 창 → 100K. 100K 또는 1M을 입력할 수 있습니다. 비어 있으면 제한 없음.</string>
   <string name="assistant_page_digest_output_keywords_fill">기본값으로 채우기</string>
+  <string name="workspace_detail_mirror_speed_failed">실패</string>
+  <string name="workspace_detail_mirror_speed_test">속도 테스트</string>
+  <string name="workspace_detail_mirror_speed_testing">테스트 중…</string>
 </resources>

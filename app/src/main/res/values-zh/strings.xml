@@ -1986,6 +1986,9 @@
   <string name="workspace_detail_mirrors">包管理器镜像</string>
   <string name="workspace_detail_mirror_apk">Alpine 软件包</string>
   <string name="workspace_detail_mirror_apt">APT 软件包</string>
+  <string name="workspace_detail_mirror_speed_test">测速</string>
+  <string name="workspace_detail_mirror_speed_testing">测速中…</string>
+  <string name="workspace_detail_mirror_speed_failed">失败</string>
   <string name="workspace_detail_mirror_pip">Python 包</string>
   <string name="workspace_detail_mirror_npm">Node 包</string>
   <string name="workspace_detail_workspace_info">工作区</string>

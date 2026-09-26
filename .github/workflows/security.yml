@@ -171,7 +171,7 @@ jobs:
         run: |
           set -o pipefail
           java -Xmx2g -jar /tmp/detekt-cli.jar \
-            --input app/src/main/java,ai/src/main/java \
+            --input app/src/main/java,ai/src/main/java,workspace/src/main/java \
             --build-upon-default-config \
             --config .github/detekt/detekt.yml \
             --baseline .github/detekt/detekt-baseline.xml 2>&1 | tee detekt.log

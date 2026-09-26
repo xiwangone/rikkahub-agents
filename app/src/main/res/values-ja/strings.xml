@@ -3312,4 +3312,7 @@
   <string name="assistant_page_token_budget_hard_hint">推奨：ソフト上限より1段階上 — 例：120K；ソフト上限以上である必要があります。120Kまたは1Mを入力できます。空欄 = 制限なし。</string>
   <string name="assistant_page_token_budget_soft_hint">推奨：モデルのコンテキストウィンドウの約0.8倍 — 例：128Kウィンドウ → 100K。100Kまたは1Mを入力できます。空欄 = 制限なし。</string>
   <string name="assistant_page_digest_output_keywords_fill">デフォルトで埋める</string>
+  <string name="workspace_detail_mirror_speed_failed">失敗</string>
+  <string name="workspace_detail_mirror_speed_test">速度テスト</string>
+  <string name="workspace_detail_mirror_speed_testing">テスト中…</string>
 </resources>

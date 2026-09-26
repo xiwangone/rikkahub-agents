@@ -670,5 +670,10 @@
     <ID>TooManyFunctions:WorkspaceDocumentsProvider.kt$WorkspaceDocumentsProvider : DocumentsProvider</ID>
     <ID>TooManyFunctions:WorkspaceRepository.kt$WorkspaceRepository</ID>
     <ID>TooManyFunctions:WorkspaceTerminalSession.kt$WorkspaceTerminalViewClient : TerminalViewClient</ID>
+    <ID>CyclomaticComplexMethod:RootfsInstaller.kt$RootfsInstaller$internal fun extractTar( archive: File, targetDir: File, format: ArchiveFormat = ArchiveFormat.fromFile(archive), onProgress: (RootfsInstallProgress) -&gt; Unit, )</ID>
+    <ID>NestedBlockDepth:RootfsInstaller.kt$RootfsInstaller$internal fun extractTar( archive: File, targetDir: File, format: ArchiveFormat = ArchiveFormat.fromFile(archive), onProgress: (RootfsInstallProgress) -&gt; Unit, )</ID>
+    <ID>NestedBlockDepth:RootfsInstaller.kt$RootfsInstaller$private fun download( url: String, target: File, onProgress: (RootfsInstallProgress) -&gt; Unit, )</ID>
+    <ID>NestedBlockDepth:WorkspaceFileSystem.kt$WorkspaceFileSystem$fun importBytes( root: File, path: String, inputStream: InputStream, ): WorkspaceFileEntry</ID>
+    <ID>TooManyFunctions:WorkspaceManager.kt$WorkspaceManager</ID>
   </CurrentIssues>
 </SmellBaseline>
