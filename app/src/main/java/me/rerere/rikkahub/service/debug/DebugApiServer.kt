@@ -52,9 +52,6 @@ class DebugApiServer(
     /** 会话 token；服务启动时生成，停止即失效 */
     private val sessionToken = AtomicReference<String?>(null)
 
-    /** token 提供者：设置层接入凭证库（getByName/decryptValue）；返回 null 则自动生成 */
-    private val tokenProvider: () -> String? = { null }
-
     fun start() {
         if (engine != null) return
         sessionToken.set(tokenProvider() ?: newSecret())
@@ -67,7 +64,6 @@ class DebugApiServer(
         engine?.stop(gracePeriodMillis = 200, timeoutMillis = 500)
         engine = null
         sessionToken.set(null)
-        pairingCode.set(null)
     }
 
     private fun newSecret(length: Int = 40): String {
