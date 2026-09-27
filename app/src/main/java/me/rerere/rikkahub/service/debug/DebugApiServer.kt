@@ -96,7 +96,7 @@ class DebugApiServer(
             || call.request.headers["Authorization"] == "Bearer $token"
     }
 
-    private fun routes() = routing {
+    private fun Application.routes() = routing {
         get("/debug/info") {
             if (!authorized(call)) {
                 audit("/debug/info", call.request.local.remoteHost, HttpStatusCode.Unauthorized)
