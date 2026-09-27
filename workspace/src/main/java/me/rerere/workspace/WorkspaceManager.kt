@@ -35,6 +35,25 @@ class WorkspaceManager(
     private fun runnerFor(): WorkspaceShellRunner =
         if (chrootEnabled() && chrootRunner != null) chrootRunner else shellRunner
 
+    /**
+     * chroot 能力探测（root 层实测：SELinux 域 / mount / chroot(2) / 跨 ns / 页大小）。
+     * 只用设备层能力，不碰任何发行版 rootfs；null = 非 chroot runner（回退 proot 态）。
+     */
+    fun probeChroot(root: String): ChrootProbeResult? {
+        val runner = chrootRunner as? ChrootShellRunner ?: return null
+        val context = WorkspaceShellContext(
+            root = root,
+            command = "probe",
+            cwd = "",
+            filesDir = filesDir(root),
+            linuxDir = linuxDir(root),
+            tempDir = tempDir(root),
+            workingDir = tempDir(root),
+            timeoutMillis = 30_000,
+        )
+        return runner.probe(context)
+    }
+
     // 让 startBackground 的启动+注册 与 deleteWorkspace 的 killAll+删除 互斥:
     // 要么启动先完成(随后被 killAll 杀掉), 要么删除先完成(随后 shellRunner.start 因 rootfs
     // 缺失而失败并抛出), 不会出现"进程活着但 workspace 目录已删"的孤儿进程

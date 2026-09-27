@@ -133,8 +133,18 @@ class WorkspaceDetailVM(
 
     fun setChrootEnabled(enabled: Boolean) {
         viewModelScope.launch {
-            runCatching { repository.setChrootEnabled(enabled) }
-                .onFailure { _settingsError.value = it.message }
+            runCatching {
+                if (enabled) {
+                    // 预检用当前工作区目录作为 probe 参数（探测本身不碰 rootfs，目录仅占位）
+                    val root = state.value.workspace?.root
+                    if (root != null) repository.probeChroot(root)?.let { r ->
+                        if (r.fail > 0) {
+                            error("chroot probe failed (${r.fail}): ${r.raw.take(300)}")
+                        }
+                    }
+                }
+                repository.setChrootEnabled(enabled)
+            }.onFailure { _settingsError.value = it.message }
         }
     }
 

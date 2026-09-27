@@ -120,9 +120,22 @@ class WorkspaceRepository(
             .onEach { mountSwitch.chrootEnabled = it }
 
     /** 开关 chroot 后端：写设置 + 同步内存桥（对后续 shell 启动即时生效）。 */
-    suspend fun setChrootEnabled(enabled: Boolean) {
+    suspend fun setChrootEnabled(enabled: Boolean) = withContext(Dispatchers.IO) {
         if (enabled && !isSuAccessible()) {
-            throw IllegalStateException("chroot requires root: su not accessible on this device")
+            throw IllegalStateException(
+                "chroot requires root: su not accessible on this device. " +
+                    "Grant this app root access in your root manager (e.g. Magisk) and retry.",
+            )
+        }
+        if (enabled) {
+            val workspace = dao.getAll().firstOrNull() ?: throw IllegalStateException("chroot probe: no workspace")
+            manager.probeChroot(workspace.root)?.let { result ->
+                if (result.fail > 0) {
+                    throw IllegalStateException(
+                        "chroot probe failed (${result.fail} checks): ${result.raw.take(400)}",
+                    )
+                }
+            }
         }
         val current = settingsStore.settingsFlow.first()
         settingsStore.update(current.copy(workspaceChrootEnabled = enabled))
@@ -136,6 +149,9 @@ class WorkspaceRepository(
         p.destroy()
         ok
     }.getOrDefault(false)
+
+    /** chroot 能力探测透传（root 层实测；null = 非实验 runner） */
+    fun probeChroot(root: String) = manager.probeChroot(root)
 
     /** 保存工作区画像标签（JSON 数组落库；阶段 3 任务路由的匹配键）。 */
     suspend fun setTags(id: String, tags: List<String>) {
