@@ -97,6 +97,43 @@ class WebDavSync(
             .sortedByDescending { it.lastModified }
     }
 
+    /** 迁移包：云端上传（文件由 MigrationExporter 产出，内含 migration/ 段，强制加密形态） */
+    suspend fun uploadMigrationPackage(config: WebDavConfig, file: File) = withContext(Dispatchers.IO) {
+        val client = getClient(config)
+        client.ensureCollectionExists().getOrThrow()
+        client.put(path = file.name, file = file, contentType = "application/zip").getOrThrow()
+        AppLog.i(TAG, "uploadMigrationPackage: Uploaded ${file.name} (${file.length().fileSizeToString()})")
+    }
+
+    /** 迁移包：云端列表（migration_ 前缀，强制加密形态 .enc） */
+    suspend fun listMigrationFiles(config: WebDavConfig): List<WebDavBackupItem> = withContext(Dispatchers.IO) {
+        val client = getClient(config)
+        client.ensureCollectionExists().getOrThrow()
+        client.list().getOrThrow()
+            .filter {
+                !it.isCollection && it.displayName.startsWith("migration_") &&
+                    it.displayName.endsWith(".enc")
+            }
+            .map { resource ->
+                WebDavBackupItem(
+                    href = resource.href,
+                    displayName = resource.displayName,
+                    size = resource.contentLength,
+                    lastModified = resource.lastModified ?: Instant.EPOCH,
+                )
+            }
+            .sortedByDescending { it.lastModified }
+    }
+
+    /** 迁移包：下载到缓存（调用方交给 MigrationImporter 恢复，用后即删） */
+    suspend fun downloadMigrationPackage(config: WebDavConfig, item: WebDavBackupItem): File = withContext(Dispatchers.IO) {
+        val client = getClient(config)
+        val target = resolveCacheFile(item.displayName)
+            ?: throw Exception("Unsafe migration file name: ${item.displayName}")
+        client.downloadToFile(item.displayName, target).getOrThrow()
+        target
+    }
+
     suspend fun restore(config: WebDavConfig, item: WebDavBackupItem) = withContext(Dispatchers.IO) {
         val config = config.withLegacyExpanded()
         val client = getClient(config)

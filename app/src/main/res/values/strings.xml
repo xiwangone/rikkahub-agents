@@ -242,7 +242,10 @@
   <string name="backup_page_backing_up">Backing up...</string>
   <string name="backup_page_backup_items">Backup Items</string>
   <string name="backup_page_item_database">Database</string>
-  <string name="backup_page_item_database_desc">Chats, memories, vault, SSH hosts, schedules (keys: same device only)</string>
+  <string name="backup_page_item_database_desc">Chats, memories, vault, SSH hosts, schedules (keys: same device only). Large — tens of MB or more; network upload may be limited</string>
+  <string name="backup_page_items_db_size_hint">Tip: the database item includes all chats (tens of MB or more). Unchecked by default for network backup — enable it only if needed</string>
+  <string name="backup_page_migration_cloud_upload">Upload migration package to cloud</string>
+  <string name="backup_page_migration_cloud_uploaded">Migration package uploaded (%1$d credentials)</string>
   <string name="backup_page_item_settings">Settings</string>
   <string name="backup_page_item_settings_desc">Assistants, models, appearance, backup channels (model keys: same device only)</string>
   <string name="backup_page_item_avatars">Avatars</string>

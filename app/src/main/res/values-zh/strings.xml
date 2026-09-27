@@ -242,7 +242,10 @@
   <string name="backup_page_backing_up">备份中...</string>
   <string name="backup_page_backup_items">备份项目</string>
   <string name="backup_page_item_database">数据库</string>
-  <string name="backup_page_item_database_desc">聊天、记忆、密钥库、SSH 主机、调度（密钥类仅同机可用）</string>
+  <string name="backup_page_item_database_desc">聊天、记忆、密钥库、SSH 主机、调度（密钥类仅同机可用）。体积较大（数十 MB 级），网络通道上传受限</string>
+  <string name="backup_page_items_db_size_hint">提示：数据库项含全部聊天记录（数十 MB 级），网络备份默认不勾选，需要时再勾</string>
+  <string name="backup_page_migration_cloud_upload">上传迁移包到云端</string>
+  <string name="backup_page_migration_cloud_uploaded">迁移包已上传（凭证 %1$d 条）</string>
   <string name="backup_page_item_settings">设置</string>
   <string name="backup_page_item_settings_desc">助手、模型、外观、备份通道（模型密钥仅同机可用）</string>
   <string name="backup_page_item_avatars">头像</string>

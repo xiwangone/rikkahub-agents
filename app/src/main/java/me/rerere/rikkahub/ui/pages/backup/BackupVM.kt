@@ -59,10 +59,14 @@ class BackupVM(
         )
 
     val webDavBackupItems = MutableStateFlow<UiState<List<WebDavBackupItem>>>(UiState.Idle)
+
+    /** 云端迁移包列表（migration_ 前缀，跨机可解形态） */
+    val migrationCloudItems = MutableStateFlow<UiState<List<WebDavBackupItem>>>(UiState.Idle)
     val s3BackupItems = MutableStateFlow<UiState<List<S3BackupItem>>>(UiState.Idle)
     val localBackupItems =
         MutableStateFlow(
-            WebDavConfig.BackupItem.entries.filter { it.isCoreItem() },
+            // 默认不含 DATABASE：含全部聊天记录（数十 MB 级），网络通道上传受限；需要时在页内勾选
+            WebDavConfig.BackupItem.entries.filter { it.isCoreItem() && it != WebDavConfig.BackupItem.DATABASE },
         )
 
     init {
@@ -271,6 +275,42 @@ class BackupVM(
             file = file,
             createRollbackPoint = { lastMigrationRollback.value = exportToFile() },
         )
+
+    /** 导出迁移包并上传云端（WebDAV）。返回结果供 UI 提示凭证数；本地临时包上传后清理。 */
+    suspend fun exportMigrationToWebDav(): MigrationExportResult {
+        val result = exportMigrationPackage()
+        webDavSync.uploadMigrationPackage(
+            settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
+            result.file,
+        )
+        if (result.file.exists()) result.file.delete()
+        return result
+    }
+
+    /** 从云端取迁移包并导入（凭证合并导入，含回滚点）。 */
+    suspend fun importMigrationFromWebDav(item: WebDavBackupItem): MigrationImportResult {
+        val file = webDavSync.downloadMigrationPackage(
+            settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
+            item,
+        )
+        try {
+            return importMigrationPackage(file)
+        } finally {
+            file.delete()
+        }
+    }
+
+    fun loadMigrationCloudItems() {
+        viewModelScope.launch {
+            migrationCloudItems.emit(UiState.Loading)
+            runCatching {
+                webDavSync.listMigrationFiles(
+                    settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
+                )
+            }.onSuccess { migrationCloudItems.emit(UiState.Success(it)) }
+                .onFailure { migrationCloudItems.emit(UiState.Error(it)) }
+        }
+    }
 
     suspend fun restoreFromLocalFile(file: File) {
         webDavSync.restoreFromLocalFile(

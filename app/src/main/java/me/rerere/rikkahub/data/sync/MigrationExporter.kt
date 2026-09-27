@@ -74,7 +74,12 @@ class MigrationExporter(
         }
         val scope =
             config.copy(
-                items = listOf(WebDavConfig.BackupItem.DATABASE, WebDavConfig.BackupItem.SETTINGS),
+                items = listOf(
+                    WebDavConfig.BackupItem.DATABASE,
+                    WebDavConfig.BackupItem.SETTINGS,
+                    WebDavConfig.BackupItem.SKILLS,
+                    WebDavConfig.BackupItem.AVATARS,
+                ),
             )
         val plainZip = webDavSync.prepareBackupFile(scope)
         try {

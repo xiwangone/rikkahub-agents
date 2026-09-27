@@ -2031,7 +2031,10 @@
   <string name="assistant_page_memory_tier_conditional_short">conditional</string>
   <string name="avatar_save_failed">아바타 저장에 실패했습니다. 로그를 확인하세요.</string>
   <string name="backup_page_item_database">데이터베이스</string>
-  <string name="backup_page_item_database_desc">채팅, 메모리, 자격 증명 저장소, SSH 호스트, 예약 (키는 같은 기기 전용)</string>
+  <string name="backup_page_item_database_desc">채팅, 메모리, 자격 증명 저장소, SSH 호스트, 예약 (키는 같은 기기 전용). 용량이 큼(수십 MB 이상), 네트워크 업로드가 제한될 수 있음</string>
+  <string name="backup_page_items_db_size_hint">팁: 데이터베이스 항목에는 전체 채팅이 포함됩니다(수십 MB 이상). 네트워크 백업은 기본 미선택이며 필요 시 선택하세요</string>
+  <string name="backup_page_migration_cloud_upload">마이그레이션 패키지를 클라우드에 업로드</string>
+  <string name="backup_page_migration_cloud_uploaded">마이그레이션 패키지 업로드 완료(자격 증명 %1$d개)</string>
   <string name="backup_page_item_settings">설정</string>
   <string name="backup_page_item_settings_desc">어시스턴트, 모델, 모양, 백업 채널 (모델 키는 같은 기기 전용)</string>
   <string name="backup_page_item_avatars">아바타</string>

@@ -2024,7 +2024,10 @@
   <string name="assistant_page_memory_tier_conditional_short">conditional</string>
   <string name="avatar_save_failed">Не удалось сохранить аватар. Проверьте журнал.</string>
   <string name="backup_page_item_database">База данных</string>
-  <string name="backup_page_item_database_desc">Чаты, память, хранилище ключей, SSH-хосты, расписания (ключи — только это устройство)</string>
+  <string name="backup_page_item_database_desc">Чаты, память, хранилище ключей, SSH-хосты, расписания (ключи — только это устройство). Большой объём (десятки МБ и более), загрузка по сети может быть ограничена</string>
+  <string name="backup_page_items_db_size_hint">Совет: пункт базы данных включает все чаты (десятки МБ и более). В сетевом резервном копировании по умолчанию не выбран — отметьте при необходимости</string>
+  <string name="backup_page_migration_cloud_upload">Загрузить пакет миграции в облако</string>
+  <string name="backup_page_migration_cloud_uploaded">Пакет миграции загружен (учётных данных: %1$d)</string>
   <string name="backup_page_item_settings">Настройки</string>
   <string name="backup_page_item_settings_desc">Ассистенты, модели, оформление, каналы резервного копирования (ключи моделей — только это устройство)</string>
   <string name="backup_page_item_avatars">Аватары</string>

@@ -2204,7 +2204,10 @@
     <string name="assistant_page_memory_tier_conditional_short">conditional</string>
     <string name="avatar_save_failed">頭像儲存失敗，請檢視日誌。</string>
     <string name="backup_page_item_database">資料庫</string>
-    <string name="backup_page_item_database_desc">聊天、記憶、金鑰庫、SSH 主機、排程（密鑰類僅同機可用）</string>
+    <string name="backup_page_item_database_desc">聊天、記憶、金鑰庫、SSH 主機、排程（密鑰類僅同機可用）。體積較大（數十 MB 級），網路通道上傳受限</string>
+  <string name="backup_page_items_db_size_hint">提示：資料庫項含全部聊天記錄（數十 MB 級），網路備份預設不勾選，需要時再勾</string>
+  <string name="backup_page_migration_cloud_upload">上傳遷移包到雲端</string>
+  <string name="backup_page_migration_cloud_uploaded">遷移包已上傳（憑證 %1$d 條）</string>
     <string name="backup_page_item_settings">設定</string>
     <string name="backup_page_item_settings_desc">助手、模型、外觀、備份通道（模型密鑰僅同機可用）</string>
     <string name="backup_page_item_avatars">頭像</string>
