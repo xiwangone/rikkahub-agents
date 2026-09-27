@@ -1,6 +1,7 @@
 package me.rerere.workspace
 
 import java.io.File
+import java.io.IOException
 import java.util.UUID
 
 /**
@@ -27,7 +28,17 @@ class ChrootShellRunner(
     override fun execute(context: WorkspaceShellContext): WorkspaceCommandResult {
         val cmdFile = writeCommandFile(context)
         try {
-            val process = newSuProcess(context.linuxDir, "exec /bin/sh /$COMMAND_FILE")
+            val process = try {
+                newSuProcess(context.linuxDir, "exec /bin/sh /$COMMAND_FILE")
+            } catch (e: IOException) {
+                // 无 root 设备：su 不可用时返回结构化失败，不让异常上抛穿调用链
+                return WorkspaceCommandResult(
+                    exitCode = -1,
+                    stdout = "",
+                    stderr = "chroot backend unavailable: su not accessible (${e.message}). " +
+                        "Root device required, or switch backend back to proot.",
+                )
+            }
             return process.readResult(context.timeoutMillis, context.stdin)
         } finally {
             cmdFile.delete()
@@ -35,7 +46,11 @@ class ChrootShellRunner(
     }
 
     override fun start(context: WorkspaceShellContext): Process =
-        newSuProcess(context.linuxDir, "shell")
+        try {
+            newSuProcess(context.linuxDir, "shell")
+        } catch (e: IOException) {
+            throw IllegalStateException("chroot backend requires root: su not accessible (${e.message})", e)
+        }
 
     /** 探测 root/chroot 能力（独立脚本 chroot-probe.sh，输出 summary 行）；失败或输出不完整返回 null。 */
     fun probe(context: WorkspaceShellContext): ChrootProbeResult? = runCatching {

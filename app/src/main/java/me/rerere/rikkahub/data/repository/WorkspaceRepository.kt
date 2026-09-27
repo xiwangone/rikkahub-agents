@@ -121,10 +121,21 @@ class WorkspaceRepository(
 
     /** 开关 chroot 后端：写设置 + 同步内存桥（对后续 shell 启动即时生效）。 */
     suspend fun setChrootEnabled(enabled: Boolean) {
+        if (enabled && !isSuAccessible()) {
+            throw IllegalStateException("chroot requires root: su not accessible on this device")
+        }
         val current = settingsStore.settingsFlow.first()
         settingsStore.update(current.copy(workspaceChrootEnabled = enabled))
         mountSwitch.chrootEnabled = enabled
     }
+
+    /** chroot 前置预检：su 可执行且 3s 内响应（无 root 设备抛 IOException / 未授权则超时） */
+    private fun isSuAccessible(): Boolean = runCatching {
+        val p = ProcessBuilder("su", "-c", "id").start()
+        val ok = p.waitFor(3, java.util.concurrent.TimeUnit.SECONDS) && p.exitValue() == 0
+        p.destroy()
+        ok
+    }.getOrDefault(false)
 
     /** 保存工作区画像标签（JSON 数组落库；阶段 3 任务路由的匹配键）。 */
     suspend fun setTags(id: String, tags: List<String>) {
