@@ -113,6 +113,19 @@ class WorkspaceRepository(
         mountSwitch.sdcardEnabled = enabled
     }
 
+    /** chroot 后端开关（实验性）：设置流，订阅时同步内存桥。 */
+    fun chrootEnabledFlow(): Flow<Boolean> =
+        settingsStore.settingsFlow
+            .map { it.workspaceChrootEnabled }
+            .onEach { mountSwitch.chrootEnabled = it }
+
+    /** 开关 chroot 后端：写设置 + 同步内存桥（对后续 shell 启动即时生效）。 */
+    suspend fun setChrootEnabled(enabled: Boolean) {
+        val current = settingsStore.settingsFlow.first()
+        settingsStore.update(current.copy(workspaceChrootEnabled = enabled))
+        mountSwitch.chrootEnabled = enabled
+    }
+
     /** 保存工作区画像标签（JSON 数组落库；阶段 3 任务路由的匹配键）。 */
     suspend fun setTags(id: String, tags: List<String>) {
         dao.getById(id) ?: error("Workspace not found: $id")

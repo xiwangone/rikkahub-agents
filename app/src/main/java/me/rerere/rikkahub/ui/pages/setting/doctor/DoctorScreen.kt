@@ -20,8 +20,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -29,8 +31,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -43,12 +47,15 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.service.debug.DebugApiManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.Switch
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 
 @Composable
 fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
@@ -102,6 +109,11 @@ fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
                         }
                     },
                 )
+            }
+
+            // Experimental AI debug API switch (loopback only, token-gated; see DebugApiServer).
+            item(key = "debug_api") {
+                DebugApiCard(manager = koinInject())
             }
 
             // One CardGroup per category — matches the rest of the Settings UI exactly.
@@ -299,4 +311,51 @@ private fun copyToClipboard(
 ) {
     val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
     cm.setPrimaryClip(ClipData.newPlainText(ctx.getString(R.string.doctor_report_clip_label), text))
+}
+
+@Composable
+private fun DebugApiCard(manager: DebugApiManager) {
+    val scope = rememberCoroutineScope()
+    val running by manager.running.collectAsStateWithLifecycle()
+    var tokenInput by remember { mutableStateOf("") }
+    val currentToken = remember(running) { manager.currentToken() }
+    CardGroup {
+        item(
+            headlineContent = {
+                Text(stringResource(R.string.setting_page_doctor_debug_api_title))
+            },
+            supportingContent = {
+                Text(stringResource(R.string.setting_page_doctor_debug_api_desc))
+            },
+            trailingContent = {
+                Switch(
+                    checked = running,
+                    onCheckedChange = { enabled ->
+                        scope.launch { manager.setEnabled(enabled) }
+                    },
+                )
+            },
+        )
+        item(
+            headlineContent = {
+                OutlinedTextField(
+                    value = tokenInput,
+                    onValueChange = { tokenInput = it },
+                    placeholder = {
+                        Text(stringResource(R.string.setting_page_doctor_debug_api_token_hint))
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+            },
+            supportingContent = {
+                Text(stringResource(R.string.setting_page_doctor_debug_api_current, currentToken ?: ""))
+            },
+            trailingContent = {
+                OutlinedButton(onClick = { scope.launch { manager.setToken(tokenInput) } }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+        )
+    }
 }

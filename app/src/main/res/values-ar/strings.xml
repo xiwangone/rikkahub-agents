@@ -122,6 +122,10 @@
   <string name="setting_page_doctor_running">جارٍ التشغيل…</string>
   <string name="setting_page_doctor_copy_report">نسخ التقرير</string>
   <string name="setting_page_doctor_report_copied">تم نسخ تقرير التشخيص إلى الحافظة.</string>
+  <string name="setting_page_doctor_debug_api_title">واجهة تصحيح الذكاء الاصطناعي</string>
+  <string name="setting_page_doctor_debug_api_desc">تجريبي: الجهاز المحلي فقط 127.0.0.1:19999؛ الذكاء الاصطناعي الخارجي يقرأ السجلات والحالة بالرمز، وجميع الطلبات مدققة.</string>
+  <string name="setting_page_doctor_debug_api_token_hint">رمز مخصص (اتركه فارغاً للتوليد التلقائي)</string>
+  <string name="setting_page_doctor_debug_api_current">الرمز الحالي: %s</string>
   <string name="setting_page_tool_approvals">موافقات الأدوات</string>
   <string name="setting_page_tool_approvals_desc">الأدوات التي منحتها صلاحية دائمة عبر «السماح دائمًا». يمكنك الإلغاء في أي وقت.</string>
   <string name="setting_page_tool_approvals_header">الأدوات أدناه تعمل دون سؤال إطلاقًا على هذا الجهاز. ألغِ الصلاحية إذا لم تعد تثق بالنموذج في هذه القدرة.</string>

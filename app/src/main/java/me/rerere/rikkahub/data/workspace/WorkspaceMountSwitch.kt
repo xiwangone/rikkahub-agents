@@ -11,4 +11,8 @@ package me.rerere.rikkahub.data.workspace
 class WorkspaceMountSwitch {
     @Volatile
     var sdcardEnabled: Boolean = false
+
+    /** chroot 后端开关（实验性，root 设备）：UI 写设置时同步，WorkspaceManager 分派后端时同步读。 */
+    @Volatile
+    var chrootEnabled: Boolean = false
 }

@@ -1530,6 +1530,10 @@
   <string name="setting_page_doctor_copy_report">レポートをコピー</string>
   <string name="setting_page_doctor_desc">アプリを診断して修正 — 権限、サービス、データベース、ネットワーク、Termux。</string>
   <string name="setting_page_doctor_report_copied">診断レポートをクリップボードにコピーしました。</string>
+  <string name="setting_page_doctor_debug_api_title">AI デバッグAPI</string>
+  <string name="setting_page_doctor_debug_api_desc">実験的機能：ループバック 127.0.0.1:19999 のみ。外部 AI がトークンでログと状態を取得し、全リクエストを監査します。</string>
+  <string name="setting_page_doctor_debug_api_token_hint">カスタムトークン（空欄で自動生成）</string>
+  <string name="setting_page_doctor_debug_api_current">現在のトークン：%s</string>
   <string name="setting_page_doctor_run_again">再実行</string>
   <string name="setting_page_doctor_running">実行中…</string>
   <string name="setting_page_notifications">通知</string>

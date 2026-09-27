@@ -1527,6 +1527,10 @@
   <string name="setting_page_doctor_copy_report">보고서 복사</string>
   <string name="setting_page_doctor_desc">앱을 진단하고 수정 — 권한, 서비스, 데이터베이스, 네트워크, Termux.</string>
   <string name="setting_page_doctor_report_copied">진단 보고서를 클립보드에 복사했습니다.</string>
+  <string name="setting_page_doctor_debug_api_title">AI 디버그 API</string>
+  <string name="setting_page_doctor_debug_api_desc">실험적 기능: 루프백 127.0.0.1:19999 전용. 외부 AI가 토큰으로 로그와 상태를 읽으며 모든 요청이 감사됩니다.</string>
+  <string name="setting_page_doctor_debug_api_token_hint">사용자 지정 토큰(비우면 자동 생성)</string>
+  <string name="setting_page_doctor_debug_api_current">현재 토큰: %s</string>
   <string name="setting_page_doctor_run_again">다시 실행</string>
   <string name="setting_page_doctor_running">실행 중…</string>
   <string name="setting_page_notifications">알림</string>
