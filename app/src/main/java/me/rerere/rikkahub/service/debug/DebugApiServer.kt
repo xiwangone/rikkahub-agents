@@ -38,6 +38,8 @@ class DebugApiServer(
     private val allowedNetworks: String = "",
     /** 审计落盘目录（App files/debug-api）；null = 不落盘（不建议） */
     private val auditDir: File? = null,
+    /** 日志目录（App files/logs）；null = /debug/logs 返回未配置 */
+    private val logsDir: File? = null,
     /** token 来源：凭证库引用或自定义口令；null = 自动生成（仅存内存，重启换新） */
     private val tokenProvider: () -> String? = { null },
 ) {
@@ -116,9 +118,9 @@ class DebugApiServer(
                     HttpStatusCode.Unauthorized); return@get
             }
             val max = call.request.queryParameters["max"]?.toIntOrNull()?.coerceIn(1, 256_000) ?: 32_000
-            val dir = auditDir?.parentFile // app files 根由设置层注入时再调整；此处先占位
+            // 固定读 files/logs 下最新的 *.log（FileLogSink 落盘处），固定目录无路径穿越
             val tail = runCatching {
-                dir?.listFiles()?.filter { it.isFile }?.maxByOrNull { it.lastModified() }?.let { f ->
+                logsDir?.listFiles()?.filter { it.isFile && it.extension == "log" }?.maxByOrNull { it.lastModified() }?.let { f ->
                     val bytes = f.readBytes()
                     val start = if (bytes.size > max) bytes.size - max else 0
                     String(bytes, start, bytes.size - start)
