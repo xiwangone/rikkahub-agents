@@ -16,6 +16,10 @@
 #      mounts the link itself and DNS breaks
 #   3. mount order: proc sys dev devpts tmpfs(/tmp); unmount in REVERSE order
 #   4. never leave mounts behind: unmount is idempotent and best-effort
+#   5. commands run UNPRIVILEGED (setpriv → uid 1000): root is only used for
+#      mount/chroot entry; the AI session must never run as root. Override via
+#      CHROOT_UID/CHROOT_GID env; chroot内没有 su 二进制（不 bind /system）,
+#      降权进程无法自行提权。
 
 ROOTFS="$1"; shift
 [ -d "$ROOTFS" ] || { echo "ERR: rootfs dir not found: $ROOTFS"; exit 2; }
@@ -63,6 +67,9 @@ do_fixes() {
     mkdir -p "$ROOTFS/etc/profile.d"
     printf 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n' \
         > "$ROOTFS/etc/profile.d/00-path.sh"
+    # unprivileged user home for chroot exec (setpriv drops to uid 1000)
+    mkdir -p "$ROOTFS/home/user"
+    chown 1000:1000 "$ROOTFS/home/user" 2>/dev/null || true
     touch "$FIXED"
 }
 
@@ -74,15 +81,16 @@ case "$1" in
     shell)
         do_mounts; do_fixes
         export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-        export HOME=/root TERM="${TERM:-xterm-256color}"
-        chroot "$ROOTFS" /bin/bash -l 2>/dev/null || chroot "$ROOTFS" /bin/sh -l
+        export HOME=/home/user TERM="${TERM:-xterm-256color}"
+        chroot "$ROOTFS" /usr/bin/setpriv --reuid="${CHROOT_UID:-1000}" --regid="${CHROOT_GID:-1000}" \
+            /bin/bash -l 2>/dev/null || chroot "$ROOTFS" /usr/bin/setpriv --reuid="${CHROOT_UID:-1000}" --regid="${CHROOT_GID:-1000}" /bin/sh -l
         rc=$?; do_unmount >/dev/null; exit $rc ;;
     exec)
         shift
         do_mounts; do_fixes
         export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-        export HOME=/root
-        chroot "$ROOTFS" /bin/sh -c "$*"
+        export HOME=/home/user
+        chroot "$ROOTFS" /usr/bin/setpriv --reuid="${CHROOT_UID:-1000}" --regid="${CHROOT_GID:-1000}" /bin/sh -c "$*"
         rc=$?; do_unmount >/dev/null; exit $rc ;;
     *)
         echo "usage: chroot-run.sh <rootfs_dir> {shell|exec <cmd...>|prepare|unmount}"; exit 2 ;;
