@@ -30,6 +30,10 @@ class SettingVM(
             .distinctUntilChanged()
             .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
 
+    /** 同步取当前快捷入口（StateFlow 初值为空列表，进页首帧用它避免网格闪动）。 */
+    fun shortcutEntriesNow(): List<SettingEntry> =
+        settingsStore.settingsFlow.value.let { s -> s.settingShortcutIds.mapNotNull { id -> SettingCatalog.byId(id) } }
+
     fun updateSettings(settings: Settings) {
         viewModelScope.launch {
             settingsStore.update(settings)

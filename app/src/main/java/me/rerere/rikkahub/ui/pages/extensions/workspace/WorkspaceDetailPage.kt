@@ -273,7 +273,7 @@ fun WorkspaceDetailPage(id: String) {
                             )
                         }
                     }
-                    IconButton(onClick = { vm.refresh() }) {
+                    IconButton(onClick = { vm.refreshStats() }) {
                         Icon(HugeIcons.Refresh01, contentDescription = null)
                     }
                     if (state.workspace?.shellStatus != WorkspaceShellStatus.DISABLED.name) {
