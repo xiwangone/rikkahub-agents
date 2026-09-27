@@ -24,9 +24,16 @@ class WorkspaceManager(
     // 可选挂载（如 /sdcard）：开关 provider 为同步函数（调用点在普通函数里，
     // 调用方负责让它返回最新状态，如经内存缓存桥接设置项）。
     private val optionalMounts: OptionalMounts? = null,
+    // chroot 后端（实验性，root 设备）：enabled 返回 false 或 runner 未提供时回退 proot
+    private val chrootRunner: WorkspaceShellRunner? = null,
+    private val chrootEnabled: () -> Boolean = { false },
 ) {
     private val fileSystem = WorkspaceFileSystem(config)
     private val background = WorkspaceBackgroundProcesses()
+
+    /** shell 后端分派：chroot 开且 runner 就绪用 chroot，否则回退 proot。 */
+    private fun runnerFor(): WorkspaceShellRunner =
+        if (chrootEnabled() && chrootRunner != null) chrootRunner else shellRunner
 
     // 让 startBackground 的启动+注册 与 deleteWorkspace 的 killAll+删除 互斥:
     // 要么启动先完成(随后被 killAll 杀掉), 要么删除先完成(随后 shellRunner.start 因 rootfs
@@ -294,7 +301,7 @@ class WorkspaceManager(
         require(command.isNotBlank()) { "Command is required" }
         val workingDir = resolveCommandWorkingDir(root, cwd)
 
-        return shellRunner.execute(
+        return runnerFor().execute(
             WorkspaceShellContext(
                 root = root,
                 command = command,
@@ -328,7 +335,7 @@ class WorkspaceManager(
             require(command.isNotBlank()) { "Command is required" }
             val workingDir = resolveCommandWorkingDir(root, cwd)
 
-            val process = shellRunner.start(
+            val process = runnerFor().start(
                 WorkspaceShellContext(
                     root = root,
                     command = command,
