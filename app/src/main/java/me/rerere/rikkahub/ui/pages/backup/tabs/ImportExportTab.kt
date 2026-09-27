@@ -363,7 +363,7 @@ fun ImportExportTab(
                         {
                             isUploading = true
                             scope.launch {
-                                runCatching { vm.uploadMigrationToCloud() }
+                                runCatching { vm.exportMigrationToWebDav() }
                                     .onSuccess { result ->
                                         toaster.show(
                                             resources.getString(
