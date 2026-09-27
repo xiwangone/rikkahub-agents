@@ -1878,7 +1878,7 @@ class GenerationLoop(
                 providerSetting = provider,
                 messages = internalMessages,
                 params = params
-            ).onCompletion { cause ->
+            ).withIdleWatchdog().onCompletion { cause ->
                 // 流终止（正常/异常/取消）：先补齐合并窗口内未应用的分块，
                 // 再走下面的传输失败判定，避免尾部内容丢失
                 if (pendingStreamChunks.isNotEmpty()) {

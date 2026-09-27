@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.service.debug
 
 import io.ktor.http.ContentType
+import io.ktor.server.application.Application
 import io.ktor.http.HttpStatusCode
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
