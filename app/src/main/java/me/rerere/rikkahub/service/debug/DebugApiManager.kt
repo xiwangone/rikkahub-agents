@@ -5,9 +5,12 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -44,6 +47,9 @@ class DebugApiManager(context: Context) {
     /** 服务是否在跑（供 UI 展示；enabled 是持久化意图，running 是运行事实） */
     val running: StateFlow<Boolean> = _running.asStateFlow()
 
+    /** 已配置的口令（明文或 $引用）——UI 显示与保存反馈用 */
+    val tokenFlow: Flow<String> = store.data.map { it[TOKEN].orEmpty() }
+
     init {
         // 开关驱动生命周期：enabled=true → 起服务；false → 停。进程重启后 DataStore
         // 重放 enabled 即完成恢复，无需显式 restore。
@@ -54,8 +60,15 @@ class DebugApiManager(context: Context) {
                 .onEach { enabled ->
                     if (enabled) {
                         val token = store.data.first()[TOKEN].orEmpty()
-                        server.tokenProvider = { token.ifBlank { null } }
-                        server.start()
+                        // $$条目名引用在取值时解为真值；明文原样；空 → tokenProvider 返 null 自动生成
+                        server.tokenProvider = { VaultProviderKeyRefs.resolveValue(token).ifBlank { null } }
+                        // 启动失败（如端口被上次进程残留占用）→ 自动复位开关：防重启后反复 bind 失败循环
+                        runCatching { server.start() }.onFailure { e ->
+                            AppLog.e(TAG, "debug api start failed, auto-disabling", e)
+                            store.edit { it[ENABLED] = false }
+                            _running.value = false
+                            return@onEach
+                        }
                         _running.value = true
                     } else {
                         server.stop()
@@ -72,7 +85,7 @@ class DebugApiManager(context: Context) {
                 .onEach { token ->
                     if (store.data.first()[ENABLED] ?: false) {
                         server.stop()
-                        server.tokenProvider = { token.ifBlank { null } }
+                        server.tokenProvider = { VaultProviderKeyRefs.resolveValue(token).ifBlank { null } }
                         server.start()
                         _running.value = true
                     }
@@ -94,6 +107,8 @@ class DebugApiManager(context: Context) {
     }
 
     companion object {
+        private const val TAG = "DebugApiManager"
+
         /** 调试接口端口（实验版固定；19998 为既有调试口） */
         const val PORT = 19999
         const val HOST_LOOPBACK = "127.0.0.1"

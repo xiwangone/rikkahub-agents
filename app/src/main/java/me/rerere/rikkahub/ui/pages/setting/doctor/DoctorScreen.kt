@@ -48,6 +48,7 @@ import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.service.debug.DebugApiManager
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.Switch
@@ -317,8 +318,8 @@ private fun copyToClipboard(
 private fun DebugApiCard(manager: DebugApiManager) {
     val scope = rememberCoroutineScope()
     val running by manager.running.collectAsStateWithLifecycle()
+    val storedToken by manager.tokenFlow.collectAsStateWithLifecycle(initialValue = "")
     var tokenInput by remember { mutableStateOf("") }
-    val currentToken = remember(running) { manager.currentToken() }
     CardGroup {
         item(
             headlineContent = {
@@ -338,24 +339,34 @@ private fun DebugApiCard(manager: DebugApiManager) {
         )
         item(
             headlineContent = {
-                OutlinedTextField(
+                SecretRefField(
                     value = tokenInput,
                     onValueChange = { tokenInput = it },
-                    placeholder = {
-                        Text(stringResource(R.string.setting_page_doctor_debug_api_token_hint))
-                    },
-                    modifier = Modifier.fillMaxWidth(),
+                    label = stringResource(R.string.setting_page_doctor_debug_api_token_hint),
                     singleLine = true,
                 )
             },
             supportingContent = {
-                Text(stringResource(R.string.setting_page_doctor_debug_api_current, currentToken ?: ""))
+                // 已配置口令：$$引用原样展示（只露凭证名），明文打码
+                Text(stringResource(R.string.setting_page_doctor_debug_api_current, displayToken(storedToken)))
             },
             trailingContent = {
-                OutlinedButton(onClick = { scope.launch { manager.setToken(tokenInput) } }) {
+                OutlinedButton(onClick = {
+                    scope.launch {
+                        manager.setToken(tokenInput)
+                        tokenInput = ""
+                    }
+                }) {
                     Text(stringResource(android.R.string.ok))
                 }
             },
         )
     }
+}
+
+/** 已配置口令的展示形态：$$引用只露凭证名；明文打中间掩码 */
+private fun displayToken(token: String): String = when {
+    token.isBlank() -> ""
+    token.startsWith("\$") -> token
+    else -> token.take(2) + "•".repeat((token.length - 4).coerceAtLeast(3)) + token.takeLast(2)
 }

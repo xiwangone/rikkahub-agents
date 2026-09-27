@@ -61,10 +61,21 @@ class DebugApiServer(
 
     fun start() {
         if (engine != null) return
+        // bind 预检：上次进程的监听 socket 未释放时给出受控失败 —— 引擎协程里的 BindException
+        // 不经调用方异常链，未捕获会变成启动即崩循环（2026-09-27 真机 dropbox 栈实证）
+        checkBindAvailable(host, port)
         sessionToken.set(tokenProvider() ?: newSecret())
         val server = embeddedServer(CIO, port = port, host = host, module = { routes() })
         server.start(wait = false)
         engine = server
+    }
+
+    private fun checkBindAvailable(host: String, port: Int) {
+        try {
+            java.net.ServerSocket().use { it.bind(java.net.InetSocketAddress(host, port)) }
+        } catch (e: Exception) {
+            throw IllegalStateException("debug api $host:$port unavailable (port in use?): ${e.message}", e)
+        }
     }
 
     fun stop() {
