@@ -33,7 +33,7 @@ fun <T> Flow<T>.withIdleWatchdog(
     pollMs: Long = IDLE_POLL_INTERVAL_MS,
 ): Flow<T> = channelFlow {
     val lastChunkAt = AtomicLong(clock())
-    launch {
+    val sentinel = launch {
         while (true) {
             delay(pollMs)
             val idle = clock() - lastChunkAt.get()
@@ -43,8 +43,14 @@ fun <T> Flow<T>.withIdleWatchdog(
             }
         }
     }
-    collect { chunk ->
-        lastChunkAt.set(clock())
-        send(chunk)
+    try {
+        collect { chunk ->
+            lastChunkAt.set(clock())
+            send(chunk)
+        }
+    } finally {
+        // 被包裹的 Flow 完成/异常时取消定时检查协程：producer scope 完成会等待子协程，
+        // while(true) 不退出则 collect 永远不结束，调用方 toList/collect 永挂
+        sentinel.cancel()
     }
 }
