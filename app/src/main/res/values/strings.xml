@@ -1471,6 +1471,10 @@
   <string name="setting_page_doctor_running">Running…</string>
   <string name="setting_page_doctor_copy_report">Copy report</string>
   <string name="setting_page_doctor_report_copied">Diagnostic report copied to clipboard.</string>
+  <string name="setting_page_doctor_debug_api_title">AI Debug API</string>
+  <string name="setting_page_doctor_debug_api_desc">Experimental: loopback-only 127.0.0.1:19999. External AI reads logs and state with a token; every request is audited.</string>
+  <string name="setting_page_doctor_debug_api_token_hint">Custom token (leave empty to auto-generate)</string>
+  <string name="setting_page_doctor_debug_api_current">Current token: %s</string>
   <string name="setting_page_tool_approvals">Tool approvals</string>
   <string name="setting_page_tool_approvals_desc">Tools you\'ve permanently granted via \"Always Allow\". Revoke any time.</string>
   <string name="setting_page_tool_approvals_header">Tools below run without asking, ever, on this device. Revoke if you no longer trust the model with this capability.</string>

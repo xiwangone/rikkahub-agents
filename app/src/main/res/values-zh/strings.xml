@@ -1761,6 +1761,10 @@
   <string name="setting_page_doctor_copy_report">复制报告</string>
   <string name="setting_page_doctor_desc">诊断并修复应用 — 权限、服务、数据库、网络、Termux。</string>
   <string name="setting_page_doctor_report_copied">诊断报告已复制到剪贴板。</string>
+  <string name="setting_page_doctor_debug_api_title">AI 调试接口</string>
+  <string name="setting_page_doctor_debug_api_desc">实验性：仅本机 127.0.0.1:19999，外部 AI 凭 token 读取日志与状态，全部请求留审计。</string>
+  <string name="setting_page_doctor_debug_api_token_hint">自定义口令（留空自动生成）</string>
+  <string name="setting_page_doctor_debug_api_current">当前 token：%s</string>
   <string name="setting_page_doctor_run_again">重新运行</string>
   <string name="setting_page_doctor_running">正在运行…</string>
   <string name="setting_page_notifications">通知</string>

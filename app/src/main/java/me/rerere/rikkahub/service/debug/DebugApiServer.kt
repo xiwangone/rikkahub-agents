@@ -40,8 +40,6 @@ class DebugApiServer(
     private val auditDir: File? = null,
     /** 日志目录（App files/logs）；null = /debug/logs 返回未配置 */
     private val logsDir: File? = null,
-    /** token 来源：凭证库引用或自定义口令；null = 自动生成（仅存内存，重启换新） */
-    private val tokenProvider: () -> String? = { null },
 ) {
     private companion object {
         const val HOST_LOOPBACK = "127.0.0.1"
@@ -53,6 +51,12 @@ class DebugApiServer(
 
     /** 会话 token；服务启动时生成，停止即失效 */
     private val sessionToken = AtomicReference<String?>(null)
+
+    /** token 提供者：可由管理器热替换（凭证库引用/自定义口令）；返回 null = 自动生成 */
+    var tokenProvider: () -> String? = { null }
+
+    /** 当前会话 token（未运行返回 null）；供 UI 展示 */
+    fun currentToken(): String? = sessionToken.get()
 
     fun start() {
         if (engine != null) return
