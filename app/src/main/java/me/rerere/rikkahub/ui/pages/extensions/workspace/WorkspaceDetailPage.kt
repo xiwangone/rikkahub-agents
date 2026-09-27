@@ -144,6 +144,7 @@ fun WorkspaceDetailPage(id: String) {
     val settingsError by vm.settingsError.collectAsStateWithLifecycle()
     val caRepairCount by vm.caRepairCount.collectAsStateWithLifecycle()
     val sdcardEnabled by vm.sdcardEnabled.collectAsStateWithLifecycle()
+    val chrootEnabled by vm.chrootEnabled.collectAsStateWithLifecycle()
     val stats by vm.stats.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
@@ -325,6 +326,8 @@ fun WorkspaceDetailPage(id: String) {
                         onRepairCaCerts = vm::repairCaCerts,
                         sdcardEnabled = sdcardEnabled,
                         onSdcardAccessChange = vm::setSdcardAccess,
+                        chrootEnabled = chrootEnabled,
+                        onChrootEnabledChange = vm::setChrootEnabled,
                         onSetTags = vm::setTags,
                     )
                 }
@@ -521,6 +524,8 @@ private fun WorkspaceBasicPage(
     onRepairCaCerts: () -> Unit,
     sdcardEnabled: Boolean,
     onSdcardAccessChange: (Boolean) -> Unit,
+    chrootEnabled: Boolean,
+    onChrootEnabledChange: (Boolean) -> Unit,
     onSetTags: (List<String>) -> Unit,
 ) {
     var mirrorPicker by remember { mutableStateOf<MirrorPick?>(null) }
@@ -528,6 +533,7 @@ private fun WorkspaceBasicPage(
     val speedResults = remember { mutableStateMapOf<MirrorPick, Map<String, MirrorSpeedResult>>() }
     var speedTestingPick by remember { mutableStateOf<MirrorPick?>(null) }
     var tagEditing by remember { mutableStateOf(false) }
+    var showChrootConfirm by remember { mutableStateOf(false) }
     val shellStatus = workspace?.shellStatus
     val installing = installProgress != null || shellStatus == WorkspaceShellStatus.INSTALLING.name
     val rootfsReady = shellStatus == WorkspaceShellStatus.READY.name
@@ -744,6 +750,51 @@ private fun WorkspaceBasicPage(
                             onCheckedChange = onShellCompatibilityModeChange,
                             enabled = workspace != null,
                         )
+                    },
+                )
+            }
+        }
+
+        item {
+            CardGroup(
+                title = {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.workspace_detail_chroot))
+                        Text(
+                            text = stringResource(R.string.workspace_detail_chroot_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+            ) {
+                item(
+                    headlineContent = { Text(stringResource(R.string.workspace_detail_chroot)) },
+                    trailingContent = {
+                        Switch(
+                            checked = chrootEnabled,
+                            onCheckedChange = { enabled ->
+                                if (enabled) showChrootConfirm = true else onChrootEnabledChange(false)
+                            },
+                        )
+                    },
+                )
+            }
+            if (showChrootConfirm) {
+                AlertDialog(
+                    onDismissRequest = { showChrootConfirm = false },
+                    title = { Text(stringResource(R.string.workspace_detail_chroot)) },
+                    text = { Text(stringResource(R.string.workspace_detail_chroot_confirm)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showChrootConfirm = false
+                            onChrootEnabledChange(true)
+                        }) { Text(stringResource(android.R.string.ok)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showChrootConfirm = false }) {
+                            Text(stringResource(android.R.string.cancel))
+                        }
                     },
                 )
             }

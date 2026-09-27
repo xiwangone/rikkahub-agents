@@ -3233,6 +3233,9 @@
   <string name="setting_termux_help_allow_external_apps_body">Termux에서 다음을 실행하세요:\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' &gt;&gt; ~/.termux/termux.properties\n\n그런 다음 Android 앱 정보에서 Termux를 강제 종료하고 다시 여세요. 완료 후 아래의 검증 버튼을 누르세요.</string>
   <string name="tool_ui_shell_changed_files">명령이 변경한 파일</string>
   <string name="workspace_detail_compatibility_mode">호환 모드</string>
+  <string name="workspace_detail_chroot">chroot 백엔드(실험)</string>
+  <string name="workspace_detail_chroot_desc">루팅 기기 필요. 켜면 shell이 chroot로 실행되며 미지원 시 명령이 오류나고, 끄면 복귀합니다.</string>
+  <string name="workspace_detail_chroot_confirm">켜면 AI 명령이 권한을 낮춰 chroot 내에서 실행됩니다(실험적 기능, 루팅 기기).</string>
   <string name="workspace_detail_compatibility_mode_desc">터미널이 시작되지 않으면 이 옵션을 활성화해 보세요. 성능이 저하될 수 있습니다. 새 터미널 탭과 이후 명령에 적용됩니다.</string>
   <string name="workspace_detail_settings_save_failed">설정 저장에 실패했습니다.</string>
   <string name="setting_provider_page_test_non_streaming">비스트리밍</string>

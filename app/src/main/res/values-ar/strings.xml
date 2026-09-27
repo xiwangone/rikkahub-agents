@@ -3235,6 +3235,9 @@
 </string>
   <string name="tool_ui_shell_changed_files">الملفات التي غيّرها الأمر</string>
   <string name="workspace_detail_compatibility_mode">وضع التوافق</string>
+  <string name="workspace_detail_chroot">خلفية chroot (تجريبي)</string>
+  <string name="workspace_detail_chroot_desc">يتطلب جهازاً به root؛ عند التفعيل يعمل shell عبر chroot، وإذا لم يكن مدعوماً تفشل الأوامر، والإيقاف يعيد الوضع السابق.</string>
+  <string name="workspace_detail_chroot_confirm">عند التفعيل تنفَّذ أوامر الذكاء الاصطناعي بصلاحيات مخفَّضة داخل chroot (ميزة تجريبية، جهاز به root).</string>
   <string name="workspace_detail_compatibility_mode_desc">جرّب تفعيل هذا الخيار إذا فشل تشغيل الطرفية. قد يقلل من الأداء. ينطبق على علامات التبويب الجديدة والأوامر اللاحقة.</string>
   <string name="workspace_detail_settings_save_failed">تعذّر حفظ الإعدادات</string>
   <string name="search_page_scope_current_assistant">المساعد الحالي</string>

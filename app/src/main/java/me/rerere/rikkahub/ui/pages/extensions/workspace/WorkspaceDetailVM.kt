@@ -122,6 +122,22 @@ class WorkspaceDetailVM(
         }
     }
 
+    /** chroot 后端开关（实验性，root 设备，默认关）。 */
+    val chrootEnabled: kotlinx.coroutines.flow.StateFlow<Boolean> =
+        repository.chrootEnabledFlow()
+            .stateIn(
+                viewModelScope,
+                kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+                false,
+            )
+
+    fun setChrootEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching { repository.setChrootEnabled(enabled) }
+                .onFailure { _settingsError.value = it.message }
+        }
+    }
+
     /** 保存工作区画像标签（JSON 数组落库；阶段 3 任务路由的匹配键）。 */
     fun setTags(tags: List<String>) {
         viewModelScope.launch {
