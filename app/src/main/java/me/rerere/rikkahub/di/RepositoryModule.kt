@@ -14,6 +14,7 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.workspace.WorkspaceMountSwitch
 import me.rerere.workspace.OptionalMounts
+import me.rerere.workspace.ChrootShellRunner
 import me.rerere.workspace.ProotShellRunner
 import me.rerere.workspace.RootfsInstaller
 import me.rerere.workspace.WorkspaceBindMount
@@ -60,6 +61,8 @@ val repositoryModule =
                     ProotShellRunner(
                         nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir),
                     ),
+                chrootRunner = chrootShellRunnerOf(context),
+                chrootEnabled = { mountSwitch.chrootEnabled },
                 // 同一份挂载表既用于 PRoot 的 -b 参数, 也用于文件工具的路径解析, 避免两处漂移
                 bindMounts =
                     listOf(
@@ -128,3 +131,20 @@ val repositoryModule =
             SkillManager(get(), get())
         }
     }
+
+/** chroot 脚本从 assets 释放到 filesDir/chroot（幂等）；assets 缺脚本时返回 null（回退 proot）。 */
+private fun chrootShellRunnerOf(context: Context): ChrootShellRunner? = runCatching {
+    val dir = File(context.filesDir, "chroot").apply { mkdirs() }
+    for (name in listOf("chroot-run.sh", "chroot-probe.sh")) {
+        val target = File(dir, name)
+        if (!target.exists()) {
+            context.assets.open("chroot/$name").use { input ->
+                target.outputStream().use { input.copyTo(it) }
+            }
+        }
+    }
+    ChrootShellRunner(
+        scriptFile = File(dir, "chroot-run.sh"),
+        probeFile = File(dir, "chroot-probe.sh"),
+    )
+}.getOrNull()
