@@ -106,7 +106,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val navController = LocalNavController.current
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val shortcutEntries by vm.shortcutEntries.collectAsStateWithLifecycle()
+    val shortcutEntries by vm.shortcutEntries.collectAsStateWithLifecycle(initialValue = vm.shortcutEntriesNow())
     val filesManager: FilesManager = koinInject()
     val secretsStore: SkillSecretsStore = koinInject()
 

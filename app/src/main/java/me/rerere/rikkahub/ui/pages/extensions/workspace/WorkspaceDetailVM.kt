@@ -175,9 +175,13 @@ class WorkspaceDetailVM(
         refresh()
     }
 
+    /** 仅强刷资源画像（详情页刷新按钮；文件列表刷新走 refresh()，避免导航路径全树重采）。 */
+    fun refreshStats() {
+        repository.refreshWorkspaceStats(id)
+    }
+
     fun refresh() {
         viewModelScope.launch {
-            repository.refreshWorkspaceStats(id)
             _state.update { it.copy(loading = true, error = null) }
             runCatching {
                 repository.listFiles(
