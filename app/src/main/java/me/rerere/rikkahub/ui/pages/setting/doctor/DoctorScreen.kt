@@ -391,48 +391,53 @@ private fun DebugApiCard(manager: DebugApiManager) {
                 // 口令来源与有效性：引用要标明能否解析（防“看着像生效其实连不上”）；
                 // 自动生成的口令只存在内存，点「查看」才落明文，默认不常驻显示
                 val live = if (revealedToken) manager.currentToken() else null
-                Text(
-                    stringResource(
-                        R.string.setting_page_doctor_debug_api_current,
-                        live ?: tokenSourceLabel(storedToken),
-                    ),
-                )
+                Column {
+                    Text(
+                        stringResource(
+                            R.string.setting_page_doctor_debug_api_current,
+                            live ?: tokenSourceLabel(storedToken),
+                        ),
+                    )
+                    // 查看/复制放正文区：trailing 只留一个按钮，窄屏不会挤爆
+                    Row {
+                        TextButton(onClick = { revealedToken = !revealedToken }) {
+                            Text(
+                                stringResource(
+                                    if (revealedToken) {
+                                        R.string.setting_page_doctor_debug_api_hide
+                                    } else {
+                                        R.string.setting_page_doctor_debug_api_show
+                                    },
+                                ),
+                            )
+                        }
+                        TextButton(onClick = {
+                            manager.currentToken()?.let {
+                                clipboardManager.setText(AnnotatedString(it))
+                                toaster.show(
+                                    message = context.getString(
+                                        R.string.setting_page_doctor_debug_api_copied,
+                                    ),
+                                )
+                            }
+                        }) {
+                            Text(stringResource(R.string.setting_page_doctor_debug_api_copy))
+                        }
+                    }
+                }
             },
             trailingContent = {
-                Row {
-                    OutlinedButton(onClick = {
-                        scope.launch {
-                            manager.setToken(tokenInput)
-                            tokenInput = ""
-                            revealedToken = false
-                            toaster.show(
-                                message = context.getString(R.string.setting_page_doctor_debug_api_saved),
-                            )
-                        }
-                    }) {
-                        Text(stringResource(android.R.string.ok))
-                    }
-                    TextButton(onClick = { revealedToken = !revealedToken }) {
-                        Text(
-                            stringResource(
-                                if (revealedToken) {
-                                    R.string.setting_page_doctor_debug_api_hide
-                                } else {
-                                    R.string.setting_page_doctor_debug_api_show
-                                },
-                            ),
+                OutlinedButton(onClick = {
+                    scope.launch {
+                        manager.setToken(tokenInput)
+                        tokenInput = ""
+                        revealedToken = false
+                        toaster.show(
+                            message = context.getString(R.string.setting_page_doctor_debug_api_saved),
                         )
                     }
-                    TextButton(onClick = {
-                        manager.currentToken()?.let {
-                            clipboardManager.setText(AnnotatedString(it))
-                            toaster.show(
-                                message = context.getString(R.string.setting_page_doctor_debug_api_copied),
-                            )
-                        }
-                    }) {
-                        Text(stringResource(R.string.setting_page_doctor_debug_api_copy))
-                    }
+                }) {
+                    Text(stringResource(android.R.string.ok))
                 }
             },
         )
