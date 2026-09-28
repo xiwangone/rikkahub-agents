@@ -143,7 +143,7 @@ class DebugApiManager(context: Context) {
         private const val TAG = "DebugApiManager"
 
         /**
-         * 调试接口首选端口（19998 为既有调试口）。被占时由 [DebugApiServer.start] 先重试等待、
+         * 调试接口首选端口（19998 是旧机 ZeroTermux 的调试口，与本 App 无关）。被占时由 [DebugApiServer.start] 先重试等待、
          * 再向后避让；避让区间须保持在临时端口段（真机实测 32768-60999）之下，
          * 否则会与出站连接的源端口相撞。
          */
