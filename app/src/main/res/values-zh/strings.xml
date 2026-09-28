@@ -3285,6 +3285,9 @@
   <string name="workspace_detail_chroot_confirm">开启后 AI 命令将以降权方式在 chroot 内执行（实验特性，root 设备）。</string>
   <string name="workspace_detail_compatibility_mode_desc">如果终端无法启动，请尝试启用此功能。这可能会降低性能。适用于新的终端标签页及后续命令。</string>
   <string name="workspace_detail_settings_save_failed">保存设置失败</string>
+  <string name="workspace_detail_chroot_need_root">需要 root 权限：本机 su 不可用。请在 root 管理器（如 Magisk）中授予本应用权限后重试。</string>
+  <string name="workspace_detail_chroot_no_workspace">还没有工作区，无法开启 chroot。</string>
+  <string name="workspace_detail_chroot_probe_failed">chroot 能力探测未通过，已阻止开启。</string>
   <string name="workspace_detail_import_local_rootfs">从本地文件导入</string>
   <string name="workspace_detail_import_local_rootfs_desc">选择设备上已有的 rootfs 归档（tar.gz / tar.xz）。适用于下载源不可达的情况。</string>
   <string name="workspace_detail_saved_rootfs_urls">已保存的链接</string>

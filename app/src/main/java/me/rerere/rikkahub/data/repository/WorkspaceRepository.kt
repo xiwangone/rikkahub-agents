@@ -41,6 +41,30 @@ import kotlin.uuid.Uuid
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.workspace.WorkspaceMountSwitch
 
+/** chroot 开启失败的原因：UI 按此取本地化文案（异常 message 保留英文供日志排障）。 */
+enum class ChrootEnableFailure { ROOT_REQUIRED, NO_WORKSPACE, PROBE_FAILED }
+
+/** chroot 开启失败。[detail] 是可展示的技术细节（探测输出片段等）。 */
+class ChrootEnableException(
+    val reason: ChrootEnableFailure,
+    val detail: String = "",
+    message: String,
+) : IllegalStateException(message)
+
+/**
+ * 设置失败的可展示形态：已知原因带 [reason]（UI 取本地化文案并附 [detail]），
+ * 未知异常兜底展示 [raw] 原文（不翻译，便于排障）。
+ */
+data class SettingsError(val reason: ChrootEnableFailure?, val detail: String, val raw: String) {
+    companion object {
+        fun of(e: Throwable): SettingsError = if (e is ChrootEnableException) {
+            SettingsError(reason = e.reason, detail = e.detail, raw = e.message.orEmpty())
+        } else {
+            SettingsError(reason = null, detail = "", raw = e.message.orEmpty())
+        }
+    }
+}
+
 class WorkspaceRepository(
     private val dao: WorkspaceDAO,
     private val manager: WorkspaceManager,
@@ -122,17 +146,24 @@ class WorkspaceRepository(
     /** 开关 chroot 后端：写设置 + 同步内存桥（对后续 shell 启动即时生效）。 */
     suspend fun setChrootEnabled(enabled: Boolean) = withContext(Dispatchers.IO) {
         if (enabled && !isSuAccessible()) {
-            throw IllegalStateException(
-                "chroot requires root: su not accessible on this device. " +
+            throw ChrootEnableException(
+                ChrootEnableFailure.ROOT_REQUIRED,
+                message = "chroot requires root: su not accessible on this device. " +
                     "Grant this app root access in your root manager (e.g. Magisk) and retry.",
             )
         }
         if (enabled) {
-            val workspace = dao.getAll().firstOrNull() ?: throw IllegalStateException("chroot probe: no workspace")
+            val workspace = dao.getAll().firstOrNull()
+                ?: throw ChrootEnableException(
+                    ChrootEnableFailure.NO_WORKSPACE,
+                    message = "chroot probe: no workspace",
+                )
             manager.probeChroot(workspace.root)?.let { result ->
                 if (result.fail > 0) {
-                    throw IllegalStateException(
-                        "chroot probe failed (${result.fail} checks): ${result.raw.take(400)}",
+                    throw ChrootEnableException(
+                        ChrootEnableFailure.PROBE_FAILED,
+                        detail = result.raw.take(400),
+                        message = "chroot probe failed (${result.fail} checks)",
                     )
                 }
             }

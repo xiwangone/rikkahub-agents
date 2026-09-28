@@ -114,6 +114,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.tools.resolveWorkspaceToolApproval
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.repository.ChrootEnableFailure
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
@@ -458,11 +459,26 @@ fun WorkspaceDetailPage(id: String) {
         )
     }
 
-    settingsError?.let { message ->
+    settingsError?.let { err ->
         AlertDialog(
             onDismissRequest = vm::dismissSettingsError,
             title = { Text(stringResource(R.string.workspace_detail_settings_save_failed)) },
-            text = { Text(message.ifBlank { stringResource(R.string.workspace_detail_settings_save_failed) }) },
+            text = {
+                Column {
+                    Text(
+                        when (err.reason) {
+                            ChrootEnableFailure.ROOT_REQUIRED -> stringResource(R.string.workspace_detail_chroot_need_root)
+                            ChrootEnableFailure.NO_WORKSPACE -> stringResource(R.string.workspace_detail_chroot_no_workspace)
+                            ChrootEnableFailure.PROBE_FAILED -> stringResource(R.string.workspace_detail_chroot_probe_failed)
+                            null -> err.raw.ifBlank { stringResource(R.string.workspace_detail_settings_save_failed) }
+                        },
+                    )
+                    // 已知原因下附技术细节原文（探测输出等），便于排障
+                    if (err.reason != null && err.detail.isNotBlank()) {
+                        Text(err.detail)
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(onClick = vm::dismissSettingsError) {
                     Text(stringResource(R.string.common_confirm))

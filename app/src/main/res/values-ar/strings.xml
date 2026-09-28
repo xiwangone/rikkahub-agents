@@ -3244,6 +3244,9 @@
   <string name="workspace_detail_chroot_confirm">عند التفعيل تنفَّذ أوامر الذكاء الاصطناعي بصلاحيات مخفَّضة داخل chroot (ميزة تجريبية، جهاز به root).</string>
   <string name="workspace_detail_compatibility_mode_desc">جرّب تفعيل هذا الخيار إذا فشل تشغيل الطرفية. قد يقلل من الأداء. ينطبق على علامات التبويب الجديدة والأوامر اللاحقة.</string>
   <string name="workspace_detail_settings_save_failed">تعذّر حفظ الإعدادات</string>
+  <string name="workspace_detail_chroot_need_root">يتطلب chroot صلاحيات root: لا يتوفر su على هذا الجهاز. امنح هذا التطبيق صلاحية root في مدير الروت (مثل Magisk) ثم أعد المحاولة.</string>
+  <string name="workspace_detail_chroot_no_workspace">لا توجد مساحة عمل بعد، لذلك لا يمكن تفعيل chroot.</string>
+  <string name="workspace_detail_chroot_probe_failed">فشل فحص قدرات chroot، تم منع التفعيل.</string>
   <string name="search_page_scope_current_assistant">المساعد الحالي</string>
   <string name="search_page_scope_all_assistants">كل المساعدين</string>
   <string name="workspace_detail_distro">التوزيعة</string>

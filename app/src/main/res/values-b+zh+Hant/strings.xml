@@ -3284,6 +3284,9 @@
   <string name="workspace_detail_save_rootfs_url">儲存目前網址</string>
   <string name="workspace_detail_saved_rootfs_urls">已儲存的網址</string>
   <string name="workspace_detail_settings_save_failed">儲存設定失敗</string>
+  <string name="workspace_detail_chroot_need_root">需要 root 權限：本機 su 不可用。請在 root 管理器（如 Magisk）中授予本應用權限後重試。</string>
+  <string name="workspace_detail_chroot_no_workspace">尚無工作區，無法啟用 chroot。</string>
+  <string name="workspace_detail_chroot_probe_failed">chroot 能力偵測未通過，已阻止啟用。</string>
   <string name="setting_provider_page_match_abilities">匹配能力</string>
   <string name="setting_provider_page_match_abilities_done">已更新 %1$d 個模型的能力</string>
   <string name="workspace_detail_export_folder">匯出資料夾</string>

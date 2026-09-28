@@ -3242,6 +3242,9 @@
   <string name="workspace_detail_chroot_confirm">켜면 AI 명령이 권한을 낮춰 chroot 내에서 실행됩니다(실험적 기능, 루팅 기기).</string>
   <string name="workspace_detail_compatibility_mode_desc">터미널이 시작되지 않으면 이 옵션을 활성화해 보세요. 성능이 저하될 수 있습니다. 새 터미널 탭과 이후 명령에 적용됩니다.</string>
   <string name="workspace_detail_settings_save_failed">설정 저장에 실패했습니다.</string>
+  <string name="workspace_detail_chroot_need_root">chroot에는 root 권한이 필요합니다. 이 기기에서 su를 사용할 수 없습니다. root 관리 앱(예: Magisk)에서 이 앱에 권한을 부여한 후 다시 시도하세요.</string>
+  <string name="workspace_detail_chroot_no_workspace">작업 공간이 없어 chroot를 활성화할 수 없습니다.</string>
+  <string name="workspace_detail_chroot_probe_failed">chroot 기능 검사에 실패하여 활성화를 중단했습니다.</string>
   <string name="setting_provider_page_test_non_streaming">비스트리밍</string>
   <string name="setting_provider_page_test_streaming">스트리밍</string>
   <string name="setting_provider_page_test_tool_call">도구 호출</string>
