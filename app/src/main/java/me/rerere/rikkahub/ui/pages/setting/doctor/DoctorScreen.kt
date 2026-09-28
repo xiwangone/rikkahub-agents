@@ -23,6 +23,7 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -40,6 +41,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -47,7 +50,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 import me.rerere.rikkahub.service.debug.DebugApiManager
+import me.rerere.rikkahub.service.debug.DebugApiStartFailure
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -321,6 +326,11 @@ private fun DebugApiCard(manager: DebugApiManager) {
     val port by manager.port.collectAsStateWithLifecycle()
     val storedToken by manager.tokenFlow.collectAsStateWithLifecycle(initialValue = "")
     var tokenInput by remember { mutableStateOf("") }
+    val startError by manager.startError.collectAsStateWithLifecycle()
+    var revealedToken by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
+    val clipboardManager = LocalClipboardManager.current
     CardGroup {
         item(
             headlineContent = {
@@ -331,6 +341,29 @@ private fun DebugApiCard(manager: DebugApiManager) {
                 val shownPort = if (running && port > 0) port else DebugApiManager.PORT
                 Column {
                     Text(stringResource(R.string.setting_page_doctor_debug_api_desc, shownPort))
+                    // 运行事实：在跑报实际地址，没跑说没跑（防“开关开着却不知死活”）
+                    Text(
+                        if (running && port > 0) {
+                            stringResource(
+                                R.string.setting_page_doctor_debug_api_status_running,
+                                DebugApiManager.HOST_LOOPBACK,
+                                port,
+                            )
+                        } else {
+                            stringResource(R.string.setting_page_doctor_debug_api_status_stopped)
+                        },
+                    )
+                    startError?.let { err ->
+                        Text(
+                            stringResource(
+                                if (err == DebugApiStartFailure.TOKEN_REF_UNRESOLVED) {
+                                    R.string.setting_page_doctor_debug_api_err_ref
+                                } else {
+                                    R.string.setting_page_doctor_debug_api_err_port
+                                },
+                            ),
+                        )
+                    }
                     if (running && port > 0 && port != DebugApiManager.PORT) {
                         Text(stringResource(R.string.setting_page_doctor_debug_api_port_moved, port))
                     }
@@ -355,21 +388,71 @@ private fun DebugApiCard(manager: DebugApiManager) {
                 )
             },
             supportingContent = {
-                // 已配置口令：$$引用原样展示（只露凭证名），明文打码
-                Text(stringResource(R.string.setting_page_doctor_debug_api_current, displayToken(storedToken)))
+                // 口令来源与有效性：引用要标明能否解析（防“看着像生效其实连不上”）；
+                // 自动生成的口令只存在内存，点「查看」才落明文，默认不常驻显示
+                val live = if (revealedToken) manager.currentToken() else null
+                Text(
+                    stringResource(
+                        R.string.setting_page_doctor_debug_api_current,
+                        live ?: tokenSourceLabel(storedToken),
+                    ),
+                )
             },
             trailingContent = {
-                OutlinedButton(onClick = {
-                    scope.launch {
-                        manager.setToken(tokenInput)
-                        tokenInput = ""
+                Row {
+                    OutlinedButton(onClick = {
+                        scope.launch {
+                            manager.setToken(tokenInput)
+                            tokenInput = ""
+                            revealedToken = false
+                            toaster.show(
+                                message = context.getString(R.string.setting_page_doctor_debug_api_saved),
+                            )
+                        }
+                    }) {
+                        Text(stringResource(android.R.string.ok))
                     }
-                }) {
-                    Text(stringResource(android.R.string.ok))
+                    TextButton(onClick = { revealedToken = !revealedToken }) {
+                        Text(
+                            stringResource(
+                                if (revealedToken) {
+                                    R.string.setting_page_doctor_debug_api_hide
+                                } else {
+                                    R.string.setting_page_doctor_debug_api_show
+                                },
+                            ),
+                        )
+                    }
+                    TextButton(onClick = {
+                        manager.currentToken()?.let {
+                            clipboardManager.setText(AnnotatedString(it))
+                            toaster.show(
+                                message = context.getString(R.string.setting_page_doctor_debug_api_copied),
+                            )
+                        }
+                    }) {
+                        Text(stringResource(R.string.setting_page_doctor_debug_api_copy))
+                    }
                 }
             },
         )
     }
+}
+
+/** 口令来源的可读形态：引用额外标明能否解析，明文只给掩码 */
+@Composable
+private fun tokenSourceLabel(stored: String): String = when {
+    stored.isBlank() -> stringResource(R.string.setting_page_doctor_debug_api_src_auto)
+    stored.startsWith(VaultProviderKeyRefs.PREFIX) -> stringResource(
+        if (VaultProviderKeyRefs.resolveOrNull(stored) != null) {
+            R.string.setting_page_doctor_debug_api_src_ref_ok
+        } else {
+            R.string.setting_page_doctor_debug_api_src_ref_bad
+        },
+        stored,
+    )
+
+    else -> stringResource(R.string.setting_page_doctor_debug_api_src_custom, displayToken(stored))
 }
 
 /** 已配置口令的展示形态：$$引用只露凭证名；明文打中间掩码 */
