@@ -15,10 +15,26 @@ object CrashHandler {
         val appContext = context.applicationContext
         val defaultHandler = Thread.getDefaultUncaughtExceptionHandler()
         Thread.setDefaultUncaughtExceptionHandler { thread, throwable ->
+            if (isEngineBindFailure(throwable)) {
+                // ktor CIO 引擎协程里的端口占用：调用方（DebugApiManager / LocalMcpServerManager /
+                // WebServerManager）对同一次失败已各自拿到受控结果并复位状态，这里只留痕不杀进程 ——
+                // 否则一次端口冲突 = 启动即崩循环（2026-09-28 真机崩溃快照实证）
+                AppLog.e(TAG, "ignored engine bind failure on thread ${thread.name}: ${throwable.message}")
+                return@setDefaultUncaughtExceptionHandler
+            }
             AppLog.e(TAG, "Uncaught exception on thread ${thread.name}", throwable)
             markCrashed(appContext, thread, throwable)
             defaultHandler?.uncaughtException(thread, throwable)
         }
+    }
+
+    /**
+     * 判据要窄：异常本身是 [java.net.BindException]，且栈帧来自 ktor CIO 服务端引擎（R8 保留
+     * 库类名，故 className 前缀可核对）。其余绑定失败（如文件描述符、其它组件）照旧当崩溃处理。
+     */
+    private fun isEngineBindFailure(throwable: Throwable): Boolean {
+        if (throwable !is java.net.BindException) return false
+        return throwable.stackTrace.any { it.className.startsWith("io.ktor.server.cio.") }
     }
 
     fun hasCrashed(context: Context): Boolean =
