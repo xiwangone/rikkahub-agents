@@ -93,6 +93,18 @@ object VaultProviderKeyRefs {
     }
 
     /**
+     * 解析引用但**不降级**：非引用返回原值，引用未命中返回 null。
+     *
+     * 与 [resolveValue] 的差别：后者解析不到会原样返回 `$$名字` 字面量（provider 密钥链路依赖此行为），
+     * 而“要么用真值、要么明确失败”的位置（如调试接口口令）必须用本函数，
+     * 否则条目名写错时字面量会被当成口令，调用方与用户都无从发现。
+     */
+    fun resolveOrNull(raw: String): String? {
+        if (!raw.startsWith(PREFIX)) return raw
+        return cache[raw.removePrefix(PREFIX)]
+    }
+
+    /**
      * 增量更新单条（保存后调用）。
      *
      * 相比全量刷新，避免「改一条就解密整库」的无谓消耗；条目不存在或解密失败时按删除处理。

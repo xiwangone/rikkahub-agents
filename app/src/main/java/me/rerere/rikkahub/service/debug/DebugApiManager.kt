@@ -25,6 +25,15 @@ import java.io.File
 
 private val Context.debugApiDataStore by preferencesDataStore(name = "debug_api_prefs")
 
+/** 调试接口启动受阻的原因：UI 按此取本地化文案（日志留英文原文供排障）。 */
+enum class DebugApiStartFailure {
+    /** 口令引用了解析不到的凭证条目（名字写错或条目已删）：拒绝启动，防“开关开着却永远连不上” */
+    TOKEN_REF_UNRESOLVED,
+
+    /** 首选端口与整个避让区间都被占 */
+    PORT_UNAVAILABLE,
+}
+
 /**
  * AI 调试接口管理器（实验性）。形状对齐 [me.rerere.rikkahub.browser.BrowserPreferences]：
  * 单一 DataStore 数据源（enabled / 自定义口令），Flow 驱动服务生命周期——
@@ -53,6 +62,11 @@ class DebugApiManager(context: Context) {
     /** 实际监听端口（未运行为 0）；首选口被占并避让后以此为准，UI 按此展示 */
     val port: StateFlow<Int> = _port.asStateFlow()
 
+    private val _startError = MutableStateFlow<DebugApiStartFailure?>(null)
+
+    /** 启动受阻原因（null = 正常）；UI 据此解释“为什么开关是开的却连不上” */
+    val startError: StateFlow<DebugApiStartFailure?> = _startError.asStateFlow()
+
     /** 已配置的口令（明文或 $引用）——UI 显示与保存反馈用 */
     val tokenFlow: Flow<String> = store.data.map { it[TOKEN].orEmpty() }
 
@@ -72,10 +86,24 @@ class DebugApiManager(context: Context) {
                         runCatching { server.stop() }
                         _running.value = false
                         _port.value = 0
+                        _startError.value = null
                         return@onEach
                     }
-                    // $$条目名引用在取值时解为真值；明文原样；空 → tokenProvider 返 null 自动生成
-                    server.tokenProvider = { VaultProviderKeyRefs.resolveValue(token).ifBlank { null } }
+                    // 引用口令解析不到时**拒绝启动**，而不是拿 "$$名字" 字面量当口令：
+                    // 后者会让用户以为引用生效、实际永远连不上且无从发现（2026-09-28 真机复测暂露）。
+                    if (token.startsWith(VaultProviderKeyRefs.PREFIX) &&
+                        VaultProviderKeyRefs.resolveOrNull(token) == null
+                    ) {
+                        AppLog.w(TAG, "debug api token ref unresolved, refusing to start")
+                        runCatching { server.stop() }
+                        _running.value = false
+                        _port.value = 0
+                        _startError.value = DebugApiStartFailure.TOKEN_REF_UNRESOLVED
+                        return@onEach
+                    }
+                    _startError.value = null
+                    // $$条目名在取值时解为真值；明文原样；空 → tokenProvider 返 null 自动生成
+                    server.tokenProvider = { VaultProviderKeyRefs.resolveOrNull(token)?.ifBlank { null } }
                     val preferred = store.data.first()[LAST_PORT] ?: PORT
                     runCatching { server.stop() }
                     runCatching { server.start(preferredPort = preferred) }
@@ -91,6 +119,7 @@ class DebugApiManager(context: Context) {
                             runCatching { server.stop() }
                             _running.value = false
                             _port.value = 0
+                            _startError.value = DebugApiStartFailure.PORT_UNAVAILABLE
                             store.edit { it[ENABLED] = false }
                         }
                 }
