@@ -318,6 +318,7 @@ private fun copyToClipboard(
 private fun DebugApiCard(manager: DebugApiManager) {
     val scope = rememberCoroutineScope()
     val running by manager.running.collectAsStateWithLifecycle()
+    val port by manager.port.collectAsStateWithLifecycle()
     val storedToken by manager.tokenFlow.collectAsStateWithLifecycle(initialValue = "")
     var tokenInput by remember { mutableStateOf("") }
     CardGroup {
@@ -326,7 +327,14 @@ private fun DebugApiCard(manager: DebugApiManager) {
                 Text(stringResource(R.string.setting_page_doctor_debug_api_title))
             },
             supportingContent = {
-                Text(stringResource(R.string.setting_page_doctor_debug_api_desc))
+                // 端口会避让：运行中展示实际监听口，未运行时展示首选口
+                val shownPort = if (running && port > 0) port else DebugApiManager.PORT
+                Column {
+                    Text(stringResource(R.string.setting_page_doctor_debug_api_desc, shownPort))
+                    if (running && port > 0 && port != DebugApiManager.PORT) {
+                        Text(stringResource(R.string.setting_page_doctor_debug_api_port_moved, port))
+                    }
+                }
             },
             trailingContent = {
                 Switch(

@@ -1546,7 +1546,8 @@
   <string name="setting_page_doctor_desc">診斷並修復應用程式 — 權限、服務、資料庫、網路、Termux。</string>
   <string name="setting_page_doctor_report_copied">診斷報告已複製到剪貼簿。</string>
   <string name="setting_page_doctor_debug_api_title">AI 除錯介面</string>
-  <string name="setting_page_doctor_debug_api_desc">實驗性：僅本機 127.0.0.1:19999，外部 AI 憑 token 讀取日誌與狀態，全部請求留審計。</string>
+  <string name="setting_page_doctor_debug_api_desc">實驗性：僅本機 127.0.0.1:%1$d，外部 AI 憑 token 讀取日誌與狀態，全部請求留審計。</string>
+  <string name="setting_page_doctor_debug_api_port_moved">首選通訊埠被占用，已改用 %1$d。</string>
   <string name="setting_page_doctor_debug_api_token_hint">自訂口令（留空自動生成）</string>
   <string name="setting_page_doctor_debug_api_current">目前 token：%s</string>
   <string name="setting_page_doctor_run_again">重新執行</string>

@@ -1524,7 +1524,8 @@
   <string name="setting_page_doctor_desc">Диагностика и исправление приложения — разрешения, службы, база данных, сеть, Termux.</string>
   <string name="setting_page_doctor_report_copied">Отчёт диагностики скопирован в буфер обмена.</string>
   <string name="setting_page_doctor_debug_api_title">AI-отладочный API</string>
-  <string name="setting_page_doctor_debug_api_desc">Экспериментально: только 127.0.0.1:19999; внешний AI читает логи и состояние по токену, все запросы аудируются.</string>
+  <string name="setting_page_doctor_debug_api_desc">Экспериментально: только 127.0.0.1:%1$d; внешний AI читает логи и состояние по токену, все запросы аудируются.</string>
+  <string name="setting_page_doctor_debug_api_port_moved">Основной порт занят, сейчас используется %1$d.</string>
   <string name="setting_page_doctor_debug_api_token_hint">Свой токен (пусто — автогенерация)</string>
   <string name="setting_page_doctor_debug_api_current">Текущий токен: %s</string>
   <string name="setting_page_doctor_run_again">Запустить снова</string>
