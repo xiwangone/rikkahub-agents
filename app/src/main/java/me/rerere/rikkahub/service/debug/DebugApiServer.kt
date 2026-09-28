@@ -45,10 +45,22 @@ class DebugApiServer(
     private companion object {
         const val HOST_LOOPBACK = "127.0.0.1"
         const val SESSION_HEADER = "X-Debug-Session"
+
+        /** 首选端口被占时的向后避让宽度（须保证结果仍落在临时端口段之下） */
+        const val PORT_SCAN_RANGE = 8
+
+        /** 单端口探测的重试次数与间隔：给上一进程残留的监听 socket 一点回收时间 */
+        const val PROBE_ATTEMPTS = 3
+        const val PROBE_DELAY_MS = 400L
     }
 
     @Volatile
     private var engine: EmbeddedServer<*, *>? = null
+
+    /** 实际监听端口；未运行为 0 */
+    @Volatile
+    var boundPort: Int = 0
+        private set
 
     /** 会话 token；服务启动时生成，停止即失效 */
     private val sessionToken = AtomicReference<String?>(null)
@@ -59,28 +71,62 @@ class DebugApiServer(
     /** 当前会话 token（未运行返回 null）；供 UI 展示 */
     fun currentToken(): String? = sessionToken.get()
 
-    fun start() {
-        if (engine != null) return
-        // bind 预检：上次进程的监听 socket 未释放时给出受控失败 —— 引擎协程里的 BindException
-        // 不经调用方异常链，未捕获会变成启动即崩循环（2026-09-27 真机 dropbox 栈实证）
-        checkBindAvailable(host, port)
+    /**
+     * 起服务并返回实际监听端口。首选口先重试等待（残留监听回收），仍不可用才向后避让
+     * [PORT_SCAN_RANGE] 个端口；全部失败才抛 [IllegalStateException]（调用方负责复位开关）。
+     */
+    fun start(preferredPort: Int = port): Int {
+        engine?.let { return boundPort }
         sessionToken.set(tokenProvider() ?: newSecret())
-        val server = embeddedServer(CIO, port = port, host = host, module = { routes() })
-        server.start(wait = false)
-        engine = server
+        var lastError: Throwable? = null
+        for (candidate in preferredPort until preferredPort + PORT_SCAN_RANGE) {
+            if (!probeBindable(host, candidate)) continue
+            val server = embeddedServer(CIO, port = candidate, host = host, module = { routes() })
+            runCatching { server.start(wait = false) }
+                .onSuccess {
+                    engine = server
+                    boundPort = candidate
+                    return candidate
+                }
+                .onFailure { e ->
+                    // 引擎协程 bind 失败会同时从调用方抛出：停掉半成品实例，换下一个端口
+                    runCatching { server.stop(gracePeriodMillis = 0, timeoutMillis = 100) }
+                    lastError = e
+                }
+        }
+        sessionToken.set(null)
+        throw IllegalStateException(
+            "debug api $host:$preferredPort..${preferredPort + PORT_SCAN_RANGE - 1} unavailable" +
+                " (port in use?): ${lastError?.message}",
+            lastError,
+        )
     }
 
-    private fun checkBindAvailable(host: String, port: Int) {
-        try {
-            java.net.ServerSocket().use { it.bind(java.net.InetSocketAddress(host, port)) }
-        } catch (e: Exception) {
-            throw IllegalStateException("debug api $host:$port unavailable (port in use?): ${e.message}", e)
+    /**
+     * 端口可用性探测：与引擎同语义用 [java.nio.channels.ServerSocketChannel]（默认不开
+     * SO_REUSEADDR）。原先用 java.net.ServerSocket 预检——它默认开 SO_REUSEADDR，会在上一进程
+     * 残留监听未回收时「预检通过、引擎真 bind 失败」，等于没拦住（2026-09-28 真机崩在启动后 22ms）。
+     */
+    private fun probeBindable(host: String, port: Int): Boolean {
+        repeat(PROBE_ATTEMPTS) { attempt ->
+            val ok = runCatching {
+                val channel = java.nio.channels.ServerSocketChannel.open()
+                try {
+                    channel.bind(java.net.InetSocketAddress(host, port))
+                } finally {
+                    channel.close()
+                }
+            }.isSuccess
+            if (ok) return true
+            if (attempt < PROBE_ATTEMPTS - 1) runCatching { Thread.sleep(PROBE_DELAY_MS) }
         }
+        return false
     }
 
     fun stop() {
         engine?.stop(gracePeriodMillis = 200, timeoutMillis = 500)
         engine = null
+        boundPort = 0
         sessionToken.set(null)
     }
 
@@ -119,7 +165,7 @@ class DebugApiServer(
                 append("{\"ok\":true")
                 append(",\"app\":\"rikkahub-agents\"")
                 append(",\"debugApi\":\"experimental\"")
-                append(",\"listen\":\"$host:$port\"")
+                append(",\"listen\":\"$host:$boundPort\"")
                 append("}")
             }
             audit("/debug/info", call.request.local.remoteHost, HttpStatusCode.OK)

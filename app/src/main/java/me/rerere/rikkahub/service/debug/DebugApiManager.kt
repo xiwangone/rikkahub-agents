@@ -3,6 +3,7 @@ package me.rerere.rikkahub.service.debug
 import android.content.Context
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
+import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import me.rerere.rikkahub.data.log.AppLog
@@ -14,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -43,52 +45,54 @@ class DebugApiManager(context: Context) {
     )
 
     private val _running = MutableStateFlow(false)
+    private val _port = MutableStateFlow(0)
 
     /** 服务是否在跑（供 UI 展示；enabled 是持久化意图，running 是运行事实） */
     val running: StateFlow<Boolean> = _running.asStateFlow()
+
+    /** 实际监听端口（未运行为 0）；首选口被占并避让后以此为准，UI 按此展示 */
+    val port: StateFlow<Int> = _port.asStateFlow()
 
     /** 已配置的口令（明文或 $引用）——UI 显示与保存反馈用 */
     val tokenFlow: Flow<String> = store.data.map { it[TOKEN].orEmpty() }
 
     init {
-        // 开关驱动生命周期：enabled=true → 起服务；false → 停。进程重启后 DataStore
-        // 重放 enabled 即完成恢复，无需显式 restore。
+        // 单一驱动协程：enabled 与口令合并成一条「期望配置」流，改口令与开开关走同一条路径。
+        // 原先是两个并发 collector（enabled 起服务 + 口令热更重启），冷启动两者都会 start()，而
+        // start() 的 engine 判空与赋值不原子 → 两个引擎抢同一端口 → 引擎协程 BindException 崩进程
+        // （2026-09-28 真机崩溃快照实证）。
         scope.launch {
-            store.data
-                .map { it[ENABLED] ?: false }
+            combine(
+                store.data.map { it[ENABLED] ?: false },
+                store.data.map { it[TOKEN].orEmpty() },
+            ) { enabled, token -> enabled to token }
                 .distinctUntilChanged()
-                .onEach { enabled ->
-                    if (enabled) {
-                        val token = store.data.first()[TOKEN].orEmpty()
-                        // $$条目名引用在取值时解为真值；明文原样；空 → tokenProvider 返 null 自动生成
-                        server.tokenProvider = { VaultProviderKeyRefs.resolveValue(token).ifBlank { null } }
-                        // 启动失败（如端口被上次进程残留占用）→ 自动复位开关：防重启后反复 bind 失败循环
-                        runCatching { server.start() }.onFailure { e ->
-                            AppLog.e(TAG, "debug api start failed, auto-disabling", e)
-                            store.edit { it[ENABLED] = false }
-                            _running.value = false
-                            return@onEach
-                        }
-                        _running.value = true
-                    } else {
-                        server.stop()
+                .onEach { (enabled, token) ->
+                    if (!enabled) {
+                        runCatching { server.stop() }
                         _running.value = false
+                        _port.value = 0
+                        return@onEach
                     }
-                }
-                .collect {}
-        }
-        // 口令热更：开启状态下改口令 → 重启服务使新口令立即生效
-        scope.launch {
-            store.data
-                .map { it[TOKEN].orEmpty() }
-                .distinctUntilChanged()
-                .onEach { token ->
-                    if (store.data.first()[ENABLED] ?: false) {
-                        server.stop()
-                        server.tokenProvider = { VaultProviderKeyRefs.resolveValue(token).ifBlank { null } }
-                        server.start()
-                        _running.value = true
-                    }
+                    // $$条目名引用在取值时解为真值；明文原样；空 → tokenProvider 返 null 自动生成
+                    server.tokenProvider = { VaultProviderKeyRefs.resolveValue(token).ifBlank { null } }
+                    val preferred = store.data.first()[LAST_PORT] ?: PORT
+                    runCatching { server.stop() }
+                    runCatching { server.start(preferredPort = preferred) }
+                        .onSuccess { bound ->
+                            _running.value = true
+                            _port.value = bound
+                            // 避让过就记住，下次优先回到同一个口，保持外部连接预期稳定
+                            if (bound != preferred) store.edit { it[LAST_PORT] = bound }
+                        }
+                        .onFailure { e ->
+                            // 首选口与避让区间全被占 → 复位开关：防重启后反复 bind 失败循环
+                            AppLog.e(TAG, "debug api start failed, auto-disabling", e)
+                            runCatching { server.stop() }
+                            _running.value = false
+                            _port.value = 0
+                            store.edit { it[ENABLED] = false }
+                        }
                 }
                 .collect {}
         }
@@ -109,11 +113,16 @@ class DebugApiManager(context: Context) {
     companion object {
         private const val TAG = "DebugApiManager"
 
-        /** 调试接口端口（实验版固定；19998 为既有调试口） */
+        /**
+         * 调试接口首选端口（19998 为既有调试口）。被占时由 [DebugApiServer.start] 先重试等待、
+         * 再向后避让；避让区间须保持在临时端口段（真机实测 32768-60999）之下，
+         * 否则会与出站连接的源端口相撞。
+         */
         const val PORT = 19999
         const val HOST_LOOPBACK = "127.0.0.1"
 
         private val ENABLED = booleanPreferencesKey("enabled")
         private val TOKEN = stringPreferencesKey("token")
+        private val LAST_PORT = intPreferencesKey("last_port")
     }
 }
