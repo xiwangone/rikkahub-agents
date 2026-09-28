@@ -22,6 +22,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.Tool
+import me.rerere.rikkahub.utils.isBindAvailable
 import me.rerere.rikkahub.utils.isRemoteHostAllowed
 import java.security.MessageDigest
 
@@ -56,6 +57,11 @@ class LocalMcpServer(
 
     fun start() {
         if (engine != null) return
+        // 与引擎同语义预检：端口被占时给出受控失败（调用方已接住并写入 state.error），
+        // 不让 BindException 抛在引擎自己的协程里变成启动即崩
+        if (!isBindAvailable(port, host)) {
+            throw IllegalStateException("mcp server $host:$port unavailable (port in use?)")
+        }
         val server = embeddedServer(CIO, port = port, host = host, module = { mcpModule() })
         server.start(wait = false)
         engine = server

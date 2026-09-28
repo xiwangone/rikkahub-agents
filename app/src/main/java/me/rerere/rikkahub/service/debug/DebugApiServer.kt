@@ -13,6 +13,7 @@ import io.ktor.server.routing.routing
 import io.ktor.server.request.receiveText
 import io.ktor.server.request.header
 import io.ktor.utils.io.core.use
+import me.rerere.rikkahub.utils.isBindAvailableWithRetry
 import me.rerere.rikkahub.utils.isRemoteHostAllowed
 import java.io.File
 import java.security.SecureRandom
@@ -48,10 +49,6 @@ class DebugApiServer(
 
         /** 首选端口被占时的向后避让宽度（须保证结果仍落在临时端口段之下） */
         const val PORT_SCAN_RANGE = 8
-
-        /** 单端口探测的重试次数与间隔：给上一进程残留的监听 socket 一点回收时间 */
-        const val PROBE_ATTEMPTS = 3
-        const val PROBE_DELAY_MS = 400L
     }
 
     @Volatile
@@ -80,7 +77,7 @@ class DebugApiServer(
         sessionToken.set(tokenProvider() ?: newSecret())
         var lastError: Throwable? = null
         for (candidate in preferredPort until preferredPort + PORT_SCAN_RANGE) {
-            if (!probeBindable(host, candidate)) continue
+            if (!isBindAvailableWithRetry(candidate, host)) continue
             val server = embeddedServer(CIO, port = candidate, host = host, module = { routes() })
             runCatching { server.start(wait = false) }
                 .onSuccess {
@@ -100,27 +97,6 @@ class DebugApiServer(
                 " (port in use?): ${lastError?.message}",
             lastError,
         )
-    }
-
-    /**
-     * 端口可用性探测：与引擎同语义用 [java.nio.channels.ServerSocketChannel]（默认不开
-     * SO_REUSEADDR）。原先用 java.net.ServerSocket 预检——它默认开 SO_REUSEADDR，会在上一进程
-     * 残留监听未回收时「预检通过、引擎真 bind 失败」，等于没拦住（2026-09-28 真机崩在启动后 22ms）。
-     */
-    private fun probeBindable(host: String, port: Int): Boolean {
-        repeat(PROBE_ATTEMPTS) { attempt ->
-            val ok = runCatching {
-                val channel = java.nio.channels.ServerSocketChannel.open()
-                try {
-                    channel.bind(java.net.InetSocketAddress(host, port))
-                } finally {
-                    channel.close()
-                }
-            }.isSuccess
-            if (ok) return true
-            if (attempt < PROBE_ATTEMPTS - 1) runCatching { Thread.sleep(PROBE_DELAY_MS) }
-        }
-        return false
     }
 
     fun stop() {
