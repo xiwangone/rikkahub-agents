@@ -34,10 +34,12 @@ class ChrootShellRunnerTest {
     @Test
     fun `suCommand embeds script rootfs and inner command`() {
         val base = "/data/user/0/excp.rikkahub.agents/files"
-        val runner = ChrootShellRunner(File("$base/chroot-run.sh"), File("$base/chroot-probe.sh"))
+        val script = File("$base/chroot-run.sh")
         val linux = File("$base/workspaces/abc123/linux")
+        val runner = ChrootShellRunner(script, File("$base/chroot-probe.sh"))
+        // 期望值用 absolutePath 现算，别硬编码正斜杠：Win/Unix 下一致（用例如按路径字面比会在 Windows 上假失败）
         assertEquals(
-            "sh $base/chroot-run.sh $base/workspaces/abc123/linux exec /bin/sh /.chroot-exec-abc",
+            "sh ${script.absolutePath} ${linux.absolutePath} exec /bin/sh /.chroot-exec-abc",
             runner.suCommand(linux, "exec /bin/sh /.chroot-exec-abc"),
         )
     }
