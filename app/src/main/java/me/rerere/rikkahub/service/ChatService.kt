@@ -612,6 +612,20 @@ class ChatService(
         AppLog.i(TAG, "dropSession: $conversationId (remaining: ${sessions.size})")
     }
 
+    /**
+     * 删除会话的统一入口：先停生成（含通知接入服务端取消）并丢弃内存会话态，再删库。
+     *
+     * 顺序不可颠倒：若先删库、而流仍在推，后续 [saveConversation] 会因「会话不存在且非空」
+     * 把会话重新插回去（用户看到的是「删了又自己回来」）。接入路径尤其必须停远端会话，
+     * 否则服务端会继续跑并把内容写回。
+     */
+    suspend fun deleteConversation(conversationId: Uuid) {
+        runCatching { stopGeneration(conversationId) }
+            .onFailure { AppLog.w(TAG, "deleteConversation: stopGeneration failed for $conversationId", it) }
+        dropSession(conversationId)
+        conversationRepo.getConversationById(conversationId)?.let { conversationRepo.deleteConversation(it) }
+    }
+
     // ---- 引用管理 ----
 
     fun addConversationReference(conversationId: Uuid) {
@@ -2792,7 +2806,7 @@ class ChatService(
 
         // 后端连接路径：本地协程取消不会让服务端停下，必须显式通知取消，
         // 否则服务端 turn 会一直挂着并阻塞后续提交（表现为「停止无效、再发无反应」）。
-        runCatching { cancelBackendGenerationIfNeeded() }
+        runCatching { cancelBackendGenerationIfNeeded(conversationId) }
 
         convMutex.withLock {
             // Hydrate from disk so we mark Pending tools cancelled even when the user
@@ -2839,14 +2853,39 @@ class ChatService(
         appScope.launch { dispatchNextQueuedMessage(conversationId) }
     }
 
-    /** 通知后端服务取消当前生成（仅 serve 直连模式）。 */
-    private suspend fun cancelBackendGenerationIfNeeded() {
+    /**
+     * 通知后端服务取消当前生成。
+     *
+     * 目标后端有两个来源，**都要看**（任一命中即取消）：
+     * ① 全局「执行后端」指向的 provider；
+     * ② 本对话实际使用的模型所属 provider（接入 provider 可以在提供商页配好、
+     *    直接在对话里选模型使用，这条路径不会写 executionBackend）。
+     * 只认①会让②的“停止不影响远端”。
+     */
+    private suspend fun cancelBackendGenerationIfNeeded(conversationId: Uuid) {
         val settings = settingsStore.settingsFlow.value
-        val targetId = settings.executionBackend
-        val target =
-            settings.providers.firstOrNull { it.id.toString() == targetId } as? me.rerere.ai.provider.ProviderSetting.Backend
-                ?: return
-        if (target.backendType != "backend") return
+        // 快速短路（不影响原生路径）：没有任何后端 provider 时直接返回；
+        // 有也要先确认「本对话确实跑在后端上」才继续，避免每次原生停止都多算一次。
+        val backends =
+            settings.providers.filterIsInstance<me.rerere.ai.provider.ProviderSetting.Backend>()
+        if (backends.isEmpty()) return
+        // ① 执行后端指向的接入 provider
+        val executionTargetId = settings.executionBackend
+        val byExecution =
+            backends.firstOrNull { it.id.toString() == executionTargetId }
+                ?.takeIf { it.backendType == "backend" }
+        // ② 本对话实际使用的模型所属 provider（提供商页配好、对话里直接选模型这条路径）
+        val byModel =
+            if (byExecution != null) {
+                null
+            } else {
+                val conversation = runCatching { getConversationFlow(conversationId).value }.getOrNull()
+                val assistant =
+                    conversation?.let { settings.getAssistantById(it.assistantId) }
+                        ?: settings.getCurrentAssistant()
+                assistant.findProvider(backends)?.takeIf { it.backendType == "backend" }
+            }
+        val target = byExecution ?: byModel ?: return
         runCatching {
             me.rerere.ai.provider.providers.backend.BackendApi(
                 baseUrl = target.baseUrl,

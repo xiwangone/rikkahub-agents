@@ -491,7 +491,8 @@ class ChatVM(
 
     fun deleteConversation(conversation: Conversation): Job =
         viewModelScope.launch {
-            conversationRepo.deleteConversation(conversation)
+            // 经 ChatService：先停生成/丢会话态再删库，避免流回调把会话写回（「删了又出现」）
+            chatService.deleteConversation(conversation.id)
         }
 
     fun updatePinnedStatus(conversation: Conversation) {

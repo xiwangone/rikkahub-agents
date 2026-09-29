@@ -78,11 +78,13 @@ class BackendProvider(
     private fun api(setting: ProviderSetting.Backend): BackendApi = clientFactory(setting)
 
     /**
-     * RikkaHub Agents 对话 → serve 会话路径 的映射（2026-09-12 新增，会话复用）。
+     * 对话 → serve 会话路径 的映射（会话复用）。
      *
-     * 键用「首条用户消息」的指纹：RikkaHub Agents 新建对话 → 无映射 → `POST /new`；
-     * 同一对话续聊 → 命中映射 → `POST /resume {path}`。
-     * 这样既不再每次生成都新建（消除服务端会话碎片），也不会串到别的对话。
+     * 键 = [me.rerere.ai.provider.TextGenerationParams.sessionId]（对话级，即 conversationId）：
+     * 新对话（新 id）→ 无映射 → `POST /new`；同一对话续聊 → 命中映射 → `POST /resume {path}`。
+     *
+     * ⚠ 本表是**进程内存**：App 重启后丢失，届时旧对话会退化为新建会话。
+     * 需要跨重启续接时，待办 = 把映射随对话记录持久化（路径本就由每条事件带回）。
      */
     private val sessionPaths = java.util.concurrent.ConcurrentHashMap<String, String>()
 
@@ -278,15 +280,17 @@ class BackendProvider(
 
         // 必须先 POST /new(新建会话)+ POST /submit(提交增量输入),
         // 服务端才会开始生成并向 /events 推送;否则两端 App 无限转圈。
-        // 会话复用：命中映射则 resume 既有会话，否则新建
-        val sessionKey =
-            messages.firstOrNull { it.role == MessageRole.USER }?.textContent()?.hashCode()?.toString()
+        // 会话复用：以**对话级 sessionId**（= conversationId）为键映射服务端会话路径。
+        // 不用「首条用户消息 hashCode」：哈希碰撞、且首个 turn 之后键就漂移；
+        // 对话 id 稳定 —— 同一对话重进自然 resume，新建对话（新 id）自然新建会话。
+        val sessionKey = params.sessionId
         val existingPath = sessionKey?.let { sessionPaths[it] }
-        if (existingPath.isNullOrBlank()) {
+        if (sessionKey == null || existingPath.isNullOrBlank()) {
             api.newSession()
         } else {
             runCatching { api.resumeSession(existingPath) }.onFailure {
                 android.util.Log.w("BackendProvider", "resume 会话失败，将新建", it)
+                runCatching { api.newSession() }
             }
         }
         api.submit(fullInput)
@@ -294,6 +298,12 @@ class BackendProvider(
         var usage: TokenUsage? = null
         var textStarted = false
         var reasoningStarted = false
+        // 每个 turn 用独立的 part id：固定 id 在多 turn 下会被反复复用 —— 上一轮已结束的
+        // part 与下一轮新建的 part 共用同一索引键，会出现「本轮只 Start 不收尾」的残留
+        // part（finishedAt 永为 null）→ UI 思考计时一直跑。
+        var turnSeq = 0
+        val reasoningId: () -> String = { "reasoning-$turnSeq" }
+        val textId: () -> String = { "text-$turnSeq" }
 
         // backend serve 的 /events 是长连接（keep-alive），不会自然关流。
         // 多 turn 自动任务（工具调用循环）会在同一热流里连续发：
@@ -302,11 +312,18 @@ class BackendProvider(
         // 无任何内容事件 → 任务真正完成 → 结束 flow（UI 收尾，不再「working」）。
         // 实现：热流支持多次 first()（不重建连接），withTimeoutOrNull 提供超时。
         var turnDone = false
+        // 服务端正等待用户应答（审批/提问）：此时流会静默挂起，静默窗口不适用于它，
+        // 否则用户稍晚一点动手指，卡片就会被收尾成不可交互。
+        var awaitingInteraction = false
 
         while (true) {
             val event =
                 kotlinx.coroutines.withTimeoutOrNull(
-                    if (turnDone) TURN_DONE_IDLE_TIMEOUT_MS else FIRST_CONTENT_TIMEOUT_MS
+                    when {
+                        awaitingInteraction -> INTERACTION_WAIT_TIMEOUT_MS
+                        turnDone -> TURN_DONE_IDLE_TIMEOUT_MS
+                        else -> FIRST_CONTENT_TIMEOUT_MS
+                    }
                 ) {
                     // 事件异常兜底：流异常时返回 null → 由外层 break 优雅收尾，而不是让整个 flow 崩溃。
                     runCatching { events.first() }.getOrNull()
@@ -328,16 +345,26 @@ class BackendProvider(
                     )
             if (isContent) {
                 turnDone = false
+                awaitingInteraction = false
+            }
+            // 服务端发起交互请求（审批/提问）：进入「等待用户应答」态 —— serve 发完这类请求会挂起
+            // 静默等待应答，其后还可能跟 tool_dispatch 等事件；若不单独放宽超时窗口，
+            // turn_done → approval_request 的时序会让 flow 在 15s 静默窗口后 break，
+            // 卡片刚建立就被收尾（表现为「没弹出」）。同理这也解释了工具卡输入为空的伴生现象：
+            // 带 args 的后续帧根本不再被消费。
+            if (event.kind == "approval_request" || event.kind == "ask_request") {
+                awaitingInteraction = true
+                turnDone = false
             }
 
             when (event.kind) {
                 "text" -> {
                     val t = event.text ?: continue
                     if (!textStarted) {
-                        emit(StreamChunk.TextStart(id = TEXT_ID))
+                        emit(StreamChunk.TextStart(id = textId()))
                         textStarted = true
                     }
-                    emit(StreamChunk.TextDelta(id = TEXT_ID, text = t))
+                    emit(StreamChunk.TextDelta(id = textId(), text = t))
                 }
 
                 "reasoning" -> {
@@ -345,10 +372,10 @@ class BackendProvider(
                     // 才用 reasoning 字段装完整思考）；只读 reasoning 会把思考整段丢掉。
                     val r = event.reasoning ?: event.text ?: continue
                     if (!reasoningStarted) {
-                        emit(StreamChunk.ReasoningStart(id = REASONING_ID))
+                        emit(StreamChunk.ReasoningStart(id = reasoningId()))
                         reasoningStarted = true
                     }
-                    emit(StreamChunk.ReasoningDelta(id = REASONING_ID, text = r))
+                    emit(StreamChunk.ReasoningDelta(id = reasoningId(), text = r))
                 }
 
                 "tool_dispatch" -> {
@@ -404,11 +431,11 @@ class BackendProvider(
                 "turn_done" -> {
                     turnDone = true
                     if (textStarted) {
-                        emit(StreamChunk.TextEnd(id = TEXT_ID))
+                        emit(StreamChunk.TextEnd(id = textId()))
                         textStarted = false
                     }
                     if (reasoningStarted) {
-                        emit(StreamChunk.ReasoningEnd(id = REASONING_ID))
+                        emit(StreamChunk.ReasoningEnd(id = reasoningId()))
                         reasoningStarted = false
                     }
                     emit(StreamChunk.Finish(finishReason = "stop"))
@@ -417,7 +444,10 @@ class BackendProvider(
                     // 有新内容则继续，无则 withTimeoutOrNull 返回 null → break 收尾。
                 }
 
-                "turn_started" -> emit(StreamChunk.TurnStarted())
+                "turn_started" -> {
+                    turnSeq++
+                    emit(StreamChunk.TurnStarted())
+                }
 
                 "phase", "turn_phase" -> {
                     val label = event.detail ?: event.code ?: event.text ?: ""
@@ -486,11 +516,11 @@ class BackendProvider(
 
         // events 流结束（超时 break 或连接关闭）未补收尾，视作最后一个 turn 完成
         if (textStarted) {
-            emit(StreamChunk.TextEnd(id = TEXT_ID))
+            emit(StreamChunk.TextEnd(id = textId()))
             textStarted = false
         }
         if (reasoningStarted) {
-            emit(StreamChunk.ReasoningEnd(id = REASONING_ID))
+            emit(StreamChunk.ReasoningEnd(id = reasoningId()))
             reasoningStarted = false
         }
         if (!turnDone) {
@@ -544,5 +574,6 @@ private const val TURN_DONE_IDLE_TIMEOUT_MS = 15_000L
 // 非 turn_done 阶段的整体兜底超时：正常 SSE 流式下事件持续推送，此值仅用于
 // 防止异常场景（连接挂起但无任何事件）无限转圈。补充 runCatching 异常兜底。
 private const val FIRST_CONTENT_TIMEOUT_MS = 300_000L
-private const val TEXT_ID = "text"
-private const val REASONING_ID = "reasoning"
+// 服务端等待用户应答（审批/提问）时的静默上限：这类挂起是「等人」而非「已结束」，
+// 给足思考与操作时间（与 FIRST_CONTENT_TIMEOUT_MS 同量级），避免卡片被提前收尾。
+private const val INTERACTION_WAIT_TIMEOUT_MS = 300_000L
