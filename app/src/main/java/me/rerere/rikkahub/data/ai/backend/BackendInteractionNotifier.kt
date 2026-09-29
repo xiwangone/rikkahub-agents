@@ -171,16 +171,29 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
     }
 
     /**
-     * 由对话内嵌卡片调用：按 requestId 批准/拒绝（与通知栏按钮同一通道）。
+     * 由对话内嵌卡片调用：按 requestId 回应审批（与通知栏按钮同一通道）。
+     * 四档决策映射到 serve 的 session / persist 参数（本会话允许 / 持久允许）。
      * 返回 true 表示该请求仍在等待应答且已提交。
      */
-    fun approveById(requestId: String, approved: Boolean): Boolean {
+    fun approveById(
+        requestId: String,
+        approved: Boolean,
+        session: Boolean = false,
+        persist: Boolean = false,
+        scope: String = "",
+    ): Boolean {
         val p = synchronized(lock) { pendingApprovals.remove(requestId) } ?: return false
         syncPendingIds()
         cancelNotification(requestId)
         ioScope.launch {
             runCatching {
-                api(p.setting).approve(id = requestId, allow = approved)
+                api(p.setting).approve(
+                    id = requestId,
+                    allow = approved,
+                    session = session,
+                    persist = persist,
+                    scope = scope,
+                )
             }.onFailure {
                 AppLog.w(TAG, "approve($requestId, $approved) failed", it)
             }

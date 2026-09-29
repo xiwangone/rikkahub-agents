@@ -36,7 +36,6 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ProvideTextStyle
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
@@ -77,9 +76,7 @@ import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.File02
-import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.Screen
@@ -161,87 +158,46 @@ internal fun BackendApprovalCard(
                 style = MaterialTheme.typography.labelMedium,
             )
             // 按钮样式与对话内工具审批保持一致（同组件、同尺寸、同图标）
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilledTonalIconButton(
-                    onClick = {
-                        if (inFlight || resolved) return@FilledTonalIconButton
+            ApprovalDecisionRow(
+                inFlight = inFlight || resolved,
+                onDecision = { decision ->
+                    if (!(inFlight || resolved)) {
                         inFlight = true
-                        val ok = notifier.approveById(requestId, true)
+                        val approved = decision != ApprovalDecision.Deny
+                        // 决策 → 应答参数：本会话允许用 session，总是允许再加 persist
+                        val session =
+                            decision == ApprovalDecision.ChatScope || decision == ApprovalDecision.Always
+                        val persist = decision == ApprovalDecision.Always
+                        val ok =
+                            notifier.approveById(
+                                requestId,
+                                approved,
+                                session = session,
+                                persist = persist,
+                            )
                         resolved = ok
                         if (ok) {
-                            feedback = approveDone
+                            feedback = if (approved) approveDone else denyDone
                         } else {
                             onToolApproval?.invoke(
                                 requestId,
-                                true,
+                                approved,
                                 "",
-                                me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
+                                when (decision) {
+                                    ApprovalDecision.Always ->
+                                        me.rerere.rikkahub.service.ChatService.ApprovalScope.Always
+                                    ApprovalDecision.ChatScope ->
+                                        me.rerere.rikkahub.service.ChatService.ApprovalScope.ChatScope
+                                    else -> me.rerere.rikkahub.service.ChatService.ApprovalScope.Once
+                                },
                                 tool,
                             )
                             feedback = staleHint
                         }
                         inFlight = false
-                    },
-                    enabled = !inFlight && !resolved,
-                    modifier = Modifier.size(28.dp),
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.Tick01,
-                        contentDescription = stringResource(R.string.chat_message_tool_approve),
-                        modifier = Modifier.size(14.dp),
-                    )
-                }
-                FilledTonalIconButton(
-                    onClick = {
-                        if (inFlight || resolved) return@FilledTonalIconButton
-                        inFlight = true
-                        val ok = notifier.approveById(requestId, true)
-                        resolved = ok
-                        feedback = if (ok) approveDone else staleHint
-                        if (!ok) {
-                            onToolApproval?.invoke(
-                                requestId,
-                                true,
-                                "",
-                                me.rerere.rikkahub.service.ChatService.ApprovalScope.Always,
-                                tool,
-                            )
-                        }
-                        inFlight = false
-                    },
-                    enabled = !inFlight && !resolved,
-                    modifier = Modifier.size(28.dp),
-                ) {
-                    Text("\u221e", style = MaterialTheme.typography.labelMedium)
-                }
-                FilledTonalIconButton(
-                    onClick = {
-                        if (inFlight || resolved) return@FilledTonalIconButton
-                        inFlight = true
-                        val ok = notifier.approveById(requestId, false)
-                        resolved = ok
-                        feedback = if (ok) denyDone else staleHint
-                        if (!ok) {
-                            onToolApproval?.invoke(
-                                requestId,
-                                false,
-                                "",
-                                me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
-                                tool,
-                            )
-                        }
-                        inFlight = false
-                    },
-                    enabled = !inFlight && !resolved,
-                    modifier = Modifier.size(28.dp),
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.Cancel01,
-                        contentDescription = stringResource(R.string.chat_message_tool_deny),
-                        modifier = Modifier.size(14.dp),
-                    )
-                }
-            }
+                    }
+                },
+            )
             (feedback ?: if (handledElsewhere) staleHint else null)?.let {
                 Text(
                     text = it,

@@ -11,7 +11,6 @@ import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
@@ -45,8 +44,6 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
-import me.rerere.hugeicons.stroke.Cancel01
-import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
@@ -267,32 +264,23 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                         val allowAlwaysButton =
                             me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults
                                 .allowsAlwaysAllow(tool.toolName)
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                            FilledTonalIconButton(
-                                onClick = {
-                                    if (inFlight) return@FilledTonalIconButton
-                                    inFlight = true
-                                    onToolApproval(
-                                        tool.toolCallId,
-                                        true,
-                                        "",
-                                        me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
-                                        tool.toolName,
-                                    )
-                                },
-                                enabled = !inFlight,
-                                modifier = Modifier.size(28.dp),
-                            ) {
-                                Icon(
-                                    imageVector = HugeIcons.Tick01,
-                                    contentDescription = stringResource(R.string.chat_message_tool_approve),
-                                    modifier = Modifier.size(14.dp),
-                                )
-                            }
-                            if (allowAlwaysButton) {
-                                FilledTonalIconButton(
-                                    onClick = {
-                                        if (inFlight) return@FilledTonalIconButton
+                        ApprovalDecisionRow(
+                            inFlight = inFlight,
+                            showAlwaysAllow = allowAlwaysButton,
+                            onDecision = { decision ->
+                                when (decision) {
+                                    ApprovalDecision.Deny -> showDenyDialog = true
+                                    ApprovalDecision.Once -> {
+                                        inFlight = true
+                                        onToolApproval(
+                                            tool.toolCallId,
+                                            true,
+                                            "",
+                                            me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
+                                            tool.toolName,
+                                        )
+                                    }
+                                    ApprovalDecision.Always -> {
                                         inFlight = true
                                         onToolApproval(
                                             tool.toolCallId,
@@ -301,45 +289,20 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                                             me.rerere.rikkahub.service.ChatService.ApprovalScope.Always,
                                             tool.toolName,
                                         )
-                                    },
-                                    enabled = !inFlight,
-                                    modifier = Modifier.size(28.dp),
-                                ) {
-                                    Text("∞", style = MaterialTheme.typography.labelMedium)
+                                    }
+                                    ApprovalDecision.ChatScope -> {
+                                        inFlight = true
+                                        onToolApproval(
+                                            tool.toolCallId,
+                                            true,
+                                            "",
+                                            me.rerere.rikkahub.service.ChatService.ApprovalScope.ChatScope,
+                                            tool.toolName,
+                                        )
+                                    }
                                 }
-                            }
-                            FilledTonalIconButton(
-                                onClick = {
-                                    if (inFlight) return@FilledTonalIconButton
-                                    inFlight = true
-                                    onToolApproval(
-                                        tool.toolCallId,
-                                        true,
-                                        "",
-                                        me.rerere.rikkahub.service.ChatService.ApprovalScope.ChatScope,
-                                        tool.toolName,
-                                    )
-                                },
-                                enabled = !inFlight,
-                                modifier = Modifier.size(28.dp),
-                            ) {
-                                Text("💬", style = MaterialTheme.typography.labelSmall)
-                            }
-                            FilledTonalIconButton(
-                                onClick = {
-                                    if (inFlight) return@FilledTonalIconButton
-                                    showDenyDialog = true
-                                },
-                                enabled = !inFlight,
-                                modifier = Modifier.size(28.dp),
-                            ) {
-                                Icon(
-                                    imageVector = HugeIcons.Cancel01,
-                                    contentDescription = stringResource(R.string.chat_message_tool_deny),
-                                    modifier = Modifier.size(14.dp),
-                                )
-                            }
-                        }
+                            },
+                        )
                     }
                 }
             } else {
