@@ -29,7 +29,7 @@ class ChrootShellRunner(
         val cmdFile = writeCommandFile(context)
         try {
             val process = try {
-                newSuProcess(context.linuxDir, "exec /bin/sh /$COMMAND_FILE")
+                newSuProcess(context.linuxDir, execCommandFor(cmdFile))
             } catch (e: IOException) {
                 // 无 root 设备：su 不可用时返回结构化失败，不让异常上抛穿调用链
                 return WorkspaceCommandResult(
@@ -77,7 +77,14 @@ class ChrootShellRunner(
         return "sh ${scriptFile.absolutePath} ${linuxDir.absolutePath} $inner"
     }
 
-    /** 命令写入 rootfs 根下固定文件（App 普通 uid 可写，chroot 内可读），避免引号地狱。 */
+    /**
+     * chroot 内要执行的命令：文件名取**实际写入的那个**（带 UUID），不能写死常量。
+     * 写 `.chroot-exec-<UUID>`、却让 chroot 去读 `/.chroot-exec`，会让每条命令都以
+     * `cannot open /.chroot-exec` 失败（2026-09-29 旧机实测）；本函数与下方回归用例把两者钉在一起。
+     */
+    internal fun execCommandFor(cmdFile: File): String = "exec /bin/sh /${cmdFile.name}"
+
+    /** 命令写入 rootfs 根下唯一文件（App 普通 uid 可写，chroot 内可读），避免引号地狱。 */
     internal fun writeCommandFile(context: WorkspaceShellContext): File {
         val cmdFile = File(context.linuxDir, "$COMMAND_FILE-${UUID.randomUUID()}")
         cmdFile.writeText(context.command)
@@ -96,7 +103,7 @@ class ChrootShellRunner(
     }
 
     companion object {
-        /** 命令中转文件前缀（rootfs 根下，固定 ASCII 名）。 */
+        /** 命令中转文件**前缀**（rootfs 根下；实际名 = 前缀 + UUID，见 writeCommandFile）。 */
         const val COMMAND_FILE = ".chroot-exec"
         private val PROBE_SUMMARY = Regex("summary: pass=(\\d+) fail=(\\d+) warn=(\\d+)")
     }

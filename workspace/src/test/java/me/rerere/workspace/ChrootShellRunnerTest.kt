@@ -37,8 +37,8 @@ class ChrootShellRunnerTest {
         val runner = ChrootShellRunner(File("$base/chroot-run.sh"), File("$base/chroot-probe.sh"))
         val linux = File("$base/workspaces/abc123/linux")
         assertEquals(
-            "sh $base/chroot-run.sh $base/workspaces/abc123/linux exec /bin/sh /.chroot-exec.sh",
-            runner.suCommand(linux, "exec /bin/sh /.chroot-exec.sh"),
+            "sh $base/chroot-run.sh $base/workspaces/abc123/linux exec /bin/sh /.chroot-exec-abc",
+            runner.suCommand(linux, "exec /bin/sh /.chroot-exec-abc"),
         )
     }
 
@@ -75,6 +75,24 @@ class ChrootShellRunnerTest {
         assertTrue(f1 != f2)
         f1.delete()
         f2.delete()
+    }
+
+    /**
+     * 回归：exec 侧必须用**实际写入的文件名**（带 UUID），不能用固定常量。
+     * 写/读不一致时 chroot 内找不到命令文件，每条命令都以 cannot open 失败后回退 proot。
+     */
+    @Test
+    fun `execCommandFor uses the file actually written`() {
+        val runner = newRunner()
+        val linux = tmp.newFolder("linux-exec")
+        val written = runner.writeCommandFile(newContext(linux))
+
+        val inner = runner.execCommandFor(written)
+
+        assertEquals("exec /bin/sh /${written.name}", inner)
+        assertTrue(inner.endsWith("/${written.name}"))
+        assertTrue(!inner.endsWith("/${ChrootShellRunner.COMMAND_FILE}"))
+        written.delete()
     }
 
     @Test
