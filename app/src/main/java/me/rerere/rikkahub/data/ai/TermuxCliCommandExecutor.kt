@@ -6,7 +6,8 @@ import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.provider.providers.backend.CliCommandExecutor
 import me.rerere.rikkahub.data.ai.tools.local.CaptureResult
 import me.rerere.rikkahub.data.ai.tools.local.execOneShot
-import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuth
+import me.rerere.rikkahub.data.ai.tools.local.HostAuthResolution
+import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuthDetailed
 import me.rerere.rikkahub.data.ai.tools.local.runCancellableSshOp
 import me.rerere.rikkahub.data.ai.tools.local.runCommandCapture
 import me.rerere.rikkahub.data.preferences.TermuxDefaults
@@ -20,7 +21,7 @@ private const val SSH_TIMEOUT_MS = 60_000L
  * [CliCommandExecutor] 实现：CLI 后端（backendType=cli）的「生成」= 执行一条命令行工具。
  *
  * - sshHostId 空 → 手机本地 Termux 执行（Termux RUN_COMMAND 服务）
- * - sshHostId 非空 → SSH 到该主机执行（复用 SshHostRepository + resolveHostAuth + execOneShot）
+ * - sshHostId 非空 → SSH 到该主机执行（复用 SshHostRepository + resolveHostAuthDetailed + execOneShot）
  */
 class TermuxCliCommandExecutor(
     private val context: Context,
@@ -53,7 +54,11 @@ class TermuxCliCommandExecutor(
 
     private suspend fun executeSsh(hostName: String, command: String): String {
         val host = sshHostRepository.getByName(hostName) ?: return "SSH 主机 $hostName 不存在"
-        val auth = resolveHostAuth(host, vaultRepository) ?: return "SSH 主机 $hostName 无可用凭证"
+        // 带原因解析：报错能区分“名字不存在/解不开/未授权”（旧写法只报“无可用凭证”）
+        val auth = when (val r = resolveHostAuthDetailed(host, vaultRepository)) {
+            is HostAuthResolution.Ready -> r.auth
+            is HostAuthResolution.Unusable -> return r.reason
+        }
         val payload =
             runCancellableSshOp(SSH_TIMEOUT_MS) { sessionRef ->
                 execOneShot(context, host.host, host.port, host.user, auth, command, SSH_TIMEOUT_MS.toInt(), sessionRef)
