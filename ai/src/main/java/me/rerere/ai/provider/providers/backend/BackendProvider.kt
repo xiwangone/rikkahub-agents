@@ -54,6 +54,7 @@ class BackendProvider(
     private val httpClient: OkHttpClient = OkHttpClient(),
     private val cliExecutor: CliCommandExecutor? = null,
     private val interactionHandler: BackendInteractionHandler = BackendInteractionHandler.NOOP,
+    private val sessionPathStore: SessionPathStore = SessionPathStore.NOOP,
 ) : Provider<ProviderSetting.Backend> {
 
     constructor(
@@ -284,7 +285,9 @@ class BackendProvider(
         // 不用「首条用户消息 hashCode」：哈希碰撞、且首个 turn 之后键就漂移；
         // 对话 id 稳定 —— 同一对话重进自然 resume，新建对话（新 id）自然新建会话。
         val sessionKey = params.sessionId
-        val existingPath = sessionKey?.let { sessionPaths[it] }
+        // 内存优先（同一进程内快）；未命中则查持久化（跨重启续接同一对话）
+        val persistedPath = if (sessionKey != null) sessionPathStore.get(sessionKey) else null
+        val existingPath = sessionKey?.let { sessionPaths[it] ?: persistedPath }
         if (sessionKey == null || existingPath.isNullOrBlank()) {
             api.newSession()
         } else {
@@ -334,6 +337,8 @@ class BackendProvider(
                 event.sessionPath?.takeIf { it.isNotBlank() }?.let { path ->
                     sessionPaths[key] = path
                     lastSessionPath = path
+                    // 落盘：跨进程重启后同对话仍能 resume
+                    runCatching { sessionPathStore.put(key, path) }
                 }
             }
 
