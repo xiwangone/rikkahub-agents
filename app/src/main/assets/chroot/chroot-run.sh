@@ -14,12 +14,11 @@
 #      which does not exist inside → everything "not found")
 #   2. resolv.conf must be a WRITTEN FILE — bind-mounting Termux's symlink
 #      mounts the link itself and DNS breaks
-#   3. mount order: proc sys dev devpts tmpfs(/tmp); unmount in REVERSE order
+#   3. mount order: proc sys dev devpts tmpfs(/tmp) workspace; unmount in REVERSE order
 #   4. never leave mounts behind: unmount is idempotent and best-effort
-#   5. commands run UNPRIVILEGED (setpriv → uid 1000): root is only used for
-#      mount/chroot entry; the AI session must never run as root. Override via
-#      CHROOT_UID/CHROOT_GID env; chroot内没有 su 二进制（不 bind /system）,
-#      降权进程无法自行提权。
+#   5. commands run AS ROOT inside chroot (rooted devices only); /workspace
+#      inside chroot = the workspace files dir (bind-mounted), same semantics
+#      as the proot backend. chroot内没有 su 二进制（不 bind /system）。
 
 ROOTFS="$1"; shift
 [ -d "$ROOTFS" ] || { echo "ERR: rootfs dir not found: $ROOTFS"; exit 2; }
@@ -39,13 +38,20 @@ do_mounts() {
     mount -t devpts devpts "$ROOTFS/dev/pts" || { echo "ERR: devpts"; exit 1; }
     mkdir -p "$ROOTFS/tmp"
     mount -t tmpfs tmpfs "$ROOTFS/tmp"      || { echo "ERR: tmpfs"; exit 1; }
+    # workspace files dir (sibling of the rootfs) → /workspace, same as proot
+    if [ -d "$ROOTFS/../files" ]; then
+        mkdir -p "$ROOTFS/workspace"
+        mount --bind "$ROOTFS/../files" "$ROOTFS/workspace" || echo "WARN: workspace bind failed"
+    else
+        echo "WARN: workspace files dir not found, /workspace unavailable"
+    fi
     touch "$MARKER"
     echo "mounted: proc sys dev devpts tmp"
 }
 
 do_unmount() {
     # reverse order, deepest-ish last-mounted first; idempotent
-    for m in "$ROOTFS/tmp" "$ROOTFS/dev/pts" "$ROOTFS/dev" "$ROOTFS/sys" "$ROOTFS/proc"; do
+    for m in "$ROOTFS/workspace" "$ROOTFS/tmp" "$ROOTFS/dev/pts" "$ROOTFS/dev" "$ROOTFS/sys" "$ROOTFS/proc"; do
         umount "$m" 2>/dev/null
     done
     rm -f "$MARKER"
@@ -67,9 +73,6 @@ do_fixes() {
     mkdir -p "$ROOTFS/etc/profile.d"
     printf 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n' \
         > "$ROOTFS/etc/profile.d/00-path.sh"
-    # unprivileged user home for chroot exec (setpriv drops to uid 1000)
-    mkdir -p "$ROOTFS/home/user"
-    chown 1000:1000 "$ROOTFS/home/user" 2>/dev/null || true
     touch "$FIXED"
 }
 
@@ -81,16 +84,15 @@ case "$1" in
     shell)
         do_mounts; do_fixes
         export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-        export HOME=/home/user TERM="${TERM:-xterm-256color}"
-        chroot "$ROOTFS" /usr/bin/setpriv --reuid="${CHROOT_UID:-1000}" --regid="${CHROOT_GID:-1000}" \
-            /bin/bash -l 2>/dev/null || chroot "$ROOTFS" /usr/bin/setpriv --reuid="${CHROOT_UID:-1000}" --regid="${CHROOT_GID:-1000}" /bin/sh -l
+        export HOME=/root TERM="${TERM:-xterm-256color}"
+        chroot "$ROOTFS" /bin/bash -l 2>/dev/null || chroot "$ROOTFS" /bin/sh -l
         rc=$?; do_unmount >/dev/null; exit $rc ;;
     exec)
         shift
         do_mounts; do_fixes
         export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-        export HOME=/home/user
-        chroot "$ROOTFS" /usr/bin/setpriv --reuid="${CHROOT_UID:-1000}" --regid="${CHROOT_GID:-1000}" /bin/sh -c "$*"
+        export HOME=/root
+        chroot "$ROOTFS" /bin/sh -c "$*"
         rc=$?; do_unmount >/dev/null; exit $rc ;;
     *)
         echo "usage: chroot-run.sh <rootfs_dir> {shell|exec <cmd...>|prepare|unmount}"; exit 2 ;;

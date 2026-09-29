@@ -8,6 +8,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
+import me.rerere.rikkahub.shizuku.ShizukuManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -35,11 +36,31 @@ enum class DebugApiStartFailure {
 }
 
 /**
- * AI 调试接口管理器（实验性）。形状对齐 [me.rerere.rikkahub.browser.BrowserPreferences]：
- * 单一 DataStore 数据源（enabled / 自定义口令），Flow 驱动服务生命周期——
- * 开关与口令落盘后由 init 里的 collector 自动 start/stop/热重启，App 启动恢复免费获得。
- *
- * 安全模型见 [DebugApiServer]：默认关、仅 127.0.0.1、token 会话、全请求审计。
+ * 监听档位 → 绑定地址与来源白名单。档位语义（谁能连）：
+ * loopback 仅本机 / lan 局域网私网段预设 / custom 自定义 CIDR / all 全部（仅 token 门禁）。
+ * "::" 为双栈绑定：IPv6 + IPv4-mapped（Linux 默认 bindv6only=0）。
+ */
+public data class ListenConfig(val mode: String, val host: String, val cidrs: String) {
+    companion object {
+        const val MODE_LOOPBACK = "loopback"
+        const val MODE_LAN = "lan"
+        const val MODE_CUSTOM = "custom"
+        const val MODE_ALL = "all"
+
+        private const val LAN_PRESET =
+            "10.0.0.0/8,172.16.0.0/12,192.168.0.0/16,fe80::/10,fc00::/7"
+
+        fun resolve(mode: String, custom: String): ListenConfig = when (mode) {
+            MODE_LAN -> ListenConfig(MODE_LAN, "::", LAN_PRESET)
+            MODE_CUSTOM -> ListenConfig(MODE_CUSTOM, "::", custom.trim())
+            MODE_ALL -> ListenConfig(MODE_ALL, "::", "")
+            else -> ListenConfig(MODE_LOOPBACK, DebugApiManager.HOST_LOOPBACK, "")
+        }
+    }
+}
+
+/**
+ * 调试接口管理器：Flow 驱动 start/stop（enabled/口令/监听档位变更即热重启），App 启动恢复免费获得。
  */
 class DebugApiManager(context: Context) {
 
@@ -48,7 +69,6 @@ class DebugApiManager(context: Context) {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     private val server = DebugApiServer(
         port = PORT,
-        host = HOST_LOOPBACK,
         auditDir = baseDir,
         logsDir = File(context.filesDir, "logs"),
     )
@@ -70,18 +90,41 @@ class DebugApiManager(context: Context) {
     /** 已配置的口令（明文或 $引用）——UI 显示与保存反馈用 */
     val tokenFlow: Flow<String> = store.data.map { it[TOKEN].orEmpty() }
 
+    /** 当前监听档位与白名单（UI 展示/写入用） */
+    val listenConfig: Flow<ListenConfig> = store.data.map {
+        ListenConfig.resolve(it[LISTEN_MODE] ?: ListenConfig.MODE_LOOPBACK, it[CUSTOM_CIDRS].orEmpty())
+    }
+
+    suspend fun setListenMode(mode: String) {
+        store.edit { it[LISTEN_MODE] = mode }
+    }
+
+    /** 自定义网段（CIDR，逗号分隔；仅自定义档生效） */
+    suspend fun setCustomCidrs(cidrs: String) {
+        store.edit { it[CUSTOM_CIDRS] = cidrs.trim() }
+    }
+
     init {
-        // 单一驱动协程：enabled 与口令合并成一条「期望配置」流，改口令与开开关走同一条路径。
-        // 原先是两个并发 collector（enabled 起服务 + 口令热更重启），冷启动两者都会 start()，而
-        // start() 的 engine 判空与赋值不原子 → 两个引擎抢同一端口 → 引擎协程 BindException 崩进程
-        // （2026-09-28 真机崩溃快照实证）。
+        // exec 端点：经 Shizuku 以 shell uid 运行（root 由调用方显式 su -c）；权限随 Shizuku 启动方式
+        server.commandRunner = { command, timeoutMs ->
+            kotlinx.coroutines.runBlocking { ShizukuManager.exec(context, command, timeoutMs) }
+        }
+        // 单一驱动协程：enabled/口令/监听档位合并成一条「期望配置」流，任一变更走同一条路径热重启。
+        // 不用两个并发 collector：冷启动两者都会 start()，而 start() 的 engine 判空与赋值不原子，
+        // 两个引擎会抢同一端口（引擎协程 BindException 崩进程）。
         scope.launch {
             combine(
                 store.data.map { it[ENABLED] ?: false },
                 store.data.map { it[TOKEN].orEmpty() },
-            ) { enabled, token -> enabled to token }
+                store.data.map {
+                    ListenConfig.resolve(
+                        it[LISTEN_MODE] ?: ListenConfig.MODE_LOOPBACK,
+                        it[CUSTOM_CIDRS].orEmpty(),
+                    )
+                },
+            ) { enabled, token, listen -> Triple(enabled, token, listen) }
                 .distinctUntilChanged()
-                .onEach { (enabled, token) ->
+                .onEach { (enabled, token, listen) ->
                     if (!enabled) {
                         runCatching { server.stop() }
                         _running.value = false
@@ -89,8 +132,8 @@ class DebugApiManager(context: Context) {
                         _startError.value = null
                         return@onEach
                     }
-                    // 引用口令解析不到时**拒绝启动**，而不是拿 "$$名字" 字面量当口令：
-                    // 后者会让用户以为引用生效、实际永远连不上且无从发现（2026-09-28 真机复测暂露）。
+                    // 口令引用解析不到时拒绝启动，而不是拿 "$$名字" 字面量当口令——
+                    // 后者会永久连不上且无从发现。
                     if (token.startsWith(VaultProviderKeyRefs.PREFIX) &&
                         VaultProviderKeyRefs.resolveOrNull(token) == null
                     ) {
@@ -104,6 +147,9 @@ class DebugApiManager(context: Context) {
                     _startError.value = null
                     // $$条目名在取值时解为真值；明文原样；空 → tokenProvider 返 null 自动生成
                     server.tokenProvider = { VaultProviderKeyRefs.resolveOrNull(token)?.ifBlank { null } }
+                    // 监听档位与白名单：loopback 仅本机；其余档 "::" 双栈（IPv6 + IPv4-mapped）
+                    server.listenHost = listen.host
+                    server.allowedNetworks = listen.cidrs
                     val preferred = store.data.first()[LAST_PORT] ?: PORT
                     runCatching { server.stop() }
                     runCatching { server.start(preferredPort = preferred) }
@@ -143,7 +189,7 @@ class DebugApiManager(context: Context) {
         private const val TAG = "DebugApiManager"
 
         /**
-         * 调试接口首选端口（19998 是旧机 ZeroTermux 的调试口，与本 App 无关）。被占时由 [DebugApiServer.start] 先重试等待、
+         * 调试接口首选端口（避让间隔需保持在临时端口段之下）。被占时由 [DebugApiServer.start] 先重试等待、
          * 再向后避让；避让区间须保持在临时端口段（真机实测 32768-60999）之下，
          * 否则会与出站连接的源端口相撞。
          */
@@ -153,5 +199,7 @@ class DebugApiManager(context: Context) {
         private val ENABLED = booleanPreferencesKey("enabled")
         private val TOKEN = stringPreferencesKey("token")
         private val LAST_PORT = intPreferencesKey("last_port")
+        private val LISTEN_MODE = stringPreferencesKey("listen_mode")
+        private val CUSTOM_CIDRS = stringPreferencesKey("custom_cidrs")
     }
 }

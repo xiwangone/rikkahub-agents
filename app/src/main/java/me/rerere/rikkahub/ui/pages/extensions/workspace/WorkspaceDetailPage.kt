@@ -153,6 +153,7 @@ fun WorkspaceDetailPage(id: String) {
     var showInstallDialog by remember { mutableStateOf(false) }
     val mirrors by vm.mirrors.collectAsStateWithLifecycle()
     var previewImageUri by remember { mutableStateOf<String?>(null) }
+    var openingFileName by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
     val filePicker =
@@ -370,8 +371,13 @@ fun WorkspaceDetailPage(id: String) {
                                         }
 
                                         WorkspaceFileType.OTHER -> {
-                                            vm.exportToCacheFile(entry, context.cacheDir) { file ->
-                                                val uri =
+                                            openingFileName = entry.name
+                                            vm.exportToCacheFile(
+                                                entry,
+                                                context.cacheDir,
+                                                onReady = { file ->
+                                                    openingFileName = null
+                                                    val uri =
                                                     FileProvider.getUriForFile(
                                                         context,
                                                         "${context.packageName}.fileprovider",
@@ -389,7 +395,9 @@ fun WorkspaceDetailPage(id: String) {
                                                 runCatching {
                                                     context.startActivity(Intent.createChooser(intent, null))
                                                 }
-                                            }
+                                            },
+                                                onFail = { openingFileName = null },
+                                            )
                                         }
                                     }
                                 }
@@ -495,6 +503,22 @@ fun WorkspaceDetailPage(id: String) {
         }
     }
 
+    openingFileName?.let { name ->
+        AlertDialog(
+            onDismissRequest = {},
+            text = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.padding(4.dp))
+                    Text(stringResource(R.string.workspace_export_preparing, name))
+                }
+            },
+            confirmButton = {},
+        )
+    }
     previewImageUri?.let { uri ->
         ImagePreviewDialog(
             images = listOf(uri),
@@ -1571,15 +1595,20 @@ private suspend fun resolveLxcDebianRootfs(): String? =
             val dir = "$base/trixie/$lxcAbiDir/default/"
             val html =
                 runCatching {
-                    java.net.URL(dir)
-                        .openConnection()
-                        .apply {
-                            connectTimeout = 8000
-                            readTimeout = 8000
-                        }.getInputStream()
-                        .bufferedReader()
-                        .use { it.readText() }
-                }.getOrNull() ?: continue
+                    okhttp3.OkHttpClient.Builder()
+                        .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+                        .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+                        .build().newCall(
+                            okhttp3.Request.Builder().url(dir)
+                                .header("User-Agent", "okhttp")
+                                .build(),
+                        ).execute().use { resp ->
+                            check(resp.isSuccessful) { "mirror probe failed: HTTP ${resp.code}" }
+                            resp.body?.string().orEmpty()
+                        }
+                }
+                .onFailure { AppLog.w("WorkspaceRootfs", "lxc parse failed: $dir ${it.message}") }
+                .getOrNull() ?: continue
             val stamps = stamp.findAll(html).map { it.groupValues[1] }.distinct().sorted()
             val latest = stamps.lastOrNull() ?: continue
             return@withContext "$dir$latest/rootfs.tar.xz"
@@ -1608,8 +1637,8 @@ private val PRESET_ROOTFS_URLS: List<PresetRootfsUrl>
             ),
             presetRootfs(
                 "Debian 13 trixie base",
-                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian/trixie/arm64/default/20260924_05:24/rootfs.tar.xz",
-                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian/trixie/amd64/default/20260924_05:24/rootfs.tar.xz",
+                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian/trixie/arm64/default/20260927_05:24/rootfs.tar.xz",
+                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian/trixie/amd64/default/20260927_05:24/rootfs.tar.xz",
                 lxcDebian = true,
             ),
             presetRootfs(

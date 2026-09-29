@@ -7,11 +7,11 @@ import java.util.UUID
 /**
  * chroot 后端命令执行器（root 设备实验）：把命令包进 `su -c chroot-run.sh`。
  *
- * 安全模型（四铁律）：
- * 1. su 只用于挂载与进入（脚本内部），命令本体经 setpriv 降到 uid 1000
- * 2. 不 bind /system —— chroot 内没有 su 二进制，降权进程无法自行提权
+ * 安全模型（命令本体以 root 在 chroot 内运行，仅限已 root 设备）：
+ * 1. su 用于挂载与进入（脚本内部）
+ * 2. 不 bind /system —— chroot 内没有 su 二进制
  * 3. 对外只暴露 execute/start；四命令与参数由本类硬编码拼装
- * 4. chroot 内不出现 root 进程
+ * 4. 默认关 + probe 自检通过才可启用；rootfs 内 /workspace = 工作区文件区（bind）
  *
  * 脚本（deps/chroot/chroot-run.sh / chroot-probe.sh）由调用方释放到 App 私有
  * 目录后传入；路径不得含空格/引号/分号（App 私有目录固定结构保证）。

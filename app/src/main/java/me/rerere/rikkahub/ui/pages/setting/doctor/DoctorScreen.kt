@@ -19,6 +19,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -52,6 +53,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 import me.rerere.rikkahub.service.debug.DebugApiManager
+import me.rerere.rikkahub.service.debug.ListenConfig
 import me.rerere.rikkahub.service.debug.DebugApiStartFailure
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -327,6 +329,9 @@ private fun DebugApiCard(manager: DebugApiManager) {
     val storedToken by manager.tokenFlow.collectAsStateWithLifecycle(initialValue = "")
     var tokenInput by remember { mutableStateOf("") }
     val startError by manager.startError.collectAsStateWithLifecycle()
+    val listenCfg by manager.listenConfig.collectAsStateWithLifecycle(
+        initialValue = ListenConfig(ListenConfig.MODE_LOOPBACK, DebugApiManager.HOST_LOOPBACK, ""),
+    )
     var revealedToken by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
@@ -337,16 +342,14 @@ private fun DebugApiCard(manager: DebugApiManager) {
                 Text(stringResource(R.string.setting_page_doctor_debug_api_title))
             },
             supportingContent = {
-                // 端口会避让：运行中展示实际监听口，未运行时展示首选口
-                val shownPort = if (running && port > 0) port else DebugApiManager.PORT
                 Column {
-                    Text(stringResource(R.string.setting_page_doctor_debug_api_desc, shownPort))
+                    Text(stringResource(R.string.setting_page_doctor_debug_api_desc))
                     // 运行事实：在跑报实际地址，没跑说没跑（防“开关开着却不知死活”）
                     Text(
                         if (running && port > 0) {
                             stringResource(
                                 R.string.setting_page_doctor_debug_api_status_running,
-                                DebugApiManager.HOST_LOOPBACK,
+                                listenCfg.host,
                                 port,
                             )
                         } else {
@@ -376,6 +379,69 @@ private fun DebugApiCard(manager: DebugApiManager) {
                         scope.launch { manager.setEnabled(enabled) }
                     },
                 )
+            },
+        )
+        item(
+            headlineContent = {
+                Text(stringResource(R.string.setting_page_doctor_debug_api_listen))
+            },
+            supportingContent = {
+                Column {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = listenCfg.mode == ListenConfig.MODE_LOOPBACK,
+                            onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_LOOPBACK) } },
+                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_loopback)) },
+                        )
+                        FilterChip(
+                            selected = listenCfg.mode == ListenConfig.MODE_LAN,
+                            onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_LAN) } },
+                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_lan)) },
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = listenCfg.mode == ListenConfig.MODE_CUSTOM,
+                            onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_CUSTOM) } },
+                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_custom)) },
+                        )
+                        FilterChip(
+                            selected = listenCfg.mode == ListenConfig.MODE_ALL,
+                            onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_ALL) } },
+                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_all)) },
+                        )
+                    }
+                    if (listenCfg.mode == ListenConfig.MODE_CUSTOM) {
+                        var cidrInput by remember(listenCfg.mode) { mutableStateOf(listenCfg.cidrs) }
+                        OutlinedTextField(
+                            value = cidrInput,
+                            onValueChange = { cidrInput = it },
+                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_cidrs_hint)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        TextButton(onClick = {
+                            scope.launch {
+                                manager.setCustomCidrs(cidrInput)
+                                toaster.show(
+                                    message = context.getString(R.string.setting_page_doctor_debug_api_saved),
+                                )
+                            }
+                        }) {
+                            Text(stringResource(R.string.setting_page_doctor_debug_api_cidrs_apply))
+                        }
+                    }
+                    if (listenCfg.mode == ListenConfig.MODE_ALL) {
+                        Text(
+                            stringResource(R.string.setting_page_doctor_debug_api_listen_all_warn),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.setting_page_doctor_debug_api_exec_warn),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             },
         )
         item(

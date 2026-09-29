@@ -3,6 +3,10 @@ package me.rerere.rikkahub.service.debug
 import io.ktor.http.ContentType
 import io.ktor.server.application.Application
 import io.ktor.http.HttpStatusCode
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.decodeFromString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
 import io.ktor.server.cio.CIO
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
@@ -20,29 +24,18 @@ import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * AI 调试 API（实验性，默认关闭）。
- *
- * 用途：开发期让外部 AI（PC/另一台设备上的助手）远程读取 App 内部状态，
- * 用于真机验证与排障——补上「App 内部状态只能截图」的缺口。
- *
- * 安全模型（与 LocalMcpServer 同族，比 ZeroTermux 式常驻调试口严格）：
- * - 设置里显式开启，默认关闭；UI 需红字大字警告（暴露范围 = 所选网络）；
- * - 监听地址：127.0.0.1（默认，仅本机）/ 虚拟内网地址（Tailscale 等，推荐）/ 0.0.0.0（局域网，最危险）；
- * - CIDR 白名单复用 [isRemoteHostAllowed]；
- * - 凭证：唯一通行凭证是 token（自动生成或引用凭证库/自定义口令），UI 内可查看/复制；
- * - 全部请求审计留痕（时间 / 端点 / 来源 / 结果码）。
+ * AI 调试 API（实验性，默认关闭）：外部 AI 读取 App 状态与日志，供真机验证与排障。
+ * 安全：默认关；监听档位仅本机/局域网/自定义 CIDR/全部接口 + CIDR 白名单；token 门禁；审计留痕。
  */
 class DebugApiServer(
     private val port: Int,
-    /** 监听地址；默认仅本机。对外场景由设置层显式传入虚拟内网/局域网地址 */
-    private val host: String = HOST_LOOPBACK,
-    /** 来源网段白名单（CIDR，逗号分隔；空 = 仅 loopback 语义，建议设置层强制非空） */
-    private val allowedNetworks: String = "",
     /** 审计落盘目录（App files/debug-api）；null = 不落盘（不建议） */
     private val auditDir: File? = null,
     /** 日志目录（App files/logs）；null = /debug/logs 返回未配置 */
     private val logsDir: File? = null,
 ) {
+    private val json = Json { ignoreUnknownKeys = true }
+
     private companion object {
         const val HOST_LOOPBACK = "127.0.0.1"
         const val SESSION_HEADER = "X-Debug-Session"
@@ -59,11 +52,22 @@ class DebugApiServer(
     var boundPort: Int = 0
         private set
 
+    /** 绑定地址（start 时生效）：127.0.0.1 仅本机；"::" 双栈（IPv6 + IPv4-mapped） */
+    @Volatile
+    var listenHost: String = HOST_LOOPBACK
+
+    /** 来源网段白名单（CIDR，逗号分隔）；空 = 不做网段限制，仅 token 门禁 */
+    @Volatile
+    var allowedNetworks: String = ""
+
     /** 会话 token；服务启动时生成，停止即失效 */
     private val sessionToken = AtomicReference<String?>(null)
 
     /** token 提供者：可由管理器热替换（凭证库引用/自定义口令）；返回 null = 自动生成 */
     var tokenProvider: () -> String? = { null }
+
+    /** 命令执行器（管理器注入；null = exec 端点返回 unavailable）。完全控制通道 */
+    var commandRunner: ((command: String, timeoutMs: Int) -> JsonObject)? = null
 
     /** 当前会话 token（未运行返回 null）；供 UI 展示 */
     fun currentToken(): String? = sessionToken.get()
@@ -77,8 +81,8 @@ class DebugApiServer(
         sessionToken.set(tokenProvider() ?: newSecret())
         var lastError: Throwable? = null
         for (candidate in preferredPort until preferredPort + PORT_SCAN_RANGE) {
-            if (!isBindAvailableWithRetry(candidate, host)) continue
-            val server = embeddedServer(CIO, port = candidate, host = host, module = { routes() })
+            if (!isBindAvailableWithRetry(candidate, listenHost)) continue
+            val server = embeddedServer(CIO, port = candidate, host = listenHost, module = { routes() })
             runCatching { server.start(wait = false) }
                 .onSuccess {
                     engine = server
@@ -93,7 +97,7 @@ class DebugApiServer(
         }
         sessionToken.set(null)
         throw IllegalStateException(
-            "debug api $host:$preferredPort..${preferredPort + PORT_SCAN_RANGE - 1} unavailable" +
+            "debug api $listenHost:$preferredPort..${preferredPort + PORT_SCAN_RANGE - 1} unavailable" +
                 " (port in use?): ${lastError?.message}",
             lastError,
         )
@@ -141,7 +145,7 @@ class DebugApiServer(
                 append("{\"ok\":true")
                 append(",\"app\":\"rikkahub-agents\"")
                 append(",\"debugApi\":\"experimental\"")
-                append(",\"listen\":\"$host:$boundPort\"")
+                append(",\"listen\":\"$listenHost:$boundPort\"")
                 append("}")
             }
             audit("/debug/info", call.request.local.remoteHost, HttpStatusCode.OK)
@@ -167,7 +171,42 @@ class DebugApiServer(
             audit("/debug/logs", call.request.local.remoteHost, HttpStatusCode.OK)
             call.respondText("""{"ok":true,"tail":${json(tail)}}""", ContentType.Application.Json)
         }
+
+        // 通用命令执行（完全控制通道）：默认经 Shizuku 以 shell uid 运行（≈adb shell），
+        // Shizuku 不可用时返回结构化错误；需要 root 由调用方在命令内显式 su -c，默认不提权
+        post("/debug/exec") {
+            if (!authorized(call)) {
+                audit("/debug/exec", call.request.local.remoteHost, HttpStatusCode.Unauthorized)
+                call.respondText(
+                    """{"error":"unauthorized"}""",
+                    ContentType.Application.Json,
+                    HttpStatusCode.Unauthorized,
+                ); return@post
+            }
+            val runner = commandRunner
+            val body = runCatching { json.decodeFromString<ExecRequest>(call.receiveText()) }.getOrNull()
+            if (runner == null) {
+                audit("/debug/exec", call.request.local.remoteHost, HttpStatusCode.NotImplemented, "no runner")
+                call.respondText(
+                    """{"error":"exec_unavailable"}""",
+                    ContentType.Application.Json,
+                    HttpStatusCode.NotImplemented,
+                ); return@post
+            }
+                        if (body == null || body.command.isBlank()) {
+                audit("/debug/exec", call.request.local.remoteHost, HttpStatusCode.BadRequest, "bad body")
+                call.respondText(
+                    """{"error":"bad_request"}""",
+                    ContentType.Application.Json,
+                    HttpStatusCode.BadRequest,
+                ); return@post
+            }
+            audit("/debug/exec", call.request.local.remoteHost, HttpStatusCode.OK, body.command.take(200))
+            val result = runner(body.command, body.timeoutMs.coerceIn(1_000, 600_000))
+            call.respondText(result.toString(), ContentType.Application.Json)
+        }
     }
+
 
     private fun json(s: String?): String = buildString {
         append('"')
@@ -181,3 +220,7 @@ class DebugApiServer(
         append('"')
     }
 }
+
+/** 每命令执行时长上限 10 分钟；app 侧超时由 runner 内部再框 */
+@Serializable
+internal data class ExecRequest(val command: String, val timeoutMs: Int = 120_000)

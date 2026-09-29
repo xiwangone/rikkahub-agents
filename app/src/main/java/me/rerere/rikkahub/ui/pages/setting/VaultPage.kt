@@ -54,6 +54,7 @@ import me.rerere.rikkahub.data.vault.AuditAnomalyDetector
 import me.rerere.rikkahub.data.vault.AuditExporter
 import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.VaultAppLock
 import me.rerere.rikkahub.data.vault.VaultBiometric
 import me.rerere.rikkahub.data.vault.VaultExporter
 import me.rerere.rikkahub.data.vault.VaultFormats
@@ -415,6 +416,120 @@ fun VaultPage() {
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                        // App 内密码门禁：设备未设锁屏凭据、BiometricPrompt 不可用时，必须设置密码才能打开凭证库
+                        var hasAppPin by remember { mutableStateOf<Boolean?>(null) }
+                        var pinDialogShown by remember { mutableStateOf(false) }
+                        var clearDialogShown by remember { mutableStateOf(false) }
+                        LaunchedEffect(Unit) { hasAppPin = VaultAppLock.hasPin(context) }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Column(Modifier.weight(1f)) {
+                                Text(stringResource(R.string.vault_applock_title), style = MaterialTheme.typography.bodySmall)
+                                Text(
+                                    stringResource(R.string.vault_applock_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            when (hasAppPin) {
+                                false -> TextButton(onClick = { pinDialogShown = true }) {
+                                    Text(stringResource(R.string.vault_applock_set))
+                                }
+                                true -> {
+                                    TextButton(onClick = { pinDialogShown = true }) {
+                                        Text(stringResource(R.string.vault_applock_change))
+                                    }
+                                    TextButton(onClick = { clearDialogShown = true }) {
+                                        Text(stringResource(R.string.vault_applock_clear))
+                                    }
+                                }
+                                else -> {}
+                            }
+                        }
+                        if (pinDialogShown) {
+                            var pinInput by remember { mutableStateOf("") }
+                            var pinInput2 by remember { mutableStateOf("") }
+                            val ok = pinInput.length >= 4 && pinInput == pinInput2
+                            AlertDialog(
+                                onDismissRequest = { pinDialogShown = false },
+                                title = { Text(stringResource(R.string.vault_pin_setup_title)) },
+                                text = {
+                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                        OutlinedTextField(
+                                            value = pinInput,
+                                            onValueChange = { pinInput = it },
+                                            label = { Text(stringResource(R.string.vault_pin_hint)) },
+                                            singleLine = true,
+                                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword),
+                                        )
+                                        if (pinInput.isNotEmpty() && pinInput.length < 4) {
+                                            Text(
+                                                stringResource(R.string.vault_pin_too_short),
+                                                color = MaterialTheme.colorScheme.error,
+                                                style = MaterialTheme.typography.bodySmall,
+                                            )
+                                        }
+                                        OutlinedTextField(
+                                            value = pinInput2,
+                                            onValueChange = { pinInput2 = it },
+                                            label = { Text(stringResource(R.string.vault_pin_confirm_hint)) },
+                                            singleLine = true,
+                                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword),
+                                        )
+                                        if (pinInput2.isNotEmpty() && pinInput2 != pinInput) {
+                                            Text(
+                                                stringResource(R.string.vault_pin_mismatch),
+                                                color = MaterialTheme.colorScheme.error,
+                                                style = MaterialTheme.typography.bodySmall,
+                                            )
+                                        }
+                                    }
+                                },
+                                confirmButton = {
+                                    TextButton(
+                                        enabled = ok,
+                                        onClick = {
+                                            scope.launch {
+                                                VaultAppLock.setPin(context, pinInput)
+                                                hasAppPin = true
+                                                pinDialogShown = false
+                                            }
+                                        },
+                                    ) { Text(stringResource(R.string.vault_pin_confirm)) }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { pinDialogShown = false }) {
+                                        Text(stringResource(R.string.vault_pin_cancel))
+                                    }
+                                },
+                            )
+                        }
+                        if (clearDialogShown) {
+                            AlertDialog(
+                                onDismissRequest = { clearDialogShown = false },
+                                title = { Text(stringResource(R.string.vault_applock_clear)) },
+                                text = { Text(stringResource(R.string.vault_applock_clear_confirm)) },
+                                confirmButton = {
+                                    TextButton(
+                                        onClick = {
+                                            scope.launch {
+                                                VaultAppLock.clearPin(context)
+                                                hasAppPin = false
+                                                clearDialogShown = false
+                                            }
+                                        },
+                                    ) { Text(stringResource(R.string.vault_applock_clear)) }
+                                },
+                                dismissButton = {
+                                    TextButton(onClick = { clearDialogShown = false }) {
+                                        Text(stringResource(R.string.vault_pin_cancel))
+                                    }
+                                },
+                            )
+                        }
                     }
                 }
             }

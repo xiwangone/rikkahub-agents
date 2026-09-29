@@ -304,6 +304,7 @@ class WorkspaceDetailVM(
     fun exportToCacheFile(
         entry: WorkspaceFileEntry,
         cacheDir: File,
+        onFail: (() -> Unit)? = null,
         onReady: (File) -> Unit,
     ) {
         viewModelScope.launch {
@@ -320,6 +321,7 @@ class WorkspaceDetailVM(
                 }
                 file
             }.onSuccess(onReady).onFailure { error ->
+                onFail?.invoke()
                 _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_export)) }
             }
         }

@@ -1097,34 +1097,49 @@ class DoctorChecks(
             }
             // DNS sanity — real lookup timing + per-server probe of the active
             // network's DNS servers (the system resolver's actual upstream).
-            val dnsTarget = "qq.com"
+            // The primary target keeps the check meaningful on any working network; the
+            // secondary target surfaces resolver-level filtering as info.
+            val primaryTarget = "tencent.com"
+            val secondaryTarget = "google.com"
             val lookupStart = SystemClock.elapsedRealtime()
             val resolvedIp =
                 withTimeoutOrNull(2_500L) {
-                    runCatching { InetAddress.getByName(dnsTarget).hostAddress }.getOrNull()
+                    runCatching { InetAddress.getByName(primaryTarget).hostAddress }.getOrNull()
                 }
             val lookupMs = SystemClock.elapsedRealtime() - lookupStart
-            val dnsServers = DnsProbe.activeServers(context).distinct()
+            val secondaryIp =
+                withTimeoutOrNull(2_500L) {
+                    runCatching { InetAddress.getByName(secondaryTarget).hostAddress }.getOrNull()
+                }
+            val dnsServers = (DnsProbe.activeServers(context) + DnsProbe.PUBLIC_SERVERS).distinct()
             val probes =
                 if (dnsServers.isEmpty()) {
                     emptyList()
                 } else {
-                    withTimeoutOrNull(10_000L) { DnsProbe.probeAll(dnsServers, dnsTarget) } ?: emptyList()
+                    withTimeoutOrNull(10_000L) { DnsProbe.probeAll(dnsServers, primaryTarget) } ?: emptyList()
                 }
             val dnsOk = resolvedIp != null
+            // Show only the fastest reachable resolver; keep one failure if none.
             val probeSummary =
-                probes.joinToString(" / ") { r ->
-                    if (r.ok) {
-                        context.getString(R.string.doctor_dns_probe_ok, r.server, r.rttMs)
-                    } else {
-                        context.getString(R.string.doctor_dns_probe_fail, r.server)
-                    }
+                probes.filter { it.ok }.minByOrNull { it.rttMs }?.let {
+                    context.getString(R.string.doctor_dns_probe_ok, it.server, it.rttMs)
+                } ?: probes.firstOrNull()?.let {
+                    context.getString(R.string.doctor_dns_probe_fail, it.server)
                 }
             val dnsDetail =
                 if (dnsOk) {
                     buildString {
-                        append(context.getString(R.string.doctor_msg_dns_ok, dnsTarget, lookupMs))
-                        if (probeSummary.isNotEmpty()) {
+                        append(context.getString(R.string.doctor_msg_dns_ok, primaryTarget, lookupMs))
+                        append('\n')
+                        append(secondaryTarget)
+                        append(" -> ")
+                        if (secondaryIp != null) {
+                            append(secondaryIp)
+                            append(" (secondary ok)")
+                        } else {
+                            append("timeout (secondary blocked?)")
+                        }
+                        if (!probeSummary.isNullOrEmpty()) {
                             append('\n')
                             append(context.getString(R.string.doctor_dns_servers, probeSummary))
                         }

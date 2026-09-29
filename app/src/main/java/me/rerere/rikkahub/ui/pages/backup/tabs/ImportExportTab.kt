@@ -32,7 +32,9 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.MigrationExportResult
@@ -142,9 +144,16 @@ fun ImportExportTab(
                             val tempFile =
                                 File(context.cacheDir, "temp_restore_${System.currentTimeMillis()}.zip")
 
-                            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                                FileOutputStream(tempFile).use { outputStream ->
-                                    inputStream.copyTo(outputStream)
+                            withContext(Dispatchers.IO) {
+
+                                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+
+                                    FileOutputStream(tempFile).use { outputStream ->
+
+                                        inputStream.copyTo(outputStream)
+
+                                    }
+
                                 }
                             }
 
@@ -161,9 +170,11 @@ fun ImportExportTab(
                                 File(context.cacheDir, "temp_chatbox_${System.currentTimeMillis()}.zip")
 
                             try {
-                                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                                    FileOutputStream(tempFile).use { outputStream ->
-                                        inputStream.copyTo(outputStream)
+                                withContext(Dispatchers.IO) {
+                                    context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                                        FileOutputStream(tempFile).use { outputStream ->
+                                            inputStream.copyTo(outputStream)
+                                        }
                                     }
                                 }
 
@@ -178,9 +189,16 @@ fun ImportExportTab(
                             val tempFile =
                                 File(context.cacheDir, "temp_cherry_${System.currentTimeMillis()}.zip")
 
-                            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                                FileOutputStream(tempFile).use { outputStream ->
-                                    inputStream.copyTo(outputStream)
+                            withContext(Dispatchers.IO) {
+
+                                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+
+                                    FileOutputStream(tempFile).use { outputStream ->
+
+                                        inputStream.copyTo(outputStream)
+
+                                    }
+
                                 }
                             }
 
@@ -196,9 +214,11 @@ fun ImportExportTab(
                             val tempFile =
                                 File(context.cacheDir, "temp_migration_${System.currentTimeMillis()}.zip")
                             try {
-                                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                                    FileOutputStream(tempFile).use { outputStream ->
-                                        inputStream.copyTo(outputStream)
+                                withContext(Dispatchers.IO) {
+                                    context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                                        FileOutputStream(tempFile).use { outputStream ->
+                                            inputStream.copyTo(outputStream)
+                                        }
                                     }
                                 }
                                 val result = vm.importMigrationPackage(tempFile)
@@ -209,6 +229,11 @@ fun ImportExportTab(
                                         result.credentialsSkipped,
                                     ),
                                     type = ToastType.Success,
+                                )
+                                // 工作区文件不随包：导入后提醒重装 rootfs
+                                toaster.show(
+                                    resources.getString(R.string.backup_page_migration_rootfs_hint),
+                                    type = ToastType.Info,
                                 )
                             } finally {
                                 tempFile.delete()
@@ -542,6 +567,11 @@ fun ImportExportTab(
                                     ),
                                     type = ToastType.Success,
                                 )
+                                // 工作区文件不随包：导入后提醒重装 rootfs
+                                toaster.show(
+                                    resources.getString(R.string.backup_page_migration_rootfs_hint),
+                                    type = ToastType.Info,
+                                )
                                 onShowRestartDialog()
                             }
                             .onFailure { e ->
@@ -563,4 +593,4 @@ fun ImportExportTab(
             },
         )
     }
-}
+    }
