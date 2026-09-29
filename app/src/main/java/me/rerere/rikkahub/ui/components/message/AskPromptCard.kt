@@ -20,8 +20,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tick01
@@ -208,3 +213,47 @@ internal fun buildAskAnswersJson(answers: Map<String, String>): String =
             },
         )
     }.toString()
+
+/**
+ * 解析层：本地 `ask_user` 工具参数 → 中性提问模型。
+ *
+ * 参数结构：`{"questions":[{"id":…,"question":…,"options":[…],"selection_type":"text|single|multi"}]}`。
+ * 与接入侧共用同一模型，渲染层因此不必认识任何一方的参数结构；
+ * 解析失败或结构不符时返回空列表（调用方据此走空态）。
+ */
+internal fun parseAskToolQuestions(arguments: JsonElement): List<AskPromptQuestion> =
+    runCatching {
+        arguments.jsonObject["questions"]?.jsonArray?.map { q ->
+            val obj = q.jsonObject
+            AskPromptQuestion(
+                id = obj["id"]?.jsonPrimitive?.contentOrNull ?: "",
+                question = obj["question"]?.jsonPrimitive?.contentOrNull ?: "",
+                options =
+                    obj["options"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
+                        ?: emptyList(),
+                selectionType = obj["selection_type"]?.jsonPrimitive?.contentOrNull ?: "text",
+            )
+        } ?: emptyList()
+    }.getOrElse { emptyList() }
+
+/**
+ * 解析层：服务端提问帧 → 中性提问模型。
+ *
+ * 服务端选项自带 `description`，这里只取 label（描述不进选项文本，避免与标题混在一起）。
+ */
+internal fun parseBackendAskQuestions(
+    questions: List<me.rerere.ai.ui.AskQuestion>,
+): List<AskPromptQuestion> =
+    questions.map { q ->
+        AskPromptQuestion(
+            id = q.id,
+            question = q.prompt,
+            options = q.options.map { it.label },
+            selectionType =
+                when {
+                    q.multi -> "multi"
+                    q.options.isEmpty() -> "text"
+                    else -> "single"
+                },
+        )
+    }

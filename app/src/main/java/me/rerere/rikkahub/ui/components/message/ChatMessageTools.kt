@@ -402,21 +402,7 @@ private fun ChainOfThoughtScope.AskUserToolStep(
     }
 
     // 解析层：把工具参数归一成中性提问模型，渲染层不再认工具参数结构。
-    val questions =
-        remember(arguments) {
-            runCatching {
-                arguments.jsonObject["questions"]?.jsonArray?.map { q ->
-                    val obj = q.jsonObject
-                    AskPromptQuestion(
-                        id = obj["id"]?.jsonPrimitive?.contentOrNull ?: "",
-                        question = obj["question"]?.jsonPrimitive?.contentOrNull ?: "",
-                        options =
-                            obj["options"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList(),
-                        selectionType = obj["selection_type"]?.jsonPrimitive?.contentOrNull ?: "text",
-                    )
-                } ?: emptyList()
-            }.getOrElse { emptyList() }
-        }
+    val questions = remember(arguments) { parseAskToolQuestions(arguments) }
 
     // 已回答态回显用户答案：工具把答案放在 approvalState.answer 的 {"answers":{id:值}} 里。
     val answeredLabels =

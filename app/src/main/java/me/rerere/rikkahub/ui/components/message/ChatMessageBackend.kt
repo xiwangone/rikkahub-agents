@@ -230,22 +230,7 @@ internal fun BackendAskCard(
     val handledElsewhere = everPending && requestId !in pendingIds && !submitted
 
     // 接入 → 中性模型：服务端问题的字段归一到共用提问模型，渲染交给 AskPromptCard
-    val promptQuestions =
-        remember(questions) {
-            questions.map { q ->
-                AskPromptQuestion(
-                    id = q.id,
-                    question = q.prompt,
-                    options = q.options.map { it.label },
-                    selectionType =
-                        when {
-                            q.multi -> "multi"
-                            q.options.isEmpty() -> "text"
-                            else -> "single"
-                        },
-                )
-            }
-        }
+    val promptQuestions = remember(questions) { parseBackendAskQuestions(questions) }
     val answeredLabels =
         answeredLabel
             ?.let { label -> promptQuestions.associate { it.id to label } }
