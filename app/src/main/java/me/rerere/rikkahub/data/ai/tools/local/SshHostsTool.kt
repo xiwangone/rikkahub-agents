@@ -96,6 +96,16 @@ internal sealed interface HostAuthResolution {
     data class Unusable(val reason: String) : HostAuthResolution
 }
 
+/** 跳板解析结果：区分“未配置”（正常）与“配了但不可用”（要带原因，否则只看到连不上）。 */
+internal sealed interface JumpResolution {
+    data class Ready(val spec: JumpSpec) : JumpResolution
+
+    /** 未配置跳板（正常情形，无需报错）。 */
+    object NotConfigured : JumpResolution
+
+    data class Unusable(val reason: String) : JumpResolution
+}
+
 /**
  * 解析主机认证（**带原因**版）。
  *
@@ -451,12 +461,22 @@ fun sshExecSavedTool(
         }
 
         // 跳板解析：主 host 的 jumpHost 名 → 跳板实体 + 凭证。跳板自身不再递归跳板（一层足够）。
-        suspend fun resolveJump(cand: SshHostEntity): JumpSpec? {
-            val jh = cand.jumpHost ?: return null
-            if (jh == cand.name) return null
-            val jEntity = repo.getByName(jh) ?: return null
-            val jAuth = resolveHostAuth(jEntity, vaultRepository) ?: return null
-            return JumpSpec(host = jEntity.host, port = jEntity.port, user = jEntity.user, auth = jAuth)
+        // 跳板解析：区分“没配跳板”（正常）与“配了但不可用”（要报原因，否则只看到连不上）
+        suspend fun resolveJump(cand: SshHostEntity): JumpResolution {
+            val jh = cand.jumpHost?.trim().orEmpty()
+            if (jh.isEmpty()) return JumpResolution.NotConfigured
+            if (jh == cand.name) {
+                return JumpResolution.Unusable("saved host '${cand.name}' 的跳板指向自身（jump_host = $jh）")
+            }
+            val jEntity = repo.getByName(jh)
+                ?: return JumpResolution.Unusable("跳板主机 '$jh' 不存在（list_ssh_hosts 查看可用名）")
+            val jAuth = when (val r = resolveHostAuthDetailed(jEntity, vaultRepository)) {
+                is HostAuthResolution.Ready -> r.auth
+                is HostAuthResolution.Unusable -> return JumpResolution.Unusable(r.reason)
+            }
+            return JumpResolution.Ready(
+                JumpSpec(host = jEntity.host, port = jEntity.port, user = jEntity.user, auth = jAuth),
+            )
         }
 
         // 主 host 参数（用于 background 路径的 detached 包装——命令与 host 无关，取第一候选即可）
@@ -480,7 +500,16 @@ fun sshExecSavedTool(
                     continue
                 }
             }
-            val jumpSpec = resolveJump(cand)
+            val jumpSpec = when (val jr = resolveJump(cand)) {
+                is JumpResolution.Ready -> jr.spec
+                JumpResolution.NotConfigured -> null
+                is JumpResolution.Unusable -> {
+                    // 跳板是配置问题：带原因终止（换 host 也解决不了）
+                    lastError = jr.reason
+                    tried.add(cand.name to "jump_unusable")
+                    continue
+                }
+            }
             val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
                 execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec, extraOptions = cand.sshOptions)
             }
