@@ -985,8 +985,14 @@ internal suspend fun execOneShot(
         sessionRef.set(session)
         AppLog.i(TAG_SSH, "ssh session up via ${outcome.winningLabel ?: "default"} in ${System.currentTimeMillis() - handshakeStart}ms")
         // 平台判定回填：banner 结论落盘，供**后续**同主机的命令包装判定使用
-        // （当次来不及——命令在建连前就已包装好，见 RemotePlatform 注释）
-        runCatching { RemotePlatformStore(context).put(host, port, RemotePlatform.isWindowsServer(session.serverVersion)) }
+        // （当次来不及——命令在建连前就已包装好，见 RemotePlatform 注释）。
+        // ⚠ runInterruptible 的块非 suspend 上下文，故用 runBlocking 包一下：
+        //   写的是一个小 DataStore（毫秒级），且当前已在 IO 线程上。
+        runCatching {
+            kotlinx.coroutines.runBlocking {
+                RemotePlatformStore(context).put(host, port, RemotePlatform.isWindowsServer(session.serverVersion))
+            }
+        }
         try {
             runOnSession(session, command, timeoutMs, stdin)
         } catch (e: Throwable) {
