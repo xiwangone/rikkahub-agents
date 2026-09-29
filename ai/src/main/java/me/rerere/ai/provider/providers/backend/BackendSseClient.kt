@@ -132,7 +132,11 @@ class BackendSseClient(
                         // 维护本地累计（差值补拉的去重基准）；turn_done 视为单 turn 边界，重置累计
                         when (event.kind) {
                             "text" -> event.text?.let { synchronized(lock) { localText.append(it) } }
-                            "reasoning" -> event.reasoning?.let { synchronized(lock) { localReasoning.append(it) } }
+                            // 与 provider 层同源：serve 的 reasoning 帧正文在 text 字段
+                            "reasoning" ->
+                                (event.reasoning ?: event.text)?.let {
+                                    synchronized(lock) { localReasoning.append(it) }
+                                }
                             "turn_done" -> synchronized(lock) {
                                 localText.clear()
                                 localReasoning.clear()
