@@ -431,7 +431,7 @@ class BackendProvider(
 
                 // "message" 是 serve 的消息回显事件（其 text / reasoning 均有独立事件下发），
                 // 不能再当作 Notice 发出：否则同一句正文会被重复渲染成额外的提示块
-                // （2026-09-12 实测：message#2 携带 text，与 kind=text 重复）。
+                // （其 text 与 kind=text 重复）。
                 "message" -> Unit
 
                 "tool_progress" -> {
@@ -537,12 +537,9 @@ class BackendProvider(
     }
 }
 
-// turn_done 后的静默判定窗口：超过该时长无任何事件 → 任务真正完成 → 结束 flow。
-// 取 5s：实测 serve 在任务结束后不再推送（本机抓包验证），15s 会让 UI 收尾/usage
-// 持久化明显滞后；多 turn 任务实测 turn_done→turn_started 为即时连续，
-// 5s 对轮次间隙留足余量又不至于让收尾体感迟钝。
 // turn_done 之后判定「任务真正完成」的静默窗口。
-// 取值不宜过短：多轮任务在 turn 之间可能有短暂的准备期，5s 会误判为完成而提前收尾（表现为「没反应」）。
+// 取值不宜过短：多轮任务在 turn 之间可能有短暂的准备期，过短会误判为完成而提前收尾（表现为「没反应」）。
+// 取值也不宜过长：serve 在任务结束后不再推送事件，窗口过长会让 UI 收尾与用量持久化明显滞后。
 private const val TURN_DONE_IDLE_TIMEOUT_MS = 15_000L
 // 非 turn_done 阶段的整体兜底超时：正常 SSE 流式下事件持续推送，此值仅用于
 // 防止异常场景（连接挂起但无任何事件）无限转圈。补充 runCatching 异常兜底。

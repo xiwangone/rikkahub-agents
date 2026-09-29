@@ -914,7 +914,7 @@ class GenerationLoop(
                                     // 按**请求**累加（与平台账单、会话累计同口径）：一轮里的多步请求各按
                                     // 其**完整** prompt 计费 —— 第 N 步的 prompt 已含前 N-1 步的历史，这是
                                     // 计费口径、不是重复。⚠ 早期实现只累加「相对上一步的增量」，会把前面
-                                    // 各步的 prompt 整段漏掉（实测 input 比平台少约 1/3，且 cached 会反超 prompt）
+                                    // 各步的 prompt 整段漏掉（input 会明显偏少，且 cached 可能反超 prompt）
                                     val stepPromptTokens = incurred.promptTokens.coerceAtLeast(0)
                                     runCtx.promptTokens += stepPromptTokens
                                     runCtx.completionTokens += incurred.completionTokens.coerceAtLeast(0)
@@ -1766,7 +1766,7 @@ class GenerationLoop(
             // **or the conversation runs headless** (a dispatched sub-agent; nobody is watching
             // to hand-edit it) — and the conversation supplies one, it replaces the assistant prompt.
             // 【为何 headless 也算】子代理必须摆脱父助手的系统提示词：父助手那套「每步可见」的
-            // 汇报纪律会污染子代理输出（实测：子代理反复夹带过程叙述）。子代理的宪法/配置提示词
+            // 汇报纪律会污染子代理输出（子代理会反复夹带过程叙述）。子代理的宪法/配置提示词
             // 由 SubAgentEngine 写入会话的 customSystemPrompt；若仍受 allowConversationSystemPrompt
             // （默认 false）这道闸门限制，宪法就只能退化成「任务前缀」，约束不住。
             val allowConversationPrompt = assistant.allowConversationSystemPrompt ||
