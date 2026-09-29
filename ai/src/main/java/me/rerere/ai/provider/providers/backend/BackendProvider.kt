@@ -341,7 +341,9 @@ class BackendProvider(
                 }
 
                 "reasoning" -> {
-                    val r = event.reasoning ?: continue
+                    // serve 的 reasoning 帧把思考正文放在 text 字段（只有收尾的 message 帧
+                    // 才用 reasoning 字段装完整思考）；只读 reasoning 会把思考整段丢掉。
+                    val r = event.reasoning ?: event.text ?: continue
                     if (!reasoningStarted) {
                         emit(StreamChunk.ReasoningStart(id = REASONING_ID))
                         reasoningStarted = true
@@ -417,7 +419,7 @@ class BackendProvider(
 
                 "turn_started" -> emit(StreamChunk.TurnStarted())
 
-                "phase" -> {
+                "phase", "turn_phase" -> {
                     val label = event.detail ?: event.code ?: event.text ?: ""
                     if (label.isNotBlank()) emit(StreamChunk.Phase(label))
                 }
