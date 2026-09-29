@@ -561,7 +561,6 @@
     <ID>TooGenericExceptionCaught:PlayStoreUtil.kt$PlayStoreUtil$e: Exception</ID>
     <ID>TooGenericExceptionCaught:PropertyEditor.kt$e: Exception</ID>
     <ID>TooGenericExceptionCaught:ProviderConfigure.kt$e: Exception</ID>
-    <ID>TooGenericExceptionCaught:ReasonixWebBridge.kt$ReasonixWebBridge$e: Exception</ID>
     <ID>TooGenericExceptionCaught:RequestLoggingInterceptor.kt$RequestLoggingInterceptor$e: Exception</ID>
     <ID>TooGenericExceptionCaught:ResponseAPI.kt$ResponseAPI.&lt;no name provided&gt;$e: Throwable</ID>
     <ID>TooGenericExceptionCaught:RikkaAccessibilityService.kt$RikkaAccessibilityService.&lt;no name provided&gt;$t: Throwable</ID>

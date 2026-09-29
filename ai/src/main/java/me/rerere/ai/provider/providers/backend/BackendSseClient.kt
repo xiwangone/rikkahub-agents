@@ -203,9 +203,9 @@ class BackendSseClient(
     }
 
     /**
-     * 断流补拉：取 /history 最后一条非空 assistant 消息，与本地已渲染累计
-     * 做前缀差值比较——服务端已生成而本地未收到的尾部文本/推理补发为差值事件。
-     * 前缀匹配失败（本地累计已被 turn_done 重置、或内容错位）时不补，保证不重复渲染。
+     * 断流补拉：取 /history 最后一条非空 assistant 消息，与本地已渲染累计做差值比较
+     * ——服务端已生成而本地未收到的尾部文本/推理补发为差值事件。
+     * 差值定位见 [computeBackfillDiff]；定位不到（内容错位）时不补，保证不重复渲染。
      */
     private fun backfill(destination: MutableSharedFlow<SseEvent>) {
         val loader = historyLoader ?: return
@@ -222,17 +222,15 @@ class BackendSseClient(
         val (locText, locReasoning) =
             synchronized(lock) { localText.toString() to localReasoning.toString() }
 
-        // text 差值补发：history 完整文本以本地累计为前缀且更长 → 缺失尾部补发。
+        // text 差值补发：在完整文本里定位本地累计的最后一次出现，补其后的尾部。
         // 二次确认：快照后无新事件推进累计才补，避免与实时流内容重叠造成重复渲染。
         val textDiff =
             synchronized(lock) {
                 val cur = localText.toString()
                 if (cur != locText) {
                     null
-                } else if (hText.length > cur.length && hText.startsWith(cur)) {
-                    hText.substring(cur.length).also { localText.append(it) }
                 } else {
-                    null
+                    computeBackfillDiff(hText, cur)?.also { localText.append(it) }
                 }
             }
         if (!textDiff.isNullOrEmpty()) {
@@ -245,10 +243,8 @@ class BackendSseClient(
                 val cur = localReasoning.toString()
                 if (cur != locReasoning) {
                     null
-                } else if (hReasoning.length > cur.length && hReasoning.startsWith(cur)) {
-                    hReasoning.substring(cur.length).also { localReasoning.append(it) }
                 } else {
-                    null
+                    computeBackfillDiff(hReasoning, cur)?.also { localReasoning.append(it) }
                 }
             }
         if (!reasoningDiff.isNullOrEmpty()) {
@@ -264,4 +260,20 @@ class BackendSseClient(
         }
         return this
     }
+}
+
+/**
+ * 断流补拉的差值定位：在服务端给出的**完整文本**里定位本地累计的最后一次出现，
+ * 返回其后缺失的尾部；定位不到（内容错位）时返回 null——宁可不补，也不重复渲染。
+ *
+ * 不能用前缀判据：/history 的完整文本可能是多个 turn 的拼接，而本地累计在 turn_done
+ * 会重置、只覆盖当前 turn，前缀关系因此并不成立（失配时旧实现静默不补＝漏内容）。
+ */
+internal fun computeBackfillDiff(full: String, local: String): String? {
+    if (full.isBlank()) return null
+    if (local.isEmpty()) return full
+    if (full.length <= local.length) return null
+    val pos = full.lastIndexOf(local)
+    if (pos < 0) return null
+    return full.substring(pos + local.length).ifEmpty { null }
 }

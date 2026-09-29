@@ -8,7 +8,7 @@ import org.junit.Test
 /**
  * serve 推送帧的字段契约。
  *
- * 帧文本取自真实抓取（2026-09-29，`reasonix serve` v1.39.0，/events 原始 SSE），
+ * 帧文本取自接入服务端 /events 的原始 SSE 抓取，
  * 用于固化字段位置：思考正文在 reasoning 帧的 text 字段（不是 reasoning 字段），
  * 完整思考只在收尾的 message 帧的 reasoning 字段出现。
  */
