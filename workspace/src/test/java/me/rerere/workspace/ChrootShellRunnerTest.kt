@@ -23,7 +23,7 @@ class ChrootShellRunnerTest {
         WorkspaceShellContext(
             root = "test",
             command = "echo hi",
-            cwd = linuxDir,
+            cwd = linuxDir.absolutePath,
             filesDir = linuxDir,
             linuxDir = linuxDir,
             tempDir = linuxDir,
