@@ -2883,7 +2883,13 @@ class ChatService(
                 val assistant =
                     conversation?.let { settings.getAssistantById(it.assistantId) }
                         ?: settings.getCurrentAssistant()
-                assistant.findProvider(backends)?.takeIf { it.backendType == "backend" }
+                // 与原生同口径解析当前模型：助手指定优先，否则全局默认
+                val model =
+                    settings.findModelById(
+                        assistant.chatModelId ?: settings.chatModelId,
+                    )
+                // findProvider 返回父类型 ProviderSetting；这里只要 Backend 子类型
+                model?.findProvider(settings.providers) as? me.rerere.ai.provider.ProviderSetting.Backend
             }
         val target = byExecution ?: byModel ?: return
         runCatching {
