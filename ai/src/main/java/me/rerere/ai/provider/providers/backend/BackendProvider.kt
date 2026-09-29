@@ -60,6 +60,7 @@ class BackendProvider(
     constructor(
         cliExecutor: CliCommandExecutor? = null,
         interactionHandler: BackendInteractionHandler = BackendInteractionHandler.NOOP,
+        sessionPathStore: SessionPathStore = SessionPathStore.NOOP,
     ) : this(
         clientFactory = { setting ->
             BackendApi(
@@ -71,6 +72,7 @@ class BackendProvider(
         },
         cliExecutor = cliExecutor,
         interactionHandler = interactionHandler,
+        sessionPathStore = sessionPathStore,
     )
 
     // custom 类型复用 OpenAI 兼容协议（baseUrl + token 作为 apiKey）
@@ -84,8 +86,9 @@ class BackendProvider(
      * 键 = [me.rerere.ai.provider.TextGenerationParams.sessionId]（对话级，即 conversationId）：
      * 新对话（新 id）→ 无映射 → `POST /new`；同一对话续聊 → 命中映射 → `POST /resume {path}`。
      *
-     * ⚠ 本表是**进程内存**：App 重启后丢失，届时旧对话会退化为新建会话。
-     * 需要跨重启续接时，待办 = 把映射随对话记录持久化（路径本就由每条事件带回）。
+     * 本表是进程内缓存（同进程内读取最快）；未命中时回落到 [sessionPathStore]，
+     * 由宿主决定是否跨重启保留 —— 宿主提供持久化实现时，App 重启后同一对话仍能续接，
+     * 否则退化为新建会话。
      */
     private val sessionPaths = java.util.concurrent.ConcurrentHashMap<String, String>()
 
