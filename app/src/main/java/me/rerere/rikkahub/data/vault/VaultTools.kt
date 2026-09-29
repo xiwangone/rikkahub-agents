@@ -16,6 +16,8 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.local.RemotePlatform
+import me.rerere.rikkahub.data.ai.tools.local.withUtf8ConsoleEncoding
 
 /**
  * Vault 凭证工具（App 内 AI 凭证中枢）。
@@ -457,8 +459,10 @@ private suspend fun runVaultSshExec(
             }
         }
 
+        // 平台判定：此处已连上，banner（`OpenSSH_for_Windows…`）当次即准；判不出才回退命令特征。
+        // 命中 Windows 才补 UTF-8 前缀——旧实现完全不包装，PC 中文输出乱码。
         val channel = session.openChannel("exec") as ChannelExec
-        channel.setCommand(command)
+        channel.setCommand(withUtf8ConsoleEncoding(command, RemotePlatform.isWindowsServer(session.serverVersion)))
         channel.connect()
         val deadline = System.currentTimeMillis() + timeout * 1000L
         val outBuf = java.io.ByteArrayOutputStream()

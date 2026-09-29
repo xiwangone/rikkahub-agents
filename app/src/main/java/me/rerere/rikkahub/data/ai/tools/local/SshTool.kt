@@ -185,17 +185,27 @@ private val WINDOWS_CMDLET_REGEX = Regex(
     """(?i)([$]env:|[$]_|[$][?]|\b(Select|Where|ForEach|Measure|Sort|Group|Tee|Out|Write|Read|Get|Set|New|Remove|Copy|Move|Rename|Test|Start|Stop|Restart|Invoke|Add|Clear|Enable|Disable|Export|Import|Join|Split|ConvertTo|ConvertFrom|Wait|Resolve|Format|Show|Update)-[A-Za-z]+)""",
 )
 
+/** UTF-8 输出前缀（Windows/PowerShell 专用）；幂等判据以此常量为唯一依据。 */
+internal const val UTF8_CONSOLE_PREFIX =
+    "[Console]::OutputEncoding=[Text.Encoding]::UTF8; \$OutputEncoding=[Text.Encoding]::UTF8; "
+
 /**
  * 给 Windows/PowerShell 命令补上「输出转 UTF-8」前缀，修中文乱码。
  *
  * 实测（2026-09-10，pwsh 7.7 会话）：远端默认 `[Console]::OutputEncoding` = gb2312，
  * 中文字节流回到 App 按 UTF-8 解码 → 全是 `????`/乱码；命令前加这一句即恢复。
  * `cmd.exe /c …` 之类显式 POSIX/exe 前缀不动（那是另一套代码页，乱码需 chcp，另行处理）。
+ *
+ * @param windows 已知道的远端平台（如 SSH banner 判定结果）；`null` = 未知，退回命令特征判据。
  */
-internal fun withUtf8ConsoleEncoding(command: String): String {
-    if (!looksLikeWindowsCommand(command)) return command
-    if (command.contains("[Console]::OutputEncoding")) return command
-    return "[Console]::OutputEncoding=[Text.Encoding]::UTF8; \$OutputEncoding=[Text.Encoding]::UTF8; " + command
+internal fun withUtf8ConsoleEncoding(command: String, windows: Boolean? = null): String {
+    val isWindows = windows ?: looksLikeWindowsCommand(command)
+    if (!isWindows) return command
+    // 幂等只看**开头**是否已有前缀。旧实现用 `contains("[Console]::OutputEncoding")`：
+    // 命令里只要“提到”该字符串（例如查当前编码）就被整体跳过 → 反而漏包装、中文照旧乱码
+    // （2026-09-29 实测踩到）。
+    if (command.startsWith(UTF8_CONSOLE_PREFIX)) return command
+    return UTF8_CONSOLE_PREFIX + command
 }
 
 /**
