@@ -33,7 +33,6 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ProvideTextStyle
@@ -268,10 +267,40 @@ internal fun BackendAskCard(
     var everPending by remember(requestId) { mutableStateOf(false) }
     LaunchedEffect(pendingIds) { if (requestId in pendingIds) everPending = true }
     var submitted by remember(requestId) { mutableStateOf(false) }
+    var answeredLabel by remember(requestId) { mutableStateOf<String?>(null) }
     var feedback by remember(requestId) { mutableStateOf<String?>(null) }
     val answeredText = stringResource(R.string.backend_ask_submitted)
     val staleText = stringResource(R.string.backend_approval_stale)
     val handledElsewhere = everPending && requestId !in pendingIds && !submitted
+
+    // 接入 → 中性模型：服务端问题的字段归一到共用提问模型，渲染交给 AskPromptCard
+    val promptQuestions =
+        remember(questions) {
+            questions.map { q ->
+                AskPromptQuestion(
+                    id = q.id,
+                    question = q.prompt,
+                    options = q.options.map { it.label },
+                    selectionType =
+                        when {
+                            q.multi -> "multi"
+                            q.options.isEmpty() -> "text"
+                            else -> "single"
+                        },
+                )
+            }
+        }
+    val answeredLabels =
+        answeredLabel
+            ?.let { label -> promptQuestions.associate { it.id to label } }
+            .orEmpty()
+    val status =
+        when {
+            submitted -> AskPromptStatus.Answered
+            handledElsewhere -> AskPromptStatus.Stale
+            else -> AskPromptStatus.Pending
+        }
+
     Surface(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
@@ -285,41 +314,22 @@ internal fun BackendAskCard(
                 text = stringResource(R.string.backend_pending_reply),
                 style = MaterialTheme.typography.labelMedium,
             )
-            questions.forEach { q ->
-                Text(
-                    text = q.prompt,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                if (q.options.isNotEmpty()) {
-                    androidx.compose.foundation.layout.FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        q.options.forEach { opt ->
-                            FilterChip(
-                                selected = feedback == answeredText,
-                                enabled = !submitted,
-                                onClick = {
-                                    submitted = true
-                                    val ok = notifier.answerById(requestId, opt.label)
-                                    if (!ok) onToolAnswer?.invoke(requestId, opt.label)
-                                    feedback = if (ok) answeredText else staleText
-                                },
-                                label = {
-                                    Text(opt.label, style = MaterialTheme.typography.labelSmall)
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-            (feedback ?: if (handledElsewhere) staleText else null)?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            AskPromptCard(
+                questions = promptQuestions,
+                status = status,
+                answeredLabels = answeredLabels,
+                statusText = feedback ?: if (handledElsewhere) staleText else null,
+                // 点选即答：与接入既有交互一致（服务端按单条作答）
+                submitMode = AskPromptSubmitMode.Immediate,
+                onAnswers = { answers ->
+                    val label = answers.values.firstOrNull().orEmpty()
+                    submitted = true
+                    answeredLabel = label
+                    val ok = notifier.answerById(requestId, label)
+                    if (!ok) onToolAnswer?.invoke(requestId, label)
+                    feedback = if (ok) answeredText else staleText
+                },
+            )
         }
     }
 }
