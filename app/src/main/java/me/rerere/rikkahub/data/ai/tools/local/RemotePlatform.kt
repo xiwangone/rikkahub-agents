@@ -19,6 +19,9 @@ internal object RemotePlatform {
     /** 服务端版本串里的 Windows 标识（大小写无关）。 */
     private const val WINDOWS_MARKER = "for_windows"
 
+    /** 缓存键：同一主机大小写/首尾空白差异不应产生两条记录。 */
+    fun cacheKey(host: String, port: Int): String = "${host.trim().lowercase()}:$port"
+
     /** 由服务端版本串判定是否 Windows 远端；无法判定返回 `null`（调用方回退）。 */
     fun isWindowsServer(serverVersion: String?): Boolean? {
         val v = serverVersion?.trim()?.lowercase().orEmpty()

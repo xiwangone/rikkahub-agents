@@ -460,7 +460,9 @@ fun sshExecSavedTool(
         }
 
         // 主 host 参数（用于 background 路径的 detached 包装——命令与 host 无关，取第一候选即可）
-        val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(finalCommand) else (withUtf8ConsoleEncoding(finalCommand) to null)
+        // 平台判定：落盘缓存（banner 结论）优先；此处 h 尚未解析，故单独取一次 host/port
+        val cachedPlatform = repo.getByName(name)?.let { RemotePlatformStore(context).get(it.host, it.port) }
+        val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(finalCommand) else (withUtf8ConsoleEncoding(finalCommand, cachedPlatform) to null)
         val effectiveCommand = detachedCmd
 
         var lastError: String? = null
