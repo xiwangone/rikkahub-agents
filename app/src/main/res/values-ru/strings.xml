@@ -3279,7 +3279,7 @@
   <string name="workspace_detail_compatibility_mode">Режим совместимости</string>
   <string name="workspace_detail_chroot">бэкенд chroot (эксперимент)</string>
   <string name="workspace_detail_chroot_desc">Требуется root-устройство; при включении shell работает через chroot, при отсутствии поддержки команды завершатся ошибкой, выключение возвращает прежний режим.</string>
-  <string name="workspace_detail_chroot_confirm">После включения команды AI выполняются с пониженными правами внутри chroot (эксперимент, root-устройство).</string>
+  <string name="workspace_detail_chroot_confirm">После включения команды AI выполняются внутри chroot (эксперимент, root-устройство).</string>
   <string name="workspace_detail_compatibility_mode_desc">Попробуйте включить это, если терминал не запускается. Это может снизить производительность. Применяется к новым вкладкам терминала и последующим командам.</string>
   <string name="workspace_detail_settings_save_failed">Не удалось сохранить настройки</string>
   <string name="workspace_detail_chroot_need_root">Для chroot нужны права root: su недоступен на этом устройстве. Выдайте приложению root-доступ в менеджере (например, Magisk) и повторите попытку.</string>

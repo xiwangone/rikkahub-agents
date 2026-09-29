@@ -3281,7 +3281,7 @@
   <string name="workspace_detail_compatibility_mode">وضع التوافق</string>
   <string name="workspace_detail_chroot">خلفية chroot (تجريبي)</string>
   <string name="workspace_detail_chroot_desc">يتطلب جهازاً به root؛ عند التفعيل يعمل shell عبر chroot، وإذا لم يكن مدعوماً تفشل الأوامر، والإيقاف يعيد الوضع السابق.</string>
-  <string name="workspace_detail_chroot_confirm">عند التفعيل تنفَّذ أوامر الذكاء الاصطناعي بصلاحيات مخفَّضة داخل chroot (ميزة تجريبية، جهاز به root).</string>
+  <string name="workspace_detail_chroot_confirm">عند التفعيل تنفَّذ أوامر الذكاء الاصطناعي داخل chroot (ميزة تجريبية، جهاز به root).</string>
   <string name="workspace_detail_compatibility_mode_desc">جرّب تفعيل هذا الخيار إذا فشل تشغيل الطرفية. قد يقلل من الأداء. ينطبق على علامات التبويب الجديدة والأوامر اللاحقة.</string>
   <string name="workspace_detail_settings_save_failed">تعذّر حفظ الإعدادات</string>
   <string name="workspace_detail_chroot_need_root">يتطلب chroot صلاحيات root: لا يتوفر su على هذا الجهاز. امنح هذا التطبيق صلاحية root في مدير الروت (مثل Magisk) ثم أعد المحاولة.</string>

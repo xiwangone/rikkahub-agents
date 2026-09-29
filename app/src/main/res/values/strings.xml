@@ -3322,7 +3322,7 @@
   <string name="workspace_detail_compatibility_mode">Compatibility mode</string>
   <string name="workspace_detail_chroot">chroot backend (experimental)</string>
   <string name="workspace_detail_chroot_desc">Requires a rooted device; shell runs via chroot when on, commands error out if unsupported, toggling off falls back.</string>
-  <string name="workspace_detail_chroot_confirm">AI commands will run unprivileged inside chroot (experimental, rooted device).</string>
+  <string name="workspace_detail_chroot_confirm">AI commands will run inside chroot (experimental, rooted device).</string>
   <string name="workspace_detail_compatibility_mode_desc">Try enabling this if the terminal fails to start. It may reduce performance. Applies to new terminal tabs and subsequent commands.</string>
   <string name="workspace_detail_settings_save_failed">Failed to save settings</string>
   <string name="workspace_detail_chroot_need_root">Chroot requires root: su is not available on this device. Grant this app root access in your root manager (e.g. Magisk) and retry.</string>
