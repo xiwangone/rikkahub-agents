@@ -498,10 +498,14 @@ class BackendProvider(
         }
     }
 
+    /**
+     * 拉不到模型列表时的兜底占位：不绑定具体模型实现 —— 实际用哪个模型由服务端决定，
+     * 这里只提供一个中性可选项，供配置页与消息记录使用。
+     */
     private fun defaultModel(): Model =
         Model(
-            modelId = "deepseek-v4-flash",
-            displayName = "DeepSeek V4 Flash (default)",
+            modelId = "default",
+            displayName = "Default (server-side)",
             type = ModelType.CHAT,
             abilities = listOf(ModelAbility.TOOL, ModelAbility.REASONING),
         )
