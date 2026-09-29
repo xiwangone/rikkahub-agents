@@ -680,7 +680,7 @@ private suspend fun runOnHostOnce(
     val session = try {
         openSshSession(newJSch(context), h.host, h.port, targetUser, auth, timeoutMs, extraOptions = h.sshOptions)
     } catch (e: Throwable) {
-        return buildJsonObject { put("error", "connect failed: ${e.message ?: \"unknown\"}") }
+        return buildJsonObject { put("error", "connect failed: ${e.message ?: "unknown"}") }
     }
     return try {
         runOnSession(session, command, timeoutMs, null)
