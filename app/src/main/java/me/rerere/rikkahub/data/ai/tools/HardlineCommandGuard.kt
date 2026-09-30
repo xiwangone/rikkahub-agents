@@ -74,6 +74,13 @@ object HardlineCommandGuard {
 
     /** (regex, human-readable reason) pairs. Reason is surfaced in the block envelope. */
     private val PATTERNS: List<Pair<Regex, String>> = listOf(
+        // 沙箱挂载点（workspace_shell 的执行环境）：只拦「根本身 / 根级通配子树」，
+        // 不拦其子目录 —— `rm -rf /workspace/tmp/x` 是日常清理，误伤代价大于收益。
+        Regex(
+            "\\brm\\s+(-[^\\s]*\\s+)*(/workspace|/workspace/\\*|/workspace/\\s*\\*|/workspace/|" +
+                "/skills|/skills/\\*|/skills/\\s*\\*|/skills/)" + PATH_END,
+            IGNORE_CASE,
+        ) to "delete the workspace/skills root",
         // rm -rf the root filesystem, system dirs (incl. descendants), or HOME
         Regex("\\brm\\s+(-[^\\s]*\\s+)*(/|/\\*|/\\s*\\*)" + PATH_END, IGNORE_CASE) to
             "recursive delete of root filesystem",
@@ -171,7 +178,10 @@ object HardlineCommandGuard {
             }
             toolName == "ssh_exec" || toolName == "ssh_exec_saved" ->
                 checkCommand(input["command"]?.jsonPrimitive?.contentOrNull)
-            toolName == "shizuku_exec" -> {
+            // 设备侧 shell 与沙箱工作区 shell 同构（单命令或 commands 批量），同一档检查。
+            // workspace_shell 此前漏挂：命令虽跑在沙箱内，但 /workspace 是全部资产
+            // （仓库 / 文档 / 技能快照）的挂载点，破坏性与设备侧同量级 → 对应的根路径规则见 PATTERNS。
+            toolName == "shizuku_exec" || toolName == "workspace_shell" -> {
                 val single = input["command"]?.jsonPrimitive?.contentOrNull
                 single?.let { checkCommand(it) }?.let { return it }
                 input["commands"]?.jsonArray
