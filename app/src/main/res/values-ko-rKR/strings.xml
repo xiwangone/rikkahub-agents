@@ -3386,4 +3386,11 @@
   <string name="network_cidr_presets_title">자주 쓰는 네트워크</string>
   <string name="network_cidr_presets_save">현재 값 저장</string>
   <string name="network_cidr_presets_remove">이 프리셋 삭제</string>
+  <string name="chart_mode_chart">차트</string>
+  <string name="chart_mode_table">표</string>
+  <string name="chart_series">시리즈</string>
+  <string name="chart_series_name">시리즈 %1$d</string>
+  <string name="chat_message_tool_chart_display">차트 표시</string>
+  <string name="chat_message_tool_chart_display_with_title">차트 표시: %1$s</string>
+  <string name="mcp_tool_chart_display">차트 표시</string>
 </resources>

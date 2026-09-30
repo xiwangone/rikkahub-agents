@@ -3386,4 +3386,11 @@
   <string name="network_cidr_presets_title">よく使うネットワーク</string>
   <string name="network_cidr_presets_save">現在の値を保存</string>
   <string name="network_cidr_presets_remove">このプリセットを削除</string>
+  <string name="chart_mode_chart">グラフ</string>
+  <string name="chart_mode_table">表</string>
+  <string name="chart_series">系列</string>
+  <string name="chart_series_name">系列 %1$d</string>
+  <string name="chat_message_tool_chart_display">グラフを表示</string>
+  <string name="chat_message_tool_chart_display_with_title">グラフを表示: %1$s</string>
+  <string name="mcp_tool_chart_display">グラフ表示</string>
 </resources>

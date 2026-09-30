@@ -3385,4 +3385,11 @@
   <string name="network_cidr_presets_title">常用網段</string>
   <string name="network_cidr_presets_save">儲存目前</string>
   <string name="network_cidr_presets_remove">刪除此常用網段</string>
+  <string name="chart_mode_chart">圖表</string>
+  <string name="chart_mode_table">表格</string>
+  <string name="chart_series">數列</string>
+  <string name="chart_series_name">數列 %1$d</string>
+  <string name="chat_message_tool_chart_display">顯示圖表</string>
+  <string name="chat_message_tool_chart_display_with_title">顯示圖表：%1$s</string>
+  <string name="mcp_tool_chart_display">圖表顯示</string>
 </resources>

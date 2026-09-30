@@ -83,6 +83,8 @@ import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
+import me.rerere.rikkahub.ui.components.charts.ChartCard
+import me.rerere.rikkahub.ui.components.charts.ChartSpec
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
@@ -419,6 +421,11 @@ private fun MessagePartsBlock(
                         }
                     }
                 }
+            }
+
+            is MessagePartBlock.ChartBlock -> key(block.index) {
+                val spec = remember(block.tool.input) { ChartSpec.fromJson(block.tool.inputAsJson()) }
+                spec?.let { ChartCard(spec = it) }
             }
 
             is MessagePartBlock.ContentBlock -> {

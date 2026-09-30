@@ -37,6 +37,7 @@ import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.ai.tools.local.CameraResultBuffer
 import me.rerere.rikkahub.data.ai.tools.local.InteractiveToolStreamer
 import me.rerere.rikkahub.data.ai.tools.local.AccessibilityServiceHandle
+import me.rerere.rikkahub.data.ai.tools.local.buildChartDisplayTool
 import me.rerere.rikkahub.data.ai.tools.local.buildJavascriptTool
 import me.rerere.rikkahub.data.ai.tools.local.deviceInfoTool
 import me.rerere.rikkahub.data.ai.tools.local.diagnosticsTool
@@ -203,6 +204,7 @@ sealed class LocalToolOption {
     @Serializable @SerialName("system_intents")      data object SystemIntents      : LocalToolOption()
     @Serializable @SerialName("browser")             data object Browser            : LocalToolOption()
     @Serializable @SerialName("web_fetch")           data object WebFetch           : LocalToolOption()
+    @Serializable @SerialName("chart_display")       data object ChartDisplay       : LocalToolOption()
 
     // Phase 25 — Phase 3 second cut + ExternalStorage + Archive.
     @Serializable @SerialName("sms_send")             data object SmsSend             : LocalToolOption()
@@ -1198,6 +1200,11 @@ class LocalTools(
         if (enabled(LocalToolOption.WebFetch)) {
             // Lightweight HTTP GET/POST (item 1.2) — backed by the shared OkHttp singleton.
             tools.add(webFetchTool(okHttpClient))
+        }
+        if (enabled(LocalToolOption.ChartDisplay)) {
+            // Renders line/bar/scatter charts inside the chat; validation happens in the tool,
+            // the UI parses tool input via ChartSpec.fromJson.
+            tools.add(buildChartDisplayTool())
         }
         // Phase 25 — Phase 3 second cut + ExternalStorage + Archive.
         if (enabled(LocalToolOption.SmsSend)) {

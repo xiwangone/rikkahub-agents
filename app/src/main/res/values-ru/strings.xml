@@ -3386,4 +3386,11 @@
   <string name="network_cidr_presets_title">Частые сети</string>
   <string name="network_cidr_presets_save">Сохранить текущее</string>
   <string name="network_cidr_presets_remove">Удалить сохранённую сеть</string>
+  <string name="chart_mode_chart">График</string>
+  <string name="chart_mode_table">Таблица</string>
+  <string name="chart_series">Серия</string>
+  <string name="chart_series_name">Серия %1$d</string>
+  <string name="chat_message_tool_chart_display">Показать график</string>
+  <string name="chat_message_tool_chart_display_with_title">Показать график: %1$s</string>
+  <string name="mcp_tool_chart_display">Отображение графика</string>
 </resources>

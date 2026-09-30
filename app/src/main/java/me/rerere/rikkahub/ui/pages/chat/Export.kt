@@ -91,6 +91,8 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.ui.components.charts.ChartCard
+import me.rerere.rikkahub.ui.components.charts.ChartSpec
 import me.rerere.rikkahub.ui.components.message.MessagePartBlock
 import me.rerere.rikkahub.ui.components.message.ThinkingStep
 import me.rerere.rikkahub.ui.components.message.groupMessageParts
@@ -680,6 +682,11 @@ private fun ExportedChatMessage(
                                 }
                             }
                         }
+                    }
+
+                    is MessagePartBlock.ChartBlock -> {
+                        val spec = remember(block.tool.input) { ChartSpec.fromJson(block.tool.inputAsJson()) }
+                        spec?.let { ChartCard(spec = it) }
                     }
 
                     is MessagePartBlock.ContentBlock -> {

@@ -2338,6 +2338,12 @@
   <string name="assistant_page_local_tools_calendar_desc">Let the AI query and create calendar events</string>
   <string name="chat_message_tool_calendar_query">Query calendar events</string>
   <string name="chat_message_tool_calendar_create">Create event: %1$s</string>
+  <string name="chat_message_tool_chart_display">Display chart</string>
+  <string name="chat_message_tool_chart_display_with_title">Display chart: %1$s</string>
+  <string name="chart_mode_chart">Chart</string>
+  <string name="chart_mode_table">Table</string>
+  <string name="chart_series">Series</string>
+  <string name="chart_series_name">Series %1$d</string>
   <string name="chat_page_move_to_folder">Move to Folder</string>
   <string name="chat_page_remove_from_folder">Remove from Folder</string>
   <string name="chat_page_create_folder">New Folder</string>
@@ -3154,6 +3160,7 @@
   <string name="mcp_tool_system_intents">System intents</string>
   <string name="mcp_tool_browser">Browser</string>
   <string name="mcp_tool_web_fetch">Web fetch</string>
+  <string name="mcp_tool_chart_display">Chart display</string>
   <string name="mcp_tool_sms_send">Send SMS</string>
   <string name="mcp_tool_wallpaper">Wallpaper</string>
   <string name="mcp_tool_keystore">Keystore</string>

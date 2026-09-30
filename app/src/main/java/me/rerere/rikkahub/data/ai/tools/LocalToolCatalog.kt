@@ -111,6 +111,7 @@ object LocalToolCatalog {
                 listOf(
                     LocalToolOption.Browser,
                     LocalToolOption.WebFetch,
+                    LocalToolOption.ChartDisplay,
                     LocalToolOption.JavascriptEngine,
                     LocalToolOption.TimeInfo,
                     LocalToolOption.AskUser,
@@ -202,6 +203,7 @@ object LocalToolCatalog {
             LocalToolOption.SystemIntents -> R.string.mcp_tool_system_intents
             LocalToolOption.Browser -> R.string.mcp_tool_browser
             LocalToolOption.WebFetch -> R.string.mcp_tool_web_fetch
+            LocalToolOption.ChartDisplay -> R.string.mcp_tool_chart_display
             LocalToolOption.SmsSend -> R.string.mcp_tool_sms_send
             LocalToolOption.Wallpaper -> R.string.mcp_tool_wallpaper
             LocalToolOption.Keystore -> R.string.mcp_tool_keystore

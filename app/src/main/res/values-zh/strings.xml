@@ -2191,6 +2191,12 @@
   <string name="assistant_page_local_tools_calendar_desc">让AI查询和创建日历事件</string>
   <string name="chat_message_tool_calendar_query">查询日历事件</string>
   <string name="chat_message_tool_calendar_create">创建事件: %1$s</string>
+  <string name="chat_message_tool_chart_display">显示图表</string>
+  <string name="chat_message_tool_chart_display_with_title">显示图表：%1$s</string>
+  <string name="chart_mode_chart">图表</string>
+  <string name="chart_mode_table">表格</string>
+  <string name="chart_series">系列</string>
+  <string name="chart_series_name">系列 %1$d</string>
   <string name="chat_page_move_to_folder">移动到文件夹</string>
   <string name="chat_page_remove_from_folder">移出文件夹</string>
   <string name="chat_page_create_folder">新建文件夹</string>
@@ -3154,6 +3160,7 @@
   <string name="mcp_tool_system_intents">系统意图</string>
   <string name="mcp_tool_browser">浏览器</string>
   <string name="mcp_tool_web_fetch">网页抓取</string>
+  <string name="mcp_tool_chart_display">图表显示</string>
   <string name="mcp_tool_sms_send">发送短信</string>
   <string name="mcp_tool_wallpaper">壁纸</string>
   <string name="mcp_tool_keystore">硬件密钥库</string>
