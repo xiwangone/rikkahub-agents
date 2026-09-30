@@ -24,6 +24,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import me.rerere.common.http.await
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.utils.isBindAvailable
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -97,6 +98,8 @@ class GeminiOAuthManager(
         callbackPort?.let { return it }
         var lastError: Throwable? = null
         for (port in CALLBACK_PORTS) {
+            // 与引擎同语义预检：端口不可用就换下一个，不让 BindException 抛在引擎协程里
+            if (!isBindAvailable(port)) continue
             try {
                 server = embeddedServer(CIO, host = "127.0.0.1", port = port) {
                     routing {

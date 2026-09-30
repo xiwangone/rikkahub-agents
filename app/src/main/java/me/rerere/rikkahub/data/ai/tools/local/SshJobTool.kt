@@ -53,10 +53,10 @@ fun sshJobPollTool(
             ?: return@Tool listOf(UIMessagePart.Text(
                 buildJsonObject { put("error", "no saved host: $name") }.toString()
             ))
-        val auth = resolveHostAuth(h, vaultRepository)
-        if (auth == null) {
-            return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "saved host has no usable credentials") }.toString()
+        val auth = when (val r = resolveHostAuthDetailed(h, vaultRepository)) {
+            is HostAuthResolution.Ready -> r.auth
+            is HostAuthResolution.Unusable -> return@Tool listOf(UIMessagePart.Text(
+                buildJsonObject { put("error", r.reason) }.toString()
             ))
         }
         val isWindows = (logPath?.startsWith("C:") == true) ||

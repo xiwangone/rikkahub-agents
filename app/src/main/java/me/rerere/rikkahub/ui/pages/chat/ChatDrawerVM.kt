@@ -264,7 +264,7 @@ class ChatDrawerVM(
                 .getConversationsOfAssistant(assistantId)
                 .first()
                 .filter { it.isSubAgentRun && it.id !in exclude }
-        targets.forEach { conversationRepo.deleteConversation(it) }
+        targets.forEach { chatService.deleteConversation(it.id) }
         return targets.size
     }
 

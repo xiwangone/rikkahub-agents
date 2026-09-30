@@ -76,8 +76,8 @@ object ToolSurfacePolicy {
             "read_file", "write_text_file", "list_files", "find_files",
             // 凭证
             "vault_http_exec", "vault_export_env", "vault_credential_names",
-            // vault_ssh_exec 实测 79 次、排第 6 高频（xEdge 不可达时是连 PC 的主力备用通道），
-            // 属高频而非低频，故留在热档：每会话首次调用都要多一次 get_tool_schema 往返。
+            // vault_ssh_exec 实测调用频次排第 6，属高频而非低频，故留在热档：
+            // 移到冷档会让每会话首次调用都多一次 schema 往返。
             "vault_ssh_exec",
             // 设备与诊断
             "device_info", "diagnostics",

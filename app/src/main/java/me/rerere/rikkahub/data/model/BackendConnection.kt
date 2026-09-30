@@ -6,7 +6,8 @@ import kotlinx.serialization.Serializable
  * 后端连接（通用化——backend/SSH/自定义统一模型）。
  *
  * 2026-08-14：backend 从「模型提供商」改为「后端连接」——可保存/切换/删除。
- * 对话页 executionBackend 引用 [id]；local 为内置默认。
+ * 对话执行后端：[id] 引用一个 provider（[ProviderSetting.Backend]）；`local` 为内置默认（不指定，跟随模型自身 provider）。
+ * 存储位置：全局设置（`PreferencesStore.EXECUTION_BACKEND`，默认 `local`）——不是对话级字段。
  */
 @Serializable
 data class BackendConnection(

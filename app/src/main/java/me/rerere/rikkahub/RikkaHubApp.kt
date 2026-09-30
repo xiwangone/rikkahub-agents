@@ -43,6 +43,7 @@ import org.koin.android.ext.android.get
 import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.androidx.workmanager.koin.workManagerFactory
+import me.rerere.rikkahub.service.debug.DebugApiManager
 import org.koin.core.context.startKoin
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.ImportedDatabaseReconciler
@@ -90,6 +91,9 @@ class RikkaHubApp : Application() {
             modules(appModule, viewModelModule, dataSourceModule, repositoryModule)
         }
         this.createNotificationChannel()
+
+        // AI 调试接口（实验性，默认关）：构造即拉起 DataStore collector，enabled 时自动恢复服务
+        get<DebugApiManager>()
 
         // ---- 数据库启动自检（2026-09-25）----
         // 迁移失败（例如导入的库已带新列 → duplicate column）会让 Room 首次打开就抛异常，

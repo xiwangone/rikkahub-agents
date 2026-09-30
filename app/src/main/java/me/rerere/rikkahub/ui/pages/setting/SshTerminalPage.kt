@@ -34,7 +34,8 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuth
+import me.rerere.rikkahub.data.ai.tools.local.HostAuthResolution
+import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuthDetailed
 import androidx.compose.ui.res.stringResource
 import me.rerere.rikkahub.data.ai.tools.local.newJSch
 import me.rerere.rikkahub.data.ai.tools.local.SshAuth
@@ -63,8 +64,14 @@ fun SshTerminalPage(hostName: String) {
             val host = hostRepo.getByName(hostName)
             AppLog.w("SshTerm", "connect: host not found $hostName")
             if (host == null) { connectError = appContext.getString(R.string.ssh_terminal_host_not_found, hostName); return@withContext }
-            val auth = resolveHostAuth(host, vaultRepo)
-            AppLog.w("SshTerm", "connect: no credential for $hostName (vaultRef=${host.vaultCredentialRef ?: "none"})")
+            // 带原因解析：日志能区分“名字不存在/解不开/未授权”。
+            // （旧版那行日志在判定**之前**就打印“no credential”，属误导，故一并修正）
+            val authResolution = resolveHostAuthDetailed(host, vaultRepo)
+            val auth = (authResolution as? HostAuthResolution.Ready)?.auth
+            AppLog.w(
+                "SshTerm",
+                "connect: $hostName → " + ((authResolution as? HostAuthResolution.Unusable)?.reason ?: "credential ok"),
+            )
             if (auth == null) { connectError = appContext.getString(R.string.ssh_terminal_no_credential, host.vaultCredentialRef ?: "none"); return@withContext }
             try {
                 val jsch = newJSch(appContext)

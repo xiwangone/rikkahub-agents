@@ -914,7 +914,7 @@ class GenerationLoop(
                                     // 按**请求**累加（与平台账单、会话累计同口径）：一轮里的多步请求各按
                                     // 其**完整** prompt 计费 —— 第 N 步的 prompt 已含前 N-1 步的历史，这是
                                     // 计费口径、不是重复。⚠ 早期实现只累加「相对上一步的增量」，会把前面
-                                    // 各步的 prompt 整段漏掉（实测 input 比平台少约 1/3，且 cached 会反超 prompt）
+                                    // 各步的 prompt 整段漏掉（input 会明显偏少，且 cached 可能反超 prompt）
                                     val stepPromptTokens = incurred.promptTokens.coerceAtLeast(0)
                                     runCtx.promptTokens += stepPromptTokens
                                     runCtx.completionTokens += incurred.completionTokens.coerceAtLeast(0)
@@ -1494,11 +1494,13 @@ class GenerationLoop(
                             val hasShellAccess = toolsInternal.any { it.name == "workspace_shell" }
                             // 本地独有：工具结果写回前做凭证脱敏（SecretMasker 掩码），避免密钥进上下文
                             val maskedResult = maskToolOutput(result)
-                            executedTools += markedTool.copy(
-                                output = maybeTruncateToolOutput(
-                                    tool.toolCallId,
-                                    maskedResult,
-                                    hasShellAccess,
+                            executedTools +=
+                                markedTool.copy(
+                                    output =
+                                        maybeTruncateToolOutput(
+                                            tool.toolCallId,
+                                            appendApprovalProvenance(maskedResult, markedTool.approvalState),
+                                            hasShellAccess,
                                     // 摘要名单与紧凑名单都按紧凑阈值触发落盘（摘要的处理结果更小）
                                     if (tool.toolName in assistant.toolOutputCompactTools ||
                                         tool.toolName in assistant.toolOutputDigestTools
@@ -1764,7 +1766,7 @@ class GenerationLoop(
             // **or the conversation runs headless** (a dispatched sub-agent; nobody is watching
             // to hand-edit it) — and the conversation supplies one, it replaces the assistant prompt.
             // 【为何 headless 也算】子代理必须摆脱父助手的系统提示词：父助手那套「每步可见」的
-            // 汇报纪律会污染子代理输出（实测：子代理反复夹带过程叙述）。子代理的宪法/配置提示词
+            // 汇报纪律会污染子代理输出（子代理会反复夹带过程叙述）。子代理的宪法/配置提示词
             // 由 SubAgentEngine 写入会话的 customSystemPrompt；若仍受 allowConversationSystemPrompt
             // （默认 false）这道闸门限制，宪法就只能退化成「任务前缀」，约束不住。
             val allowConversationPrompt = assistant.allowConversationSystemPrompt ||
@@ -1878,7 +1880,7 @@ class GenerationLoop(
                 providerSetting = provider,
                 messages = internalMessages,
                 params = params
-            ).onCompletion { cause ->
+            ).withIdleWatchdog().onCompletion { cause ->
                 // 流终止（正常/异常/取消）：先补齐合并窗口内未应用的分块，
                 // 再走下面的传输失败判定，避免尾部内容丢失
                 if (pendingStreamChunks.isNotEmpty()) {
@@ -2172,6 +2174,38 @@ class GenerationLoop(
             } else {
                 part
             }
+        }
+    }
+}
+
+/**
+ * 给工具结果追加**审批来源**标记，让模型能区分「用户点了批准」与「自动批准」。
+ *
+ * `approvalState` 只存在消息 part 上，而发给模型的内容只有 output 文本；不加标记时模型
+ * 无法得知本次调用是否经过人工审批。标记追加在最后一个文本块末尾，不改动原有内容，
+ * 非文本 part（图片等）原样保留。
+ */
+internal fun appendApprovalProvenance(
+    parts: List<UIMessagePart>,
+    approvalState: ToolApprovalState,
+): List<UIMessagePart> {
+    val marker =
+        when (approvalState) {
+            ToolApprovalState.Auto -> "[approval: auto]"
+            ToolApprovalState.Approved -> "[approval: approved-by-user]"
+            ToolApprovalState.Pending -> "[approval: pending]"
+            is ToolApprovalState.Denied -> "[approval: denied-by-user]"
+            is ToolApprovalState.Answered -> "[approval: answered-by-user]"
+        }
+    // 追加到最后一个文本块，避免多段文本时中间插入打断阅读
+    val lastTextIndex = parts.indexOfLast { it is UIMessagePart.Text }
+    if (lastTextIndex < 0) return parts
+    return parts.mapIndexed { index, part ->
+        if (index == lastTextIndex && part is UIMessagePart.Text) {
+            val separator = if (part.text.isEmpty() || part.text.endsWith("\n")) "" else "\n"
+            UIMessagePart.Text(text = part.text + separator + marker, metadata = part.metadata)
+        } else {
+            part
         }
     }
 }

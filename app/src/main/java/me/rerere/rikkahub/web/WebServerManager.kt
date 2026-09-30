@@ -18,8 +18,8 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.utils.isBindAvailable
 import me.rerere.rikkahub.web.startWebServer
-import java.net.ServerSocket
 
 private const val TAG = "WebServerManager"
 private const val HOST_ALL_INTERFACES = "0.0.0.0"
@@ -88,7 +88,7 @@ class WebServerManager(
             try {
                 _state.value = _state.value.copy(isLoading = true, startId = startId)
                 AppLog.i(TAG, "Starting web server on $host:$port")
-                if (!isPortAvailable(port)) {
+                if (!isBindAvailable(port, host)) {
                     AppLog.w(TAG, "Port $port is already in use")
                     _state.value = baseState.copy(error = "Port $port is already in use")
                     return@launch
@@ -166,13 +166,5 @@ class WebServerManager(
     ) {
         stop()
         start(port, serviceName, localhostOnly)
-    }
-
-    private fun isPortAvailable(port: Int): Boolean {
-        return try {
-            ServerSocket(port).use { true }
-        } catch (e: Exception) {
-            false
-        }
     }
 }

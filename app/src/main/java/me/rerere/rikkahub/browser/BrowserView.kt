@@ -32,6 +32,7 @@ import java.io.File
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.data.files.FileFolders
 
 /**
  * Top-level Compose root for [BrowserActivity]. Lays out:
@@ -195,6 +196,10 @@ private fun WebViewHost(
                     request: WebResourceRequest?,
                 ): WebResourceResponse? {
                     BrowserAudit.maybeRecordRequest(request, origin = "foreground")
+                    // 资源层白名单：只放行技能目录内的 file://（详见 isLocalFileRequestAllowed 注释）
+                    if (!isLocalFileRequestAllowed(request?.url, File(ctx.filesDir, FileFolders.SKILLS))) {
+                        return localFileForbiddenResponse(request?.url)
+                    }
                     return super.shouldInterceptRequest(view, request)
                 }
 

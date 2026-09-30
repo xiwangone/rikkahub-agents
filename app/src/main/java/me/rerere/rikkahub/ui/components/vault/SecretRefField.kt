@@ -48,7 +48,7 @@ private const val REF_PREFIX = "\$\$"
 fun SecretRefField(
     value: String,
     onValueChange: (String) -> Unit,
-    label: String,
+    label: String? = null,
     modifier: Modifier = Modifier,
     description: String? = null,
     /** "粘贴即入库"时的默认命名依据（如 provider 名）；会被规范化成合法名。 */
@@ -93,7 +93,7 @@ fun SecretRefField(
             onValueChange(it)
             notice = null
         },
-        label = { Text(label) },
+        label = label?.let { text -> { Text(text) } },
         placeholder = { Text(placeholder ?: stringResource(R.string.vault_ref_hint)) },
         supportingText = {
             val hint = notice
@@ -129,7 +129,15 @@ fun SecretRefField(
                             busy = true
                             scope.launch {
                                 runCatching {
-                                    repository.quickImport(rawValue = value, preferredName = nameHint)
+                                    repository.quickImport(
+                                        rawValue = value,
+                                        preferredName = nameHint,
+                                        // 自动带描述：优先字段自带的说明文案，其次标签，最后退回命名依据 ——
+                                        // 避免库里只剩一个光名字（用户日后认不出这条是干嘛的）。
+                                        description = description?.takeIf { it.isNotBlank() }
+                                            ?: label?.takeIf { it.isNotBlank() }
+                                            ?: nameHint,
+                                    )
                                 }.onSuccess { r ->
                                     onValueChange(REF_PREFIX + r.name)
                                     // 复用已有条目时用不同符号，让用户知道没有产生重复

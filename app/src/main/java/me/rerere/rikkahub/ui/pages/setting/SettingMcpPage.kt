@@ -127,6 +127,9 @@ import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.writeClipboardText
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.data.vault.CredentialType
 
 @Composable
 fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
@@ -280,6 +283,8 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
     if (showProfileDialog) {
         LocalMcpProfileModal(
             initial = editingProfile,
+            presets = settings.networkCidrPresets,
+            onPresetsChange = { presets -> vm.updateSettings(settings.copy(networkCidrPresets = presets)) },
             onConfirm = { p ->
                 val cur = settings.localMcpProfiles
                 val updated =
@@ -365,6 +370,8 @@ private fun LocalMcpProfileModal(
     initial: LocalMcpProfile?,
     onConfirm: (LocalMcpProfile) -> Unit,
     onDismiss: () -> Unit,
+    presets: List<String>,
+    onPresetsChange: (List<String>) -> Unit,
 ) {
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var port by remember { mutableStateOf(initial?.port?.toString() ?: "8788") }
@@ -397,19 +404,22 @@ private fun LocalMcpProfileModal(
                         Text(label, style = MaterialTheme.typography.bodySmall)
                     }
                 }
-                OutlinedTextField(
+                NetworkAccessField(
                     value = allowedNetworks,
                     onValueChange = { allowedNetworks = it },
-                    label = { Text(stringResource(R.string.net_allowed_networks)) },
-                    supportingText = { Text(stringResource(R.string.net_allowed_networks_desc)) },
-                    singleLine = true,
+                    presets = presets,
+                    onPresetsChange = onPresetsChange,
+                    label = stringResource(R.string.net_allowed_networks),
+                    supportingText = stringResource(R.string.net_allowed_networks_desc),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                SecretRefField(
                     value = authTokenRef,
                     onValueChange = { authTokenRef = it },
-                    label = { Text(stringResource(R.string.mcp_auth_token_ref)) },
-                    supportingText = { Text(stringResource(R.string.mcp_auth_token_ref_desc)) },
+                    label = stringResource(R.string.mcp_auth_token_ref),
+                    description = stringResource(R.string.mcp_auth_token_ref_desc),
+                    nameHint = "MCP_AUTH_TOKEN",
+                    typeHint = CredentialType.API_KEY,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )

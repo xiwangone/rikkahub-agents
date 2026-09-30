@@ -27,13 +27,32 @@ data class DnsProbeResult(
  */
 object DnsProbe {
 
-    /** DNS servers of the active network — the system resolver's actual upstream. */
+    /** Well-known public resolvers probed alongside the system's own. */
+    val PUBLIC_SERVERS = listOf(
+        "223.5.5.5", // AliDNS
+        "119.29.29.29", // DNSPod
+        "114.114.114.114", // 114DNS
+        "8.8.8.8", // Google
+        "1.1.1.1", // Cloudflare
+    )
+
+    /**
+     * DNS servers of the active network — the system resolver's actual upstream.
+     * VPN networks often expose none; fall back to scanning all networks.
+     */
     fun activeServers(context: Context): List<String> {
         val cm =
             context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager
                 ?: return emptyList()
-        val network = cm.activeNetwork ?: return emptyList()
-        return cm.getLinkProperties(network)?.dnsServers?.mapNotNull { it.hostAddress }.orEmpty()
+        cm.activeNetwork?.let { net ->
+            cm.getLinkProperties(net)?.dnsServers?.mapNotNull { it.hostAddress }
+                ?.takeIf { it.isNotEmpty() }?.let { return it }
+        }
+        val found = LinkedHashSet<String>()
+        for (net in cm.allNetworks) {
+            cm.getLinkProperties(net)?.dnsServers?.mapNotNull { it.hostAddress }?.let { found.addAll(it) }
+        }
+        return found.toList()
     }
 
     /** Probe all servers concurrently (IO dispatcher). */

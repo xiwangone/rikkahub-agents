@@ -114,6 +114,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.tools.resolveWorkspaceToolApproval
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.repository.ChrootEnableFailure
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ImagePreviewDialog
@@ -144,6 +145,8 @@ fun WorkspaceDetailPage(id: String) {
     val settingsError by vm.settingsError.collectAsStateWithLifecycle()
     val caRepairCount by vm.caRepairCount.collectAsStateWithLifecycle()
     val sdcardEnabled by vm.sdcardEnabled.collectAsStateWithLifecycle()
+    val chrootEnabled by vm.chrootEnabled.collectAsStateWithLifecycle()
+    val chrootBackendReady = vm.chrootBackendReady
     val stats by vm.stats.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
@@ -151,6 +154,7 @@ fun WorkspaceDetailPage(id: String) {
     var showInstallDialog by remember { mutableStateOf(false) }
     val mirrors by vm.mirrors.collectAsStateWithLifecycle()
     var previewImageUri by remember { mutableStateOf<String?>(null) }
+    var openingFileName by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
     val filePicker =
@@ -325,6 +329,9 @@ fun WorkspaceDetailPage(id: String) {
                         onRepairCaCerts = vm::repairCaCerts,
                         sdcardEnabled = sdcardEnabled,
                         onSdcardAccessChange = vm::setSdcardAccess,
+                        chrootEnabled = chrootEnabled,
+                        chrootBackendReady = chrootBackendReady,
+                        onChrootEnabledChange = vm::setChrootEnabled,
                         onSetTags = vm::setTags,
                     )
                 }
@@ -366,8 +373,13 @@ fun WorkspaceDetailPage(id: String) {
                                         }
 
                                         WorkspaceFileType.OTHER -> {
-                                            vm.exportToCacheFile(entry, context.cacheDir) { file ->
-                                                val uri =
+                                            openingFileName = entry.name
+                                            vm.exportToCacheFile(
+                                                entry,
+                                                context.cacheDir,
+                                                onReady = { file ->
+                                                    openingFileName = null
+                                                    val uri =
                                                     FileProvider.getUriForFile(
                                                         context,
                                                         "${context.packageName}.fileprovider",
@@ -385,7 +397,9 @@ fun WorkspaceDetailPage(id: String) {
                                                 runCatching {
                                                     context.startActivity(Intent.createChooser(intent, null))
                                                 }
-                                            }
+                                            },
+                                                onFail = { openingFileName = null },
+                                            )
                                         }
                                     }
                                 }
@@ -455,11 +469,26 @@ fun WorkspaceDetailPage(id: String) {
         )
     }
 
-    settingsError?.let { message ->
+    settingsError?.let { err ->
         AlertDialog(
             onDismissRequest = vm::dismissSettingsError,
             title = { Text(stringResource(R.string.workspace_detail_settings_save_failed)) },
-            text = { Text(message.ifBlank { stringResource(R.string.workspace_detail_settings_save_failed) }) },
+            text = {
+                Column {
+                    Text(
+                        when (err.reason) {
+                            ChrootEnableFailure.ROOT_REQUIRED -> stringResource(R.string.workspace_detail_chroot_need_root)
+                            ChrootEnableFailure.NO_WORKSPACE -> stringResource(R.string.workspace_detail_chroot_no_workspace)
+                            ChrootEnableFailure.PROBE_FAILED -> stringResource(R.string.workspace_detail_chroot_probe_failed)
+                            null -> err.raw.ifBlank { stringResource(R.string.workspace_detail_settings_save_failed) }
+                        },
+                    )
+                    // 已知原因下附技术细节原文（探测输出等），便于排障
+                    if (err.reason != null && err.detail.isNotBlank()) {
+                        Text(err.detail)
+                    }
+                }
+            },
             confirmButton = {
                 TextButton(onClick = vm::dismissSettingsError) {
                     Text(stringResource(R.string.common_confirm))
@@ -476,6 +505,22 @@ fun WorkspaceDetailPage(id: String) {
         }
     }
 
+    openingFileName?.let { name ->
+        AlertDialog(
+            onDismissRequest = {},
+            text = {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(modifier = Modifier.padding(4.dp))
+                    Text(stringResource(R.string.workspace_export_preparing, name))
+                }
+            },
+            confirmButton = {},
+        )
+    }
     previewImageUri?.let { uri ->
         ImagePreviewDialog(
             images = listOf(uri),
@@ -521,6 +566,9 @@ private fun WorkspaceBasicPage(
     onRepairCaCerts: () -> Unit,
     sdcardEnabled: Boolean,
     onSdcardAccessChange: (Boolean) -> Unit,
+    chrootEnabled: Boolean,
+    chrootBackendReady: Boolean,
+    onChrootEnabledChange: (Boolean) -> Unit,
     onSetTags: (List<String>) -> Unit,
 ) {
     var mirrorPicker by remember { mutableStateOf<MirrorPick?>(null) }
@@ -528,6 +576,7 @@ private fun WorkspaceBasicPage(
     val speedResults = remember { mutableStateMapOf<MirrorPick, Map<String, MirrorSpeedResult>>() }
     var speedTestingPick by remember { mutableStateOf<MirrorPick?>(null) }
     var tagEditing by remember { mutableStateOf(false) }
+    var showChrootConfirm by remember { mutableStateOf(false) }
     val shellStatus = workspace?.shellStatus
     val installing = installProgress != null || shellStatus == WorkspaceShellStatus.INSTALLING.name
     val rootfsReady = shellStatus == WorkspaceShellStatus.READY.name
@@ -744,6 +793,63 @@ private fun WorkspaceBasicPage(
                             onCheckedChange = onShellCompatibilityModeChange,
                             enabled = workspace != null,
                         )
+                    },
+                )
+            }
+        }
+
+        item {
+            CardGroup(
+                title = {
+                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Text(stringResource(R.string.workspace_detail_chroot))
+                        Text(
+                            text = stringResource(R.string.workspace_detail_chroot_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                },
+            ) {
+                item(
+                    headlineContent = { Text(stringResource(R.string.workspace_detail_chroot)) },
+                    trailingContent = {
+                        Switch(
+                            checked = chrootEnabled,
+                            onCheckedChange = { enabled ->
+                                if (enabled) showChrootConfirm = true else onChrootEnabledChange(false)
+                            },
+                        )
+                    },
+                )
+                // 开关开着但后端未就绪（脚本缺失）= 实际在跑 proot：显性提示，不静默
+                if (chrootEnabled && !chrootBackendReady) {
+                    item(
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.workspace_detail_chroot_fallback),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                    )
+                }
+            }
+            if (showChrootConfirm) {
+                AlertDialog(
+                    onDismissRequest = { showChrootConfirm = false },
+                    title = { Text(stringResource(R.string.workspace_detail_chroot)) },
+                    text = { Text(stringResource(R.string.workspace_detail_chroot_confirm)) },
+                    confirmButton = {
+                        TextButton(onClick = {
+                            showChrootConfirm = false
+                            onChrootEnabledChange(true)
+                        }) { Text(stringResource(android.R.string.ok)) }
+                    },
+                    dismissButton = {
+                        TextButton(onClick = { showChrootConfirm = false }) {
+                            Text(stringResource(android.R.string.cancel))
+                        }
                     },
                 )
             }
@@ -1504,15 +1610,20 @@ private suspend fun resolveLxcDebianRootfs(): String? =
             val dir = "$base/trixie/$lxcAbiDir/default/"
             val html =
                 runCatching {
-                    java.net.URL(dir)
-                        .openConnection()
-                        .apply {
-                            connectTimeout = 8000
-                            readTimeout = 8000
-                        }.getInputStream()
-                        .bufferedReader()
-                        .use { it.readText() }
-                }.getOrNull() ?: continue
+                    okhttp3.OkHttpClient.Builder()
+                        .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+                        .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+                        .build().newCall(
+                            okhttp3.Request.Builder().url(dir)
+                                .header("User-Agent", "okhttp")
+                                .build(),
+                        ).execute().use { resp ->
+                            check(resp.isSuccessful) { "mirror probe failed: HTTP ${resp.code}" }
+                            resp.body?.string().orEmpty()
+                        }
+                }
+                .onFailure { AppLog.w("WorkspaceRootfs", "lxc parse failed: $dir ${it.message}") }
+                .getOrNull() ?: continue
             val stamps = stamp.findAll(html).map { it.groupValues[1] }.distinct().sorted()
             val latest = stamps.lastOrNull() ?: continue
             return@withContext "$dir$latest/rootfs.tar.xz"
@@ -1541,8 +1652,8 @@ private val PRESET_ROOTFS_URLS: List<PresetRootfsUrl>
             ),
             presetRootfs(
                 "Debian 13 trixie base",
-                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian/trixie/arm64/default/20260924_05:24/rootfs.tar.xz",
-                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian/trixie/amd64/default/20260924_05:24/rootfs.tar.xz",
+                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian/trixie/arm64/default/20260927_05:24/rootfs.tar.xz",
+                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian/trixie/amd64/default/20260927_05:24/rootfs.tar.xz",
                 lxcDebian = true,
             ),
             presetRootfs(

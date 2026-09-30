@@ -14,6 +14,7 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.workspace.WorkspaceMountSwitch
 import me.rerere.workspace.OptionalMounts
+import me.rerere.workspace.ChrootShellRunner
 import me.rerere.workspace.ProotShellRunner
 import me.rerere.workspace.RootfsInstaller
 import me.rerere.workspace.WorkspaceBindMount
@@ -60,6 +61,8 @@ val repositoryModule =
                     ProotShellRunner(
                         nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir),
                     ),
+                chrootRunner = chrootShellRunnerOf(context),
+                chrootEnabled = { mountSwitch.chrootEnabled },
                 // 同一份挂载表既用于 PRoot 的 -b 参数, 也用于文件工具的路径解析, 避免两处漂移
                 bindMounts =
                     listOf(
@@ -128,3 +131,49 @@ val repositoryModule =
             SkillManager(get(), get())
         }
     }
+
+/**
+ * chroot 脚本从 assets 释放到 filesDir/chroot；返回 null = 后端不可用（回退 proot）。
+ *
+ * ⚠ 释放判据是**内容比对**，不是"文件是否存在"：早期实现用 `!target.exists()` 跳过，
+ * 结果脚本修了 bug 之后**已安装的用户永远用旧脚本**（排查 chroot 时发现）。
+ * 现在 assets 内容一变就覆盖；覆盖与失败都留日志，不静默。
+ */
+private fun chrootShellRunnerOf(context: Context): ChrootShellRunner? {
+    val dir = File(context.filesDir, "chroot").apply { mkdirs() }
+    for (name in listOf("chroot-run.sh", "chroot-probe.sh")) {
+        val target = File(dir, name)
+        val bytes =
+            runCatching {
+                context.assets.open("chroot/$name").use { it.readBytes() }
+            }.getOrElse { e ->
+                AppLog.w("Workspace", "chroot asset missing: $name -> fall back to proot", e)
+                return null
+            }
+        val unchanged =
+            target.isFile &&
+                target.length() == bytes.size.toLong() &&
+                runCatching { target.readBytes().contentEquals(bytes) }.getOrDefault(false)
+        if (!unchanged) {
+            val written =
+                runCatching {
+                    val tmp = File(dir, "$name.tmp")
+                    tmp.writeBytes(bytes)
+                    if (!tmp.renameTo(target)) {
+                        target.delete()
+                        tmp.renameTo(target)
+                    }
+                }.isSuccess
+            if (!written && !target.isFile) {
+                AppLog.w("Workspace", "chroot script unpack failed: $name -> fall back to proot")
+                return null
+            }
+            AppLog.i("Workspace", "chroot script refreshed: $name (${bytes.size} bytes)")
+        }
+        target.setExecutable(true, false)
+    }
+    return ChrootShellRunner(
+        scriptFile = File(dir, "chroot-run.sh"),
+        probeFile = File(dir, "chroot-probe.sh"),
+    )
+}

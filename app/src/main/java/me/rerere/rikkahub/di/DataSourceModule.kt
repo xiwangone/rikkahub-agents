@@ -32,6 +32,9 @@ import me.rerere.rikkahub.data.codex.CodexCredentialStore
 import me.rerere.rikkahub.data.codex.CodexOAuthManager
 import me.rerere.rikkahub.data.codex.CodexProvider
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.ai.backend.BackendSessionPathStore
+import me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier
+import me.rerere.ai.provider.providers.backend.SessionPathStore
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.data.db.AppDatabase
@@ -479,11 +482,22 @@ val dataSourceModule =
                             sshHostRepository = get(),
                             vaultRepository = get(),
                         ),
-                        interactionHandler = get<me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier>(),
+                        interactionHandler = get<BackendInteractionNotifier>(),
+                        // 会话路径落盘：App 重启后同一对话仍能 resume（而非退化成新建）
+                        sessionPathStore = get<BackendSessionPathStore>(),
                     ),
                 )
             }
         }
+
+        single {
+            BackendSessionPathStore(
+                appContext = get(),
+            )
+        }
+
+        // 接口绑定：UI 侧按接口注入（与上一实例同一个）
+        single<SessionPathStore> { get<BackendSessionPathStore>() }
 
         single {
             BackupEncryptionManager(

@@ -24,9 +24,58 @@ class WorkspaceManager(
     // 可选挂载（如 /sdcard）：开关 provider 为同步函数（调用点在普通函数里，
     // 调用方负责让它返回最新状态，如经内存缓存桥接设置项）。
     private val optionalMounts: OptionalMounts? = null,
+    // chroot 后端（实验性，root 设备）：enabled 返回 false 或 runner 未提供时回退 proot
+    private val chrootRunner: WorkspaceShellRunner? = null,
+    private val chrootEnabled: () -> Boolean = { false },
 ) {
     private val fileSystem = WorkspaceFileSystem(config)
     private val background = WorkspaceBackgroundProcesses()
+
+    /** shell 后端分派：chroot 开且 runner 就绪用 chroot，否则回退 proot。 */
+    private fun runnerFor(): WorkspaceShellRunner =
+        if (chrootEnabled() && chrootRunner != null) chrootRunner else shellRunner
+
+    /**
+     * chroot 能力探测（root 层实测：SELinux 域 / mount / chroot(2) / 跨 ns / 页大小）。
+     * 只用设备层能力，不碰任何发行版 rootfs；null = 非 chroot runner（回退 proot 态）。
+     */
+    fun probeChroot(root: String): ChrootProbeResult? {
+        val runner = chrootRunner as? ChrootShellRunner ?: return null
+        val context = WorkspaceShellContext(
+            root = root,
+            command = "probe",
+            cwd = "",
+            filesDir = filesDir(root),
+            linuxDir = linuxDir(root),
+            tempDir = tempDir(root),
+            workingDir = tempDir(root),
+            timeoutMillis = 30_000,
+        )
+        return runner.probe(context)
+    }
+
+    /** chroot 后端是否就绪（脚本释放失败 / 未提供 runner 时为 false）。 */
+    fun chrootRunnerReady(): Boolean = chrootRunner != null
+
+    /**
+     * chroot 常驻挂载的兜底卸载（非 chroot runner / 未挂载时无副作用）。
+     *
+     * 返回 null = 非 chroot 态（无需卸载）；否则返回脚本结果（调用方决定怎么记日志）。
+     */
+    fun unmountChroot(root: String): WorkspaceCommandResult? {
+        val runner = chrootRunner as? ChrootShellRunner ?: return null
+        val context = WorkspaceShellContext(
+            root = root,
+            command = "unmount",
+            cwd = "",
+            filesDir = filesDir(root),
+            linuxDir = linuxDir(root),
+            tempDir = tempDir(root),
+            workingDir = tempDir(root),
+            timeoutMillis = 30_000,
+        )
+        return runner.unmount(context)
+    }
 
     // 让 startBackground 的启动+注册 与 deleteWorkspace 的 killAll+删除 互斥:
     // 要么启动先完成(随后被 killAll 杀掉), 要么删除先完成(随后 shellRunner.start 因 rootfs
@@ -109,6 +158,8 @@ class WorkspaceManager(
     fun deleteWorkspace(root: String): Boolean = synchronized(backgroundLifecycleLock) {
         // 先杀掉该 workspace 所有后台进程, 再删目录, 避免进程仍持有已删除目录下的 fd
         killAllBackground(root)
+        // 常驻挂载先卸：bind 挂载在时 deleteRecursively 会 EBUSY
+        unmountChroot(root)
         workspaceDir(root).deleteRecursively()
     }
 
@@ -294,7 +345,7 @@ class WorkspaceManager(
         require(command.isNotBlank()) { "Command is required" }
         val workingDir = resolveCommandWorkingDir(root, cwd)
 
-        return shellRunner.execute(
+        return runnerFor().execute(
             WorkspaceShellContext(
                 root = root,
                 command = command,
@@ -328,7 +379,7 @@ class WorkspaceManager(
             require(command.isNotBlank()) { "Command is required" }
             val workingDir = resolveCommandWorkingDir(root, cwd)
 
-            val process = shellRunner.start(
+            val process = runnerFor().start(
                 WorkspaceShellContext(
                     root = root,
                     command = command,

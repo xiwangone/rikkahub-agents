@@ -46,9 +46,9 @@ private suspend fun withSavedHostSession(
 ): JsonObject {
     val h = repo.getByName(name)
         ?: return buildJsonObject { put("error", "no saved host: $name") }
-    val auth = resolveHostAuth(h, vaultRepository)
-    if (auth == null) {
-        return buildJsonObject { put("error", "saved host has no usable credentials (vault ref: ${h.vaultCredentialRef ?: "none"})") }
+    val auth = when (val r = resolveHostAuthDetailed(h, vaultRepository)) {
+        is HostAuthResolution.Ready -> r.auth
+        is HostAuthResolution.Unusable -> return buildJsonObject { put("error", r.reason) }
     }
     // Same probe-then-bind path the exec tool uses. Without this, SFTP traffic is left to
     // Android's default-network selection, which on adaptive-routing devices routes the

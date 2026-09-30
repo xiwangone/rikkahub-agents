@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -227,12 +228,15 @@ internal fun EditedFilesList(
                         )
                     }
                 }
+                var openingExport by remember { mutableStateOf(false) }
                 Card(
                     onClick = {
                         val p = selectedPath ?: return@Card
                         selectedPath = null
+                        openingExport = true
                         scope.launch {
-                            runCatching {
+                            try {
+                                runCatching {
                                 val (area, relativePath) = resolveWorkspacePath(p)
                                 val dir = File(context.cacheDir, "workspace_preview").apply { mkdirs() }
                                 val file = File(dir, p.substringAfterLast("/"))
@@ -256,6 +260,9 @@ internal fun EditedFilesList(
                                     }
                                 context.startActivity(intent)
                             }
+                            } finally {
+                                openingExport = false
+                            }
                         }
                     },
                     shape = MaterialTheme.shapes.medium,
@@ -277,6 +284,9 @@ internal fun EditedFilesList(
                             text = stringResource(R.string.common_open_with),
                             style = MaterialTheme.typography.titleMedium,
                         )
+                        if (openingExport) {
+                            CircularProgressIndicator(modifier = Modifier.size(16.dp), strokeWidth = 2.dp)
+                        }
                     }
                 }
                 Card(

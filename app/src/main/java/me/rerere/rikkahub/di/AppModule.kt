@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.di
 
+import android.content.Context
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.ai.AILoggingManager
@@ -16,6 +17,7 @@ import me.rerere.rikkahub.data.telegram.TelegramBotClient
 import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.service.CronJobScheduler
+import me.rerere.rikkahub.service.debug.DebugApiManager
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalSessionManager
 import me.rerere.rikkahub.utils.EmojiData
 import me.rerere.rikkahub.utils.EmojiUtils
@@ -405,5 +407,9 @@ val appModule =
             )
         }
 
+        single {
+            val context: Context = get()
+            DebugApiManager(context)
+        }
 
     }

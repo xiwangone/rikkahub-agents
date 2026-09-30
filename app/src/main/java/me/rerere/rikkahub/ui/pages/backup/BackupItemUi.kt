@@ -136,6 +136,12 @@ private fun <T> BackupItemsSelectorContent(
                 }
             }
         }
+        // 数据库项默认不勾（含全部聊天记录，体积大且网络通道上传受限）——固定提醒一行，避免用户误以为丢了聊天
+        Text(
+            stringResource(R.string.backup_page_items_db_size_hint),
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
         // 勾选项的内容说明：让用户知道“勾了这项到底备了什么”（文案已存在，此处接到 UI）
         SelectedItemDescs(coreItems.filter { it in selectedItems }, desc)
         if (advancedItems.isNotEmpty()) {

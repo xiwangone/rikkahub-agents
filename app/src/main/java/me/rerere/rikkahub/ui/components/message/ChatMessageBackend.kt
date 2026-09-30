@@ -33,11 +33,9 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.ProvideTextStyle
-import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.key
@@ -78,9 +76,7 @@ import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.File02
-import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.Screen
@@ -162,87 +158,46 @@ internal fun BackendApprovalCard(
                 style = MaterialTheme.typography.labelMedium,
             )
             // 按钮样式与对话内工具审批保持一致（同组件、同尺寸、同图标）
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                FilledTonalIconButton(
-                    onClick = {
-                        if (inFlight || resolved) return@FilledTonalIconButton
+            ApprovalDecisionRow(
+                inFlight = inFlight || resolved,
+                onDecision = { decision ->
+                    if (!(inFlight || resolved)) {
                         inFlight = true
-                        val ok = notifier.approveById(requestId, true)
+                        val approved = decision != ApprovalDecision.Deny
+                        // 决策 → 应答参数：本会话允许用 session，总是允许再加 persist
+                        val session =
+                            decision == ApprovalDecision.ChatScope || decision == ApprovalDecision.Always
+                        val persist = decision == ApprovalDecision.Always
+                        val ok =
+                            notifier.approveById(
+                                requestId,
+                                approved,
+                                session = session,
+                                persist = persist,
+                            )
                         resolved = ok
                         if (ok) {
-                            feedback = approveDone
+                            feedback = if (approved) approveDone else denyDone
                         } else {
                             onToolApproval?.invoke(
                                 requestId,
-                                true,
+                                approved,
                                 "",
-                                me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
+                                when (decision) {
+                                    ApprovalDecision.Always ->
+                                        me.rerere.rikkahub.service.ChatService.ApprovalScope.Always
+                                    ApprovalDecision.ChatScope ->
+                                        me.rerere.rikkahub.service.ChatService.ApprovalScope.ChatScope
+                                    else -> me.rerere.rikkahub.service.ChatService.ApprovalScope.Once
+                                },
                                 tool,
                             )
                             feedback = staleHint
                         }
                         inFlight = false
-                    },
-                    enabled = !inFlight && !resolved,
-                    modifier = Modifier.size(28.dp),
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.Tick01,
-                        contentDescription = stringResource(R.string.chat_message_tool_approve),
-                        modifier = Modifier.size(14.dp),
-                    )
-                }
-                FilledTonalIconButton(
-                    onClick = {
-                        if (inFlight || resolved) return@FilledTonalIconButton
-                        inFlight = true
-                        val ok = notifier.approveById(requestId, true)
-                        resolved = ok
-                        feedback = if (ok) approveDone else staleHint
-                        if (!ok) {
-                            onToolApproval?.invoke(
-                                requestId,
-                                true,
-                                "",
-                                me.rerere.rikkahub.service.ChatService.ApprovalScope.Always,
-                                tool,
-                            )
-                        }
-                        inFlight = false
-                    },
-                    enabled = !inFlight && !resolved,
-                    modifier = Modifier.size(28.dp),
-                ) {
-                    Text("\u221e", style = MaterialTheme.typography.labelMedium)
-                }
-                FilledTonalIconButton(
-                    onClick = {
-                        if (inFlight || resolved) return@FilledTonalIconButton
-                        inFlight = true
-                        val ok = notifier.approveById(requestId, false)
-                        resolved = ok
-                        feedback = if (ok) denyDone else staleHint
-                        if (!ok) {
-                            onToolApproval?.invoke(
-                                requestId,
-                                false,
-                                "",
-                                me.rerere.rikkahub.service.ChatService.ApprovalScope.Once,
-                                tool,
-                            )
-                        }
-                        inFlight = false
-                    },
-                    enabled = !inFlight && !resolved,
-                    modifier = Modifier.size(28.dp),
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.Cancel01,
-                        contentDescription = stringResource(R.string.chat_message_tool_deny),
-                        modifier = Modifier.size(14.dp),
-                    )
-                }
-            }
+                    }
+                },
+            )
             (feedback ?: if (handledElsewhere) staleHint else null)?.let {
                 Text(
                     text = it,
@@ -268,10 +223,25 @@ internal fun BackendAskCard(
     var everPending by remember(requestId) { mutableStateOf(false) }
     LaunchedEffect(pendingIds) { if (requestId in pendingIds) everPending = true }
     var submitted by remember(requestId) { mutableStateOf(false) }
+    var answeredLabel by remember(requestId) { mutableStateOf<String?>(null) }
     var feedback by remember(requestId) { mutableStateOf<String?>(null) }
     val answeredText = stringResource(R.string.backend_ask_submitted)
     val staleText = stringResource(R.string.backend_approval_stale)
     val handledElsewhere = everPending && requestId !in pendingIds && !submitted
+
+    // 接入 → 中性模型：服务端问题的字段归一到共用提问模型，渲染交给 AskPromptCard
+    val promptQuestions = remember(questions) { parseBackendAskQuestions(questions) }
+    val answeredLabels =
+        answeredLabel
+            ?.let { label -> promptQuestions.associate { it.id to label } }
+            .orEmpty()
+    val status =
+        when {
+            submitted -> AskPromptStatus.Answered
+            handledElsewhere -> AskPromptStatus.Stale
+            else -> AskPromptStatus.Pending
+        }
+
     Surface(
         shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f),
@@ -285,41 +255,22 @@ internal fun BackendAskCard(
                 text = stringResource(R.string.backend_pending_reply),
                 style = MaterialTheme.typography.labelMedium,
             )
-            questions.forEach { q ->
-                Text(
-                    text = q.prompt,
-                    style = MaterialTheme.typography.labelMedium,
-                )
-                if (q.options.isNotEmpty()) {
-                    androidx.compose.foundation.layout.FlowRow(
-                        horizontalArrangement = Arrangement.spacedBy(6.dp),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        q.options.forEach { opt ->
-                            FilterChip(
-                                selected = feedback == answeredText,
-                                enabled = !submitted,
-                                onClick = {
-                                    submitted = true
-                                    val ok = notifier.answerById(requestId, opt.label)
-                                    if (!ok) onToolAnswer?.invoke(requestId, opt.label)
-                                    feedback = if (ok) answeredText else staleText
-                                },
-                                label = {
-                                    Text(opt.label, style = MaterialTheme.typography.labelSmall)
-                                },
-                            )
-                        }
-                    }
-                }
-            }
-            (feedback ?: if (handledElsewhere) staleText else null)?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
+            AskPromptCard(
+                questions = promptQuestions,
+                status = status,
+                answeredLabels = answeredLabels,
+                statusText = feedback ?: if (handledElsewhere) staleText else null,
+                // 点选即答：与接入既有交互一致（服务端按单条作答）
+                submitMode = AskPromptSubmitMode.Immediate,
+                onAnswers = { answers ->
+                    val label = answers.values.firstOrNull().orEmpty()
+                    submitted = true
+                    answeredLabel = label
+                    val ok = notifier.answerById(requestId, label)
+                    if (!ok) onToolAnswer?.invoke(requestId, label)
+                    feedback = if (ok) answeredText else staleText
+                },
+            )
         }
     }
 }

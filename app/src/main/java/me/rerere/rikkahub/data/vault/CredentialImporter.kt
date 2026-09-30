@@ -104,7 +104,7 @@ object CredentialImporter {
 
     /** 已知分组 id（导出直接写 id，导入需按 id 精确还原）。 */
     private val knownGroups =
-        setOf("Git", "AI", "ECS", "MCP", "Notification", "Backend", "Network", "SSH", "Other")
+        setOf("Git", "AI", "ECS", "MCP", "Notification", "Backend", "Network", "SSH", "System", "Other")
 
     data class ParsedEntry(
         val name: String,

@@ -19,6 +19,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -31,15 +32,22 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.WebDavConfig
+import me.rerere.rikkahub.data.sync.MigrationExportResult
+import me.rerere.rikkahub.data.sync.MigrationImportResult
+import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.StickyHeader
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.backup.WebDavBackupItemsSelector
 import me.rerere.rikkahub.ui.pages.backup.backupItemLabel
+import me.rerere.rikkahub.utils.UiState
+import me.rerere.rikkahub.utils.fileSizeToString
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
@@ -58,6 +66,10 @@ fun ImportExportTab(
     // LocalContextGetResourceValueCall 判为「配置变化后可能返回过期值」（本项目其余页面同此写法）。
     val resources = LocalResources.current
     val selectedBackupItems by vm.localBackupItems.collectAsStateWithLifecycle()
+    var isUploading by remember { mutableStateOf(false) }
+    var showCloudConfirm by remember { mutableStateOf<WebDavBackupItem?>(null) }
+    val migrationCloudItems by vm.migrationCloudItems.collectAsStateWithLifecycle()
+    LaunchedEffect(Unit) { vm.loadMigrationCloudItems() }
     var isExporting by remember { mutableStateOf(false) }
     var isRestoring by remember { mutableStateOf(false) }
     var showImportConfirmDialog by remember { mutableStateOf(false) }
@@ -132,9 +144,16 @@ fun ImportExportTab(
                             val tempFile =
                                 File(context.cacheDir, "temp_restore_${System.currentTimeMillis()}.zip")
 
-                            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                                FileOutputStream(tempFile).use { outputStream ->
-                                    inputStream.copyTo(outputStream)
+                            withContext(Dispatchers.IO) {
+
+                                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+
+                                    FileOutputStream(tempFile).use { outputStream ->
+
+                                        inputStream.copyTo(outputStream)
+
+                                    }
+
                                 }
                             }
 
@@ -151,9 +170,11 @@ fun ImportExportTab(
                                 File(context.cacheDir, "temp_chatbox_${System.currentTimeMillis()}.zip")
 
                             try {
-                                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                                    FileOutputStream(tempFile).use { outputStream ->
-                                        inputStream.copyTo(outputStream)
+                                withContext(Dispatchers.IO) {
+                                    context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                                        FileOutputStream(tempFile).use { outputStream ->
+                                            inputStream.copyTo(outputStream)
+                                        }
                                     }
                                 }
 
@@ -168,9 +189,16 @@ fun ImportExportTab(
                             val tempFile =
                                 File(context.cacheDir, "temp_cherry_${System.currentTimeMillis()}.zip")
 
-                            context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                                FileOutputStream(tempFile).use { outputStream ->
-                                    inputStream.copyTo(outputStream)
+                            withContext(Dispatchers.IO) {
+
+                                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+
+                                    FileOutputStream(tempFile).use { outputStream ->
+
+                                        inputStream.copyTo(outputStream)
+
+                                    }
+
                                 }
                             }
 
@@ -186,9 +214,11 @@ fun ImportExportTab(
                             val tempFile =
                                 File(context.cacheDir, "temp_migration_${System.currentTimeMillis()}.zip")
                             try {
-                                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-                                    FileOutputStream(tempFile).use { outputStream ->
-                                        inputStream.copyTo(outputStream)
+                                withContext(Dispatchers.IO) {
+                                    context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                                        FileOutputStream(tempFile).use { outputStream ->
+                                            inputStream.copyTo(outputStream)
+                                        }
                                     }
                                 }
                                 val result = vm.importMigrationPackage(tempFile)
@@ -199,6 +229,11 @@ fun ImportExportTab(
                                         result.credentialsSkipped,
                                     ),
                                     type = ToastType.Success,
+                                )
+                                // 工作区文件不随包：导入后提醒重装 rootfs
+                                toaster.show(
+                                    resources.getString(R.string.backup_page_migration_rootfs_hint),
+                                    type = ToastType.Info,
                                 )
                             } finally {
                                 tempFile.delete()
@@ -348,6 +383,75 @@ fun ImportExportTab(
                         }
                     },
                 )
+                item(
+                    onClick = if (!isUploading && !isRestoring) {
+                        {
+                            isUploading = true
+                            scope.launch {
+                                runCatching { vm.exportMigrationToWebDav() }
+                                    .onSuccess { result ->
+                                        toaster.show(
+                                            resources.getString(
+                                                R.string.backup_page_migration_cloud_uploaded,
+                                                result.credentialCount,
+                                            ),
+                                            type = ToastType.Success,
+                                        )
+                                        vm.loadMigrationCloudItems()
+                                    }
+                                    .onFailure { e ->
+                                        toaster.show(
+                                            resources.getString(R.string.backup_page_restore_failed, e.message ?: ""),
+                                            type = ToastType.Error,
+                                        )
+                                    }
+                                isUploading = false
+                            }
+                        }
+                    } else null,
+                    headlineContent = { Text(stringResource(R.string.backup_page_migration_cloud_upload)) },
+                    leadingContent = {
+                        if (isUploading) {
+                            CircularWavyProgressIndicator(modifier = Modifier.size(24.dp))
+                        } else {
+                            Icon(HugeIcons.File01, null)
+                        }
+                    },
+                )
+            }
+        }
+
+        // 云端迁移包（migration_ 前缀，跨机可解形态；上传后云端只保留最新一份）
+        if (migrationCloudItems is UiState.Error) {
+            item {
+                CardGroup {
+                    item {
+                        Text(
+                            (migrationCloudItems as UiState.Error).error.message ?: "error",
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        }
+        if (migrationCloudItems is UiState.Success) {
+            val cloudList = (migrationCloudItems as UiState.Success<List<WebDavBackupItem>>).data
+            if (cloudList.isNotEmpty()) {
+                item {
+                    CardGroup {
+                        cloudList.forEach { cloudItem ->
+                            item(
+                                onClick = if (!isRestoring) {
+                                    { showCloudConfirm = cloudItem }
+                                } else null,
+                                headlineContent = { Text(cloudItem.displayName) },
+                                supportingContent = {
+                                    Text("${cloudItem.size.fileSizeToString()} · ${cloudItem.lastModified.toString().take(16)}")
+                                },
+                            )
+                        }
+                    }
+                }
             }
         }
 
@@ -442,4 +546,51 @@ fun ImportExportTab(
             },
         )
     }
-}
+
+    showCloudConfirm?.let { cloudItem ->
+        AlertDialog(
+            onDismissRequest = { showCloudConfirm = null },
+            title = { Text(stringResource(R.string.backup_page_migration_import)) },
+            text = { Text(stringResource(R.string.backup_page_migration_import_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCloudConfirm = null
+                    isRestoring = true
+                    scope.launch {
+                        runCatching { vm.importMigrationFromWebDav(cloudItem) }
+                            .onSuccess { result ->
+                                toaster.show(
+                                    resources.getString(
+                                        R.string.backup_page_migration_import_success,
+                                        result.credentialsImported,
+                                        result.credentialsSkipped,
+                                    ),
+                                    type = ToastType.Success,
+                                )
+                                // 工作区文件不随包：导入后提醒重装 rootfs
+                                toaster.show(
+                                    resources.getString(R.string.backup_page_migration_rootfs_hint),
+                                    type = ToastType.Info,
+                                )
+                                onShowRestartDialog()
+                            }
+                            .onFailure { e ->
+                                toaster.show(
+                                    resources.getString(R.string.backup_page_restore_failed, e.message ?: ""),
+                                    type = ToastType.Error,
+                                )
+                            }
+                        isRestoring = false
+                    }
+                }) {
+                    Text(stringResource(R.string.confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCloudConfirm = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            },
+        )
+    }
+    }

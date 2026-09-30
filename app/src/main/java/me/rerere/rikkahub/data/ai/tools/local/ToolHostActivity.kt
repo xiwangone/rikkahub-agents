@@ -12,6 +12,10 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.launch
+import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.vault.VaultAppLock
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonArray
 import org.koin.android.ext.android.inject
@@ -208,6 +212,14 @@ class ToolHostActivity : AppCompatActivity() {
             BiometricManager.Authenticators.BIOMETRIC_STRONG
         }
 
+        // No biometric/credential enrolled on device → fall back to the app PIN gate
+        if (BiometricManager.from(this).canAuthenticate(authenticators) !=
+            BiometricManager.BIOMETRIC_SUCCESS
+        ) {
+            showPinGate()
+            return
+        }
+
         val executor = ContextCompat.getMainExecutor(this)
         val prompt = BiometricPrompt(this, executor,
             object : BiometricPrompt.AuthenticationCallback() {
@@ -245,9 +257,98 @@ class ToolHostActivity : AppCompatActivity() {
             .setTitle(title)
             .setAllowedAuthenticators(authenticators)
         if (subtitle != null) infoBuilder.setSubtitle(subtitle)
-        if (!allowDeviceCredential) infoBuilder.setNegativeButtonText("取消")
+        if (!allowDeviceCredential) infoBuilder.setNegativeButtonText(getString(R.string.vault_pin_cancel))
 
         prompt.authenticate(infoBuilder.build())
+    }
+
+    // ---------- App PIN gate (fallback when the device has no lockscreen credential) ----------
+
+    private fun showPinGate() {
+        lifecycleScope.launch {
+            if (VaultAppLock.hasPin(this@ToolHostActivity)) showPinVerify() else showPinSetup()
+        }
+    }
+
+    private fun pinRoot(): android.widget.LinearLayout =
+        android.widget.LinearLayout(this).apply {
+            orientation = android.widget.LinearLayout.VERTICAL
+            setPadding(64, 96, 64, 48)
+        }
+
+    private fun pinField(hintRes: Int): android.widget.EditText =
+        android.widget.EditText(this).apply {
+            hint = getString(hintRes)
+            inputType = android.text.InputType.TYPE_CLASS_NUMBER or
+                android.text.InputType.TYPE_NUMBER_VARIATION_PASSWORD
+        }
+
+    private fun pinStatus(): android.widget.TextView =
+        android.widget.TextView(this).apply { setPadding(0, 16, 0, 16) }
+
+    private fun pinButton(textRes: Int): android.widget.Button =
+        android.widget.Button(this).apply { setText(textRes) }
+
+    private fun showPinVerify() {
+        val input = pinField(R.string.vault_pin_hint)
+        val status = pinStatus()
+        val confirm = pinButton(R.string.vault_pin_confirm)
+        val cancel = pinButton(R.string.vault_pin_cancel)
+        setContentView(pinRoot().apply {
+            addView(android.widget.TextView(this@ToolHostActivity).apply {
+                text = intent.getStringExtra(EXTRA_BIO_TITLE) ?: getString(R.string.vault_pin_verify_title)
+            })
+            addView(input); addView(status); addView(confirm); addView(cancel)
+        })
+        confirm.setOnClickListener {
+            val pin = input.text?.toString().orEmpty()
+            if (pin.length < 4) {
+                status.text = getString(R.string.vault_pin_too_short)
+                return@setOnClickListener
+            }
+            lifecycleScope.launch {
+                if (VaultAppLock.verifyPin(this@ToolHostActivity, pin)) {
+                    biometricBuffer.complete(requestId, BiometricResult.Success("app_pin"))
+                    finish()
+                } else {
+                    status.text = getString(R.string.vault_pin_verify_failed)
+                }
+            }
+        }
+        cancel.setOnClickListener {
+            biometricBuffer.complete(requestId, BiometricResult.Error("user_cancelled"))
+            finish()
+        }
+    }
+
+    private fun showPinSetup() {
+        val input = pinField(R.string.vault_pin_hint)
+        val again = pinField(R.string.vault_pin_confirm_hint)
+        val status = pinStatus()
+        val confirm = pinButton(R.string.vault_pin_confirm)
+        setContentView(pinRoot().apply {
+            addView(android.widget.TextView(this@ToolHostActivity).apply {
+                text = getString(R.string.vault_pin_setup_title)
+            })
+            addView(input); addView(again); addView(status); addView(confirm)
+        })
+        confirm.setOnClickListener {
+            val pin = input.text?.toString().orEmpty()
+            val repeated = again.text?.toString().orEmpty()
+            if (pin.length < 4) {
+                status.text = getString(R.string.vault_pin_too_short)
+                return@setOnClickListener
+            }
+            if (pin != repeated) {
+                status.text = getString(R.string.vault_pin_mismatch)
+                return@setOnClickListener
+            }
+            lifecycleScope.launch {
+                VaultAppLock.setPin(this@ToolHostActivity, pin)
+                biometricBuffer.complete(requestId, BiometricResult.Success("app_pin_setup"))
+                finish()
+            }
+        }
     }
 
     companion object {

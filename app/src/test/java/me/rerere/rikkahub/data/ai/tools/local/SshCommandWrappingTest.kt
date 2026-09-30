@@ -105,6 +105,35 @@ class SshCommandWrappingTest {
     }
 
     @Test
+    fun `utf8 prefix is idempotent and not skipped when the command merely mentions the encoding`() {
+        // 回归（2026-09-29）：旧实现以 contains("[Console]::OutputEncoding") 判幂等 →
+        // 命令里“提到”该字符串（如查当前编码）就被整体跳过，反而不加前缀、中文照旧乱码。
+        val mentions = withUtf8ConsoleEncoding("[Console]::OutputEncoding=xyz; Get-Date")
+        assertTrue(mentions, mentions.startsWith("[Console]::OutputEncoding=[Text.Encoding]::UTF8;"))
+
+        // 已有前缀 → 不重复叠加
+        val once = withUtf8ConsoleEncoding("Get-Date")
+        assertEquals(once, withUtf8ConsoleEncoding(once))
+    }
+
+    @Test
+    fun `explicit platform overrides the command-shape heuristic`() {
+        // 已知 POSIX 远端：命令看着像 PowerShell 也不加前缀
+        assertEquals("Get-Date", withUtf8ConsoleEncoding("Get-Date", windows = false))
+        // 已知 Windows 远端：普通命令也补前缀
+        assertTrue(withUtf8ConsoleEncoding("dir", windows = true).startsWith("[Console]::OutputEncoding="))
+    }
+
+    @Test
+    fun `remote platform is derived from the ssh server banner`() {
+        assertTrue(RemotePlatform.isWindowsServer("SSH-2.0-OpenSSH_for_Windows_9.5") == true)
+        assertTrue(RemotePlatform.isWindowsServer("SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13") == false)
+        assertTrue(RemotePlatform.isWindowsServer("SSH-2.0-dropbear_2020.81") == false)
+        assertTrue(RemotePlatform.isWindowsServer(null) == null)
+        assertTrue(RemotePlatform.isWindowsServer("   ") == null)
+    }
+
+    @Test
     fun `sshOptionInt reads overrides and ignores comments`() {
         assertEquals(10, sshOptionInt("# comment\nServerAliveInterval 10\nServerAliveCountMax 6", "ServerAliveInterval"))
         assertEquals(6, sshOptionInt("ServerAliveInterval 10\nServerAliveCountMax 6", "ServerAliveCountMax"))

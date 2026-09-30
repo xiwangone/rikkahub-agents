@@ -20,6 +20,12 @@ class HardlineCommandGuardTest {
 
     @Test fun `rm -rf root star`() = assertBlocked("rm -rf /*")
 
+    @Test fun `rm -rf root with double slash`() = assertBlocked("rm -rf //")
+
+    @Test fun `pkill -9 -1 kills everything`() = assertBlocked("pkill -9 -1")
+
+    @Test fun `pkill -1 without signal`() = assertBlocked("pkill -1")
+
     @Test fun `rm -rf system dirs`() {
         for (dir in listOf("/home", "/root", "/etc", "/usr", "/var", "/bin", "/sbin", "/boot", "/lib")) {
             assertBlocked("rm -rf $dir")
@@ -341,6 +347,50 @@ class HardlineCommandGuardTest {
     // -----------------------------------------------------------------------
     // Helpers
     // -----------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------
+    // workspace_shell：沙箱挂载点（/workspace、/skills）与设备侧 shell 同一道底线
+    // （2026-09-30 补）。工作区根存放全部持久化资产（仓库 / 文档 / 技能快照），
+    // 删它和设备上删 /usr 一样不可恢复；但子目录下的日常清理必须照常放行 ——
+    // 所以只拦「根本身 / 根级通配」，不拦子目录。
+    // -----------------------------------------------------------------------
+
+    @Test fun `workspace_shell deleting a sandbox mount root is blocked`() {
+        for (cmd in listOf(
+            "rm -rf /workspace",
+            "rm -rf /workspace/",
+            "rm -rf /workspace/*",
+            "rm -rf /skills",
+            "rm -rf /skills/*",
+        )) {
+            assertNotNull(
+                "expected '$cmd' to be hardline-blocked on workspace_shell",
+                HardlineCommandGuard.checkTool("workspace_shell", """{"command":"$cmd"}"""),
+            )
+        }
+    }
+
+    @Test fun `workspace_shell batch commands are scanned as well`() {
+        assertNotNull(
+            "a blocked command inside the commands array must still be caught",
+            HardlineCommandGuard.checkTool(
+                "workspace_shell",
+                """{"commands":["ls -la","rm -rf /workspace"]}""",
+            ),
+        )
+    }
+
+    @Test fun `workspace_shell routine cleanup under subdirectories stays allowed`() {
+        for (cmd in listOf(
+            "rm -rf /workspace/tmp/build-cache",
+            "rm -f /workspace/tmp/old.log",
+            "ls -la /workspace",
+            "rm -rf /workspace/repo/build",
+        )) {
+            val reason = HardlineCommandGuard.checkTool("workspace_shell", """{"command":"$cmd"}""")
+            assertNull("expected '$cmd' NOT to be blocked (routine cleanup), got: $reason", reason)
+        }
+    }
 
     private fun assertBlocked(cmd: String) {
         val reason = HardlineCommandGuard.checkCommand(cmd)

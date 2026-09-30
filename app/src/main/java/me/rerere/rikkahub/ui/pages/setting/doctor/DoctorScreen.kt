@@ -19,9 +19,13 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
@@ -29,13 +33,17 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -43,12 +51,21 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
+import me.rerere.rikkahub.service.debug.DebugApiManager
+import me.rerere.rikkahub.service.debug.ListenConfig
+import me.rerere.rikkahub.service.debug.DebugApiStartFailure
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.Switch
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
+import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
+import me.rerere.rikkahub.data.datastore.SettingsStore
 
 @Composable
 fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
@@ -102,6 +119,11 @@ fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
                         }
                     },
                 )
+            }
+
+            // Experimental AI debug API switch (loopback only, token-gated; see DebugApiServer).
+            item(key = "debug_api") {
+                DebugApiCard(manager = koinInject())
             }
 
             // One CardGroup per category — matches the rest of the Settings UI exactly.
@@ -299,4 +321,223 @@ private fun copyToClipboard(
 ) {
     val cm = ctx.getSystemService(Context.CLIPBOARD_SERVICE) as? ClipboardManager ?: return
     cm.setPrimaryClip(ClipData.newPlainText(ctx.getString(R.string.doctor_report_clip_label), text))
+}
+
+@Composable
+private fun DebugApiCard(manager: DebugApiManager) {
+    val scope = rememberCoroutineScope()
+    // 网段预设是全局设置（Web 服务器 / 调试接口 / 本地 MCP 共用），与调试接口自身的
+    // CUSTOM_CIDRS 分开存储：预设只影响输入便利，不影响服务实际监听。
+    val settingsStore = koinInject<SettingsStore>()
+    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
+    val running by manager.running.collectAsStateWithLifecycle()
+    val port by manager.port.collectAsStateWithLifecycle()
+    val storedToken by manager.tokenFlow.collectAsStateWithLifecycle(initialValue = "")
+    var tokenInput by remember { mutableStateOf("") }
+    val startError by manager.startError.collectAsStateWithLifecycle()
+    val listenCfg by manager.listenConfig.collectAsStateWithLifecycle(
+        initialValue = ListenConfig(ListenConfig.MODE_LOOPBACK, DebugApiManager.HOST_LOOPBACK, ""),
+    )
+    var revealedToken by remember { mutableStateOf(false) }
+    val context = LocalContext.current
+    val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
+    val clipboardManager = LocalClipboardManager.current
+    CardGroup {
+        item(
+            headlineContent = {
+                Text(stringResource(R.string.setting_page_doctor_debug_api_title))
+            },
+            supportingContent = {
+                Column {
+                    Text(stringResource(R.string.setting_page_doctor_debug_api_desc))
+                    // 运行事实：在跑报实际地址，没跑说没跑（防“开关开着却不知死活”）
+                    Text(
+                        if (running && port > 0) {
+                            stringResource(
+                                R.string.setting_page_doctor_debug_api_status_running,
+                                listenCfg.host,
+                                port,
+                            )
+                        } else {
+                            stringResource(R.string.setting_page_doctor_debug_api_status_stopped)
+                        },
+                    )
+                    startError?.let { err ->
+                        Text(
+                            stringResource(
+                                if (err == DebugApiStartFailure.TOKEN_REF_UNRESOLVED) {
+                                    R.string.setting_page_doctor_debug_api_err_ref
+                                } else {
+                                    R.string.setting_page_doctor_debug_api_err_port
+                                },
+                            ),
+                        )
+                    }
+                    if (running && port > 0 && port != DebugApiManager.PORT) {
+                        Text(stringResource(R.string.setting_page_doctor_debug_api_port_moved, port))
+                    }
+                }
+            },
+            trailingContent = {
+                Switch(
+                    checked = running,
+                    onCheckedChange = { enabled ->
+                        scope.launch { manager.setEnabled(enabled) }
+                    },
+                )
+            },
+        )
+        item(
+            headlineContent = {
+                Text(stringResource(R.string.setting_page_doctor_debug_api_listen))
+            },
+            supportingContent = {
+                Column {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = listenCfg.mode == ListenConfig.MODE_LOOPBACK,
+                            onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_LOOPBACK) } },
+                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_loopback)) },
+                        )
+                        FilterChip(
+                            selected = listenCfg.mode == ListenConfig.MODE_LAN,
+                            onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_LAN) } },
+                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_lan)) },
+                        )
+                    }
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        FilterChip(
+                            selected = listenCfg.mode == ListenConfig.MODE_CUSTOM,
+                            onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_CUSTOM) } },
+                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_custom)) },
+                        )
+                        FilterChip(
+                            selected = listenCfg.mode == ListenConfig.MODE_ALL,
+                            onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_ALL) } },
+                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_all)) },
+                        )
+                    }
+                    if (listenCfg.mode == ListenConfig.MODE_CUSTOM) {
+                        var cidrInput by remember(listenCfg.mode) { mutableStateOf(listenCfg.cidrs) }
+                        NetworkAccessField(
+                            value = cidrInput,
+                            onValueChange = { cidrInput = it },
+                            presets = settings.networkCidrPresets,
+                            onPresetsChange = { presets ->
+                                scope.launch { settingsStore.update { it.copy(networkCidrPresets = presets) } }
+                            },
+                            label = stringResource(R.string.setting_page_doctor_debug_api_cidrs_hint),
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        TextButton(onClick = {
+                            scope.launch {
+                                manager.setCustomCidrs(cidrInput)
+                                toaster.show(
+                                    message = context.getString(R.string.setting_page_doctor_debug_api_saved),
+                                )
+                            }
+                        }) {
+                            Text(stringResource(R.string.setting_page_doctor_debug_api_cidrs_apply))
+                        }
+                    }
+                    if (listenCfg.mode == ListenConfig.MODE_ALL) {
+                        Text(
+                            stringResource(R.string.setting_page_doctor_debug_api_listen_all_warn),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+                    Text(
+                        stringResource(R.string.setting_page_doctor_debug_api_exec_warn),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+        )
+        item(
+            headlineContent = {
+                SecretRefField(
+                    value = tokenInput,
+                    onValueChange = { tokenInput = it },
+                    label = stringResource(R.string.setting_page_doctor_debug_api_token_hint),
+                    singleLine = true,
+                )
+            },
+            supportingContent = {
+                // 口令来源与有效性：引用要标明能否解析（防“看着像生效其实连不上”）；
+                // 自动生成的口令只存在内存，点「查看」才落明文，默认不常驻显示
+                val live = if (revealedToken) manager.currentToken() else null
+                Column {
+                    Text(
+                        stringResource(
+                            R.string.setting_page_doctor_debug_api_current,
+                            live ?: tokenSourceLabel(storedToken),
+                        ),
+                    )
+                    // 查看/复制放正文区：trailing 只留一个按钮，窄屏不会挤爆
+                    Row {
+                        TextButton(onClick = { revealedToken = !revealedToken }) {
+                            Text(
+                                stringResource(
+                                    if (revealedToken) {
+                                        R.string.setting_page_doctor_debug_api_hide
+                                    } else {
+                                        R.string.setting_page_doctor_debug_api_show
+                                    },
+                                ),
+                            )
+                        }
+                        TextButton(onClick = {
+                            manager.currentToken()?.let {
+                                clipboardManager.setText(AnnotatedString(it))
+                                toaster.show(
+                                    message = context.getString(
+                                        R.string.setting_page_doctor_debug_api_copied,
+                                    ),
+                                )
+                            }
+                        }) {
+                            Text(stringResource(R.string.setting_page_doctor_debug_api_copy))
+                        }
+                    }
+                }
+            },
+            trailingContent = {
+                OutlinedButton(onClick = {
+                    scope.launch {
+                        manager.setToken(tokenInput)
+                        tokenInput = ""
+                        revealedToken = false
+                        toaster.show(
+                            message = context.getString(R.string.setting_page_doctor_debug_api_saved),
+                        )
+                    }
+                }) {
+                    Text(stringResource(android.R.string.ok))
+                }
+            },
+        )
+    }
+}
+
+/** 口令来源的可读形态：引用额外标明能否解析，明文只给掩码 */
+@Composable
+private fun tokenSourceLabel(stored: String): String = when {
+    stored.isBlank() -> stringResource(R.string.setting_page_doctor_debug_api_src_auto)
+    stored.startsWith(VaultProviderKeyRefs.PREFIX) -> stringResource(
+        if (VaultProviderKeyRefs.resolveOrNull(stored) != null) {
+            R.string.setting_page_doctor_debug_api_src_ref_ok
+        } else {
+            R.string.setting_page_doctor_debug_api_src_ref_bad
+        },
+        stored,
+    )
+
+    else -> stringResource(R.string.setting_page_doctor_debug_api_src_custom, displayToken(stored))
+}
+
+/** 已配置口令的展示形态：$$引用只露凭证名；明文打中间掩码 */
+private fun displayToken(token: String): String = when {
+    token.isBlank() -> ""
+    token.startsWith("\$") -> token
+    else -> token.take(2) + "•".repeat((token.length - 4).coerceAtLeast(3)) + token.takeLast(2)
 }

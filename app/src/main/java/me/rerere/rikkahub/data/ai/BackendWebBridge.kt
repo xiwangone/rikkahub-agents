@@ -24,11 +24,11 @@ import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.service.WebServerService
 
 /**
- * Backend Web 桥 — 把 RikkaHub Agents 手机端 Web 服务反向隧道到 ECS，供 backend serve/run 访问。
+ * Backend Web 桥 — 把 RikkaHub Agents 手机端 Web 服务反向隧道到远端主机，供接入的后端服务访问。
  *
- * 原理：手机主动出站 SSH 到 ECS（阿里云公网可达），建立反向隧道
- *   `ssh -R <remotePort>:localhost:<localPort> root@<ECS>`，
- *   ECS 上 backend 即可通过 `http://127.0.0.1:<remotePort>` 访问手机 Web API。
+ * 原理：手机主动出站 SSH 到远端主机，建立反向隧道
+ *   `ssh -R <remotePort>:localhost:<localPort> root@<remote-host>`，
+ *   远端主机上的后端服务即可通过 `http://127.0.0.1:<remotePort>` 访问手机 Web API。
  *
  * 生命周期：
  * - [start]：启动 Web 服务 + 建立反向隧道（前台服务持有，防止被杀）
@@ -111,7 +111,7 @@ class BackendWebBridge(
         ok
     }
 
-    /** 建立反向隧道：本地 Web 端口 → ECS 的 remoteTunnelPort */
+    /** 建立反向隧道：本地 Web 端口 → 远端的 remoteTunnelPort */
     private suspend fun connectTunnel(
         ecsHost: String,
         ecsPort: Int,
@@ -192,12 +192,12 @@ class BackendWebBridge(
             // mwiede/jsch 0.2.x 与 OpenSSH 8.8+ 均默认支持），无需额外算法配置。
             session.connect(15_000)
 
-            // 反向隧道：ECS 的 remoteTunnelPort → 手机的 localhost:localWebPort
+            // 反向隧道：远端的 remoteTunnelPort → 手机的 localhost:localWebPort
             // 4 参数重载：setPortForwardingR(bind_address, bind_port, host, port)
-            // bind_address 留空 = 监听 ECS 所有接口（backend 在本机访问 127.0.0.1 也可）
+            // bind_address 留空 = 监听远端所有接口（后端服务在本机访问 127.0.0.1 也可）
             sshSession = session
             session.setPortForwardingR("", remoteTunnelPort, "127.0.0.1", localWebPort)
-            AppLog.i(TAG, "SSH reverse tunnel established: ECS:$remoteTunnelPort -> local:$localWebPort")
+            AppLog.i(TAG, "SSH reverse tunnel established: remote:$remoteTunnelPort -> local:$localWebPort")
             true
         } catch (e: Exception) {
             AppLog.e(TAG, "SSH tunnel failed", e)

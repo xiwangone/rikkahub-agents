@@ -232,12 +232,15 @@ class SettingsStore(
         val WEB_SERVER_LISTEN_SCOPE = stringPreferencesKey("web_server_listen_scope")
         val WEB_SERVER_ALLOWED_NETWORKS = stringPreferencesKey("web_server_allowed_networks")
         val WEB_SERVER_ACCESS_PASSWORD = stringPreferencesKey("web_server_access_password")
+        /** 全局「网段预设」：Web 服务器 / 调试接口 / 本地 MCP 共用（CIDR 列表，JSON 数组） */
+        val NETWORK_CIDR_PRESETS = stringPreferencesKey("network_cidr_presets")
         val SETTING_SHORTCUT_IDS = stringPreferencesKey("setting_shortcut_ids")
         val WORKSPACE_APK_MIRROR = stringPreferencesKey("workspace_apk_mirror")
         val WORKSPACE_APT_MIRROR = stringPreferencesKey("workspace_apt_mirror")
         val WORKSPACE_PIP_MIRROR = stringPreferencesKey("workspace_pip_mirror")
         val WORKSPACE_NPM_MIRROR = stringPreferencesKey("workspace_npm_mirror")
         val WORKSPACE_SDCARD_ENABLED = booleanPreferencesKey("workspace_sdcard_enabled")
+        val WORKSPACE_CHROOT_ENABLED = booleanPreferencesKey("workspace_chroot_enabled")
         // 工作区资源画像缓存（JSON：id -> {rootBytes, packageCount, kernel, at}）。
         // 大工作区全树遍历可达分钟级，跨进程持久化让详情页秒显上次结果、后台静默刷新。
         val WORKSPACE_STATS_CACHE = stringPreferencesKey("workspace_stats_cache")
@@ -372,7 +375,7 @@ class SettingsStore(
                 } ?: SearchCommonOptions(),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
                 mcpServers = preferences[MCP_SERVERS]?.let {
-                    JsonInstant.decodeFromString(it)
+                    JsonInstant.decodeFromString(decryptPrefValue(it))
                 } ?: emptyList(),
 subAgents = preferences[SUB_AGENTS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<SubAgentProfile>>(raw) }.getOrElse {
@@ -385,33 +388,33 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 },
                 subAgentForegroundReceipt = preferences[SUB_AGENT_FOREGROUND_RECEIPT] ?: false,
                 webDavConfig = preferences[WEBDAV_CONFIG]?.let {
-                    JsonInstant.decodeFromString(it)
+                    JsonInstant.decodeFromString(decryptPrefValue(it))
                 } ?: WebDavConfig(),
                 s3Config = preferences[S3_CONFIG]?.let {
-                    JsonInstant.decodeFromString(it)
+                    JsonInstant.decodeFromString(decryptPrefValue(it))
                 } ?: S3Config(),
                 webDavConfigs = preferences[WEBDAV_CONFIGS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<WebDavConfig>>(raw) }.getOrElse {
+                    runCatching { JsonInstant.decodeFromString<List<WebDavConfig>>(decryptPrefValue(raw)) }.getOrElse {
                         AppLog.w(TAG, "Failed to decode webDavConfigs, using empty", it)
                         emptyList()
                     }
                 } ?: emptyList(),
                 activeWebDavConfigId = preferences[ACTIVE_WEBDAV_CONFIG_ID],
                 s3Configs = preferences[S3_CONFIGS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<S3Config>>(raw) }.getOrElse {
+                    runCatching { JsonInstant.decodeFromString<List<S3Config>>(decryptPrefValue(raw)) }.getOrElse {
                         AppLog.w(TAG, "Failed to decode s3Configs, using empty", it)
                         emptyList()
                     }
                 } ?: emptyList(),
                 activeS3ConfigId = preferences[ACTIVE_S3_CONFIG_ID],
                 ttsProviders = preferences[TTS_PROVIDERS]?.let {
-                    JsonInstant.decodeFromString(it)
+                    JsonInstant.decodeFromString(decryptPrefValue(it))
                 } ?: emptyList(),
                 selectedTTSProviderId = preferences[SELECTED_TTS_PROVIDER]?.let { Uuid.parse(it) }
                     ?: DEFAULT_SYSTEM_TTS_ID,
                 defaultTTSPlaybackSpeed = preferences[DEFAULT_TTS_PLAYBACK_SPEED]?.coerceIn(0.5f, 2.0f) ?: 1.0f,
                 asrProviders = preferences[ASR_PROVIDERS]?.let {
-                    JsonInstant.decodeFromString(it)
+                    JsonInstant.decodeFromString(decryptPrefValue(it))
                 } ?: emptyList(),
                 selectedASRProviderId = preferences[SELECTED_ASR_PROVIDER]?.let { Uuid.parse(it) },
                 modeInjections = preferences[MODE_INJECTIONS]?.let {
@@ -444,6 +447,10 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 webServerListenScope = preferences[WEB_SERVER_LISTEN_SCOPE] ?: "loopback",
                 webServerAllowedNetworks = preferences[WEB_SERVER_ALLOWED_NETWORKS] ?: "",
                 webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD] ?: "",
+                networkCidrPresets =
+                    preferences[NETWORK_CIDR_PRESETS]?.let {
+                        runCatching { JsonInstant.decodeFromString<List<String>>(it) }.getOrDefault(emptyList())
+                    } ?: emptyList(),
                 settingShortcutIds =
                     preferences[SETTING_SHORTCUT_IDS]
                         ?.split('\u0001')
@@ -454,6 +461,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 workspacePipMirror = preferences[WORKSPACE_PIP_MIRROR] ?: "",
                 workspaceNpmMirror = preferences[WORKSPACE_NPM_MIRROR] ?: "",
                 workspaceSdcardEnabled = preferences[WORKSPACE_SDCARD_ENABLED] ?: false,
+                workspaceChrootEnabled = preferences[WORKSPACE_CHROOT_ENABLED] ?: false,
                 workspaceStatsCache = preferences[WORKSPACE_STATS_CACHE] ?: "{}",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
                 aiLogLevel = AiLogLevel.fromPreference(preferences[AI_LOG_LEVEL]),
@@ -711,26 +719,26 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[SEARCH_SELECTED] =
                 settings.searchServiceSelected.coerceIn(0, maxOf(0, settings.searchServices.size - 1))
 
-            preferences[MCP_SERVERS] = JsonInstant.encodeToString(settings.mcpServers)
+            preferences[MCP_SERVERS] = encryptPrefValue(JsonInstant.encodeToString(settings.mcpServers))
             preferences[SUB_AGENTS] = JsonInstant.encodeToString(settings.subAgents)
             putSubAgentDefaultWorkspace(preferences, settings)
             putSubAgentForegroundReceipt(preferences, settings)
-            preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settings.webDavConfig)
-            preferences[S3_CONFIG] = JsonInstant.encodeToString(settings.s3Config)
-            preferences[WEBDAV_CONFIGS] = JsonInstant.encodeToString(settings.webDavConfigs)
+            preferences[WEBDAV_CONFIG] = encryptPrefValue(JsonInstant.encodeToString(settings.webDavConfig))
+            preferences[S3_CONFIG] = encryptPrefValue(JsonInstant.encodeToString(settings.s3Config))
+            preferences[WEBDAV_CONFIGS] = encryptPrefValue(JsonInstant.encodeToString(settings.webDavConfigs))
             settings.activeWebDavConfigId?.let {
                 preferences[ACTIVE_WEBDAV_CONFIG_ID] = it
             } ?: preferences.remove(ACTIVE_WEBDAV_CONFIG_ID)
-            preferences[S3_CONFIGS] = JsonInstant.encodeToString(settings.s3Configs)
+            preferences[S3_CONFIGS] = encryptPrefValue(JsonInstant.encodeToString(settings.s3Configs))
             settings.activeS3ConfigId?.let {
                 preferences[ACTIVE_S3_CONFIG_ID] = it
             } ?: preferences.remove(ACTIVE_S3_CONFIG_ID)
-            preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(settings.ttsProviders)
+            preferences[TTS_PROVIDERS] = encryptPrefValue(JsonInstant.encodeToString(settings.ttsProviders))
             settings.selectedTTSProviderId?.let {
                 preferences[SELECTED_TTS_PROVIDER] = it.toString()
             } ?: preferences.remove(SELECTED_TTS_PROVIDER)
             preferences[DEFAULT_TTS_PLAYBACK_SPEED] = settings.defaultTTSPlaybackSpeed.coerceIn(0.5f, 2.0f)
-            preferences[ASR_PROVIDERS] = JsonInstant.encodeToString(settings.asrProviders)
+            preferences[ASR_PROVIDERS] = encryptPrefValue(JsonInstant.encodeToString(settings.asrProviders))
             settings.selectedASRProviderId?.let {
                 preferences[SELECTED_ASR_PROVIDER] = it.toString()
             } ?: preferences.remove(SELECTED_ASR_PROVIDER)
@@ -750,13 +758,11 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[WEB_BRIDGE_PRIVATE_KEY_PATH] = settings.webBridgePrivateKeyPath
             preferences[WEB_BRIDGE_PASSWORD] = settings.webBridgePassword
             preferences[WEB_BRIDGE_CREDENTIAL_REF] = settings.webBridgeCredentialRef
-            preferences[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
-            preferences[WEB_SERVER_LISTEN_SCOPE] = settings.webServerListenScope
-            preferences[WEB_SERVER_ALLOWED_NETWORKS] = settings.webServerAllowedNetworks
-            preferences[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
+            preferences.putWebServerBlock(settings)
             preferences[SETTING_SHORTCUT_IDS] = settings.settingShortcutIds.joinToString("\u0001")
             preferences.putWorkspaceMirrors(settings)
             preferences[WORKSPACE_SDCARD_ENABLED] = settings.workspaceSdcardEnabled
+            preferences[WORKSPACE_CHROOT_ENABLED] = settings.workspaceChrootEnabled
             preferences[WORKSPACE_STATS_CACHE] = settings.workspaceStatsCache
             preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
             preferences[AI_LOG_LEVEL] = settings.aiLogLevel.preferenceName
@@ -776,7 +782,29 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
      * 抽成独立扩展函数是为了让 [update] 保持在 detekt LongMethod 阈值内
      * （2026-09-25 实测：直接内联两行会把它顶到 120 行而报错）。
      */
-    private fun MutablePreferences.putToolOutputLimits(settings: Settings) {
+    /**
+ * web 服务与「网段预设」一组写入。抽成扩展只为收敛 [update] 的体积（detekt LongMethod 阈值
+ * 贴线），语义与内联写法一致。
+ */
+private fun MutablePreferences.putWebServerBlock(settings: Settings) {
+    this[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
+    this[WEB_SERVER_LISTEN_SCOPE] = settings.webServerListenScope
+    this[WEB_SERVER_ALLOWED_NETWORKS] = settings.webServerAllowedNetworks
+    this[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
+    this[NETWORK_CIDR_PRESETS] = JsonInstant.encodeToString(settings.networkCidrPresets)
+}
+
+/**
+ * 敏感 JSON 值落盘加解密（与 `providers` 同一条 Keystore 通道）。
+ *
+ * 覆盖：MCP 服务器配置（OAuth token / clientSecret）、WebDAV 与 S3 凭据、TTS / ASR
+ * 的 provider 配置。历史明文（非密文格式）解密失败即回退原文，升级无需迁移。
+ */
+private fun decryptPrefValue(raw: String): String = ProviderCredentialCipher.decrypt(raw) ?: raw
+
+private fun encryptPrefValue(raw: String): String = ProviderCredentialCipher.encrypt(raw)
+
+private fun MutablePreferences.putToolOutputLimits(settings: Settings) {
         this[TOOL_OUTPUT_MAX_CHARS] = settings.toolOutputMaxChars
         this[TOOL_OUTPUT_COMPACT_MAX_CHARS] = settings.toolOutputCompactMaxChars
     }
@@ -1094,6 +1122,11 @@ data class Settings(
     /** 允许访问的网段白名单（CIDR，逗号分隔；空 = 不限制）。仅非 loopback 时生效 */
     val webServerAllowedNetworks: String = "",
     val webServerAccessPassword: String = "",
+    /**
+     * 全局「网段预设」：Web 服务器 / 调试接口 / 本地 MCP 等所有需要填 CIDR 的入口共用一套，
+     * 免去每处重复手输。空 = 尚未保存任何预设。
+     */
+    val networkCidrPresets: List<String> = emptyList(),
     /** 设置页快捷区：用户自选的有序入口 id 列表（id 见 SettingCatalog）。 */
     val settingShortcutIds: List<String> = emptyList(),
     /** 沙箱包管理器镜像（空 = 官方源）：apk / apt / pip / npm。 */
@@ -1103,6 +1136,8 @@ data class Settings(
     val workspaceNpmMirror: String = "",
     /** 手机存储挂载到沙箱 /sdcard（可选挂载，默认关；写操作仍走审批白名单）。 */
     val workspaceSdcardEnabled: Boolean = false,
+    /** chroot 后端开关（实验性，root 设备，默认关）：开 → shell 经 chroot-run 执行。 */
+    val workspaceChrootEnabled: Boolean = false,
     /** 工作区资源画像缓存（JSON 字符串：id -> {rootBytes, packageCount, kernel, at}）。 */
     val workspaceStatsCache: String = "{}",
     val webServerLocalhostOnly: Boolean = true,

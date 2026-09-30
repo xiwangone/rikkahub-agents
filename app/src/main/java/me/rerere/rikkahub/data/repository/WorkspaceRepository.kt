@@ -41,6 +41,30 @@ import kotlin.uuid.Uuid
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.workspace.WorkspaceMountSwitch
 
+/** chroot 开启失败的原因：UI 按此取本地化文案（异常 message 保留英文供日志排障）。 */
+enum class ChrootEnableFailure { ROOT_REQUIRED, NO_WORKSPACE, PROBE_FAILED }
+
+/** chroot 开启失败。[detail] 是可展示的技术细节（探测输出片段等）。 */
+class ChrootEnableException(
+    val reason: ChrootEnableFailure,
+    val detail: String = "",
+    message: String,
+) : IllegalStateException(message)
+
+/**
+ * 设置失败的可展示形态：已知原因带 [reason]（UI 取本地化文案并附 [detail]），
+ * 未知异常兜底展示 [raw] 原文（不翻译，便于排障）。
+ */
+data class SettingsError(val reason: ChrootEnableFailure?, val detail: String, val raw: String) {
+    companion object {
+        fun of(e: Throwable): SettingsError = if (e is ChrootEnableException) {
+            SettingsError(reason = e.reason, detail = e.detail, raw = e.message.orEmpty())
+        } else {
+            SettingsError(reason = null, detail = "", raw = e.message.orEmpty())
+        }
+    }
+}
+
 class WorkspaceRepository(
     private val dao: WorkspaceDAO,
     private val manager: WorkspaceManager,
@@ -112,6 +136,66 @@ class WorkspaceRepository(
         settingsStore.update(current.copy(workspaceSdcardEnabled = enabled))
         mountSwitch.sdcardEnabled = enabled
     }
+
+    /** chroot 后端开关（实验性）：设置流，订阅时同步内存桥。 */
+    fun chrootEnabledFlow(): Flow<Boolean> =
+        settingsStore.settingsFlow
+            .map { it.workspaceChrootEnabled }
+            .onEach { mountSwitch.chrootEnabled = it }
+
+    /** 开关 chroot 后端：写设置 + 同步内存桥（对后续 shell 启动即时生效）。 */
+    suspend fun setChrootEnabled(enabled: Boolean) = withContext(Dispatchers.IO) {
+        if (enabled && !isSuAccessible()) {
+            throw ChrootEnableException(
+                ChrootEnableFailure.ROOT_REQUIRED,
+                message = "chroot requires root: su not accessible on this device. " +
+                    "Grant this app root access in your root manager (e.g. Magisk) and retry.",
+            )
+        }
+        if (enabled) {
+            val workspace = dao.getAll().firstOrNull()
+                ?: throw ChrootEnableException(
+                    ChrootEnableFailure.NO_WORKSPACE,
+                    message = "chroot probe: no workspace",
+                )
+            manager.probeChroot(workspace.root)?.let { result ->
+                if (result.fail > 0) {
+                    throw ChrootEnableException(
+                        ChrootEnableFailure.PROBE_FAILED,
+                        detail = result.raw.take(400),
+                        message = "chroot probe failed (${result.fail} checks)",
+                    )
+                }
+            }
+        }
+        if (!enabled) {
+            // 关开关时卸载常驻挂载（不卸会留着 → 删工作区会 EBUSY）
+            dao.getAll().forEach { ws ->
+                manager.unmountChroot(ws.root)?.let { r ->
+                    if (r.exitCode != 0) {
+                        AppLog.w("Workspace", "chroot unmount on disable failed: ${r.stderr}")
+                    }
+                }
+            }
+        }
+        val current = settingsStore.settingsFlow.first()
+        settingsStore.update(current.copy(workspaceChrootEnabled = enabled))
+        mountSwitch.chrootEnabled = enabled
+    }
+
+    /** chroot 后端是否就绪（脚本缺失时为 false → 开关开着实际也走 proot；供 UI 显性提示）。 */
+    fun chrootBackendReady(): Boolean = manager.chrootRunnerReady()
+
+    /** chroot 前置预检：su 可执行且 3s 内响应（无 root 设备抛 IOException / 未授权则超时） */
+    private fun isSuAccessible(): Boolean = runCatching {
+        val p = ProcessBuilder("su", "-c", "id").start()
+        val ok = p.waitFor(3, java.util.concurrent.TimeUnit.SECONDS) && p.exitValue() == 0
+        p.destroy()
+        ok
+    }.getOrDefault(false)
+
+    /** chroot 能力探测透传（root 层实测；null = 非实验 runner） */
+    fun probeChroot(root: String) = manager.probeChroot(root)
 
     /** 保存工作区画像标签（JSON 数组落库；阶段 3 任务路由的匹配键）。 */
     suspend fun setTags(id: String, tags: List<String>) {

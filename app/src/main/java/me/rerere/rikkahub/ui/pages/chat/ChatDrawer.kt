@@ -55,6 +55,7 @@ import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import me.rerere.ai.provider.providers.backend.SessionPathStore
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.Delete01
@@ -118,6 +119,8 @@ fun ChatDrawerContent(
     val toaster = LocalToaster.current
     val isPlayStore = rememberIsPlayStoreVersion()
     val repo = koinInject<ConversationRepository>()
+    // 删除对话时清服务端会话路径映射（防止已删对话被映射残留接回）
+    val sessionPathStore = koinInject<SessionPathStore>()
 
     val activity = context as ComponentActivity
     val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = activity)
@@ -289,6 +292,8 @@ fun ChatDrawerContent(
                 onDelete = {
                     scope.launch {
                         vm.deleteConversation(it).join()
+                        // 清理服务端会话路径映射：否则已删对话的记录残留，重进时可能把它接回来
+                        runCatching { sessionPathStore.remove(it.id.toString()) }
                         conversations.refresh()
                         if (it.id == current.id) {
                             navigateToChatPage(navController)

@@ -12,6 +12,9 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.repository.ChrootEnableException
+import me.rerere.rikkahub.data.repository.ChrootEnableFailure
+import me.rerere.rikkahub.data.repository.SettingsError
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.RootfsInstallProgress
 import me.rerere.workspace.RootfsInstallStage
@@ -54,7 +57,7 @@ class WorkspaceDetailVM(
     private val _folderExportProgress = MutableStateFlow<FolderExportProgress?>(null)
     val folderExportProgress = _folderExportProgress.asStateFlow()
 
-    private val _settingsError = MutableStateFlow<String?>(null)
+    private val _settingsError = MutableStateFlow<SettingsError?>(null)
     val settingsError = _settingsError.asStateFlow()
 
     private val _caRepairCount = MutableStateFlow<Int?>(null)
@@ -85,7 +88,7 @@ class WorkspaceDetailVM(
     fun applyMirrors(mirrors: me.rerere.workspace.WorkspaceMirrors) {
         viewModelScope.launch {
             runCatching { repository.setMirrors(mirrors) }
-                .onFailure { _settingsError.value = it.message }
+                .onFailure { _settingsError.value = SettingsError.of(it) }
         }
     }
 
@@ -98,7 +101,7 @@ class WorkspaceDetailVM(
         viewModelScope.launch {
             runCatching { repository.repairCaCerts() }
                 .onSuccess { count -> _caRepairCount.value = count }
-                .onFailure { _settingsError.value = it.message }
+                .onFailure { _settingsError.value = SettingsError.of(it) }
         }
     }
 
@@ -118,7 +121,40 @@ class WorkspaceDetailVM(
     fun setSdcardAccess(enabled: Boolean) {
         viewModelScope.launch {
             runCatching { repository.setSdcardAccess(enabled) }
-                .onFailure { _settingsError.value = it.message }
+                .onFailure { _settingsError.value = SettingsError.of(it) }
+        }
+    }
+
+    /** chroot 后端开关（实验性，root 设备，默认关）。 */
+    val chrootEnabled: kotlinx.coroutines.flow.StateFlow<Boolean> =
+        repository.chrootEnabledFlow()
+            .stateIn(
+                viewModelScope,
+                kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
+                false,
+            )
+
+    /** chroot 后端是否就绪（脚本缺失时为 false）；开关开着但未就绪 = 实际在跑 proot。 */
+    val chrootBackendReady: Boolean = repository.chrootBackendReady()
+
+    fun setChrootEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            runCatching {
+                if (enabled) {
+                    // 预检用当前工作区目录作为 probe 参数（探测本身不碰 rootfs，目录仅占位）
+                    val root = state.value.workspace?.root
+                    if (root != null) repository.probeChroot(root)?.let { r ->
+                        if (r.fail > 0) {
+                            throw ChrootEnableException(
+                                ChrootEnableFailure.PROBE_FAILED,
+                                detail = r.raw.take(300),
+                                message = "chroot probe failed (${r.fail})",
+                            )
+                        }
+                    }
+                }
+                repository.setChrootEnabled(enabled)
+            }.onFailure { _settingsError.value = SettingsError.of(it) }
         }
     }
 
@@ -133,7 +169,7 @@ class WorkspaceDetailVM(
                 }
                 .onFailure {
                     AppLog.w("WorkspaceTags", "save failed", it)
-                    _settingsError.value = it.message
+                    _settingsError.value = SettingsError.of(it)
                 }
         }
     }
@@ -271,6 +307,7 @@ class WorkspaceDetailVM(
     fun exportToCacheFile(
         entry: WorkspaceFileEntry,
         cacheDir: File,
+        onFail: (() -> Unit)? = null,
         onReady: (File) -> Unit,
     ) {
         viewModelScope.launch {
@@ -287,6 +324,7 @@ class WorkspaceDetailVM(
                 }
                 file
             }.onSuccess(onReady).onFailure { error ->
+                onFail?.invoke()
                 _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_export)) }
             }
         }
@@ -418,7 +456,7 @@ class WorkspaceDetailVM(
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Exception) {
-                _settingsError.value = error.message.orEmpty()
+                _settingsError.value = SettingsError.of(error)
             }
         }
     }
