@@ -3381,4 +3381,7 @@
   <string name="workspace_detail_stats_packages">الحزم</string>
   <string name="workspace_detail_tags">الوسوم</string>
   <string name="workspace_detail_tags_hint">اكتب وسمًا، ثم اضغط Enter للإضافة</string>
+  <string name="network_cidr_presets_title">الشبكات الشائعة</string>
+  <string name="network_cidr_presets_save">حفظ الحالي</string>
+  <string name="network_cidr_presets_remove">إزالة الشبكة المحفوظة</string>
 </resources>

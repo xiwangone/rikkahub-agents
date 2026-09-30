@@ -3382,4 +3382,7 @@
   <string name="workspace_detail_stats_packages">パッケージ</string>
   <string name="workspace_detail_tags">タグ</string>
   <string name="workspace_detail_tags_hint">タグを入力し、Enterキーで追加</string>
+  <string name="network_cidr_presets_title">よく使うネットワーク</string>
+  <string name="network_cidr_presets_save">現在の値を保存</string>
+  <string name="network_cidr_presets_remove">このプリセットを削除</string>
 </resources>

@@ -20,7 +20,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
@@ -70,6 +69,7 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.web.WebServerManager
 import org.koin.compose.koinInject
+import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
 
 @Composable
 fun SettingWebServerPage() {
@@ -277,14 +277,17 @@ fun SettingWebServerPage() {
                                         Text(label, style = MaterialTheme.typography.bodySmall)
                                     }
                                 }
-                                OutlinedTextField(
+                                NetworkAccessField(
                                     value = settings.webServerAllowedNetworks,
                                     onValueChange = { value ->
                                         scope.launch { settingsStore.update { it.copy(webServerAllowedNetworks = value) } }
                                     },
-                                    label = { Text(stringResource(R.string.net_allowed_networks)) },
-                                    supportingText = { Text(stringResource(R.string.net_allowed_networks_desc)) },
-                                    singleLine = true,
+                                    presets = settings.networkCidrPresets,
+                                    onPresetsChange = { presets ->
+                                        scope.launch { settingsStore.update { it.copy(networkCidrPresets = presets) } }
+                                    },
+                                    label = stringResource(R.string.net_allowed_networks),
+                                    supportingText = stringResource(R.string.net_allowed_networks_desc),
                                     enabled = !serverState.isRunning,
                                     modifier = Modifier.fillMaxWidth(),
                                 )

@@ -3381,4 +3381,7 @@
   <string name="workspace_detail_stats_packages">套件</string>
   <string name="workspace_detail_tags">標籤</string>
   <string name="workspace_detail_tags_hint">輸入標籤，按 Enter 新增</string>
+  <string name="network_cidr_presets_title">常用網段</string>
+  <string name="network_cidr_presets_save">儲存目前</string>
+  <string name="network_cidr_presets_remove">刪除此常用網段</string>
 </resources>

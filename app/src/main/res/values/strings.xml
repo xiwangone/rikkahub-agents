@@ -3378,4 +3378,7 @@
   <string name="chat_page_compress_model_unavailable">No usable model for compression. Pick a compression model in Settings, or enable a provider.</string>
   <string name="error_kind_tool_pairing">Tool call without its result (repaired automatically; start a new chat if it persists)</string>
   <string name="error_kind_image_unsupported">Model does not support images (remove image messages or switch model)</string>
+  <string name="network_cidr_presets_title">Common networks</string>
+  <string name="network_cidr_presets_save">Save current</string>
+  <string name="network_cidr_presets_remove">Remove preset</string>
 </resources>

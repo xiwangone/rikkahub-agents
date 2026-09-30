@@ -232,6 +232,8 @@ class SettingsStore(
         val WEB_SERVER_LISTEN_SCOPE = stringPreferencesKey("web_server_listen_scope")
         val WEB_SERVER_ALLOWED_NETWORKS = stringPreferencesKey("web_server_allowed_networks")
         val WEB_SERVER_ACCESS_PASSWORD = stringPreferencesKey("web_server_access_password")
+        /** 全局「网段预设」：Web 服务器 / 调试接口 / 本地 MCP 共用（CIDR 列表，JSON 数组） */
+        val NETWORK_CIDR_PRESETS = stringPreferencesKey("network_cidr_presets")
         val SETTING_SHORTCUT_IDS = stringPreferencesKey("setting_shortcut_ids")
         val WORKSPACE_APK_MIRROR = stringPreferencesKey("workspace_apk_mirror")
         val WORKSPACE_APT_MIRROR = stringPreferencesKey("workspace_apt_mirror")
@@ -445,6 +447,10 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 webServerListenScope = preferences[WEB_SERVER_LISTEN_SCOPE] ?: "loopback",
                 webServerAllowedNetworks = preferences[WEB_SERVER_ALLOWED_NETWORKS] ?: "",
                 webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD] ?: "",
+                networkCidrPresets =
+                    preferences[NETWORK_CIDR_PRESETS]?.let {
+                        runCatching { JsonInstant.decodeFromString<List<String>>(it) }.getOrDefault(emptyList())
+                    } ?: emptyList(),
                 settingShortcutIds =
                     preferences[SETTING_SHORTCUT_IDS]
                         ?.split('\u0001')
@@ -752,10 +758,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[WEB_BRIDGE_PRIVATE_KEY_PATH] = settings.webBridgePrivateKeyPath
             preferences[WEB_BRIDGE_PASSWORD] = settings.webBridgePassword
             preferences[WEB_BRIDGE_CREDENTIAL_REF] = settings.webBridgeCredentialRef
-            preferences[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
-            preferences[WEB_SERVER_LISTEN_SCOPE] = settings.webServerListenScope
-            preferences[WEB_SERVER_ALLOWED_NETWORKS] = settings.webServerAllowedNetworks
-            preferences[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
+            preferences.putWebServerBlock(settings)
             preferences[SETTING_SHORTCUT_IDS] = settings.settingShortcutIds.joinToString("\u0001")
             preferences.putWorkspaceMirrors(settings)
             preferences[WORKSPACE_SDCARD_ENABLED] = settings.workspaceSdcardEnabled
@@ -779,7 +782,19 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
      * 抽成独立扩展函数是为了让 [update] 保持在 detekt LongMethod 阈值内
      * （2026-09-25 实测：直接内联两行会把它顶到 120 行而报错）。
      */
-    private fun MutablePreferences.putToolOutputLimits(settings: Settings) {
+    /**
+ * web 服务与「网段预设」一组写入。抽成扩展只为收敛 [update] 的体积（detekt LongMethod 阈值
+ * 贴线），语义与内联写法一致。
+ */
+private fun MutablePreferences.putWebServerBlock(settings: Settings) {
+    this[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
+    this[WEB_SERVER_LISTEN_SCOPE] = settings.webServerListenScope
+    this[WEB_SERVER_ALLOWED_NETWORKS] = settings.webServerAllowedNetworks
+    this[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
+    this[NETWORK_CIDR_PRESETS] = JsonInstant.encodeToString(settings.networkCidrPresets)
+}
+
+private fun MutablePreferences.putToolOutputLimits(settings: Settings) {
         this[TOOL_OUTPUT_MAX_CHARS] = settings.toolOutputMaxChars
         this[TOOL_OUTPUT_COMPACT_MAX_CHARS] = settings.toolOutputCompactMaxChars
     }
@@ -1097,6 +1112,11 @@ data class Settings(
     /** 允许访问的网段白名单（CIDR，逗号分隔；空 = 不限制）。仅非 loopback 时生效 */
     val webServerAllowedNetworks: String = "",
     val webServerAccessPassword: String = "",
+    /**
+     * 全局「网段预设」：Web 服务器 / 调试接口 / 本地 MCP 等所有需要填 CIDR 的入口共用一套，
+     * 免去每处重复手输。空 = 尚未保存任何预设。
+     */
+    val networkCidrPresets: List<String> = emptyList(),
     /** 设置页快捷区：用户自选的有序入口 id 列表（id 见 SettingCatalog）。 */
     val settingShortcutIds: List<String> = emptyList(),
     /** 沙箱包管理器镜像（空 = 官方源）：apk / apt / pip / npm。 */

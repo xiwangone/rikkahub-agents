@@ -3378,4 +3378,7 @@
   <string name="chat_page_compress_model_unavailable">没有可用于压缩的模型：请在设置中指定压缩模型，或启用一个提供商。</string>
   <string name="error_kind_tool_pairing">工具调用缺少结果（已自动补齐；若仍失败请新建会话）</string>
   <string name="error_kind_image_unsupported">当前模型不支持图片（可删除含图消息或切换模型）</string>
+  <string name="network_cidr_presets_title">常用网段</string>
+  <string name="network_cidr_presets_save">保存当前</string>
+  <string name="network_cidr_presets_remove">删除该常用网段</string>
 </resources>
