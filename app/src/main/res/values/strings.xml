@@ -2416,7 +2416,7 @@
   <string name="vault_dupes_title">Check duplicates</string>
   <string name="vault_dupes_empty">No duplicates found</string>
   <string name="vault_ref_pick">Pick from Vault</string>
-  <string name="vault_ref_hint">Or type $$NAME to use a vault entry</string>
+  <string name="vault_ref_hint">Or type $$NAME to use a vault entry (export the vault to restore it on a new device)</string>
   <string name="vault_ref_missing">Reference not found: %1$s (deleted or renamed)</string>
   <string name="vault_ref_store">Store in Vault</string>
   <string name="vault_show">Show</string>
