@@ -1,6 +1,5 @@
 package me.rerere.ai.provider
 
-import androidx.compose.runtime.Composable
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
@@ -47,8 +46,8 @@ sealed class ProviderSetting {
     abstract val balanceOption: BalanceOption
 
     abstract val builtIn: Boolean
-    abstract val description: @Composable() () -> Unit
-    abstract val shortDescription: @Composable() () -> Unit
+    /** Provider 注册键:getProviderByType 经此键查表,加新 provider 只需声明子类 */
+    abstract val providerKey: String
 
     abstract fun addModel(model: Model): ProviderSetting
     abstract fun editModel(model: Model): ProviderSetting
@@ -61,8 +60,6 @@ sealed class ProviderSetting {
         models: List<Model> = this.models,
         balanceOption: BalanceOption = this.balanceOption,
         builtIn: Boolean = this.builtIn,
-        description: @Composable (() -> Unit) = this.description,
-        shortDescription: @Composable (() -> Unit) = this.shortDescription,
     ): ProviderSetting
 
     @Serializable
@@ -74,8 +71,6 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         @Transient override val builtIn: Boolean = false,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
         var apiKey: String = "",
         var baseUrl: String = "https://api.openai.com/v1",
         var chatCompletionsPath: String = "/chat/completions",
@@ -89,6 +84,8 @@ sealed class ProviderSetting {
         var routing: OpenRouterRouting = OpenRouterRouting(),
         var responsesPath: String = "/responses",
     ) : ProviderSetting() {
+        override val providerKey = "openai"
+
         override fun addModel(model: Model): ProviderSetting {
             return copy(models = models + model)
         }
@@ -118,8 +115,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -127,9 +122,7 @@ sealed class ProviderSetting {
                 name = name,
                 models = models,
                 builtIn = builtIn,
-                description = description,
                 balanceOption = balanceOption,
-                shortDescription = shortDescription
             )
         }
     }
@@ -143,8 +136,6 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         @Transient override val builtIn: Boolean = false,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
         var apiKey: String = "",
         var baseUrl: String = "https://generativelanguage.googleapis.com/v1beta",
         var vertexAI: Boolean = false,
@@ -154,6 +145,8 @@ sealed class ProviderSetting {
         var location: String = "us-central1", // only for vertex AI service account
         var projectId: String = "", // only for vertex AI service account
     ) : ProviderSetting() {
+        override val providerKey = "google"
+
         override fun addModel(model: Model): ProviderSetting {
             return copy(models = models + model)
         }
@@ -183,8 +176,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -192,8 +183,6 @@ sealed class ProviderSetting {
                 name = name,
                 models = models,
                 builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
                 balanceOption = balanceOption
             )
         }
@@ -208,13 +197,13 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         @Transient override val builtIn: Boolean = false,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
         var apiKey: String = "",
         var baseUrl: String = "https://api.anthropic.com/v1",
         var promptCaching: Boolean = true,  // ~10% input rate on cache hits, near-pure win
         var promptCacheTtl: ClaudePromptCacheTtl = ClaudePromptCacheTtl.FIVE_MINUTES,
     ) : ProviderSetting() {
+        override val providerKey = "claude"
+
         override fun addModel(model: Model): ProviderSetting {
             return copy(models = models + model)
         }
@@ -244,8 +233,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -254,8 +241,6 @@ sealed class ProviderSetting {
                 models = models,
                 balanceOption = balanceOption,
                 builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
             )
         }
     }
@@ -269,13 +254,13 @@ sealed class ProviderSetting {
         override var models: List<Model> = AICORE_DEFAULT_MODELS,
         override val balanceOption: BalanceOption = BalanceOption(),
         @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
         // Defaults to PREVIEW because the STABLE feature ID is missing on most current
         // AICore beta channels — PREVIEW is what actually resolves to a working model on
         // Pixel 8/9/10 today. Users can flip back to STABLE once Google promotes it.
         var releaseStage: AICoreReleaseStage = AICoreReleaseStage.PREVIEW,
     ) : ProviderSetting() {
+        override val providerKey = "aicore"
+
         override fun addModel(model: Model): ProviderSetting = this // synthetic models, no add
         override fun editModel(model: Model): ProviderSetting {
             return copy(models = models.map { if (it.id == model.id) model else it })
@@ -297,8 +282,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return this.copy(
                 id = id,
@@ -306,8 +289,6 @@ sealed class ProviderSetting {
                 name = name,
                 models = models,
                 builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
                 balanceOption = balanceOption,
             )
         }
@@ -322,9 +303,9 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
     ) : ProviderSetting() {
+        override val providerKey = "local_litert"
+
         override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
         override fun editModel(model: Model): ProviderSetting =
             copy(models = models.map { if (it.id == model.id) model else it })
@@ -339,11 +320,9 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting = copy(
             id = id, enabled = enabled, name = name, models = models,
-            builtIn = builtIn, description = description, shortDescription = shortDescription,
+            builtIn = builtIn,
             balanceOption = balanceOption,
         )
     }
@@ -357,9 +336,9 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
     ) : ProviderSetting() {
+        override val providerKey = "local_llamacpp"
+
         override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
         override fun editModel(model: Model): ProviderSetting =
             copy(models = models.map { if (it.id == model.id) model else it })
@@ -374,11 +353,9 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting = copy(
             id = id, enabled = enabled, name = name, models = models,
-            builtIn = builtIn, description = description, shortDescription = shortDescription,
+            builtIn = builtIn,
             balanceOption = balanceOption,
         )
     }
@@ -392,9 +369,9 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
     ) : ProviderSetting() {
+        override val providerKey = "codex"
+
         override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
 
         override fun editModel(model: Model): ProviderSetting =
@@ -417,8 +394,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return copy(
                 id = id,
@@ -427,8 +402,6 @@ sealed class ProviderSetting {
                 models = models,
                 balanceOption = balanceOption,
                 builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
             )
         }
     }
@@ -442,9 +415,9 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
     ) : ProviderSetting() {
+        override val providerKey = "grok"
+
         override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
 
         override fun editModel(model: Model): ProviderSetting =
@@ -467,8 +440,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return copy(
                 id = id,
@@ -477,8 +448,6 @@ sealed class ProviderSetting {
                 models = models,
                 balanceOption = balanceOption,
                 builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
             )
         }
     }
@@ -492,9 +461,9 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         @Transient override val builtIn: Boolean = true,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
     ) : ProviderSetting() {
+        override val providerKey = "gemini_oauth"
+
         override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
 
         override fun editModel(model: Model): ProviderSetting =
@@ -517,8 +486,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting {
             return copy(
                 id = id,
@@ -527,8 +494,6 @@ sealed class ProviderSetting {
                 models = models,
                 balanceOption = balanceOption,
                 builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
             )
         }
     }
@@ -542,8 +507,6 @@ sealed class ProviderSetting {
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         @Transient override val builtIn: Boolean = false,
-        @Transient override val description: @Composable (() -> Unit) = {},
-        @Transient override val shortDescription: @Composable (() -> Unit) = {},
         // ── 后端类型：backend（专有 SSE）| custom（自定义 HTTP）| cli（命令行）──
         var backendType: String = "backend",
         // ── CLI 后端（backendType=cli）：命令行模板，{prompt} 为提示词占位符 ──
@@ -566,6 +529,8 @@ sealed class ProviderSetting {
         var webBridgePrivateKeyPath: String = "",
         var webBridgePassword: String = "",
     ) : ProviderSetting() {
+        override val providerKey = "backend"
+
         override fun addModel(model: Model): ProviderSetting = copy(models = models + model)
 
         override fun editModel(model: Model): ProviderSetting =
@@ -597,8 +562,6 @@ sealed class ProviderSetting {
             models: List<Model>,
             balanceOption: BalanceOption,
             builtIn: Boolean,
-            description: @Composable (() -> Unit),
-            shortDescription: @Composable (() -> Unit),
         ): ProviderSetting =
             copy(
                 id = id,
@@ -606,8 +569,6 @@ sealed class ProviderSetting {
                 name = name,
                 models = models,
                 builtIn = builtIn,
-                description = description,
-                shortDescription = shortDescription,
                 balanceOption = balanceOption,
             )
     }

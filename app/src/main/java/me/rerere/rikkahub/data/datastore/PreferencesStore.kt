@@ -507,13 +507,11 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 }
             }
             providers = providers.map { provider ->
+                // 注册表（ProviderDescriptors）是描述文案的唯一来源，按 id 索引；
+                // 这里只同步 builtIn 标记，不再拷贝 description（ai 模块已去 Compose 化）
                 val defaultProvider = DEFAULT_PROVIDERS.find { it.id == provider.id }
                 if (defaultProvider != null) {
-                    provider.copyProvider(
-                        builtIn = defaultProvider.builtIn,
-                        description = defaultProvider.description,
-                        shortDescription = defaultProvider.shortDescription,
-                    )
+                    provider.copyProvider(builtIn = defaultProvider.builtIn)
                 } else provider
             }.toMutableList()
             var assistants = it.assistants.ifEmpty { DEFAULT_ASSISTANTS }.toMutableList()

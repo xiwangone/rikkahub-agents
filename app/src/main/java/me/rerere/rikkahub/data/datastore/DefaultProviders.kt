@@ -1,18 +1,8 @@
 package me.rerere.rikkahub.data.datastore
 
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.LinkAnnotation
-import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.buildAnnotatedString
-import androidx.compose.ui.text.withLink
-import androidx.compose.ui.text.withStyle
 import me.rerere.ai.provider.BalanceField
 import me.rerere.ai.provider.BalanceOption
 import me.rerere.ai.provider.ProviderSetting
-import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import kotlin.uuid.Uuid
 
 val DEFAULT_AUTO_MODEL_ID = Uuid.parse("b7055fb4-39f9-4042-a88a-0d80ed76cf08")
@@ -33,12 +23,6 @@ val DEFAULT_PROVIDERS = listOf(
         // builtIn/description/shortDescription back from the defaults, not enabled.
         enabled = false,
         builtIn = true,
-        description = {
-            Text(stringResource(R.string.aicore_provider_description))
-        },
-        shortDescription = {
-            Text(stringResource(R.string.aicore_provider_short_description))
-        },
     ),
     ProviderSetting.LiteRtLocal(
         // LiteRT-LM on-device provider. Disabled by default. Settings → Local · LiteRT
@@ -50,12 +34,6 @@ val DEFAULT_PROVIDERS = listOf(
         // probe via Capabilities) so on-device inference behaves the same as Gallery.
         enabled = false,
         builtIn = true,
-        description = {
-            Text(stringResource(R.string.litert_provider_description))
-        },
-        shortDescription = {
-            Text(stringResource(R.string.litert_provider_short_description))
-        },
     ),
     // All built-in providers ship DISABLED by default. New installs start with zero
     // network-egress paths so a freshly-installed app can never make an LLM call (or
@@ -88,9 +66,6 @@ val DEFAULT_PROVIDERS = listOf(
         name = "Gemini OAuth",
         enabled = false,
         builtIn = true,
-        shortDescription = {
-            Text(stringResource(R.string.gemini_provider_short_description))
-        },
     ),
     ProviderSetting.Google(
         id = Uuid.parse("6ab18148-c138-4394-a46f-1cd8c8ceaa6d"),
@@ -106,32 +81,6 @@ val DEFAULT_PROVIDERS = listOf(
         apiKey = "",
         enabled = false,
         builtIn = true,
-        description = {
-            Text(
-                text = buildAnnotatedString {
-                    append("提供 OpenAI、Claude、Google Gemini 等主流模型的高并发和稳定服务")
-                    appendLine()
-                    append("官网：")
-                    withLink(LinkAnnotation.Url("https://aihubmix.com?aff=pG7r")) {
-                        withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
-                            append("https://aihubmix.com")
-                        }
-                    }
-                    appendLine()
-                    append("充值: ")
-                    withLink(LinkAnnotation.Url("https://console.aihubmix.com/topup")) {
-                        withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
-                            append("https://console.aihubmix.com/topup")
-                        }
-                    }
-                }
-            )
-        },
-        shortDescription = {
-            Text(
-                text = "支持gpt, claude, gemini等200+模型"
-            )
-        },
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("56a94d29-c88b-41c5-8e09-38a7612d6cf8"),
@@ -140,14 +89,6 @@ val DEFAULT_PROVIDERS = listOf(
         apiKey = "",
         enabled = false,
         builtIn = true,
-        description = {
-            MarkdownBlock(
-                content = """
-                    ${stringResource(R.string.silicon_flow_description)}
-                    ${stringResource(R.string.silicon_flow_website)}
-                """.trimIndent()
-            )
-        },
         balanceOption = BalanceOption(
             enabled = true,
             apiPath = "/user/info",
@@ -230,14 +171,6 @@ val DEFAULT_PROVIDERS = listOf(
         apiKey = "",
         enabled = false,
         builtIn = true,
-        description = {
-            MarkdownBlock(
-                content = """
-                    小马算力是一家提供国产模型的API网关服务，使用统一接口接入多种模型
-                    官网: [tokenpony.cn](https://www.tokenpony.cn/79clb)
-                """.trimIndent()
-            )
-        }
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("f76cae46-069a-4334-ab8e-224e4979e58c"),
@@ -278,18 +211,6 @@ val DEFAULT_PROVIDERS = listOf(
         apiKey = "",
         enabled = false,
         builtIn = true,
-        description = {
-            Text(
-                text = buildAnnotatedString {
-                    append("企业级AI服务, 官网：")
-                    withLink(LinkAnnotation.Url("https://302.ai/")) {
-                        withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
-                            append("https://302.ai/")
-                        }
-                    }
-                }
-            )
-        }
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("ef5d149b-8e34-404b-818c-6ec242e5c3c5"),
@@ -315,24 +236,6 @@ val DEFAULT_PROVIDERS = listOf(
         apiKey = "",
         enabled = false,
         builtIn = true,
-        description = {
-            Text(
-                text = buildAnnotatedString {
-                    append("可靠高效的 API 中继服务，提供 Claude、Codex、Gemini 等中继服务。注重隐私·无数据倒卖·无模型掺水，充值额度 1:1，按量付费。多线路冗余、跨区域容灾、自动故障切换，长链路 SSE 不中断。\n")
-                    append("官网：")
-                    withLink(LinkAnnotation.Url("https://sui-xiang.com")) {
-                        withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
-                            append("https://sui-xiang.com")
-                        }
-                    }
-                }
-            )
-        },
-        shortDescription = {
-            Text(
-                text = "Claude、Codex、Gemini 等中继服务，1:1 充值"
-            )
-        },
     ),
     ProviderSetting.Claude(
         id = Uuid.parse("b4deabea-20fb-4101-a74c-65679c7e4754"),
@@ -357,21 +260,6 @@ val DEFAULT_PROVIDERS = listOf(
         apiKey = "",
         enabled = false,
         builtIn = true,
-        description = {
-            Text(
-                text = buildAnnotatedString {
-                    append(
-                        "所有AI大模型全都可以用！无需翻墙！价格是官方5折！\n" +
-                            "官网："
-                    )
-                    withLink(LinkAnnotation.Url("https://ackai.fun/register?aff=jxpP")) {
-                        withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
-                            append("https://ackai.fun")
-                        }
-                    }
-                }
-            )
-        }
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("4da09554-8844-4cc8-a4a9-fe1b2515e91b"),
@@ -380,18 +268,6 @@ val DEFAULT_PROVIDERS = listOf(
         apiKey = "",
         enabled = false,
         builtIn = true,
-        description = {
-            Text(
-                text = buildAnnotatedString {
-                    append("一站式LLM API中转平台货源站\n官网：")
-                    withLink(LinkAnnotation.Url("https://www.unifyllm.com/")) {
-                        withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
-                            append("https://www.unifyllm.com/")
-                        }
-                    }
-                }
-            )
-        }
     ),
     // MiniMax via the Anthropic-compatible endpoint. Per Minimax docs the base
     // URL is https://api.minimax.io/anthropic; the Anthropic SDK appends

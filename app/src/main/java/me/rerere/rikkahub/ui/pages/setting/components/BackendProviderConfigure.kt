@@ -30,6 +30,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.rikkahub.data.datastore.ProviderDescriptors
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
@@ -48,7 +49,7 @@ fun BackendProviderConfigure(
     provider: ProviderSetting.Backend,
     onEdit: (ProviderSetting.Backend) -> Unit,
 ) {
-    provider.description()
+    ProviderDescriptors.get(provider.id).description()
 
     OutlinedTextField(
         value = provider.name,

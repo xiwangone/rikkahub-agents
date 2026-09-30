@@ -80,6 +80,7 @@ import me.rerere.locallm.litert.LiteRtCatalogEntry
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
+import me.rerere.rikkahub.data.datastore.ProviderDescriptors
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.setting.locallm.SettingLocalLlmViewModel
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
@@ -242,8 +243,6 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
                 models = this.models,
                 balanceOption = this.balanceOption,
                 builtIn = this.builtIn,
-                description = this.description,
-                shortDescription = this.shortDescription,
                 apiKey = apiKey,
                 baseUrl = convertedBaseUrl,
             )
@@ -257,8 +256,6 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
                 models = this.models,
                 balanceOption = this.balanceOption,
                 builtIn = this.builtIn,
-                description = this.description,
-                shortDescription = this.shortDescription,
                 apiKey = apiKey,
                 baseUrl = convertedBaseUrl,
             )
@@ -272,8 +269,6 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
                 models = this.models,
                 balanceOption = this.balanceOption,
                 builtIn = this.builtIn,
-                description = this.description,
-                shortDescription = this.shortDescription,
                 apiKey = apiKey,
                 baseUrl = convertedBaseUrl,
             )
@@ -287,8 +282,6 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
                 models = this.models,
                 balanceOption = this.balanceOption,
                 builtIn = this.builtIn,
-                description = this.description,
-                shortDescription = this.shortDescription,
             )
         }
 
@@ -300,8 +293,6 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
                 models = this.models,
                 balanceOption = this.balanceOption,
                 builtIn = this.builtIn,
-                description = this.description,
-                shortDescription = this.shortDescription,
             )
         }
 
@@ -313,8 +304,6 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
                 models = this.models,
                 balanceOption = this.balanceOption,
                 builtIn = this.builtIn,
-                description = this.description,
-                shortDescription = this.shortDescription,
                 baseUrl = convertedBaseUrl,
             )
         }
@@ -483,7 +472,7 @@ private fun ProviderConfigureOpenAI(
 ) {
     val toaster = LocalToaster.current
 
-    provider.description()
+    ProviderDescriptors.get(provider.id).description()
 
     OutlinedTextField(
         value = provider.name,
@@ -753,7 +742,7 @@ private fun ProviderConfigureClaude(
     provider: ProviderSetting.Claude,
     onEdit: (provider: ProviderSetting.Claude) -> Unit,
 ) {
-    provider.description()
+    ProviderDescriptors.get(provider.id).description()
 
     OutlinedTextField(
         value = provider.name,
@@ -880,7 +869,7 @@ private fun ProviderConfigureGoogle(
             }
         }
 
-    provider.description()
+    ProviderDescriptors.get(provider.id).description()
 
     OutlinedTextField(
         value = provider.name,
@@ -1001,7 +990,7 @@ private fun ColumnScope.ProviderConfigureAICore(
     provider: ProviderSetting.AICore,
     onEdit: (provider: ProviderSetting.AICore) -> Unit,
 ) {
-    provider.description()
+    ProviderDescriptors.get(provider.id).description()
 
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -1119,7 +1108,7 @@ private fun ColumnScope.ProviderConfigureLiteRT(
             }
         }
 
-    provider.description()
+    ProviderDescriptors.get(provider.id).description()
 
     // Friendly post-crash banner. Default tone is "we handled it", not "panic".
     crashRecoveryAccel?.let { accel ->

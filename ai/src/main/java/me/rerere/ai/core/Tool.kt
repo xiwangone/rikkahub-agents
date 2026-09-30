@@ -8,7 +8,10 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 
-@Serializable
+// 注意：此类故意不加 @Serializable —— parameters/systemPrompt/needsApproval/execute
+// 都是 lambda，kotlinx.serialization 无法序列化函数类型。加注解只是哑弹，
+// 编译期不报错但运行期 encode 会炸，且全仓库无人序列化它。如未来需要持久化
+// 工具定义，请先把可序列化的数据部分抽成独立 data class。
 data class Tool(
     val name: String,
     val description: String,

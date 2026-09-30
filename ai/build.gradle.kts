@@ -1,7 +1,7 @@
 import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 plugins {
-    id("rikkahub.android.library.compose")
+    id("rikkahub.android.library")
     alias(libs.plugins.kotlin.serialization)
 }
 
@@ -30,9 +30,6 @@ android {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
     }
-    buildFeatures {
-        compose = true
-    }
 //    externalNativeBuild {
 //        cmake {
 //            path = file("src/main/cpp/CMakeLists.txt")
@@ -55,10 +52,8 @@ android {
 dependencies {
     implementation(project(":common"))
 
-    // Compose
+    // AndroidX core (FileEncoder uses androidx.core.net.toUri)
     implementation(libs.androidx.core.ktx)
-    implementation(platform(libs.androidx.compose.bom))
-    implementation(libs.androidx.material3)
 
     // okhttp
     api(libs.okhttp)

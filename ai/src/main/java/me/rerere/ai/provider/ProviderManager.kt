@@ -43,7 +43,8 @@ class ProviderManager(
      * 获取Provider实例
      *
      * @param name Provider名称
-     * @return Provider实例，如果不存在则返回null
+     * @return Provider实例
+     * @throws IllegalArgumentException 如果不存在该名称的Provider
      */
     fun getProvider(name: String): Provider<*> {
         return providers[name] ?: throw IllegalArgumentException("Provider not found: $name")
@@ -53,21 +54,11 @@ class ProviderManager(
      * 根据ProviderSetting获取对应的Provider实例
      *
      * @param setting Provider设置
-     * @return Provider实例，如果不存在则返回null
+     * @return Provider实例
+     * @throws IllegalArgumentException 如果该设置类型没有注册对应的Provider
      */
     fun <T : ProviderSetting> getProviderByType(setting: T): Provider<T> {
         @Suppress("UNCHECKED_CAST")
-        return when (setting) {
-            is ProviderSetting.OpenAI -> getProvider("openai")
-            is ProviderSetting.Google -> getProvider("google")
-            is ProviderSetting.Claude -> getProvider("claude")
-            is ProviderSetting.AICore -> getProvider("aicore")
-            is ProviderSetting.LiteRtLocal -> getProvider("local_litert")
-            is ProviderSetting.LlamaCppLocal -> getProvider("local_llamacpp")
-            is ProviderSetting.Codex -> getProvider("codex")
-            is ProviderSetting.Grok -> getProvider("grok")
-            is ProviderSetting.GeminiOAuth -> getProvider("gemini_oauth")
-            is ProviderSetting.Backend -> getProvider("backend")
-        } as Provider<T>
+        return getProvider(setting.providerKey) as Provider<T>
     }
 }

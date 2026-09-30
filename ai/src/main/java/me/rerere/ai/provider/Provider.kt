@@ -2,6 +2,7 @@ package me.rerere.ai.provider
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonElement
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
@@ -84,6 +85,12 @@ data class TextGenerationParams(
      * meaningful output is received. Providers that cannot safely replay a stream ignore it.
      */
     val maxStreamRetries: Int = 0,
+    /**
+     * @Transient：Tool 持有执行 lambda（execute/needsApproval/parameters），
+     * kotlinx.serialization 无法序列化函数类型，故工具列表不参与序列化。
+     * 全仓库无人序列化 TextGenerationParams，此标记只是把既有事实显式化。
+     */
+    @Transient
     val tools: List<Tool> = emptyList(),
     val reasoningLevel: ReasoningLevel = ReasoningLevel.OFF,
     val customHeaders: List<CustomHeader> = emptyList(),
