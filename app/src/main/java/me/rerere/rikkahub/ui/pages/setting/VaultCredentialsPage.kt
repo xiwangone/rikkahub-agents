@@ -235,7 +235,7 @@ fun VaultCredentialsPage() {
                 }
 
                 // 按组展示：固定组序 + 组内排序 + 搜索过滤
-                val groupOrder = listOf("Git", "AI", "SSH", "Network", "MCP", "Notification", "Other")
+                val groupOrder = listOf("Git", "AI", "SSH", "Network", "System", "MCP", "Notification", "Other")
                 val query = searchQuery.trim().lowercase()
                 val filtered = entries.filter {
                     (query.isEmpty() ||
