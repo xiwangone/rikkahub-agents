@@ -1,0 +1,30 @@
+name: 依赖图提交（Dependabot 真实解析）
+
+# 为什么需要这个 workflow：
+# Dependabot 对 Gradle 多模块项目只能做**静态解析**，算不出平台 / BOM 约束提升。
+# 实例：本仓 jackson 被 `jackson-bom` 提升到 2.22.2（Gradle 真实解析结果，`web/build.gradle.kts` 里平台约束），
+# 而 GitHub 的静态解析只能看到未提升的 2.21.3 → 于是报出 4 条已修复版本的漏洞告警（误报）。
+# 这里用官方 action 把 **Gradle 真实解析结果**提交给 GitHub，告警改用真数据。
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  submission:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: 准备构建环境
+        uses: ./.github/actions/setup-build-env
+
+      - name: 提交 Gradle 依赖图
+        uses: gradle/actions/dependency-submission@v4
