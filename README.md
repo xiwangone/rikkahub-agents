@@ -19,13 +19,8 @@ LLM 提供商由你自行配置（OpenAI 兼容 / 本地模型），**对话与�
 [**English**](README_EN.md) | **简体中文**
 
 [![📥 下载 APK](https://img.shields.io/badge/📥-下载%20APK-2ea44f?style=for-the-badge&logo=android&logoColor=white)](https://github.com/xiwangone/rikkahub-agents/releases/latest)
-[![🧪 Reasonix Agents 开发中](https://img.shields.io/badge/🧪-Reasonix%20Agents%20开发中-8b5cf6?style=for-the-badge)](https://github.com/xiwangone/reasonix-agents)
 
 > <span style="color:red">**❗️❗️❗️ 注：包含 170+ 内置工具，请按需启用 —— 常驻过多会持续占用上下文与额度！**</span>
-
-> 💡 **同账号另有** [Reasonix Agents](https://github.com/xiwangone/reasonix-agents)：Reasonix 协议的原生 Android 客户端（开发中），与本项目定位不同 —— 本项目把手机当执行环境，那个项目连接你自己的 Reasonix 服务端。
-
-> 🔧 **关于 Reasonix Agents 的使用前提**：它是纯客户端，**需在本地或服务器自部署 Reasonix 服务端**（DeepSeek-Reasonix 协议），通过配置服务器地址 / 端口 / 认证连接使用，不支持云端托管，请自备服务资源。
 
 </div>
 
@@ -49,7 +44,6 @@ LLM 提供商由你自行配置（OpenAI 兼容 / 本地模型），**对话与�
 | 项目 | 链接 | 说明 |
 |------|------|------|
 | 🟡 **本仓库（AI 协助维护版）** | https://github.com/xiwangone/rikkahub-agents | **AI 协助合并源代码并持续编译** |
-| 🟣 **Reasonix Agents（同账号项目）** | https://github.com/xiwangone/reasonix-agents | **Reasonix 协议的原生 Android 客户端（开发中）** |
 | 🔵 **RikkaHub（官方）** | https://github.com/rikkahub/rikkahub | **官方项目，本仓库的代码来源** |
 | 🟢 **ExTV/rikkahub-agent（原版 Fork）** | https://github.com/ExTV/rikkahub-agent | **原版 Fork，本仓库基于此** |
 

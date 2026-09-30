@@ -14,11 +14,6 @@
 [![Last Commit](https://img.shields.io/github/last-commit/xiwangone/rikkahub-agents?color=yellow&label=Last%20Commit&logo=github)](https://github.com/xiwangone/rikkahub-agents/commits/master)
 
 [![Download Latest](https://img.shields.io/badge/⬇️-Download%20Latest-2ea44f?style=for-the-badge&logo=android)](https://github.com/xiwangone/rikkahub-agents/releases/latest)
-[![Reasonix Agents (in development)](https://img.shields.io/badge/🧪-Reasonix%20Agents%20in%20development-8b5cf6?style=for-the-badge)](https://github.com/xiwangone/reasonix-agents)
-
-> 💡 **Also in this account**: [Reasonix Agents](https://github.com/xiwangone/reasonix-agents) — a native Android client for the Reasonix protocol (in development). Different positioning: this project treats the phone itself as the execution environment, while that one connects to your own Reasonix server.
-
-> 🔧 **Prerequisite for Reasonix Agents**: it is a pure client — you **self-deploy the Reasonix server** (DeepSeek-Reasonix protocol) locally or on a server, then configure address / port / auth to connect. No cloud hosting — bring your own server resources.
 
 > ✅ **Runs locally**: pick your own LLM provider (OpenAI-compatible or on-device). Conversations and data only travel between the provider you choose and your device.
 
@@ -48,7 +43,6 @@
 | Project | Link | Description |
 |------|------|------|
 | 🟡 **This Repo (AI-Maintained)** | https://github.com/xiwangone/rikkahub-agents | **AI auto-merges upstream + builds** |
-| 🟣 **Reasonix Agents (sibling project)** | https://github.com/xiwangone/reasonix-agents | **Native Android client for Reasonix (in development)** |
 | 🔵 **RikkaHub (Official)** | https://github.com/rikkahub/rikkahub | **Official upstream, source of this code** |
 | 🟢 **ExTV/rikkahub-agent (Original Fork)** | https://github.com/ExTV/rikkahub-agent | **Original fork this repo is based on** |
 
