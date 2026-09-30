@@ -11,6 +11,7 @@ import android.webkit.WebView
 import android.webkit.WebViewClient
 import android.widget.LinearLayout
 import java.io.File
+import me.rerere.rikkahub.data.files.FileFolders
 
 /**
  * Pass 3: hosts a WebView offscreen, in the application process, for headless AI-driven
@@ -128,6 +129,10 @@ class HeadlessBrowserSession(private val context: Context) {
                     request: WebResourceRequest?,
                 ): WebResourceResponse? {
                     BrowserAudit.maybeRecordRequest(request, origin = "headless")
+                    // 与前台同一道白名单：无头会话由模型驱动（Telegram / 定时任务），更需要兜住
+                    if (!isLocalFileRequestAllowed(request?.url, File(context.filesDir, FileFolders.SKILLS))) {
+                        return localFileForbiddenResponse()
+                    }
                     return super.shouldInterceptRequest(view, request)
                 }
 

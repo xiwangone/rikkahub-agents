@@ -3,6 +3,10 @@ package me.rerere.rikkahub.browser
 import android.view.View
 import android.webkit.WebSettings
 import android.webkit.WebView
+import java.io.File
+import java.io.ByteArrayInputStream
+import android.webkit.WebResourceResponse
+import android.net.Uri
 
 /**
  * Single source of truth for WebView settings shared by the foreground browser
@@ -65,3 +69,28 @@ internal fun configureWebViewForRikka(webView: WebView) {
     // two code paths identical.
     webView.setLayerType(View.LAYER_TYPE_HARDWARE, null)
 }
+
+/**
+ * file:// 资源白名单：只放行技能目录（`filesDir/skills`）内的本地文件。
+ *
+ * 背景：为支持技能卡片（`file://` 页面）加载同目录素材，WebView 开了
+ * `allowFileAccessFromFileURLs` —— 但那是**全局开关**，无法按目录限定。于是一个被打开的
+ * 技能页（含其中的第三方脚本）可以读取任意 `file://` 路径，包括 App 私有目录（凭证密文、
+ * 配置文件）。这里在**资源请求层**补一道按目录的闸：非技能目录的 file:// 请求拦空。
+ *
+ * 非 file:// 请求恒返回 true（交给系统默认处理，不影响 http(s) 浏览）。
+ */
+internal fun isLocalFileRequestAllowed(url: Uri?, skillsDir: File): Boolean {
+    if (url == null) return true
+    if (!url.scheme.equals("file", ignoreCase = true)) return true
+    val path = url.path ?: return false
+    return runCatching {
+        val target = File(path).canonicalFile
+        val root = skillsDir.canonicalFile
+        target.path == root.path || target.path.startsWith(root.path + File.separator)
+    }.getOrDefault(false)
+}
+
+/** 被白名单拒绝的 file:// 请求的统一响应（403、空体）。 */
+internal fun localFileForbiddenResponse(): WebResourceResponse =
+    WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), ByteArrayInputStream(ByteArray(0)))
