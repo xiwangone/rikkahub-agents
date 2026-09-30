@@ -128,6 +128,8 @@ import me.rerere.rikkahub.utils.writeClipboardText
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.data.vault.CredentialType
 
 @Composable
 fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
@@ -411,11 +413,13 @@ private fun LocalMcpProfileModal(
                     supportingText = stringResource(R.string.net_allowed_networks_desc),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
+                SecretRefField(
                     value = authTokenRef,
                     onValueChange = { authTokenRef = it },
-                    label = { Text(stringResource(R.string.mcp_auth_token_ref)) },
-                    supportingText = { Text(stringResource(R.string.mcp_auth_token_ref_desc)) },
+                    label = stringResource(R.string.mcp_auth_token_ref),
+                    description = stringResource(R.string.mcp_auth_token_ref_desc),
+                    nameHint = "MCP_AUTH_TOKEN",
+                    typeHint = CredentialType.API_KEY,
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )

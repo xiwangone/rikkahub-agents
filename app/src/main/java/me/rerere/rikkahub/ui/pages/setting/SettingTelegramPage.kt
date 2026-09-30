@@ -41,8 +41,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
@@ -61,6 +59,8 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.data.vault.CredentialType
 
 /**
  * Global settings for the Telegram bot — bot token, default chat, whitelist, start/stop.
@@ -86,14 +86,12 @@ fun SettingTelegramPage() {
     var whitelistText by remember(cfg.whitelist) {
         mutableStateOf(cfg.whitelist.sorted().joinToString(","))
     }
-    var tokenVisible by remember { mutableStateOf(false) }
     var proxyHostText by remember(cfg.proxyHost) { mutableStateOf(cfg.proxyHost) }
     var proxyPortText by remember(cfg.proxyPort) {
         mutableStateOf(if (cfg.proxyPort == 0) "" else cfg.proxyPort.toString())
     }
     var proxyUsernameText by remember(cfg.proxyUsername) { mutableStateOf(cfg.proxyUsername) }
     var proxyPasswordText by remember(cfg.proxyPassword) { mutableStateOf(cfg.proxyPassword) }
-    var proxyPasswordVisible by remember { mutableStateOf(false) }
     val serviceRunning = TelegramBotService.isRunning
 
     fun startService() {
@@ -168,36 +166,18 @@ fun SettingTelegramPage() {
                 ) {
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_page_telegram_token)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_telegram_token_desc)) },
-                        trailingContent = {
-                            TextField(
+                        supportingContent = {
+                            SecretRefField(
                                 value = tokenText,
                                 onValueChange = { value ->
                                     tokenText = value.trim()
-                                    scope.launch {
-                                        prefs.update { it.copy(token = tokenText) }
-                                    }
+                                    scope.launch { prefs.update { it.copy(token = tokenText) } }
                                 },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                visualTransformation = if (tokenVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                trailingIcon = {
-                                    IconButton(onClick = { tokenVisible = !tokenVisible }) {
-                                        Icon(
-                                            imageVector = if (tokenVisible) HugeIcons.ViewOff else HugeIcons.View,
-                                            contentDescription = null,
-                                        )
-                                    }
-                                },
+                                description = stringResource(R.string.setting_page_telegram_token_desc),
+                                nameHint = "TELEGRAM_BOT_TOKEN",
+                                typeHint = CredentialType.API_KEY,
                                 singleLine = true,
-                                modifier = Modifier.width(220.dp),
                                 enabled = !cfg.enabled,
-                                shape = CircleShape,
-                                colors =
-                                    TextFieldDefaults.colors(
-                                        focusedIndicatorColor = Color.Transparent,
-                                        unfocusedIndicatorColor = Color.Transparent,
-                                        disabledIndicatorColor = Color.Transparent,
-                                    ),
                             )
                         },
                     )
@@ -406,35 +386,17 @@ fun SettingTelegramPage() {
                     )
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_page_telegram_proxy_password)) },
-                        trailingContent = {
-                            TextField(
+                        supportingContent = {
+                            SecretRefField(
                                 value = proxyPasswordText,
                                 onValueChange = { value ->
                                     proxyPasswordText = value
                                     scope.launch { prefs.update { it.copy(proxyPassword = proxyPasswordText) } }
                                 },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                visualTransformation = if (proxyPasswordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                                trailingIcon = {
-                                    IconButton(
-                                        onClick = { proxyPasswordVisible = !proxyPasswordVisible },
-                                        enabled = !cfg.enabled,
-                                    ) {
-                                        Icon(
-                                            imageVector = if (proxyPasswordVisible) HugeIcons.ViewOff else HugeIcons.View,
-                                            contentDescription = null,
-                                        )
-                                    }
-                                },
+                                nameHint = "TELEGRAM_PROXY_PASSWORD",
+                                typeHint = CredentialType.BASIC_AUTH,
                                 singleLine = true,
-                                modifier = Modifier.width(200.dp),
                                 enabled = !cfg.enabled,
-                                shape = CircleShape,
-                                colors = TextFieldDefaults.colors(
-                                    focusedIndicatorColor = Color.Transparent,
-                                    unfocusedIndicatorColor = Color.Transparent,
-                                    disabledIndicatorColor = Color.Transparent,
-                                ),
                             )
                         },
                     )
