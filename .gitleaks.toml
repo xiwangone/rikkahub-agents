@@ -1,0 +1,28 @@
+# gitleaks 配置：把「非密钥但形似密钥」的既有命中列入允许列表，
+# 让 CI 的 gitleaks 门禁恢复“绿 = 确实没有泄漏”的语义（长期假阳性会导致告警疲劳）。
+#
+# ⚠ 维护约定：
+#   1) 每条白名单必须逐条核对来源（为什么它不可能真密钥）；
+#   2) **禁止整目录豁免**（如整个 app/src/test/），只允许精确到文件；
+#   3) 新增白名单请写明日期与理由；这些文件若日后真的写入了密钥，本配置拦不住，
+#      需依靠人工复核与其它扫描项兜底。
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "经逐条核实为假阳性：测试样本（假 JWT / 假 token / PEM 头断言）、密钥生成器与检测器中的 PEM 模板与格式串、KDoc 注释中的 PEM 头示例。"
+paths = [
+  # 测试样本：构造假 JWT、假 token，或断言输出以 PEM 头开头
+  '''app/src/test/java/me/rerere/rikkahub/data/ai/tools/local/SensitiveContentDetectorTest\.kt''',
+  '''app/src/test/java/me/rerere/rikkahub/utils/LogRedactorTest\.kt''',
+  '''app/src/test/java/me/rerere/rikkahub/data/vault/SecretMaskerTest\.kt''',
+  '''app/src/test/java/me/rerere/rikkahub/data/vault/X509KeyGeneratorTest\.kt''',
+  '''app/src/test/java/me/rerere/rikkahub/data/vault/OpenPgpKeyGeneratorTest\.kt''',
+  # 密钥生成器 / 检测器 / 诊断项：PEM 头模板与 token 格式串（非密钥本体）
+  '''app/src/main/java/me/rerere/rikkahub/data/vault/OpenPgpKeyGenerator\.kt''',
+  '''app/src/main/java/me/rerere/rikkahub/data/vault/SshKeyGenerator\.kt''',
+  '''ai/src/main/java/me/rerere/ai/provider/providers/google/vertex/ServiceAccountTokenProvider\.kt''',
+  '''app/src/main/java/me/rerere/rikkahub/data/gemini/GeminiOAuthManager\.kt''',
+  '''app/src/main/java/me/rerere/rikkahub/ui/pages/setting/doctor/DoctorChecks\.kt''',
+]
