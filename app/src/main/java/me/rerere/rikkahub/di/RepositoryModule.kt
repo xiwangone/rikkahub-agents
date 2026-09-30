@@ -132,19 +132,48 @@ val repositoryModule =
         }
     }
 
-/** chroot 脚本从 assets 释放到 filesDir/chroot（幂等）；assets 缺脚本时返回 null（回退 proot）。 */
-private fun chrootShellRunnerOf(context: Context): ChrootShellRunner? = runCatching {
+/**
+ * chroot 脚本从 assets 释放到 filesDir/chroot；返回 null = 后端不可用（回退 proot）。
+ *
+ * ⚠ 释放判据是**内容比对**，不是"文件是否存在"：早期实现用 `!target.exists()` 跳过，
+ * 结果脚本修了 bug 之后**已安装的用户永远用旧脚本**（2026-09-30 排查 chroot 时发现）。
+ * 现在 assets 内容一变就覆盖；覆盖与失败都留日志，不静默。
+ */
+private fun chrootShellRunnerOf(context: Context): ChrootShellRunner? {
     val dir = File(context.filesDir, "chroot").apply { mkdirs() }
     for (name in listOf("chroot-run.sh", "chroot-probe.sh")) {
         val target = File(dir, name)
-        if (!target.exists()) {
-            context.assets.open("chroot/$name").use { input ->
-                target.outputStream().use { input.copyTo(it) }
+        val bytes =
+            runCatching {
+                context.assets.open("chroot/$name").use { it.readBytes() }
+            }.getOrElse { e ->
+                AppLog.w("Workspace", "chroot asset missing: $name -> fall back to proot", e)
+                return null
             }
+        val unchanged =
+            target.isFile &&
+                target.length() == bytes.size.toLong() &&
+                runCatching { target.readBytes().contentEquals(bytes) }.getOrDefault(false)
+        if (!unchanged) {
+            val written =
+                runCatching {
+                    val tmp = File(dir, "$name.tmp")
+                    tmp.writeBytes(bytes)
+                    if (!tmp.renameTo(target)) {
+                        target.delete()
+                        tmp.renameTo(target)
+                    }
+                }.isSuccess
+            if (!written && !target.isFile) {
+                AppLog.w("Workspace", "chroot script unpack failed: $name -> fall back to proot")
+                return null
+            }
+            AppLog.i("Workspace", "chroot script refreshed: $name (${bytes.size} bytes)")
         }
+        target.setExecutable(true, false)
     }
-    ChrootShellRunner(
+    return ChrootShellRunner(
         scriptFile = File(dir, "chroot-run.sh"),
         probeFile = File(dir, "chroot-probe.sh"),
     )
-}.getOrNull()
+}
