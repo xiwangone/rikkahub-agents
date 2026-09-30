@@ -70,22 +70,31 @@ class WorkspaceFileSystem(
         val file = resolvePath(root, path)
         file.parentFile?.mkdirs()
         val target = if (!file.exists()) file else resolveConflict(file)
-        inputStream.use { input ->
-            var total = 0L
-            target.outputStream().use { output ->
+        runCatching { copyToTargetWithLimit(inputStream, target, config.maxImportBytes) }
+            .onFailure {
+                // 导入失败不留垃圾：target 在导入前必定不存在（原名不存在或经 resolveConflict 生成新名），删除安全
+                runCatching { target.delete() }
+            }
+            .getOrThrow()
+        return target.toEntry(root)
+    }
+
+    private fun copyToTargetWithLimit(input: InputStream, target: File, maxBytes: Long) {
+        input.use { src ->
+            target.outputStream().use { out ->
                 val buffer = ByteArray(64 * 1024)
-                while (true) {
-                    val read = input.read(buffer)
-                    if (read < 0) break
+                var total = 0L
+                var read = src.read(buffer)
+                while (read >= 0) {
                     total += read
-                    require(total <= config.maxImportBytes) {
-                        "File is too large to import: more than ${config.maxImportBytes} bytes"
+                    require(total <= maxBytes) {
+                        "File is too large to import: more than $maxBytes bytes"
                     }
-                    output.write(buffer, 0, read)
+                    out.write(buffer, 0, read)
+                    read = src.read(buffer)
                 }
             }
         }
-        return target.toEntry(root)
     }
 
     private fun resolveConflict(file: File): File {

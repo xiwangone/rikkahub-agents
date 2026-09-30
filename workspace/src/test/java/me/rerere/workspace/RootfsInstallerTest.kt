@@ -2,6 +2,8 @@ package me.rerere.workspace
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -15,11 +17,11 @@ class RootfsInstallerTest {
 
     @Test
     fun `extract skips OTHER entry data exactly once`() {
-        // OTHER 条目 (如 GNU sparse) 带 size>0 数据区, 双重 skip 会让后续 header 错位
+        // OTHER 条目（如未知类型 '7'）带 size>0 数据区, 双重 skip 会让后续 header 错位
         val archive = tmp.newFile("rootfs.tar.gz")
         GZIPOutputStream(archive.outputStream()).use { out ->
             out.writeTarEntry("a.txt", '0', "hello".toByteArray())
-            out.writeTarEntry("sparse.bin", 'S', ByteArray(700) { 1 })
+            out.writeTarEntry("unknown.bin", '7', ByteArray(700) { 1 })
             out.writeTarEntry("b.txt", '0', "world".toByteArray())
             out.write(ByteArray(TAR_BLOCK * 2))
         }
@@ -29,7 +31,26 @@ class RootfsInstallerTest {
 
         assertEquals("hello", File(target, "a.txt").readText())
         assertEquals("world", File(target, "b.txt").readText())
-        assertFalse(File(target, "sparse.bin").exists())
+        assertFalse(File(target, "unknown.bin").exists())
+    }
+
+    @Test
+    fun `extract rejects GNU sparse entries as disk images`() {
+        // GNU sparse（'S'，如 Debian cloud 的 disk.raw）不是 rootfs 结构：
+        // 其数据布局由扩展头描述，按普通条目解析会导致后续 header 错位，应直接报错指引用户
+        val archive = tmp.newFile("rootfs.tar.gz")
+        GZIPOutputStream(archive.outputStream()).use { out ->
+            out.writeTarEntry("a.txt", '0', "hello".toByteArray())
+            out.writeTarEntry("disk.raw", 'S', ByteArray(700) { 1 })
+            out.write(ByteArray(TAR_BLOCK * 2))
+        }
+
+        val target = tmp.newFolder("out")
+        val error =
+            assertThrows(IllegalArgumentException::class.java) {
+                createInstaller().extractTar(archive, target) {}
+            }
+        assertTrue(error.message!!.contains("磁盘镜像"))
     }
 
     @Test
