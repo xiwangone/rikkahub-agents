@@ -124,16 +124,25 @@ jobs:
           TAG="${{ steps.ver.outputs.tag }}"
           PRERELEASE="${{ inputs.prerelease }}"
           echo "Release TAG: $TAG (prerelease=$PRERELEASE)"
-          # Release 已存在则保留（只刷新资产）；不存在则创建
+          # 发版说明：优先用仓库内描述文件 .github/release-notes/<tag>.md
+          # （每次发版只新增一个描述文件，不必改本 workflow；文件缺失则回退通用说明）
+          NOTES_FILE=".github/release-notes/${TAG}.md"
+          if [ -f "$NOTES_FILE" ]; then
+            echo "使用描述文件：$NOTES_FILE"
+            NOTES_ARGS=(--notes-file "$NOTES_FILE")
+          else
+            echo "未找到 $NOTES_FILE，回退通用说明"
+            NOTES_ARGS=(--notes "功能优化与问题修复")
+          fi
+          # Release 已存在则保留；说明按上面选定的来源一并刷新（便于"先发版、后补描述"）
           if ! gh release view "$TAG" >/dev/null 2>&1; then
-            # 固定发版说明：简短通用（不列举具体改动）
-            NOTES="功能优化与问题修复"
             gh release create "$TAG" \
               --title "🚀 RikkaHub Agents $TAG" \
               --prerelease="$PRERELEASE" \
-              --notes "$NOTES"
+              "${NOTES_ARGS[@]}"
           else
-            echo "Release $TAG 已存在，仅刷新资产"
+            echo "Release $TAG 已存在，刷新说明与资产"
+            gh release edit "$TAG" "${NOTES_ARGS[@]}"
           fi
           cd app/build/outputs/apk
           for apk in release/*.apk */release/*.apk; do
