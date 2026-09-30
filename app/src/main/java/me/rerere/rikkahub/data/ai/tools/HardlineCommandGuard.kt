@@ -82,7 +82,7 @@ object HardlineCommandGuard {
             IGNORE_CASE,
         ) to "delete the workspace/skills root",
         // rm -rf the root filesystem, system dirs (incl. descendants), or HOME
-        Regex("\\brm\\s+(-[^\\s]*\\s+)*(/|/\\*|/\\s*\\*)" + PATH_END, IGNORE_CASE) to
+        Regex("\\brm\\s+(-[^\\s]*\\s+)*(//|/|/\\*|/\\s*\\*)" + PATH_END, IGNORE_CASE) to
             "recursive delete of root filesystem",
         // /home and /root: only the dir itself, not descendants — users have legitimate
         // reasons to nuke a folder under /home/user, but never to nuke /home as a whole.
@@ -107,6 +107,8 @@ object HardlineCommandGuard {
         Regex(":\\(\\)\\s*\\{\\s*:\\s*\\|\\s*:\\s*&\\s*\\}\\s*;\\s*:") to "fork bomb",
         // Kill every process
         Regex("\\bkill\\s+(-[^\\s]+\\s+)*-1\\b", IGNORE_CASE) to "kill all processes",
+        // pkill 的同类形式（`kill -1` 拦不住 `pkill -9 -1`）
+        Regex("\\bpkill\\s+(-[^\\s]+\\s+)*-1\\b", IGNORE_CASE) to "kill all processes",
         // System shutdown / reboot — at command position OR inside a shell-eval `-c "…"`
         Regex(CMD_POS + "(shutdown|reboot|halt|poweroff)\\b", IGNORE_CASE) to "system shutdown/reboot",
         Regex(CMD_POS + "init\\s+[06]\\b", IGNORE_CASE) to "init 0/6 (shutdown/reboot)",

@@ -20,6 +20,12 @@ class HardlineCommandGuardTest {
 
     @Test fun `rm -rf root star`() = assertBlocked("rm -rf /*")
 
+    @Test fun `rm -rf root with double slash`() = assertBlocked("rm -rf //")
+
+    @Test fun `pkill -9 -1 kills everything`() = assertBlocked("pkill -9 -1")
+
+    @Test fun `pkill -1 without signal`() = assertBlocked("pkill -1")
+
     @Test fun `rm -rf system dirs`() {
         for (dir in listOf("/home", "/root", "/etc", "/usr", "/var", "/bin", "/sbin", "/boot", "/lib")) {
             assertBlocked("rm -rf $dir")
