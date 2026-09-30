@@ -7,6 +7,7 @@ import java.io.File
 import java.io.ByteArrayInputStream
 import android.webkit.WebResourceResponse
 import android.net.Uri
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Single source of truth for WebView settings shared by the foreground browser
@@ -91,6 +92,29 @@ internal fun isLocalFileRequestAllowed(url: Uri?, skillsDir: File): Boolean {
     }.getOrDefault(false)
 }
 
-/** 被白名单拒绝的 file:// 请求的统一响应（403、空体）。 */
-internal fun localFileForbiddenResponse(): WebResourceResponse =
-    WebResourceResponse("text/plain", "utf-8", 403, "Forbidden", emptyMap(), ByteArrayInputStream(ByteArray(0)))
+/**
+ * 被白名单拒绝的 file:// 请求的统一响应。
+ *
+ * **不静默**（2026-09-30）：① 落一条 WARN 日志（含被拒 URL，可从 App 日志定位）
+ * ② 返回可见的 HTML 说明页 —— 此前是 403 空体，表现是技能卡片白屏且毫无原因。
+ * URL 进 HTML 前做转义，避免把页面可控内容当标记渲染。
+ */
+internal fun localFileForbiddenResponse(url: Uri? = null): WebResourceResponse {
+    val target = url?.toString().orEmpty()
+    AppLog.w("Browser", "file:// request blocked by local-file whitelist: " + target)
+    val safe = target.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+    val html =
+        "<!doctype html><html><head><meta charset=\"utf-8\"><title>403 file:// blocked</title></head>" +
+            "<body style=\"font:14px/1.5 sans-serif;padding:16px\">" +
+            "<h3>file:// request blocked by local-file whitelist</h3>" +
+            "<p>Only local files under the skills directory (filesDir/skills) are allowed.</p>" +
+            "<p>Blocked URL: <code>" + safe + "</code></p></body></html>"
+    return WebResourceResponse(
+        "text/html",
+        "utf-8",
+        403,
+        "Forbidden",
+        emptyMap(),
+        ByteArrayInputStream(html.toByteArray(Charsets.UTF_8)),
+    )
+}

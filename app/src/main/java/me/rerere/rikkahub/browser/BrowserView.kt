@@ -198,7 +198,7 @@ private fun WebViewHost(
                     BrowserAudit.maybeRecordRequest(request, origin = "foreground")
                     // 资源层白名单：只放行技能目录内的 file://（详见 isLocalFileRequestAllowed 注释）
                     if (!isLocalFileRequestAllowed(request?.url, File(ctx.filesDir, FileFolders.SKILLS))) {
-                        return localFileForbiddenResponse()
+                        return localFileForbiddenResponse(request?.url)
                     }
                     return super.shouldInterceptRequest(view, request)
                 }

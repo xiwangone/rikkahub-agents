@@ -56,8 +56,8 @@ do_unmount() {
     done
     rm -f "$MARKER"
     if mounts_done; then
-        echo "WARN: some mounts remain under $ROOTFS (processes holding them?)"
-        grep -F "$ROOTFS" /proc/mounts
+        echo "WARN: some mounts remain under $ROOTFS (processes holding them?)" >&2
+        grep -F "$ROOTFS" /proc/mounts >&2
         return 1
     fi
     echo "unmounted clean"
@@ -85,7 +85,12 @@ case "$1" in
         do_mounts; do_fixes
         export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
         export HOME=/root TERM="${TERM:-xterm-256color}"
-        chroot "$ROOTFS" /bin/bash -l 2>/dev/null || chroot "$ROOTFS" /bin/sh -l
+        if [ -x "$ROOTFS/bin/bash" ]; then
+            chroot "$ROOTFS" /bin/bash -l
+        else
+            echo "WARN: $ROOTFS/bin/bash missing; falling back to /bin/sh" >&2
+            chroot "$ROOTFS" /bin/sh -l
+        fi
         rc=$?; do_unmount >/dev/null; exit $rc ;;
     exec)
         shift

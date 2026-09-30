@@ -131,7 +131,7 @@ class HeadlessBrowserSession(private val context: Context) {
                     BrowserAudit.maybeRecordRequest(request, origin = "headless")
                     // 与前台同一道白名单：无头会话由模型驱动（Telegram / 定时任务），更需要兜住
                     if (!isLocalFileRequestAllowed(request?.url, File(context.filesDir, FileFolders.SKILLS))) {
-                        return localFileForbiddenResponse()
+                        return localFileForbiddenResponse(request?.url)
                     }
                     return super.shouldInterceptRequest(view, request)
                 }
