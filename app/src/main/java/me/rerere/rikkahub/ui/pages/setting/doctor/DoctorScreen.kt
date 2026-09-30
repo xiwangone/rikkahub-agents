@@ -342,6 +342,8 @@ private fun DebugApiCard(manager: DebugApiManager) {
     val context = LocalContext.current
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
     val clipboardManager = LocalClipboardManager.current
+    // 文案在 composable 作用域先取好：onClick lambda 内不能用 stringResource
+    val savedMessageText = stringResource(R.string.setting_page_doctor_debug_api_saved)
     CardGroup {
         item(
             headlineContent = {
@@ -508,7 +510,7 @@ private fun DebugApiCard(manager: DebugApiManager) {
                         tokenInput = ""
                         revealedToken = false
                         toaster.show(
-                            message = context.getString(R.string.setting_page_doctor_debug_api_saved),
+                            message = savedMessageText,
                         )
                     }
                 }) {
