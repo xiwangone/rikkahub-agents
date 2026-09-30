@@ -45,7 +45,7 @@ fun NetworkAccessField(
     presets: List<String>,
     onPresetsChange: (List<String>) -> Unit,
     label: String,
-    supportingText: String,
+    supportingText: String? = null,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
 ) {
@@ -54,7 +54,7 @@ fun NetworkAccessField(
             value = value,
             onValueChange = onValueChange,
             label = { Text(label) },
-            supportingText = { Text(supportingText) },
+            supportingText = supportingText?.let { text -> { Text(text) } },
             singleLine = true,
             enabled = enabled,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),

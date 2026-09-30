@@ -64,6 +64,8 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
+import me.rerere.rikkahub.data.datastore.SettingsStore
 
 @Composable
 fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
@@ -324,6 +326,10 @@ private fun copyToClipboard(
 @Composable
 private fun DebugApiCard(manager: DebugApiManager) {
     val scope = rememberCoroutineScope()
+    // 网段预设是全局设置（Web 服务器 / 调试接口 / 本地 MCP 共用），与调试接口自身的
+    // CUSTOM_CIDRS 分开存储：预设只影响输入便利，不影响服务实际监听。
+    val settingsStore = koinInject<SettingsStore>()
+    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
     val running by manager.running.collectAsStateWithLifecycle()
     val port by manager.port.collectAsStateWithLifecycle()
     val storedToken by manager.tokenFlow.collectAsStateWithLifecycle(initialValue = "")
@@ -413,11 +419,14 @@ private fun DebugApiCard(manager: DebugApiManager) {
                     }
                     if (listenCfg.mode == ListenConfig.MODE_CUSTOM) {
                         var cidrInput by remember(listenCfg.mode) { mutableStateOf(listenCfg.cidrs) }
-                        OutlinedTextField(
+                        NetworkAccessField(
                             value = cidrInput,
                             onValueChange = { cidrInput = it },
-                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_cidrs_hint)) },
-                            singleLine = true,
+                            presets = settings.networkCidrPresets,
+                            onPresetsChange = { presets ->
+                                scope.launch { settingsStore.update { it.copy(networkCidrPresets = presets) } }
+                            },
+                            label = stringResource(R.string.setting_page_doctor_debug_api_cidrs_hint),
                             modifier = Modifier.fillMaxWidth(),
                         )
                         TextButton(onClick = {
