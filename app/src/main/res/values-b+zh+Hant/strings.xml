@@ -3315,6 +3315,7 @@
   <string name="workspace_detail_compatibility_mode">相容模式</string>
   <string name="workspace_detail_chroot">chroot 後端（實驗）</string>
   <string name="workspace_detail_chroot_desc">需已 root 裝置；開啟後 shell 經 chroot 執行，不支援時命令會報錯，關閉即回退。</string>
+  <string name="workspace_detail_chroot_fallback">chroot 後端不可用（輔助腳本缺失）——shell 實際仍走 proot。</string>
   <string name="workspace_detail_chroot_confirm">開啟後 AI 命令將在 chroot 內執行（實驗特性，root 裝置）。</string>
   <string name="workspace_detail_compatibility_mode_desc">若終端機無法啟動，可嘗試開啟此項。可能會降低效能。僅適用於新開的終端分頁與後續指令。</string>
   <string name="workspace_detail_delete_saved_url">刪除</string>

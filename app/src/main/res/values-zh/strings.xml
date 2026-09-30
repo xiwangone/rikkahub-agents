@@ -3322,6 +3322,7 @@
   <string name="workspace_detail_compatibility_mode">兼容模式</string>
   <string name="workspace_detail_chroot">chroot 后端（实验）</string>
   <string name="workspace_detail_chroot_desc">需已 root 设备；开启后 shell 经 chroot 执行，不支持时命令会报错，关闭即回退。</string>
+  <string name="workspace_detail_chroot_fallback">chroot 后端不可用（辅助脚本缺失）——shell 实际仍走 proot。</string>
   <string name="workspace_detail_chroot_confirm">开启后 AI 命令将在 chroot 内执行（实验特性，root 设备）。</string>
   <string name="workspace_detail_compatibility_mode_desc">如果终端无法启动，请尝试启用此功能。这可能会降低性能。适用于新的终端标签页及后续命令。</string>
   <string name="workspace_detail_settings_save_failed">保存设置失败</string>

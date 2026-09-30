@@ -146,6 +146,7 @@ fun WorkspaceDetailPage(id: String) {
     val caRepairCount by vm.caRepairCount.collectAsStateWithLifecycle()
     val sdcardEnabled by vm.sdcardEnabled.collectAsStateWithLifecycle()
     val chrootEnabled by vm.chrootEnabled.collectAsStateWithLifecycle()
+    val chrootBackendReady = vm.chrootBackendReady
     val stats by vm.stats.collectAsStateWithLifecycle()
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
@@ -329,6 +330,7 @@ fun WorkspaceDetailPage(id: String) {
                         sdcardEnabled = sdcardEnabled,
                         onSdcardAccessChange = vm::setSdcardAccess,
                         chrootEnabled = chrootEnabled,
+                        chrootBackendReady = chrootBackendReady,
                         onChrootEnabledChange = vm::setChrootEnabled,
                         onSetTags = vm::setTags,
                     )
@@ -565,6 +567,7 @@ private fun WorkspaceBasicPage(
     sdcardEnabled: Boolean,
     onSdcardAccessChange: (Boolean) -> Unit,
     chrootEnabled: Boolean,
+    chrootBackendReady: Boolean,
     onChrootEnabledChange: (Boolean) -> Unit,
     onSetTags: (List<String>) -> Unit,
 ) {
@@ -819,6 +822,18 @@ private fun WorkspaceBasicPage(
                         )
                     },
                 )
+                // 开关开着但后端未就绪（脚本缺失）= 实际在跑 proot：显性提示，不静默
+                if (chrootEnabled && !chrootBackendReady) {
+                    item(
+                        headlineContent = {
+                            Text(
+                                text = stringResource(R.string.workspace_detail_chroot_fallback),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                        },
+                    )
+                }
             }
             if (showChrootConfirm) {
                 AlertDialog(

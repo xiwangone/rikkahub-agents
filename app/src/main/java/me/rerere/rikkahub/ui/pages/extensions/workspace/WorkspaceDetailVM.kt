@@ -134,6 +134,9 @@ class WorkspaceDetailVM(
                 false,
             )
 
+    /** chroot 后端是否就绪（脚本缺失时为 false）；开关开着但未就绪 = 实际在跑 proot。 */
+    val chrootBackendReady: Boolean = repository.chrootBackendReady()
+
     fun setChrootEnabled(enabled: Boolean) {
         viewModelScope.launch {
             runCatching {

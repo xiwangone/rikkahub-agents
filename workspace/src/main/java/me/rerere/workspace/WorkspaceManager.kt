@@ -54,6 +54,9 @@ class WorkspaceManager(
         return runner.probe(context)
     }
 
+    /** chroot 后端是否就绪（脚本释放失败 / 未提供 runner 时为 false）。 */
+    fun chrootRunnerReady(): Boolean = chrootRunner != null
+
     /**
      * chroot 常驻挂载的兜底卸载（非 chroot runner / 未挂载时无副作用）。
      *

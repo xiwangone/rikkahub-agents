@@ -183,6 +183,9 @@ class WorkspaceRepository(
         mountSwitch.chrootEnabled = enabled
     }
 
+    /** chroot 后端是否就绪（脚本缺失时为 false → 开关开着实际也走 proot；供 UI 显性提示）。 */
+    fun chrootBackendReady(): Boolean = manager.chrootRunnerReady()
+
     /** chroot 前置预检：su 可执行且 3s 内响应（无 root 设备抛 IOException / 未授权则超时） */
     private fun isSuAccessible(): Boolean = runCatching {
         val p = ProcessBuilder("su", "-c", "id").start()
