@@ -48,7 +48,7 @@ private const val REF_PREFIX = "\$\$"
 fun SecretRefField(
     value: String,
     onValueChange: (String) -> Unit,
-    label: String,
+    label: String? = null,
     modifier: Modifier = Modifier,
     description: String? = null,
     /** "粘贴即入库"时的默认命名依据（如 provider 名）；会被规范化成合法名。 */
@@ -93,7 +93,7 @@ fun SecretRefField(
             onValueChange(it)
             notice = null
         },
-        label = { Text(label) },
+        label = label?.let { text -> { Text(text) } },
         placeholder = { Text(placeholder ?: stringResource(R.string.vault_ref_hint)) },
         supportingText = {
             val hint = notice

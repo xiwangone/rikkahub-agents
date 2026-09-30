@@ -43,8 +43,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
@@ -52,8 +50,6 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.hugeicons.stroke.Stop
 import me.rerere.hugeicons.stroke.StopCircle
-import me.rerere.hugeicons.stroke.View
-import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.service.WebServerService
@@ -70,6 +66,8 @@ import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.web.WebServerManager
 import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.data.vault.CredentialType
 
 @Composable
 fun SettingWebServerPage() {
@@ -90,9 +88,6 @@ fun SettingWebServerPage() {
     }
     var accessPasswordText by remember(settings.webServerAccessPassword) {
         mutableStateOf(settings.webServerAccessPassword)
-    }
-    var passwordVisible by remember {
-        mutableStateOf(false)
     }
 
     val permissionState =
@@ -313,9 +308,8 @@ fun SettingWebServerPage() {
                     )
                     item(
                         headlineContent = { Text(stringResource(R.string.setting_page_web_server_password)) },
-                        supportingContent = { Text(stringResource(R.string.setting_page_web_server_password_desc)) },
-                        trailingContent = {
-                            TextField(
+                        supportingContent = {
+                            SecretRefField(
                                 value = accessPasswordText,
                                 onValueChange = { value ->
                                     accessPasswordText = value
@@ -328,32 +322,10 @@ fun SettingWebServerPage() {
                                         }
                                     }
                                 },
-                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
-                                visualTransformation =
-                                    if (passwordVisible) {
-                                        VisualTransformation.None
-                                    } else {
-                                        PasswordVisualTransformation()
-                                    },
-                                trailingIcon = {
-                                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                                        Icon(
-                                            imageVector = if (passwordVisible) HugeIcons.ViewOff else HugeIcons.View,
-                                            contentDescription = null,
-                                        )
-                                    }
-                                },
+                                description = stringResource(R.string.setting_page_web_server_password_desc),
+                                nameHint = "WEB_SERVER_PASSWORD",
+                                typeHint = CredentialType.BASIC_AUTH,
                                 singleLine = true,
-                                isError = settings.webServerJwtEnabled && accessPasswordText.isBlank(),
-                                modifier = Modifier.width(180.dp),
-                                shape = CircleShape,
-                                colors =
-                                    TextFieldDefaults.colors(
-                                        focusedIndicatorColor = Color.Transparent,
-                                        unfocusedIndicatorColor = Color.Transparent,
-                                        errorIndicatorColor = Color.Transparent,
-                                        disabledIndicatorColor = Color.Transparent,
-                                    ),
                             )
                         },
                     )
