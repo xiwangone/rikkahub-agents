@@ -68,6 +68,24 @@ class ChrootShellRunner(
         }
     }.getOrNull()
 
+    /**
+     * 卸载常驻挂载：`sh chroot-run.sh <linuxDir> unmount`（幂等）。
+     *
+     * 挂载是常驻的（见 chroot-run.sh 文件头第 5 条），所以卸载必须在生命周期点显式调用：
+     * 关 chroot 开关（WorkspaceRepository.setChrootEnabled(false)）与删除工作区
+     * （WorkspaceManager.deleteWorkspace —— bind 挂载在时会 EBUSY，目录删不掉）。
+     */
+    fun unmount(context: WorkspaceShellContext): WorkspaceCommandResult =
+        runCatching {
+            newSuProcess(context.linuxDir, "unmount").readResult(30_000)
+        }.getOrElse { e ->
+            WorkspaceCommandResult(
+                exitCode = -1,
+                stdout = "",
+                stderr = "chroot unmount failed: ${e.message}",
+            )
+        }
+
     /** 拼装最外层 `su -c` 命令（可测纯函数）。 */
     internal fun suCommand(
         linuxDir: File,

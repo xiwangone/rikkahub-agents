@@ -54,6 +54,26 @@ class WorkspaceManager(
         return runner.probe(context)
     }
 
+    /**
+     * chroot 常驻挂载的兜底卸载（非 chroot runner / 未挂载时无副作用）。
+     *
+     * 返回 null = 非 chroot 态（无需卸载）；否则返回脚本结果（调用方决定怎么记日志）。
+     */
+    fun unmountChroot(root: String): WorkspaceCommandResult? {
+        val runner = chrootRunner as? ChrootShellRunner ?: return null
+        val context = WorkspaceShellContext(
+            root = root,
+            command = "unmount",
+            cwd = "",
+            filesDir = filesDir(root),
+            linuxDir = linuxDir(root),
+            tempDir = tempDir(root),
+            workingDir = tempDir(root),
+            timeoutMillis = 30_000,
+        )
+        return runner.unmount(context)
+    }
+
     // 让 startBackground 的启动+注册 与 deleteWorkspace 的 killAll+删除 互斥:
     // 要么启动先完成(随后被 killAll 杀掉), 要么删除先完成(随后 shellRunner.start 因 rootfs
     // 缺失而失败并抛出), 不会出现"进程活着但 workspace 目录已删"的孤儿进程
@@ -135,6 +155,8 @@ class WorkspaceManager(
     fun deleteWorkspace(root: String): Boolean = synchronized(backgroundLifecycleLock) {
         // 先杀掉该 workspace 所有后台进程, 再删目录, 避免进程仍持有已删除目录下的 fd
         killAllBackground(root)
+        // 常驻挂载先卸：bind 挂载在时 deleteRecursively 会 EBUSY
+        unmountChroot(root)
         workspaceDir(root).deleteRecursively()
     }
 

@@ -95,7 +95,7 @@ internal fun isLocalFileRequestAllowed(url: Uri?, skillsDir: File): Boolean {
 /**
  * 被白名单拒绝的 file:// 请求的统一响应。
  *
- * **不静默**（2026-09-30）：① 落一条 WARN 日志（含被拒 URL，可从 App 日志定位）
+ * **不静默**：① 落一条 WARN 日志（含被拒 URL，可从 App 日志定位）
  * ② 返回可见的 HTML 说明页 —— 此前是 403 空体，表现是技能卡片白屏且毫无原因。
  * URL 进 HTML 前做转义，避免把页面可控内容当标记渲染。
  */

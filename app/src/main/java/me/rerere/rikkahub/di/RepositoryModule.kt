@@ -136,7 +136,7 @@ val repositoryModule =
  * chroot 脚本从 assets 释放到 filesDir/chroot；返回 null = 后端不可用（回退 proot）。
  *
  * ⚠ 释放判据是**内容比对**，不是"文件是否存在"：早期实现用 `!target.exists()` 跳过，
- * 结果脚本修了 bug 之后**已安装的用户永远用旧脚本**（2026-09-30 排查 chroot 时发现）。
+ * 结果脚本修了 bug 之后**已安装的用户永远用旧脚本**（排查 chroot 时发现）。
  * 现在 assets 内容一变就覆盖；覆盖与失败都留日志，不静默。
  */
 private fun chrootShellRunnerOf(context: Context): ChrootShellRunner? {

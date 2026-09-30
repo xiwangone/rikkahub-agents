@@ -168,6 +168,16 @@ class WorkspaceRepository(
                 }
             }
         }
+        if (!enabled) {
+            // 关开关时卸载常驻挂载（不卸会留着 → 删工作区会 EBUSY）
+            dao.getAll().forEach { ws ->
+                manager.unmountChroot(ws.root)?.let { r ->
+                    if (r.exitCode != 0) {
+                        AppLog.w("Workspace", "chroot unmount on disable failed: ${r.stderr}")
+                    }
+                }
+            }
+        }
         val current = settingsStore.settingsFlow.first()
         settingsStore.update(current.copy(workspaceChrootEnabled = enabled))
         mountSwitch.chrootEnabled = enabled

@@ -674,5 +674,6 @@
     <ID>NestedBlockDepth:RootfsInstaller.kt$RootfsInstaller$private fun download( url: String, target: File, onProgress: (RootfsInstallProgress) -&gt; Unit, )</ID>
     <ID>NestedBlockDepth:WorkspaceFileSystem.kt$WorkspaceFileSystem$fun importBytes( root: File, path: String, inputStream: InputStream, ): WorkspaceFileEntry</ID>
     <ID>TooManyFunctions:WorkspaceManager.kt$WorkspaceManager</ID>
+    <ID>LongParameterList:WorkspaceManager.kt$WorkspaceManager$( private val baseDir: File, private val config: WorkspaceConfig = WorkspaceConfig(), private val shellRunner: WorkspaceShellRunner = HostShellRunner(), private val bindMounts: List&lt;WorkspaceBindMount&gt; = emptyList(), // 可选挂载（如 /sdcard）：开关 provider 为同步函数（调用点在普通函数里， // 调用方负责让它返回最新状态，如经内存缓存桥接设置项）。 private val optionalMounts: OptionalMounts? = null, // chroot 后端（实验性，root 设备）：enabled 返回 false 或 runner 未提供时回退 proot private val chrootRunner: WorkspaceShellRunner? = null, private val chrootEnabled: () -&gt; Boolean = { false }, )</ID>
   </CurrentIssues>
 </SmellBaseline>
