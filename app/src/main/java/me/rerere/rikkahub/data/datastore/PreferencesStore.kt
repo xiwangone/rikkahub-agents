@@ -375,7 +375,7 @@ class SettingsStore(
                 } ?: SearchCommonOptions(),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
                 mcpServers = preferences[MCP_SERVERS]?.let {
-                    JsonInstant.decodeFromString(it)
+                    JsonInstant.decodeFromString(decryptPrefValue(it))
                 } ?: emptyList(),
 subAgents = preferences[SUB_AGENTS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<SubAgentProfile>>(raw) }.getOrElse {
@@ -388,33 +388,33 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 },
                 subAgentForegroundReceipt = preferences[SUB_AGENT_FOREGROUND_RECEIPT] ?: false,
                 webDavConfig = preferences[WEBDAV_CONFIG]?.let {
-                    JsonInstant.decodeFromString(it)
+                    JsonInstant.decodeFromString(decryptPrefValue(it))
                 } ?: WebDavConfig(),
                 s3Config = preferences[S3_CONFIG]?.let {
-                    JsonInstant.decodeFromString(it)
+                    JsonInstant.decodeFromString(decryptPrefValue(it))
                 } ?: S3Config(),
                 webDavConfigs = preferences[WEBDAV_CONFIGS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<WebDavConfig>>(raw) }.getOrElse {
+                    runCatching { JsonInstant.decodeFromString<List<WebDavConfig>>(decryptPrefValue(raw)) }.getOrElse {
                         AppLog.w(TAG, "Failed to decode webDavConfigs, using empty", it)
                         emptyList()
                     }
                 } ?: emptyList(),
                 activeWebDavConfigId = preferences[ACTIVE_WEBDAV_CONFIG_ID],
                 s3Configs = preferences[S3_CONFIGS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<S3Config>>(raw) }.getOrElse {
+                    runCatching { JsonInstant.decodeFromString<List<S3Config>>(decryptPrefValue(raw)) }.getOrElse {
                         AppLog.w(TAG, "Failed to decode s3Configs, using empty", it)
                         emptyList()
                     }
                 } ?: emptyList(),
                 activeS3ConfigId = preferences[ACTIVE_S3_CONFIG_ID],
                 ttsProviders = preferences[TTS_PROVIDERS]?.let {
-                    JsonInstant.decodeFromString(it)
+                    JsonInstant.decodeFromString(decryptPrefValue(it))
                 } ?: emptyList(),
                 selectedTTSProviderId = preferences[SELECTED_TTS_PROVIDER]?.let { Uuid.parse(it) }
                     ?: DEFAULT_SYSTEM_TTS_ID,
                 defaultTTSPlaybackSpeed = preferences[DEFAULT_TTS_PLAYBACK_SPEED]?.coerceIn(0.5f, 2.0f) ?: 1.0f,
                 asrProviders = preferences[ASR_PROVIDERS]?.let {
-                    JsonInstant.decodeFromString(it)
+                    JsonInstant.decodeFromString(decryptPrefValue(it))
                 } ?: emptyList(),
                 selectedASRProviderId = preferences[SELECTED_ASR_PROVIDER]?.let { Uuid.parse(it) },
                 modeInjections = preferences[MODE_INJECTIONS]?.let {
@@ -719,26 +719,26 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[SEARCH_SELECTED] =
                 settings.searchServiceSelected.coerceIn(0, maxOf(0, settings.searchServices.size - 1))
 
-            preferences[MCP_SERVERS] = JsonInstant.encodeToString(settings.mcpServers)
+            preferences[MCP_SERVERS] = encryptPrefValue(JsonInstant.encodeToString(settings.mcpServers))
             preferences[SUB_AGENTS] = JsonInstant.encodeToString(settings.subAgents)
             putSubAgentDefaultWorkspace(preferences, settings)
             putSubAgentForegroundReceipt(preferences, settings)
-            preferences[WEBDAV_CONFIG] = JsonInstant.encodeToString(settings.webDavConfig)
-            preferences[S3_CONFIG] = JsonInstant.encodeToString(settings.s3Config)
-            preferences[WEBDAV_CONFIGS] = JsonInstant.encodeToString(settings.webDavConfigs)
+            preferences[WEBDAV_CONFIG] = encryptPrefValue(JsonInstant.encodeToString(settings.webDavConfig))
+            preferences[S3_CONFIG] = encryptPrefValue(JsonInstant.encodeToString(settings.s3Config))
+            preferences[WEBDAV_CONFIGS] = encryptPrefValue(JsonInstant.encodeToString(settings.webDavConfigs))
             settings.activeWebDavConfigId?.let {
                 preferences[ACTIVE_WEBDAV_CONFIG_ID] = it
             } ?: preferences.remove(ACTIVE_WEBDAV_CONFIG_ID)
-            preferences[S3_CONFIGS] = JsonInstant.encodeToString(settings.s3Configs)
+            preferences[S3_CONFIGS] = encryptPrefValue(JsonInstant.encodeToString(settings.s3Configs))
             settings.activeS3ConfigId?.let {
                 preferences[ACTIVE_S3_CONFIG_ID] = it
             } ?: preferences.remove(ACTIVE_S3_CONFIG_ID)
-            preferences[TTS_PROVIDERS] = JsonInstant.encodeToString(settings.ttsProviders)
+            preferences[TTS_PROVIDERS] = encryptPrefValue(JsonInstant.encodeToString(settings.ttsProviders))
             settings.selectedTTSProviderId?.let {
                 preferences[SELECTED_TTS_PROVIDER] = it.toString()
             } ?: preferences.remove(SELECTED_TTS_PROVIDER)
             preferences[DEFAULT_TTS_PLAYBACK_SPEED] = settings.defaultTTSPlaybackSpeed.coerceIn(0.5f, 2.0f)
-            preferences[ASR_PROVIDERS] = JsonInstant.encodeToString(settings.asrProviders)
+            preferences[ASR_PROVIDERS] = encryptPrefValue(JsonInstant.encodeToString(settings.asrProviders))
             settings.selectedASRProviderId?.let {
                 preferences[SELECTED_ASR_PROVIDER] = it.toString()
             } ?: preferences.remove(SELECTED_ASR_PROVIDER)
@@ -793,6 +793,16 @@ private fun MutablePreferences.putWebServerBlock(settings: Settings) {
     this[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
     this[NETWORK_CIDR_PRESETS] = JsonInstant.encodeToString(settings.networkCidrPresets)
 }
+
+/**
+ * 敏感 JSON 值落盘加解密（与 `providers` 同一条 Keystore 通道）。
+ *
+ * 覆盖：MCP 服务器配置（OAuth token / clientSecret）、WebDAV 与 S3 凭据、TTS / ASR
+ * 的 provider 配置。历史明文（非密文格式）解密失败即回退原文，升级无需迁移。
+ */
+private fun decryptPrefValue(raw: String): String = ProviderCredentialCipher.decrypt(raw) ?: raw
+
+private fun encryptPrefValue(raw: String): String = ProviderCredentialCipher.encrypt(raw)
 
 private fun MutablePreferences.putToolOutputLimits(settings: Settings) {
         this[TOOL_OUTPUT_MAX_CHARS] = settings.toolOutputMaxChars
