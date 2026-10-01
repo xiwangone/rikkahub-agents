@@ -162,6 +162,8 @@ fun ChatInput(
     modifier: Modifier = Modifier,
     completionProviders: List<ChatCompletionProvider> = emptyList(),
     onUpdateChatModel: (Model) -> Unit,
+    /** 长按模型按钮 = 复位为助手模型；null = 当前会话没有独立模型（无可复位）。 */
+    onResetConversationModel: (() -> Unit)? = null,
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateSearchService: (Int) -> Unit,
     onMoreClick: () -> Unit,
@@ -410,6 +412,8 @@ fun ChatInput(
                                     state = modelListState,
                                     onlyIcon = true,
                                     modifier = Modifier,
+                                    allowClear = onResetConversationModel != null,
+                                    onClear = { onResetConversationModel?.invoke() },
                                 )
 
                                 // Search

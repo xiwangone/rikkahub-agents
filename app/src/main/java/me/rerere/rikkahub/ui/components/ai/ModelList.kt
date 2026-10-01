@@ -4,6 +4,7 @@ import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.FlowRow
@@ -20,6 +21,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
@@ -46,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
@@ -244,10 +247,22 @@ internal fun ModelSelectorButton(
             }
         }
     } else {
-        IconButton(
-            onClick = {
-                state.open()
-            },
+        // 短按 = 打开模型列表（切换），长按 = 复位为助手模型（仅调用方允许时）—— 两个动作同处，
+        // 与「切换模型」的语义一致；长按不可见，调用方靠输入框上方的状态行提示可复位。
+        val canReset = allowClear
+        val interactionSource = remember { MutableInteractionSource() }
+        Box(
+            modifier =
+                modifier
+                    .size(44.dp)
+                    .clip(CircleShape)
+                    .combinedClickable(
+                        interactionSource = interactionSource,
+                        indication = LocalIndication.current,
+                        onClick = { state.open() },
+                        onLongClick = if (canReset) onClear else null,
+                    ),
+            contentAlignment = Alignment.Center,
         ) {
             if (model != null) {
                 AutoAIIcon(

@@ -484,139 +484,147 @@ private fun ChatPageContent(
                 )
             },
             bottomBar = {
-                // 本会话用了独立模型时，就地给一个恢复入口（不离开当前会话）
-                androidx.compose.animation.AnimatedVisibility(visible = hasConversationModelOverride) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.ArrowTurnBackward,
-                            contentDescription = null,
-                            modifier = Modifier.size(14.dp),
-                            tint = MaterialTheme.colorScheme.primary,
-                        )
-                        Text(
-                            text = stringResource(R.string.chat_page_conversation_model_active),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.weight(1f),
-                        )
-                        TextButton(
-                            onClick = { vm.clearChatModel(conversation.id) },
+                Column {
+                    // 本会话用了独立模型时，就地给一个恢复入口（不离开当前会话）
+                    androidx.compose.animation.AnimatedVisibility(visible = hasConversationModelOverride) {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            Text(stringResource(R.string.chat_page_conversation_model_reset))
+                            Icon(
+                                imageVector = HugeIcons.ArrowTurnBackward,
+                                contentDescription = null,
+                                modifier = Modifier.size(14.dp),
+                                tint = MaterialTheme.colorScheme.primary,
+                            )
+                            Text(
+                                text = stringResource(R.string.chat_page_conversation_model_active),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                            TextButton(
+                                onClick = { vm.clearChatModel(conversation.id) },
+                            ) {
+                                Text(stringResource(R.string.chat_page_conversation_model_reset))
+                            }
                         }
                     }
+                    ChatInput(
+                        state = inputState,
+                        loading = loadingJob != null,
+                        messageQueue = pendingQueue,
+                        onRemoveQueuedMessage = vm::removeQueuedMessage,
+                        onBeginEditQueuedMessage = vm::beginEditQueuedMessage,
+                        onFinishEditQueuedMessage = vm::finishEditQueuedMessage,
+                        onResumeMessageQueue = vm::resumeMessageQueue,
+                        onStartVoiceMode = onStartVoiceMode,
+                        voiceState = voiceState,
+                        onStopVoiceMode = vm.voiceSession::stop,
+                        settings = setting,
+                        conversationModelId = conversation.chatModelId,
+                    onResetConversationModel =
+                        if (hasConversationModelOverride) {
+                            { vm.clearChatModel(conversation.id) }
+                        } else {
+                            null
+                        },
+                        hazeState = hazeState,
+                        completionProviders = completionProviders,
+                        onCancelClick = {
+                            vm.stopGeneration()
+                        },
+                        enableSearch = enableWebSearch,
+                        sessionTotals = sessionTotals,
+                        lifetimeTotals = lifetimeTotals,
+                        onToggleSearch = {
+                            val current = setting.getCurrentAssistant()
+                            vm.updateSettings(
+                                setting.copy(
+                                    assistants =
+                                        setting.assistants.map { assistant ->
+                                            if (assistant.id == current.id) {
+                                                assistant.copy(enableWebSearch = !enableWebSearch)
+                                            } else {
+                                                assistant
+                                            }
+                                        },
+                                ),
+                            )
+                        },
+                        onSendClick = {
+                            if (currentChatModel == null) {
+                                toaster.show(
+                                    context.getString(R.string.chat_select_model_first),
+                                    type = ToastType.Error,
+                                )
+                                return@ChatInput
+                            }
+                            if (inputState.isEditing()) {
+                                vm.handleMessageEdit(
+                                    parts = inputState.getContents(),
+                                    messageId = inputState.editingMessage!!,
+                                )
+                            } else {
+                                vm.handleMessageSend(inputState.getContents())
+                                scope.launch {
+                                    chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                                }
+                            }
+                            inputState.clearInput()
+                        },
+                        onLongSendClick = {
+                            if (inputState.isEditing()) {
+                                vm.handleMessageEdit(
+                                    parts = inputState.getContents(),
+                                    messageId = inputState.editingMessage!!,
+                                )
+                            } else {
+                                vm.handleMessageSend(content = inputState.getContents(), answer = false)
+                                scope.launch {
+                                    chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
+                                }
+                            }
+                            inputState.clearInput()
+                        },
+                        onUpdateChatModel = {
+                            vm.setChatModel(conversationId = conversation.id, model = it)
+                        },
+                        onUpdateAssistant = {
+                            vm.updateSettings(
+                                setting.copy(
+                                    assistants =
+                                        setting.assistants.map { assistant ->
+                                            if (assistant.id == it.id) {
+                                                it
+                                            } else {
+                                                assistant
+                                            }
+                                        },
+                                ),
+                            )
+                        },
+                        onUpdateSearchService = { index ->
+                            vm.updateSettings(
+                                setting.copy(
+                                    searchServiceSelected = index,
+                                ),
+                            )
+                        },
+                        onMoreClick = {
+                            showFilesSheet = true
+                        },
+                        onVaultAuthorizeClick = {
+                            checkVaultAuth()
+                            showVaultAuthDialog = true
+                        },
+                        onAutoClick = {
+                            autoTaskConfig = readAutoTaskConfig(context)
+                            showAutoTaskDialog = true
+                        },
+                    )
                 }
-                ChatInput(
-                    state = inputState,
-                    loading = loadingJob != null,
-                    messageQueue = pendingQueue,
-                    onRemoveQueuedMessage = vm::removeQueuedMessage,
-                    onBeginEditQueuedMessage = vm::beginEditQueuedMessage,
-                    onFinishEditQueuedMessage = vm::finishEditQueuedMessage,
-                    onResumeMessageQueue = vm::resumeMessageQueue,
-                    onStartVoiceMode = onStartVoiceMode,
-                    voiceState = voiceState,
-                    onStopVoiceMode = vm.voiceSession::stop,
-                    settings = setting,
-                    conversationModelId = conversation.chatModelId,
-                    hazeState = hazeState,
-                    completionProviders = completionProviders,
-                    onCancelClick = {
-                        vm.stopGeneration()
-                    },
-                    enableSearch = enableWebSearch,
-                    sessionTotals = sessionTotals,
-                    lifetimeTotals = lifetimeTotals,
-                    onToggleSearch = {
-                        val current = setting.getCurrentAssistant()
-                        vm.updateSettings(
-                            setting.copy(
-                                assistants =
-                                    setting.assistants.map { assistant ->
-                                        if (assistant.id == current.id) {
-                                            assistant.copy(enableWebSearch = !enableWebSearch)
-                                        } else {
-                                            assistant
-                                        }
-                                    },
-                            ),
-                        )
-                    },
-                    onSendClick = {
-                        if (currentChatModel == null) {
-                            toaster.show(
-                                context.getString(R.string.chat_select_model_first),
-                                type = ToastType.Error,
-                            )
-                            return@ChatInput
-                        }
-                        if (inputState.isEditing()) {
-                            vm.handleMessageEdit(
-                                parts = inputState.getContents(),
-                                messageId = inputState.editingMessage!!,
-                            )
-                        } else {
-                            vm.handleMessageSend(inputState.getContents())
-                            scope.launch {
-                                chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
-                            }
-                        }
-                        inputState.clearInput()
-                    },
-                    onLongSendClick = {
-                        if (inputState.isEditing()) {
-                            vm.handleMessageEdit(
-                                parts = inputState.getContents(),
-                                messageId = inputState.editingMessage!!,
-                            )
-                        } else {
-                            vm.handleMessageSend(content = inputState.getContents(), answer = false)
-                            scope.launch {
-                                chatListState.requestScrollToItem(conversation.currentMessages.size + 5)
-                            }
-                        }
-                        inputState.clearInput()
-                    },
-                    onUpdateChatModel = {
-                        vm.setChatModel(conversationId = conversation.id, model = it)
-                    },
-                    onUpdateAssistant = {
-                        vm.updateSettings(
-                            setting.copy(
-                                assistants =
-                                    setting.assistants.map { assistant ->
-                                        if (assistant.id == it.id) {
-                                            it
-                                        } else {
-                                            assistant
-                                        }
-                                    },
-                            ),
-                        )
-                    },
-                    onUpdateSearchService = { index ->
-                        vm.updateSettings(
-                            setting.copy(
-                                searchServiceSelected = index,
-                            ),
-                        )
-                    },
-                    onMoreClick = {
-                        showFilesSheet = true
-                    },
-                    onVaultAuthorizeClick = {
-                        checkVaultAuth()
-                        showVaultAuthDialog = true
-                    },
-                    onAutoClick = {
-                        autoTaskConfig = readAutoTaskConfig(context)
-                        showAutoTaskDialog = true
-                    },
-                )
             },
             containerColor = Color.Transparent,
         ) { innerPadding ->

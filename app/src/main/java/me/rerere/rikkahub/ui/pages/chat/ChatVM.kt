@@ -249,7 +249,11 @@ class ChatVM(
 
     private fun overrideConversationModel(conversationId: Uuid, modelId: Uuid?) {
         viewModelScope.launch {
-            val conversationFull = conversationRepo.getConversationById(conversationId) ?: return@launch
+            // 新会话在发出第一条消息前还没落库（ChatService.getOrCreateSession 只建内存态），
+            // 此时 getConversationById 返回 null —— 改取内存快照，否则这次切换会被静默丢弃
+            val conversationFull =
+                conversationRepo.getConversationById(conversationId)
+                    ?: chatService.getConversationFlow(conversationId).value
             val updatedConversation = conversationFull.copy(chatModelId = modelId)
             // 当前会话走 ChatService（内存态一致），其它会话直接落库
             if (conversationId == _conversationId) {
