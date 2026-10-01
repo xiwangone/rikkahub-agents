@@ -287,7 +287,14 @@ fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
             listOf("tool messages", "insufficient tool", "must be followed by").any { text.contains(it) } ->
             FailureKind.TOOL_PAIRING
         (text.contains("image") || text.contains("vision")) &&
-            listOf("not support", "unsupported", "does not support").any { text.contains(it) } ->
+            listOf("not support", "unsupported", "does not support").any { text.contains(it) } &&
+            // 排除「图片本身 / 请求体的问题」：这类报错同样含 image+unsupported 字样，但模型能看懂图片，
+            // 误判会触发剥图重试（只重试一次）→ 用户看到的是「图没了」。只保留指向「模型能力」的情形。
+            listOf(
+                "format", "mime", "content type", "content_type", "file type", "decode",
+                "too large", "size", "dimension", "resolution", "pixel",
+                "base64", "url", "context", "token", "too many", "payload",
+            ).none { text.contains(it) } ->
             FailureKind.IMAGE_UNSUPPORTED
 
         listOf("data_inspection_failed", "safetyerror", "content_filter", "inappropriate", "sensitive", "安全", "敏感").any { text.contains(it) } ->
@@ -812,7 +819,7 @@ class GenerationLoop(
                 val overSoft = budgetStatus == TokenBudgetTracker.BudgetStatus.WARN
                 when {
                     // 第一次越线（含越过硬上限）：先注入一次性收尾提示，给模型一次体面收尾的机会。
-                    // ⚠ 2026-09-25 真机反馈：原先「越硬上限直接 break」会让用户看到「发消息没反应」
+                    // ⚠ 原先「越硬上限直接 break」会让用户看到「发消息没反应」
                     //   （配置写反时尤其致命）—— 所以硬上限也先软着陆一次。
                     (overSoft || overHard) && !tokenBudgetWarnInjected -> {
                         tokenBudgetWarnInjected = true

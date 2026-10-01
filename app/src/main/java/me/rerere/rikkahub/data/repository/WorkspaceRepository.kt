@@ -194,7 +194,7 @@ class WorkspaceRepository(
         ok
     }.getOrDefault(false)
 
-    /** chroot 能力探测透传（root 层实测；null = 非实验 runner） */
+    /** chroot 能力探测透传（root 层探测结果；null = 非实验 runner） */
     fun probeChroot(root: String) = manager.probeChroot(root)
 
     /** 保存工作区画像标签（JSON 数组落库；阶段 3 任务路由的匹配键）。 */
@@ -211,7 +211,7 @@ class WorkspaceRepository(
 
     // ---------- 资源面板：采集与页面生命周期解耦 + 进程内缓存 ----------
     // 大区（数万文件）遍历可达分钟级；挂在页面订阅生命周期上（WhileSubscribed）会随页面
-    // 退出被取消 → 大工作区永远采不完（2026-09-26 真机实测：主区反复进出始终 "-"）。
+    // 退出被取消 → 大工作区永远采不完（反复进出始终 "-"）。
     // 改为独立 scope 后台采集，结果驻留进程内缓存；持久化（跨进程）列为后续。
 
     private val statsScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

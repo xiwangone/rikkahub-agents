@@ -29,6 +29,29 @@ class FailureKindClassificationTest {
     fun `模型不支持图片被单独识别（不被 UNSUPPORTED 吃掉）`() =
         assertEquals(FailureKind.IMAGE_UNSUPPORTED, kind("This model does not support image input"))
 
+    // 以下三类报错同样含 image + unsupported 字样，但根因不是模型能力：
+    // 若误判成 IMAGE_UNSUPPORTED，会触发「剥图重试」把用户的图丢掉。
+    @Test
+    fun `图片格式类报错不误判为模型不支持图片`() =
+        assertNotEquals(
+            FailureKind.IMAGE_UNSUPPORTED,
+            kind("Unsupported image format: image/webp is not supported"),
+        )
+
+    @Test
+    fun `图片尺寸类报错不误判为模型不支持图片`() =
+        assertNotEquals(
+            FailureKind.IMAGE_UNSUPPORTED,
+            kind("image dimensions too large; unsupported size 8000x6000"),
+        )
+
+    @Test
+    fun `上下文超限提及图片不误判为模型不支持图片`() =
+        assertNotEquals(
+            FailureKind.IMAGE_UNSUPPORTED,
+            kind("context_length exceeded: too many image tokens in this request"),
+        )
+
     @Test
     fun `提到 tool 但不是配对问题时不误判`() =
         assertNotEquals(

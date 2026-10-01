@@ -19,7 +19,7 @@ private const val APPROVAL_MARKER_PREFIX = "[approval:"
  * 剔除工具输出尾部的审批来源标记行，返回可解析的负载文本。
  *
  * 解析工具 output 前必须经过本函数：标记与负载同处一个文本块，直接整段解析会失败
- * （2026-10-01 真机实测：chart_display 因标记行导致图表不渲染）。
+ * （chart_display 因此不渲染，表现为工具卡里只有 JSON）。
  */
 internal fun stripApprovalProvenance(outputText: String): String =
     outputText.lineSequence()
@@ -135,7 +135,7 @@ private fun UIMessagePart.Tool.isSuccessfulChartDisplay(): Boolean {
     if (toolName != CHART_DISPLAY_TOOL_NAME || !isExecuted) return false
     val outputText = output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
     // 工具输出尾部会追加审批来源标记行（如 [approval: auto]），与负载同处一个文本块；
-    // 不剔除则整段 JSON 解析失败 → 图表不渲染（2026-10-01 真机实测）。
+    // 不剔除则整段 JSON 解析失败 → 图表不渲染。
     val payload = stripApprovalProvenance(outputText)
     val result = runCatching { JsonInstant.parseToJsonElement(payload) }.getOrNull() as? JsonObject
     return (result?.get("success") as? JsonPrimitive)?.booleanOrNull == true

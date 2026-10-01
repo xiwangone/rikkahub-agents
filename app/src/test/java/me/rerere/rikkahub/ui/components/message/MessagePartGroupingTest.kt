@@ -11,7 +11,7 @@ import org.junit.Test
  *
  * 背景：工具输出尾部会被追加审批来源标记行（如 `[approval: auto]`，生成端
  * GenerationLoop.appendApprovalProvenance）。图表判定曾因把标记行一起送去解析而失败，
- * 真机上表现为「工具卡折叠展开只有 JSON、不渲染图表」（2026-10-01 实测）。
+ * 表现为工具卡里只有 JSON、不渲染图表。
  */
 class MessagePartGroupingTest {
     private fun text(s: String) = UIMessagePart.Text(text = s)

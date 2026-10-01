@@ -24,7 +24,7 @@ import java.security.SecureRandom
 import java.util.concurrent.atomic.AtomicReference
 
 /**
- * AI 调试 API（实验性，默认关闭）：外部 AI 读取 App 状态与日志，供真机验证与排障。
+ * AI 调试 API（实验性，默认关闭）：外部 AI 读取 App 状态与日志，供设备侧验证与排障。
  * 安全：默认关；监听档位仅本机/局域网/自定义 CIDR/全部接口 + CIDR 白名单；token 门禁；审计留痕。
  */
 class DebugApiServer(
