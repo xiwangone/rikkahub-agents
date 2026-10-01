@@ -473,11 +473,36 @@ private fun ChatListNormal(
                             AnimatedVisibility(
                                 visible = processingStatus != null,
                             ) {
-                                Text(
-                                    text = processingStatus ?: "",
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                ) {
+                                    Text(
+                                        text = processingStatus ?: "",
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f, fill = false),
+                                    )
+                                    // 重试期间的状态行带着服务端原文（无法本地化）：给一个入口，
+                                    // 不必先停止生成、再从头找那段原文
+                                    val statusContext = LocalContext.current
+                                    IconButton(
+                                        onClick = {
+                                            val clipboard =
+                                                statusContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                            clipboard.setPrimaryClip(
+                                                ClipData.newPlainText("generation_status", processingStatus.orEmpty())
+                                            )
+                                        },
+                                        modifier = Modifier.size(24.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = HugeIcons.Copy01,
+                                            contentDescription = stringResource(R.string.copy),
+                                            modifier = Modifier.size(14.dp),
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
