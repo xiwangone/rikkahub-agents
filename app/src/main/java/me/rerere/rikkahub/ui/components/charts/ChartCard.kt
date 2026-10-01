@@ -186,7 +186,7 @@ private fun ChartModeToggle(
                     ChartStyle.Line, ChartStyle.Area -> HugeIcons.ChartLineData01
                     ChartStyle.Bar -> HugeIcons.ChartColumn
                     ChartStyle.Scatter -> HugeIcons.ChartScatter
-                    ChartStyle.Pie, ChartStyle.Donut -> HugeIcons.PieChart
+                    ChartStyle.Pie, ChartStyle.Donut -> HugeIcons.ChartColumn
                 },
                 contentDescription = stringResource(R.string.chart_mode_chart),
                 selected = mode == ChartDisplayMode.Chart,
