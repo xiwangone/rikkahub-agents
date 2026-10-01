@@ -20,6 +20,9 @@ updates:
       # classpath), never in an app/module runtime classpath. Nothing can be bumped from a
       # manifest here, so update attempts fail every time; the build toolchain owns the version.
       - dependency-name: "io.netty:*"
+      # jackson-databind 由 version catalog 统一钉版（ktor 传递引入），目录层无法抬高；
+      # 版本由我方在 catalog 里升级，Dependabot 的更新尝试每次都会失败。
+      - dependency-name: "com.fasterxml.jackson.core:jackson-databind"
 
   # GitHub Actions 自身
   - package-ecosystem: "github-actions"

@@ -29,6 +29,7 @@ import java.util.zip.ZipOutputStream
 
 private const val TAG = "WebDavSync"
 
+@Suppress("TooManyFunctions")
 class WebDavSync(
     private val settingsStore: SettingsStore,
     private val json: Json,
@@ -129,7 +130,7 @@ class WebDavSync(
     suspend fun downloadMigrationPackage(config: WebDavConfig, item: WebDavBackupItem): File = withContext(Dispatchers.IO) {
         val client = getClient(config)
         val target = resolveCacheFile(item.displayName)
-            ?: throw Exception("Unsafe migration file name: ${item.displayName}")
+            ?: throw IllegalArgumentException("Unsafe migration file name: ${item.displayName}")
         client.downloadToFile(item.displayName, target).getOrThrow()
         target
     }

@@ -3,7 +3,7 @@ allowBuilds:
 
 overrides:
   browserslist: "^4.28.7"
-  dompurify: "^3.4.13"
+  dompurify: "^3.4.16"
   js-yaml: "^4.3.2"
   mermaid: "^11.16.1"
   qs: "^6.16.0"
