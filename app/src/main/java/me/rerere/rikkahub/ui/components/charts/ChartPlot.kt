@@ -79,6 +79,12 @@ internal fun ChartPlot(
     colors: List<Color>,
     modifier: Modifier = Modifier,
 ) {
+    // 饼图/环形图不依赖坐标轴, 走独立绘制分支
+    if (spec.style == ChartStyle.Pie || spec.style == ChartStyle.Donut) {
+        ChartPiePlot(spec = spec, modifier = modifier)
+        return
+    }
+
     val geometry = remember(spec) { spec.buildGeometry() }
     val textMeasurer = rememberTextMeasurer()
     val labelStyle = MaterialTheme.typography.labelSmall.copy(
@@ -127,14 +133,16 @@ internal fun ChartPlot(
         }
 
         when (spec.style) {
-            ChartStyle.Bar, ChartStyle.Line -> {
+            // 饼图/环形图已在函数开头提前返回, 此处仅为分支穷尽
+            ChartStyle.Pie, ChartStyle.Donut -> Unit
+            ChartStyle.Bar, ChartStyle.Line, ChartStyle.Area -> {
                 val count = geometry.categoryCount
                 if (count == 0) return@Canvas
                 val slot = plot.width / count
                 drawCategoryLabels(spec, textMeasurer, labelStyle, plot, slot, labelGap)
 
                 val baseline = when {
-                    spec.style == ChartStyle.Line || yScale.log -> yScale.min
+                    spec.style == ChartStyle.Line || spec.style == ChartStyle.Area || yScale.log -> yScale.min
                     else -> 0.0.coerceIn(yScale.min, yScale.max)
                 }
                 val baselineY = yToPx(baseline)
@@ -143,6 +151,8 @@ internal fun ChartPlot(
                 clipRect(plot.left, plot.top - 1.dp.toPx(), plot.right, plot.bottom + 1.dp.toPx()) {
                     if (spec.style == ChartStyle.Bar) {
                         drawBars(spec, colors, plot, slot, baselineY, ::yToPx)
+                    } else if (spec.style == ChartStyle.Area) {
+                        drawArea(spec, colors, plot, slot, baselineY, ::yToPx)
                     } else {
                         drawLines(spec, colors, plot, slot, ::yToPx)
                     }
@@ -292,5 +302,37 @@ private fun DrawScope.drawLines(
                 drawCircle(color, dotRadius, Offset(plot.left + slot * (index + 0.5f), yToPx(value)))
             }
         }
+    }
+}
+
+/** 面积图: 折线下方填充, 轴/刻度/类目标签与折线图共用 */
+private fun DrawScope.drawArea(
+    spec: ChartSpec,
+    colors: List<Color>,
+    plot: Rect,
+    slot: Float,
+    baselineY: Float,
+    yToPx: (Double) -> Float,
+) {
+    val stroke = Stroke(width = 2.dp.toPx(), cap = StrokeCap.Round, join = StrokeJoin.Round)
+    spec.series.forEachIndexed { seriesIndex, series ->
+        if (series.values.isEmpty()) return@forEachIndexed
+        val color = colors[seriesIndex]
+        val fill = Path()
+        val line = Path()
+        series.values.forEachIndexed { index, value ->
+            val x = plot.left + slot * (index + 0.5f)
+            val y = yToPx(value)
+            if (index == 0) {
+                fill.moveTo(x, baselineY)
+                line.moveTo(x, y)
+            }
+            fill.lineTo(x, y)
+            line.lineTo(x, y)
+        }
+        fill.lineTo(plot.left + slot * (series.values.size - 0.5f), baselineY)
+        fill.close()
+        drawPath(fill, color.copy(alpha = 0.22f))
+        drawPath(line, color, style = stroke)
     }
 }

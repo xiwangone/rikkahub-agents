@@ -57,6 +57,7 @@ fun ChartCard(
 ) {
     var mode by rememberSaveable { mutableStateOf(initialMode) }
     val colors = remember(spec) { spec.seriesColors() }
+    val pieColors = remember(spec) { spec.pieSliceColors() }
     val seriesNames = spec.series.mapIndexed { index, series ->
         series.name ?: stringResource(R.string.chart_series_name, index + 1)
     }
@@ -118,7 +119,17 @@ fun ChartCard(
                             modifier = Modifier.fillMaxWidth(),
                         )
                     }
-                    if (spec.series.size > 1 || spec.series.any { it.name != null }) {
+                    if (spec.style == ChartStyle.Pie || spec.style == ChartStyle.Donut) {
+                        // 饼图/环形图: 图例按切片(类别)显示
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(16.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp),
+                        ) {
+                            spec.xAxis.data.forEachIndexed { index, label ->
+                                LegendItem(color = pieColors[index % pieColors.size], label = label)
+                            }
+                        }
+                    } else if (spec.series.size > 1 || spec.series.any { it.name != null }) {
                         FlowRow(
                             horizontalArrangement = Arrangement.spacedBy(16.dp),
                             verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -172,9 +183,10 @@ private fun ChartModeToggle(
         ) {
             ChartModeButton(
                 icon = when (style) {
-                    ChartStyle.Line -> HugeIcons.ChartLineData01
+                    ChartStyle.Line, ChartStyle.Area -> HugeIcons.ChartLineData01
                     ChartStyle.Bar -> HugeIcons.ChartColumn
                     ChartStyle.Scatter -> HugeIcons.ChartScatter
+                    ChartStyle.Pie, ChartStyle.Donut -> HugeIcons.ChartPie
                 },
                 contentDescription = stringResource(R.string.chart_mode_chart),
                 selected = mode == ChartDisplayMode.Chart,

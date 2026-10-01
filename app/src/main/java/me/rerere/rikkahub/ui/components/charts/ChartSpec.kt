@@ -9,7 +9,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.doubleOrNull
 
-enum class ChartStyle { Line, Bar, Scatter }
+enum class ChartStyle { Line, Bar, Scatter, Pie, Donut, Area }
 
 enum class ChartScaleType { Linear, Log }
 
@@ -58,6 +58,9 @@ data class ChartSpec(
                 "line" -> ChartStyle.Line
                 "bar" -> ChartStyle.Bar
                 "scatter" -> ChartStyle.Scatter
+                "pie" -> ChartStyle.Pie
+                "donut" -> ChartStyle.Donut
+                "area" -> ChartStyle.Area
                 else -> return null
             }
             val series = (obj["series"] as? JsonArray)

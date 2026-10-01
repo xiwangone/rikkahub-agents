@@ -14,20 +14,24 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 
-private val CHART_STYLES = listOf("line", "bar", "scatter")
+private val CHART_STYLES = listOf("line", "bar", "scatter", "pie", "donut", "area")
 private val AXIS_SCALES = listOf("linear", "log")
 private const val MAX_SERIES = 12
+private const val MAX_PIE_SLICES = 12
 private const val MAX_SERIES_POINTS = 2000
 private val HEX_COLOR_REGEX = Regex("^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 internal fun buildChartDisplayTool(): Tool = Tool(
     name = "chart_display",
     description = """
-        Display a line, bar, or scatter chart to the user inside the chat.
+        Display a line, bar, scatter, pie, donut, or area chart to the user inside the chat.
         For line and bar charts, every series must use 'values' (numbers aligned by position with x_axis.data)
         and must not use 'points'. For scatter charts, every series must use 'points' ({x, y} numbers)
         and must not use 'values'.
         Bar charts always start from 0, so axis 'min'/'max' are not allowed for bar charts.
+        Pie and donut charts take exactly one series ('values'), where each value is one slice labeled by x_axis.data;
+        axis 'min'/'max' and log scale are not allowed for them (slices are proportions).
+        Area charts follow the line chart rules and fill the area below the line.
         For line and bar charts the X axis is categorical: x_axis only supports 'title' and 'data',
         so x_axis 'min'/'max' and log scale are not allowed; use y_axis for range and log scale.
         Axis 'data' labels are only allowed on x_axis for line and bar charts.
@@ -162,6 +166,9 @@ private fun validateChartArgs(params: JsonObject): String? {
     val series = params["series"] as? JsonArray
     if (series.isNullOrEmpty()) return "series must be a non-empty array"
     if (series.size > MAX_SERIES) return "series can contain at most $MAX_SERIES items"
+    if ((style == "pie" || style == "donut") && series.size > 1) {
+        return "series can contain only one item for $style charts (each value is one slice labeled by x_axis.data)"
+    }
 
     val xLabels = axes["x_axis"]?.get("data") as? JsonArray
     val xLog = axes["x_axis"]?.string("scale") == "log"
@@ -183,6 +190,9 @@ private fun validateChartArgs(params: JsonObject): String? {
             if ("points" in item) return "series[$index] must not use 'points' for $style charts; use 'values'"
             val values = item["values"] as? JsonArray ?: return "series[$index].values is required for $style charts"
             if (values.size > MAX_SERIES_POINTS) return "series[$index].values can contain at most $MAX_SERIES_POINTS items"
+            if ((style == "pie" || style == "donut") && values.size > MAX_PIE_SLICES) {
+                return "series[$index].values can contain at most $MAX_PIE_SLICES items for $style charts"
+            }
             values.forEachIndexed { valueIndex, value ->
                 val number = (value as? JsonPrimitive)?.doubleOrNull
                     ?: return "series[$index].values[$valueIndex] must be a number"
@@ -206,6 +216,14 @@ private fun validateAxisSupport(axisName: String, axis: JsonObject, style: Strin
     val hasMin = "min" in axis
     val hasMax = "max" in axis
     val hasRangeOrLog = hasMin || hasMax || axis.string("scale") == "log"
+    // 饼图/环形图按占比绘制, 两轴仅用作标签, 没有可映射的范围或对数刻度
+    if (style == "pie" || style == "donut") {
+        return if (hasRangeOrLog) {
+            "$axisName.min/max and log scale are not supported for $style charts (slices are proportions)"
+        } else {
+            null
+        }
+    }
     // 折线图/柱状图的 X 轴是类目轴, 没有可映射的数值范围或对数刻度
     if (axisName == "x_axis" && style != "scatter" && hasRangeOrLog) {
         return "x_axis.min/max and log scale are not supported for $style charts (the X axis is categorical); " +
