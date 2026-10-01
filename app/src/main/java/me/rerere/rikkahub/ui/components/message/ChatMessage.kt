@@ -322,11 +322,12 @@ private fun MessagePartsBlock(
                             part.output.filterIsInstance<UIMessagePart.Text>().joinToString(
                                 "\n",
                             ) { it.text }
+                        // 剔除审批来源标记行，否则整段解析失败（同 chart_display 的回归场景）
                         val items =
                             runCatching {
                                 JsonInstant
                                     .parseToJsonElement(
-                                        outputText,
+                                        stripApprovalProvenance(outputText),
                                     ).jsonObject["items"]
                                     ?.jsonArray
                             }.getOrNull()
