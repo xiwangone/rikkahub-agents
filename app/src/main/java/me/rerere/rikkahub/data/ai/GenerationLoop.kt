@@ -696,10 +696,12 @@ class GenerationLoop(
                     assistant = assistant,
                     settings = settings
                 )
-                messages = messages.slice(0 until messages.lastIndex) + messages.last().copy(
-                    finishedAt = Clock.System.now()
-                        .toLocalDateTime(TimeZone.currentSystemDefault())
-                )
+                if (messages.isNotEmpty()) {
+                    messages = messages.slice(0 until messages.lastIndex) + messages.last().copy(
+                        finishedAt = Clock.System.now()
+                            .toLocalDateTime(TimeZone.currentSystemDefault())
+                    )
+                }
                 emit(GenerationChunk.Messages(messages))
 
                 // 断流续写：服务端未给出结束原因（finish_reason 缺失）、文本非空且没有待执行工具时，
@@ -724,7 +726,7 @@ class GenerationLoop(
                     continue
                 }
 
-                val tools = messages.last().getTools().filter { !it.isExecuted }
+                val tools = messages.lastOrNull()?.getTools()?.filter { !it.isExecuted } ?: emptyList()
                 if (tools.isEmpty()) {
                     // no tool calls, break
                     break

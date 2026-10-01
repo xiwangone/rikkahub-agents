@@ -36,9 +36,9 @@ class BackendApi(
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()
 
     // ── 发送消息（增量 input，会话由服务端管理）──
+    // 返回 false 表示网络失败或服务端非 2xx，调用方不应静默继续
     suspend fun submit(input: String): Boolean = withContext(Dispatchers.IO) {
         post("/submit", buildJsonObject { put("input", JsonPrimitive(input)) })
-        true
     }
 
     // ── 取消当前操作 ──
@@ -157,7 +157,7 @@ class BackendApi(
     private suspend fun post(
         path: String,
         body: JsonObject? = null,
-    ) {
+    ): Boolean {
         val requestBody =
             (body ?: buildJsonObject { }).toString().toRequestBody(jsonMediaType)
         val request =
@@ -166,7 +166,7 @@ class BackendApi(
                 .post(requestBody)
                 .applyAuth()
                 .build()
-        execute(request)
+        return execute(request) != null
     }
 
     private fun Request.Builder.applyAuth(): Request.Builder {
@@ -181,8 +181,10 @@ class BackendApi(
 
     private suspend fun execute(request: Request): String? {
         return try {
-            val response = client.newCall(request).execute()
-            response.body?.string().also { response.close() }
+            client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return null
+                response.body?.string()
+            }
         } catch (e: IOException) {
             null
         }

@@ -299,7 +299,9 @@ class BackendProvider(
                 runCatching { api.newSession() }
             }
         }
-        api.submit(fullInput)
+        if (!api.submit(fullInput)) {
+            throw java.io.IOException("Backend /submit 失败：网络不通或服务端非 2xx")
+        }
 
         var usage: TokenUsage? = null
         var textStarted = false

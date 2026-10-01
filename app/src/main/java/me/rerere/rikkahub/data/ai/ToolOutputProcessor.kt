@@ -42,7 +42,9 @@ internal class ToolOutputProcessor(
                 if (digestMode) TOOL_OUTPUT_DIGEST_PREVIEW_CHARS else TOOL_OUTPUT_PREVIEW_CHARS,
             )
 
-        val fileName = "${toolCallId}.txt"
+        // toolCallId 来自模型输出，直接拼文件名可能含 ../ 写出目录；只保留安全字符
+        val safeId = toolCallId.replace(Regex("[^A-Za-z0-9_-]"), "_").take(64).ifBlank { "tool" }
+        val fileName = "$safeId.txt"
         val outputDir = File(context.filesDir, FileFolders.TOOL_OUTPUTS).apply { mkdirs() }
         File(outputDir, fileName).writeText(fullText)
 

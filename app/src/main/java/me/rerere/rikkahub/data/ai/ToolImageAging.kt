@@ -27,8 +27,10 @@ internal fun List<UIMessage>.ageOldToolImages(): List<UIMessage> {
             if (part is UIMessagePart.Tool) {
                 val newOutput = part.output.map { o ->
                     if (o is UIMessagePart.Image) {
+                        // url 可能是 base64 data URL（Google 通道），直接嵌入会违背省 token 初衷；只保留短标识
+                        val urlHint = o.url.takeIf { it.length <= 128 } ?: "[data url, ${o.url.length} chars]"
                         UIMessagePart.Text(
-                            "[image elided — original at ${o.url}; superseded by newer screenshots]"
+                            "[image elided — original at $urlHint; superseded by newer screenshots]"
                         )
                     } else o
                 }
