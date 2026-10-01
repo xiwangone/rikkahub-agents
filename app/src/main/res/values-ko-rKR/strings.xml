@@ -2846,6 +2846,8 @@
   <string name="assistant_page_local_tools_wallpaper_title">배경 화면</string>
   <string name="assistant_page_local_tools_web_fetch_desc">경량 HTTP GET/POST 도구. 타임아웃 30초, 응답 본문 최대 8 KB. 호출마다 승인이 필요합니다.</string>
   <string name="assistant_page_local_tools_web_fetch_title">웹 가져오기</string>
+  <string name="assistant_page_local_tools_chart_display_title">차트 표시</string>
+  <string name="assistant_page_local_tools_chart_display_desc">채팅 안에 선형, 막대, 산점도 차트를 렌더링하고 차트/표 보기를 전환할 수 있습니다.</string>
   <string name="grok_accounts_count">계정 (%1$d)</string>
   <string name="grok_check_status">상태 확인</string>
   <string name="grok_enable">Grok 사용</string>

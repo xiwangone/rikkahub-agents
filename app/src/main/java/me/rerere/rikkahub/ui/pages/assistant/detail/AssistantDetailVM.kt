@@ -260,6 +260,9 @@ class AssistantDetailVM(
                         // 工具详略/范围同属「工具配置」：此前漏复制，导入后名单不会跟过来
                         extraColdTools = source.extraColdTools,
                         onlyTools = source.onlyTools,
+                        toolOutputCompactTools = source.toolOutputCompactTools,
+                        toolOutputDigestTools = source.toolOutputDigestTools,
+                        toolOutputDigestKeywords = source.toolOutputDigestKeywords,
                         mcpServers = if (includeMcp) source.mcpServers else target.mcpServers,
                         enabledSkills = if (includeSkills) source.enabledSkills else target.enabledSkills,
                         enableWebSearch = if (includeWebSearch) source.enableWebSearch else target.enableWebSearch,

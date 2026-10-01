@@ -2398,6 +2398,8 @@
     <string name="assistant_page_local_tools_wallpaper_title">桌布</string>
     <string name="assistant_page_local_tools_web_fetch_desc">輕量級 HTTP GET/POST 工具。超時 30 秒，響應體上限 8 KB。每次呼叫需批准。</string>
     <string name="assistant_page_local_tools_web_fetch_title">網頁抓取</string>
+    <string name="assistant_page_local_tools_chart_display_title">圖表顯示</string>
+    <string name="assistant_page_local_tools_chart_display_desc">在聊天中渲染折線、柱狀或散點圖，可切換圖表/表格檢視。</string>
     <string name="grok_accounts_count">賬號 (%1$d)</string>
     <string name="grok_check_status">檢查狀態</string>
     <string name="grok_enable">啟用 Grok</string>

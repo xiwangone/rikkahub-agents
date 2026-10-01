@@ -2237,6 +2237,8 @@
   <string name="assistant_page_local_tools_wallpaper_title">壁纸</string>
   <string name="assistant_page_local_tools_web_fetch_desc">轻量级 HTTP GET/POST 工具。超时 30 秒，响应体上限 8 KB。每次调用需批准。</string>
   <string name="assistant_page_local_tools_web_fetch_title">网页抓取</string>
+  <string name="assistant_page_local_tools_chart_display_title">图表显示</string>
+  <string name="assistant_page_local_tools_chart_display_desc">在聊天中渲染折线、柱状或散点图，可切换图表/表格视图。</string>
   <string name="grok_accounts_count">账号 (%1$d)</string>
   <string name="grok_check_status">检查状态</string>
   <string name="grok_enable">启用 Grok</string>

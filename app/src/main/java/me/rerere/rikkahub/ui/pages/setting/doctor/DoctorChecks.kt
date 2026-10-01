@@ -970,7 +970,7 @@ class DoctorChecks(
             }
             // LiteRT accelerator status. The runtime's GPU -> CPU fallback is silent today:
             // if the device's OpenCL/OpenGL delegate fails to init (e.g. MLDrift's
-            // "CreateSharedMemoryManager 未实现" on some Adreno drivers), the
+            // "CreateSharedMemoryManager not-implemented" error on some Adreno drivers), the
             // model loads on CPU and the user has no UI indication. LiteRtProvider now
             // persists the actually-chosen accelerator after every load; surface that here
             // so the user can confirm GPU is engaged.

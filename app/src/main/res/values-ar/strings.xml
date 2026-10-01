@@ -2490,6 +2490,8 @@
   <string name="assistant_page_local_tools_wallpaper_title">الخلفية</string>
   <string name="assistant_page_local_tools_web_fetch_desc">أداة HTTP GET/POST خفيفة. المهلة 30 ثانية، والحد الأقصى للاستجابة 8 KB، مع موافقة في كل استدعاء.</string>
   <string name="assistant_page_local_tools_web_fetch_title">جلب صفحات الويب</string>
+  <string name="assistant_page_local_tools_chart_display_title">عرض المخطط</string>
+  <string name="assistant_page_local_tools_chart_display_desc">عرض مخططات خطية أو أعمدة أو مبعثرة داخل المحادثة، مع تبديل بين المخطط والجدول.</string>
   <string name="grok_accounts_count">الحسابات (%1$d)</string>
   <string name="grok_check_status">فحص الحالة</string>
   <string name="grok_enable">تفعيل Grok</string>

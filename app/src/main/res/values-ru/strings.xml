@@ -2839,6 +2839,8 @@
   <string name="assistant_page_local_tools_wallpaper_title">Обои</string>
   <string name="assistant_page_local_tools_web_fetch_desc">Лёгкий инструмент HTTP GET/POST. Тайм-аут 30 с, тело ответа до 8 КБ, одобрение каждого вызова.</string>
   <string name="assistant_page_local_tools_web_fetch_title">Загрузка веб-страниц</string>
+  <string name="assistant_page_local_tools_chart_display_title">Отображение графика</string>
+  <string name="assistant_page_local_tools_chart_display_desc">Отрисовка линейных, столбчатых и точечных графиков в чате с переключением между графиком и таблицей.</string>
   <string name="grok_accounts_count">Аккаунты (%1$d)</string>
   <string name="grok_check_status">Проверить состояние</string>
   <string name="grok_enable">Включить Grok</string>

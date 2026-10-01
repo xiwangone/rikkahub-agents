@@ -2846,6 +2846,8 @@
   <string name="assistant_page_local_tools_wallpaper_title">壁紙</string>
   <string name="assistant_page_local_tools_web_fetch_desc">軽量な HTTP GET/POST ツール。タイムアウト 30 秒、レスポンス上限 8 KB。毎回承認が必要です。</string>
   <string name="assistant_page_local_tools_web_fetch_title">ウェブ取得</string>
+  <string name="assistant_page_local_tools_chart_display_title">グラフ表示</string>
+  <string name="assistant_page_local_tools_chart_display_desc">チャット内に折れ線・棒・散布図を描画し、グラフ/テーブル表示を切り替えられます。</string>
   <string name="grok_accounts_count">アカウント (%1$d)</string>
   <string name="grok_check_status">状態を確認</string>
   <string name="grok_enable">Grok を有効化</string>

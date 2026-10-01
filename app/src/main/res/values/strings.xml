@@ -1856,6 +1856,8 @@
   <string name="assistant_page_local_tools_browser_title">Browser</string>
   <string name="assistant_page_local_tools_browser_desc">AI-driven web browser. 17 individually-togglable tools — configure read/write access in Settings → Browser.</string>
   <string name="assistant_page_local_tools_web_fetch_title">Web fetch</string>
+  <string name="assistant_page_local_tools_chart_display_title">Chart display</string>
+  <string name="assistant_page_local_tools_chart_display_desc">Render line, bar, or scatter charts inside the chat, with a chart/table view toggle.</string>
   <string name="assistant_page_local_tools_web_fetch_desc">Lightweight HTTP GET/POST tool. 30s timeout, response body capped at 8 KB. Requires approval on each call.</string>
   <string name="assistant_page_local_tools_section_privileged">Privileged tools</string>
   <string name="assistant_page_local_tools_sms_send_title">SMS send</string>
