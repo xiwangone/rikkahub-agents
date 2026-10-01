@@ -5,10 +5,6 @@ import me.rerere.rikkahub.costguards.TokenBudgetTracker
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.perf.resolveRenderProfileLogged
 import android.content.Context
-import android.content.Intent
-import android.os.Handler
-import android.os.Looper
-import android.widget.Toast
 import me.rerere.rikkahub.BuildConfig
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -25,7 +21,6 @@ import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.rikkahub.service.AgentOverlay
-import me.rerere.rikkahub.service.RikkaAccessibilityService
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
@@ -86,432 +81,9 @@ import kotlin.uuid.Uuid
 import me.rerere.rikkahub.data.ai.tools.HeadlessConversations
 
 private const val TAG = "GenerationLoop"
-// 工具输出硬上限已统一到设置值（settings.toolOutputMaxChars，默认 8K / 范围 1–32K），
-// 不再写死 32K（曾与 diff_files 的 40K 矛盾）。
-private const val TOOL_OUTPUT_PREVIEW_CHARS = 4 * 1024
-// 摘要模式（助手级名单命中时）：预览更小、关键词命中的行更多 —— 规则化"摘要"，
-// 目标是「够用的骨架 + 可检索的全文落盘」，而不是把整段塞回上下文。
-private const val TOOL_OUTPUT_DIGEST_PREVIEW_CHARS = 1200
-private const val TOOL_OUTPUT_DIGEST_MAX_HITS = 20
 internal val TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS =
     listOf("FAILED", "error", "Exception", "✗", "失败", "异常")
-private const val GENERATION_STREAM_RETRY_INITIAL_DELAY_MS = 750L
-private const val GENERATION_STREAM_RETRY_MAX_DELAY_MS = 4_000L
 
-private val USER_CANCELLATION_MARKERS = listOf(
-    "canceled by user",
-    "cancelled by user",
-    "user_canceled",
-    "user_cancelled",
-)
-
-// A deterministic 4xx will not succeed on retry, so retrying it just burns quota and delay for
-// an outcome that was never going to change. These four are the exceptions: they signal a
-// transient condition (timeout, conflict, precondition, rate limit) rather than a request that
-// is permanently invalid.
-private val RETRYABLE_4XX_STATUS_CODES = setOf(408, 409, 425, 429)
-
-private fun isCancellationFailure(failure: Throwable): Boolean =
-    generateSequence(failure) { it.cause }
-        .take(8)
-        .any { cause ->
-            cause is CancellationException ||
-                USER_CANCELLATION_MARKERS.any { marker ->
-                    cause.message?.contains(marker, ignoreCase = true) == true
-                }
-        }
-
-/**
- * A clean stream close only signals a transport failure worth retrying when NOTHING was ever
- * received. If at least one chunk arrived but none of them yielded parseable parts (e.g. every
- * part shape was unrecognized), that is a permanent condition - retrying the whole generation
- * cannot help, so the caller should log it and let the generation end normally instead of
- * synthesizing a retryable failure.
- */
-internal fun shouldReportEmptyGenerationStream(receivedAnyChunk: Boolean): Boolean =
-    !receivedAnyChunk
-
-/**
- * 图片能力不匹配时的失败驱动降级判据（纯函数，便于单测）。
- *
- * 场景：模型元数据声称支持图片、服务端实际拒绝（自建网关 / 聚合商 / 模型换版）。
- * 只认「失败分类 = IMAGE_UNSUPPORTED」；**是否含图、是否已降级过由调用方另行判断**。
- */
-internal fun shouldDowngradeImagesOnFailure(failure: Throwable, rawError: String): Boolean =
-    classifyFailureKind(failure, rawError) == FailureKind.IMAGE_UNSUPPORTED
-
-/** 去图结果：新消息 + 被替换的图片 part 数。 */
-internal data class ImageStripResult(val messages: List<UIMessage>, val replaced: Int)
-
-/**
- * 与 provider 适配层同语义的占位文案：告诉模型「这里原本有图，但当前模型看不了」，
- * 而不是静默删掉（刻意不新增资源键，保持纯文本）。
- */
-internal const val IMAGE_DOWNGRADE_PLACEHOLDER =
-    "[image omitted] The current model does not support image input; the image was removed before retrying."
-
-/**
- * 把消息里的图片 part 换成明确占位文本（供降级重试用）。
- */
-internal fun stripImagePartsForUnsupportedModel(messages: List<UIMessage>): ImageStripResult {
-    var replaced = 0
-    val stripped =
-        messages.map { message ->
-            if (message.parts.none { part -> part is UIMessagePart.Image }) {
-                message
-            } else {
-                message.copy(
-                    parts =
-                        message.parts.map { part ->
-                            if (part is UIMessagePart.Image) {
-                                replaced++
-                                UIMessagePart.Text(IMAGE_DOWNGRADE_PLACEHOLDER)
-                            } else {
-                                part
-                            }
-                        },
-                )
-            }
-        }
-    return ImageStripResult(stripped, replaced)
-}
-
-internal fun shouldRetryGenerationStreamFailure(
-    failure: Throwable,
-    retryAttempt: Long,
-    maxRetries: Int,
-    receivedMeaningfulOutput: Boolean,
-): Boolean {
-    if (receivedMeaningfulOutput || retryAttempt >= maxRetries.coerceAtLeast(0).toLong()) {
-        return false
-    }
-    if (failure is ResponseStreamErrorException || isContextLimitFailure(failure)) {
-        return false
-    }
-    if (isNonRetryableClientError(failure)) {
-        return false
-    }
-    if (isQuotaExhaustedFailure(failure)) {
-        return false
-    }
-    // 内容风控是确定性拒绝（同一份上下文重发，结论不变），重试只会白等一轮
-    if (classifyFailureKind(failure, retryFailureReason(failure)) == FailureKind.CONTENT_SAFETY) {
-        return false
-    }
-    // Retry provider, parsing, and local processing failures alike. Cancellation is kept
-    // out of the retry loop so stop-generation and parent-scope cancellation propagate.
-    return !isCancellationFailure(failure)
-}
-
-// A 4xx other than the RETRYABLE_4XX_STATUS_CODES exceptions is deterministic: the same
-// request will fail the same way on every retry. 5xx and failures with no known status code
-// (most providers don't attach one) keep the existing retry behaviour.
-private fun isNonRetryableClientError(failure: Throwable): Boolean {
-    val statusCode = generateSequence(failure) { it.cause }
-        .take(8)
-        .filterIsInstance<HttpException>()
-        .firstOrNull()
-        ?.statusCode
-        ?: return false
-    return statusCode in 400..499 && statusCode !in RETRYABLE_4XX_STATUS_CODES
-}
-
-// 429 is normally in RETRYABLE_4XX_STATUS_CODES because it usually signals ordinary rate
-// limiting, which is worth retrying. But a 429 that also carries a RESOURCE_EXHAUSTED marker
-// means the account is quota-blocked server-side (CCA returns this instantly): the same
-// request will fail the same way on every retry, so retrying just burns time and requests.
-private val QUOTA_EXHAUSTED_MARKERS = listOf(
-    "resource exhausted",
-    "resource has been exhausted",
-)
-
-private fun isQuotaExhaustedFailure(failure: Throwable): Boolean {
-    val statusCode = generateSequence(failure) { it.cause }
-        .take(8)
-        .filterIsInstance<HttpException>()
-        .firstOrNull()
-        ?.statusCode
-    if (statusCode != 429) {
-        return false
-    }
-    return generateSequence(failure) { it.cause }
-        .take(8)
-        .any { cause ->
-            val text = (cause.message.orEmpty() + " " + cause.toString())
-                .lowercase()
-                .replace('_', ' ')
-            QUOTA_EXHAUSTED_MARKERS.any { marker -> marker in text }
-        }
-}
-
-private fun isContextLimitFailure(failure: Throwable): Boolean =
-    generateSequence(failure) { it.cause }
-        .take(8)
-        .any { cause ->
-            val text = (cause.message.orEmpty() + " " + cause.toString())
-                .lowercase()
-                .replace('_', ' ')
-            "context length exceeded" in text ||
-                "maximum context length" in text ||
-                "maximum context window" in text
-        }
-
-private fun generationStreamRetryDelayMs(retryAttempt: Long): Long =
-    ((retryAttempt + 1) * GENERATION_STREAM_RETRY_INITIAL_DELAY_MS)
-        .coerceAtMost(GENERATION_STREAM_RETRY_MAX_DELAY_MS)
-
-private fun retryFailureReason(failure: Throwable): String =
-    generateSequence(failure) { it.cause }
-        .mapNotNull { it.message?.trim()?.takeIf(String::isNotBlank) }
-        .firstOrNull()
-        ?.replace(Regex("\\s+"), " ")
-        ?.take(240)
-        ?: failure.javaClass.simpleName
-
-/** 错误分类：根据失败原因与异常类型定位问题，命中→资源化标签，未命中→UNKNOWN（原文兜底）。 */
-enum class FailureKind {
-    /** 会话历史里的工具调用缺少对应结果（协议配对破损）。 */
-    TOOL_PAIRING,
-
-    /** 模型不支持图片输入，而历史里有图片内容。 */
-    IMAGE_UNSUPPORTED,
-
-    CONTENT_SAFETY, AUTH, QUOTA, RATE_LIMIT, MODEL_NOT_FOUND, NETWORK, SERVER, CONTEXT_LENGTH,
-    PERMISSION, STORAGE, UNSUPPORTED, BAD_REQUEST, UNKNOWN,
-}
-
-// 服务端内容风控的机器可读码（各家措辞不同、code 稳定）：
-// OpenAI / Azure OpenAI：content_policy_violation / content_filter / ResponsibleAIPolicyViolation
-// 阿里百炼：DataInspectionFailed / data_inspection_failed
-private val CONTENT_SAFETY_ERROR_CODES = setOf(
-    "content_policy_violation",
-    "content_filter",
-    "responsibleaipolicyviolation",
-    "data_inspection_failed",
-    "datainspectionfailed",
-)
-
-// 用非标准状态码表示「内容拦截」的平台：小米 MiMo 官方错误码表把 421 定义为「内容拦截·内容审核拦截」
-private const val CONTENT_BLOCKED_STATUS_CODE = 421
-
-/**
- * 是否属于服务端内容风控拒绝：优先看机器可读码与专用状态码，其次看各家文案。
- *
- * 文案只收「有据可查」的那几句：DeepSeek `Content Exists Risk`，Anthropic
- * `Output blocked by content filtering policy`，OpenAI `…not allowed by our safety system`，
- * Azure OpenAI `…content management policy`。聚合/中转平台（opencode、TokenRhythm 等）
- * 多是原样透传服务端错误，所以不必逐平台枚举 —— 认服务端那句即可。
- * 拆成独立函数还有第二个作用：把 [classifyFailureKind] 的 when 分支数压住，不撞复杂度上限。
- */
-private fun isContentSafetyFailure(
-    text: String,
-    providerErrorCodes: List<String>,
-    statusCode: Int?,
-): Boolean =
-    statusCode == CONTENT_BLOCKED_STATUS_CODE ||
-        providerErrorCodes.any { it in CONTENT_SAFETY_ERROR_CODES } ||
-        listOf(
-            "data_inspection_failed", "safetyerror", "content_filter", "inappropriate",
-            "sensitive", "安全", "敏感",
-            "content exists risk",
-            "content filtering policy",
-            "not allowed by our safety system",
-            "content management policy",
-        ).any { text.contains(it) }
-
-// 并列判据的直译：十多类各自一组关键词，拆成数据表反而更难核对「哪类先判」；
-// 故保留 when 写法并显式豁免复杂度（阈值 20，本处因新增「工具配对 / 图片不支持」两类刚到 20）。
-@Suppress("CyclomaticComplexMethod")
-fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
-    val text = raw.lowercase() + " " + failure.javaClass.name.lowercase()
-    // 服务端的 code/type 比文案可靠：同一类内容风控各家措辞不同，但机器可读码稳定
-    val providerErrorCodes = generateSequence(failure) { it.cause }
-        .take(8)
-        .filterIsInstance<HttpException>()
-        .flatMap { sequenceOf(it.providerErrorCode, it.providerErrorType) }
-        .filterNotNull()
-        .map { it.lowercase() }
-        .toList()
-    // 状态码也是判据：有平台用非标准码表达固定语义（如小米 MiMo 用 421 表示内容拦截）
-    val statusCode = generateSequence(failure) { it.cause }
-        .take(8)
-        .filterIsInstance<HttpException>()
-        .firstOrNull()
-        ?.statusCode
-    return when {
-        // 先判「结构 / 能力」两类：它们最具体，且都要求同时命中对象词与原因词，避免被泛规则截胡
-        (text.contains("tool_calls") || text.contains("tool_call_id")) &&
-            listOf("tool messages", "insufficient tool", "must be followed by").any { text.contains(it) } ->
-            FailureKind.TOOL_PAIRING
-        (text.contains("image") || text.contains("vision")) &&
-            listOf("not support", "unsupported", "does not support").any { text.contains(it) } &&
-            // 排除「图片本身 / 请求体的问题」：这类报错同样含 image+unsupported 字样，但模型能看懂图片，
-            // 误判会触发剥图重试（只重试一次）→ 用户看到的是「图没了」。只保留指向「模型能力」的情形。
-            listOf(
-                "format", "mime", "content type", "content_type", "file type", "decode",
-                "too large", "size", "dimension", "resolution", "pixel",
-                "base64", "url", "context", "token", "too many", "payload",
-            ).none { text.contains(it) } ->
-            FailureKind.IMAGE_UNSUPPORTED
-
-        isContentSafetyFailure(text, providerErrorCodes, statusCode) -> FailureKind.CONTENT_SAFETY
-        listOf("401", "invalid_api_key", "authentication", "unauthorized", "api key", "密钥", "鉴权").any { text.contains(it) } ->
-            FailureKind.AUTH
-        listOf("402", "insufficient_quota", "insufficientbalance", "credits", "余额", "额度", "quota", "billing").any { text.contains(it) } ->
-            FailureKind.QUOTA
-        listOf("429", "rate_limit", "toomanyrequests", "throttl", "限流", "tpm", "rpm", "per minute", "throughput").any { text.contains(it) } ->
-            FailureKind.RATE_LIMIT
-        listOf("model_not_found", "invalid_model", "modelnotfound", "not found", "404").any { text.contains(it) } ->
-            FailureKind.MODEL_NOT_FOUND
-        listOf("permission denied", "eperm", "eacces", "securityexception", "not granted", "权限", "拒绝访问").any { text.contains(it) } ->
-            FailureKind.PERMISSION
-        listOf("enospc", "no space", "disk full", "read-only file system", "存储空间", "磁盘").any { text.contains(it) } ->
-            FailureKind.STORAGE
-        listOf("unsupported", "not supported", "不支持", "格式不支持").any { text.contains(it) } ->
-            FailureKind.UNSUPPORTED
-        listOf("timeout", "sockettimeout", "connectexception", "unknownhost", "unreachable", "timed out", "超时", "网络").any { text.contains(it) } ->
-            FailureKind.NETWORK
-        listOf(
-            "500", "502", "503", "server_error", "internalerror", "internal error", "服务端",
-            "unavailable", "upstream", "overloaded", "bad gateway", "gateway timeout", "capacity",
-        ).any { text.contains(it) } ->
-            FailureKind.SERVER
-        listOf("context_length", "token limit", "context_window", "maximum context", "上下文", "超长").any { text.contains(it) } ->
-            FailureKind.CONTEXT_LENGTH
-        listOf("400", "invalid_request", "bad_request", "invalid parameter", "参数").any { text.contains(it) } ->
-            FailureKind.BAD_REQUEST
-        else -> FailureKind.UNKNOWN
-    }
-}
-
-data class FailureDiagnosis(val kind: FailureKind, val label: String, val raw: String)
-
-fun diagnoseFailure(context: Context, failure: Throwable): FailureDiagnosis {
-    val raw = retryFailureReason(failure)
-    val kind = classifyFailureKind(failure, raw)
-    val label = when (kind) {
-        FailureKind.TOOL_PAIRING -> context.getString(me.rerere.rikkahub.R.string.error_kind_tool_pairing)
-        FailureKind.IMAGE_UNSUPPORTED -> context.getString(me.rerere.rikkahub.R.string.error_kind_image_unsupported)
-        FailureKind.CONTENT_SAFETY -> context.getString(me.rerere.rikkahub.R.string.error_kind_content_safety)
-        FailureKind.AUTH -> context.getString(me.rerere.rikkahub.R.string.error_kind_auth)
-        FailureKind.QUOTA -> context.getString(me.rerere.rikkahub.R.string.error_kind_quota)
-        FailureKind.RATE_LIMIT -> context.getString(me.rerere.rikkahub.R.string.error_kind_rate_limit)
-        FailureKind.MODEL_NOT_FOUND -> context.getString(me.rerere.rikkahub.R.string.error_kind_model_not_found)
-        FailureKind.NETWORK -> context.getString(me.rerere.rikkahub.R.string.error_kind_network)
-        FailureKind.SERVER -> context.getString(me.rerere.rikkahub.R.string.error_kind_server)
-        FailureKind.CONTEXT_LENGTH -> context.getString(me.rerere.rikkahub.R.string.error_kind_context_length)
-        FailureKind.PERMISSION -> context.getString(me.rerere.rikkahub.R.string.error_kind_permission)
-        FailureKind.STORAGE -> context.getString(me.rerere.rikkahub.R.string.error_kind_storage)
-        FailureKind.UNSUPPORTED -> context.getString(me.rerere.rikkahub.R.string.error_kind_unsupported)
-        FailureKind.BAD_REQUEST -> context.getString(me.rerere.rikkahub.R.string.error_kind_bad_request)
-        FailureKind.UNKNOWN -> context.getString(me.rerere.rikkahub.R.string.error_kind_unknown)
-    }
-    return FailureDiagnosis(kind, label, raw)
-}
-
-private fun retryStatusText(
-    context: Context,
-    retryNumber: Long,
-    maxRetries: Int,
-    failure: Throwable,
-): String {
-    val diag = diagnoseFailure(context, failure)
-    return context.getString(
-        me.rerere.rikkahub.R.string.chat_page_retrying,
-        retryNumber,
-        maxRetries,
-        diag.label,
-        diag.raw,
-    )
-}
-
-private fun clearRetryStatus(processingStatus: MutableStateFlow<String?>) {
-    processingStatus.value = null
-}
-
-// Marks the retry loop's "meaningful output already arrived" flag. Only chunks that carry
-// actual model output (text/reasoning/tool/image content, or annotations) count - the bare
-// Start/End markers and Usage/Finish bookkeeping chunks don't, mirroring the old
-// choice.delta/message.parts.isNotEmpty() check against the pre-refactor chunk shape.
-private fun isMeaningfulStreamChunk(chunk: StreamChunk): Boolean = when (chunk) {
-    is StreamChunk.TextDelta,
-    is StreamChunk.ReasoningDelta,
-    is StreamChunk.ToolCallDelta,
-    is StreamChunk.ImageDelta,
-    is StreamChunk.ImageSnapshot,
-    is StreamChunk.ServerToolStart,
-    is StreamChunk.ServerToolInputDelta,
-    is StreamChunk.ServerToolEnd,
-    is StreamChunk.Annotations -> true
-    else -> false
-}
-
-private suspend fun <T> retryGenerationTransportRequest(
-    maxRetries: Int,
-    onRetry: (retryNumber: Long, failure: Throwable) -> Unit = { _, _ -> },
-    request: suspend () -> T,
-): T {
-    var retryAttempt = 0L
-    while (true) {
-        try {
-            return request()
-        } catch (failure: Throwable) {
-            if (!shouldRetryGenerationStreamFailure(
-                    failure = failure,
-                    retryAttempt = retryAttempt,
-                    maxRetries = maxRetries,
-                    receivedMeaningfulOutput = false,
-                )) {
-                throw failure
-            }
-            val delayMs = generationStreamRetryDelayMs(retryAttempt)
-            AppLog.w(
-                TAG,
-                "generateText: retrying after failure " +
-                    "(${retryAttempt + 1}/$maxRetries) in ${delayMs}ms",
-                failure,
-            )
-            onRetry(retryAttempt + 1, failure)
-            delay(delayMs)
-            retryAttempt++
-        }
-    }
-}
-
-/**
- * Replace older tool-result `Image` parts with a small text elision so the same JPEGs
- * aren't re-encoded into base64 on every subsequent step. We keep the
- * [IMAGE_KEEP_LAST_N_TOOL_RESULTS] most-recent tool-result-bearing assistant messages
- * verbatim and elide everything older. User uploads (`role=USER`) are NEVER elided —
- * those are real input the model needs to reason over. Assistant-generated images
- * (model image-gen output) are also kept verbatim as those are visible product, not
- * intermediate reasoning state.
- */
-private fun List<UIMessage>.ageOldToolImages(): List<UIMessage> {
-    var toolResultsWithImagesSeen = 0
-    return this.asReversed().map { msg ->
-        if (msg.role == MessageRole.USER) return@map msg
-        val hasImageInTool = msg.parts.any { p ->
-            p is UIMessagePart.Tool && p.output.any { it is UIMessagePart.Image }
-        }
-        if (!hasImageInTool) return@map msg
-        toolResultsWithImagesSeen++
-        if (toolResultsWithImagesSeen <= IMAGE_KEEP_LAST_N_TOOL_RESULTS) return@map msg
-        val newParts = msg.parts.map { part ->
-            if (part is UIMessagePart.Tool) {
-                val newOutput = part.output.map { o ->
-                    if (o is UIMessagePart.Image) {
-                        UIMessagePart.Text(
-                            "[image elided — original at ${o.url}; superseded by newer screenshots]"
-                        )
-                    } else o
-                }
-                part.copy(output = newOutput)
-            } else part
-        }
-        msg.copy(parts = newParts)
-    }.asReversed()
-}
 
 @Serializable
 sealed interface GenerationChunk {
@@ -570,18 +142,6 @@ private const val WRAP_UP_GRACE_MS = 120_000L
 // 自动再请求一次把内容接上；每个回合最多续写次数，以及续写时注入的合成指令。
 private const val MAX_AUTO_CONTINUE = 1
 
-/**
- * Number of most-recent tool-result-bearing messages whose `Image` parts are kept
- * verbatim in the prompt. Older tool-result images are replaced with a small text
- * elision so the same JPEG isn't re-encoded into base64 on every step. Without this
- * a screen-automation turn that takes 5 screenshots makes the provider re-pay
- * ~1–2MB × 5 base64 encode + upload on every subsequent step.
- *
- * 2 is the smallest value that lets the model do "look at this screenshot, decide
- * action; take new screenshot, compare" — needs both the previous and the current
- * screenshot in context. Anything older has been superseded.
- */
-private const val IMAGE_KEEP_LAST_N_TOOL_RESULTS = 2
 
 /**
  * Hard ceiling on a single streamed generation step. Guards the "model thinks for 2000+ seconds"
@@ -678,13 +238,6 @@ internal object LoopGuard {
     }
 }
 
-/** 按 executionBackend 解析执行 provider + 模型：local/空→模型自动；否则→指定 provider(取该 provider 默认模型)。 */
-private fun resolveBackendProvider(executionBackend: String, model: Model, providers: List<ProviderSetting>): Pair<ProviderSetting, Model>? =
-    if (executionBackend.isBlank() || executionBackend == "local") {
-        model.findProvider(providers)?.let { it to model }
-    } else {
-        providers.firstOrNull { it.id.toString() == executionBackend }?.let { p -> p to (p.models.firstOrNull() ?: model) }
-    }
 
 /**
  * 生成循环：把"一次模型调用 + 工具调用/审批 + 流式回传"串成一整轮，并处理重试与截断。
@@ -694,8 +247,8 @@ private fun resolveBackendProvider(executionBackend: String, model: Model, provi
  *  - 参数与上下文组装：`generateText` 的入参（系统提示、记忆、工具、会话级提示词等）
  *  - 系统提示构建：`SystemPromptBuilder`（本文件调用；会话级提示词在此覆盖助手提示词）
  *  - 单轮生成与工具循环：`generateText` 主体 + 工具调用/审批分支
- *  - 收尾与自动返回：`handleAutoReturnAfterTurn`
- *  - 输出裁剪：`maybeTruncateToolOutput`
+ *  - 收尾与自动返回：`AutoReturnHandler`（data.ai 包）
+ *  - 输出裁剪：`ToolOutputProcessor`（data.ai 包）
  *  - 其它：`translateText`（翻译用途的独立入口）
  *
  * 相关文件：会话中枢 `service/ChatService.kt`；工具装配 `data/ai/tools/ChatToolFactory.kt`；提示词 `data/ai/SystemPromptBuilder.kt`。
@@ -733,6 +286,9 @@ class GenerationLoop(
     private val aiLoggingManager: AILoggingManager,
     private val systemPromptBuilder: SystemPromptBuilder,
 ) {
+    private val toolOutputProcessor = ToolOutputProcessor(context)
+    private val autoReturnHandler = AutoReturnHandler(context)
+
     fun generateText(
         settings: Settings,
         model: Model,
@@ -1556,11 +1112,11 @@ class GenerationLoop(
                             // the context window.
                             val hasShellAccess = toolsInternal.any { it.name == "workspace_shell" }
                             // 本地独有：工具结果写回前做凭证脱敏（SecretMasker 掩码），避免密钥进上下文
-                            val maskedResult = maskToolOutput(result)
+                            val maskedResult = toolOutputProcessor.maskToolOutput(result)
                             executedTools +=
                                 markedTool.copy(
                                     output =
-                                        maybeTruncateToolOutput(
+                                        toolOutputProcessor.maybeTruncateToolOutput(
                                             tool.toolCallId,
                                             appendApprovalProvenance(maskedResult, markedTool.approvalState),
                                             hasShellAccess,
@@ -1702,7 +1258,7 @@ class GenerationLoop(
         }
         .onCompletion { cause ->
             AgentOverlay.hide(context)
-            handleAutoReturnAfterTurn()
+            autoReturnHandler.handleAutoReturnAfterTurn()
             // 运行归因：唯一收尾点（正常结束 / 异常 / 取消都会到这里）。只采数据，不做结论。
             runCatching {
                 val outcome =
@@ -1753,46 +1309,6 @@ class GenerationLoop(
      * user is not stranded inside Chrome / Termux / etc. If the user manually switched apps
      * mid-turn, we skip the auto-return and surface a Toast explaining the safety behavior.
      */
-    private fun handleAutoReturnAfterTurn() {
-        if (!AgentTurnTracker.didNavigateAway()) return
-        // Only auto-return when the agent actually drove the destination app via screen
-        // automation (tap, click_node, set_text, swipe, scroll, global_action). A pure
-        // "open Chrome and stay there" request is just launch_app + a text reply — yanking
-        // the user back to RikkaHub Agents in that case defeats the purpose of the request.
-        if (!AgentTurnTracker.didAutomate()) return
-        val destination = AgentTurnTracker.lastDestination()
-        val currentForeground = RikkaAccessibilityService.instance
-            ?.rootInActiveWindow?.packageName?.toString()
-
-        val userSwitchedAway = destination != null
-            && currentForeground != null
-            && currentForeground != destination
-            && currentForeground != context.packageName
-
-        if (userSwitchedAway) {
-            Handler(Looper.getMainLooper()).post {
-                Toast.makeText(
-                    context.applicationContext,
-                    "RikkaHub Agents: skipped auto-return because you switched apps. (Safety feature)",
-                    Toast.LENGTH_LONG
-                ).show()
-            }
-            return
-        }
-
-        val intent = context.packageManager.getLaunchIntentForPackage(context.packageName)
-            ?: return
-        intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
-        try {
-            context.startActivity(intent)
-        } catch (e: Exception) {
-            // startActivity throws ActivityNotFoundException / SecurityException —
-            // both Exception. Catching Throwable here would also swallow JVM errors
-            // (OOM, StackOverflowError); let those propagate.
-            AppLog.w(TAG, "auto-return launch failed", e)
-        }
-    }
-
     private suspend fun generateInternal(
         assistant: Assistant,
         settings: Settings,
@@ -2083,67 +1599,6 @@ class GenerationLoop(
      * [digestKeywords] 非 null = **摘要模式**（助手级名单命中）：预览更短（首段）、关键词命中的行更多，
      * 关键词用调用方给的（空列表 → 内置默认集）。null = 普通截断模式（行为不变）。
      */
-    private fun maybeTruncateToolOutput(
-        toolCallId: String,
-        output: List<UIMessagePart>,
-        hasShellAccess: Boolean,
-        maxChars: Int,
-        digestKeywords: List<String>? = null,
-    ): List<UIMessagePart> {
-        val textParts = output.filterIsInstance<UIMessagePart.Text>()
-        val nonTextParts = output.filter { it !is UIMessagePart.Text }
-        val totalChars = textParts.sumOf { it.text.length }
-
-        if (totalChars <= maxChars || !hasShellAccess) return output
-
-        AppLog.i(TAG, "maybeTruncateToolOutput: truncating tool $toolCallId output ($totalChars chars, digest=${digestKeywords != null})")
-
-        val fullText = textParts.joinToString("\n") { it.text }
-        val digestMode = digestKeywords != null
-        val preview =
-            fullText.take(
-                if (digestMode) TOOL_OUTPUT_DIGEST_PREVIEW_CHARS else TOOL_OUTPUT_PREVIEW_CHARS,
-            )
-
-        val fileName = "${toolCallId}.txt"
-        val outputDir = File(context.filesDir, FileFolders.TOOL_OUTPUTS).apply { mkdirs() }
-        File(outputDir, fileName).writeText(fullText)
-
-        return listOf(
-            UIMessagePart.Text(
-                buildString {
-                    appendLine("[Tool output truncated: $totalChars characters total]")
-                    appendLine("Full output saved to: /tool_outputs/$fileName")
-                    appendLine("Use shell to read: `cat /tool_outputs/$fileName`")
-                    appendLine("Use shell to search: `grep \"pattern\" /tool_outputs/$fileName`")
-                    // 关键行预览：省一次「落盘后再 grep」的往返（错误行 + 末尾若干行 + 总行数）。
-                    // ⚠ 很多工具输出是 JSON（如 shell 的 {"stdout":"a\nb"}），其中的换行是**字面 `\n`**，
-                    // 直接按真实换行切分会得到「1 行」并失去全部意义 —— 先展开转义换行再统计。
-                    val logical = fullText.replace("\\n", "\n").replace("\\r", "")
-                    val lines = logical.split('\n')
-                    val keywords =
-                        digestKeywords?.takeIf { it.isNotEmpty() } ?: TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS
-                    val hitLimit = if (digestMode) TOOL_OUTPUT_DIGEST_MAX_HITS else 5
-                    val errorLines =
-                        lines.withIndex()
-                            .filter { (_, l) -> keywords.any { k -> l.contains(k, ignoreCase = true) } }
-                            .take(hitLimit)
-                    appendLine(
-                        "Total lines: ${lines.size}" +
-                            if (errorLines.isEmpty()) "" else " · error-like: ${errorLines.size}",
-                    )
-                    errorLines.forEach { (i, l) -> appendLine("  ! line ${i + 1}: ${l.take(160)}") }
-                    val tail = lines.takeLast(5).filter { it.isNotBlank() }
-                    if (tail.isNotEmpty()) {
-                        appendLine("  … last ${tail.size} non-blank line(s):")
-                        tail.forEach { appendLine("  | ${it.take(160)}") }
-                    }
-                    appendLine()
-                    append(preview)
-                }
-            )
-        ) + nonTextParts
-    }
 
     fun translateText(
         settings: Settings,
@@ -2220,25 +1675,6 @@ class GenerationLoop(
     }.flowOn(Dispatchers.IO)
 
     /** 本地独有：对工具输出 parts 做凭证脱敏（SecretMasker），失败降级为原样输出。 */
-    private suspend fun maskToolOutput(parts: List<UIMessagePart>): List<UIMessagePart> {
-        val vaultRepo = runCatching { getKoin().get<CredentialVaultRepository>() }.getOrNull()
-            ?: return parts
-        try {
-            SecretMasker.refresh(vaultRepo)
-        } catch (_: Exception) {
-            // 掩码失败不阻断工具结果（安全兜底降级为原样输出）
-        }
-        return parts.map { part ->
-            if (part is UIMessagePart.Text) {
-                UIMessagePart.Text(
-                    text = SecretMasker.mask(part.text),
-                    metadata = part.metadata, // 保留 metadata（如 DiffMetadata 存 diff 供 UI 渲染红绿）
-                )
-            } else {
-                part
-            }
-        }
-    }
 }
 
 /**

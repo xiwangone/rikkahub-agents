@@ -467,6 +467,13 @@ class ChatService(
     // 后台期间正在刷新的进度通知所属会话；回到前台时统一清掉，避免通知栏残留与页面对不上的旧内容
     private val liveNotificationConversations = ConcurrentHashMap.newKeySet<Uuid>()
 
+    private val notificationHelper =
+        ChatNotificationHelper(
+            context = context,
+            getConversation = { getConversationFlow(it).value },
+            liveConversations = liveNotificationConversations,
+        )
+
     // 前台状态管理
     private val _isForeground = MutableStateFlow(false)
     val isForeground: StateFlow<Boolean> = _isForeground.asStateFlow()
@@ -478,7 +485,7 @@ class ChatService(
                     _isForeground.value = true
                     // 用户已回到界面：清掉后台期间的进度通知，否则它会带着停止更新时的旧内容
                     // 一直留在通知栏，与页面上的最新内容不一致。
-                    liveNotificationConversations.toList().forEach { cancelLiveUpdateNotification(it) }
+                    notificationHelper.cancelAllLiveNotifications()
                 }
 
                 Lifecycle.Event.ON_STOP -> {
@@ -1489,7 +1496,7 @@ class ChatService(
                     tools = tools,
                 ).onCompletion { cause ->
                     // 取消 Live Update 通知
-                    cancelLiveUpdateNotification(conversationId)
+                    notificationHelper.cancelLiveUpdateNotification(conversationId)
 
                     // 节流兜底：把最后一次被节流跳过的快照补进内存态，
                     // 否则尾部内容既不入内存也不落盘（见 STREAM_UI_INTERVAL_MS）。
@@ -1532,11 +1539,11 @@ class ChatService(
 
                     // Show notification if app is not in foreground
                     if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
-                        sendGenerationDoneNotification(conversationId, senderName)
+                        notificationHelper.sendGenerationDoneNotification(conversationId, senderName)
                     } else if (isForeground.value) {
                         // 用户正在前台查看该会话，无通知意义；清掉残留的旧通知
-                        cancelLiveUpdateNotification(conversationId)
-                        cancelDoneNotification(conversationId)
+                        notificationHelper.cancelLiveUpdateNotification(conversationId)
+                        notificationHelper.cancelDoneNotification(conversationId)
                     }
                 }.collect { chunk ->
                     when (chunk) {
@@ -1605,7 +1612,7 @@ class ChatService(
                                 val nowNotifyMs = System.currentTimeMillis()
                                 if (nowNotifyMs - lastNotificationAtMs >= STREAM_NOTIFICATION_INTERVAL_MS) {
                                     lastNotificationAtMs = nowNotifyMs
-                                    sendLiveUpdateNotification(conversationId, chunk.messages, senderName)
+                                    notificationHelper.sendLiveUpdateNotification(conversationId, chunk.messages, senderName)
                                 }
                             }
                         }
@@ -1618,9 +1625,9 @@ class ChatService(
                 messageQueues[conversationId]?.pause()
             }
             // 取消 Live Update 通知
-            cancelLiveUpdateNotification(conversationId)
+            notificationHelper.cancelLiveUpdateNotification(conversationId)
             // 失败也不留完成通知
-            cancelDoneNotification(conversationId)
+            notificationHelper.cancelDoneNotification(conversationId)
 
             // Persist the in-memory snapshot so the Auto/Pending → Denied transitions
             // GenerationLoop did inside its try/catch (the "generation_failed" recovery
@@ -2043,7 +2050,7 @@ class ChatService(
             suspend fun compressMessages(messages: List<UIMessage>): String {
                 val contentToCompress =
                     messages.joinToString("\n\n") { it.summaryAsText(maxLength = 2000) } +
-                        toolHistoryBlock(messages)
+                        ToolHistoryHelper.toolHistoryBlock(messages)
                 val prompt =
                     settings.compressPrompt.applyPlaceholders(
                         "content" to contentToCompress,
@@ -2089,7 +2096,7 @@ class ChatService(
                         settings.getAssistantById(conversation.assistantId)?.toolOutputCompactTools.orEmpty()
                     addAll(
                         messagesToKeep.map {
-                            truncateKeptToolOutput(
+                            ToolHistoryHelper.truncateKeptToolOutput(
                                 it,
                                 settings.toolOutputMaxChars,
                                 compactTools,
@@ -2139,237 +2146,6 @@ class ChatService(
      * [compactTools] 为助手级「紧凑输出」名单：命中者用 [compactMaxChars]，其余用 [maxChars] ——
      * 与生成期 `maybeTruncateToolOutput` 的口径保持一致（2026-09-25）。
      */
-    private fun truncateKeptToolOutput(
-        message: UIMessage,
-        maxChars: Int,
-        compactTools: List<String> = emptyList(),
-        compactMaxChars: Int = maxChars,
-    ): UIMessage {
-        if (maxChars <= 0) return message
-        return message.copy(
-            parts =
-                message.parts.map { part ->
-                    if (part is UIMessagePart.Tool) {
-                        // 命中助手「紧凑输出」名单的工具用更小阈值（与生成期口径一致）
-                        val limit = if (part.toolName in compactTools) compactMaxChars else maxChars
-                        val trimmedInput =
-                            if (part.input.length > limit) {
-                                AppLog.d(TAG, "B5 截断工具入参: tool=${part.toolName} ${part.input.length}→$limit chars")
-                                part.input.take(limit) + "\n…[truncated]"
-                            } else {
-                                part.input
-                            }
-                        val textParts = part.output.filterIsInstance<UIMessagePart.Text>()
-                        val totalLen = textParts.sumOf { it.text.length }
-                        if (totalLen > limit) {
-                            AppLog.d(TAG, "T12 截断工具输出: tool=${part.toolName} $totalLen→$limit chars")
-                            var remaining = limit
-                            val truncated =
-                                part.output.mapNotNull { p ->
-                                    val t = (p as? UIMessagePart.Text)?.text
-                                    if (t == null) {
-                                        p
-                                    } else if (remaining > 0) {
-                                        val take = minOf(t.length, remaining)
-                                        remaining -= take
-                                        if (take == t.length) UIMessagePart.Text(t) else UIMessagePart.Text(t.take(take) + "\n…[truncated]")
-                                    } else {
-                                        null
-                                    }
-                                }
-                            part.copy(input = trimmedInput, output = truncated)
-                        } else if (trimmedInput !== part.input) {
-                            part.copy(input = trimmedInput)
-                        } else {
-                            part
-                        }
-                    } else {
-                        part
-                    }
-                },
-        )
-    }
-
-    /** 提取消息中的工具执行历史（调用+结果），作为标记块附加到压缩摘要，避免压缩后 AI 重复调用已完成工具。 */
-    private fun toolHistoryBlock(messages: List<UIMessage>): String {        val records =
-            buildList {
-                messages.forEach { msg ->
-                    msg.parts.forEach { part ->
-                        when (part) {
-                            is UIMessagePart.Tool -> {
-                                val outputPreview =
-                                    part.output
-                                        .joinToString(" ") { p -> (p as? UIMessagePart.Text)?.text?.take(500).orEmpty() }
-                                        .take(500)
-                                add("Tool ${part.toolName}: in=${part.input.take(200)} out=$outputPreview")
-                            }
-                            is UIMessagePart.ToolResult -> {
-                                add("ToolResult ${part.toolName}: ${part.content.toString().take(500)}")
-                            }
-                            else -> Unit
-                        }
-                    }
-                }
-            }
-        if (records.isEmpty()) return ""
-        return "\n\n[Tool execution history — retained context]\n" + records.joinToString("\n") + "\n[End tool execution history]"
-    }
-
-    // ---- 通知 ----
-
-    private fun sendGenerationDoneNotification(
-        conversationId: Uuid,
-        senderName: String,
-    ) {
-        // 先取消 Live Update 通知；完成通知沿用固定 id 直接覆盖，
-        // 不再先取消再发送（同一 id 上取消与发送相邻执行时，部分系统会丢掉这一次更新，
-        // 通知栏便会停留在更早的内容上）。
-        cancelLiveUpdateNotification(conversationId)
-
-        // 内容取最近一条助手回复：列表末条可能是用户消息（例如后台里又收到了下一条），
-        // 直接取末条会把用户的话当成回复显示，与页面内容对不上。
-        val conversation = getConversationFlow(conversationId).value
-        val replyText =
-            conversation.currentMessages
-                .lastOrNull { it.role == MessageRole.ASSISTANT }
-                ?.toText()
-                ?.trim()
-                .orEmpty()
-        context.sendNotification(
-            channelId = CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID,
-            notificationId = getDoneNotificationId(conversationId),
-        ) {
-            title = senderName
-            content = replyText.take(50)
-            autoCancel = true
-            useDefaults = true
-            category = NotificationCompat.CATEGORY_MESSAGE
-            contentIntent = getPendingIntent(context, conversationId)
-        }
-    }
-
-    private fun getLiveUpdateNotificationId(conversationId: Uuid): Int = conversationId.hashCode() + 10000
-
-    private fun sendLiveUpdateNotification(
-        conversationId: Uuid,
-        messages: List<UIMessage>,
-        senderName: String,
-    ) {
-        val lastMessage = messages.lastOrNull() ?: return
-        val parts = lastMessage.parts
-
-        // 确定当前状态
-        val (chipText, statusText, contentText) = determineNotificationContent(parts)
-
-        context.sendNotification(
-            channelId = CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID,
-            notificationId = getLiveUpdateNotificationId(conversationId),
-        ) {
-            title = senderName
-            content = contentText
-            subText = statusText
-            ongoing = true
-            onlyAlertOnce = true
-            category = NotificationCompat.CATEGORY_PROGRESS
-            useBigTextStyle = true
-            contentIntent = getPendingIntent(context, conversationId)
-            requestPromotedOngoing = true
-            shortCriticalText = chipText
-        }
-        liveNotificationConversations.add(conversationId)
-    }
-
-    private fun determineNotificationContent(parts: List<UIMessagePart>): Triple<String, String, String> {
-        // 检查最近的 part 来确定状态：倒序扫描一次即可拿到各类 part 的最后一项，
-        // 原先三次 filterIsInstance 每次都会新建列表，在长回复下被逐块调用开销明显。
-        var lastReasoning: UIMessagePart.Reasoning? = null
-        var lastTool: UIMessagePart.Tool? = null
-        var lastText: UIMessagePart.Text? = null
-        for (index in parts.indices.reversed()) {
-            when (val part = parts[index]) {
-                is UIMessagePart.Reasoning -> if (lastReasoning == null) lastReasoning = part
-                is UIMessagePart.Tool -> if (lastTool == null) lastTool = part
-                is UIMessagePart.Text -> if (lastText == null) lastText = part
-                else -> {}
-            }
-            if (lastReasoning != null && lastTool != null && lastText != null) break
-        }
-
-        return when {
-            // 正在执行工具
-            lastTool != null && !lastTool.isExecuted -> {
-                // MCP tools are exposed as `mcp__<serverSlug>_<serverName>__<toolName>`; strip
-                // both the prefix and the server segment so the notification shows the bare tool
-                // name. Non-MCP tool names (no `mcp__` prefix) fall through unchanged via the
-                // missingDelimiterValue, instead of being truncated at an embedded `__`.
-                val toolName =
-                    lastTool.toolName
-                        .removePrefix("mcp__")
-                        .substringAfter("__", missingDelimiterValue = lastTool.toolName.removePrefix("mcp__"))
-                Triple(
-                    context.getString(R.string.notification_live_update_chip_tool),
-                    context.getString(R.string.notification_live_update_tool, toolName),
-                    lastTool.input.take(100),
-                )
-            }
-
-            // 正在思考（Reasoning 未结束）
-            lastReasoning != null && lastReasoning.finishedAt == null -> {
-                Triple(
-                    context.getString(R.string.notification_live_update_chip_thinking),
-                    context.getString(R.string.notification_live_update_thinking),
-                    lastReasoning.reasoning.takeLast(200),
-                )
-            }
-
-            // 正在写回复
-            lastText != null -> {
-                Triple(
-                    context.getString(R.string.notification_live_update_chip_writing),
-                    context.getString(R.string.notification_live_update_writing),
-                    lastText.text.takeLast(200),
-                )
-            }
-
-            // 默认状态
-            else -> {
-                Triple(
-                    context.getString(R.string.notification_live_update_chip_writing),
-                    context.getString(R.string.notification_live_update_title),
-                    "",
-                )
-            }
-        }
-    }
-
-    private fun cancelLiveUpdateNotification(conversationId: Uuid) {
-        liveNotificationConversations.remove(conversationId)
-        context.cancelNotification(getLiveUpdateNotificationId(conversationId))
-    }
-
-    private fun getDoneNotificationId(conversationId: Uuid): Int = conversationId.hashCode() + 20000
-
-    private fun cancelDoneNotification(conversationId: Uuid) {
-        context.cancelNotification(getDoneNotificationId(conversationId))
-    }
-
-    private fun getPendingIntent(
-        context: Context,
-        conversationId: Uuid,
-    ): PendingIntent {
-        val intent =
-            Intent(context, RouteActivity::class.java).apply {
-                flags = Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP
-                putExtra("conversationId", conversationId.toString())
-            }
-        return PendingIntent.getActivity(
-            context,
-            conversationId.hashCode(),
-            intent,
-            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
-        )
-    }
-
     // ---- 对话状态更新 ----
 
     private fun updateConversation(
