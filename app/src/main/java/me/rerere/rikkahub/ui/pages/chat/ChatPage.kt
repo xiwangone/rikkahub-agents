@@ -4,6 +4,7 @@ import android.net.Uri
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
@@ -476,41 +477,13 @@ private fun ChatPageContent(
                     onUpdateTitle = {
                         vm.updateTitle(it)
                     },
-                    onBackendChange = { backend ->
-                        vm.updateSettings(
-                            setting.copy(executionBackend = backend),
-                        )
-                    },
                 )
             },
             bottomBar = {
-                Column {
-                    // 本会话用了独立模型时，就地给一个恢复入口（不离开当前会话）
-                    androidx.compose.animation.AnimatedVisibility(visible = hasConversationModelOverride) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        ) {
-                            Icon(
-                                imageVector = HugeIcons.ArrowTurnBackward,
-                                contentDescription = null,
-                                modifier = Modifier.size(14.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                            Text(
-                                text = stringResource(R.string.chat_page_conversation_model_active),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(1f),
-                            )
-                            TextButton(
-                                onClick = { vm.clearChatModel(conversation.id) },
-                            ) {
-                                Text(stringResource(R.string.chat_page_conversation_model_reset))
-                            }
-                        }
-                    }
+                Column(
+                    // 底栏是不透明面板：加背景，避免可滚动内容从底栏下方透出来（曾出现消息与底栏文字重叠）
+                    modifier = Modifier.background(MaterialTheme.colorScheme.background),
+                ) {
                     ChatInput(
                         state = inputState,
                         loading = loadingJob != null,
@@ -1023,6 +996,10 @@ private fun ChatFilesPickerSheet(
             showAutoCompressDialog = showAutoCompressDialog,
             onShowAutoCompressDialogChange = { showAutoCompressDialog = it },
             onDismiss = { dismissAll() },
+            executionBackend = setting.executionBackend,
+            onBackendChange = { backend ->
+                vm.updateSettings(setting.copy(executionBackend = backend))
+            },
             onTakePic = onLaunchCamera,
             onPickImage = { imagePickerLauncher.launch("image/*") },
             onPickVideo = { videoPickerLauncher.launch("video/*") },
@@ -1072,11 +1049,9 @@ private fun TopBar(
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
     onUpdateTitle: (String) -> Unit,
-    onBackendChange: (String) -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
-    var backendMenuOpen by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     val titleState =
         useEditState<String> {
             onUpdateTitle(it)
@@ -1117,13 +1092,24 @@ private fun TopBar(
                         style = MaterialTheme.typography.bodyMedium,
                         overflow = TextOverflow.Ellipsis,
                     )
+                    // 助手名单独一行：与模型/提供商挤同一行时，助手名会把后两者挤成省略号
+                    Text(
+                        text = assistant.name.ifBlank {
+                            stringResource(
+                                R.string.assistant_page_default_assistant,
+                            )
+                        },
+                        overflow = TextOverflow.Ellipsis,
+                        maxLines = 1,
+                        color = LocalContentColor.current.copy(0.65f),
+                        style =
+                            MaterialTheme.typography.labelSmall.copy(
+                                fontSize = 8.sp,
+                            ),
+                    )
                     if (model != null && provider != null) {
                         Text(
-                            text = "${assistant.name.ifBlank {
-                                stringResource(
-                                    R.string.assistant_page_default_assistant,
-                                )
-                            }} / ${model.displayName} (${providerDisplayName(provider)})",
+                            text = "${model.displayName} (${providerDisplayName(provider)})",
                             overflow = TextOverflow.Ellipsis,
                             maxLines = 1,
                             color = LocalContentColor.current.copy(0.65f),
@@ -1137,25 +1123,14 @@ private fun TopBar(
             }
         },
         actions = {
-            // 执行后端（AI 执行通道）：本机 local / 后端服务 provider
-            androidx.compose.material3.TextButton(onClick = { backendMenuOpen = true }) {
-                val backendLabel =
-                    if (settings.executionBackend.isBlank() || settings.executionBackend == "local") {
-                        stringResource(R.string.chat_page_backend_local)
-                    } else {
-                        settings.providers.firstOrNull { it.id.toString() == settings.executionBackend }?.name?.ifBlank { stringResource(R.string.backend_service) } ?: settings.executionBackend
-                    }
-                Text(stringResource(R.string.chat_page_backend_label, backendLabel))
-            }
-            androidx.compose.material3.DropdownMenu(expanded = backendMenuOpen, onDismissRequest = { backendMenuOpen = false }) {
-                androidx.compose.material3.DropdownMenuItem(
-                    text = { Text(stringResource(R.string.chat_page_backend_local)) },
-                    onClick = { onBackendChange("local"); backendMenuOpen = false },
-                )
-                settings.providers.filter { it is ProviderSetting.Backend }.forEach { p ->
-                    androidx.compose.material3.DropdownMenuItem(
-                        text = { Text(p.name.ifBlank { stringResource(R.string.backend_service) }) },
-                        onClick = { onBackendChange(p.id.toString()); backendMenuOpen = false },
+            // 本会话用了独立模型时，就地给一个恢复入口（顶栏右上角；执行后端已收进输入框的「更多」）
+            if (hasConversationModelOverride) {
+                IconButton(
+                    onClick = { vm.clearChatModel(conversation.id) },
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.ArrowTurnBackward,
+                        contentDescription = stringResource(R.string.chat_page_conversation_model_reset),
                     )
                 }
             }

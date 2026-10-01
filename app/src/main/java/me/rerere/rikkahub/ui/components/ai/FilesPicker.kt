@@ -19,6 +19,8 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -113,6 +115,8 @@ internal fun FilesPicker(
     onPickAudio: () -> Unit,
     onPickFile: () -> Unit,
     onStartVoiceMode: (() -> Unit)? = null,
+    executionBackend: String = "",
+    onBackendChange: (String) -> Unit = {},
 ) {
     val settings = LocalSettings.current
     val provider = settings.getCurrentChatModel()?.findProvider(providers = settings.providers)
@@ -127,6 +131,43 @@ internal fun FilesPicker(
                 .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        // 执行后端（AI 执行通道）：本机 / 后端服务 —— 低频设置，从顶栏挪进「更多」
+        val backendMenuOpen = remember { mutableStateOf(false) }
+        Box {
+            ListItem(
+                headlineContent = {
+                    Text(
+                        text = stringResource(
+                            R.string.chat_page_backend_label,
+                            if (executionBackend.isBlank() || executionBackend == "local") {
+                                stringResource(R.string.chat_page_backend_local)
+                            } else {
+                                settings.providers.firstOrNull { it.id.toString() == executionBackend }?.name?.ifBlank { stringResource(R.string.backend_service) } ?: executionBackend
+                            },
+                        ),
+                    )
+                },
+                trailingContent = {
+                    Icon(HugeIcons.ArrowDown01, contentDescription = null)
+                },
+                modifier = Modifier.clickable { backendMenuOpen.value = true },
+            )
+            DropdownMenu(
+                expanded = backendMenuOpen.value,
+                onDismissRequest = { backendMenuOpen.value = false },
+            ) {
+                DropdownMenuItem(
+                    text = { Text(stringResource(R.string.chat_page_backend_local)) },
+                    onClick = { onBackendChange("local"); backendMenuOpen.value = false },
+                )
+                settings.providers.filter { it is ProviderSetting.Backend }.forEach { p ->
+                    DropdownMenuItem(
+                        text = { Text(p.name.ifBlank { stringResource(R.string.backend_service) }) },
+                        onClick = { onBackendChange(p.id.toString()); backendMenuOpen.value = false },
+                    )
+                }
+            }
+        }
         FlowRow(
             modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally),
             horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.Start),
