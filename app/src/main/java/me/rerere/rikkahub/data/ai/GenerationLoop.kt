@@ -194,6 +194,10 @@ internal fun shouldRetryGenerationStreamFailure(
     if (isQuotaExhaustedFailure(failure)) {
         return false
     }
+    // 内容风控是确定性拒绝（同一份上下文重发，结论不变），重试只会白等一轮
+    if (classifyFailureKind(failure, retryFailureReason(failure)) == FailureKind.CONTENT_SAFETY) {
+        return false
+    }
     // Retry provider, parsing, and local processing failures alike. Cancellation is kept
     // out of the retry loop so stop-generation and parent-scope cancellation propagate.
     return !isCancellationFailure(failure)
@@ -276,11 +280,64 @@ enum class FailureKind {
     PERMISSION, STORAGE, UNSUPPORTED, BAD_REQUEST, UNKNOWN,
 }
 
+// 服务端内容风控的机器可读码（各家措辞不同、code 稳定）：
+// OpenAI / Azure OpenAI：content_policy_violation / content_filter / ResponsibleAIPolicyViolation
+// 阿里百炼：DataInspectionFailed / data_inspection_failed
+private val CONTENT_SAFETY_ERROR_CODES = setOf(
+    "content_policy_violation",
+    "content_filter",
+    "responsibleaipolicyviolation",
+    "data_inspection_failed",
+    "datainspectionfailed",
+)
+
+// 用非标准状态码表示「内容拦截」的平台：小米 MiMo 官方错误码表把 421 定义为「内容拦截·内容审核拦截」
+private const val CONTENT_BLOCKED_STATUS_CODE = 421
+
+/**
+ * 是否属于服务端内容风控拒绝：优先看机器可读码与专用状态码，其次看各家文案。
+ *
+ * 文案只收「有据可查」的那几句：DeepSeek `Content Exists Risk`，Anthropic
+ * `Output blocked by content filtering policy`，OpenAI `…not allowed by our safety system`，
+ * Azure OpenAI `…content management policy`。聚合/中转平台（opencode、TokenRhythm 等）
+ * 多是原样透传服务端错误，所以不必逐平台枚举 —— 认服务端那句即可。
+ * 拆成独立函数还有第二个作用：把 [classifyFailureKind] 的 when 分支数压住，不撞复杂度上限。
+ */
+private fun isContentSafetyFailure(
+    text: String,
+    providerErrorCodes: List<String>,
+    statusCode: Int?,
+): Boolean =
+    statusCode == CONTENT_BLOCKED_STATUS_CODE ||
+        providerErrorCodes.any { it in CONTENT_SAFETY_ERROR_CODES } ||
+        listOf(
+            "data_inspection_failed", "safetyerror", "content_filter", "inappropriate",
+            "sensitive", "安全", "敏感",
+            "content exists risk",
+            "content filtering policy",
+            "not allowed by our safety system",
+            "content management policy",
+        ).any { text.contains(it) }
+
 // 并列判据的直译：十多类各自一组关键词，拆成数据表反而更难核对「哪类先判」；
 // 故保留 when 写法并显式豁免复杂度（阈值 20，本处因新增「工具配对 / 图片不支持」两类刚到 20）。
 @Suppress("CyclomaticComplexMethod")
 fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
     val text = raw.lowercase() + " " + failure.javaClass.name.lowercase()
+    // 服务端的 code/type 比文案可靠：同一类内容风控各家措辞不同，但机器可读码稳定
+    val providerErrorCodes = generateSequence(failure) { it.cause }
+        .take(8)
+        .filterIsInstance<HttpException>()
+        .flatMap { sequenceOf(it.providerErrorCode, it.providerErrorType) }
+        .filterNotNull()
+        .map { it.lowercase() }
+        .toList()
+    // 状态码也是判据：有平台用非标准码表达固定语义（如小米 MiMo 用 421 表示内容拦截）
+    val statusCode = generateSequence(failure) { it.cause }
+        .take(8)
+        .filterIsInstance<HttpException>()
+        .firstOrNull()
+        ?.statusCode
     return when {
         // 先判「结构 / 能力」两类：它们最具体，且都要求同时命中对象词与原因词，避免被泛规则截胡
         (text.contains("tool_calls") || text.contains("tool_call_id")) &&
@@ -297,8 +354,7 @@ fun classifyFailureKind(failure: Throwable, raw: String): FailureKind {
             ).none { text.contains(it) } ->
             FailureKind.IMAGE_UNSUPPORTED
 
-        listOf("data_inspection_failed", "safetyerror", "content_filter", "inappropriate", "sensitive", "安全", "敏感").any { text.contains(it) } ->
-            FailureKind.CONTENT_SAFETY
+        isContentSafetyFailure(text, providerErrorCodes, statusCode) -> FailureKind.CONTENT_SAFETY
         listOf("401", "invalid_api_key", "authentication", "unauthorized", "api key", "密钥", "鉴权").any { text.contains(it) } ->
             FailureKind.AUTH
         listOf("402", "insufficient_quota", "insufficientbalance", "credits", "余额", "额度", "quota", "billing").any { text.contains(it) } ->

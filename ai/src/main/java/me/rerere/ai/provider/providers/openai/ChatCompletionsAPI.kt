@@ -213,7 +213,7 @@ class ChatCompletionsAPI(
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
                         AppLogger.d(TAG, "onFailure: error body $bodyElement")
-                        exception = bodyElement.parseErrorDetail()
+                        exception = bodyElement.parseErrorDetail(response?.code)
                         AppLogger.i(TAG, "onFailure: $exception")
                     }
                 } catch (e: Throwable) {

@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai
 
+import me.rerere.ai.util.HttpException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Test
@@ -78,4 +79,64 @@ class FailureKindClassificationTest {
                     "You have insufficient credits to make this request. Please purchase more credits to continue using the service.",
             ),
         )
+
+    @Test
+    fun `DeepSeek 风控文案归为内容安全（不被 UNKNOWN 吃掉）`() =
+        assertEquals(
+            FailureKind.CONTENT_SAFETY,
+            kind("Content Exists Risk (request_id: 7d6e70d7-175a-4eca-b7f4-f6480f36174e)"),
+        )
+
+    @Test
+    fun `各平台风控文案都归为内容安全`() {
+        // Anthropic / OpenAI / Azure OpenAI / 阿里百炼 的官方措辞
+        assertEquals(FailureKind.CONTENT_SAFETY, kind("400 Output blocked by content filtering policy"))
+        assertEquals(
+            FailureKind.CONTENT_SAFETY,
+            kind("Your input image may contain content that is not allowed by our safety system."),
+        )
+        assertEquals(
+            FailureKind.CONTENT_SAFETY,
+            kind("The response was filtered due to the prompt triggering Azure OpenAI's content management policy"),
+        )
+        assertEquals(FailureKind.CONTENT_SAFETY, kind("Input data may contain inappropriate content."))
+    }
+
+    @Test
+    fun `小米 MiMo 的 421 内容拦截按状态码识别`() =
+        assertEquals(
+            FailureKind.CONTENT_SAFETY,
+            classifyFailureKind(
+                HttpException(message = "请求被拒绝", statusCode = 421),
+                "请求被拒绝",
+            ),
+        )
+
+    @Test
+    fun `机器可读风控码能单独判出、不误伤同状态码的其它错误`() {
+        // 服务端只给 code、文案本地化时，靠 code 也要判出来
+        assertEquals(
+            FailureKind.CONTENT_SAFETY,
+            classifyFailureKind(
+                HttpException(
+                    message = "请求被拒绝",
+                    statusCode = 400,
+                    providerErrorCode = "content_policy_violation",
+                ),
+                "请求被拒绝",
+            ),
+        )
+        // 文案与 code 都不指向风控时，不得误判（否则会给出「换个说法再试」的错误引导）
+        assertNotEquals(
+            FailureKind.CONTENT_SAFETY,
+            classifyFailureKind(
+                HttpException(
+                    message = "invalid parameter",
+                    statusCode = 400,
+                    providerErrorCode = "invalid_parameter",
+                ),
+                "invalid parameter",
+            ),
+        )
+    }
 }

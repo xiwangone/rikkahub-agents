@@ -346,7 +346,7 @@ class ResponseAPI(
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
                         AppLogger.d(TAG, "onFailure: error body $bodyElement")
-                        val detail = bodyElement.parseErrorDetail()
+                        val detail = bodyElement.parseErrorDetail(response?.code)
                         val code = (bodyElement as? JsonObject)?.responseErrorText("code")
                         exception = if (code != null && !detail.message.orEmpty().contains(code, ignoreCase = true)) {
                             IOException("$code: ${detail.message.orEmpty()}", detail)
