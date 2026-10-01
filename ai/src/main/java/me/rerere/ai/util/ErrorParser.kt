@@ -28,47 +28,43 @@ class HttpException(
  * 阿里百炼 `data_inspection_failed`），只按文案匹配既容易漏也容易误判。
  */
 fun JsonElement.parseErrorDetail(statusCode: Int? = null): HttpException {
-    // 顶层可能直接带 code/type（如 {"code": "DataInspectionFailed"}），也可能只嵌在 error 里
-    // 先取嵌套的 error.type/code（更具体）：顶层 type 常是笼统的 "error"，只说“缺失项”无用
+    // code/type 只在最外层取一次：文案要逐层往下递归，若每层各自重取，递归到 message 标量时就丢光了
+    // （顶层可能直接带，如 {"code": "DataInspectionFailed"}；也可能只嵌在 error 里，如 OpenAI/Azure）
     val providerErrorCode = stringField("error", "code") ?: stringField("code")
     val providerErrorType = stringField("error", "type") ?: stringField("type")
-    return when (this) {
+    return HttpException(
+        message = errorMessageText(),
+        statusCode = statusCode,
+        providerErrorCode = providerErrorCode,
+        providerErrorType = providerErrorType,
+    )
+}
+
+/**
+ * 挑出人类可读的报错文案：按 error → detail → message → description 的顺序取第一个存在的字段并逐层递归；
+ * 一层都没有时把整个对象序列化当文案（保证服务端原话不丢）。
+ */
+private fun JsonElement.errorMessageText(): String =
+    when (this) {
         is JsonObject -> {
-            // 尝试获取常见的错误字段
             val errorFields = listOf("error", "detail", "message", "description")
-
-            // 查找第一个存在的错误字段
             val foundField = errorFields.firstOrNull { this[it] != null }
-
             if (foundField != null) {
-                // 递归解析找到的字段值
-                this[foundField]!!.parseErrorDetail(statusCode)
+                this[foundField]!!.errorMessageText()
             } else {
-                // 如果没有找到任何错误字段，序列化整个对象
-                HttpException(
-                    message = Json.encodeToString(JsonElement.serializer(), this),
-                    statusCode = statusCode,
-                    providerErrorCode = providerErrorCode,
-                    providerErrorType = providerErrorType,
-                )
+                Json.encodeToString(JsonElement.serializer(), this)
             }
         }
 
         is JsonArray -> {
-            if (this.isEmpty()) {
-                HttpException("Unknown error: Empty JSON array", statusCode)
-            } else {
-                // 递归解析数组的第一个元素
-                this.first().parseErrorDetail(statusCode)
-            }
+            if (this.isEmpty()) "Unknown error: Empty JSON array" else this.first().errorMessageText()
         }
 
         is JsonPrimitive -> {
-            // 对于基本类型，直接使用其内容 (covers JsonNull too — it's a JsonPrimitive subclass)
-            HttpException(this.jsonPrimitive.content, statusCode, providerErrorCode, providerErrorType)
+            // 基本类型直接取内容（JsonNull 也是 JsonPrimitive 的子类）
+            this.jsonPrimitive.content
         }
     }
-}
 
 /** 按路径取字符串标量；任何一层缺失、为 null 或不是标量都返回 null。 */
 private fun JsonElement.stringField(vararg path: String): String? {
