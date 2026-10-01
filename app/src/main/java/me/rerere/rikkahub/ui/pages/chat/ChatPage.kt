@@ -477,6 +477,8 @@ private fun ChatPageContent(
                     onUpdateTitle = {
                         vm.updateTitle(it)
                     },
+                    conversationModelOverride = hasConversationModelOverride,
+                    onResetConversationModel = { vm.clearChatModel(conversation.id) },
                 )
             },
             bottomBar = {
@@ -1049,6 +1051,8 @@ private fun TopBar(
     onClickMenu: () -> Unit,
     onNewChat: () -> Unit,
     onUpdateTitle: (String) -> Unit,
+    conversationModelOverride: Boolean,
+    onResetConversationModel: () -> Unit,
 ) {
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -1124,9 +1128,9 @@ private fun TopBar(
         },
         actions = {
             // 本会话用了独立模型时，就地给一个恢复入口（顶栏右上角；执行后端已收进输入框的「更多」）
-            if (hasConversationModelOverride) {
+            if (conversationModelOverride) {
                 IconButton(
-                    onClick = { vm.clearChatModel(conversation.id) },
+                    onClick = onResetConversationModel,
                 ) {
                     Icon(
                         imageVector = HugeIcons.ArrowTurnBackward,
