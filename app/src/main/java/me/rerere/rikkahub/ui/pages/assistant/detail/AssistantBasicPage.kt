@@ -238,6 +238,28 @@ internal fun AssistantBasicContent(
                     )
                 },
             )
+            HorizontalDivider()
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text(stringResource(R.string.assistant_page_allow_conversation_model))
+                },
+                description = {
+                    Text(stringResource(R.string.assistant_page_allow_conversation_model_desc))
+                },
+                tail = {
+                    Switch(
+                        checked = assistant.allowPerConversationModel,
+                        onCheckedChange = {
+                            onUpdate(
+                                assistant.copy(
+                                    allowPerConversationModel = it,
+                                ),
+                            )
+                        },
+                    )
+                },
+            )
         }
 
         Card(
@@ -642,7 +664,7 @@ internal fun AssistantBasicContent(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
                     singleLine = true,
                 )
-                // 配置矛盾校验：硬 < 软时，第一次请求就会命中硬上限而直接结束（2026-09-25 真机踩过）
+                // 配置矛盾校验：硬 < 软时，第一次请求就会命中硬上限而直接结束（2026-09-25 踩过）
                 val softValue = parseTokens(tokenSoftInput)
                 val hardValue = parseTokens(tokenHardInput)
                 if (softValue != null && hardValue != null && hardValue < softValue) {

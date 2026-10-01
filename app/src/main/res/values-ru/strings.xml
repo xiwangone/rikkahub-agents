@@ -159,6 +159,8 @@
   <string name="assistant_page_presence_penalty_warning">Повышайте, если ответы ходят по кругу — модель будет переходить к новому содержанию. Диапазон 0-2, начните с 0.2-0.5; слишком высоко уводит от темы. По умолчанию выключено. Работает только для OpenAI-совместимых эндпоинтов (например DeepSeek). Claude / Gemini не поддерживают.</string>
   <string name="assistant_page_use_assistant_avatar">Использовать аватар ассистента</string>
   <string name="assistant_page_use_assistant_avatar_desc">Использовать аватар и имя ассистента вместо аватара и имени модели в чатах</string>
+  <string name="assistant_page_allow_conversation_model">Разрешить модель для отдельного чата</string>
+  <string name="assistant_page_allow_conversation_model_desc">Позволить одному чату выбрать свою модель, не меняя настройки ассистента</string>
   <string name="audio">Аудио</string>
   <string name="avatar_cancel">Отмена</string>
   <string name="avatar_change_avatar">Сменить аватар</string>

@@ -1277,9 +1277,12 @@ class ChatService(
         val assistant =
             settings.getAssistantById(initialConversation.assistantId)
                 ?: settings.getCurrentAssistant()
+        // 会话级模型只有在助手允许时才生效（关掉 = 全部会话统一用助手/全局默认）
+        val conversationModelId =
+            initialConversation.chatModelId.takeIf { assistant.allowPerConversationModel }
         val model =
             settings.findModelById(
-                initialConversation.chatModelId ?: assistant.chatModelId ?: settings.chatModelId,
+                conversationModelId ?: assistant.chatModelId ?: settings.chatModelId,
             )
                 ?: throw IllegalStateException(
                     "No chat model selected. Pick one in Settings → Default models, or send /model in Telegram.",
@@ -2885,10 +2888,11 @@ class ChatService(
                 val assistant =
                     conversation?.let { settings.getAssistantById(it.assistantId) }
                         ?: settings.getCurrentAssistant()
-                // 与界面同口径解析当前模型：会话指定 → 助手指定 → 全局默认
+                // 与界面同口径解析当前模型：会话指定（若助手允许）→ 助手指定 → 全局默认
                 val model =
                     settings.findModelById(
-                        conversation?.chatModelId ?: assistant.chatModelId ?: settings.chatModelId,
+                        conversation?.chatModelId?.takeIf { assistant.allowPerConversationModel }
+                            ?: assistant.chatModelId ?: settings.chatModelId,
                     )
                 // findProvider 返回父类型 ProviderSetting；这里只要 Backend 子类型
                 model?.findProvider(settings.providers) as? me.rerere.ai.provider.ProviderSetting.Backend

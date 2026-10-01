@@ -159,6 +159,8 @@
   <string name="assistant_page_presence_penalty_warning">応答が同じ内容を堂々巡りするときに上げ、新しい内容へ誘導します。範囲 0-2、まず 0.2-0.5 をお試しください。高すぎると話題が逸れます。既定はオフ。OpenAI 互換エンドポイント（DeepSeek など）のみ有効。Claude / Gemini は非対応。</string>
   <string name="assistant_page_use_assistant_avatar">アシスタントアバターを使用</string>
   <string name="assistant_page_use_assistant_avatar_desc">チャットでモデルアバターと名前ではなくアシスタントアバターと名前を使用</string>
+  <string name="assistant_page_allow_conversation_model">会話ごとのモデル選択を許可</string>
+  <string name="assistant_page_allow_conversation_model_desc">1 つの会話だけ別のモデルを選べます（このアシスタントの他の会話には影響しません）</string>
   <string name="audio">音声</string>
   <string name="avatar_cancel">キャンセル</string>
   <string name="avatar_change_avatar">アバターを変更</string>

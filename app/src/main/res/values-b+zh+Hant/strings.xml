@@ -155,6 +155,8 @@
   <string name="assistant_page_presence_penalty_warning">回覆反覆繞圈時調高，促使模型轉向新內容。範圍 0-2，建議先試 0.2-0.5；過高容易離題。預設關閉。僅對 OpenAI 相容介面生效（如 DeepSeek），Claude / Gemini 不支援。</string>
   <string name="assistant_page_use_assistant_avatar">使用助手頭像</string>
   <string name="assistant_page_use_assistant_avatar_desc">在聊天中使用助手頭像和名字而不是模型頭像和名字</string>
+  <string name="assistant_page_allow_conversation_model">允許會話級模型</string>
+  <string name="assistant_page_allow_conversation_model_desc">單個會話可另選模型，不影響該助手的其他會話</string>
   <string name="audio">音訊</string>
   <string name="avatar_cancel">取消</string>
   <string name="avatar_change_avatar">更換頭像</string>

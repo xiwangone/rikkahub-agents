@@ -17,6 +17,8 @@ import kotlin.uuid.Uuid
 data class Assistant(
     val id: Uuid = Uuid.random(),
     val chatModelId: Uuid? = null, // 如果为null, 使用全局默认模型
+    /** 允许在单个会话里另选模型（只影响该会话）；关掉 = 该助手的所有会话都用上面的默认模型 */
+    val allowPerConversationModel: Boolean = true,
     val name: String = "",
     val avatar: Avatar = Avatar.Dummy,
     val useAssistantAvatar: Boolean = false, // 使用助手头像替代模型头像

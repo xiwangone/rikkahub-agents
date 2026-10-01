@@ -179,7 +179,9 @@ fun ChatInput(
     val coroutineScope = rememberCoroutineScope()
     val modelListState =
         rememberModelListState(
-            modelId = conversationModelId ?: assistant.chatModelId ?: settings.chatModelId,
+            // 助手关掉会话级模型时，忽略会话覆盖值（与生成链路口径一致）
+            modelId = conversationModelId.takeIf { assistant.allowPerConversationModel }
+                ?: assistant.chatModelId ?: settings.chatModelId,
             providers = settings.providers,
             type = ModelType.CHAT,
         )

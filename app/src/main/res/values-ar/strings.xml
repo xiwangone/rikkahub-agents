@@ -273,6 +273,8 @@
   <string name="assistant_page_presence_penalty_warning">ارفع القيمة عندما تدور الردود حول النقطة نفسها لتوجيه النموذج إلى محتوى جديد. النطاق 0-2، جرّب 0.2-0.5 أولاً؛ والقيمة العالية جداً قد تخرج عن الموضوع. معطّل افتراضياً. يعمل فقط مع نقاط متوافقة مع OpenAI (مثل DeepSeek). لا يدعمه Claude / Gemini.</string>
   <string name="assistant_page_use_assistant_avatar">استخدام صورة المساعد</string>
   <string name="assistant_page_use_assistant_avatar_desc">استخدام صورة واسم المساعد بدلًا من صورة واسم النموذج في الدردشات</string>
+  <string name="assistant_page_allow_conversation_model">السماح باختيار نموذج لكل محادثة</string>
+  <string name="assistant_page_allow_conversation_model_desc">يتيح لمحادثة واحدة اختيار نموذجها الخاص دون تغيير إعدادات المساعد</string>
   <string name="audio">صوت</string>
   <string name="avatar_cancel">إلغاء</string>
   <string name="avatar_change_avatar">تغيير الصورة الرمزية</string>

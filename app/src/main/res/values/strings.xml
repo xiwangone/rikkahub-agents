@@ -227,6 +227,8 @@
   <string name="assistant_page_presence_penalty_warning">Raise this when replies keep circling the same point, to push the model toward new content. Range 0-2; try 0.2-0.5 first. Too high drifts off-topic. Off by default. Only applies to OpenAI-compatible endpoints (e.g. DeepSeek); Claude/Gemini do not support it.</string>
   <string name="assistant_page_use_assistant_avatar">Use Assistant Avatar</string>
   <string name="assistant_page_use_assistant_avatar_desc">Use assistant avatar and name instead of model avatar and name in chats</string>
+  <string name="assistant_page_allow_conversation_model">Allow per-conversation model</string>
+  <string name="assistant_page_allow_conversation_model_desc">Let a single chat pick its own model without changing this assistant</string>
   <string name="audio">Audio</string>
   <string name="avatar_cancel">Cancel</string>
   <string name="avatar_change_avatar">Change Avatar</string>
