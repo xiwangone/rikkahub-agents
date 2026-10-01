@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.ui.Alignment
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -427,6 +428,8 @@ private fun ChatPageContent(
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
     val assistant = setting.getCurrentAssistant()
+    // 该会话是否在用独立模型（助手允许 + 会话有覆盖）：决定「恢复为助手模型」提示是否出现
+    val hasConversationModelOverride = assistant.allowPerConversationModel && conversation.chatModelId != null
     var showFilesSheet by remember { mutableStateOf(false) }
     var showAutoTaskDialog by remember { mutableStateOf(false) }
     var autoTaskConfig by remember { mutableStateOf(readAutoTaskConfig(context)) }
@@ -477,6 +480,32 @@ private fun ChatPageContent(
                 )
             },
             bottomBar = {
+                // 本会话用了独立模型时，就地给一个恢复入口（不离开当前会话）
+                androidx.compose.animation.AnimatedVisibility(visible = hasConversationModelOverride) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.Bookmark02,
+                            contentDescription = null,
+                            modifier = Modifier.size(14.dp),
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
+                        Text(
+                            text = stringResource(R.string.chat_page_conversation_model_active),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        TextButton(
+                            onClick = { vm.clearChatModel(conversation.id) },
+                        ) {
+                            Text(stringResource(R.string.chat_page_conversation_model_reset))
+                        }
+                    }
+                }
                 ChatInput(
                     state = inputState,
                     loading = loadingJob != null,

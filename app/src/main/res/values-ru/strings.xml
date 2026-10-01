@@ -161,6 +161,8 @@
   <string name="assistant_page_use_assistant_avatar_desc">Использовать аватар и имя ассистента вместо аватара и имени модели в чатах</string>
   <string name="assistant_page_allow_conversation_model">Разрешить модель для отдельного чата</string>
   <string name="assistant_page_allow_conversation_model_desc">Позволить одному чату выбрать свою модель, не меняя настройки ассистента</string>
+  <string name="chat_page_conversation_model_active">В этом чате своя модель</string>
+  <string name="chat_page_conversation_model_reset">Вернуть модель ассистента</string>
   <string name="audio">Аудио</string>
   <string name="avatar_cancel">Отмена</string>
   <string name="avatar_change_avatar">Сменить аватар</string>
