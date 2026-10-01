@@ -37,6 +37,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ChartRing
+import me.rerere.hugeicons.stroke.PieChart
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.ChartLineData01
 import me.rerere.hugeicons.stroke.ChartScatter
@@ -186,7 +188,8 @@ private fun ChartModeToggle(
                     ChartStyle.Line, ChartStyle.Area -> HugeIcons.ChartLineData01
                     ChartStyle.Bar -> HugeIcons.ChartColumn
                     ChartStyle.Scatter -> HugeIcons.ChartScatter
-                    ChartStyle.Pie, ChartStyle.Donut -> HugeIcons.ChartColumn
+                    ChartStyle.Pie -> HugeIcons.PieChart
+                    ChartStyle.Donut -> HugeIcons.ChartRing
                 },
                 contentDescription = stringResource(R.string.chart_mode_chart),
                 selected = mode == ChartDisplayMode.Chart,
