@@ -1278,7 +1278,9 @@ class ChatService(
             settings.getAssistantById(initialConversation.assistantId)
                 ?: settings.getCurrentAssistant()
         val model =
-            settings.findModelById(assistant.chatModelId ?: settings.chatModelId)
+            settings.findModelById(
+                initialConversation.chatModelId ?: assistant.chatModelId ?: settings.chatModelId,
+            )
                 ?: throw IllegalStateException(
                     "No chat model selected. Pick one in Settings → Default models, or send /model in Telegram.",
                 )
@@ -2883,10 +2885,10 @@ class ChatService(
                 val assistant =
                     conversation?.let { settings.getAssistantById(it.assistantId) }
                         ?: settings.getCurrentAssistant()
-                // 与原生同口径解析当前模型：助手指定优先，否则全局默认
+                // 与界面同口径解析当前模型：会话指定 → 助手指定 → 全局默认
                 val model =
                     settings.findModelById(
-                        assistant.chatModelId ?: settings.chatModelId,
+                        conversation?.chatModelId ?: assistant.chatModelId ?: settings.chatModelId,
                     )
                 // findProvider 返回父类型 ProviderSetting；这里只要 Backend 子类型
                 model?.findProvider(settings.providers) as? me.rerere.ai.provider.ProviderSetting.Backend

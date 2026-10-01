@@ -489,6 +489,7 @@ private fun ChatPageContent(
                     voiceState = voiceState,
                     onStopVoiceMode = vm.voiceSession::stop,
                     settings = setting,
+                    conversationModelId = conversation.chatModelId,
                     hazeState = hazeState,
                     completionProviders = completionProviders,
                     onCancelClick = {
@@ -548,7 +549,7 @@ private fun ChatPageContent(
                         inputState.clearInput()
                     },
                     onUpdateChatModel = {
-                        vm.setChatModel(assistant = setting.getCurrentAssistant(), model = it)
+                        vm.setChatModel(conversationId = conversation.id, model = it)
                     },
                     onUpdateAssistant = {
                         vm.updateSettings(

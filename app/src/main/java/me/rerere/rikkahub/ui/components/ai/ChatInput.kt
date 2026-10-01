@@ -151,6 +151,8 @@ fun ChatInput(
     voiceState: VoiceSessionState = VoiceSessionState(),
     onStopVoiceMode: () -> Unit = {},
     settings: Settings,
+    /** 当前会话的模型覆盖（null = 跟随助手默认）；用于在输入框正确显示会话实际使用的模型。 */
+    conversationModelId: Uuid? = null,
     hazeState: HazeState,
     enableSearch: Boolean,
     sessionTotals: TokenBudgetTracker.Totals? = null,
@@ -177,7 +179,7 @@ fun ChatInput(
     val coroutineScope = rememberCoroutineScope()
     val modelListState =
         rememberModelListState(
-            modelId = assistant.chatModelId ?: settings.chatModelId,
+            modelId = conversationModelId ?: assistant.chatModelId ?: settings.chatModelId,
             providers = settings.providers,
             type = ModelType.CHAT,
         )

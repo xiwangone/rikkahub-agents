@@ -539,6 +539,8 @@ internal fun conversationToConversationEntityImpl(conversation: Conversation): C
         workspaceIdOverride = conversation.workspaceIdOverride?.toString() ?: "",
         maxToolStepsOverride = conversation.maxToolStepsOverride ?: 0,
         isSubAgentRun = conversation.isSubAgentRun,
+        // 会话级模型：空串 = 跟随所属助手（旧的空字段行沿用助手模型，行为不变）
+        chatModelId = conversation.chatModelId?.toString() ?: "",
     )
 }
 
@@ -568,5 +570,8 @@ internal fun conversationEntityToConversationImpl(
             ?.let { runCatching { Uuid.parse(it) }.getOrNull() },
         maxToolStepsOverride = conversationEntity.maxToolStepsOverride.takeIf { it > 0 },
         isSubAgentRun = conversationEntity.isSubAgentRun,
+        chatModelId = conversationEntity.chatModelId
+            .ifEmpty { null }
+            ?.let { runCatching { Uuid.parse(it) }.getOrNull() },
     )
 }

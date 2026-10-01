@@ -238,25 +238,24 @@ class ChatVM(
         }
     }
 
-    // 设置聊天模型
+    /** 只改当前会话的模型：不写助手，其它会话不受影响（null = 跟随助手默认）。 */
     fun setChatModel(
-        assistant: Assistant,
+        conversationId: Uuid,
         model: Model,
-    ) {
+    ) = overrideConversationModel(conversationId, model.id)
+
+    /** 清除会话级模型 → 该会话重新跟随所属助手的默认模型。 */
+    fun clearChatModel(conversationId: Uuid) = overrideConversationModel(conversationId, null)
+
+    private fun overrideConversationModel(conversationId: Uuid, modelId: Uuid?) {
         viewModelScope.launch {
-            settingsStore.update { settings ->
-                settings.copy(
-                    assistants =
-                        settings.assistants.map {
-                            if (it.id == assistant.id) {
-                                it.copy(
-                                    chatModelId = model.id,
-                                )
-                            } else {
-                                it
-                            }
-                        },
-                )
+            val conversationFull = conversationRepo.getConversationById(conversationId) ?: return@launch
+            val updatedConversation = conversationFull.copy(chatModelId = modelId)
+            // 当前会话走 ChatService（内存态一致），其它会话直接落库
+            if (conversationId == _conversationId) {
+                chatService.saveConversation(_conversationId, updatedConversation)
+            } else {
+                conversationRepo.updateConversation(updatedConversation)
             }
         }
     }
@@ -302,7 +301,7 @@ class ChatVM(
     /** 自动压缩触发确认弹窗：达到触发点时置 true，由 ChatPage 弹出「是否确认压缩？」 */
     var pendingAutoCompressConfirm by mutableStateOf(false)
 
-    /** 百分比模式基准未设置时沿用的默认 context 估算（实测 DeepSeek V4 可承载 439.6K，按 512K 估算） */
+    /** 百分比模式基准未设置时沿用的默认 context 估算（按 512K 估算） */
     private val defaultAutoCompressBase: Long = 512 * 1024
 
     /** 当前模式的触发阈值（绝对 token 数）：模式A = 基准×百分比/100，模式B = token 消耗上限 */
