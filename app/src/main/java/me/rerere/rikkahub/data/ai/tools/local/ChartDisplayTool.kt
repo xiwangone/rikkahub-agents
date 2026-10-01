@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
@@ -175,33 +176,53 @@ private fun validateChartArgs(params: JsonObject): String? {
     val yLog = axes["y_axis"]?.string("scale") == "log"
 
     series.forEachIndexed { index, element ->
-        val item = element as? JsonObject ?: return "series[$index] must be an object"
-        val color = item["color"]
-        if (color != null) {
-            val colorText = (color as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
-            if (colorText == null || !HEX_COLOR_REGEX.matches(colorText)) {
-                return "series[$index].color must be a hex color like '#F80' or '#FF8800'"
-            }
-        }
+        validateSeriesItem(index, element, style, xLabels, xLog, yLog)?.let { return it }
+    }
+    return null
+}
 
-        if (style == "scatter") {
-            validateScatterSeries(index, item, xLog, yLog)?.let { return it }
-        } else {
-            if ("points" in item) return "series[$index] must not use 'points' for $style charts; use 'values'"
-            val values = item["values"] as? JsonArray ?: return "series[$index].values is required for $style charts"
-            if (values.size > MAX_SERIES_POINTS) return "series[$index].values can contain at most $MAX_SERIES_POINTS items"
-            if ((style == "pie" || style == "donut") && values.size > MAX_PIE_SLICES) {
-                return "series[$index].values can contain at most $MAX_PIE_SLICES items for $style charts"
-            }
-            values.forEachIndexed { valueIndex, value ->
-                val number = (value as? JsonPrimitive)?.doubleOrNull
-                    ?: return "series[$index].values[$valueIndex] must be a number"
-                if (yLog && number <= 0) return "series[$index].values[$valueIndex] must be > 0 on a log y_axis"
-            }
-            if (xLabels != null && xLabels.size != values.size) {
-                return "series[$index].values has ${values.size} items but x_axis.data has ${xLabels.size}"
-            }
-        }
+/** 单个 series 项的结构、颜色与容量校验 */
+private fun validateSeriesItem(
+    index: Int,
+    element: JsonElement,
+    style: String,
+    xLabels: JsonArray?,
+    xLog: Boolean,
+    yLog: Boolean,
+): String? {
+    val item = element as? JsonObject ?: return "series[$index] must be an object"
+    validateSeriesColor(index, item)?.let { return it }
+
+    if (style == "scatter") return validateScatterSeries(index, item, xLog, yLog)
+    if ("points" in item) return "series[$index] must not use 'points' for $style charts; use 'values'"
+    val values = item["values"] as? JsonArray ?: return "series[$index].values is required for $style charts"
+    if (values.size > MAX_SERIES_POINTS) return "series[$index].values can contain at most $MAX_SERIES_POINTS items"
+    if ((style == "pie" || style == "donut") && values.size > MAX_PIE_SLICES) {
+        return "series[$index].values can contain at most $MAX_PIE_SLICES items for $style charts"
+    }
+    validateSeriesValues(index, values, yLog)?.let { return it }
+    if (xLabels != null && xLabels.size != values.size) {
+        return "series[$index].values has ${values.size} items but x_axis.data has ${xLabels.size}"
+    }
+    return null
+}
+
+/** 可选的 color 字段必须形如 '#F80' 或 '#FF8800' */
+private fun validateSeriesColor(index: Int, item: JsonObject): String? {
+    val color = item["color"] ?: return null
+    val colorText = (color as? JsonPrimitive)?.takeIf { it.isString }?.contentOrNull
+    if (colorText == null || !HEX_COLOR_REGEX.matches(colorText)) {
+        return "series[$index].color must be a hex color like '#F80' or '#FF8800'"
+    }
+    return null
+}
+
+/** values 必须全是数字, 且对数 y 轴上必须为正 */
+private fun validateSeriesValues(index: Int, values: JsonArray, yLog: Boolean): String? {
+    values.forEachIndexed { valueIndex, value ->
+        val number = (value as? JsonPrimitive)?.doubleOrNull
+            ?: return "series[$index].values[$valueIndex] must be a number"
+        if (yLog && number <= 0) return "series[$index].values[$valueIndex] must be > 0 on a log y_axis"
     }
     return null
 }
