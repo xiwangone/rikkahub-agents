@@ -1316,16 +1316,13 @@
   <string name="assistant_page_local_tools_screen_automation_desc">讓大型語言模型透過 Android 無障礙服務點選、滑動、捲動、讀取螢幕內容和截圖。</string>
   <string name="assistant_page_local_tools_screen_automation_title">螢幕自動化</string>
   <string name="assistant_page_local_tools_section_automation">自動化</string>
-  <string name="assistant_page_local_tools_section_browser">瀏覽器</string>
-  <string name="assistant_page_local_tools_section_device_info">裝置資訊</string>
   <string name="assistant_page_local_tools_section_existing">內建工具</string>
-  <string name="assistant_page_local_tools_section_files">檔案管理員</string>
   <string name="assistant_page_local_tools_section_hardware">硬體控制</string>
-  <string name="assistant_page_local_tools_section_media">媒體</string>
+  <string name="assistant_page_local_tools_section_media">檔案與媒體</string>
   <string name="assistant_page_local_tools_section_network">網路</string>
   <string name="assistant_page_local_tools_section_output">輸出</string>
   <string name="assistant_page_local_tools_section_personal_data">個人資料</string>
-  <string name="assistant_page_local_tools_section_screen_automation">螢幕自動化</string>
+  <string name="assistant_page_local_tools_section_screen_automation">螢幕與終端</string>
   <string name="assistant_page_local_tools_sensors_desc">列出裝置感測器並讀取短樣本（加速度感測器、陀螺儀、光線等）。</string>
   <string name="assistant_page_local_tools_sensors_title">感測器</string>
   <string name="assistant_page_local_tools_share_desc">開啟系統分享面板，將文字或網址傳送到其他應用程式。</string>
@@ -2321,7 +2318,6 @@
     <string name="assistant_page_extra_cold_action">編輯</string>
     <string name="assistant_page_extra_cold_dialog_desc">每行一個工具名稱（也可用逗號分隔），請用 list_tools 顯示的確切名稱，例如 ssh_upload。只影響該助手的工具說明詳略，工具仍可正常呼叫。不知道填哪些？可讓助手在對話中依你的需求產生這份名單；但助手無權修改此設定，需要你貼上並儲存。</string>
     <string name="assistant_page_extra_cold_hint">例如 ssh_upload\n     batch_copy</string>
-    <string name="assistant_page_local_tools_section_ai_diagnostics">AI 診斷</string>
     <string name="assistant_page_local_tools_diagnostics_title">診斷與日誌</string>
     <string name="assistant_page_local_tools_diagnostics_desc">應用健康、建置資訊、日誌、當機與生命週期記錄。</string>
     <string name="assistant_page_local_tools_app_health_title">應用診斷</string>
@@ -2390,7 +2386,6 @@
     <string name="assistant_page_local_tools_nfc_desc">讀取和寫入 NFC 標籤上的 NDEF 記錄。需要應用在前臺才能檢測標籤。</string>
     <string name="assistant_page_local_tools_nfc_title">NFC</string>
     <string name="assistant_page_local_tools_nfc_unavailable">此裝置沒有 NFC 硬體，無法啟用這些工具。</string>
-    <string name="assistant_page_local_tools_section_keyboard">鍵盤控制</string>
     <string name="assistant_page_local_tools_section_privileged">特權工具</string>
     <string name="assistant_page_local_tools_sms_send_desc">以程式設計方式傳送簡訊。需要 SEND_SMS 許可權。每次呼叫需批准。</string>
     <string name="assistant_page_local_tools_sms_send_title">傳送簡訊</string>

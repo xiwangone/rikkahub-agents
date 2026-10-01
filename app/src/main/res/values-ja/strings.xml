@@ -1301,16 +1301,13 @@
   <string name="assistant_page_local_tools_screen_automation_desc">LLM が Android のユーザー補助サービスを介してタップ、スワイプ、スクロール、画面内容の読み取り、スクリーンショットの撮影を行えるようにします。</string>
   <string name="assistant_page_local_tools_screen_automation_title">画面自動化</string>
   <string name="assistant_page_local_tools_section_automation">自動化</string>
-  <string name="assistant_page_local_tools_section_browser">ブラウザ</string>
-  <string name="assistant_page_local_tools_section_device_info">デバイス情報</string>
   <string name="assistant_page_local_tools_section_existing">組み込みツール</string>
-  <string name="assistant_page_local_tools_section_files">ファイルマネージャー</string>
   <string name="assistant_page_local_tools_section_hardware">ハードウェア制御</string>
-  <string name="assistant_page_local_tools_section_media">メディア</string>
+  <string name="assistant_page_local_tools_section_media">ファイルとメディア</string>
   <string name="assistant_page_local_tools_section_network">ネットワーク</string>
   <string name="assistant_page_local_tools_section_output">出力</string>
   <string name="assistant_page_local_tools_section_personal_data">個人データ</string>
-  <string name="assistant_page_local_tools_section_screen_automation">画面自動化</string>
+  <string name="assistant_page_local_tools_section_screen_automation">画面とターミナル</string>
   <string name="assistant_page_local_tools_sensors_desc">デバイスのセンサーを一覧表示し、短いサンプルを読み取ります（加速度計、ジャイロスコープ、光など）。</string>
   <string name="assistant_page_local_tools_sensors_title">センサー</string>
   <string name="assistant_page_local_tools_share_desc">システムの共有シートを開いて、テキストや URL を他のアプリに送信します。</string>
@@ -2768,7 +2765,6 @@
   <string name="assistant_page_only_tools_desc">%1$d 個を設定済み。空でない場合、助手はリスト内のツールだけを見ます（list_tools / get_tool_schema / ask_user は常に保持）。</string>
   <string name="assistant_page_only_tools_dialog_desc">1 行に 1 つのツール名（カンマ区切りも可）。list_tools に表示される正確な名前を使います。空にすると制限なし。間違えると他のタスクが実行できない場合がありますが、空にすれば元に戻ります。どれを入れるか迷ったら、チャットで助手にリストを作らせられます — ただし助手はこの設定を変更できないので、ご自身で貼り付けて保存してください。</string>
   <string name="assistant_page_extra_cold_hint">例: ssh_upload\n     batch_copy</string>
-  <string name="assistant_page_local_tools_section_ai_diagnostics">AI 診断</string>
   <string name="assistant_page_local_tools_diagnostics_title">診断とログ</string>
   <string name="assistant_page_local_tools_diagnostics_desc">アプリのヘルス、ビルド情報、ログ、クラッシュ、ライフサイクル記録。</string>
   <string name="assistant_page_local_tools_app_health_title">アプリ診断</string>
@@ -2838,7 +2834,6 @@
   <string name="assistant_page_local_tools_nfc_desc">NFC タグの NDEF レコードを読み書きします。タグ検出にはアプリが前面にある必要があります。</string>
   <string name="assistant_page_local_tools_nfc_title">NFC</string>
   <string name="assistant_page_local_tools_nfc_unavailable">この端末には NFC ハードウェアがないため、これらのツールは有効化できません。</string>
-  <string name="assistant_page_local_tools_section_keyboard">キーボード制御</string>
   <string name="assistant_page_local_tools_section_privileged">特権ツール</string>
   <string name="assistant_page_local_tools_sms_send_desc">プログラムから SMS を送信します。SEND_SMS 権限が必要です。毎回承認が必要です。</string>
   <string name="assistant_page_local_tools_sms_send_title">SMS 送信</string>

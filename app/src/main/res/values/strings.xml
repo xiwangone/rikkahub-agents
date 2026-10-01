@@ -1548,7 +1548,6 @@
   <string name="assistant_page_local_tools_perm_special_dialog_message">This tool needs system access. You\'ll be sent to the system settings page to grant it. Return here when done.</string>
   <string name="assistant_page_local_tools_perm_special_dialog_title">Permission needed</string>
   <string name="assistant_page_local_tools_perm_write_settings">WRITE_SETTINGS</string>
-  <string name="assistant_page_local_tools_section_device_info">Device info</string>
   <string name="assistant_page_extra_cold_section">Tool details (advanced)</string>
   <string name="assistant_page_extra_cold_title">Send these tools as brief only</string>
   <string name="assistant_page_extra_cold_desc">%1$d configured. These tools send only a one-line purpose; the full parameters are fetched on demand.</string>
@@ -1562,7 +1561,6 @@
   <string name="assistant_page_compact_output_desc">%1$d configured. Their output is saved in full to /tool_outputs and only a short preview enters the context, so long payloads stop eating the window. Unlisted tools keep the global limit.</string>
   <string name="assistant_page_compact_output_action">Edit</string>
   <string name="assistant_page_compact_output_dialog_desc">One tool name per line (or comma-separated), using the exact names from list_tools. Best for tools that return large payloads — page fetches, full listings, diagnostics dumps. Listed tools are truncated at the compact limit (Settings → Tools) and fully saved to /tool_outputs; unlisted tools keep the global limit. The tools stay callable and nothing is deleted. Leave empty to disable. Ask the assistant in chat if unsure what to list — but the assistant cannot change this setting, so paste and save it yourself.</string>
-  <string name="assistant_page_local_tools_section_ai_diagnostics">AI diagnostics</string>
   <string name="assistant_page_local_tools_diagnostics_title">Diagnostics</string>
   <string name="assistant_page_local_tools_diagnostics_desc">App health, build info, logs, crash and lifecycle reports.</string>
   <string name="assistant_page_local_tools_app_health_title">App health</string>
@@ -1586,7 +1584,7 @@
   <string name="assistant_page_local_tools_import_action">Import</string>
   <string name="assistant_page_local_tools_import_done">Tool config imported</string>
   <string name="assistant_page_local_tools_section_hardware">Hardware control</string>
-  <string name="assistant_page_local_tools_section_media">Media</string>
+  <string name="assistant_page_local_tools_section_media">Files &amp; media</string>
   <string name="assistant_page_local_tools_section_output">Output</string>
   <string name="assistant_page_local_tools_sensors_desc">List device sensors and read short samples (accelerometer, gyroscope, light, etc.).</string>
   <string name="assistant_page_local_tools_sensors_title">Sensors</string>
@@ -1656,7 +1654,7 @@
   <string name="assistant_page_local_tools_fingerprint_title">Fingerprint</string>
   <string name="assistant_page_local_tools_fingerprint_desc">Show the system biometric prompt to verify the user\'s identity.</string>
   <string name="accessibility_service_summary">Lets RikkaHub Agents tap, swipe, scroll, read screen content, and take screenshots when the LLM uses the Screen automation tools.</string>
-  <string name="assistant_page_local_tools_section_screen_automation">Screen automation</string>
+  <string name="assistant_page_local_tools_section_screen_automation">Screen &amp; terminal</string>
   <string name="assistant_page_local_tools_screen_automation_title">Screen automation</string>
   <string name="assistant_page_local_tools_screen_automation_desc">Let the LLM tap, swipe, scroll, read on-screen content, and take screenshots via Android\'s accessibility service.</string>
   <string name="assistant_page_local_tools_app_launcher_title">App launcher</string>
@@ -1685,7 +1683,6 @@
   <string name="assistant_page_local_tools_termux_verify_unexpected">Termux replied but with unexpected output: %1$s</string>
   <string name="assistant_page_local_tools_files_title">Files</string>
   <string name="assistant_page_local_tools_files_desc">Read, write, list, search, copy, move, delete files.</string>
-  <string name="assistant_page_local_tools_section_files">File manager</string>
   <string name="assistant_page_local_tools_mcp_control_title">MCP control</string>
   <string name="assistant_page_local_tools_mcp_control_desc">Let the assistant add, edit, and remove MCP servers. The assistant can install an MCP in Termux or on a remote SSH host, then wire it into the app — without you opening Settings.</string>
   <string name="assistant_page_local_tools_external_automation_title">External automation</string>
@@ -1852,7 +1849,6 @@
   <string name="setting_page_browser_desc">AI-driven web browser and skill viewer.</string>
   <string name="setting_page_agent_overlay_enabled_title">Working indicator</string>
   <string name="setting_page_agent_overlay_enabled_desc">Show the \"agent is working\" floating pill when the app runs in the background. Hidden in the foreground chat to avoid overlapping the top bar.</string>
-  <string name="assistant_page_local_tools_section_browser">Browser</string>
   <string name="assistant_page_local_tools_browser_title">Browser</string>
   <string name="assistant_page_local_tools_browser_desc">AI-driven web browser. 17 individually-togglable tools — configure read/write access in Settings → Browser.</string>
   <string name="assistant_page_local_tools_web_fetch_title">Web fetch</string>
@@ -1879,7 +1875,6 @@
   <string name="assistant_page_local_tools_external_storage_desc">Lets file tools work on USB drives, SD cards, Downloads, and cloud storage. Each tree requires a one-time grant via the SAF picker.</string>
   <string name="assistant_page_local_tools_archive_title">Archive (zip)</string>
   <string name="assistant_page_local_tools_archive_desc">Create and extract .zip archives directly. No password support in v1. Works on file:// and content:// URIs.</string>
-  <string name="assistant_page_local_tools_section_keyboard">Keyboard control</string>
   <string name="assistant_page_local_tools_keyboard_title">Keyboard control</string>
   <string name="assistant_page_local_tools_keyboard_desc">Drive the active text field through the co-signed agent-keyboard app: type, read, press keys, delete, move the cursor, and select text. 8 tools. Write tools require approval per call.</string>
   <string name="assistant_page_local_tools_keyboard_setup_title">Set up agent-keyboard</string>

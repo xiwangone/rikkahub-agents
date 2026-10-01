@@ -1294,16 +1294,13 @@
   <string name="assistant_page_local_tools_screen_automation_desc">Позволяет LLM нажимать, проводить, прокручивать, читать содержимое экрана и делать снимки экрана через службу специальных возможностей Android.</string>
   <string name="assistant_page_local_tools_screen_automation_title">Автоматизация экрана</string>
   <string name="assistant_page_local_tools_section_automation">Автоматизация</string>
-  <string name="assistant_page_local_tools_section_browser">Браузер</string>
-  <string name="assistant_page_local_tools_section_device_info">Сведения об устройстве</string>
   <string name="assistant_page_local_tools_section_existing">Встроенные инструменты</string>
-  <string name="assistant_page_local_tools_section_files">Файловый менеджер</string>
   <string name="assistant_page_local_tools_section_hardware">Управление оборудованием</string>
-  <string name="assistant_page_local_tools_section_media">Медиа</string>
+  <string name="assistant_page_local_tools_section_media">Файлы и медиа</string>
   <string name="assistant_page_local_tools_section_network">Сеть</string>
   <string name="assistant_page_local_tools_section_output">Вывод</string>
   <string name="assistant_page_local_tools_section_personal_data">Личные данные</string>
-  <string name="assistant_page_local_tools_section_screen_automation">Автоматизация экрана</string>
+  <string name="assistant_page_local_tools_section_screen_automation">Экран и терминал</string>
   <string name="assistant_page_local_tools_sensors_desc">Список датчиков устройства и чтение коротких выборок (акселерометр, гироскоп, освещённость и т. д.).</string>
   <string name="assistant_page_local_tools_sensors_title">Датчики</string>
   <string name="assistant_page_local_tools_share_desc">Открытие системного меню «Поделиться» для отправки текста или URL в другие приложения.</string>
@@ -2761,7 +2758,6 @@
   <string name="assistant_page_only_tools_desc">Настроено: %1$d. Если не пусто, ассистент видит только перечисленные инструменты (list_tools / get_tool_schema / ask_user доступны всегда).</string>
   <string name="assistant_page_only_tools_dialog_desc">По одному имени инструмента в строке (можно через запятую). Используйте точные имена из list_tools. Пусто = без ограничений. Ошибка в списке может заблокировать задачи — очистите список для восстановления. Не знаете, что указать? Попросите ассистента в чате подготовить список — но ассистент не может изменить эту настройку, вставьте и сохраните список самостоятельно.</string>
   <string name="assistant_page_extra_cold_hint">напр. ssh_upload\n     batch_copy</string>
-  <string name="assistant_page_local_tools_section_ai_diagnostics">Диагностика ИИ</string>
   <string name="assistant_page_local_tools_diagnostics_title">Диагностика и журналы</string>
   <string name="assistant_page_local_tools_diagnostics_desc">Состояние приложения, сведения о сборке, журналы, сбои и жизненный цикл.</string>
   <string name="assistant_page_local_tools_app_health_title">Диагностика приложения</string>
@@ -2831,7 +2827,6 @@
   <string name="assistant_page_local_tools_nfc_desc">Чтение и запись записей NDEF на NFC-метках. Для обнаружения метки приложение должно быть на переднем плане.</string>
   <string name="assistant_page_local_tools_nfc_title">NFC</string>
   <string name="assistant_page_local_tools_nfc_unavailable">На устройстве нет NFC, эти инструменты недоступны.</string>
-  <string name="assistant_page_local_tools_section_keyboard">Управление клавиатурой</string>
   <string name="assistant_page_local_tools_section_privileged">Привилегированные инструменты</string>
   <string name="assistant_page_local_tools_sms_send_desc">Отправляет СМС программно. Требуется разрешение SEND_SMS и одобрение каждого вызова.</string>
   <string name="assistant_page_local_tools_sms_send_title">Отправка СМС</string>

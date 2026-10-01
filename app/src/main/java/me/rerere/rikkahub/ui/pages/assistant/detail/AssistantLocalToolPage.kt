@@ -713,42 +713,6 @@ private fun AssistantLocalToolContent(
             )
         }
 
-        // AI diagnostics section (first batch of self-diagnosis tools)
-        Text(
-            text = stringResource(R.string.assistant_page_local_tools_section_ai_diagnostics),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-        )
-        CardGroup {
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_diagnostics_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_diagnostics_desc))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.Diagnostics),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Diagnostics, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_model_testing_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_model_testing_desc))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.ModelTesting),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.ModelTesting, it) },
-                    )
-                },
-            )
-        }
 
         // Built-in tools section
         Text(
@@ -827,15 +791,34 @@ private fun AssistantLocalToolContent(
                     )
                 },
             )
-        }
-
-        // Device info section
-        Text(
-            text = stringResource(R.string.assistant_page_local_tools_section_device_info),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-        )
-        CardGroup {
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_diagnostics_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_diagnostics_desc))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.Diagnostics),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Diagnostics, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_model_testing_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_model_testing_desc))
+                },
+                trailingContent = {
+                    Switch(
+                        checked = assistant.localTools.contains(LocalToolOption.ModelTesting),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.ModelTesting, it) },
+                    )
+                },
+            )
             item(
                 headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_device_info_title))
@@ -850,15 +833,20 @@ private fun AssistantLocalToolContent(
                     )
                 },
             )
-        }
-
-        // Device info section
-        Text(
-            text = stringResource(R.string.assistant_page_local_tools_section_device_info),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp)
-        )
-        CardGroup {
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_system_intents_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_system_intents_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.SystemIntents),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.SystemIntents, it) },
+                    )
+                },
+            )
         }
 
         // Output section
@@ -922,73 +910,6 @@ private fun AssistantLocalToolContent(
                     PermissionedSwitch(
                         checked = assistant.localTools.contains(LocalToolOption.ChartDisplay),
                         onCheckedChange = { toggleLocalTool(LocalToolOption.ChartDisplay, it) },
-                    )
-                },
-            )
-        }
-
-        // Hardware control section
-        Text(
-            text = stringResource(R.string.assistant_page_local_tools_section_hardware),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-        )
-        CardGroup {
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_torch_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_torch_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Torch),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Torch, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_vibrate_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_vibrate_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Vibrate),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Vibrate, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_brightness_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_brightness_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Brightness),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Brightness, it) },
-                        requiresWriteSettings = true,
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_volume_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_volume_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Volume),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Volume, it) },
-                        requiresDndAccess = true,
                     )
                 },
             )
@@ -1151,6 +1072,38 @@ private fun AssistantLocalToolContent(
         CardGroup {
             item(
                 headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_files_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_files_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.Files),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Files, it) },
+                        // MANAGE_EXTERNAL_STORAGE is a special "appop" permission. Without it,
+                        // File.listFiles() on shared storage paths only returns subdirectories
+                        // and the app's own creations — every pre-existing file is hidden.
+                        requiresAllFilesAccess = true,
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_download_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_download_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.Download),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Download, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_media_player_title))
                 },
                 supportingContent = {
@@ -1174,74 +1127,6 @@ private fun AssistantLocalToolContent(
                     PermissionedSwitch(
                         checked = assistant.localTools.contains(LocalToolOption.MediaScanner),
                         onCheckedChange = { toggleLocalTool(LocalToolOption.MediaScanner, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_download_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_download_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Download),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Download, it) },
-                    )
-                },
-            )
-        }
-
-        Text(
-            text = stringResource(R.string.assistant_page_local_tools_section_automation),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-        )
-        CardGroup {
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_cron_jobs_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_cron_jobs_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.CronJobs),
-                        onCheckedChange = { newValue ->
-                            toggleLocalTool(LocalToolOption.CronJobs, newValue)
-                            if (newValue && !cronToastShownThisVisit) {
-                                cronToastShownThisVisit = true
-                                toaster.show(cronHintText)
-                            }
-                        },
-                    )
-                },
-            )
-        }
-
-        Text(
-            text = stringResource(R.string.assistant_page_local_tools_section_files),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-        )
-        CardGroup {
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_files_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_files_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Files),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Files, it) },
-                        // MANAGE_EXTERNAL_STORAGE is a special "appop" permission. Without it,
-                        // File.listFiles() on shared storage paths only returns subdirectories
-                        // and the app's own creations — every pre-existing file is hidden.
-                        requiresAllFilesAccess = true,
                     )
                 },
             )
@@ -1305,6 +1190,130 @@ private fun AssistantLocalToolContent(
             )
             item(
                 headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_browser_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_browser_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.Browser),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Browser, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_web_fetch_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_web_fetch_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.WebFetch),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.WebFetch, it) },
+                    )
+                },
+            )
+        }
+
+        Text(
+            text = stringResource(R.string.assistant_page_local_tools_section_automation),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+        )
+        CardGroup {
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_cron_jobs_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_cron_jobs_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.CronJobs),
+                        onCheckedChange = { newValue ->
+                            toggleLocalTool(LocalToolOption.CronJobs, newValue)
+                            if (newValue && !cronToastShownThisVisit) {
+                                cronToastShownThisVisit = true
+                                toaster.show(cronHintText)
+                            }
+                        },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_workflows_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_workflows_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.Workflows),
+                        onCheckedChange = { newValue ->
+                            toggleLocalTool(LocalToolOption.Workflows, newValue)
+                            // Workflows depend on a mix of runtime grants the toggle itself
+                            // can't request (geofence needs background-location, notification
+                            // triggers need notification-listener, app-launch triggers need
+                            // accessibility, BT triggers need BLUETOOTH_CONNECT). Surface a
+                            // one-time hint at enable so the user knows what to grant when
+                            // they author a workflow whose trigger needs it.
+                            if (newValue && !workflowsDialogShownThisVisit) {
+                                workflowsDialogShownThisVisit = true
+                                showWorkflowsHintDialog = true
+                            }
+                        },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_sub_agents_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_sub_agents_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.SubAgents),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.SubAgents, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_skill_import_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_skill_import_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.SkillImport),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.SkillImport, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_js_skills_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_js_skills_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.JsSkills),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.JsSkills, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_mcp_control_title))
                 },
                 supportingContent = {
@@ -1347,20 +1356,6 @@ private fun AssistantLocalToolContent(
             )
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_sub_agents_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_sub_agents_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.SubAgents),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.SubAgents, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_cost_guards_title))
                 },
                 supportingContent = {
@@ -1373,107 +1368,164 @@ private fun AssistantLocalToolContent(
                     )
                 },
             )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_workflows_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_workflows_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Workflows),
-                        onCheckedChange = { newValue ->
-                            toggleLocalTool(LocalToolOption.Workflows, newValue)
-                            // Workflows depend on a mix of runtime grants the toggle itself
-                            // can't request (geofence needs background-location, notification
-                            // triggers need notification-listener, app-launch triggers need
-                            // accessibility, BT triggers need BLUETOOTH_CONNECT). Surface a
-                            // one-time hint at enable so the user knows what to grant when
-                            // they author a workflow whose trigger needs it.
-                            if (newValue && !workflowsDialogShownThisVisit) {
-                                workflowsDialogShownThisVisit = true
-                                showWorkflowsHintDialog = true
-                            }
-                        },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_skill_import_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_skill_import_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.SkillImport),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.SkillImport, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_js_skills_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_js_skills_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.JsSkills),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.JsSkills, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_system_intents_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_system_intents_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.SystemIntents),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.SystemIntents, it) },
-                    )
-                },
-            )
         }
 
         Text(
-            text = stringResource(R.string.assistant_page_local_tools_section_browser),
+            text = stringResource(R.string.assistant_page_local_tools_section_screen_automation),
             style = MaterialTheme.typography.titleSmall,
             modifier = Modifier.padding(start = 16.dp, top = 8.dp),
         )
         CardGroup {
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_browser_title))
+                    Text(stringResource(R.string.assistant_page_local_tools_screen_automation_title))
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_browser_desc))
+                    Text(stringResource(R.string.assistant_page_local_tools_screen_automation_desc))
                 },
                 trailingContent = {
                     PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Browser),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Browser, it) },
+                        checked = assistant.localTools.contains(LocalToolOption.ScreenAutomation),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.ScreenAutomation, it) },
+                        requiresAccessibilityService = true,
                     )
                 },
             )
             item(
                 headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_web_fetch_title))
+                    Text(stringResource(R.string.assistant_page_local_tools_app_launcher_title))
                 },
                 supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_web_fetch_desc))
+                    Text(stringResource(R.string.assistant_page_local_tools_app_launcher_desc))
                 },
                 trailingContent = {
                     PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.WebFetch),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.WebFetch, it) },
+                        checked = assistant.localTools.contains(LocalToolOption.AppLauncher),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.AppLauncher, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_termux_title))
+                },
+                supportingContent = {
+                    TermuxStatusRowSubtitle(
+                        enabled = assistant.localTools.contains(LocalToolOption.Termux),
+                    )
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.Termux),
+                        onCheckedChange = { newValue ->
+                            toggleLocalTool(LocalToolOption.Termux, newValue)
+                            if (newValue && !termuxDialogShownThisVisit) {
+                                // Skip the dialog if a recent successful verify proves the
+                                // property file is already in place — nothing new to teach.
+                                val recentlyVerified =
+                                    TermuxIntegration.lastVerifiedOkAtMs > 0 &&
+                                        (System.currentTimeMillis() - TermuxIntegration.lastVerifiedOkAtMs) <
+                                        24L * 60 * 60 * 1000
+                                if (!recentlyVerified) {
+                                    termuxDialogShownThisVisit = true
+                                    showTermuxPostGrantDialog = true
+                                }
+                            }
+                        },
+                        // Termux's RUN_COMMAND service is gated behind a dangerous-level
+                        // custom permission. Requesting it through the standard runtime flow
+                        // pops the system dialog so termux_run_command works without an adb
+                        // grant. If Termux is not installed the request silently no-ops.
+                        requiredRuntimePerms = listOf("com.termux.permission.RUN_COMMAND"),
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_keyboard_title))
+                },
+                supportingContent = {
+                    KeyboardStatusRowSubtitle()
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.KeyboardControl),
+                        onCheckedChange = { newValue ->
+                            toggleLocalTool(LocalToolOption.KeyboardControl, newValue)
+                            // One-time enable-time hint: the toggle can't install the
+                            // companion app or switch the active IME for the user.
+                            if (newValue && !keyboardDialogShownThisVisit) {
+                                keyboardDialogShownThisVisit = true
+                                showKeyboardSetupDialog = true
+                            }
+                        },
+                    )
+                },
+            )
+        }
+
+        // Hardware control section
+        Text(
+            text = stringResource(R.string.assistant_page_local_tools_section_hardware),
+            style = MaterialTheme.typography.titleSmall,
+            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
+        )
+        CardGroup {
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_torch_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_torch_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.Torch),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Torch, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_vibrate_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_vibrate_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.Vibrate),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Vibrate, it) },
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_brightness_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_brightness_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.Brightness),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Brightness, it) },
+                        requiresWriteSettings = true,
+                    )
+                },
+            )
+            item(
+                headlineContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_volume_title))
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.assistant_page_local_tools_volume_desc))
+                },
+                trailingContent = {
+                    PermissionedSwitch(
+                        checked = assistant.localTools.contains(LocalToolOption.Volume),
+                        onCheckedChange = { toggleLocalTool(LocalToolOption.Volume, it) },
+                        requiresDndAccess = true,
                     )
                 },
             )
@@ -1638,110 +1690,6 @@ private fun AssistantLocalToolContent(
             )
         }
 
-        Text(
-            text = stringResource(R.string.assistant_page_local_tools_section_screen_automation),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-        )
-        CardGroup {
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_screen_automation_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_screen_automation_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.ScreenAutomation),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.ScreenAutomation, it) },
-                        requiresAccessibilityService = true,
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_app_launcher_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_app_launcher_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.AppLauncher),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.AppLauncher, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_termux_title))
-                },
-                supportingContent = {
-                    TermuxStatusRowSubtitle(
-                        enabled = assistant.localTools.contains(LocalToolOption.Termux),
-                    )
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Termux),
-                        onCheckedChange = { newValue ->
-                            toggleLocalTool(LocalToolOption.Termux, newValue)
-                            if (newValue && !termuxDialogShownThisVisit) {
-                                // Skip the dialog if a recent successful verify proves the
-                                // property file is already in place — nothing new to teach.
-                                val recentlyVerified =
-                                    TermuxIntegration.lastVerifiedOkAtMs > 0 &&
-                                        (System.currentTimeMillis() - TermuxIntegration.lastVerifiedOkAtMs) <
-                                        24L * 60 * 60 * 1000
-                                if (!recentlyVerified) {
-                                    termuxDialogShownThisVisit = true
-                                    showTermuxPostGrantDialog = true
-                                }
-                            }
-                        },
-                        // Termux's RUN_COMMAND service is gated behind a dangerous-level
-                        // custom permission. Requesting it through the standard runtime flow
-                        // pops the system dialog so termux_run_command works without an adb
-                        // grant. If Termux is not installed the request silently no-ops.
-                        requiredRuntimePerms = listOf("com.termux.permission.RUN_COMMAND"),
-                    )
-                },
-            )
-        }
-
-        // Keyboard control section — drives the active text field through the co-signed
-        // agent-keyboard IME. Setup-dependent toggle: needs agent-keyboard installed AND
-        // set as the active keyboard, neither of which the toggle can perform itself.
-        Text(
-            text = stringResource(R.string.assistant_page_local_tools_section_keyboard),
-            style = MaterialTheme.typography.titleSmall,
-            modifier = Modifier.padding(start = 16.dp, top = 8.dp),
-        )
-        CardGroup {
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_keyboard_title))
-                },
-                supportingContent = {
-                    KeyboardStatusRowSubtitle()
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.KeyboardControl),
-                        onCheckedChange = { newValue ->
-                            toggleLocalTool(LocalToolOption.KeyboardControl, newValue)
-                            // One-time enable-time hint: the toggle can't install the
-                            // companion app or switch the active IME for the user.
-                            if (newValue && !keyboardDialogShownThisVisit) {
-                                keyboardDialogShownThisVisit = true
-                                showKeyboardSetupDialog = true
-                            }
-                        },
-                    )
-                },
-            )
-        }
     }
 }
 

@@ -182,10 +182,9 @@
   <string name="assistant_page_local_tools_perm_needed">الإذن مطلوب — انقر للمنح</string>
   <string name="assistant_page_local_tools_perm_special_dialog_message">تحتاج هذه الأداة إلى وصول للنظام. ستُنقل إلى صفحة إعدادات النظام لمنحه. عُد إلى هنا عند الانتهاء.</string>
   <string name="assistant_page_local_tools_perm_special_dialog_title">الإذن مطلوب</string>
-  <string name="assistant_page_local_tools_section_device_info">معلومات الجهاز</string>
   <string name="assistant_page_local_tools_section_existing">الأدوات المدمجة</string>
   <string name="assistant_page_local_tools_section_hardware">التحكم بالعتاد</string>
-  <string name="assistant_page_local_tools_section_media">الوسائط</string>
+  <string name="assistant_page_local_tools_section_media">الملفات والوسائط</string>
   <string name="assistant_page_local_tools_section_output">الإخراج</string>
   <string name="assistant_page_local_tools_sensors_desc">سرد مستشعرات الجهاز وقراءة عينات قصيرة (مقياس التسارع، الجيروسكوب، الضوء، إلخ).</string>
   <string name="assistant_page_local_tools_sensors_title">المستشعرات</string>
@@ -1256,7 +1255,7 @@
   <string name="assistant_page_local_tools_fingerprint_title">بصمة الإصبع</string>
   <string name="assistant_page_local_tools_fingerprint_desc">عرض مطالبة المقاييس الحيوية للنظام للتحقق من هوية المستخدم.</string>
   <string name="accessibility_service_summary">يتيح لـ RikkaHub Agents النقر والسحب والتمرير وقراءة محتوى الشاشة والتقاط لقطات شاشة عندما يستخدم النموذج اللغوي أدوات أتمتة الشاشة.</string>
-  <string name="assistant_page_local_tools_section_screen_automation">أتمتة الشاشة</string>
+  <string name="assistant_page_local_tools_section_screen_automation">الشاشة والطرفية</string>
   <string name="assistant_page_local_tools_screen_automation_title">أتمتة الشاشة</string>
   <string name="assistant_page_local_tools_screen_automation_desc">السماح للنموذج اللغوي بالنقر والسحب والتمرير وقراءة المحتوى المعروض على الشاشة والتقاط لقطات شاشة عبر خدمة إمكانية الوصول في Android.</string>
   <string name="assistant_page_local_tools_app_launcher_title">مشغّل التطبيقات</string>
@@ -1285,7 +1284,6 @@
   <string name="assistant_page_local_tools_termux_verify_unexpected">رد Termux لكن بإخراج غير متوقع: %1$s</string>
   <string name="assistant_page_local_tools_files_title">الملفات</string>
   <string name="assistant_page_local_tools_files_desc">قراءة الملفات وكتابتها وسردها والبحث فيها ونسخها ونقلها وحذفها.</string>
-  <string name="assistant_page_local_tools_section_files">مدير الملفات</string>
   <string name="assistant_page_local_tools_mcp_control_title">التحكم بـ MCP</string>
   <string name="assistant_page_local_tools_mcp_control_desc">السماح للمساعد بإضافة خوادم MCP وتعديلها وإزالتها. يمكن للمساعد تثبيت MCP في Termux أو على مضيف SSH بعيد، ثم ربطه بالتطبيق — دون أن تفتح الإعدادات.</string>
   <string name="assistant_page_local_tools_external_automation_title">الأتمتة الخارجية</string>
@@ -1449,7 +1447,6 @@
   <string name="relative_time_days_ago">قبل %1$d ي</string>
   <string name="setting_page_browser">المتصفح</string>
   <string name="setting_page_browser_desc">متصفح ويب مدفوع بالذكاء الاصطناعي وعارض مهارات.</string>
-  <string name="assistant_page_local_tools_section_browser">المتصفح</string>
   <string name="assistant_page_local_tools_browser_title">المتصفح</string>
   <string name="assistant_page_local_tools_browser_desc">متصفح ويب مدفوع بالذكاء الاصطناعي. 17 أداة قابلة للتفعيل بشكل فردي — كوّن وصول القراءة/الكتابة في الإعدادات → المتصفح.</string>
   <string name="setting_browser_title">المتصفح</string>
@@ -2412,7 +2409,6 @@
   <string name="assistant_page_only_tools_desc">تم إعداد %1$d. عند وجود عناصر يرى المساعد الأدوات المُدرجة فقط (تظل list_tools / get_tool_schema / ask_user متاحة دائمًا).</string>
   <string name="assistant_page_only_tools_dialog_desc">اسم أداة واحد في كل سطر (أو مفصولة بفواصل). استخدم الأسماء الدقيقة كما تظهر في list_tools. اتركه فارغًا لإلغاء القيد. القائمة الخاطئة قد تعطّل مهام أخرى — أفرغها للاستعادة. لا تعرف ماذا تضع؟ اطلب من المساعد إعداد القائمة — لكن المساعد لا يستطيع تعديل هذا الإعداد، فالصقها واحفظها بنفسك.</string>
   <string name="assistant_page_extra_cold_hint">مثال: ssh_upload\n     batch_copy</string>
-  <string name="assistant_page_local_tools_section_ai_diagnostics">تشخيص الذكاء الاصطناعي</string>
   <string name="assistant_page_local_tools_diagnostics_title">التشخيص والسجلات</string>
   <string name="assistant_page_local_tools_diagnostics_desc">صحة التطبيق ومعلومات البناء والسجلات والأعطال ودورة الحياة.</string>
   <string name="assistant_page_local_tools_app_health_title">تشخيص التطبيق</string>
@@ -2482,7 +2478,6 @@
   <string name="assistant_page_local_tools_nfc_desc">قراءة وكتابة سجلات NDEF على وسوم NFC. يلزم أن يكون التطبيق في المقدمة لاكتشاف الوسم.</string>
   <string name="assistant_page_local_tools_nfc_title">NFC</string>
   <string name="assistant_page_local_tools_nfc_unavailable">لا يوجد عتاد NFC في هذا الجهاز، لذا لا يمكن تفعيل هذه الأدوات.</string>
-  <string name="assistant_page_local_tools_section_keyboard">التحكم بلوحة المفاتيح</string>
   <string name="assistant_page_local_tools_section_privileged">أدوات مميّزة</string>
   <string name="assistant_page_local_tools_sms_send_desc">يرسل رسائل نصية برمجيًا. يلزم إذن SEND_SMS وموافقة في كل استدعاء.</string>
   <string name="assistant_page_local_tools_sms_send_title">إرسال الرسائل النصية</string>

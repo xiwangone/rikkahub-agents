@@ -1298,16 +1298,13 @@
   <string name="assistant_page_local_tools_screen_automation_desc">LLM이 Android 접근성 서비스를 통해 탭, 스와이프, 스크롤, 화면 내용 읽기, 스크린샷 촬영을 할 수 있도록 합니다.</string>
   <string name="assistant_page_local_tools_screen_automation_title">화면 자동화</string>
   <string name="assistant_page_local_tools_section_automation">자동화</string>
-  <string name="assistant_page_local_tools_section_browser">브라우저</string>
-  <string name="assistant_page_local_tools_section_device_info">기기 정보</string>
   <string name="assistant_page_local_tools_section_existing">기본 제공 도구</string>
-  <string name="assistant_page_local_tools_section_files">파일 관리자</string>
   <string name="assistant_page_local_tools_section_hardware">하드웨어 제어</string>
-  <string name="assistant_page_local_tools_section_media">미디어</string>
+  <string name="assistant_page_local_tools_section_media">파일 및 미디어</string>
   <string name="assistant_page_local_tools_section_network">네트워크</string>
   <string name="assistant_page_local_tools_section_output">출력</string>
   <string name="assistant_page_local_tools_section_personal_data">개인 데이터</string>
-  <string name="assistant_page_local_tools_section_screen_automation">화면 자동화</string>
+  <string name="assistant_page_local_tools_section_screen_automation">화면 및 터미널</string>
   <string name="assistant_page_local_tools_sensors_desc">기기 센서를 나열하고 짧은 샘플을 읽습니다(가속도계, 자이로스코프, 조도 등).</string>
   <string name="assistant_page_local_tools_sensors_title">센서</string>
   <string name="assistant_page_local_tools_share_desc">시스템 공유 시트를 열어 텍스트나 URL을 다른 앱으로 보냅니다.</string>
@@ -2768,7 +2765,6 @@
   <string name="assistant_page_only_tools_desc">%1$d개 설정됨. 비어 있지 않으면 어시스턴트는 목록의 도구만 봅니다(list_tools / get_tool_schema / ask_user는 항상 유지).</string>
   <string name="assistant_page_only_tools_dialog_desc">한 줄에 도구 이름 하나(쉼표 구분도 가능). list_tools에 표시된 정확한 이름을 사용하세요. 비우면 제한이 해제됩니다. 잘못 입력하면 다른 작업이 막힐 수 있으며 비우면 복구됩니다. 무엇을 넣을지 모르겠다면 대화에서 어시스턴트에게 목록을 만들어 달라고 하세요 — 다만 어시스턴트는 이 설정을 변경할 수 없으므로 직접 붙여넣고 저장하세요.</string>
   <string name="assistant_page_extra_cold_hint">예: ssh_upload\n     batch_copy</string>
-  <string name="assistant_page_local_tools_section_ai_diagnostics">AI 진단</string>
   <string name="assistant_page_local_tools_diagnostics_title">진단 및 로그</string>
   <string name="assistant_page_local_tools_diagnostics_desc">앱 상태, 빌드 정보, 로그, 충돌, 수명주기 기록.</string>
   <string name="assistant_page_local_tools_app_health_title">앱 진단</string>
@@ -2838,7 +2834,6 @@
   <string name="assistant_page_local_tools_nfc_desc">NFC 태그의 NDEF 레코드를 읽고 씁니다. 태그 감지에는 앱이 포그라운드에 있어야 합니다.</string>
   <string name="assistant_page_local_tools_nfc_title">NFC</string>
   <string name="assistant_page_local_tools_nfc_unavailable">이 기기에는 NFC 하드웨어가 없어 이 도구들을 사용할 수 없습니다.</string>
-  <string name="assistant_page_local_tools_section_keyboard">키보드 제어</string>
   <string name="assistant_page_local_tools_section_privileged">특권 도구</string>
   <string name="assistant_page_local_tools_sms_send_desc">프로그래밍 방식으로 문자를 전송합니다. SEND_SMS 권한이 필요합니다. 호출마다 승인이 필요합니다.</string>
   <string name="assistant_page_local_tools_sms_send_title">문자 보내기</string>
