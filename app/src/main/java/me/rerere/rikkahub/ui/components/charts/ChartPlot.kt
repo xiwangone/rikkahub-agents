@@ -334,5 +334,9 @@ private fun DrawScope.drawArea(
         fill.close()
         drawPath(fill, color.copy(alpha = 0.22f))
         drawPath(line, color, style = stroke)
+        // 单点时填充与折线都退化为零面积, 补一个圆点, 与折线图的行为保持一致
+        if (series.values.size == 1) {
+            drawCircle(color, 3.dp.toPx(), Offset(plot.left + slot * 0.5f, yToPx(series.values[0])))
+        }
     }
 }
