@@ -165,6 +165,44 @@ class ModelRegistryTest {
         assertEquals(toolReasoning, ModelRegistry.MODEL_ABILITIES.getData("mimo-v2.5"))
     }
 
+    /** 把外部目录的来源换成空实现，供用例在 finally 里还原全局单例。 */
+    private fun installEmptyCatalog() {
+        ModelCatalogBridge.install(
+            object : ModelCatalogBridge.Provider {
+                override fun inputModalities(modelId: String) = null
+                override fun outputModalities(modelId: String) = null
+                override fun abilities(modelId: String) = null
+            },
+        )
+    }
+
+    @Test
+    fun testCatalogBridgeMergesCapabilitiesWithBuiltinRegistry() {
+        // 内置表命中时，目录若声明了内置没有的能力，应取并集补上（防“宽泛规则吃掉新版本”）。
+        ModelCatalogBridge.install(
+            object : ModelCatalogBridge.Provider {
+                override fun inputModalities(modelId: String) =
+                    if (modelId == "mimo-v2.5-pro") setOf(Modality.TEXT, Modality.IMAGE) else null
+
+                override fun outputModalities(modelId: String) = null
+
+                override fun abilities(modelId: String) =
+                    if (modelId == "mimo-v2.5-pro") setOf(ModelAbility.TOOL, ModelAbility.REASONING) else null
+            },
+        )
+        try {
+            // 内置表说 v2.5-pro 是 text-only，目录说有 image → 并集后应有 image
+            assertEquals(
+                listOf(Modality.TEXT, Modality.IMAGE),
+                ModelRegistry.MODEL_INPUT_MODALITIES.getData("mimo-v2.5-pro"),
+            )
+            // 未命中的模型：目录置空时应退回默认纯文本
+            assertEquals(listOf(Modality.TEXT), ModelRegistry.MODEL_INPUT_MODALITIES.getData("some-unknown-model"))
+        } finally {
+            installEmptyCatalog()
+        }
+    }
+
     @Test
     fun testDeepseekV4() {
         val reasonerAbilities = ModelRegistry.MODEL_ABILITIES.getData("deepseek-reasoner")

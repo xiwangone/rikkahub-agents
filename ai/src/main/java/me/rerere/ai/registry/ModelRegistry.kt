@@ -794,38 +794,36 @@ object ModelRegistry {
         QWEN_MT
     )
 
+    /**
+     * 能力解析口径（2026-10-02 改）：**内置登记表与外部目录取并集**。
+     *
+     * 为什么不是“内置命中就完全跳过目录”：内置规则是 token 匹配且允许跳号，
+     * 存在**宽泛规则吃掉新版本**的情况（实例：`mimo-v2` 会匹配 `mimo-v2.6-flash`，
+     * 于是新版本沿用 v2 的能力、漏掉视觉）。目录来自公开模型目录、模态信息更精确，
+     * 取并集可避免“新模型漏标能力”，而内置表已有的能力不会被目录覆盖掉。
+     */
     val MODEL_INPUT_MODALITIES = ModelData { modelId ->
-        if (resolveModels(modelId).isNotEmpty()) {
-            // 内置登记表命中：人工核实过，优先
-            resolveModalities(modelId) { it.inputModalities }
-        } else {
-            // 未登记：交给外部能力目录（若已注入），再不行退回默认
-            ModelCatalogBridge.inputModalities(modelId)?.toList()
-                ?: resolveModalities(modelId) { it.inputModalities }
+        val merged = buildSet {
+            addAll(resolveModalities(modelId) { it.inputModalities })
+            addAll(ModelCatalogBridge.inputModalities(modelId).orEmpty())
         }
+        listOf(Modality.TEXT, Modality.IMAGE).filter { it in merged }
     }
 
     val MODEL_OUTPUT_MODALITIES = ModelData { modelId ->
-        if (resolveModels(modelId).isNotEmpty()) {
-            resolveModalities(modelId) { it.outputModalities }
-        } else {
-            ModelCatalogBridge.outputModalities(modelId)?.toList()
-                ?: resolveModalities(modelId) { it.outputModalities }
+        val merged = buildSet {
+            addAll(resolveModalities(modelId) { it.outputModalities })
+            addAll(ModelCatalogBridge.outputModalities(modelId).orEmpty())
         }
+        listOf(Modality.TEXT, Modality.IMAGE).filter { it in merged }
     }
 
     val MODEL_ABILITIES = ModelData { modelId ->
-        val matched = resolveModels(modelId)
-        if (matched.isEmpty()) {
-            // 未登记：交给外部能力目录，再不行即无额外能力
-            ModelCatalogBridge.abilities(modelId)?.toList() ?: emptyList()
-        } else {
-            val abilities = matched.flatMap { it.abilities }.toSet()
-            buildList {
-                if (ModelAbility.TOOL in abilities) add(ModelAbility.TOOL)
-                if (ModelAbility.REASONING in abilities) add(ModelAbility.REASONING)
-            }
+        val merged = buildSet {
+            addAll(resolveModels(modelId).flatMap { it.abilities })
+            addAll(ModelCatalogBridge.abilities(modelId).orEmpty())
         }
+        listOf(ModelAbility.TOOL, ModelAbility.REASONING).filter { it in merged }
     }
 
     val MODEL_CONTEXT_LENGTH = ModelData { modelId ->
