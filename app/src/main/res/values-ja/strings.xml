@@ -128,6 +128,9 @@
   <string name="assistant_page_select_from_gallery">ギャラリーから選択</string>
   <string name="assistant_page_stream_output">ストリーミング出力</string>
   <string name="assistant_page_stream_output_desc">メッセージをストリーミング出力するかどうか</string>
+  <string name="assistant_page_stream_idle_timeout">ストリームアイドル監視</string>
+  <string name="assistant_page_stream_idle_timeout_desc">%1$d 秒間新しいデータが来ない場合は中断して再試行</string>
+  <string name="assistant_page_stream_idle_timeout_off">無効</string>
   <string name="assistant_page_strict">厳密</string>
   <string name="assistant_page_system_prompt">システムプロンプト</string>
   <string name="assistant_page_tab_basic">基本設定</string>

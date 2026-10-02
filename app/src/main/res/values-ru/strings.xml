@@ -128,6 +128,9 @@
   <string name="assistant_page_select_from_gallery">Выбрать из галереи</string>
   <string name="assistant_page_stream_output">Потоковый вывод</string>
   <string name="assistant_page_stream_output_desc">Включить потоковый вывод сообщений</string>
+  <string name="assistant_page_stream_idle_timeout">Контроль простоя потока</string>
+  <string name="assistant_page_stream_idle_timeout_desc">Прервать и повторить, если данных нет %1$d с</string>
+  <string name="assistant_page_stream_idle_timeout_off">Отключено</string>
   <string name="assistant_page_strict">Строгий</string>
   <string name="assistant_page_system_prompt">Системный промпт</string>
   <string name="assistant_page_tab_basic">Основные настройки</string>

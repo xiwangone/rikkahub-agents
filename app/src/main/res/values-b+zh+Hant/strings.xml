@@ -124,6 +124,9 @@
   <string name="assistant_page_select_from_gallery">從相簿選擇</string>
   <string name="assistant_page_stream_output">串流輸出</string>
   <string name="assistant_page_stream_output_desc">是否啟用訊息的串流輸出</string>
+  <string name="assistant_page_stream_idle_timeout">串流閒置看門狗</string>
+  <string name="assistant_page_stream_idle_timeout_desc">超過 %1$d 秒沒有新資料則中斷並重試</string>
+  <string name="assistant_page_stream_idle_timeout_off">已關閉</string>
   <string name="assistant_page_strict">嚴謹</string>
   <string name="assistant_page_system_prompt">系統提示詞</string>
   <string name="assistant_page_tab_basic">基本設定</string>

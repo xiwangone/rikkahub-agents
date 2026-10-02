@@ -196,6 +196,9 @@
   <string name="assistant_page_select_from_gallery">从相册选择</string>
   <string name="assistant_page_stream_output">流式输出</string>
   <string name="assistant_page_stream_output_desc">是否启用消息的流式输出</string>
+  <string name="assistant_page_stream_idle_timeout">流式空闲看门狗</string>
+  <string name="assistant_page_stream_idle_timeout_desc">超过 %1$d 秒没有新数据则中断并重试</string>
+  <string name="assistant_page_stream_idle_timeout_off">已关闭</string>
   <string name="assistant_page_strict">严谨</string>
   <string name="assistant_page_system_prompt">系统提示词</string>
   <string name="assistant_page_tab_basic">基础设定</string>

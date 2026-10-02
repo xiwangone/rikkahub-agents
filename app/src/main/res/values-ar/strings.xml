@@ -243,6 +243,9 @@
   <string name="assistant_page_select_from_gallery">الاختيار من المعرض</string>
   <string name="assistant_page_stream_output">إخراج متدفق</string>
   <string name="assistant_page_stream_output_desc">ما إذا كان سيُمكَّن الإخراج المتدفق للرسائل</string>
+  <string name="assistant_page_stream_idle_timeout">مراقب خمول البث</string>
+  <string name="assistant_page_stream_idle_timeout_desc">إيقاف وإعادة المحاولة عند عدم وصول بيانات لمدة %1$d ثانية</string>
+  <string name="assistant_page_stream_idle_timeout_off">معطّل</string>
   <string name="assistant_page_strict">صارم</string>
   <string name="assistant_page_system_prompt">توجيه النظام</string>
   <string name="assistant_page_tab_basic">الإعدادات الأساسية</string>

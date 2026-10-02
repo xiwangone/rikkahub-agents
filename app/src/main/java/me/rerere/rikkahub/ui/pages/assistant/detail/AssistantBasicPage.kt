@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -694,6 +695,40 @@ internal fun AssistantBasicContent(
                                 ),
                             )
                         },
+                    )
+                },
+            )
+            HorizontalDivider()
+            FormItem(
+                modifier = Modifier.padding(8.dp),
+                label = {
+                    Text(stringResource(R.string.assistant_page_stream_idle_timeout))
+                },
+                description = {
+                    Text(
+                        if (assistant.streamIdleTimeoutMs <= 0L) {
+                            stringResource(R.string.assistant_page_stream_idle_timeout_off)
+                        } else {
+                            stringResource(
+                                R.string.assistant_page_stream_idle_timeout_desc,
+                                (assistant.streamIdleTimeoutMs / 1000L).toInt(),
+                            )
+                        }
+                    )
+                },
+                tail = {
+                    Slider(
+                        value = (assistant.streamIdleTimeoutMs / 1000L).toFloat(),
+                        onValueChange = { v ->
+                            onUpdate(
+                                assistant.copy(
+                                    streamIdleTimeoutMs = v.roundToInt().toLong() * 1000L,
+                                ),
+                            )
+                        },
+                        valueRange = 0f..300f,
+                        steps = 9,
+                        modifier = Modifier.width(160.dp),
                     )
                 },
             )

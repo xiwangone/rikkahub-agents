@@ -128,6 +128,9 @@
   <string name="assistant_page_select_from_gallery">갤러리에서 선택</string>
   <string name="assistant_page_stream_output">스트리밍 출력</string>
   <string name="assistant_page_stream_output_desc">메시지 스트리밍 출력 활성화 여부</string>
+  <string name="assistant_page_stream_idle_timeout">스트림 유휴 감시</string>
+  <string name="assistant_page_stream_idle_timeout_desc">%1$d초 동안 새 데이터가 없으면 중단하고 재시도</string>
+  <string name="assistant_page_stream_idle_timeout_off">사용 안 함</string>
   <string name="assistant_page_strict">정밀</string>
   <string name="assistant_page_system_prompt">시스템 프롬프트</string>
   <string name="assistant_page_tab_basic">기본 설정</string>

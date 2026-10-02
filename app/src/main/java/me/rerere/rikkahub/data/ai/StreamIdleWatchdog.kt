@@ -19,38 +19,43 @@ class StreamIdleTimeoutException(
     val idleMs: Long,
 ) : IllegalStateException("Stream idle for more than ${idleMs}ms; aborted by watchdog")
 
-/** 空闲阈值：60–90s 口径（排期 §八）。单 chunk 间隔超过即判卡死。 */
-const val DEFAULT_STREAM_IDLE_MS = 90_000L
+/** 空闲阈值默认值：120s（助手基础设定可按助手覆盖；0 = 关闭）。 */
+const val DEFAULT_STREAM_IDLE_MS = 120_000L
 
 private const val IDLE_POLL_INTERVAL_MS = 5_000L
 
 /**
  * 单 chunk 间隔超过 [idleMs] 时中断流；时钟与轮询间隔可注入（测试用虚拟时间）。
+ *
+ * [idleMs] <= 0 表示**关闭看门狗**：直接透传原流，不引入哨兵协程与轮询开销。
  */
 fun <T> Flow<T>.withIdleWatchdog(
     idleMs: Long = DEFAULT_STREAM_IDLE_MS,
     clock: () -> Long = System::currentTimeMillis,
     pollMs: Long = IDLE_POLL_INTERVAL_MS,
-): Flow<T> = channelFlow {
-    val lastChunkAt = AtomicLong(clock())
-    val sentinel = launch {
-        while (true) {
-            delay(pollMs)
-            val idle = clock() - lastChunkAt.get()
-            if (idle > idleMs) {
-                close(StreamIdleTimeoutException(idle))
-                return@launch
+): Flow<T> {
+    if (idleMs <= 0L) return this
+    return channelFlow {
+        val lastChunkAt = AtomicLong(clock())
+        val sentinel = launch {
+            while (true) {
+                delay(pollMs)
+                val idle = clock() - lastChunkAt.get()
+                if (idle > idleMs) {
+                    close(StreamIdleTimeoutException(idle))
+                    return@launch
+                }
             }
         }
-    }
-    try {
-        collect { chunk ->
-            lastChunkAt.set(clock())
-            send(chunk)
+        try {
+            collect { chunk ->
+                lastChunkAt.set(clock())
+                send(chunk)
+            }
+        } finally {
+            // 被包裹的 Flow 完成/异常时取消定时检查协程：producer scope 完成会等待子协程，
+            // while(true) 不退出则 collect 永远不结束，调用方 toList/collect 永挂
+            sentinel.cancel()
         }
-    } finally {
-        // 被包裹的 Flow 完成/异常时取消定时检查协程：producer scope 完成会等待子协程，
-        // while(true) 不退出则 collect 永远不结束，调用方 toList/collect 永挂
-        sentinel.cancel()
     }
 }
