@@ -48,6 +48,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.MultiChoiceSegmentedButtonRow
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -81,12 +82,16 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFilter
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.CoroutineScope
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Modality
@@ -149,6 +154,7 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
 import me.rerere.hugeicons.stroke.MagicWand01
+import me.rerere.rikkahub.data.ai.catalog.ModelCatalogRepository
 
 @Composable
 fun SettingProviderDetailPage(
@@ -512,10 +518,18 @@ private fun ModelList(
     onSelectedIdsChange: (Set<Uuid>) -> Unit,
 ) {
     val providerManager = koinInject<ProviderManager>()
+    val catalog = koinInject<ModelCatalogRepository>()
     val toaster = LocalToaster.current
     val context = LocalContext.current
+    val scope = rememberCoroutineScope()
     // 资源在组合期取好：回调里再读 LocalContext 的配置值会被 Lint 判为"非配置感知"
     val matchedDoneFormat = stringResource(R.string.setting_provider_page_match_abilities_done)
+    val refreshDoneFormat = stringResource(R.string.setting_provider_page_refresh_catalog_done)
+    val refreshFailedFormat = stringResource(R.string.setting_provider_page_refresh_catalog_failed)
+    val catalogStatusFormat = stringResource(R.string.setting_provider_page_catalog_status)
+    // 目录状态：条目数与上次更新时间（可能随刷新变化，故用可变状态）
+    var catalogStatus by remember { mutableStateOf(catalog.status()) }
+    var refreshing by remember { mutableStateOf(false) }
     val modelList by produceState(emptyList(), providerSetting) {
         runCatching {
             value =
@@ -558,14 +572,47 @@ private fun ModelList(
             verticalArrangement = Arrangement.spacedBy(8.dp),
             state = lazyListState,
         ) {
-            // 「匹配」：用现有能力表（内置登记表 + 已缓存目录）回填模型能力，纯本地操作
+            // 「匹配 / 刷新」：匹配 = 用现有能力表回填当前页面的模型（纯本地）；
+            // 刷新 = 联网拉最新能力目录后再匹配（只影响本页面这些模型）。
             if (providerSetting.models.isNotEmpty()) {
+                item {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        Text(
+                            text = catalogStatusFormat.format(catalogStatus.entryCount, formatCatalogTime(catalogStatus.updatedAtMs)),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            textAlign = TextAlign.End,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
                 item {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        OutlinedButton(
+                            enabled = !refreshing,
+                            onClick = {
+                                refreshing = true
+                                scope.launch {
+                                    val result = catalog.refresh()
+                                    catalogStatus = catalog.status()
+                                    refreshing = false
+                                    toaster.show(
+                                        result.fold(
+                                            onSuccess = { refreshDoneFormat.format(it) },
+                                            onFailure = { refreshFailedFormat.format(it.message ?: "") },
+                                        ),
+                                    )
+                                }
+                            },
+                            modifier = Modifier.padding(end = 8.dp),
+                        ) {
+                            Icon(HugeIcons.Refresh03, contentDescription = null)
+                            Text(stringResource(R.string.setting_provider_page_refresh_catalog))
+                        }
                         Button(
                             onClick = {
                                 var changed = 0
@@ -1887,4 +1934,12 @@ private fun Model.enrichCapabilities(): Model =
             outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(modelId),
             abilities = ModelRegistry.MODEL_ABILITIES.getData(modelId),
         )
+    }
+
+/** 目录上次更新时间：时间戳为 0 表示尚未拉取，显示占位。 */
+private fun formatCatalogTime(ms: Long): String =
+    if (ms <= 0L) {
+        "—"
+    } else {
+        SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(ms))
     }

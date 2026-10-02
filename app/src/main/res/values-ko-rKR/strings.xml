@@ -3334,6 +3334,10 @@
   <string name="workspace_detail_saved_rootfs_urls">저장된 URL</string>
   <string name="setting_provider_page_match_abilities">기능 매칭</string>
   <string name="setting_provider_page_match_abilities_done">모델 %1$d개의 기능을 업데이트했습니다</string>
+  <string name="setting_provider_page_refresh_catalog">카탈로그 새로 고침</string>
+  <string name="setting_provider_page_refresh_catalog_done">카탈로그를 새로 고쳤습니다: %1$d개</string>
+  <string name="setting_provider_page_refresh_catalog_failed">새로 고침 실패: %1$s</string>
+  <string name="setting_provider_page_catalog_status">카탈로그: %1$d개 · %2$s 업데이트</string>
   <string name="workspace_detail_export_folder">폴더 내보내기</string>
   <string name="workspace_detail_export_folder_done">파일 %1$d개 내보냄, 실패 %2$d개</string>
   <string name="chat_page_compress_model_unavailable">압축에 사용할 모델이 없습니다. 설정에서 압축 모델을 지정하거나 제공자를 활성화하세요.</string>

@@ -3381,6 +3381,10 @@
   <string name="setting_update_reminder_resume_now">立即恢复</string>
   <string name="setting_provider_page_match_abilities">匹配能力</string>
   <string name="setting_provider_page_match_abilities_done">已更新 %1$d 个模型的能力</string>
+  <string name="setting_provider_page_refresh_catalog">刷新目录</string>
+  <string name="setting_provider_page_refresh_catalog_done">目录已刷新：%1$d 条</string>
+  <string name="setting_provider_page_refresh_catalog_failed">刷新失败：%1$s</string>
+  <string name="setting_provider_page_catalog_status">目录：%1$d 条 · %2$s 更新</string>
   <string name="workspace_detail_export_folder">导出文件夹</string>
   <string name="workspace_detail_export_folder_done">已导出 %1$d 个文件，失败 %2$d 个</string>
   <string name="chat_page_compress_model_unavailable">没有可用于压缩的模型：请在设置中指定压缩模型，或启用一个提供商。</string>

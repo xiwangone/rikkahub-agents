@@ -3334,6 +3334,10 @@
   <string name="workspace_detail_saved_rootfs_urls">保存済み URL</string>
   <string name="setting_provider_page_match_abilities">能力を照合</string>
   <string name="setting_provider_page_match_abilities_done">%1$d 件のモデルの能力を更新しました</string>
+  <string name="setting_provider_page_refresh_catalog">カタログを更新</string>
+  <string name="setting_provider_page_refresh_catalog_done">カタログを更新しました：%1$d 件</string>
+  <string name="setting_provider_page_refresh_catalog_failed">更新に失敗：%1$s</string>
+  <string name="setting_provider_page_catalog_status">カタログ：%1$d 件 · %2$s 更新</string>
   <string name="workspace_detail_export_folder">フォルダを書き出す</string>
   <string name="workspace_detail_export_folder_done">%1$d 件を書き出しました（失敗 %2$d 件）</string>
   <string name="chat_page_compress_model_unavailable">圧縮に使えるモデルがありません。設定で圧縮モデルを指定するか、プロバイダーを有効にしてください。</string>

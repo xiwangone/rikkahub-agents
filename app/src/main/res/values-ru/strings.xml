@@ -3334,6 +3334,10 @@
   <string name="workspace_detail_saved_rootfs_urls">Сохранённые URL</string>
   <string name="setting_provider_page_match_abilities">Сопоставить</string>
   <string name="setting_provider_page_match_abilities_done">Сопоставлено: обновлено %1$d модели(ей)</string>
+  <string name="setting_provider_page_refresh_catalog">Обновить каталог</string>
+  <string name="setting_provider_page_refresh_catalog_done">Каталог обновлён: %1$d записей</string>
+  <string name="setting_provider_page_refresh_catalog_failed">Не удалось обновить: %1$s</string>
+  <string name="setting_provider_page_catalog_status">Каталог: %1$d записей · обновлено %2$s</string>
   <string name="workspace_detail_export_folder">Экспорт папки</string>
   <string name="workspace_detail_export_folder_done">Экспортировано файлов: %1$d, ошибок: %2$d</string>
   <string name="chat_page_compress_model_unavailable">Нет модели для сжатия. Укажите модель сжатия в настройках или включите провайдера.</string>

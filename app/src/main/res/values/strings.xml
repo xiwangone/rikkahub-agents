@@ -3381,6 +3381,10 @@
 
   <string name="setting_provider_page_match_abilities">Match abilities</string>
   <string name="setting_provider_page_match_abilities_done">Matched: updated %1$d model(s)</string>
+  <string name="setting_provider_page_refresh_catalog">Refresh catalog</string>
+  <string name="setting_provider_page_refresh_catalog_done">Catalog refreshed: %1$d entries</string>
+  <string name="setting_provider_page_refresh_catalog_failed">Refresh failed: %1$s</string>
+  <string name="setting_provider_page_catalog_status">Catalog: %1$d entries · updated %2$s</string>
   <string name="workspace_detail_export_folder">Export folder</string>
   <string name="workspace_detail_export_folder_done">Exported %1$d file(s), %2$d failed</string>
   <string name="chat_page_compress_model_unavailable">No usable model for compression. Pick a compression model in Settings, or enable a provider.</string>
