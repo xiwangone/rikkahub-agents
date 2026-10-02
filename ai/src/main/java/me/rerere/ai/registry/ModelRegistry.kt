@@ -803,27 +803,43 @@ object ModelRegistry {
      * 取并集可避免“新模型漏标能力”，而内置表已有的能力不会被目录覆盖掉。
      */
     val MODEL_INPUT_MODALITIES = ModelData { modelId ->
-        val merged = buildSet {
-            addAll(resolveModalities(modelId) { it.inputModalities })
-            addAll(ModelCatalogBridge.inputModalities(modelId).orEmpty())
+        val override = ModelCatalogBridge.overrideInputModalities(modelId)
+        if (override != null) {
+            // 外置表（人工可编辑）命中：直接采用 —— 并集只能"补"，覆盖才能"纠错"
+            listOf(Modality.TEXT, Modality.IMAGE).filter { it in override }
+        } else {
+            val merged = buildSet {
+                addAll(resolveModalities(modelId) { it.inputModalities })
+                addAll(ModelCatalogBridge.inputModalities(modelId).orEmpty())
+            }
+            listOf(Modality.TEXT, Modality.IMAGE).filter { it in merged }
         }
-        listOf(Modality.TEXT, Modality.IMAGE).filter { it in merged }
     }
 
     val MODEL_OUTPUT_MODALITIES = ModelData { modelId ->
-        val merged = buildSet {
-            addAll(resolveModalities(modelId) { it.outputModalities })
-            addAll(ModelCatalogBridge.outputModalities(modelId).orEmpty())
+        val override = ModelCatalogBridge.overrideOutputModalities(modelId)
+        if (override != null) {
+            listOf(Modality.TEXT, Modality.IMAGE).filter { it in override }
+        } else {
+            val merged = buildSet {
+                addAll(resolveModalities(modelId) { it.outputModalities })
+                addAll(ModelCatalogBridge.outputModalities(modelId).orEmpty())
+            }
+            listOf(Modality.TEXT, Modality.IMAGE).filter { it in merged }
         }
-        listOf(Modality.TEXT, Modality.IMAGE).filter { it in merged }
     }
 
     val MODEL_ABILITIES = ModelData { modelId ->
-        val merged = buildSet {
-            addAll(resolveModels(modelId).flatMap { it.abilities })
-            addAll(ModelCatalogBridge.abilities(modelId).orEmpty())
+        val override = ModelCatalogBridge.overrideAbilities(modelId)
+        if (override != null) {
+            listOf(ModelAbility.TOOL, ModelAbility.REASONING).filter { it in override }
+        } else {
+            val merged = buildSet {
+                addAll(resolveModels(modelId).flatMap { it.abilities })
+                addAll(ModelCatalogBridge.abilities(modelId).orEmpty())
+            }
+            listOf(ModelAbility.TOOL, ModelAbility.REASONING).filter { it in merged }
         }
-        listOf(ModelAbility.TOOL, ModelAbility.REASONING).filter { it in merged }
     }
 
     val MODEL_CONTEXT_LENGTH = ModelData { modelId ->

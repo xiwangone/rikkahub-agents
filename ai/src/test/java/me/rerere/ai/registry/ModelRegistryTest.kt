@@ -204,6 +204,34 @@ class ModelRegistryTest {
     }
 
     @Test
+    fun testCatalogBridgeOverrideTakesPrecedenceOverBuiltin() {
+        // 外置表（覆盖层）命中时直接采用，不再与内置表取并集：
+        // 内置表说 mimo-v2.5 支持图像，外置表说只支持文本 → 应得 text-only（能“纠错”）
+        ModelCatalogBridge.install(
+            object : ModelCatalogBridge.Provider {
+                override fun inputModalities(modelId: String) = null
+
+                override fun outputModalities(modelId: String) = null
+
+                override fun abilities(modelId: String) = null
+
+                override fun overrideInputModalities(modelId: String) =
+                    if (modelId == "mimo-v2.5") setOf(Modality.TEXT) else null
+            },
+        )
+        try {
+            assertEquals(listOf(Modality.TEXT), ModelRegistry.MODEL_INPUT_MODALITIES.getData("mimo-v2.5"))
+            // 未命中的模型仍走内置表（不受覆盖层影响）
+            assertEquals(
+                listOf(Modality.TEXT, Modality.IMAGE),
+                ModelRegistry.MODEL_INPUT_MODALITIES.getData("mimo-v2.6-flash"),
+            )
+        } finally {
+            installEmptyCatalog()
+        }
+    }
+
+    @Test
     fun testDeepseekV4() {
         val reasonerAbilities = ModelRegistry.MODEL_ABILITIES.getData("deepseek-reasoner")
         assertEquals(
