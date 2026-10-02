@@ -1602,7 +1602,9 @@ private suspend fun resolveLxcDebianRootfs(): String? =
     withContext(Dispatchers.IO) {
         val bases =
             listOf(
-                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian",
+                // 2026-10-02 核实：清华镜像虽有 lxc-images，但该分支下 rootfs.tar.xz 返回 404（同步不全）；
+                // 南大镜像目录完整且 rootfs.tar.xz 为 200，官方源 302→200 作兜底。
+                "https://mirror.nju.edu.cn/lxc-images/images/debian",
                 "https://images.linuxcontainers.org/images/debian",
             )
         val stamp = Regex("""href="(\d{8}_\d{2}(?:%3A|:)\d{2})/"""")
@@ -1632,7 +1634,7 @@ private suspend fun resolveLxcDebianRootfs(): String? =
     }
 
 /**
- * 预置 rootfs 源：均已在移动网络下实测可达（GitHub 系地址不可达，勿加入）。
+ * 预置 rootfs 源：均已在移动网络下核验可达（GitHub 系地址不可达，勿加入）。
  *
  * 地址按设备 ABI 选择。⚠ Debian 取自 LXC 镜像站，路径含构建日期：点击时会在线解析最新目录，
  * 此处只是解析失败时的离线兜底，日期滚动后如兜底失效需更新。
@@ -1652,8 +1654,8 @@ private val PRESET_ROOTFS_URLS: List<PresetRootfsUrl>
             ),
             presetRootfs(
                 "Debian 13 trixie base",
-                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian/trixie/arm64/default/20260927_05:24/rootfs.tar.xz",
-                "https://mirrors.tuna.tsinghua.edu.cn/lxc-images/images/debian/trixie/amd64/default/20260927_05:24/rootfs.tar.xz",
+                "https://mirror.nju.edu.cn/lxc-images/images/debian/trixie/arm64/default/20261001_05:24/rootfs.tar.xz",
+                "https://mirror.nju.edu.cn/lxc-images/images/debian/trixie/amd64/default/20261001_05:24/rootfs.tar.xz",
                 lxcDebian = true,
             ),
             presetRootfs(
