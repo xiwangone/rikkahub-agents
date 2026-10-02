@@ -32,8 +32,8 @@ android {
         applicationId = "excp.rikkahub.agents"
         minSdk = 26
         targetSdk = 37
-        versionCode = 229
-        versionName = "2.49.0"
+        versionCode = 230
+        versionName = "2.49.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
@@ -404,7 +404,7 @@ dependencies {
     // tests
     testImplementation(libs.junit)
     // Robolectric：在 host JVM（PC）上跑 Android framework 相关逻辑——WebView 回调、文件落盘、Log，
-    // 不必上真机/模拟器。用 @Config(sdk = [34]) 钉住 android-all 镜像版本。
+    // 不必连设备或模拟器。用 @Config(sdk = [34]) 钉住 android-all 镜像版本。
     testImplementation(libs.robolectric)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
