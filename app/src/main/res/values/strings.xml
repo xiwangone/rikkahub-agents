@@ -995,6 +995,9 @@
   <string name="setting_model_page_capability_import_failed">Import failed: invalid JSON</string>
   <string name="setting_model_page_capability_exported">Exported</string>
   <string name="setting_model_page_capability_export_failed">Export failed</string>
+  <string name="setting_model_page_capability_clear">Clear local table</string>
+  <string name="setting_model_page_capability_cleared">Local table cleared</string>
+  <string name="setting_model_page_capability_clear_failed">Clear failed</string>
   <string name="setting_model_page_compress_prompt_vars">Variables: {content}, {target_tokens}, {additional_context}</string>
   <string name="setting_model_page_prompt">Prompt</string>
   <string name="setting_model_page_reset_to_default">Reset to default</string>

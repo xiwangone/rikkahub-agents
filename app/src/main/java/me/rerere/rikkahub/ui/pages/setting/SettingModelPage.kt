@@ -206,6 +206,8 @@ private fun CapabilityTableSettingItem() {
     val importFailed = stringResource(R.string.setting_model_page_capability_import_failed)
     val exported = stringResource(R.string.setting_model_page_capability_exported)
     val exportFailed = stringResource(R.string.setting_model_page_capability_export_failed)
+    val cleared = stringResource(R.string.setting_model_page_capability_cleared)
+    val clearFailed = stringResource(R.string.setting_model_page_capability_clear_failed)
     var localCount by remember { mutableStateOf(overrides.localEntryCount()) }
     var baselineCount by remember { mutableStateOf(overrides.baselineEntryCount()) }
 
@@ -263,6 +265,17 @@ private fun CapabilityTableSettingItem() {
         item(
             onClick = { exportLauncher.launch("model-capabilities.json") },
             headlineContent = { Text(stringResource(R.string.setting_model_page_capability_export)) },
+        )
+        item(
+            onClick = {
+                scope.launch {
+                    val ok = withContext(Dispatchers.IO) { overrides.clearLocal() }
+                    localCount = overrides.localEntryCount()
+                    baselineCount = overrides.baselineEntryCount()
+                    toaster.show(if (ok) cleared else clearFailed)
+                }
+            },
+            headlineContent = { Text(stringResource(R.string.setting_model_page_capability_clear)) },
         )
     }
 }

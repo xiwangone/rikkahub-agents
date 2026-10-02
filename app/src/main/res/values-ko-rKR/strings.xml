@@ -841,6 +841,9 @@
   <string name="setting_model_page_capability_import_failed">가져오기 실패: JSON 형식이 잘못됨</string>
   <string name="setting_model_page_capability_exported">내보냈습니다</string>
   <string name="setting_model_page_capability_export_failed">내보내기 실패</string>
+  <string name="setting_model_page_capability_clear">로컬 테이블 지우기</string>
+  <string name="setting_model_page_capability_cleared">로컬 테이블을 지웠습니다</string>
+  <string name="setting_model_page_capability_clear_failed">지우기 실패</string>
   <string name="setting_model_page_compress_prompt_vars">변수: {content}, {target_tokens}, {additional_context}</string>
   <string name="setting_model_page_prompt">프롬프트</string>
   <string name="setting_model_page_reset_to_default">기본값으로 재설정</string>

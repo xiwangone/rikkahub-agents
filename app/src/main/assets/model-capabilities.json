@@ -1,7 +1,7 @@
 {
   "version": 1,
   "updated": "2026-10-02",
-  "note": "模型能力基线表：命中即覆盖内置登记表（纠正错标）。本机可通过 files/model-capabilities.json 覆盖本表。",
+  "_format": "models 数组，每条：match=模型 id 子串(大小写不敏感，一条可覆盖同族如 mimo-v2.6 命中 -flash/-pro)；input/output=模态数组，取值 text / image；abilities=能力数组，取值 tool / reasoning；contextLength=上下文 token 数。所有字段除 match 外均可省略，省略即该项不覆盖（仍走内置表与目录）。命中即覆盖内置表，用于纠正误判或补登新模型。",
   "models": [
     {
       "match": "mimo-v2.6",

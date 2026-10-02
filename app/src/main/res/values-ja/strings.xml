@@ -841,6 +841,9 @@
   <string name="setting_model_page_capability_import_failed">インポート失敗：JSON 形式が不正です</string>
   <string name="setting_model_page_capability_exported">エクスポートしました</string>
   <string name="setting_model_page_capability_export_failed">エクスポート失敗</string>
+  <string name="setting_model_page_capability_clear">ローカルテーブルを削除</string>
+  <string name="setting_model_page_capability_cleared">ローカルテーブルを削除しました</string>
+  <string name="setting_model_page_capability_clear_failed">削除失敗</string>
   <string name="setting_model_page_compress_prompt_vars">変数: {content}, {target_tokens}, {additional_context}</string>
   <string name="setting_model_page_prompt">プロンプト</string>
   <string name="setting_model_page_reset_to_default">デフォルトにリセット</string>

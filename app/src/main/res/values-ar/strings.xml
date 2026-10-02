@@ -888,6 +888,9 @@
   <string name="setting_model_page_capability_import_failed">فشل الاستيراد: JSON غير صالح</string>
   <string name="setting_model_page_capability_exported">تم التصدير</string>
   <string name="setting_model_page_capability_export_failed">فشل التصدير</string>
+  <string name="setting_model_page_capability_clear">مسح الجدول المحلي</string>
+  <string name="setting_model_page_capability_cleared">تم مسح الجدول المحلي</string>
+  <string name="setting_model_page_capability_clear_failed">فشل المسح</string>
   <string name="setting_model_page_compress_prompt_vars">المتغيرات: {content}، {target_tokens}، {additional_context}</string>
   <string name="setting_model_page_ocr_model">نموذج التعرف الضوئي على الحروف</string>
   <string name="setting_model_page_ocr_model_desc">النموذج المُستخدم للتعرف الضوئي على الحروف في الصور</string>

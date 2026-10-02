@@ -840,6 +840,9 @@
   <string name="setting_model_page_capability_import_failed">匯入失敗：JSON 格式不合法</string>
   <string name="setting_model_page_capability_exported">已匯出</string>
   <string name="setting_model_page_capability_export_failed">匯出失敗</string>
+  <string name="setting_model_page_capability_clear">清除本機表</string>
+  <string name="setting_model_page_capability_cleared">已清除本機表</string>
+  <string name="setting_model_page_capability_clear_failed">清除失敗</string>
   <string name="setting_model_page_compress_prompt_vars">變數：{content}、{target_tokens}、{additional_context}</string>
   <string name="setting_model_page_prompt">提示詞</string>
   <string name="setting_model_page_reset_to_default">重置為預設值</string>
