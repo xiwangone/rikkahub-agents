@@ -150,6 +150,22 @@ class ModelRegistryTest {
     }
 
     @Test
+    fun testXiaomiMimo() {
+        val visionInput = listOf(Modality.TEXT, Modality.IMAGE)
+        val textOnly = listOf(Modality.TEXT)
+        val toolReasoning = listOf(ModelAbility.TOOL, ModelAbility.REASONING)
+        // v2.6 全系支持图像输入
+        assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("mimo-v2.6-flash"))
+        assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("mimo-v2.6-pro"))
+        assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("mimo-v2.6-pro-ultraspeed"))
+        // v2.5 支持图像，但 v2.5-pro 与语音类不带
+        assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("mimo-v2.5"))
+        assertEquals(textOnly, ModelRegistry.MODEL_INPUT_MODALITIES.getData("mimo-v2.5-pro"))
+        assertEquals(toolReasoning, ModelRegistry.MODEL_ABILITIES.getData("mimo-v2.6-flash"))
+        assertEquals(toolReasoning, ModelRegistry.MODEL_ABILITIES.getData("mimo-v2.5"))
+    }
+
+    @Test
     fun testDeepseekV4() {
         val reasonerAbilities = ModelRegistry.MODEL_ABILITIES.getData("deepseek-reasoner")
         assertEquals(

@@ -535,24 +535,39 @@ object ModelRegistry {
         toolReasoningAbility()
     }
 
-    private val XIAOMI_MIMO_V2 = defineModel {
-        tokens("mimo", "v", "2")
-        toolReasoningAbility()
-    }
-
-    private val XIAOMI_MIMO_V2_PRO = defineModel {
-        tokens("mimo", "v", "2", "pro")
-        toolReasoningAbility()
-    }
-
     private val XIAOMI_MIMO_V2_5 = defineModel {
         tokens("mimo", "v", "2", "5")
+        notTokens("mimo", "v", "2", "5", "pro")
+        notTokens("mimo", "v", "2", "5", "asr")
+        notTokens("mimo", "v", "2", "5", "tts")
         visionInput()
         toolReasoningAbility()
     }
 
     private val XIAOMI_MIMO_V2_5_PRO = defineModel {
         tokens("mimo", "v", "2", "5", "pro")
+        toolReasoningAbility()
+    }
+
+    private val XIAOMI_MIMO_V2_6 = defineModel {
+        tokens("mimo", "v", "2", "6")
+        notTokens("mimo", "v", "2", "6", "pro")
+        notTokens("mimo", "v", "2", "6", "flash")
+        notTokens("mimo", "v", "2", "6", "asr")
+        notTokens("mimo", "v", "2", "6", "tts")
+        visionInput()
+        toolReasoningAbility()
+    }
+
+    private val XIAOMI_MIMO_V2_6_PRO = defineModel {
+        tokens("mimo", "v", "2", "6", "pro")
+        visionInput()
+        toolReasoningAbility()
+    }
+
+    private val XIAOMI_MIMO_V2_6_FLASH = defineModel {
+        tokens("mimo", "v", "2", "6", "flash")
+        visionInput()
         toolReasoningAbility()
     }
 
@@ -761,10 +776,11 @@ object ModelRegistry {
         MINIMAX_M2_5,
         MINIMAX_M2_7,
         MINIMAX_M3,
-        XIAOMI_MIMO_V2,
-        XIAOMI_MIMO_V2_PRO,
         XIAOMI_MIMO_V2_5,
         XIAOMI_MIMO_V2_5_PRO,
+        XIAOMI_MIMO_V2_6,
+        XIAOMI_MIMO_V2_6_PRO,
+        XIAOMI_MIMO_V2_6_FLASH,
         XIAOMI_MIMO_V3,
         XIAOMI_MIMO_V3_PRO,
         HY3,
