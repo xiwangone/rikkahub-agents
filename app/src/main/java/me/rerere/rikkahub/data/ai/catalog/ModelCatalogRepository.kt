@@ -226,8 +226,13 @@ class ModelCatalogRepository(
 
     }
 
-    /** 把本实例安装为注册表的能力目录（app 启动时调用一次）。 */
-    fun installBridge() {
+    /**
+     * 把本实例安装为注册表的能力目录（app 启动时调用一次）。
+     *
+     * [overrides] = 外置能力表（人工可编辑）：其覆盖项命中时由注册表**直接采用**（覆盖语义，可纠正错标）；
+     * 未命中时回落到本目录（并集补充，只补漏标）。
+     */
+    fun installBridge(overrides: ModelCapabilityOverrides? = null) {
         ModelCatalogBridge.install(
             object : ModelCatalogBridge.Provider {
                 override fun inputModalities(modelId: String): Set<Modality>? = this@ModelCatalogRepository.inputModalities(modelId)
@@ -235,6 +240,12 @@ class ModelCatalogRepository(
                 override fun outputModalities(modelId: String): Set<Modality>? = this@ModelCatalogRepository.outputModalities(modelId)
 
                 override fun abilities(modelId: String): Set<ModelAbility>? = this@ModelCatalogRepository.abilities(modelId)
+
+                override fun overrideInputModalities(modelId: String): Set<Modality>? = overrides?.inputModalities(modelId)
+
+                override fun overrideOutputModalities(modelId: String): Set<Modality>? = overrides?.outputModalities(modelId)
+
+                override fun overrideAbilities(modelId: String): Set<ModelAbility>? = overrides?.abilities(modelId)
             },
         )
     }

@@ -258,7 +258,13 @@ class RikkaHubApp : Application() {
                 org.koin.java.KoinJavaComponent
                     .getKoin()
                     .get<me.rerere.rikkahub.data.ai.catalog.ModelCatalogRepository>()
-            catalog.installBridge()
+            // 外置能力表（本机表覆盖基线表）先载入，再随目录一起注入注册表
+            val overrides =
+                org.koin.java.KoinJavaComponent
+                    .getKoin()
+                    .get<me.rerere.rikkahub.data.ai.catalog.ModelCapabilityOverrides>()
+            overrides.load()
+            catalog.installBridge(overrides)
             val stale = System.currentTimeMillis() - catalog.lastUpdatedMs > 7L * 24 * 3600 * 1000
             if (stale) {
                 kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {

@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "updated": "2026-10-02",
+  "note": "模型能力基线表：命中即覆盖内置登记表（纠正错标）。本机可通过 files/model-capabilities.json 覆盖本表。",
+  "models": [
+    {
+      "match": "mimo-v2.6",
+      "input": ["text", "image"],
+      "output": ["text"],
+      "abilities": ["tool", "reasoning"]
+    },
+    {
+      "match": "mimo-v2.5-pro",
+      "input": ["text"],
+      "output": ["text"],
+      "abilities": ["tool", "reasoning"]
+    },
+    {
+      "match": "mimo-v2.5",
+      "input": ["text", "image"],
+      "output": ["text"],
+      "abilities": ["tool", "reasoning"]
+    }
+  ]
+}

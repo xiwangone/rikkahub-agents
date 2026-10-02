@@ -252,6 +252,13 @@ val dataSourceModule =
             )
         }
 
+        // 模型能力外置表（双轨：assets 基线 + 本机覆盖；覆盖语义）
+        single {
+            me.rerere.rikkahub.data.ai.catalog.ModelCapabilityOverrides(
+                context = get(),
+            )
+        }
+
         single<OkHttpClient> {
             val settingsStore: SettingsStore = get()
             val acceptLang = AcceptLanguageBuilder.fromAndroid(get())
