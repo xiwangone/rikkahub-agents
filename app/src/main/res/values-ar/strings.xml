@@ -880,6 +880,14 @@
   <string name="setting_model_page_chat_model_desc">نموذج الدردشة الافتراضي العام</string>
   <string name="setting_model_page_compress_model">نموذج الضغط</string>
   <string name="setting_model_page_compress_model_desc">نموذج لضغط سجل المحادثة</string>
+  <string name="setting_model_page_capability_table">جدول قدرات النماذج</string>
+  <string name="setting_model_page_capability_table_desc">محلي %1$d · أساسي %2$d عنصر</string>
+  <string name="setting_model_page_capability_import">استيراد</string>
+  <string name="setting_model_page_capability_export">تصدير الجدول الأساسي</string>
+  <string name="setting_model_page_capability_imported">تم الاستيراد: %1$d عنصر محلي</string>
+  <string name="setting_model_page_capability_import_failed">فشل الاستيراد: JSON غير صالح</string>
+  <string name="setting_model_page_capability_exported">تم التصدير</string>
+  <string name="setting_model_page_capability_export_failed">فشل التصدير</string>
   <string name="setting_model_page_compress_prompt_vars">المتغيرات: {content}، {target_tokens}، {additional_context}</string>
   <string name="setting_model_page_ocr_model">نموذج التعرف الضوئي على الحروف</string>
   <string name="setting_model_page_ocr_model_desc">النموذج المُستخدم للتعرف الضوئي على الحروف في الصور</string>

@@ -987,6 +987,14 @@
   <string name="setting_model_page_fast_model">Fast Model</string>
   <string name="setting_model_page_fast_model_desc">Model for fast or background tasks, also used as fallback for title and suggestion models when not set</string>
   <string name="setting_model_page_compress_model_desc">Model for compressing conversation history</string>
+  <string name="setting_model_page_capability_table">Model capability table</string>
+  <string name="setting_model_page_capability_table_desc">Local %1$d · baseline %2$d entries</string>
+  <string name="setting_model_page_capability_import">Import</string>
+  <string name="setting_model_page_capability_export">Export baseline table</string>
+  <string name="setting_model_page_capability_imported">Imported: %1$d local entries</string>
+  <string name="setting_model_page_capability_import_failed">Import failed: invalid JSON</string>
+  <string name="setting_model_page_capability_exported">Exported</string>
+  <string name="setting_model_page_capability_export_failed">Export failed</string>
   <string name="setting_model_page_compress_prompt_vars">Variables: {content}, {target_tokens}, {additional_context}</string>
   <string name="setting_model_page_prompt">Prompt</string>
   <string name="setting_model_page_reset_to_default">Reset to default</string>

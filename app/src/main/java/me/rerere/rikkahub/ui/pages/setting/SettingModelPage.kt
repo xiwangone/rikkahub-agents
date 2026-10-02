@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -16,21 +18,28 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
@@ -40,14 +49,17 @@ import me.rerere.hugeicons.stroke.AiEditing
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.catalog.ModelCapabilityOverrides
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
 @Composable
@@ -171,6 +183,87 @@ private fun ModelSettingsPage(
                 onSelect = { vm.updateSettings(settings.copy(compressModelId = it.id)) },
             )
         }
+        item {
+            CapabilityTableSettingItem()
+        }
+    }
+}
+
+/**
+ * 模型能力外置表设置项（双轨：assets 基线 + 本机覆盖）。
+ *
+ * 导入 = 选一个 JSON → 先校验可解析 → 写入 App 私有目录并重载（不合法整体拒绝）；
+ * 导出 = 把**基线表**写到用户选的文件（供在此基础上编辑后导入）。
+ */
+@Composable
+private fun CapabilityTableSettingItem() {
+    val overrides = koinInject<ModelCapabilityOverrides>()
+    val context = LocalContext.current
+    val toaster = LocalToaster.current
+    val scope = rememberCoroutineScope()
+    // 文案在组合期取好：回调里再读 LocalContext 的配置值会被 Lint 判为“非配置感知”
+    val importedFormat = stringResource(R.string.setting_model_page_capability_imported)
+    val importFailed = stringResource(R.string.setting_model_page_capability_import_failed)
+    val exported = stringResource(R.string.setting_model_page_capability_exported)
+    val exportFailed = stringResource(R.string.setting_model_page_capability_export_failed)
+    var localCount by remember { mutableStateOf(overrides.localEntryCount()) }
+    var baselineCount by remember { mutableStateOf(overrides.baselineEntryCount()) }
+
+    val importLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            scope.launch {
+                val text =
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            context.contentResolver.openInputStream(uri)?.bufferedReader()?.use { it.readText() }
+                        }.getOrNull()
+                    }
+                val ok = text != null && withContext(Dispatchers.IO) { overrides.importLocal(text) }
+                if (ok) {
+                    localCount = overrides.localEntryCount()
+                    baselineCount = overrides.baselineEntryCount()
+                }
+                toaster.show(if (ok) importedFormat.format(localCount) else importFailed)
+            }
+        }
+    val exportLauncher =
+        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            if (uri == null) return@rememberLauncherForActivityResult
+            val text = overrides.exportBaselineText().orEmpty()
+            scope.launch {
+                val ok =
+                    withContext(Dispatchers.IO) {
+                        runCatching {
+                            context.contentResolver.openOutputStream(uri)?.bufferedWriter()?.use { it.write(text) }
+                            true
+                        }.getOrDefault(false)
+                    }
+                toaster.show(if (ok) exported else exportFailed)
+            }
+        }
+
+    CardGroup(title = { Text(stringResource(R.string.setting_model_page_capability_table)) }) {
+        item(
+            headlineContent = { Text(stringResource(R.string.setting_model_page_capability_table)) },
+            supportingContent = {
+                Text(
+                    stringResource(
+                        R.string.setting_model_page_capability_table_desc,
+                        localCount,
+                        baselineCount,
+                    )
+                )
+            },
+        )
+        item(
+            onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },
+            headlineContent = { Text(stringResource(R.string.setting_model_page_capability_import)) },
+        )
+        item(
+            onClick = { exportLauncher.launch("model-capabilities.json") },
+            headlineContent = { Text(stringResource(R.string.setting_model_page_capability_export)) },
+        )
     }
 }
 

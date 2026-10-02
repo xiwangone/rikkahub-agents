@@ -833,6 +833,14 @@
   <string name="setting_model_page_chat_model_desc">전역 기본 채팅 모델</string>
   <string name="setting_model_page_compress_model">모델 압축</string>
   <string name="setting_model_page_compress_model_desc">대화 기록 압축용 모델</string>
+  <string name="setting_model_page_capability_table">모델 기능 테이블</string>
+  <string name="setting_model_page_capability_table_desc">로컬 %1$d개 · 기준 %2$d개</string>
+  <string name="setting_model_page_capability_import">가져오기</string>
+  <string name="setting_model_page_capability_export">기준 테이블 내보내기</string>
+  <string name="setting_model_page_capability_imported">가져왔습니다: 로컬 %1$d개</string>
+  <string name="setting_model_page_capability_import_failed">가져오기 실패: JSON 형식이 잘못됨</string>
+  <string name="setting_model_page_capability_exported">내보냈습니다</string>
+  <string name="setting_model_page_capability_export_failed">내보내기 실패</string>
   <string name="setting_model_page_compress_prompt_vars">변수: {content}, {target_tokens}, {additional_context}</string>
   <string name="setting_model_page_prompt">프롬프트</string>
   <string name="setting_model_page_reset_to_default">기본값으로 재설정</string>

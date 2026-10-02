@@ -978,6 +978,14 @@
   <string name="setting_model_page_chat_model_desc">全局默认的聊天模型</string>
   <string name="setting_model_page_compress_model">压缩模型</string>
   <string name="setting_model_page_compress_model_desc">用于压缩对话历史的模型</string>
+  <string name="setting_model_page_capability_table">模型能力表</string>
+  <string name="setting_model_page_capability_table_desc">本机 %1$d 条 · 基线 %2$d 条</string>
+  <string name="setting_model_page_capability_import">导入</string>
+  <string name="setting_model_page_capability_export">导出基线表</string>
+  <string name="setting_model_page_capability_imported">已导入：本机 %1$d 条</string>
+  <string name="setting_model_page_capability_import_failed">导入失败：JSON 格式不合法</string>
+  <string name="setting_model_page_capability_exported">已导出</string>
+  <string name="setting_model_page_capability_export_failed">导出失败</string>
   <string name="setting_model_page_compress_prompt_vars">变量：{content}、{target_tokens}、{additional_context}</string>
   <string name="setting_model_page_prompt">提示词</string>
   <string name="setting_model_page_reset_to_default">重置为默认</string>

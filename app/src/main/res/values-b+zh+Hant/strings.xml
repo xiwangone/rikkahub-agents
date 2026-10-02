@@ -832,6 +832,14 @@
   <string name="setting_model_page_chat_model_desc">全域預設聊天模型</string>
   <string name="setting_model_page_compress_model">壓縮模型</string>
   <string name="setting_model_page_compress_model_desc">用於壓縮對話歷程的模型</string>
+  <string name="setting_model_page_capability_table">模型能力表</string>
+  <string name="setting_model_page_capability_table_desc">本機 %1$d 筆 · 基準 %2$d 筆</string>
+  <string name="setting_model_page_capability_import">匯入</string>
+  <string name="setting_model_page_capability_export">匯出基準表</string>
+  <string name="setting_model_page_capability_imported">已匯入：本機 %1$d 筆</string>
+  <string name="setting_model_page_capability_import_failed">匯入失敗：JSON 格式不合法</string>
+  <string name="setting_model_page_capability_exported">已匯出</string>
+  <string name="setting_model_page_capability_export_failed">匯出失敗</string>
   <string name="setting_model_page_compress_prompt_vars">變數：{content}、{target_tokens}、{additional_context}</string>
   <string name="setting_model_page_prompt">提示詞</string>
   <string name="setting_model_page_reset_to_default">重置為預設值</string>

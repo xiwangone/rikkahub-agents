@@ -40,13 +40,53 @@ class ModelCapabilityOverrides(
     @Volatile
     private var overrideEntries: List<Entry> = emptyList()
 
+    @Volatile
+    private var loadedLocalCount: Int = 0
+
+    @Volatile
+    private var loadedBaselineCount: Int = 0
+
     /** 载入两张表（本机表在前 → 同 modelId 命中时本机优先；表内先声明者优先）。 */
     fun load() {
         val local = readLocal()?.let { parseOverrideTable(it, "local") }.orEmpty()
         val baseline = readBaseline()?.let { parseOverrideTable(it, "baseline") }.orEmpty()
         overrideEntries = local + baseline
+        loadedLocalCount = local.size
+        loadedBaselineCount = baseline.size
         AppLog.i(TAG, "overrides loaded: local=${local.size} baseline=${baseline.size}")
     }
+
+    /** 本机表条目数（供 UI 展示）。 */
+    fun localEntryCount(): Int = loadedLocalCount
+
+    /** 基线表条目数（供 UI 展示）。 */
+    fun baselineEntryCount(): Int = loadedBaselineCount
+
+    /**
+     * 导入本机表：**先校验可解析**（非法则整体拒绝、不落盘），再写入 App 私有目录并重载。
+     *
+     * @return 是否导入成功；失败时调用方应提示用户检查 JSON 格式。
+     */
+    fun importLocal(text: String): Boolean {
+        if (parseOverrideTable(text, "import") == null) return false
+        return runCatching {
+            File(context.filesDir, FILE_NAME).writeText(text)
+            load()
+            true
+        }.onFailure { AppLog.w(TAG, "import local overrides failed: ${it.message}") }.getOrDefault(false)
+    }
+
+    /** 导出当前**基线表**原文（供用户在此基础上编辑后导入）。 */
+    fun exportBaselineText(): String? = readBaseline()
+
+    /** 清除本机表（回到基线行为）。 */
+    fun clearLocal(): Boolean =
+        runCatching {
+            val f = File(context.filesDir, FILE_NAME)
+            val deleted = !f.exists() || f.delete()
+            load()
+            deleted
+        }.onFailure { AppLog.w(TAG, "clear local overrides failed: ${it.message}") }.getOrDefault(false)
 
     fun inputModalities(modelId: String): Set<Modality>? = lookup(modelId)?.input
 

@@ -826,6 +826,14 @@
   <string name="setting_model_page_chat_model_desc">Глобальная модель чата по умолчанию</string>
   <string name="setting_model_page_compress_model">Сжать модель</string>
   <string name="setting_model_page_compress_model_desc">Модель для сжатия истории разговоров</string>
+  <string name="setting_model_page_capability_table">Таблица возможностей моделей</string>
+  <string name="setting_model_page_capability_table_desc">Локально %1$d · базовая %2$d записей</string>
+  <string name="setting_model_page_capability_import">Импорт</string>
+  <string name="setting_model_page_capability_export">Экспорт базовой таблицы</string>
+  <string name="setting_model_page_capability_imported">Импортировано: %1$d локальных записей</string>
+  <string name="setting_model_page_capability_import_failed">Ошибка импорта: неверный JSON</string>
+  <string name="setting_model_page_capability_exported">Экспортировано</string>
+  <string name="setting_model_page_capability_export_failed">Ошибка экспорта</string>
   <string name="setting_model_page_compress_prompt_vars">Переменные: {content}, {target_tokens}, {additional_context}</string>
   <string name="setting_model_page_prompt">Промпт</string>
   <string name="setting_model_page_reset_to_default">Сбросить до значения по умолчанию</string>
