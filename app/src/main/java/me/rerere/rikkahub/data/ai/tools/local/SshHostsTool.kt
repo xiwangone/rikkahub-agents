@@ -672,7 +672,7 @@ fun vaultDeployKeyTool(
 )
 
 /** 幂等追加公钥并收紧权限的远端命令（按平台分叉；长 shell 串不参与同一函数的复杂度）。 */
-private fun deployCommandFor(pubKey: String, windows: Boolean): String =
+internal fun deployCommandFor(pubKey: String, windows: Boolean): String =
     if (windows) windowsDeployCommand(pubKey) else posixDeployCommand(pubKey)
 
 private fun posixDeployCommand(pubKey: String): String =
