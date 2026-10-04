@@ -3412,4 +3412,5 @@
   <string name="chat_message_tool_chart_display">차트 표시</string>
   <string name="chat_message_tool_chart_display_with_title">차트 표시: %1$s</string>
   <string name="mcp_tool_chart_display">차트 표시</string>
+  <string name="assistant_page_clone_with_memories">기억도 함께 복사</string>
 </resources>

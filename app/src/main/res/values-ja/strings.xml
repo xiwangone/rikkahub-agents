@@ -3412,4 +3412,5 @@
   <string name="chat_message_tool_chart_display">グラフを表示</string>
   <string name="chat_message_tool_chart_display_with_title">グラフを表示: %1$s</string>
   <string name="mcp_tool_chart_display">グラフ表示</string>
+  <string name="assistant_page_clone_with_memories">記憶もコピー</string>
 </resources>

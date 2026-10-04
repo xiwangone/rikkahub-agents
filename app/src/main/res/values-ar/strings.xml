@@ -3411,4 +3411,5 @@
   <string name="chat_message_tool_chart_display">عرض المخطط</string>
   <string name="chat_message_tool_chart_display_with_title">عرض المخطط: %1$s</string>
   <string name="mcp_tool_chart_display">عرض المخطط</string>
+  <string name="assistant_page_clone_with_memories">نسخ الذاكرة أيضًا</string>
 </resources>

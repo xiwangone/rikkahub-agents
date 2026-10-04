@@ -3408,4 +3408,5 @@
   <string name="network_cidr_presets_title">Common networks</string>
   <string name="network_cidr_presets_save">Save current</string>
   <string name="network_cidr_presets_remove">Remove preset</string>
+  <string name="assistant_page_clone_with_memories">Also copy memories</string>
 </resources>

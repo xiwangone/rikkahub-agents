@@ -3412,4 +3412,5 @@
   <string name="chat_message_tool_chart_display">Показать график</string>
   <string name="chat_message_tool_chart_display_with_title">Показать график: %1$s</string>
   <string name="mcp_tool_chart_display">Отображение графика</string>
+  <string name="assistant_page_clone_with_memories">Также копировать память</string>
 </resources>

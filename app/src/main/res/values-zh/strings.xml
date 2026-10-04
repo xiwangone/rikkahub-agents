@@ -3408,4 +3408,5 @@
   <string name="network_cidr_presets_title">常用网段</string>
   <string name="network_cidr_presets_save">保存当前</string>
   <string name="network_cidr_presets_remove">删除该常用网段</string>
+  <string name="assistant_page_clone_with_memories">同时复制记忆</string>
 </resources>

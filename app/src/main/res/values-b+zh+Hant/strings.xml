@@ -3411,4 +3411,5 @@
   <string name="chat_message_tool_chart_display">顯示圖表</string>
   <string name="chat_message_tool_chart_display_with_title">顯示圖表：%1$s</string>
   <string name="mcp_tool_chart_display">圖表顯示</string>
+  <string name="assistant_page_clone_with_memories">同時複製記憶</string>
 </resources>
