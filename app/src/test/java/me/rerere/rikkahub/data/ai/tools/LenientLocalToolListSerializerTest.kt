@@ -7,7 +7,7 @@ import org.junit.Test
 
 /**
  * Regression test for the legacy-backup restore path: an assistant config exported by a build
- * with a different tool set (e.g. a build with other tools, which has `screen_time`) must not abort the
+ * with a different tool set (e.g. a build that had a tool this build no longer defines) must not abort the
  * whole settings restore. [LenientLocalToolListSerializer] drops tool types this build does not
  * define while keeping the known ones, and leaves encoding untouched.
  */
@@ -16,10 +16,11 @@ class LenientLocalToolListSerializerTest {
 
     @Test
     fun decode_dropsUnknownToolTypes_keepsKnownOnesInOrder() {
-        // `screen_time` is a tool from another build that this app removed; the rest are fork tools.
+        // `legacy_removed_tool` 在任何 build 里都不存在 —— 用它当“本 build 未定义的工具类型”的样本。
+        // （曾用 `screen_time` 当样本，后来本 build 新增了该工具 → 样本变已知，测试就挂了。）
         val decoded = json.decodeFromString(
             LenientLocalToolListSerializer,
-            """[{"type":"time_info"},{"type":"tts"},{"type":"screen_time"},{"type":"ask_user"}]""",
+            """[{"type":"time_info"},{"type":"tts"},{"type":"legacy_removed_tool"},{"type":"ask_user"}]""",
         )
         assertEquals(
             listOf(LocalToolOption.TimeInfo, LocalToolOption.Tts, LocalToolOption.AskUser),
@@ -31,7 +32,7 @@ class LenientLocalToolListSerializerTest {
     fun decode_allUnknown_yieldsEmptyListNotCrash() {
         val decoded = json.decodeFromString(
             LenientLocalToolListSerializer,
-            """[{"type":"screen_time"},{"type":"some_future_tool"}]""",
+            """[{"type":"legacy_removed_tool"},{"type":"some_future_tool"}]""",
         )
         assertEquals(emptyList<LocalToolOption>(), decoded)
     }
