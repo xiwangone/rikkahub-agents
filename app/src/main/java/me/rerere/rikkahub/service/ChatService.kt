@@ -344,36 +344,19 @@ class ChatService(
     }
 
     // 错误状态
-    private val _errors = MutableStateFlow<List<ChatError>>(emptyList())
-    val errors: StateFlow<List<ChatError>> = _errors.asStateFlow()
+    private val errorHelper = ChatErrorHelper()
+    val errors: StateFlow<List<ChatError>> = errorHelper.errors
 
     fun addError(
         error: Throwable,
         conversationId: Uuid? = null,
         title: String? = null,
         solution: ChatErrorSolution? = null,
-    ) {
-        if (error is CancellationException) return
-        val kind = classifyFailureKind(error, error.message.orEmpty()).takeIf { it != FailureKind.UNKNOWN }
-        _errors.update {
-            it +
-                ChatError(
-                    title = title,
-                    error = error,
-                    conversationId = conversationId,
-                    solution = solution,
-                    kind = kind,
-                )
-        }
-    }
+    ) = errorHelper.addError(error, conversationId, title, solution)
 
-    fun dismissError(id: Uuid) {
-        _errors.update { list -> list.filter { it.id != id } }
-    }
+    fun dismissError(id: Uuid) = errorHelper.dismissError(id)
 
-    fun clearAllErrors() {
-        _errors.value = emptyList()
-    }
+    fun clearAllErrors() = errorHelper.clearAllErrors()
 
     // 每会话待发送队列：生成中再次发送时消息排队，当前生成结束后按序自动发出
     // （详见 MessageQueue 的语义说明）。
