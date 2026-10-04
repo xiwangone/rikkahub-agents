@@ -56,8 +56,8 @@ internal class TelegramForegroundHelper(
             if (rejected != null) {
                 service.getString(
                     R.string.notification_telegram_rejected_sender_body,
-                    rejected.senderId,
-                    rejected.chatId,
+                    rejected.senderId.toString(),
+                    rejected.chatId.toString(),
                 )
             } else {
                 service.getString(R.string.notification_telegram_routing_body)
