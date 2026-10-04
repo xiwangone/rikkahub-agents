@@ -671,12 +671,42 @@ fun vaultDeployKeyTool(
     },
 )
 
-/** 幂等追加公钥并收紧权限的远端命令（单独一道：长 shell 串不参与同一函数的复杂度）。 */
-private fun deployCommandFor(pubKey: String): String =
+/** 幂等追加公钥并收紧权限的远端命令（按平台分叉；长 shell 串不参与同一函数的复杂度）。 */
+private fun deployCommandFor(pubKey: String, windows: Boolean): String =
+    if (windows) windowsDeployCommand(pubKey) else posixDeployCommand(pubKey)
+
+private fun posixDeployCommand(pubKey: String): String =
     "umask 077; mkdir -p ~/.ssh; touch ~/.ssh/authorized_keys; " +
         "if ! grep -qF -- '$pubKey' ~/.ssh/authorized_keys; " +
         "then echo '$pubKey' >> ~/.ssh/authorized_keys; echo ADDED; else echo EXISTS; fi; " +
         "chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys"
+
+/**
+ * Windows（OpenSSH for Windows）等价部署 —— 此前一律抺 posix 命令，目标为 pc 时
+ * 必然 `ParserError: if语句中的'if'后缺少"("`，部署从未生效（已复现）。
+ *
+ * 三个必需差异：
+ * 1. **默认 shell 可能是 cmd**：用 `powershell -NoProfile -Command '<script>'` 包裹，
+ *    避免依赖远端 sshd 的 `DefaultShell`；脚本内只用单引号，免引号嵌套。
+ * 2. **管理员组成员不能用 `~/.ssh/authorized_keys`**：sshd 只读
+ *    `%ProgramData%\ssh\administrators_authorized_keys`，写错位置 = 白部署。
+ * 3. **该文件必须收紧为 Administrators + SYSTEM**，否则 sshd 拒绝加载（icacls）。
+ */
+private fun windowsDeployCommand(pubKey: String): String {
+    val k = pubKey.replace("'", "''")
+    val ps =
+        "\$adm = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent())" +
+            ".IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator); " +
+            "if (\$adm) { \$f = Join-Path \$env:ProgramData 'ssh\\administrators_authorized_keys' } " +
+            "else { \$d = Join-Path \$env:USERPROFILE '.ssh'; New-Item -ItemType Directory -Force -Path \$d | Out-Null; " +
+            "\$f = Join-Path \$d 'authorized_keys' }; " +
+            "if (-not (Test-Path \$f)) { New-Item -ItemType File -Force -Path \$f | Out-Null }; " +
+            "if (\$adm) { icacls \$f /inheritance:r /grant 'Administrators:F' /grant 'SYSTEM:F' | Out-Null }; " +
+            "\$k = '$k'; " +
+            "if (Select-String -Path \$f -SimpleMatch -Quiet -Pattern \$k) { 'EXISTS' } " +
+            "else { Add-Content -Path \$f -Value \$k -Encoding ascii; 'ADDED' }"
+    return "powershell -NoProfile -Command '$ps'"
+}
 
 /**
  * `vault_deploy_ssh_key` 步骤 2：用 host 自身凭证连接，幂等追加公钥并收紧权限。
@@ -689,12 +719,33 @@ private suspend fun deployAuthorizedKey(
     targetUser: String,
     pubKey: String,
     auth: SshAuth,
-): JsonObject = runOnHostOnce(context, h, targetUser, auth, deployCommandFor(pubKey), 30_000)
+): JsonObject {
+    val store = RemotePlatformStore(context)
+    // 平台未知时（本路径拿不到 SSH banner，见 RemotePlatform 注释）先后尝试 posix / Windows 两版；
+    // 命中后回填缓存，同一主机不再试错。
+    val order = when (store.get(h.host, h.port)) {
+        true -> listOf(true)
+        false -> listOf(false)
+        null -> listOf(false, true)
+    }
+    var last = buildJsonObject { put("error", "deploy not attempted") }
+    for (windows in order) {
+        val out = runOnHostOnce(context, h, targetUser, auth, deployCommandFor(pubKey, windows), 30_000)
+        last = out
+        val text = out["stdout"]?.jsonPrimitive?.contentOrNull.orEmpty() +
+            out["stderr"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        if (text.contains("ADDED") || text.contains("EXISTS")) {
+            store.put(h.host, h.port, windows)
+            return out
+        }
+    }
+    return last
+}
 
 /**
  * 在新会话上跑一条命令（连 + 跑 + 保证断开）；连接/执行失败返回 `{error}`。
  *
- * @Suppress 理由（实测，2026-09-29）：本仓 detekt（`--build-upon-default-config` + conf/detekt.yml）
+ * @Suppress 理由（本地复现）：本仓 detekt（`--build-upon-default-config` + conf/detekt.yml）
  * 下，`try/catch + finally + inline lambda` 这一结构会被算出 **~27–30** 的圈复杂度——
  * 同一逻辑去掉 try/catch 即 ≤20，人工数实质分支约 6 → 计数明显偏离 McCabe 语义，
  * 属检查器口径问题而非真实复杂度（已记入痛点待核）。故把该结构收敛到本函数唯一一处并标注抑制。
@@ -764,7 +815,7 @@ internal fun classifySshError(err: String): String = when {
 /**
  * 从失败 payload 归类：**不能只看 error 标签**——标签本身是 `tcp_unreachable` /
  * `connect_failed` 这类抽象词, 不含 refused/host key 等关键词, 直接归会一律落进 "other"
- * (实测 ECONNREFUSED 被归为 other)。故把底层 raw 与逐网络 attempts 一并纳入判定。
+ * (ECONNREFUSED 曾落进 "other")。故把底层 raw 与逐网络 attempts 一并纳入判定。
  */
 internal fun classifySshPayload(payload: JsonObject): String {
     val err = payload["error"]?.jsonPrimitive?.contentOrNull ?: return "ok"
