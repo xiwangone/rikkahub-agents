@@ -45,22 +45,19 @@ class ChatCompletionsRequestMessageTest {
         includeOpenRouterReasoningDetails: Boolean = false,
         supportInputModalities: List<Modality> = listOf(Modality.TEXT, Modality.IMAGE),
     ): JsonArray {
-        val method = ChatCompletionsAPI::class.java.getDeclaredMethod(
-            "buildMessages",
-            List::class.java,
-            Boolean::class.javaPrimitiveType,
-            Boolean::class.javaPrimitiveType,
-            Boolean::class.javaPrimitiveType,
-            List::class.java
-        )
+        // 按方法名查找而不是按精确参数签名：buildMessages 的参数随功能演进会增删（如新增
+        // fillEmptyReasoningForDeepSeek），写死签名会让测试在无关改动上大面积失败。
+        val method = ChatCompletionsAPI::class.java.declaredMethods.single { it.name == "buildMessages" }
         method.isAccessible = true
+        // 反射调用不走 Kotlin 默认值，必须按声明顺序传满所有参数。
         return method.invoke(
             api,
             messages,
             includeHistoryReasoning,
             false,
             includeOpenRouterReasoningDetails,
-            supportInputModalities
+            supportInputModalities,
+            false
         ) as JsonArray
     }
 
