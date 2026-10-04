@@ -374,9 +374,7 @@ class SettingsStore(
                     JsonInstant.decodeFromString(it)
                 } ?: SearchCommonOptions(),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
-                mcpServers = preferences[MCP_SERVERS]?.let {
-                    JsonInstant.decodeFromString(decryptPrefValue(it))
-                } ?: emptyList(),
+                mcpServers = decodeEncryptedPrefOrDefault(preferences[MCP_SERVERS], emptyList()),
 subAgents = preferences[SUB_AGENTS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<SubAgentProfile>>(raw) }.getOrElse {
                         AppLog.w(TAG, "Failed to decode subAgents, using default", it)
@@ -387,12 +385,8 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                     runCatching { Uuid.parse(raw) }.getOrNull()
                 },
                 subAgentForegroundReceipt = preferences[SUB_AGENT_FOREGROUND_RECEIPT] ?: false,
-                webDavConfig = preferences[WEBDAV_CONFIG]?.let {
-                    JsonInstant.decodeFromString(decryptPrefValue(it))
-                } ?: WebDavConfig(),
-                s3Config = preferences[S3_CONFIG]?.let {
-                    JsonInstant.decodeFromString(decryptPrefValue(it))
-                } ?: S3Config(),
+                webDavConfig = decodeEncryptedPrefOrDefault(preferences[WEBDAV_CONFIG], WebDavConfig()),
+                s3Config = decodeEncryptedPrefOrDefault(preferences[S3_CONFIG], S3Config()),
                 webDavConfigs = preferences[WEBDAV_CONFIGS]?.let { raw ->
                     runCatching { JsonInstant.decodeFromString<List<WebDavConfig>>(decryptPrefValue(raw)) }.getOrElse {
                         AppLog.w(TAG, "Failed to decode webDavConfigs, using empty", it)
@@ -407,25 +401,15 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                     }
                 } ?: emptyList(),
                 activeS3ConfigId = preferences[ACTIVE_S3_CONFIG_ID],
-                ttsProviders = preferences[TTS_PROVIDERS]?.let {
-                    JsonInstant.decodeFromString(decryptPrefValue(it))
-                } ?: emptyList(),
+                ttsProviders = decodeEncryptedPrefOrDefault(preferences[TTS_PROVIDERS], emptyList()),
                 selectedTTSProviderId = preferences[SELECTED_TTS_PROVIDER]?.let { Uuid.parse(it) }
                     ?: DEFAULT_SYSTEM_TTS_ID,
                 defaultTTSPlaybackSpeed = preferences[DEFAULT_TTS_PLAYBACK_SPEED]?.coerceIn(0.5f, 2.0f) ?: 1.0f,
-                asrProviders = preferences[ASR_PROVIDERS]?.let {
-                    JsonInstant.decodeFromString(decryptPrefValue(it))
-                } ?: emptyList(),
+                asrProviders = decodeEncryptedPrefOrDefault(preferences[ASR_PROVIDERS], emptyList()),
                 selectedASRProviderId = preferences[SELECTED_ASR_PROVIDER]?.let { Uuid.parse(it) },
-                modeInjections = preferences[MODE_INJECTIONS]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: emptyList(),
-                lorebooks = preferences[LOREBOOKS]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: emptyList(),
-                quickMessages = preferences[QUICK_MESSAGES]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: emptyList(),
+                modeInjections = decodePrefOrDefault(preferences[MODE_INJECTIONS], emptyList()),
+                lorebooks = decodePrefOrDefault(preferences[LOREBOOKS], emptyList()),
+                quickMessages = decodePrefOrDefault(preferences[QUICK_MESSAGES], emptyList()),
                 webServerEnabled = preferences[WEB_SERVER_ENABLED] == true,
                 webServerPort = preferences[WEB_SERVER_PORT] ?: 8080,
                 localMcpServerEnabled = preferences[LOCAL_MCP_SERVER_ENABLED] == true,
@@ -778,7 +762,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
      * 写回工具输出阈值（全局上限 + 紧凑阈值）。
      *
      * 抽成独立扩展函数是为了让 [update] 保持在 detekt LongMethod 阈值内
-     * （2026-09-25 实测：直接内联两行会把它顶到 120 行而报错）。
+     * （直接内联两行会把它顶到 120 行而报错）。
      */
     /**
  * web 服务与「网段预设」一组写入。抽成扩展只为收敛 [update] 的体积（detekt LongMethod 阈值
@@ -799,6 +783,29 @@ private fun MutablePreferences.putWebServerBlock(settings: Settings) {
  * 的 provider 配置。历史明文（非密文格式）解密失败即回退原文，升级无需迁移。
  */
 private fun decryptPrefValue(raw: String): String = ProviderCredentialCipher.decrypt(raw) ?: raw
+
+/**
+ * 解密 + 反序列化，**失败回退默认值并留痕**。
+ *
+ * 不能直接写 `decodeFromString(decryptPrefValue(raw))`：解密失败时会回退成“原文”（这个回退本意是兼容历史明文），
+ * 而密文形态是 Base64 —— 把它当 JSON 解析必抛 JsonDecodingException；该异常发生在 settings 读取的 map 里
+ * → 直接 FATAL、启动即崩（issue #11：`mcp_servers` 的值 `/tVT/…` 解出来正是空列表 `[]` 的密文，密钥失效后解密失败 → 崩）。
+ * 回退默认只影响该字段，下次保存即被合法值覆盖（自愈）。
+ */
+private inline fun <reified T> decodeEncryptedPrefOrDefault(raw: String?, default: T): T {
+    if (raw == null) return default
+    return runCatching { JsonInstant.decodeFromString<T>(decryptPrefValue(raw)) }
+        .onFailure { AppLog.w(TAG, "settings 字段（加密）解析失败，已回退默认值", it) }
+        .getOrDefault(default)
+}
+
+/** 非加密字段的同类兜底：坏值只让该字段回退默认，不拖垓整份 Settings。 */
+private inline fun <reified T> decodePrefOrDefault(raw: String?, default: T): T {
+    if (raw == null) return default
+    return runCatching { JsonInstant.decodeFromString<T>(raw) }
+        .onFailure { AppLog.w(TAG, "settings 字段解析失败，已回退默认值", it) }
+        .getOrDefault(default)
+}
 
 private fun encryptPrefValue(raw: String): String = ProviderCredentialCipher.encrypt(raw)
 
