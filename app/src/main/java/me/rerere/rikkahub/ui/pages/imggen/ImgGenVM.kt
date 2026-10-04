@@ -45,8 +45,7 @@ data class GeneratedImage(
 )
 
 private fun GenMediaEntity.toGeneratedImage(filesManager: FilesManager): GeneratedImage {
-    val imagesDir = filesManager.getImagesDir()
-    val fullPath = File(imagesDir, this.path.removePrefix("images/")).absolutePath
+    val fullPath = resolveImageFile(filesManager.getImagesDir()).absolutePath
 
     return GeneratedImage(
         id = this.id,
@@ -56,6 +55,20 @@ private fun GenMediaEntity.toGeneratedImage(filesManager: FilesManager): Generat
         model = this.modelId,
     )
 }
+
+private fun GenMediaEntity.resolveImageFile(imagesDir: File): File {
+    val name = this.path.removePrefix("images/")
+    val file = File(imagesDir, name)
+    // 旧版本直接把含 "/" 的模型名拼进文件名，图片实际落在子目录里，而记录只存了最后一段
+    return if (file.exists() || '/' !in modelId) {
+        file
+    } else {
+        File(imagesDir, "${createAt}_${modelId.substringBeforeLast('/')}/$name")
+    }
+}
+
+// 模型名可能含 "/"（如 OpenRouter 的 vendor/model），直接拼进文件名会变成子目录
+private fun String.toFileNamePart(): String = replace(Regex("""[\\/:*?"<>|]"""), "_")
 
 /**
  * Pure selection logic backing the gallery orphan purge (#39): given every persisted
@@ -67,7 +80,7 @@ internal fun selectOrphanedGenMedia(
     entities: List<GenMediaEntity>,
     imagesDir: File,
 ): List<GenMediaEntity> =
-    entities.filter { entity -> !File(imagesDir, entity.path.removePrefix("images/")).exists() }
+    entities.filter { entity -> !entity.resolveImageFile(imagesDir).exists() }
 
 /**
  * Makes a model display name safe to use as a single filename component (#39). Model
@@ -375,7 +388,7 @@ class ImgGenVM(
         val imagesDir = filesManager.getImagesDir()
 
         val timestamp = System.currentTimeMillis()
-        val filename = "${timestamp}_${modelName}_$index.png"
+        val filename = "${timestamp}_${modelName.toFileNamePart()}_$index.png"
         val imageFile = File(imagesDir, filename)
 
         val createdFile = filesManager.createImageFileFromBase64(item.data, imageFile.absolutePath)

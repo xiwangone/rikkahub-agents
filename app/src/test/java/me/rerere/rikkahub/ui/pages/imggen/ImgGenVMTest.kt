@@ -70,4 +70,38 @@ class ImgGenVMTest {
 
         assertEquals(listOf(missingA, missingB), orphans)
     }
+
+    @Test fun `legacy record with slash model id resolves file in subdirectory`() {
+        // 旧版本把含 "/" 的模型名直接拼进文件名，图片实际落在子目录里，而记录只存了最后一段
+        val createAt = 1234567890L
+        val modelId = "google/gemini-2.5-flash-image-preview"
+        val subDir = File(imagesDir, "${createAt}_${modelId.substringBeforeLast('/')}")
+        subDir.mkdirs()
+        File(subDir, "gemini-2.5-flash-image-preview_0.png").writeBytes(byteArrayOf(1))
+        val legacy = GenMediaEntity(
+            id = 1,
+            path = "images/gemini-2.5-flash-image-preview_0.png",
+            modelId = modelId,
+            prompt = "prompt",
+            createAt = createAt,
+        )
+
+        val orphans = selectOrphanedGenMedia(listOf(legacy), imagesDir)
+
+        assertEquals(emptyList<GenMediaEntity>(), orphans)
+    }
+
+    @Test fun `legacy record with slash model id but truly missing file is an orphan`() {
+        val legacy = GenMediaEntity(
+            id = 1,
+            path = "images/gemini-2.5-flash-image-preview_0.png",
+            modelId = "google/gemini-2.5-flash-image-preview",
+            prompt = "prompt",
+            createAt = 1234567890L,
+        )
+
+        val orphans = selectOrphanedGenMedia(listOf(legacy), imagesDir)
+
+        assertEquals(listOf(legacy), orphans)
+    }
 }
