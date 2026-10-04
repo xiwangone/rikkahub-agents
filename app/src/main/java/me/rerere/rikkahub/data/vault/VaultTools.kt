@@ -340,15 +340,20 @@ private suspend fun runVaultExportEnv(
 
     val lines = mutableListOf("#!/bin/bash", "# vault-env — vault_export_env 生成，用完请删除: rm /workspace/tmp/vault-env.sh")
     val exported = mutableListOf<String>()
-    val resolver = CredentialResolver(repository)
+    val failures = mutableListOf<String>()
+    // 必须传 isAuthorized：EXPORT 的 requiresAuthorization = true，缺省 null 时
+    // `isAuthorized?.invoke() != true` 但恒为真 → 每个条目都返回 NotAuthorized。
+    val resolver = CredentialResolver(repository) { sessionManager.hasActiveAuthorization() }
     for (entry in selected) {
-        val r = resolver.resolve(entry.name, CredentialPurpose.EXPORT, caller = "ai-tool")
-        if (r is CredentialResolution.Granted) {
-            lines += "export ${entry.name}=${shellSingleQuote(r.value)}"
-            exported += entry.name
+        when (val r = resolver.resolve(entry.name, CredentialPurpose.EXPORT, caller = "ai-tool")) {
+            is CredentialResolution.Granted -> {
+                lines += "export ${entry.name}=${shellSingleQuote(r.value)}"
+                exported += entry.name
+            }
+            else -> failures += r.message
         }
     }
-    if (exported.isEmpty()) return fail("解密失败，未导出任何凭证")
+    if (exported.isEmpty()) return fail("没有导出任何凭证：\n" + failures.joinToString("\n") { "· $it" })
 
     val wsRepository =
         runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
