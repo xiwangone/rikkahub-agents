@@ -1,6 +1,7 @@
 package me.rerere.ai.provider.providers.backend
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.takeWhile
@@ -207,66 +208,19 @@ class BackendProvider(
         // 协议分发（方案 B）：backend 走专有 SSE；custom 走 OpenAI 兼容；cli 后续实现
         when (providerSetting.backendType) {
             "custom" -> {
-                // 自定义 HTTP 后端：复用 OpenAI 兼容协议（baseUrl + token 作为 apiKey）
-                val openaiSetting =
-                    ProviderSetting.OpenAI(
-                        baseUrl = providerSetting.baseUrl,
-                        apiKey = providerSetting.token,
-                    )
-                chatCompletionsAPI.streamText(openaiSetting, messages, params).collect { emit(it) }
+                streamCustomBackend(providerSetting, messages, params)
                 return@flow
             }
 
             "cli" -> {
-                val executor = cliExecutor ?: error("CLI 执行器未注入")
-                val prompt =
-                    messages.lastOrNull { it.role == MessageRole.USER }?.parts
-                        ?.filterIsInstance<UIMessagePart.Text>()
-                        ?.joinToString("") { it.text }
-                        ?: ""
-                val command = providerSetting.cliCommand.replace("{prompt}", prompt)
-                val output = executor.execute(command, prompt, providerSetting.cliSshHost.ifBlank { null })
-                emit(StreamChunk.TextStart(id = "text"))
-                emit(StreamChunk.TextDelta(id = "text", text = output))
-                emit(StreamChunk.TextEnd(id = "text"))
-                emit(StreamChunk.Finish(finishReason = "stop"))
+                streamCliBackend(providerSetting, messages)
                 return@flow
             }
         }
 
         val api = api(providerSetting)
 
-        // ── 上下文注入(关键修复)──
-        // 直连模式下 serve 会话是"一次性"的:每回合 POST /new 新建、只提交增量输入,
-        // 服务端没有历史 → 多轮对话失忆。云端协议(custom)走完整 messages 无此问题。
-        // 方案:把除最后一条用户消息外的全部历史(含系统提示)序列化为带角色标签的
-        // 纯文本前缀,与本次输入一起 submit,让 serve 的模型看到等价完整上下文。
-        // 注:serve /submit 只接受纯文本 input;结构化多模态内容取其文本部分。
-        fun UIMessage.textContent(): String =
-            parts.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
-
-        val historyPrefix = StringBuilder()
-        for (m in messages.dropLast(1)) {
-            // 跳过空消息与工具/图片等非文本 part 已由 textContent() 过滤
-            val text = m.textContent()
-            if (text.isBlank()) continue
-            when (m.role) {
-                MessageRole.USER -> historyPrefix.append("[user] ")
-                MessageRole.ASSISTANT -> historyPrefix.append("[assistant] ")
-                MessageRole.SYSTEM -> historyPrefix.append("[system] ")
-                // 工具结果不做纯文本化(体量大、结构化信息失真),首版跳过
-                MessageRole.TOOL -> continue
-            }
-            historyPrefix.append(text).append('\n')
-        }
-        if (historyPrefix.isNotEmpty()) {
-            historyPrefix.append('\n') // 历史块与本轮输入之间空一行分隔
-        }
-        val lastUserInput =
-            messages.lastOrNull { it.role == MessageRole.USER }?.textContent()
-                ?: return@flow
-
-        val fullInput = historyPrefix.append(lastUserInput).toString()
+        val fullInput = buildFullInput(messages) ?: return@flow
 
         // 先建立 SSE 连接再 POST /new + /submit:连接就绪后提交,
         // 避免服务端早期事件(turn_started/usage 等)在订阅前发出而丢失。
@@ -303,239 +257,82 @@ class BackendProvider(
             throw java.io.IOException("Backend /submit 失败：网络不通或服务端非 2xx")
         }
 
-        var usage: TokenUsage? = null
-        var textStarted = false
-        var reasoningStarted = false
-        // 每个 turn 用独立的 part id：固定 id 在多 turn 下会被反复复用 —— 上一轮已结束的
-        // part 与下一轮新建的 part 共用同一索引键，会出现「本轮只 Start 不收尾」的残留
-        // part（finishedAt 永为 null）→ UI 思考计时一直跑。
-        var turnSeq = 0
-        val reasoningId: () -> String = { "reasoning-$turnSeq" }
-        val textId: () -> String = { "text-$turnSeq" }
+        BackendEventProcessor(
+            providerSetting = providerSetting,
+            events = events,
+            interactionHandler = interactionHandler,
+            sessionContext = BackendSessionContext(
+                sessionKey = sessionKey,
+                sessionPaths = sessionPaths,
+                sessionPathStore = sessionPathStore,
+                onSessionPath = { lastSessionPath = it },
+            ),
+        ).run { process() }
+    }
 
-        // backend serve 的 /events 是长连接（keep-alive），不会自然关流。
-        // 多 turn 自动任务（工具调用循环）会在同一热流里连续发：
-        //   turn_started → tool → tool_result → ... → turn_done → turn_started → ...
-        // 收尾策略：内容事件刷新 idle；turn_done 后超过 TURN_DONE_IDLE_TIMEOUT_MS
-        // 无任何内容事件 → 任务真正完成 → 结束 flow（UI 收尾，不再「working」）。
-        // 实现：热流支持多次 first()（不重建连接），withTimeoutOrNull 提供超时。
-        var turnDone = false
-        // 服务端正等待用户应答（审批/提问）：此时流会静默挂起，静默窗口不适用于它，
-        // 否则用户稍晚一点动手指，卡片就会被收尾成不可交互。
-        var awaitingInteraction = false
+    /** 自定义 HTTP 后端：复用 OpenAI 兼容协议（baseUrl + token 作为 apiKey）。 */
+    private suspend fun FlowCollector<StreamChunk>.streamCustomBackend(
+        providerSetting: ProviderSetting.Backend,
+        messages: List<UIMessage>,
+        params: TextGenerationParams,
+    ) {
+        val openaiSetting =
+            ProviderSetting.OpenAI(
+                baseUrl = providerSetting.baseUrl,
+                apiKey = providerSetting.token,
+            )
+        chatCompletionsAPI.streamText(openaiSetting, messages, params).collect { emit(it) }
+    }
 
-        while (true) {
-            val event =
-                kotlinx.coroutines.withTimeoutOrNull(
-                    when {
-                        awaitingInteraction -> INTERACTION_WAIT_TIMEOUT_MS
-                        turnDone -> TURN_DONE_IDLE_TIMEOUT_MS
-                        else -> FIRST_CONTENT_TIMEOUT_MS
-                    }
-                ) {
-                    // 事件异常兜底：流异常时返回 null → 由外层 break 优雅收尾，而不是让整个 flow 崩溃。
-                    runCatching { events.first() }.getOrNull()
-                } ?: break
+    /** CLI 后端：拼命令执行，一次性返回输出。 */
+    private suspend fun FlowCollector<StreamChunk>.streamCliBackend(
+        providerSetting: ProviderSetting.Backend,
+        messages: List<UIMessage>,
+    ) {
+        val executor = cliExecutor ?: error("CLI 执行器未注入")
+        val prompt =
+            messages.lastOrNull { it.role == MessageRole.USER }?.parts
+                ?.filterIsInstance<UIMessagePart.Text>()
+                ?.joinToString("") { it.text }
+                ?: ""
+        val command = providerSetting.cliCommand.replace("{prompt}", prompt)
+        val output = executor.execute(command, prompt, providerSetting.cliSshHost.ifBlank { null })
+        emit(StreamChunk.TextStart(id = "text"))
+        emit(StreamChunk.TextDelta(id = "text", text = output))
+        emit(StreamChunk.TextEnd(id = "text"))
+        emit(StreamChunk.Finish(finishReason = "stop"))
+    }
 
-            // 捕获 serve 会话路径（每条事件都带），用于后续 resume 复用
-            sessionKey?.let { key ->
-                event.sessionPath?.takeIf { it.isNotBlank() }?.let { path ->
-                    sessionPaths[key] = path
-                    lastSessionPath = path
-                    // 落盘：跨进程重启后同对话仍能 resume
-                    runCatching { sessionPathStore.put(key, path) }
-                }
+    /**
+     * 上下文注入：直连模式下 serve 会话是"一次性"的，每回合 POST /new 新建、只提交增量输入，
+     * 服务端没有历史 → 多轮对话失忆。把除最后一条用户消息外的全部历史（含系统提示）
+     * 序列化为带角色标签的纯文本前缀，与本次输入一起 submit。
+     * 无用户输入时返回 null。
+     */
+    private fun buildFullInput(messages: List<UIMessage>): String? {
+        fun UIMessage.textContent(): String =
+            parts.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
+
+        val historyPrefix = StringBuilder()
+        for (m in messages.dropLast(1)) {
+            val text = m.textContent()
+            if (text.isBlank()) continue
+            when (m.role) {
+                MessageRole.USER -> historyPrefix.append("[user] ")
+                MessageRole.ASSISTANT -> historyPrefix.append("[assistant] ")
+                MessageRole.SYSTEM -> historyPrefix.append("[system] ")
+                // 工具结果不做纯文本化（体量大、结构化信息失真），首版跳过
+                MessageRole.TOOL -> continue
             }
-
-            val isContent =
-                event.kind in
-                    setOf(
-                        "text", "reasoning", "tool_dispatch", "tool_result", "usage",
-                        "message", "turn_started",
-                    )
-            if (isContent) {
-                turnDone = false
-                awaitingInteraction = false
-            }
-            // 服务端发起交互请求（审批/提问）：进入「等待用户应答」态 —— serve 发完这类请求会挂起
-            // 静默等待应答，其后还可能跟 tool_dispatch 等事件；若不单独放宽超时窗口，
-            // turn_done → approval_request 的时序会让 flow 在 15s 静默窗口后 break，
-            // 卡片刚建立就被收尾（表现为「没弹出」）。同理这也解释了工具卡输入为空的伴生现象：
-            // 带 args 的后续帧根本不再被消费。
-            if (event.kind == "approval_request" || event.kind == "ask_request") {
-                awaitingInteraction = true
-                turnDone = false
-            }
-
-            when (event.kind) {
-                "text" -> {
-                    val t = event.text ?: continue
-                    if (!textStarted) {
-                        emit(StreamChunk.TextStart(id = textId()))
-                        textStarted = true
-                    }
-                    emit(StreamChunk.TextDelta(id = textId(), text = t))
-                }
-
-                "reasoning" -> {
-                    // serve 的 reasoning 帧把思考正文放在 text 字段（只有收尾的 message 帧
-                    // 才用 reasoning 字段装完整思考）；只读 reasoning 会把思考整段丢掉。
-                    val r = event.reasoning ?: event.text ?: continue
-                    if (!reasoningStarted) {
-                        emit(StreamChunk.ReasoningStart(id = reasoningId()))
-                        reasoningStarted = true
-                    }
-                    emit(StreamChunk.ReasoningDelta(id = reasoningId(), text = r))
-                }
-
-                "tool_dispatch" -> {
-                    val tool = event.tool
-                    if (tool != null) {
-                        emit(
-                            StreamChunk.ServerToolStart(
-                                id = tool.id,
-                                toolName = tool.name,
-                                input = parseJsonOrNull(tool.args ?: tool.arguments),
-                                metadata = toolMetadata(tool),
-                            )
-                        )
-                    }
-                }
-
-                "tool_result" -> {
-                    val tool = event.tool
-                    if (tool != null) {
-                        val output = tool.output ?: tool.err ?: ""
-                        emit(
-                            StreamChunk.ServerToolEnd(
-                                id = tool.id,
-                                input = parseJsonOrNull(tool.args ?: tool.arguments),
-                                output = parseJsonOrText(output),
-                                status =
-                                    if (tool.err.isNullOrBlank()) {
-                                        ServerToolStatus.COMPLETED
-                                    } else {
-                                        ServerToolStatus.FAILED
-                                    },
-                                metadata = toolMetadata(tool),
-                            )
-                        )
-                    }
-                }
-
-                "usage" -> {
-                    val u = event.usage
-                    if (u != null) {
-                        usage =
-                            TokenUsage(
-                                promptTokens = u.promptTokens.toInt(),
-                                completionTokens = u.completionTokens.toInt(),
-                                cachedTokens = u.cacheHitTokens.toInt(),
-                                totalTokens = u.totalTokens.toInt(),
-                                cost = u.costUsd,
-                            )
-                        emit(StreamChunk.Usage(usage))
-                    }
-                }
-
-                "turn_done" -> {
-                    turnDone = true
-                    if (textStarted) {
-                        emit(StreamChunk.TextEnd(id = textId()))
-                        textStarted = false
-                    }
-                    if (reasoningStarted) {
-                        emit(StreamChunk.ReasoningEnd(id = reasoningId()))
-                        reasoningStarted = false
-                    }
-                    emit(StreamChunk.Finish(finishReason = "stop"))
-                    // 不结束：多 turn 自动任务可能马上开始下一轮。
-                    // 下一轮 first() 带 TURN_DONE_IDLE_TIMEOUT_MS 超时：
-                    // 有新内容则继续，无则 withTimeoutOrNull 返回 null → break 收尾。
-                }
-
-                "turn_started" -> {
-                    turnSeq++
-                    emit(StreamChunk.TurnStarted())
-                }
-
-                "phase", "turn_phase" -> {
-                    val label = event.detail ?: event.code ?: event.text ?: ""
-                    if (label.isNotBlank()) emit(StreamChunk.Phase(label))
-                }
-
-                "notice" -> {
-                    val text = event.text ?: event.detail ?: ""
-                    if (text.isNotBlank()) emit(StreamChunk.Notice(text, event.level))
-                }
-
-                // "message" 是 serve 的消息回显事件（其 text / reasoning 均有独立事件下发），
-                // 不能再当作 Notice 发出：否则同一句正文会被重复渲染成额外的提示块
-                // （其 text 与 kind=text 重复）。
-                "message" -> Unit
-
-                "tool_progress" -> {
-                    val tool = event.tool
-                    if (tool != null) {
-                        val text = tool.output ?: tool.err ?: ""
-                        if (text.isNotBlank()) emit(StreamChunk.ToolProgress(tool.id, text))
-                    }
-                }
-
-                "approval_request" -> {
-                    val a = event.approval
-                    if (a != null) {
-                        interactionHandler.onApprovalRequest(providerSetting, a.id, a.tool, a.subject)
-                        emit(StreamChunk.ApprovalRequest(a.id, a.tool, a.subject))
-                    }
-                }
-
-                "ask_request" -> {
-                    val q = event.ask
-                    if (q != null) {
-                        val questions =
-                            q.questions.map { question ->
-                                AskQuestion(
-                                    id = question.id,
-                                    prompt = question.prompt,
-                                    multi = question.multi,
-                                    options =
-                                        question.options.map { opt ->
-                                            AskOption(opt.label, opt.description)
-                                        },
-                                )
-                            }
-                        interactionHandler.onAskRequest(providerSetting, q.id, questions)
-                        emit(
-                            StreamChunk.AskRequest(
-                                id = q.id,
-                                questions = questions,
-                            )
-                        )
-                    }
-                }
-
-                "compaction_started" -> emit(StreamChunk.CompactionStarted(event.compaction?.trigger))
-                "compaction_done" -> emit(StreamChunk.CompactionDone(event.compaction?.trigger))
-
-                else -> {
-                    // 其他未识别的非内容事件：忽略
-                }
-            }
+            historyPrefix.append(text).append('\n')
         }
-
-        // events 流结束（超时 break 或连接关闭）未补收尾，视作最后一个 turn 完成
-        if (textStarted) {
-            emit(StreamChunk.TextEnd(id = textId()))
-            textStarted = false
+        if (historyPrefix.isNotEmpty()) {
+            historyPrefix.append('\n')
         }
-        if (reasoningStarted) {
-            emit(StreamChunk.ReasoningEnd(id = reasoningId()))
-            reasoningStarted = false
-        }
-        if (!turnDone) {
-            emit(StreamChunk.Finish(finishReason = "stop"))
-        }
+        val lastUserInput =
+            messages.lastOrNull { it.role == MessageRole.USER }?.textContent()
+                ?: return null
+        return historyPrefix.append(lastUserInput).toString()
     }
 
     /**
@@ -549,41 +346,4 @@ class BackendProvider(
             type = ModelType.CHAT,
             abilities = listOf(ModelAbility.TOOL, ModelAbility.REASONING),
         )
-
-    /** 把工具参数（JSON 字符串）解析为结构化 JsonElement；解析失败返回 null。 */
-    private fun parseJsonOrNull(s: String?): JsonElement? =
-        s?.takeIf { it.isNotBlank() }?.let {
-            runCatching { json.parseToJsonElement(it) }.getOrNull()
-        }
-
-    /** 工具输出优先解析为 JSON；自由文本回退为 JsonPrimitive。 */
-    private fun parseJsonOrText(s: String): JsonElement =
-        runCatching { json.parseToJsonElement(s) }.getOrElse { JsonPrimitive(s) }
-
-    /**
-     * 把工具的执行细节（readOnly/truncated/subject/durationMs）包装进 metadata，
-     * 供 UI 渲染只读/截断等标记；全部默认值时返回 null 避免多余 JSON。
-     */
-    private fun toolMetadata(tool: ToolPayload): JsonObject? {
-        val hasDetail =
-            tool.readOnly || tool.truncated || !tool.subject.isNullOrBlank() || tool.durationMs > 0
-        if (!hasDetail) return null
-        return buildJsonObject {
-            put("readOnly", JsonPrimitive(tool.readOnly))
-            put("truncated", JsonPrimitive(tool.truncated))
-            tool.subject?.takeIf { it.isNotBlank() }?.let { put("subject", JsonPrimitive(it)) }
-            if (tool.durationMs > 0) put("durationMs", JsonPrimitive(tool.durationMs))
-        }
-    }
 }
-
-// turn_done 之后判定「任务真正完成」的静默窗口。
-// 取值不宜过短：多轮任务在 turn 之间可能有短暂的准备期，过短会误判为完成而提前收尾（表现为「没反应」）。
-// 取值也不宜过长：serve 在任务结束后不再推送事件，窗口过长会让 UI 收尾与用量持久化明显滞后。
-private const val TURN_DONE_IDLE_TIMEOUT_MS = 15_000L
-// 非 turn_done 阶段的整体兜底超时：正常 SSE 流式下事件持续推送，此值仅用于
-// 防止异常场景（连接挂起但无任何事件）无限转圈。补充 runCatching 异常兜底。
-private const val FIRST_CONTENT_TIMEOUT_MS = 300_000L
-// 服务端等待用户应答（审批/提问）时的静默上限：这类挂起是「等人」而非「已结束」，
-// 给足思考与操作时间（与 FIRST_CONTENT_TIMEOUT_MS 同量级），避免卡片被提前收尾。
-private const val INTERACTION_WAIT_TIMEOUT_MS = 300_000L
