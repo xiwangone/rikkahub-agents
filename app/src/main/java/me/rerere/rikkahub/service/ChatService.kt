@@ -2252,8 +2252,10 @@ class ChatService(
         syncMemory: Boolean = true,
     ) {
         val exists = conversationRepo.existsConversationById(conversation.id)
+        // 内存先行：新空会话不落库，但内存态必须更新（如会话级模型切换），否则切换被静默丢弃
+        if (syncMemory) updateConversation(conversationId, conversation.copy())
         if (!exists && conversation.title.isBlank() && conversation.messageNodes.isEmpty()) {
-            return // 新会话且为空时不保存
+            return // 新会话且为空时不落库（内存已更新）
         }
         // 落库埋点：消息数与最后一条的 role/部件数 —— 排查丢消息时可直接对齐「内存有什么 / 写了什么」。
         AppLog.d(
@@ -2281,7 +2283,6 @@ class ChatService(
         }
 
         val updatedConversation = conversation.copy()
-        if (syncMemory) updateConversation(conversationId, updatedConversation)
 
         if (!exists) {
             conversationRepo.insertConversation(updatedConversation)

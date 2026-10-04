@@ -509,15 +509,6 @@ class TelegramBotService : Service() {
     }
 
     /** Capped exponential backoff: 5s, 10s, 20s, 40s, 80s, 120s (capped). */
-    private fun computeBackoffMs(consecutiveErrors: Int): Long {
-        val base = 5_000L
-        val cap = 120_000L
-        if (consecutiveErrors <= 0) return base
-        val shift = (consecutiveErrors - 1).coerceAtMost(20)
-        val computed = base shl shift
-        return computed.coerceAtMost(cap)
-    }
-
     /**
      * Long-lived listener for generations completing on chat-mapped conversations that
      * AREN'T currently being pumped by [handleIncoming]. Without this, sub-agent wake
