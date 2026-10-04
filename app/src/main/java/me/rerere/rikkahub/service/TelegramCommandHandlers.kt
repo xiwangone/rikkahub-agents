@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.service
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.cancelAndJoin
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
@@ -135,7 +136,10 @@ internal suspend fun TelegramBotService.sendStart(chatId: Long) {
         """.trimIndent()
     try {
         client.sendMessage(chatId, msg)
-    } catch (_: Throwable) {
+    } catch (ce: CancellationException) {
+        throw ce
+    } catch (t: Throwable) {
+        AppLog.w(TAG, "send /help failed", t)
     }
 }
 

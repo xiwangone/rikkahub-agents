@@ -10,6 +10,7 @@ import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -688,7 +689,10 @@ class TelegramBotService : Service() {
         // UX: tell Telegram "the bot is typing" so the user sees activity while we generate.
         try {
             client.sendChatAction(m.chatId, "typing")
-        } catch (_: Throwable) {
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (t: Throwable) {
+            AppLog.w(TAG, "sendChatAction(typing) failed", t)
         }
         chatService.initializeConversation(convId)
         // Mark this conv browser-headless so browser tools route through
@@ -855,7 +859,9 @@ class TelegramBotService : Service() {
                         while (kotlinx.coroutines.currentCoroutineContext()[Job]?.isActive == true) {
                             try {
                                 client.sendChatAction(m.chatId, "typing")
-                            } catch (_: Throwable) {
+                            } catch (ce: CancellationException) {
+                                throw ce
+                            } catch (t: Throwable) {
                             }
                             delay(4_000)
                         }
@@ -980,7 +986,10 @@ class TelegramBotService : Service() {
                                     )}</code> already failed $recentFailures× this turn. Telling the model to stop retrying.",
                                     parseMode = PARSE_MODE_HTML,
                                 )
-                            } catch (_: Throwable) {
+                            } catch (ce: CancellationException) {
+                                throw ce
+                            } catch (t: Throwable) {
+                                AppLog.w(TAG, "tool-failure notice send failed", t)
                             }
                         }
                         continue
@@ -1295,7 +1304,7 @@ class TelegramBotService : Service() {
             val asUuid =
                 try {
                     Uuid.parse(existing.conversationId)
-                } catch (_: Throwable) {
+                } catch (_: IllegalArgumentException) {
                     null
                 }
             if (asUuid != null && conversationRepo.existsConversationById(asUuid)) return asUuid to false
@@ -1305,7 +1314,7 @@ class TelegramBotService : Service() {
             cfg.assistantId?.let {
                 try {
                     Uuid.parse(it)
-                } catch (_: Throwable) {
+                } catch (_: IllegalArgumentException) {
                     null
                 }
             } ?: settingsStore.settingsFlow.value
@@ -1419,12 +1428,16 @@ class TelegramBotService : Service() {
                 "sendWithFloodRetry: 429 flood-wait ${e.retryAfterSec}s; backing off then retrying once",
             )
             delay(e.retryAfterSec * 1000L + 250L)
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (t: Throwable) {
             return t
         }
         return try {
             client.sendMessage(chatId = chatId, text = text, parseMode = parseMode, replyToMessageId = replyToMessageId)
             null
+        } catch (ce: CancellationException) {
+            throw ce
         } catch (t: Throwable) {
             t
         }
@@ -1477,7 +1490,10 @@ class TelegramBotService : Service() {
         val ok =
             try {
                 client.editMessageText(chatId, placeholderId, html, parseMode = PARSE_MODE_HTML) != null
-            } catch (_: Throwable) {
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (t: Throwable) {
+                AppLog.w(TAG, "editMessageText failed, falling back to plain text", t)
                 false
             }
         if (!ok) {
@@ -1490,7 +1506,9 @@ class TelegramBotService : Service() {
                     },
                     parseMode = null,
                 )
-            } catch (_: Throwable) {
+            } catch (ce: CancellationException) {
+                throw ce
+            } catch (t: Throwable) {
                 // best effort
             }
         }
