@@ -2576,6 +2576,7 @@
   <string name="mcp_tool_contacts">연락처</string>
   <string name="mcp_tool_call_log">통화 기록</string>
   <string name="mcp_tool_sms_inbox">SMS 받은편지함</string>
+  <string name="mcp_tool_screen_time">스크린 타임</string>
   <string name="mcp_tool_camera_photo">사진 촬영</string>
   <string name="mcp_tool_mic_recorder">녹음</string>
   <string name="mcp_tool_speech_to_text">음성 인식</string>

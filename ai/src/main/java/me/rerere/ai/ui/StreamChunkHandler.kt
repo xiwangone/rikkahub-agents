@@ -80,221 +80,27 @@ class StreamChunkHandler(private val model: Model? = null) {
 
     private fun append(message: UIMessage, chunk: StreamChunk): UIMessage = with(message) {
         when (chunk) {
-            is StreamChunk.TextStart -> {
-                if (chunk.id in textPartIndexes) this
-                else copy(parts = parts + UIMessagePart.Text("")).also {
-                    textPartIndexes[chunk.id] = parts.size
-                }
-            }
-            is StreamChunk.TextDelta -> {
-                val index = textPartIndexes[chunk.id]
-                // 容忍 Provider 未发送 Start：首次收到 Delta 时直接创建对应 part。
-                if (index == null || parts.getOrNull(index) !is UIMessagePart.Text) {
-                    copy(parts = parts + UIMessagePart.Text(chunk.text)).also {
-                        textPartIndexes[chunk.id] = parts.size
-                    }
-                } else {
-                    copy(parts = parts.toMutableList().apply {
-                        val text = get(index) as UIMessagePart.Text
-                        set(index, text.copy(text = text.text + chunk.text))
-                    })
-                }
-            }
-
+            is StreamChunk.TextStart -> appendTextStart(chunk)
+            is StreamChunk.TextDelta -> appendTextDelta(chunk)
             is StreamChunk.TextEnd -> this.also { textPartIndexes.remove(chunk.id) }
-            is StreamChunk.ReasoningStart -> {
-                if (chunk.id in reasoningPartIndexes) this
-                else copy(parts = parts + UIMessagePart.Reasoning(
-                    reasoning = "",
-                    createdAt = Clock.System.now(),
-                    finishedAt = null,
-                    metadata = chunk.metadata,
-                    reasoningType = chunk.reasoningType,
-                )).also { reasoningPartIndexes[chunk.id] = parts.size }
-            }
+            is StreamChunk.ReasoningStart -> appendReasoningStart(chunk)
+            is StreamChunk.ReasoningDelta -> appendReasoningDelta(chunk)
+            is StreamChunk.ReasoningEnd -> appendReasoningEnd(chunk)
 
-            is StreamChunk.ReasoningDelta -> {
-                val index = reasoningPartIndexes[chunk.id]
-                if (index == null || parts.getOrNull(index) !is UIMessagePart.Reasoning) {
-                    copy(parts = parts + UIMessagePart.Reasoning(
-                        reasoning = chunk.text,
-                        createdAt = Clock.System.now(),
-                        finishedAt = null,
-                        metadata = chunk.metadata,
-                        reasoningType = chunk.reasoningType,
-                    )).also { reasoningPartIndexes[chunk.id] = parts.size }
-                } else {
-                    copy(parts = parts.toMutableList().apply {
-                        val reasoning = get(index) as UIMessagePart.Reasoning
-                        set(index, reasoning.copy(
-                            reasoning = reasoning.reasoning + chunk.text,
-                            metadata = chunk.metadata ?: reasoning.metadata,
-                            reasoningType = chunk.reasoningType,
-                        ))
-                    })
-                }
-            }
-
-            is StreamChunk.ReasoningEnd -> {
-                val index = reasoningPartIndexes.remove(chunk.id)
-                if (index == null || parts.getOrNull(index) !is UIMessagePart.Reasoning) this
-                else copy(parts = parts.toMutableList().apply {
-                    val reasoning = get(index) as UIMessagePart.Reasoning
-                    set(index, reasoning.copy(
-                        finishedAt = Clock.System.now(),
-                        metadata = chunk.metadata ?: reasoning.metadata,
-                    ))
-                })
-            }
-
-            is StreamChunk.ToolCallStart -> {
-                if (parts.any { it is UIMessagePart.Tool && it.toolCallId == chunk.id }) this
-                else copy(parts = parts + UIMessagePart.Tool(
-                    toolCallId = chunk.id,
-                    toolName = chunk.toolName,
-                    input = "",
-                    metadata = chunk.metadata,
-                ))
-            }
-
-            is StreamChunk.ToolCallDelta -> copy(parts = parts.map { part ->
-                // 工具调用可以并行生成，通过 toolCallId 而不是 part 位置识别目标。
-                if (part is UIMessagePart.Tool && part.toolCallId == chunk.id) {
-                    part.copy(
-                        toolName = part.toolName + chunk.toolNameDelta,
-                        input = part.input + chunk.inputDelta,
-                        metadata = chunk.metadata ?: part.metadata,
-                    )
-                } else part
-            })
-
+            is StreamChunk.ToolCallStart -> appendToolCallStart(chunk)
+            is StreamChunk.ToolCallDelta -> appendToolCallDelta(chunk)
             is StreamChunk.ToolCallEnd -> this
-            is StreamChunk.ServerToolStart -> {
-                val index = parts.indexOfFirst {
-                    it is UIMessagePart.ServerTool && it.toolCallId == chunk.id
-                }
-                if (index < 0) {
-                    copy(parts = parts + UIMessagePart.ServerTool(
-                        toolCallId = chunk.id,
-                        toolName = chunk.toolName,
-                        input = chunk.input,
-                        status = ServerToolStatus.IN_PROGRESS,
-                        metadata = chunk.metadata,
-                    ))
-                } else {
-                    copy(parts = parts.toMutableList().apply {
-                        val tool = get(index) as UIMessagePart.ServerTool
-                        set(index, tool.copy(
-                            toolName = chunk.toolName.ifBlank { tool.toolName },
-                            input = chunk.input ?: tool.input,
-                            metadata = mergeMetadata(tool.metadata, chunk.metadata),
-                        ))
-                    })
-                }
-            }
-
-            is StreamChunk.ServerToolInputDelta -> {
-                val buffer = serverToolInputBuffers.getOrPut(chunk.id) { StringBuilder() }
-                buffer.append(chunk.inputDelta)
-                updateServerTool(chunk.id) { tool ->
-                    tool.copy(metadata = mergeMetadata(tool.metadata, chunk.metadata))
-                }
-            }
-
-            is StreamChunk.ServerToolInputEnd -> {
-                val input = serverToolInputBuffers.remove(chunk.id)?.toString()?.takeIf { it.isNotBlank() }
-                    ?.let(::parseServerToolJson)
-                if (input == null) this else updateServerTool(chunk.id) { it.copy(input = input) }
-            }
-
-            is StreamChunk.ServerToolEnd -> {
-                val bufferedInput = serverToolInputBuffers.remove(chunk.id)?.toString()?.takeIf { it.isNotBlank() }
-                    ?.let(::parseServerToolJson)
-                val index = parts.indexOfFirst {
-                    it is UIMessagePart.ServerTool && it.toolCallId == chunk.id
-                }
-                if (index < 0) {
-                    copy(parts = parts + UIMessagePart.ServerTool(
-                        toolCallId = chunk.id,
-                        toolName = "",
-                        input = chunk.input ?: bufferedInput,
-                        output = chunk.output,
-                        status = chunk.status,
-                        metadata = chunk.metadata,
-                    ))
-                } else {
-                    updateServerTool(chunk.id) { tool ->
-                        tool.copy(
-                            input = chunk.input ?: bufferedInput ?: tool.input,
-                            output = chunk.output ?: tool.output,
-                            status = chunk.status,
-                            metadata = mergeMetadata(tool.metadata, chunk.metadata),
-                        )
-                    }
-                }
-            }
-            is StreamChunk.ImageStart -> {
-                if (chunk.id in imagePartIndexes) this
-                else copy(parts = parts + UIMessagePart.Image(
-                    url = "data:${chunk.mimeType};base64,",
-                    metadata = chunk.metadata,
-                )).also { imagePartIndexes[chunk.id] = parts.size }
-            }
-
-            is StreamChunk.ImageDelta -> {
-                val index = imagePartIndexes[chunk.id]
-                if (index == null || parts.getOrNull(index) !is UIMessagePart.Image) {
-                    copy(parts = parts + UIMessagePart.Image(chunk.data, chunk.metadata)).also {
-                        imagePartIndexes[chunk.id] = parts.size
-                    }
-                } else {
-                    copy(parts = parts.toMutableList().apply {
-                        val image = get(index) as UIMessagePart.Image
-                        set(index, image.copy(
-                            url = image.url + chunk.data,
-                            metadata = chunk.metadata ?: image.metadata,
-                        ))
-                    })
-                }
-            }
-
-            is StreamChunk.ImageSnapshot -> {
-                val index = imagePartIndexes[chunk.id]
-                if (index == null || parts.getOrNull(index) !is UIMessagePart.Image) {
-                    copy(
-                        parts = parts + UIMessagePart.Image(
-                            url = "data:image/png;base64,${chunk.data}",
-                            metadata = chunk.metadata,
-                        )
-                    ).also { imagePartIndexes[chunk.id] = parts.size }
-                } else {
-                    copy(parts = parts.toMutableList().apply {
-                        val image = get(index) as UIMessagePart.Image
-                        // Snapshot 是一张完整的可渲染图片，只替换 data URL 的数据部分；
-                        // 与 ImageDelta 不同，它不会把数据追加到上一帧之后。
-                        val dataUrlPrefix = image.url.substringBefore(",").takeIf { it.startsWith("data:") }
-                            ?: "data:image/png;base64"
-                        set(index, image.copy(
-                            url = "$dataUrlPrefix,${chunk.data}",
-                            metadata = chunk.metadata ?: image.metadata,
-                        ))
-                    })
-                }
-            }
-
+            is StreamChunk.ServerToolStart -> appendServerToolStart(chunk)
+            is StreamChunk.ServerToolInputDelta -> appendServerToolInputDelta(chunk)
+            is StreamChunk.ServerToolInputEnd -> appendServerToolInputEnd(chunk)
+            is StreamChunk.ServerToolEnd -> appendServerToolEnd(chunk)
+            is StreamChunk.ImageStart -> appendImageStart(chunk)
+            is StreamChunk.ImageDelta -> appendImageDelta(chunk)
+            is StreamChunk.ImageSnapshot -> appendImageSnapshot(chunk)
             is StreamChunk.ImageEnd -> this.also { imagePartIndexes.remove(chunk.id) }
             is StreamChunk.Annotations -> copy(annotations = (annotations + chunk.annotations).distinct())
             is StreamChunk.Usage -> copy(usage = usage.merge(chunk.usage))
-            is StreamChunk.Finish -> copy(
-                finishedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
-                finishReason = chunk.finishReason,
-            ).finishReasoning().also {
-                // Finish 同时结束尚未显式结束的 reasoning，并释放本次响应流的索引状态。
-                textPartIndexes.clear()
-                reasoningPartIndexes.clear()
-                imagePartIndexes.clear()
-                serverToolInputBuffers.clear()
-            }
+            is StreamChunk.Finish -> appendFinish(chunk)
 
             // ── 服务端富事件（渲染增强）：承载为 UIMessageAnnotation，供附属区渲染 ──
             is StreamChunk.TurnStarted -> this
@@ -321,6 +127,216 @@ class StreamChunkHandler(private val model: Model? = null) {
                 copy(annotations = annotations + UIMessageAnnotation.AskRequest(chunk.id, chunk.questions))
         }
     }
+
+    private fun UIMessage.appendTextStart(chunk: StreamChunk.TextStart): UIMessage {
+        if (chunk.id in textPartIndexes) return this
+        return copy(parts = parts + UIMessagePart.Text("")).also {
+            textPartIndexes[chunk.id] = parts.size
+        }
+    }
+
+    private fun UIMessage.appendTextDelta(chunk: StreamChunk.TextDelta): UIMessage {
+        val index = textPartIndexes[chunk.id]
+        // 容忍 Provider 未发送 Start：首次收到 Delta 时直接创建对应 part。
+        if (index == null || parts.getOrNull(index) !is UIMessagePart.Text) {
+            return copy(parts = parts + UIMessagePart.Text(chunk.text)).also {
+                textPartIndexes[chunk.id] = parts.size
+            }
+        }
+        return copy(parts = parts.toMutableList().apply {
+            val text = get(index) as UIMessagePart.Text
+            set(index, text.copy(text = text.text + chunk.text))
+        })
+    }
+
+    private fun UIMessage.appendReasoningStart(chunk: StreamChunk.ReasoningStart): UIMessage {
+        if (chunk.id in reasoningPartIndexes) return this
+        return copy(parts = parts + UIMessagePart.Reasoning(
+            reasoning = "",
+            createdAt = Clock.System.now(),
+            finishedAt = null,
+            metadata = chunk.metadata,
+            reasoningType = chunk.reasoningType,
+        )).also { reasoningPartIndexes[chunk.id] = parts.size }
+    }
+
+    private fun UIMessage.appendReasoningDelta(chunk: StreamChunk.ReasoningDelta): UIMessage {
+        val index = reasoningPartIndexes[chunk.id]
+        if (index == null || parts.getOrNull(index) !is UIMessagePart.Reasoning) {
+            return copy(parts = parts + UIMessagePart.Reasoning(
+                reasoning = chunk.text,
+                createdAt = Clock.System.now(),
+                finishedAt = null,
+                metadata = chunk.metadata,
+                reasoningType = chunk.reasoningType,
+            )).also { reasoningPartIndexes[chunk.id] = parts.size }
+        }
+        return copy(parts = parts.toMutableList().apply {
+            val reasoning = get(index) as UIMessagePart.Reasoning
+            set(index, reasoning.copy(
+                reasoning = reasoning.reasoning + chunk.text,
+                metadata = chunk.metadata ?: reasoning.metadata,
+                reasoningType = chunk.reasoningType,
+            ))
+        })
+    }
+
+    private fun UIMessage.appendReasoningEnd(chunk: StreamChunk.ReasoningEnd): UIMessage {
+        val index = reasoningPartIndexes.remove(chunk.id)
+        if (index == null || parts.getOrNull(index) !is UIMessagePart.Reasoning) return this
+        return copy(parts = parts.toMutableList().apply {
+            val reasoning = get(index) as UIMessagePart.Reasoning
+            set(index, reasoning.copy(
+                finishedAt = Clock.System.now(),
+                metadata = chunk.metadata ?: reasoning.metadata,
+            ))
+        })
+    }
+
+    private fun UIMessage.appendToolCallStart(chunk: StreamChunk.ToolCallStart): UIMessage {
+        if (parts.any { it is UIMessagePart.Tool && it.toolCallId == chunk.id }) return this
+        return copy(parts = parts + UIMessagePart.Tool(
+            toolCallId = chunk.id,
+            toolName = chunk.toolName,
+            input = "",
+            metadata = chunk.metadata,
+        ))
+    }
+
+    private fun UIMessage.appendToolCallDelta(chunk: StreamChunk.ToolCallDelta): UIMessage =
+        copy(parts = parts.map { part ->
+            // 工具调用可以并行生成，通过 toolCallId 而不是 part 位置识别目标。
+            if (part is UIMessagePart.Tool && part.toolCallId == chunk.id) {
+                part.copy(
+                    toolName = part.toolName + chunk.toolNameDelta,
+                    input = part.input + chunk.inputDelta,
+                    metadata = chunk.metadata ?: part.metadata,
+                )
+            } else part
+        })
+
+    private fun UIMessage.appendServerToolStart(chunk: StreamChunk.ServerToolStart): UIMessage {
+        val index = parts.indexOfFirst {
+            it is UIMessagePart.ServerTool && it.toolCallId == chunk.id
+        }
+        if (index < 0) {
+            return copy(parts = parts + UIMessagePart.ServerTool(
+                toolCallId = chunk.id,
+                toolName = chunk.toolName,
+                input = chunk.input,
+                status = ServerToolStatus.IN_PROGRESS,
+                metadata = chunk.metadata,
+            ))
+        }
+        return copy(parts = parts.toMutableList().apply {
+            val tool = get(index) as UIMessagePart.ServerTool
+            set(index, tool.copy(
+                toolName = chunk.toolName.ifBlank { tool.toolName },
+                input = chunk.input ?: tool.input,
+                metadata = mergeMetadata(tool.metadata, chunk.metadata),
+            ))
+        })
+    }
+
+    private fun UIMessage.appendServerToolInputDelta(chunk: StreamChunk.ServerToolInputDelta): UIMessage {
+        val buffer = serverToolInputBuffers.getOrPut(chunk.id) { StringBuilder() }
+        buffer.append(chunk.inputDelta)
+        return updateServerTool(chunk.id) { tool ->
+            tool.copy(metadata = mergeMetadata(tool.metadata, chunk.metadata))
+        }
+    }
+
+    private fun UIMessage.appendServerToolInputEnd(chunk: StreamChunk.ServerToolInputEnd): UIMessage {
+        val input = serverToolInputBuffers.remove(chunk.id)?.toString()?.takeIf { it.isNotBlank() }
+            ?.let(::parseServerToolJson)
+        if (input == null) return this
+        return updateServerTool(chunk.id) { it.copy(input = input) }
+    }
+
+    private fun UIMessage.appendServerToolEnd(chunk: StreamChunk.ServerToolEnd): UIMessage {
+        val bufferedInput = serverToolInputBuffers.remove(chunk.id)?.toString()?.takeIf { it.isNotBlank() }
+            ?.let(::parseServerToolJson)
+        val index = parts.indexOfFirst {
+            it is UIMessagePart.ServerTool && it.toolCallId == chunk.id
+        }
+        if (index < 0) {
+            return copy(parts = parts + UIMessagePart.ServerTool(
+                toolCallId = chunk.id,
+                toolName = "",
+                input = chunk.input ?: bufferedInput,
+                output = chunk.output,
+                status = chunk.status,
+                metadata = chunk.metadata,
+            ))
+        }
+        return updateServerTool(chunk.id) { tool ->
+            tool.copy(
+                input = chunk.input ?: bufferedInput ?: tool.input,
+                output = chunk.output ?: tool.output,
+                status = chunk.status,
+                metadata = mergeMetadata(tool.metadata, chunk.metadata),
+            )
+        }
+    }
+
+    private fun UIMessage.appendImageStart(chunk: StreamChunk.ImageStart): UIMessage {
+        if (chunk.id in imagePartIndexes) return this
+        return copy(parts = parts + UIMessagePart.Image(
+            url = "data:${chunk.mimeType};base64,",
+            metadata = chunk.metadata,
+        )).also { imagePartIndexes[chunk.id] = parts.size }
+    }
+
+    private fun UIMessage.appendImageDelta(chunk: StreamChunk.ImageDelta): UIMessage {
+        val index = imagePartIndexes[chunk.id]
+        if (index == null || parts.getOrNull(index) !is UIMessagePart.Image) {
+            return copy(parts = parts + UIMessagePart.Image(chunk.data, chunk.metadata)).also {
+                imagePartIndexes[chunk.id] = parts.size
+            }
+        }
+        return copy(parts = parts.toMutableList().apply {
+            val image = get(index) as UIMessagePart.Image
+            set(index, image.copy(
+                url = image.url + chunk.data,
+                metadata = chunk.metadata ?: image.metadata,
+            ))
+        })
+    }
+
+    private fun UIMessage.appendImageSnapshot(chunk: StreamChunk.ImageSnapshot): UIMessage {
+        val index = imagePartIndexes[chunk.id]
+        if (index == null || parts.getOrNull(index) !is UIMessagePart.Image) {
+            return copy(
+                parts = parts + UIMessagePart.Image(
+                    url = "data:image/png;base64,${chunk.data}",
+                    metadata = chunk.metadata,
+                )
+            ).also { imagePartIndexes[chunk.id] = parts.size }
+        }
+        return copy(parts = parts.toMutableList().apply {
+            val image = get(index) as UIMessagePart.Image
+            // Snapshot 是一张完整的可渲染图片，只替换 data URL 的数据部分；
+            // 与 ImageDelta 不同，它不会把数据追加到上一帧之后。
+            val dataUrlPrefix = image.url.substringBefore(",").takeIf { it.startsWith("data:") }
+                ?: "data:image/png;base64"
+            set(index, image.copy(
+                url = "$dataUrlPrefix,${chunk.data}",
+                metadata = chunk.metadata ?: image.metadata,
+            ))
+        })
+    }
+
+    private fun UIMessage.appendFinish(chunk: StreamChunk.Finish): UIMessage =
+        copy(
+            finishedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
+            finishReason = chunk.finishReason,
+        ).finishReasoning().also {
+            // Finish 同时结束尚未显式结束的 reasoning，并释放本次响应流的索引状态。
+            textPartIndexes.clear()
+            reasoningPartIndexes.clear()
+            imagePartIndexes.clear()
+            serverToolInputBuffers.clear()
+        }
 
     private fun UIMessage.updateServerTool(
         id: String,

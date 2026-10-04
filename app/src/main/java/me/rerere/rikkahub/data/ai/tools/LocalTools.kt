@@ -39,6 +39,7 @@ import me.rerere.rikkahub.data.ai.tools.local.InteractiveToolStreamer
 import me.rerere.rikkahub.data.ai.tools.local.AccessibilityServiceHandle
 import me.rerere.rikkahub.data.ai.tools.local.buildChartDisplayTool
 import me.rerere.rikkahub.data.ai.tools.local.buildJavascriptTool
+import me.rerere.rikkahub.data.ai.tools.local.buildScreenTimeTool
 import me.rerere.rikkahub.data.ai.tools.local.deviceInfoTool
 import me.rerere.rikkahub.data.ai.tools.local.diagnosticsTool
 import me.rerere.rikkahub.data.ai.tools.local.callLogTool
@@ -178,6 +179,7 @@ sealed class LocalToolOption {
     @Serializable @SerialName("contacts")        data object Contacts       : LocalToolOption()
     @Serializable @SerialName("call_log")        data object CallLog        : LocalToolOption()
     @Serializable @SerialName("sms_inbox")       data object SmsInbox       : LocalToolOption()
+    @Serializable @SerialName("screen_time")     data object ScreenTime     : LocalToolOption()
     @Serializable @SerialName("camera_photo")    data object CameraPhoto    : LocalToolOption()
     @Serializable @SerialName("mic_recorder")    data object MicRecorder    : LocalToolOption()
     @Serializable @SerialName("speech_to_text")  data object SpeechToText   : LocalToolOption()
@@ -842,6 +844,459 @@ class LocalTools(
         )
     }
 
+    // 注册表按域分组：原单一 toolRegistry() 394 行触发 LongMethod(120)；
+    // 拆分为域分组函数，拼接顺序与原来完全一致，仅为满足行数限制。
+    private fun toolRegistry(): List<ToolEntry> =
+        coreDeviceToolEntries() +
+            connectivityToolEntries() +
+            fileAndManagementToolEntries() +
+            vaultAndWorkflowToolEntries() +
+            miscToolEntries()
+
+    private fun coreDeviceToolEntries(): List<ToolEntry> = listOf(
+    ToolEntry(LocalToolOption.JavascriptEngine) { tools, _ ->
+        tools.add(buildJavascriptTool())
+    },
+    ToolEntry(LocalToolOption.TimeInfo) { tools, _ ->
+        tools.add(timeTool)
+    },
+    ToolEntry(LocalToolOption.AppBackup) { tools, _ ->
+        tools.add(appBackupTool)
+    },
+    ToolEntry(LocalToolOption.Clipboard) { tools, _ ->
+        tools.add(clipboardTool)
+    },
+    ToolEntry(LocalToolOption.Tts) { tools, _ ->
+        tools.add(ttsTool)
+    },
+    ToolEntry(LocalToolOption.AskUser) { tools, _ ->
+        tools.add(askUserTool)
+    },
+    ToolEntry(LocalToolOption.DeviceInfo) { tools, _ ->
+        tools.add(deviceInfoTool(context))
+    },
+    ToolEntry(LocalToolOption.Toast) { tools, invocationContext ->
+        tools.add(toastTool(context, invocationContext, interactiveToolStreamer))
+    },
+    ToolEntry(LocalToolOption.Notification) { tools, invocationContext ->
+        tools.add(notificationTool(context, invocationContext, interactiveToolStreamer))
+    },
+    ToolEntry(LocalToolOption.Share) { tools, invocationContext ->
+        tools.add(shareTool(context, invocationContext, interactiveToolStreamer))
+    },
+    ToolEntry(LocalToolOption.Torch) { tools, _ ->
+        tools.add(torchTool(context))
+    },
+    ToolEntry(LocalToolOption.Vibrate) { tools, _ ->
+        tools.add(vibrateTool(context))
+    },
+    ToolEntry(LocalToolOption.Brightness) { tools, invocationContext ->
+        tools.add(getBrightnessTool(context))
+        tools.add(setBrightnessTool(context, invocationContext, interactiveToolStreamer))
+    },
+    ToolEntry(LocalToolOption.Volume) { tools, invocationContext ->
+        tools.add(getVolumeTool(context))
+        tools.add(setVolumeTool(context, invocationContext, interactiveToolStreamer))
+    },
+    ToolEntry(LocalToolOption.MediaPlayer) { tools, invocationContext ->
+        tools.add(playMediaTool(context, invocationContext, interactiveToolStreamer))
+        tools.add(stopMediaTool(context))
+        tools.add(pauseMediaTool(context))
+        tools.add(resumeMediaTool(context))
+        tools.add(seekMediaTool(context))
+        tools.add(getMediaStatusTool())
+    },
+    ToolEntry(LocalToolOption.MediaScanner) { tools, _ ->
+        tools.add(mediaScannerTool(context))
+    },
+    ToolEntry(LocalToolOption.Download) { tools, _ ->
+        tools.add(downloadTool(context))
+        tools.add(writeTextFileTool(context))
+    },
+    ToolEntry(LocalToolOption.Location) { tools, _ ->
+        tools.add(locationTool(context))
+    },
+    ToolEntry(LocalToolOption.Contacts) { tools, _ ->
+        tools.add(searchContactsTool(context))
+        tools.add(listContactsTool(context))
+    },
+    ToolEntry(LocalToolOption.CallLog) { tools, _ ->
+        tools.add(callLogTool(context))
+    },
+    ToolEntry(LocalToolOption.SmsInbox) { tools, _ ->
+        tools.add(listSmsInboxTool(context))
+        tools.add(searchSmsTool(context))
+    },
+    ToolEntry(LocalToolOption.ScreenTime) { tools, _ ->
+        tools.add(buildScreenTimeTool(context, eventBus))
+    },
+    ToolEntry(LocalToolOption.CameraPhoto) { tools, _ ->
+        tools.add(cameraPhotoTool(context, cameraResultBuffer))
+    },
+    ToolEntry(LocalToolOption.MicRecorder) { tools, _ ->
+        tools.add(micRecorderTool(context))
+    },
+    ToolEntry(LocalToolOption.SpeechToText) { tools, _ ->
+        tools.add(speechToTextTool(context))
+    },
+    ToolEntry(LocalToolOption.Fingerprint) { tools, _ ->
+        tools.add(fingerprintTool(context, biometricResultBuffer))
+    },
+    )
+
+    private fun connectivityToolEntries(): List<ToolEntry> = listOf(
+    ToolEntry(LocalToolOption.Ssh) { tools, _ ->
+        tools.add(sshExecTool(context))
+        tools.add(saveSshHostTool(sshHostRepository))
+        tools.add(listSshHostsTool(sshHostRepository))
+        tools.add(deleteSshHostTool(sshHostRepository))
+        tools.add(sshExecSavedTool(context, sshHostRepository, vaultRepository))
+        tools.add(sshPresetsTool())
+        tools.add(sshJobPollTool(context, sshHostRepository, vaultRepository))
+        tools.add(sshUploadTool(context, sshHostRepository, vaultRepository))
+        tools.add(sshDownloadTool(context, sshHostRepository, vaultRepository))
+        tools.add(forgetSshHostKeyTool(context))
+        tools.add(vaultDeployKeyTool(context, sshHostRepository, vaultRepository))
+    },
+    ToolEntry(LocalToolOption.TelegramBot) { tools, _ ->
+        tools.add(telegramSetTokenTool(telegramBotPreferences, telegramBotClient))
+        tools.add(telegramStatusTool(context, telegramBotPreferences, telegramBotClient))
+        tools.add(telegramEnableTool(context, telegramBotPreferences))
+        tools.add(telegramDisableTool(context, telegramBotPreferences))
+        tools.add(telegramAddWhitelistTool(telegramBotPreferences))
+        tools.add(telegramRemoveWhitelistTool(telegramBotPreferences))
+        tools.add(telegramSetDefaultChatTool(telegramBotPreferences))
+        tools.add(telegramSetAssistantTool(telegramBotPreferences))
+        tools.add(telegramSendMessageTool(telegramBotPreferences, telegramBotClient))
+        tools.add(telegramSendPhotoTool(telegramBotPreferences, telegramBotClient))
+        tools.add(telegramSendDocumentTool(telegramBotPreferences, telegramBotClient))
+        tools.add(telegramSetCommandsTool(telegramBotPreferences, telegramBotClient))
+        tools.add(telegramGetCommandsTool(telegramBotClient))
+        tools.add(telegramDeleteCommandsTool(telegramBotPreferences, telegramBotClient))
+    },
+    ToolEntry(LocalToolOption.CronJobs) { tools, _ ->
+        tools.add(
+            me.rerere.rikkahub.data.ai.tools.local.scheduleJobTool(
+                scheduledJobRepository, cronJobScheduler, settingsStore,
+                knownToolNamesProvider = { tools.map { it.name } },
+            ),
+        )
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.listJobsTool(scheduledJobRepository))
+        tools.add(
+            me.rerere.rikkahub.data.ai.tools.local.deleteJobTool(
+                scheduledJobRepository, scheduledJobRunRepository, cronJobScheduler,
+            ),
+        )
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.pauseJobTool(scheduledJobRepository, cronJobScheduler))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.resumeJobTool(scheduledJobRepository, cronJobScheduler))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.triggerJobNowTool(scheduledJobRepository, cronJobScheduler))
+        tools.add(
+            me.rerere.rikkahub.data.ai.tools.local.getJobHistoryTool(
+                scheduledJobRepository, scheduledJobRunRepository,
+            ),
+        )
+    },
+    ToolEntry(LocalToolOption.ScreenAutomation) { tools, invocationContext ->
+        tools.add(tapTool(invocationContext, interactiveToolStreamer))
+        tools.add(longPressTool(invocationContext, interactiveToolStreamer))
+        tools.add(swipeTool(invocationContext, interactiveToolStreamer))
+        tools.add(readWindowTreeTool(invocationContext, interactiveToolStreamer))
+        tools.add(findNodeTool(invocationContext, interactiveToolStreamer))
+        tools.add(clickNodeTool(invocationContext, interactiveToolStreamer))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.setTextTool(invocationContext, interactiveToolStreamer))
+        tools.add(scrollTool(invocationContext, interactiveToolStreamer))
+        tools.add(globalActionTool(invocationContext, interactiveToolStreamer))
+        tools.add(takeScreenshotTool(context)) // take_screenshot IS the screenshot; skip auto-stream
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.wakeScreenTool(context))
+    },
+    ToolEntry(LocalToolOption.AppLauncher) { tools, invocationContext ->
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.launchAppTool(context, invocationContext, interactiveToolStreamer))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.listInstalledAppsTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.listAppActivitiesTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.launchActivityTool(context, invocationContext, interactiveToolStreamer))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.openUrlTool(context, invocationContext, interactiveToolStreamer))
+    },
+    ToolEntry(LocalToolOption.Termux) { tools, _ ->
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxRunCommandTool(context))
+        // Persistent interactive (tmux-backed) sessions: ssh-with-prompts, sudo, REPLs,
+        // stateful shells. start is approval-gated; send is hardline-guarded per call.
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionStartTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionSendTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionReadTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionKillTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionListTool(context))
+        // transcribe_audio_file shells out to whisper-cli via Termux's RUN_COMMAND
+        // service — it has a hard transitive dependency on Termux being present. No
+        // separate toggle; it lives under the Termux toggle.
+        tools.add(transcribeAudioFileTool(context))
+        // whisper_status is a free read-only pre-flight check — no approval needed.
+        // The LLM calls this BEFORE attempting transcription to know what's set up.
+        tools.add(whisperStatusTool(context, settingsStore))
+    },
+    ToolEntry(LocalToolOption.NotificationListener) { tools, _ ->
+        tools.add(listRecentNotificationsTool())
+        tools.add(listActiveNotificationsTool())
+        tools.add(dismissNotificationTool())
+        tools.add(notificationActionClickTool())
+        tools.add(notificationReplyTool())
+        tools.add(notificationStatusTool(notificationListenerPreferences, telegramBotPreferences))
+    },
+    )
+
+    private fun fileAndManagementToolEntries(): List<ToolEntry> = listOf(
+    ToolEntry(LocalToolOption.Files) { tools, invocationContext ->
+        tools.add(listFilesTool())
+        tools.add(readFileTool())
+        tools.add(writeBinaryFileTool())
+        tools.add(deleteFileTool())
+        tools.add(moveFileTool())
+        tools.add(copyFileTool())
+        tools.add(createDirectoryTool())
+        tools.add(fileInfoTool())
+        tools.add(findFilesTool())
+        tools.add(showImageTool(context, invocationContext.modelCanSeeImages)) // inline image display; no separate auto-stream needed
+        tools.add(openFileTool(context, invocationContext, interactiveToolStreamer))
+        // Batch ops (item 5.5) — list-or-glob copy / move / delete. Same toggle group
+        // as the single-path file tools; every path still goes through PathSafetyGuard.
+        tools.add(batchCopyTool())
+        tools.add(batchMoveTool())
+        tools.add(batchDeleteTool())
+    },
+    ToolEntry(LocalToolOption.McpControl) { tools, _ ->
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpListTool(settingsStore, mcpManager))
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpGetTool(settingsStore, mcpManager))
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpAddTool(settingsStore, mcpManager))
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpUpdateTool(settingsStore, mcpManager))
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpDeleteTool(settingsStore, mcpManager))
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpSetEnabledTool(settingsStore, mcpManager))
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpTestTool(settingsStore, mcpManager))
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpListToolsTool(settingsStore, mcpManager))
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpSetToolApprovalTool(settingsStore))
+    },
+    ToolEntry(LocalToolOption.ExternalAutomation) { tools, _ ->
+        tools.add(me.rerere.rikkahub.automation.externalAutomationStatusTool(externalAutomationConfig))
+        tools.add(me.rerere.rikkahub.automation.externalAutomationSetEnabledTool(externalAutomationConfig))
+        tools.add(me.rerere.rikkahub.automation.externalAutomationAddTrustedPackageTool(externalAutomationConfig))
+        tools.add(me.rerere.rikkahub.automation.externalAutomationRemoveTrustedPackageTool(externalAutomationConfig))
+    },
+    ToolEntry(LocalToolOption.Reliability) { tools, _ ->
+        tools.add(me.rerere.rikkahub.reliability.checkAppUpdatesTool(gitHubReleaseChecker))
+        tools.add(me.rerere.rikkahub.reliability.generateBugReportTool(context, bugReportBuilder))
+    },
+    ToolEntry(LocalToolOption.SubAgents) { tools, invocationContext ->
+        // Pass the caller context so the recursion guard inside SubAgentEngine.dispatch
+        // can fire — the dispatch tool itself can't read its own coroutine context, but
+        // ChatService / cron / workflow / external-automation know who's calling at the
+        // moment they construct the tool list.
+        tools.add(
+            me.rerere.rikkahub.subagent.subagentDispatchTool(
+                subAgentEngine,
+                invocationContext,
+                settingsStore.settingsFlow.value.subAgents,
+            ),
+        )
+        tools.add(me.rerere.rikkahub.subagent.subagentListTool(subAgentRegistry))
+        tools.add(me.rerere.rikkahub.subagent.subagentGetTool(subAgentRegistry))
+        tools.add(me.rerere.rikkahub.subagent.subagentCancelTool(subAgentRegistry))
+    },
+    ToolEntry(LocalToolOption.CostGuards) { tools, _ ->
+        tools.add(me.rerere.rikkahub.costguards.checkTokenUsageTool(settingsStore, conversationRepo))
+        // L4 observability: measure the assembled tool surface (size, ordering, hash).
+        // Registered after the other cost-guard tools; the lambda is read at execute()
+        // time, by which point the whole list — this tool included — has been built.
+        tools.add(me.rerere.rikkahub.costguards.toolSurfaceReportTool { tools.toList() })
+    },
+    )
+
+    private fun vaultAndWorkflowToolEntries(): List<ToolEntry> = listOf(
+    ToolEntry(LocalToolOption.SkillImport) { tools, _ ->
+        tools.add(me.rerere.rikkahub.skills.skillInstallFromUrlTool(skillUrlImporter, settingsStore, skillManager))
+        tools.add(me.rerere.rikkahub.skills.skillInstallFromTextTool(skillUrlImporter, settingsStore, skillManager))
+    },
+    ToolEntry(LocalToolOption.JsSkills) { tools, _ ->
+        tools.add(
+            me.rerere.rikkahub.skills.js.runJsTool(
+                context, skillManager, jsSkillRunner, skillSecretsStore,
+            ),
+        )
+    },
+    ToolEntry(LocalToolOption.VaultTools) { tools, _ ->
+        tools.add(me.rerere.rikkahub.data.vault.vaultCredentialNamesTool(vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultPublicKeyEntriesTool(vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultCredentialPrepareTool(vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultCredentialMetaTool(vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultCredentialAuditTool(vaultRepository))
+        // 引用反查：改名/删除前先看有哪些配置按名字引用它（只读，返回值不含值）
+        tools.add(
+            me.rerere.rikkahub.data.vault.vaultCredentialRefsTool(settingsStore, sshHostRepository),
+        )
+        // 合并重复条目：引用重指向 + 删除多余条目（先比对值指纹）
+        tools.add(
+            me.rerere.rikkahub.data.vault.vaultCredentialMergeTool(
+                vaultRepository, settingsStore, sshHostRepository,
+            ),
+        )
+        // 命名规范化：把历史脏名改成合规名（默认 dry_run，执行时同步引用）
+        tools.add(
+            me.rerere.rikkahub.data.vault.vaultCredentialNormalizeTool(
+                vaultRepository, settingsStore, sshHostRepository,
+            ),
+        )
+        // 失效引用检查：配置引用了不存在的凭证名（否则要等 401 才发现）
+        tools.add(
+            me.rerere.rikkahub.data.vault.vaultDanglingRefsTool(
+                vaultRepository, settingsStore, sshHostRepository,
+            ),
+        )
+        tools.add(
+            me.rerere.rikkahub.data.vault.vaultCredentialUpdateTool(
+                context, vaultRepository, settingsStore, sshHostRepository,
+            ),
+        )
+        tools.add(me.rerere.rikkahub.data.vault.vaultCredentialDeleteTool(context, vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultGenKeyTool(context, vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultPgpSignTool(vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultPgpVerifyTool(vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultPgpEncryptTool(vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultPgpDecryptTool(vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultSshExecTool(context, vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultHttpExecTool(context, vaultRepository))
+    },
+    ToolEntry(LocalToolOption.VaultExportEnv) { tools, _ ->
+        tools.add(me.rerere.rikkahub.data.vault.vaultExportEnvTool(context, vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultExportLoadCredsTool(context, vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultImportLoadCredsTool(context, vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultCompareLoadCredsTool(context, vaultRepository))
+    },
+    ToolEntry(LocalToolOption.Shizuku) { tools, _ ->
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.shizukuExecTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.appForceStopTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.appDisableTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.appEnableTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.appUninstallTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.appOpsGetTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.appOpsSetTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.settingsGetTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.settingsPutTool(context))
+    },
+    ToolEntry(LocalToolOption.SystemIntents) { tools, invocationContext ->
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.createCalendarEventTool(context, invocationContext, interactiveToolStreamer))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.createContactTool(context, invocationContext, interactiveToolStreamer))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.sendEmailIntentTool(context, invocationContext, interactiveToolStreamer))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.sendSmsIntentTool(context, invocationContext, interactiveToolStreamer))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.openWifiSettingsTool(context, invocationContext, interactiveToolStreamer))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.showLocationOnMapTool(context, invocationContext, interactiveToolStreamer))
+    },
+    ToolEntry(LocalToolOption.Workflows) { tools, invocationContext ->
+        // workflow_create persists the authoringAssistantId from [context] so the
+        // engine can resolve the right tool surface at fire time (not "any assistant
+        // with the Workflows toggle on", which is non-deterministic across UI reorder).
+        tools.add(
+            me.rerere.rikkahub.workflow.tools.workflowCreateTool(
+                workflowRepository,
+                knownToolNamesProvider = { tools.map { it.name } },
+                callerContext = invocationContext,
+            ),
+        )
+        tools.add(me.rerere.rikkahub.workflow.tools.workflowListTool(workflowRepository))
+        tools.add(me.rerere.rikkahub.workflow.tools.workflowGetTool(workflowRepository))
+        tools.add(
+            me.rerere.rikkahub.workflow.tools.workflowUpdateTool(
+                workflowRepository,
+                knownToolNamesProvider = { tools.map { it.name } },
+                callerContext = invocationContext,
+            ),
+        )
+        tools.add(me.rerere.rikkahub.workflow.tools.workflowDeleteTool(workflowRepository))
+        tools.add(me.rerere.rikkahub.workflow.tools.workflowSetEnabledTool(workflowRepository))
+        tools.add(me.rerere.rikkahub.workflow.tools.workflowRunTool(workflowEngine, workflowRepository))
+    },
+    )
+
+    private fun miscToolEntries(): List<ToolEntry> = listOf(
+    ToolEntry(LocalToolOption.Browser) { tools, invocationContext ->
+        // Per-tool registration. The user can grant only the tools they trust — read
+        // tools default ON, write tools default OFF (see BrowserToolDefaults.DEFAULT_ENABLED).
+        // snapshotBlocking() reads DataStore once; steady-state cost is microseconds because
+        // DataStore caches the latest Preferences instance after the first decode.
+        val browserPrefs = browserPreferences.snapshotBlocking()
+        me.rerere.rikkahub.browser.BrowserToolDefaults.ALL_TOOLS.forEach { name ->
+            if (browserPrefs[name] == true) {
+                me.rerere.rikkahub.data.ai.tools.local.createBrowserTool(
+                    toolName = name,
+                    context = context,
+                    // Pass 3: thread the caller context so browser_open can pick the
+                    // foreground vs headless mode by reading HeadlessConversations.
+                    invocationContext = invocationContext,
+                )?.let { tools.add(it) }
+            }
+        }
+    },
+    ToolEntry(LocalToolOption.WebFetch) { tools, _ ->
+        // Lightweight HTTP GET/POST (item 1.2) — backed by the shared OkHttp singleton.
+        tools.add(webFetchTool(okHttpClient))
+    },
+    ToolEntry(LocalToolOption.ChartDisplay) { tools, _ ->
+        // Renders line/bar/scatter charts inside the chat; validation happens in the tool,
+        // the UI parses tool input via ChartSpec.fromJson.
+        tools.add(buildChartDisplayTool())
+    },
+    // Phase 25 — Phase 3 second cut + ExternalStorage + Archive.
+    ToolEntry(LocalToolOption.SmsSend) { tools, _ ->
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.smsSendTool(context))
+    },
+    ToolEntry(LocalToolOption.Wallpaper) { tools, _ ->
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.setWallpaperTool(context))
+    },
+    ToolEntry(LocalToolOption.Keystore) { tools, _ ->
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreGenerateKeyTool())
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreSignTool())
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreVerifyTool())
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreEncryptTool())
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreDecryptTool())
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreDeleteKeyTool())
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreListKeysTool())
+    },
+    ToolEntry(LocalToolOption.Nfc) { tools, invocationContext ->
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.nfcReadTagTool(context, nfcResultBuffer, invocationContext))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.nfcWriteTagTool(context, nfcResultBuffer, invocationContext))
+    },
+    ToolEntry(LocalToolOption.ExternalStorage) { tools, invocationContext ->
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.listStorageVolumesTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.listGrantedDirectoriesTool(context, storageVolumeGrantStore))
+        tools.add(
+            me.rerere.rikkahub.data.ai.tools.local.grantDirectoryAccessTool(
+                context, storageVolumeGrantStore, safPickerResultBuffer, invocationContext,
+            ),
+        )
+    },
+    ToolEntry(LocalToolOption.Archive) { tools, _ ->
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.zipFilesTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.unzipFileTool(context))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.listZipContentsTool(context))
+    },
+    ToolEntry(LocalToolOption.KeyboardControl) { tools, _ ->
+        // Drives the active text field through the co-signed agent-keyboard IME.
+        // Write tools are approval-gated via ToolApprovalDefaults; the two read tools
+        // (keyboard_read_field, keyboard_editor_info) are not.
+        tools.add(keyboardTypeTool(keyboardApiClient))
+        tools.add(keyboardReadFieldTool(keyboardApiClient))
+        tools.add(keyboardPressKeyTool(keyboardApiClient))
+        tools.add(keyboardDeleteTool(keyboardApiClient))
+        tools.add(keyboardClearTool(keyboardApiClient))
+        tools.add(keyboardEditorInfoTool(keyboardApiClient))
+        tools.add(keyboardSetCursorTool(keyboardApiClient))
+        tools.add(keyboardSelectRangeTool(keyboardApiClient))
+    },
+    // AI 自诊断/自管理（第一批，纯读工具）。
+    ToolEntry(LocalToolOption.Diagnostics) { tools, _ ->
+        tools.add(diagnosticsTool(context, settingsStore, doctorChecks, conversationRepo))
+    },
+    ToolEntry(LocalToolOption.ModelTesting) { tools, _ ->
+        tools.add(testModelTool(providerManager, settingsStore, context))
+    },
+    )
+
     fun getTools(
         options: List<LocalToolOption>,
         invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
@@ -852,411 +1307,11 @@ class LocalTools(
         fun enabled(option: LocalToolOption): Boolean =
             options.contains(option) && capabilities.satisfies(LocalToolCatalog.capabilityOf(option))
 
-        if (enabled(LocalToolOption.JavascriptEngine)) {
-            tools.add(buildJavascriptTool())
-        }
-        if (enabled(LocalToolOption.TimeInfo)) {
-            tools.add(timeTool)
-        }
-        if (enabled(LocalToolOption.AppBackup)) {
-            tools.add(appBackupTool)
-        }
-        if (enabled(LocalToolOption.Clipboard)) {
-            tools.add(clipboardTool)
-        }
-        if (enabled(LocalToolOption.Tts)) {
-            tools.add(ttsTool)
-        }
-        if (enabled(LocalToolOption.AskUser)) {
-            tools.add(askUserTool)
-        }
-        if (enabled(LocalToolOption.DeviceInfo)) {
-            tools.add(deviceInfoTool(context))
-        }
-        if (enabled(LocalToolOption.Toast)) {
-            tools.add(toastTool(context, invocationContext, interactiveToolStreamer))
-        }
-        if (enabled(LocalToolOption.Notification)) {
-            tools.add(notificationTool(context, invocationContext, interactiveToolStreamer))
-        }
-        if (enabled(LocalToolOption.Share)) {
-            tools.add(shareTool(context, invocationContext, interactiveToolStreamer))
-        }
-        if (enabled(LocalToolOption.Torch)) {
-            tools.add(torchTool(context))
-        }
-        if (enabled(LocalToolOption.Vibrate)) {
-            tools.add(vibrateTool(context))
-        }
-        if (enabled(LocalToolOption.Brightness)) {
-            tools.add(getBrightnessTool(context))
-            tools.add(setBrightnessTool(context, invocationContext, interactiveToolStreamer))
-        }
-        if (enabled(LocalToolOption.Volume)) {
-            tools.add(getVolumeTool(context))
-            tools.add(setVolumeTool(context, invocationContext, interactiveToolStreamer))
-        }
-        if (enabled(LocalToolOption.MediaPlayer)) {
-            tools.add(playMediaTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(stopMediaTool(context))
-            tools.add(pauseMediaTool(context))
-            tools.add(resumeMediaTool(context))
-            tools.add(seekMediaTool(context))
-            tools.add(getMediaStatusTool())
-        }
-        if (enabled(LocalToolOption.MediaScanner)) {
-            tools.add(mediaScannerTool(context))
-        }
-        if (enabled(LocalToolOption.Download)) {
-            tools.add(downloadTool(context))
-            tools.add(writeTextFileTool(context))
-        }
-        if (enabled(LocalToolOption.Location)) {
-            tools.add(locationTool(context))
-        }
-        if (enabled(LocalToolOption.Contacts)) {
-            tools.add(searchContactsTool(context))
-            tools.add(listContactsTool(context))
-        }
-        if (enabled(LocalToolOption.CallLog)) {
-            tools.add(callLogTool(context))
-        }
-        if (enabled(LocalToolOption.SmsInbox)) {
-            tools.add(listSmsInboxTool(context))
-            tools.add(searchSmsTool(context))
-        }
-        if (enabled(LocalToolOption.CameraPhoto)) {
-            tools.add(cameraPhotoTool(context, cameraResultBuffer))
-        }
-        if (enabled(LocalToolOption.MicRecorder)) {
-            tools.add(micRecorderTool(context))
-        }
-        if (enabled(LocalToolOption.SpeechToText)) {
-            tools.add(speechToTextTool(context))
-        }
-        if (enabled(LocalToolOption.Fingerprint)) {
-            tools.add(fingerprintTool(context, biometricResultBuffer))
-        }
-        if (enabled(LocalToolOption.Ssh)) {
-            tools.add(sshExecTool(context))
-            tools.add(saveSshHostTool(sshHostRepository))
-            tools.add(listSshHostsTool(sshHostRepository))
-            tools.add(deleteSshHostTool(sshHostRepository))
-            tools.add(sshExecSavedTool(context, sshHostRepository, vaultRepository))
-            tools.add(sshPresetsTool())
-            tools.add(sshJobPollTool(context, sshHostRepository, vaultRepository))
-            tools.add(sshUploadTool(context, sshHostRepository, vaultRepository))
-            tools.add(sshDownloadTool(context, sshHostRepository, vaultRepository))
-            tools.add(forgetSshHostKeyTool(context))
-            tools.add(vaultDeployKeyTool(context, sshHostRepository, vaultRepository))
-        }
-        if (enabled(LocalToolOption.TelegramBot)) {
-            tools.add(telegramSetTokenTool(telegramBotPreferences, telegramBotClient))
-            tools.add(telegramStatusTool(context, telegramBotPreferences, telegramBotClient))
-            tools.add(telegramEnableTool(context, telegramBotPreferences))
-            tools.add(telegramDisableTool(context, telegramBotPreferences))
-            tools.add(telegramAddWhitelistTool(telegramBotPreferences))
-            tools.add(telegramRemoveWhitelistTool(telegramBotPreferences))
-            tools.add(telegramSetDefaultChatTool(telegramBotPreferences))
-            tools.add(telegramSetAssistantTool(telegramBotPreferences))
-            tools.add(telegramSendMessageTool(telegramBotPreferences, telegramBotClient))
-            tools.add(telegramSendPhotoTool(telegramBotPreferences, telegramBotClient))
-            tools.add(telegramSendDocumentTool(telegramBotPreferences, telegramBotClient))
-            tools.add(telegramSetCommandsTool(telegramBotPreferences, telegramBotClient))
-            tools.add(telegramGetCommandsTool(telegramBotClient))
-            tools.add(telegramDeleteCommandsTool(telegramBotPreferences, telegramBotClient))
-        }
-        if (enabled(LocalToolOption.CronJobs)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.scheduleJobTool(scheduledJobRepository, cronJobScheduler, settingsStore,
-                knownToolNamesProvider = { tools.map { it.name } }))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.listJobsTool(scheduledJobRepository))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.deleteJobTool(scheduledJobRepository, scheduledJobRunRepository, cronJobScheduler))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.pauseJobTool(scheduledJobRepository, cronJobScheduler))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.resumeJobTool(scheduledJobRepository, cronJobScheduler))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.triggerJobNowTool(scheduledJobRepository, cronJobScheduler))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.getJobHistoryTool(scheduledJobRepository, scheduledJobRunRepository))
-        }
-        if (enabled(LocalToolOption.ScreenAutomation)) {
-            tools.add(tapTool(invocationContext, interactiveToolStreamer))
-            tools.add(longPressTool(invocationContext, interactiveToolStreamer))
-            tools.add(swipeTool(invocationContext, interactiveToolStreamer))
-            tools.add(readWindowTreeTool(invocationContext, interactiveToolStreamer))
-            tools.add(findNodeTool(invocationContext, interactiveToolStreamer))
-            tools.add(clickNodeTool(invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.setTextTool(invocationContext, interactiveToolStreamer))
-            tools.add(scrollTool(invocationContext, interactiveToolStreamer))
-            tools.add(globalActionTool(invocationContext, interactiveToolStreamer))
-            tools.add(takeScreenshotTool(context))  // take_screenshot IS the screenshot; skip auto-stream
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.wakeScreenTool(context))
-        }
-        if (enabled(LocalToolOption.AppLauncher)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.launchAppTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.listInstalledAppsTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.listAppActivitiesTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.launchActivityTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.openUrlTool(context, invocationContext, interactiveToolStreamer))
-        }
-        if (enabled(LocalToolOption.Termux)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxRunCommandTool(context))
-            // Persistent interactive (tmux-backed) sessions: ssh-with-prompts, sudo, REPLs,
-            // stateful shells. start is approval-gated; send is hardline-guarded per call.
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionStartTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionSendTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionReadTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionKillTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxSessionListTool(context))
-            // transcribe_audio_file shells out to whisper-cli via Termux's RUN_COMMAND
-            // service — it has a hard transitive dependency on Termux being present. No
-            // separate toggle; it lives under the Termux toggle.
-            tools.add(transcribeAudioFileTool(context))
-            // whisper_status is a free read-only pre-flight check — no approval needed.
-            // The LLM calls this BEFORE attempting transcription to know what's set up.
-            tools.add(whisperStatusTool(context, settingsStore))
-        }
-        if (enabled(LocalToolOption.NotificationListener)) {
-            tools.add(listRecentNotificationsTool())
-            tools.add(listActiveNotificationsTool())
-            tools.add(dismissNotificationTool())
-            tools.add(notificationActionClickTool())
-            tools.add(notificationReplyTool())
-            tools.add(notificationStatusTool(notificationListenerPreferences, telegramBotPreferences))
-        }
-        if (enabled(LocalToolOption.Files)) {
-            tools.add(listFilesTool())
-            tools.add(readFileTool())
-            tools.add(writeBinaryFileTool())
-            tools.add(deleteFileTool())
-            tools.add(moveFileTool())
-            tools.add(copyFileTool())
-            tools.add(createDirectoryTool())
-            tools.add(fileInfoTool())
-            tools.add(findFilesTool())
-            tools.add(showImageTool(context, invocationContext.modelCanSeeImages))  // inline image display; no separate auto-stream needed
-            tools.add(openFileTool(context, invocationContext, interactiveToolStreamer))
-            // Batch ops (item 5.5) — list-or-glob copy / move / delete. Same toggle group
-            // as the single-path file tools; every path still goes through PathSafetyGuard.
-            tools.add(batchCopyTool())
-            tools.add(batchMoveTool())
-            tools.add(batchDeleteTool())
-        }
-        if (enabled(LocalToolOption.McpControl)) {
-            tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpListTool(settingsStore, mcpManager))
-            tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpGetTool(settingsStore, mcpManager))
-            tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpAddTool(settingsStore, mcpManager))
-            tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpUpdateTool(settingsStore, mcpManager))
-            tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpDeleteTool(settingsStore, mcpManager))
-            tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpSetEnabledTool(settingsStore, mcpManager))
-            tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpTestTool(settingsStore, mcpManager))
-            tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpListToolsTool(settingsStore, mcpManager))
-            tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpSetToolApprovalTool(settingsStore))
-        }
-        if (enabled(LocalToolOption.ExternalAutomation)) {
-            tools.add(me.rerere.rikkahub.automation.externalAutomationStatusTool(externalAutomationConfig))
-            tools.add(me.rerere.rikkahub.automation.externalAutomationSetEnabledTool(externalAutomationConfig))
-            tools.add(me.rerere.rikkahub.automation.externalAutomationAddTrustedPackageTool(externalAutomationConfig))
-            tools.add(me.rerere.rikkahub.automation.externalAutomationRemoveTrustedPackageTool(externalAutomationConfig))
-        }
-        if (enabled(LocalToolOption.Reliability)) {
-            tools.add(me.rerere.rikkahub.reliability.checkAppUpdatesTool(gitHubReleaseChecker))
-            tools.add(me.rerere.rikkahub.reliability.generateBugReportTool(context, bugReportBuilder))
-        }
-        if (enabled(LocalToolOption.SubAgents)) {
-            // Pass the caller context so the recursion guard inside SubAgentEngine.dispatch
-            // can fire — the dispatch tool itself can't read its own coroutine context, but
-            // ChatService / cron / workflow / external-automation know who's calling at the
-            // moment they construct the tool list.
-            tools.add(
-                me.rerere.rikkahub.subagent.subagentDispatchTool(
-                    subAgentEngine,
-                    invocationContext,
-                    settingsStore.settingsFlow.value.subAgents,
-                )
-            )
-            tools.add(me.rerere.rikkahub.subagent.subagentListTool(subAgentRegistry))
-            tools.add(me.rerere.rikkahub.subagent.subagentGetTool(subAgentRegistry))
-            tools.add(me.rerere.rikkahub.subagent.subagentCancelTool(subAgentRegistry))
-        }
-        if (enabled(LocalToolOption.CostGuards)) {
-            tools.add(me.rerere.rikkahub.costguards.checkTokenUsageTool(settingsStore, conversationRepo))
-            // L4 observability: measure the assembled tool surface (size, ordering, hash).
-            // Registered after the other cost-guard tools; the lambda is read at execute()
-            // time, by which point the whole list — this tool included — has been built.
-            tools.add(me.rerere.rikkahub.costguards.toolSurfaceReportTool { tools.toList() })
-        }
-        if (enabled(LocalToolOption.SkillImport)) {
-            tools.add(me.rerere.rikkahub.skills.skillInstallFromUrlTool(skillUrlImporter, settingsStore, skillManager))
-            tools.add(me.rerere.rikkahub.skills.skillInstallFromTextTool(skillUrlImporter, settingsStore, skillManager))
-        }
-        if (enabled(LocalToolOption.JsSkills)) {
-            tools.add(me.rerere.rikkahub.skills.js.runJsTool(
-                context, skillManager, jsSkillRunner, skillSecretsStore,
-            ))
-        }
-        if (enabled(LocalToolOption.VaultTools)) {
-            tools.add(me.rerere.rikkahub.data.vault.vaultCredentialNamesTool(vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultPublicKeyEntriesTool(vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultCredentialPrepareTool(vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultCredentialMetaTool(vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultCredentialAuditTool(vaultRepository))
-            // 引用反查：改名/删除前先看有哪些配置按名字引用它（只读，返回值不含值）
-            tools.add(
-                me.rerere.rikkahub.data.vault.vaultCredentialRefsTool(settingsStore, sshHostRepository),
-            )
-            // 合并重复条目：引用重指向 + 删除多余条目（先比对值指纹）
-            tools.add(
-                me.rerere.rikkahub.data.vault.vaultCredentialMergeTool(
-                    vaultRepository, settingsStore, sshHostRepository,
-                ),
-            )
-            // 命名规范化：把历史脏名改成合规名（默认 dry_run，执行时同步引用）
-            tools.add(
-                me.rerere.rikkahub.data.vault.vaultCredentialNormalizeTool(
-                    vaultRepository, settingsStore, sshHostRepository,
-                ),
-            )
-            // 失效引用检查：配置引用了不存在的凭证名（否则要等 401 才发现）
-            tools.add(
-                me.rerere.rikkahub.data.vault.vaultDanglingRefsTool(
-                    vaultRepository, settingsStore, sshHostRepository,
-                ),
-            )
-            tools.add(
-                me.rerere.rikkahub.data.vault.vaultCredentialUpdateTool(
-                    context, vaultRepository, settingsStore, sshHostRepository,
-                ),
-            )
-            tools.add(me.rerere.rikkahub.data.vault.vaultCredentialDeleteTool(context, vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultGenKeyTool(context, vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultPgpSignTool(vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultPgpVerifyTool(vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultPgpEncryptTool(vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultPgpDecryptTool(vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultSshExecTool(context, vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultHttpExecTool(context, vaultRepository))
-        }
-        if (enabled(LocalToolOption.VaultExportEnv)) {
-            tools.add(me.rerere.rikkahub.data.vault.vaultExportEnvTool(context, vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultExportLoadCredsTool(context, vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultImportLoadCredsTool(context, vaultRepository))
-            tools.add(me.rerere.rikkahub.data.vault.vaultCompareLoadCredsTool(context, vaultRepository))
-        }
-        if (enabled(LocalToolOption.Shizuku)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.shizukuExecTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.appForceStopTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.appDisableTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.appEnableTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.appUninstallTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.appOpsGetTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.appOpsSetTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.settingsGetTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.settingsPutTool(context))
-        }
-        if (enabled(LocalToolOption.SystemIntents)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.createCalendarEventTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.createContactTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.sendEmailIntentTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.sendSmsIntentTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.openWifiSettingsTool(context, invocationContext, interactiveToolStreamer))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.showLocationOnMapTool(context, invocationContext, interactiveToolStreamer))
-        }
-        if (enabled(LocalToolOption.Workflows)) {
-            // workflow_create persists the authoringAssistantId from [context] so the
-            // engine can resolve the right tool surface at fire time (not "any assistant
-            // with the Workflows toggle on", which is non-deterministic across UI reorder).
-            tools.add(me.rerere.rikkahub.workflow.tools.workflowCreateTool(
-                workflowRepository,
-                knownToolNamesProvider = { tools.map { it.name } },
-                callerContext = invocationContext,
-            ))
-            tools.add(me.rerere.rikkahub.workflow.tools.workflowListTool(workflowRepository))
-            tools.add(me.rerere.rikkahub.workflow.tools.workflowGetTool(workflowRepository))
-            tools.add(me.rerere.rikkahub.workflow.tools.workflowUpdateTool(
-                workflowRepository,
-                knownToolNamesProvider = { tools.map { it.name } },
-                callerContext = invocationContext,
-            ))
-            tools.add(me.rerere.rikkahub.workflow.tools.workflowDeleteTool(workflowRepository))
-            tools.add(me.rerere.rikkahub.workflow.tools.workflowSetEnabledTool(workflowRepository))
-            tools.add(me.rerere.rikkahub.workflow.tools.workflowRunTool(workflowEngine, workflowRepository))
-        }
-        if (enabled(LocalToolOption.Browser)) {
-            // Per-tool registration. The user can grant only the tools they trust — read
-            // tools default ON, write tools default OFF (see BrowserToolDefaults.DEFAULT_ENABLED).
-            // snapshotBlocking() reads DataStore once; steady-state cost is microseconds because
-            // DataStore caches the latest Preferences instance after the first decode.
-            val browserPrefs = browserPreferences.snapshotBlocking()
-            me.rerere.rikkahub.browser.BrowserToolDefaults.ALL_TOOLS.forEach { name ->
-                if (browserPrefs[name] == true) {
-                    me.rerere.rikkahub.data.ai.tools.local.createBrowserTool(
-                        toolName = name,
-                        context = context,
-                        // Pass 3: thread the caller context so browser_open can pick the
-                        // foreground vs headless mode by reading HeadlessConversations.
-                        invocationContext = invocationContext,
-                    )?.let { tools.add(it) }
-                }
+        // 注册表驱动：遍历 toolRegistry()，授权门通过即构建。
+        for (entry in toolRegistry()) {
+            if (enabled(entry.option)) {
+                entry.addTo(this, tools, invocationContext)
             }
-        }
-        if (enabled(LocalToolOption.WebFetch)) {
-            // Lightweight HTTP GET/POST (item 1.2) — backed by the shared OkHttp singleton.
-            tools.add(webFetchTool(okHttpClient))
-        }
-        if (enabled(LocalToolOption.ChartDisplay)) {
-            // Renders line/bar/scatter charts inside the chat; validation happens in the tool,
-            // the UI parses tool input via ChartSpec.fromJson.
-            tools.add(buildChartDisplayTool())
-        }
-        // Phase 25 — Phase 3 second cut + ExternalStorage + Archive.
-        if (enabled(LocalToolOption.SmsSend)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.smsSendTool(context))
-        }
-        if (enabled(LocalToolOption.Wallpaper)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.setWallpaperTool(context))
-        }
-        if (enabled(LocalToolOption.Keystore)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreGenerateKeyTool())
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreSignTool())
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreVerifyTool())
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreEncryptTool())
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreDecryptTool())
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreDeleteKeyTool())
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.keystoreListKeysTool())
-        }
-        if (enabled(LocalToolOption.Nfc)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.nfcReadTagTool(context, nfcResultBuffer, invocationContext))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.nfcWriteTagTool(context, nfcResultBuffer, invocationContext))
-        }
-        if (enabled(LocalToolOption.ExternalStorage)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.listStorageVolumesTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.listGrantedDirectoriesTool(context, storageVolumeGrantStore))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.grantDirectoryAccessTool(
-                context, storageVolumeGrantStore, safPickerResultBuffer, invocationContext,
-            ))
-        }
-        if (enabled(LocalToolOption.Archive)) {
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.zipFilesTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.unzipFileTool(context))
-            tools.add(me.rerere.rikkahub.data.ai.tools.local.listZipContentsTool(context))
-        }
-        if (enabled(LocalToolOption.KeyboardControl)) {
-            // Drives the active text field through the co-signed agent-keyboard IME.
-            // Write tools are approval-gated via ToolApprovalDefaults; the two read tools
-            // (keyboard_read_field, keyboard_editor_info) are not.
-            tools.add(keyboardTypeTool(keyboardApiClient))
-            tools.add(keyboardReadFieldTool(keyboardApiClient))
-            tools.add(keyboardPressKeyTool(keyboardApiClient))
-            tools.add(keyboardDeleteTool(keyboardApiClient))
-            tools.add(keyboardClearTool(keyboardApiClient))
-            tools.add(keyboardEditorInfoTool(keyboardApiClient))
-            tools.add(keyboardSetCursorTool(keyboardApiClient))
-            tools.add(keyboardSelectRangeTool(keyboardApiClient))
-        }
-        // AI 自诊断/自管理（第一批，纯读工具）。
-        if (enabled(LocalToolOption.Diagnostics)) {
-            tools.add(diagnosticsTool(context, settingsStore, doctorChecks, conversationRepo))
-        }
-        if (enabled(LocalToolOption.ModelTesting)) {
-            tools.add(testModelTool(providerManager, settingsStore, context))
         }
         // Centralised opt-in to needsApproval. Tool factories themselves don't have to know
         // whether their op is destructive — ToolApprovalDefaults is the single source of

@@ -59,6 +59,7 @@ import me.rerere.ai.util.parseErrorDetail
 import me.rerere.ai.util.redactSecrets
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.toHeaders
+import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.common.android.Logging
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonArrayOrNull
@@ -101,7 +102,7 @@ class ChatCompletionsAPI(
 
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}${providerSetting.chatCompletionsPath}")
-            .headers(params.customHeaders.toHeaders())
+            .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader("Authorization", "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}")
             .configureReferHeaders(providerSetting.baseUrl)
@@ -155,7 +156,7 @@ class ChatCompletionsAPI(
 
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}${providerSetting.chatCompletionsPath}")
-            .headers(params.customHeaders.toHeaders())
+            .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader("Authorization", "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}")
             .addHeader("Content-Type", "application/json")
@@ -252,12 +253,18 @@ class ChatCompletionsAPI(
         // (OpenAI/DeepSeek/Grok/MiniMax) have the field stripped by OpenRouter. So this is safe
         // for any model and, unlike top-level cache_control, never pins routing to one upstream.
         val openRouterCache = isOpenRouter && providerSetting.promptCaching
+        // DeepSeek thinking 模式要求：携带 tool_calls 的 assistant 消息在后续请求里必须带
+        // reasoning_content（模型本轮没思考也要传空串），缺失会 400
+        // "The `reasoning_content` in the thinking mode must be passed back to the API"。
+        // 按 modelId 判定（覆盖官方与各代理的前缀写法），不只看 host。
+        val fillEmptyReasoningForDeepSeek = "deepseek" in params.model.modelId.lowercase()
         val messagesArray = buildMessages(
             messages = messages,
             includeHistoryReasoning = providerSetting.includeHistoryReasoning,
             openRouterCache = openRouterCache,
             includeOpenRouterReasoningDetails = isOpenRouter,
             supportInputModalities = params.model.inputModalities,
+            fillEmptyReasoningForDeepSeek = fillEmptyReasoningForDeepSeek,
         ).let {
             if (openRouterCache) insertOpenRouterCacheControl(it) else it
         }
@@ -581,6 +588,7 @@ class ChatCompletionsAPI(
         // 默认与 Model.kt / 模型目录的保守口径保持一致（只 TEXT）：未知能力时不臆测支持图片。
         // 实际调用点都会显式传入 `params.model.inputModalities`，这里只是未被依赖的兜底值。
         supportInputModalities: List<Modality> = listOf(Modality.TEXT),
+        fillEmptyReasoningForDeepSeek: Boolean = false,
     ) = buildJsonArray {
         val filteredMessages = messages.filter { it.isValidToUpload() }
 
@@ -591,6 +599,7 @@ class ChatCompletionsAPI(
                     includeReasoning = includeHistoryReasoning,
                     includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
                     supportInputModalities = supportInputModalities,
+                    fillEmptyReasoningForDeepSeek = fillEmptyReasoningForDeepSeek,
                 )
             } else {
                 addNonAssistantMessage(
@@ -607,6 +616,7 @@ class ChatCompletionsAPI(
         includeReasoning: Boolean,
         includeOpenRouterReasoningDetails: Boolean,
         supportInputModalities: List<Modality>,
+        fillEmptyReasoningForDeepSeek: Boolean = false,
     ) {
         val groups = groupPartsByToolBoundary(message.parts)
         val contentBuffer = mutableListOf<UIMessagePart>()
@@ -616,11 +626,7 @@ class ChatCompletionsAPI(
             when (group) {
                 is PartGroup.Content -> {
                     // 从当前 group 中提取 reasoning（保持顺序）
-                    if (includeReasoning) {
-                        group.parts.filterIsInstance<UIMessagePart.Reasoning>().firstOrNull()?.let {
-                            reasoningPart = it
-                        }
-                    }
+                    extractGroupReasoning(group.parts, includeReasoning)?.let { reasoningPart = it }
                     group.parts
                         .filter { it is UIMessagePart.Text || it is UIMessagePart.Image }
                         .forEach { contentBuffer.add(it) }
@@ -634,59 +640,14 @@ class ChatCompletionsAPI(
                         reasoningPart = reasoningPart,
                         supportInputModalities = supportInputModalities,
                         includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
+                        fillEmptyReasoningForDeepSeek = fillEmptyReasoningForDeepSeek,
                     )?.let { assistantMessage ->
                         add(assistantMessage)
                     }
                     contentBuffer.clear()
                     reasoningPart = null // 清空，下一个 group 可能有新的 reasoning
 
-                    // 紧跟 tool 结果消息: 同一批工具调用的结果必须全部连续输出, 中间不能
-                    // 插入任何其他消息, 否则部分 provider 会报 "no tool output found for
-                    // tool call" (issue #104). ChatCompletions 的 role:"tool" 内容必须始终
-                    // 是纯字符串, 图片改为在本批全部结果之后统一以一条 role:"user" 消息带出。
-                    val liftedImages = mutableListOf<Pair<UIMessagePart.Tool, UIMessagePart.Image>>()
-                    group.tools.forEach { tool ->
-                        add(buildJsonObject {
-                            put("role", "tool")
-                            put("tool_call_id", tool.toolCallId)
-                            put("content", tool.toToolResultContent(supportInputModalities))
-                        })
-                        if (Modality.IMAGE in supportInputModalities) {
-                            tool.output.filterIsInstance<UIMessagePart.Image>().forEach { image ->
-                                liftedImages.add(tool to image)
-                            }
-                        }
-                    }
-                    // Image lift: ChatCompletions tool messages are text-only, so any
-                    // UIMessagePart.Image returned by a tool would be invisible to a
-                    // vision-capable model otherwise. Emit a single follow-up user message,
-                    // after every tool result of this batch, that carries those images so
-                    // the model actually sees them on its next turn (e.g. take_screenshot,
-                    // take_photo, etc.), while keeping tool_call/tool_result pairing intact.
-                    if (liftedImages.isNotEmpty()) {
-                        add(buildJsonObject {
-                            put("role", "user")
-                            putJsonArray("content") {
-                                liftedImages.forEach { (tool, image) ->
-                                    add(buildJsonObject {
-                                        put("type", "text")
-                                        put("text", "[Tool ${tool.toolName} produced the image below.]")
-                                    })
-                                    add(buildJsonObject {
-                                        image.encodeBase64().onSuccess { encodedImage ->
-                                            put("type", "image_url")
-                                            put("image_url", buildJsonObject {
-                                                put("url", encodedImage.base64)
-                                            })
-                                        }.onFailure {
-                                            put("type", "text")
-                                            put("text", "(image encode failed: ${it.message})")
-                                        }
-                                    })
-                                }
-                            }
-                        })
-                    }
+                    addToolResultMessages(group.tools, supportInputModalities)
                 }
             }
         }
@@ -699,8 +660,76 @@ class ChatCompletionsAPI(
                 reasoningPart = reasoningPart,
                 supportInputModalities = supportInputModalities,
                 includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
+                fillEmptyReasoningForDeepSeek = fillEmptyReasoningForDeepSeek,
             )?.let { assistantMessage ->
                 add(assistantMessage)
+            }
+        }
+    }
+
+    // 从 group 中提取首个 reasoning part（保持顺序）；从 addAssistantMessages 抽出以降低嵌套深度。
+    private fun extractGroupReasoning(
+        parts: List<UIMessagePart>,
+        includeReasoning: Boolean,
+    ): UIMessagePart.Reasoning? {
+        if (!includeReasoning) return null
+        return parts.filterIsInstance<UIMessagePart.Reasoning>().firstOrNull()
+    }
+
+    // 从 addAssistantMessages 抽出以降低嵌套深度；逻辑逐行搬移。
+    private fun JsonArrayBuilder.addToolResultMessages(
+        tools: List<UIMessagePart.Tool>,
+        supportInputModalities: List<Modality>,
+    ) {
+        // 紧跟 tool 结果消息: 同一批工具调用的结果必须全部连续输出, 中间不能
+        // 插入任何其他消息, 否则部分 provider 会报 "no tool output found for
+        // tool call" (issue #104). ChatCompletions 的 role:"tool" 内容必须始终
+        // 是纯字符串, 图片改为在本批全部结果之后统一以一条 role:"user" 消息带出。
+        val liftedImages = mutableListOf<Pair<UIMessagePart.Tool, UIMessagePart.Image>>()
+        tools.forEach { tool ->
+            add(buildJsonObject {
+                put("role", "tool")
+                put("tool_call_id", tool.toolCallId)
+                put("content", tool.toToolResultContent(supportInputModalities))
+            })
+            if (Modality.IMAGE in supportInputModalities) {
+                tool.output.filterIsInstance<UIMessagePart.Image>().forEach { image ->
+                    liftedImages.add(tool to image)
+                }
+            }
+        }
+        if (liftedImages.isNotEmpty()) {
+            add(buildLiftedImagesMessage(liftedImages))
+        }
+    }
+
+    // Image lift: ChatCompletions tool messages are text-only, so any
+    // UIMessagePart.Image returned by a tool would be invisible to a
+    // vision-capable model otherwise. Emit a single follow-up user message,
+    // after every tool result of this batch, that carries those images so
+    // the model actually sees them on its next turn (e.g. take_screenshot,
+    // take_photo, etc.), while keeping tool_call/tool_result pairing intact.
+    private fun buildLiftedImagesMessage(
+        liftedImages: List<Pair<UIMessagePart.Tool, UIMessagePart.Image>>,
+    ): JsonObject = buildJsonObject {
+        put("role", "user")
+        putJsonArray("content") {
+            liftedImages.forEach { (tool, image) ->
+                add(buildJsonObject {
+                    put("type", "text")
+                    put("text", "[Tool ${tool.toolName} produced the image below.]")
+                })
+                add(buildJsonObject {
+                    image.encodeBase64().onSuccess { encodedImage ->
+                        put("type", "image_url")
+                        put("image_url", buildJsonObject {
+                            put("url", encodedImage.base64)
+                        })
+                    }.onFailure {
+                        put("type", "text")
+                        put("text", "(image encode failed: ${it.message})")
+                    }
+                })
             }
         }
     }
@@ -711,6 +740,7 @@ class ChatCompletionsAPI(
         reasoningPart: UIMessagePart.Reasoning?,
         supportInputModalities: List<Modality>,
         includeOpenRouterReasoningDetails: Boolean,
+        fillEmptyReasoningForDeepSeek: Boolean = false,
     ): JsonObject? {
         val hasUsableContent = contentParts.any { part ->
             when (part) {
@@ -739,49 +769,16 @@ class ChatCompletionsAPI(
                 } else {
                     put("reasoning_content", reasoningPart?.reasoning.orEmpty())
                 }
+            } else if (fillEmptyReasoningForDeepSeek && tools.isNotEmpty()) {
+                // DeepSeek thinking 模式硬性要求：带 tool_calls 的 assistant 消息在后续
+                // 请求中必须携带 reasoning_content，缺失直接 400。模型约 1/6 的工具轮
+                // 本就不返回 reasoning（无思考卡），此时必须补空串占位；该字段对
+                // 非 DeepSeek 供应商不发送，不影响其他模型。
+                put("reasoning_content", "")
             }
 
             // content
-            if (contentParts.isEmpty()) {
-                put("content", "")
-            } else if (contentParts.size == 1 && contentParts[0] is UIMessagePart.Text) {
-                put("content", (contentParts[0] as UIMessagePart.Text).text)
-            } else {
-                putJsonArray("content") {
-                    contentParts.forEach { part ->
-                        when (part) {
-                            is UIMessagePart.Text -> {
-                                add(buildJsonObject {
-                                    put("type", "text")
-                                    put("text", part.text)
-                                })
-                            }
-
-                            is UIMessagePart.Image -> {
-                                add(buildJsonObject {
-                                    if (Modality.IMAGE !in supportInputModalities) {
-                                        put("type", "text")
-                                        put("text", IMAGE_UNSUPPORTED_PLACEHOLDER)
-                                    } else {
-                                        part.encodeBase64().onSuccess { encodedImage ->
-                                            put("type", "image_url")
-                                            put("image_url", buildJsonObject {
-                                                put("url", encodedImage.base64)
-                                            })
-                                        }.onFailure {
-                                            AppLogger.w(TAG, "failed to encode image to base64", it)
-                                            put("type", "text")
-                                            put("text", "")
-                                        }
-                                    }
-                                })
-                            }
-
-                            else -> {}
-                        }
-                    }
-                }
-            }
+            put("content", buildContentJson(contentParts, supportInputModalities))
 
             // tool_calls
             if (tools.isNotEmpty()) {
@@ -798,6 +795,53 @@ class ChatCompletionsAPI(
                         })
                     }
                 })
+            }
+        }
+    }
+    // content 序列化：空 -> ""；单文本 -> 纯字符串；多部分 -> content blocks 数组。
+    // 与原内联写法产生的 JSON 一致，抽出以降低 buildAssistantMessageJson 的圈复杂度。
+    private fun buildContentJson(
+        contentParts: List<UIMessagePart>,
+        supportInputModalities: List<Modality>,
+    ): JsonElement {
+        if (contentParts.isEmpty()) {
+            return JsonPrimitive("")
+        }
+        if (contentParts.size == 1 && contentParts[0] is UIMessagePart.Text) {
+            return JsonPrimitive((contentParts[0] as UIMessagePart.Text).text)
+        }
+        return buildJsonArray {
+            contentParts.forEach { part ->
+                when (part) {
+                    is UIMessagePart.Text -> {
+                        add(buildJsonObject {
+                            put("type", "text")
+                            put("text", part.text)
+                        })
+                    }
+
+                    is UIMessagePart.Image -> {
+                        add(buildJsonObject {
+                            if (Modality.IMAGE !in supportInputModalities) {
+                                put("type", "text")
+                                put("text", IMAGE_UNSUPPORTED_PLACEHOLDER)
+                            } else {
+                                part.encodeBase64().onSuccess { encodedImage ->
+                                    put("type", "image_url")
+                                    put("image_url", buildJsonObject {
+                                        put("url", encodedImage.base64)
+                                    })
+                                }.onFailure {
+                                    AppLogger.w(TAG, "failed to encode image to base64", it)
+                                    put("type", "text")
+                                    put("text", "")
+                                }
+                            }
+                        })
+                    }
+
+                    else -> {}
+                }
             }
         }
     }

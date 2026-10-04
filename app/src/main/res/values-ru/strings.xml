@@ -2569,6 +2569,7 @@
   <string name="mcp_tool_contacts">Контакты</string>
   <string name="mcp_tool_call_log">Журнал вызовов</string>
   <string name="mcp_tool_sms_inbox">Входящие SMS</string>
+  <string name="mcp_tool_screen_time">Время экрана</string>
   <string name="mcp_tool_camera_photo">Камера</string>
   <string name="mcp_tool_mic_recorder">Запись звука</string>
   <string name="mcp_tool_speech_to_text">Распознавание речи</string>

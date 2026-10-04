@@ -44,6 +44,7 @@ sealed class ProviderSetting {
     abstract val name: String
     abstract val models: List<Model>
     abstract val balanceOption: BalanceOption
+    abstract val customHeaders: List<CustomHeader>
 
     abstract val builtIn: Boolean
     /** Provider 注册键:getProviderByType 经此键查表,加新 provider 只需声明子类 */
@@ -59,6 +60,7 @@ sealed class ProviderSetting {
         name: String = this.name,
         models: List<Model> = this.models,
         balanceOption: BalanceOption = this.balanceOption,
+        customHeaders: List<CustomHeader> = this.customHeaders,
         builtIn: Boolean = this.builtIn,
     ): ProviderSetting
 
@@ -70,6 +72,7 @@ sealed class ProviderSetting {
         override var name: String = "OpenAI",
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
         @Transient override val builtIn: Boolean = false,
         var apiKey: String = "",
         var baseUrl: String = "https://api.openai.com/v1",
@@ -114,6 +117,7 @@ sealed class ProviderSetting {
             name: String,
             models: List<Model>,
             balanceOption: BalanceOption,
+            customHeaders: List<CustomHeader>,
             builtIn: Boolean,
         ): ProviderSetting {
             return this.copy(
@@ -123,6 +127,7 @@ sealed class ProviderSetting {
                 models = models,
                 builtIn = builtIn,
                 balanceOption = balanceOption,
+                customHeaders = customHeaders,
             )
         }
     }
@@ -135,6 +140,7 @@ sealed class ProviderSetting {
         override var name: String = "Google",
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
         @Transient override val builtIn: Boolean = false,
         var apiKey: String = "",
         var baseUrl: String = "https://generativelanguage.googleapis.com/v1beta",
@@ -175,6 +181,7 @@ sealed class ProviderSetting {
             name: String,
             models: List<Model>,
             balanceOption: BalanceOption,
+            customHeaders: List<CustomHeader>,
             builtIn: Boolean,
         ): ProviderSetting {
             return this.copy(
@@ -183,7 +190,8 @@ sealed class ProviderSetting {
                 name = name,
                 models = models,
                 builtIn = builtIn,
-                balanceOption = balanceOption
+                balanceOption = balanceOption,
+                customHeaders = customHeaders,
             )
         }
     }
@@ -196,6 +204,7 @@ sealed class ProviderSetting {
         override var name: String = "Claude",
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
         @Transient override val builtIn: Boolean = false,
         var apiKey: String = "",
         var baseUrl: String = "https://api.anthropic.com/v1",
@@ -232,6 +241,7 @@ sealed class ProviderSetting {
             name: String,
             models: List<Model>,
             balanceOption: BalanceOption,
+            customHeaders: List<CustomHeader>,
             builtIn: Boolean,
         ): ProviderSetting {
             return this.copy(
@@ -241,6 +251,7 @@ sealed class ProviderSetting {
                 models = models,
                 balanceOption = balanceOption,
                 builtIn = builtIn,
+                customHeaders = customHeaders,
             )
         }
     }
@@ -253,6 +264,7 @@ sealed class ProviderSetting {
         override var name: String = "AICore (on-device)",
         override var models: List<Model> = AICORE_DEFAULT_MODELS,
         override val balanceOption: BalanceOption = BalanceOption(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
         @Transient override val builtIn: Boolean = true,
         // Defaults to PREVIEW because the STABLE feature ID is missing on most current
         // AICore beta channels — PREVIEW is what actually resolves to a working model on
@@ -281,6 +293,7 @@ sealed class ProviderSetting {
             name: String,
             models: List<Model>,
             balanceOption: BalanceOption,
+            customHeaders: List<CustomHeader>,
             builtIn: Boolean,
         ): ProviderSetting {
             return this.copy(
@@ -290,6 +303,7 @@ sealed class ProviderSetting {
                 models = models,
                 builtIn = builtIn,
                 balanceOption = balanceOption,
+                customHeaders = customHeaders,
             )
         }
     }
@@ -302,6 +316,7 @@ sealed class ProviderSetting {
         override var name: String = "Local · LiteRT",
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
         @Transient override val builtIn: Boolean = true,
     ) : ProviderSetting() {
         override val providerKey = "local_litert"
@@ -319,11 +334,13 @@ sealed class ProviderSetting {
             name: String,
             models: List<Model>,
             balanceOption: BalanceOption,
+            customHeaders: List<CustomHeader>,
             builtIn: Boolean,
         ): ProviderSetting = copy(
             id = id, enabled = enabled, name = name, models = models,
             builtIn = builtIn,
             balanceOption = balanceOption,
+            customHeaders = customHeaders,
         )
     }
 
@@ -335,6 +352,7 @@ sealed class ProviderSetting {
         override var name: String = "Local · llama.cpp",
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
         @Transient override val builtIn: Boolean = true,
     ) : ProviderSetting() {
         override val providerKey = "local_llamacpp"
@@ -352,11 +370,13 @@ sealed class ProviderSetting {
             name: String,
             models: List<Model>,
             balanceOption: BalanceOption,
+            customHeaders: List<CustomHeader>,
             builtIn: Boolean,
         ): ProviderSetting = copy(
             id = id, enabled = enabled, name = name, models = models,
             builtIn = builtIn,
             balanceOption = balanceOption,
+            customHeaders = customHeaders,
         )
     }
 
@@ -368,6 +388,7 @@ sealed class ProviderSetting {
         override var name: String = "Codex",
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
         @Transient override val builtIn: Boolean = true,
     ) : ProviderSetting() {
         override val providerKey = "codex"
@@ -393,6 +414,7 @@ sealed class ProviderSetting {
             name: String,
             models: List<Model>,
             balanceOption: BalanceOption,
+            customHeaders: List<CustomHeader>,
             builtIn: Boolean,
         ): ProviderSetting {
             return copy(
@@ -402,6 +424,7 @@ sealed class ProviderSetting {
                 models = models,
                 balanceOption = balanceOption,
                 builtIn = builtIn,
+                customHeaders = customHeaders,
             )
         }
     }
@@ -414,6 +437,7 @@ sealed class ProviderSetting {
         override var name: String = "Grok",
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
         @Transient override val builtIn: Boolean = true,
     ) : ProviderSetting() {
         override val providerKey = "grok"
@@ -439,6 +463,7 @@ sealed class ProviderSetting {
             name: String,
             models: List<Model>,
             balanceOption: BalanceOption,
+            customHeaders: List<CustomHeader>,
             builtIn: Boolean,
         ): ProviderSetting {
             return copy(
@@ -448,6 +473,7 @@ sealed class ProviderSetting {
                 models = models,
                 balanceOption = balanceOption,
                 builtIn = builtIn,
+                customHeaders = customHeaders,
             )
         }
     }
@@ -460,6 +486,7 @@ sealed class ProviderSetting {
         override var name: String = "Gemini OAuth",
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
         @Transient override val builtIn: Boolean = true,
     ) : ProviderSetting() {
         override val providerKey = "gemini_oauth"
@@ -485,6 +512,7 @@ sealed class ProviderSetting {
             name: String,
             models: List<Model>,
             balanceOption: BalanceOption,
+            customHeaders: List<CustomHeader>,
             builtIn: Boolean,
         ): ProviderSetting {
             return copy(
@@ -494,6 +522,7 @@ sealed class ProviderSetting {
                 models = models,
                 balanceOption = balanceOption,
                 builtIn = builtIn,
+                customHeaders = customHeaders,
             )
         }
     }
@@ -506,6 +535,7 @@ sealed class ProviderSetting {
         override var name: String = "后端服务",
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
+        override val customHeaders: List<CustomHeader> = emptyList(),
         @Transient override val builtIn: Boolean = false,
         // ── 后端类型：backend（专有 SSE）| custom（自定义 HTTP）| cli（命令行）──
         var backendType: String = "backend",
@@ -561,6 +591,7 @@ sealed class ProviderSetting {
             name: String,
             models: List<Model>,
             balanceOption: BalanceOption,
+            customHeaders: List<CustomHeader>,
             builtIn: Boolean,
         ): ProviderSetting =
             copy(
@@ -570,6 +601,7 @@ sealed class ProviderSetting {
                 models = models,
                 builtIn = builtIn,
                 balanceOption = balanceOption,
+                customHeaders = customHeaders,
             )
     }
 

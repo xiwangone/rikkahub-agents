@@ -3108,6 +3108,7 @@
   <string name="mcp_tool_contacts">聯絡人</string>
   <string name="mcp_tool_call_log">通話記錄</string>
   <string name="mcp_tool_sms_inbox">簡訊收件匣</string>
+  <string name="mcp_tool_screen_time">螢幕使用時間</string>
   <string name="mcp_tool_camera_photo">拍照</string>
   <string name="mcp_tool_mic_recorder">錄音</string>
   <string name="mcp_tool_speech_to_text">語音轉文字</string>

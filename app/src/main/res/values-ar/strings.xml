@@ -2220,6 +2220,7 @@
   <string name="mcp_tool_contacts">جهات الاتصال</string>
   <string name="mcp_tool_call_log">سجل المكالمات</string>
   <string name="mcp_tool_sms_inbox">صندوق الرسائل</string>
+  <string name="mcp_tool_screen_time">وقت الشاشة</string>
   <string name="mcp_tool_camera_photo">الكاميرا</string>
   <string name="mcp_tool_mic_recorder">تسجيل الصوت</string>
   <string name="mcp_tool_speech_to_text">تحويل الكلام إلى نص</string>

@@ -79,6 +79,7 @@ object LocalToolCatalog {
                     LocalToolOption.CallLog,
                     LocalToolOption.SmsInbox,
                     LocalToolOption.SmsSend,
+                    LocalToolOption.ScreenTime,
                     LocalToolOption.Share,
                 ),
             LocalToolCategory.REMOTE to
@@ -148,6 +149,7 @@ object LocalToolCatalog {
             LocalToolOption.Contacts,
             LocalToolOption.CallLog,
             LocalToolOption.SmsInbox,
+            LocalToolOption.ScreenTime,
         )
 
     /** 全量列表（按分类顺序展开） */
@@ -176,6 +178,7 @@ object LocalToolCatalog {
             LocalToolOption.Contacts -> R.string.mcp_tool_contacts
             LocalToolOption.CallLog -> R.string.mcp_tool_call_log
             LocalToolOption.SmsInbox -> R.string.mcp_tool_sms_inbox
+            LocalToolOption.ScreenTime -> R.string.mcp_tool_screen_time
             LocalToolOption.CameraPhoto -> R.string.mcp_tool_camera_photo
             LocalToolOption.MicRecorder -> R.string.mcp_tool_mic_recorder
             LocalToolOption.SpeechToText -> R.string.mcp_tool_speech_to_text

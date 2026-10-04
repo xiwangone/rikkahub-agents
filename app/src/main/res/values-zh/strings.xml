@@ -3145,6 +3145,7 @@
   <string name="mcp_tool_contacts">联系人</string>
   <string name="mcp_tool_call_log">通话记录</string>
   <string name="mcp_tool_sms_inbox">短信收件箱</string>
+  <string name="mcp_tool_screen_time">屏幕使用时长</string>
   <string name="mcp_tool_camera_photo">拍照</string>
   <string name="mcp_tool_mic_recorder">录音</string>
   <string name="mcp_tool_speech_to_text">语音转文字</string>

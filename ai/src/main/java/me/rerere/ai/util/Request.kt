@@ -8,6 +8,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.provider.CustomBody
 import me.rerere.ai.provider.CustomHeader
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.common.android.Logging
 import okhttp3.Headers
 import okhttp3.HttpUrl.Companion.toHttpUrl
@@ -23,6 +24,14 @@ fun List<CustomHeader>.toHeaders(): Headers {
                 add(it.name, it.value)
             }
     }.build()
+}
+
+// 提供商级别的请求头优先级最低，会被请求级别(助手/模型)的同名请求头覆盖
+fun ProviderSetting.mergeCustomHeaders(headers: List<CustomHeader> = emptyList()): Headers {
+    val providerHeaders = customHeaders.filter { header ->
+        headers.none { it.name.equals(header.name, ignoreCase = true) }
+    }
+    return (providerHeaders + headers).toHeaders()
 }
 
 fun Request.Builder.configureReferHeaders(url: String): Request.Builder {

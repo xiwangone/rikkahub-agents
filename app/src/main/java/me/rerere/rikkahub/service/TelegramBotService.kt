@@ -87,6 +87,7 @@ class TelegramBotService : Service() {
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private var pollJob: Job? = null
     private var externalGenPumpJob: Job? = null
+    private val foregroundHelper by lazy { TelegramForegroundHelper(this) }
 
     // Phase 24 — the periodic poll-stall checker coroutine. Launched alongside the poll
     // loop in onStartCommand, cancelled with the service scope.
@@ -177,7 +178,7 @@ class TelegramBotService : Service() {
         startId: Int,
     ): Int {
         try {
-            startInForeground()
+            foregroundHelper.startInForeground()
         } catch (e: Throwable) {
             // Most likely on Android 12+ ForegroundServiceStartNotAllowedException after
             // process revive without a fresh foreground ticket, OR SecurityException on
@@ -232,70 +233,6 @@ class TelegramBotService : Service() {
         super.onDestroy()
     }
 
-    private fun startInForeground() {
-        val nm = getSystemService(NotificationManager::class.java)
-        if (nm.getNotificationChannel(CHANNEL_ID) == null) {
-            nm.createNotificationChannel(
-                NotificationChannel(
-                    CHANNEL_ID,
-                    getString(R.string.notification_channel_telegram_bot),
-                    NotificationManager.IMPORTANCE_LOW,
-                ),
-            )
-        }
-        val notif = buildForegroundNotification()
-        // Android 14+ ties the runtime FGS type to the manifest declaration AND to a
-        // hard daily-budget cap depending on the type. We previously used DATA_SYNC, which
-        // caps at 6 hours/day per app — Telegram bot polling is intended to run
-        // indefinitely, so we'd hit ForegroundServiceDidNotStopInTimeException. SPECIAL_USE
-        // has no such cap (the manifest declares the subtype "long-running Telegram bot
-        // long-poll loop") and is the correct flavor for app-specific long-running work
-        // that doesn't fit any predefined Google category.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
-            startForeground(NOTIF_ID, notif, ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE)
-        } else {
-            startForeground(NOTIF_ID, notif)
-        }
-    }
-
-    /**
-     * Build the foreground notification. If the strict whitelist has rejected at least one
-     * sender, surface the most recent rejected sender_id in the body so the user has a way
-     * to bootstrap an empty whitelist without spelunking through logcat.
-     */
-    private fun buildForegroundNotification(): android.app.Notification {
-        val rejected = TelegramBotRegistries.RejectedSenderLog.latest()
-        val body =
-            if (rejected != null) {
-                getString(
-                    R.string.notification_telegram_rejected_sender_body,
-                    rejected.senderId,
-                    rejected.chatId,
-                )
-            } else {
-                getString(R.string.notification_telegram_routing_body)
-            }
-        return NotificationCompat
-            .Builder(this, CHANNEL_ID)
-            .setContentTitle(getString(R.string.notification_telegram_listening_title))
-            .setContentText(body)
-            .setStyle(NotificationCompat.BigTextStyle().bigText(body))
-            .setSmallIcon(R.drawable.ic_notif_telegram)
-            .setOngoing(true)
-            .build()
-    }
-
-    /** Re-render the notification in place. Cheap (single NotificationManager call). */
-    private fun updateForegroundNotification() {
-        try {
-            val nm = getSystemService(NotificationManager::class.java) ?: return
-            nm.notify(NOTIF_ID, buildForegroundNotification())
-        } catch (e: Throwable) {
-            // Notifications can fail in restricted contexts (POST_NOTIFICATIONS revoked,
-            // channel blocked); non-fatal, but log so a vanished notification leaves a trace.
-            AppLog.w(TAG, "updateForegroundNotification failed", e)
-        }
-    }
 
     /**
      * Long-poll Telegram, dispatch messages, advance offset. Acquires a partial WakeLock
@@ -658,7 +595,7 @@ class TelegramBotService : Service() {
             // BotFather doesn't give it to you and the strict-whitelist policy means you
             // can't "just send a message and check the logs" anymore.
             TelegramBotRegistries.RejectedSenderLog.record(sender, m.chatId)
-            updateForegroundNotification()
+            foregroundHelper.updateNotification()
             return
         }
         // Built-in slash commands. These are handled entirely on-device — they never reach
@@ -2269,8 +2206,6 @@ class TelegramBotService : Service() {
 
     companion object {
         const val TAG = "TelegramBotService"
-        const val CHANNEL_ID = "rikkahub_telegram_bot"
-        const val NOTIF_ID = 0xA1B2
 
         // Telegram's HARD per-message limit is 4096. We chunk at 3500 (was 4000) because
         // chunks are markdown-rendered to HTML downstream and the rendered HTML can be

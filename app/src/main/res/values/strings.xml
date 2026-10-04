@@ -3145,6 +3145,7 @@
   <string name="mcp_tool_contacts">Contacts</string>
   <string name="mcp_tool_call_log">Call log</string>
   <string name="mcp_tool_sms_inbox">SMS inbox</string>
+  <string name="mcp_tool_screen_time">Screen time</string>
   <string name="mcp_tool_camera_photo">Camera</string>
   <string name="mcp_tool_mic_recorder">Recorder</string>
   <string name="mcp_tool_speech_to_text">Speech to text</string>
