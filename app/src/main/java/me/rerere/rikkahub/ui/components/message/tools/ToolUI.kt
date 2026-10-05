@@ -110,6 +110,7 @@ object ToolUIRegistry {
             EditFileToolUI,
             ReadFileToolUI,
             WriteFileToolUI,
+            WriteTextFileToolUI,
             DiffFilesToolUI,
             ShellToolUI,
             RunJsToolUI,

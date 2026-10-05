@@ -219,6 +219,17 @@ object ReadFileToolUI : ToolUIRenderer {
 /**
  * 工作空间写入文件: 内容取自入参 (未执行也可预览), 摘要为内容首部, 详情为完整内容
  */
+/** 写入类工具共用的标题：入参里都有 path */
+@Composable
+private fun writeLikeTitle(context: ToolUIContext): String {
+    val path = context.arguments.getStringContent("path")
+    return if (path != null) {
+        stringResource(R.string.tool_ui_write_file, path)
+    } else {
+        stringResource(R.string.tool_ui_write_file_default)
+    }
+}
+
 object WriteFileToolUI : ToolUIRenderer {
     private const val SUMMARY_MAX_LINES = 10
 
@@ -227,16 +238,7 @@ object WriteFileToolUI : ToolUIRenderer {
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.FileAdd
 
     @Composable
-    override fun title(context: ToolUIContext): String {
-        val path = context.arguments.getStringContent("path")
-        return if (path !=
-            null
-        ) {
-            stringResource(R.string.tool_ui_write_file, path)
-        } else {
-            stringResource(R.string.tool_ui_write_file_default)
-        }
-    }
+    override fun title(context: ToolUIContext): String = writeLikeTitle(context)
 
     private fun textOf(context: ToolUIContext): String? = context.arguments.getStringContent("text")
 
@@ -253,7 +255,8 @@ object WriteFileToolUI : ToolUIRenderer {
     @Composable
     override fun Summary(context: ToolUIContext) {
         val diff = remember(context) { diffOf(context) }
-        if (diff != null) {
+        // 纯新增（无删除行，如新建文件 / 追加）时全绿 diff 没有信息量 → 走内容渲染（下方 FileContentSummary 分支）
+        if (diff != null && parseDiffStats(diff).deletions > 0) {
             val stats = remember(diff) { parseDiffStats(diff) }
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
@@ -332,6 +335,15 @@ object WriteFileToolUI : ToolUIRenderer {
                     modifier = Modifier.fillMaxWidth(),
                     showFileHeader = true,
                 )
+                // 详情页同时给出文件内容（可复制/可选词），不只显示差异
+                val body = remember(context) { textOf(context) }
+                if (body != null) {
+                    HighlightCodeBlock(
+                        code = body,
+                        language = languageOf(context.arguments.getStringContent("path")),
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
             return
         }
@@ -342,6 +354,52 @@ object WriteFileToolUI : ToolUIRenderer {
         }
         FileContentPreview(path = context.arguments.getStringContent("path"), code = text)
     }
+}
+
+/**
+ * App 原生写入工具（write_text_file）：入参是 path + content，不生成 diff。
+ * 沿用与 workspace 版一致的内容渲染，避免落到「通用标题 + JSON 详情」的兜底形态。
+ */
+object WriteTextFileToolUI : ToolUIRenderer {
+    override val toolName: String = "write_text_file"
+
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.FileAdd
+
+    @Composable
+    override fun title(context: ToolUIContext): String = writeLikeTitle(context)
+
+    private fun contentOf(context: ToolUIContext): String? = context.arguments.getStringContent("content")
+
+    override fun hasSummary(context: ToolUIContext): Boolean = contentOf(context) != null
+
+    @Composable
+    override fun Summary(context: ToolUIContext) {
+        FileContentSummaryOf(context, remember(context) { contentOf(context) })
+    }
+
+    @Composable
+    override fun Preview(
+        context: ToolUIContext,
+        onDismissRequest: () -> Unit,
+    ) {
+        val text = remember(context) { contentOf(context) }
+        if (text == null) {
+            DefaultToolPreview(context = context)
+            return
+        }
+        FileContentPreview(path = context.arguments.getStringContent("path"), code = text)
+    }
+}
+
+/** 文件内容摘要（读/写类工具共用）：入参里都有 path，内容键由调用方给出 */
+@Composable
+private fun FileContentSummaryOf(context: ToolUIContext, text: String?) {
+    if (text == null) return
+    FileContentSummary(
+        text = text,
+        path = context.arguments.getStringContent("path"),
+        loading = context.loading,
+    )
 }
 
 /** 内联摘要: 按扩展名语法高亮展示文件内容首部若干行 */
