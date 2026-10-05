@@ -106,7 +106,17 @@ private object DefaultToolUIRenderer : ToolUIRenderer {
 
 private const val GENERIC_SUMMARY_MAX_LINES = 8
 private const val GENERIC_SUMMARY_MAX_ITEMS = 8
-private val GENERIC_LIST_KEYS = listOf("files", "items", "results", "matches", "children", "list")
+private val GENERIC_LIST_KEYS =
+    listOf(
+        // 文件 / 通用集合
+        "files", "items", "results", "matches", "children", "list",
+        // 高频工具的实际键名（2026-10-05 按 usage 统计补：均 >100 次调用）
+        "processes",  // workspace_background_status / _list
+        "sessions",   // termux_session_list
+        "hosts",      // list_ssh_hosts
+        "packages",   // list_installed_apps
+        "apps", "agents", "servers", "entries", "records", "top", "tools",
+    )
 
 /** 列表元素取标签时优先看的键（对象元素：如 shizuku 的 {command, result}、list_files 的 {name, path}） */
 private val GENERIC_ITEM_KEYS =
