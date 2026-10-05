@@ -108,6 +108,20 @@ private const val GENERIC_SUMMARY_MAX_LINES = 8
 private const val GENERIC_SUMMARY_MAX_ITEMS = 8
 private val GENERIC_LIST_KEYS = listOf("files", "items", "results", "matches", "children", "list")
 
+/** 列表元素取标签时优先看的键（对象元素：如 shizuku 的 {command, result}、list_files 的 {name, path}） */
+private val GENERIC_ITEM_KEYS =
+    listOf("name", "path", "command", "key", "title", "label", "id", "url", "message")
+
+/** 列表元素 → 一行标签：字符串直接用；对象取常见键，再退到首个标量字段 */
+private fun elementLabel(el: JsonElement): String {
+    el.jsonPrimitiveOrNull?.contentOrNull?.let { return it }
+    val o = el.jsonObjectOrNull ?: return "…"
+    GENERIC_ITEM_KEYS.forEach { k ->
+        o[k]?.jsonPrimitiveOrNull?.contentOrNull?.takeIf { it.isNotBlank() }?.let { return it }
+    }
+    return o.values.firstOrNull { it.jsonPrimitiveOrNull != null }?.jsonPrimitiveOrNull?.contentOrNull ?: "…"
+}
+
 /**
  * 从工具输出提炼可读摘要（返回 null = 不给摘要，仍走默认 JSON 详情）：
  *  ① 终端类（含 `stdout` / `exit_code`）→ 输出前若干行（非零退出码带一行标记）
@@ -126,17 +140,19 @@ private fun defaultSummaryText(context: ToolUIContext): String? {
     GENERIC_LIST_KEYS.forEach { key ->
         val arr = obj[key]?.let { runCatching { it.jsonArray }.getOrNull() } ?: return@forEach
         if (arr.isEmpty()) return@forEach
-        val names =
-            arr.take(GENERIC_SUMMARY_MAX_ITEMS).map { el ->
-                el.getStringContent("name")
-                    ?: el.getStringContent("path")
-                    ?: el.jsonPrimitiveOrNull?.contentOrNull
-                    ?: "…"
-            }
+        val names = arr.take(GENERIC_SUMMARY_MAX_ITEMS).map { el -> elementLabel(el) }
         val more = if (arr.size > GENERIC_SUMMARY_MAX_ITEMS) "\n… (${arr.size})" else ""
         return names.joinToString("\n") + more
     }
-    // ③ 键值对：输出是「标量字段」组成的小对象 → 逐行 k: v
+    // ③ 长文本字段（如 read_file 的 content / web_fetch 正文）→ 展示前若干行
+    val longText =
+        obj.entries
+            .mapNotNull { (_, v) -> v.jsonPrimitiveOrNull?.contentOrNull?.takeIf { it.length > 200 } }
+            .maxByOrNull { it.length }
+    if (longText != null) {
+        return longText.lineSequence().take(GENERIC_SUMMARY_MAX_LINES).joinToString("\n")
+    }
+    // ④ 键值对：输出是「标量字段」组成的小对象 → 逐行 k: v
     //    （覆盖 memory_tool / settings_get / device_info / appops_get 这类未注册工具）
     val scalars = obj.entries.filter { it.value.jsonPrimitiveOrNull != null }.take(GENERIC_SUMMARY_MAX_ITEMS)
     if (scalars.isNotEmpty()) {
