@@ -2202,8 +2202,6 @@
   <string name="permission_calendar_write_desc">代表您创建日历事件</string>
   <string name="assistant_page_local_tools_calendar_title">日历</string>
   <string name="assistant_page_local_tools_calendar_desc">让AI查询和创建日历事件</string>
-  <string name="chat_message_tool_calendar_query">查询日历事件</string>
-  <string name="chat_message_tool_calendar_create">创建事件: %1$s</string>
   <string name="chat_message_tool_chart_display">显示图表</string>
   <string name="chat_message_tool_chart_display_with_title">显示图表：%1$s</string>
   <string name="chart_mode_chart">图表</string>

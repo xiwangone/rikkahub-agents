@@ -1968,8 +1968,6 @@
   <string name="permission_calendar_write_desc">代您建立日曆活動</string>
   <string name="assistant_page_local_tools_calendar_title">日曆</string>
   <string name="assistant_page_local_tools_calendar_desc">讓AI查詢和建立行事曆事件</string>
-  <string name="chat_message_tool_calendar_query">查詢日曆事件</string>
-  <string name="chat_message_tool_calendar_create">建立事件: %1$s</string>
   <string name="chat_page_move_to_folder">移至資料夾</string>
   <string name="chat_page_remove_from_folder">從資料夾移除</string>
   <string name="chat_page_create_folder">新資料夾</string>

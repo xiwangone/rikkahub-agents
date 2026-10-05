@@ -184,8 +184,6 @@ object ToolUIRegistry {
             ClipboardToolUI,
             TextToSpeechToolUI,
             GetScreenTimeToolUI,
-            CalendarQueryToolUI,
-            CalendarCreateToolUI,
             ChartDisplayToolUI,
             UseSkillToolUI,
             RecentChatsToolUI,
@@ -209,6 +207,9 @@ object ToolUIRegistry {
 
     /** 查找工具对应的渲染器, 未注册时返回默认渲染器 */
     fun resolve(toolName: String): ToolUIRenderer = renderers[toolName] ?: DefaultToolUIRenderer
+
+    /** 已注册的渲染器 key（只读；供诊断做"注册了但无对应工具"的覆盖自检）。 */
+    val registeredKeys: Set<String> get() = renderers.keys
 }
 
 internal fun JsonElement?.getStringContent(key: String): String? =

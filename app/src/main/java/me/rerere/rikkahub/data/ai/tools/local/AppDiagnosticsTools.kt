@@ -53,6 +53,7 @@ import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.common.android.LogEntry
 import me.rerere.common.android.Logging
+import me.rerere.rikkahub.ui.components.message.tools.ToolUIRegistry
 import me.rerere.rikkahub.ui.pages.setting.doctor.DoctorChecks
 import me.rerere.rikkahub.ui.pages.setting.doctor.Severity
 import me.rerere.rikkahub.utils.LogRedactor
@@ -1296,6 +1297,32 @@ internal suspend fun toolScopePayload(
                     )
                 },
             )
+            // 渲染覆盖自检：注册表 key 数 / 与当前注入集匹配数 / 注册了但当前注入集里没有的 key。
+            // unmatchedKeys 两种成因（只读诊断不猜）：该工具当前未启用（或能力未就绪），
+            // 或名字对不上（死键）—— 静态核实用 `工具/tool-inventory.sh --check`。
+            val uiKeys = ToolUIRegistry.registeredKeys
+            val injectedSet = injected.toSet()
+            val usageSnapshot = ToolUsageTracker.snapshot(context)
+            put(
+                "uiCoverage",
+                buildJsonObject {
+                    put("registryKeys", uiKeys.size)
+                    put("matchedInjected", uiKeys.count { it in injectedSet })
+                    put(
+                        "unmatchedKeys",
+                        buildJsonArray {
+                            uiKeys.filterNot { it in injectedSet }.sorted().forEach { add(JsonPrimitive(it)) }
+                        },
+                    )
+                    put("injectedWithoutUi", injectedSet.count { it !in uiKeys })
+                    if (ToolUsageTracker.isStatsEnabled()) {
+                        put("usageTracked", usageSnapshot.size)
+                        put("injectedZeroCall", injectedSet.count { name -> usageSnapshot.none { it.name == name } })
+                    } else {
+                        put("usageNote", "toolStatsEnabled=false：无调用统计，零调用数不可用")
+                    }
+                },
+            )
             put(
                 "hint",
                 "只读快照。tools 来自最近一次装配的注入集合（白名单同时是执行边界：名单外的工具既不可见也不可调用）。" +
@@ -1662,7 +1689,7 @@ fun diagnosticsTool(
 ): Tool = Tool(
     name = "diagnostics",
     // 描述只留用途与关键用法：kind 全量枚举已在 parameters.kind（enum + joinToString）给出，
-    // 再抄一遍是纯冗余（实测该工具 626 token 全场最大，相当一部分来自这层重复枚举）。
+    // 再抄一遍是纯冗余（该工具 token 开销全场最大，相当一部分来自这层重复枚举）。
     description =
         "Inspect this app itself (kind list and semantics are in the `kind` enum). " +
             "For logs prefer summary:true or level/keyword filters — raw logs are noisy.",

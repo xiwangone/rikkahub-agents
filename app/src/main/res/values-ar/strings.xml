@@ -3249,8 +3249,6 @@
   <string name="permission_calendar_write_desc">إنشاء أحداث تقويم نيابة عنك</string>
   <string name="assistant_page_local_tools_calendar_title">التقويم</string>
   <string name="assistant_page_local_tools_calendar_desc">السماح للذكاء الاصطناعي بالاستعلام عن أحداث التقويم وإنشائها</string>
-  <string name="chat_message_tool_calendar_query">الاستعلام عن أحداث التقويم</string>
-  <string name="chat_message_tool_calendar_create">إنشاء حدث: %1$s</string>
   <string name="chat_page_move_to_folder">النقل إلى مجلد</string>
   <string name="chat_page_remove_from_folder">الإخراج من المجلد</string>
   <string name="chat_page_create_folder">مجلد جديد</string>

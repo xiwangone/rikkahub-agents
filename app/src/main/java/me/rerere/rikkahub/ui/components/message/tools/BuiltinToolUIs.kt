@@ -538,61 +538,6 @@ object GetScreenTimeToolUI : ToolUIRenderer {
     }
 }
 
-object CalendarQueryToolUI : ToolUIRenderer {
-    override val toolName: String = "calendar_query"
-
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Calendar03
-
-    @Composable
-    override fun title(context: ToolUIContext): String = stringResource(R.string.chat_message_tool_calendar_query)
-
-    private fun events(context: ToolUIContext): List<JsonElement> =
-        context.content
-            ?.jsonObjectOrNull
-            ?.get("events")
-            ?.let { it as? JsonArray } ?: emptyList()
-
-    override fun hasSummary(context: ToolUIContext): Boolean = events(context).isNotEmpty()
-
-    @Composable
-    override fun Summary(context: ToolUIContext) {
-        val events = events(context)
-        if (events.isEmpty()) return
-        Column(
-            verticalArrangement = Arrangement.spacedBy(2.dp),
-            modifier = Modifier.shimmer(isLoading = context.loading),
-        ) {
-            Text(
-                text = stringResource(R.string.chat_message_tool_search_results_count, events.size),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onPrimaryContainer.copy(alpha = 0.8f),
-            )
-            events.take(3).forEach { event ->
-                val title = event.getStringContent("title") ?: return@forEach
-                Text(
-                    text = title,
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onPrimaryContainer,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-        }
-    }
-}
-
-object CalendarCreateToolUI : ToolUIRenderer {
-    override val toolName: String = "calendar_create"
-
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.CalendarAdd01
-
-    @Composable
-    override fun title(context: ToolUIContext): String {
-        val eventTitle = context.arguments.getStringContent("title") ?: ""
-        return stringResource(R.string.chat_message_tool_calendar_create, eventTitle)
-    }
-}
-
 object ChartDisplayToolUI : ToolUIRenderer {
     override val toolName: String = "chart_display"
 

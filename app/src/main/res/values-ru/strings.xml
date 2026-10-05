@@ -1946,8 +1946,6 @@
   <string name="permission_calendar_write_desc">Создавать события календаря от вашего имени</string>
   <string name="assistant_page_local_tools_calendar_title">Календарь</string>
   <string name="assistant_page_local_tools_calendar_desc">Позволяет ИИ запрашивать и создавать события календаря</string>
-  <string name="chat_message_tool_calendar_query">Запросить события календаря</string>
-  <string name="chat_message_tool_calendar_create">Создать событие: %1$s</string>
   <string name="chat_page_move_to_folder">Переместить в папку</string>
   <string name="chat_page_remove_from_folder">Убрать из папки</string>
   <string name="chat_page_create_folder">Новая папка</string>

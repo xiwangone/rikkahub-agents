@@ -1953,8 +1953,6 @@
   <string name="permission_calendar_write_desc">あなたに代わってカレンダーイベントを作成します</string>
   <string name="assistant_page_local_tools_calendar_title">カレンダー</string>
   <string name="assistant_page_local_tools_calendar_desc">AIにカレンダーイベントの検索と作成を許可します</string>
-  <string name="chat_message_tool_calendar_query">カレンダーイベントを照会</string>
-  <string name="chat_message_tool_calendar_create">イベントを作成: %1$s</string>
   <string name="chat_page_move_to_folder">フォルダに移動</string>
   <string name="chat_page_remove_from_folder">フォルダから削除</string>
   <string name="chat_page_create_folder">新規フォルダ</string>

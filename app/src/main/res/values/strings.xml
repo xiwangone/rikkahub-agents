@@ -2350,8 +2350,6 @@
   <string name="tool_ui_screen_time_total">Total screen time</string>
   <string name="assistant_page_local_tools_calendar_title">Calendar</string>
   <string name="assistant_page_local_tools_calendar_desc">Let the AI query and create calendar events</string>
-  <string name="chat_message_tool_calendar_query">Query calendar events</string>
-  <string name="chat_message_tool_calendar_create">Create event: %1$s</string>
   <string name="chat_message_tool_chart_display">Display chart</string>
   <string name="chat_message_tool_chart_display_with_title">Display chart: %1$s</string>
   <string name="chart_mode_chart">Chart</string>

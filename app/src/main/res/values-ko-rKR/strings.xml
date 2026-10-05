@@ -1950,8 +1950,6 @@
   <string name="permission_calendar_write_desc">사용자를 대신하여 캘린더 이벤트를 생성합니다</string>
   <string name="assistant_page_local_tools_calendar_title">캘린더</string>
   <string name="assistant_page_local_tools_calendar_desc">AI가 캘린더 이벤트를 조회하고 생성할 수 있도록 합니다</string>
-  <string name="chat_message_tool_calendar_query">캘린더 일정 조회</string>
-  <string name="chat_message_tool_calendar_create">일정 생성: %1$s</string>
   <string name="chat_page_move_to_folder">폴더로 이동</string>
   <string name="chat_page_remove_from_folder">폴더에서 제거</string>
   <string name="chat_page_create_folder">새 폴더</string>
