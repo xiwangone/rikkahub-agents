@@ -73,7 +73,12 @@ internal fun parseToolOutputContent(tool: UIMessagePart.Tool): JsonElement? {
     if (!tool.isExecuted) return null
     return runCatching {
         JsonInstant.parseToJsonElement(
-            tool.output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text },
+            // ⚠ 输出里可能混有审批来源标记行（`[approval: …]`）→ 必须先剥掉再整体解析：
+            //   否则解析失败返回 null，会让**所有**已注册渲染器的 Preview / Summary 一起失效
+            //   （带标记的调用会一律落到 DefaultToolPreview 的 JSON 详情）
+            stripApprovalProvenance(
+                tool.output.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text },
+            ),
         )
     }.getOrNull()
 }
