@@ -22,6 +22,7 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
@@ -83,9 +84,59 @@ interface ToolUIRenderer {
     }
 }
 
-/** 未注册工具使用的默认渲染器, 全部行为来自 [ToolUIRenderer] 的默认实现 */
+/** 未注册工具使用的默认渲染器。
+ * 在接口默认行为（通用标题 + JSON 详情）之上，按**输出特征**给一段内联摘要 ——
+ * 覆盖未注册工具里最常见的两类形态（终端输出 / 列表），免得它们一律只显示一串 JSON。
+ */
 private object DefaultToolUIRenderer : ToolUIRenderer {
     override val toolName: String get() = ""
+
+    override fun hasSummary(context: ToolUIContext): Boolean = defaultSummaryText(context) != null
+
+    @Composable
+    override fun Summary(context: ToolUIContext) {
+        val text = defaultSummaryText(context) ?: return
+        HighlightCodeBlock(
+            code = text,
+            language = null,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+private const val GENERIC_SUMMARY_MAX_LINES = 8
+private const val GENERIC_SUMMARY_MAX_ITEMS = 8
+private val GENERIC_LIST_KEYS = listOf("files", "items", "results", "matches", "children", "list")
+
+/**
+ * 从工具输出提炼可读摘要（返回 null = 不给摘要，仍走默认 JSON 详情）：
+ *  ① 终端类（含 `stdout` / `exit_code`）→ 输出前若干行（非零退出码带一行标记）
+ *  ② 列表类（`files` / `items` / `results` / `matches` / `children` 等数组）→ 逐条列名
+ */
+private fun defaultSummaryText(context: ToolUIContext): String? {
+    val content = context.content ?: return null
+    val stdout = content.getStringContent("stdout")
+    val exit = content.getStringContent("exit_code") ?: content.getStringContent("exitCode")
+    if (stdout != null || exit != null) {
+        val body = (stdout ?: "").lineSequence().take(GENERIC_SUMMARY_MAX_LINES).joinToString("\n")
+        if (exit != null && exit != "0") return "[exit $exit]\n$body"
+        return body.ifBlank { null }
+    }
+    val obj = content.jsonObjectOrNull ?: return null
+    GENERIC_LIST_KEYS.forEach { key ->
+        val arr = obj[key]?.let { runCatching { it.jsonArray }.getOrNull() } ?: return@forEach
+        if (arr.isEmpty()) return@forEach
+        val names =
+            arr.take(GENERIC_SUMMARY_MAX_ITEMS).map { el ->
+                el.getStringContent("name")
+                    ?: el.getStringContent("path")
+                    ?: el.jsonPrimitiveOrNull?.contentOrNull
+                    ?: "…"
+            }
+        val more = if (arr.size > GENERIC_SUMMARY_MAX_ITEMS) "\n… (${arr.size})" else ""
+        return names.joinToString("\n") + more
+    }
+    return null
 }
 
 /**
