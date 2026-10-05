@@ -98,7 +98,7 @@ private object DefaultToolUIRenderer : ToolUIRenderer {
         val text = defaultSummaryText(context) ?: return
         HighlightCodeBlock(
             code = text,
-            language = null,
+            language = "text",
             modifier = Modifier.fillMaxWidth(),
         )
     }
