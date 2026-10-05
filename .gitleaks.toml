@@ -22,7 +22,15 @@ paths = [
   # 密钥生成器 / 检测器 / 诊断项：PEM 头模板与 token 格式串（非密钥本体）
   '''app/src/main/java/me/rerere/rikkahub/data/vault/OpenPgpKeyGenerator\.kt''',
   '''app/src/main/java/me/rerere/rikkahub/data/vault/SshKeyGenerator\.kt''',
+  '''ai/src/main/java/me/rerere/ai/provider/providers/vertex/ServiceAccountTokenProvider\.kt''',
+  # 该文件历史上位于 providers/google/vertex/ 下（后续搬了目录）——历史扫描仍会命中旧路径，两条都写
   '''ai/src/main/java/me/rerere/ai/provider/providers/google/vertex/ServiceAccountTokenProvider\.kt''',
   '''app/src/main/java/me/rerere/rikkahub/data/gemini/GeminiOAuthManager\.kt''',
   '''app/src/main/java/me/rerere/rikkahub/ui/pages/setting/doctor/DoctorChecks\.kt''',
+  # README 三语底部 Star History 图表链接：其 sealed_token 是 star-history 官方给公开 README 用的
+  # 分享串（本就供外部访问），非密钥；“脱敏器”测试文件则构造假 header 样本用于断言脱敏效果。
+  '''README\.md''',
+  '''README_ZH_CN\.md''',
+  '''README_ZH_TW\.md''',
+  '''app/src/test/java/me/rerere/rikkahub/reliability/SecretRedactorTest\.kt''',
 ]

@@ -1,3 +1,5 @@
+00b7e5307f0518f93efd7d0b0834b12ece561fe7:app/src/test/java/me/rerere/rikkahub/reliability/SecretRedactorTest.kt:generic-api-key:29
+00b7e5307f0518f93efd7d0b0834b12ece561fe7:app/src/test/java/me/rerere/rikkahub/reliability/SecretRedactorTest.kt:generic-api-key:30
 0add500b4a40f3afba584e8b2bea44ce7538dc6a:README_ZH_CN.md:generic-api-key:90
 0add500b4a40f3afba584e8b2bea44ce7538dc6a:README_ZH_CN.md:generic-api-key:91
 0add500b4a40f3afba584e8b2bea44ce7538dc6a:README_ZH_CN.md:generic-api-key:92
@@ -13,6 +15,8 @@ b9285fbbe0a8cbe5b1e2b01d5561b0d6b9cfd23c:README_ZH_TW.md:generic-api-key:88
 b9285fbbe0a8cbe5b1e2b01d5561b0d6b9cfd23c:README_ZH_TW.md:generic-api-key:89
 b9285fbbe0a8cbe5b1e2b01d5561b0d6b9cfd23c:README_ZH_TW.md:generic-api-key:90
 c9ee5881fc93c7b348ca43fcb93728eda4f91afd:app/src/main/java/me/rerere/rikkahub/ui/pages/chat/ChatPage.kt:generic-api-key:68
+d3f88542a787fd4a77224f860887af32ed3dea9d:app/src/test/java/me/rerere/rikkahub/reliability/SecretRedactorTest.kt:generic-api-key:29
+d3f88542a787fd4a77224f860887af32ed3dea9d:app/src/test/java/me/rerere/rikkahub/reliability/SecretRedactorTest.kt:generic-api-key:30
 fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:README_ZH_CN.md:generic-api-key:90
 fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:README_ZH_CN.md:generic-api-key:91
 fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:README_ZH_CN.md:generic-api-key:92
@@ -20,3 +24,5 @@ fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:README_ZH_TW.md:generic-api-key:88
 fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:README_ZH_TW.md:generic-api-key:89
 fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:README_ZH_TW.md:generic-api-key:90
 fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:ai/src/main/java/me/rerere/ai/provider/providers/vertex/ServiceAccountTokenProvider.kt:private-key:55
+fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:app/src/test/java/me/rerere/rikkahub/reliability/SecretRedactorTest.kt:generic-api-key:29
+fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:app/src/test/java/me/rerere/rikkahub/reliability/SecretRedactorTest.kt:generic-api-key:30
