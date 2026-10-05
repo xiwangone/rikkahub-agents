@@ -86,7 +86,7 @@ internal fun hostIsBlockedLiteral(host: String): Boolean {
     return try {
         // No DNS lookup happens for an IP literal; getByName just parses it.
         InetAddress.getByName(host).isBlockedTarget()
-    } catch (e: UnknownHostException) {
+    } catch (_: UnknownHostException) {
         true
     }
 }

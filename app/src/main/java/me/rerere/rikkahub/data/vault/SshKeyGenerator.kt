@@ -230,7 +230,7 @@ object SshKeyGenerator {
         }
         val digest = try {
             java.security.MessageDigest.getInstance("SHA-256").digest(blob)
-        } catch (e: Exception) {
+        } catch (_: java.security.NoSuchAlgorithmException) {
             return null
         }
         return "SHA256:" + Base64.getEncoder().encodeToString(digest).trimEnd('=')

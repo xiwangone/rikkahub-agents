@@ -185,7 +185,7 @@ class BackendApi(
                 if (!response.isSuccessful) return null
                 response.body?.string()
             }
-        } catch (e: IOException) {
+        } catch (_: IOException) {
             null
         }
     }

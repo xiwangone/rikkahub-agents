@@ -264,7 +264,7 @@ object LenientLocalToolListSerializer : KSerializer<List<LocalToolOption>> {
             }
             try {
                 jsonDecoder.json.decodeFromJsonElement(LocalToolOption.serializer(), mapped)
-            } catch (e: SerializationException) {
+            } catch (_: SerializationException) {
                 null // a tool type this build does not define; drop it, don't fail the import
             }
         }.distinct()

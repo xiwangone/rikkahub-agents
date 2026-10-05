@@ -5,6 +5,7 @@ import me.rerere.rikkahub.R
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.Logger as JSchLogger
 import com.jcraft.jsch.Session
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -132,7 +133,9 @@ class BackendWebBridge(
                     (CredentialResolver(vaultRepository)
                         .resolve(credentialRef, CredentialPurpose.WEB_BRIDGE, caller = "web-bridge")
                         as? CredentialResolution.Granted)?.value
-                } catch (e: Exception) { null }
+                } catch (ce: CancellationException) {
+                    throw ce
+                } catch (_: Exception) { null }
                 if (value.isNullOrBlank()) {
                     AppLog.e(TAG, "Vault credential unavailable: $credentialRef")
                     _state.value = _state.value.copy(message = context.getString(R.string.web_bridge_credential_missing, credentialRef))
