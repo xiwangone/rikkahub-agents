@@ -574,7 +574,7 @@ private fun parseColor(colorString: String): Color? =
                 }
             }
         }
-    } catch (e: Exception) {
+    } catch (_: Exception) {
         null
     }
 

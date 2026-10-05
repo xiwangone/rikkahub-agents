@@ -18,7 +18,7 @@ object PlayStoreUtil {
         try {
             val installer = getInstallerPackageName(context)
             installer == "com.android.vending"
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             false
         }
 
@@ -38,7 +38,7 @@ object PlayStoreUtil {
                 @Suppress("DEPRECATION")
                 context.packageManager.getInstallerPackageName(context.packageName)
             }
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
 }

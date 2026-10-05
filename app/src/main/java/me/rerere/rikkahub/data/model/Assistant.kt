@@ -291,7 +291,7 @@ fun PromptInjection.RegexInjection.isTriggered(context: String): Boolean {
             try {
                 val options = if (caseSensitive) emptySet() else setOf(RegexOption.IGNORE_CASE)
                 Regex(keyword, options).containsMatchIn(context)
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 false
             }
         } else {

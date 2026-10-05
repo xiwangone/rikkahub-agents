@@ -56,7 +56,7 @@ fun Context.joinQQGroup(key: String?): Boolean {
     try {
         startActivity(intent)
         return true
-    } catch (e: java.lang.Exception) {
+    } catch (_: java.lang.Exception) {
         // 未安装手Q或安装的版本不支持
         return false
     }

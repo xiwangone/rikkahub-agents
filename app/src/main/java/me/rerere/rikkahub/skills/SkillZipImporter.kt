@@ -200,9 +200,9 @@ object SkillZipImporter {
             java.util.zip.ZipFile(file, Charsets.UTF_8).use { zf ->
                 zf.entries().asSequence().any { it.name.contains('\uFFFD') }
             }
-        } catch (e: IllegalArgumentException) {
+        } catch (_: IllegalArgumentException) {
             true
-        } catch (e: java.util.zip.ZipException) {
+        } catch (_: java.util.zip.ZipException) {
             true
         }
         return if (malformed) GBK_CHARSET else Charsets.UTF_8

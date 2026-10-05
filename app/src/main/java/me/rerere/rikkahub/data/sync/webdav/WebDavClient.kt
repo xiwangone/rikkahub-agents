@@ -430,15 +430,15 @@ class WebDavClient(
         return try {
             // RFC 1123 format: "Tue, 15 Nov 1994 08:12:31 GMT"
             ZonedDateTime.parse(dateString, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant()
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             try {
                 // RFC 850 format: "Tuesday, 15-Nov-94 08:12:31 GMT"
                 ZonedDateTime.parse(dateString, DateTimeFormatter.ofPattern("EEEE, dd-MMM-yy HH:mm:ss zzz")).toInstant()
-            } catch (e: Exception) {
+            } catch (_: Exception) {
                 try {
                     // ISO 8601
                     Instant.parse(dateString)
-                } catch (e: Exception) {
+                } catch (_: Exception) {
                     AppLog.w(TAG, "Failed to parse date: $dateString")
                     null
                 }
