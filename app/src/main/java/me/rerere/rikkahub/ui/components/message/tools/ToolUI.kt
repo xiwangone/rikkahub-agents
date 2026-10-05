@@ -136,6 +136,12 @@ private fun defaultSummaryText(context: ToolUIContext): String? {
         val more = if (arr.size > GENERIC_SUMMARY_MAX_ITEMS) "\n… (${arr.size})" else ""
         return names.joinToString("\n") + more
     }
+    // ③ 键值对：输出是「标量字段」组成的小对象 → 逐行 k: v
+    //    （覆盖 memory_tool / settings_get / device_info / appops_get 这类未注册工具）
+    val scalars = obj.entries.filter { it.value.jsonPrimitiveOrNull != null }.take(GENERIC_SUMMARY_MAX_ITEMS)
+    if (scalars.isNotEmpty()) {
+        return scalars.joinToString("\n") { (k, v) -> "$k: " + (v.jsonPrimitiveOrNull?.contentOrNull ?: "").take(120) }
+    }
     return null
 }
 
