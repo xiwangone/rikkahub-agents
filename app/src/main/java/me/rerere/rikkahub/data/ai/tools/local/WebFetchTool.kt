@@ -232,7 +232,7 @@ fun webFetchTool(client: OkHttpClient): Tool = Tool(
             builder.build()
         } catch (e: IllegalArgumentException) {
             return@Tool fmTextPart(
-                ToolErrors.envelopeFor(error = "bad_request", message = "Bad request", hint = "Check the URL and header names for invalid characters.", extra = ToolErrors.extraOf("detail" to (e.message ?: "Could not build request")).toString())
+                ToolErrors.envelopeFor(error = "bad_request", message = "Bad request", hint = "Check the URL and header names for invalid characters.", extra = ToolErrors.extraOf("detail" to (e.message ?: "Could not build request"))).toString()
             )
         }
 

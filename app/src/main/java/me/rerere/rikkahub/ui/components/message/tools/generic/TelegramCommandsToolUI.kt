@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.message.tools.generic
 
+import kotlinx.serialization.json.contentOrNull
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier

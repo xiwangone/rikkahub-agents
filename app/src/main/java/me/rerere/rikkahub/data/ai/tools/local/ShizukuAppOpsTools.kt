@@ -214,7 +214,7 @@ fun appOpsSetTool(context: Context): Tool = Tool(
             return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
         if (op == null || op !in APPOPS_WHITELIST) {
-            return@Tool toolResult(ToolErrors.envelopeFor(error = "op_not_whitelisted", message = "op_not_whitelisted", extra = ToolErrors.extraOf("op" to (op ?: "")).toString()))
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "op_not_whitelisted", message = "op_not_whitelisted", extra = ToolErrors.extraOf("op" to (op ?: ""))).toString())
         }
         if (mode == null || mode !in APPOPS_MODE_WHITELIST) {
             return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_mode", message = "invalid_mode").toString())

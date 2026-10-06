@@ -1,4 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools.registry
+import me.rerere.rikkahub.data.ai.tools.SurfaceTier
+import me.rerere.rikkahub.data.ai.tools.ToolSurfacePolicy
 
 /**
  * 工具统一索引：定义 / 注册 / 渲染 / 调用四个维度的集中交叉引用。

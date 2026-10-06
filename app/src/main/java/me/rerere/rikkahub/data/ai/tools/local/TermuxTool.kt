@@ -506,7 +506,7 @@ fun termuxRunCommandTool(context: Context): Tool = Tool(
             } catch (t: Throwable) {
                 listOf(
                     UIMessagePart.Text(
-                        ToolErrors.envelopeFor(error = "dispatch_failed", message = "Dispatch failed", extra = ToolErrors.extraOf("reason" to (t.message ?: t::class.java.simpleName)).toString())
+                        ToolErrors.envelopeFor(error = "dispatch_failed", message = "Dispatch failed", extra = ToolErrors.extraOf("reason" to (t.message ?: t::class.java.simpleName))).toString()
                     )
                 )
             }
