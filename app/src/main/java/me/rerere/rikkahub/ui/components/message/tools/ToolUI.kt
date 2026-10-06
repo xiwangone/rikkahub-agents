@@ -28,6 +28,7 @@ import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.stripApprovalProvenance
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.ui.FormItem
@@ -150,8 +151,11 @@ private fun listSummary(items: List<JsonElement>): String {
  *  ① 终端类（含 `stdout` / `exit_code`）→ 输出前若干行（非零退出码带一行标记）
  *  ② 列表类（`files` / `items` / `results` / `matches` / `children` 等数组）→ 逐条列名
  */
-private fun defaultSummaryText(context: ToolUIContext): String? {
-    val content = context.content ?: return null
+private fun defaultSummaryText(context: ToolUIContext): String? = summaryForContent(context.content)
+
+/** 从工具输出**内容**提炼可读摘要（内联摘要与详情页共用）；返回 null = 不给摘要，仍走默认 JSON 详情 */
+private fun summaryForContent(content: JsonElement?): String? {
+    content ?: return null
     val stdout = content.getStringContent("stdout")
     val exit = content.getStringContent("exit_code") ?: content.getStringContent("exitCode")
     if (stdout != null || exit != null) {
@@ -287,13 +291,19 @@ fun DefaultToolPreview(
                     context.tool.output.fastForEach { part ->
                         when (part) {
                             is UIMessagePart.Text -> {
+                                // 先剥审批来源标记：否则整段解析必失败 → 退化成原始文本（用户可见的“裸 JSON”）
+                                val raw = stripApprovalProvenance(part.text)
+                                val parsed = runCatching { JsonInstant.parseToJsonElement(raw) }.getOrNull()
+                                // 面向用户的可读摘要（终端 / 列表 / 长文本 / 键值对），与原始 JSON 并存
+                                summaryForContent(parsed)?.let { summary ->
+                                    HighlightCodeBlock(
+                                        code = summary,
+                                        language = "text",
+                                        style = TextStyle(fontSize = 12.sp, lineHeight = 16.sp),
+                                    )
+                                }
                                 HighlightCodeBlock(
-                                    code =
-                                        runCatching {
-                                            JsonInstantPretty.encodeToString(
-                                                JsonInstant.parseToJsonElement(part.text),
-                                            )
-                                        }.getOrElse { part.text },
+                                    code = parsed?.let { JsonInstantPretty.encodeToString(it) } ?: raw,
                                     language = "json",
                                     style = TextStyle(fontSize = 10.sp, lineHeight = 12.sp),
                                 )
