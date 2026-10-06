@@ -47,6 +47,7 @@ import me.rerere.ai.ui.UIMessagePart
  * - LangChain 动态工具选择：https://langchain-ai.github.io/langgraph/how-tos/many-tools/
  * - LangChain4j Tool Search：https://docs.langchain4j.dev/tutorials/tools
  */
+@Suppress("TooManyFunctions")
 object ToolErrors {
     // ---- JSON-RPC 2.0 §5.1 标准码 ----
     const val PARSE_ERROR = -32700
