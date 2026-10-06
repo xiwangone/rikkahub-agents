@@ -98,9 +98,9 @@ class ToolIndexTest {
         // 索引档位必须与 ToolSurfacePolicy 判定一致（单一来源，防漂移）
         for (entry in ToolIndex.entries) {
             assertEquals(
+                "tier mismatch for ${entry.toolName}",
                 ToolSurfacePolicy.tierOf(entry.toolName),
                 entry.tier,
-                "tier mismatch for ${entry.toolName}",
             )
         }
         // 三档都有覆盖
