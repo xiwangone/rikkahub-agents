@@ -97,7 +97,7 @@ internal fun bindFailedResponse(failure: BindResult.Failure): JsonObject = ToolE
             "The Shizuku server accepted the request but the user service never started. Open the Shizuku app: if the running server version is older than the app, or it offers to restart to upgrade, restart the Shizuku service, then retry."
         } else {
             "Could not bind the Shizuku user service. Retry; if it keeps failing, restart the Shizuku service and re-grant permission from Settings -> Shizuku."
-        }, "phase" to failure.phase, "reason" to "${failure.throwable::class.java.simpleName}: ${failure.throwable.message}"))
+        }, "phase" to failure.phase, "reason" to ((failure as? BindResult.Failure.BindThrew)?.let { "${it.throwable::class.java.simpleName}: ${it.throwable.message}" } ?: failure.phase)))
 
 /**
  * Thin wrapper around the static [Shizuku] SDK object (dev.rikka.shizuku:api 13.1.5) plus the

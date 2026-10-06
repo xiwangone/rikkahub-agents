@@ -29,7 +29,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
-import androidx.compose.foundation.layout.getBottom
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.draw.drawWithCache
