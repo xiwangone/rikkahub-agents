@@ -3410,4 +3410,19 @@
   <string name="chat_message_tool_chart_display_with_title">顯示圖表：%1$s</string>
   <string name="mcp_tool_chart_display">圖表顯示</string>
   <string name="assistant_page_clone_with_memories">同時複製記憶</string>
+  <string name="setting_page_usage_stats">用量統計</string>
+  <string name="setting_page_usage_stats_desc">依供應商與模型查看用量與費用</string>
+  <string name="usage_stats_range_today">今天</string>
+  <string name="usage_stats_range_7d">近7天</string>
+  <string name="usage_stats_range_30d">近30天</string>
+  <string name="usage_stats_range_all">累計</string>
+  <string name="usage_stats_runs">請求數</string>
+  <string name="usage_stats_tokens">Tokens</string>
+  <string name="usage_stats_cost">費用 (USD)</string>
+  <string name="usage_stats_cost_not_reported">未上報</string>
+  <string name="usage_stats_by_provider_cost">供應商費用佔比</string>
+  <string name="usage_stats_by_provider_tokens">供應商用量佔比</string>
+  <string name="usage_stats_detail">明細</string>
+  <string name="usage_stats_empty">暫無用量資料</string>
+  <string name="usage_stats_note">依生成口徑統計：一次生成記一條；費用僅含服務商上報部分，未上報的不估算。</string>
 </resources>

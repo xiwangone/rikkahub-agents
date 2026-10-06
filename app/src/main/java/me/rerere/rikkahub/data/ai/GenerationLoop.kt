@@ -539,6 +539,11 @@ class GenerationLoop(
                                     runCtx.completionTokens += incurred.completionTokens.coerceAtLeast(0)
                                     // 单步内先夹一次：缓存命中量不可能超过该步输入量
                                     runCtx.cachedTokens += incurred.cachedTokens.coerceIn(0, stepPromptTokens)
+                                    // 费用按步累加（只有上报 cost 的 provider 才有值，未上报的不估算）
+                                    incurred.cost?.let { stepCost ->
+                                        runCtx.cost += stepCost.coerceAtLeast(0.0)
+                                        runCtx.costReported = true
+                                    }
                                     reportedUsage = incurred
                                     emit(GenerationChunk.UsageIncurred(incurred))
                                 }
@@ -1276,6 +1281,8 @@ class GenerationLoop(
                             },
                         rawError = cause?.message.orEmpty(),
                     )
+                // provider 只解析一次：id 沿用旧口径，快照 key/name 供历史展示（provider 改名/删除后仍可读）
+                val resolvedProvider = runCatching { model.findProvider(settings.providers) }.getOrNull()
                 GenerationRunTracker.record(
                     context = context,
                     run =
@@ -1283,7 +1290,10 @@ class GenerationLoop(
                             ts = System.currentTimeMillis(),
                             conversationId = conversationId?.toString(),
                             modelId = model.id.toString(),
-                            providerId = runCatching { model.findProvider(settings.providers)?.id?.toString() }.getOrNull(),
+                            providerId = resolvedProvider?.id?.toString(),
+                            providerKey = resolvedProvider?.providerKey,
+                            providerName = resolvedProvider?.name?.takeIf { it.isNotBlank() },
+                            modelDisplayName = model.displayName.takeIf { it.isNotBlank() },
                             assistantId = assistant.id.toString(),
                             outcome = outcome.name,
                             finishReason = runCtx.finishReason,
@@ -1298,6 +1308,8 @@ class GenerationLoop(
                             promptTokens = runCtx.promptTokens.toLong(),
                             completionTokens = runCtx.completionTokens.toLong(),
                             cachedTokens = runCtx.cachedTokens.toLong(),
+                            // 未上报费用的 provider 记 null（展示为"未上报"），不按 token 估算
+                            cost = if (runCtx.costReported) runCtx.cost else null,
                         ),
                 )
             }.onFailure { AppLog.w(TAG, "run attribution failed", it) }

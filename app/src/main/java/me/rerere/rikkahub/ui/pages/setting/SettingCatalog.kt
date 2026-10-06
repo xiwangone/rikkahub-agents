@@ -6,6 +6,7 @@ import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Brain02
+import me.rerere.hugeicons.stroke.ChartRing
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Connect
 import me.rerere.hugeicons.stroke.Console
@@ -272,6 +273,14 @@ object SettingCatalog {
             titleRes = R.string.setting_page_data_backup,
             descRes = R.string.setting_page_data_backup_desc,
             screen = Screen.Backup,
+        ),
+        SettingEntry(
+            id = "usage_stats",
+            group = SettingGroup.DATA,
+            icon = HugeIcons.ChartRing,
+            titleRes = R.string.setting_page_usage_stats,
+            descRes = R.string.setting_page_usage_stats_desc,
+            screen = Screen.SettingUsageStats,
         ),
         SettingEntry(
             id = "request_logs",

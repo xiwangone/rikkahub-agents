@@ -3411,4 +3411,19 @@
   <string name="chat_message_tool_chart_display_with_title">Показать график: %1$s</string>
   <string name="mcp_tool_chart_display">Отображение графика</string>
   <string name="assistant_page_clone_with_memories">Также копировать память</string>
+  <string name="setting_page_usage_stats">Статистика использования</string>
+  <string name="setting_page_usage_stats_desc">Использование и расходы по провайдерам и моделям</string>
+  <string name="usage_stats_range_today">Сегодня</string>
+  <string name="usage_stats_range_7d">7 дней</string>
+  <string name="usage_stats_range_30d">30 дней</string>
+  <string name="usage_stats_range_all">За всё время</string>
+  <string name="usage_stats_runs">Запросы</string>
+  <string name="usage_stats_tokens">Токены</string>
+  <string name="usage_stats_cost">Расходы (USD)</string>
+  <string name="usage_stats_cost_not_reported">Не сообщается</string>
+  <string name="usage_stats_by_provider_cost">Доля расходов по провайдерам</string>
+  <string name="usage_stats_by_provider_tokens">Доля использования по провайдерам</string>
+  <string name="usage_stats_detail">Детализация</string>
+  <string name="usage_stats_empty">Данных пока нет</string>
+  <string name="usage_stats_note">Учёт по генерациям: одна генерация — одна запись. Стоимость учитывается только по данным провайдера, без оценок.</string>
 </resources>

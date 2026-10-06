@@ -24,14 +24,27 @@ class GenerationRunTrackerTest {
         outcome: GenerationOutcome,
         modelId: String? = "m1",
         durationMs: Long = 10,
+        ts: Long = 1L,
+        cost: Double? = null,
+        providerKey: String? = "openai",
+        providerName: String? = "OpenAI",
+        modelDisplayName: String? = "GPT",
+        promptTokens: Long = 0,
+        completionTokens: Long = 0,
     ) = GenerationRun(
-        ts = 1L,
+        ts = ts,
         conversationId = "c1",
         modelId = modelId,
         providerId = "p1",
+        providerKey = providerKey,
+        providerName = providerName,
+        modelDisplayName = modelDisplayName,
         assistantId = "a1",
         outcome = outcome.name,
         durationMs = durationMs,
+        promptTokens = promptTokens,
+        completionTokens = completionTokens,
+        cost = cost,
     )
 
     @Before
@@ -194,5 +207,102 @@ class GenerationRunTrackerTest {
         GenerationRunTracker.record(NULL_CONTEXT, run(GenerationOutcome.API_ERROR))
         GenerationRunTracker.clear(NULL_CONTEXT)
         assertTrue(GenerationRunTracker.snapshot(NULL_CONTEXT).totals.isEmpty())
+    }
+
+    // ---------- 用量统计（provider × 模型 / 费用 / 按日分桶） ----------
+
+    @Test
+    fun `runs are aggregated by provider and model with cost`() {
+        GenerationRunTracker.record(
+            NULL_CONTEXT,
+            run(GenerationOutcome.COMPLETED, cost = 0.0123, promptTokens = 100, completionTokens = 50),
+        )
+        GenerationRunTracker.record(
+            NULL_CONTEXT,
+            run(GenerationOutcome.COMPLETED, cost = 0.004, promptTokens = 200, completionTokens = 10),
+        )
+        // 未上报费用的生成：tokens 照计，费用不估算
+        GenerationRunTracker.record(
+            NULL_CONTEXT,
+            run(GenerationOutcome.COMPLETED, modelId = "m2", providerKey = "google", cost = null, promptTokens = 300),
+        )
+
+        val state = GenerationRunTracker.snapshot(NULL_CONTEXT)
+        val openai = state.byProviderModel["openai/m1"]
+        assertEquals(2L, openai?.runs)
+        assertEquals(300L, openai?.promptTokens)
+        assertEquals(60L, openai?.completionTokens)
+        assertEquals(0.0163, openai?.cost ?: 0.0, 1e-9)
+        assertEquals(2L, openai?.costReportedRuns)
+        assertEquals("OpenAI", openai?.providerName)
+        assertEquals("GPT", openai?.modelDisplayName)
+
+        val google = state.byProviderModel["google/m2"]
+        assertEquals(1L, google?.runs)
+        assertEquals(0.0, google?.cost ?: -1.0, 1e-9)
+        assertEquals(0L, google?.costReportedRuns)
+        assertEquals(0.0163, state.totalCost, 1e-9)
+    }
+
+    @Test
+    fun `day buckets roll and prune beyond 90 days`() {
+        val today = java.time.LocalDate.now()
+        val oldTs = today.minusDays(100).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()
+        val nowTs = System.currentTimeMillis()
+        GenerationRunTracker.record(NULL_CONTEXT, run(GenerationOutcome.COMPLETED, ts = oldTs, cost = 1.0))
+        GenerationRunTracker.record(NULL_CONTEXT, run(GenerationOutcome.COMPLETED, ts = nowTs, cost = 2.0))
+
+        val state = GenerationRunTracker.snapshot(NULL_CONTEXT)
+        // 100 天前的分桶被滚动清理
+        assertTrue(state.daily.keys.none { it < today.minusDays(89).toString() })
+        assertEquals(1, state.daily.size)
+        // 累计不受滚动清理影响
+        assertEquals(3.0, state.totalCost, 1e-9)
+    }
+
+    @Test
+    fun `range stats slice daily buckets correctly`() {
+        val today = java.time.LocalDate.now()
+        val zone = java.time.ZoneId.systemDefault()
+        fun tsOf(daysAgo: Long) = today.minusDays(daysAgo).atStartOfDay(zone).toInstant().toEpochMilli()
+        GenerationRunTracker.record(NULL_CONTEXT, run(GenerationOutcome.COMPLETED, ts = tsOf(0), cost = 1.0, promptTokens = 10))
+        GenerationRunTracker.record(NULL_CONTEXT, run(GenerationOutcome.COMPLETED, ts = tsOf(6), cost = 2.0, promptTokens = 20))
+        GenerationRunTracker.record(NULL_CONTEXT, run(GenerationOutcome.COMPLETED, ts = tsOf(20), cost = 4.0, promptTokens = 40))
+
+        val state = GenerationRunTracker.snapshot(NULL_CONTEXT)
+        val todayStats = state.rangeStats(UsageRange.TODAY, today)
+        assertEquals(1L, todayStats.runs)
+        assertEquals(1.0, todayStats.cost, 1e-9)
+
+        val week = state.rangeStats(UsageRange.LAST_7_DAYS, today)
+        assertEquals(2L, week.runs)
+        assertEquals(3.0, week.cost, 1e-9)
+        assertEquals(30L, week.promptTokens)
+
+        val month = state.rangeStats(UsageRange.LAST_30_DAYS, today)
+        assertEquals(3L, month.runs)
+        assertEquals(7.0, month.cost, 1e-9)
+
+        val all = state.rangeStats(UsageRange.ALL_TIME, today)
+        assertEquals(3L, all.runs)
+        assertEquals(2L, all.byProviderModel["openai/m1"]?.runs)
+    }
+
+    @Test
+    fun `dayKeyOf and pruneDaily are pure and timezone local`() {
+        val today = java.time.LocalDate.now()
+        val key = dayKeyOf(System.currentTimeMillis())
+        assertEquals(today.toString(), key)
+        val daily =
+            mapOf(
+                today.minusDays(89).toString() to DayStats(),
+                today.minusDays(90).toString() to DayStats(),
+                today.toString() to DayStats(),
+            )
+        val pruned = pruneDaily(daily, today)
+        assertTrue(pruned.containsKey(today.minusDays(89).toString()))
+        assertTrue(pruned.containsKey(today.toString()))
+        // 第 90 天（含今天共 91 天）被清掉，只留 90 天
+        assertTrue(!pruned.containsKey(today.minusDays(90).toString()))
     }
 }

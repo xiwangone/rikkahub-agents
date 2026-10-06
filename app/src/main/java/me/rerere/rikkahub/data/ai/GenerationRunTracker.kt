@@ -6,6 +6,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -69,6 +72,12 @@ class GenerationRunContext(val startedAtMs: Long) {
 
     /** 花在工具执行上的墙钟（只统计已批准并真正执行的工具）。 */
     var toolMs: Long = 0
+
+    /** 本轮累计费用（USD）：各步 `usage.cost` 求和；只有 provider 上报时才有值。 */
+    var cost: Double = 0.0
+
+    /** 是否有任意一步上报了费用（用于区分"上报为 0"与"未上报"）。 */
+    var costReported: Boolean = false
 }
 
 /** 一条生成记录（不含任何内容）。 */
@@ -92,7 +101,94 @@ data class GenerationRun(
     val promptTokens: Long = 0,
     val completionTokens: Long = 0,
     val cachedTokens: Long = 0,
+    /** 本轮费用（USD）：provider 上报时累加各步 `usage.cost`；null = 未上报。 */
+    val cost: Double? = null,
+    /** 落盘快照：provider 注册键（如 `openai`），防 provider 改名/删除后历史对不上。 */
+    val providerKey: String? = null,
+    /** 落盘快照：provider 显示名。 */
+    val providerName: String? = null,
+    /** 落盘快照：模型显示名。 */
+    val modelDisplayName: String? = null,
+    /** 预留：reasoning token 数（P128 欠账；解码器补齐后自然有数，默认 0）。 */
+    val reasoningTokens: Long = 0,
 )
+
+/** provider × 模型的交叉聚合（key = `"$providerKey/$modelId"`）。 */
+@Serializable
+data class ProviderModelStats(
+    val runs: Long = 0,
+    val promptTokens: Long = 0,
+    val completionTokens: Long = 0,
+    val cachedTokens: Long = 0,
+    /** 累计费用（USD），只含上报了费用的生成。 */
+    val cost: Double = 0.0,
+    /** 上报了费用的生成数（0 = 该组合费用"未上报"，不按 token 估算）。 */
+    val costReportedRuns: Long = 0,
+    /** 落盘快照：provider 显示名（provider 删除后仍可显示）。 */
+    val providerName: String? = null,
+    /** 落盘快照：模型显示名。 */
+    val modelDisplayName: String? = null,
+)
+
+/** 单日分桶（key = `yyyy-MM-dd`，设备本地时区）。 */
+@Serializable
+data class DayStats(
+    val runs: Long = 0,
+    val promptTokens: Long = 0,
+    val completionTokens: Long = 0,
+    val cachedTokens: Long = 0,
+    val cost: Double = 0.0,
+    val byProviderModel: Map<String, ProviderModelStats> = emptyMap(),
+)
+
+/** 用量统计的时间范围。 */
+enum class UsageRange {
+    TODAY,
+    LAST_7_DAYS,
+    LAST_30_DAYS,
+    ALL_TIME,
+}
+
+/** 某时间范围的聚合结果（UI / AI 侧共用）。 */
+data class RangeUsageStats(
+    val runs: Long = 0,
+    val promptTokens: Long = 0,
+    val completionTokens: Long = 0,
+    val cachedTokens: Long = 0,
+    val cost: Double = 0.0,
+    val costReportedRuns: Long = 0,
+    val byProviderModel: Map<String, ProviderModelStats> = emptyMap(),
+)
+
+/** 时间戳 → 日分桶 key（设备本地时区，`yyyy-MM-dd` 可做字符串比较）。 */
+internal fun dayKeyOf(ts: Long): String =
+    Instant.ofEpochMilli(ts).atZone(ZoneId.systemDefault()).toLocalDate().toString()
+
+/** 滚动清理：只保留最近 [keepDays] 天的分桶（含今天）。 */
+internal fun pruneDaily(
+    daily: Map<String, DayStats>,
+    today: LocalDate = LocalDate.now(),
+    keepDays: Long = GenerationRunTracker.MAX_DAILY_BUCKETS.toLong(),
+): Map<String, DayStats> {
+    val cutoff = today.minusDays(keepDays - 1).toString()
+    return daily.filterKeys { it >= cutoff }
+}
+
+/** 合并两份 [ProviderModelStats]（纯函数：聚合更新与时间范围合并共用）。 */
+internal fun mergeProviderModelStats(
+    base: ProviderModelStats?,
+    add: ProviderModelStats,
+): ProviderModelStats =
+    ProviderModelStats(
+        runs = (base?.runs ?: 0) + add.runs,
+        promptTokens = (base?.promptTokens ?: 0) + add.promptTokens,
+        completionTokens = (base?.completionTokens ?: 0) + add.completionTokens,
+        cachedTokens = (base?.cachedTokens ?: 0) + add.cachedTokens,
+        cost = (base?.cost ?: 0.0) + add.cost,
+        costReportedRuns = (base?.costReportedRuns ?: 0) + add.costReportedRuns,
+        providerName = add.providerName ?: base?.providerName,
+        modelDisplayName = add.modelDisplayName ?: base?.modelDisplayName,
+    )
 
 /**
  * 归因判定（**纯函数**，便于单测）：优先级 = 循环内显式中止标记 > 未正常结束的异常 > 正常完成。
@@ -149,8 +245,61 @@ object GenerationRunTracker {
         val totalPromptTokens: Long = 0,
         val totalCompletionTokens: Long = 0,
         val totalCachedTokens: Long = 0,
+        /** provider × 模型交叉聚合（key = `"$providerKey/$modelId"`）。 */
+        val byProviderModel: Map<String, ProviderModelStats> = emptyMap(),
+        /** 累计费用（USD），只含上报了费用的生成。 */
+        val totalCost: Double = 0.0,
+        /** 按日分桶（key = `yyyy-MM-dd`，设备本地时区），滚动保留 [MAX_DAILY_BUCKETS] 天。 */
+        val daily: Map<String, DayStats> = emptyMap(),
         val recent: List<GenerationRun> = emptyList(),
-    )
+    ) {
+        /**
+         * 取某时间范围的聚合（纯函数，便于单测与 UI/AI 侧共用）。
+         *
+         * 口径：**按生成**（一次 `generateText` 为一条），与 [record] 一致；
+         * 不与"按请求"口径（`PreferencesStore.accumulateConvUsage`）混用。
+         */
+        fun rangeStats(range: UsageRange, today: LocalDate = LocalDate.now()): RangeUsageStats {
+            if (range == UsageRange.ALL_TIME) {
+                return RangeUsageStats(
+                    runs = totals.values.sum(),
+                    promptTokens = totalPromptTokens,
+                    completionTokens = totalCompletionTokens,
+                    cachedTokens = totalCachedTokens,
+                    cost = totalCost,
+                    costReportedRuns = byProviderModel.values.sumOf { it.costReportedRuns },
+                    byProviderModel = byProviderModel,
+                )
+            }
+            val days =
+                when (range) {
+                    UsageRange.TODAY -> 1
+                    UsageRange.LAST_7_DAYS -> 7
+                    UsageRange.LAST_30_DAYS -> 30
+                    else -> 1
+                }
+            val keys = (0 until days).map { today.minusDays(it.toLong()).toString() }.toSet()
+            val buckets = daily.filterKeys { it in keys }.values
+            val merged = mutableMapOf<String, ProviderModelStats>()
+            buckets.forEach { day ->
+                day.byProviderModel.forEach { (key, stats) ->
+                    merged[key] = mergeProviderModelStats(merged[key], stats)
+                }
+            }
+            return RangeUsageStats(
+                runs = buckets.sumOf { it.runs },
+                promptTokens = buckets.sumOf { it.promptTokens },
+                completionTokens = buckets.sumOf { it.completionTokens },
+                cachedTokens = buckets.sumOf { it.cachedTokens },
+                cost = buckets.sumOf { it.cost },
+                costReportedRuns = merged.values.sumOf { it.costReportedRuns },
+                byProviderModel = merged,
+            )
+        }
+    }
+
+    /** 按日分桶的保留天数（含今天）。 */
+    const val MAX_DAILY_BUCKETS = 90
 
     // 私有成员统一带领域前缀：既表明用途，也避免与别处同名局部变量撞名（结构自检按名字判跨文件引用会误报）。
     private val runJson = Json { ignoreUnknownKeys = true }
@@ -211,10 +360,40 @@ object GenerationRunTracker {
             val perModel = runState.byModel[modelKey].orEmpty()
             val byModel =
                 runState.byModel + (modelKey to (perModel + (entry.outcome to (perModel[entry.outcome] ?: 0L) + 1L)))
+            // provider × 模型交叉聚合：费用只累加上报了的部分，未上报的不估算
+            val pmKey = "${entry.providerKey ?: "unknown"}/$modelKey"
+            val pmDelta =
+                ProviderModelStats(
+                    runs = 1,
+                    promptTokens = entry.promptTokens,
+                    completionTokens = entry.completionTokens,
+                    cachedTokens = entry.cachedTokens,
+                    cost = entry.cost ?: 0.0,
+                    costReportedRuns = if (entry.cost != null) 1 else 0,
+                    providerName = entry.providerName,
+                    modelDisplayName = entry.modelDisplayName,
+                )
+            val byProviderModel = runState.byProviderModel + (pmKey to mergeProviderModelStats(runState.byProviderModel[pmKey], pmDelta))
+            // 按日分桶（设备本地时区）+ 滚动保留
+            val dayKey = dayKeyOf(entry.ts)
+            val day = runState.daily[dayKey]
+            val newDay =
+                DayStats(
+                    runs = (day?.runs ?: 0) + 1,
+                    promptTokens = (day?.promptTokens ?: 0) + entry.promptTokens,
+                    completionTokens = (day?.completionTokens ?: 0) + entry.completionTokens,
+                    cachedTokens = (day?.cachedTokens ?: 0) + entry.cachedTokens,
+                    cost = (day?.cost ?: 0.0) + (entry.cost ?: 0.0),
+                    byProviderModel = (day?.byProviderModel.orEmpty()) + (pmKey to mergeProviderModelStats(day?.byProviderModel?.get(pmKey), pmDelta)),
+                )
+            val daily = pruneDaily(runState.daily + (dayKey to newDay))
             runState =
                 runState.copy(
                     totals = totals,
                     byModel = byModel,
+                    byProviderModel = byProviderModel,
+                    totalCost = runState.totalCost + (entry.cost ?: 0.0),
+                    daily = daily,
                     totalDurationMs = runState.totalDurationMs + entry.durationMs.coerceAtLeast(0),
                     totalModelMs = runState.totalModelMs + entry.modelMs.coerceAtLeast(0),
                     totalToolMs = runState.totalToolMs + entry.toolMs.coerceAtLeast(0),

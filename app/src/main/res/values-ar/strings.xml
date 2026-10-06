@@ -3410,4 +3410,19 @@
   <string name="chat_message_tool_chart_display_with_title">عرض المخطط: %1$s</string>
   <string name="mcp_tool_chart_display">عرض المخطط</string>
   <string name="assistant_page_clone_with_memories">نسخ الذاكرة أيضًا</string>
+  <string name="setting_page_usage_stats">إحصاءات الاستخدام</string>
+  <string name="setting_page_usage_stats_desc">الاستخدام والتكلفة حسب المزوّد والنموذج</string>
+  <string name="usage_stats_range_today">اليوم</string>
+  <string name="usage_stats_range_7d">آخر ٧ أيام</string>
+  <string name="usage_stats_range_30d">آخر ٣٠ يومًا</string>
+  <string name="usage_stats_range_all">الكل</string>
+  <string name="usage_stats_runs">الطلبات</string>
+  <string name="usage_stats_tokens">الرموز</string>
+  <string name="usage_stats_cost">التكلفة (دولار)</string>
+  <string name="usage_stats_cost_not_reported">غير مُبلغ عنه</string>
+  <string name="usage_stats_by_provider_cost">حصة التكلفة حسب المزوّد</string>
+  <string name="usage_stats_by_provider_tokens">حصة الاستخدام حسب المزوّد</string>
+  <string name="usage_stats_detail">التفاصيل</string>
+  <string name="usage_stats_empty">لا توجد بيانات بعد</string>
+  <string name="usage_stats_note">يُحتسب لكل عملية إنشاء (سجل واحد لكل عملية). التكلفة تشمل فقط ما أبلغ عنه المزوّد ولا تُقدَّر.</string>
 </resources>

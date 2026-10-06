@@ -900,6 +900,28 @@ internal fun runsPayload(
                     }
                 },
             )
+            put("totalCost", state.totalCost)
+            put(
+                "byProviderModel",
+                buildJsonArray {
+                    state.byProviderModel.entries.sortedByDescending { e -> e.value.runs }.forEach { (key, stats) ->
+                        add(
+                            buildJsonObject {
+                                put("key", key)
+                                stats.providerName?.let { put("providerName", it) }
+                                stats.modelDisplayName?.let { put("modelDisplayName", it) }
+                                put("runs", stats.runs)
+                                put("promptTokens", stats.promptTokens)
+                                put("completionTokens", stats.completionTokens)
+                                put("cachedTokens", stats.cachedTokens)
+                                // 费用只含上报部分；costReportedRuns=0 表示该组合费用"未上报"，不估算
+                                put("cost", stats.cost)
+                                put("costReportedRuns", stats.costReportedRuns)
+                            },
+                        )
+                    }
+                },
+            )
             put("avgDurationMs", if (total > 0) state.totalDurationMs / total else 0)
             put(
                 "timeSplit",
@@ -949,9 +971,9 @@ internal fun runsPayload(
             put(
                 "hint",
                 "每次生成一条归因记录（COMPLETED / USER_CANCELLED / TIMEOUT / LOOP_GUARD / NETWORK_ERROR / " +
-                    "RATE_LIMIT / API_ERROR / UNKNOWN）；按 outcome 与 modelId 聚合，recent 为最近明细。" +
+                    "RATE_LIMIT / API_ERROR / UNKNOWN）；按 outcome、modelId 与 provider×模型 聚合，recent 为最近明细。" +
                     "token 为**按请求累加**（与平台账单同口径：多步请求各按完整 prompt 计），cached 已夹在 " +
-                    "prompt 之内。只记枚举与计数，不含消息内容；reset=true 可清空。",
+                    "prompt 之内。cost 只含 provider 上报的部分（未上报的不估算）。只记枚举与计数，不含消息内容；reset=true 可清空。",
             )
         }
     return payload.toString()
