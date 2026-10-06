@@ -622,6 +622,7 @@ fun vaultCredentialUpdateTool(
 )
 
 /** 批量更新多条凭证的元数据（分组/描述/改名）。与单条版同语义，只碰元数据，值不可读写。 */
+@Suppress("CyclomaticComplexMethod") // 复杂度来自“每条独立校验 + 写回”的批量循环，拆函数反而更难读（同 vaultCompareLoadCredsTool 的处理）
 fun vaultCredentialBulkUpdateTool(
     context: android.content.Context,
     repository: CredentialVaultRepository,
