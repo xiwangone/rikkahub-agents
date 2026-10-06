@@ -25,11 +25,8 @@ import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG_LOC = "LocationTool"
 
-private fun errorPayload(message: String, recovery: String? = null): JsonObject =
-    buildJsonObject {
-        put("error", message)
-        if (recovery != null) put("recovery", recovery)
-    }
+private fun errorPayload(error: String, message: String, recovery: String? = null): JsonObject =
+    me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(error = error, message = message, hint = recovery)
 
 private fun JsonObjectBuilder.putLocation(loc: Location, providerName: String) {
     put("latitude", loc.latitude)
@@ -82,17 +79,17 @@ fun locationTool(context: Context): Tool = Tool(
             .coerceIn(1000, 30000)
 
         val payload: JsonObject = when {
-            priority == null -> errorPayload("unknown accuracy: $accuracyStr")
+            priority == null -> errorPayload("invalid_argument", "unknown accuracy: $accuracyStr")
 
             !PermissionHelper.hasRuntime(
                 context,
                 listOf(Manifest.permission.ACCESS_FINE_LOCATION)
-            ) -> errorPayload("permission ACCESS_FINE_LOCATION not granted")
+            ) -> errorPayload("permission_denied", "permission ACCESS_FINE_LOCATION not granted")
 
             else -> {
                 val lm = context.getSystemService(LocationManager::class.java)
                 if (lm == null) {
-                    errorPayload("location services disabled")
+                    errorPayload("service_unavailable", "location services disabled")
                 } else {
                     val gpsEnabled = try {
                         lm.isProviderEnabled(LocationManager.GPS_PROVIDER)
@@ -106,6 +103,7 @@ fun locationTool(context: Context): Tool = Tool(
                     }
                     if (!gpsEnabled && !networkEnabled) {
                         errorPayload(
+                            "service_unavailable",
                             "location services disabled",
                             "Ask the user to enable Location in Settings → Location."
                         )
@@ -168,6 +166,7 @@ fun locationTool(context: Context): Tool = Tool(
                                 else -> {
                                     AppLog.w(TAG_LOC, "no fix at all (gms): timeout=${timeoutMs}ms gps=$gpsEnabled net=$networkEnabled")
                                     errorPayload(
+                                        "timeout",
                                         "no fix yet",
                                         "No location available. Try moving near a window / outdoors, or ask the user to open a maps app once to seed the location cache."
                                     )
@@ -184,6 +183,7 @@ fun locationTool(context: Context): Tool = Tool(
                             } else {
                                 AppLog.w(TAG_LOC, "no fix at all (no gms): gps=$gpsEnabled net=$networkEnabled")
                                 errorPayload(
+                                    "service_unavailable",
                                     "no fix available",
                                     "Google Play Services unavailable and no cached fix. Ask the user to open a maps app once, or enable Wi-Fi to allow network-based location."
                                 )

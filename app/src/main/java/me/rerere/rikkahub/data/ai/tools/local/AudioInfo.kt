@@ -8,6 +8,7 @@ import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 private fun audioDeviceTypeName(type: Int): String = when (type) {
     AudioDeviceInfo.TYPE_BUILTIN_EARPIECE -> "builtin_earpiece"
@@ -35,7 +36,7 @@ private fun audioDeviceTypeName(type: Int): String = when (type) {
 internal fun audioPayload(context: Context): JsonObject {
         val am = context.getSystemService(AudioManager::class.java)
         val payload = if (am == null) {
-            buildJsonObject { put("error", "AudioManager unavailable") }
+            ToolErrors.envelopeFor(error = "invalid_argument", message = "AudioManager unavailable", hint = "Check the parameter values and retry with corrected arguments.")
         } else {
             val ringer = when (am.ringerMode) {
                 AudioManager.RINGER_MODE_SILENT -> "silent"

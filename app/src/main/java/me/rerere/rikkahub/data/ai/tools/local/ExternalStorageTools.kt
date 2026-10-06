@@ -25,7 +25,14 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 private fun esErr(msg: String) =
-    listOf(UIMessagePart.Text(buildJsonObject { put("error", msg) }.toString()))
+    listOf(
+        UIMessagePart.Text(
+            me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                error = me.rerere.rikkahub.data.ai.tools.ToolErrors.classifyMessage(msg),
+                message = msg,
+            ).toString()
+        )
+    )
 
 @OptIn(ExperimentalUuidApi::class)
 private fun isHeadless(ic: ToolInvocationContext): Boolean {

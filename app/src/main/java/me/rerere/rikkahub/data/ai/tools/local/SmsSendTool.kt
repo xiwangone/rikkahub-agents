@@ -28,7 +28,14 @@ internal fun validateSmsArgs(recipient: String?, body: String?): String? = when 
 }
 
 private fun smsErr(msg: String) =
-    listOf(UIMessagePart.Text(buildJsonObject { put("error", msg) }.toString()))
+    listOf(
+        UIMessagePart.Text(
+            me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                error = me.rerere.rikkahub.data.ai.tools.ToolErrors.classifyMessage(msg),
+                message = msg,
+            ).toString()
+        )
+    )
 
 /**
  * `send_sms` — send an SMS message programmatically via SmsManager. Requires the

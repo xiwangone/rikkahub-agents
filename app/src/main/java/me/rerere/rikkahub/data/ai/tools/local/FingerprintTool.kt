@@ -14,6 +14,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import java.util.UUID
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 fun fingerprintTool(context: Context, buffer: BiometricResultBuffer): Tool = Tool(
     name = "verify_fingerprint",
@@ -58,13 +59,13 @@ fun fingerprintTool(context: Context, buffer: BiometricResultBuffer): Tool = Too
             BiometricManager.BIOMETRIC_SUCCESS -> { /* proceed */ }
             BiometricManager.BIOMETRIC_ERROR_NO_HARDWARE,
             BiometricManager.BIOMETRIC_ERROR_HW_UNAVAILABLE -> return@Tool listOf(
-                UIMessagePart.Text(buildJsonObject { put("error", "hardware_unavailable") }.toString())
+                UIMessagePart.Text(ToolErrors.envelopeFor(error = "hardware_unavailable", message = "hardware_unavailable").toString())
             )
             BiometricManager.BIOMETRIC_ERROR_NONE_ENROLLED -> return@Tool listOf(
-                UIMessagePart.Text(buildJsonObject { put("error", "no_biometrics_enrolled") }.toString())
+                UIMessagePart.Text(ToolErrors.envelopeFor(error = "no_biometrics_enrolled", message = "no_biometrics_enrolled").toString())
             )
             else -> return@Tool listOf(
-                UIMessagePart.Text(buildJsonObject { put("error", "hardware_unavailable") }.toString())
+                UIMessagePart.Text(ToolErrors.envelopeFor(error = "hardware_unavailable", message = "hardware_unavailable").toString())
             )
         }
 
@@ -84,16 +85,17 @@ fun fingerprintTool(context: Context, buffer: BiometricResultBuffer): Tool = Too
         val result = withTimeoutOrNull(300_000L) { deferred.await() }
         if (result == null) {
             buffer.complete(requestId, BiometricResult.Error("timeout"))
-            return@Tool listOf(UIMessagePart.Text(buildJsonObject { put("error", "timeout") }.toString()))
+            return@Tool listOf(UIMessagePart.Text(ToolErrors.envelopeFor(error = "timeout", message = "Operation timed out", hint = "Retry; if it persists, narrow the scope of the operation.").toString()))
         }
         val payload = when (result) {
             is BiometricResult.Success -> buildJsonObject {
                 put("success", true)
                 put("method", result.method)
             }
-            is BiometricResult.Error -> buildJsonObject {
-                put("error", result.code)
-            }
+            is BiometricResult.Error -> ToolErrors.envelopeFor(
+                error = result.code,
+                message = ToolErrors.messageFor(result.code),
+            )
         }
         listOf(UIMessagePart.Text(payload.toString()))
     }

@@ -17,7 +17,7 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 
 private fun errEnv(error: String, detail: String): List<UIMessagePart> =
-    ToolErrors.parts(error, detail)
+    ToolErrors.partsFor(error, detail)
 
 internal fun encodeRun(run: SubAgentRun): kotlinx.serialization.json.JsonObject = buildJsonObject {
     put("id", run.id)

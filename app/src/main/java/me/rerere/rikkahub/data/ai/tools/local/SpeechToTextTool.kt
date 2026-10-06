@@ -24,6 +24,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
 import java.util.Locale
 import kotlin.coroutines.resume
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 private sealed class RecognitionOutcome {
     data class Success(val text: String) : RecognitionOutcome()
@@ -54,7 +55,7 @@ fun speechToTextTool(context: Context): Tool = Tool(
         if (!PermissionHelper.hasRuntime(context, listOf(Manifest.permission.RECORD_AUDIO))) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "permission RECORD_AUDIO not granted") }.toString()
+                    ToolErrors.envelopeFor(error = "permission_denied", message = "permission RECORD_AUDIO not granted", hint = "Grant the required permission or choose a different target.").toString()
                 )
             )
         }
@@ -62,7 +63,7 @@ fun speechToTextTool(context: Context): Tool = Tool(
         if (!SpeechRecognizer.isRecognitionAvailable(context)) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "speech recognizer unavailable") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "speech recognizer unavailable", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }
@@ -156,9 +157,12 @@ fun speechToTextTool(context: Context): Tool = Tool(
                     SpeechRecognizer.ERROR_CLIENT -> "client_error"
                     else -> "no_match"
                 }
-                buildJsonObject { put("error", errorName) }
+                me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                    error = if (' ' in errorName) me.rerere.rikkahub.data.ai.tools.ToolErrors.classifyMessage(errorName) else errorName,
+                    message = me.rerere.rikkahub.data.ai.tools.ToolErrors.messageFor(errorName),
+                )
             }
-            null -> buildJsonObject { put("error", "timeout") }
+            null -> ToolErrors.envelopeFor(error = "timeout", message = "Operation timed out", hint = "Retry; if it persists, narrow the scope of the operation.")
         }
         listOf(UIMessagePart.Text(payload.toString()))
     }

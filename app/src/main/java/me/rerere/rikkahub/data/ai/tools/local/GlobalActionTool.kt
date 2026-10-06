@@ -12,6 +12,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
 
@@ -55,9 +56,7 @@ fun globalActionTool(
         if (action == null || code == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "action must be one of ${ACTION_MAP.keys.toList()}")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "action must be one of ${ACTION_MAP.keys.toList()}", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }

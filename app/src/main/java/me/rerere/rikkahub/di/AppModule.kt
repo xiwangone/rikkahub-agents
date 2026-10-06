@@ -334,6 +334,7 @@ val appModule =
                 mcpManager = get(),
                 skillManager = get(),
                 workspaceRepository = get(),
+                conversationRepository = get(),
             )
         }
 

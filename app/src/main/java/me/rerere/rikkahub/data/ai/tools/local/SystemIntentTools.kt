@@ -17,6 +17,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
 /**
@@ -367,14 +368,7 @@ private fun fireIntent(
 ): List<UIMessagePart> {
     return try {
         if (intent.resolveActivity(context.packageManager) == null) {
-            return listOf(UIMessagePart.Text(buildJsonObject {
-                put("intent_fired", false)
-                put("action", action)
-                put("ok", false)
-                put("error", "no_handler")
-                put("summary", summary)
-                put("detail", "no installed app can handle this intent")
-            }.toString()))
+            return listOf(UIMessagePart.Text(ToolErrors.envelopeFor(error = "no_handler", message = "no installed app can handle this intent", extra = ToolErrors.extraOf("intent_fired" to false, "action" to action, "ok" to false, "summary" to summary)).toString()))
         }
         context.startActivity(intent)
         listOf(UIMessagePart.Text(buildJsonObject {
@@ -384,20 +378,24 @@ private fun fireIntent(
             put("summary", summary)
         }.toString()))
     } catch (t: Throwable) {
-        listOf(UIMessagePart.Text(buildJsonObject {
-            put("intent_fired", false)
-            put("action", action)
-            put("ok", false)
-            put("error", t::class.simpleName ?: "exception")
-            put("summary", summary)
-            put("detail", t.message.orEmpty())
-        }.toString()))
+        listOf(UIMessagePart.Text(me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+            error = "internal_error",
+            message = t.message ?: t::class.simpleName ?: "Exception",
+            extra = mapOf(
+                "exception" to kotlinx.serialization.json.JsonPrimitive(t::class.simpleName ?: "exception"),
+                "intent_fired" to kotlinx.serialization.json.JsonPrimitive(false),
+                "action" to kotlinx.serialization.json.JsonPrimitive(action),
+            ),
+        ).toString()))
     }
 }
 
 private fun err(code: String, detail: String): List<UIMessagePart> =
-    listOf(UIMessagePart.Text(buildJsonObject {
-        put("ok", false)
-        put("error", code)
-        put("detail", detail)
-    }.toString()))
+    listOf(
+        UIMessagePart.Text(
+            me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                error = code,
+                message = detail,
+            ).toString()
+        )
+    )

@@ -26,6 +26,7 @@ import me.rerere.ai.ui.UIMessagePart
 import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 // ---------- content:// support (Phase 25) ----------
 
@@ -58,10 +59,10 @@ internal fun fmContext(): Context =
 // ---------- Error helpers ----------
 
 internal fun fmErrEnvelope(code: String, detail: String): String =
-    buildJsonObject {
-        put("error", code)
-        put("detail", detail)
-    }.toString()
+    me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+        error = code,
+        message = detail,
+    ).toString()
 
 internal fun fmTextPart(s: String) = listOf(UIMessagePart.Text(s))
 
@@ -207,17 +208,7 @@ internal fun allFilesAccessGuard(rawPath: String): String? {
     if (!isSharedStorage) return null
     val granted = try { Environment.isExternalStorageManager() } catch (_: Throwable) { false }
     if (granted) return null
-    return buildJsonObject {
-        put("error", "permission_denied")
-        put(
-            "detail",
-            "All files access is required to enumerate or read files in shared storage. " +
-                "Open Settings → Apps → RikkaHub Agents → Permissions → All files access, or have " +
-                "the user re-toggle the Files tool on the assistant Local Tools page to be " +
-                "prompted."
-        )
-        put("settings_action", "android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION")
-    }.toString()
+    return ToolErrors.envelopeFor(error = "permission_denied", message = "All files access is required to enumerate or read files in shared storage. Open Settings → Apps → RikkaHub Agents → Permissions → All files access, or have the user re-toggle the Files tool on the assistant Local Tools page to be prompted.", hint = "Grant the required permission or choose a different target.", extra = ToolErrors.extraOf("settings_action" to "android.settings.MANAGE_APP_ALL_FILES_ACCESS_PERMISSION")).toString()
 }
 
 // ---------- MIME helper ----------
@@ -354,10 +345,12 @@ private const val MAX_READ_BYTES = 1048576
 fun readFileTool(): Tool = Tool(
     name = "read_file",
     description = """
-        Read the content of a file. max_bytes defaults to 65536, max 1048576 (1 MB).
+        Read the content of a file on the device. max_bytes defaults to 65536, max 1048576 (1 MB).
         encoding defaults UTF-8 with BOM detection. For binary files returns base64 with
         "binary": true. Returns {content, truncated, bytes_read, encoding} or
         {content_base64, binary: true, bytes_read, truncated}.
+        NOTE: use workspace_read_file instead when reading files inside the assistant's
+        bound workspace Rootfs (paths under /workspace).
     """.trimIndent().replace("\n", " ") + CONTENT_URI_DESC,
     parameters = {
         InputSchema.Obj(
@@ -538,12 +531,16 @@ fun deleteFileTool(): Tool = Tool(
         // If the top-level path still exists, the delete failed (or only partially removed
         // a directory's contents) — don't report success.
         if (file.exists()) {
-            return@Tool fmTextPart(buildJsonObject {
-                put("error", if (count > 0) "partial_delete" else "delete_failed")
-                put("detail", "Path could not be fully deleted: $rawPath")
-                put("path", rawPath)
-                put("deleted_count", count)
-            }.toString())
+            return@Tool fmTextPart(
+                me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                    error = if (count > 0) "partial_delete" else "delete_failed",
+                    message = "Path could not be fully deleted: $rawPath",
+                    extra = mapOf(
+                        "path" to kotlinx.serialization.json.JsonPrimitive(rawPath),
+                        "deleted_count" to kotlinx.serialization.json.JsonPrimitive(count),
+                    ),
+                ).toString()
+            )
         }
         fmTextPart(buildJsonObject {
             put("success", true)

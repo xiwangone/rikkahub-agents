@@ -56,7 +56,7 @@ private fun errEnv(
     error: String,
     detail: String,
     extra: Map<String, JsonElement> = emptyMap(),
-): List<UIMessagePart> = ToolErrors.parts(error, detail, extra = extra)
+): List<UIMessagePart> = ToolErrors.partsFor(error, detail, extra = extra)
 
 private fun okEnv(builder: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): List<UIMessagePart> {
     return listOf(UIMessagePart.Text(buildJsonObject(builder).toString()))

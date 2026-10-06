@@ -16,6 +16,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.service.ActionLogEntry
 import me.rerere.rikkahub.service.RikkaAccessibilityService
 import java.io.File
@@ -65,10 +66,7 @@ fun takeScreenshotTool(context: Context): Tool = Tool(
                             timestampMs = System.currentTimeMillis(),
                         )
                     )
-                    buildJsonObject {
-                        put("error", "screenshot_unavailable")
-                        put("reason", res.reason)
-                    }
+                    ToolErrors.envelopeFor(error = "screenshot_unavailable", message = "screenshot_unavailable", extra = ToolErrors.extraOf("reason" to res.reason))
                 }
 
                 is RikkaAccessibilityService.ScreenshotOutcome.Success -> {
@@ -86,10 +84,7 @@ fun takeScreenshotTool(context: Context): Tool = Tool(
                         }
                     } catch (t: Throwable) {
                         res.bitmap.recycle()
-                        return@withService buildJsonObject {
-                            put("error", "write_failed")
-                            put("reason", t.message ?: t::class.simpleName ?: "unknown")
-                        }
+                        return@withService ToolErrors.envelopeFor(error = "write_failed", message = "Failed to write", extra = ToolErrors.extraOf("reason" to (t.message ?: t::class.simpleName ?: "unknown")))
                     }
 
                     // 2) Save a user-visible copy to Pictures/RikkaHub Agents/Screenshots — visible in

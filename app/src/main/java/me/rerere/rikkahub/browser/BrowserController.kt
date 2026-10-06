@@ -17,6 +17,7 @@ import kotlinx.serialization.json.put
 import java.io.File
 import java.io.FileOutputStream
 import java.lang.ref.WeakReference
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /**
  * Kind of AI-driven browser action recorded in the trail. Each value has a paired
@@ -461,26 +462,17 @@ object BrowserController {
         Mode.Idle -> null
     }
 
-    fun notOpenEnvelope(): JsonObject = buildJsonObject {
-        put("error", "browser_not_open")
-        put("recovery", "Call browser_open with a URL to launch the browser before invoking this tool.")
-    }
+    fun notOpenEnvelope(): JsonObject = ToolErrors.envelopeFor(error = "browser_not_open", message = "Browser is not open", hint = "Call browser_open with a URL to launch the browser before invoking this tool.")
 
     /** Returned when the 5-min single-task window has elapsed without a browser_done call. */
-    fun taskTimeoutEnvelope(): JsonObject = buildJsonObject {
-        put("error", "browser_task_timeout")
-        put("recovery", "Call browser_done with a summary; the per-task 5-minute cap has been reached.")
-    }
+    fun taskTimeoutEnvelope(): JsonObject = ToolErrors.envelopeFor(error = "browser_task_timeout", message = "Browser task timed out", hint = "Call browser_done with a summary; the per-task 5-minute cap has been reached.")
 
     /**
      * Returned when a headless session was torn down mid-task (the calling FGS died) and a
      * subsequent tool call lands on an Idle controller. Distinct from `browser_not_open`
      * so the LLM can tell the user "your remote session ended" rather than retry forever.
      */
-    fun sessionLostEnvelope(): JsonObject = buildJsonObject {
-        put("error", "browser_session_lost")
-        put("recovery", "The headless browser session ended (the calling foreground service was killed). Ask the user to retry.")
-    }
+    fun sessionLostEnvelope(): JsonObject = ToolErrors.envelopeFor(error = "browser_session_lost", message = "Browser session was lost", hint = "The headless browser session ended (the calling foreground service was killed). Ask the user to retry.")
 
     /**
      * Returned when a headless browser_open lands while a DIFFERENT conversation already
@@ -488,10 +480,7 @@ object BrowserController {
      * a time; binding a second concurrently would route the first conversation's streamed
      * screenshots into the wrong chat, so the second is rejected here instead.
      */
-    fun bindBusyEnvelope(): JsonObject = buildJsonObject {
-        put("error", "browser_busy")
-        put("recovery", "Another conversation is currently driving the browser. Wait for it to finish (it calls browser_done), then retry browser_open.")
-    }
+    fun bindBusyEnvelope(): JsonObject = ToolErrors.envelopeFor(error = "browser_busy", message = "Browser is busy", hint = "Another conversation is currently driving the browser. Wait for it to finish (it calls browser_done), then retry browser_open.")
 
     /**
      * Pass 3 auto-stream hook: every state-changing tool calls this AFTER its action

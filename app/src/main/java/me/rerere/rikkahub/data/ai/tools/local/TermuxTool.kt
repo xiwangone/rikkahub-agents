@@ -22,6 +22,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.preferences.TermuxDefaults
 import me.rerere.rikkahub.data.preferences.TermuxRuntime
 import java.util.UUID
@@ -358,11 +359,11 @@ fun termuxRunCommandTool(context: Context): Tool = Tool(
             properties = buildJsonObject {
                 put("command", buildJsonObject {
                     put("type", "string")
-                    put("description", "Shell command line, e.g. 'pkg update && pkg upgrade -y'. Mutually exclusive with executable+arguments.")
+                    put("description", "Shell command line, e.g. 'pkg update && pkg upgrade -y'. Required unless 'executable' is provided. Mutually exclusive with executable+arguments.")
                 })
                 put("executable", buildJsonObject {
                     put("type", "string")
-                    put("description", "Absolute path to executable, e.g. /data/data/com.termux/files/usr/bin/bash. Pairs with arguments[].")
+                    put("description", "Absolute path to executable, e.g. /data/data/com.termux/files/usr/bin/bash. Required unless 'command' is provided. Pairs with arguments[].")
                 })
                 put("arguments", buildJsonObject {
                     put("type", "array")
@@ -411,14 +412,14 @@ fun termuxRunCommandTool(context: Context): Tool = Tool(
         if (rawCommand.isNullOrBlank() && executable.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "either 'command' or 'executable' is required") }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "either 'command' or 'executable' is required").toString()
                 )
             )
         }
         if (!rawCommand.isNullOrBlank() && !executable.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "command and executable are mutually exclusive") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "command and executable are mutually exclusive", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }
@@ -428,20 +429,14 @@ fun termuxRunCommandTool(context: Context): Tool = Tool(
             TermuxIntegration.State.NOT_INSTALLED -> {
                 return@Tool listOf(
                     UIMessagePart.Text(
-                        buildJsonObject {
-                            put("error", "termux_not_installed")
-                            put("recovery", "Install Termux from the official GitHub releases page: https://github.com/termux/termux-app/releases . Do not use the Play Store or F-Droid build - those are unmaintained.")
-                        }.toString()
+                        ToolErrors.envelopeFor(error = "termux_not_installed", message = "termux_not_installed", hint = "Install Termux from the official GitHub releases page: https://github.com/termux/termux-app/releases . Do not use the Play Store or F-Droid build - those are unmaintained.").toString()
                     )
                 )
             }
             TermuxIntegration.State.NO_PERMISSION -> {
                 return@Tool listOf(
                     UIMessagePart.Text(
-                        buildJsonObject {
-                            put("error", "termux_permission_not_granted")
-                            put("recovery", "Toggle Termux on in Assistant -> Local tools so the runtime permission dialog appears, OR run: adb shell pm grant ${context.packageName} com.termux.permission.RUN_COMMAND")
-                        }.toString()
+                        ToolErrors.envelopeFor(error = "termux_permission_not_granted", message = "termux_permission_not_granted", hint = "Toggle Termux on in Assistant -> Local tools so the runtime permission dialog appears, OR run: adb shell pm grant ${context.packageName} com.termux.permission.RUN_COMMAND").toString()
                     )
                 )
             }
@@ -505,19 +500,13 @@ fun termuxRunCommandTool(context: Context): Tool = Tool(
             } catch (t: SecurityException) {
                 listOf(
                     UIMessagePart.Text(
-                        buildJsonObject {
-                            put("error", "termux_permission_denied")
-                            put("recovery", "In Termux, run: mkdir -p ~/.termux && echo 'allow-external-apps=true' >> ~/.termux/termux.properties. Force-stop Termux and reopen, then retry.")
-                        }.toString()
+                        ToolErrors.envelopeFor(error = "termux_permission_denied", message = "termux_permission_denied", hint = "In Termux, run: mkdir -p ~/.termux && echo 'allow-external-apps=true' >> ~/.termux/termux.properties. Force-stop Termux and reopen, then retry.").toString()
                     )
                 )
             } catch (t: Throwable) {
                 listOf(
                     UIMessagePart.Text(
-                        buildJsonObject {
-                            put("error", "dispatch_failed")
-                            put("reason", t.message ?: t::class.java.simpleName)
-                        }.toString()
+                        ToolErrors.envelopeFor(error = "dispatch_failed", message = "Dispatch failed", extra = ToolErrors.extraOf("reason" to (t.message ?: t::class.java.simpleName)).toString())
                     )
                 )
             }
@@ -559,18 +548,9 @@ fun termuxRunCommandTool(context: Context): Tool = Tool(
                     put("note", "Non-zero exit code; check stderr.")
                 }
             }
-            is CaptureResult.Timeout -> buildJsonObject {
-                put("error", "timeout")
-                put("recovery", "Command did not return within ${timeoutMs / 1000}s. Either bump timeout_seconds or, if Termux gave no result at all, the user likely has not set allow-external-apps=true in ~/.termux/termux.properties (or did not restart Termux after editing it).")
-            }
-            is CaptureResult.Denied -> buildJsonObject {
-                put("error", "termux_permission_denied")
-                put("recovery", "Open Termux, then run: mkdir -p ~/.termux && echo 'allow-external-apps=true' >> ~/.termux/termux.properties. Force-stop Termux from app info and reopen it. Then retry.")
-            }
-            is CaptureResult.OtherError -> buildJsonObject {
-                put("error", "termux_run_failed")
-                put("reason", res.message)
-            }
+            is CaptureResult.Timeout -> ToolErrors.envelopeFor(error = "timeout", message = "Operation timed out", hint = "Command did not return within ${timeoutMs / 1000}s. Either bump timeout_seconds or, if Termux gave no result at all, the user likely has not set allow-external-apps=true in ~/.termux/termux.properties (or did not restart Termux after editing it).")
+            is CaptureResult.Denied -> ToolErrors.envelopeFor(error = "termux_permission_denied", message = "termux_permission_denied", hint = "Open Termux, then run: mkdir -p ~/.termux && echo 'allow-external-apps=true' >> ~/.termux/termux.properties. Force-stop Termux from app info and reopen it. Then retry.")
+            is CaptureResult.OtherError -> ToolErrors.envelopeFor(error = "termux_run_failed", message = "termux_run_failed", extra = ToolErrors.extraOf("reason" to res.message))
         }
         listOf(UIMessagePart.Text(payload.toString()))
     }

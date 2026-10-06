@@ -16,6 +16,7 @@ import me.rerere.ai.ui.UIMessagePart
 import java.io.File
 import java.io.IOException
 import java.util.UUID
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 fun micRecorderTool(context: Context): Tool = Tool(
     name = "record_audio",
@@ -37,7 +38,7 @@ fun micRecorderTool(context: Context): Tool = Tool(
         if (!PermissionHelper.hasRuntime(context, listOf(Manifest.permission.RECORD_AUDIO))) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "permission RECORD_AUDIO not granted") }.toString()
+                    ToolErrors.envelopeFor(error = "permission_denied", message = "permission RECORD_AUDIO not granted", hint = "Grant the required permission or choose a different target.").toString()
                 )
             )
         }
@@ -67,9 +68,7 @@ fun micRecorderTool(context: Context): Tool = Tool(
             } catch (e: IOException) {
                 return@Tool listOf(
                     UIMessagePart.Text(
-                        buildJsonObject {
-                            put("error", "recorder failed: ${e.message ?: "unknown"}")
-                        }.toString()
+                        ToolErrors.envelopeFor(error = "tool_failed", message = "recorder failed: ${e.message ?: "unknown"}").toString()
                     )
                 )
             }
@@ -79,7 +78,7 @@ fun micRecorderTool(context: Context): Tool = Tool(
             } catch (_: IllegalStateException) {
                 return@Tool listOf(
                     UIMessagePart.Text(
-                        buildJsonObject { put("error", "another recording in progress") }.toString()
+                        ToolErrors.envelopeFor(error = "invalid_argument", message = "another recording in progress", hint = "Check the parameter values and retry with corrected arguments.").toString()
                     )
                 )
             }

@@ -206,4 +206,95 @@ class ScheduleJobToolValidationTest {
         }, knownTools)
         assertEquals("bad_tag", r!!.code)
     }
+
+    // ---- Split validators (schedule_job_direct / schedule_job_llm) ----
+
+    private fun directBase(): JsonObject = buildJsonObject {
+        put("name", "test")
+        put("schedule_type", "once")
+        put("at_unix_ms", 100L)
+        put("actions", buildJsonArray { add(buildJsonObject {
+            put("tool", "post_notification")
+            put("args", buildJsonObject { put("title", "t"); put("body", "b") })
+        }) })
+    }
+
+    private fun llmBase(): JsonObject = buildJsonObject {
+        put("name", "test")
+        put("schedule_type", "cron")
+        put("cron_expression", "@hourly")
+        put("prompt", "do a thing")
+    }
+
+    @Test
+    fun `validateDirect accepts valid direct input without mode`() {
+        assertNull(ScheduleJobValidator.validateDirect(directBase(), knownTools))
+    }
+
+    @Test
+    fun `validateDirect rejects prompt`() {
+        val r = ScheduleJobValidator.validateDirect(buildJsonObject {
+            put("name", "x")
+            put("schedule_type", "once"); put("at_unix_ms", 100L)
+            put("actions", buildJsonArray { add(buildJsonObject {
+                put("tool", "post_notification"); put("args", buildJsonObject { })
+            }) })
+            put("prompt", "nope")
+        }, knownTools)
+        assertEquals("mutual_exclusive", r!!.code)
+    }
+
+    @Test
+    fun `validateDirect rejects missing actions`() {
+        val r = ScheduleJobValidator.validateDirect(buildJsonObject {
+            put("name", "x")
+            put("schedule_type", "once"); put("at_unix_ms", 100L)
+        }, knownTools)
+        assertEquals("mutual_exclusive", r!!.code)
+    }
+
+    @Test
+    fun `validateLlm accepts valid llm input without mode`() {
+        assertNull(ScheduleJobValidator.validateLlm(llmBase()))
+    }
+
+    @Test
+    fun `validateLlm rejects actions`() {
+        val r = ScheduleJobValidator.validateLlm(buildJsonObject {
+            put("name", "x")
+            put("schedule_type", "cron"); put("cron_expression", "@hourly")
+            put("prompt", "p")
+            put("actions", buildJsonArray { })
+        })
+        assertEquals("mutual_exclusive", r!!.code)
+    }
+
+    @Test
+    fun `validateLlm rejects missing prompt`() {
+        val r = ScheduleJobValidator.validateLlm(buildJsonObject {
+            put("name", "x")
+            put("schedule_type", "cron"); put("cron_expression", "@hourly")
+        })
+        assertEquals("mutual_exclusive", r!!.code)
+    }
+
+    @Test
+    fun `legacy validate dispatches on mode`() {
+        // llm via legacy entrypoint
+        assertNull(ScheduleJobValidator.validate(buildJsonObject {
+            put("name", "x"); put("mode", "llm")
+            put("schedule_type", "cron"); put("cron_expression", "@hourly")
+            put("prompt", "p")
+        }, knownTools))
+        // direct via legacy entrypoint
+        assertNull(ScheduleJobValidator.validate(directBase().toMutableMap().apply {
+            put("mode", JsonPrimitive("direct"))
+        }.let { buildJsonObject { it.forEach { (k, v) -> put(k, v) } } }, knownTools))
+        // bad mode still rejected
+        val r = ScheduleJobValidator.validate(buildJsonObject {
+            put("name", "x"); put("mode", "bogus")
+            put("schedule_type", "once"); put("at_unix_ms", 100L)
+        }, knownTools)
+        assertEquals("bad_mode", r!!.code)
+    }
 }

@@ -16,6 +16,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 private fun phoneTypeName(type: Int): String = when (type) {
     1 -> "home"; 2 -> "mobile"; 3 -> "work"; 7 -> "other"; else -> "unknown"
@@ -81,12 +82,12 @@ private fun queryContacts(context: Context, uri: Uri): JsonObject = buildJsonObj
 
 private fun contactsErrorOrRun(context: Context, block: () -> JsonObject): JsonObject {
     if (!PermissionHelper.hasRuntime(context, listOf(Manifest.permission.READ_CONTACTS))) {
-        return buildJsonObject { put("error", "permission READ_CONTACTS not granted") }
+        return ToolErrors.envelopeFor(error = "permission_denied", message = "permission READ_CONTACTS not granted", hint = "Grant the required permission or choose a different target.")
     }
     return try {
         block()
     } catch (_: SecurityException) {
-        buildJsonObject { put("error", "permission READ_CONTACTS not granted") }
+        ToolErrors.envelopeFor(error = "permission_denied", message = "permission READ_CONTACTS not granted", hint = "Grant the required permission or choose a different target.")
     }
 }
 

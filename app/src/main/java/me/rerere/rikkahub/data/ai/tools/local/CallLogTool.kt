@@ -15,6 +15,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 private fun callTypeName(type: Int): String = when (type) {
     CallLog.Calls.INCOMING_TYPE -> "incoming"
@@ -68,12 +69,12 @@ fun callLogTool(context: Context): Tool = Tool(
                 listOf(Manifest.permission.READ_CALL_LOG)
             )
         ) {
-            buildJsonObject { put("error", "permission READ_CALL_LOG not granted") }
+            ToolErrors.envelopeFor(error = "permission_denied", message = "permission READ_CALL_LOG not granted", hint = "Grant the required permission or choose a different target.")
         } else {
             val typeInt: Int? = if (typeStr != null) {
                 typeStringToInt(typeStr) ?: return@Tool listOf(
                     UIMessagePart.Text(
-                        buildJsonObject { put("error", "unknown call type: $typeStr") }.toString()
+                        ToolErrors.envelopeFor(error = "invalid_argument", message = "unknown call type: $typeStr", hint = "Check the parameter values and retry with corrected arguments.").toString()
                     )
                 )
             } else null
@@ -132,7 +133,7 @@ fun callLogTool(context: Context): Tool = Tool(
                     })
                 }
             } catch (_: SecurityException) {
-                buildJsonObject { put("error", "permission READ_CALL_LOG not granted") }
+                ToolErrors.envelopeFor(error = "permission_denied", message = "permission READ_CALL_LOG not granted", hint = "Grant the required permission or choose a different target.")
             }
         }
         listOf(UIMessagePart.Text(payload.toString()))

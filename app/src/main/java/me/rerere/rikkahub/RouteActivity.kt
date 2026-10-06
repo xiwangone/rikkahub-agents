@@ -32,6 +32,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
@@ -58,6 +59,8 @@ import coil3.svg.SvgDecoder
 import com.dokar.sonner.Toaster
 import com.dokar.sonner.rememberToasterState
 import kotlinx.serialization.Serializable
+import me.rerere.rikkahub.data.ai.tools.AppScene
+import me.rerere.rikkahub.data.ai.tools.UiScene
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.DEFAULT_CODEX_PROVIDER_ID
 import me.rerere.rikkahub.data.datastore.DEFAULT_GEMINI_OAUTH_PROVIDER_ID
@@ -343,6 +346,23 @@ class RouteActivity : ComponentActivity() {
             if (deepLinkConversationId != null) {
                 intent.removeExtra("conversationId")
             }
+        }
+
+        // UI 场景信号：观测导航栈顶，写入 AppScene，供工具装配时按场景动态调整档位。
+        // 零埋点——路由即场景，不需要各页面手动上报；切页时下一次工具装配自动生效。
+        LaunchedEffect(backStack) {
+            snapshotFlow { backStack.lastOrNull() }
+                .collect { top ->
+                    AppScene.update(
+                        when (top) {
+                            is Screen.ImageGen -> UiScene.IMAGE_GEN
+                            is Screen.SshTerminal -> UiScene.TERMINAL
+                            is Screen.Chat -> UiScene.CHAT
+                            // 文件浏览页暂无独立 Screen；其他页面回退为 UNKNOWN（纯静态判定）
+                            else -> UiScene.UNKNOWN
+                        },
+                    )
+                }
         }
 
         SharedTransitionLayout {

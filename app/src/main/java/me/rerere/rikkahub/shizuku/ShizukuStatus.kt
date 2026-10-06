@@ -3,6 +3,7 @@ package me.rerere.rikkahub.shizuku
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /** Where the Shizuku integration currently stands. */
 enum class ShizukuStatus {
@@ -42,30 +43,10 @@ object ShizukuStatusMapper {
     /** Structured tool-result error for every non-[ShizukuStatus.READY] state, or null when ready. */
     fun errorFor(status: ShizukuStatus): JsonObject? = when (status) {
         ShizukuStatus.READY -> null
-        ShizukuStatus.NOT_INSTALLED -> buildJsonObject {
-            put("error", "shizuku_not_installed")
-            put(
-                "recovery",
-                "Install Shizuku from https://github.com/RikkaApps/Shizuku/releases/latest , start its service, then grant " +
-                    "RikkaHub Agents permission from Settings -> Shizuku."
-            )
-        }
+        ShizukuStatus.NOT_INSTALLED -> ToolErrors.envelopeFor(error = "shizuku_not_installed", message = "shizuku_not_installed", hint = "Install Shizuku from https://github.com/RikkaApps/Shizuku/releases/latest , start its service, then grant RikkaHub Agents permission from Settings -> Shizuku.")
 
-        ShizukuStatus.NOT_RUNNING -> buildJsonObject {
-            put("error", "shizuku_not_running")
-            put(
-                "recovery",
-                "Shizuku is installed but its service isn't running. Start it from the Shizuku " +
-                    "app (or re-pair wireless debugging on Android 11+), then retry."
-            )
-        }
+        ShizukuStatus.NOT_RUNNING -> ToolErrors.envelopeFor(error = "shizuku_not_running", message = "shizuku_not_running", hint = "Shizuku is installed but its service isn't running. Start it from the Shizuku app (or re-pair wireless debugging on Android 11+), then retry.")
 
-        ShizukuStatus.PERMISSION_DENIED -> buildJsonObject {
-            put("error", "shizuku_permission_denied")
-            put(
-                "recovery",
-                "Grant RikkaHub Agents the Shizuku permission from Settings -> Shizuku, then retry."
-            )
-        }
+        ShizukuStatus.PERMISSION_DENIED -> ToolErrors.envelopeFor(error = "shizuku_permission_denied", message = "shizuku_permission_denied", hint = "Grant RikkaHub Agents the Shizuku permission from Settings -> Shizuku, then retry.")
     }
 }

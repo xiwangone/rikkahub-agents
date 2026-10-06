@@ -29,6 +29,62 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.message.stripApprovalProvenance
+import me.rerere.rikkahub.ui.components.message.tools.generic.BatchCopyToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.BatchDeleteToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.BatchMoveToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.ClickNodeToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.CreateDirectoryToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.DeleteFileToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.DownloadFileToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.FileOpToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.FindFilesToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.GestureToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.ImageToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.LaunchActivityToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.LaunchAppToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.ListFilesToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.LocalReadFileToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.LocationToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.LongPressToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.MoveFileToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.OpenFileToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.ScrollToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.SearchSmsToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.SendSmsToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.SetTextToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.ShizukuExecToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.ShowImageToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.SmsInboxToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.SshDownloadToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.SshExecSavedToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.SshExecToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.SshUploadToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.SwipeToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TakePhotoToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.WebFetchToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramCommandsToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramDeleteCommandsToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramDisableToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramEnableToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramGetCommandsToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramRemoveWhitelistToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramSendDocumentToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramSendPhotoToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramSendToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramSetAssistantToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramSetDefaultChatToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramSetTokenToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramStatusToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TelegramWhitelistToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TermuxRunCommandToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TermuxSessionKillToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TermuxSessionListToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TermuxSessionReadToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TermuxSessionSendToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.TermuxToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.UnzipFileToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.WriteBinaryFileToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.ZipFilesToolUI
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.ui.FormItem
@@ -92,6 +148,16 @@ interface ToolUIRenderer {
 private object DefaultToolUIRenderer : ToolUIRenderer {
     override val toolName: String get() = ""
 
+    @Composable
+    override fun title(context: ToolUIContext): String {
+        val detail = defaultTitleDetail(context)
+        return if (detail != null) {
+            stringResource(R.string.chat_message_tool_call_generic_detail, context.tool.toolName, detail)
+        } else {
+            stringResource(R.string.chat_message_tool_call_generic, context.tool.toolName)
+        }
+    }
+
     override fun hasSummary(context: ToolUIContext): Boolean = defaultSummaryText(context) != null
 
     @Composable
@@ -144,6 +210,32 @@ private fun listSummary(items: List<JsonElement>): String {
     val names = items.take(GENERIC_SUMMARY_MAX_ITEMS).map { el -> elementLabel(el) }
     val more = if (items.size > GENERIC_SUMMARY_MAX_ITEMS) "\n… (${items.size})" else ""
     return names.joinToString("\n") + more
+}
+
+/** 标题参数取信息时优先看的键（取第一个非空值，截断） */
+private val GENERIC_TITLE_KEYS =
+    listOf(
+        "path", "file_path", "filepath",
+        "package_name", "packageName",
+        "command", "cmd",
+        "url",
+        "query", "keyword", "keywords",
+        "name", "title",
+        "text", "message", "content",
+    )
+
+private const val GENERIC_TITLE_MAX_LEN = 48
+
+/** 从工具入参提炼标题关键信息；返回 null = 无可提炼信息，仍走通用标题 */
+private fun defaultTitleDetail(context: ToolUIContext): String? {
+    val args = context.arguments.jsonObjectOrNull ?: return null
+    for (key in GENERIC_TITLE_KEYS) {
+        val v = args[key]?.jsonPrimitiveOrNull?.contentOrNull?.trim()
+        if (!v.isNullOrBlank()) {
+            return if (v.length > GENERIC_TITLE_MAX_LEN) v.take(GENERIC_TITLE_MAX_LEN) + "…" else v
+        }
+    }
+    return null
 }
 
 /**
@@ -224,6 +316,72 @@ object ToolUIRegistry {
             ShowLocationOnMapToolUI,
             WorkspaceApplyEditsToolUI,
             WorkspaceSearchCodeToolUI,
+            // generic: 图片类（3）
+            ImageToolUI,
+            TakePhotoToolUI,
+            ShowImageToolUI,
+            // generic: 文件操作类（12 + 2 SSH 复用）
+            FileOpToolUI,
+            MoveFileToolUI,
+            DeleteFileToolUI,
+            CreateDirectoryToolUI,
+            BatchCopyToolUI,
+            BatchMoveToolUI,
+            BatchDeleteToolUI,
+            ZipFilesToolUI,
+            UnzipFileToolUI,
+            DownloadFileToolUI,
+            OpenFileToolUI,
+            WriteBinaryFileToolUI,
+            SshDownloadToolUI,
+            SshUploadToolUI,
+            // generic: Termux 会话类（6）
+            TermuxToolUI,
+            TermuxSessionSendToolUI,
+            TermuxSessionReadToolUI,
+            TermuxSessionListToolUI,
+            TermuxSessionKillToolUI,
+            TermuxRunCommandToolUI,
+            // generic: Telegram 发送类（4）
+            TelegramSendToolUI,
+            TelegramSendPhotoToolUI,
+            TelegramSendDocumentToolUI,
+            TelegramSetDefaultChatToolUI,
+            // generic: Telegram 命令管理类（4）
+            TelegramCommandsToolUI,
+            TelegramGetCommandsToolUI,
+            TelegramDeleteCommandsToolUI,
+            TelegramSetAssistantToolUI,
+            // generic: Telegram 白名单类（2）
+            TelegramWhitelistToolUI,
+            TelegramRemoveWhitelistToolUI,
+            // generic: Telegram 状态配置类（4）
+            TelegramStatusToolUI,
+            TelegramEnableToolUI,
+            TelegramDisableToolUI,
+            TelegramSetTokenToolUI,
+            // generic: 手势自动化类（6）
+            GestureToolUI,
+            SwipeToolUI,
+            LongPressToolUI,
+            ScrollToolUI,
+            ClickNodeToolUI,
+            SetTextToolUI,
+            // generic: SSH/终端执行类（3）
+            SshExecToolUI,
+            ShizukuExecToolUI,
+            SshExecSavedToolUI,
+            // generic: 位置 / 短信 / 文件列表 / 外发 / 启动 / 抓取 / 读文件（7）
+            LocationToolUI,
+            SmsInboxToolUI,
+            SearchSmsToolUI,
+            ListFilesToolUI,
+            FindFilesToolUI,
+            SendSmsToolUI,
+            LaunchAppToolUI,
+            LaunchActivityToolUI,
+            WebFetchToolUI,
+            LocalReadFileToolUI,
         ).associateBy { it.toolName }
 
     /** 查找工具对应的渲染器, 未注册时返回默认渲染器 */
@@ -231,6 +389,9 @@ object ToolUIRegistry {
 
     /** 已注册的渲染器 key（只读；供诊断做"注册了但无对应工具"的覆盖自检）。 */
     val registeredKeys: Set<String> get() = renderers.keys
+
+    /** 渲染器映射（内部可见；供工具统一索引做定义/注册/渲染三方对齐自检）。 */
+    internal val rendererMap: Map<String, ToolUIRenderer> get() = renderers
 }
 
 internal fun JsonElement?.getStringContent(key: String): String? =
@@ -239,6 +400,15 @@ internal fun JsonElement?.getStringContent(key: String): String? =
         ?.get(key)
         ?.jsonPrimitiveOrNull
         ?.contentOrNull
+
+/**
+ * 读取工具错误信封中的业务码。优先新形状 `data.error`，兼容旧扁平形状顶层 `error`。
+ */
+internal fun JsonElement?.getErrorCode(): String? =
+    this?.jsonObjectOrNull?.let { obj ->
+        obj["data"]?.jsonObjectOrNull?.get("error")?.jsonPrimitiveOrNull?.contentOrNull
+            ?: obj["error"]?.jsonPrimitiveOrNull?.contentOrNull
+    }
 
 /**
  * 默认工具详情: 入参与输出的 JSON 高亮展示

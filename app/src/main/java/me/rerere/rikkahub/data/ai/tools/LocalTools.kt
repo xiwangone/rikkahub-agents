@@ -23,6 +23,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.S3Sync
@@ -128,7 +129,6 @@ import me.rerere.rikkahub.data.ai.tools.local.batchCopyTool
 import me.rerere.rikkahub.data.ai.tools.local.batchMoveTool
 import me.rerere.rikkahub.data.ai.tools.local.batchDeleteTool
 import me.rerere.rikkahub.data.ai.tools.local.webFetchTool
-import me.rerere.rikkahub.data.ai.tools.local.webExtractTool
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.utils.readClipboardText
@@ -299,6 +299,30 @@ internal fun appendHumanErrorToToolResult(part: UIMessagePart): UIMessagePart {
     val jsonObject = runCatching {
         Json.parseToJsonElement(part.text).jsonObject
     }.getOrNull() ?: return part
+
+    // New envelope shape: {"code","message","data":{"error","recovery","hint",...}}.
+    // The message field is already human-readable; mirror it as human_error for
+    // consumers that key off that field.
+    val data = jsonObject["data"]?.jsonObject
+    val newShapeError = data?.get("error")?.jsonPrimitive?.contentOrNull
+    if (newShapeError != null) {
+        if (data.containsKey("human_error")) return part
+        val message = jsonObject["message"]?.jsonPrimitive?.contentOrNull
+            ?: humanizeToolError(data)
+        return part.copy(
+            text = buildJsonObject {
+                jsonObject.forEach { (key, value) ->
+                    if (key != "data") put(key, value)
+                }
+                put("data", buildJsonObject {
+                    data.forEach { (k, v) -> put(k, v) }
+                    put("human_error", message)
+                })
+            }.toString()
+        )
+    }
+
+    // Legacy flat shape {"error": ...} — kept for backward compatibility.
     if ("error" !in jsonObject) return part
 
     val detail = jsonObject["detail"] ?: jsonObject["reason"]
@@ -331,6 +355,7 @@ private fun humanizeToolError(jsonObject: JsonObject): String {
     val error = jsonObject["error"]?.jsonPrimitive?.contentOrNull.orEmpty()
     val detail = jsonObject["detail"]?.jsonPrimitive?.contentOrNull
         ?: jsonObject["reason"]?.jsonPrimitive?.contentOrNull
+        ?: jsonObject["hint"]?.jsonPrimitive?.contentOrNull
         ?: jsonObject["recovery"]?.jsonPrimitive?.contentOrNull
     val readableError = error.replace('_', ' ').ifBlank { "Tool error" }
     return if (detail.isNullOrBlank()) {
@@ -532,10 +557,11 @@ class LocalTools(
                         if (base.endpoint.isBlank()) {
                             listOf(
                                 UIMessagePart.Text(
-                                    buildJsonObject {
-                                        put("error", "s3_not_configured")
-                                        put("hint", "Configure an S3 target first: Settings -> Backup -> S3.")
-                                    }.toString(),
+                                    ToolErrors.envelopeFor(
+                                        error = "s3_not_configured",
+                                        message = "S3 backup is not configured.",
+                                        extra = mapOf("hint" to JsonPrimitive("Configure an S3 target first: Settings -> Backup -> S3.")),
+                                    ).toString(),
                                 ),
                             )
                         } else {
@@ -559,10 +585,11 @@ class LocalTools(
                         if (base == null || base.url.isBlank()) {
                             listOf(
                                 UIMessagePart.Text(
-                                    buildJsonObject {
-                                        put("error", "webdav_not_configured")
-                                        put("hint", "Configure a WebDAV target first: Settings -> Backup -> WebDAV.")
-                                    }.toString(),
+                                    ToolErrors.envelopeFor(
+                                        error = "webdav_not_configured",
+                                        message = "WebDAV backup is not configured.",
+                                        extra = mapOf("hint" to JsonPrimitive("Configure a WebDAV target first: Settings -> Backup -> WebDAV.")),
+                                    ).toString(),
                                 ),
                             )
                         } else {
@@ -592,14 +619,7 @@ class LocalTools(
                             runCatching { encryptionManager.maybeEncrypt(plain) }.getOrElse { e ->
                                 return@Tool listOf(
                                     UIMessagePart.Text(
-                                        buildJsonObject {
-                                            put("error", "backup_password_missing")
-                                            put(
-                                                "hint",
-                                                "Backup encryption is on but this device has no remembered password. Enter it once in Settings -> Backup (no need to share it in chat).",
-                                            )
-                                            put("detail", e.message.orEmpty())
-                                        }.toString(),
+                                        ToolErrors.envelopeFor(error = "backup_password_missing", message = "Backup password is missing", hint = "Backup encryption is on but this device has no remembered password. Enter it once in Settings -> Backup (no need to share it in chat).", extra = ToolErrors.extraOf("detail" to JsonPrimitive(e.message.orEmpty()))).toString(),
                                     ),
                                 )
                             }
@@ -831,13 +851,7 @@ class LocalTools(
                 // throwing an opaque tool_failed.
                 listOf(
                     UIMessagePart.Text(
-                        buildJsonObject {
-                            put("error", "ask_user_unavailable")
-                            put(
-                                "detail",
-                                "Interactive questions aren't available in this context. Ask your question in your normal reply text instead; the user will read it and answer."
-                            )
-                        }.toString()
+                        ToolErrors.envelopeFor(error = "ask_user_unavailable", message = "Interactive questions aren't available in this context. Ask your question in your normal reply text instead; the user will read it and answer.", hint = "Ask the question in normal reply text instead.").toString()
                     )
                 )
             }
@@ -975,6 +989,17 @@ class LocalTools(
         tools.add(telegramDeleteCommandsTool(telegramBotPreferences, telegramBotClient))
     },
     ToolEntry(LocalToolOption.CronJobs) { tools, _ ->
+        tools.add(
+            me.rerere.rikkahub.data.ai.tools.local.scheduleJobDirectTool(
+                scheduledJobRepository, cronJobScheduler, settingsStore,
+                knownToolNamesProvider = { tools.map { it.name } },
+            ),
+        )
+        tools.add(
+            me.rerere.rikkahub.data.ai.tools.local.scheduleJobLlmTool(
+                scheduledJobRepository, cronJobScheduler, settingsStore,
+            ),
+        )
         tools.add(
             me.rerere.rikkahub.data.ai.tools.local.scheduleJobTool(
                 scheduledJobRepository, cronJobScheduler, settingsStore,

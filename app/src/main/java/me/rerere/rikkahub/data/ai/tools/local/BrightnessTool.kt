@@ -10,6 +10,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
 fun getBrightnessTool(context: Context): Tool = Tool(
@@ -72,7 +73,7 @@ fun setBrightnessTool(
         if (!PermissionHelper.hasWriteSettings(context)) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "WRITE_SETTINGS not granted") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "WRITE_SETTINGS not granted", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }
@@ -90,7 +91,7 @@ fun setBrightnessTool(
                 put("value", clamped)
             }
         } catch (_: SecurityException) {
-            buildJsonObject { put("error", "WRITE_SETTINGS not granted") }
+            ToolErrors.envelopeFor(error = "invalid_argument", message = "WRITE_SETTINGS not granted", hint = "Check the parameter values and retry with corrected arguments.")
         }
         streamer.streamIfHeadless(invocationContext, "SetBrightness $clamped")
         listOf(UIMessagePart.Text(payload.toString()))

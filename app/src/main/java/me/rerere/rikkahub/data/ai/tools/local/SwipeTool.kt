@@ -11,6 +11,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
 
@@ -54,9 +55,7 @@ fun swipeTool(
         if (sx == null || sy == null || ex == null || ey == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "start_x, start_y, end_x, end_y are required and must be non-negative numbers")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "start_x, start_y, end_x, end_y are required and must be non-negative numbers").toString()
                 )
             )
         }
@@ -64,9 +63,7 @@ fun swipeTool(
         if (duration < 50L || duration > 5000L) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "duration_ms must be between 50 and 5000")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "duration_ms must be between 50 and 5000", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }

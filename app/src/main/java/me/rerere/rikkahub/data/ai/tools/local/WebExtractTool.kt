@@ -10,6 +10,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.rikkahub.data.ai.net.hostIsBlockedLiteral
 import me.rerere.rikkahub.data.ai.net.withEgressGuard
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -69,14 +70,7 @@ fun webExtractTool(client: OkHttpClient): Tool = Tool(
         url.toHttpUrlOrNull()?.host?.let { host ->
             if (hostIsBlockedLiteral(host)) {
                 return@Tool fmTextPart(
-                    buildJsonObject {
-                        put("error", "blocked_address")
-                        put("detail", "blocked_private_address: $host")
-                        put(
-                            "recovery",
-                            "This tool refuses private, loopback and link-local addresses.",
-                        )
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "blocked_address", message = "blocked_private_address: $host", hint = "This tool refuses private, loopback and link-local addresses.").toString()
                 )
             }
         }
@@ -122,31 +116,20 @@ fun webExtractTool(client: OkHttpClient): Tool = Tool(
                 // OkHttp's callTimeout (set in withEgressGuard) fires this when a call, including
                 // a trickling read, runs past the advertised 30s limit; withTimeoutOrNull cannot
                 // catch this itself since the blocking execute() call has no suspension point.
-                buildJsonObject {
-                    put("error", "timeout")
-                    put("detail", "Request exceeded the 30s limit.")
-                    put("recovery", "The host is slow or unreachable; try a different URL.")
-                }.toString()
+                ToolErrors.envelopeFor(error = "timeout", message = "Request exceeded the 30s limit.", hint = "The host is slow or unreachable; try a different URL.").toString()
             } catch (e: IOException) {
                 val blocked = e.message?.contains("blocked_private_address") == true
-                buildJsonObject {
-                    put("error", if (blocked) "blocked_address" else "network_error")
-                    put("detail", e.message ?: e::class.java.simpleName)
-                    put(
-                        "recovery",
-                        if (blocked) {
-                            "This tool refuses private, loopback and link-local addresses."
-                        } else {
-                            "Check connectivity and that the host is reachable, then retry."
-                        },
-                    )
-                }.toString()
+                ToolErrors.envelopeFor(
+                    error = if (blocked) "blocked_address" else "network_error",
+                    message = e.message ?: e::class.java.simpleName,
+                    hint = if (blocked) {
+                        "This tool refuses private, loopback and link-local addresses."
+                    } else {
+                        "Check connectivity and that the host is reachable, then retry."
+                    },
+                ).toString()
             }
-        } ?: buildJsonObject {
-            put("error", "timeout")
-            put("detail", "Request exceeded the 30s limit.")
-            put("recovery", "The host is slow or unreachable; try a different URL.")
-        }.toString()
+        } ?: ToolErrors.envelopeFor(error = "timeout", message = "Request exceeded the 30s limit.", hint = "The host is slow or unreachable; try a different URL.").toString()
 
         fmTextPart(result)
     },

@@ -13,6 +13,7 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.net.hostIsBlockedLiteral
 import me.rerere.rikkahub.data.ai.net.withEgressGuard
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.search.extract.ExtractMode
 import me.rerere.search.extract.WebExtractor
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -87,20 +88,7 @@ internal fun buildExtractEnvelope(
         startIndex == 0
 
     if (nothingUseful) {
-        return buildJsonObject {
-            put("error", "empty_extraction")
-            put("status", status)
-            put("final_url", finalUrl)
-            put(
-                "detail",
-                "The page was fetched but no article text could be extracted from it.",
-            )
-            put(
-                "recovery",
-                "Retry with extract_mode='raw' to inspect the markup, or open the page with " +
-                    "the browser tools if it renders its content with JavaScript.",
-            )
-        }.toString()
+        return ToolErrors.envelopeFor(error = "empty_extraction", message = "The page was fetched but no article text could be extracted from it.", hint = "Retry with extract_mode='raw' to inspect the markup, or open the page with the browser tools if it renders its content with JavaScript.", extra = ToolErrors.extraOf("status" to status, "final_url" to finalUrl)).toString()
     }
 
     return buildJsonObject {
@@ -196,11 +184,7 @@ fun webFetchTool(client: OkHttpClient): Tool = Tool(
         }
         if (!url.startsWith("http://", true) && !url.startsWith("https://", true)) {
             return@Tool fmTextPart(
-                buildJsonObject {
-                    put("error", "bad_url")
-                    put("detail", "url must start with http:// or https://")
-                    put("recovery", "Pass an absolute http(s) URL.")
-                }.toString()
+                ToolErrors.envelopeFor(error = "bad_url", message = "url must start with http:// or https://", hint = "Pass an absolute http(s) URL.").toString()
             )
         }
         // OkHttp routes a literal-IP host straight to the socket without consulting the
@@ -209,25 +193,14 @@ fun webFetchTool(client: OkHttpClient): Tool = Tool(
         url.toHttpUrlOrNull()?.host?.let { host ->
             if (hostIsBlockedLiteral(host)) {
                 return@Tool fmTextPart(
-                    buildJsonObject {
-                        put("error", "blocked_address")
-                        put("detail", "blocked_private_address: $host")
-                        put(
-                            "recovery",
-                            "This tool refuses private, loopback and link-local addresses. Use a public URL.",
-                        )
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "blocked_address", message = "blocked_private_address: $host", hint = "This tool refuses private, loopback and link-local addresses. Use a public URL.").toString()
                 )
             }
         }
         val method = obj["method"]?.jsonPrimitive?.contentOrNull?.trim()?.uppercase() ?: "GET"
         if (method != "GET" && method != "POST") {
             return@Tool fmTextPart(
-                buildJsonObject {
-                    put("error", "bad_method")
-                    put("detail", "method must be GET or POST, got $method")
-                    put("recovery", "Use method=GET or method=POST.")
-                }.toString()
+                ToolErrors.envelopeFor(error = "bad_method", message = "method must be GET or POST, got $method", hint = "Use method=GET or method=POST.").toString()
             )
         }
         val bodyStr = obj["body"]?.jsonPrimitive?.contentOrNull
@@ -259,11 +232,7 @@ fun webFetchTool(client: OkHttpClient): Tool = Tool(
             builder.build()
         } catch (e: IllegalArgumentException) {
             return@Tool fmTextPart(
-                buildJsonObject {
-                    put("error", "bad_request")
-                    put("detail", e.message ?: "Could not build request")
-                    put("recovery", "Check the URL and header names for invalid characters.")
-                }.toString()
+                ToolErrors.envelopeFor(error = "bad_request", message = "Bad request", hint = "Check the URL and header names for invalid characters.", extra = ToolErrors.extraOf("detail" to (e.message ?: "Could not build request")).toString())
             )
         }
 
@@ -322,31 +291,20 @@ fun webFetchTool(client: OkHttpClient): Tool = Tool(
                 // OkHttp's callTimeout (set in withEgressGuard) fires this when a call, including
                 // a trickling read, runs past the advertised 30s limit; withTimeoutOrNull cannot
                 // catch this itself since the blocking execute() call has no suspension point.
-                buildJsonObject {
-                    put("error", "timeout")
-                    put("detail", "Request exceeded the 30s limit.")
-                    put("recovery", "The host is slow or unreachable; try a smaller request or a different URL.")
-                }.toString()
+                ToolErrors.envelopeFor(error = "timeout", message = "Request exceeded the 30s limit.", hint = "The host is slow or unreachable; try a smaller request or a different URL.").toString()
             } catch (e: IOException) {
                 val blocked = e.message?.contains("blocked_private_address") == true
-                buildJsonObject {
-                    put("error", if (blocked) "blocked_address" else "network_error")
-                    put("detail", e.message ?: e::class.java.simpleName)
-                    put(
-                        "recovery",
-                        if (blocked) {
-                            "This tool refuses private, loopback and link-local addresses. Use a public URL."
-                        } else {
-                            "Check connectivity and that the host is reachable, then retry."
-                        },
-                    )
-                }.toString()
+                ToolErrors.envelopeFor(
+                    error = if (blocked) "blocked_address" else "network_error",
+                    message = e.message ?: e::class.java.simpleName,
+                    hint = if (blocked) {
+                        "This tool refuses private, loopback and link-local addresses. Use a public URL."
+                    } else {
+                        "Check connectivity and that the host is reachable, then retry."
+                    },
+                ).toString()
             }
-        } ?: buildJsonObject {
-            put("error", "timeout")
-            put("detail", "Request exceeded the 30s limit.")
-            put("recovery", "The host is slow or unreachable; try a smaller request or a different URL.")
-        }.toString()
+        } ?: ToolErrors.envelopeFor(error = "timeout", message = "Request exceeded the 30s limit.", hint = "The host is slow or unreachable; try a smaller request or a different URL.").toString()
 
         fmTextPart(result)
     },

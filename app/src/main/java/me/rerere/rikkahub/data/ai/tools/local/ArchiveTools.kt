@@ -24,10 +24,18 @@ import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
 private fun arcErr(code: String, vararg extra: Pair<String, String>) =
-    listOf(UIMessagePart.Text(buildJsonObject {
-        put("error", code)
-        extra.forEach { put(it.first, it.second) }
-    }.toString()))
+    listOf(
+        UIMessagePart.Text(
+            me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                error = code,
+                message = extra.firstOrNull { it.first == "detail" }?.second
+                    ?: me.rerere.rikkahub.data.ai.tools.ToolErrors.messageFor(code),
+                extra = extra.filter { it.first != "detail" }
+                    .associate { it.first to it.second }
+                    .mapValues { kotlinx.serialization.json.JsonPrimitive(it.value) },
+            ).toString()
+        )
+    )
 
 // ---------- extraction ceilings (zip-bomb defence) ----------
 

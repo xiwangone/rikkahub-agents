@@ -16,6 +16,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
 import me.rerere.rikkahub.service.RikkaAccessibilityService
@@ -85,9 +86,7 @@ fun scrollTool(
         if (direction == null || direction !in ALLOWED_DIRECTIONS) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "direction must be one of [up, down, left, right]")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "direction must be one of [up, down, left, right]", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }
@@ -96,7 +95,7 @@ fun scrollTool(
 
         val payload = AccessibilityServiceHandle.withService { svc ->
             val root = svc.rootInActiveWindow
-                ?: return@withService buildJsonObject { put("error", "no_active_window") }
+                ?: return@withService ToolErrors.envelopeFor(error = "no_active_window", message = "no_active_window")
 
             val target = if (anchorX != null && anchorY != null) {
                 findScrollableAt(root, anchorX.toInt(), anchorY.toInt())

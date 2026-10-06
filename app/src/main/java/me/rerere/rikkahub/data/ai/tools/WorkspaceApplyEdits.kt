@@ -98,12 +98,11 @@ private suspend fun runApplyEdits(
     args: JsonElement,
 ): List<UIMessagePart> {
     val filesJson = args.jsonObject["files"] as? JsonArray
-        ?: return ToolErrors.parts(
-            ToolErrors.INVALID_ARGUMENT,
+        ?: return ToolErrors.partsFor(ToolErrors.INVALID_ARGUMENT,
             "files is required (array of {path, edits})",
         )
     if (filesJson.isEmpty()) {
-        return ToolErrors.parts(ToolErrors.INVALID_ARGUMENT, "files must not be empty")
+        return ToolErrors.partsFor(ToolErrors.INVALID_ARGUMENT, "files must not be empty")
     }
 
     // path -> (newText, replacements)；同一路径出现两次时，第二次基于第一次的结果继续编辑。
@@ -112,13 +111,11 @@ private suspend fun runApplyEdits(
         val file = element.jsonObject
         val path = file.absolutePath("path")
         val edits = file["edits"] as? JsonArray
-            ?: return ToolErrors.parts(
-                ToolErrors.INVALID_ARGUMENT,
+            ?: return ToolErrors.partsFor(ToolErrors.INVALID_ARGUMENT,
                 "files[$fileIndex].edits is required",
             )
         if (edits.isEmpty()) {
-            return ToolErrors.parts(
-                ToolErrors.INVALID_ARGUMENT,
+            return ToolErrors.partsFor(ToolErrors.INVALID_ARGUMENT,
                 "files[$fileIndex].edits must not be empty",
             )
         }
@@ -128,18 +125,15 @@ private suspend fun runApplyEdits(
         edits.forEachIndexed { editIndex, editElement ->
             val item = editElement.jsonObject
             val oldText = item.string("old_text")
-                ?: return ToolErrors.parts(
-                    ToolErrors.INVALID_ARGUMENT,
+                ?: return ToolErrors.partsFor(ToolErrors.INVALID_ARGUMENT,
                     "files[$fileIndex].edits[$editIndex].old_text is required",
                 )
             val newText = item.string("new_text")
-                ?: return ToolErrors.parts(
-                    ToolErrors.INVALID_ARGUMENT,
+                ?: return ToolErrors.partsFor(ToolErrors.INVALID_ARGUMENT,
                     "files[$fileIndex].edits[$editIndex].new_text is required",
                 )
             if (oldText.isEmpty()) {
-                return ToolErrors.parts(
-                    ToolErrors.INVALID_ARGUMENT,
+                return ToolErrors.partsFor(ToolErrors.INVALID_ARGUMENT,
                     "files[$fileIndex].edits[$editIndex].old_text must not be empty",
                 )
             }
@@ -148,8 +142,7 @@ private suspend fun runApplyEdits(
                 replaceText(working, oldText, newText, replaceAll)
             } catch (e: IllegalArgumentException) {
                 // 任一处失败 → 整体不写盘（与 workspace_edit_file 的批量语义一致）
-                return ToolErrors.parts(
-                    ToolErrors.INVALID_ARGUMENT,
+                return ToolErrors.partsFor(ToolErrors.INVALID_ARGUMENT,
                     "files[$fileIndex].edits[$editIndex] failed: ${e.message} (path: $path)",
                 )
             }
@@ -165,8 +158,7 @@ private suspend fun runApplyEdits(
             val entry = runCatching {
                 workspaceRepository.writeTextInRootfs(workspaceId, path, pair.first, overwrite = true)
             }.getOrElse { e ->
-                return ToolErrors.parts(
-                    ToolErrors.INTERNAL,
+                return ToolErrors.partsFor(ToolErrors.INTERNAL,
                     "write failed for $path after all edits matched: ${e.message}",
                 )
             }

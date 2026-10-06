@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
@@ -11,6 +12,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.rikkahub.costguards.runToolSurfaceReport
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.buildMcpToolName
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.log.AppLog
@@ -34,6 +36,7 @@ class InvalidMcpServerNamesException(val names: List<String>) :
  * 装配顺序即对外暴露顺序（顺序参与请求前缀字节，改动会影响前缀缓存命中）：
  * memory → search → local → workspace → skill → mcp
  */
+@Suppress("LongParameterList") // 装配类：参数随模块增长，拆构造只会把装配关系割裂到多处
 class ChatToolFactory(
     private val context: android.app.Application,
     private val json: Json,
@@ -42,6 +45,7 @@ class ChatToolFactory(
     private val mcpManager: McpManager,
     private val skillManager: SkillManager,
     private val workspaceRepository: WorkspaceRepository,
+    private val conversationRepository: me.rerere.rikkahub.data.repository.ConversationRepository,
 ) {
     suspend fun createTools(
         settings: Settings,
@@ -54,11 +58,17 @@ class ChatToolFactory(
         //  - toolScopeOverride：工具白名单（只减不增）
         workspaceIdOverride: String? = null,
         toolScopeOverride: List<String>? = null,
+        // 当前 UI 场景（默认 UNKNOWN = 纯静态判定）：用于 WARM 档按场景动态调整。
+        // 由调用方（ChatService）在装配前从 AppScene.current 读取并传入。
+        uiScene: UiScene = UiScene.UNKNOWN,
     ): List<Tool> = buildList {
         // 统计总开关：**默认关**（普通用户不需要埋点）；开启后 usage / tool_scope 才有数据。
         ToolUsageTracker.setEnabled(settings.displaySetting.toolStatsEnabled)
         // 记忆分层：只注入 core 常驻；conditional 由模型按需检索。
         addAll(memoryToolsIfEnabled(assistant))
+
+        // 会话检索：按需查询历史会话，不静态注入（保提示缓存）。
+        addAll(createConversationTools(conversationRepository, assistant.id))
 
         if (assistant.enableWebSearch) {
             addAll(createSearchTools(settings))
@@ -140,6 +150,7 @@ class ChatToolFactory(
                         trimEnabled = trimEnabled,
                         extraCold = assistant.extraColdTools.toSet(),
                         scope = if (scopeAsTier) effectiveToolScope else emptyList(),
+                        uiScene = uiScene,
                     )
                 } +
                     buildToolDiscoveryTools(
@@ -147,6 +158,7 @@ class ChatToolFactory(
                         invocationCtx.callerConversationId,
                         extraCold = assistant.extraColdTools.toSet(),
                         context = context,
+                        uiScene = uiScene,
                     )
             ).sortedBy { it.name }
         // 工具重绑到与模型看到的一致的那份列表上，否则「省了多少」永远是 0。
@@ -286,6 +298,8 @@ private fun surfaceView(
     extraCold: Set<String>,
     // 非空 = 把助手级白名单当“中间档”用：名单内照常判档，名单外降冷水（而非硬删）；保命工具不受影响。
     scope: List<String> = emptyList(),
+    // 当前 UI 场景：透传给档位判定，用于 WARM 档按场景动态调整（UNKNOWN = 纯静态）。
+    uiScene: UiScene = UiScene.UNKNOWN,
 ): Tool {
     // 助手级黑名单（「这些工具只发简要说明」）**独立于**全局裁剪开关：名单非空即生效，
     // 与助手级白名单（onlyTools）语义对齐——填了就生效、清空保存即恢复。
@@ -294,9 +308,9 @@ private fun surfaceView(
     if (!trimEnabled) return tool
     val tier =
         if (scope.isEmpty()) {
-            ToolSurfacePolicy.tierOf(tool.name, extraCold)
+            ToolSurfacePolicy.tierOf(tool.name, extraCold, uiScene)
         } else {
-            ToolSurfacePolicy.tierOfWithScope(tool.name, scope, extraCold)
+            ToolSurfacePolicy.tierOfWithScope(tool.name, scope, extraCold, uiScene)
         }
     if (tier == SurfaceTier.HOT) return tool
 
@@ -333,11 +347,7 @@ private fun toColdView(tool: Tool, conversationId: String?): Tool {
             if (!ToolSurfaceSession.isLoaded(conversationId, tool.name)) {
                 listOf(
                     UIMessagePart.Text(
-                        buildJsonObject {
-                            put("error", "tool_schema_not_loaded")
-                            put("tool", tool.name)
-                            put("hint", "Call get_tool_schema with this exact tool name, then retry the tool.")
-                        }.toString(),
+                        ToolErrors.envelopeFor(error = "tool_schema_not_loaded", message = "Tool '${tool.name}' schema not loaded. Call get_tool_schema first.", hint = "Call get_tool_schema with this exact tool name, then retry the tool.", extra = ToolErrors.extraOf("tool" to JsonPrimitive(tool.name))).toString(),
                     ),
                 )
             } else {

@@ -14,6 +14,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 private val CHART_STYLES = listOf("line", "bar", "scatter", "pie", "donut", "area")
 private val AXIS_SCALES = listOf("linear", "log")
@@ -100,10 +101,7 @@ internal fun buildChartDisplayTool(): Tool = Tool(
     execute = { args ->
         val error = validateChartArgs(args.jsonObject)
         val payload = if (error != null) {
-            buildJsonObject {
-                put("error", "INVALID_CHART")
-                put("message", error)
-            }
+            ToolErrors.envelopeFor(error = "invalid_argument", message = "INVALID_CHART", hint = "Check the parameter values and retry with corrected arguments.", extra = ToolErrors.extraOf("message" to error))
         } else {
             buildJsonObject {
                 put("success", true)

@@ -13,6 +13,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /**
  * Device status reader, grouped by kind so the tool surface stays small.
@@ -31,10 +32,7 @@ internal suspend fun readDeviceInfo(context: Context, kind: String, sensor: Stri
         "wifi" -> wifiPayload(context)
         "storage" -> storagePayload(context)
         "sensors" -> if (sensor.isNullOrBlank()) sensorsPayload(context) else sensorReadPayload(context, sensor, durationMs)
-        else -> buildJsonObject {
-            put("error", "unknown kind '$kind'")
-            put("hint", "kind must be one of: ${DEVICE_INFO_KINDS.joinToString(" | ")}")
-        }
+        else -> ToolErrors.envelopeFor(error = "invalid_argument", message = "unknown kind '$kind'", hint = "kind must be one of: ${DEVICE_INFO_KINDS.joinToString(" | ")}")
     }
 
 fun deviceInfoTool(context: Context): Tool = Tool(

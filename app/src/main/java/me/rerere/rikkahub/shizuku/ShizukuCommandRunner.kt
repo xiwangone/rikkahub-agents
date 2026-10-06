@@ -3,6 +3,7 @@ package me.rerere.rikkahub.shizuku
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.local.BoundedOutputStream
 import java.io.IOException
 import java.util.concurrent.TimeUnit
@@ -24,10 +25,7 @@ internal object ShizukuCommandRunner {
         val process = try {
             ProcessBuilder("sh", "-c", command).start()
         } catch (e: IOException) {
-            return buildJsonObject {
-                put("error", "exec_failed")
-                put("reason", e.message ?: e::class.java.simpleName)
-            }
+            return ToolErrors.envelopeFor(error = "exec_failed", message = "Command execution failed", extra = ToolErrors.extraOf("reason" to (e.message ?: e::class.java.simpleName)))
         }
 
         // Give stdin an immediate EOF: a command that reads it (`cat` with no file, a prompt)
@@ -50,17 +48,7 @@ internal object ShizukuCommandRunner {
             process.destroyForcibly()
             stdoutThread.join(1_000)
             stderrThread.join(1_000)
-            return buildJsonObject {
-                put("error", "command_timeout")
-                put(
-                    "recovery",
-                    "Command did not complete within ${timeoutMs / 1000}s. Bump timeout_ms if the " +
-                        "command genuinely needs longer. Partial output captured before the " +
-                        "timeout is included."
-                )
-                put("partial_stdout", stdoutSink.snapshot())
-                put("partial_stderr", stderrSink.snapshot())
-            }
+            return ToolErrors.envelopeFor(error = "command_timeout", message = "Command timed out", hint = "Command did not complete within ${timeoutMs / 1000}s. Bump timeout_ms if the command genuinely needs longer. Partial output captured before the timeout is included.", extra = ToolErrors.extraOf("partial_stdout" to stdoutSink.snapshot(), "partial_stderr" to stderrSink.snapshot()))
         }
 
         stdoutThread.join(2_000)

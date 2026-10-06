@@ -11,6 +11,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
 
@@ -55,9 +56,7 @@ fun tapTool(
         if (x == null || y == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "x and y are required and must be non-negative numbers")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "x and y are required and must be non-negative numbers").toString()
                 )
             )
         }
@@ -121,9 +120,7 @@ fun longPressTool(
         if (x == null || y == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "x and y are required and must be non-negative numbers")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "x and y are required and must be non-negative numbers").toString()
                 )
             )
         }
@@ -132,9 +129,7 @@ fun longPressTool(
         if (durationRaw < 100L || durationRaw > 5000L) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "duration_ms must be between 100 and 5000")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "duration_ms must be between 100 and 5000", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }

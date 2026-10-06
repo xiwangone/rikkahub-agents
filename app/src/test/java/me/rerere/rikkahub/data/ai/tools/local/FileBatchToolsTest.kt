@@ -103,13 +103,13 @@ class FileBatchToolsTest {
     @Test fun `batch_copy rejects a system dst_dir`() {
         assumePosix()
         val res = invoke(batchCopyTool(), """{"paths":["/x"],"dst_dir":"/system/out"}""")
-        assertEquals("bad_request", res["error"]?.jsonPrimitive?.content)
+        assertEquals("bad_request", res["data"]!!.jsonObject["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `batch_copy requires paths or root+pattern`() {
         val dst = tmp.newFolder("out4")
         val res = invoke(batchCopyTool(), """{"dst_dir":"${jp(dst.absolutePath)}"}""")
-        assertEquals("bad_request", res["error"]?.jsonPrimitive?.content)
+        assertEquals("bad_request", res["data"]!!.jsonObject["error"]?.jsonPrimitive?.content)
     }
 
     // ---------- batch_move ----------

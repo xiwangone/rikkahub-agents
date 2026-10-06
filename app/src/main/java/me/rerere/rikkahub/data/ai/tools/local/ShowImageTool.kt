@@ -12,6 +12,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import java.io.File
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /**
  * `show_image` — display an image file inline in the chat (in-app or Telegram).
@@ -61,7 +62,7 @@ fun showImageTool(
         val rawPath = input.jsonObject["path"]?.jsonPrimitive?.contentOrNull
         if (rawPath.isNullOrBlank()) {
             return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "missing_path"); put("detail", "path is required") }.toString()
+                ToolErrors.envelopeFor(error = "missing_path", message = "path is required").toString()
             ))
         }
         val path = AgentWorkspace.expand(rawPath)

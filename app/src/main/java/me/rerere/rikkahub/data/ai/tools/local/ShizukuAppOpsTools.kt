@@ -9,6 +9,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.shizuku.ShizukuManager
 
 /**
@@ -72,7 +73,7 @@ fun appForceStopTool(context: Context): Tool = Tool(
     execute = { input ->
         val pkg = input.jsonObject["package"]?.jsonPrimitive?.contentOrNull
         if (!validPackage(pkg)) {
-            return@Tool toolResult(buildJsonObject { put("error", "invalid_package") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
         shizukuExec(context, "am force-stop $pkg")
     },
@@ -98,7 +99,7 @@ fun appDisableTool(context: Context): Tool = Tool(
     execute = { input ->
         val pkg = input.jsonObject["package"]?.jsonPrimitive?.contentOrNull
         if (!validPackage(pkg)) {
-            return@Tool toolResult(buildJsonObject { put("error", "invalid_package") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
         shizukuExec(context, "pm disable-user --user 0 $pkg")
     },
@@ -122,7 +123,7 @@ fun appEnableTool(context: Context): Tool = Tool(
     execute = { input ->
         val pkg = input.jsonObject["package"]?.jsonPrimitive?.contentOrNull
         if (!validPackage(pkg)) {
-            return@Tool toolResult(buildJsonObject { put("error", "invalid_package") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
         shizukuExec(context, "pm enable $pkg")
     },
@@ -148,7 +149,7 @@ fun appUninstallTool(context: Context): Tool = Tool(
     execute = { input ->
         val pkg = input.jsonObject["package"]?.jsonPrimitive?.contentOrNull
         if (!validPackage(pkg)) {
-            return@Tool toolResult(buildJsonObject { put("error", "invalid_package") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
         shizukuExec(context, "pm uninstall --user 0 $pkg")
     },
@@ -174,7 +175,7 @@ fun appOpsGetTool(context: Context): Tool = Tool(
     execute = { input ->
         val pkg = input.jsonObject["package"]?.jsonPrimitive?.contentOrNull
         if (!validPackage(pkg)) {
-            return@Tool toolResult(buildJsonObject { put("error", "invalid_package") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
         shizukuExec(context, "appops get $pkg")
     },
@@ -210,13 +211,13 @@ fun appOpsSetTool(context: Context): Tool = Tool(
         val op = input.jsonObject["op"]?.jsonPrimitive?.contentOrNull?.uppercase()
         val mode = input.jsonObject["mode"]?.jsonPrimitive?.contentOrNull?.lowercase()
         if (!validPackage(pkg)) {
-            return@Tool toolResult(buildJsonObject { put("error", "invalid_package") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
         if (op == null || op !in APPOPS_WHITELIST) {
-            return@Tool toolResult(buildJsonObject { put("error", "op_not_whitelisted"); put("op", op ?: "") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "op_not_whitelisted", message = "op_not_whitelisted", extra = ToolErrors.extraOf("op" to (op ?: "")).toString()))
         }
         if (mode == null || mode !in APPOPS_MODE_WHITELIST) {
-            return@Tool toolResult(buildJsonObject { put("error", "invalid_mode") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_mode", message = "invalid_mode").toString())
         }
         shizukuExec(context, "appops set $pkg $op $mode")
     },
@@ -271,10 +272,10 @@ fun settingsGetTool(context: Context): Tool = Tool(
         val ns = input.jsonObject["namespace"]?.jsonPrimitive?.contentOrNull?.lowercase()
         val key = input.jsonObject["key"]?.jsonPrimitive?.contentOrNull
         if (ns == null || ns !in SETTINGS_NS_WHITELIST) {
-            return@Tool toolResult(buildJsonObject { put("error", "invalid_namespace") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_namespace", message = "invalid_namespace").toString())
         }
         if (key == null || key !in SETTINGS_KEY_WHITELIST) {
-            return@Tool toolResult(buildJsonObject { put("error", "key_not_whitelisted") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "key_not_whitelisted", message = "key_not_whitelisted").toString())
         }
         shizukuExec(context, "settings get $ns $key")
     },
@@ -308,17 +309,17 @@ fun settingsPutTool(context: Context): Tool = Tool(
         val key = input.jsonObject["key"]?.jsonPrimitive?.contentOrNull
         val value = input.jsonObject["value"]?.jsonPrimitive?.contentOrNull
         if (ns == null || ns !in SETTINGS_NS_WHITELIST) {
-            return@Tool toolResult(buildJsonObject { put("error", "invalid_namespace") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_namespace", message = "invalid_namespace").toString())
         }
         if (key == null || key !in SETTINGS_KEY_WHITELIST) {
-            return@Tool toolResult(buildJsonObject { put("error", "key_not_whitelisted") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "key_not_whitelisted", message = "key_not_whitelisted").toString())
         }
         if (value == null || value.isBlank()) {
-            return@Tool toolResult(buildJsonObject { put("error", "invalid_value") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_value", message = "invalid_value").toString())
         }
         // value 也过一道注入校验：只允许字母数字/点/下划线/冒号/等号/横杠/空格（settings 值形态）
         if (!Regex("^[a-zA-Z0-9._:=\\-\\s]{1,64}$").matches(value)) {
-            return@Tool toolResult(buildJsonObject { put("error", "invalid_value") }.toString())
+            return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_value", message = "invalid_value").toString())
         }
         shizukuExec(context, "settings put $ns $key $value")
     },

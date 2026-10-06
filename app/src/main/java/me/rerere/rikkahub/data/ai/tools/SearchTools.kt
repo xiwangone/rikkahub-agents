@@ -25,32 +25,16 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                 description = """
                     Search the web for up-to-date or specific information.
                     Use this when the user asks for the latest news, current facts, or needs verification.
-                    Do not treat result order as proof of freshness. Prefer primary sources and inspect
-                    each result's title, URL, publication date, and content before making a current claim.
+                    Prefer primary sources and inspect each result's title, URL, publication date, and content.
                     Use the optional publication-date and domain filters only when they match the question.
-                    If a date or primary source is missing, or sources conflict, run another focused search
-                    or use scrape_web to verify the most relevant source before answering.
-                    Generate focused keywords and run multiple searches if needed.
+                    If sources conflict or data is missing, run another focused search
+                    or use scrape_web to verify before answering.
                     Today is ${LocalDate.now().toLocalString(true)}.
 
                     Response format:
                     - retrievedAt is the local retrieval time, never a publication date
                     - items[].id (short id), index, title, url, publishedDate (if supplied), highlights (if supplied), text
                     - images[]: image urls related to the query (may be empty)
-
-                    Citations:
-                    - After using results, add `[citation,domain](id)` after the sentence.
-                    - Multiple citations are allowed.
-                    - If no results are cited, omit citations.
-
-                    Images:
-                    - When images help the user understand the answer, embed relevant ones using Markdown: `![](url)`.
-                    - Embed 2 to 4 images, and only use urls from `images[]` (never fabricate or alter urls).
-                    - Usually place the images at the very beginning of your reply; skip them entirely if none are relevant.
-
-                    Example:
-                    The capital of France is Paris. [citation,example.com](abc123)
-                    The population is about 2.1 million. [citation,example.com](abc123) [citation,example2.com](def456)
                     """.trimIndent(),
                 parameters = {
                     val options = settings.searchServices.getOrElse(

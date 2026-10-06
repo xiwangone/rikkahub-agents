@@ -65,9 +65,10 @@ internal suspend fun evaluateJavascript(
         if (entry.length > remaining) logsTruncated = true
     }
 
-    fun errorPayload(message: String) = buildJsonObject {
-        put("error", message)
-    }.toString()
+    fun errorPayload(message: String) = me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+        error = me.rerere.rikkahub.data.ai.tools.ToolErrors.classifyMessage(message),
+        message = message,
+    ).toString()
 
     try {
         withTimeoutOrNull(timeoutMillis.milliseconds) {

@@ -11,6 +11,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
 private val STREAM_MAP: Map<String, Int> = mapOf(
@@ -47,14 +48,14 @@ fun getVolumeTool(context: Context): Tool = Tool(
         if (streamInt == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "unknown stream: $name") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "unknown stream: $name", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }
         val am = context.getSystemService(AudioManager::class.java)
             ?: return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "AudioManager unavailable") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "AudioManager unavailable", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         val volume = am.getStreamVolume(streamInt)
@@ -106,23 +107,21 @@ fun setVolumeTool(
         if (streamInt == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "unknown stream: $name") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "unknown stream: $name", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }
         if ((name == "ring" || name == "notification") && !PermissionHelper.hasDndAccess(context)) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "DND access not granted; cannot modify ring/notification volume")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "DND access not granted; cannot modify ring/notification volume", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }
         val am = context.getSystemService(AudioManager::class.java)
             ?: return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "AudioManager unavailable") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "AudioManager unavailable", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         val percent = percentRaw.coerceIn(0, 100)
@@ -136,9 +135,7 @@ fun setVolumeTool(
                 put("percent", percent)
             }
         } catch (_: SecurityException) {
-            buildJsonObject {
-                put("error", "DND access not granted; cannot modify ring/notification volume")
-            }
+            ToolErrors.envelopeFor(error = "invalid_argument", message = "DND access not granted; cannot modify ring/notification volume", hint = "Check the parameter values and retry with corrected arguments.")
         }
         streamer.streamIfHeadless(invocationContext, "SetVolume $name $percent%")
         listOf(UIMessagePart.Text(payload.toString()))

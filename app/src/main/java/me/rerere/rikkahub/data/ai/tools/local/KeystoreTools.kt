@@ -39,7 +39,14 @@ private val ALIAS_REGEX = Regex("^[a-zA-Z0-9_-]{1,64}$")
 private const val GCM_TAG_BITS = 128
 
 private fun ksErr(msg: String) =
-    listOf(UIMessagePart.Text(buildJsonObject { put("error", msg) }.toString()))
+    listOf(
+        UIMessagePart.Text(
+            me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                error = me.rerere.rikkahub.data.ai.tools.ToolErrors.classifyMessage(msg),
+                message = msg,
+            ).toString()
+        )
+    )
 
 private fun b64encode(bytes: ByteArray): String = Base64.getEncoder().encodeToString(bytes)
 private fun b64decode(s: String): ByteArray = Base64.getDecoder().decode(s)

@@ -527,10 +527,9 @@ private fun errorResponse(
 ): List<UIMessagePart> =
     listOf(
         UIMessagePart.Text(
-            buildJsonObject {
-                put("ok", false)
-                put("error", code)
-                put("detail", detail)
-            }.toString(),
+            me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                error = code,
+                message = detail,
+            ).toString(),
         ),
     )

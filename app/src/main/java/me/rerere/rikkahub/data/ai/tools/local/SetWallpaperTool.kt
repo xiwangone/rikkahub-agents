@@ -27,7 +27,14 @@ internal fun validateWallpaperArgs(fileUri: String?, target: String): String? = 
 }
 
 private fun wallpaperErr(msg: String) =
-    listOf(UIMessagePart.Text(buildJsonObject { put("error", msg) }.toString()))
+    listOf(
+        UIMessagePart.Text(
+            me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                error = me.rerere.rikkahub.data.ai.tools.ToolErrors.classifyMessage(msg),
+                message = msg,
+            ).toString()
+        )
+    )
 
 /**
  * `set_wallpaper` — set the home and/or lock screen wallpaper from a local image file.

@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools
 
 import java.io.File
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -8,6 +9,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.files.SkillFrontmatterParser
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.files.SkillMetadata
@@ -139,19 +141,18 @@ fun createSkillTools(
                 // on its next call.
                 fun err(code: String, detail: String): List<UIMessagePart> = listOf(
                     UIMessagePart.Text(
-                        buildJsonObject {
-                            put("error", code)
-                            put("detail", detail)
-                            put("recovery", "Re-call use_skill with one of the listed skill names in `name`.")
-                            put(
-                                "available_skills",
-                                kotlinx.serialization.json.buildJsonArray {
+                        me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                            error = code,
+                            message = detail,
+                            hint = "Re-call use_skill with one of the listed skill names in `name`.",
+                            extra = mapOf(
+                                "available_skills" to kotlinx.serialization.json.buildJsonArray {
                                     enabledSkills.forEach {
                                         add(kotlinx.serialization.json.JsonPrimitive(it))
                                     }
                                 },
-                            )
-                        }.toString()
+                            ),
+                        ).toString()
                     )
                 )
                 // Refuse oversized skill files before reading them whole. SkillManager
@@ -160,11 +161,14 @@ fun createSkillTools(
                 // failed/empty read.
                 fun tooLargeErr(file: java.io.File): List<UIMessagePart> = listOf(
                     UIMessagePart.Text(
-                        buildJsonObject {
-                            put("error", "skill_file_too_large")
-                            put("max_bytes", SkillManager.MAX_SKILL_FILE_BYTES)
-                            put("size_bytes", file.length())
-                        }.toString()
+                        ToolErrors.envelopeFor(
+                            error = "skill_file_too_large",
+                            message = "Skill file exceeds the size limit.",
+                            extra = mapOf(
+                                "max_bytes" to JsonPrimitive(SkillManager.MAX_SKILL_FILE_BYTES),
+                                "size_bytes" to JsonPrimitive(file.length()),
+                            ),
+                        ).toString()
                     )
                 )
                 val name = it.jsonObject["name"]?.jsonPrimitive?.content

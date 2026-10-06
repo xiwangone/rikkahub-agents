@@ -12,6 +12,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 fun mediaScannerTool(context: Context): Tool = Tool(
     name = "scan_media",
@@ -44,7 +45,7 @@ fun mediaScannerTool(context: Context): Tool = Tool(
         if (paths.isEmpty()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "paths must not be empty") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "paths must not be empty", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }

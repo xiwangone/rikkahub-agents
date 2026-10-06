@@ -15,6 +15,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
 
@@ -96,10 +97,7 @@ fun readWindowTreeTool(
                         timestampMs = System.currentTimeMillis(),
                     )
                 )
-                return@withService buildJsonObject {
-                    put("error", "no_active_window")
-                    put("nodes", buildJsonArray { })
-                }
+                return@withService ToolErrors.envelopeFor(error = "no_active_window", message = "no_active_window", extra = ToolErrors.extraOf("nodes" to buildJsonArray { }))
             }
             val pkg = root.packageName?.toString().orEmpty()
             if (pkgFilter != null && pkgFilter != pkg) {
@@ -111,11 +109,7 @@ fun readWindowTreeTool(
                         timestampMs = System.currentTimeMillis(),
                     )
                 )
-                return@withService buildJsonObject {
-                    put("error", "wrong_foreground_app")
-                    put("current", pkg)
-                    put("nodes", buildJsonArray { })
-                }
+                return@withService ToolErrors.envelopeFor(error = "wrong_foreground_app", message = "wrong_foreground_app", extra = ToolErrors.extraOf("current" to pkg, "nodes" to buildJsonArray { }))
             }
             val nodes = mutableListOf<JsonObject>()
             val (emitted, seen, truncated) = svc.traverseTree(

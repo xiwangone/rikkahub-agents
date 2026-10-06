@@ -14,6 +14,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
 private const val CHANNEL_ID = "rikkahub_ai_tool"
@@ -72,7 +73,7 @@ fun notificationTool(
         if (!manager.areNotificationsEnabled()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "notification permission not granted") }.toString()
+                    ToolErrors.envelopeFor(error = "permission_denied", message = "notification permission not granted", hint = "Grant the required permission or choose a different target.").toString()
                 )
             )
         }
@@ -94,7 +95,7 @@ fun notificationTool(
                 put("id", id)
             }
         } catch (_: SecurityException) {
-            buildJsonObject { put("error", "notification permission not granted") }
+            ToolErrors.envelopeFor(error = "permission_denied", message = "notification permission not granted", hint = "Grant the required permission or choose a different target.")
         }
         streamer.streamIfHeadless(invocationContext, "PostNotification: ${title.take(50)}")
         listOf(UIMessagePart.Text(payload.toString()))

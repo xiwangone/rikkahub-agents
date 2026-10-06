@@ -10,6 +10,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
 fun shareTool(
@@ -50,7 +51,7 @@ fun shareTool(
         if (text == null && url == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "provide at least one of text or url") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "provide at least one of text or url", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }

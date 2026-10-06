@@ -25,34 +25,26 @@ class InvalidToolArgsEnvelopeTest {
 
     private val json = Json { ignoreUnknownKeys = true }
 
-    /** Mirrors the envelope structure built at GenerationHandler.kt for parsedArgs.isFailure. */
+    /** Mirrors the envelope built at GenerationLoop.kt for invalid tool args (JSON-RPC shape). */
     private fun buildInvalidToolArgsEnvelope(cause: Throwable): String {
         return json.encodeToString(
-            kotlinx.serialization.json.buildJsonObject {
-                put("error", kotlinx.serialization.json.JsonPrimitive("invalid_tool_args"))
-                put(
-                    "detail",
-                    kotlinx.serialization.json.JsonPrimitive(
-                        (cause.message ?: cause.javaClass.simpleName).take(200)
-                    ),
-                )
-                put(
-                    "recovery",
-                    kotlinx.serialization.json.JsonPrimitive(
-                        "Tool args JSON failed to parse — most often the provider's " +
-                            "stream was cut off mid-string by max_tokens or a network drop. " +
-                            "Retry with a shorter call. For long payloads (e.g. a 4000-char " +
-                            "message), split into multiple smaller tool calls or shrink the " +
-                            "content."
-                    ),
-                )
-                put(
-                    "exception",
-                    kotlinx.serialization.json.JsonPrimitive(cause.javaClass.simpleName),
-                )
-            }
+            me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                error = "invalid_tool_args",
+                message = (cause.message ?: cause.javaClass.simpleName).take(200),
+                hint = "Tool args JSON failed to parse — most often the provider's " +
+                    "stream was cut off mid-string by max_tokens or a network drop. " +
+                    "Retry with a shorter call. For long payloads (e.g. a 4000-char " +
+                    "message), split into multiple smaller tool calls or shrink the " +
+                    "content.",
+                extra = mapOf(
+                    "exception" to kotlinx.serialization.json.JsonPrimitive(cause.javaClass.simpleName),
+                ),
+            )
         )
     }
+
+    private fun dataOf(out: String) =
+        json.parseToJsonElement(out).jsonObject["data"]!!.jsonObject
 
     @Test fun `envelope caps detail at 200 chars even when message is huge`() {
         // 9000-char message simulates kotlinx's "Unexpected JSON token at offset 8878 ...
@@ -62,9 +54,10 @@ class InvalidToolArgsEnvelopeTest {
 
         val out = buildInvalidToolArgsEnvelope(cause)
         val obj = json.parseToJsonElement(out).jsonObject
+        val data = dataOf(out)
 
-        assertEquals("invalid_tool_args", obj["error"]?.jsonPrimitive?.content)
-        val detail = obj["detail"]?.jsonPrimitive?.content
+        assertEquals("invalid_tool_args", data["error"]?.jsonPrimitive?.content)
+        val detail = obj["message"]?.jsonPrimitive?.content
         assertNotNull(detail)
         assertEquals("detail must be capped at 200 chars", 200, detail!!.length)
         assertTrue("detail must be the prefix of the message", giant.startsWith(detail))
@@ -74,9 +67,10 @@ class InvalidToolArgsEnvelopeTest {
         val cause = object : RuntimeException() {} // message = null
         val out = buildInvalidToolArgsEnvelope(cause)
         val obj = json.parseToJsonElement(out).jsonObject
+        val data = dataOf(out)
 
-        assertEquals("invalid_tool_args", obj["error"]?.jsonPrimitive?.content)
-        val detail = obj["detail"]?.jsonPrimitive?.content
+        assertEquals("invalid_tool_args", data["error"]?.jsonPrimitive?.content)
+        val detail = obj["message"]?.jsonPrimitive?.content
         assertNotNull(detail)
         // Inner anonymous class has a synthetic simpleName (often empty) — accept either
         // an empty string or any non-null value, just don't crash.
@@ -88,7 +82,7 @@ class InvalidToolArgsEnvelopeTest {
         val out = buildInvalidToolArgsEnvelope(cause)
         val obj = json.parseToJsonElement(out).jsonObject
 
-        val recovery = obj["recovery"]?.jsonPrimitive?.content
+        val recovery = dataOf(out)["hint"]?.jsonPrimitive?.content
         assertNotNull(recovery)
         assertTrue(
             "recovery must instruct the model to retry with smaller payload",
@@ -103,6 +97,6 @@ class InvalidToolArgsEnvelopeTest {
         val out = buildInvalidToolArgsEnvelope(cause)
         val obj = json.parseToJsonElement(out).jsonObject
 
-        assertEquals("SerializationException", obj["exception"]?.jsonPrimitive?.content)
+        assertEquals("SerializationException", dataOf(out)["exception"]?.jsonPrimitive?.content)
     }
 }

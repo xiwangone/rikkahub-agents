@@ -13,6 +13,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.ui.UIMessagePart
 import java.util.Base64 as JBase64
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /**
  * Phase 25 — content:// branches for the file-manager tools. Routed in from
@@ -40,10 +41,7 @@ internal fun listFilesContent(context: Context, raw: String, obj: JsonObject): L
     guardOrNull(raw)?.let { return it }
     // MediaStore URIs aren't tree-listable.
     if (raw.startsWith("content://media/")) {
-        return fmTextPart(buildJsonObject {
-            put("error", "listing_not_supported")
-            put("detail", "MediaStore URIs are read-only via openInputStream; use a granted Pictures/DCIM tree to list")
-        }.toString())
+        return fmTextPart(ToolErrors.envelopeFor(error = "listing_not_supported", message = "MediaStore URIs are read-only via openInputStream; use a granted Pictures/DCIM tree to list").toString())
     }
     val doc = ContentUriResolver.resolve(context, raw)
         ?: return fmTextPart(ContentUriResolver.notGrantedEnvelope(raw))

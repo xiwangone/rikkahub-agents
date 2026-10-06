@@ -46,6 +46,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.ui.components.message.tools.DefaultToolPreview
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRegistry
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
@@ -105,6 +106,9 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     }
 
     val renderer = remember(tool.toolName) { ToolUIRegistry.resolve(tool.toolName) }
+    // 输出不是 JSON（例如超长被截断后只剩文本预览）时，定制渲染器读不到任何字段，
+    // 详情改用默认渲染展示原文
+    val outputUnparsable = remember(tool) { tool.isExecuted && parseToolOutputContent(tool) == null }
     val context =
         remember(tool, loading) {
             ToolUIContext(
@@ -174,19 +178,25 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                     // recomposition for a different tool doesn't carry the flag.
                     var inFlight by remember(tool.toolCallId) { mutableStateOf(false) }
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        // schedule_job is the one approval that AUTHORISES future autonomous
+                        // schedule_job family is the one approval that AUTHORISES future autonomous
                         // execution, not just one tool. Surface the consequence here so the
                         // user knows what they're approving — every tool the cron prompt
                         // invokes will run without prompts. (HARDLINE blocks still apply.)
-                        if (tool.toolName == "schedule_job") {
+                        if (tool.toolName in setOf("schedule_job", "schedule_job_direct", "schedule_job_llm")) {
                             Text(
                                 text = stringResource(R.string.chat_message_tool_schedule_job_warning),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
                             // Surface mode-specific detail so the user sees WHAT will run.
+                            // Split tools fix the mode in the name; legacy schedule_job carries it in input.
                             val jobInput = tool.inputAsJson()
                             val mode = jobInput.getStringContent("mode")
+                                ?: when (tool.toolName) {
+                                    "schedule_job_direct" -> "direct"
+                                    "schedule_job_llm" -> "llm"
+                                    else -> null
+                                }
                             if (mode == "direct") {
                                 val actions =
                                     runCatching {
@@ -378,10 +388,14 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                 ),
             onDismissRequest = { showResult = false },
             content = {
-                renderer.Preview(
-                    context = context,
-                    onDismissRequest = { showResult = false },
-                )
+                if (outputUnparsable) {
+                    DefaultToolPreview(context = context)
+                } else {
+                    renderer.Preview(
+                        context = context,
+                        onDismissRequest = { showResult = false },
+                    )
+                }
             },
         )
     }

@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
-import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import android.content.Context
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
@@ -13,6 +12,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import java.io.File
@@ -149,11 +149,7 @@ fun transcribeAudioFileTool(context: Context): Tool = Tool(
                 if (out.startsWith("FOUND:")) {
                     out.removePrefix("FOUND:").trim()
                 } else {
-                    return@Tool listOf(UIMessagePart.Text(buildJsonObject {
-                        put("error", "whisper_not_installed")
-                        put("detail", "whisper.cpp's whisper-cli (or 'main') was not found in PATH or in any known build location. Checked: ${WHISPER_CLI_CANDIDATES.joinToString(", ")}")
-                        put("recovery", "STOP. Do NOT call termux_run_command, search_web, or any apt/pkg command from this turn. Call `whisper_status()` first — it returns the structured `install_commands` you need plus the user-facing missing_steps list. Then ask the user 'May I install whisper.cpp? It will take ~5 minutes and download ~75 MB' and wait for explicit confirmation BEFORE running anything. Never silently install.")
-                    }.toString()))
+                    return@Tool listOf(UIMessagePart.Text(ToolErrors.envelopeFor(error = "whisper_not_installed", message = "whisper.cpp's whisper-cli (or 'main') was not found in PATH or in any known build location. Checked: ${WHISPER_CLI_CANDIDATES.joinToString(", ")}", hint = "STOP. Do NOT call termux_run_command, search_web, or any apt/pkg command from this turn. Call `whisper_status()` first — it returns the structured `install_commands` you need plus the user-facing missing_steps list. Then ask the user 'May I install whisper.cpp? It will take ~5 minutes and download ~75 MB' and wait for explicit confirmation BEFORE running anything. Never silently install.").toString()))
                 }
             }
             is CaptureResult.Timeout ->
@@ -171,11 +167,7 @@ fun transcribeAudioFileTool(context: Context): Tool = Tool(
         val modelPath = findWhisperModelViaShell(context)
         if (modelPath == null) {
             val searchedPaths = WHISPER_MODEL_SEARCH_PATHS.joinToString(", ")
-            return@Tool listOf(UIMessagePart.Text(buildJsonObject {
-                put("error", "whisper_model_missing")
-                put("detail", "No whisper model (.bin) found in: $searchedPaths")
-                put("recovery", "STOP. Call `whisper_status()` first to confirm what's missing — it returns the exact download command in `install_commands.download_tiny_model`. Then ask the user 'May I download the ~75 MB tiny model?' BEFORE running anything. Do not retry transcribe_audio_file with the same path; you'll just get this same error again.")
-            }.toString()))
+            return@Tool listOf(UIMessagePart.Text(ToolErrors.envelopeFor(error = "whisper_model_missing", message = "No whisper model (.bin) found in: $searchedPaths", hint = "STOP. Call `whisper_status()` first to confirm what's missing — it returns the exact download command in `install_commands.download_tiny_model`. Then ask the user 'May I download the ~75 MB tiny model?' BEFORE running anything. Do not retry transcribe_audio_file with the same path; you'll just get this same error again.").toString()))
         }
 
         // --- 7. Pre-convert audio to 16 kHz mono WAV via ffmpeg, then run whisper-cli ---
@@ -204,11 +196,7 @@ fun transcribeAudioFileTool(context: Context): Tool = Tool(
         val ffmpegPresent = ffmpegCheck is CaptureResult.Success &&
             ffmpegCheck.stdout.trim() == "OK"
         if (!ffmpegPresent) {
-            return@Tool listOf(UIMessagePart.Text(buildJsonObject {
-                put("error", "ffmpeg_missing")
-                put("detail", "ffmpeg is required to convert audio (OGG/Opus from Telegram, MP3, M4A, etc.) into the 16 kHz mono WAV that whisper-cli expects. Without ffmpeg, transcription returns empty output silently.")
-                put("recovery", "STOP. Tell the user 'ffmpeg is needed for audio conversion (~30 MB download). May I install it?' and wait for explicit confirmation. Then run: pkg install -y ffmpeg. Do NOT run apt or any install command before the user says yes.")
-            }.toString()))
+            return@Tool listOf(UIMessagePart.Text(ToolErrors.envelopeFor(error = "ffmpeg_missing", message = "ffmpeg is required to convert audio (OGG/Opus from Telegram, MP3, M4A, etc.) into the 16 kHz mono WAV that whisper-cli expects. Without ffmpeg, transcription returns empty output silently.", hint = "STOP. Tell the user 'ffmpeg is needed for audio conversion (~30 MB download). May I install it?' and wait for explicit confirmation. Then run: pkg install -y ffmpeg. Do NOT run apt or any install command before the user says yes.").toString()))
         }
 
         // Convert input → 16 kHz mono signed-16 WAV. -y overwrites if a stale file exists.

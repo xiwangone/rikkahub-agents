@@ -12,6 +12,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 fun torchTool(context: Context): Tool = Tool(
     name = "set_torch",
@@ -34,14 +35,14 @@ fun torchTool(context: Context): Tool = Tool(
         val cm = context.getSystemService(CameraManager::class.java)
             ?: return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "camera service unavailable") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "camera service unavailable", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         val flashId = cm.cameraIdList.firstOrNull { id ->
             cm.getCameraCharacteristics(id).get(CameraCharacteristics.FLASH_INFO_AVAILABLE) == true
         } ?: return@Tool listOf(
             UIMessagePart.Text(
-                buildJsonObject { put("error", "no flash unit available") }.toString()
+                ToolErrors.envelopeFor(error = "invalid_argument", message = "no flash unit available", hint = "Check the parameter values and retry with corrected arguments.").toString()
             )
         )
         val payload = try {
@@ -51,9 +52,7 @@ fun torchTool(context: Context): Tool = Tool(
                 put("on", on)
             }
         } catch (e: CameraAccessException) {
-            buildJsonObject {
-                put("error", "torch unavailable: ${e.message ?: "camera access error"}")
-            }
+            ToolErrors.envelopeFor(error = "invalid_argument", message = "torch unavailable: ${e.message ?: "camera access error"}", hint = "Check the parameter values and retry with corrected arguments.")
         }
         listOf(UIMessagePart.Text(payload.toString()))
     }

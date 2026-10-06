@@ -10,6 +10,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.MediaPlaybackService
 import java.io.IOException
@@ -69,13 +70,13 @@ fun playMediaTool(
                 put("session_active", true)
             }
         } catch (e: IOException) {
-            buildJsonObject { put("error", e.message ?: "io error") }
+            ToolErrors.envelopeFor(error = "io_error", message = e.message ?: "I/O error")
         } catch (e: IllegalStateException) {
-            buildJsonObject { put("error", e.message ?: "illegal state") }
+            ToolErrors.envelopeFor(error = "invalid_state", message = e.message ?: "Invalid state")
         } catch (e: IllegalArgumentException) {
-            buildJsonObject { put("error", e.message ?: "invalid argument") }
+            ToolErrors.envelopeFor(error = "invalid_argument", message = e.message ?: "Invalid argument")
         } catch (e: SecurityException) {
-            buildJsonObject { put("error", e.message ?: "security error") }
+            ToolErrors.envelopeFor(error = "permission_denied", message = e.message ?: "Permission denied")
         }
         streamer.streamIfHeadless(invocationContext, "PlayMedia: ${source.take(60)}")
         listOf(UIMessagePart.Text(payload.toString()))
@@ -199,10 +200,7 @@ fun seekMediaTool(context: Context): Tool = Tool(
             ?: error("position_ms is required")
         val svc = MediaPlaybackService.instance
         if (svc == null) {
-            val payload = buildJsonObject {
-                put("success", false)
-                put("error", "no_session")
-            }
+            val payload = ToolErrors.envelopeFor(error = "no_session", message = "no_session", extra = ToolErrors.extraOf("success" to false))
             listOf(UIMessagePart.Text(payload.toString()))
         } else {
             val intent = android.content.Intent(context, MediaPlaybackService::class.java).apply {

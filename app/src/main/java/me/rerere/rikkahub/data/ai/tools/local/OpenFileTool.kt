@@ -12,6 +12,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import java.io.File
 
@@ -57,7 +58,7 @@ fun openFileTool(
         val rawPath = params["path"]?.jsonPrimitive?.contentOrNull
         if (rawPath.isNullOrBlank()) {
             return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "missing_path"); put("detail", "path is required") }.toString()
+                ToolErrors.envelopeFor(error = "missing_path", message = "path is required").toString()
             ))
         }
         val mimeOverrideEarly = params["mime_type"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }

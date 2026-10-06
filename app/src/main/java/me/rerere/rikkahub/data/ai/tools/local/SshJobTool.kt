@@ -10,6 +10,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 
@@ -51,12 +52,15 @@ fun sshJobPollTool(
         val procHint = p["process_hint"]?.jsonPrimitive?.contentOrNull
         val h = repo.getByName(name)
             ?: return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "no saved host: $name") }.toString()
+                ToolErrors.envelopeFor(error = "invalid_argument", message = "no saved host: $name", hint = "Check the parameter values and retry with corrected arguments.").toString()
             ))
         val auth = when (val r = resolveHostAuthDetailed(h, vaultRepository)) {
             is HostAuthResolution.Ready -> r.auth
             is HostAuthResolution.Unusable -> return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", r.reason) }.toString()
+                ToolErrors.envelopeFor(
+                    error = ToolErrors.classifyMessage(r.reason),
+                    message = r.reason,
+                ).toString()
             ))
         }
         val isWindows = (logPath?.startsWith("C:") == true) ||

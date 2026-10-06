@@ -14,6 +14,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.notifications.NotificationEntry
 import me.rerere.rikkahub.data.notifications.NotificationListenerPreferences
 import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
@@ -150,7 +151,7 @@ fun dismissNotificationTool(): Tool = Tool(
         if (key.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "notification_key is required") }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "notification_key is required").toString()
                 )
             )
         }
@@ -198,16 +199,14 @@ fun notificationActionClickTool(): Tool = Tool(
         if (key.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "notification_key is required") }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "notification_key is required").toString()
                 )
             )
         }
         if (idx == null && title.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "either action_index or action_title is required")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "either action_index or action_title is required").toString()
                 )
             )
         }
@@ -217,21 +216,10 @@ fun notificationActionClickTool(): Tool = Tool(
                     put("success", true)
                     put("action_used", res.actionTitle)
                 }
-                RikkaNotificationListenerService.TriggerResult.NotFound -> buildJsonObject {
-                    put("error", "not_found")
-                }
-                RikkaNotificationListenerService.TriggerResult.NoAction -> buildJsonObject {
-                    put("error", "no_action")
-                }
-                is RikkaNotificationListenerService.TriggerResult.RequiresInput -> buildJsonObject {
-                    put("error", "requires_input")
-                    put("action_title", res.actionTitle)
-                    put("recovery", "This action takes user input (e.g. typing a reply). If the app launcher and screen automation tools are enabled, open the app with launch_app and drive the input UI with set_text + click_node; otherwise tell the user this notification needs manual input.")
-                }
-                is RikkaNotificationListenerService.TriggerResult.SendFailed -> buildJsonObject {
-                    put("error", "send_failed")
-                    put("reason", res.reason)
-                }
+                RikkaNotificationListenerService.TriggerResult.NotFound -> ToolErrors.envelopeFor(error = "not_found", message = "Not found", hint = "Verify the name or id and retry.")
+                RikkaNotificationListenerService.TriggerResult.NoAction -> ToolErrors.envelopeFor(error = "no_action", message = "no_action")
+                is RikkaNotificationListenerService.TriggerResult.RequiresInput -> ToolErrors.envelopeFor(error = "requires_input", message = "requires_input", hint = "This action takes user input (e.g. typing a reply). If the app launcher and screen automation tools are enabled, open the app with launch_app and drive the input UI with set_text + click_node; otherwise tell the user this notification needs manual input.", extra = ToolErrors.extraOf("action_title" to res.actionTitle))
+                is RikkaNotificationListenerService.TriggerResult.SendFailed -> ToolErrors.envelopeFor(error = "send_failed", message = "send_failed", extra = ToolErrors.extraOf("reason" to res.reason))
             }
         }
         listOf(UIMessagePart.Text(payload.toString()))
@@ -266,14 +254,14 @@ fun notificationReplyTool(): Tool = Tool(
         if (key.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "notification_key is required") }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "notification_key is required").toString()
                 )
             )
         }
         if (text.isNullOrEmpty()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "text is required") }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "text is required").toString()
                 )
             )
         }
@@ -283,24 +271,10 @@ fun notificationReplyTool(): Tool = Tool(
                     put("success", true)
                     put("action_used", res.actionTitle)
                 }
-                RikkaNotificationListenerService.TriggerResult.NotFound -> buildJsonObject {
-                    put("error", "not_found")
-                    put("recovery", "The notification is no longer in the status bar. Re-list active notifications.")
-                }
-                RikkaNotificationListenerService.TriggerResult.NoAction -> buildJsonObject {
-                    put("error", "no_action")
-                    put("recovery", "This notification has no direct-reply action. If the app launcher and screen automation tools are enabled, open the app with launch_app and drive the input UI with set_text + click_node; otherwise tell the user this notification needs manual input.")
-                }
-                is RikkaNotificationListenerService.TriggerResult.RequiresInput -> buildJsonObject {
-                    // triggerReplyAction never returns RequiresInput, but the sealed class
-                    // demands exhaustiveness — treat it as a no-action fallback.
-                    put("error", "no_action")
-                    put("recovery", "If the app launcher and screen automation tools are enabled, open the app with launch_app and drive the input UI with set_text + click_node; otherwise tell the user this notification needs manual input.")
-                }
-                is RikkaNotificationListenerService.TriggerResult.SendFailed -> buildJsonObject {
-                    put("error", "send_failed")
-                    put("reason", res.reason)
-                }
+                RikkaNotificationListenerService.TriggerResult.NotFound -> ToolErrors.envelopeFor(error = "not_found", message = "Not found", hint = "The notification is no longer in the status bar. Re-list active notifications.")
+                RikkaNotificationListenerService.TriggerResult.NoAction -> ToolErrors.envelopeFor(error = "no_action", message = "no_action", hint = "This notification has no direct-reply action. If the app launcher and screen automation tools are enabled, open the app with launch_app and drive the input UI with set_text + click_node; otherwise tell the user this notification needs manual input.")
+                is RikkaNotificationListenerService.TriggerResult.RequiresInput -> ToolErrors.envelopeFor(error = "no_action", message = "no_action", hint = "If the app launcher and screen automation tools are enabled, open the app with launch_app and drive the input UI with set_text + click_node; otherwise tell the user this notification needs manual input.")
+                is RikkaNotificationListenerService.TriggerResult.SendFailed -> ToolErrors.envelopeFor(error = "send_failed", message = "send_failed", extra = ToolErrors.extraOf("reason" to res.reason))
             }
         }
         listOf(UIMessagePart.Text(payload.toString()))

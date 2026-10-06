@@ -145,11 +145,14 @@ fun runJsTool(
 )
 
 private fun err(code: String, detail: String): List<UIMessagePart> =
-    listOf(UIMessagePart.Text(buildJsonObject {
-        put("ok", false)
-        put("error", code)
-        put("detail", detail)
-    }.toString()))
+    listOf(
+        UIMessagePart.Text(
+            me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                error = code,
+                message = detail,
+            ).toString()
+        )
+    )
 
 /**
  * Resolve a webview URL emitted by a JS skill. Absolute URIs (http/https/file/data) pass

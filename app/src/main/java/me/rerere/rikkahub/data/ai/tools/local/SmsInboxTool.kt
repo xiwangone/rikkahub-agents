@@ -17,6 +17,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 private fun querySmsInbox(
     context: Context,
@@ -77,7 +78,7 @@ fun listSmsInboxTool(context: Context): Tool = Tool(
                 listOf(Manifest.permission.READ_SMS)
             )
         ) {
-            buildJsonObject { put("error", "permission READ_SMS not granted") }
+            ToolErrors.envelopeFor(error = "permission_denied", message = "permission READ_SMS not granted", hint = "Grant the required permission or choose a different target.")
         } else {
             try {
                 val selection = if (sinceMs != null) "date >= ?" else null
@@ -90,7 +91,7 @@ fun listSmsInboxTool(context: Context): Tool = Tool(
                         ?: buildJsonArray {})
                 }
             } catch (_: SecurityException) {
-                buildJsonObject { put("error", "permission READ_SMS not granted") }
+                ToolErrors.envelopeFor(error = "permission_denied", message = "permission READ_SMS not granted", hint = "Grant the required permission or choose a different target.")
             }
         }
         listOf(UIMessagePart.Text(payload.toString()))
@@ -128,7 +129,7 @@ fun searchSmsTool(context: Context): Tool = Tool(
                 listOf(Manifest.permission.READ_SMS)
             )
         ) {
-            buildJsonObject { put("error", "permission READ_SMS not granted") }
+            ToolErrors.envelopeFor(error = "permission_denied", message = "permission READ_SMS not granted", hint = "Grant the required permission or choose a different target.")
         } else {
             try {
                 val uri = Telephony.Sms.Inbox.CONTENT_URI.buildUpon()
@@ -140,7 +141,7 @@ fun searchSmsTool(context: Context): Tool = Tool(
                     )?.use { it.toSmsArray() } ?: buildJsonArray {})
                 }
             } catch (_: SecurityException) {
-                buildJsonObject { put("error", "permission READ_SMS not granted") }
+                ToolErrors.envelopeFor(error = "permission_denied", message = "permission READ_SMS not granted", hint = "Grant the required permission or choose a different target.")
             }
         }
         listOf(UIMessagePart.Text(payload.toString()))

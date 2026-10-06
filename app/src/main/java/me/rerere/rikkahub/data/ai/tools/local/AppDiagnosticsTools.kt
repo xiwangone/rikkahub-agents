@@ -27,6 +27,7 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.SurfaceTier
 import me.rerere.rikkahub.data.ai.tools.TierSource
 import me.rerere.rikkahub.data.ai.tools.ToolCapabilities
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolSurfacePolicy
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -678,10 +679,10 @@ internal suspend fun conversationsPayload(
     // 无 id = 列最近会话（抽成独立函数：[conversationsPayload] 的圈复杂度已逼近 detekt 阈值 20）
     if (idRaw.isEmpty()) return recentConversationsJson(conversationRepo, settingsStore, params)
     val uuid = runCatching { kotlin.uuid.Uuid.parse(idRaw) }.getOrElse {
-        return buildJsonObject { put("error", "invalid conversation id '$idRaw'") }.toString()
+        return ToolErrors.envelopeFor(error = "invalid_argument", message = "invalid conversation id '$idRaw'", hint = "Check the parameter values and retry with corrected arguments.").toString()
     }
     val conversation = conversationRepo.getConversationById(uuid)
-        ?: return buildJsonObject { put("error", "conversation not found: $idRaw") }.toString()
+        ?: return ToolErrors.envelopeFor(error = "not_found", message = "conversation not found: $idRaw", hint = "Verify the name or id and retry.").toString()
     // compact=true：只回**结构**（role / finishReason / 部件数 / 工具名与审批状态），不带正文。
     // 用于「某条消息在不在、那个工具是什么状态」这类核对——否则只能拉整段正文（上万 token）。
     val compact =
@@ -1387,7 +1388,7 @@ internal suspend fun generationPayload(
     val recent = runCatching { conversationRepo.getRecentConversations(assistant.id, 20) }.getOrElse { emptyList() }
     val conversation =
         (if (idRaw.isNotBlank()) recent.firstOrNull { it.id.toString() == idRaw } else recent.firstOrNull())
-            ?: return buildJsonObject { put("error", "conversation_not_found") }.toString()
+            ?: return ToolErrors.envelopeFor(error = "conversation_not_found", message = "conversation_not_found").toString()
 
     // 注意：当前这一轮往往已有一条 assistant 消息（记录工具调用），但它尚未收尾、usage 仍为空。
     // 若直接取「最后一条 assistant」，自省会永远读到 unknown —— 因此优先取最近一条**带 usage** 的，
@@ -1454,7 +1455,7 @@ internal suspend fun auditPayload(params: JsonObject): String {
     val minCount = params["min_count"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 10_000) ?: 1
     val repository =
         runCatching { getKoin().get<CredentialVaultRepository>() }.getOrNull()
-            ?: return buildJsonObject { put("error", "vault repository unavailable") }.toString()
+            ?: return ToolErrors.envelopeFor(error = "invalid_argument", message = "vault repository unavailable", hint = "Check the parameter values and retry with corrected arguments.").toString()
     val now = System.currentTimeMillis()
     // 排序：次数优先（聚合行在前），其次按“最近一次发生” —— 否则 50 条额度会被 count=1 的长尾占满
     val logs =
@@ -1737,10 +1738,7 @@ fun diagnosticsTool(
             "audit" -> auditPayload(params)
             "tool_scope" -> toolScopePayload(context, settingsStore, params)
             "runs" -> runsPayload(context, params)
-            else -> buildJsonObject {
-                put("error", "unknown kind '$kind'")
-                put("hint", "kind must be one of: ${DIAGNOSTICS_KINDS.joinToString(" | ")}")
-            }.toString()
+            else -> ToolErrors.envelopeFor(error = "invalid_argument", message = "unknown kind '$kind'", hint = "kind must be one of: ${DIAGNOSTICS_KINDS.joinToString(" | ")}").toString()
         }
         listOf(UIMessagePart.Text(text))
     }

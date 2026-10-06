@@ -6,6 +6,7 @@ import android.provider.Settings
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.service.RikkaNotificationListenerService
 
 /**
@@ -39,8 +40,5 @@ object NotificationListenerHandle {
         return block(svc)
     }
 
-    fun notBoundEnvelope(): JsonObject = buildJsonObject {
-        put("error", "notification_listener_not_bound")
-        put("recovery", "Enable RikkaHub Agents in Settings → Notification access. Then return to the app.")
-    }
+    fun notBoundEnvelope(): JsonObject = ToolErrors.envelopeFor(error = "notification_listener_not_bound", message = "notification_listener_not_bound", hint = "Enable RikkaHub Agents in Settings → Notification access. Then return to the app.")
 }

@@ -15,6 +15,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import java.io.File
@@ -45,10 +46,13 @@ private suspend fun withSavedHostSession(
     block: (Session) -> JsonObject,
 ): JsonObject {
     val h = repo.getByName(name)
-        ?: return buildJsonObject { put("error", "no saved host: $name") }
+        ?: return ToolErrors.envelopeFor(error = "invalid_argument", message = "no saved host: $name", hint = "Check the parameter values and retry with corrected arguments.")
     val auth = when (val r = resolveHostAuthDetailed(h, vaultRepository)) {
         is HostAuthResolution.Ready -> r.auth
-        is HostAuthResolution.Unusable -> return buildJsonObject { put("error", r.reason) }
+        is HostAuthResolution.Unusable -> return ToolErrors.envelopeFor(
+            error = ToolErrors.classifyMessage(r.reason),
+            message = r.reason,
+        )
     }
     // Same probe-then-bind path the exec tool uses. Without this, SFTP traffic is left to
     // Android's default-network selection, which on adaptive-routing devices routes the
@@ -108,7 +112,7 @@ fun sshUploadTool(
         val localFile = File(localPath)
         if (!localFile.exists() || !localFile.isFile) {
             return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "local file not found: $localPath") }.toString()
+                ToolErrors.envelopeFor(error = "not_found", message = "local file not found: $localPath", hint = "Verify the name or id and retry.").toString()
             ))
         }
         val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
@@ -124,7 +128,7 @@ fun sshUploadTool(
                         appendHashes(this, localFile, p["hash"]?.jsonPrimitive?.contentOrNull)
                     }
                 } catch (e: Throwable) {
-                    buildJsonObject { put("error", "sftp put failed: ${e.message ?: "unknown"}") }
+                    ToolErrors.envelopeFor(error = "tool_failed", message = "sftp put failed: ${e.message ?: "unknown"}")
                 } finally {
                     try { sftp.disconnect() } catch (_: Throwable) {}
                 }
@@ -182,7 +186,7 @@ fun sshDownloadTool(
                         appendHashes(this, localFile, p["hash"]?.jsonPrimitive?.contentOrNull)
                     }
                 } catch (e: Throwable) {
-                    buildJsonObject { put("error", "sftp get failed: ${e.message ?: "unknown"}") }
+                    ToolErrors.envelopeFor(error = "tool_failed", message = "sftp get failed: ${e.message ?: "unknown"}")
                 } finally {
                     // Delete partial files left by a failed get. Otherwise the user is left
                     // with a half-written file that LOOKS like a successful download —

@@ -37,7 +37,7 @@ import me.rerere.ai.ui.UIMessagePart
  */
 
 private fun errEnv(error: String, detail: String): List<UIMessagePart> =
-    ToolErrors.parts(error, detail)
+    ToolErrors.partsFor(error, detail)
 
 private fun okEnv(builder: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): List<UIMessagePart> {
     return listOf(UIMessagePart.Text(buildJsonObject(builder).toString()))

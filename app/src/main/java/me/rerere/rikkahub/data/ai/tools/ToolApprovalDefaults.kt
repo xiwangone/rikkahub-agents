@@ -63,6 +63,8 @@ object ToolApprovalDefaults {
 
         // Cron mutations (read is free; mutate asks)
         "schedule_job",
+        "schedule_job_direct",
+        "schedule_job_llm",
         "delete_job",
         "pause_job",
         "resume_job",

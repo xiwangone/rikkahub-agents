@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.log.AppLog
 
 import me.rerere.rikkahub.data.vault.ensureTrailingNewline
@@ -164,7 +165,7 @@ internal fun wrapDetachedCommand(command: String): String =
  *
  * 用于 detached 包装与输出编码修复的选路。历史上只看 `powershell`/`pwsh` 前缀与 `C:\`
  * 等字面量，导致 `Start-Sleep -Seconds 5; Write-Output done` 这类**纯 cmdlet 命令**被误判为
- * POSIX → 用 `nohup sh -c …` 包装 → Windows 主机上必然 ParserError（2026-09-10 实测）。
+ * POSIX → 用 `nohup sh -c …` 包装 → Windows 主机上必然 ParserError（2026-09-10 验证）。
  * 现在补上 cmdlet 特征（动词-名词、`-Command`、`$env:`、`$_` 等）。
  *
  * 先排除 POSIX 外壳前缀（cmd/wsl/bash/sh/zsh）——它们即使出现在 Windows 主机上，
@@ -192,7 +193,7 @@ internal const val UTF8_CONSOLE_PREFIX =
 /**
  * 给 Windows/PowerShell 命令补上「输出转 UTF-8」前缀，修中文乱码。
  *
- * 实测（2026-09-10，pwsh 7.7 会话）：远端默认 `[Console]::OutputEncoding` = gb2312，
+ * 验证（2026-09-10，pwsh 7.7 会话）：远端默认 `[Console]::OutputEncoding` = gb2312，
  * 中文字节流回到 App 按 UTF-8 解码 → 全是 `????`/乱码；命令前加这一句即恢复。
  * `cmd.exe /c …` 之类显式 POSIX/exe 前缀不动（那是另一套代码页，乱码需 chcp，另行处理）。
  *
@@ -203,7 +204,7 @@ internal fun withUtf8ConsoleEncoding(command: String, windows: Boolean? = null):
     if (!isWindows) return command
     // 幂等只看**开头**是否已有前缀。旧实现用 `contains("[Console]::OutputEncoding")`：
     // 命令里只要“提到”该字符串（例如查当前编码）就被整体跳过 → 反而漏包装、中文照旧乱码
-    // （2026-09-29 实测踩到）。
+    // （2026-09-29 验证时踩到）。
     if (command.startsWith(UTF8_CONSOLE_PREFIX)) return command
     return UTF8_CONSOLE_PREFIX + command
 }
@@ -245,7 +246,7 @@ private val ENV_KEY_REGEX = Regex("[A-Za-z_][A-Za-z0-9_]*")
 internal fun wrapDetachedCommandSmart(command: String): Pair<String, String?> {
     if (!looksLikeWindowsCommand(command)) {
         // POSIX：日志落 /tmp（通用可写），输出与错误都进同一日志。
-        // nohup 并非到处都有（2026-09-10 实测：OpenWrt/ash 无 nohup，命令直接失败），
+        // nohup 并非到处都有（2026-09-10 验证：OpenWrt/ash 无 nohup，命令直接失败），
         // 因此按 nohup → setsid → 裸后台 逐级降级；整组后台化，$! 即该组的 pid。
         val logPath = "/tmp/rikkahub_bg_${System.currentTimeMillis()}.log"
         val body = shellSingleQuote(command)
@@ -638,20 +639,9 @@ internal suspend fun probeReachability(context: Context, host: String, port: Int
  * went wrong, plus the recovery hint for the most common Android routing pitfalls.
  */
 internal fun unreachableEnvelope(host: String, port: Int, outcome: ProbeOutcome): JsonObject =
-    buildJsonObject {
-        put("error", "tcp_unreachable")
-        put("host", host)
-        put("ip", outcome.resolvedIp)
-        put("port", port)
-        put("attempts", buildJsonObject {
+    ToolErrors.envelopeFor(error = "tcp_unreachable", message = "tcp_unreachable", hint = "Direct TCP to ${outcome.resolvedIp}:$port failed across every available network (${outcome.totalMs}ms total). If Termux ssh from the same device reaches this host, RikkaHub Agents's process is being filtered. Check Settings → Network → Private DNS (try Off), any active VPN's per-app routing, and Settings → Apps → RikkaHub Agents → Mobile data & Wi-Fi (enable Background data and Unrestricted data usage).", extra = ToolErrors.extraOf("host" to host, "ip" to outcome.resolvedIp, "port" to port, "attempts" to buildJsonObject {
             outcome.failures.forEach { (label, reason) -> put(label, reason) }
-        })
-        put("recovery", "Direct TCP to ${outcome.resolvedIp}:$port failed across every available " +
-            "network (${outcome.totalMs}ms total). If Termux ssh from the same device reaches " +
-            "this host, RikkaHub Agents's process is being filtered. Check Settings → Network → " +
-            "Private DNS (try Off), any active VPN's per-app routing, and Settings → Apps → " +
-            "RikkaHub Agents → Mobile data & Wi-Fi (enable Background data and Unrestricted data usage).")
-    }
+        }))
 
 /**
  * PowerShell 引号/编码根治（2026-09-03）：
@@ -734,15 +724,7 @@ internal fun runOnSession(session: Session, command: String, timeoutMs: Int, std
             // earlier versions reported as exit_code=-1 + success=false — indistinguishable
             // from a real exit code -1. Make the timeout explicit so the model can choose
             // to bump timeout_seconds rather than retrying with a different command.
-            return buildJsonObject {
-                put("error", "command_timeout")
-                put("recovery", "Command did not complete within ${timeoutMs / 1000}s. Bump " +
-                    "timeout_seconds, or pass background=true to launch it detached so the call " +
-                    "returns immediately with the launched PID. Partial stdout/stderr captured " +
-                    "before the timeout is included.")
-                put("partial_stdout", stdout.snapshot())
-                put("partial_stderr", stderr.snapshot())
-            }
+            return ToolErrors.envelopeFor(error = "command_timeout", message = "Command timed out", hint = "Command did not complete within ${timeoutMs / 1000}s. Bump timeout_seconds, or pass background=true to launch it detached so the call returns immediately with the launched PID. Partial stdout/stderr captured before the timeout is included.", extra = ToolErrors.extraOf("partial_stdout" to stdout.snapshot(), "partial_stderr" to stderr.snapshot()))
         }
         val exitCode = channel.exitStatus
         return buildJsonObject {
@@ -825,12 +807,12 @@ fun sshExecTool(context: Context): Tool = Tool(
         val timeoutSec = (p["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 300)
         if (!auth.isUsable()) {
             return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "must provide password or private_key") }.toString()
+                ToolErrors.envelopeFor(error = "invalid_argument", message = "must provide password or private_key", hint = "Check the parameter values and retry with corrected arguments.").toString()
             ))
         }
         if (background && stdin != null) {
             return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "stdin and background are mutually exclusive (a detached command reads from /dev/null)") }.toString()
+                ToolErrors.envelopeFor(error = "invalid_argument", message = "stdin and background are mutually exclusive (a detached command reads from /dev/null)", hint = "Check the parameter values and retry with corrected arguments.").toString()
             ))
         }
         // 平台判定：落盘缓存（banner 结论）优先，未命中再退回命令特征
@@ -838,7 +820,7 @@ fun sshExecTool(context: Context): Tool = Tool(
         val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(command) else (withUtf8ConsoleEncoding(command, knownPlatform) to null)
         // env：以「同会话前置赋值语句」注入（background 走 detached 双层包装，不支持 env）
         val env = readEnvParam(p)
-        // 远端平台无法从命令内容可靠推断（实测：`cmd /c ...` 曾被判成 POSIX → 远端 pwsh 报错），
+        // 远端平台无法从命令内容可靠推断（验证：`cmd /c ...` 曾被判成 POSIX → 远端 pwsh 报错），
         // 因此默认按 Windows($env:) 处理，Linux 远端显式传 env_style=posix。
         val envWindows = !p["env_style"]?.jsonPrimitive?.contentOrNull.equals("posix", ignoreCase = true)
         val envPrefix =
@@ -873,7 +855,7 @@ internal suspend fun runCancellableSshOp(
     val sessionRef = AtomicReference<Session?>(null)
     return try {
         withTimeoutOrNull(timeoutMs) { block(sessionRef) }
-            ?: buildJsonObject { put("error", "timeout") }
+            ?: ToolErrors.envelopeFor(error = "timeout", message = "Operation timed out", hint = "Retry; if it persists, narrow the scope of the operation.")
     } finally {
         // Forcibly disconnect the session if it's still open. Safe to call on an already-
         // disconnected session — JSch's Session.disconnect is idempotent.
@@ -996,7 +978,7 @@ internal suspend fun execOneShot(
         try {
             runOnSession(session, command, timeoutMs, stdin)
         } catch (e: Throwable) {
-            buildJsonObject { put("error", "exec failed: ${e.message ?: "unknown"}") }
+            ToolErrors.envelopeFor(error = "tool_failed", message = "exec failed: ${e.message ?: "unknown"}")
         } finally {
             sessionRef.set(null)
             try { session.disconnect() } catch (_: Throwable) {}
@@ -1037,32 +1019,12 @@ internal fun isAuthFailure(msg: String?): Boolean {
 internal fun wrapConnectError(host: String, e: Throwable): JsonObject {
     val msg = e.message.orEmpty()
     if (isHostKeyChange(msg)) {
-        return buildJsonObject {
-            put("error", "host_key_changed")
-            put("host", host)
-            put("recovery", "Stored key for $host doesn't match what the server presented. " +
-                "If the user trusts this host (e.g. they just reinstalled it), call " +
-                "ssh_forget_host_key with host=\"$host\" then retry. Do NOT forget the key " +
-                "without explicit user confirmation — a changed key can also indicate an attacker.")
-            put("raw", msg)
-        }
+        return ToolErrors.envelopeFor(error = "host_key_changed", message = "host_key_changed", hint = "Stored key for $host doesn't match what the server presented. If the user trusts this host (e.g. they just reinstalled it), call ssh_forget_host_key with host=\"$host\" then retry. Do NOT forget the key without explicit user confirmation — a changed key can also indicate an attacker.", extra = ToolErrors.extraOf("host" to host, "raw" to msg))
     }
     if (isAuthFailure(msg)) {
-        return buildJsonObject {
-            put("error", "auth_failed")
-            put("host", host)
-            put("recovery", "Credentials rejected by $host. Verify the password / private_key / " +
-                "username with the user before retrying — DO NOT keep guessing or you'll lock " +
-                "the account out. If using a private_key, double-check the user passed the " +
-                "FULL PEM contents (including the BEGIN/END markers).")
-            put("raw", msg)
-        }
+        return ToolErrors.envelopeFor(error = "auth_failed", message = "Authentication failed", hint = "Credentials rejected by $host. Verify the password / private_key / username with the user before retrying — DO NOT keep guessing or you'll lock the account out. If using a private_key, double-check the user passed the FULL PEM contents (including the BEGIN/END markers).", extra = ToolErrors.extraOf("host" to host, "raw" to msg))
     }
-    return buildJsonObject {
-        put("error", "connect_failed")
-        put("host", host)
-        put("reason", msg.ifBlank { e::class.simpleName ?: "unknown" })
-    }
+    return ToolErrors.envelopeFor(error = "connect_failed", message = "Connection failed", hint = "Check the host/port and retry.", extra = ToolErrors.extraOf("host" to host, "reason" to (msg.ifBlank { e::class.simpleName ?: "unknown" })))
 }
 
 /**

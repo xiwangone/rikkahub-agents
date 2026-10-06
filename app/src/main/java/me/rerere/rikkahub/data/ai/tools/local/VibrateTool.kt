@@ -13,6 +13,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 fun vibrateTool(context: Context): Tool = Tool(
     name = "vibrate",
@@ -44,9 +45,7 @@ fun vibrateTool(context: Context): Tool = Tool(
         if (durationParam != null && patternParam != null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "provide either duration_ms or pattern, not both")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "provide either duration_ms or pattern, not both", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }
@@ -55,7 +54,7 @@ fun vibrateTool(context: Context): Tool = Tool(
         if (vibrator == null || !vibrator.hasVibrator()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "vibrator unavailable") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "vibrator unavailable", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }
@@ -64,7 +63,7 @@ fun vibrateTool(context: Context): Tool = Tool(
             if (patternParam.isEmpty()) {
                 return@Tool listOf(
                     UIMessagePart.Text(
-                        buildJsonObject { put("error", "pattern must not be empty") }.toString()
+                        ToolErrors.envelopeFor(error = "invalid_argument", message = "pattern must not be empty", hint = "Check the parameter values and retry with corrected arguments.").toString()
                     )
                 )
             }

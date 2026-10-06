@@ -32,61 +32,77 @@ import java.time.ZoneId
 
 private fun textPart(s: String) = listOf(UIMessagePart.Text(s))
 private fun errEnvelope(code: String, detail: String, extra: JsonObject? = null): String =
-    ToolErrors.text(code, detail, extra = extra ?: emptyMap())
+    ToolErrors.textFor(code, detail, extra = extra ?: emptyMap())
 
 /**
  * Pure validator for schedule_job inputs. Returns null on success, a structured error
  * on the first failed check. Order of checks matters — we want to return the most
  * specific error possible (e.g. invalid_cron before bounds_inverted, since a malformed
  * cron expression makes bounds checking moot).
+ *
+ * Split validators: [validateDirect] for schedule_job_direct (mode fixed to 'direct'),
+ * [validateLlm] for schedule_job_llm (mode fixed to 'llm'). [validate] keeps the
+ * legacy schedule_job entrypoint working by dispatching on the mode field.
  */
 object ScheduleJobValidator {
     data class ValidationError(val code: String, val detail: String, val extra: JsonObject? = null)
 
     fun validate(input: JsonObject, knownToolNames: List<String>): ValidationError? {
-        val name = (input["name"] as? JsonPrimitive)?.contentOrNull
-        if (name.isNullOrBlank() || name.length > 80) return ValidationError("bad_name", "name required, ≤80 chars")
-
         val mode = (input["mode"] as? JsonPrimitive)?.contentOrNull
         if (mode != "llm" && mode != "direct") return ValidationError("bad_mode", "mode must be 'llm' or 'direct'")
+        return when (mode) {
+            "llm" -> validateLlm(input)
+            else -> validateDirect(input, knownToolNames)
+        }
+    }
+
+    /** Validates mode='direct' inputs. Expects no 'mode' field (fixed by tool). */
+    fun validateDirect(input: JsonObject, knownToolNames: List<String>): ValidationError? {
+        val prompt = (input["prompt"] as? JsonPrimitive)?.contentOrNull
+        val actions = input["actions"] as? kotlinx.serialization.json.JsonArray
+        if (actions == null || prompt != null)
+            return ValidationError("mutual_exclusive", "schedule_job_direct requires actions and forbids prompt")
+        if (actions.isEmpty())
+            return ValidationError("empty_actions", "schedule_job_direct requires non-empty actions array")
+        if (actions.size > 50)
+            return ValidationError("too_many_actions",
+                "actions array capped at 50 (got ${actions.size})")
+        for ((idx, el) in actions.withIndex()) {
+            if (el !is JsonObject) return ValidationError("bad_action_shape", "action $idx is not an object")
+            val toolName = (el["tool"] as? JsonPrimitive)?.contentOrNull
+                ?: return ValidationError("missing_tool", "action $idx missing tool")
+            val args = el["args"] as? JsonObject
+                ?: return ValidationError("missing_args", "action $idx missing args object")
+            if (toolName !in knownToolNames)
+                return ValidationError("unknown_tool", "tool '$toolName' not registered for assistant")
+            val hardline = HardlineCommandGuard.checkTool(toolName, args.toString())
+            if (hardline != null)
+                return ValidationError("hardline_blocked", "action $idx: $hardline")
+        }
+        return validateCommon(input)
+    }
+
+    /** Validates mode='llm' inputs. Expects no 'mode' field (fixed by tool). */
+    fun validateLlm(input: JsonObject): ValidationError? {
+        val prompt = (input["prompt"] as? JsonPrimitive)?.contentOrNull
+        val actions = input["actions"] as? kotlinx.serialization.json.JsonArray
+        if (prompt.isNullOrBlank() || actions != null)
+            return ValidationError("mutual_exclusive", "schedule_job_llm requires prompt and forbids actions")
+        if (prompt.length > 4000)
+            return ValidationError("prompt_too_long",
+                "prompt capped at 4000 chars (got ${prompt.length})")
+        return validateCommon(input)
+    }
+
+    /** Shared checks: name, schedule_type, timing, bounds, timezone, max_runs, catchup, tags. */
+    @Suppress("CyclomaticComplexMethod") // 线性校验清单，拆分会把同一份口径割裂成多段
+    fun validateCommon(input: JsonObject): ValidationError? {
+        val name = (input["name"] as? JsonPrimitive)?.contentOrNull
+        if (name.isNullOrBlank() || name.length > 80) return ValidationError("bad_name", "name required, ≤80 chars")
 
         val scheduleType = (input["schedule_type"] as? JsonPrimitive)?.contentOrNull
         if (scheduleType != "once" && scheduleType != "cron")
             return ValidationError("bad_schedule_type", "schedule_type must be 'once' or 'cron'")
-
-        // Mode-specific
-        val prompt = (input["prompt"] as? JsonPrimitive)?.contentOrNull
-        val actions = input["actions"] as? kotlinx.serialization.json.JsonArray
-        when (mode) {
-            "llm" -> {
-                if (prompt.isNullOrBlank() || actions != null)
-                    return ValidationError("mutual_exclusive", "mode='llm' requires prompt and forbids actions")
-                if (prompt.length > 4000)
-                    return ValidationError("prompt_too_long",
-                        "prompt capped at 4000 chars (got ${prompt.length})")
-            }
-            "direct" -> {
-                if (actions == null || prompt != null)
-                    return ValidationError("mutual_exclusive", "mode='direct' requires actions and forbids prompt")
-                if (actions.isEmpty())
-                    return ValidationError("empty_actions", "mode='direct' requires non-empty actions array")
-                if (actions.size > 50)
-                    return ValidationError("too_many_actions",
-                        "actions array capped at 50 (got ${actions.size})")
-                for ((idx, el) in actions.withIndex()) {
-                    if (el !is JsonObject) return ValidationError("bad_action_shape", "action $idx is not an object")
-                    val toolName = (el["tool"] as? JsonPrimitive)?.contentOrNull
-                        ?: return ValidationError("missing_tool", "action $idx missing tool")
-                    val args = el["args"] as? JsonObject
-                        ?: return ValidationError("missing_args", "action $idx missing args object")
-                    if (toolName !in knownToolNames)
-                        return ValidationError("unknown_tool", "tool '$toolName' not registered for assistant")
-                    val hardline = HardlineCommandGuard.checkTool(toolName, args.toString())
-                    if (hardline != null)
-                        return ValidationError("hardline_blocked", "action $idx: $hardline")
-                }
-            }
-        }
 
         // Type-specific
         val atUnixMs = (input["at_unix_ms"] as? JsonPrimitive)?.longOrNull
@@ -170,6 +186,153 @@ private fun jobToJson(j: ScheduledJobEntity): JsonObject = buildJsonObject {
     j.nextRunAtMs?.let { put("next_run_at_ms", it) }
 }
 
+/** Shared job-creation core used by schedule_job_direct, schedule_job_llm and the legacy shim. */
+private suspend fun createScheduledJob(
+    repo: ScheduledJobRepository,
+    scheduler: CronJobScheduler,
+    settingsStore: SettingsStore,
+    obj: JsonObject,
+    mode: String,
+): String {
+    val scheduleType = obj["schedule_type"]!!.jsonPrimitive.content
+    val assistantId = (obj["assistant_id"] as? JsonPrimitive)?.contentOrNull
+        ?: settingsStore.settingsFlow.value.getCurrentAssistant().id.toString()
+    val tagsCsv = (obj["tags"] as? kotlinx.serialization.json.JsonArray)
+        ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }?.joinToString(",")
+    val nowMs = System.currentTimeMillis()
+
+    val job = ScheduledJobEntity(
+        id = Uuid.random().toString(),
+        name = obj["name"]!!.jsonPrimitive.content,
+        description = (obj["description"] as? JsonPrimitive)?.contentOrNull?.take(500),
+        assistantId = assistantId,
+        scheduleType = scheduleType,
+        atUnixMs = (obj["at_unix_ms"] as? JsonPrimitive)?.longOrNull,
+        cronExpression = (obj["cron_expression"] as? JsonPrimitive)?.contentOrNull,
+        timezone = (obj["timezone"] as? JsonPrimitive)?.contentOrNull,
+        startAtUnixMs = (obj["start_at_unix_ms"] as? JsonPrimitive)?.longOrNull,
+        endAtUnixMs = (obj["end_at_unix_ms"] as? JsonPrimitive)?.longOrNull,
+        maxRuns = (obj["max_runs"] as? JsonPrimitive)?.intOrNull,
+        catchup = (obj["catchup"] as? JsonPrimitive)?.contentOrNull ?: "fire_once",
+        mode = mode,
+        prompt = (obj["prompt"] as? JsonPrimitive)?.contentOrNull,
+        actionsJson = (obj["actions"] as? kotlinx.serialization.json.JsonArray)?.toString(),
+        tags = tagsCsv,
+        enabled = true,
+        createdAtMs = nowMs,
+    )
+    repo.upsert(job)
+    scheduler.schedule(job)
+    return buildJsonObject { put("success", true); put("job", jobToJson(job)) }.toString()
+}
+
+private fun scheduleTimingProperties(): JsonObject = buildJsonObject {
+    put("schedule_type", buildJsonObject { put("type","string"); put("enum", buildJsonArray { add("once"); add("cron") }) })
+    put("at_unix_ms", buildJsonObject { put("type","integer") })
+    put("cron_expression", buildJsonObject { put("type","string") })
+    put("timezone", buildJsonObject { put("type","string") })
+    put("start_at_unix_ms", buildJsonObject { put("type","integer") })
+    put("end_at_unix_ms", buildJsonObject { put("type","integer") })
+    put("max_runs", buildJsonObject { put("type","integer"); put("minimum", 1) })
+    put("catchup", buildJsonObject { put("type","string"); put("enum", buildJsonArray { add("skip"); add("fire_once"); add("fire_all") }) })
+}
+
+private fun scheduleMetaProperties(): JsonObject = buildJsonObject {
+    put("name", buildJsonObject { put("type","string") })
+    put("description", buildJsonObject { put("type","string") })
+    put("tags", buildJsonObject { put("type","array"); put("items", buildJsonObject { put("type","string") }) })
+    put("assistant_id", buildJsonObject { put("type","string") })
+}
+
+/**
+ * Schedule a job with a fixed list of tool calls. Prefer for deterministic side
+ * effects — the exact actions run at fire time with no model reasoning involved.
+ */
+fun scheduleJobDirectTool(
+    repo: ScheduledJobRepository,
+    scheduler: CronJobScheduler,
+    settingsStore: SettingsStore,
+    knownToolNamesProvider: () -> List<String>,
+): Tool = Tool(
+    name = "schedule_job_direct",
+    description = """
+        Schedule a recurring or one-shot job that runs a fixed list of tool calls at
+        fire time. Deterministic — no model reasoning involved. timing: 'once'
+        (at_unix_ms) or cron (5-field, aliases @hourly/@daily/@every 30m). Timezone
+        defaults to device; pass IANA id to override. catchup governs missed windows
+        after reboot/process kill: skip / fire_once / fire_all.
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                scheduleMetaProperties().forEach { (k, v) -> put(k, v) }
+                put("actions", buildJsonObject {
+                    put("type","array")
+                    put("items", buildJsonObject {
+                        put("type","object")
+                        put("properties", buildJsonObject {
+                            put("tool", buildJsonObject { put("type","string") })
+                            put("args", buildJsonObject { put("type","object") })
+                        })
+                        put("required", buildJsonArray { add("tool"); add("args") })
+                    })
+                })
+                scheduleTimingProperties().forEach { (k, v) -> put(k, v) }
+            },
+            required = listOf("name","actions","schedule_type"),
+        )
+    },
+    execute = { input ->
+        val obj = input.jsonObject
+        ScheduleJobValidator.validateDirect(obj, knownToolNamesProvider())?.let { err ->
+            return@Tool textPart(errEnvelope(err.code, err.detail, err.extra))
+        }
+        textPart(createScheduledJob(repo, scheduler, settingsStore, obj, "direct"))
+    },
+)
+
+/**
+ * Schedule a job that prompts an assistant at fire time. Prefer for reasoning
+ * tasks where the exact steps can't be fixed in advance.
+ */
+fun scheduleJobLlmTool(
+    repo: ScheduledJobRepository,
+    scheduler: CronJobScheduler,
+    settingsStore: SettingsStore,
+): Tool = Tool(
+    name = "schedule_job_llm",
+    description = """
+        Schedule a recurring or one-shot job that prompts an assistant at fire time.
+        The assistant reasons about what to do when the job fires — prefer for tasks
+        where the exact steps can't be fixed in advance. timing: 'once' (at_unix_ms)
+        or cron (5-field, aliases @hourly/@daily/@every 30m). Timezone defaults to
+        device; pass IANA id to override. catchup governs missed windows after
+        reboot/process kill: skip / fire_once / fire_all.
+    """.trimIndent().replace("\n", " "),
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                scheduleMetaProperties().forEach { (k, v) -> put(k, v) }
+                put("prompt", buildJsonObject { put("type","string") })
+                scheduleTimingProperties().forEach { (k, v) -> put(k, v) }
+            },
+            required = listOf("name","prompt","schedule_type"),
+        )
+    },
+    execute = { input ->
+        val obj = input.jsonObject
+        ScheduleJobValidator.validateLlm(obj)?.let { err ->
+            return@Tool textPart(errEnvelope(err.code, err.detail, err.extra))
+        }
+        textPart(createScheduledJob(repo, scheduler, settingsStore, obj, "llm"))
+    },
+)
+
+/**
+ * Legacy entrypoint kept for backward compatibility. Dispatches on the mode field
+ * to the direct/llm implementation. Prefer schedule_job_direct / schedule_job_llm
+ * for new callers — the mode field is redundant there.
+ */
 fun scheduleJobTool(
     repo: ScheduledJobRepository,
     scheduler: CronJobScheduler,
@@ -183,6 +346,7 @@ fun scheduleJobTool(
         reasoning tasks). timing: 'once' or cron (5-field, aliases @hourly/@daily/@every 30m).
         Timezone defaults to device; pass IANA id to override. catchup governs missed
         windows after reboot/process kill: skip / fire_once / fire_all.
+        Prefer schedule_job_direct / schedule_job_llm for new callers.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -204,14 +368,7 @@ fun scheduleJobTool(
                         put("required", buildJsonArray { add("tool"); add("args") })
                     })
                 })
-                put("schedule_type", buildJsonObject { put("type","string"); put("enum", buildJsonArray { add("once"); add("cron") }) })
-                put("at_unix_ms", buildJsonObject { put("type","integer") })
-                put("cron_expression", buildJsonObject { put("type","string") })
-                put("timezone", buildJsonObject { put("type","string") })
-                put("start_at_unix_ms", buildJsonObject { put("type","integer") })
-                put("end_at_unix_ms", buildJsonObject { put("type","integer") })
-                put("max_runs", buildJsonObject { put("type","integer"); put("minimum", 1) })
-                put("catchup", buildJsonObject { put("type","string"); put("enum", buildJsonArray { add("skip"); add("fire_once"); add("fire_all") }) })
+                scheduleTimingProperties().forEach { (k, v) -> put(k, v) }
             },
             required = listOf("name","mode","schedule_type"),
         )
@@ -222,36 +379,7 @@ fun scheduleJobTool(
             return@Tool textPart(errEnvelope(err.code, err.detail, err.extra))
         }
         val mode = obj["mode"]!!.jsonPrimitive.content
-        val scheduleType = obj["schedule_type"]!!.jsonPrimitive.content
-        val assistantId = (obj["assistant_id"] as? JsonPrimitive)?.contentOrNull
-            ?: settingsStore.settingsFlow.value.getCurrentAssistant().id.toString()
-        val tagsCsv = (obj["tags"] as? kotlinx.serialization.json.JsonArray)
-            ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }?.joinToString(",")
-        val nowMs = System.currentTimeMillis()
-
-        val job = ScheduledJobEntity(
-            id = Uuid.random().toString(),
-            name = obj["name"]!!.jsonPrimitive.content,
-            description = (obj["description"] as? JsonPrimitive)?.contentOrNull?.take(500),
-            assistantId = assistantId,
-            scheduleType = scheduleType,
-            atUnixMs = (obj["at_unix_ms"] as? JsonPrimitive)?.longOrNull,
-            cronExpression = (obj["cron_expression"] as? JsonPrimitive)?.contentOrNull,
-            timezone = (obj["timezone"] as? JsonPrimitive)?.contentOrNull,
-            startAtUnixMs = (obj["start_at_unix_ms"] as? JsonPrimitive)?.longOrNull,
-            endAtUnixMs = (obj["end_at_unix_ms"] as? JsonPrimitive)?.longOrNull,
-            maxRuns = (obj["max_runs"] as? JsonPrimitive)?.intOrNull,
-            catchup = (obj["catchup"] as? JsonPrimitive)?.contentOrNull ?: "fire_once",
-            mode = mode,
-            prompt = (obj["prompt"] as? JsonPrimitive)?.contentOrNull,
-            actionsJson = (obj["actions"] as? kotlinx.serialization.json.JsonArray)?.toString(),
-            tags = tagsCsv,
-            enabled = true,
-            createdAtMs = nowMs,
-        )
-        repo.upsert(job)
-        scheduler.schedule(job)
-        textPart(buildJsonObject { put("success", true); put("job", jobToJson(job)) }.toString())
+        textPart(createScheduledJob(repo, scheduler, settingsStore, obj, mode))
     },
 )
 
@@ -378,7 +506,7 @@ fun getJobHistoryTool(
     runRepo: ScheduledJobRunRepository,
 ): Tool = Tool(
     name = "get_job_history",
-    description = "Return the most recent fires of a scheduled job, newest first.".trimIndent(),
+    description = "Return the most recent fires of a scheduled job, newest first. NOTE: despite the name, this lists history entries (list semantics); the canonical name going forward is list_job_history.".trimIndent(),
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {

@@ -32,6 +32,7 @@ import me.rerere.rikkahub.browser.ReadabilityRunner.runReadability
 import me.rerere.rikkahub.browser.awaitReadyState
 import me.rerere.rikkahub.browser.evaluateJavascriptAsync
 import me.rerere.rikkahub.data.ai.tools.HeadlessConversations
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import java.io.File
 import java.io.FileOutputStream
@@ -104,16 +105,9 @@ private fun isHeadlessInvocation(ctx: ToolInvocationContext?): Boolean {
 
 // ---- Common envelope helpers --------------------------------------------------------------
 
-private fun timeoutEnvelope(toolName: String): JsonObject = buildJsonObject {
-    put("error", "tool_timeout")
-    put("tool", toolName)
-    put("recovery", "The browser tool exceeded its $toolTimeoutMs-ms budget. Retry, or simplify the selector.")
-}
+private fun timeoutEnvelope(toolName: String): JsonObject = ToolErrors.envelopeFor(error = "tool_timeout", message = "tool_timeout", hint = "The browser tool exceeded its $toolTimeoutMs-ms budget. Retry, or simplify the selector.", extra = ToolErrors.extraOf("tool" to toolName))
 
-private fun missingArgEnvelope(name: String, detail: String): JsonObject = buildJsonObject {
-    put("error", "missing_$name")
-    put("detail", detail)
-}
+private fun missingArgEnvelope(name: String, detail: String): JsonObject = ToolErrors.envelopeFor(error = "invalid_argument", message = "missing_$name", hint = "Check the parameter values and retry with corrected arguments.", extra = ToolErrors.extraOf("detail" to detail))
 
 private fun textPart(obj: JsonObject): List<UIMessagePart> =
     listOf(UIMessagePart.Text(obj.toString()))
@@ -161,10 +155,7 @@ fun browserOpenTool(context: Context, invocationContext: ToolInvocationContext? 
         val rawOut = if (url == null) {
             missingArgEnvelope("url", "url is required and must be a non-empty string")
         } else if (scheme != null && scheme !in setOf("http", "https", "about")) {
-            buildJsonObject {
-                put("error", "scheme_not_allowed")
-                put("detail", "browser_open only accepts http(s) and about: URLs; got scheme '$scheme'")
-            }
+            ToolErrors.envelopeFor(error = "scheme_not_allowed", message = "browser_open only accepts http(s) and about: URLs; got scheme '$scheme'")
         } else {
             withTimeoutOrNull(toolTimeoutMs) {
                 // Pass 3 mode picker. If the caller is a Telegram / cron / sub-agent
@@ -227,10 +218,7 @@ fun browserOpenTool(context: Context, invocationContext: ToolInvocationContext? 
                             )
                         )
                         if (!BrowserController.awaitBind(5_000L)) {
-                            return@withTimeoutOrNull buildJsonObject {
-                                put("error", "browser_launch_failed")
-                                put("recovery", "Activity did not bind within 5s; retry browser_open or check that the app has overlay permission.")
-                            }
+                            return@withTimeoutOrNull ToolErrors.envelopeFor(error = "browser_launch_failed", message = "Failed to launch browser", hint = "Activity did not bind within 5s; retry browser_open or check that the app has overlay permission.")
                         }
                     }
                     // (Re)start the 5-minute task window on every browser_open.
@@ -987,12 +975,7 @@ fun browserClickAndReadTool(): Tool = Tool(
                                 text to "readability"
                             } else if (mode == "readability") {
                                 // Forced mode + null result → surface the error envelope.
-                                return@withController buildJsonObject {
-                                    put("success", false)
-                                    put("post_click_url", postUrl)
-                                    put("page_title", postTitle)
-                                    put("error", "readability_failed")
-                                }
+                                return@withController ToolErrors.envelopeFor(error = "readability_failed", message = "readability_failed", extra = ToolErrors.extraOf("success" to false, "post_click_url" to postUrl, "page_title" to postTitle))
                             } else {
                                 // Fall back to selector-based body innerText.
                                 val rawJs = """(function(){
@@ -1189,7 +1172,7 @@ private fun parseFullArg(input: kotlinx.serialization.json.JsonElement): Boolean
  * value that can't be parsed — both surface to the LLM cleanly without throwing.
  */
 private fun parseJsResult(raw: String?): JsonObject {
-    if (raw == null) return buildJsonObject { put("error", "js_no_result") }
+    if (raw == null) return ToolErrors.envelopeFor(error = "js_no_result", message = "js_no_result")
     return runCatching {
         // evaluateJavascript wraps a JS string return value in JSON-quoted form, so
         // raw is "\"{...}\"" — parse the outer quoted string into a Kotlin string,
@@ -1197,7 +1180,7 @@ private fun parseJsResult(raw: String?): JsonObject {
         val outer = Json.parseToJsonElement(raw)
         val inner = if (outer is JsonPrimitive && outer.isString) outer.contentOrNull.orEmpty() else outer.toString()
         Json.parseToJsonElement(inner).jsonObject
-    }.getOrElse { buildJsonObject { put("error", "js_parse_failed"); put("raw", raw) } }
+    }.getOrElse { ToolErrors.envelopeFor(error = "js_parse_failed", message = "js_parse_failed", extra = ToolErrors.extraOf("raw" to raw)) }
 }
 
 /**
@@ -1258,10 +1241,7 @@ private suspend fun runGetText(input: kotlinx.serialization.json.JsonElement): J
                 "readability" -> {
                     val text = webView.runReadability()
                     if (text.isNullOrEmpty()) {
-                        buildJsonObject {
-                            put("error", "readability_failed")
-                            put("recovery", "Try extract_mode:'auto' or pass a specific selector")
-                        }
+                        ToolErrors.envelopeFor(error = "readability_failed", message = "readability_failed", hint = "Try extract_mode:'auto' or pass a specific selector")
                     } else {
                         buildJsonObject {
                             val (clipped, truncated) = clipText(text, maxChars)

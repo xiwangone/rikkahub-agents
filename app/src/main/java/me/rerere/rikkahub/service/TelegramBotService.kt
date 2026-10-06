@@ -1752,6 +1752,7 @@ class TelegramBotService : Service() {
         clarifyPending.values.removeAll { it.chatId == chatId }
     }
 
+    @Suppress("CyclomaticComplexMethod") // 审批提示的文案分支多但线性
     private suspend fun sendApprovalPrompt(
         chatId: Long,
         tool: UIMessagePart.Tool,
@@ -1802,16 +1803,17 @@ class TelegramBotService : Service() {
                 append("in: <pre>")
                 append(TelegramHtmlRenderer.escape(argsPreview))
                 append("</pre>")
-                // schedule_job is special: approving SCHEDULES a future autonomous run, not
+                // schedule_job family is special: approving SCHEDULES a future autonomous run, not
                 // just one tool. Surface that here so the user knows what they're authorising
                 // — every tool the cron prompt invokes will run without further approval.
                 // (HARDLINE blocks still apply at fire time, regardless of approval scope.)
-                if (tool.toolName == "schedule_job") {
+                if (tool.toolName in setOf("schedule_job", "schedule_job_direct", "schedule_job_llm")) {
                     append("\n\n<i>⏰ Scheduled jobs run autonomously without per-tool approval. ")
                     append("Approving this lets the job run with full tool access whenever it ")
                     append("fires. Hardline-blocked commands (rm -rf /, mkfs, shutdown, …) still ")
                     append("cannot run.</i>")
                     // Surface mode-specific detail (mirrors the in-app approval card).
+                    // New split tools fix the mode in the name; legacy schedule_job carries it in input.
                     val jobInput =
                         runCatching {
                             kotlinx.serialization.json.Json
@@ -1819,6 +1821,11 @@ class TelegramBotService : Service() {
                                 .jsonObject
                         }.getOrNull()
                     val mode = jobInput?.get("mode")?.jsonPrimitive?.contentOrNull
+                        ?: when (tool.toolName) {
+                            "schedule_job_direct" -> "direct"
+                            "schedule_job_llm" -> "llm"
+                            else -> null
+                        }
                     when (mode) {
                         "direct" -> {
                             // Inside this branch jobInput is smart-cast to non-null

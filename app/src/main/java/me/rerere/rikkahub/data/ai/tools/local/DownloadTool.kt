@@ -12,6 +12,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 fun downloadTool(context: Context): Tool = Tool(
     name = "download_file",
@@ -58,7 +59,7 @@ fun downloadTool(context: Context): Tool = Tool(
             val dm = context.getSystemService(DownloadManager::class.java)
                 ?: return@Tool listOf(
                     UIMessagePart.Text(
-                        buildJsonObject { put("error", "DownloadManager unavailable") }.toString()
+                        ToolErrors.envelopeFor(error = "invalid_argument", message = "DownloadManager unavailable", hint = "Check the parameter values and retry with corrected arguments.").toString()
                     )
                 )
             val id = dm.enqueue(request)
@@ -71,13 +72,13 @@ fun downloadTool(context: Context): Tool = Tool(
         } catch (e: IllegalArgumentException) {
             listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", e.message ?: "invalid argument") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = e.message ?: "Invalid argument").toString()
                 )
             )
         } catch (e: SecurityException) {
             listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", e.message ?: "security error") }.toString()
+                    ToolErrors.envelopeFor(error = "permission_denied", message = e.message ?: "Permission denied").toString()
                 )
             )
         }

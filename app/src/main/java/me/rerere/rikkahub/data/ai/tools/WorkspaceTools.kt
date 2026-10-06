@@ -18,6 +18,7 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.DiffMetadata
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.toMetadata
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.CredentialResolution
@@ -92,7 +93,8 @@ private fun createReadFileTool(
     name = "workspace_read_file",
     description = """
         Read a file using the assistant's bound workspace Rootfs. Paths must be absolute inside Rootfs.
-        Use /workspace for the workspace files area.
+        Use /workspace for the workspace files area. NOTE: use read_file instead for files
+        on the device outside the workspace Rootfs.
         Supports UTF-8 text files and image files (png, jpg, jpeg, gif, webp, bmp, svg, heic, heif, avif, ico).
         Large text files can be read in slices: pass start_line / end_line (1-based, inclusive).
         Set with_line_numbers=true to prefix each returned line with its line number.
@@ -617,13 +619,7 @@ private fun createShellTool(
                     presets[presetName]
                         ?: return@Tool listOf(
                             UIMessagePart.Text(
-                                buildJsonObject {
-                                    put("error", "preset_not_found")
-                                    put("preset", presetName)
-                                    put("presetsPath", SHELL_PRESETS_PATH)
-                                    put("hint", "Add it to $SHELL_PRESETS_PATH as {\"$presetName\": \"<command>\"}.")
-                                    put("available", buildJsonArray { presets.keys.forEach { add(JsonPrimitive(it)) } })
-                                }.toString(),
+                                ToolErrors.envelopeFor(error = "preset_not_found", message = "preset_not_found", hint = "Add it to $SHELL_PRESETS_PATH as {\"$presetName\": \"<command>\"}.", extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to SHELL_PRESETS_PATH, "available" to buildJsonArray { presets.keys.forEach { add(JsonPrimitive(it)) } })).toString(),
                             ),
                         )
                 val template =
@@ -635,11 +631,7 @@ private fun createShellTool(
                 if (template.isBlank()) {
                     return@Tool listOf(
                         UIMessagePart.Text(
-                            buildJsonObject {
-                                put("error", "preset_empty")
-                                put("preset", presetName)
-                                put("presetsPath", SHELL_PRESETS_PATH)
-                            }.toString(),
+                            ToolErrors.envelopeFor(error = "preset_empty", message = "preset_empty", extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to SHELL_PRESETS_PATH)).toString(),
                         ),
                     )
                 }

@@ -9,6 +9,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.files.SkillContent
 import me.rerere.rikkahub.data.files.SkillMetadata
 
@@ -53,24 +54,23 @@ fun skillGetContentTool(
     },
     execute = { json ->
         fun notFound(name: String): List<UIMessagePart> = listOf(
-            UIMessagePart.Text(buildJsonObject {
-                put("error", "skill_not_found")
-                put("name", name)
-                put("available_skills", buildJsonArray {
-                    allSkills.forEach { add(JsonPrimitive(it.name)) }
-                })
-            }.toString())
+            UIMessagePart.Text(ToolErrors.envelopeFor(
+                error = "skill_not_found",
+                message = "Skill '$name' not found.",
+                extra = mapOf(
+                    "name" to JsonPrimitive(name),
+                    "available_skills" to buildJsonArray {
+                        allSkills.forEach { add(JsonPrimitive(it.name)) }
+                    },
+                ),
+            ).toString())
         )
 
         val name = json.jsonObject["name"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
             ?: return@Tool listOf(
-                UIMessagePart.Text(buildJsonObject {
-                    put("error", "missing_required_arg")
-                    put("detail", "skill_get_content requires a 'name' argument.")
-                    put("available_skills", buildJsonArray {
+                UIMessagePart.Text(ToolErrors.envelopeFor(error = "missing_required_arg", message = "skill_get_content requires a 'name' argument.", extra = ToolErrors.extraOf("available_skills" to buildJsonArray {
                         allSkills.forEach { add(JsonPrimitive(it.name)) }
-                    })
-                }.toString())
+                    })).toString())
             )
 
         val content = contentReader(name) ?: return@Tool notFound(name)

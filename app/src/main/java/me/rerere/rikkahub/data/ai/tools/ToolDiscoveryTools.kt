@@ -12,6 +12,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /**
  * 按需检索工具说明的元工具（渐进式披露）。
@@ -28,16 +29,19 @@ internal fun buildToolDiscoveryTools(
     extraCold: Set<String> = emptySet(),
     // 仅用于记录“冷档解锁”统计（可为 null，统计随之关闭）。
     context: Context? = null,
+    // 当前 UI 场景：透传给档位判定，使 list_tools 显示的档位与实际注入一致。
+    uiScene: UiScene = UiScene.UNKNOWN,
 ): List<Tool> =
     listOf(
-        listToolsTool(allTools, conversationId, extraCold),
-        getToolSchemaTool(allTools, conversationId, extraCold, context),
+        listToolsTool(allTools, conversationId, extraCold, uiScene),
+        getToolSchemaTool(allTools, conversationId, extraCold, context, uiScene),
     )
 
 private fun listToolsTool(
     allTools: List<Tool>,
     conversationId: String?,
     extraCold: Set<String> = emptySet(),
+    uiScene: UiScene = UiScene.UNKNOWN,
 ): Tool =
     Tool(
         name = "list_tools",
@@ -77,7 +81,7 @@ private fun listToolsTool(
                                     buildJsonObject {
                                         put("name", tool.name)
                                         put("purpose", tool.description.toSingleLine())
-                                        val tier = ToolSurfacePolicy.tierOf(tool.name, extraCold)
+                                        val tier = ToolSurfacePolicy.tierOf(tool.name, extraCold, uiScene)
                                         put("tier", tier.name.lowercase())
                                         // Only cold tools can lack a full schema; hot/warm always ship
                                         // the complete one. Reporting false for them is misleading and
@@ -105,6 +109,7 @@ private fun getToolSchemaTool(
     conversationId: String?,
     extraCold: Set<String> = emptySet(),
     context: Context? = null,
+    uiScene: UiScene = UiScene.UNKNOWN,
 ): Tool =
     Tool(
         name = "get_tool_schema",
@@ -127,17 +132,14 @@ private fun getToolSchemaTool(
         execute = { input ->
             val name = input.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
             val tool = allTools.firstOrNull { it.name == name }
-            if (tool != null && ToolSurfacePolicy.tierOf(tool.name, extraCold) == SurfaceTier.COLD) {
+            if (tool != null && ToolSurfacePolicy.tierOf(tool.name, extraCold, uiScene) == SurfaceTier.COLD) {
                 ToolSurfaceSession.markLoaded(conversationId, tool.name)
                 // 记录解锁：与调用次数对照，判断降温名单配得对不对（解锁后是否真用得上）。
                 context?.let { ToolUsageTracker.recordUnlock(it, tool.name) }
             }
             val payload =
                 if (tool == null) {
-                    buildJsonObject {
-                        put("error", "unknown tool '$name'")
-                        put("hint", "Call list_tools first to see the available names.")
-                    }
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "unknown tool '$name'", hint = "Call list_tools first to see the available names.")
                 } else {
                     buildJsonObject {
                         put("name", tool.name)

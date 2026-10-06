@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.vault.ensureTrailingNewline
 import android.content.Context
 import kotlinx.serialization.json.add
@@ -178,7 +179,10 @@ private suspend fun resolveAuthOrError(
 ): Pair<SshAuth?, JsonObject?> =
     when (val r = resolveHostAuthDetailed(h, vaultRepository)) {
         is HostAuthResolution.Ready -> r.auth to null
-        is HostAuthResolution.Unusable -> null to buildJsonObject { put("error", r.reason) }
+        is HostAuthResolution.Unusable -> null to me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+            error = me.rerere.rikkahub.data.ai.tools.ToolErrors.classifyMessage(r.reason),
+            message = r.reason,
+        )
     }
 
 /**
@@ -247,7 +251,7 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
         val sshOptions = p["ssh_options"]?.jsonPrimitive?.contentOrNull
         if (password.isNullOrBlank() && privateKey.isNullOrBlank() && vaultCredential.isNullOrBlank()) {
             return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "must provide password, private_key or vault_credential") }.toString()
+                ToolErrors.envelopeFor(error = "invalid_argument", message = "must provide password, private_key or vault_credential", hint = "Check the parameter values and retry with corrected arguments.").toString()
             ))
         }
         repo.upsert(SshHostEntity(
@@ -299,7 +303,7 @@ fun listSshHostsTool(repo: SshHostRepository): Tool = Tool(
 /** Delete a saved host by name. */
 fun deleteSshHostTool(repo: SshHostRepository): Tool = Tool(
     name = "delete_ssh_host",
-    description = "Delete a saved SSH host by name.".trimIndent().replace("\n", " "),
+    description = "Delete a saved SSH host entry by name (removes the saved connection config). NOTE: this does NOT touch known_hosts keys; use ssh_forget_host_key to remove a stored host key.".trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -332,7 +336,8 @@ fun forgetSshHostKeyTool(context: Context): Tool = Tool(
         Remove the stored host key for an SSH host from known_hosts. Call this AFTER the user
         explicitly confirms they reinstalled the remote machine — the next connect will trust
         the new key. NEVER call this without user confirmation: a changed host key can also
-        indicate a man-in-the-middle attack.
+        indicate a man-in-the-middle attack. NOTE: this does NOT delete the saved host entry;
+        use delete_ssh_host to remove a saved connection config.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -404,7 +409,7 @@ fun sshExecSavedTool(
         if (command == null && presetKey == null && batch.isEmpty()) error("either command, commands or preset is required")
         if (presetKey != null && (command != null || batch.isNotEmpty())) {
             return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "preset is mutually exclusive with command/commands — pass exactly one") }.toString()
+                ToolErrors.envelopeFor(error = "invalid_argument", message = "preset is mutually exclusive with command/commands — pass exactly one", hint = "Check the parameter values and retry with corrected arguments.").toString()
             ))
         }
         // preset 展开：按 saved host 名匹配预设集（精确名 → 特征归类 linux/windows 通用模板）
@@ -413,12 +418,7 @@ fun sshExecSavedTool(
             val expanded = presets[presetKey]
             if (expanded == null) {
                 return@Tool listOf(UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "no preset '$presetKey' resolved for host: $name")
-                        put("available_presets", presets.keys.sorted().toString())
-                        put("hint", "presets are generic per-platform templates (linux/windows). " +
-                            "For personal/project-specific operations pass an explicit command instead.")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "no preset '$presetKey' resolved for host: $name", hint = "presets are generic per-platform templates (linux/windows). For personal/project-specific operations pass an explicit command instead.", extra = ToolErrors.extraOf("available_presets" to presets.keys.sorted().toString())).toString()
                 ))
             }
             expanded
@@ -439,11 +439,11 @@ fun sshExecSavedTool(
         }
         val h = repo.getByName(name)
             ?: return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "no saved host: $name") }.toString()
+                ToolErrors.envelopeFor(error = "invalid_argument", message = "no saved host: $name", hint = "Check the parameter values and retry with corrected arguments.").toString()
             ))
         if (background && stdin != null) {
             return@Tool listOf(UIMessagePart.Text(
-                buildJsonObject { put("error", "stdin and background are mutually exclusive (a detached command reads from /dev/null)") }.toString()
+                ToolErrors.envelopeFor(error = "invalid_argument", message = "stdin and background are mutually exclusive (a detached command reads from /dev/null)", hint = "Check the parameter values and retry with corrected arguments.").toString()
             ))
         }
 
@@ -541,11 +541,12 @@ fun sshExecSavedTool(
                 }
             if (bgLogPath != null) body + "\n[bg_log_path] $bgLogPath" else body
         } else {
-            buildJsonObject {
-                put("error", lastError ?: "unknown failure")
-                put("tried_hosts", triedHostsJson(tried))
-                put("hint", "primary host and all fallbacks failed; see tried_hosts for each attempt")
-            }.toString()
+            me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                error = me.rerere.rikkahub.data.ai.tools.ToolErrors.classifyMessage(lastError ?: "unknown failure"),
+                message = lastError ?: "Unknown failure",
+                hint = "primary host and all fallbacks failed; see tried_hosts for each attempt",
+                extra = mapOf("tried_hosts" to triedHostsJson(tried)),
+            ).toString()
         }
         listOf(UIMessagePart.Text(finalPayload))
     }
@@ -617,7 +618,14 @@ fun vaultDeployKeyTool(
     execute = { input ->
         val p = input.jsonObject
         val fail: (String) -> List<UIMessagePart> = { msg ->
-            listOf(UIMessagePart.Text(buildJsonObject { put("error", msg) }.toString()))
+            listOf(
+                UIMessagePart.Text(
+                    me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                        error = me.rerere.rikkahub.data.ai.tools.ToolErrors.classifyMessage(msg),
+                        message = msg,
+                    ).toString()
+                )
+            )
         }
         val credName = p["credential_name"]?.jsonPrimitive?.contentOrNull ?: return@Tool fail("credential_name is required")
         val hostName = p["host_name"]?.jsonPrimitive?.contentOrNull ?: return@Tool fail("host_name is required")
@@ -637,7 +645,7 @@ fun vaultDeployKeyTool(
         val authPair = resolveAuthOrError(h, vaultRepository)
         val deployResult = kotlinx.coroutines.runBlocking {
             val auth = authPair.first
-                ?: return@runBlocking (authPair.second ?: buildJsonObject { put("error", "saved host has no usable credentials") })
+                ?: return@runBlocking (authPair.second ?: ToolErrors.envelopeFor(error = "invalid_argument", message = "saved host has no usable credentials", hint = "Check the parameter values and retry with corrected arguments."))
             deployAuthorizedKey(context, h, targetUser, pubKey, auth)
         }
         val deployErr = deployResult["error"]?.jsonPrimitive?.contentOrNull
@@ -648,7 +656,7 @@ fun vaultDeployKeyTool(
         // 3. 验证：用刚部署的公钥（私钥在 vault）试连执行 whoami（连与跑见 verifyVaultKeyLogin）
         val verify = kotlinx.coroutines.runBlocking {
             val verifyAuth = vaultPrivateKeyAuth(vaultRepository, credName)
-                ?: return@runBlocking buildJsonObject { put("error", "credential decrypt failed") }
+                ?: return@runBlocking ToolErrors.envelopeFor(error = "tool_failed", message = "credential decrypt failed")
             verifyVaultKeyLogin(context, h, targetUser, verifyAuth)
         }
         val verifyErr = verify["error"]?.jsonPrimitive?.contentOrNull
@@ -728,7 +736,7 @@ private suspend fun deployAuthorizedKey(
         false -> listOf(false)
         null -> listOf(false, true)
     }
-    var last = buildJsonObject { put("error", "deploy not attempted") }
+    var last = ToolErrors.envelopeFor(error = "invalid_argument", message = "deploy not attempted", hint = "Check the parameter values and retry with corrected arguments.")
     for (windows in order) {
         val out = runOnHostOnce(context, h, targetUser, auth, deployCommandFor(pubKey, windows), 30_000)
         last = out
@@ -762,7 +770,7 @@ private suspend fun runOnHostOnce(
     val session = try {
         openSshSession(newJSch(context), h.host, h.port, targetUser, auth, timeoutMs, extraOptions = h.sshOptions)
     } catch (e: Throwable) {
-        return buildJsonObject { put("error", "connect failed: ${e.message ?: "unknown"}") }
+        return ToolErrors.envelopeFor(error = "tool_failed", message = "connect failed: ${e.message ?: "unknown"}")
     }
     return try {
         runOnSession(session, command, timeoutMs, null)

@@ -6,6 +6,7 @@ import android.provider.Settings
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.service.RikkaAccessibilityService
 
 /**
@@ -42,8 +43,5 @@ object AccessibilityServiceHandle {
         return block(svc)
     }
 
-    fun notActiveEnvelope(): JsonObject = buildJsonObject {
-        put("error", "AccessibilityService not active")
-        put("recovery", "Enable RikkaHub Agents in Settings → Accessibility → Installed Apps")
-    }
+    fun notActiveEnvelope(): JsonObject = ToolErrors.envelopeFor(error = "invalid_argument", message = "AccessibilityService not active", hint = "Enable RikkaHub Agents in Settings → Accessibility → Installed Apps")
 }

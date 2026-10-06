@@ -12,6 +12,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.service.RikkaAccessibilityService
 import me.rerere.rikkahub.data.log.AppLog
 
@@ -190,10 +191,7 @@ internal suspend fun withActionEnvelope(
         throw c
     } catch (t: Throwable) {
         AppLog.w("ScreenState", "action threw: ${t.message}", t)
-        buildJsonObject {
-            put("error", "tool_exception")
-            put("message", t.message ?: t::class.java.simpleName)
-        }
+        ToolErrors.envelopeFor(error = "tool_exception", message = "tool_exception", extra = ToolErrors.extraOf("message" to (t.message ?: t::class.java.simpleName)))
     }
     if (result.containsKey("error")) return result
     val quiet = awaitQuiet(

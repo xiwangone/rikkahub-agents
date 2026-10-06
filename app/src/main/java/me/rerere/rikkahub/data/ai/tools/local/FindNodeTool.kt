@@ -14,6 +14,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
 
@@ -88,27 +89,18 @@ fun findNodeTool(
         if (by == null || by !in ALLOWED_BY || value == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "by must be one of [text, content_description, view_id_resource_name] and value is required")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "by must be one of [text, content_description, view_id_resource_name] and value is required").toString()
                 )
             )
         }
         val payload = AccessibilityServiceHandle.withService { svc ->
             val root = svc.rootInActiveWindow
             if (root == null) {
-                return@withService buildJsonObject {
-                    put("error", "no_active_window")
-                    put("matches", buildJsonArray {})
-                }
+                return@withService ToolErrors.envelopeFor(error = "no_active_window", message = "no_active_window", extra = ToolErrors.extraOf("matches" to buildJsonArray {}))
             }
             val pkg = root.packageName?.toString().orEmpty()
             if (pkgFilter != null && pkgFilter != pkg) {
-                return@withService buildJsonObject {
-                    put("error", "wrong_foreground_app")
-                    put("current", pkg)
-                    put("matches", buildJsonArray {})
-                }
+                return@withService ToolErrors.envelopeFor(error = "wrong_foreground_app", message = "wrong_foreground_app", extra = ToolErrors.extraOf("current" to pkg, "matches" to buildJsonArray {}))
             }
             val matches = findMatches(root, by, value).take(50)
             svc.appendLog(
@@ -170,46 +162,36 @@ fun clickNodeTool(
         if (by == null || by !in ALLOWED_BY || value == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "by must be one of [text, content_description, view_id_resource_name] and value is required")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "by must be one of [text, content_description, view_id_resource_name] and value is required").toString()
                 )
             )
         }
         if (nth < 0) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "nth must be >= 0")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "nth must be >= 0", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }
         val payload = AccessibilityServiceHandle.withService { svc ->
             val root = svc.rootInActiveWindow
             if (root == null) {
-                return@withService buildJsonObject { put("error", "no_active_window") }
+                return@withService ToolErrors.envelopeFor(error = "no_active_window", message = "no_active_window")
             }
             val pkg = root.packageName?.toString().orEmpty()
             if (pkgFilter != null && pkgFilter != pkg) {
-                return@withService buildJsonObject {
-                    put("error", "wrong_foreground_app")
-                    put("current", pkg)
-                }
+                return@withService ToolErrors.envelopeFor(error = "wrong_foreground_app", message = "wrong_foreground_app", extra = ToolErrors.extraOf("current" to pkg))
             }
             val matches = findMatches(root, by, value)
             if (matches.isEmpty()) {
-                return@withService buildJsonObject { put("error", "no_match") }
+                return@withService ToolErrors.envelopeFor(error = "no_match", message = "no_match")
             }
             if (nth >= matches.size) {
-                return@withService buildJsonObject {
-                    put("error", "nth_out_of_range")
-                    put("available", matches.size)
-                }
+                return@withService ToolErrors.envelopeFor(error = "nth_out_of_range", message = "nth_out_of_range", extra = ToolErrors.extraOf("available" to matches.size))
             }
             val target = matches[nth]
             val clickable = svc.resolveClickable(target)
-                ?: return@withService buildJsonObject { put("error", "no_clickable_ancestor") }
+                ?: return@withService ToolErrors.envelopeFor(error = "no_clickable_ancestor", message = "no_clickable_ancestor")
             val ok = clickable.performAction(AccessibilityNodeInfo.ACTION_CLICK)
             svc.appendLog(
                 ActionLogEntry(
@@ -294,38 +276,30 @@ fun setTextTool(
         if (by == null || by !in ALLOWED_BY || value == null || newText == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "by, value, and text are required; by must be one of [text, content_description, view_id_resource_name]")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "by, value, and text are required; by must be one of [text, content_description, view_id_resource_name]").toString()
                 )
             )
         }
         if (nth < 0) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "nth must be >= 0") }.toString()
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = "nth must be >= 0", hint = "Check the parameter values and retry with corrected arguments.").toString()
                 )
             )
         }
         val payload = AccessibilityServiceHandle.withService { svc ->
             val root = svc.rootInActiveWindow
-                ?: return@withService buildJsonObject { put("error", "no_active_window") }
+                ?: return@withService ToolErrors.envelopeFor(error = "no_active_window", message = "no_active_window")
             val pkg = root.packageName?.toString().orEmpty()
             if (pkgFilter != null && pkgFilter != pkg) {
-                return@withService buildJsonObject {
-                    put("error", "wrong_foreground_app")
-                    put("current", pkg)
-                }
+                return@withService ToolErrors.envelopeFor(error = "wrong_foreground_app", message = "wrong_foreground_app", extra = ToolErrors.extraOf("current" to pkg))
             }
             val matches = findMatches(root, by, value)
             if (matches.isEmpty()) {
-                return@withService buildJsonObject { put("error", "no_match") }
+                return@withService ToolErrors.envelopeFor(error = "no_match", message = "no_match")
             }
             if (nth >= matches.size) {
-                return@withService buildJsonObject {
-                    put("error", "nth_out_of_range")
-                    put("available", matches.size)
-                }
+                return@withService ToolErrors.envelopeFor(error = "nth_out_of_range", message = "nth_out_of_range", extra = ToolErrors.extraOf("available" to matches.size))
             }
             val target = matches[nth]
             // ACTION_SET_TEXT requires the node to be editable. Walk up the parent chain
@@ -335,10 +309,7 @@ fun setTextTool(
                 editable = editable.parent
             }
             if (editable == null) {
-                return@withService buildJsonObject {
-                    put("error", "node_not_editable")
-                    put("recovery", "The matched node is not an editable input. Terminals (Termux) render natively and do not expose editable nodes; use termux_run_command instead.")
-                }
+                return@withService ToolErrors.envelopeFor(error = "node_not_editable", message = "node_not_editable", hint = "The matched node is not an editable input. Terminals (Termux) render natively and do not expose editable nodes; use termux_run_command instead.")
             }
             val args = android.os.Bundle().apply {
                 putCharSequence(

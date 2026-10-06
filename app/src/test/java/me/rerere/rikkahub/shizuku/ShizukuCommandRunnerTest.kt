@@ -121,7 +121,7 @@ class ShizukuCommandRunnerTest {
             maxStdoutBytes = 8_000,
             maxStderrBytes = 8_000,
         )
-        assertEquals("command_timeout", result["error"]!!.jsonPrimitive.content)
+        assertEquals("command_timeout", result["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
         // The process is killed mid-sleep, so "after" must never appear, only what was
         // flushed before the timeout fired.
         assertTrue(result["partial_stdout"]!!.jsonPrimitive.content.contains("before"))

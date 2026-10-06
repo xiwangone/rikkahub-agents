@@ -292,9 +292,13 @@ private suspend fun readUntilDone(
 }
 
 private fun sessionErrorEnvelope(error: String, recovery: String) = listOf(
-    UIMessagePart.Text(buildJsonObject {
-        put("error", error); put("recovery", recovery)
-    }.toString())
+    UIMessagePart.Text(
+        me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+            error = error,
+            message = me.rerere.rikkahub.data.ai.tools.ToolErrors.messageFor(error),
+            hint = recovery,
+        ).toString()
+    )
 )
 
 private fun preflight(context: Context): List<UIMessagePart>? =

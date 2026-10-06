@@ -38,7 +38,7 @@ import kotlin.uuid.Uuid
 private fun errEnv(
     error: String,
     detail: String,
-): List<UIMessagePart> = ToolErrors.parts(error, detail)
+): List<UIMessagePart> = ToolErrors.partsFor(error, detail)
 
 fun checkTokenUsageTool(
     settingsStore: SettingsStore,

@@ -36,7 +36,7 @@ class JavascriptToolTest {
             "({toJSON() { while (true) {} }})",
             "while (true) { console.log('spam'); }",
         )) {
-            assertTrue(evaluate(code, 100)["error"]!!.jsonPrimitive.content.contains("timed out"))
+            assertTrue(evaluate(code, 100)["message"]!!.jsonPrimitive.content.contains("timed out"))
             assertEquals("2", evaluate("1 + 1")["result"]?.jsonPrimitive?.content)
         }
     }
@@ -46,14 +46,14 @@ class JavascriptToolTest {
         val logs = evaluate("for (let i = 0; i < 10000; i++) console.log('1234567890'); 1")
         assertTrue(logs["logs"]!!.jsonPrimitive.content.length < 66_000)
         assertTrue(logs["logs"]!!.jsonPrimitive.content.endsWith("[Logs truncated]"))
-        assertTrue(evaluate("'x'.repeat(2 * 1024 * 1024)").containsKey("error"))
+        assertTrue(evaluate("'x'.repeat(2 * 1024 * 1024)")["data"]!!.jsonObject.containsKey("error"))
     }
 
     @Test(timeout = 20_000)
     fun `memory and stack exhaustion return errors`() = runBlocking {
-        assertTrue(evaluate("new ArrayBuffer(128 * 1024 * 1024)").containsKey("error"))
-        assertTrue(evaluate("function recurse() { return recurse(); } recurse();").containsKey("error"))
-        assertTrue(evaluate("throw new Error('failure')").containsKey("error"))
+        assertTrue(evaluate("new ArrayBuffer(128 * 1024 * 1024)")["data"]!!.jsonObject.containsKey("error"))
+        assertTrue(evaluate("function recurse() { return recurse(); } recurse();")["data"]!!.jsonObject.containsKey("error"))
+        assertTrue(evaluate("throw new Error('failure')")["data"]!!.jsonObject.containsKey("error"))
         assertEquals("3", evaluate("1 + 2")["result"]?.jsonPrimitive?.content)
     }
 

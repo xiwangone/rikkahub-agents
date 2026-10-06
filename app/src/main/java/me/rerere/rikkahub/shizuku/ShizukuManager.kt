@@ -18,6 +18,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import me.rerere.rikkahub.BuildConfig
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import rikka.shizuku.Shizuku
 import me.rerere.rikkahub.data.log.AppLog
 
@@ -50,10 +51,7 @@ private const val CALL_TIMEOUT_SLACK_MS = 5_000L
  */
 internal fun parseExecResponse(raw: String): JsonObject =
     runCatching { Json.parseToJsonElement(raw).jsonObject }.getOrElse {
-        buildJsonObject {
-            put("error", "shizuku_bad_response")
-            put("raw", raw)
-        }
+        ToolErrors.envelopeFor(error = "shizuku_bad_response", message = "shizuku_bad_response", extra = ToolErrors.extraOf("raw" to raw))
     }
 
 /**
@@ -93,23 +91,13 @@ internal sealed interface BindResult {
  * the throwable's class and message. Never a stack trace: that goes to logcat only, see
  * [ShizukuManager.startBind]. Pure, so unit-testable without the Shizuku SDK.
  */
-internal fun bindFailedResponse(failure: BindResult.Failure): JsonObject = buildJsonObject {
-    put("error", "shizuku_bind_failed")
-    put(
-        "recovery",
-        if (failure is BindResult.Failure.Timeout) {
+internal fun bindFailedResponse(failure: BindResult.Failure): JsonObject = ToolErrors.envelopeFor(error = "shizuku_bind_failed", message = "shizuku_bind_failed", extra = ToolErrors.extraOf("recovery" to if (failure is BindResult.Failure.Timeout) {
             // The server accepted the bind (an unauthorised caller fails at bind_threw), so
             // permission is not the problem; a running server older than the Shizuku app is (#45).
             "The Shizuku server accepted the request but the user service never started. Open the Shizuku app: if the running server version is older than the app, or it offers to restart to upgrade, restart the Shizuku service, then retry."
         } else {
             "Could not bind the Shizuku user service. Retry; if it keeps failing, restart the Shizuku service and re-grant permission from Settings -> Shizuku."
-        },
-    )
-    put("phase", failure.phase)
-    if (failure is BindResult.Failure.BindThrew) {
-        put("reason", "${failure.throwable::class.java.simpleName}: ${failure.throwable.message}")
-    }
-}
+        }, "phase" to failure.phase, "reason" to "${failure.throwable::class.java.simpleName}: ${failure.throwable.message}"))
 
 /**
  * Thin wrapper around the static [Shizuku] SDK object (dev.rikka.shizuku:api 13.1.5) plus the
@@ -219,10 +207,7 @@ object ShizukuManager {
         val version = runCatching { Shizuku.getVersion() }.getOrNull()
             ?: return checkNotNull(ShizukuStatusMapper.errorFor(ShizukuStatus.NOT_RUNNING))
         if (version < 10) {
-            return buildJsonObject {
-                put("error", "shizuku_version_too_old")
-                put("recovery", "This Shizuku server is too old to support bindUserService (needs API 10+). Update the Shizuku app.")
-            }
+            return ToolErrors.envelopeFor(error = "shizuku_version_too_old", message = "shizuku_version_too_old", hint = "This Shizuku server is too old to support bindUserService (needs API 10+). Update the Shizuku app.")
         }
         val api = when (val bindResult = ensureBound(context)) {
             is BindResult.Connected -> bindResult.service
@@ -237,10 +222,7 @@ object ShizukuManager {
         }
         if (raw == null) {
             resetBinding()
-            return buildJsonObject {
-                put("error", "shizuku_call_failed")
-                put("recovery", "The Shizuku user service did not respond in time. It may have died; retry the call.")
-            }
+            return ToolErrors.envelopeFor(error = "shizuku_call_failed", message = "shizuku_call_failed", hint = "The Shizuku user service did not respond in time. It may have died; retry the call.")
         }
         return parseExecResponse(raw)
     }

@@ -21,6 +21,7 @@ import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
 import java.util.UUID
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 private const val PICTURES_SUBDIR = "RikkaHub Agents"
 
@@ -36,7 +37,7 @@ fun cameraPhotoTool(context: Context, buffer: CameraResultBuffer): Tool = Tool(
         if (!PermissionHelper.hasRuntime(context, listOf(Manifest.permission.CAMERA))) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "permission CAMERA not granted") }.toString()
+                    ToolErrors.envelopeFor(error = "permission_denied", message = "permission CAMERA not granted", hint = "Grant the required permission or choose a different target.").toString()
                 )
             )
         }
@@ -66,7 +67,7 @@ fun cameraPhotoTool(context: Context, buffer: CameraResultBuffer): Tool = Tool(
             if (inserted == null) {
                 return@Tool listOf(
                     UIMessagePart.Text(
-                        buildJsonObject { put("error", "failed to create MediaStore entry") }.toString()
+                        ToolErrors.envelopeFor(error = "tool_failed", message = "failed to create MediaStore entry").toString()
                     )
                 )
             }
@@ -105,7 +106,7 @@ fun cameraPhotoTool(context: Context, buffer: CameraResultBuffer): Tool = Tool(
             mediaStoreUri?.let { context.contentResolver.delete(it, null, null) }
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "user_cancelled") }.toString()
+                    ToolErrors.envelopeFor(error = "user_cancelled", message = "user_cancelled").toString()
                 )
             )
         }

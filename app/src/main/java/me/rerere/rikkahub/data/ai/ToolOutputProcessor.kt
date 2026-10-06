@@ -16,6 +16,9 @@ import java.io.File
  */
 private const val TAG = "GenerationLoop"
 
+// 搜索结果的体积由用户设置的结果数决定，且结果列表 UI 与引用跳转都依赖完整的 JSON 结构，不参与截断
+private val TOOLS_WITHOUT_OUTPUT_TRUNCATION = setOf("search_web")
+
 internal class ToolOutputProcessor(
     private val context: Context,
 ) {
@@ -26,7 +29,10 @@ internal class ToolOutputProcessor(
         hasShellAccess: Boolean,
         maxChars: Int,
         digestKeywords: List<String>? = null,
+        toolName: String? = null,
     ): List<UIMessagePart> {
+        if (toolName in TOOLS_WITHOUT_OUTPUT_TRUNCATION) return output
+
         val textParts = output.filterIsInstance<UIMessagePart.Text>()
         val nonTextParts = output.filter { it !is UIMessagePart.Text }
         val totalChars = textParts.sumOf { it.text.length }

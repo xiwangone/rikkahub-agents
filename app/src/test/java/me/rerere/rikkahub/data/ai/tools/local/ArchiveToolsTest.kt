@@ -73,7 +73,7 @@ class ArchiveToolsTest {
             unzipFileTool(NULL_CONTEXT),
             """{"source":"${jp(evilZip.absolutePath)}","destination_dir":"${jp(destDir)}"}""",
         ))
-        assertEquals("unsafe_zip_entry", result["error"]?.jsonPrimitive?.content)
+        assertEquals("unsafe_zip_entry", result["data"]!!.jsonObject["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `isUnsafeZipEntry catches escapes`() {
@@ -102,7 +102,7 @@ class ArchiveToolsTest {
             unzipFileTool(NULL_CONTEXT),
             """{"source":"${jp(zipPath)}","destination_dir":"${jp(destDir.absolutePath)}"}""",
         ))
-        assertEquals("entry_exists", result["error"]?.jsonPrimitive?.content)
+        assertEquals("entry_exists", result["data"]!!.jsonObject["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `list_zip_contents returns entry shape`() {
@@ -132,7 +132,7 @@ class ArchiveToolsTest {
             listZipContentsTool(NULL_CONTEXT),
             """{"source":"${jp(notZip.absolutePath)}"}""",
         ))
-        assertEquals("invalid_zip", result["error"]?.jsonPrimitive?.content)
+        assertEquals("invalid_zip", result["data"]!!.jsonObject["error"]?.jsonPrimitive?.content)
     }
 
     @Test fun `zip_files errors on unreadable source`() {
@@ -140,7 +140,7 @@ class ArchiveToolsTest {
             zipFilesTool(NULL_CONTEXT),
             """{"sources":["/nonexistent/path/xyz"],"destination":"${jp(tmp.root.absolutePath)}/x.zip"}""",
         ))
-        assertEquals("source_unreadable", result["error"]?.jsonPrimitive?.content)
+        assertEquals("source_unreadable", result["data"]!!.jsonObject["error"]?.jsonPrimitive?.content)
     }
 
     // --- #66: entry names mangled for archives made on Chinese Windows ----------------------

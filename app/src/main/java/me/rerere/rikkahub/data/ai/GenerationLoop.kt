@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.ai
 
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.costguards.TokenBudgetTracker
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.perf.resolveRenderProfileLogged
 import android.content.Context
@@ -850,12 +851,7 @@ class GenerationLoop(
                             output = listOf(
                                 UIMessagePart.Text(
                                     json.encodeToString(
-                                        buildJsonObject {
-                                            put(
-                                                "error",
-                                                JsonPrimitive("Tool execution denied by user. Reason: ${reason.ifBlank { "No reason provided" }}")
-                                            )
-                                        }
+                                        ToolErrors.envelopeFor(error = "permission_denied", message = "Tool execution denied by user. Reason: ${reason.ifBlank { "No reason provided" }}", hint = "Grant the required permission or choose a different target.")
                                     )
                                 )
                             )
@@ -893,12 +889,10 @@ class GenerationLoop(
                             executedTools += tool.copy(
                                 output = listOf(
                                     UIMessagePart.Text(
-                                        json.encodeToString(buildJsonObject {
-                                            put("error", JsonPrimitive(
+                                        json.encodeToString(ToolErrors.envelopeFor(error = "invalid_argument", message =
                                                 "blocked by safety floor (hardline): $resumeHardlineReason. " +
-                                                    "This command cannot run via the agent under any circumstances."
-                                            ))
-                                        })
+                                                    "This command cannot run via the agent under any circumstances.",
+                                            hint = "Check the parameter values and retry with corrected arguments."))
                                     )
                                 )
                             )
@@ -944,21 +938,7 @@ class GenerationLoop(
                                 output = listOf(
                                     UIMessagePart.Text(
                                         json.encodeToString(
-                                            buildJsonObject {
-                                                put("error", JsonPrimitive("loop_detected"))
-                                                put(
-                                                    "recovery", JsonPrimitive(
-                                                        "You have already called ${tool.toolName} with identical arguments " +
-                                                            "${priorOccurrences} time(s) in this turn without making progress. " +
-                                                            "Stop retrying. Either: (a) change the args meaningfully, (b) try a " +
-                                                            "different tool that addresses the underlying request, or (c) hand " +
-                                                            "back to the user with what you have so far. Examples: for 'search " +
-                                                            "X in chrome' use open_url(\"https://www.google.com/search?q=X\") " +
-                                                            "instead of fighting Chrome's URL bar via set_text; for terminal " +
-                                                            "tasks use termux_run_command instead of typing into Termux."
-                                                    )
-                                                )
-                                            }
+                                            ToolErrors.envelopeFor(error = "loop_detected", message = "Loop detected: repeated identical tool calls without progress", hint = "You have already called ${tool.toolName} with identical arguments ${priorOccurrences} time(s) in this turn without making progress. Stop retrying. Either: (a) change the args meaningfully, (b) try a different tool that addresses the underlying request, or (c) hand back to the user with what you have so far. Examples: for 'search X in chrome' use open_url(\"https://www.google.com/search?q=X\") instead of fighting Chrome's URL bar via set_text; for terminal tasks use termux_run_command instead of typing into Termux.")
                                         )
                                     )
                                 )
@@ -984,30 +964,10 @@ class GenerationLoop(
                             executedTools += tool.copy(
                                 output = listOf(
                                     UIMessagePart.Text(
-                                        json.encodeToString(buildJsonObject {
-                                            put("error", JsonPrimitive("invalid_tool_args"))
-                                            put(
-                                                "detail",
-                                                JsonPrimitive(
+                                        json.encodeToString(ToolErrors.envelopeFor(error = "invalid_tool_args", message = "Invalid tool arguments", hint = "Tool args JSON failed to parse — most often the provider's stream was cut off mid-string by max_tokens or a network drop. Retry with a shorter call. For long payloads (e.g. a 4000-char message), split into multiple smaller tool calls or shrink the content.", extra = ToolErrors.extraOf("detail" to JsonPrimitive(
                                                     (cause?.message ?: cause?.javaClass?.simpleName ?: "json_parse_failed")
                                                         .take(200)
-                                                ),
-                                            )
-                                            put(
-                                                "recovery",
-                                                JsonPrimitive(
-                                                    "Tool args JSON failed to parse — most often the provider's " +
-                                                        "stream was cut off mid-string by max_tokens or a network drop. " +
-                                                        "Retry with a shorter call. For long payloads (e.g. a 4000-char " +
-                                                        "message), split into multiple smaller tool calls or shrink the " +
-                                                        "content."
-                                                ),
-                                            )
-                                            put(
-                                                "exception",
-                                                JsonPrimitive(cause?.javaClass?.simpleName ?: "JsonParseException"),
-                                            )
-                                        })
+                                                ), "exception" to JsonPrimitive(cause?.javaClass?.simpleName ?: "JsonParseException"))))
                                     )
                                 )
                             )
@@ -1027,17 +987,7 @@ class GenerationLoop(
                             executedTools += tool.copy(
                                 output = listOf(
                                     UIMessagePart.Text(
-                                        json.encodeToString(buildJsonObject {
-                                            put("error", JsonPrimitive("tool_not_found"))
-                                            put(
-                                                "detail",
-                                                JsonPrimitive("Tool '${tool.toolName}' was called but is not among the tools available this turn."),
-                                            )
-                                            put(
-                                                "tools_available_this_turn",
-                                                JsonPrimitive(toolsInternal.joinToString(", ") { it.name }.take(1500)),
-                                            )
-                                        })
+                                        json.encodeToString(ToolErrors.envelopeFor(error = "tool_not_found", message = "Tool '${tool.toolName}' was called but is not among the tools available this turn.", hint = "Call get_tool_schema with the exact tool name, then retry.", extra = ToolErrors.extraOf("tools_available_this_turn" to JsonPrimitive(toolsInternal.joinToString(", ") { it.name }.take(1500)))))
                                     )
                                 )
                             )
@@ -1088,8 +1038,7 @@ class GenerationLoop(
                                 (android.os.SystemClock.elapsedRealtime() - turnStartMs)
                             val result = if (remainingMs <= 0L) {
                                 AppLog.w(TAG, "generateText: ${toolDef.name} skipped — wall-clock budget already exceeded")
-                                me.rerere.rikkahub.data.ai.tools.ToolErrors.parts(
-                                    me.rerere.rikkahub.data.ai.tools.ToolErrors.TOOL_CANCELLED_WALL_CLOCK,
+                                me.rerere.rikkahub.data.ai.tools.ToolErrors.partsFor(me.rerere.rikkahub.data.ai.tools.ToolErrors.TOOL_CANCELLED_WALL_CLOCK,
                                     "turn budget exceeded before tool started",
                                 )
                             } else {
@@ -1106,8 +1055,7 @@ class GenerationLoop(
                                 }
                                     ?: run {
                                         AppLog.w(TAG, "generateText: ${toolDef.name} cancelled — wall-clock budget exhausted mid-execution")
-                                        me.rerere.rikkahub.data.ai.tools.ToolErrors.parts(
-                                            me.rerere.rikkahub.data.ai.tools.ToolErrors.TOOL_CANCELLED_WALL_CLOCK,
+                                        me.rerere.rikkahub.data.ai.tools.ToolErrors.partsFor(me.rerere.rikkahub.data.ai.tools.ToolErrors.TOOL_CANCELLED_WALL_CLOCK,
                                             "tool execution exceeded the ${ToolRuntimeLimits.turnBudgetMs / 1000}s turn budget",
                                         )
                                     }
@@ -1141,6 +1089,7 @@ class GenerationLoop(
                                     } else {
                                         null
                                     },
+                                    toolName = tool.toolName,
                                 )
                             )
                         }.onFailure {
@@ -1158,8 +1107,7 @@ class GenerationLoop(
                             // for what was usually a one-line "name is required" problem.
                             AppLog.w(TAG, "tool ${tool.toolName} threw", it)
                             executedTools += tool.copy(
-                                output = me.rerere.rikkahub.data.ai.tools.ToolErrors.parts(
-                                    me.rerere.rikkahub.data.ai.tools.ToolErrors.TOOL_FAILED,
+                                output = me.rerere.rikkahub.data.ai.tools.ToolErrors.partsFor(me.rerere.rikkahub.data.ai.tools.ToolErrors.TOOL_FAILED,
                                     // Cap at 500 chars so a tool that throws with a giant message
                                     // (e.g. an OkHttp body dump or an echoed input arg) doesn't ship
                                     // 8000+ tokens back to the LLM on every failure.

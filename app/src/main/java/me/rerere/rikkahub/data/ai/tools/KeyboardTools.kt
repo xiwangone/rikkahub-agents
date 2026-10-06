@@ -65,7 +65,7 @@ private fun ok(build: kotlinx.serialization.json.JsonObjectBuilder.() -> Unit): 
     listOf(UIMessagePart.Text(buildJsonObject { put("ok", true); build() }.toString()))
 
 private fun errEnvelope(error: String, detail: String, recovery: String): List<UIMessagePart> =
-    ToolErrors.parts(error, detail, hint = recovery)
+    ToolErrors.partsFor(error, detail, hint = recovery)
 
 /** Maps a client [KeyboardApiClient.Failure] to the standard error envelope. */
 private fun failureEnvelope(failure: KeyboardApiClient.Failure): List<UIMessagePart> = when (failure) {

@@ -11,6 +11,7 @@ import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import java.net.Inet4Address
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 internal fun wifiPayload(context: Context): JsonObject {
         val payload = if (!PermissionHelper.hasRuntime(
@@ -18,7 +19,7 @@ internal fun wifiPayload(context: Context): JsonObject {
                 listOf(Manifest.permission.ACCESS_FINE_LOCATION)
             )
         ) {
-            buildJsonObject { put("error", "permission ACCESS_FINE_LOCATION not granted") }
+            ToolErrors.envelopeFor(error = "permission_denied", message = "permission ACCESS_FINE_LOCATION not granted", hint = "Grant the required permission or choose a different target.")
         } else {
             buildWifiInfoPayload(context.applicationContext)
         }
@@ -45,7 +46,7 @@ internal fun wifiPayload(context: Context): JsonObject {
  */
 private fun buildWifiInfoPayload(appContext: Context): kotlinx.serialization.json.JsonObject {
     val cm = appContext.getSystemService(ConnectivityManager::class.java)
-        ?: return buildJsonObject { put("error", "connectivity service unavailable") }
+        ?: return ToolErrors.envelopeFor(error = "invalid_argument", message = "connectivity service unavailable", hint = "Check the parameter values and retry with corrected arguments.")
     val activeNet = cm.activeNetwork
     val caps = activeNet?.let { cm.getNetworkCapabilities(it) }
     val onWifi = caps?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true

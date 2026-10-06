@@ -48,6 +48,23 @@ class SystemPromptBuilder {
                 appendLine("Context economy: for large tool outputs (API responses, logs, file dumps), save the full result to a file and return only a summary or key lines instead of pasting everything into the conversation. Run searches in small focused batches (2-3 queries at a time) with precise keywords rather than one broad multi-query blast, and wait to see results before issuing the next batch.")
                 appendLine("Token usage: on long conversations, call check_token_usage (when available) to self-monitor token consumption and cached-token ratio; proactively suggest or trigger context compression when nearing the context limit.")
                 appendLine("Tool discovery: low-frequency tools may expose only a short description and an empty parameter schema. Call get_tool_schema with the exact tool name before retrying such a tool; once loaded, its full schema remains available in this conversation.")
+                // 搜索引用与图片嵌入：全局回复格式规则，原先放在 search_web 描述里，
+                // 每个工具调用都重复消耗 token。仅在搜索工具存在时注入。
+                // 放在 volatile 段（缓存断点之后），调整这段话不会让 stable 缓存前缀失效。
+                if (toolPrompts.any { it.contains("search_web") || it.contains("scrape_web") }) {
+                    appendLine(
+                        "Citations: after using search results, add `[citation,domain](id)` after the sentence " +
+                            "(id is the short id from the result items). Multiple citations are allowed. " +
+                            "If no results are cited, omit citations. Example: " +
+                            "The capital of France is Paris. [citation,example.com](abc123)",
+                    )
+                    appendLine(
+                        "Images: when images help the user understand the answer, embed relevant ones using " +
+                            "Markdown: `![](url)`. Embed 2 to 4 images, and only use urls from the results' " +
+                            "`images[]` (never fabricate or alter urls). Usually place the images at the very " +
+                            "beginning of your reply; skip them entirely if none are relevant.",
+                    )
+                }
                 // 凭证使用约定：仅在确实注入了凭证相关工具时才追加，避免无关会话被塞入无用规则。
                 // 放在 volatile 段（缓存断点之后），调整这段话不会让 stable 缓存前缀失效。
                 if (toolPrompts.any { it.contains("vault_") }) {

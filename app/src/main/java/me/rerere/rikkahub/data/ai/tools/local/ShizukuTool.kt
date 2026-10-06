@@ -15,6 +15,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.shizuku.ShizukuManager
 
 private const val DEFAULT_TIMEOUT_MS = 30_000
@@ -77,7 +78,7 @@ fun shizukuExecTool(context: Context): Tool = Tool(
             batch.isNotEmpty() -> batch
             else -> return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "command or commands is required") }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "command or commands is required").toString()
                 )
             )
         }

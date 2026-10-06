@@ -15,6 +15,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.telegram.TelegramApiException
 import me.rerere.rikkahub.data.telegram.TelegramBotClient
 import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
@@ -27,11 +28,9 @@ private fun textPart(o: JsonObject) = listOf(UIMessagePart.Text(o.toString()))
 private inline fun safeApi(block: () -> JsonObject): JsonObject = try {
     block()
 } catch (e: TelegramApiException) {
-    buildJsonObject {
-        put("error", "telegram api ${e.errorCode}: ${e.description}")
-    }
+    ToolErrors.envelopeFor(error = "invalid_argument", message = "telegram api ${e.errorCode}: ${e.description}", hint = "Check the parameter values and retry with corrected arguments.")
 } catch (e: Throwable) {
-    buildJsonObject { put("error", e.message ?: e::class.simpleName ?: "unknown") }
+    ToolErrors.envelopeFor(error = "internal_error", message = e.message ?: e::class.simpleName ?: "Unknown error")
 }
 
 /**
@@ -50,29 +49,13 @@ private inline fun safeApi(block: () -> JsonObject): JsonObject = try {
 internal fun classifyTokenVerifyError(t: Throwable): JsonObject {
     val isInvalidToken = t is TelegramApiException && t.errorCode == 401
     return if (isInvalidToken) {
-        buildJsonObject {
-            put("error", "token_invalid")
-            put("detail", "Telegram API rejected the token (HTTP 401: ${t.description}).")
-            put(
-                "recovery",
-                "The token is permanently invalid — do NOT retry with the same value. " +
-                    "Get a fresh token from @BotFather and call telegram_set_token again with it."
-            )
-        }
+        ToolErrors.envelopeFor(error = "token_invalid", message = "Telegram API rejected the token (HTTP 401: ${t.description}).", hint = "The token is permanently invalid — do NOT retry with the same value. Get a fresh token from @BotFather and call telegram_set_token again with it.")
     } else {
         val detail = when (t) {
             is TelegramApiException -> "Telegram API error ${t.errorCode}: ${t.description}"
             else -> t.message ?: t::class.simpleName ?: "unknown network failure"
         }
-        buildJsonObject {
-            put("error", "network_error")
-            put("detail", detail)
-            put(
-                "recovery",
-                "Verification failed for a transient reason (network / timeout / non-401 server error). " +
-                    "The token may still be valid — retry telegram_set_token, optionally after a short delay."
-            )
-        }
+        ToolErrors.envelopeFor(error = "network_error", message = "Network error", hint = "Verification failed for a transient reason (network / timeout / non-401 server error). The token may still be valid — retry telegram_set_token, optionally after a short delay.", extra = ToolErrors.extraOf("detail" to detail))
     }
 }
 
@@ -127,7 +110,7 @@ fun telegramStatusTool(
         val cfg = prefs.current()
         val botInfo = if (cfg.token.isNotBlank()) {
             try { client.getMe() } catch (e: Throwable) {
-                buildJsonObject { put("error", "getMe failed: ${e.message ?: "unknown"}") }
+                ToolErrors.envelopeFor(error = "tool_failed", message = "getMe failed: ${e.message ?: "unknown"}")
             }
         } else null
         // Best-effort runtime check: the service writes to its companion isRunning flag while
@@ -157,7 +140,7 @@ fun telegramEnableTool(context: Context, prefs: TelegramBotPreferences): Tool = 
     execute = {
         val cfg = prefs.current()
         if (cfg.token.isBlank()) {
-            return@Tool textPart(buildJsonObject { put("error", "no token set — call telegram_set_token first") })
+            return@Tool textPart(ToolErrors.envelopeFor(error = "invalid_argument", message = "no token set — call telegram_set_token first", hint = "Check the parameter values and retry with corrected arguments."))
         }
         prefs.update { it.copy(enabled = true) }
         TelegramBotService.start(context)
@@ -275,7 +258,7 @@ fun telegramSendMessageTool(prefs: TelegramBotPreferences, client: TelegramBotCl
         val p = input.jsonObject
         val text = p["text"]?.jsonPrimitive?.contentOrNull ?: error("text is required")
         val chatId = p["chat_id"]?.jsonPrimitive?.longOrNull ?: prefs.current().defaultChatId
-            ?: return@Tool textPart(buildJsonObject { put("error", "no chat_id and no default_chat_id set") })
+            ?: return@Tool textPart(ToolErrors.envelopeFor(error = "invalid_argument", message = "no chat_id and no default_chat_id set", hint = "Check the parameter values and retry with corrected arguments."))
         val parseMode = p["parse_mode"]?.jsonPrimitive?.contentOrNull
         textPart(safeApi { buildJsonObject {
             put("success", true)
@@ -300,24 +283,7 @@ private fun fileTooLargeEnvelope(
     file: File,
     capBytes: Long,
     kind: String,
-): JsonObject = buildJsonObject {
-    put("error", "file_too_large_for_telegram_bot")
-    put("kind", kind)
-    put("path", file.absolutePath)
-    put("size_bytes", file.length())
-    put("cap_bytes", capBytes)
-    put(
-        "recovery",
-        "Telegram Bot API caps $kind uploads at ${capBytes / (1024 * 1024)} MB. The public " +
-            "api.telegram.org endpoint enforces this; uploading anyway returns 413. Options: " +
-            "(a) split with `split -b 45m file part-` then send each part as a separate " +
-            "document; (b) run a temporary HTTP server on the source machine and share the URL " +
-            "(e.g. `python3 -m http.server` over SSH-forwarded port); (c) upload to a cloud " +
-            "share (rclone, file.io, etc.) and send the link via telegram_send_message; (d) " +
-            "compress harder if the content is compressible (zip / tar.zst). Don't retry the " +
-            "same path."
-    )
-}
+): JsonObject = ToolErrors.envelopeFor(error = "file_too_large_for_telegram_bot", message = "file_too_large_for_telegram_bot", hint = "Telegram Bot API caps $kind uploads at ${capBytes / (1024 * 1024)} MB. The public api.telegram.org endpoint enforces this; uploading anyway returns 413. Options: (a) split with `split -b 45m file part-` then send each part as a separate document; (b) run a temporary HTTP server on the source machine and share the URL (e.g. `python3 -m http.server` over SSH-forwarded port); (c) upload to a cloud share (rclone, file.io, etc.) and send the link via telegram_send_message; (d) compress harder if the content is compressible (zip / tar.zst). Don't retry the same path.", extra = ToolErrors.extraOf("kind" to kind, "path" to file.absolutePath, "size_bytes" to file.length(), "cap_bytes" to capBytes))
 
 /** Send a photo from a local file path. */
 fun telegramSendPhotoTool(prefs: TelegramBotPreferences, client: TelegramBotClient): Tool = Tool(
@@ -340,11 +306,11 @@ fun telegramSendPhotoTool(prefs: TelegramBotPreferences, client: TelegramBotClie
         val p = input.jsonObject
         val path = p["path"]?.jsonPrimitive?.contentOrNull ?: error("path is required")
         val chatId = p["chat_id"]?.jsonPrimitive?.longOrNull ?: prefs.current().defaultChatId
-            ?: return@Tool textPart(buildJsonObject { put("error", "no chat_id and no default_chat_id set") })
+            ?: return@Tool textPart(ToolErrors.envelopeFor(error = "invalid_argument", message = "no chat_id and no default_chat_id set", hint = "Check the parameter values and retry with corrected arguments."))
         val caption = p["caption"]?.jsonPrimitive?.contentOrNull
         val file = File(path)
         if (!file.exists() || !file.isFile) {
-            return@Tool textPart(buildJsonObject { put("error", "file not found: $path") })
+            return@Tool textPart(ToolErrors.envelopeFor(error = "not_found", message = "file not found: $path", hint = "Verify the name or id and retry."))
         }
         // Pre-flight size check so we don't waste an upload + battery on a request that will
         // 413 at the end. Same-shape envelope as the document tool so the model can branch
@@ -382,11 +348,11 @@ fun telegramSendDocumentTool(prefs: TelegramBotPreferences, client: TelegramBotC
         val p = input.jsonObject
         val path = p["path"]?.jsonPrimitive?.contentOrNull ?: error("path is required")
         val chatId = p["chat_id"]?.jsonPrimitive?.longOrNull ?: prefs.current().defaultChatId
-            ?: return@Tool textPart(buildJsonObject { put("error", "no chat_id and no default_chat_id set") })
+            ?: return@Tool textPart(ToolErrors.envelopeFor(error = "invalid_argument", message = "no chat_id and no default_chat_id set", hint = "Check the parameter values and retry with corrected arguments."))
         val caption = p["caption"]?.jsonPrimitive?.contentOrNull
         val file = File(path)
         if (!file.exists() || !file.isFile) {
-            return@Tool textPart(buildJsonObject { put("error", "file not found: $path") })
+            return@Tool textPart(ToolErrors.envelopeFor(error = "not_found", message = "file not found: $path", hint = "Verify the name or id and retry."))
         }
         // Pre-flight size check. Without this, large files get fully uploaded to
         // api.telegram.org before the 413 response — wastes ~minutes of bandwidth + battery,

@@ -457,7 +457,7 @@ object GetScreenTimeToolUI : ToolUIRenderer {
             ?.let { it as? JsonArray } ?: emptyList()
 
     private fun isNoPermission(context: ToolUIContext): Boolean =
-        context.content.getStringContent("error") == "NO_PERMISSION"
+        context.content.getErrorCode() == "NO_PERMISSION"
 
     override fun hasSummary(context: ToolUIContext): Boolean = isNoPermission(context) || apps(context).isNotEmpty()
 

@@ -6,6 +6,7 @@ import android.telephony.TelephonyManager
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 private fun networkTypeName(type: Int): String = when (type) {
     1 -> "GPRS"
@@ -36,11 +37,11 @@ internal fun telephonyPayload(context: Context): JsonObject {
                 listOf(Manifest.permission.READ_PHONE_STATE)
             )
         ) {
-            buildJsonObject { put("error", "permission READ_PHONE_STATE not granted") }
+            ToolErrors.envelopeFor(error = "permission_denied", message = "permission READ_PHONE_STATE not granted", hint = "Grant the required permission or choose a different target.")
         } else {
             val tm = context.getSystemService(TelephonyManager::class.java)
             if (tm == null) {
-                buildJsonObject { put("error", "telephony service unavailable") }
+                ToolErrors.envelopeFor(error = "invalid_argument", message = "telephony service unavailable", hint = "Check the parameter values and retry with corrected arguments.")
             } else {
                 try {
                     val hasSim = tm.simState == TelephonyManager.SIM_STATE_READY
@@ -60,7 +61,7 @@ internal fun telephonyPayload(context: Context): JsonObject {
                         put("phone_type", phoneTypeName(tm.phoneType))
                     }
                 } catch (_: SecurityException) {
-                    buildJsonObject { put("error", "permission READ_PHONE_STATE not granted") }
+                    ToolErrors.envelopeFor(error = "permission_denied", message = "permission READ_PHONE_STATE not granted", hint = "Grant the required permission or choose a different target.")
                 }
             }
         }

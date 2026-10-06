@@ -17,6 +17,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.RikkaAccessibilityService
 
@@ -70,7 +71,7 @@ fun launchAppTool(
         if (pkg.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "package_name is required") }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "package_name is required").toString()
                 )
             )
         }
@@ -78,11 +79,7 @@ fun launchAppTool(
         if (intent == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "no_launch_intent")
-                        put("package", pkg)
-                        put("recovery", "Package may not be installed or has no launcher activity. Call list_installed_apps to verify.")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "no_launch_intent", message = "no_launch_intent", hint = "Package may not be installed or has no launcher activity. Call list_installed_apps to verify.", extra = ToolErrors.extraOf("package" to pkg)).toString()
                 )
             )
         }
@@ -110,16 +107,7 @@ fun launchAppTool(
             if (accessibilityRunning && !keyLocked && !confirmed) {
                 listOf(
                     UIMessagePart.Text(
-                        buildJsonObject {
-                            put("error", "launch_did_not_focus")
-                            put("requested", pkg)
-                            put("current_foreground", finalForeground.orEmpty())
-                            put(
-                                "recovery",
-                                "The launch intent was dispatched but the OS did not move ${pkg} to the foreground within 2.5s. The user is likely actively viewing another app (often RikkaHub Agents itself) — do NOT pass package_name to read_window_tree on this turn. Either ask the user to switch to ${pkg}, or call read_window_tree with no package_name guard so you can see whatever IS currently on screen."
-                            )
-                            if (wasOff) put("woke_screen", woke)
-                        }.toString()
+                        ToolErrors.envelopeFor(error = "launch_did_not_focus", message = "launch_did_not_focus", hint = "The launch intent was dispatched but the OS did not move ${pkg} to the foreground within 2.5s. The user is likely actively viewing another app (often RikkaHub Agents itself) — do NOT pass package_name to read_window_tree on this turn. Either ask the user to switch to ${pkg}, or call read_window_tree with no package_name guard so you can see whatever IS currently on screen.", extra = ToolErrors.extraOf("requested" to pkg, "current_foreground" to finalForeground.orEmpty(), "woke_screen" to woke)).toString()
                     )
                 )
             } else {
@@ -152,10 +140,7 @@ fun launchAppTool(
         } catch (t: Throwable) {
             listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "launch_failed")
-                        put("reason", t.message ?: t::class.java.simpleName)
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "launch_failed", message = "launch_failed", extra = ToolErrors.extraOf("reason" to (t.message ?: t::class.java.simpleName))).toString()
                 )
             )
         }
@@ -355,7 +340,7 @@ fun openUrlTool(
         if (url.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "url is required") }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "url is required").toString()
                 )
             )
         }
@@ -377,12 +362,7 @@ fun openUrlTool(
         if (resolved == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "no_handler")
-                        put("recovery", "No installed app handles this URL scheme. Try a different URL or install an appropriate app first.")
-                        put("url", url)
-                        if (pkg != null) put("package", pkg)
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "no_handler", message = "no_handler", hint = "No installed app handles this URL scheme. Try a different URL or install an appropriate app first.", extra = ToolErrors.extraOf("url" to url, "package" to pkg)).toString()
                 )
             )
         }
@@ -411,10 +391,7 @@ fun openUrlTool(
         } catch (t: Throwable) {
             listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "open_failed")
-                        put("reason", t.message ?: t::class.java.simpleName)
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "open_failed", message = "open_failed", extra = ToolErrors.extraOf("reason" to (t.message ?: t::class.java.simpleName))).toString()
                 )
             )
         }
@@ -467,7 +444,7 @@ fun listAppActivitiesTool(context: Context): Tool = Tool(
         if (pkg.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject { put("error", "package_name is required") }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "package_name is required").toString()
                 )
             )
         }
@@ -492,11 +469,7 @@ fun listAppActivitiesTool(context: Context): Tool = Tool(
         } catch (_: PackageManager.NameNotFoundException) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "package_not_found")
-                        put("package", pkg)
-                        put("recovery", "Call list_installed_apps to find the correct package id.")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "package_not_found", message = "package_not_found", hint = "Call list_installed_apps to find the correct package id.", extra = ToolErrors.extraOf("package" to pkg)).toString()
                 )
             )
         }
@@ -577,9 +550,7 @@ fun launchActivityTool(
         if (pkg.isNullOrBlank() || rawActivity.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "package_name and activity_name are required")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "missing_param", message = "package_name and activity_name are required").toString()
                 )
             )
         }
@@ -626,25 +597,13 @@ fun launchActivityTool(
         } catch (e: SecurityException) {
             listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "activity_not_exported")
-                        put("package", pkg)
-                        put("activity", activity)
-                        put("reason", e.message ?: "SecurityException")
-                        put("recovery", "Android only allows launching activities declared exported=true. Call list_app_activities with exported_only=true and pick one of those, or use launch_app and, if the screen automation tools are enabled, navigate from there.")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "activity_not_exported", message = "Activity is not exported", hint = "Android only allows launching activities declared exported=true. Call list_app_activities with exported_only=true and pick one of those, or use launch_app and, if the screen automation tools are enabled, navigate from there.", extra = ToolErrors.extraOf("package" to pkg, "activity" to activity, "reason" to (e.message ?: "SecurityException"))).toString()
                 )
             )
         } catch (t: Throwable) {
             listOf(
                 UIMessagePart.Text(
-                    buildJsonObject {
-                        put("error", "launch_failed")
-                        put("package", pkg)
-                        put("activity", activity)
-                        put("reason", t.message ?: t::class.java.simpleName)
-                        put("recovery", "Verify the activity name with list_app_activities; the class must exist in this package.")
-                    }.toString()
+                    ToolErrors.envelopeFor(error = "launch_failed", message = "launch_failed", hint = "Verify the activity name with list_app_activities; the class must exist in this package.", extra = ToolErrors.extraOf("package" to pkg, "activity" to activity, "reason" to (t.message ?: t::class.java.simpleName))).toString()
                 )
             )
         }

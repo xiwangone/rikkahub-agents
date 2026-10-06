@@ -23,7 +23,14 @@ import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
 private fun nfcErr(msg: String) =
-    listOf(UIMessagePart.Text(buildJsonObject { put("error", msg) }.toString()))
+    listOf(
+        UIMessagePart.Text(
+            me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+                error = me.rerere.rikkahub.data.ai.tools.ToolErrors.classifyMessage(msg),
+                message = msg,
+            ).toString()
+        )
+    )
 
 /** Validates the NFC record-list shape + timeout. Shared with the unit test. Returns null when ok. */
 internal fun validateNfcTimeout(timeoutSeconds: Int): String? = when {

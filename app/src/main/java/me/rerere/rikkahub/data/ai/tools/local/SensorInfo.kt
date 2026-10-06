@@ -12,6 +12,7 @@ import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 private val FRIENDLY_TO_TYPE: Map<String, Int> = mapOf(
     "accelerometer" to Sensor.TYPE_ACCELEROMETER,
@@ -46,7 +47,7 @@ private val UNIT_BY_FRIENDLY: Map<String, String> = mapOf(
 internal fun sensorsPayload(context: Context): JsonObject {
         val sm = context.getSystemService(SensorManager::class.java)
         val payload = if (sm == null) {
-            buildJsonObject { put("error", "SensorManager unavailable") }
+            ToolErrors.envelopeFor(error = "invalid_argument", message = "SensorManager unavailable", hint = "Check the parameter values and retry with corrected arguments.")
         } else {
             val sensors = sm.getSensorList(Sensor.TYPE_ALL)
             buildJsonObject {
@@ -71,12 +72,12 @@ internal suspend fun sensorReadPayload(context: Context, rawTypeName: String?, r
     val durationMs = (rawDurationMs ?: 200).coerceIn(1, 5000)
         val typeInt = FRIENDLY_TO_TYPE[typeName]
         val payload = if (typeInt == null) {
-            buildJsonObject { put("error", "unknown sensor type: $typeName") }
+            ToolErrors.envelopeFor(error = "invalid_argument", message = "unknown sensor type: $typeName", hint = "Check the parameter values and retry with corrected arguments.")
         } else {
             val sm = context.getSystemService(SensorManager::class.java)
             val sensor = sm?.getDefaultSensor(typeInt)
             if (sm == null || sensor == null) {
-                buildJsonObject { put("error", "sensor unavailable on device") }
+                ToolErrors.envelopeFor(error = "invalid_argument", message = "sensor unavailable on device", hint = "Check the parameter values and retry with corrected arguments.")
             } else {
                 val lock = Any()
                 val sums = mutableListOf<Double>()

@@ -5,6 +5,7 @@ import android.net.Uri
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /**
  * Phase 25 — bridges the file-manager tools to `content://` URIs from any DocumentsProvider
@@ -97,11 +98,7 @@ object ContentUriResolver {
      */
     fun notGrantedEnvelope(raw: String): String {
         val authority = authorityOf(raw) ?: "unknown"
-        return buildJsonObject {
-            put("error", "directory_not_granted")
-            put("detail", "call grant_directory_access first")
-            put("authority", authority)
-        }.toString()
+        return ToolErrors.envelopeFor(error = "directory_not_granted", message = "call grant_directory_access first", extra = ToolErrors.extraOf("authority" to authority)).toString()
     }
 
     /** Extract the authority from a content:// URI by pure string parsing (JVM-safe). */

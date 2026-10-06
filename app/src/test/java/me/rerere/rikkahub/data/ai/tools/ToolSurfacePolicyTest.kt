@@ -106,4 +106,92 @@ class ToolSurfacePolicyTest {
             setOf("list_tools", "get_tool_schema", "ask_user"),
             ToolSurfacePolicy.ALWAYS_KEEP_TOOL_NAMES,
         )
+
+    // ---- UI 场景动态调整（WARM 档按场景升降）----
+
+    @Test
+    fun `场景 IMAGE_GEN 上调图片族为 HOT`() {
+        // scan_media / set_wallpaper 静态在 COLD，图片页临时给完整 schema
+        assertEquals(
+            SurfaceTier.HOT,
+            ToolSurfacePolicy.tierOf("scan_media", scene = UiScene.IMAGE_GEN),
+        )
+        assertEquals(
+            TierSource.SCENE_RAISED,
+            ToolSurfacePolicy.decide("scan_media", scene = UiScene.IMAGE_GEN).source,
+        )
+        assertEquals(
+            SurfaceTier.HOT,
+            ToolSurfacePolicy.tierOf("show_image", scene = UiScene.IMAGE_GEN),
+        )
+    }
+
+    @Test
+    fun `场景 IMAGE_GEN 下调无关热档为 WARM`() {
+        // ssh / vault / 特权 / 设备诊断与图片生成无关，图片页临时收敛描述
+        assertEquals(
+            SurfaceTier.WARM,
+            ToolSurfacePolicy.tierOf("ssh_exec_saved", scene = UiScene.IMAGE_GEN),
+        )
+        assertEquals(
+            TierSource.SCENE_LOWERED,
+            ToolSurfacePolicy.decide("ssh_exec_saved", scene = UiScene.IMAGE_GEN).source,
+        )
+    }
+
+    @Test
+    fun `场景不影响静态已 HOT 的来源标注`() {
+        // 已在 HOT 的工具即使命中场景上调表也不改来源（避免来源失真）；
+        // 此处用 show_image 反例：它静态 WARM，场景上调后来源应为 SCENE_RAISED（上一个测试已覆盖）
+        assertEquals(
+            TierSource.POLICY_HOT,
+            ToolSurfacePolicy.decide("workspace_shell", scene = UiScene.IMAGE_GEN).source,
+        )
+    }
+
+    @Test
+    fun `场景下调不碰静态 COLD`() {
+        // 冷档拦截是治理红线，场景无权解冻
+        assertEquals(
+            SurfaceTier.COLD,
+            ToolSurfacePolicy.tierOf("telegram_send_message", scene = UiScene.IMAGE_GEN),
+        )
+    }
+
+    @Test
+    fun `UNKNOWN 场景回退到纯静态判定`() {
+        assertEquals(
+            ToolSurfacePolicy.tierOf("scan_media"),
+            ToolSurfacePolicy.tierOf("scan_media", scene = UiScene.UNKNOWN),
+        )
+        assertEquals(
+            ToolSurfacePolicy.tierOf("ssh_exec_saved"),
+            ToolSurfacePolicy.tierOf("ssh_exec_saved", scene = UiScene.UNKNOWN),
+        )
+    }
+
+    @Test
+    fun `extraCold 优先级高于场景上调`() {
+        // 用户显式配置不受场景影响
+        assertEquals(
+            SurfaceTier.COLD,
+            ToolSurfacePolicy.tierOf("scan_media", setOf("scan_media"), UiScene.IMAGE_GEN),
+        )
+        assertEquals(
+            TierSource.ASSISTANT_EXTRA_COLD,
+            ToolSurfacePolicy.decide("scan_media", setOf("scan_media"), UiScene.IMAGE_GEN).source,
+        )
+    }
+
+    @Test
+    fun `白名单模式透传场景`() {
+        assertEquals(
+            SurfaceTier.HOT,
+            ToolSurfacePolicy.tierOfWithScope(
+                "scan_media",
+                listOf("scan_media"),
+                scene = UiScene.IMAGE_GEN,
+            ),
+        )
+    }
 }

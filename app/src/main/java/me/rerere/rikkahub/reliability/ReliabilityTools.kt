@@ -8,6 +8,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /**
  * Phase 14 — Reliability bundle, surfaced as LLM tools so the assistant can drive the
@@ -60,10 +61,7 @@ fun checkAppUpdatesTool(checker: GitHubReleaseChecker): Tool =
                     }
 
                     is GitHubReleaseChecker.CheckResult.Failed -> {
-                        buildJsonObject {
-                            put("error", "check_failed")
-                            put("detail", result.message)
-                        }
+                        ToolErrors.envelopeFor(error = "check_failed", message = "Check failed", extra = ToolErrors.extraOf("detail" to result.message))
                     }
                 }
             listOf(UIMessagePart.Text(payload.toString()))

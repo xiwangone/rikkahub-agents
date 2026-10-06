@@ -38,6 +38,33 @@ enum class TierSource {
 
     /** 落在助手级工具白名单之外（白名单 + 精简同时开启时，名单外降冷水而非硬删）。 */
     OUTSIDE_ASSISTANT_SCOPE,
+
+    /** 当前 UI 场景临时上调（场景相关的工具给完整 schema）。 */
+    SCENE_RAISED,
+
+    /** 当前 UI 场景临时下调（场景无关的热档工具收敛描述，参数表保留）。 */
+    SCENE_LOWERED,
+}
+
+/**
+ * UI 场景：描述用户当前在哪个页面，由 UI 层（RouteActivity 观测导航栈）写入，
+ * 数据层（ChatService 装配工具时）读取。用于 WARM 档按场景动态调整。
+ */
+enum class UiScene {
+    /** 聊天页（默认场景）。 */
+    CHAT,
+
+    /** 图片生成页。 */
+    IMAGE_GEN,
+
+    /** 终端页 / SSH 会话页。 */
+    TERMINAL,
+
+    /** 文件管理 / 工作区浏览页。 */
+    FILES,
+
+    /** 未知场景：回退到纯静态判定（等价于不传场景）。 */
+    UNKNOWN,
 }
 
 /** 档位判定结果：档位 + 来源。 */
@@ -76,7 +103,7 @@ object ToolSurfacePolicy {
             "read_file", "write_text_file", "list_files", "find_files",
             // 凭证
             "vault_http_exec", "vault_export_env", "vault_credential_names",
-            // vault_ssh_exec 实测调用频次排第 6，属高频而非低频，故留在热档：
+            // vault_ssh_exec 调用频次居前，属高频而非低频，故留在热档：
             // 移到冷档会让每会话首次调用都多一次 schema 往返。
             "vault_ssh_exec",
             // 设备与诊断
@@ -110,6 +137,54 @@ object ToolSurfacePolicy {
         )
 
     /**
+     * 场景临时上调表：场景 → 在该场景下临时升为 HOT 的工具名。
+     *
+     * 只列**静态非 HOT** 的工具（静态已是 HOT 的无需重复列，判定逻辑会自动跳过）。
+     * 纯数据表，单测覆盖每个场景；`UNKNOWN` 场景不做任何调整。
+     */
+    val SCENE_HOT: Map<UiScene, Set<String>> =
+        mapOf(
+            // 图片生成页：图片族目前静态全在 COLD/WARM，每次调用都要先 get_tool_schema
+            // 解锁（多一次往返）。进页面时临时给完整 schema，离开恢复。
+            UiScene.IMAGE_GEN to
+                setOf(
+                    "scan_media", "set_wallpaper", "get_media_status",
+                    "show_image", "take_photo",
+                ),
+            // 以下场景首批不填（空表 = 无调整），后续按需补充：
+            UiScene.TERMINAL to emptySet(),
+            UiScene.FILES to emptySet(),
+            UiScene.CHAT to emptySet(),
+            UiScene.UNKNOWN to emptySet(),
+        )
+
+    /**
+     * 场景临时下调表：场景 → 在该场景下从 HOT 临时降为 WARM 的工具名。
+     *
+     * 只对**静态 HOT** 的工具生效（静态非 HOT 的不受影响）；WARM 档保留完整参数表，
+     * 模型仍可直接调用，只是描述收敛——因此下调不丢正确性，只省 token。
+     * 用户显式配置（extraCold/白名单）优先级高于场景，不受影响。
+     */
+    val SCENE_WARM: Map<UiScene, Set<String>> =
+        mapOf(
+            // 图片生成页：SSH / 凭证 / 特权 / 设备诊断与图片生成无关，临时收敛描述。
+            // 工作区与文件工具保留 HOT（用户可能把生成的图存文件）。
+            UiScene.IMAGE_GEN to
+                setOf(
+                    "ssh_exec_saved", "ssh_upload", "ssh_download",
+                    "ssh_job_poll", "ssh_presets", "list_ssh_hosts",
+                    "vault_http_exec", "vault_export_env",
+                    "vault_credential_names", "vault_ssh_exec",
+                    "shizuku_exec", "read_window_tree",
+                    "device_info", "diagnostics",
+                ),
+            UiScene.TERMINAL to emptySet(),
+            UiScene.FILES to emptySet(),
+            UiScene.CHAT to emptySet(),
+            UiScene.UNKNOWN to emptySet(),
+        )
+
+    /**
      * 白名单模式下的保命工具：**零副作用的自救层**（求援 / 列工具 / 取参数表），
      * 白名单收窄时始终注入，避免“看不见工具也取不回参数表”的死局。
      *
@@ -122,26 +197,44 @@ object ToolSurfacePolicy {
 
     /**
      * 档位判定**含来源**：判据唯一，避免“诊断结果”与“实际装配”两套逻辑漂移。
-     * 判定顺序即优先级：助手级降温 > 策略热档 > 策略冷档单件 > 策略冷档家族前缀 > 默认温档。
+     * 判定顺序即优先级：助手级降温 > 场景上调 > 策略热档 > 场景下调 > 策略冷档单件 > 策略冷档家族前缀 > 默认温档。
+     *
+     * 场景规则：
+     * - `UNKNOWN` 场景 = 纯静态判定（与不传场景完全一致）。
+     * - 场景上调只把静态非 HOT 的工具升为 HOT；已是 HOT 的保持原来源（避免来源失真）。
+     * - 场景下调只把静态 HOT 的工具降为 WARM；静态 COLD 的工具不受场景影响
+     *   （冷档拦截是治理红线，场景无权解冻——需要时走 get_tool_schema 按会话解锁）。
+     * - 用户显式配置（extraCold）优先级最高，不受场景影响。
      */
     fun decide(
         toolName: String,
         extraCold: Set<String> = emptySet(),
-    ): TierDecision =
-        when {
-            // 助手级下调优先：只会把非冷档降为冷档，不会升档（见助手级 extraColdTools 配置）
-            toolName in extraCold -> TierDecision(SurfaceTier.COLD, TierSource.ASSISTANT_EXTRA_COLD)
-            toolName in HOT -> TierDecision(SurfaceTier.HOT, TierSource.POLICY_HOT)
+        scene: UiScene = UiScene.UNKNOWN,
+    ): TierDecision {
+        // 助手级下调优先：只会把非冷档降为冷档，不会升档（见助手级 extraColdTools 配置）
+        if (toolName in extraCold) return TierDecision(SurfaceTier.COLD, TierSource.ASSISTANT_EXTRA_COLD)
+
+        val sceneHot = scene != UiScene.UNKNOWN && toolName in (SCENE_HOT[scene] ?: emptySet())
+        val sceneWarm = scene != UiScene.UNKNOWN && toolName in (SCENE_WARM[scene] ?: emptySet())
+
+        return when {
+            // 场景上调：静态非 HOT → HOT（给完整 schema，省一次 get_tool_schema 往返）
+            sceneHot && toolName !in HOT -> TierDecision(SurfaceTier.HOT, TierSource.SCENE_RAISED)
+            toolName in HOT && !sceneWarm -> TierDecision(SurfaceTier.HOT, TierSource.POLICY_HOT)
+            // 场景下调：静态 HOT → WARM（描述收敛，参数表完整保留，可直接调用）
+            sceneWarm && toolName in HOT -> TierDecision(SurfaceTier.WARM, TierSource.SCENE_LOWERED)
             toolName in COLD_EXTRAS -> TierDecision(SurfaceTier.COLD, TierSource.POLICY_COLD_EXTRA)
             COLD_PREFIXES.any { toolName.startsWith(it) } ->
                 TierDecision(SurfaceTier.COLD, TierSource.POLICY_COLD_PREFIX)
             else -> TierDecision(SurfaceTier.WARM, TierSource.DEFAULT_WARM)
         }
+    }
 
     fun tierOf(
         toolName: String,
         extraCold: Set<String> = emptySet(),
-    ): SurfaceTier = decide(toolName, extraCold).tier
+        scene: UiScene = UiScene.UNKNOWN,
+    ): SurfaceTier = decide(toolName, extraCold, scene).tier
 
     /**
      * 带**助手级白名单**的档位判定（把白名单当"中间档"用）。
@@ -156,11 +249,12 @@ object ToolSurfacePolicy {
         toolName: String,
         scope: List<String>,
         extraCold: Set<String> = emptySet(),
+        scene: UiScene = UiScene.UNKNOWN,
     ): TierDecision =
         when {
-            scope.isEmpty() -> decide(toolName, extraCold)
-            toolName in scope -> decide(toolName, extraCold)
-            toolName in ALWAYS_KEEP_TOOL_NAMES -> decide(toolName, extraCold)
+            scope.isEmpty() -> decide(toolName, extraCold, scene)
+            toolName in scope -> decide(toolName, extraCold, scene)
+            toolName in ALWAYS_KEEP_TOOL_NAMES -> decide(toolName, extraCold, scene)
             else -> TierDecision(SurfaceTier.COLD, TierSource.OUTSIDE_ASSISTANT_SCOPE)
         }
 
@@ -168,5 +262,6 @@ object ToolSurfacePolicy {
         toolName: String,
         scope: List<String>,
         extraCold: Set<String> = emptySet(),
-    ): SurfaceTier = tierWithScope(toolName, scope, extraCold).tier
+        scene: UiScene = UiScene.UNKNOWN,
+    ): SurfaceTier = tierWithScope(toolName, scope, extraCold, scene).tier
 }

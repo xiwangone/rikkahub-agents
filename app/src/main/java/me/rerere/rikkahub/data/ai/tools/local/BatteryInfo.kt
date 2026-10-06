@@ -7,6 +7,7 @@ import android.os.BatteryManager
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 internal fun batteryPayload(context: Context): JsonObject {
         val intent: Intent? = context.registerReceiver(
@@ -14,7 +15,7 @@ internal fun batteryPayload(context: Context): JsonObject {
             IntentFilter(Intent.ACTION_BATTERY_CHANGED)
         )
         val payload = if (intent == null) {
-            buildJsonObject { put("error", "battery status unavailable") }
+            ToolErrors.envelopeFor(error = "invalid_argument", message = "battery status unavailable", hint = "Check the parameter values and retry with corrected arguments.")
         } else {
             val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
             val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1)

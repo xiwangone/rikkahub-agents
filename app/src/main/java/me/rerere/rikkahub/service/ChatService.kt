@@ -77,6 +77,7 @@ import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
+import me.rerere.rikkahub.data.ai.tools.AppScene
 import me.rerere.rikkahub.data.preferences.isWorkspaceToolName
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
@@ -1346,6 +1347,9 @@ class ChatService(
                     // 会话级覆盖（子代理）：工作区 + 工具白名单
                     workspaceIdOverride = conversation.workspaceIdOverride?.toString(),
                     toolScopeOverride = conversation.toolScopeOverride,
+                    // 当前 UI 场景：装配时读一次，用于 WARM 档按场景动态调整
+                    // （UNKNOWN = 纯静态判定；场景切换下次装配时生效）
+                    uiScene = AppScene.current,
                 )
             } catch (error: InvalidMcpServerNamesException) {
                 addError(
@@ -2070,10 +2074,11 @@ class ChatService(
             AppLog.d(TAG, "压缩完成: 摘要数=${compressedSummaries.size} 保留=${messagesToKeep.size}")
 
             // Create new conversation with compressed history as multiple user messages + kept messages
+            // 摘要标记为上下文检查点，UI 渲染为分隔线样式
             val newMessageNodes =
                 buildList {
                     compressedSummaries.forEach { summary ->
-                        add(UIMessage.user(summary).toMessageNode())
+                        add(UIMessage.user(summary).copy(isContextCheckpoint = true).toMessageNode())
                     }
                     val compactTools =
                         settings.getAssistantById(conversation.assistantId)?.toolOutputCompactTools.orEmpty()
@@ -2366,6 +2371,15 @@ class ChatService(
                     return@map node
                 }
                 edited = true
+
+                if (node.messages.first { it.id == messageId }.isContextCheckpoint) {
+                    // 摘要原地改写：新建分支会丢掉检查点标记
+                    return@map node.copy(
+                        messages = node.messages.map { message ->
+                            if (message.id == messageId) message.copy(parts = processedParts) else message
+                        }
+                    )
+                }
 
                 node.copy(
                     messages =
