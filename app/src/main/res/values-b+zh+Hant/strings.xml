@@ -3425,4 +3425,15 @@
   <string name="usage_stats_detail">明細</string>
   <string name="usage_stats_empty">暫無用量資料</string>
   <string name="usage_stats_note">依生成口徑統計：一次生成記一條；費用僅含服務商上報部分，未上報的不估算。</string>
+<!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
+    <string name="vault_group_git">程式碼託管</string>
+    <string name="vault_group_ai">AI</string>
+    <string name="vault_group_ecs">雲端服務</string>
+    <string name="vault_group_ssh">SSH</string>
+    <string name="vault_group_network">網路</string>
+    <string name="vault_group_mcp">MCP 服務</string>
+    <string name="vault_group_backend">後端服務</string>
+    <string name="vault_group_system">系統</string>
+    <string name="vault_group_notification">通知</string>
+    <string name="vault_group_other">其他</string>
 </resources>

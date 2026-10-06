@@ -3422,4 +3422,15 @@
   <string name="usage_stats_detail">明细</string>
   <string name="usage_stats_empty">暂无用量数据</string>
   <string name="usage_stats_note">按生成口径统计：一次生成记一条；费用仅含服务商上报部分，未上报的不估算。</string>
+<!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
+    <string name="vault_group_git">代码托管</string>
+    <string name="vault_group_ai">AI</string>
+    <string name="vault_group_ecs">云服务</string>
+    <string name="vault_group_ssh">SSH</string>
+    <string name="vault_group_network">网络</string>
+    <string name="vault_group_mcp">MCP 服务</string>
+    <string name="vault_group_backend">后端服务</string>
+    <string name="vault_group_system">系统</string>
+    <string name="vault_group_notification">通知</string>
+    <string name="vault_group_other">其他</string>
 </resources>

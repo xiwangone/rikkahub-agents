@@ -3425,4 +3425,15 @@
   <string name="usage_stats_detail">التفاصيل</string>
   <string name="usage_stats_empty">لا توجد بيانات بعد</string>
   <string name="usage_stats_note">يُحتسب لكل عملية إنشاء (سجل واحد لكل عملية). التكلفة تشمل فقط ما أبلغ عنه المزوّد ولا تُقدَّر.</string>
+<!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
+    <string name="vault_group_git">استضافة الكود</string>
+    <string name="vault_group_ai">الذكاء الاصطناعي</string>
+    <string name="vault_group_ecs">السحابة</string>
+    <string name="vault_group_ssh">SSH</string>
+    <string name="vault_group_network">الشبكة</string>
+    <string name="vault_group_mcp">MCP</string>
+    <string name="vault_group_backend">الخدمات الخلفية</string>
+    <string name="vault_group_system">النظام</string>
+    <string name="vault_group_notification">الإشعارات</string>
+    <string name="vault_group_other">أخرى</string>
 </resources>

@@ -701,6 +701,12 @@ fun vaultCredentialMetaTool(repository: CredentialVaultRepository): Tool = Tool(
                             append("创建: $created | 更新: $updated\n")
                             append("公钥指纹: $fp\n")
                             if (entry.publicKey.isNotBlank()) append("公钥全文:\n${entry.publicKey}\n")
+                            // 非敏感明文元数据（endpoint/path/header/username/custom.*）：白名单键，秘密不在其中
+                            val meta = CredentialMeta.decode(entry.metaJson)
+                            if (meta.isNotEmpty()) {
+                                append("元数据（明文，非敏感）:\n")
+                                meta.forEach { (k, v) -> append("  $k = $v\n") }
+                            }
                         },
                     ),
                 )

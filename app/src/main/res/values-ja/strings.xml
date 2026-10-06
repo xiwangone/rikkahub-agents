@@ -3426,4 +3426,15 @@
   <string name="usage_stats_detail">詳細</string>
   <string name="usage_stats_empty">データがありません</string>
   <string name="usage_stats_note">生成単位で集計：1回の生成を1件として記録。費用はプロバイダー報告分のみで、未報告分は推定しません。</string>
+<!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
+    <string name="vault_group_git">コードホスティング</string>
+    <string name="vault_group_ai">AI</string>
+    <string name="vault_group_ecs">クラウド</string>
+    <string name="vault_group_ssh">SSH</string>
+    <string name="vault_group_network">ネットワーク</string>
+    <string name="vault_group_mcp">MCP</string>
+    <string name="vault_group_backend">バックエンド</string>
+    <string name="vault_group_system">システム</string>
+    <string name="vault_group_notification">通知</string>
+    <string name="vault_group_other">その他</string>
 </resources>

@@ -3426,4 +3426,15 @@
   <string name="usage_stats_detail">Детализация</string>
   <string name="usage_stats_empty">Данных пока нет</string>
   <string name="usage_stats_note">Учёт по генерациям: одна генерация — одна запись. Стоимость учитывается только по данным провайдера, без оценок.</string>
+<!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
+    <string name="vault_group_git">Хостинг кода</string>
+    <string name="vault_group_ai">ИИ</string>
+    <string name="vault_group_ecs">Облако</string>
+    <string name="vault_group_ssh">SSH</string>
+    <string name="vault_group_network">Сеть</string>
+    <string name="vault_group_mcp">MCP</string>
+    <string name="vault_group_backend">Бэкенд</string>
+    <string name="vault_group_system">Система</string>
+    <string name="vault_group_notification">Уведомления</string>
+    <string name="vault_group_other">Прочее</string>
 </resources>

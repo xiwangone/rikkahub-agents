@@ -3422,4 +3422,15 @@
   <string name="usage_stats_detail">Details</string>
   <string name="usage_stats_empty">No usage data yet</string>
   <string name="usage_stats_note">Counted per generation (one record per generation). Cost only includes provider-reported amounts; unreported costs are not estimated.</string>
+<!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
+    <string name="vault_group_git">Code hosting</string>
+    <string name="vault_group_ai">AI</string>
+    <string name="vault_group_ecs">Cloud</string>
+    <string name="vault_group_ssh">SSH</string>
+    <string name="vault_group_network">Network</string>
+    <string name="vault_group_mcp">MCP</string>
+    <string name="vault_group_backend">Backend</string>
+    <string name="vault_group_system">System</string>
+    <string name="vault_group_notification">Notifications</string>
+    <string name="vault_group_other">Other</string>
 </resources>

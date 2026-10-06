@@ -234,8 +234,7 @@ fun VaultCredentialsPage() {
                     }
                 }
 
-                // 按组展示：固定组序 + 组内排序 + 搜索过滤
-                val groupOrder = listOf("Git", "AI", "SSH", "Network", "System", "MCP", "Notification", "Other")
+                // 按组展示：组间按组名字母序（好找） + 组内排序 + 搜索过滤
                 val query = searchQuery.trim().lowercase()
                 val filtered = entries.filter {
                     (query.isEmpty() ||
@@ -245,15 +244,16 @@ fun VaultCredentialsPage() {
                         (typeFilter.isEmpty() || it.type == typeFilter)
                 }
                 val grouped = filtered.groupBy { it.grp }
-                val orderedGroups = grouped.keys.sortedBy { g ->
-                    val idx = groupOrder.indexOf(g)
-                    if (idx < 0) groupOrder.size else idx
-                }
+                // 组间顺序：按本地化组名的字母序（“好找”优先，不做固定组序）；组内按 sortOrder（默认最近更新）
+                val ctx = androidx.compose.ui.platform.LocalContext.current
+                val groupLabels = grouped.keys.associateWith { vaultGroupLabel(ctx, it) }
+                val orderedGroups =
+                    grouped.keys.sortedBy { g -> groupLabels[g]?.lowercase() ?: g.lowercase() }
                 // 拍平：组头 item + 组内条目（组内排序随 sortOrder，默认最近更新）
                 orderedGroups.forEach { group ->
                     item(key = "group_$group") {
                         Text(
-                            group + " (${grouped[group]!!.size})",
+                            vaultGroupLabel(ctx, group) + " (${grouped[group]!!.size})",
                             style = MaterialTheme.typography.titleSmall,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
@@ -702,3 +702,20 @@ private fun CredentialEditorDialog(
         dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.vault_cancel)) } },
     )
 }
+
+/** 分组显示名：存储值（英文 id）→ 本地化标签；未知分组回退原值。 */
+/** 分组显示名：存储值（英文 id）→ 本地化标签；未知分组回退原值。（普通函数：便于在排序 lambda 里调用） */
+private fun vaultGroupLabel(context: android.content.Context, grp: String): String =
+    when (grp) {
+        "Git" -> context.getString(R.string.vault_group_git)
+        "AI" -> context.getString(R.string.vault_group_ai)
+        "ECS" -> context.getString(R.string.vault_group_ecs)
+        "SSH" -> context.getString(R.string.vault_group_ssh)
+        "Network" -> context.getString(R.string.vault_group_network)
+        "MCP" -> context.getString(R.string.vault_group_mcp)
+        "Backend" -> context.getString(R.string.vault_group_backend)
+        "System" -> context.getString(R.string.vault_group_system)
+        "Notification" -> context.getString(R.string.vault_group_notification)
+        "Other" -> context.getString(R.string.vault_group_other)
+        else -> grp
+    }
