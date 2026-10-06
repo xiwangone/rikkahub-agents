@@ -3496,4 +3496,19 @@
     <string name="vault_group_system">시스템</string>
     <string name="vault_group_notification">알림</string>
     <string name="vault_group_other">기타</string>
+  <string name="setting_page_usage_stats">사용량 통계</string>
+  <string name="setting_page_usage_stats_desc">제공업체 및 모델별 사용량과 비용</string>
+  <string name="usage_stats_range_today">오늘</string>
+  <string name="usage_stats_range_7d">7일</string>
+  <string name="usage_stats_range_30d">30일</string>
+  <string name="usage_stats_range_all">누적</string>
+  <string name="usage_stats_runs">요청 수</string>
+  <string name="usage_stats_tokens">토큰</string>
+  <string name="usage_stats_cost">비용 (USD)</string>
+  <string name="usage_stats_cost_not_reported">미보고</string>
+  <string name="usage_stats_by_provider_cost">제공업체별 비용</string>
+  <string name="usage_stats_by_provider_tokens">제공업체별 사용량</string>
+  <string name="usage_stats_detail">상세</string>
+  <string name="usage_stats_empty">데이터가 없습니다</string>
+  <string name="usage_stats_note">생성 단위로 집계: 1회 생성을 1건으로 기록. 비용은 제공업체 보고분만 포함하며 미보고분은 추정하지 않습니다.</string>
 </resources>

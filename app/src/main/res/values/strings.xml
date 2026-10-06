@@ -3492,4 +3492,19 @@
     <string name="vault_group_system">System</string>
     <string name="vault_group_notification">Notifications</string>
     <string name="vault_group_other">Other</string>
+  <string name="setting_page_usage_stats">Usage Statistics</string>
+  <string name="setting_page_usage_stats_desc">Usage and cost by provider and model</string>
+  <string name="usage_stats_range_today">Today</string>
+  <string name="usage_stats_range_7d">Last 7 days</string>
+  <string name="usage_stats_range_30d">Last 30 days</string>
+  <string name="usage_stats_range_all">All time</string>
+  <string name="usage_stats_runs">Requests</string>
+  <string name="usage_stats_tokens">Tokens</string>
+  <string name="usage_stats_cost">Cost (USD)</string>
+  <string name="usage_stats_cost_not_reported">Not reported</string>
+  <string name="usage_stats_by_provider_cost">Cost share by provider</string>
+  <string name="usage_stats_by_provider_tokens">Usage share by provider</string>
+  <string name="usage_stats_detail">Details</string>
+  <string name="usage_stats_empty">No usage data yet</string>
+  <string name="usage_stats_note">Counted per generation (one record per generation). Cost only includes provider-reported amounts; unreported costs are not estimated.</string>
 </resources>

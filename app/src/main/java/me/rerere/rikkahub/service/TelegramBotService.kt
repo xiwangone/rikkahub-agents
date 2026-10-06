@@ -1828,11 +1828,9 @@ class TelegramBotService : Service() {
                         }
                     when (mode) {
                         "direct" -> {
-                            // Inside this branch jobInput is smart-cast to non-null
-                            // (mode being non-null implies the jobInput?.get(...) chain succeeded).
                             val actions =
                                 runCatching {
-                                    (jobInput.get("actions") as? kotlinx.serialization.json.JsonArray)
+                                    (jobInput?.get("actions") as? kotlinx.serialization.json.JsonArray)
                                 }.getOrNull()
                             if (actions != null && actions.isNotEmpty()) {
                                 append("\n\n<b>Actions:</b>")
@@ -1850,7 +1848,7 @@ class TelegramBotService : Service() {
                         }
 
                         "llm" -> {
-                            val prompt = jobInput.get("prompt")?.jsonPrimitive?.contentOrNull ?: ""
+                            val prompt = jobInput?.get("prompt")?.jsonPrimitive?.contentOrNull ?: ""
                             if (prompt.isNotEmpty()) {
                                 val truncatedPrompt = if (prompt.length > 200) prompt.take(200) + "…" else prompt
                                 append("\n\n<b>Prompt:</b> ")

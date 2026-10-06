@@ -168,6 +168,8 @@ fun VaultCredentialsPage() {
                 Button(onClick = { showEditor = EditorMode.Create() }) { Text(stringResource(R.string.vault_new)) }
             }
         } else {
+            // 取 Context 须在 @Composable 作用域内：LazyColumn 的 content lambda 不是 @Composable。
+            val ctx = androidx.compose.ui.platform.LocalContext.current
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -245,7 +247,6 @@ fun VaultCredentialsPage() {
                 }
                 val grouped = filtered.groupBy { it.grp }
                 // 组间顺序：按本地化组名的字母序（“好找”优先，不做固定组序）；组内按 sortOrder（默认最近更新）
-                val ctx = androidx.compose.ui.platform.LocalContext.current
                 val groupLabels = grouped.keys.associateWith { vaultGroupLabel(ctx, it) }
                 val orderedGroups =
                     grouped.keys.sortedBy { g -> groupLabels[g]?.lowercase() ?: g.lowercase() }

@@ -3492,4 +3492,19 @@
     <string name="vault_group_system">系统</string>
     <string name="vault_group_notification">通知</string>
     <string name="vault_group_other">其他</string>
+  <string name="setting_page_usage_stats">用量统计</string>
+  <string name="setting_page_usage_stats_desc">按提供商与模型查看用量与费用</string>
+  <string name="usage_stats_range_today">今天</string>
+  <string name="usage_stats_range_7d">近7天</string>
+  <string name="usage_stats_range_30d">近30天</string>
+  <string name="usage_stats_range_all">累计</string>
+  <string name="usage_stats_runs">请求数</string>
+  <string name="usage_stats_tokens">Tokens</string>
+  <string name="usage_stats_cost">费用 (USD)</string>
+  <string name="usage_stats_cost_not_reported">未上报</string>
+  <string name="usage_stats_by_provider_cost">提供商费用占比</string>
+  <string name="usage_stats_by_provider_tokens">提供商用量占比</string>
+  <string name="usage_stats_detail">明细</string>
+  <string name="usage_stats_empty">暂无用量数据</string>
+  <string name="usage_stats_note">按生成口径统计：一次生成记一条；费用仅含服务商上报部分，未上报的不估算。</string>
 </resources>

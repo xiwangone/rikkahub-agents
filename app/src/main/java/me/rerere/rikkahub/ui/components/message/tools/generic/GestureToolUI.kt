@@ -56,7 +56,7 @@ object GestureToolUI : ToolUIRenderer {
                 } else genericTitle("swipe")
             }
             "scroll" -> {
-                val dir = args.getStringContent("direction")?.let(::directionText)
+                val dir = args.getStringContent("direction")?.let { directionText(it) }
                 if (dir != null) stringResource(R.string.tool_ui_gesture_scroll, dir)
                 else genericTitle("scroll")
             }

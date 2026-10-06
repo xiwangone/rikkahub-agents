@@ -41,8 +41,10 @@ object TelegramStatusToolUI : ToolUIRenderer {
         }
     }
 
+    // 与 statusLine 的返回条件保持一致（此处不能调用 @Composable 的 statusLine）。
     override fun hasSummary(context: ToolUIContext): Boolean =
-        statusLine(context) != null
+        context.content != null &&
+            context.tool.toolName in setOf("telegram_status", "telegram_set_token")
 
     @Composable
     override fun Summary(context: ToolUIContext) {
