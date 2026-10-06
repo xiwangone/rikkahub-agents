@@ -116,6 +116,12 @@ private val GENERIC_LIST_KEYS =
         "hosts",      // list_ssh_hosts
         "packages",   // list_installed_apps
         "apps", "agents", "servers", "entries", "records", "top", "tools",
+        // 设备 / 自动化 / 工作区类工具的返回键（按各工具返回结构核对补齐：
+        // 这些工具没有专用渲染器，键名不在表里时退化成裸 JSON）
+        "workspaces", "directories", "volumes", "contacts", "calls", "notifications",
+        "keys", "sensors", "activities", "links", "nodes",
+        "jobs", "runs", "tags", "history", "failed", "touchedFiles",
+        "memories", "available_skills", "enabled_skills", "permissions", "whitelist", "commands",
     )
 
 /** 列表元素取标签时优先看的键（对象元素：如 shizuku 的 {command, result}、list_files 的 {name, path}） */
@@ -130,6 +136,13 @@ private fun elementLabel(el: JsonElement): String {
         o[k]?.jsonPrimitiveOrNull?.contentOrNull?.takeIf { it.isNotBlank() }?.let { return it }
     }
     return o.values.firstOrNull { it.jsonPrimitiveOrNull != null }?.jsonPrimitiveOrNull?.contentOrNull ?: "…"
+}
+
+/** 列表元素 → 多行摘要（最多 N 条，超出标注总数） */
+private fun listSummary(items: List<JsonElement>): String {
+    val names = items.take(GENERIC_SUMMARY_MAX_ITEMS).map { el -> elementLabel(el) }
+    val more = if (items.size > GENERIC_SUMMARY_MAX_ITEMS) "\n… (${items.size})" else ""
+    return names.joinToString("\n") + more
 }
 
 /**
@@ -150,9 +163,13 @@ private fun defaultSummaryText(context: ToolUIContext): String? {
     GENERIC_LIST_KEYS.forEach { key ->
         val arr = obj[key]?.let { runCatching { it.jsonArray }.getOrNull() } ?: return@forEach
         if (arr.isEmpty()) return@forEach
-        val names = arr.take(GENERIC_SUMMARY_MAX_ITEMS).map { el -> elementLabel(el) }
-        val more = if (arr.size > GENERIC_SUMMARY_MAX_ITEMS) "\n… (${arr.size})" else ""
-        return names.joinToString("\n") + more
+        return listSummary(arr)
+    }
+    // ③b 兜底：对象**只有一个字段**且它是数组（未登记键名的列表型工具，如
+    //     workspaces / jobs / keys / volumes）→ 同样逐条列出，不再退化成裸 JSON
+    if (obj.size == 1) {
+        val only = obj.values.first().let { runCatching { it.jsonArray }.getOrNull() }
+        if (!only.isNullOrEmpty()) return listSummary(only)
     }
     // ③ 长文本字段（如 read_file 的 content / web_fetch 正文）→ 展示前若干行
     val longText =
