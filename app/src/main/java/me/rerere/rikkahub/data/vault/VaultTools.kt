@@ -621,6 +621,125 @@ fun vaultCredentialUpdateTool(
     },
 )
 
+/** 批量更新多条凭证的元数据（分组/描述/改名）。与单条版同语义，只碰元数据，值不可读写。 */
+fun vaultCredentialBulkUpdateTool(
+    context: android.content.Context,
+    repository: CredentialVaultRepository,
+    settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
+    sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+): Tool = Tool(
+    name = "vault_credential_bulk_update",
+    description =
+        "Batch-update metadata (group / description / new_name) for MULTIPLE credentials in ONE call. " +
+            "Same semantics as vault_credential_update, applied to every item of `updates`. " +
+            "The secret VALUE is never readable or writable. Returns a per-item result summary. " +
+            "Use this instead of calling vault_credential_update N times (e.g. re-grouping 30 entries).",
+    parameters = {
+        InputSchema.Obj(
+            properties =
+                buildJsonObject {
+                    put(
+                        "updates",
+                        buildJsonObject {
+                            put("type", "array")
+                            put("description", "List of updates; each item needs `name` plus any of group/description/new_name")
+                            put(
+                                "items",
+                                buildJsonObject {
+                                    put("type", "object")
+                                    put(
+                                        "properties",
+                                        buildJsonObject {
+                                            put("name", buildJsonObject { put("type", "string"); put("description", "Current credential name (required)") })
+                                            put("new_name", buildJsonObject { put("type", "string"); put("description", "Optional new name (rename)") })
+                                            put("description", buildJsonObject { put("type", "string"); put("description", "Optional new description") })
+                                            put("group", buildJsonObject { put("type", "string"); put("description", "Optional new group") })
+                                        },
+                                    )
+                                },
+                            )
+                        },
+                    )
+                },
+            required = listOf("updates"),
+        )
+    },
+    needsApproval = { true },
+    execute = { params ->
+        val items = params.jsonObject["updates"] as? JsonArray
+        if (items == null || items.isEmpty()) {
+            listOf(UIMessagePart.Text("❌ updates 必填且不能为空（数组）"))
+        } else {
+            val sessionManager = VaultSessionManager(context)
+            if (!sessionManager.hasActiveAuthorization()) {
+                listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+            } else {
+                val lines = mutableListOf<String>()
+                var ok = 0
+                var noChange = 0
+                var failed = 0
+                for (el in items) {
+                    val o = el.jsonObject
+                    val nm = o["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+                    if (nm == null) {
+                        failed++; lines += "❌ 缺 name，跳过一条"; continue
+                    }
+                    val existing = repository.getByName(nm)
+                    if (existing == null) {
+                        failed++; lines += "❌ 不存在：$nm"; continue
+                    }
+                    val newName = o["new_name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+                    val desc = o["description"]?.jsonPrimitive?.contentOrNull
+                    val group = o["group"]?.jsonPrimitive?.contentOrNull
+                    val changed = mutableListOf<String>()
+                    val targetName = newName ?: nm
+                    if (newName != null && newName != nm) {
+                        if (repository.getByName(newName) != null) {
+                            failed++; lines += "❌ $nm → $newName 名称冲突"; continue
+                        }
+                        changed += "改名→$newName"
+                    }
+                    if (desc != null && desc != existing.description) changed += "描述"
+                    if (group != null && group != existing.grp) changed += "分组→$group"
+                    if (changed.isEmpty()) {
+                        noChange++; lines += "ℹ️ $nm 无变化"; continue
+                    }
+                    val value = repository.decryptValue(existing) ?: ""
+                    repository.save(
+                        name = targetName,
+                        value = value,
+                        description = desc ?: existing.description,
+                        group = group ?: existing.grp,
+                        publicKey = existing.publicKey,
+                    )
+                    if (targetName != nm) {
+                        repository.delete(existing)
+                        repository.logAccess(nm, "ai-tool", "bulk_rename_from")
+                        repository.logAccess(targetName, "ai-tool", "bulk_rename_to")
+                        runCatching {
+                            VaultReferenceSync.renameEverywhere(
+                                settingsStore = settingsStore,
+                                sshHostRepository = sshHostRepository,
+                                oldName = nm,
+                                newName = targetName,
+                            )
+                        }
+                    } else {
+                        repository.logAccess(nm, "ai-tool", "bulk_update")
+                    }
+                    ok++
+                    lines += "✅ $nm（${changed.joinToString("、")}）"
+                }
+                listOf(
+                    UIMessagePart.Text(
+                        "批量更新完成：成功 $ok / 无变化 $noChange / 失败 $failed\n" + lines.joinToString("\n"),
+                    ),
+                )
+            }
+        }
+    },
+)
+
 /** AI 删除凭证条目。值不可见，仅按名称删除；删除不可逆，故强制审批。 */
 fun vaultCredentialDeleteTool(
     context: android.content.Context,

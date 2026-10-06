@@ -1153,6 +1153,11 @@ class LocalTools(
                 context, vaultRepository, settingsStore, sshHostRepository,
             ),
         )
+        tools.add(
+            me.rerere.rikkahub.data.vault.vaultCredentialBulkUpdateTool(
+                context, vaultRepository, settingsStore, sshHostRepository,
+            ),
+        )
         tools.add(me.rerere.rikkahub.data.vault.vaultCredentialDeleteTool(context, vaultRepository))
         tools.add(me.rerere.rikkahub.data.vault.vaultGenKeyTool(context, vaultRepository))
         tools.add(me.rerere.rikkahub.data.vault.vaultPgpSignTool(vaultRepository))
