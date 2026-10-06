@@ -83,6 +83,8 @@ jobs:
         run: |
           chmod +x gradlew
           set -o pipefail
+          set +e   # 关掉 -e：失败要自己接管，否则第一次失败就退出、根本没机会重试
+          # 依赖下载受网络抽风影响 → 失败重试一次（编译错误重试无用，代价只是多等一轮）
           if [ "$BUILD_TYPE" = "release" ]; then
             KEYSTORE="$HOME/rikkahub.jks"
             echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
@@ -90,10 +92,20 @@ jobs:
             echo "storePassword=$KEYSTORE_PASSWORD" >> local.properties
             echo "keyAlias=$KEY_ALIAS" >> local.properties
             echo "keyPassword=$KEY_PASSWORD" >> local.properties
-            ./gradlew assembleRelease --parallel --build-cache --configuration-cache 2>&1 | tee gradle-build.log
+            for i in 1 2; do
+              ./gradlew assembleRelease --parallel --build-cache --configuration-cache 2>&1 | tee gradle-build.log
+              [ "${PIPESTATUS[0]}" = "0" ] && break
+              if [ "$i" = "2" ]; then echo "❌ 两次均失败"; exit 1; fi
+              echo "⚠️ 第 $i 次失败（可能是依赖下载超时），10 秒后重试…"; sleep 10
+            done
           else
             # debug 不签名不发版，仅验证编译通过
-            ./gradlew assembleDebug --parallel --build-cache --configuration-cache 2>&1 | tee gradle-build.log
+            for i in 1 2; do
+              ./gradlew assembleDebug --parallel --build-cache --configuration-cache 2>&1 | tee gradle-build.log
+              [ "${PIPESTATUS[0]}" = "0" ] && break
+              if [ "$i" = "2" ]; then echo "❌ 两次均失败"; exit 1; fi
+              echo "⚠️ 第 $i 次失败（可能是依赖下载超时），10 秒后重试…"; sleep 10
+            done
           fi
 
       - name: 编译单元测试代码（仅验证可编译，不执行）
