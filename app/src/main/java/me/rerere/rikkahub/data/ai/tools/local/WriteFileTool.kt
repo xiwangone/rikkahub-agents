@@ -179,7 +179,7 @@ fun writeTextFileTool(context: Context): Tool = Tool(
 )
 
 private fun errEnvelope(code: String, detail: String): List<UIMessagePart> =
-    ToolErrors.parts(code, detail)
+    ToolErrors.partsFor(code, detail)
 
 internal fun shouldAutoCreateParent(rawPath: String, expandedPath: String): Boolean =
     rawPath.startsWith("~/") ||

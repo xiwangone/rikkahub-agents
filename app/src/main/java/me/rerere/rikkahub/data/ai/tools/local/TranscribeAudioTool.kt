@@ -455,7 +455,7 @@ fun whisperStatusTool(context: Context, settingsStore: SettingsStore): Tool = To
 )
 
 private fun errEnv(code: String, detail: String): List<UIMessagePart> =
-    ToolErrors.parts(code, detail)
+    ToolErrors.partsFor(code, detail)
 
 // Re-export Termux internals needed by this file (they are internal to the package,
 // so no import is needed — they share the same package).
