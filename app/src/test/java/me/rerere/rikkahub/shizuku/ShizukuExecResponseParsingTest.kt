@@ -2,6 +2,7 @@ package me.rerere.rikkahub.shizuku
 
 import kotlinx.serialization.json.boolean
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -27,14 +28,15 @@ class ShizukuExecResponseParsingTest {
     fun `malformed json degrades to a structured error carrying the raw text`() {
         val raw = "not json at all {{{"
         val parsed = parseExecResponse(raw)
-        assertEquals("shizuku_bad_response", parsed["error"]!!.jsonPrimitive.content)
-        assertEquals(raw, parsed["raw"]!!.jsonPrimitive.content)
+        val data = parsed["data"]!!.jsonObject
+        assertEquals("shizuku_bad_response", data["error"]!!.jsonPrimitive.content)
+        assertEquals(raw, data["raw"]!!.jsonPrimitive.content)
     }
 
     @Test
     fun `empty string degrades to a structured error rather than throwing`() {
         val parsed = parseExecResponse("")
-        assertEquals("shizuku_bad_response", parsed["error"]!!.jsonPrimitive.content)
+        assertEquals("shizuku_bad_response", parsed["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
     }
 
     @Test

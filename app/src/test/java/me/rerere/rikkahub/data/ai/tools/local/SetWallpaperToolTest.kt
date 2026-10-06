@@ -46,13 +46,13 @@ class SetWallpaperToolTest {
         val tool = setWallpaperTool(NULL_CONTEXT)
         val out = execTool(tool, """{"file_uri":"/sdcard/pic.jpg"}""")
         val obj = Json.parseToJsonElement(out).jsonObject
-        assertEquals("file_uri must start with file://", obj["error"]?.jsonPrimitive?.content)
+        assertEquals("file_uri must start with file://", obj["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
     }
 
     @Test fun `tool early-returns validation error for bad target`() {
         val tool = setWallpaperTool(NULL_CONTEXT)
         val out = execTool(tool, """{"file_uri":"file:///sdcard/pic.jpg","target":"xyz"}""")
         val obj = Json.parseToJsonElement(out).jsonObject
-        assertEquals("target must be one of home, lock, both", obj["error"]?.jsonPrimitive?.content)
+        assertEquals("target must be one of home, lock, both", obj["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
     }
 }

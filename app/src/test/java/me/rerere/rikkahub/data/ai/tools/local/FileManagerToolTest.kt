@@ -111,7 +111,7 @@ class FileManagerToolTest {
         File(dir, "song.mp3").writeText("dummy")
         File(dir, "notes.txt").writeText("hello")
         val result = invokeTool(listFilesTool(), """{"path":"${jp(dir.absolutePath)}"}""")
-        assertNull(result["data"]!!.jsonObject["error"])
+        assertNull(result["error"])
         val files = result["files"]?.let { Json.parseToJsonElement(it.toString()) }
         assertNotNull(files)
         assertFalse(result["truncated"]!!.jsonPrimitive.boolean)
@@ -388,7 +388,7 @@ class FileManagerToolTest {
         File(dir, "gamma.mp3").writeText("c")
         val result = invokeTool(findFilesTool(),
             """{"root":"${jp(dir.absolutePath)}","query":"alpha"}""")
-        assertNull(result["data"]!!.jsonObject["error"])
+        assertNull(result["error"])
         val files = result["files"].toString()
         assertTrue(files.contains("alpha.txt"))
         assertFalse(files.contains("beta.txt"))
@@ -401,7 +401,7 @@ class FileManagerToolTest {
         File(dir, "doc.pdf").writeText("d")
         val result = invokeTool(findFilesTool(),
             """{"root":"${jp(dir.absolutePath)}","query":"*.mp3"}""")
-        assertNull(result["data"]!!.jsonObject["error"])
+        assertNull(result["error"])
         val files = result["files"].toString()
         assertTrue(files.contains("song1.mp3"))
         assertTrue(files.contains("song2.mp3"))
@@ -436,10 +436,10 @@ class FileManagerToolTest {
             "content://com.android.externalstorage.documents/tree/usb"
         )
         val obj = Json.parseToJsonElement(json).jsonObject
-        assertEquals("directory_not_granted", obj["error"]?.jsonPrimitive?.content)
+        assertEquals("directory_not_granted", obj["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
         assertEquals(
             "com.android.externalstorage.documents",
-            obj["authority"]?.jsonPrimitive?.content,
+            obj["data"]!!.jsonObject["authority"]!!.jsonPrimitive.content,
         )
     }
 

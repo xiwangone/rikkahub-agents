@@ -30,7 +30,7 @@ class WebFetchToolTest {
         return Json.parseToJsonElement(text).jsonObject
     }
 
-    private fun JsonObject.error() = this["error"]?.jsonPrimitive?.content
+    private fun JsonObject.error() = this["data"]?.jsonObject?.get("error")?.jsonPrimitive?.content
 
     @Test fun `missing url is rejected`() {
         assertEquals("missing_url", invoke("""{}""").error())
@@ -159,8 +159,8 @@ class WebFetchToolTest {
             ),
         ).jsonObject
 
-        assertEquals("empty_extraction", json["error"]!!.jsonPrimitive.content)
-        assertTrue(json["recovery"]!!.jsonPrimitive.content.contains("extract_mode"))
+        assertEquals("empty_extraction", json["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
+        assertTrue(json["data"]!!.jsonObject["recovery"]!!.jsonPrimitive.content.contains("extract_mode"))
     }
 
     @Test

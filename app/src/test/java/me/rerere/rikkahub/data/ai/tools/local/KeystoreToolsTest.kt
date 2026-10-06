@@ -57,7 +57,7 @@ class KeystoreToolsTest {
         val obj = Json.parseToJsonElement(out).jsonObject
         assertEquals(
             "alias must match ^[a-zA-Z0-9_-]{1,64}$",
-            obj["error"]?.jsonPrimitive?.content,
+            obj["data"]!!.jsonObject["error"]!!.jsonPrimitive.content,
         )
     }
 
@@ -69,19 +69,19 @@ class KeystoreToolsTest {
         val obj = Json.parseToJsonElement(out).jsonObject
         assertEquals(
             "rsa_2048 supports only sign / verify purposes",
-            obj["error"]?.jsonPrimitive?.content,
+            obj["data"]!!.jsonObject["error"]!!.jsonPrimitive.content,
         )
     }
 
     @Test fun `sign tool early-returns on missing data`() {
         val out = execTool(keystoreSignTool(), """{"alias":"k1"}""")
         val obj = Json.parseToJsonElement(out).jsonObject
-        assertEquals("data_b64 is required", obj["error"]?.jsonPrimitive?.content)
+        assertEquals("data_b64 is required", obj["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
     }
 
     @Test fun `delete_key tool early-returns on bad alias`() {
         val out = execTool(keystoreDeleteKeyTool(), """{"alias":""}""")
         val obj = Json.parseToJsonElement(out).jsonObject
-        assertEquals("alias is required", obj["error"]?.jsonPrimitive?.content)
+        assertEquals("alias is required", obj["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
     }
 }

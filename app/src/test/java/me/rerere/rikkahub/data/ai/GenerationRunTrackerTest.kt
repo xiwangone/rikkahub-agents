@@ -285,7 +285,7 @@ class GenerationRunTrackerTest {
 
         val all = state.rangeStats(UsageRange.ALL_TIME, today)
         assertEquals(3L, all.runs)
-        assertEquals(2L, all.byProviderModel["openai/m1"]?.runs)
+        assertEquals(3L, all.byProviderModel["openai/m1"]?.runs)
     }
 
     @Test

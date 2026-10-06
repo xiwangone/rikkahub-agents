@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.shizuku
 
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -18,25 +19,25 @@ class ShizukuBindFailureTest {
     @Test
     fun `bind threw maps to the bind_threw phase`() {
         val response = bindFailedResponse(BindResult.Failure.BindThrew(IllegalStateException("boom")))
-        assertEquals("bind_threw", response["phase"]!!.jsonPrimitive.content)
+        assertEquals("bind_threw", response["data"]!!.jsonObject["phase"]!!.jsonPrimitive.content)
     }
 
     @Test
     fun `binding died maps to the binding_died phase`() {
         val response = bindFailedResponse(BindResult.Failure.BindingDied)
-        assertEquals("binding_died", response["phase"]!!.jsonPrimitive.content)
+        assertEquals("binding_died", response["data"]!!.jsonObject["phase"]!!.jsonPrimitive.content)
     }
 
     @Test
     fun `timeout maps to the bind_timeout phase`() {
         val response = bindFailedResponse(BindResult.Failure.Timeout)
-        assertEquals("bind_timeout", response["phase"]!!.jsonPrimitive.content)
+        assertEquals("bind_timeout", response["data"]!!.jsonObject["phase"]!!.jsonPrimitive.content)
     }
 
     @Test
     fun `reason is present only for bind_threw and carries class name and message`() {
         val threw = bindFailedResponse(BindResult.Failure.BindThrew(IllegalStateException("boom")))
-        assertEquals("IllegalStateException: boom", threw["reason"]!!.jsonPrimitive.content)
+        assertEquals("IllegalStateException: boom", threw["data"]!!.jsonObject["reason"]!!.jsonPrimitive.content)
 
         val died = bindFailedResponse(BindResult.Failure.BindingDied)
         assertNull(died["reason"])
@@ -53,7 +54,7 @@ class ShizukuBindFailureTest {
             BindResult.Failure.Timeout,
         )) {
             val response = bindFailedResponse(failure)
-            assertEquals("shizuku_bind_failed", response["error"]!!.jsonPrimitive.content)
+            assertEquals("shizuku_bind_failed", response["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
         }
     }
 
@@ -61,7 +62,7 @@ class ShizukuBindFailureTest {
     fun `bind_threw and binding_died keep the re-grant recovery text`() {
         val expectedRecovery = "Could not bind the Shizuku user service. Retry; if it keeps failing, restart the Shizuku service and re-grant permission from Settings -> Shizuku."
         for (failure in listOf(BindResult.Failure.BindThrew(RuntimeException("x")), BindResult.Failure.BindingDied)) {
-            assertEquals(expectedRecovery, bindFailedResponse(failure)["recovery"]!!.jsonPrimitive.content)
+            assertEquals(expectedRecovery, bindFailedResponse(failure)["data"]!!.jsonObject["recovery"]!!.jsonPrimitive.content)
         }
     }
 
@@ -69,7 +70,7 @@ class ShizukuBindFailureTest {
     fun `bind_timeout recovery points at a stale Shizuku server, not permission`() {
         // A timeout means the server accepted the bind (an unauthorised caller fails at
         // bind_threw), so re-granting cannot help; an outdated running server can (#45).
-        val recovery = bindFailedResponse(BindResult.Failure.Timeout)["recovery"]!!.jsonPrimitive.content
+        val recovery = bindFailedResponse(BindResult.Failure.Timeout)["data"]!!.jsonObject["recovery"]!!.jsonPrimitive.content
         assertTrue(recovery.contains("older than"))
         assertFalse(recovery.contains("re-grant"))
     }
@@ -79,6 +80,6 @@ class ShizukuBindFailureTest {
         // Throwable#message can be null; the reason must still be a well-formed string rather
         // than throwing while building the envelope.
         val response = bindFailedResponse(BindResult.Failure.BindThrew(RuntimeException()))
-        assertEquals("RuntimeException: null", response["reason"]!!.jsonPrimitive.content)
+        assertEquals("RuntimeException: null", response["data"]!!.jsonObject["reason"]!!.jsonPrimitive.content)
     }
 }

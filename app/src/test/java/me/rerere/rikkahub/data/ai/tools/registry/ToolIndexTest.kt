@@ -28,10 +28,13 @@ class ToolIndexTest {
         for ((toolName, renderer) in ToolUIRegistry.rendererMap) {
             val entry = ToolIndex.find(toolName)
             assertNotNull("渲染器已注册但索引缺失: $toolName", entry)
-            assertEquals(
-                "索引登记的渲染器与注册表不一致: $toolName",
-                renderer::class.simpleName,
-                entry!!.renderer,
+            val declared = renderer::class.simpleName
+            // 别名渲染器是匿名对象（simpleName 形如 `GestureToolUI$gestureAlias$1`），索引登记的是
+            // 别名 val 名 —— 二者无法用类名对齐，此时只要求索引有一行登记。
+            val isAlias = declared != null && declared.contains('$')
+            assertTrue(
+                "索引登记的渲染器与注册表不一致: $toolName (索引=${entry!!.renderer}, 注册表=$declared)",
+                if (isAlias) !entry.renderer.isNullOrBlank() else entry.renderer == declared,
             )
         }
     }

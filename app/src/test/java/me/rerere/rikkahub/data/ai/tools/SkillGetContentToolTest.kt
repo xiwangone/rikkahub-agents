@@ -68,9 +68,10 @@ class SkillGetContentToolTest {
 
         val out = Json.parseToJsonElement(exec(tool, """{"name":"ghost"}""")).jsonObject
 
-        assertEquals("skill_not_found", out["error"]!!.jsonPrimitive.content)
-        assertEquals("ghost", out["name"]!!.jsonPrimitive.content)
-        val available = out["available_skills"]!!.jsonArray.map { it.jsonPrimitive.content }
+        val data = out["data"]!!.jsonObject
+        assertEquals("skill_not_found", data["error"]!!.jsonPrimitive.content)
+        assertEquals("ghost", data["name"]!!.jsonPrimitive.content)
+        val available = data["available_skills"]!!.jsonArray.map { it.jsonPrimitive.content }
         assertEquals(listOf("agent-core", "morning-briefing"), available)
     }
 
@@ -142,10 +143,10 @@ class SkillGetContentToolTest {
 
         val out = Json.parseToJsonElement(exec(tool, """{}""")).jsonObject
 
-        assertEquals("missing_required_arg", out["error"]!!.jsonPrimitive.content)
+        assertEquals("missing_required_arg", out["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
         assertEquals(
             listOf("agent-core"),
-            out["available_skills"]!!.jsonArray.map { it.jsonPrimitive.content },
+            out["data"]!!.jsonObject["available_skills"]!!.jsonArray.map { it.jsonPrimitive.content },
         )
     }
 }

@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.shizuku
 
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
@@ -83,13 +84,14 @@ class ShizukuStatusMapperTest {
         )
         val errors = nonReady.map { status ->
             val error = ShizukuStatusMapper.errorFor(status)!!
-            assertTrue("recovery" in error)
-            assertTrue(error["recovery"]!!.jsonPrimitive.content.isNotBlank())
-            error["error"]!!.jsonPrimitive.content
+            val data = error["data"]!!.jsonObject
+            assertTrue("recovery" in data)
+            assertTrue(data["recovery"]!!.jsonPrimitive.content.isNotBlank())
+            data["error"]!!.jsonPrimitive.content
         }
         assertEquals(errors.toSet().size, errors.size) // no two statuses collapse to the same error code
-        assertEquals("shizuku_not_installed", ShizukuStatusMapper.errorFor(ShizukuStatus.NOT_INSTALLED)!!["error"]!!.jsonPrimitive.content)
-        assertEquals("shizuku_not_running", ShizukuStatusMapper.errorFor(ShizukuStatus.NOT_RUNNING)!!["error"]!!.jsonPrimitive.content)
-        assertEquals("shizuku_permission_denied", ShizukuStatusMapper.errorFor(ShizukuStatus.PERMISSION_DENIED)!!["error"]!!.jsonPrimitive.content)
+        assertEquals("shizuku_not_installed", ShizukuStatusMapper.errorFor(ShizukuStatus.NOT_INSTALLED)!!["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
+        assertEquals("shizuku_not_running", ShizukuStatusMapper.errorFor(ShizukuStatus.NOT_RUNNING)!!["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
+        assertEquals("shizuku_permission_denied", ShizukuStatusMapper.errorFor(ShizukuStatus.PERMISSION_DENIED)!!["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
     }
 }

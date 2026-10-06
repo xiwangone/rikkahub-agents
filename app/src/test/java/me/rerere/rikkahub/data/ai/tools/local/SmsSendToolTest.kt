@@ -46,13 +46,13 @@ class SmsSendToolTest {
         val tool = smsSendTool(NULL_CONTEXT)
         val out = execTool(tool, """{"recipient":"!!!","body":"hi"}""")
         val obj = Json.parseToJsonElement(out).jsonObject
-        assertEquals("recipient must be a phone number", obj["error"]?.jsonPrimitive?.content)
+        assertEquals("recipient must be a phone number", obj["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
     }
 
     @Test fun `tool early-returns validation error for missing body`() {
         val tool = smsSendTool(NULL_CONTEXT)
         val out = execTool(tool, """{"recipient":"5551234567"}""")
         val obj = Json.parseToJsonElement(out).jsonObject
-        assertEquals("body is required", obj["error"]?.jsonPrimitive?.content)
+        assertEquals("body is required", obj["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
     }
 }
