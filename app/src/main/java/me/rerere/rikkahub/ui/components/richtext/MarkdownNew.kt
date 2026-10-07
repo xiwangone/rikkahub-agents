@@ -123,8 +123,9 @@ private val flavour by lazy {
 
 private val parser by lazy { MarkdownParser(flavour) }
 
-/** 首帧同步生成 HTML 的文本上限（字符）：超过则先留空，由后台管线下一帧补上。 */
-private const val SYNC_HTML_MAX_CHARS = 2_000
+/** 首帧同步生成 HTML 的文本上限（字符）：超过则先留空，由后台管线下一帧补上。
+ *  与 MarkdownBlock 的阈值保持一致（8000），避免两者不等时出现“一半同步一半留空”的额外跳变。 */
+private const val SYNC_HTML_MAX_CHARS = 8_000
 
 /** 渲染性能日志的 TAG（I 级才会落盘，见 AppLog：D 级只留内存）。 */
 private const val RENDER_PERF_TAG = "RenderPerf"

@@ -236,8 +236,10 @@ private fun ASTNode.containsHtml(): Boolean {
     return children.any { it.containsHtml() }
 }
 
-/** 首帧同步解析的文本上限（字符）：超过则先留空、交后台线程生成，避免组合期长任务卡住主线程。 */
-private const val SYNC_PARSE_MAX_CHARS = 2_000
+/** 首帧同步解析的文本上限（字符）：超过则先留空、交后台线程生成。
+ *  8000（而非 2000）：2000 时一条普通长回复就会触发“先留空 → 下一帧补全文”的跳变，
+ *  看起来就像界面刷新一下；8000 能在保留“长文不卡首帧”收益的同时，把触发面压到极少。 */
+private const val SYNC_PARSE_MAX_CHARS = 8_000
 
 /** 渲染性能日志的 TAG（I 级才会落盘，见 AppLog：D 级只留内存）。 */
 private const val RENDER_PERF_TAG = "RenderPerf"
