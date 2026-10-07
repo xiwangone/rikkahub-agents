@@ -65,6 +65,7 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
             store = store,
             deleteOnEvict = true,
             preloadFromStore = true,
+            onStoreFailure = { op, e -> AppLog.w(TAG, "ocr cache store $op failed", e) },
         )
     }
 

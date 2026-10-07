@@ -1,6 +1,7 @@
 package me.rerere.common.cache
 
 import java.util.LinkedHashMap
+import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
 
@@ -10,8 +11,29 @@ class LruCache<K, V>(
     private val deleteOnEvict: Boolean = false,
     preloadFromStore: Boolean = false,
     private val expireAfterWriteMillis: Long? = null,
+    /**
+     * 存储层操作失败（加载 / 写 / 删）时的回调。
+     *
+     * 失败不抛是**有意设计**（缓存问题不该拖垮主流程），但不能全静默 —— 否则
+     * 内存与持久化不一致无从感知。默认只累加计数（见 [storeFailureCount]），
+     * 调用方可注入日志。
+     */
+    private val onStoreFailure: (op: String, cause: Exception) -> Unit = { _, _ -> },
 ) where K : Any {
     private val lock = ReentrantLock()
+
+    private val storeFailures = AtomicLong()
+
+    /** 存储层失败累计次数（配合 [onStoreFailure] 观察一致性风险）。 */
+    fun storeFailureCount(): Long = storeFailures.get()
+
+    private fun noteStoreFailure(
+        op: String,
+        cause: Exception,
+    ) {
+        storeFailures.incrementAndGet()
+        onStoreFailure(op, cause)
+    }
 
     private val map =
         object : LinkedHashMap<K, CacheEntry<V>>(capacity, 0.75f, true) {
@@ -21,7 +43,8 @@ class LruCache<K, V>(
                     if (deleteOnEvict) {
                         try {
                             store.remove(eldest.key)
-                        } catch (_: Exception) {
+                        } catch (e: Exception) {
+                            noteStoreFailure("evict", e)
                         }
                     }
                 }
@@ -44,7 +67,8 @@ class LruCache<K, V>(
                         if (map.size >= capacity) break
                     }
                 }
-            } catch (_: Exception) {
+            } catch (e: Exception) {
+                noteStoreFailure("preload", e)
             }
         }
     }
@@ -83,7 +107,8 @@ class LruCache<K, V>(
         lock.withLock { map[key] = entry }
         try {
             store.saveEntry(key, entry)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            noteStoreFailure("put", e)
         }
     }
 
@@ -91,7 +116,8 @@ class LruCache<K, V>(
         lock.withLock { map.remove(key) }
         try {
             store.remove(key)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            noteStoreFailure("remove", e)
         }
     }
 
@@ -99,7 +125,8 @@ class LruCache<K, V>(
         lock.withLock { map.clear() }
         try {
             store.clear()
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            noteStoreFailure("clear", e)
         }
     }
 
