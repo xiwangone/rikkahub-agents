@@ -92,6 +92,12 @@ object EditFileToolUI : ToolUIRenderer {
         return generateUnifiedDiff(oldText, newText, path)
     }
 
+    /** diff 里的新增行（去掉行首 `+`）—— 纯新增场景当正文用。 */
+    private fun addedLinesOf(diff: String): String =
+        diff.lineSequence()
+            .filter { it.startsWith("+") && !it.startsWith("+++") }
+            .joinToString("\n") { it.removePrefix("+") }
+
     override fun hasSummary(context: ToolUIContext): Boolean = diffOf(context) != null
 
     @Composable
@@ -101,12 +107,7 @@ object EditFileToolUI : ToolUIRenderer {
         // 纯新增（插入/追加，没有删除行）：全绿 diff 没信息量 → 直接渲染新增内容（带语言高亮），
         // 与写文件渲染器同款；有改动的才画 diff。
         if (stats.deletions == 0) {
-            val added =
-                remember(diff) {
-                    diff.lineSequence()
-                        .filter { it.startsWith("+") && !it.startsWith("+++") }
-                        .joinToString("\n") { it.removePrefix("+") }
-                }
+            val added = remember(diff) { addedLinesOf(diff) }
             if (added.isNotBlank()) {
                 FileContentSummary(
                     text = added,
@@ -181,15 +182,19 @@ object EditFileToolUI : ToolUIRenderer {
                     color = DiffRemovedColor,
                 )
             }
-            // 纯新增（插入/追加，没有删除行）时全绿 diff 没信息量 → 跳过 diff，直接给内容
-            if (stats.deletions > 0) {
+            // 详情页正文：优先用结果正文；结果里没有正文（部分编辑调用只有 diff）时退回收到的 diff 新增行。
+            // 否则「纯新增」分支会 DiffView 跳过 + body 为空 → 详情页整片空白
+            val body =
+                remember(context, diff) {
+                    context.content.getStringContent("text") ?: addedLinesOf(diff)
+                }.takeIf { !it.isNullOrBlank() }
+            // 有删除行才画 diff（纯新增的全绿 diff 没信息量）；正文也没有时至少把 diff 给出来
+            if (stats.deletions > 0 || body == null) {
                 DiffView(
                     diff = diff,
                     modifier = Modifier.fillMaxWidth(),
                 )
             }
-            // 详情页附结果文件内容（可复制/可选词），与写文件渲染器同款
-            val body = remember(context) { context.content.getStringContent("text") }
             if (body != null) {
                 HighlightCodeBlock(
                     code = body,
