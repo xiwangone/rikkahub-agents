@@ -424,6 +424,56 @@ object ToolUIRegistry {
     internal val rendererMap: Map<String, ToolUIRenderer> get() = renderers
 }
 
+/** 详情页专用上限：内联摘要只给前几行（一屏内够看），详情页是用户来“看全”的地方。 */
+private const val DETAIL_MAX_LINES = 400
+private const val DETAIL_MAX_ITEMS = 200
+private const val DETAIL_MAX_CHARS = 20000
+
+/**
+ * 详情页的内容呈现：与 [summaryForContent] 同源的形态识别（终端 / 列表 / 长文本），
+ * 但**上限宽松得多** —— 内联摘要截 8 行/8 项是合理的，详情页再截就是本末倒置。
+ * 超长内容仍留一道安全阀（[DETAIL_MAX_CHARS]），避免一屏几十万字卡住渲染。
+ * 返回 null = 识别不出可读形态，调用方保留“摘要 + 原始 JSON”兼底。
+ */
+internal fun detailTextForContent(content: JsonElement?): String? {
+    content ?: return null
+    val out =
+        run {
+            // ① 终端类：全文
+            val stdout = content.getStringContent("stdout")
+            val exit = content.getStringContent("exit_code") ?: content.getStringContent("exitCode")
+            if (stdout != null || exit != null) {
+                val body = (stdout ?: "").lineSequence().take(DETAIL_MAX_LINES).joinToString("\n")
+                (if (exit != null && exit != "0") "[exit $exit]\n$body" else body).takeIf { it.isNotBlank() }
+            } else {
+                // ② 列表类：优先登记的键名，否则取单字段数组（未登记键名的列表型工具）
+                val obj = content.jsonObjectOrNull
+                val arr =
+                    obj?.let { o ->
+                        GENERIC_LIST_KEYS.firstNotNullOfOrNull { k ->
+                            o[k]?.let { e -> runCatching { e.jsonArray }.getOrNull()?.takeIf { it.isNotEmpty() } }
+                        } ?: o.values.firstOrNull()?.let { e ->
+                            runCatching { e.jsonArray }.getOrNull()?.takeIf { it.isNotEmpty() }
+                        }
+                    }
+                when {
+                    arr != null -> arr.take(DETAIL_MAX_ITEMS).joinToString("\n") { elementLabel(it) }
+                    obj != null -> {
+                        // ③ 长文本字段：全文
+                        obj.entries
+                            .mapNotNull { (_, v) -> v.jsonPrimitiveOrNull?.contentOrNull?.takeIf { it.length > 200 } }
+                            .maxByOrNull { it.length }
+                            ?.lineSequence()
+                            ?.take(DETAIL_MAX_LINES)
+                            ?.joinToString("\n")
+                    }
+                    else -> null
+                }
+            }
+        } ?: return null
+    return if (out.length > DETAIL_MAX_CHARS) out.take(DETAIL_MAX_CHARS) + "\n…" else out
+}
+
 internal fun JsonElement?.getStringContent(key: String): String? =
     this
         ?.jsonObjectOrNull
@@ -495,7 +545,8 @@ fun DefaultToolPreview(
                                 val raw = stripApprovalProvenance(part.text)
                                 val parsed = runCatching { JsonInstant.parseToJsonElement(raw) }.getOrNull()
                                 // 面向用户的可读摘要（终端 / 列表 / 长文本 / 键值对），与原始 JSON 并存
-                                summaryForContent(parsed)?.let { summary ->
+                                // 详情页用「宽松版」：内联摘要只给前几行，详情页要能看全（同源形态识别）
+                                detailTextForContent(parsed)?.let { summary ->
                                     HighlightCodeBlock(
                                         code = summary,
                                         language = "text",
