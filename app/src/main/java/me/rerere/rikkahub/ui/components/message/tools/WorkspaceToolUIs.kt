@@ -804,6 +804,35 @@ object WorkspaceRunBackgroundToolUI : ToolUIRenderer {
             color = MaterialTheme.colorScheme.primary,
         )
     }
+
+    @Composable
+    override fun Preview(
+        context: ToolUIContext,
+        onDismissRequest: () -> Unit,
+    ) {
+        val command = context.arguments.getStringContent("command").orEmpty()
+        val taskId = context.content.getStringContent("id")
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxHeight(0.8f)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(title(context), style = MaterialTheme.typography.headlineSmall)
+            if (taskId != null) {
+                Text(
+                    text = stringResource(R.string.tool_ui_bg_running) + " · " + taskId,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
+            if (command.isNotBlank()) {
+                HighlightCodeBlock(code = command, language = "bash", modifier = Modifier.fillMaxWidth())
+            }
+        }
+    }
 }
 
 /** 后台任务状态：标题按有无 id 分叉，摘要逐条给出 状态 · id · 命令（最多 5 条） */
@@ -832,6 +861,50 @@ object WorkspaceBackgroundStatusToolUI : ToolUIRenderer {
 
     override fun hasSummary(context: ToolUIContext): Boolean =
         (context.content?.jsonObjectOrNull?.get("processes") as? JsonArray)?.isNotEmpty() == true
+
+    @Composable
+    override fun Preview(
+        context: ToolUIContext,
+        onDismissRequest: () -> Unit,
+    ) {
+        val tasks = processes(context)
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxHeight(0.8f)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
+        ) {
+            Text(title(context), style = MaterialTheme.typography.headlineSmall)
+            tasks.forEach { task ->
+                val running = task.getStringContent("status") == "running"
+                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                    Text(
+                        text = stringResource(if (running) R.string.tool_ui_bg_running else R.string.tool_ui_bg_exited) +
+                            " · " + task.getStringContent("id").orEmpty() +
+                            task.getStringContent("exitCode")?.let { " (exit $it)" }.orEmpty(),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = if (running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    task.getStringContent("command")?.takeIf { it.isNotBlank() }?.let {
+                        HighlightCodeBlock(code = it, language = "bash", modifier = Modifier.fillMaxWidth())
+                    }
+                    val out =
+                        listOfNotNull(task.getStringContent("stdout"), task.getStringContent("stderr"))
+                            .filter { it.isNotBlank() }
+                            .joinToString("\n")
+                    if (out.isNotBlank()) {
+                        HighlightCodeBlock(
+                            code = out.lineSequence().takeLast(20).joinToString("\n"),
+                            language = "text",
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+        }
+    }
 
     @Composable
     override fun Summary(context: ToolUIContext) {
@@ -876,6 +949,36 @@ object WorkspaceBackgroundKillToolUI : ToolUIRenderer {
         (context.content as? JsonObject)?.get("killed")?.jsonPrimitiveOrNull?.booleanOrNull
 
     override fun hasSummary(context: ToolUIContext): Boolean = killed(context) != null
+
+    @Composable
+    override fun Preview(
+        context: ToolUIContext,
+        onDismissRequest: () -> Unit,
+    ) {
+        val ok = killed(context) == true
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxHeight(0.8f)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(title(context), style = MaterialTheme.typography.headlineSmall)
+            Text(
+                text = stringResource(if (ok) R.string.tool_ui_bg_killed else R.string.tool_ui_bg_kill_missing),
+                style = MaterialTheme.typography.bodyMedium,
+                color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+            )
+            context.arguments.getStringContent("id")?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        }
+    }
 
     @Composable
     override fun Summary(context: ToolUIContext) {
