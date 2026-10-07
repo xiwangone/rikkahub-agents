@@ -85,7 +85,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -617,15 +617,50 @@ private fun ModelList(
             mutableStateListOf<Model>().apply { addAll(providerSetting.models) }
         }
     LaunchedEffect(providerSetting.models) {
-        localModels.clear()
-        localModels.addAll(providerSetting.models)
+        // 内容一致就不重置：提交后 providerSetting 回流时，清空重建会白白触发整列重组（拖动中尤其明显）
+        if (localModels != providerSetting.models) {
+            localModels.clear()
+            localModels.addAll(providerSetting.models)
+        }
     }
     var reorderCommitJob by remember { mutableStateOf<Job?>(null) }
+    // 「正在拖动」标志：只给协程读，故意不用 Compose state（手势回调里写 state 会触发重组）
+    val draggingNow = remember { booleanArrayOf(false) }
+    // 有未落盘的顺序改动（拖动只改本地列表）。同样用数组：只在回调/协程里读写
+    val orderDirty = remember { booleanArrayOf(false) }
+    // 提交时取「最新」的 providerSetting：延迟提交若用组合期捕获的旧快照，
+    // 会把期间发生的其它改动（如正在编辑的模型）覆盖回去（＝“填写没保存”的一类）
+    val latestProvider by rememberUpdatedState(providerSetting)
+    val commitOrder: () -> Unit = {
+        if (orderDirty[0]) {
+            orderDirty[0] = false
+            val current = latestProvider
+            // 按本地顺序重排当前模型集合；期间新增/删除的项原样保留在尾部
+            val byOrder =
+                localModels.mapNotNull { m ->
+                    current.models.find { it.id == m.id }
+                }
+            val rest =
+                current.models.filter { m ->
+                    byOrder.none { it.id == m.id }
+                }
+            val reordered = byOrder + rest
+            if (reordered != current.models) {
+                onUpdateProvider(current.copyProvider(models = reordered))
+            }
+        }
+    }
     // 拖动性能埋点：记录每格移动的处理耗时、相邻移动间隔、帧节奏、渲染细分与重组次数，停手后落 ReorderPerf 日志
     val activity = LocalActivity.current
     val reorderPerf = remember(activity) { ReorderPerfTracker(activity?.window) }
     DisposableEffect(reorderPerf) {
-        onDispose { reorderPerf.dispose() }
+        onDispose {
+            // 兜底提交：拖完立刻退出页面时，上面那个 400ms 的提交协程会被取消 → 不补这一步顺序就丢了
+            reorderCommitJob?.cancel()
+            reorderPerf.flush()
+            commitOrder()
+            reorderPerf.dispose()
+        }
     }
     val reorderableLazyListState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -636,24 +671,20 @@ private fun ModelList(
             val toIdx = localModels.indexOfFirst { it.id == to.key }
             if (fromIdx >= 0 && toIdx >= 0 && fromIdx != toIdx) {
                 localModels.add(toIdx, localModels.removeAt(fromIdx))
+                orderDirty[0] = true
                 reorderCommitJob?.cancel()
                 reorderCommitJob =
                     scope.launch {
                         delay(400)
                         reorderPerf.flush()
-                        // 按本地顺序重排当前模型集合；期间新增/删除的项原样保留在尾部
-                        val byOrder =
-                            localModels.mapNotNull { m ->
-                                providerSetting.models.find { it.id == m.id }
-                            }
-                        val rest =
-                            providerSetting.models.filter { m ->
-                                byOrder.none { it.id == m.id }
-                            }
-                        val reordered = byOrder + rest
-                        if (reordered != providerSetting.models) {
-                            onUpdateProvider(providerSetting.copyProvider(models = reordered))
+                        // 用户又接着拖时先不提交：写设置会触发整列重组，落在拖动里就是一次明显卡顿
+                        // （拖动会话里能观测到一次 ~170ms 长帧，多半就是这种“提交压在拖动上”）
+                        var waitedMs = 0
+                        while (draggingNow[0] && waitedMs < 3000) {
+                            delay(150)
+                            waitedMs += 150
                         }
+                        commitOrder()
                     }
             }
             reorderPerf.record((System.nanoTime() - perfStartNanos) / 1000)
@@ -827,7 +858,15 @@ private fun ModelList(
                                                 },
                                             )
                                         } else {
-                                            mod.longPressDraggableHandle()
+                                            mod.longPressDraggableHandle(
+                                                onDragStarted = { draggingNow[0] = true },
+                                                onDragStopped = {
+                                                    draggingNow[0] = false
+                                                    // 拖完立即提交（不等计时器）： ① 拖完就走不会丢顺序；② 提交不会落到下一次拖动里
+                                                    reorderCommitJob?.cancel()
+                                                    commitOrder()
+                                                },
+                                            )
                                         }
                                     }.graphicsLayer {
                                         if (isDragging) {
@@ -2105,6 +2144,7 @@ private class ReorderPerfTracker(private val window: Window? = null) {
     private var fmFrames = 0
     private var fmDropped = 0
     private var fmFirstDraw = 0
+    private var fmSpikes = 0
     private val fmSyncUs = mutableListOf<Long>()
     private val fmDrawUs = mutableListOf<Long>()
     private val fmTotalUs = mutableListOf<Long>()
@@ -2120,13 +2160,34 @@ private class ReorderPerfTracker(private val window: Window? = null) {
                 if (!fmRunning) return
                 fmFrames++
                 fmDropped += dropCountSinceLastInvocation
-                if (frameMetrics.getMetric(FrameMetrics.FIRST_DRAW_FRAME) == 1L) fmFirstDraw++
-                fmSyncUs.add(frameMetrics.getMetric(FrameMetrics.SYNC_DURATION) / 1_000)
-                fmDrawUs.add(frameMetrics.getMetric(FrameMetrics.DRAW_DURATION) / 1_000)
-                fmTotalUs.add(frameMetrics.getMetric(FrameMetrics.TOTAL_DURATION) / 1_000)
-                fmUnknownUs.add(frameMetrics.getMetric(FrameMetrics.UNKNOWN_DELAY_DURATION) / 1_000)
+                val firstDraw = frameMetrics.getMetric(FrameMetrics.FIRST_DRAW_FRAME) == 1L
+                if (firstDraw) fmFirstDraw++
+                val syncUs = frameMetrics.getMetric(FrameMetrics.SYNC_DURATION) / 1_000
+                val drawUs = frameMetrics.getMetric(FrameMetrics.DRAW_DURATION) / 1_000
+                val totalUs = frameMetrics.getMetric(FrameMetrics.TOTAL_DURATION) / 1_000
+                val unkUs = frameMetrics.getMetric(FrameMetrics.UNKNOWN_DELAY_DURATION) / 1_000
+                val gpuUs =
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                        frameMetrics.getMetric(FrameMetrics.GPU_DURATION) / 1_000
+                    } else {
+                        0L
+                    }
+                fmSyncUs.add(syncUs)
+                fmDrawUs.add(drawUs)
+                fmTotalUs.add(totalUs)
+                fmUnknownUs.add(unkUs)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    fmGpuUs.add(frameMetrics.getMetric(FrameMetrics.GPU_DURATION) / 1_000)
+                    fmGpuUs.add(gpuUs)
+                }
+                // 长帧归因（临时）：单帧 ≥ 50ms 就落一条，带「会话内相对时刻」+ 各段耗时与是否首次绘制
+                // —— 回答「每次拖动里那一次 ~170ms 长帧到底卡在哪一刻、哪一段」
+                if (totalUs >= SPIKE_US && fmSpikes < MAX_SPIKES) {
+                    fmSpikes++
+                    AppLog.i(
+                        TAG,
+                        "spike seq=$sessionSeq t=+${System.currentTimeMillis() - startMs}ms total=${totalUs}us " +
+                            "sync=${syncUs}us draw=${drawUs}us unk=${unkUs}us gpu=${gpuUs}us firstDraw=$firstDraw",
+                    )
                 }
             }
         }
@@ -2203,6 +2264,7 @@ private class ReorderPerfTracker(private val window: Window? = null) {
             fmFrames = 0
             fmDropped = 0
             fmFirstDraw = 0
+            fmSpikes = 0
             fmSyncUs.clear()
             fmDrawUs.clear()
             fmTotalUs.clear()
@@ -2293,6 +2355,8 @@ private class ReorderPerfTracker(private val window: Window? = null) {
     private companion object {
         const val TAG = "ReorderPerf"
         const val SESSION_GAP_MS = 800L
+        const val SPIKE_US = 50_000L
+        const val MAX_SPIKES = 8
         const val MB = 1024L * 1024L
         const val CPU_FREQ_PROBES = 8
         const val GC_COUNT = "art.gc.gc-count"
