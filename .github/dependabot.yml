@@ -1,3 +1,13 @@
+# Dependabot 配置。
+#
+# ⚠ 关于「Dependabot Updates」页面上的红叉：安全更新通道有两种「假失败」，
+#    都与本仓的构建 / 测试无关，处置方式不同（判据来源 = 对应 run 的 job 日志，
+#    看末尾 Errors 表格的 Type 字段）：
+#    · security_update_not_needed —— 依赖已是安全版本（本仓直接钉版的 bouncycastle、
+#      已被抬到安全版的 jsoup 都会这样）。Dependabot 判定「无需更新」，却仍以非零码退出
+#      → 页面显示失败。**无需处置，也不要为此 ignore**（真出漏洞时仍希望它来提示）。
+#    · security_update_dependency_not_found —— 该依赖是传递引入、不在本仓清单里
+#      （如 jackson-databind），找不到可更新的目标 → 在下面 ignore。
 version: 2
 updates:
   # Android / Kotlin 依赖
