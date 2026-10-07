@@ -52,6 +52,24 @@ jobs:
           chmod +x ktlint
           ./ktlint app/src/main/java 2>&1 | tail -30 || true
 
+      - name: 未使用 import 守卫（只拦增长，不拦存量）
+        run: |
+          # 风格存量（约 2.6 万条）有意不阻断，见上一步；这里只把「未使用 import」这类零风险
+          # 死代码拦住不增长。基线就是一个数字：.github/ktlint-unused-imports.baseline。
+          # 清理后请同步下调；把该文件清空则守卫自动暂停（只报告）。
+          COUNT=$(./ktlint app/src/main/java 2>&1 | grep -c 'no-unused-imports' || true)
+          echo "未使用 import 告警数: ${COUNT:-0}"
+          if [ -s .github/ktlint-unused-imports.baseline ]; then
+            LIMIT=$(tr -dc '0-9' < .github/ktlint-unused-imports.baseline)
+            if [ "${COUNT:-0}" -gt "$LIMIT" ]; then
+              echo "❌ 未使用 import 由 $LIMIT 增至 ${COUNT}：请清理新增项（ktlint -F 可自动删除）"
+              exit 1
+            fi
+            echo "✅ 未超过基线 $LIMIT"
+          else
+            echo "ℹ️ 基线文件为空或缺失 → 本轮仅报告（写入数字即启用守卫）"
+          fi
+
       - name: 缓存 Gradle 依赖（libs 变化才重建）
         uses: actions/cache@v4
         with:
