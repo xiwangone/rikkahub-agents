@@ -98,6 +98,24 @@ object EditFileToolUI : ToolUIRenderer {
     override fun Summary(context: ToolUIContext) {
         val diff = remember(context) { diffOf(context) } ?: return
         val stats = remember(diff) { parseDiffStats(diff) }
+        // 纯新增（插入/追加，没有删除行）：全绿 diff 没信息量 → 直接渲染新增内容（带语言高亮），
+        // 与写文件渲染器同款；有改动的才画 diff。
+        if (stats.deletions == 0) {
+            val added =
+                remember(diff) {
+                    diff.lineSequence()
+                        .filter { it.startsWith("+") && !it.startsWith("+++") }
+                        .joinToString("\n") { it.removePrefix("+") }
+                }
+            if (added.isNotBlank()) {
+                FileContentSummary(
+                    text = added,
+                    path = context.arguments.getStringContent("path"),
+                    loading = context.loading,
+                )
+                return
+            }
+        }
         Row(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -163,10 +181,22 @@ object EditFileToolUI : ToolUIRenderer {
                     color = DiffRemovedColor,
                 )
             }
-            DiffView(
-                diff = diff,
-                modifier = Modifier.fillMaxWidth(),
-            )
+            // 纯新增（插入/追加，没有删除行）时全绿 diff 没信息量 → 跳过 diff，直接给内容
+            if (stats.deletions > 0) {
+                DiffView(
+                    diff = diff,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            // 详情页附结果文件内容（可复制/可选词），与写文件渲染器同款
+            val body = remember(context) { textOf(context) }
+            if (body != null) {
+                HighlightCodeBlock(
+                    code = body,
+                    language = languageOf(context.arguments.getStringContent("path")),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
     }
 }
