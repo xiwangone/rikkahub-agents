@@ -180,10 +180,16 @@ private fun ModeInjectionTab(
     val currentModeInjections by rememberUpdatedState(modeInjections)
     val reorderableState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
-            val newList = modeInjections.toMutableList()
-            val item = newList.removeAt(from.index)
-            newList.add(to.index, item)
-            onUpdate(newList)
+            // from/to 是 LazyColumn 的**位置**（本页 items 前面还有页头 item）→ 必须按 key 换算成数据下标：
+            // 直接用 from.index 会整体偏移一位，拖到末尾还会越界（IndexOutOfBounds）
+            val fromIdx = modeInjections.indexOfFirst { it.id == from.key }
+            val toIdx = modeInjections.indexOfFirst { it.id == to.key }
+            if (fromIdx >= 0 && toIdx >= 0 && fromIdx != toIdx) {
+                val newList = modeInjections.toMutableList()
+                val moved = newList.removeAt(fromIdx)
+                newList.add(toIdx, moved)
+                onUpdate(newList)
+            }
         }
     val editState =
         useEditState<PromptInjection.ModeInjection> { edited ->
@@ -615,10 +621,15 @@ private fun LorebookTab(
     val currentLorebooks by rememberUpdatedState(lorebooks)
     val reorderableState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
-            val newList = lorebooks.toMutableList()
-            val item = newList.removeAt(from.index)
-            newList.add(to.index, item)
-            onUpdate(newList)
+            // 同上：按 key 换算数据下标（页头 item 会让 from.index 偏移 → 尾部拖动越界）
+            val fromIdx = lorebooks.indexOfFirst { it.id == from.key }
+            val toIdx = lorebooks.indexOfFirst { it.id == to.key }
+            if (fromIdx >= 0 && toIdx >= 0 && fromIdx != toIdx) {
+                val newList = lorebooks.toMutableList()
+                val moved = newList.removeAt(fromIdx)
+                newList.add(toIdx, moved)
+                onUpdate(newList)
+            }
         }
     val editState =
         useEditState<Lorebook> { edited ->
