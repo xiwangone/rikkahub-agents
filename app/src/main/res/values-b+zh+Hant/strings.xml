@@ -3499,6 +3499,18 @@
   <string name="tool_ui_memory_deleted_id">已刪除 #%1$s</string>
   <string name="tool_ui_memory_empty">（無可顯示內容）</string>
   <string name="tool_ui_memory_id">記憶 id：%1$s</string>
+  <string name="tool_ui_vault_names">憑證庫項目</string>
+  <string name="tool_ui_vault_meta">憑證詳情</string>
+  <string name="tool_ui_vault_prepare">新增憑證佔位</string>
+  <string name="tool_ui_vault_update">更新憑證</string>
+  <string name="tool_ui_vault_export">匯出憑證到環境變數</string>
+  <string name="tool_ui_vault_http">帶憑證請求 HTTP</string>
+  <string name="tool_ui_vault_ssh">帶憑證 SSH 執行</string>
+  <string name="tool_ui_diagnostics">應用程式診斷</string>
+  <string name="tool_ui_get_schema">讀取工具說明</string>
+  <string name="tool_ui_token_usage">用量與額度</string>
+  <string name="tool_ui_list_tools">列出工具</string>
+  <string name="tool_ui_surface_report">工具面報告</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">程式碼託管</string>
     <string name="vault_group_ai">AI</string>

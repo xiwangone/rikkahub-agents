@@ -243,10 +243,10 @@ private fun defaultTitleDetail(context: ToolUIContext): String? {
  *  ① 终端类（含 `stdout` / `exit_code`）→ 输出前若干行（非零退出码带一行标记）
  *  ② 列表类（`files` / `items` / `results` / `matches` / `children` 等数组）→ 逐条列名
  */
-private fun defaultSummaryText(context: ToolUIContext): String? = summaryForContent(context.content)
+internal fun defaultSummaryText(context: ToolUIContext): String? = summaryForContent(context.content)
 
 /** 从工具输出**内容**提炼可读摘要（内联摘要与详情页共用）；返回 null = 不给摘要，仍走默认 JSON 详情 */
-private fun summaryForContent(content: JsonElement?): String? {
+internal fun summaryForContent(content: JsonElement?): String? {
     content ?: return null
     val stdout = content.getStringContent("stdout")
     val exit = content.getStringContent("exit_code") ?: content.getStringContent("exitCode")
@@ -386,6 +386,19 @@ object ToolUIRegistry {
             LaunchActivityToolUI,
             WebFetchToolUI,
             LocalReadFileToolUI,
+            // family: 凭证库 / 诊断 / 元工具（只改标题，摘要走通用特征渲染）
+            VaultCredentialNamesToolUI,
+            VaultCredentialMetaToolUI,
+            VaultCredentialPrepareToolUI,
+            VaultCredentialUpdateToolUI,
+            VaultExportEnvToolUI,
+            VaultHttpExecToolUI,
+            VaultSshExecToolUI,
+            DiagnosticsToolUI,
+            GetToolSchemaToolUI,
+            CheckTokenUsageToolUI,
+            ListToolsToolUI,
+            ToolSurfaceReportToolUI,
         ).associateBy { it.toolName }
 
     /** 查找工具对应的渲染器, 未注册时返回默认渲染器 */

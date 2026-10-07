@@ -3500,6 +3500,18 @@
   <string name="tool_ui_memory_deleted_id">#%1$s 삭제됨</string>
   <string name="tool_ui_memory_empty">(표시할 내용 없음)</string>
   <string name="tool_ui_memory_id">메모리 id: %1$s</string>
+  <string name="tool_ui_vault_names">자격 증명 목록</string>
+  <string name="tool_ui_vault_meta">자격 증명 상세</string>
+  <string name="tool_ui_vault_prepare">자격 증명 자리 표시자 추가</string>
+  <string name="tool_ui_vault_update">자격 증명 업데이트</string>
+  <string name="tool_ui_vault_export">자격 증명을 환경 변수로 내보내기</string>
+  <string name="tool_ui_vault_http">자격 증명으로 HTTP 요청</string>
+  <string name="tool_ui_vault_ssh">자격 증명으로 SSH 실행</string>
+  <string name="tool_ui_diagnostics">앱 진단</string>
+  <string name="tool_ui_get_schema">도구 스키마 가져오기</string>
+  <string name="tool_ui_token_usage">토큰 사용량</string>
+  <string name="tool_ui_list_tools">도구 목록</string>
+  <string name="tool_ui_surface_report">도구 표면 보고서</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">코드 호스팅</string>
     <string name="vault_group_ai">AI</string>

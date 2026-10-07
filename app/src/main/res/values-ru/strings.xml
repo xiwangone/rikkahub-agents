@@ -3500,6 +3500,18 @@
   <string name="tool_ui_memory_deleted_id">Удалено #%1$s</string>
   <string name="tool_ui_memory_empty">(нет содержимого)</string>
   <string name="tool_ui_memory_id">ID памяти: %1$s</string>
+  <string name="tool_ui_vault_names">Учётные данные</string>
+  <string name="tool_ui_vault_meta">Сведения об учётных данных</string>
+  <string name="tool_ui_vault_prepare">Новые учётные данные (заготовка)</string>
+  <string name="tool_ui_vault_update">Обновить учётные данные</string>
+  <string name="tool_ui_vault_export">Экспорт учётных данных в переменные среды</string>
+  <string name="tool_ui_vault_http">HTTP-запрос с учётными данными</string>
+  <string name="tool_ui_vault_ssh">SSH-команда с учётными данными</string>
+  <string name="tool_ui_diagnostics">Диагностика приложения</string>
+  <string name="tool_ui_get_schema">Получить описание инструмента</string>
+  <string name="tool_ui_token_usage">Использование токенов</string>
+  <string name="tool_ui_list_tools">Список инструментов</string>
+  <string name="tool_ui_surface_report">Отчёт по составу инструментов</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">Хостинг кода</string>
     <string name="vault_group_ai">ИИ</string>

@@ -3500,6 +3500,18 @@
   <string name="tool_ui_memory_deleted_id">#%1$s を削除しました</string>
   <string name="tool_ui_memory_empty">（表示できる内容がありません）</string>
   <string name="tool_ui_memory_id">メモリ id: %1$s</string>
+  <string name="tool_ui_vault_names">資格情報一覧</string>
+  <string name="tool_ui_vault_meta">資格情報の詳細</string>
+  <string name="tool_ui_vault_prepare">資格情報の新規作成</string>
+  <string name="tool_ui_vault_update">資格情報を更新</string>
+  <string name="tool_ui_vault_export">資格情報を環境変数へ書き出し</string>
+  <string name="tool_ui_vault_http">資格情報付き HTTP リクエスト</string>
+  <string name="tool_ui_vault_ssh">資格情報付き SSH 実行</string>
+  <string name="tool_ui_diagnostics">アプリ診断</string>
+  <string name="tool_ui_get_schema">ツール仕様を取得</string>
+  <string name="tool_ui_token_usage">トークン使用量</string>
+  <string name="tool_ui_list_tools">ツール一覧</string>
+  <string name="tool_ui_surface_report">ツール構成レポート</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">コードホスティング</string>
     <string name="vault_group_ai">AI</string>

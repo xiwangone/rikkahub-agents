@@ -3499,6 +3499,18 @@
   <string name="tool_ui_memory_deleted_id">تم حذف #%1$s</string>
   <string name="tool_ui_memory_empty">(لا يوجد محتوى للعرض)</string>
   <string name="tool_ui_memory_id">معرّف الذاكرة: %1$s</string>
+  <string name="tool_ui_vault_names">بيانات الاعتماد</string>
+  <string name="tool_ui_vault_meta">تفاصيل بيانات الاعتماد</string>
+  <string name="tool_ui_vault_prepare">بيانات اعتماد جديدة (مؤقتة)</string>
+  <string name="tool_ui_vault_update">تحديث بيانات الاعتماد</string>
+  <string name="tool_ui_vault_export">تصدير بيانات الاعتماد إلى متغيرات البيئة</string>
+  <string name="tool_ui_vault_http">طلب HTTP ببيانات اعتماد</string>
+  <string name="tool_ui_vault_ssh">تنفيذ SSH ببيانات اعتماد</string>
+  <string name="tool_ui_diagnostics">تشخيص التطبيق</string>
+  <string name="tool_ui_get_schema">الحصول على مخطط الأداة</string>
+  <string name="tool_ui_token_usage">استخدام الرموز</string>
+  <string name="tool_ui_list_tools">قائمة الأدوات</string>
+  <string name="tool_ui_surface_report">تقرير سطح الأدوات</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">استضافة الكود</string>
     <string name="vault_group_ai">الذكاء الاصطناعي</string>

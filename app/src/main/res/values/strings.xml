@@ -3496,6 +3496,18 @@
   <string name="tool_ui_memory_deleted_id">Deleted #%1$s</string>
   <string name="tool_ui_memory_empty">(nothing to show)</string>
   <string name="tool_ui_memory_id">Memory id: %1$s</string>
+  <string name="tool_ui_vault_names">Vault credentials</string>
+  <string name="tool_ui_vault_meta">Credential details</string>
+  <string name="tool_ui_vault_prepare">New credential placeholder</string>
+  <string name="tool_ui_vault_update">Update credential</string>
+  <string name="tool_ui_vault_export">Export credentials to env</string>
+  <string name="tool_ui_vault_http">HTTP request with credential</string>
+  <string name="tool_ui_vault_ssh">SSH exec with credential</string>
+  <string name="tool_ui_diagnostics">App diagnostics</string>
+  <string name="tool_ui_get_schema">Get tool schema</string>
+  <string name="tool_ui_token_usage">Token usage</string>
+  <string name="tool_ui_list_tools">List tools</string>
+  <string name="tool_ui_surface_report">Tool surface report</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">Code hosting</string>
     <string name="vault_group_ai">AI</string>
