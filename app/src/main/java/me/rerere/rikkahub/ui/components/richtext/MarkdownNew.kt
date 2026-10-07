@@ -122,6 +122,9 @@ private val flavour by lazy {
 
 private val parser by lazy { MarkdownParser(flavour) }
 
+/** 首帧同步生成 HTML 的文本上限（字符）：超过则先留空，由后台管线下一帧补上。 */
+private const val SYNC_HTML_MAX_CHARS = 2_000
+
 private fun generateMarkdownHtml(content: String): String {
     val preprocessed = preProcess(content)
     val tree = parser.buildMarkdownTreeFromString(preprocessed)
@@ -137,9 +140,11 @@ fun MarkdownNew(
     style: TextStyle = LocalTextStyle.current,
     onClickCitation: (String) -> Unit = {},
 ) {
+    // 首帧不为主线程做长文的 markdown→HTML（同 MarkdownBlock 的理由）：长文先留空，
+    // 下一帧由下面的后台管线补上；短文本保持同步以免闪烁。
     var html by remember {
         mutableStateOf(
-            value = generateMarkdownHtml(content),
+            value = if (content.length <= SYNC_HTML_MAX_CHARS) generateMarkdownHtml(content) else "",
         )
     }
 

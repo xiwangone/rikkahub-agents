@@ -235,6 +235,9 @@ private fun ASTNode.containsHtml(): Boolean {
     return children.any { it.containsHtml() }
 }
 
+/** 首帧同步解析的文本上限（字符）：超过则先留空、交后台线程生成，避免组合期长任务卡住主线程。 */
+private const val SYNC_PARSE_MAX_CHARS = 2_000
+
 private fun parseMarkdown(content: String): MarkdownParseResult {
     val preprocessed = preProcess(content)
     val astTree = parser.buildMarkdownTreeFromString(preprocessed)
@@ -248,7 +251,14 @@ fun MarkdownBlock(
     style: TextStyle = LocalTextStyle.current,
     onClickCitation: (String) -> Unit = {},
 ) {
-    var (data, setData) = remember { mutableStateOf(parseMarkdown(content)) }
+    // 首帧不同步解析长文：markdown 解析在组合期同步执行是长消息卡顿的来源之一（后续更新本就
+    // 走后台线程）。短文本保持同步以免首帧闪烁；长文先留空，下一帧由下面的后台管线补上。
+    var (data, setData) =
+        remember {
+            mutableStateOf(
+                if (content.length <= SYNC_PARSE_MAX_CHARS) parseMarkdown(content) else null,
+            )
+        }
 
     // 监听内容变化，重新解析AST树
     // 这里在后台线程解析AST树, 防止频繁更新的时候掉帧
@@ -265,7 +275,8 @@ fun MarkdownBlock(
             .collect { setData(it) }
     }
 
-    if (data.hasHtml) {
+    val parsed = data ?: return
+    if (parsed.hasHtml) {
         MarkdownNew(
             content = content,
             modifier = modifier,
@@ -277,10 +288,10 @@ fun MarkdownBlock(
             Column(
                 modifier = modifier.padding(horizontal = 4.dp),
             ) {
-                data.astTree.children.fastForEach { child ->
+                parsed.astTree.children.fastForEach { child ->
                     MarkdownNode(
                         node = child,
-                        content = data.preprocessed,
+                        content = parsed.preprocessed,
                         onClickCitation = onClickCitation,
                     )
                 }
