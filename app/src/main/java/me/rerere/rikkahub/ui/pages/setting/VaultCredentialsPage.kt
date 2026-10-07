@@ -42,6 +42,7 @@ import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AddCircle
 import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete02
@@ -626,40 +627,8 @@ private fun CredentialEditorDialog(
                     isError = nameError,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = { value = it; valueError = false },
-                    label = { Text(if (isEdit) stringResource(R.string.vault_editor_value_edit_label) else stringResource(R.string.vault_editor_value_label)) },
-                    singleLine = false,
-                    isError = valueError,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                // 随机初值：生成后直接在输入框可见、可复制，只以密文入库。
-                // 已经存在的凭证也可重新生成（用于轮换密钥）。
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(
-                        onClick = { value = SecretGenerator.token(); valueError = false },
-                    ) { Text(stringResource(R.string.vault_generate_token)) }
-                    OutlinedButton(
-                        onClick = { value = SecretGenerator.password(); valueError = false },
-                    ) { Text(stringResource(R.string.vault_generate_password)) }
-                }
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text(stringResource(R.string.vault_editor_desc_label)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                OutlinedTextField(
-                    value = publicKey,
-                    onValueChange = { publicKey = it },
-                    label = { Text(stringResource(R.string.vault_ssh_pubkey_label)) },
-                    singleLine = false,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                // 凭据类型：存储值是与通用交换格式对齐的英文标识，显示层本地化（值不变）。
-                // "auto" = 保存时按名称与结构自动判断，避免要求用户先做分类。
+                // 凭据类型：放在输入项之前 —— 后面的字段按类型收口（值提示 / 随机初值 / 公钥框 / 元数据字段集）
+                // 存储值是与通用交换格式对齐的英文标识，显示层本地化（值不变）；auto = 保存时按名称与结构自动判断
                 Select(
                     options = listOf("auto") + CredentialType.KNOWN.toList(),
                     selectedOption = type.ifEmpty { "auto" },
@@ -670,28 +639,100 @@ private fun CredentialEditorDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                // 元数据字段：按类型显示（标签用语言中立的技术词，与类型标识同款约定，不进翻译资源）
-                // 字段集按类型推荐（键名保持英文，与工具/落库一致；标签本地化见 vaultMetaLabel）
-                val metaCtx = androidx.compose.ui.platform.LocalContext.current
-                val metaFieldKeys = when (type) {
-                    CredentialType.API_KEY -> listOf("endpoint", "header", "prefix", "account", "access_key_id", "region")
-                    CredentialType.BASIC_AUTH -> listOf("username", "account")
-                    CredentialType.TOTP -> listOf("algorithm", "digits", "period")
-                    CredentialType.CLOUD_AK -> listOf("access_key_id", "account", "region", "project_id")
-                    else -> listOf("account", "access_key_id", "user_id", "domain_id", "project_id", "region")
+                OutlinedTextField(
+                    value = value,
+                    onValueChange = { value = it; valueError = false },
+                    label = { Text(if (isEdit) stringResource(R.string.vault_editor_value_edit_label) else stringResource(R.string.vault_editor_value_label)) },
+                    singleLine = false,
+                    isError = valueError,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // 随机初值：按类型给（未定类型两个都给；TOTP 种子 / SSH 私钥 / 云 SK 不给随机——随机值对它们没意义）。
+                // 生成后直接在输入框可见、可复制，只以密文入库；已有凭证也可重生（轮换）。
+                val showTokenGen =
+                    type.isEmpty() || type == CredentialType.API_KEY || type == CredentialType.CUSTOM
+                val showPasswordGen = type.isEmpty() || type == CredentialType.BASIC_AUTH
+                if (showTokenGen || showPasswordGen) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        if (showTokenGen) {
+                            OutlinedButton(
+                                onClick = { value = SecretGenerator.token(); valueError = false },
+                            ) { Text(stringResource(R.string.vault_generate_token)) }
+                        }
+                        if (showPasswordGen) {
+                            OutlinedButton(
+                                onClick = { value = SecretGenerator.password(); valueError = false },
+                            ) { Text(stringResource(R.string.vault_generate_password)) }
+                        }
+                    }
                 }
-                metaFieldKeys.forEach { key ->
+                OutlinedTextField(
+                    value = description,
+                    onValueChange = { description = it },
+                    label = { Text(stringResource(R.string.vault_editor_desc_label)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // SSH 公钥：只对 ssh-key 类型显示（以前无条件渲染 → 每种类型都冒一个公钥框，容易填错）
+                if (type == CredentialType.SSH_KEY) {
                     OutlinedTextField(
-                        value = meta[key].orEmpty(),
-                        onValueChange = { v -> meta = if (v.isBlank()) meta - key else meta + (key to v) },
-                        label = { Text(vaultMetaLabel(metaCtx, key)) },
-                        singleLine = true,
+                        value = publicKey,
+                        onValueChange = { publicKey = it },
+                        label = { Text(stringResource(R.string.vault_ssh_pubkey_label)) },
+                        singleLine = false,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
-                // 自定义字段（custom-fields）：多组 k=v，键走 custom. 前缀白名单放行；值为明文备注（方案 A）
-                if (type == CredentialType.CUSTOM) {
-                    val customKeys = meta.keys.filter { it.startsWith(CredentialMeta.CUSTOM_PREFIX) }
+                // 元数据字段：按类型推荐字段集 + **默认折叠**（表单别一屏全是输入框）。
+                // 折叠标题带「已填 N 项」；展开后除推荐键外，还把「已有但不在推荐集」的键一并列出 —— 不隐藏存量值。
+                // custom.* 备注（平台形态 / 控制台 / 主机…）也在这里增删改：任何类型都可编辑（原来只有 custom-fields 才有）
+                val metaCtx = androidx.compose.ui.platform.LocalContext.current
+                val recommendedKeys =
+                    when (type) {
+                        CredentialType.API_KEY -> listOf("endpoint", "header", "prefix", "account", "access_key_id", "region")
+                        CredentialType.BASIC_AUTH -> listOf("username", "account")
+                        CredentialType.TOTP -> listOf("algorithm", "digits", "period")
+                        CredentialType.CLOUD_AK -> listOf("access_key_id", "account", "region", "project_id")
+                        else -> listOf("account")
+                    }
+                val fixedKeys =
+                    (recommendedKeys + meta.keys.filterNot { it.startsWith(CredentialMeta.CUSTOM_PREFIX) }).distinct()
+                val customKeys = meta.keys.filter { it.startsWith(CredentialMeta.CUSTOM_PREFIX) }.sorted()
+                var metaExpanded by remember { mutableStateOf(false) }
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable { metaExpanded = !metaExpanded }
+                            .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text =
+                            stringResource(
+                                R.string.vault_meta_section,
+                                fixedKeys.count { !meta[it].isNullOrBlank() } + customKeys.size,
+                            ),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Icon(
+                        imageVector = if (metaExpanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (metaExpanded) {
+                    fixedKeys.forEach { key ->
+                        OutlinedTextField(
+                            value = meta[key].orEmpty(),
+                            onValueChange = { v -> meta = if (v.isBlank()) meta - key else meta + (key to v) },
+                            label = { Text(vaultMetaLabel(metaCtx, key)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                    // 自定义备注（custom.*）：多组 k=v，键走 custom. 前缀白名单放行；值为明文备注
                     customKeys.forEach { fullKey ->
                         val label = fullKey.removePrefix(CredentialMeta.CUSTOM_PREFIX)
                         Row(
@@ -707,14 +748,14 @@ private fun CredentialEditorDialog(
                                         meta.forEach { (k, v) -> if (k == fullKey) put(newFull, v) else put(k, v) }
                                     }
                                 },
-                                label = { Text("key") },
+                                label = { Text(stringResource(R.string.vault_meta_custom_key)) },
                                 singleLine = true,
                                 modifier = Modifier.weight(1f),
                             )
                             OutlinedTextField(
                                 value = meta[fullKey].orEmpty(),
                                 onValueChange = { v -> meta = if (v.isBlank()) meta - fullKey else meta + (fullKey to v) },
-                                label = { Text("value") },
+                                label = { Text(vaultMetaLabel(metaCtx, fullKey)) },
                                 singleLine = true,
                                 modifier = Modifier.weight(1f),
                             )
@@ -817,22 +858,50 @@ private fun vaultTypeLabel(context: android.content.Context, type: String): Stri
         else -> type
     }
 
+/** 固定元数据键 → 本地化标签。 */
+private val FIXED_META_LABELS: Map<String, Int> =
+    mapOf(
+        "endpoint" to R.string.vault_meta_endpoint,
+        "path" to R.string.vault_meta_path,
+        "header" to R.string.vault_meta_header,
+        "prefix" to R.string.vault_meta_prefix,
+        "username" to R.string.vault_meta_username,
+        "account" to R.string.vault_meta_account,
+        "access_key_id" to R.string.vault_meta_access_key_id,
+        "user_id" to R.string.vault_meta_user_id,
+        "domain_id" to R.string.vault_meta_domain_id,
+        "project_id" to R.string.vault_meta_project_id,
+        "region" to R.string.vault_meta_region,
+        "algorithm" to R.string.vault_meta_algorithm,
+        "digits" to R.string.vault_meta_digits,
+        "period" to R.string.vault_meta_period,
+    )
+
+/** `custom.<标签>` 的本地化标签；不认识的回退「去掉前缀的键名」。 */
+private val CUSTOM_META_LABELS: Map<String, Int> =
+    mapOf(
+        "kind" to R.string.vault_meta_custom_kind,
+        "console" to R.string.vault_meta_custom_console,
+        "docs" to R.string.vault_meta_custom_docs,
+        "note" to R.string.vault_meta_custom_note,
+        "host" to R.string.vault_meta_custom_host,
+        "app_id" to R.string.vault_meta_custom_app_id,
+        "account_id" to R.string.vault_meta_custom_account_id,
+        "purpose" to R.string.vault_meta_custom_purpose,
+        "alias" to R.string.vault_meta_custom_alias,
+        "keystore_path" to R.string.vault_meta_custom_keystore_path,
+        "dup_hint" to R.string.vault_meta_custom_dup_hint,
+        "pub_archive" to R.string.vault_meta_custom_pub_archive,
+    )
+
 /** 元数据字段的显示名：键名保持英文（与工具/落库一致），界面显示本地化标签；未知键回退原值。 */
 private fun vaultMetaLabel(context: android.content.Context, key: String): String =
-    when (key) {
-        "endpoint" -> context.getString(R.string.vault_meta_endpoint)
-        "path" -> context.getString(R.string.vault_meta_path)
-        "header" -> context.getString(R.string.vault_meta_header)
-        "prefix" -> context.getString(R.string.vault_meta_prefix)
-        "username" -> context.getString(R.string.vault_meta_username)
-        "account" -> context.getString(R.string.vault_meta_account)
-        "access_key_id" -> context.getString(R.string.vault_meta_access_key_id)
-        "user_id" -> context.getString(R.string.vault_meta_user_id)
-        "domain_id" -> context.getString(R.string.vault_meta_domain_id)
-        "project_id" -> context.getString(R.string.vault_meta_project_id)
-        "region" -> context.getString(R.string.vault_meta_region)
-        "algorithm" -> context.getString(R.string.vault_meta_algorithm)
-        "digits" -> context.getString(R.string.vault_meta_digits)
-        "period" -> context.getString(R.string.vault_meta_period)
+    when {
+        FIXED_META_LABELS.containsKey(key) -> context.getString(FIXED_META_LABELS.getValue(key))
+        // custom.* 备注键：认识的给本地化名，不认识的回退「去掉前缀的键名」（别露出 custom. 前缀）
+        key.startsWith(CredentialMeta.CUSTOM_PREFIX) -> {
+            val inner = key.removePrefix(CredentialMeta.CUSTOM_PREFIX)
+            CUSTOM_META_LABELS[inner]?.let { context.getString(it) } ?: inner
+        }
         else -> key
     }
