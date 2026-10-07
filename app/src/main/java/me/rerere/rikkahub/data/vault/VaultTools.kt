@@ -700,7 +700,7 @@ fun vaultCredentialBulkUpdateTool(
                         "updates",
                         buildJsonObject {
                             put("type", "array")
-                            put("description", "List of updates; each item needs `name` plus any of group/description/new_name")
+                            put("description", "List of updates; each item needs `name` plus any of group/description/new_name/type/meta")
                             put(
                                 "items",
                                 buildJsonObject {
@@ -712,6 +712,8 @@ fun vaultCredentialBulkUpdateTool(
                                             put("new_name", buildJsonObject { put("type", "string"); put("description", "Optional new name (rename)") })
                                             put("description", buildJsonObject { put("type", "string"); put("description", "Optional new description") })
                                             put("group", buildJsonObject { put("type", "string"); put("description", "Optional new group") })
+                                            put("type", buildJsonObject { put("type", "string"); put("description", "Optional credential type id (ssh-key / api-key / basic-auth / totp / custom-fields / cloud-ak)") })
+                                            put("meta", buildJsonObject { put("type", "object"); put("description", "Optional NON-sensitive metadata, merged key-by-key (an empty-string value deletes that key). Allowed keys: account / access_key_id / user_id / domain_id / project_id / region / endpoint / path / header / prefix / username / algorithm / digits / period") })
                                         },
                                     )
                                 },
@@ -749,6 +751,19 @@ fun vaultCredentialBulkUpdateTool(
                     val newName = o["new_name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
                     val desc = o["description"]?.jsonPrimitive?.contentOrNull
                     val group = o["group"]?.jsonPrimitive?.contentOrNull
+                    val typeParam = o["type"]?.jsonPrimitive?.contentOrNull
+                    val metaParam = o["meta"]?.let { runCatching { it.jsonObject }.getOrNull() }
+                    val mergedMetaJson =
+                        if (metaParam != null) {
+                            val cur = CredentialMeta.decode(existing.metaJson).toMutableMap()
+                            metaParam.forEach { (k, v) ->
+                                val s = (v as? JsonPrimitive)?.contentOrNull
+                                if (s.isNullOrBlank()) cur.remove(k) else cur[k] = s
+                            }
+                            CredentialMeta.encode(cur)
+                        } else {
+                            existing.metaJson
+                        }
                     val changed = mutableListOf<String>()
                     val targetName = newName ?: nm
                     if (newName != null && newName != nm) {
@@ -759,6 +774,8 @@ fun vaultCredentialBulkUpdateTool(
                     }
                     if (desc != null && desc != existing.description) changed += "描述"
                     if (group != null && group != existing.grp) changed += "分组→$group"
+                    if (typeParam != null && typeParam != existing.type) changed += "类型→$typeParam"
+                    if (metaParam != null && mergedMetaJson != existing.metaJson) changed += "元数据"
                     if (changed.isEmpty()) {
                         noChange++; lines += "ℹ️ $nm 无变化"; continue
                     }
@@ -769,6 +786,8 @@ fun vaultCredentialBulkUpdateTool(
                         description = desc ?: existing.description,
                         group = group ?: existing.grp,
                         publicKey = existing.publicKey,
+                        type = typeParam?.ifBlank { "" } ?: existing.type,
+                        metaJson = mergedMetaJson,
                     )
                     if (targetName != nm) {
                         repository.delete(existing)
