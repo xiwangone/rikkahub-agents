@@ -69,6 +69,7 @@ import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -92,6 +93,8 @@ import kotlinx.coroutines.CoroutineScope
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Modality
@@ -593,16 +596,44 @@ private fun ModelList(
     }
     var expanded by rememberSaveable { mutableStateOf(true) }
     val lazyListState = rememberLazyListState()
+    // 拖动期间只改本地顺序：onUpdateProvider 会写设置（DataStore），每移动一格提交一次会明显卡顿
+    // → 停手 delay(400) 后再提交一次。providerSetting 变化（增删改 / 外部更新）时重置本地顺序。
+    val localModels =
+        remember {
+            // 初始就带上当前模型（避免首帧空列表闪烁）；后续变化由下面的 LaunchedEffect 同步
+            mutableStateListOf<Model>().apply { addAll(providerSetting.models) }
+        }
+    LaunchedEffect(providerSetting.models) {
+        localModels.clear()
+        localModels.addAll(providerSetting.models)
+    }
+    var reorderCommitJob by remember { mutableStateOf<Job?>(null) }
     val reorderableLazyListState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
-            // from/to 是 LazyColumn 的 item（索引含页面前置项），而 moveMove 的下标空间是
-            // providerSetting.models → 用模型 id（ReorderableItem 的 key）定位，避免索引错位
-            // （此前直接用 from.index 导致 IndexOutOfBounds 崩溃）。
-            val models = providerSetting.models
-            val fromIdx = models.indexOfFirst { it.id == from.key }
-            val toIdx = models.indexOfFirst { it.id == to.key }
-            if (fromIdx >= 0 && toIdx >= 0) {
-                onUpdateProvider(providerSetting.moveMove(fromIdx, toIdx))
+            // from/to 是 LazyColumn 的 item（索引含页面前置项）→ 用模型 id（item key）定位，
+            // 避免索引错位（此前直接用 from.index 导致 IndexOutOfBounds 崩溃）。
+            val fromIdx = localModels.indexOfFirst { it.id == from.key }
+            val toIdx = localModels.indexOfFirst { it.id == to.key }
+            if (fromIdx >= 0 && toIdx >= 0 && fromIdx != toIdx) {
+                localModels.add(toIdx, localModels.removeAt(fromIdx))
+                reorderCommitJob?.cancel()
+                reorderCommitJob =
+                    scope.launch {
+                        delay(400)
+                        // 按本地顺序重排当前模型集合；期间新增/删除的项原样保留在尾部
+                        val byOrder =
+                            localModels.mapNotNull { m ->
+                                providerSetting.models.find { it.id == m.id }
+                            }
+                        val rest =
+                            providerSetting.models.filter { m ->
+                                byOrder.none { it.id == m.id }
+                            }
+                        val reordered = byOrder + rest
+                        if (reordered != providerSetting.models) {
+                            onUpdateProvider(providerSetting.copyProvider(models = reordered))
+                        }
+                    }
             }
         }
 
@@ -727,7 +758,7 @@ private fun ModelList(
                     }
                 }
             } else {
-                items(providerSetting.models, key = { it.id }) { item ->
+                items(localModels, key = { it.id }) { item ->
                     ReorderableItem(
                         state = reorderableLazyListState,
                         key = item.id,
