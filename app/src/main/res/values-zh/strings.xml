@@ -3491,6 +3491,9 @@
   <string name="tool_ui_bg_exited">已退出</string>
   <string name="tool_ui_memory_search">检索记忆：%1$s</string>
   <string name="tool_ui_memory_hits">命中 %1$d 条</string>
+  <string name="tool_ui_memory_list">列出记忆</string>
+  <string name="tool_ui_memory_total">共 %1$d 条</string>
+  <string name="tool_ui_memory_deleted_id">已删除 #%1$s</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">代码托管</string>
     <string name="vault_group_ai">AI</string>

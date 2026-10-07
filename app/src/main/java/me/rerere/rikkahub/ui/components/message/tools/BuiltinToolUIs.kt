@@ -52,6 +52,7 @@ import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.highlight.CodeHighlightText
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AiSearch02
+import me.rerere.hugeicons.stroke.Book02
 import me.rerere.hugeicons.stroke.Calendar03
 import me.rerere.hugeicons.stroke.CalendarAdd01
 import me.rerere.hugeicons.stroke.ChartColumn
@@ -100,6 +101,9 @@ object MemoryToolUI : ToolUIRenderer {
     private const val ACTION_CREATE = "create"
     private const val ACTION_EDIT = "edit"
     private const val ACTION_DELETE = "delete"
+    private const val ACTION_LIST = "list"
+    private const val MAX_LIST_PREVIEW = 3
+    private const val MAX_LIST_CHARS = 90
 
     override val toolName: String = "memory_tool"
 
@@ -108,6 +112,7 @@ object MemoryToolUI : ToolUIRenderer {
     override fun icon(context: ToolUIContext): ImageVector =
         when (action(context)) {
             ACTION_DELETE -> HugeIcons.Eraser
+            ACTION_LIST -> HugeIcons.Book02
             else -> HugeIcons.QuillWrite01
         }
 
@@ -117,15 +122,58 @@ object MemoryToolUI : ToolUIRenderer {
             ACTION_CREATE -> stringResource(R.string.chat_message_tool_create_memory)
             ACTION_EDIT -> stringResource(R.string.chat_message_tool_edit_memory)
             ACTION_DELETE -> stringResource(R.string.chat_message_tool_delete_memory)
+            ACTION_LIST -> stringResource(R.string.tool_ui_memory_list)
             else -> stringResource(R.string.chat_message_tool_call_generic, toolName)
         }
 
+    private fun memories(context: ToolUIContext): List<JsonObject> =
+        (context.content as? JsonObject)?.get("memories")
+            ?.let { runCatching { it.jsonArray }.getOrNull() }
+            ?.mapNotNull { it as? JsonObject }
+            ?: emptyList()
+
     override fun hasSummary(context: ToolUIContext): Boolean =
-        action(context) in listOf(ACTION_CREATE, ACTION_EDIT) &&
-            context.content.getStringContent("content") != null
+        when (action(context)) {
+            ACTION_LIST -> memories(context).isNotEmpty()
+            ACTION_CREATE, ACTION_EDIT -> context.content.getStringContent("content") != null
+            ACTION_DELETE -> context.content.getStringContent("id") != null
+            else -> false
+        }
 
     @Composable
     override fun Summary(context: ToolUIContext) {
+        if (action(context) == ACTION_LIST) {
+            val list = memories(context)
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    text = stringResource(R.string.tool_ui_memory_total, list.size),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                list.take(MAX_LIST_PREVIEW).forEach { item ->
+                    val line = item.getStringContent("content")?.replace("\n", " ")?.trim().orEmpty()
+                    Text(
+                        text = if (line.length > MAX_LIST_CHARS) line.take(MAX_LIST_CHARS) + "…" else line,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+            return
+        }
+        if (action(context) == ACTION_DELETE) {
+            val deletedId = context.content.getStringContent("id")
+            if (deletedId != null) {
+                Text(
+                    text = stringResource(R.string.tool_ui_memory_deleted_id, deletedId),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            return
+        }
         context.content.getStringContent("content")?.let { memoryContent ->
             Text(
                 text = memoryContent,

@@ -3495,6 +3495,9 @@
   <string name="tool_ui_bg_exited">종료됨</string>
   <string name="tool_ui_memory_search">메모리 검색: %1$s</string>
   <string name="tool_ui_memory_hits">%1$d건 일치</string>
+  <string name="tool_ui_memory_list">메모리 목록</string>
+  <string name="tool_ui_memory_total">총 %1$d건</string>
+  <string name="tool_ui_memory_deleted_id">#%1$s 삭제됨</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">코드 호스팅</string>
     <string name="vault_group_ai">AI</string>
