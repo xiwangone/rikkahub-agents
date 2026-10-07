@@ -1,5 +1,14 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import android.os.Build
+import android.os.Debug
+import android.os.Handler
+import android.os.Looper
+import android.os.PowerManager
+import android.view.Choreographer
+import android.view.FrameMetrics
+import android.view.Window
+import androidx.activity.compose.LocalActivity
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.combinedClickable
@@ -67,7 +76,9 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -90,6 +101,7 @@ import androidx.compose.ui.util.fastFilter
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.CoroutineScope
+import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
@@ -609,8 +621,12 @@ private fun ModelList(
         localModels.addAll(providerSetting.models)
     }
     var reorderCommitJob by remember { mutableStateOf<Job?>(null) }
-    // 拖动性能埋点：记录每格移动的处理耗时与相邻移动的时间间隔，停手后落一条 ReorderPerf 日志
-    val reorderPerf = remember { ReorderPerfTracker() }
+    // 拖动性能埋点：记录每格移动的处理耗时、相邻移动间隔、帧节奏、渲染细分与重组次数，停手后落 ReorderPerf 日志
+    val activity = LocalActivity.current
+    val reorderPerf = remember(activity) { ReorderPerfTracker(activity?.window) }
+    DisposableEffect(reorderPerf) {
+        onDispose { reorderPerf.dispose() }
+    }
     val reorderableLazyListState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
             val perfStartNanos = System.nanoTime()
@@ -765,6 +781,8 @@ private fun ModelList(
                 }
             } else {
                 items(localModels, key = { it.id }) { item ->
+                    // 拖动性能埋点：统计本次拖动会话内的卡片重组次数（临时）
+                    SideEffect { ReorderRecomposeCounter.count++ }
                     ReorderableItem(
                         state = reorderableLazyListState,
                         key = item.id,
@@ -2030,12 +2048,27 @@ private fun formatCatalogTime(ms: Long): String =
         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(ms))
     }
 
+/** 拖动会话序号（进程内累计）：seq=1 即冷启动后第一次拖动 —— 用于验证「首次拖动更卡」。 */
+private object ReorderPerfSeq {
+    var value = 0
+}
+
+/** 拖动会话内的卡片重组次数（临时埋点）：验证「声明 Model 稳定」是否真的减少了重组。 */
+private object ReorderRecomposeCounter {
+    var count = 0
+}
+
 /**
- * 拖动排序性能埋点（临时，用于定位“拖动不跟手”）：
- * 累计一次拖动会话内的移动次数、相邻移动间隔与单次处理耗时，停手后落一条 ReorderPerf 日志。
- * 判读：gapAvg/gapMax 偏大 → 帧节奏慢（位移跟不上手指）；handleMaxUs 偏大 → onMove 处理本身重。
+ * 拖动排序性能埋点（临时，用于定位“拖动不跟手”），一次拖动会话累计四类数据：
+ * ① 移动统计：相邻移动间隔 gap（混了手速与主线程阻塞，只能同场景横向比）、单次处理耗时 handle。
+ * ② 帧节奏：Choreographer 帧间隔（p50 直接暴露刷新周期、jank33/50 记掉帧）。
+ * ③ 渲染细分：FrameMetrics —— sync=组合+测量+布局、draw=绘制指令录制、unknownDelay=帧开始前主线程被占、
+ *    firstDraw=含首次绘制的帧数、gpu（API 31+）、dropped=系统报的丢帧。
+ * ④ 重组次数：拖动列表 item 内 SideEffect 自增，反映“每格重排触发几次卡片重组”。
+ * 判读：handleMaxUs 大 → onMove 本身重；syncP95／recompose 大 → 重组/布局重；
+ * 帧节奏与 sync 都正常而体感仍卡 → 属“位移不跟手”，不是渲染开销。
  */
-private class ReorderPerfTracker {
+private class ReorderPerfTracker(private val window: Window? = null) {
     private var moves = 0
     private var gapSumMs = 0L
     private var gapMaxMs = 0L
@@ -2043,6 +2076,159 @@ private class ReorderPerfTracker {
     private var handleMaxUs = 0L
     private var lastAtMs = 0L
     private var startMs = 0L
+
+    // —— 拖动期间的帧间隔（Choreographer：主线程忙时回调顺延，间隔随之变大）——
+    // 停手到 flush（400ms）之间仍会计帧，属可接受；p50 会直接暴露屏幕刷新周期（60Hz≈17ms / 120Hz≈8ms）
+    private val choreographer: Choreographer? by lazy {
+        runCatching { Choreographer.getInstance() }.getOrNull()
+    }
+    private val frameGapsMs = mutableListOf<Long>()
+    private var frameRunning = false
+    private var lastFrameNanos = 0L
+    private var sessionSeq = 0
+    private val frameCallback =
+        object : Choreographer.FrameCallback {
+            override fun doFrame(frameTimeNanos: Long) {
+                if (!frameRunning) return
+                if (lastFrameNanos != 0L) {
+                    frameGapsMs.add((frameTimeNanos - lastFrameNanos) / 1_000_000)
+                }
+                lastFrameNanos = frameTimeNanos
+                choreographer?.postFrameCallback(this)
+            }
+        }
+
+    // —— 渲染细分（FrameMetrics：无需新依赖，API 24+；单位统一存微秒）——
+    // 回调走主线程 Handler（每帧一条消息，开销可忽略）；gpu 仅 Android 12+ 可读
+    private val fmHandler = Handler(Looper.getMainLooper())
+    private var fmRunning = false
+    private var fmFrames = 0
+    private var fmDropped = 0
+    private var fmFirstDraw = 0
+    private val fmSyncUs = mutableListOf<Long>()
+    private val fmDrawUs = mutableListOf<Long>()
+    private val fmTotalUs = mutableListOf<Long>()
+    private val fmUnknownUs = mutableListOf<Long>()
+    private val fmGpuUs = mutableListOf<Long>()
+    private val fmListener =
+        object : Window.OnFrameMetricsAvailableListener {
+            override fun onFrameMetricsAvailable(
+                window: Window,
+                frameMetrics: FrameMetrics,
+                dropCountSinceLastInvocation: Int,
+            ) {
+                if (!fmRunning) return
+                fmFrames++
+                fmDropped += dropCountSinceLastInvocation
+                if (frameMetrics.getMetric(FrameMetrics.FIRST_DRAW_FRAME) == 1L) fmFirstDraw++
+                fmSyncUs.add(frameMetrics.getMetric(FrameMetrics.SYNC_DURATION) / 1_000)
+                fmDrawUs.add(frameMetrics.getMetric(FrameMetrics.DRAW_DURATION) / 1_000)
+                fmTotalUs.add(frameMetrics.getMetric(FrameMetrics.TOTAL_DURATION) / 1_000)
+                fmUnknownUs.add(frameMetrics.getMetric(FrameMetrics.UNKNOWN_DELAY_DURATION) / 1_000)
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+                    fmGpuUs.add(frameMetrics.getMetric(FrameMetrics.GPU_DURATION) / 1_000)
+                }
+            }
+        }
+
+    // —— 系统压力（会话起止各一次快照：GC / CPU / 堆 / 负载 / 温控降频）——
+    // 用于排除「偶发卡」的环境因素：后台 GC、CPU 竞争、温控降频都会让同一份代码时好时坏
+    private var stressCpuStartMs = 0L
+    private var stressGcStart = 0L
+    private var stressGcMsStart = 0L
+    private var stressBgcStart = 0L
+    private var stressBgcMsStart = 0L
+    private var stressHeapStartMb = 0L
+    private var stressNativeStartMb = 0L
+    private var stressStartInfo = ""
+
+    private fun runtimeStat(key: String): Long =
+        runCatching { Debug.getRuntimeStat(key)?.trim()?.toLongOrNull() ?: -1L }.getOrDefault(-1L)
+
+    private fun javaHeapMb(): Long {
+        val rt = Runtime.getRuntime()
+        return (rt.totalMemory() - rt.freeMemory()) / MB
+    }
+
+    private fun loadAvg1(): String =
+        runCatching { File("/proc/loadavg").readText().trim().substringBefore(' ') }.getOrNull() ?: "?"
+
+    private fun thermalStatus(): String {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return "?"
+        val pm = window?.context?.getSystemService(PowerManager::class.java) ?: return "?"
+        return pm.currentThermalStatus.toString()
+    }
+
+    private fun powerSaveMode(): String =
+        if (window?.context?.getSystemService(PowerManager::class.java)?.isPowerSaveMode == true) "1" else "0"
+
+    /** 各核当前频率取最大（MHz）——温控降频时这个值会明显掉。 */
+    private fun cpuMaxFreqMhz(): String {
+        var max = 0L
+        for (i in 0 until CPU_FREQ_PROBES) {
+            val freq =
+                runCatching {
+                    File("/sys/devices/system/cpu/cpu$i/cpufreq/scaling_cur_freq").readText().trim().toLong()
+                }.getOrNull() ?: continue
+            if (freq > max) max = freq
+        }
+        return if (max > 0) (max / 1000).toString() else "?"
+    }
+
+    private fun snapshotStressStart() {
+        stressCpuStartMs = android.os.Process.getElapsedCpuTime()
+        stressGcStart = runtimeStat(GC_COUNT)
+        stressGcMsStart = runtimeStat(GC_TIME)
+        stressBgcStart = runtimeStat(BLOCKING_GC_COUNT)
+        stressBgcMsStart = runtimeStat(BLOCKING_GC_TIME)
+        stressHeapStartMb = javaHeapMb()
+        stressNativeStartMb = Debug.getNativeHeapAllocatedSize() / MB
+        stressStartInfo =
+            "load1=${loadAvg1()} thermal=${thermalStatus()} saver=${powerSaveMode()} cpuMaxMhz=${cpuMaxFreqMhz()}"
+    }
+
+    private fun startSession() {
+        sessionSeq = ++ReorderPerfSeq.value
+        ReorderRecomposeCounter.count = 0
+        snapshotStressStart()
+        if (!frameRunning) {
+            frameRunning = true
+            lastFrameNanos = 0L
+            frameGapsMs.clear()
+            choreographer?.postFrameCallback(frameCallback)
+        }
+        val fmWindow = window
+        if (!fmRunning && fmWindow != null) {
+            fmRunning = true
+            fmFrames = 0
+            fmDropped = 0
+            fmFirstDraw = 0
+            fmSyncUs.clear()
+            fmDrawUs.clear()
+            fmTotalUs.clear()
+            fmUnknownUs.clear()
+            fmGpuUs.clear()
+            fmWindow.addOnFrameMetricsAvailableListener(fmListener, fmHandler)
+        }
+    }
+
+    private fun stopSession() {
+        frameRunning = false
+        choreographer?.removeFrameCallback(frameCallback)
+        if (fmRunning) {
+            fmRunning = false
+            window?.removeOnFrameMetricsAvailableListener(fmListener)
+        }
+    }
+
+    /** 页面离开时兜底停表，避免监听器残留。 */
+    fun dispose() {
+        moves = 0
+        stopSession()
+    }
+
+    private fun percentile(sorted: List<Long>, p: Int): Long =
+        if (sorted.isEmpty()) 0L else sorted[(sorted.size - 1) * p / 100]
 
     fun record(handleUs: Long) {
         val now = System.currentTimeMillis()
@@ -2053,6 +2239,7 @@ private class ReorderPerfTracker {
             gapMaxMs = 0
             handleSumUs = 0
             handleMaxUs = 0
+            startSession()
         } else {
             val gap = now - lastAtMs
             gapSumMs += gap
@@ -2067,10 +2254,38 @@ private class ReorderPerfTracker {
     fun flush() {
         if (moves == 0) return
         val n = moves
+        val frames = frameGapsMs.sorted()
+        val sync = fmSyncUs.sorted()
+        val draw = fmDrawUs.sorted()
+        val total = fmTotalUs.sorted()
+        val unknown = fmUnknownUs.sorted()
+        val gpu = fmGpuUs.sorted()
+        val recomposed = ReorderRecomposeCounter.count
+        stopSession()
         AppLog.i(
             TAG,
-            "moves=$n span=${lastAtMs - startMs}ms gapAvg=${if (n > 1) gapSumMs / (n - 1) else 0}ms " +
-                "gapMax=${gapMaxMs}ms handleAvgUs=${handleSumUs / n} handleMaxUs=$handleMaxUs",
+            "seq=$sessionSeq moves=$n span=${lastAtMs - startMs}ms gapAvg=${if (n > 1) gapSumMs / (n - 1) else 0}ms " +
+                "gapMax=${gapMaxMs}ms handleAvgUs=${handleSumUs / n} handleMaxUs=$handleMaxUs | " +
+                "frames=${frames.size} p50=${percentile(frames, 50)}ms p95=${percentile(frames, 95)}ms " +
+                "max=${frames.lastOrNull() ?: 0L}ms jank33=${frames.count { it >= 33 }} jank50=${frames.count { it >= 50 }} | " +
+                "recompose=$recomposed",
+        )
+        AppLog.i(
+            TAG,
+            "fm seq=$sessionSeq n=$fmFrames syncP95=${percentile(sync, 95)}us syncMax=${sync.lastOrNull() ?: 0L}us " +
+                "drawP95=${percentile(draw, 95)}us totalMax=${total.lastOrNull() ?: 0L}us " +
+                "unkP95=${percentile(unknown, 95)}us gpuP95=${percentile(gpu, 95)}us " +
+                "firstDraw=$fmFirstDraw dropped=$fmDropped",
+        )
+        AppLog.i(
+            TAG,
+            "stress seq=$sessionSeq cpu=+${android.os.Process.getElapsedCpuTime() - stressCpuStartMs}ms " +
+                "gc=+${runtimeStat(GC_COUNT) - stressGcStart} gcMs=+${runtimeStat(GC_TIME) - stressGcMsStart} " +
+                "bgc=+${runtimeStat(BLOCKING_GC_COUNT) - stressBgcStart} " +
+                "bgcMs=+${runtimeStat(BLOCKING_GC_TIME) - stressBgcMsStart} " +
+                "heap=${stressHeapStartMb}->${javaHeapMb()}MB " +
+                "native=${stressNativeStartMb}->${Debug.getNativeHeapAllocatedSize() / MB}MB | " +
+                "start[$stressStartInfo] end[load1=${loadAvg1()} thermal=${thermalStatus()}]",
         )
         moves = 0
     }
@@ -2078,5 +2293,11 @@ private class ReorderPerfTracker {
     private companion object {
         const val TAG = "ReorderPerf"
         const val SESSION_GAP_MS = 800L
+        const val MB = 1024L * 1024L
+        const val CPU_FREQ_PROBES = 8
+        const val GC_COUNT = "art.gc.gc-count"
+        const val GC_TIME = "art.gc.gc-time"
+        const val BLOCKING_GC_COUNT = "art.gc.blocking-gc-count"
+        const val BLOCKING_GC_TIME = "art.gc.blocking-gc-time"
     }
 }
