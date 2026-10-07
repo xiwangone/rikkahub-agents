@@ -3498,6 +3498,8 @@
   <string name="tool_ui_memory_list">Список воспоминаний</string>
   <string name="tool_ui_memory_total">Всего: %1$d</string>
   <string name="tool_ui_memory_deleted_id">Удалено #%1$s</string>
+  <string name="tool_ui_memory_empty">(нет содержимого)</string>
+  <string name="tool_ui_memory_id">ID памяти: %1$s</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">Хостинг кода</string>
     <string name="vault_group_ai">ИИ</string>

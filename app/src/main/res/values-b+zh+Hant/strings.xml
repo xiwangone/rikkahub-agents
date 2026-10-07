@@ -3497,6 +3497,8 @@
   <string name="tool_ui_memory_list">列出記憶</string>
   <string name="tool_ui_memory_total">共 %1$d 筆</string>
   <string name="tool_ui_memory_deleted_id">已刪除 #%1$s</string>
+  <string name="tool_ui_memory_empty">（無可顯示內容）</string>
+  <string name="tool_ui_memory_id">記憶 id：%1$s</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">程式碼託管</string>
     <string name="vault_group_ai">AI</string>

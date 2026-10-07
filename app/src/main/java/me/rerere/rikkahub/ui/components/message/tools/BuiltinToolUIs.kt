@@ -14,7 +14,9 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalIconButton
@@ -194,29 +196,63 @@ object MemoryToolUI : ToolUIRenderer {
         val memoryRepo: MemoryRepository = koinInject()
         val scope = rememberCoroutineScope()
         val memoryId = (context.content as? JsonObject)?.get("id")?.jsonPrimitiveOrNull?.intOrNull
-        DefaultToolPreview(
-            context = context,
-            headerActions =
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxHeight(0.8f)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(title(context), style = MaterialTheme.typography.headlineSmall)
                 if (action(context) in listOf(ACTION_CREATE, ACTION_EDIT) && memoryId != null) {
-                    {
-                        IconButton(
-                            onClick = {
-                                scope.launch {
-                                    memoryRepo.deleteMemory(memoryId)
-                                    onDismissRequest()
-                                }
-                            },
-                        ) {
-                            Icon(
-                                imageVector = HugeIcons.Delete01,
-                                contentDescription = stringResource(R.string.tool_ui_delete_memory),
-                            )
-                        }
+                    IconButton(
+                        onClick = {
+                            scope.launch {
+                                memoryRepo.deleteMemory(memoryId)
+                                onDismissRequest()
+                            }
+                        },
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.Delete01,
+                            contentDescription = stringResource(R.string.tool_ui_delete_memory),
+                        )
                     }
+                }
+            }
+            if (action(context) == ACTION_LIST) {
+                val list = memories(context)
+                Text(
+                    text = stringResource(R.string.tool_ui_memory_total, list.size),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                list.forEach { item -> MemoryPreviewRow(item) }
+            } else {
+                val body = context.content.getStringContent("content")
+                if (body.isNullOrBlank()) {
+                    Text(
+                        text = stringResource(R.string.tool_ui_memory_empty),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
                 } else {
-                    null
-                },
-        )
+                    Text(body, style = MaterialTheme.typography.bodyMedium)
+                }
+                memoryId?.let { id ->
+                    Text(
+                        text = stringResource(R.string.tool_ui_memory_id, id.toString()),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        }
     }
 }
 
@@ -263,6 +299,55 @@ object MemorySearchToolUI : ToolUIRenderer {
                 )
             }
         }
+    }
+
+    @Composable
+    override fun Preview(
+        context: ToolUIContext,
+        onDismissRequest: () -> Unit,
+    ) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxHeight(0.8f)
+                    .padding(16.dp)
+                    .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(title(context), style = MaterialTheme.typography.headlineSmall)
+            val list = hits(context)
+            if (list.isEmpty()) {
+                Text(
+                    text = stringResource(R.string.tool_ui_memory_empty),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            } else {
+                Text(
+                    text = stringResource(R.string.tool_ui_memory_hits, list.size),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                list.forEach { item -> MemoryPreviewRow(item) }
+            }
+        }
+    }
+}
+
+/** 详情页里的单条记忆：tier 标签 + 完整内容（列表与检索共用）。 */
+@Composable
+private fun MemoryPreviewRow(item: JsonObject) {
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        item.getStringContent("tier")?.let { tier ->
+            Text(
+                text = tier,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Text(
+            text = item.getStringContent("content").orEmpty(),
+            style = MaterialTheme.typography.bodyMedium,
+        )
     }
 }
 

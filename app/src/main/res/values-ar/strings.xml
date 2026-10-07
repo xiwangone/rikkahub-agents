@@ -3497,6 +3497,8 @@
   <string name="tool_ui_memory_list">عرض الذاكرة</string>
   <string name="tool_ui_memory_total">الإجمالي %1$d</string>
   <string name="tool_ui_memory_deleted_id">تم حذف #%1$s</string>
+  <string name="tool_ui_memory_empty">(لا يوجد محتوى للعرض)</string>
+  <string name="tool_ui_memory_id">معرّف الذاكرة: %1$s</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">استضافة الكود</string>
     <string name="vault_group_ai">الذكاء الاصطناعي</string>

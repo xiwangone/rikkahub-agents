@@ -3498,6 +3498,8 @@
   <string name="tool_ui_memory_list">メモリ一覧</string>
   <string name="tool_ui_memory_total">合計 %1$d 件</string>
   <string name="tool_ui_memory_deleted_id">#%1$s を削除しました</string>
+  <string name="tool_ui_memory_empty">（表示できる内容がありません）</string>
+  <string name="tool_ui_memory_id">メモリ id: %1$s</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">コードホスティング</string>
     <string name="vault_group_ai">AI</string>

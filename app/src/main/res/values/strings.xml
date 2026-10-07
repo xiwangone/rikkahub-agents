@@ -3494,6 +3494,8 @@
   <string name="tool_ui_memory_list">List memories</string>
   <string name="tool_ui_memory_total">%1$d in total</string>
   <string name="tool_ui_memory_deleted_id">Deleted #%1$s</string>
+  <string name="tool_ui_memory_empty">(nothing to show)</string>
+  <string name="tool_ui_memory_id">Memory id: %1$s</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">Code hosting</string>
     <string name="vault_group_ai">AI</string>
