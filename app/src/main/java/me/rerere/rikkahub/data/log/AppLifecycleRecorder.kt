@@ -80,7 +80,11 @@ object AppLifecycleRecorder {
                 android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL -> "TRIM_RUNNING_CRITICAL"
                 else -> "TRIM_$level"
             }
-        FileLogSink.append(FileLogSink.KIND_LIFECYCLE, "[mem] $label")
+        // 附上当时的堆占用：进程若随后被系统回收，这份落盘记录就是判断“是否内存压力导致重建”的唯一线索
+        val runtime = Runtime.getRuntime()
+        val usedMb = (runtime.totalMemory() - runtime.freeMemory()) / (1024 * 1024)
+        val maxMb = runtime.maxMemory() / (1024 * 1024)
+        FileLogSink.append(FileLogSink.KIND_LIFECYCLE, "[mem] $label heap=${usedMb}MB/${maxMb}MB")
     }
 
     private fun recordProcessStart(context: Context) {

@@ -40,8 +40,10 @@ data class RenderProfile(
         val WINDOW_RANGE = 0L..1_000L
 
         val HIGH = RenderProfile(
-            diffDefaultLines = Int.MAX_VALUE,
-            jsonVisibleChildren = Int.MAX_VALUE,
+            // 高配也不「不限」：渲染成本取决于内容规模，不是设备档位 —— 长 diff / 大 JSON 全量组合会在
+            // 滚动与重组时掉帧。默认折叠为下面的行数，两处 UI 都有“点击展开”入口，内容不会丢。
+            diffDefaultLines = 600,
+            jsonVisibleChildren = 200,
             outputFlushIntervalMs = 100L,
             streamApplyIntervalMs = 100L,
             highlightCacheEntries = 24,
@@ -118,7 +120,7 @@ fun detectDeviceProfile(context: Context?): DeviceProfile {
 /**
  * 由探测结果给出硬件档位；探测不到或异常一律 [RenderTier.MID]。
  *
- * 阈值取 Android 实测常见值：[android.app.ActivityManager.getMemoryClass] 是**应用堆上限**，
+ * 阈值取 Android 常见机型值：[android.app.ActivityManager.getMemoryClass] 是**应用堆上限**，
  * 主流机型落在 128 / 192 / 256，512 以上仅见于少数大内存机型——因此 HIGH 的门槛取 256，
  * 否则「8 核 + 256MB」这种明确的中高端设备会被判成 MID。
  */

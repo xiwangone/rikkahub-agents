@@ -65,7 +65,7 @@ fun JsonTree(
     initialExpandLevel: Int = 1,
 ) {
     var selectedString by remember { mutableStateOf<String?>(null) }
-    // 单个容器按当前渲染档位限制默认组合的子节点数（完整优先档为不限）
+    // 单个容器按当前渲染档位限制默认组合的子节点数（仅「完整优先」档不限）
     val maxVisibleChildren = rememberRenderProfile().jsonVisibleChildren
 
     Column(modifier = modifier.horizontalScroll(rememberScrollState())) {

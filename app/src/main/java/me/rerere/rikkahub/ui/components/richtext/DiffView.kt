@@ -74,7 +74,7 @@ fun DiffView(
     maxLines: Int? = null,
     showFileHeader: Boolean = true,
 ) {
-    // 默认限行数来自渲染档位（完整优先档为不限行）；调用方可显式传入覆盖
+    // 默认限行数来自渲染档位（仅「完整优先」档不限行）；调用方可显式传入覆盖
     val renderProfile = rememberRenderProfile()
     val effectiveMaxLines = maxLines ?: renderProfile.diffDefaultLines
     val allLines =
