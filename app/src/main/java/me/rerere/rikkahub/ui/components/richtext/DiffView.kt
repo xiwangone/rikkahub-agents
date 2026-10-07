@@ -22,6 +22,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.rememberRenderProfile
 
 internal val DiffAddedColor = Color(0xFF4CAF50)
@@ -61,7 +62,8 @@ internal fun parseDiffStats(diff: String): DiffStats {
 }
 
 /**
- * 渲染 unified diff 文本, 按行前缀着色, 支持横向滚动; 纵向滚动由调用方容器提供
+ * 渲染 unified diff 文本, 按行前缀着色; 纵向滚动由调用方容器提供。
+ * 长行折行口径跟「代码块自动换行」设置（开＝软折行；关＝横向滚动，同旧行为）
  *
  * @param maxLines 默认最多渲染的行数; 传 null 时采用当前渲染档位的默认值,
  *   超出部分折叠为一行可点击展开的提示
@@ -74,6 +76,7 @@ fun DiffView(
     maxLines: Int? = null,
     showFileHeader: Boolean = true,
 ) {
+    val autoWrap = LocalSettings.current.displaySetting.codeBlockAutoWrap
     // 默认限行数来自渲染档位（仅「完整优先」档不限行）；调用方可显式传入覆盖
     val renderProfile = rememberRenderProfile()
     val effectiveMaxLines = maxLines ?: renderProfile.diffDefaultLines
@@ -104,11 +107,11 @@ fun DiffView(
             modifier
                 .clip(RoundedCornerShape(8.dp))
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .horizontalScroll(rememberScrollState())
+                .then(if (autoWrap) Modifier else Modifier.horizontalScroll(rememberScrollState()))
                 .padding(vertical = 4.dp),
     ) {
         lines.fastForEach { line ->
-            DiffLine(line)
+            DiffLine(line, autoWrap)
         }
         if (truncated > 0) {
             Text(
@@ -127,7 +130,10 @@ fun DiffView(
 }
 
 @Composable
-private fun DiffLine(line: String) {
+private fun DiffLine(
+    line: String,
+    autoWrap: Boolean,
+) {
     val (textColor, background) =
         when {
             line.startsWith("+++") || line.startsWith("---") -> {
@@ -156,7 +162,7 @@ private fun DiffLine(line: String) {
         fontFamily = FontFamily.Monospace,
         fontSize = 11.sp,
         lineHeight = 16.sp,
-        softWrap = false,
+        softWrap = autoWrap,
         modifier =
             Modifier
                 .fillMaxWidth()
