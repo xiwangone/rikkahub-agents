@@ -29,12 +29,13 @@ class ToolIndexTest {
             val entry = ToolIndex.find(toolName)
             assertNotNull("渲染器已注册但索引缺失: $toolName", entry)
             val declared = renderer::class.simpleName
-            // 别名渲染器是匿名对象（simpleName 形如 `GestureToolUI$gestureAlias$1`），索引登记的是
-            // 别名 val 名 —— 二者无法用类名对齐，此时只要求索引有一行登记。
-            val isAlias = declared != null && declared.contains('$')
+            // 别名渲染器是匿名 object：Kotlin 的 `KClass.simpleName` 对匿名对象返回 null
+            // （或形如 `Xxx$yyy$1`），而索引登记的是别名 val 名 —— 二者无法用类名对齐，
+            // 此时只要求索引有一行登记。
+            val isAnonymous = declared == null || declared.contains('$')
             assertTrue(
                 "索引登记的渲染器与注册表不一致: $toolName (索引=${entry!!.renderer}, 注册表=$declared)",
-                if (isAlias) !entry.renderer.isNullOrBlank() else entry.renderer == declared,
+                if (isAnonymous) !entry.renderer.isNullOrBlank() else entry.renderer == declared,
             )
         }
     }

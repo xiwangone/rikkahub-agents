@@ -160,7 +160,7 @@ class WebFetchToolTest {
         ).jsonObject
 
         assertEquals("empty_extraction", json["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
-        assertTrue(json["data"]!!.jsonObject["recovery"]!!.jsonPrimitive.content.contains("extract_mode"))
+        assertTrue(json["data"]!!.jsonObject["hint"]!!.jsonPrimitive.content.contains("extract_mode"))
     }
 
     @Test

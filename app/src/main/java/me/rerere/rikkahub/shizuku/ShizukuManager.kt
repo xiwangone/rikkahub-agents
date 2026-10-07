@@ -91,13 +91,13 @@ internal sealed interface BindResult {
  * the throwable's class and message. Never a stack trace: that goes to logcat only, see
  * [ShizukuManager.startBind]. Pure, so unit-testable without the Shizuku SDK.
  */
-internal fun bindFailedResponse(failure: BindResult.Failure): JsonObject = ToolErrors.envelopeFor(error = "shizuku_bind_failed", message = "shizuku_bind_failed", extra = ToolErrors.extraOf("recovery" to if (failure is BindResult.Failure.Timeout) {
+internal fun bindFailedResponse(failure: BindResult.Failure): JsonObject = ToolErrors.envelopeFor(error = "shizuku_bind_failed", message = "shizuku_bind_failed", recovery = if (failure is BindResult.Failure.Timeout) {
             // The server accepted the bind (an unauthorised caller fails at bind_threw), so
             // permission is not the problem; a running server older than the Shizuku app is (#45).
             "The Shizuku server accepted the request but the user service never started. Open the Shizuku app: if the running server version is older than the app, or it offers to restart to upgrade, restart the Shizuku service, then retry."
         } else {
             "Could not bind the Shizuku user service. Retry; if it keeps failing, restart the Shizuku service and re-grant permission from Settings -> Shizuku."
-        }, "phase" to failure.phase, "reason" to ((failure as? BindResult.Failure.BindThrew)?.let { "${it.throwable::class.java.simpleName}: ${it.throwable.message}" } ?: failure.phase)))
+        }, extra = ToolErrors.extraOf("phase" to failure.phase, "reason" to ((failure as? BindResult.Failure.BindThrew)?.let { "${it.throwable::class.java.simpleName}: ${it.throwable.message}" } ?: failure.phase)))
 
 /**
  * Thin wrapper around the static [Shizuku] SDK object (dev.rikka.shizuku:api 13.1.5) plus the
