@@ -3484,6 +3484,8 @@
   <string name="tool_ui_bg_run">Run in background: %1$s</string>
   <string name="tool_ui_bg_task">Background task %1$s</string>
   <string name="tool_ui_bg_tasks">Background tasks</string>
+  <string name="tool_ui_bg_no_tasks">No background tasks</string>
+  <string name="tool_ui_bg_task_not_found">Task not found (already finished or cleaned up?)</string>
   <string name="tool_ui_bg_kill">Stop background task %1$s</string>
   <string name="tool_ui_bg_killed">Stopped</string>
   <string name="tool_ui_bg_kill_missing">Task not found</string>

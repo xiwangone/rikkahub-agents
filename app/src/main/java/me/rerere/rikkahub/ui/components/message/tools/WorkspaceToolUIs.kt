@@ -894,8 +894,17 @@ object WorkspaceBackgroundStatusToolUI : ToolUIRenderer {
             ?.mapNotNull { it as? JsonObject }
             ?: emptyList()
 
+    // 有 processes 字段就出摘要（哪怕空数组）——否则「没任务 / 查不到 id」时卡片只剩标题，看着像渲染坏了
     override fun hasSummary(context: ToolUIContext): Boolean =
-        (context.content?.jsonObjectOrNull?.get("processes") as? JsonArray)?.isNotEmpty() == true
+        context.content?.jsonObjectOrNull?.get("processes") is JsonArray
+
+    /** 空态文案：带 id 查询（查不到）与不带 id（当前没有任务）分开说 */
+    private fun emptyHintRes(context: ToolUIContext): Int =
+        if (context.arguments.getStringContent("id").isNullOrBlank()) {
+            R.string.tool_ui_bg_no_tasks
+        } else {
+            R.string.tool_ui_bg_task_not_found
+        }
 
     @Composable
     override fun Preview(
@@ -912,6 +921,13 @@ object WorkspaceBackgroundStatusToolUI : ToolUIRenderer {
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
             Text(title(context), style = MaterialTheme.typography.headlineSmall)
+            if (tasks.isEmpty()) {
+                Text(
+                    text = stringResource(emptyHintRes(context)),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             tasks.forEach { task ->
                 val running = task.getStringContent("status") == "running"
                 Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -945,6 +961,13 @@ object WorkspaceBackgroundStatusToolUI : ToolUIRenderer {
     override fun Summary(context: ToolUIContext) {
         val tasks = processes(context)
         Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            if (tasks.isEmpty()) {
+                Text(
+                    text = stringResource(emptyHintRes(context)),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
             tasks.take(MAX_TASKS).forEach { task ->
                 val running = task.getStringContent("status") == "running"
                 Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {

@@ -3488,6 +3488,8 @@
   <string name="tool_ui_bg_run">백그라운드 실행: %1$s</string>
   <string name="tool_ui_bg_task">백그라운드 작업 %1$s</string>
   <string name="tool_ui_bg_tasks">백그라운드 작업 목록</string>
+  <string name="tool_ui_bg_no_tasks">백그라운드 작업이 없습니다</string>
+  <string name="tool_ui_bg_task_not_found">작업을 찾을 수 없습니다(이미 종료되었거나 정리됨)</string>
   <string name="tool_ui_bg_kill">백그라운드 작업 중지 %1$s</string>
   <string name="tool_ui_bg_killed">중지됨</string>
   <string name="tool_ui_bg_kill_missing">작업을 찾을 수 없음</string>

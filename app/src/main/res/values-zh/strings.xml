@@ -3484,6 +3484,8 @@
   <string name="tool_ui_bg_run">后台运行：%1$s</string>
   <string name="tool_ui_bg_task">后台任务 %1$s</string>
   <string name="tool_ui_bg_tasks">后台任务列表</string>
+  <string name="tool_ui_bg_no_tasks">当前没有后台任务</string>
+  <string name="tool_ui_bg_task_not_found">未找到该任务（可能已结束并被清理）</string>
   <string name="tool_ui_bg_kill">停止后台任务 %1$s</string>
   <string name="tool_ui_bg_killed">已停止</string>
   <string name="tool_ui_bg_kill_missing">未找到该任务</string>

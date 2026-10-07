@@ -3487,6 +3487,8 @@
   <string name="tool_ui_bg_run">背景執行：%1$s</string>
   <string name="tool_ui_bg_task">背景任務 %1$s</string>
   <string name="tool_ui_bg_tasks">背景任務列表</string>
+  <string name="tool_ui_bg_no_tasks">目前沒有背景任務</string>
+  <string name="tool_ui_bg_task_not_found">找不到該任務（可能已結束並被清理）</string>
   <string name="tool_ui_bg_kill">停止背景任務 %1$s</string>
   <string name="tool_ui_bg_killed">已停止</string>
   <string name="tool_ui_bg_kill_missing">找不到該任務</string>

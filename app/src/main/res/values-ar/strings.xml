@@ -3487,6 +3487,8 @@
   <string name="tool_ui_bg_run">تشغيل في الخلفية: %1$s</string>
   <string name="tool_ui_bg_task">مهمة خلفية %1$s</string>
   <string name="tool_ui_bg_tasks">المهام الخلفية</string>
+  <string name="tool_ui_bg_no_tasks">لا توجد مهام في الخلفية</string>
+  <string name="tool_ui_bg_task_not_found">لم يتم العثور على المهمة (ربما انتهت وتم تنظيفها)</string>
   <string name="tool_ui_bg_kill">إيقاف المهمة الخلفية %1$s</string>
   <string name="tool_ui_bg_killed">تم الإيقاف</string>
   <string name="tool_ui_bg_kill_missing">لم يتم العثور على المهمة</string>
