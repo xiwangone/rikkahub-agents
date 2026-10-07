@@ -399,6 +399,8 @@ function search(query, resultSize) {
 
 internal suspend fun Call.await(): Response =
     suspendCancellableCoroutine { continuation ->
+        // 协程取消要传导到底层 Call，否则被中止的请求会在后台继续跑完（连接 / 流量 / 电量泄漏）。
+        continuation.invokeOnCancellation { runCatching { cancel() } }
         enqueue(
             object : Callback {
                 override fun onFailure(

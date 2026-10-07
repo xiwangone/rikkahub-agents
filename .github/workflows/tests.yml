@@ -62,10 +62,12 @@ jobs:
           set +e   # 关掉 -e：失败要自己接管，否则第一次失败就退出、没机会重试
           # `:ai` 是各 provider 共用的基础库，单测此前不在 CI 里，只有本地手动跑 —— 一并纳入
           # 2026-09-30 新增 8 个 0 失败模块（Linux 云端现测 237 例全绿）；
-          # common（1 flaky）、local-llm（需 Java 21，CI 为 JDK 17）、oauth（1 本地回环失败）、
+          # common 2026-10-07 纳入：此前标注的 1 flaky 经复核是稳定缺陷（Call.await 未把协程
+          #   取消传导到底层请求），已修复并补断言覆盖；
+          # local-llm（需 Java 21，CI 为 JDK 17）、oauth（1 本地回环失败）、
           # workspace（1 需外网）暂不纳入，待各自修复后补充。
           for i in 1 2; do
-            ./gradlew :app:testDebugUnitTest :ai:testDebugUnitTest :document:testDebugUnitTest :highlight:testDebugUnitTest :llama-cpp:testDebugUnitTest :material3:testDebugUnitTest :search:testDebugUnitTest :speech:testDebugUnitTest :videogen:testDebugUnitTest :web:testDebugUnitTest --parallel --build-cache --configuration-cache 2>&1 | tee unit-test.log
+            ./gradlew :app:testDebugUnitTest :ai:testDebugUnitTest :common:testDebugUnitTest :document:testDebugUnitTest :highlight:testDebugUnitTest :llama-cpp:testDebugUnitTest :material3:testDebugUnitTest :search:testDebugUnitTest :speech:testDebugUnitTest :videogen:testDebugUnitTest :web:testDebugUnitTest --parallel --build-cache --configuration-cache 2>&1 | tee unit-test.log
             [ "${PIPESTATUS[0]}" = "0" ] && break
             if [ "$i" = "2" ]; then echo "❌ 两次均失败"; exit 1; fi
             echo "⚠️ 第 $i 次失败（可能是依赖下载超时），10 秒后重试…"; sleep 10
