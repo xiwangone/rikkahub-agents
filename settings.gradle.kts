@@ -11,6 +11,12 @@ pluginManagement {
         }
         mavenCentral()
         gradlePluginPortal()
+        // 回退源：官方仓库不可达 / 限流（如 HTTP 429）时按顺序继续解析；
+        // 官方源命中时不会产生额外请求。
+        maven("https://maven.aliyun.com/repository/public")
+        maven("https://maven.aliyun.com/repository/gradle-plugin")
+        maven("https://maven.aliyun.com/repository/google")
+        maven("https://repo.huaweicloud.com/repository/maven/")
     }
 }
 plugins {
@@ -22,6 +28,11 @@ dependencyResolutionManagement {
         google()
         mavenCentral()
         maven("https://jitpack.io")
+        // 回退源：官方仓库不可达 / 限流（如 HTTP 429）时按顺序继续解析
+        maven("https://maven.aliyun.com/repository/public")
+        maven("https://maven.aliyun.com/repository/gradle-plugin")
+        maven("https://maven.aliyun.com/repository/google")
+        maven("https://repo.huaweicloud.com/repository/maven/")
     }
 }
 

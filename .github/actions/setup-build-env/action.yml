@@ -32,14 +32,6 @@ runs:
         java -version 2>&1 | head -2
         echo "JAVA_HOME=${JAVA_HOME:-（未设置）}"
 
-    - name: Gradle 依赖源回退（镜像，仅 CI 生效）
-      shell: bash
-      run: |
-        set -e
-        mkdir -p ~/.gradle/init.d
-        cp "$GITHUB_WORKSPACE/.github/gradle-mirror.init.gradle" ~/.gradle/init.d/
-        echo "已安装 Gradle 镜像回退：~/.gradle/init.d/gradle-mirror.init.gradle"
-
     - name: Android SDK（预装优先，缺失时多源下载）
       shell: bash
       run: bash "$GITHUB_WORKSPACE/.github/scripts/setup-android-sdk.sh"
