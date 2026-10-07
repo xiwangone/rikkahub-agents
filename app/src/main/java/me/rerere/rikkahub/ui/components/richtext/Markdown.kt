@@ -111,6 +111,7 @@ import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
 import org.intellij.markdown.parser.MarkdownParser
 import kotlin.time.Clock
+import android.os.SystemClock
 import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "Markdown"
@@ -238,6 +239,13 @@ private fun ASTNode.containsHtml(): Boolean {
 /** 首帧同步解析的文本上限（字符）：超过则先留空、交后台线程生成，避免组合期长任务卡住主线程。 */
 private const val SYNC_PARSE_MAX_CHARS = 2_000
 
+/** 渲染性能日志的 TAG（I 级才会落盘，见 AppLog：D 级只留内存）。 */
+private const val RENDER_PERF_TAG = "RenderPerf"
+
+/** 渲染性能日志门槛：长度超过它、或解析耗时超过 [PERF_LOG_SLOW_MS] 才记一条（避免刷屏）。 */
+private const val PERF_LOG_MIN_CHARS = 4_000
+private const val PERF_LOG_SLOW_MS = 8L
+
 private fun parseMarkdown(content: String): MarkdownParseResult {
     val preprocessed = preProcess(content)
     val astTree = parser.buildMarkdownTreeFromString(preprocessed)
@@ -253,12 +261,23 @@ fun MarkdownBlock(
 ) {
     // 首帧不同步解析长文：markdown 解析在组合期同步执行是长消息卡顿的来源之一（后续更新本就
     // 走后台线程）。短文本保持同步以免首帧闪烁；长文先留空，下一帧由下面的后台管线补上。
-    var (data, setData) =
+    val initialParse =
         remember {
-            mutableStateOf(
-                if (content.length <= SYNC_PARSE_MAX_CHARS) parseMarkdown(content) else null,
+            val started = SystemClock.uptimeMillis()
+            val parsed = if (content.length <= SYNC_PARSE_MAX_CHARS) parseMarkdown(content) else null
+            Triple(parsed, SystemClock.uptimeMillis() - started, content.length)
+        }
+    var (data, setData) = remember { mutableStateOf(initialParse.first) }
+    // 渲染性能埋点：只记一次、且只在长文/慢时记（I 级会落盘 → 重启后仍可回看）
+    LaunchedEffect(Unit) {
+        val (parsed, costMs, len) = initialParse
+        if (len > PERF_LOG_MIN_CHARS || costMs >= PERF_LOG_SLOW_MS) {
+            AppLog.i(
+                RENDER_PERF_TAG,
+                "markdown 首帧 len=$len 同步=${parsed != null} 耗时=${costMs}ms 节点=${parsed?.astTree?.children?.size ?: 0}",
             )
         }
+    }
 
     // 监听内容变化，重新解析AST树
     // 这里在后台线程解析AST树, 防止频繁更新的时候掉帧

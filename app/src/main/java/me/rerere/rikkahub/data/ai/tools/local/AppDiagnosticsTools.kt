@@ -787,6 +787,27 @@ internal fun lifecycleLogsPayload(context: Context, params: JsonObject): String 
     return if (raw.isBlank()) "(no lifecycle records yet)" else raw
 }
 
+/**
+ * 与 [appLogsPayload] 同源，但**从磁盘文件读**：内存缓冲重启即空，文件按天保留、可回看历史与重启前。
+ * 只含 I/W/E 级（D 级按设计不落盘）。支持 `lines`（尾部行数，默认 200，最大 2000）与 `keyword` 过滤。
+ */
+internal fun fileLogsPayload(context: Context, params: JsonObject): String {
+    val lines = (params["lines"]?.jsonPrimitive?.intOrNull ?: 200).coerceIn(1, 2000)
+    val keyword = params["keyword"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+    val raw =
+        me.rerere.rikkahub.data.log.FileLogSink.recentLines(
+            me.rerere.rikkahub.data.log.FileLogSink.KIND_APP,
+            lines,
+        )
+    val filtered =
+        if (keyword.isEmpty()) {
+            raw
+        } else {
+            raw.lineSequence().filter { it.contains(keyword, ignoreCase = true) }.joinToString("\n")
+        }
+    return if (filtered.isBlank()) "(no app log records on disk)" else filtered
+}
+
 // ---------- get_build_info ----------
 
 /**
@@ -1363,7 +1384,7 @@ internal suspend fun toolScopePayload(
 // ---------- grouped entry point ----------
 
 private val DIAGNOSTICS_KINDS = listOf(
-    "health", "build", "enabled_tools", "usage", "settings", "assistants", "logs", "requests", "crash",
+    "health", "build", "enabled_tools", "usage", "settings", "assistants", "logs", "logs_file", "requests", "crash",
     "lifecycle", "conversation", "generation", "perf", "models", "audit", "tool_scope", "runs",
 )
 
@@ -1632,7 +1653,7 @@ private fun diagnosticsParameters(): InputSchema =
             })
             put("lines", buildJsonObject {
                 put("type", "integer")
-                put("description", "lifecycle only: trailing line count (default 60, max 500).")
+                put("description", "lifecycle / logs_file only: trailing line count (lifecycle default 60 max 500; logs_file default 200 max 2000).")
             })
             put("which", buildJsonObject {
                 put("type", "string")
@@ -1704,6 +1725,9 @@ private fun diagnosticsParameters(): InputSchema =
  * Each kind delegates to the per-area payload function above; the payload shapes are unchanged.
  * Read-only.
  */
+// kind 分发是平铺 when：每加一个 kind 就 +1 复杂度，但各分支互不相干、无嵌套逻辑，
+// 拆成 map 只是把分支搬个位置。取值已在阈值边界，故显式抑制并留此说明。
+@Suppress("CyclomaticComplexMethod")
 fun diagnosticsTool(
     context: Context,
     settingsStore: SettingsStore,
@@ -1728,6 +1752,7 @@ fun diagnosticsTool(
             "settings" -> appSettingsPayload(settingsStore)
             "assistants" -> assistantsPayload(settingsStore, params)
             "logs" -> appLogsPayload(context, params)
+            "logs_file" -> fileLogsPayload(context, params)
             "requests" -> requestLogsPayload(context, params)
             "crash" -> crashSnapshotPayload(context, params)
             "lifecycle" -> lifecycleLogsPayload(context, params)

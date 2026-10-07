@@ -87,6 +87,7 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import org.jsoup.nodes.Node
 import org.jsoup.nodes.TextNode
+import android.os.SystemClock
 import me.rerere.rikkahub.data.log.AppLog
 
 // ---- Preprocessing (mirrors Markdown.kt logic) ----
@@ -125,6 +126,13 @@ private val parser by lazy { MarkdownParser(flavour) }
 /** 首帧同步生成 HTML 的文本上限（字符）：超过则先留空，由后台管线下一帧补上。 */
 private const val SYNC_HTML_MAX_CHARS = 2_000
 
+/** 渲染性能日志的 TAG（I 级才会落盘，见 AppLog：D 级只留内存）。 */
+private const val RENDER_PERF_TAG = "RenderPerf"
+
+/** 渲染性能日志门槛：长度超过它、或生成耗时超过 [PERF_LOG_SLOW_MS] 才记一条（避免刷屏）。 */
+private const val PERF_LOG_MIN_CHARS = 4_000
+private const val PERF_LOG_SLOW_MS = 8L
+
 private fun generateMarkdownHtml(content: String): String {
     val preprocessed = preProcess(content)
     val tree = parser.buildMarkdownTreeFromString(preprocessed)
@@ -142,10 +150,19 @@ fun MarkdownNew(
 ) {
     // 首帧不为主线程做长文的 markdown→HTML（同 MarkdownBlock 的理由）：长文先留空，
     // 下一帧由下面的后台管线补上；短文本保持同步以免闪烁。
-    var html by remember {
-        mutableStateOf(
-            value = if (content.length <= SYNC_HTML_MAX_CHARS) generateMarkdownHtml(content) else "",
-        )
+    val initialHtml =
+        remember {
+            val started = SystemClock.uptimeMillis()
+            val generated = if (content.length <= SYNC_HTML_MAX_CHARS) generateMarkdownHtml(content) else ""
+            Triple(generated, SystemClock.uptimeMillis() - started, content.length)
+        }
+    var html by remember { mutableStateOf(initialHtml.first) }
+    // 渲染性能埋点：只记一次、且只在长文/慢时记（I 级会落盘 → 重启后仍可回看）
+    LaunchedEffect(Unit) {
+        val (_, costMs, len) = initialHtml
+        if (len > PERF_LOG_MIN_CHARS || costMs >= PERF_LOG_SLOW_MS) {
+            AppLog.i(RENDER_PERF_TAG, "markdown→html 首帧 len=$len 耗时=${costMs}ms")
+        }
     }
 
     val updatedContent by rememberUpdatedState(content)
