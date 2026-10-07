@@ -31,8 +31,11 @@ internal object CredentialType {
     /** 自定义字段（兜底）。 */
     const val CUSTOM = "custom-fields"
 
+    /** 云访问密钥（AK/SK）：明文 access_key_id（+ region/account）在元数据，密文 = secret key。 */
+    const val CLOUD_AK = "cloud-ak"
+
     /** 已知类型集合（供校验与展示）。 */
-    val KNOWN: Set<String> = setOf(SSH_KEY, API_KEY, BASIC_AUTH, TOTP, CUSTOM)
+    val KNOWN: Set<String> = setOf(SSH_KEY, API_KEY, BASIC_AUTH, TOTP, CUSTOM, CLOUD_AK)
 
     /**
      * 推断类型：只看名称与值的**结构性**特征，不依赖任何外部元数据。
@@ -44,6 +47,8 @@ internal object CredentialType {
         if (publicKey.isNotBlank() || value.contains("PRIVATE KEY-----")) return SSH_KEY
         if (n.endsWith("_TOTP") || n.endsWith("_OTP") || n.contains("_2FA")) return TOTP
         if (n.endsWith("_PWD") || n.endsWith("_PASS") || n.contains("PASSWORD")) return BASIC_AUTH
+        // 云 AK/SK：名字带 AK / ACCESS_KEY 的，值通常是配套 secret（标识而非常规 token）
+        if (n.endsWith("_AK") || n.endsWith("_ACCESS_KEY_ID") || n.contains("ACCESS_KEY")) return CLOUD_AK
         if (n.endsWith("_TOKEN") || n.endsWith("_API_KEY") || n.endsWith("_KEY") ||
             n.contains("APIKEY") || n.contains("SECRET")
         ) {

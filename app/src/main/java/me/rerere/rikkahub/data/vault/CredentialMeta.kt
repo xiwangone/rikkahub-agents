@@ -26,6 +26,17 @@ object CredentialMeta {
         "algorithm",  // TOTP 算法
         "digits",     // TOTP 位数
         "period",     // TOTP 周期（秒）
+        // 非敏感标识（2026-10-07 加）：账号 / AK / 云侧 ID 这类“标识而非秘密”的信息。
+        // 此前只能塞描述（不可结构化）或当密文存（引用方与 AI 都读不到）→ 现归入明文元数据。
+        "account",        // 账号 / 登录名 / 邮箱
+        "access_key_id",  // 云访问密钥 ID（AK）；配套 SK 仍走密文
+        "user_id",
+        "domain_id",
+        "project_id",
+        "region",
+        // 值指纹（SHA-256 前 16 hex，见 CredentialVaultRepository.fingerprint）：
+        // 供“不见值比对”（判重 / 判值是否变过）；高熵密钥不可反推。
+        "value_fp",
     )
 
     /** 自定义字段键前缀：`custom.<标签>`。值是**明文备注**，禁止放密钥/口令（2026-09-23 定）。 */

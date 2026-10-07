@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -40,6 +41,8 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AddCircle
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.Edit02
@@ -84,6 +87,10 @@ fun VaultCredentialsPage() {
     var showKeyGen by remember { mutableStateOf(false) }
     var searchQuery by remember { mutableStateOf("") }
     var typeFilter by remember { mutableStateOf("") }
+    // 视图：默认「平铺」（全库按排序连排，条目多时好找）；可切「按分组」分块浏览
+    var groupedView by remember { mutableStateOf(false) }
+    // 「按分组」视图下被收起的分组（只影响展示，不持久化）
+    var collapsedGroups by remember { mutableStateOf(emptySet<String>()) }
     // 排序：默认「最近更新」（凭证多时按时间比按名称常找）；可切「最近添加 / 名称」
     var sortOrder by remember { mutableStateOf("updated") }
     // 重复检测（按值指纹精确判定；只在需要时查，避免每次进页面都全库解密）
@@ -236,6 +243,25 @@ fun VaultCredentialsPage() {
                     }
                 }
 
+                // 视图切换：平铺（默认）/ 按分组
+                item(key = "view") {
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    ) {
+                        FilterChip(
+                            selected = !groupedView,
+                            onClick = { groupedView = false },
+                            label = { Text(stringResource(R.string.vault_view_flat)) },
+                        )
+                        FilterChip(
+                            selected = groupedView,
+                            onClick = { groupedView = true },
+                            label = { Text(stringResource(R.string.vault_view_grouped)) },
+                        )
+                    }
+                }
+
                 // 按组展示：组间按组名字母序（好找） + 组内排序 + 搜索过滤
                 val query = searchQuery.trim().lowercase()
                 val filtered = entries.filter {
@@ -245,32 +271,67 @@ fun VaultCredentialsPage() {
                         it.grp.lowercase().contains(query)) &&
                         (typeFilter.isEmpty() || it.type == typeFilter)
                 }
-                val grouped = filtered.groupBy { it.grp }
-                // 组间顺序：按本地化组名的字母序（“好找”优先，不做固定组序）；组内按 sortOrder（默认最近更新）
-                val groupLabels = grouped.keys.associateWith { vaultGroupLabel(ctx, it) }
-                val orderedGroups =
-                    grouped.keys.sortedBy { g -> groupLabels[g]?.lowercase() ?: g.lowercase() }
-                // 拍平：组头 item + 组内条目（组内排序随 sortOrder，默认最近更新）
-                orderedGroups.forEach { group ->
-                    item(key = "group_$group") {
-                        Text(
-                            vaultGroupLabel(ctx, group) + " (${grouped[group]!!.size})",
-                            style = MaterialTheme.typography.titleSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 8.dp, bottom = 4.dp),
+                // 排序函数：平铺时全局排，按分组时组内排
+                fun sortedByOrder(list: List<VaultCredentialEntity>): List<VaultCredentialEntity> =
+                    when (sortOrder) {
+                        "created" -> list.sortedWith(
+                            compareByDescending<VaultCredentialEntity> { it.createdAt }.thenBy { it.name.lowercase() },
+                        )
+                        "name" -> list.sortedBy { it.name.lowercase() }
+                        else -> list.sortedWith(
+                            compareByDescending<VaultCredentialEntity> { it.updatedAt }.thenBy { it.name.lowercase() },
                         )
                     }
-                    val groupEntries =
-                        when (sortOrder) {
-                            "created" -> grouped[group]!!.sortedWith(
-                                compareByDescending<VaultCredentialEntity> { it.createdAt }.thenBy { it.name.lowercase() },
-                            )
-                            "name" -> grouped[group]!!.sortedBy { it.name.lowercase() }
-                            else -> grouped[group]!!.sortedWith(
-                                compareByDescending<VaultCredentialEntity> { it.updatedAt }.thenBy { it.name.lowercase() },
-                            )
+                if (groupedView) {
+                    // 按分组分块：组间按本地化组名字母序（“好找”优先），组内按 sortOrder
+                    val grouped = filtered.groupBy { it.grp }
+                    val groupLabels = grouped.keys.associateWith { vaultGroupLabel(ctx, it) }
+                    val orderedGroups =
+                        grouped.keys.sortedBy { g -> groupLabels[g]?.lowercase() ?: g.lowercase() }
+                    orderedGroups.forEach { group ->
+                        val collapsed = group in collapsedGroups
+                        item(key = "group_$group") {
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier =
+                                    Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            collapsedGroups =
+                                                if (collapsed) collapsedGroups - group else collapsedGroups + group
+                                        }
+                                        .padding(top = 8.dp, bottom = 4.dp),
+                            ) {
+                                Icon(
+                                    imageVector = if (collapsed) HugeIcons.ArrowRight01 else HugeIcons.ArrowDown01,
+                                    contentDescription = null,
+                                    tint = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.size(16.dp),
+                                )
+                                Text(
+                                    vaultGroupLabel(ctx, group) + " (${grouped[group]!!.size})",
+                                    style = MaterialTheme.typography.titleSmall,
+                                    color = MaterialTheme.colorScheme.primary,
+                                )
+                            }
                         }
-                    groupEntries.forEach { entry ->
+                        if (collapsed) return@forEach
+                        sortedByOrder(grouped[group]!!).forEach { entry ->
+                            item(key = entry.id) {
+                                CredentialRow(
+                                    entry = entry,
+                                    revealed = entry.name in revealedNames,
+                                    onRevealToggle = { toggleReveal(entry) },
+                                    onEdit = { showEditor = EditorMode.Edit(entry) },
+                                    onDelete = { deleteTarget = entry },
+                                )
+                            }
+                        }
+                    }
+                } else {
+                    // 平铺：全库按 sortOrder 连排（默认最近更新在前），行内带组名小标
+                    sortedByOrder(filtered).forEach { entry ->
                         item(key = entry.id) {
                             CredentialRow(
                                 entry = entry,
@@ -278,6 +339,7 @@ fun VaultCredentialsPage() {
                                 onRevealToggle = { toggleReveal(entry) },
                                 onEdit = { showEditor = EditorMode.Edit(entry) },
                                 onDelete = { deleteTarget = entry },
+                            groupLabel = vaultGroupLabel(ctx, entry.grp),
                             )
                         }
                     }
@@ -408,6 +470,8 @@ private fun CredentialRow(
     onRevealToggle: () -> Unit,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    /** 平铺视图下在名称旁显示的组名（按分组视图下不传）。 */
+    groupLabel: String? = null,
 ) {
     val repository: CredentialVaultRepository = koinInject()
     val vaultPreferences: VaultPreferences = koinInject()
@@ -461,7 +525,19 @@ private fun CredentialRow(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Column(Modifier.weight(1f)) {
-                Text(entry.name, style = MaterialTheme.typography.titleSmall)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(entry.name, style = MaterialTheme.typography.titleSmall)
+                    if (!groupLabel.isNullOrBlank()) {
+                        Text(
+                            text = groupLabel,
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
                 if (entry.description.isNotBlank()) {
                     Text(
                         entry.description,
@@ -595,17 +671,20 @@ private fun CredentialEditorDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 // 元数据字段：按类型显示（标签用语言中立的技术词，与类型标识同款约定，不进翻译资源）
+                // 字段集按类型推荐（键名保持英文，与工具/落库一致；标签本地化见 vaultMetaLabel）
+                val metaCtx = androidx.compose.ui.platform.LocalContext.current
                 val metaFieldKeys = when (type) {
-                    CredentialType.API_KEY -> listOf("endpoint", "header", "prefix")
-                    CredentialType.BASIC_AUTH -> listOf("username")
+                    CredentialType.API_KEY -> listOf("endpoint", "header", "prefix", "account", "access_key_id", "region")
+                    CredentialType.BASIC_AUTH -> listOf("username", "account")
                     CredentialType.TOTP -> listOf("algorithm", "digits", "period")
-                    else -> emptyList()
+                    CredentialType.CLOUD_AK -> listOf("access_key_id", "account", "region", "project_id")
+                    else -> listOf("account", "access_key_id", "user_id", "domain_id", "project_id", "region")
                 }
                 metaFieldKeys.forEach { key ->
                     OutlinedTextField(
                         value = meta[key].orEmpty(),
                         onValueChange = { v -> meta = if (v.isBlank()) meta - key else meta + (key to v) },
-                        label = { Text(key) },
+                        label = { Text(vaultMetaLabel(metaCtx, key)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth(),
                     )
@@ -734,5 +813,26 @@ private fun vaultTypeLabel(context: android.content.Context, type: String): Stri
         CredentialType.BASIC_AUTH -> context.getString(R.string.vault_type_basic_auth)
         CredentialType.TOTP -> context.getString(R.string.vault_type_totp)
         CredentialType.CUSTOM -> context.getString(R.string.vault_type_custom_fields)
+        CredentialType.CLOUD_AK -> context.getString(R.string.vault_type_cloud_ak)
         else -> type
+    }
+
+/** 元数据字段的显示名：键名保持英文（与工具/落库一致），界面显示本地化标签；未知键回退原值。 */
+private fun vaultMetaLabel(context: android.content.Context, key: String): String =
+    when (key) {
+        "endpoint" -> context.getString(R.string.vault_meta_endpoint)
+        "path" -> context.getString(R.string.vault_meta_path)
+        "header" -> context.getString(R.string.vault_meta_header)
+        "prefix" -> context.getString(R.string.vault_meta_prefix)
+        "username" -> context.getString(R.string.vault_meta_username)
+        "account" -> context.getString(R.string.vault_meta_account)
+        "access_key_id" -> context.getString(R.string.vault_meta_access_key_id)
+        "user_id" -> context.getString(R.string.vault_meta_user_id)
+        "domain_id" -> context.getString(R.string.vault_meta_domain_id)
+        "project_id" -> context.getString(R.string.vault_meta_project_id)
+        "region" -> context.getString(R.string.vault_meta_region)
+        "algorithm" -> context.getString(R.string.vault_meta_algorithm)
+        "digits" -> context.getString(R.string.vault_meta_digits)
+        "period" -> context.getString(R.string.vault_meta_period)
+        else -> key
     }

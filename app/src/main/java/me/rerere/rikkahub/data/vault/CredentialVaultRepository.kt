@@ -350,6 +350,8 @@ class CredentialVaultRepository(
         // 落库前统一清洗（剔除不可见控制符）；长度字段以清洗后的值为准，避免展示与实际不一致
         val cleanValue = CredentialValueSanitizer.sanitize(value)
         val encrypted = ProviderCredentialCipher.encrypt(cleanValue)
+        // 值指纹（不见值比对用）：随元数据落明文列，供 UI 与 AI 侧精确判重；空值/占位条目不写（否则占位之间会互相“重复”）
+        val valueFp = if (cleanValue.isBlank()) null else fingerprint(cleanValue)
         val existing = dao.getByName(name)
         if (existing != null) {
             val finalPub = if (keepPub) existing.publicKey else publicKey.ifEmpty { existing.publicKey }
@@ -361,8 +363,11 @@ class CredentialVaultRepository(
                     valueEncrypted = encrypted,
                     valueLength = cleanValue.length,
                     type = resolveType(type, existing.type, name, cleanValue, finalPub),
-                    // 导入留空 = 保留原元数据（与 publicKey 同款语义，防重导清空）
-                    metaJson = metaJson.ifEmpty { existing.metaJson },
+                    // 导入留空 = 保留原元数据（与 publicKey 同款语义，防重导清空）；指纹每次刷新
+                    metaJson = CredentialMeta.encode(
+                        CredentialMeta.decode(metaJson.ifEmpty { existing.metaJson }) +
+                            listOfNotNull(valueFp?.let { "value_fp" to it }),
+                    ),
                     updatedAt = now,
                 )
             )
@@ -376,7 +381,9 @@ class CredentialVaultRepository(
                     valueEncrypted = encrypted,
                     valueLength = cleanValue.length,
                     type = resolveType(type, "", name, cleanValue, publicKey),
-                    metaJson = metaJson,
+                    metaJson = CredentialMeta.encode(
+                        CredentialMeta.decode(metaJson) + listOfNotNull(valueFp?.let { "value_fp" to it }),
+                    ),
                     createdAt = now,
                     updatedAt = now,
                 )

@@ -74,7 +74,7 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
                     put("group", buildJsonObject { put("type", "string"); put("description", "Filter by group: Git/AI/ECS/MCP/Notification/SSH/Other") })
                     put("keyword", buildJsonObject { put("type", "string"); put("description", "Optional search keyword (matches name or description, case-insensitive)") })
                     put("sort", buildJsonObject { put("type", "string"); put("description", "Sort order: name / group / length (default group-then-name)") })
-                    put("duplicates", buildJsonObject { put("type", "boolean"); put("description", "When true, also report suspicious duplicates (same group + same value length) as a read-only hint") })
+                    put("duplicates", buildJsonObject { put("type", "boolean"); put("description", "When true, also report same-value entries (exact match by value fingerprint; plaintext is never compared) as a read-only hint") })
                 },
         )
     },
@@ -99,20 +99,25 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
             }
         val sb = StringBuilder()
         if (showDupes) {
-            // 疑似重复检测：同分组 + 值长度相同（无法比对明文，故只提示可疑项，不自动合并）
+            // 精确判重：按值指纹（同指纹 = 同值；指纹随保存写进 meta，无指纹的旧条目不计入）
             val dupGroups =
-                all.groupBy { it.grp to it.valueLength }
+                all.mapNotNull { e -> CredentialMeta.decode(e.metaJson)["value_fp"]?.let { it to e.name } }
+                    .groupBy { it.first }
                     .filter { (_, items) -> items.size > 1 }
-                    .filter { (_, items) -> items.any { it.valueLength > 0 } }
+            val withoutFp = all.count { CredentialMeta.decode(it.metaJson)["value_fp"].isNullOrBlank() }
             if (dupGroups.isEmpty()) {
-                sb.append("（未发现疑似重复条目）\n")
+                sb.append("（未发现同值条目）\n")
             } else {
-                sb.append("⚠️ 疑似重复（同分组同长度，AI 无法比对明文，请人工确认）：\n")
-                dupGroups.forEach { (key, items) ->
-                    sb.append("  [${key.first}] len=${key.second}: ${items.joinToString(" / ") { it.name }}\n")
+                sb.append("⚠️ 同值条目（按值指纹精确判定，同一组内是同一份密钥）：\n")
+                dupGroups.forEach { (fp, items) ->
+                    sb.append("  fp=${fp.take(8)}: ${items.joinToString(" / ") { it.second }}\n")
                 }
-                sb.append("\n")
+                sb.append("可用 vault_credential_merge 合并（会同步改写配置引用）。\n")
             }
+            if (withoutFp > 0) {
+                sb.append("ℹ️ 另有 $withoutFp 条尚无指纹（保存/重新保存后生成），未参与判重。\n")
+            }
+            sb.append("\n")
         }
         if (entries.isEmpty()) {
             sb.append("（凭证库为空，或无匹配条目）")
@@ -121,7 +126,13 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
             entries.forEach { e ->
                 val fp = if (e.publicKey.isNotBlank()) " fp=${SshKeyGenerator.fingerprint(e.publicKey) ?: "?"}" else ""
                 val tt = if (e.type.isNotBlank()) " <${e.type}>" else ""
-                sb.append("${e.name}  [${e.grp}]$tt len=${e.valueLength}$fp  ${e.description}\n")
+                val em = CredentialMeta.decode(e.metaJson)
+                val vfp = em["value_fp"]?.take(8)?.let { " vfp=$it" } ?: ""
+                val metaBrief =
+                    em.filterKeys { it != "value_fp" }.entries
+                        .joinToString(", ") { (k, v) -> "$k=$v" }
+                        .let { if (it.isBlank()) "" else " {$it}" }
+                sb.append("${e.name}  [${e.grp}]$tt len=${e.valueLength}$fp$vfp$metaBrief  ${e.description}\n")
             }
         }
         listOf(UIMessagePart.Text(sb.toString().trimEnd()))
@@ -143,6 +154,15 @@ fun vaultCredentialPrepareTool(repository: CredentialVaultRepository): Tool = To
                     put("description", buildJsonObject { put("type", "string"); put("description", "What this credential is for") })
                     put("group", buildJsonObject { put("type", "string"); put("description", "Vault group: Git/AI/ECS/MCP/Notification/SSH/Other") })
                     put("public_key", buildJsonObject { put("type", "string"); put("description", "Optional SSH public key line (plaintext, for SSH key entries; helps AI identify the key later)") })
+                    put("meta", buildJsonObject {
+                        put("type", "object")
+                        put(
+                            "description",
+                            "Optional NON-sensitive metadata (stored plaintext). Allowed keys: account / access_key_id / user_id / domain_id / project_id / region / endpoint / path / header / prefix / username / algorithm / digits / period. " +
+                                "Example: {\"account\":\"me@example.com\",\"access_key_id\":\"AKIA...\",\"region\":\"cn-hangzhou\"}. " +
+                                "NEVER put secrets here — the secret value itself is filled by the user.",
+                        )
+                    })
                 },
             required = listOf("name"),
         )
@@ -156,12 +176,22 @@ fun vaultCredentialPrepareTool(repository: CredentialVaultRepository): Tool = To
             val desc = o["description"]?.jsonPrimitive?.contentOrNull ?: ""
             val group = o["group"]?.jsonPrimitive?.contentOrNull ?: "Other"
             val pub = o["public_key"]?.jsonPrimitive?.contentOrNull ?: ""
+            // meta：非敏感元数据（白名单见 CredentialMeta）—— AI 可在建占位时就写好账号/AK/region 等正位字段
+            val metaJson =
+                o["meta"]?.let { meta ->
+                    runCatching { meta.jsonObject }.getOrNull()?.let { obj ->
+                        CredentialMeta.encode(
+                            obj.mapNotNull { (k, v) -> (v as? JsonPrimitive)?.contentOrNull?.let { c -> k to c } }.toMap(),
+                        )
+                    }
+                } ?: ""
             repository.save(
                 name = name,
                 value = "", // 占位：值留空，用户稍后填写
                 description = desc,
                 group = group,
                 publicKey = pub,
+                metaJson = metaJson,
             )
             repository.logAccess(name, "ai-tool", "prepare")
             listOf(
@@ -538,6 +568,15 @@ fun vaultCredentialUpdateTool(
                     put("description", buildJsonObject { put("type", "string"); put("description", "Optional new description") })
                     put("group", buildJsonObject { put("type", "string"); put("description", "Optional new group: Git/AI/ECS/MCP/Notification/SSH/Other") })
                     put("public_key", buildJsonObject { put("type", "string"); put("description", "Optional SSH public key line (plaintext). Empty string clears it; omit to keep unchanged.") })
+                    put("type", buildJsonObject { put("type", "string"); put("description", "Optional credential type id (e.g. ssh-key / api-key / basic-auth / totp / custom-fields / cloud-ak). Empty string resets to unclassified.") })
+                    put("meta", buildJsonObject {
+                        put("type", "object")
+                        put(
+                            "description",
+                            "Optional NON-sensitive metadata, MERGED key-by-key: a provided key overwrites, an empty-string value deletes that key, omitted keys keep their current value. " +
+                                "Allowed keys: account / access_key_id / user_id / domain_id / project_id / region / endpoint / path / header / prefix / username / algorithm / digits / period.",
+                        )
+                    })
                 },
             required = listOf("name"),
         )
@@ -560,6 +599,20 @@ fun vaultCredentialUpdateTool(
                     val newName = o["new_name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
                     val desc = o["description"]?.jsonPrimitive?.contentOrNull
                     val group = o["group"]?.jsonPrimitive?.contentOrNull
+                    val typeParam = o["type"]?.jsonPrimitive?.contentOrNull
+                    val metaParam = o["meta"]?.let { runCatching { it.jsonObject }.getOrNull() }
+                    // meta 按 key 合并：给的键覆盖；值为空串 → 删除该键；未给 meta 则保留原值
+                    val mergedMetaJson =
+                        if (metaParam != null) {
+                            val cur = CredentialMeta.decode(existing.metaJson).toMutableMap()
+                            metaParam.forEach { (k, v) ->
+                                val s = (v as? JsonPrimitive)?.contentOrNull
+                                if (s.isNullOrBlank()) cur.remove(k) else cur[k] = s
+                            }
+                            CredentialMeta.encode(cur)
+                        } else {
+                            existing.metaJson
+                        }
                     val pubParam = o["public_key"]?.jsonPrimitive?.contentOrNull
                     val newPub: String? = pubParam?.trim()
                     val changed = mutableListOf<String>()
@@ -572,6 +625,8 @@ fun vaultCredentialUpdateTool(
                     }
                     if (desc != null && desc != existing.description) changed += "描述"
                     if (group != null && group != existing.grp) changed += "分组"
+                    if (typeParam != null && typeParam != existing.type) changed += "类型"
+                    if (metaParam != null && mergedMetaJson != existing.metaJson) changed += "元数据"
                     if (pubParam != null && newPub != existing.publicKey) changed += if (newPub.isNullOrEmpty()) "公钥(清空)" else "公钥"
                     if (changed.isEmpty()) {
                         listOf(UIMessagePart.Text("ℹ️ 没有需要更新的字段（当前已是最新）"))
@@ -583,6 +638,8 @@ fun vaultCredentialUpdateTool(
                             description = desc ?: existing.description,
                             group = group ?: existing.grp,
                             publicKey = newPub ?: existing.publicKey,
+                            type = typeParam?.ifBlank { "" } ?: existing.type,
+                            metaJson = mergedMetaJson,
                         )
                         var syncedRefs = 0
                         if (targetName != name) {
