@@ -3508,6 +3508,7 @@
   <string name="tool_ui_token_usage">用量与额度</string>
   <string name="tool_ui_list_tools">列出工具</string>
   <string name="tool_ui_surface_report">工具面报告</string>
+  <string name="tool_ui_mcp_call">MCP · %1$s</string>
   <string name="tool_ui_ssh_hosts">SSH 主机列表</string>
   <string name="tool_ui_ssh_save_host">保存 SSH 主机</string>
   <string name="tool_ui_ssh_job_poll">轮询后台任务</string>

@@ -3512,6 +3512,7 @@
   <string name="tool_ui_token_usage">トークン使用量</string>
   <string name="tool_ui_list_tools">ツール一覧</string>
   <string name="tool_ui_surface_report">ツール構成レポート</string>
+  <string name="tool_ui_mcp_call">MCP · %1$s</string>
   <string name="tool_ui_ssh_hosts">SSH ホスト一覧</string>
   <string name="tool_ui_ssh_save_host">SSH ホストを保存</string>
   <string name="tool_ui_ssh_job_poll">バックグラウンドジョブを確認</string>

@@ -3511,6 +3511,7 @@
   <string name="tool_ui_token_usage">استخدام الرموز</string>
   <string name="tool_ui_list_tools">قائمة الأدوات</string>
   <string name="tool_ui_surface_report">تقرير سطح الأدوات</string>
+  <string name="tool_ui_mcp_call">MCP · %1$s</string>
   <string name="tool_ui_ssh_hosts">مضيفات SSH</string>
   <string name="tool_ui_ssh_save_host">حفظ مضيف SSH</string>
   <string name="tool_ui_ssh_job_poll">استعلام المهمة الخلفية</string>

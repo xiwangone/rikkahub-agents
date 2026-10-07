@@ -407,8 +407,15 @@ object ToolUIRegistry {
             SubagentDispatchToolUI,
         ).associateBy { it.toolName }
 
-    /** 查找工具对应的渲染器, 未注册时返回默认渲染器 */
-    fun resolve(toolName: String): ToolUIRenderer = renderers[toolName] ?: DefaultToolUIRenderer
+    /**
+     * 查找工具对应的渲染器, 未注册时返回默认渲染器。
+     *
+     * MCP 工具名是运行时拼出来的（`mcp__<serverId>__<toolName>`），无法预先注册 →
+     * 这里按前缀回退到 [McpToolUI]，好过让它们一律落到默认渲染器。
+     */
+    fun resolve(toolName: String): ToolUIRenderer =
+        renderers[toolName]
+            ?: if (toolName.startsWith(McpToolUI.PREFIX)) McpToolUI else DefaultToolUIRenderer
 
     /** 已注册的渲染器 key（只读；供诊断做"注册了但无对应工具"的覆盖自检）。 */
     val registeredKeys: Set<String> get() = renderers.keys

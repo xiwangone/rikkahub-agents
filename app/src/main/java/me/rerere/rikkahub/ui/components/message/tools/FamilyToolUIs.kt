@@ -115,3 +115,42 @@ internal val FileInfoToolUI =
 
 internal val SubagentDispatchToolUI =
     TitledToolUI("subagent_dispatch", R.string.tool_ui_subagent_dispatch, HugeIcons.AiBrain01)
+
+/**
+ * MCP 工具的通用渲染器。
+ *
+ * 名字是运行时拼的（`mcp__<serverId>__<toolName>`）→ **不进注册表**（注册了会被判“死键”），
+ * 由 [ToolUIRegistry.resolve] 的前缀回退命中。标题把 `mcp__<serverId>__` 这段噪音剥掉，
+ * 摘要沿用通用特征渲染（终端 / 列表 / 键值对）。
+ */
+internal object McpToolUI : ToolUIRenderer {
+    /** 前缀哨兵：resolve 用它做回退判断。 */
+    const val PREFIX = "mcp__"
+
+    override val toolName: String = PREFIX
+
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Connect
+
+    @Composable
+    override fun title(context: ToolUIContext): String =
+        stringResource(R.string.tool_ui_mcp_call, mcpToolLabel(context.tool.toolName))
+
+    override fun hasSummary(context: ToolUIContext): Boolean = defaultSummaryText(context) != null
+
+    @Composable
+    override fun Summary(context: ToolUIContext) {
+        defaultSummaryText(context)?.let { text ->
+            HighlightCodeBlock(
+                code = text,
+                language = "text",
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+/** `mcp__<serverId>__<toolName>` → 只留工具名（serverId 是 uuid，显示它没意义）。 */
+private fun mcpToolLabel(raw: String): String {
+    val rest = raw.removePrefix(McpToolUI.PREFIX)
+    return rest.substringAfter("__", rest)
+}

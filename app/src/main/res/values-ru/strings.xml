@@ -3512,6 +3512,7 @@
   <string name="tool_ui_token_usage">Использование токенов</string>
   <string name="tool_ui_list_tools">Список инструментов</string>
   <string name="tool_ui_surface_report">Отчёт по составу инструментов</string>
+  <string name="tool_ui_mcp_call">MCP · %1$s</string>
   <string name="tool_ui_ssh_hosts">SSH-хосты</string>
   <string name="tool_ui_ssh_save_host">Сохранить SSH-хост</string>
   <string name="tool_ui_ssh_job_poll">Опрос фоновой задачи</string>
