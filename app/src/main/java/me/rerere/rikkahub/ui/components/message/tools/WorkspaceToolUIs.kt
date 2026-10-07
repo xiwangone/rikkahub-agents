@@ -189,7 +189,7 @@ object EditFileToolUI : ToolUIRenderer {
                 )
             }
             // 详情页附结果文件内容（可复制/可选词），与写文件渲染器同款
-            val body = remember(context) { textOf(context) }
+            val body = remember(context) { context.content.getStringContent("text") }
             if (body != null) {
                 HighlightCodeBlock(
                     code = body,
@@ -926,7 +926,7 @@ object WorkspaceBackgroundStatusToolUI : ToolUIRenderer {
                             .joinToString("\n")
                     if (out.isNotBlank()) {
                         HighlightCodeBlock(
-                            code = out.lineSequence().takeLast(20).joinToString("\n"),
+                            code = out.lines().takeLast(20).joinToString("\n"),
                             language = "text",
                             modifier = Modifier.fillMaxWidth(),
                         )
