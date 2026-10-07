@@ -595,7 +595,15 @@ private fun ModelList(
     val lazyListState = rememberLazyListState()
     val reorderableLazyListState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
-            onUpdateProvider(providerSetting.moveMove(from.index, to.index))
+            // from/to 是 LazyColumn 的 item（索引含页面前置项），而 moveMove 的下标空间是
+            // providerSetting.models → 用模型 id（ReorderableItem 的 key）定位，避免索引错位
+            // （此前直接用 from.index 导致 IndexOutOfBounds 崩溃）。
+            val models = providerSetting.models
+            val fromIdx = models.indexOfFirst { it.id == from.key }
+            val toIdx = models.indexOfFirst { it.id == to.key }
+            if (fromIdx >= 0 && toIdx >= 0) {
+                onUpdateProvider(providerSetting.moveMove(fromIdx, toIdx))
+            }
         }
 
     Box(modifier = Modifier.fillMaxSize()) {

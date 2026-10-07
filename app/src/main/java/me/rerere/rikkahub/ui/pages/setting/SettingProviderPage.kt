@@ -109,11 +109,14 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
     var providerToDelete by remember { mutableStateOf<ProviderSetting?>(null) }
     val reorderableState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
-            val newProviders =
-                settings.providers.toMutableList().apply {
-                    add(to.index, removeAt(from.index))
-                }
-            vm.updateSettings(settings.copy(providers = newProviders))
+            // 过滤态下列表下标与全量 providers 不一致（直接套用会移动错项）→ 仅未过滤时允许排序
+            if (searchQuery.isBlank()) {
+                val newProviders =
+                    settings.providers.toMutableList().apply {
+                        add(to.index, removeAt(from.index))
+                    }
+                vm.updateSettings(settings.copy(providers = newProviders))
+            }
         }
 
     val filteredProviders =
