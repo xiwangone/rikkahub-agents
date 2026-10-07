@@ -560,7 +560,7 @@ class LocalTools(
                                     ToolErrors.envelopeFor(
                                         error = "s3_not_configured",
                                         message = "S3 backup is not configured.",
-                                        extra = mapOf("hint" to JsonPrimitive("Configure an S3 target first: Settings -> Backup -> S3.")),
+                                        hint = "Configure an S3 target first: Settings -> Backup -> S3.",
                                     ).toString(),
                                 ),
                             )
@@ -588,7 +588,7 @@ class LocalTools(
                                     ToolErrors.envelopeFor(
                                         error = "webdav_not_configured",
                                         message = "WebDAV backup is not configured.",
-                                        extra = mapOf("hint" to JsonPrimitive("Configure a WebDAV target first: Settings -> Backup -> WebDAV.")),
+                                        hint = "Configure a WebDAV target first: Settings -> Backup -> WebDAV.",
                                     ).toString(),
                                 ),
                             )
