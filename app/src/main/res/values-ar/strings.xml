@@ -3511,6 +3511,12 @@
   <string name="tool_ui_token_usage">استخدام الرموز</string>
   <string name="tool_ui_list_tools">قائمة الأدوات</string>
   <string name="tool_ui_surface_report">تقرير سطح الأدوات</string>
+  <string name="tool_ui_ssh_hosts">مضيفات SSH</string>
+  <string name="tool_ui_ssh_save_host">حفظ مضيف SSH</string>
+  <string name="tool_ui_ssh_job_poll">استعلام المهمة الخلفية</string>
+  <string name="tool_ui_workspace_list">مساحات العمل</string>
+  <string name="tool_ui_file_info">معلومات الملف</string>
+  <string name="tool_ui_subagent_dispatch">تشغيل وكيل فرعي</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">استضافة الكود</string>
     <string name="vault_group_ai">الذكاء الاصطناعي</string>

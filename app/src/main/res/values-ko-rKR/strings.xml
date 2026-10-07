@@ -3512,6 +3512,12 @@
   <string name="tool_ui_token_usage">토큰 사용량</string>
   <string name="tool_ui_list_tools">도구 목록</string>
   <string name="tool_ui_surface_report">도구 표면 보고서</string>
+  <string name="tool_ui_ssh_hosts">SSH 호스트 목록</string>
+  <string name="tool_ui_ssh_save_host">SSH 호스트 저장</string>
+  <string name="tool_ui_ssh_job_poll">백그라운드 작업 폴링</string>
+  <string name="tool_ui_workspace_list">워크스페이스 목록</string>
+  <string name="tool_ui_file_info">파일 정보</string>
+  <string name="tool_ui_subagent_dispatch">하위 에이전트 실행</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">코드 호스팅</string>
     <string name="vault_group_ai">AI</string>

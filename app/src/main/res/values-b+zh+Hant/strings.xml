@@ -3511,6 +3511,12 @@
   <string name="tool_ui_token_usage">用量與額度</string>
   <string name="tool_ui_list_tools">列出工具</string>
   <string name="tool_ui_surface_report">工具面報告</string>
+  <string name="tool_ui_ssh_hosts">SSH 主機列表</string>
+  <string name="tool_ui_ssh_save_host">儲存 SSH 主機</string>
+  <string name="tool_ui_ssh_job_poll">輪詢背景任務</string>
+  <string name="tool_ui_workspace_list">工作區列表</string>
+  <string name="tool_ui_file_info">檔案資訊</string>
+  <string name="tool_ui_subagent_dispatch">派發子代理</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">程式碼託管</string>
     <string name="vault_group_ai">AI</string>

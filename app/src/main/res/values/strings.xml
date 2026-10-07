@@ -3508,6 +3508,12 @@
   <string name="tool_ui_token_usage">Token usage</string>
   <string name="tool_ui_list_tools">List tools</string>
   <string name="tool_ui_surface_report">Tool surface report</string>
+  <string name="tool_ui_ssh_hosts">SSH hosts</string>
+  <string name="tool_ui_ssh_save_host">Save SSH host</string>
+  <string name="tool_ui_ssh_job_poll">Poll background job</string>
+  <string name="tool_ui_workspace_list">Workspaces</string>
+  <string name="tool_ui_file_info">File info</string>
+  <string name="tool_ui_subagent_dispatch">Dispatch sub-agent</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">Code hosting</string>
     <string name="vault_group_ai">AI</string>

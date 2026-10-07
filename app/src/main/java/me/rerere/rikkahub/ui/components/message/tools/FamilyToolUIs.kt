@@ -7,14 +7,18 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.AiBrain01
 import me.rerere.hugeicons.stroke.Bash
 import me.rerere.hugeicons.stroke.Bug01
 import me.rerere.hugeicons.stroke.ChartColumn
+import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.CheckList
 import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.CoinsDollar
+import me.rerere.hugeicons.stroke.Connect
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Edit02
+import me.rerere.hugeicons.stroke.FileView
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.Settings03
@@ -92,3 +96,22 @@ internal val ListToolsToolUI =
 
 internal val ToolSurfaceReportToolUI =
     TitledToolUI("tool_surface_report", R.string.tool_ui_surface_report, HugeIcons.ChartColumn)
+
+// ---- SSH 主机 / 作业与工作区、文件、子代理 ----
+internal val SshHostsToolUI =
+    TitledToolUI("list_ssh_hosts", R.string.tool_ui_ssh_hosts, HugeIcons.Connect)
+
+internal val SaveSshHostToolUI =
+    TitledToolUI("save_ssh_host", R.string.tool_ui_ssh_save_host, HugeIcons.Add01)
+
+internal val SshJobPollToolUI =
+    TitledToolUI("ssh_job_poll", R.string.tool_ui_ssh_job_poll, HugeIcons.Clock02)
+
+internal val WorkspaceListToolUI =
+    TitledToolUI("workspace_list", R.string.tool_ui_workspace_list, HugeIcons.CheckList)
+
+internal val FileInfoToolUI =
+    TitledToolUI("file_info", R.string.tool_ui_file_info, HugeIcons.FileView)
+
+internal val SubagentDispatchToolUI =
+    TitledToolUI("subagent_dispatch", R.string.tool_ui_subagent_dispatch, HugeIcons.AiBrain01)

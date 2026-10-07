@@ -830,7 +830,8 @@ object WorkspaceBackgroundStatusToolUI : ToolUIRenderer {
             ?.mapNotNull { it as? JsonObject }
             ?: emptyList()
 
-    override fun hasSummary(context: ToolUIContext): Boolean = processes(context).isNotEmpty()
+    override fun hasSummary(context: ToolUIContext): Boolean =
+        (context.content?.jsonObjectOrNull?.get("processes") as? JsonArray)?.isNotEmpty() == true
 
     @Composable
     override fun Summary(context: ToolUIContext) {

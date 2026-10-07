@@ -3512,6 +3512,12 @@
   <string name="tool_ui_token_usage">Использование токенов</string>
   <string name="tool_ui_list_tools">Список инструментов</string>
   <string name="tool_ui_surface_report">Отчёт по составу инструментов</string>
+  <string name="tool_ui_ssh_hosts">SSH-хосты</string>
+  <string name="tool_ui_ssh_save_host">Сохранить SSH-хост</string>
+  <string name="tool_ui_ssh_job_poll">Опрос фоновой задачи</string>
+  <string name="tool_ui_workspace_list">Рабочие области</string>
+  <string name="tool_ui_file_info">Сведения о файле</string>
+  <string name="tool_ui_subagent_dispatch">Запуск суб-агента</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">Хостинг кода</string>
     <string name="vault_group_ai">ИИ</string>

@@ -136,7 +136,10 @@ object MemoryToolUI : ToolUIRenderer {
 
     override fun hasSummary(context: ToolUIContext): Boolean =
         when (action(context)) {
-            ACTION_LIST -> memories(context).isNotEmpty()
+            ACTION_LIST ->
+                (context.content as? JsonObject)?.get("memories")
+                    ?.let { runCatching { it.jsonArray }.getOrNull() }
+                    ?.isNotEmpty() == true
             ACTION_CREATE, ACTION_EDIT -> context.content.getStringContent("content") != null
             ACTION_DELETE -> context.content.getStringContent("id") != null
             else -> false
@@ -277,7 +280,10 @@ object MemorySearchToolUI : ToolUIRenderer {
             ?.mapNotNull { it as? JsonObject }
             ?: emptyList()
 
-    override fun hasSummary(context: ToolUIContext): Boolean = hits(context).isNotEmpty()
+    override fun hasSummary(context: ToolUIContext): Boolean =
+        (context.content as? JsonObject)?.get("results")
+            ?.let { runCatching { it.jsonArray }.getOrNull() }
+            ?.isNotEmpty() == true
 
     @Composable
     override fun Summary(context: ToolUIContext) {
