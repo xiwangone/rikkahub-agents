@@ -435,6 +435,7 @@ private const val DETAIL_MAX_CHARS = 20000
  * 超长内容仍留一道安全阀（[DETAIL_MAX_CHARS]），避免一屏几十万字卡住渲染。
  * 返回 null = 识别不出可读形态，调用方保留“摘要 + 原始 JSON”兼底。
  */
+@Suppress("NestedBlockDepth") // 形态识别天然成层（终端 / 列表 / 长文本三条形态分支），拆开会把判定条件与耗时用法拆散
 internal fun detailTextForContent(content: JsonElement?): String? {
     content ?: return null
     val out =

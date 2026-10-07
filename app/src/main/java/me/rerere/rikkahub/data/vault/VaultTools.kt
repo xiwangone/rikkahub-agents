@@ -58,6 +58,7 @@ fun vaultPublicKeyEntriesTool(repository: CredentialVaultRepository): Tool = Too
     },
 )
 
+@Suppress("CyclomaticComplexMethod") // 参数说明与可选分支平铺展示，拆开反而难对照
 fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool(
     name = "vault_credential_names",
     description =
@@ -545,6 +546,7 @@ private suspend fun runVaultSshExec(
 internal fun String.ensureTrailingNewline(): String = if (endsWith("\n")) this else "$this\n"
 
 /** 更新凭证条目的元数据（名称/描述/分组），值不可被 AI 修改。改名=复制 value 密文到新名后删旧条目。 */
+@Suppress("LongMethod", "CyclomaticComplexMethod") // 工具 schema（名称 / 描述 / 参数与元数据说明）集中一处才读得完整，暂不拆
 fun vaultCredentialUpdateTool(
     context: android.content.Context,
     repository: CredentialVaultRepository,
@@ -679,7 +681,7 @@ fun vaultCredentialUpdateTool(
 )
 
 /** 批量更新多条凭证的元数据（分组/描述/改名）。与单条版同语义，只碰元数据，值不可读写。 */
-@Suppress("CyclomaticComplexMethod") // 复杂度来自“每条独立校验 + 写回”的批量循环，拆函数反而更难读（同 vaultCompareLoadCredsTool 的处理）
+@Suppress("CyclomaticComplexMethod", "LongMethod") // 复杂度来自“每条独立校验 + 写回”的批量循环、长度来自工具 schema 平铺，拆函数反而更难读（同 vaultCompareLoadCredsTool 的处理）
 fun vaultCredentialBulkUpdateTool(
     context: android.content.Context,
     repository: CredentialVaultRepository,
