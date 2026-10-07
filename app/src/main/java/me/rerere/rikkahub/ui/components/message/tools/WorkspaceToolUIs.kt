@@ -1024,7 +1024,7 @@ object WorkspaceBackgroundKillToolUI : ToolUIRenderer {
         ) {
             Text(title(context), style = MaterialTheme.typography.headlineSmall)
             Text(
-                text = stringResource(if (ok) R.string.tool_ui_bg_killed else R.string.tool_ui_bg_kill_missing),
+                text = stringResource(if (ok) R.string.tool_ui_bg_killed else R.string.tool_ui_bg_task_not_found),
                 style = MaterialTheme.typography.bodyMedium,
                 color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
             )
@@ -1042,7 +1042,7 @@ object WorkspaceBackgroundKillToolUI : ToolUIRenderer {
     override fun Summary(context: ToolUIContext) {
         val ok = killed(context) == true
         Text(
-            text = stringResource(if (ok) R.string.tool_ui_bg_killed else R.string.tool_ui_bg_kill_missing),
+            text = stringResource(if (ok) R.string.tool_ui_bg_killed else R.string.tool_ui_bg_task_not_found),
             style = MaterialTheme.typography.labelSmall,
             color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
         )

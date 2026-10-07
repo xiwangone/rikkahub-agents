@@ -3488,7 +3488,6 @@
   <string name="tool_ui_bg_task_not_found">未找到该任务（可能已结束并被清理）</string>
   <string name="tool_ui_bg_kill">停止后台任务 %1$s</string>
   <string name="tool_ui_bg_killed">已停止</string>
-  <string name="tool_ui_bg_kill_missing">未找到该任务</string>
   <string name="tool_ui_bg_running">运行中</string>
   <string name="tool_ui_bg_exited">已退出</string>
   <string name="tool_ui_memory_search">检索记忆：%1$s</string>

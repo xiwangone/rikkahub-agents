@@ -3492,7 +3492,6 @@
   <string name="tool_ui_bg_task_not_found">タスクが見つかりません（終了済みかクリーンアップ済みの可能性）</string>
   <string name="tool_ui_bg_kill">バックグラウンドタスクを停止 %1$s</string>
   <string name="tool_ui_bg_killed">停止しました</string>
-  <string name="tool_ui_bg_kill_missing">タスクが見つかりません</string>
   <string name="tool_ui_bg_running">実行中</string>
   <string name="tool_ui_bg_exited">終了済み</string>
   <string name="tool_ui_memory_search">メモリを検索: %1$s</string>

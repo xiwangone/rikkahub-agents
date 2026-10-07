@@ -3492,7 +3492,6 @@
   <string name="tool_ui_bg_task_not_found">Задача не найдена (возможно, завершена и очищена)</string>
   <string name="tool_ui_bg_kill">Остановить фоновую задачу %1$s</string>
   <string name="tool_ui_bg_killed">Остановлено</string>
-  <string name="tool_ui_bg_kill_missing">Задача не найдена</string>
   <string name="tool_ui_bg_running">Выполняется</string>
   <string name="tool_ui_bg_exited">Завершено</string>
   <string name="tool_ui_memory_search">Поиск в памяти: %1$s</string>

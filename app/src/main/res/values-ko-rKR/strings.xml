@@ -3492,7 +3492,6 @@
   <string name="tool_ui_bg_task_not_found">작업을 찾을 수 없습니다(이미 종료되었거나 정리됨)</string>
   <string name="tool_ui_bg_kill">백그라운드 작업 중지 %1$s</string>
   <string name="tool_ui_bg_killed">중지됨</string>
-  <string name="tool_ui_bg_kill_missing">작업을 찾을 수 없음</string>
   <string name="tool_ui_bg_running">실행 중</string>
   <string name="tool_ui_bg_exited">종료됨</string>
   <string name="tool_ui_memory_search">메모리 검색: %1$s</string>

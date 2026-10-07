@@ -3491,7 +3491,6 @@
   <string name="tool_ui_bg_task_not_found">لم يتم العثور على المهمة (ربما انتهت وتم تنظيفها)</string>
   <string name="tool_ui_bg_kill">إيقاف المهمة الخلفية %1$s</string>
   <string name="tool_ui_bg_killed">تم الإيقاف</string>
-  <string name="tool_ui_bg_kill_missing">لم يتم العثور على المهمة</string>
   <string name="tool_ui_bg_running">قيد التشغيل</string>
   <string name="tool_ui_bg_exited">منتهية</string>
   <string name="tool_ui_memory_search">البحث في الذاكرة: %1$s</string>
