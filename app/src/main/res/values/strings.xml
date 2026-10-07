@@ -3492,6 +3492,14 @@
     <string name="vault_group_system">System</string>
     <string name="vault_group_notification">Notifications</string>
     <string name="vault_group_other">Other</string>
+    <!-- 凭据类型显示名（存储值保持英文标识，仅显示层本地化） -->
+    <string name="vault_type_auto">Auto detect</string>
+    <string name="vault_type_ssh_key">SSH key</string>
+    <string name="vault_type_api_key">API key</string>
+    <string name="vault_type_basic_auth">Username &amp; password</string>
+    <string name="vault_type_totp">One-time code</string>
+    <string name="vault_type_custom_fields">Custom fields</string>
+    <string name="vault_type_filter_all">All</string>
   <string name="setting_page_usage_stats">Usage Statistics</string>
   <string name="setting_page_usage_stats_desc">Usage and cost by provider and model</string>
   <string name="usage_stats_range_today">Today</string>

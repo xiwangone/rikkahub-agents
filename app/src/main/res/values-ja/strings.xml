@@ -3496,6 +3496,14 @@
     <string name="vault_group_system">システム</string>
     <string name="vault_group_notification">通知</string>
     <string name="vault_group_other">その他</string>
+    <!-- 資格情報タイプの表示名（保存値は英文識別子のまま、表示層のみローカライズ） -->
+    <string name="vault_type_auto">自動判定</string>
+    <string name="vault_type_ssh_key">SSH 鍵</string>
+    <string name="vault_type_api_key">API キー</string>
+    <string name="vault_type_basic_auth">ユーザー名とパスワード</string>
+    <string name="vault_type_totp">ワンタイムコード</string>
+    <string name="vault_type_custom_fields">カスタムフィールド</string>
+    <string name="vault_type_filter_all">すべて</string>
   <string name="setting_page_usage_stats">使用量統計</string>
   <string name="setting_page_usage_stats_desc">プロバイダーとモデル別の使用量と費用</string>
   <string name="usage_stats_range_today">今日</string>

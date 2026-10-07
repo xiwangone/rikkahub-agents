@@ -3492,6 +3492,14 @@
     <string name="vault_group_system">系统</string>
     <string name="vault_group_notification">通知</string>
     <string name="vault_group_other">其他</string>
+    <!-- 凭据类型显示名（存储值保持英文标识，仅显示层本地化） -->
+    <string name="vault_type_auto">自动判断</string>
+    <string name="vault_type_ssh_key">SSH 密钥</string>
+    <string name="vault_type_api_key">API 密钥</string>
+    <string name="vault_type_basic_auth">用户名口令</string>
+    <string name="vault_type_totp">一次性口令</string>
+    <string name="vault_type_custom_fields">自定义字段</string>
+    <string name="vault_type_filter_all">全部</string>
   <string name="setting_page_usage_stats">用量统计</string>
   <string name="setting_page_usage_stats_desc">按提供商与模型查看用量与费用</string>
   <string name="usage_stats_range_today">今天</string>

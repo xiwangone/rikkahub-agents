@@ -192,7 +192,7 @@ fun VaultCredentialsPage() {
                     )
                 }
 
-                // 类型筛选：条目多时按类型快速定位（类型标识语言中立，不额外翻译）
+                // 类型筛选：条目多时按类型快速定位（存储值仍是英文标识，仅显示层本地化）
                 val typeOptions = entries.map { it.type }.filter { it.isNotBlank() }.distinct().sorted()
                 if (typeOptions.isNotEmpty()) {
                     item(key = "type_filter") {
@@ -203,13 +203,13 @@ fun VaultCredentialsPage() {
                             FilterChip(
                                 selected = typeFilter.isEmpty(),
                                 onClick = { typeFilter = "" },
-                                label = { Text("all") },
+                                label = { Text(stringResource(R.string.vault_type_filter_all)) },
                             )
                             typeOptions.forEach { t ->
                                 FilterChip(
                                     selected = typeFilter == t,
                                     onClick = { typeFilter = t },
-                                    label = { Text(t) },
+                                    label = { Text(vaultTypeLabel(ctx, t)) },
                                 )
                             }
                         }
@@ -582,13 +582,16 @@ private fun CredentialEditorDialog(
                     singleLine = false,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                // 凭据类型：用语言中立的标识（与通用交换格式对齐），不进翻译资源。
+                // 凭据类型：存储值是与通用交换格式对齐的英文标识，显示层本地化（值不变）。
                 // "auto" = 保存时按名称与结构自动判断，避免要求用户先做分类。
                 Select(
                     options = listOf("auto") + CredentialType.KNOWN.toList(),
                     selectedOption = type.ifEmpty { "auto" },
                     onOptionSelected = { type = if (it == "auto") "" else it },
-                    optionToString = { it },
+                    optionToString = {
+                        val typeCtx = androidx.compose.ui.platform.LocalContext.current
+                        if (it == "auto") stringResource(R.string.vault_type_auto) else vaultTypeLabel(typeCtx, it)
+                    },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 // 元数据字段：按类型显示（标签用语言中立的技术词，与类型标识同款约定，不进翻译资源）
@@ -675,7 +678,10 @@ private fun CredentialEditorDialog(
                                 group = it
                             }
                         },
-                        optionToString = { it },
+                        optionToString = {
+                            if (it == newGroupOption) it
+                            else vaultGroupLabel(androidx.compose.ui.platform.LocalContext.current, it)
+                        },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -704,7 +710,6 @@ private fun CredentialEditorDialog(
     )
 }
 
-/** 分组显示名：存储值（英文 id）→ 本地化标签；未知分组回退原值。 */
 /** 分组显示名：存储值（英文 id）→ 本地化标签；未知分组回退原值。（普通函数：便于在排序 lambda 里调用） */
 private fun vaultGroupLabel(context: android.content.Context, grp: String): String =
     when (grp) {
@@ -719,4 +724,15 @@ private fun vaultGroupLabel(context: android.content.Context, grp: String): Stri
         "Notification" -> context.getString(R.string.vault_group_notification)
         "Other" -> context.getString(R.string.vault_group_other)
         else -> grp
+    }
+
+/** 类型显示名：存储值（与交换格式对齐的英文标识）→ 本地化标签；未知值回退原值。 */
+private fun vaultTypeLabel(context: android.content.Context, type: String): String =
+    when (type) {
+        CredentialType.SSH_KEY -> context.getString(R.string.vault_type_ssh_key)
+        CredentialType.API_KEY -> context.getString(R.string.vault_type_api_key)
+        CredentialType.BASIC_AUTH -> context.getString(R.string.vault_type_basic_auth)
+        CredentialType.TOTP -> context.getString(R.string.vault_type_totp)
+        CredentialType.CUSTOM -> context.getString(R.string.vault_type_custom_fields)
+        else -> type
     }

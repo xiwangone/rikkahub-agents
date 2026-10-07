@@ -3496,6 +3496,14 @@
     <string name="vault_group_system">시스템</string>
     <string name="vault_group_notification">알림</string>
     <string name="vault_group_other">기타</string>
+    <!-- 자격 증명 유형 표시명(저장값은 영문 식별자 유지, 표시 계층만 지역화) -->
+    <string name="vault_type_auto">자동 판별</string>
+    <string name="vault_type_ssh_key">SSH 키</string>
+    <string name="vault_type_api_key">API 키</string>
+    <string name="vault_type_basic_auth">사용자 이름 및 비밀번호</string>
+    <string name="vault_type_totp">일회용 코드</string>
+    <string name="vault_type_custom_fields">사용자 지정 필드</string>
+    <string name="vault_type_filter_all">전체</string>
   <string name="setting_page_usage_stats">사용량 통계</string>
   <string name="setting_page_usage_stats_desc">제공업체 및 모델별 사용량과 비용</string>
   <string name="usage_stats_range_today">오늘</string>

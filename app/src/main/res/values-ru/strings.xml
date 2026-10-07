@@ -3496,6 +3496,14 @@
     <string name="vault_group_system">Система</string>
     <string name="vault_group_notification">Уведомления</string>
     <string name="vault_group_other">Прочее</string>
+    <!-- Отображаемые имена типов учётных данных (значение остаётся англ. идентификатором) -->
+    <string name="vault_type_auto">Автоопределение</string>
+    <string name="vault_type_ssh_key">SSH-ключ</string>
+    <string name="vault_type_api_key">API-ключ</string>
+    <string name="vault_type_basic_auth">Имя пользователя и пароль</string>
+    <string name="vault_type_totp">Одноразовый код</string>
+    <string name="vault_type_custom_fields">Настраиваемые поля</string>
+    <string name="vault_type_filter_all">Все</string>
   <string name="setting_page_usage_stats">Статистика использования</string>
   <string name="setting_page_usage_stats_desc">Использование и расходы по провайдерам и моделям</string>
   <string name="usage_stats_range_today">Сегодня</string>
