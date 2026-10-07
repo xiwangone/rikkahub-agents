@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
@@ -35,10 +36,13 @@ import me.rerere.ai.ui.metadataAs
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.highlight.CodeHighlightText
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.FileAdd
 import me.rerere.hugeicons.stroke.FileEdit
 import me.rerere.hugeicons.stroke.FileView
+import me.rerere.hugeicons.stroke.Play
+import me.rerere.hugeicons.stroke.Stop
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.DiffAddedColor
 import me.rerere.rikkahub.ui.components.richtext.DiffRemovedColor
@@ -764,5 +768,121 @@ object DiffFilesToolUI : ToolUIRenderer {
         } else if (isSame(context)) {
             Text(stringResource(R.string.tool_ui_diff_files_same))
         }
+    }
+}
+
+/**
+ * 工作空间后台任务：启动 / 状态 / 停止（三个工具共用终端风格展示）
+ *
+ * 输出结构（见 WorkspaceTools）：
+ *  - `workspace_run_background` → `{id, status}`
+ *  - `workspace_background_status` → `{processes:[{id, command, status, exitCode?, startedAt, stdout, stderr}]}`
+ *  - `workspace_background_kill` → `{id, killed}`
+ */
+object WorkspaceRunBackgroundToolUI : ToolUIRenderer {
+    private const val TITLE_MAX_CHARS = 40
+
+    override val toolName: String = "workspace_run_background"
+
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Play
+
+    @Composable
+    override fun title(context: ToolUIContext): String {
+        val command = context.arguments.getStringContent("command")?.replace("\n", " ")?.trim().orEmpty()
+        val preview = if (command.length > TITLE_MAX_CHARS) command.take(TITLE_MAX_CHARS) + "…" else command
+        return stringResource(R.string.tool_ui_bg_run, preview.ifBlank { toolName })
+    }
+
+    override fun hasSummary(context: ToolUIContext): Boolean = context.content.getStringContent("id") != null
+
+    @Composable
+    override fun Summary(context: ToolUIContext) {
+        val taskId = context.content.getStringContent("id") ?: return
+        Text(
+            text = stringResource(R.string.tool_ui_bg_running) + " · " + taskId,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+        )
+    }
+}
+
+/** 后台任务状态：标题按有无 id 分叉，摘要逐条给出 状态 · id · 命令（最多 5 条） */
+object WorkspaceBackgroundStatusToolUI : ToolUIRenderer {
+    private const val MAX_TASKS = 5
+    private const val MAX_LINE_CHARS = 70
+
+    override val toolName: String = "workspace_background_status"
+
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Clock02
+
+    @Composable
+    override fun title(context: ToolUIContext): String {
+        val taskId = context.arguments.getStringContent("id")
+        return if (taskId.isNullOrBlank()) {
+            stringResource(R.string.tool_ui_bg_tasks)
+        } else {
+            stringResource(R.string.tool_ui_bg_task, taskId)
+        }
+    }
+
+    private fun processes(context: ToolUIContext): List<JsonObject> =
+        (context.content?.jsonObjectOrNull?.get("processes") as? JsonArray)
+            ?.mapNotNull { it as? JsonObject }
+            ?: emptyList()
+
+    override fun hasSummary(context: ToolUIContext): Boolean = processes(context).isNotEmpty()
+
+    @Composable
+    override fun Summary(context: ToolUIContext) {
+        val tasks = processes(context)
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            tasks.take(MAX_TASKS).forEach { task ->
+                val running = task.getStringContent("status") == "running"
+                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                    Text(
+                        text = stringResource(if (running) R.string.tool_ui_bg_running else R.string.tool_ui_bg_exited) +
+                            " · " + task.getStringContent("id").orEmpty(),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = if (running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    val command = task.getStringContent("command")?.replace("\n", " ")?.trim().orEmpty()
+                    if (command.isNotEmpty()) {
+                        Text(
+                            text = if (command.length > MAX_LINE_CHARS) command.take(MAX_LINE_CHARS) + "…" else command,
+                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+/** 停止后台任务：标题带 id，摘要给出是否真的停掉（未命中时用错误色提示） */
+object WorkspaceBackgroundKillToolUI : ToolUIRenderer {
+    override val toolName: String = "workspace_background_kill"
+
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Stop
+
+    @Composable
+    override fun title(context: ToolUIContext): String =
+        stringResource(R.string.tool_ui_bg_kill, context.arguments.getStringContent("id").orEmpty())
+
+    private fun killed(context: ToolUIContext): Boolean? =
+        (context.content as? JsonObject)?.get("killed")?.jsonPrimitiveOrNull?.booleanOrNull
+
+    override fun hasSummary(context: ToolUIContext): Boolean = killed(context) != null
+
+    @Composable
+    override fun Summary(context: ToolUIContext) {
+        val ok = killed(context) == true
+        Text(
+            text = stringResource(if (ok) R.string.tool_ui_bg_killed else R.string.tool_ui_bg_kill_missing),
+            style = MaterialTheme.typography.labelSmall,
+            color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
+        )
     }
 }

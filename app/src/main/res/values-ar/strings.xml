@@ -3484,6 +3484,16 @@
   <string name="tool_ui_launch_activity_title">تشغيل النشاط %1$s</string>
   <string name="tool_ui_webfetch_title">جلب %1$s</string>
   <string name="tool_ui_read_local_file_title">قراءة الملف: %1$s</string>
+  <string name="tool_ui_bg_run">تشغيل في الخلفية: %1$s</string>
+  <string name="tool_ui_bg_task">مهمة خلفية %1$s</string>
+  <string name="tool_ui_bg_tasks">المهام الخلفية</string>
+  <string name="tool_ui_bg_kill">إيقاف المهمة الخلفية %1$s</string>
+  <string name="tool_ui_bg_killed">تم الإيقاف</string>
+  <string name="tool_ui_bg_kill_missing">لم يتم العثور على المهمة</string>
+  <string name="tool_ui_bg_running">قيد التشغيل</string>
+  <string name="tool_ui_bg_exited">منتهية</string>
+  <string name="tool_ui_memory_search">البحث في الذاكرة: %1$s</string>
+  <string name="tool_ui_memory_hits">%1$d نتيجة</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">استضافة الكود</string>
     <string name="vault_group_ai">الذكاء الاصطناعي</string>

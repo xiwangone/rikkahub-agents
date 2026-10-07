@@ -3485,6 +3485,16 @@
   <string name="tool_ui_launch_activity_title">액티비티 실행 %1$s</string>
   <string name="tool_ui_webfetch_title">가져오기 %1$s</string>
   <string name="tool_ui_read_local_file_title">파일 읽기: %1$s</string>
+  <string name="tool_ui_bg_run">백그라운드 실행: %1$s</string>
+  <string name="tool_ui_bg_task">백그라운드 작업 %1$s</string>
+  <string name="tool_ui_bg_tasks">백그라운드 작업 목록</string>
+  <string name="tool_ui_bg_kill">백그라운드 작업 중지 %1$s</string>
+  <string name="tool_ui_bg_killed">중지됨</string>
+  <string name="tool_ui_bg_kill_missing">작업을 찾을 수 없음</string>
+  <string name="tool_ui_bg_running">실행 중</string>
+  <string name="tool_ui_bg_exited">종료됨</string>
+  <string name="tool_ui_memory_search">메모리 검색: %1$s</string>
+  <string name="tool_ui_memory_hits">%1$d건 일치</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">코드 호스팅</string>
     <string name="vault_group_ai">AI</string>

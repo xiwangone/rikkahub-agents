@@ -291,6 +291,7 @@ object ToolUIRegistry {
     private val renderers: Map<String, ToolUIRenderer> =
         listOf(
             MemoryToolUI,
+            MemorySearchToolUI,
             SearchWebToolUI,
             ScrapeWebToolUI,
             GetTimeInfoToolUI,
@@ -316,6 +317,9 @@ object ToolUIRegistry {
             ShowLocationOnMapToolUI,
             WorkspaceApplyEditsToolUI,
             WorkspaceSearchCodeToolUI,
+            WorkspaceRunBackgroundToolUI,
+            WorkspaceBackgroundStatusToolUI,
+            WorkspaceBackgroundKillToolUI,
             // generic: 图片类（3）
             ImageToolUI,
             TakePhotoToolUI,

@@ -3484,6 +3484,16 @@
   <string name="tool_ui_launch_activity_title">啟動介面 %1$s</string>
   <string name="tool_ui_webfetch_title">抓取 %1$s</string>
   <string name="tool_ui_read_local_file_title">讀取檔案：%1$s</string>
+  <string name="tool_ui_bg_run">背景執行：%1$s</string>
+  <string name="tool_ui_bg_task">背景任務 %1$s</string>
+  <string name="tool_ui_bg_tasks">背景任務列表</string>
+  <string name="tool_ui_bg_kill">停止背景任務 %1$s</string>
+  <string name="tool_ui_bg_killed">已停止</string>
+  <string name="tool_ui_bg_kill_missing">找不到該任務</string>
+  <string name="tool_ui_bg_running">執行中</string>
+  <string name="tool_ui_bg_exited">已結束</string>
+  <string name="tool_ui_memory_search">檢索記憶：%1$s</string>
+  <string name="tool_ui_memory_hits">命中 %1$d 筆</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">程式碼託管</string>
     <string name="vault_group_ai">AI</string>

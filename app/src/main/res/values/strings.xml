@@ -3481,6 +3481,16 @@
   <string name="tool_ui_launch_activity_title">Launch activity %1$s</string>
   <string name="tool_ui_webfetch_title">Fetch %1$s</string>
   <string name="tool_ui_read_local_file_title">Read file: %1$s</string>
+  <string name="tool_ui_bg_run">Run in background: %1$s</string>
+  <string name="tool_ui_bg_task">Background task %1$s</string>
+  <string name="tool_ui_bg_tasks">Background tasks</string>
+  <string name="tool_ui_bg_kill">Stop background task %1$s</string>
+  <string name="tool_ui_bg_killed">Stopped</string>
+  <string name="tool_ui_bg_kill_missing">Task not found</string>
+  <string name="tool_ui_bg_running">Running</string>
+  <string name="tool_ui_bg_exited">Exited</string>
+  <string name="tool_ui_memory_search">Search memory: %1$s</string>
+  <string name="tool_ui_memory_hits">%1$d matches</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">Code hosting</string>
     <string name="vault_group_ai">AI</string>

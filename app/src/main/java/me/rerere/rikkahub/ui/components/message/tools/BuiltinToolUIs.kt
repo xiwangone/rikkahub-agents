@@ -51,6 +51,7 @@ import kotlinx.serialization.json.longOrNull
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.highlight.CodeHighlightText
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.AiSearch02
 import me.rerere.hugeicons.stroke.Calendar03
 import me.rerere.hugeicons.stroke.CalendarAdd01
 import me.rerere.hugeicons.stroke.ChartColumn
@@ -168,6 +169,52 @@ object MemoryToolUI : ToolUIRenderer {
                     null
                 },
         )
+    }
+}
+
+/**
+ * 记忆检索: 标题带关键词, 摘要给出命中条数与前 3 条内容（条件记忆按关键词取回）
+ */
+object MemorySearchToolUI : ToolUIRenderer {
+    private const val MAX_HITS = 3
+    private const val MAX_CHARS = 90
+
+    override val toolName: String = "memory_search"
+
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.AiSearch02
+
+    @Composable
+    override fun title(context: ToolUIContext): String =
+        stringResource(R.string.tool_ui_memory_search, context.arguments.getStringContent("keyword").orEmpty())
+
+    private fun hits(context: ToolUIContext): List<JsonObject> =
+        (context.content as? JsonObject)?.get("results")
+            ?.let { runCatching { it.jsonArray }.getOrNull() }
+            ?.mapNotNull { it as? JsonObject }
+            ?: emptyList()
+
+    override fun hasSummary(context: ToolUIContext): Boolean = hits(context).isNotEmpty()
+
+    @Composable
+    override fun Summary(context: ToolUIContext) {
+        val list = hits(context)
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                text = stringResource(R.string.tool_ui_memory_hits, list.size),
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.primary,
+            )
+            list.take(MAX_HITS).forEach { item ->
+                val hit = item.getStringContent("content")?.replace("\n", " ")?.trim().orEmpty()
+                Text(
+                    text = if (hit.length > MAX_CHARS) hit.take(MAX_CHARS) + "…" else hit,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+        }
     }
 }
 

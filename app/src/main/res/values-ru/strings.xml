@@ -3485,6 +3485,16 @@
   <string name="tool_ui_launch_activity_title">Запуск активности %1$s</string>
   <string name="tool_ui_webfetch_title">Загрузка %1$s</string>
   <string name="tool_ui_read_local_file_title">Чтение файла: %1$s</string>
+  <string name="tool_ui_bg_run">Запуск в фоне: %1$s</string>
+  <string name="tool_ui_bg_task">Фоновая задача %1$s</string>
+  <string name="tool_ui_bg_tasks">Фоновые задачи</string>
+  <string name="tool_ui_bg_kill">Остановить фоновую задачу %1$s</string>
+  <string name="tool_ui_bg_killed">Остановлено</string>
+  <string name="tool_ui_bg_kill_missing">Задача не найдена</string>
+  <string name="tool_ui_bg_running">Выполняется</string>
+  <string name="tool_ui_bg_exited">Завершено</string>
+  <string name="tool_ui_memory_search">Поиск в памяти: %1$s</string>
+  <string name="tool_ui_memory_hits">Совпадений: %1$d</string>
 <!-- 密钥库分组显示名（存储值保持英文 id，仅显示层本地化） -->
     <string name="vault_group_git">Хостинг кода</string>
     <string name="vault_group_ai">ИИ</string>
