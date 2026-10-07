@@ -105,6 +105,7 @@ import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.rikkahub.data.ai.diagnoseFailure
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.context.showFailure
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.UIMessage
@@ -608,8 +609,11 @@ private fun ModelList(
         localModels.addAll(providerSetting.models)
     }
     var reorderCommitJob by remember { mutableStateOf<Job?>(null) }
+    // 拖动性能埋点：记录每格移动的处理耗时与相邻移动的时间间隔，停手后落一条 ReorderPerf 日志
+    val reorderPerf = remember { ReorderPerfTracker() }
     val reorderableLazyListState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
+            val perfStartNanos = System.nanoTime()
             // from/to 是 LazyColumn 的 item（索引含页面前置项）→ 用模型 id（item key）定位，
             // 避免索引错位（此前直接用 from.index 导致 IndexOutOfBounds 崩溃）。
             val fromIdx = localModels.indexOfFirst { it.id == from.key }
@@ -620,6 +624,7 @@ private fun ModelList(
                 reorderCommitJob =
                     scope.launch {
                         delay(400)
+                        reorderPerf.flush()
                         // 按本地顺序重排当前模型集合；期间新增/删除的项原样保留在尾部
                         val byOrder =
                             localModels.mapNotNull { m ->
@@ -635,6 +640,7 @@ private fun ModelList(
                         }
                     }
             }
+            reorderPerf.record((System.nanoTime() - perfStartNanos) / 1000)
         }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -2023,3 +2029,54 @@ private fun formatCatalogTime(ms: Long): String =
     } else {
         SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date(ms))
     }
+
+/**
+ * 拖动排序性能埋点（临时，用于定位“拖动不跟手”）：
+ * 累计一次拖动会话内的移动次数、相邻移动间隔与单次处理耗时，停手后落一条 ReorderPerf 日志。
+ * 判读：gapAvg/gapMax 偏大 → 帧节奏慢（位移跟不上手指）；handleMaxUs 偏大 → onMove 处理本身重。
+ */
+private class ReorderPerfTracker {
+    private var moves = 0
+    private var gapSumMs = 0L
+    private var gapMaxMs = 0L
+    private var handleSumUs = 0L
+    private var handleMaxUs = 0L
+    private var lastAtMs = 0L
+    private var startMs = 0L
+
+    fun record(handleUs: Long) {
+        val now = System.currentTimeMillis()
+        if (moves > 0 && now - lastAtMs > SESSION_GAP_MS) flush()
+        if (moves == 0) {
+            startMs = now
+            gapSumMs = 0
+            gapMaxMs = 0
+            handleSumUs = 0
+            handleMaxUs = 0
+        } else {
+            val gap = now - lastAtMs
+            gapSumMs += gap
+            if (gap > gapMaxMs) gapMaxMs = gap
+        }
+        moves++
+        handleSumUs += handleUs
+        if (handleUs > handleMaxUs) handleMaxUs = handleUs
+        lastAtMs = now
+    }
+
+    fun flush() {
+        if (moves == 0) return
+        val n = moves
+        AppLog.i(
+            TAG,
+            "moves=$n span=${lastAtMs - startMs}ms gapAvg=${if (n > 1) gapSumMs / (n - 1) else 0}ms " +
+                "gapMax=${gapMaxMs}ms handleAvgUs=${handleSumUs / n} handleMaxUs=$handleMaxUs",
+        )
+        moves = 0
+    }
+
+    private companion object {
+        const val TAG = "ReorderPerf"
+        const val SESSION_GAP_MS = 800L
+    }
+}
