@@ -1,0 +1,25 @@
+// CI 依赖源回退：官方仓库在共享出口 IP 上偶发 429（Too Many Requests）时，追加镜像继续解析。
+// 通过 ~/.gradle/init.d/ 自动加载（见 .github/actions/setup-build-env），**只影响 CI**，本地构建不加载本文件。
+// 任何一步失败都不中断构建：全部包在 try/catch 里，失败只打印一行。
+def mirrors = [
+    'https://maven.aliyun.com/repository/public',
+    'https://maven.aliyun.com/repository/gradle-plugin',
+    'https://maven.aliyun.com/repository/google',
+]
+
+settingsEvaluated { settings ->
+    try {
+        settings.pluginManagement.repositories {
+            mirrors.each { u -> maven { url = u } }
+        }
+    } catch (Exception e) {
+        println "[gradle-mirror] pluginManagement 追加跳过: ${e.message}"
+    }
+    try {
+        settings.dependencyResolutionManagement.repositories {
+            mirrors.each { u -> maven { url = u } }
+        }
+    } catch (Exception e) {
+        println "[gradle-mirror] dependencyResolutionManagement 追加跳过: ${e.message}"
+    }
+}
