@@ -244,7 +244,7 @@ object MemoryToolUI : ToolUIRenderer {
                         },
                     ) {
                         Icon(
-                            imageVector = PencilEdit01,
+                            imageVector = HugeIcons.PencilEdit01,
                             contentDescription = stringResource(R.string.tool_ui_edit_memory),
                         )
                     }

@@ -525,7 +525,11 @@ internal class JumpTunnelProxy(
 
     override fun getInputStream(): java.io.InputStream = input ?: error("jump proxy not connected")
     override fun getOutputStream(): java.io.OutputStream = output ?: error("jump proxy not connected")
-    override fun getSocket(): java.net.Socket = error("jump proxy has no raw socket")
+    // JSch 允许返回 null：Session.connect() 里 `socket = proxy.getSocket()` 之后紧跟
+    // `if (connectTimeout > 0 && socket != null)` 判空，握手只靠 getInputStream/getOutputStream
+    // 的两个流；官方源码注释里的 ProxyCommand 示例同样是 `return null`。
+    // （此前这里 direct error() → 跳板握手必定失败："jump proxy has no raw socket"）
+    override fun getSocket(): java.net.Socket? = null
 
     override fun close() {
         runCatching { channel?.disconnect() }
