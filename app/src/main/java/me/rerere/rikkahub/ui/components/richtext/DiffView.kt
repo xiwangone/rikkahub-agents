@@ -34,7 +34,11 @@ internal val DiffRemovedColor = Color(0xFFEF5350)
 // 测量宽度超出 Constraints 可表示上限导致崩溃, 且固有测量代价高昂
 private const val MAX_LINE_CHARS = 4000
 
-// 默认最多渲染的行数由当前渲染档位决定（见 data/perf/RenderProfile.kt）: 每个 diff 行
+// 单次渲染的行数硬上限（性能兜底）：即使「完整优先」档或用户主动展开，
+// 超长 diff 也不全量组合（每个 diff 行都是独立 Text 节点，全量会让滚动/重组掉帧）。
+private const val MAX_RENDER_LINES = 1200
+
+// 默认最多渲染的行数由当前渲染档位决定（见 data/perf/RenderProfile.kt）：每个 diff 行
 // 都是一个独立 Text 节点, 大 diff 全量渲染会让消息列表的滚动与重组明显变慢;
 // 超出部分折叠为可点击展开的提示
 
@@ -79,9 +83,9 @@ fun DiffView(
     showFileHeader: Boolean = true,
 ) {
     val autoWrap = LocalSettings.current.displaySetting.codeBlockAutoWrap
-    // 默认限行数来自渲染档位（仅「完整优先」档不限行）；调用方可显式传入覆盖
+    // 未展开时的可见行数：调用方显式传入优先，其次取渲染档位值，但不超过硬上限
     val renderProfile = rememberRenderProfile()
-    val effectiveMaxLines = maxLines ?: renderProfile.diffDefaultLines
+    val collapseAt = maxLines ?: minOf(renderProfile.diffDefaultLines, MAX_RENDER_LINES)
     val allLines =
         remember(diff, showFileHeader) {
             val lines = diff.lines()
@@ -93,9 +97,9 @@ fun DiffView(
                 lines
             }
         }
-    // 大 diff 默认只渲染前 maxLines 行; 用户主动展开后才渲染全部
+    // 大 diff 默认只渲染前 collapseAt 行; 用户主动展开后放宽到硬上限（仍不是无限）
     var showAll by remember(diff) { mutableStateOf(false) }
-    val limit = if (showAll) Int.MAX_VALUE else effectiveMaxLines
+    val limit = if (showAll) MAX_RENDER_LINES else collapseAt
     val lines =
         remember(allLines, limit) {
             allLines.take(limit).map { line ->
@@ -103,6 +107,8 @@ fun DiffView(
             }
         }
     val truncated = allLines.size - lines.size
+    // 确实发生过折叠（原始行数超过未展开时的可见行数）才给收起入口
+    val collapsible = allLines.size > collapseAt
 
     Column(
         modifier =
@@ -116,11 +122,17 @@ fun DiffView(
             DiffLine(line, autoWrap)
         }
         if (truncated > 0) {
+            // 展开后仍被硬上限拦住 → 说明内容超长，不再给"展开"入口（只会更卡）
             DiffToggleHint(
-                text = stringResource(R.string.diff_view_expand_all, truncated),
-                onClick = { showAll = true },
+                text =
+                    if (showAll) {
+                        stringResource(R.string.diff_view_render_capped, truncated)
+                    } else {
+                        stringResource(R.string.diff_view_expand_all, truncated)
+                    },
+                onClick = if (showAll) null else ({ showAll = true }),
             )
-        } else if (showAll && allLines.size > effectiveMaxLines) {
+        } else if (showAll && collapsible) {
             // 展开后给一个收起入口：长 diff 滚到底时不必再翻回顶部
             DiffToggleHint(
                 text = stringResource(R.string.code_block_collapse),
@@ -130,11 +142,11 @@ fun DiffView(
     }
 }
 
-/** diff 底部的一行可点提示（展开全部 / 收起） */
+/** diff 底部的一行提示（展开全部 / 收起 / 超长不可展开）；onClick 为 null 时不可点 */
 @Composable
 private fun DiffToggleHint(
     text: String,
-    onClick: () -> Unit,
+    onClick: (() -> Unit)?,
 ) {
     Text(
         text = text,
@@ -145,7 +157,7 @@ private fun DiffToggleHint(
         modifier =
             Modifier
                 .padding(horizontal = 8.dp)
-                .clickable(onClick = onClick),
+                .clickable(enabled = onClick != null) { onClick?.invoke() },
     )
 }
 

@@ -3582,6 +3582,7 @@
   <string name="usage_stats_detail">Details</string>
   <string name="usage_stats_empty">No usage data yet</string>
   <string name="usage_stats_note">Counted per generation (one record per generation). Cost only includes provider-reported amounts; unreported costs are not estimated.</string>
+  <string name="diff_view_render_capped">… %1$d more lines (content too long to expand)</string>
   <string name="diff_view_expand_all">… +%1$d lines (tap to expand all)</string>
   <string name="json_tree_more_items">… %1$d more items (tap to expand)</string>
   <string name="json_tree_truncated_string">… (tap to view all)</string>
