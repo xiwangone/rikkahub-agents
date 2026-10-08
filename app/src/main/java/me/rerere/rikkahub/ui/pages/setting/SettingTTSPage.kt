@@ -61,6 +61,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.rememberReorderCommitState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.pages.setting.components.TTSProviderConfigure
@@ -104,13 +105,16 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
         containerColor = CustomColors.topBarColors.containerColor,
     ) { innerPadding ->
         val lazyListState = rememberLazyListState()
+        // 拖动只改本地顺序，停手后统一提交一次（每格都写设置会让整列重组、拖动明显卡顿）
+        val reorderCommit =
+            rememberReorderCommitState(
+                items = settings.ttsProviders,
+                key = { it.id },
+                onCommit = { vm.updateSettings(settings.copy(ttsProviders = it)) },
+            )
         val reorderableState =
             rememberReorderableLazyListState(lazyListState) { from, to ->
-                val newProviders =
-                    settings.ttsProviders.toMutableList().apply {
-                        add(to.index, removeAt(from.index))
-                    }
-                vm.updateSettings(settings.copy(ttsProviders = newProviders))
+                reorderCommit.onMove(from.key, to.key)
             }
 
         LazyColumn(
@@ -122,7 +126,7 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
             verticalArrangement = Arrangement.spacedBy(8.dp),
             state = lazyListState,
         ) {
-            items(settings.ttsProviders, key = { it.id }) { provider ->
+            items(reorderCommit.items, key = { it.id }) { provider ->
                 ReorderableItem(
                     state = reorderableState,
                     key = provider.id,
@@ -144,9 +148,11 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                                                 haptic.performHapticFeedback(
                                                     HapticFeedbackType.GestureThresholdActivate,
                                                 )
+                                                reorderCommit.onDragStart()
                                             },
                                             onDragStopped = {
                                                 haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                                reorderCommit.onDragStop()
                                             },
                                         ),
                             ) {

@@ -56,6 +56,7 @@ import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.rememberReorderCommitState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
@@ -102,22 +103,16 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor,
     ) {
+        // 拖动只改本地顺序，停手后统一提交一次（每格都写设置会让整列重组、拖动明显卡顿）
+        val reorderCommit =
+            rememberReorderCommitState(
+                items = settings.searchServices,
+                key = { it.id },
+                onCommit = { vm.updateSettings(settings.copy(searchServices = it)) },
+            )
         val reorderableState =
             rememberReorderableLazyListState(lazyListState) { from, to ->
-                val fromIndex = from.index
-                val toIndex = to.index
-
-                if (fromIndex >= 0 && toIndex >= 0 && fromIndex < settings.searchServices.size &&
-                    toIndex < settings.searchServices.size
-                ) {
-                    val newServices =
-                        settings.searchServices.toMutableList().apply {
-                            add(toIndex, removeAt(fromIndex))
-                        }
-                    vm.updateSettings(
-                        settings.copy(searchServices = newServices),
-                    )
-                }
+                reorderCommit.onMove(from.key, to.key)
             }
         val haptic = LocalHapticFeedback.current
 
@@ -130,7 +125,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
             verticalArrangement = Arrangement.spacedBy(12.dp),
             state = lazyListState,
         ) {
-            items(settings.searchServices, key = { it.id }) { service ->
+            items(reorderCommit.items, key = { it.id }) { service ->
                 ReorderableItem(
                     state = reorderableState,
                     key = service.id,
@@ -158,9 +153,11 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                                 .longPressDraggableHandle(
                                     onDragStarted = {
                                         haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                        reorderCommit.onDragStart()
                                     },
                                     onDragStopped = {
                                         haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                        reorderCommit.onDragStop()
                                     },
                                 ),
                     )

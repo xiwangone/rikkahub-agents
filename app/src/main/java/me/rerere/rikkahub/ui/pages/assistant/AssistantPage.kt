@@ -73,6 +73,7 @@ import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.ui.components.ui.rememberReorderCommitState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.hooks.EditState
 import me.rerere.rikkahub.ui.hooks.EditStateContent
@@ -108,7 +109,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
     var cloneWithMemories by remember { mutableStateOf(false) }
 
     // 根据搜索关键词和选中的标签过滤助手
-    val filteredAssistants =
+    val assistantsByQuery =
         remember(settings.assistants, selectedTagIds, searchQuery) {
             settings.assistants.filter { assistant ->
                 val matchesSearch =
@@ -155,15 +156,17 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
         ) {
             val lazyListState = rememberLazyListState()
             val isFiltering = selectedTagIds.isNotEmpty() || searchQuery.isNotBlank()
+            // 拖动只改本地顺序，停手后统一提交一次（每格都写设置会让整列重组、拖动明显卡顿）
+            val reorderCommit =
+                rememberReorderCommitState(
+                    items = settings.assistants,
+                    key = { it.id },
+                    enabled = !isFiltering,
+                    onCommit = { vm.updateSettings(settings.copy(assistants = it)) },
+                )
             val reorderableState =
                 rememberReorderableLazyListState(lazyListState) { from, to ->
-                    if (!isFiltering) {
-                        val newAssistants =
-                            settings.assistants.toMutableList().apply {
-                                add(to.index, removeAt(from.index))
-                            }
-                        vm.updateSettings(settings.copy(assistants = newAssistants))
-                    }
+                    reorderCommit.onMove(from.key, to.key)
                 }
             val haptic = LocalHapticFeedback.current
 
@@ -209,7 +212,9 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 state = lazyListState,
             ) {
-                lazyItems(filteredAssistants, key = { assistant -> assistant.id }) { assistant ->
+                // 非过滤态用拖动本地顺序（拖动即时反馈）；过滤态下标与全量不一致 → 不参与排序
+                val visibleAssistants = if (isFiltering) assistantsByQuery else reorderCommit.items
+                lazyItems(visibleAssistants, key = { assistant -> assistant.id }) { assistant ->
                     ReorderableItem(
                         state = reorderableState,
                         key = assistant.id,
@@ -239,9 +244,11 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                                                     haptic.performHapticFeedback(
                                                         HapticFeedbackType.GestureThresholdActivate,
                                                     )
+                                                    reorderCommit.onDragStart()
                                                 },
                                                 onDragStopped = {
                                                     haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                                    reorderCommit.onDragStop()
                                                 },
                                             )
                                         } else {
@@ -320,13 +327,16 @@ private fun AssistantTagsFilterRow(
     val haptic = LocalHapticFeedback.current
     if (settings.assistantTags.isNotEmpty()) {
         val tagsListState = rememberLazyListState()
+        // 拖动只改本地顺序，停手后统一提交一次（每格都写设置会让整列重组、拖动明显卡顿）
+        val tagsReorderCommit =
+            rememberReorderCommitState(
+                items = settings.assistantTags,
+                key = { it.id },
+                onCommit = { vm.updateSettings(settings.copy(assistantTags = it)) },
+            )
         val tagsReorderableState =
             rememberReorderableLazyListState(tagsListState) { from, to ->
-                val newTags =
-                    settings.assistantTags.toMutableList().apply {
-                        add(to.index, removeAt(from.index))
-                    }
-                vm.updateSettings(settings.copy(assistantTags = newTags))
+                tagsReorderCommit.onMove(from.key, to.key)
             }
 
         LazyRow(
@@ -334,7 +344,7 @@ private fun AssistantTagsFilterRow(
             modifier = Modifier.padding(horizontal = 16.dp),
             state = tagsListState,
         ) {
-            lazyItems(items = settings.assistantTags, key = { tag -> tag.id }) { tag ->
+            lazyItems(items = tagsReorderCommit.items, key = { tag -> tag.id }) { tag ->
                 ReorderableItem(
                     state = tagsReorderableState,
                     key = tag.id,
@@ -364,9 +374,11 @@ private fun AssistantTagsFilterRow(
                                     .longPressDraggableHandle(
                                         onDragStarted = {
                                             haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                            tagsReorderCommit.onDragStart()
                                         },
                                         onDragStopped = {
                                             haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                            tagsReorderCommit.onDragStop()
                                         },
                                     ),
                         )

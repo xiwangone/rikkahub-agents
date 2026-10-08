@@ -82,6 +82,7 @@ import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.decodeProviderSetting
+import me.rerere.rikkahub.ui.components.ui.rememberReorderCommitState
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.useEditState
@@ -107,28 +108,28 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
     var searchQuery by remember { mutableStateOf("") }
     val lazyListState = rememberLazyListState()
     var providerToDelete by remember { mutableStateOf<ProviderSetting?>(null) }
+    // 拖动只改本地顺序，停手后统一提交一次（每格都写设置会让整列重组、拖动明显卡顿）
+    val reorderCommit =
+        rememberReorderCommitState(
+            items = settings.providers,
+            key = { it.id },
+            // 过滤态下列表下标与全量 providers 不一致（直接套用会移动错项）→ 仅未过滤时允许排序
+            enabled = searchQuery.isBlank(),
+            onCommit = { vm.updateSettings(settings.copy(providers = it)) },
+        )
     val reorderableState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
-            // 过滤态下列表下标与全量 providers 不一致（直接套用会移动错项）→ 仅未过滤时允许排序
-            if (searchQuery.isBlank()) {
-                val newProviders =
-                    settings.providers.toMutableList().apply {
-                        add(to.index, removeAt(from.index))
-                    }
-                vm.updateSettings(settings.copy(providers = newProviders))
-            }
+            reorderCommit.onMove(from.key, to.key)
         }
 
-    val filteredProviders =
+    val providersByQuery =
         remember(settings.providers, searchQuery) {
-            if (searchQuery.isBlank()) {
-                settings.providers
-            } else {
-                settings.providers.filter { provider ->
-                    provider.name.contains(searchQuery, ignoreCase = true)
-                }
+            settings.providers.filter { provider ->
+                provider.name.contains(searchQuery, ignoreCase = true)
             }
         }
+    // 非过滤态用拖动本地顺序（拖动即时反馈）；过滤态下标与全量不一致 → 不参与排序
+    val filteredProviders = if (searchQuery.isBlank()) reorderCommit.items else providersByQuery
 
     Scaffold(
         topBar = {
@@ -225,9 +226,11 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                                                     haptic.performHapticFeedback(
                                                         HapticFeedbackType.GestureThresholdActivate,
                                                     )
+                                                    reorderCommit.onDragStart()
                                                 },
                                                 onDragStopped = {
                                                     haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                                    reorderCommit.onDragStop()
                                                 },
                                             ),
                                 ) {
