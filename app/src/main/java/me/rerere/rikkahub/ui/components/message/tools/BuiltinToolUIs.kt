@@ -86,6 +86,7 @@ import me.rerere.hugeicons.stroke.VolumeHigh
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.ui.hooks.EditStateContent
@@ -243,7 +244,7 @@ object MemoryToolUI : ToolUIRenderer {
                         },
                     ) {
                         Icon(
-                            imageVector = HugeIcons.PencilEdit01,
+                            imageVector = PencilEdit01,
                             contentDescription = stringResource(R.string.tool_ui_edit_memory),
                         )
                     }
