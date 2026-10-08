@@ -3585,4 +3585,12 @@
   <string name="usage_stats_detail">Детализация</string>
   <string name="usage_stats_empty">Данных пока нет</string>
   <string name="usage_stats_note">Учёт по генерациям: одна генерация — одна запись. Стоимость учитывается только по данным провайдера, без оценок.</string>
+  <string name="diff_view_expand_all">… +%1$d строк (нажмите, чтобы развернуть все)</string>
+  <string name="json_tree_more_items">… ещё %1$d элементов (нажмите, чтобы развернуть)</string>
+  <string name="json_tree_truncated_string">… (нажмите, чтобы показать всё)</string>
+  <string name="richtext_table_title">Таблица</string>
+  <string name="setting_provider_page_base_url_v1beta_hint">Базовый URL обычно заканчивается на `/v1beta`</string>
+  <string name="tts_audio_format_desc_qwen">Кодировка аудио, возвращаемая Qwen TTS</string>
+  <string name="tts_audio_format_label">Формат аудио</string>
+  <string name="workspace_file_editor_source">Исходный код</string>
 </resources>

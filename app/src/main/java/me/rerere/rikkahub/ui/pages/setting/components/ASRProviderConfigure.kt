@@ -387,7 +387,7 @@ private fun MiMoASRConfiguration(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            label = "Sample Rate",
+            label = stringResource(R.string.setting_asr_configure_sample_rate),
         )
     }
 
@@ -473,7 +473,7 @@ private fun StepASRConfiguration(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            label = "Sample Rate",
+            label = stringResource(R.string.setting_asr_configure_sample_rate),
         )
     }
 

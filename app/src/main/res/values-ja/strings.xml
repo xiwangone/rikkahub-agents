@@ -3585,4 +3585,12 @@
   <string name="usage_stats_detail">詳細</string>
   <string name="usage_stats_empty">データがありません</string>
   <string name="usage_stats_note">生成単位で集計：1回の生成を1件として記録。費用はプロバイダー報告分のみで、未報告分は推定しません。</string>
+  <string name="diff_view_expand_all">… +%1$d 行（タップしてすべて展開）</string>
+  <string name="json_tree_more_items">… さらに %1$d 項目（タップして展開）</string>
+  <string name="json_tree_truncated_string">…（タップしてすべて表示）</string>
+  <string name="richtext_table_title">テーブル</string>
+  <string name="setting_provider_page_base_url_v1beta_hint">ベースURLは通常 `/v1beta` で終わります</string>
+  <string name="tts_audio_format_desc_qwen">Qwen TTS が返すオーディオエンコーディング</string>
+  <string name="tts_audio_format_label">オーディオ形式</string>
+  <string name="workspace_file_editor_source">ソース</string>
 </resources>

@@ -3581,4 +3581,12 @@
   <string name="usage_stats_detail">Details</string>
   <string name="usage_stats_empty">No usage data yet</string>
   <string name="usage_stats_note">Counted per generation (one record per generation). Cost only includes provider-reported amounts; unreported costs are not estimated.</string>
+  <string name="diff_view_expand_all">… +%1$d lines (tap to expand all)</string>
+  <string name="json_tree_more_items">… %1$d more items (tap to expand)</string>
+  <string name="json_tree_truncated_string">… (tap to view all)</string>
+  <string name="richtext_table_title">Table</string>
+  <string name="setting_provider_page_base_url_v1beta_hint">The base URL usually ends with `/v1beta`</string>
+  <string name="tts_audio_format_label">Audio Format</string>
+  <string name="tts_audio_format_desc_qwen">Audio encoding returned by Qwen TTS</string>
+  <string name="workspace_file_editor_source">Source</string>
 </resources>

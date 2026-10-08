@@ -3585,4 +3585,12 @@
   <string name="usage_stats_detail">상세</string>
   <string name="usage_stats_empty">데이터가 없습니다</string>
   <string name="usage_stats_note">생성 단위로 집계: 1회 생성을 1건으로 기록. 비용은 제공업체 보고분만 포함하며 미보고분은 추정하지 않습니다.</string>
+  <string name="diff_view_expand_all">… +%1$d줄 (전체 펼치려면 탭)</string>
+  <string name="json_tree_more_items">… %1$d개 항목 더 (탭하여 펼치기)</string>
+  <string name="json_tree_truncated_string">… (탭하여 전체 보기)</string>
+  <string name="richtext_table_title">표</string>
+  <string name="setting_provider_page_base_url_v1beta_hint">기본 URL은 일반적으로 `/v1beta`로 끝납니다.</string>
+  <string name="tts_audio_format_desc_qwen">Qwen TTS가 반환하는 오디오 인코딩</string>
+  <string name="tts_audio_format_label">오디오 형식</string>
+  <string name="workspace_file_editor_source">소스</string>
 </resources>

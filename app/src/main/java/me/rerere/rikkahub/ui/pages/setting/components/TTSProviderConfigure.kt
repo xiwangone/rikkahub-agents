@@ -763,8 +763,8 @@ private fun QwenTTSConfiguration(
     val formats = listOf("wav", "mp3", "pcm", "opus")
 
     FormItem(
-        label = { Text("Audio Format") },
-        description = { Text("Audio encoding returned by Qwen TTS") }
+        label = { Text(stringResource(R.string.tts_audio_format_label)) },
+        description = { Text(stringResource(R.string.tts_audio_format_desc_qwen)) }
     ) {
         SelectTextField(
             value = setting.format,
@@ -781,8 +781,8 @@ private fun QwenTTSConfiguration(
     val sampleRates = listOf(8000, 16000, 22050, 24000, 44100, 48000)
 
     FormItem(
-        label = { Text("Sample Rate") },
-        description = { Text("Audio sample rate in Hz") }
+        label = { Text(stringResource(R.string.tts_sample_rate)) },
+        description = { Text(stringResource(R.string.tts_sample_rate_desc)) }
     ) {
         SelectTextField(
             value = setting.sampleRate.toString(),
@@ -1599,7 +1599,7 @@ private fun VolcengineTTSConfiguration(
     var keyVisible by remember(setting.id) { mutableStateOf(false) }
 
     FormItem(
-        label = { Text("API Key") },
+        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.tts_volcengine_api_key_desc)) }
     ) {
         OutlinedTextField(

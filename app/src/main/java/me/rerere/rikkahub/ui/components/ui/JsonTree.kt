@@ -189,7 +189,7 @@ private fun JsonObjectNode(
                 if (entries.size > visibleEntries.size) {
                     Row(modifier = Modifier.padding(start = (depth * 16 + 14).dp)) {
                         Text(
-                            text = "… 还有 ${entries.size - visibleEntries.size} 项（点击展开）",
+                            text = stringResource(R.string.json_tree_more_items, entries.size - visibleEntries.size),
                             fontFamily = JetbrainsMono,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { showAllChildren = true },
@@ -275,7 +275,7 @@ private fun JsonArrayNode(
                 if (array.size > visibleChildren) {
                     Row(modifier = Modifier.padding(start = (depth * 16 + 14).dp)) {
                         Text(
-                            text = "… 还有 ${array.size - visibleChildren} 项（点击展开）",
+                            text = stringResource(R.string.json_tree_more_items, array.size - visibleChildren),
                             fontFamily = JetbrainsMono,
                             color = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.clickable { showAllChildren = true },
@@ -384,7 +384,7 @@ private fun ValueText(
     // 超长字符串只内联预览前若干字符: 单行文本的测量与绘制代价随长度线性增长
     val displayText =
         if (text.length > MAX_INLINE_STRING_CHARS) {
-            text.take(MAX_INLINE_STRING_CHARS) + "…（点击查看全部）"
+            text.take(MAX_INLINE_STRING_CHARS) + stringResource(R.string.json_tree_truncated_string)
         } else {
             text
         }

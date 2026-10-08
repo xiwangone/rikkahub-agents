@@ -3584,4 +3584,12 @@
   <string name="usage_stats_detail">التفاصيل</string>
   <string name="usage_stats_empty">لا توجد بيانات بعد</string>
   <string name="usage_stats_note">يُحتسب لكل عملية إنشاء (سجل واحد لكل عملية). التكلفة تشمل فقط ما أبلغ عنه المزوّد ولا تُقدَّر.</string>
+  <string name="diff_view_expand_all">… +%1$d سطرًا (انقر للتوسيع الكامل)</string>
+  <string name="json_tree_more_items">… %1$d عناصر إضافية (انقر للتوسيع)</string>
+  <string name="json_tree_truncated_string">… (انقر لعرض الكل)</string>
+  <string name="richtext_table_title">جدول</string>
+  <string name="setting_provider_page_base_url_v1beta_hint">عادةً ما ينتهي عنوان URL الأساسي بـ `/v1beta`</string>
+  <string name="tts_audio_format_desc_qwen">ترميز الصوت الذي يعيده Qwen TTS</string>
+  <string name="tts_audio_format_label">تنسيق الصوت</string>
+  <string name="workspace_file_editor_source">المصدر</string>
 </resources>

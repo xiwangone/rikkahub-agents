@@ -903,7 +903,7 @@ private fun ProviderConfigureGoogle(
                 ),
             supportingText =
                 if (!provider.baseUrl.endsWith("/v1beta")) {
-                    { Text("The base URL usually ends with `/v1beta`") }
+                    { Text(stringResource(R.string.setting_provider_page_base_url_v1beta_hint)) }
                 } else {
                     null
                 },

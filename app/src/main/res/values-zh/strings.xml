@@ -3581,4 +3581,12 @@
   <string name="usage_stats_detail">明细</string>
   <string name="usage_stats_empty">暂无用量数据</string>
   <string name="usage_stats_note">按生成口径统计：一次生成记一条；费用仅含服务商上报部分，未上报的不估算。</string>
+  <string name="diff_view_expand_all">… +%1$d 行（点击展开全部）</string>
+  <string name="json_tree_more_items">… 还有 %1$d 个项目（点击展开）</string>
+  <string name="json_tree_truncated_string">…（点击查看全部）</string>
+  <string name="richtext_table_title">表格</string>
+  <string name="setting_provider_page_base_url_v1beta_hint">基础 URL 通常以 `/v1beta` 结尾</string>
+  <string name="tts_audio_format_desc_qwen">Qwen TTS 返回的音频编码</string>
+  <string name="tts_audio_format_label">音频格式</string>
+  <string name="workspace_file_editor_source">源代码</string>
 </resources>

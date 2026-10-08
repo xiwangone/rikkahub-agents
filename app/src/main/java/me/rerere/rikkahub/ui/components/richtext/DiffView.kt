@@ -18,10 +18,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.rememberRenderProfile
 
@@ -115,7 +117,7 @@ fun DiffView(
         }
         if (truncated > 0) {
             Text(
-                text = "… +$truncated lines（点击展开全部）",
+                text = stringResource(R.string.diff_view_expand_all, truncated),
                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 fontFamily = FontFamily.Monospace,
                 fontSize = 11.sp,

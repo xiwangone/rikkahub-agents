@@ -100,7 +100,7 @@ fun WorkspaceFileEditorPage(
                 actions = {
                     if (supportsPreview && !loading && loadError == null) {
                         TextButton(onClick = { showPreview = !showPreview }) {
-                            Text(if (showPreview) "源码" else "预览")
+                            Text(if (showPreview) stringResource(R.string.workspace_file_editor_source) else stringResource(R.string.common_preview))
                         }
                     }
                     if (editable && !loading && loadError == null) {
