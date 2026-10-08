@@ -3593,4 +3593,5 @@
   <string name="tts_audio_format_desc_qwen">Кодировка аудио, возвращаемая Qwen TTS</string>
   <string name="tts_audio_format_label">Формат аудио</string>
   <string name="workspace_file_editor_source">Исходный код</string>
+  <string name="accessibility_image">Изображение</string>
 </resources>

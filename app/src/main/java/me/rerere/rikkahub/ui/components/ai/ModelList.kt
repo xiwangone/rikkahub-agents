@@ -241,7 +241,7 @@ internal fun ModelSelectorButton(
                 ) {
                     Icon(
                         imageVector = HugeIcons.Cancel01,
-                        contentDescription = "Clear",
+                        contentDescription = stringResource(R.string.accessibility_clear_model_selection),
                     )
                 }
             }

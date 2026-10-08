@@ -139,7 +139,7 @@ fun Mermaid(
                 ) {
                     Icon(
                         HugeIcons.View,
-                        contentDescription = "Preview",
+                        contentDescription = stringResource(R.string.code_block_preview),
                     )
                 }
                 IconButton(

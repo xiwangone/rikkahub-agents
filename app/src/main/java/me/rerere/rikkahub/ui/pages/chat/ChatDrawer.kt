@@ -249,7 +249,7 @@ fun ChatDrawerContent(
 
                         Icon(
                             imageVector = HugeIcons.PencilEdit01,
-                            contentDescription = "Edit",
+                            contentDescription = stringResource(R.string.accessibility_edit_nickname),
                             modifier =
                                 Modifier
                                     .onClick {

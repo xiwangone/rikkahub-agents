@@ -82,7 +82,7 @@ fun <T> Select(
                 trailing()
                 Icon(
                     imageVector = if (expanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
-                    contentDescription = "expand",
+                    contentDescription = stringResource(R.string.accessibility_expand_options),
                 )
             }
         }
@@ -150,7 +150,7 @@ fun <T> SelectTextField(
                 IconButton(onClick = { expanded = !expanded }) {
                     Icon(
                         imageVector = if (expanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
-                        contentDescription = "expand",
+                        contentDescription = stringResource(R.string.accessibility_expand_options),
                     )
                 }
             },

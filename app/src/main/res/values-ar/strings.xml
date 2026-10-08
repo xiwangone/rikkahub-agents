@@ -3592,4 +3592,5 @@
   <string name="tts_audio_format_desc_qwen">ترميز الصوت الذي يعيده Qwen TTS</string>
   <string name="tts_audio_format_label">تنسيق الصوت</string>
   <string name="workspace_file_editor_source">المصدر</string>
+  <string name="accessibility_image">صورة</string>
 </resources>

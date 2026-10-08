@@ -379,7 +379,7 @@ private fun ConversationItem(
             AnimatedVisibility(conversation.isPinned) {
                 Icon(
                     imageVector = HugeIcons.Pin,
-                    contentDescription = "Pinned",
+                    contentDescription = stringResource(R.string.accessibility_pinned),
                     modifier = Modifier.size(12.dp),
                     tint = MaterialTheme.colorScheme.primary,
                 )
@@ -392,7 +392,7 @@ private fun ConversationItem(
                             .background(MaterialTheme.extendColors.green6)
                             .size(4.dp)
                             .semantics {
-                                contentDescription = "Loading"
+                                contentDescription = stringResource(R.string.accessibility_loading)
                             },
                 )
             }

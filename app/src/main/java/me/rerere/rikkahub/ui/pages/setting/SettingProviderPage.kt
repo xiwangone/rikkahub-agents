@@ -184,7 +184,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 trailingIcon = {
                     if (searchQuery.isNotEmpty()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(HugeIcons.Cancel01, contentDescription = "Clear")
+                            Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.accessibility_clear_text))
                         }
                     }
                 },

@@ -3593,4 +3593,5 @@
   <string name="tts_audio_format_desc_qwen">Qwen TTS が返すオーディオエンコーディング</string>
   <string name="tts_audio_format_label">オーディオ形式</string>
   <string name="workspace_file_editor_source">ソース</string>
+  <string name="accessibility_image">画像</string>
 </resources>

@@ -770,7 +770,7 @@ private fun ChatListPreview(
                     IconButton(onClick = { searchQuery = "" }) {
                         Icon(
                             imageVector = HugeIcons.Cancel01,
-                            contentDescription = "Clear",
+                            contentDescription = stringResource(R.string.accessibility_clear_text),
                             modifier = Modifier.size(20.dp),
                         )
                     }

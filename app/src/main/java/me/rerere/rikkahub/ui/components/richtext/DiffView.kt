@@ -116,19 +116,37 @@ fun DiffView(
             DiffLine(line, autoWrap)
         }
         if (truncated > 0) {
-            Text(
+            DiffToggleHint(
                 text = stringResource(R.string.diff_view_expand_all, truncated),
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                fontFamily = FontFamily.Monospace,
-                fontSize = 11.sp,
-                lineHeight = 16.sp,
-                modifier =
-                    Modifier
-                        .padding(horizontal = 8.dp)
-                        .clickable { showAll = true },
+                onClick = { showAll = true },
+            )
+        } else if (showAll && allLines.size > effectiveMaxLines) {
+            // 展开后给一个收起入口：长 diff 滚到底时不必再翻回顶部
+            DiffToggleHint(
+                text = stringResource(R.string.code_block_collapse),
+                onClick = { showAll = false },
             )
         }
     }
+}
+
+/** diff 底部的一行可点提示（展开全部 / 收起） */
+@Composable
+private fun DiffToggleHint(
+    text: String,
+    onClick: () -> Unit,
+) {
+    Text(
+        text = text,
+        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
+        fontFamily = FontFamily.Monospace,
+        fontSize = 11.sp,
+        lineHeight = 16.sp,
+        modifier =
+            Modifier
+                .padding(horizontal = 8.dp)
+                .clickable(onClick = onClick),
+    )
 }
 
 @Composable

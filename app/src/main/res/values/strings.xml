@@ -2902,6 +2902,7 @@
   <string name="accessibility_download_table">Download table</string>
   <string name="accessibility_copy_error_message">Copy error message</string>
   <string name="accessibility_qr_code_value">QR code: %1$s</string>
+  <string name="accessibility_image">Image</string>
   <string name="setting_page_sub_agents">Sub-agent profiles</string>
   <string name="setting_page_sub_agents_desc">Named model + system prompt presets subagent_dispatch can dispatch to by name.</string>
   <string name="setting_sub_agents_page_title">Sub-agent profiles</string>

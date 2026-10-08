@@ -41,7 +41,7 @@ fun ChatMessageBranchSelector(
 
             Icon(
                 imageVector = HugeIcons.ArrowLeft01,
-                contentDescription = "Prev",
+                contentDescription = stringResource(R.string.accessibility_previous_branch),
                 modifier =
                     Modifier
                         .clip(CircleShape)
@@ -71,7 +71,7 @@ fun ChatMessageBranchSelector(
 
             Icon(
                 imageVector = HugeIcons.ArrowRight01,
-                contentDescription = "Next",
+                contentDescription = stringResource(R.string.accessibility_next_branch),
                 modifier =
                     Modifier
                         .clip(CircleShape)

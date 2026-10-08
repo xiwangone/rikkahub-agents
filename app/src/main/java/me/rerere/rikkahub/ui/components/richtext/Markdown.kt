@@ -1066,7 +1066,7 @@ private fun TableNode(
 
                 Icon(
                     imageVector = HugeIcons.Copy01,
-                    contentDescription = "Copy",
+                    contentDescription = stringResource(R.string.accessibility_copy_table),
                     tint = iconTint,
                     modifier =
                         Modifier
@@ -1083,7 +1083,7 @@ private fun TableNode(
 
                 Icon(
                     imageVector = HugeIcons.Download04,
-                    contentDescription = "Download",
+                    contentDescription = stringResource(R.string.accessibility_download_table),
                     tint = iconTint,
                     modifier =
                         Modifier

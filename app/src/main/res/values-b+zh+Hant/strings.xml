@@ -3592,4 +3592,5 @@
   <string name="tts_audio_format_desc_qwen">Qwen TTS 返回的音訊編碼</string>
   <string name="tts_audio_format_label">音訊格式</string>
   <string name="workspace_file_editor_source">來源</string>
+  <string name="accessibility_image">圖片</string>
 </resources>

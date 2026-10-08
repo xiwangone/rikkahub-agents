@@ -1525,7 +1525,7 @@ private fun StepTTSConfiguration(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            label = "Volume",
+            label = stringResource(R.string.tts_volume),
         )
     }
 

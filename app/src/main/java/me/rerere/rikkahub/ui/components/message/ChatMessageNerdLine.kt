@@ -93,7 +93,7 @@ fun ChatMessageNerdLine(
                         icon = {
                             Icon(
                                 imageVector = HugeIcons.Upload02,
-                                contentDescription = "Input",
+                                contentDescription = stringResource(R.string.accessibility_input_tokens),
                                 tint = color,
                                 modifier = Modifier.size(12.dp),
                             )
@@ -114,7 +114,7 @@ fun ChatMessageNerdLine(
                         icon = {
                             Icon(
                                 imageVector = HugeIcons.Download04,
-                                contentDescription = "Output",
+                                contentDescription = stringResource(R.string.accessibility_output_tokens),
                                 modifier = Modifier.size(12.dp),
                             )
                         },
@@ -129,7 +129,7 @@ fun ChatMessageNerdLine(
                             icon = {
                                 Icon(
                                     imageVector = HugeIcons.CoinsDollar,
-                                    contentDescription = "Cost",
+                                    contentDescription = stringResource(R.string.accessibility_cost),
                                     tint = color,
                                     modifier = Modifier.size(12.dp),
                                 )
@@ -152,7 +152,7 @@ fun ChatMessageNerdLine(
                             icon = {
                                 Icon(
                                     imageVector = HugeIcons.Zap,
-                                    contentDescription = "Speed",
+                                    contentDescription = stringResource(R.string.accessibility_speed),
                                     modifier = Modifier.size(12.dp),
                                 )
                             },
@@ -165,7 +165,7 @@ fun ChatMessageNerdLine(
                             icon = {
                                 Icon(
                                     imageVector = HugeIcons.Clock02,
-                                    contentDescription = "Duration",
+                                    contentDescription = stringResource(R.string.accessibility_duration),
                                     modifier = Modifier.size(12.dp),
                                 )
                             },
@@ -229,7 +229,7 @@ fun ChatMessageNerdLine(
                         icon = {
                             Icon(
                                 imageVector = HugeIcons.Upload02,
-                                contentDescription = "Input",
+                                contentDescription = stringResource(R.string.accessibility_input_tokens),
                                 tint = color,
                                 modifier = Modifier.size(12.dp),
                             )

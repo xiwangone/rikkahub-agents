@@ -44,7 +44,7 @@ fun QRCode(
         }
     Image(
         bitmap = bitmap.asImageBitmap(),
-        contentDescription = "qrcode:$value",
+        contentDescription = stringResource(R.string.accessibility_qr_code_value, value),
         modifier = modifier,
     )
 }

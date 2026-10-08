@@ -145,7 +145,7 @@ private fun OpenAIRealtimeASRConfiguration(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            label = "VAD Threshold",
+            label = stringResource(R.string.setting_asr_configure_vad_threshold),
         )
     }
 
@@ -161,7 +161,7 @@ private fun OpenAIRealtimeASRConfiguration(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            label = "Prefix Padding",
+            label = stringResource(R.string.setting_asr_configure_prefix_padding),
         )
     }
 
@@ -177,7 +177,7 @@ private fun OpenAIRealtimeASRConfiguration(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            label = "Silence Duration",
+            label = stringResource(R.string.setting_asr_configure_silence_duration),
         )
     }
 }
@@ -247,7 +247,7 @@ private fun DashScopeASRConfiguration(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            label = "VAD Threshold",
+            label = stringResource(R.string.setting_asr_configure_vad_threshold),
         )
     }
 
@@ -263,7 +263,7 @@ private fun DashScopeASRConfiguration(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            label = "Silence Duration",
+            label = stringResource(R.string.setting_asr_configure_silence_duration),
         )
     }
 }
@@ -403,7 +403,7 @@ private fun MiMoASRConfiguration(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            label = "Segment Duration (s)",
+            label = stringResource(R.string.setting_asr_configure_segment_duration) + " (s)",
         )
     }
 }
@@ -489,7 +489,7 @@ private fun StepASRConfiguration(
                 }
             },
             modifier = Modifier.fillMaxWidth(),
-            label = "Segment Duration (s)",
+            label = stringResource(R.string.setting_asr_configure_segment_duration) + " (s)",
         )
     }
 
