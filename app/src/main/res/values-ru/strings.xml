@@ -3595,4 +3595,5 @@
   <string name="workspace_file_editor_source">Исходный код</string>
   <string name="accessibility_image">Изображение</string>
   <string name="diff_view_render_capped">… ещё %1$d строк (содержимое слишком длинное для разворачивания)</string>
+  <string name="tool_ui_edit_memory">Редактировать память</string>
 </resources>

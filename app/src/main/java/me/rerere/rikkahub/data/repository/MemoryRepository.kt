@@ -51,12 +51,24 @@ class MemoryRepository(private val memoryDAO: MemoryDAO) {
         memoryDAO.deleteMemoriesOfAssistant(assistantId)
     }
 
-    suspend fun updateContent(id: Int, content: String, tier: String = TIER_CORE): AssistantMemory {
+    suspend fun updateContent(id: Int, content: String, tier: String = TIER_CORE): AssistantMemory =
+        updateMemoryContent(id, content, tier)
+
+    /**
+     * 只改内容、**保留原有分层**（工具卡上就地编辑用）。
+     * ⚠ 不能走 [updateContent] 的默认 tier —— 那是 TIER_CORE，会把 conditional 记忆误升为 core。
+     */
+    suspend fun updateContentKeepingTier(id: Int, content: String): AssistantMemory =
+        updateMemoryContent(id, content, null)
+
+    /** tier 传 null = 保留记录原有分层。 */
+    private suspend fun updateMemoryContent(id: Int, content: String, tier: String?): AssistantMemory {
         val old = memoryDAO.getMemoryById(id) ?: error("Memory record #$id not found")
-        val newMemory = old.copy(
-            content = content,
-            tier = tier,
-        )
+        val newMemory =
+            old.copy(
+                content = content,
+                tier = tier ?: old.tier,
+            )
         memoryDAO.updateMemory(newMemory)
         return AssistantMemory(
             id = newMemory.id,

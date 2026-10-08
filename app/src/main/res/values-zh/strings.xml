@@ -3591,4 +3591,5 @@
   <string name="workspace_file_editor_source">源代码</string>
   <string name="accessibility_image">图片</string>
   <string name="diff_view_render_capped">… 还有 %1$d 行（内容过长，无法展开）</string>
+  <string name="tool_ui_edit_memory">编辑记忆</string>
 </resources>

@@ -21,6 +21,9 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -29,6 +32,9 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -80,7 +86,10 @@ import me.rerere.hugeicons.stroke.VolumeHigh
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.ui.hooks.EditStateContent
+import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.components.ui.FaviconRow
@@ -199,6 +208,15 @@ object MemoryToolUI : ToolUIRenderer {
         val memoryRepo: MemoryRepository = koinInject()
         val scope = rememberCoroutineScope()
         val memoryId = (context.content as? JsonObject)?.get("id")?.jsonPrimitiveOrNull?.intOrNull
+        // 就地编辑：工具卡正文是历史快照，改完用本地态显示新内容（否则看起来"没保存"）
+        var editedContent by remember(memoryId) { mutableStateOf<String?>(null) }
+        val editState =
+            useEditState<AssistantMemory> { updated ->
+                scope.launch {
+                    memoryRepo.updateContentKeepingTier(updated.id, updated.content)
+                    editedContent = updated.content
+                }
+            }
         Column(
             modifier =
                 Modifier
@@ -214,6 +232,21 @@ object MemoryToolUI : ToolUIRenderer {
             ) {
                 Text(title(context), style = MaterialTheme.typography.headlineSmall)
                 if (action(context) in listOf(ACTION_CREATE, ACTION_EDIT) && memoryId != null) {
+                    IconButton(
+                        onClick = {
+                            editState.open(
+                                AssistantMemory(
+                                    id = memoryId,
+                                    content = editedContent ?: context.content.getStringContent("content").orEmpty(),
+                                ),
+                            )
+                        },
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.PencilEdit01,
+                            contentDescription = stringResource(R.string.tool_ui_edit_memory),
+                        )
+                    }
                     IconButton(
                         onClick = {
                             scope.launch {
@@ -238,7 +271,7 @@ object MemoryToolUI : ToolUIRenderer {
                 )
                 list.forEach { item -> MemoryPreviewRow(item) }
             } else {
-                val body = context.content.getStringContent("content")
+                val body = editedContent ?: context.content.getStringContent("content")
                 if (body.isNullOrBlank()) {
                     Text(
                         text = stringResource(R.string.tool_ui_memory_empty),
@@ -255,6 +288,31 @@ object MemoryToolUI : ToolUIRenderer {
                     )
                 }
             }
+        }
+        editState.EditStateContent { memory, update ->
+            AlertDialog(
+                onDismissRequest = { editState.dismiss() },
+                title = { Text(stringResource(R.string.tool_ui_edit_memory)) },
+                text = {
+                    TextField(
+                        value = memory.content,
+                        onValueChange = { update(memory.copy(content = it)) },
+                        minLines = 3,
+                        maxLines = 10,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                },
+                confirmButton = {
+                    TextButton(onClick = { editState.confirm() }) {
+                        Text(stringResource(R.string.assistant_page_save))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { editState.dismiss() }) {
+                        Text(stringResource(R.string.assistant_page_cancel))
+                    }
+                },
+            )
         }
     }
 }

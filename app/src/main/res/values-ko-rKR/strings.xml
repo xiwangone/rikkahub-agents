@@ -3595,4 +3595,5 @@
   <string name="workspace_file_editor_source">소스</string>
   <string name="accessibility_image">이미지</string>
   <string name="diff_view_render_capped">… %1$d줄 더 있음 (내용이 너무 길어 펼칠 수 없음)</string>
+  <string name="tool_ui_edit_memory">메모리 편집</string>
 </resources>

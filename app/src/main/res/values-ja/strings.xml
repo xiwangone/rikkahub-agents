@@ -3595,4 +3595,5 @@
   <string name="workspace_file_editor_source">ソース</string>
   <string name="accessibility_image">画像</string>
   <string name="diff_view_render_capped">… さらに %1$d 行 （内容が長すぎて展開できません）</string>
+  <string name="tool_ui_edit_memory">メモリを編集</string>
 </resources>

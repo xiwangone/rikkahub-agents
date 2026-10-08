@@ -3594,4 +3594,5 @@
   <string name="workspace_file_editor_source">المصدر</string>
   <string name="accessibility_image">صورة</string>
   <string name="diff_view_render_capped">… %1$d سطرًا إضافيًا (المحتوى طويل جدًا للتوسيع)</string>
+  <string name="tool_ui_edit_memory">تحرير الذاكرة</string>
 </resources>
