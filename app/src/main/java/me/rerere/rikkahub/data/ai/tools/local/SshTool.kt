@@ -57,6 +57,15 @@ private const val SERVER_ALIVE_INTERVAL_MS = 30_000
 private const val SERVER_ALIVE_COUNT_MAX = 3
 
 /**
+ * 经跳板（Proxy）握手的总时长上限。JSch 在代理路径下**不会**设 socket 读超时：
+ * Session.connect 里 `socket = proxy.getSocket()` 之后仅当 `socket != null` 才
+ * `setSoTimeout(connectTimeout)`，而合法的 Proxy.getSocket() 返回 null（官方 ProxyCommand
+ * 同款）→ 网络切换/抖动时经隧道的握手会一直挂到对端关闭（可长达数分钟）。
+ * 看门狗到点关闭隧道，让挂住的读立即抛错、按既有逻辑（重新选网）重试。
+ */
+private const val JUMP_HANDSHAKE_TIMEOUT_MS = 20_000
+
+/**
  * Process-lifetime DNS cache shared by every SSH session-build path. 60s TTL — long enough
  * to spare a 15-minute-interval workflow a fresh lookup on every run, short enough that a
  * DHCP/DNS change is picked up quickly. Self-registers with NetworkChangeMonitor so a
@@ -538,6 +547,16 @@ internal class JumpTunnelProxy(
 }
 
 /**
+ * 重试前的重新选网：网络可能已切换（WiFi↔蜂窝），首次探测选出的 Network 可能已失效，
+ * 复用旧 Network 会让重试也失败。故重试前重新跑一次可达性探测（跳板场景探测跳板主机）。
+ */
+private fun probeNetworkForRetry(context: Context, jump: JumpSpec?, host: String, port: Int): Network? =
+    kotlinx.coroutines.runBlocking {
+        if (jump != null) probeReachability(context, jump.host, jump.port).winningNetwork
+        else probeReachability(context, host, port).winningNetwork
+    }
+
+/**
  * 建立到跳板主机的会话（用于 JumpTunnelProxy）。跳板自身的认证与 keepalive
  * 走与直连相同的 openSshSession 逻辑，network 绑定同一传输。
  */
@@ -921,11 +940,15 @@ internal suspend fun execOneShot(
             while (connected == null && attempt < 2) {
                 attempt++
                 try {
+                    // 每次尝试都重新选网：首次失败多为网络切换（WiFi↔蜂窝），复用旧 Network 会让
+                    // 重试仍绑在已失效的网络上（表现为长时间挂到对端关闭）。
+                    val net = if (attempt == 1) outcome.winningNetwork
+                    else probeNetworkForRetry(context, jump, host, port)
                     if (jump != null) {
                         // 连跳板
                         val jumpSession = openSshSession(
                             jsch, jump.host, jump.port, jump.user, jump.auth,
-                            timeoutMs, network = outcome.winningNetwork,
+                            timeoutMs, network = net,
                         )
                         // 隧道：目标 host:port 经跳板直达
                         tunnel = JumpTunnelProxy(jumpSession, host, port)
@@ -946,11 +969,36 @@ internal suspend fun execOneShot(
                         target.setProxy(tunnel)
                         connected = target
                     } else {
-                        connected = openSshSession(jsch, host, port, user, auth, timeoutMs, network = outcome.winningNetwork, extraOptions = extraOptions)
+                        connected = openSshSession(jsch, host, port, user, auth, timeoutMs, network = net, extraOptions = extraOptions)
                     }
                     if (connected != null) {
                         // 直连/跳板统一在此 connect（openSshSession 内部已连；跳板 target 需显式连）
-                        if (jump != null) connected.connect(timeoutMs)
+                        if (jump != null) {
+                            // 看门狗：见 JUMP_HANDSHAKE_TIMEOUT_MS 注释。到点关闭隧道 → 挂住的读立即
+                            // 抛错 → 进入重试（重试会重新选网），避免长时间干等。
+                            val handshakeDone = java.util.concurrent.atomic.AtomicBoolean(false)
+                            val watchdog = Thread {
+                                try {
+                                    Thread.sleep(JUMP_HANDSHAKE_TIMEOUT_MS.toLong())
+                                    if (!handshakeDone.get()) {
+                                        AppLog.w(
+                                            TAG_SSH,
+                                            "jump handshake watchdog fired after ${JUMP_HANDSHAKE_TIMEOUT_MS}ms, aborting tunnel",
+                                        )
+                                        tunnel?.close()
+                                    }
+                                } catch (_: InterruptedException) {
+                                }
+                            }
+                            watchdog.isDaemon = true
+                            watchdog.start()
+                            try {
+                                connected.connect(timeoutMs)
+                            } finally {
+                                handshakeDone.set(true)
+                                watchdog.interrupt()
+                            }
+                        }
                     }
                 } catch (e: Throwable) {
                     val retryable = !isAuthFailure(e.message) && !isHostKeyChange(e.message)
