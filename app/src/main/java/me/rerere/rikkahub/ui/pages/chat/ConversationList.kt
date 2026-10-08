@@ -385,6 +385,8 @@ private fun ConversationItem(
                 )
             }
             AnimatedVisibility(loading) {
+                // stringResource 是 @Composable，不能放进 Modifier.semantics{}（非组合上下文）→ 先取值
+                val loadingDescription = stringResource(R.string.accessibility_loading)
                 Box(
                     modifier =
                         Modifier
@@ -392,7 +394,7 @@ private fun ConversationItem(
                             .background(MaterialTheme.extendColors.green6)
                             .size(4.dp)
                             .semantics {
-                                contentDescription = stringResource(R.string.accessibility_loading)
+                                contentDescription = loadingDescription
                             },
                 )
             }
