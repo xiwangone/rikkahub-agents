@@ -135,6 +135,7 @@ import me.rerere.hugeicons.stroke.Refresh03
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Share01
 import me.rerere.hugeicons.stroke.Tools
+import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ai.ModelAbilityTag
 import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
@@ -651,7 +652,7 @@ private fun ModelList(
             }
         }
     }
-    // 拖动性能埋点：记录每格移动的处理耗时、相邻移动间隔、帧节奏、渲染细分与重组次数，停手后落 ReorderPerf 日志
+    // 拖动性能埋点（仅 debug 构建生效）：记录每格移动的处理耗时、相邻移动间隔、帧节奏、渲染细分与重组次数，停手后落 ReorderPerf 日志
     val activity = LocalActivity.current
     val reorderPerf = remember(activity) { ReorderPerfTracker(activity?.window) }
     DisposableEffect(reorderPerf) {
@@ -813,8 +814,10 @@ private fun ModelList(
                 }
             } else {
                 items(localModels, key = { it.id }) { item ->
-                    // 拖动性能埋点：统计本次拖动会话内的卡片重组次数（临时）
-                    SideEffect { ReorderRecomposeCounter.count++ }
+                    // 拖动性能埋点：统计本次拖动会话内的卡片重组次数（仅 debug 构建，release 不进入组合）
+                    if (reorderPerf.enabled) {
+                        SideEffect { ReorderRecomposeCounter.count++ }
+                    }
                     ReorderableItem(
                         state = reorderableLazyListState,
                         key = item.id,
@@ -2099,7 +2102,7 @@ private object ReorderRecomposeCounter {
 }
 
 /**
- * 拖动排序性能埋点（临时，用于定位“拖动不跟手”），一次拖动会话累计四类数据：
+ * 拖动排序性能埋点（用于定位“拖动不跟手”），一次拖动会话累计四类数据：
  * ① 移动统计：相邻移动间隔 gap（混了手速与主线程阻塞，只能同场景横向比）、单次处理耗时 handle。
  * ② 帧节奏：Choreographer 帧间隔（p50 直接暴露刷新周期、jank33/50 记掉帧）。
  * ③ 渲染细分：FrameMetrics —— sync=组合+测量+布局、draw=绘制指令录制、unknownDelay=帧开始前主线程被占、
@@ -2107,8 +2110,14 @@ private object ReorderRecomposeCounter {
  * ④ 重组次数：拖动列表 item 内 SideEffect 自增，反映“每格重排触发几次卡片重组”。
  * 判读：handleMaxUs 大 → onMove 本身重；syncP95／recompose 大 → 重组/布局重；
  * 帧节奏与 sync 都正常而体感仍卡 → 属“位移不跟手”，不是渲染开销。
+ *
+ * 埋点会在手势路径上同步读 /proc、/sys 并注册帧回调，因此 [enabled] 默认由 BuildConfig.DEBUG 门控：
+ * release 构建下 record/flush/dispose 立即返回，不启动会话、不落日志。
  */
-private class ReorderPerfTracker(private val window: Window? = null) {
+private class ReorderPerfTracker(
+    private val window: Window? = null,
+    val enabled: Boolean = BuildConfig.DEBUG,
+) {
     private var moves = 0
     private var gapSumMs = 0L
     private var gapMaxMs = 0L
@@ -2286,6 +2295,7 @@ private class ReorderPerfTracker(private val window: Window? = null) {
 
     /** 页面离开时兜底停表，避免监听器残留。 */
     fun dispose() {
+        if (!enabled) return
         moves = 0
         stopSession()
     }
@@ -2294,6 +2304,7 @@ private class ReorderPerfTracker(private val window: Window? = null) {
         if (sorted.isEmpty()) 0L else sorted[(sorted.size - 1) * p / 100]
 
     fun record(handleUs: Long) {
+        if (!enabled) return
         val now = System.currentTimeMillis()
         if (moves > 0 && now - lastAtMs > SESSION_GAP_MS) flush()
         if (moves == 0) {
@@ -2315,6 +2326,7 @@ private class ReorderPerfTracker(private val window: Window? = null) {
     }
 
     fun flush() {
+        if (!enabled) return
         if (moves == 0) return
         val n = moves
         val frames = frameGapsMs.sorted()

@@ -88,7 +88,11 @@ fun ImagePreviewDialog(
                         }
                     },
                 ) {
-                    Icon(HugeIcons.Download01, null, tint = Color.White)
+                    Icon(
+                        HugeIcons.Download01,
+                        context.getString(R.string.accessibility_save_image),
+                        tint = Color.White,
+                    )
                 }
             }
         }

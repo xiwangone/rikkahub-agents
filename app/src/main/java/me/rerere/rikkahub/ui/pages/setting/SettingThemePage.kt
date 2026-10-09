@@ -369,15 +369,15 @@ private fun CustomThemeItem(
         trailingContent = {
             Row {
                 IconButton(onClick = onExport) {
-                    Icon(HugeIcons.Copy01, null)
+                    Icon(HugeIcons.Copy01, stringResource(R.string.accessibility_export_theme))
                 }
                 IconButton(onClick = onEdit) {
-                    Icon(HugeIcons.Edit02, null)
+                    Icon(HugeIcons.Edit02, stringResource(R.string.setting_theme_page_edit_theme))
                 }
                 IconButton(onClick = onDelete) {
                     Icon(
                         HugeIcons.Delete02,
-                        null,
+                        stringResource(R.string.delete),
                         tint = MaterialTheme.colorScheme.error,
                     )
                 }

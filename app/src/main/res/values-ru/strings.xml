@@ -352,6 +352,9 @@
   <string name="chat_page_rename_chat">Переименовать</string>
   <string name="chat_page_save">Сохранить</string>
   <string name="chat_page_scroll_to_bottom">Прокрутить вниз</string>
+  <string name="chat_page_scroll_to_top">Прокрутить вверх</string>
+  <string name="chat_page_scroll_to_previous">Предыдущее сообщение</string>
+  <string name="chat_page_scroll_to_next">Следующее сообщение</string>
   <string name="chat_page_search_chats">Поиск чатов</string>
   <string name="chat_page_today">Сегодня</string>
   <string name="chat_page_yesterday">Вчера</string>
@@ -3594,6 +3597,12 @@
   <string name="tts_audio_format_label">Формат аудио</string>
   <string name="workspace_file_editor_source">Исходный код</string>
   <string name="accessibility_image">Изображение</string>
+  <string name="accessibility_save_image">Сохранить изображение</string>
+  <string name="accessibility_reset_balance_settings">Сбросить настройки баланса</string>
+  <string name="accessibility_import">Импорт</string>
+  <string name="accessibility_clear_logs">Очистить журналы</string>
+  <string name="accessibility_remove_tag">Удалить тег</string>
+  <string name="accessibility_export_theme">Экспортировать тему</string>
   <string name="diff_view_render_capped">… ещё %1$d строк (содержимое слишком длинное для разворачивания)</string>
   <string name="tool_ui_edit_memory">Редактировать память</string>
 </resources>

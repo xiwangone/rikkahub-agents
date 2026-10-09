@@ -412,7 +412,7 @@ private fun InputBar(
             IconButton(
                 onClick = onShowSettings,
             ) {
-                Icon(HugeIcons.Tools, null)
+                Icon(HugeIcons.Tools, stringResource(R.string.settings))
             }
 
             IconButton(

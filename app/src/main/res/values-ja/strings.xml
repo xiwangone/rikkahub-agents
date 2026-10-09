@@ -359,6 +359,9 @@
   <string name="chat_page_rename_chat">名前を変更</string>
   <string name="chat_page_save">保存</string>
   <string name="chat_page_scroll_to_bottom">一番下へスクロール</string>
+  <string name="chat_page_scroll_to_top">一番上へスクロール</string>
+  <string name="chat_page_scroll_to_previous">前のメッセージ</string>
+  <string name="chat_page_scroll_to_next">次のメッセージ</string>
   <string name="chat_page_search_chats">チャットを検索</string>
   <string name="chat_page_today">今日</string>
   <string name="chat_page_yesterday">昨日</string>
@@ -3594,6 +3597,12 @@
   <string name="tts_audio_format_label">オーディオ形式</string>
   <string name="workspace_file_editor_source">ソース</string>
   <string name="accessibility_image">画像</string>
+  <string name="accessibility_save_image">画像を保存</string>
+  <string name="accessibility_reset_balance_settings">残高設定をリセット</string>
+  <string name="accessibility_import">インポート</string>
+  <string name="accessibility_clear_logs">ログをクリア</string>
+  <string name="accessibility_remove_tag">タグを削除</string>
+  <string name="accessibility_export_theme">テーマをエクスポート</string>
   <string name="diff_view_render_capped">… さらに %1$d 行 （内容が長すぎて展開できません）</string>
   <string name="tool_ui_edit_memory">メモリを編集</string>
 </resources>

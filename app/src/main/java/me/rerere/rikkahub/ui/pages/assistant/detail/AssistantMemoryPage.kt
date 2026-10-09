@@ -371,7 +371,7 @@ private fun AssistantMemoryContent(
             ) {
                 Icon(
                     imageVector = HugeIcons.Add01,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.add),
                 )
             }
         }
@@ -456,7 +456,7 @@ private fun MemoryItem(
             IconButton(
                 onClick = { onEditMemory(memory) },
             ) {
-                Icon(HugeIcons.PencilEdit01, null)
+                Icon(HugeIcons.PencilEdit01, stringResource(R.string.edit))
             }
             IconButton(
                 onClick = { onDeleteMemory(memory) },

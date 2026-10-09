@@ -162,7 +162,10 @@ fun BackendProviderConfigure(
                 IconButton(onClick = { passwordVisible = !passwordVisible }) {
                     Icon(
                         if (passwordVisible) HugeIcons.ViewOff else HugeIcons.View,
-                        contentDescription = null,
+                        contentDescription = stringResource(
+                            if (passwordVisible) R.string.accessibility_hide_password
+                            else R.string.accessibility_show_password,
+                        ),
                     )
                 }
             },

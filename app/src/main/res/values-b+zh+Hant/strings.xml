@@ -349,6 +349,9 @@
   <string name="chat_page_rename_chat">重新命名</string>
   <string name="chat_page_save">保存</string>
   <string name="chat_page_scroll_to_bottom">滾動到底部</string>
+  <string name="chat_page_scroll_to_top">滾動到頂部</string>
+  <string name="chat_page_scroll_to_previous">上一則訊息</string>
+  <string name="chat_page_scroll_to_next">下一則訊息</string>
   <string name="chat_page_search_chats">搜尋聊天</string>
   <string name="chat_page_today">今天</string>
   <string name="chat_page_yesterday">昨天</string>
@@ -3593,6 +3596,12 @@
   <string name="tts_audio_format_label">音訊格式</string>
   <string name="workspace_file_editor_source">來源</string>
   <string name="accessibility_image">圖片</string>
+  <string name="accessibility_save_image">儲存圖片</string>
+  <string name="accessibility_reset_balance_settings">重設餘額設定</string>
+  <string name="accessibility_import">匯入</string>
+  <string name="accessibility_clear_logs">清空日誌</string>
+  <string name="accessibility_remove_tag">移除標籤</string>
+  <string name="accessibility_export_theme">匯出主題</string>
   <string name="diff_view_render_capped">… 尚有 %1$d 行（內容過長，無法展開）</string>
   <string name="tool_ui_edit_memory">編輯記憶</string>
 </resources>

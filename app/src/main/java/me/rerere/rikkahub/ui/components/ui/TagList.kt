@@ -62,7 +62,7 @@ fun TagsInput(
             }, selected = false, trailingIcon = {
                 Icon(
                     imageVector = HugeIcons.Cancel01,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.accessibility_remove_tag),
                     modifier =
                         Modifier
                             .size(16.dp)

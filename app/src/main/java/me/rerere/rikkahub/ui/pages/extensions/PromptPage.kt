@@ -282,7 +282,7 @@ private fun ModeInjectionTab(
                     .offset(y = -ScreenOffset),
             leadingContent = {
                 IconButton(onClick = { importer.importFromFile() }) {
-                    Icon(HugeIcons.FileImport, null)
+                    Icon(HugeIcons.FileImport, stringResource(R.string.accessibility_import))
                 }
             },
         ) {
@@ -722,7 +722,7 @@ private fun LorebookTab(
                     .offset(y = -ScreenOffset),
             leadingContent = {
                 IconButton(onClick = { importer.importFromFile() }) {
-                    Icon(HugeIcons.FileImport, null)
+                    Icon(HugeIcons.FileImport, stringResource(R.string.accessibility_import))
                 }
             },
         ) {

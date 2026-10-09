@@ -359,6 +359,9 @@
   <string name="chat_page_rename_chat">이름 변경</string>
   <string name="chat_page_save">저장</string>
   <string name="chat_page_scroll_to_bottom">맨 아래로 스크롤</string>
+  <string name="chat_page_scroll_to_top">맨 위로 스크롤</string>
+  <string name="chat_page_scroll_to_previous">이전 메시지</string>
+  <string name="chat_page_scroll_to_next">다음 메시지</string>
   <string name="chat_page_search_chats">채팅 검색</string>
   <string name="chat_page_today">오늘</string>
   <string name="chat_page_yesterday">어제</string>
@@ -3594,6 +3597,12 @@
   <string name="tts_audio_format_label">오디오 형식</string>
   <string name="workspace_file_editor_source">소스</string>
   <string name="accessibility_image">이미지</string>
+  <string name="accessibility_save_image">이미지 저장</string>
+  <string name="accessibility_reset_balance_settings">잔액 설정 재설정</string>
+  <string name="accessibility_import">가져오기</string>
+  <string name="accessibility_clear_logs">로그 지우기</string>
+  <string name="accessibility_remove_tag">태그 제거</string>
+  <string name="accessibility_export_theme">테마 내보내기</string>
   <string name="diff_view_render_capped">… %1$d줄 더 있음 (내용이 너무 길어 펼칠 수 없음)</string>
   <string name="tool_ui_edit_memory">메모리 편집</string>
 </resources>

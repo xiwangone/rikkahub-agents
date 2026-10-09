@@ -18,6 +18,7 @@ import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -75,7 +76,7 @@ fun ShareSheet(state: ShareSheetState) {
                             }
                         },
                     ) {
-                        Icon(HugeIcons.Share03, null)
+                        Icon(HugeIcons.Share03, stringResource(R.string.share))
                     }
                 }
 
@@ -132,4 +133,4 @@ class ShareSheetState {
 }
 
 @Composable
-fun rememberShareSheetState(): ShareSheetState = ShareSheetState()
+fun rememberShareSheetState(): ShareSheetState = remember { ShareSheetState() }

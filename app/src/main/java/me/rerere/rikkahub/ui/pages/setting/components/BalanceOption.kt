@@ -170,7 +170,7 @@ fun SettingProviderBalanceOption(
                         }
                     },
                 ) {
-                    Icon(HugeIcons.Refresh03, null)
+                    Icon(HugeIcons.Refresh03, stringResource(R.string.accessibility_reset_balance_settings))
                 }
             }
         }

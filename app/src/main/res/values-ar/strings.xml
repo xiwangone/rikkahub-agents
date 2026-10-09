@@ -468,6 +468,9 @@
   <string name="chat_page_rename_chat">إعادة تسمية</string>
   <string name="chat_page_save">حفظ</string>
   <string name="chat_page_scroll_to_bottom">التمرير إلى الأسفل</string>
+  <string name="chat_page_scroll_to_top">التمرير إلى الأعلى</string>
+  <string name="chat_page_scroll_to_previous">الرسالة السابقة</string>
+  <string name="chat_page_scroll_to_next">الرسالة التالية</string>
   <string name="chat_page_search_chats">البحث في الدردشات</string>
   <string name="chat_page_today">اليوم</string>
   <string name="chat_page_yesterday">أمس</string>
@@ -3593,6 +3596,12 @@
   <string name="tts_audio_format_label">تنسيق الصوت</string>
   <string name="workspace_file_editor_source">المصدر</string>
   <string name="accessibility_image">صورة</string>
+  <string name="accessibility_save_image">حفظ الصورة</string>
+  <string name="accessibility_reset_balance_settings">إعادة تعيين إعدادات الرصيد</string>
+  <string name="accessibility_import">استيراد</string>
+  <string name="accessibility_clear_logs">مسح السجلات</string>
+  <string name="accessibility_remove_tag">إزالة الوسم</string>
+  <string name="accessibility_export_theme">تصدير السمة</string>
   <string name="diff_view_render_capped">… %1$d سطرًا إضافيًا (المحتوى طويل جدًا للتوسيع)</string>
   <string name="tool_ui_edit_memory">تحرير الذاكرة</string>
 </resources>

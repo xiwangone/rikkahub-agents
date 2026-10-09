@@ -118,7 +118,10 @@ fun SecretRefField(
                     IconButton(onClick = { visible = !visible }) {
                         Icon(
                             imageVector = if (visible) HugeIcons.ViewOff else HugeIcons.View,
-                            contentDescription = null,
+                            contentDescription = stringResource(
+                                if (visible) R.string.accessibility_hide_password
+                                else R.string.accessibility_show_password,
+                            ),
                         )
                     }
                 }

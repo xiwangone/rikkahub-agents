@@ -323,7 +323,7 @@ private fun ImportProviderButton(onAdd: (ProviderSetting) -> Unit) {
             showImportDialog = true
         },
     ) {
-        Icon(HugeIcons.FileImport, null)
+        Icon(HugeIcons.FileImport, stringResource(R.string.accessibility_import))
     }
 
     if (showImportDialog) {

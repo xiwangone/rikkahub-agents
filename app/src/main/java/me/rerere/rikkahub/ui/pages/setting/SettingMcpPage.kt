@@ -178,14 +178,14 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                             showImportDialog = true
                         },
                     ) {
-                        Icon(HugeIcons.FileImport, null)
+                        Icon(HugeIcons.FileImport, stringResource(R.string.accessibility_import))
                     }
                     IconButton(
                         onClick = {
                             creationState.open(McpServerConfig.StreamableHTTPServer())
                         },
                     ) {
-                        Icon(HugeIcons.Add01, null)
+                        Icon(HugeIcons.Add01, stringResource(R.string.add))
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -591,14 +591,14 @@ private fun McpServerItem(
                         scope.launch { dismissBoxState.reset() }
                     },
                 ) {
-                    Icon(HugeIcons.Cancel01, null)
+                    Icon(HugeIcons.Cancel01, stringResource(R.string.cancel))
                 }
                 FilledTonalIconButton(
                     onClick = {
                         onDelete()
                     },
                 ) {
-                    Icon(HugeIcons.Delete01, null)
+                    Icon(HugeIcons.Delete01, stringResource(R.string.delete))
                 }
             }
         },

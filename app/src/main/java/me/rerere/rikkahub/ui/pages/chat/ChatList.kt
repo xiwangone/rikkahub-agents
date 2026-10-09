@@ -920,7 +920,7 @@ private fun BoxScope.MessageJumper(
             ) {
                 Icon(
                     imageVector = HugeIcons.ArrowUpDouble,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.chat_page_scroll_to_top),
                     modifier =
                         Modifier
                             .padding(4.dp),
@@ -946,7 +946,7 @@ private fun BoxScope.MessageJumper(
             ) {
                 Icon(
                     imageVector = HugeIcons.ArrowUp01,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.chat_page_scroll_to_previous),
                     modifier =
                         Modifier
                             .padding(4.dp),
@@ -967,7 +967,7 @@ private fun BoxScope.MessageJumper(
             ) {
                 Icon(
                     imageVector = HugeIcons.ArrowDown01,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.chat_page_scroll_to_next),
                     modifier =
                         Modifier
                             .padding(4.dp),

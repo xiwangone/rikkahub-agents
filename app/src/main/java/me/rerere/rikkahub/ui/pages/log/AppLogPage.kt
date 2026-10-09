@@ -126,7 +126,7 @@ fun AppLogPage(onBack: () -> Unit) {
                             logs = AppLog.getLogs()
                         },
                     ) {
-                        Icon(HugeIcons.Delete01, null)
+                        Icon(HugeIcons.Delete01, stringResource(R.string.accessibility_clear_logs))
                     }
                 },
                 scrollBehavior = scrollBehavior,

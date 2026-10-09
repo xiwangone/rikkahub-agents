@@ -448,6 +448,9 @@
   <string name="chat_page_rename_chat">Rename</string>
   <string name="chat_page_save">Save</string>
   <string name="chat_page_scroll_to_bottom">Scroll to bottom</string>
+  <string name="chat_page_scroll_to_top">Scroll to top</string>
+  <string name="chat_page_scroll_to_previous">Scroll to previous message</string>
+  <string name="chat_page_scroll_to_next">Scroll to next message</string>
   <string name="chat_page_search_chats">Search Chats</string>
   <string name="chat_page_today">Today</string>
   <string name="chat_page_yesterday">Yesterday</string>
@@ -2904,6 +2907,12 @@
   <string name="accessibility_copy_error_message">Copy error message</string>
   <string name="accessibility_qr_code_value">QR code: %1$s</string>
   <string name="accessibility_image">Image</string>
+  <string name="accessibility_save_image">Save image</string>
+  <string name="accessibility_reset_balance_settings">Reset balance settings</string>
+  <string name="accessibility_import">Import</string>
+  <string name="accessibility_clear_logs">Clear logs</string>
+  <string name="accessibility_remove_tag">Remove tag</string>
+  <string name="accessibility_export_theme">Export theme</string>
   <string name="setting_page_sub_agents">Sub-agent profiles</string>
   <string name="setting_page_sub_agents_desc">Named model + system prompt presets subagent_dispatch can dispatch to by name.</string>
   <string name="setting_sub_agents_page_title">Sub-agent profiles</string>
