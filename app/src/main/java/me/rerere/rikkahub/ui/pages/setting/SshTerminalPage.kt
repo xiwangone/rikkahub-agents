@@ -48,6 +48,7 @@ import me.rerere.rikkahub.data.ai.tools.local.SshAuth
  * 命令行式：连接保存的主机（Vault 凭证引用/明文兼容），输入命令 → exec 通道执行 → 显示输出。
  * 后续可升级为完整 TerminalView 交互终端。
  */
+@Suppress("LocalContextGetResourceValueCall") // 本文件只在 IO 协程里用 appContext.getString 拼日志文本，不参与组合期渲染（该规则针对的是组合期读资源）；若将来用于 UI 渲染应改用 stringResource
 @Composable
 fun SshTerminalPage(hostName: String) {
     val hostRepo: SshHostRepository = koinInject()
