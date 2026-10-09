@@ -21,6 +21,7 @@ import android.support.v4.media.session.PlaybackStateCompat
 import androidx.core.app.NotificationCompat
 import androidx.media.app.NotificationCompat.MediaStyle
 import androidx.media.session.MediaButtonReceiver
+import java.io.IOException
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
 
@@ -340,10 +341,14 @@ class MediaPlaybackService : Service() {
                 }
             mediaPlayer = mp
         } catch (e: IOException) {
-        } catch (e: IllegalStateException) {
             // Logged (was silently swallowed) so a "media won't play" report has a
             // diagnostic — typically a bad source URI / unsupported scheme from
             // setDataSource. Control flow is unchanged: error state, drop foreground, stop.
+            AppLog.w(TAG, "startPlayback failed for source=$source", e)
+            setPlaybackState(PlaybackStateCompat.STATE_ERROR, 0L)
+            stopForeground(STOP_FOREGROUND_DETACH)
+            stopSelf()
+        } catch (e: IllegalStateException) {
             AppLog.w(TAG, "startPlayback failed for source=$source", e)
             setPlaybackState(PlaybackStateCompat.STATE_ERROR, 0L)
             stopForeground(STOP_FOREGROUND_DETACH)
