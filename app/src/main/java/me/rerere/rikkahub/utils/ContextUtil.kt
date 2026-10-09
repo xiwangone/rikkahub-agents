@@ -24,6 +24,7 @@ import androidx.core.content.ContextCompat
 import androidx.core.net.toUri
 import java.io.File
 import java.io.FileOutputStream
+import java.io.IOException
 import java.io.OutputStream
 import me.rerere.rikkahub.data.log.AppLog
 
@@ -214,6 +215,8 @@ fun Context.exportImage(
         }
         AppLog.i(TAG, "Image saved successfully: $fileName")
     } catch (e: IOException) {
+        AppLog.e(TAG, "Failed to save image", e)
+        throw e
     } catch (e: IllegalStateException) {
         AppLog.e(TAG, "Failed to save image", e)
         throw e
@@ -272,6 +275,8 @@ fun Context.exportImageFile(
         }
         AppLog.i(TAG, "Image file saved successfully: $fileName")
     } catch (e: IOException) {
+        AppLog.e(TAG, "Failed to save image file", e)
+        throw e
     } catch (e: IllegalStateException) {
         AppLog.e(TAG, "Failed to save image file", e)
         throw e

@@ -5,6 +5,7 @@ import android.content.Context
 import android.os.Environment
 import android.widget.Toast
 import androidx.core.net.toUri
+import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -77,6 +78,7 @@ class UpdateChecker(
                                 throw Exception("Failed to fetch update info")
                             }
                         } catch (e: IOException) {
+                            throw Exception("Failed to fetch update info", e)
                         } catch (e: SerializationException) {
                             throw Exception("Failed to fetch update info", e)
                         },

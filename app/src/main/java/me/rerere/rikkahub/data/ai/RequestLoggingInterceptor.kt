@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai
 
+import java.io.IOException
 import me.rerere.common.android.LogEntry
 import me.rerere.common.android.Logging
 import me.rerere.rikkahub.utils.LogRedactor
