@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.ui
 
+import android.content.ActivityNotFoundException
 import android.content.Intent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -71,7 +72,7 @@ fun ShareSheet(state: ShareSheetState) {
                             )
                             try {
                                 context.startActivity(Intent.createChooser(intent, null))
-                            } catch (e: Exception) {
+                            } catch (e: ActivityNotFoundException) {
                                 e.printStackTrace()
                             }
                         },

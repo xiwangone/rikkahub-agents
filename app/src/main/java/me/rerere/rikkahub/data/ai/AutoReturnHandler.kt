@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
@@ -52,10 +53,11 @@ internal class AutoReturnHandler(
         intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_REORDER_TO_FRONT)
         try {
             context.startActivity(intent)
-        } catch (e: Exception) {
-            // startActivity throws ActivityNotFoundException / SecurityException —
-            // both Exception. Catching Throwable here would also swallow JVM errors
-            // (OOM, StackOverflowError); let those propagate.
+        } catch (e: ActivityNotFoundException) {
+            // startActivity 的文档化异常面即 ActivityNotFoundException / SecurityException，
+            // 分别收窄捕获；其余 JVM Error（OOM 等）不在此列，照常向上传播。
+            AppLog.w(TAG, "auto-return launch failed", e)
+        } catch (e: SecurityException) {
             AppLog.w(TAG, "auto-return launch failed", e)
         }
     }

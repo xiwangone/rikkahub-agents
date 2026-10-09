@@ -176,9 +176,13 @@ fun String.replaceRegexes(
                     regex = compiled,
                     replacement = regex.replaceString,
                 )
-            } catch (e: Exception) {
+            } catch (e: IndexOutOfBoundsException) {
                 e.printStackTrace()
                 // 替换字符串可能引用不存在的分组，失败时返回原字符串
+                acc
+            } catch (e: IllegalArgumentException) {
+                e.printStackTrace()
+                // 替换字符串可能含非法转义（如结尾裸 \），失败时返回原字符串
                 acc
             }
         } else {

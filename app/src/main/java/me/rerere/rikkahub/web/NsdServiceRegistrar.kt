@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.wifi.WifiManager
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import java.net.InetAddress
 import javax.jmdns.JmDNS
 import javax.jmdns.ServiceInfo
@@ -132,7 +133,12 @@ class NsdServiceRegistrar(
                 (ipInt shr 24 and 0xff).toByte()
             )
             InetAddress.getByAddress(ipBytes)
-        } catch (e: Exception) {
+        } catch (e: IOException) {
+            // InetAddress.getByAddress 抛 UnknownHostException（IOException 子类）
+            AppLog.e(TAG, "Failed to get local IP address", e)
+            null
+        } catch (e: SecurityException) {
+            // WifiManager.connectionInfo 文档化异常：缺 ACCESS_WIFI_STATE 权限时抛 SecurityException
             AppLog.e(TAG, "Failed to get local IP address", e)
             null
         }

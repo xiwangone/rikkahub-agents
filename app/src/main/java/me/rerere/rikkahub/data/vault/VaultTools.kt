@@ -1430,7 +1430,8 @@ private fun readPgpPayload(o: kotlinx.serialization.json.JsonObject): Result<Byt
         fileRaw != null ->
             try {
                 Result.success(java.io.File(fileRaw).readBytes())
-            } catch (e: Exception) {
+            } catch (e: java.io.IOException) {
+                // File.readBytes 仅声明 IOException（FileNotFoundException 为其子类）
                 Result.failure(IllegalArgumentException("读文件失败（$fileRaw）: ${e.message}"))
             }
         else ->

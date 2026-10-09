@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import com.jcraft.jsch.JSchException
 import me.rerere.rikkahub.data.log.AppLog
 
 import me.rerere.rikkahub.data.vault.ensureTrailingNewline
@@ -28,6 +29,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.io.IOException
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -86,7 +88,9 @@ fun SshTerminalPage(hostName: String) {
                 connected = true
                 output = appContext.getString(R.string.ssh_terminal_connected, host.user, host.host, host.port)
                 AppLog.i("SshTerm", "connected ${host.user}@${host.host}:${host.port}")
-            } catch (e: Exception) {
+            } catch (e: JSchException) {
+                // getSession/addIdentity/connect 均只声明 JSchException（IO/认证错误被 JSch 包装为 JSchException）；
+                // 收窄后 CancellationException 不再被吞（LaunchedEffect 取消可正常传播）
                 connectError = appContext.getString(R.string.ssh_terminal_connect_failed, e.message)
                 AppLog.w("SshTerm", "connect failed: ${e.message}")
             }
@@ -121,7 +125,10 @@ fun SshTerminalPage(hostName: String) {
                     if (stderr.isNotEmpty()) output += "stderr: $stderr\n"
                     output += "exit=${ch.exitStatus}\n"
                     ch.disconnect()
-                } catch (e: Exception) {
+                } catch (e: JSchException) {
+                    // openChannel/ch.connect 只声明 JSchException；流读取只声明 IOException
+                    output += appContext.getString(R.string.ssh_terminal_exec_failed, e.message)
+                } catch (e: IOException) {
                     output += appContext.getString(R.string.ssh_terminal_exec_failed, e.message)
                 }
             }

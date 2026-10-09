@@ -84,7 +84,8 @@ fun buildMemoryTools(
                                 add(buildJsonObject {
                                     put("id", m.id)
                                     put("tier", m.tier)
-                                    put("content", m.content)
+                                    // 截断到 80 字:列表摘要 UI 只显示 90 字,全量会撑爆 tool 结果(>16K 被截断存文件,渲染器解析不出)
+                                    put("content", m.content.take(80) + if (m.content.length > 80) "…" else "")
                                 })
                             }
                         })
@@ -143,7 +144,7 @@ fun buildMemoryTools(
                         add(buildJsonObject {
                             put("id", m.id)
                             put("tier", m.tier)
-                            put("content", m.content)
+                            put("content", m.content.take(80) + if (m.content.length > 80) "…" else "")
                         })
                     }
                 })

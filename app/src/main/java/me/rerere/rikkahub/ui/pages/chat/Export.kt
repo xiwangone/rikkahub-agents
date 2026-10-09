@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.chat
 
+import android.content.ActivityNotFoundException
 import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
@@ -115,6 +116,7 @@ import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 import me.rerere.rikkahub.utils.toLocalString
 import org.koin.compose.koinInject
 import java.io.FileOutputStream
+import java.io.IOException
 import java.time.LocalDateTime
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.DurationUnit
@@ -451,7 +453,13 @@ private fun exportToMarkdown(
                 file,
             )
         shareFile(context, uri, "text/markdown")
-    } catch (e: Exception) {
+    } catch (e: IOException) {
+        // try 块异常面：文件读写 IOException、FileProvider.getUriForFile 抛
+        // IllegalArgumentException、shareFile 内 startActivity 抛 ActivityNotFoundException
+        e.printStackTrace()
+    } catch (e: IllegalArgumentException) {
+        e.printStackTrace()
+    } catch (e: ActivityNotFoundException) {
         e.printStackTrace()
     }
 }
@@ -1044,7 +1052,14 @@ fun exportToJson(
                 file,
             )
         shareFile(context, uri, "application/json")
-    } catch (e: Exception) {
+    } catch (e: IOException) {
+        // try 块异常面：文件读写 IOException、encodeToString 抛 SerializationException 与
+        // FileProvider.getUriForFile 抛 IllegalArgumentException（前者是后者子类）、
+        // shareFile 内 startActivity 抛 ActivityNotFoundException
+        e.printStackTrace()
+    } catch (e: IllegalArgumentException) {
+        e.printStackTrace()
+    } catch (e: ActivityNotFoundException) {
         e.printStackTrace()
     }
 }

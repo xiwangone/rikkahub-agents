@@ -62,6 +62,7 @@ import androidx.core.graphics.ColorUtils
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.launch
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import me.rerere.hugeicons.HugeIcons
@@ -543,7 +544,8 @@ private fun ImportThemeDialog(
                     try {
                         val theme = themeJson.decodeFromString<CustomTheme>(jsonText)
                         onImport(theme)
-                    } catch (e: Exception) {
+                    } catch (e: SerializationException) {
+                        // Json.decodeFromString 对非法输入仅抛 SerializationException（含 JsonDecodingException/MissingFieldException）
                         errorMessage = e.message
                     }
                 },

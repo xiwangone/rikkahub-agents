@@ -22,6 +22,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -202,7 +203,8 @@ fun CustomBodies(
                                             updatedBodies[index].copy(value = newJsonValue)
                                         onUpdate(updatedBodies)
                                         jsonParseError = null
-                                    } catch (e: Exception) {
+                                    } catch (e: SerializationException) {
+                                        // parseToJsonElement 对非法 JSON 仅抛 SerializationException（JsonDecodingException 为其子类）
                                         jsonParseError =
                                             context.getString(
                                                 R.string.assistant_page_invalid_json,

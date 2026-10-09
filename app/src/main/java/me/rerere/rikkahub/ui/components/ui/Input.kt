@@ -40,7 +40,9 @@ fun <T : Number> OutlinedNumberInput(
                             else -> throw IllegalArgumentException("Unsupported number type")
                         }
                     onValueChange(newVal)
-                } catch (e: Exception) {
+                } catch (e: IllegalArgumentException) {
+                    // toInt/toFloat/toDouble 抛 NumberFormatException（IllegalArgumentException 子类），
+                    // else 分支显式抛 IllegalArgumentException，两者都被此 catch 覆盖
                     e.printStackTrace()
                 }
             }
@@ -77,7 +79,9 @@ fun <T : Number> NumberInput(
                             else -> throw IllegalArgumentException("Unsupported number type")
                         }
                     onValueChange(newVal)
-                } catch (e: Exception) {
+                } catch (e: IllegalArgumentException) {
+                    // toInt/toFloat/toDouble 抛 NumberFormatException（IllegalArgumentException 子类），
+                    // else 分支显式抛 IllegalArgumentException，两者都被此 catch 覆盖
                     e.printStackTrace()
                 }
             }

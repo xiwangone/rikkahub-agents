@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.richtext
 
+import android.content.ActivityNotFoundException
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
@@ -65,7 +66,8 @@ fun SimpleHtmlBlock(
                 onLinkClick = { url ->
                     try {
                         uriHandler.openUri(url)
-                    } catch (e: Exception) {
+                    } catch (e: ActivityNotFoundException) {
+                        // UriHandler.openUri 契约：无法处理时抛 ActivityNotFoundException
                         AppLog.e(TAG, "SimpleHtmlBlock: failed to open link: $url", e)
                     }
                 },

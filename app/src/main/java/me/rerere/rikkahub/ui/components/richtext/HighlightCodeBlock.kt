@@ -83,6 +83,7 @@ import me.rerere.rikkahub.ui.theme.AtomOneLightPalette
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.toDp
+import java.io.IOException
 import kotlin.time.Clock
 import me.rerere.rikkahub.data.log.AppLog
 
@@ -176,7 +177,8 @@ fun HighlightCodeBlock(
                         context.contentResolver.openOutputStream(it, "wt")?.use { outputStream ->
                             outputStream.write(code.toByteArray(Charsets.UTF_8))
                         }
-                    } catch (e: Exception) {
+                    } catch (e: IOException) {
+                        // openOutputStream/write 仅声明 IOException；收窄后 CancellationException 不再被吞
                         AppLog.e(TAG, "HighlightCodeBlock: failed to save code to document", e)
                     }
                 }

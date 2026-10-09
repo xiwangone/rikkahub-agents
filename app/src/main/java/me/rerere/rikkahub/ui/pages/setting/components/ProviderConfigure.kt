@@ -88,6 +88,7 @@ import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.io.FileOutputStream
+import java.io.IOException
 import kotlin.reflect.KClass
 
 @Composable
@@ -867,7 +868,12 @@ private fun ProviderConfigureGoogle(
                     ),
                 )
                 toaster.show(toastServiceImported, type = ToastType.Success)
-            } catch (e: Exception) {
+            } catch (e: IOException) {
+                // openInputStream/readText 仅声明 IOException（FileNotFoundException 为其子类）
+                toaster.show(toastImportFailed + e.message, type = ToastType.Error)
+            } catch (e: IllegalArgumentException) {
+                // Json.parseToJsonElement 抛 SerializationException、jsonObject/jsonPrimitive 访问器抛
+                // IllegalArgumentException，前者是后者子类，此 catch 全覆盖
                 toaster.show(toastImportFailed + e.message, type = ToastType.Error)
             }
         }

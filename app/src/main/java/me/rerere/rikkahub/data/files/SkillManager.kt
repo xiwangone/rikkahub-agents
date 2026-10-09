@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.files
 
 import android.content.Context
 import java.io.File
+import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -278,7 +279,8 @@ class SkillManager(
 
             backupDir?.deleteRecursively()
             return true
-        } catch (e: Exception) {
+        } catch (e: IOException) {
+            // try 块内全部为 java.io 文件操作（writeBytes/renameTo/deleteRecursively），仅声明 IOException
             AppLog.w(TAG, "saveSkillFilesAtomically: Failed to save $skillName", e)
             if (backupDir != null && !targetDir.exists()) {
                 backupDir.renameTo(targetDir)
@@ -316,7 +318,8 @@ class SkillManager(
         }.getOrDefault(emptySet())
         val skillNames = try {
             assetMgr.list(assetRoot).orEmpty()
-        } catch (e: Exception) {
+        } catch (e: IOException) {
+            // AssetManager.list 仅声明 IOException
             AppLog.w(TAG, "seedDefaultSkillsIfNeeded: cannot list assets", e)
             return
         }
@@ -349,7 +352,8 @@ class SkillManager(
                     sentinel.writeText(System.currentTimeMillis().toString())
                     coreVersionFile.writeText(bundledHash)
                     AppLog.i(TAG, "seedDefaultSkillsIfNeeded: re-seeded core skill $skillName (hash=$bundledHash)")
-                } catch (e: Exception) {
+                } catch (e: IOException) {
+                    // deleteRecursively/copyAssetSkill(assets 拷贝)/writeText 仅声明 IOException
                     AppLog.w(TAG, "seedDefaultSkillsIfNeeded: failed to re-seed core skill $skillName", e)
                 }
                 continue
@@ -366,7 +370,8 @@ class SkillManager(
                 copyAssetSkill(assetRoot, skillName, targetDir)
                 sentinel.writeText(System.currentTimeMillis().toString())
                 AppLog.i(TAG, "seedDefaultSkillsIfNeeded: seeded $skillName")
-            } catch (e: Exception) {
+            } catch (e: IOException) {
+                // copyAssetSkill(assets 拷贝)/writeText 仅声明 IOException
                 AppLog.w(TAG, "seedDefaultSkillsIfNeeded: failed to seed $skillName", e)
             }
         }

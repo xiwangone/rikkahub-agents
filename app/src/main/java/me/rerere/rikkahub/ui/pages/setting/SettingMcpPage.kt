@@ -1488,7 +1488,10 @@ private fun McpImportModal(
                             } else {
                                 onImport(configs)
                             }
-                        } catch (e: Exception) {
+                        } catch (e: IllegalArgumentException) {
+                            // parseMcpServersFromJson 仅经 kotlinx JSON 访问器失败：
+                            // parseToJsonElement 抛 SerializationException、jsonObject/jsonPrimitive 抛
+                            // IllegalArgumentException，前者是后者子类，单一 catch 即全覆盖
                             errorMessage = parseErrorMsg.format(e.message ?: "")
                         }
                     },

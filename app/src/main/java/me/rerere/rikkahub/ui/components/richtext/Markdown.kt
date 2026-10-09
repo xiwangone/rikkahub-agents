@@ -111,6 +111,7 @@ import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
 import org.intellij.markdown.parser.MarkdownParser
+import java.io.IOException
 import kotlin.time.Clock
 import android.os.SystemClock
 import me.rerere.rikkahub.R
@@ -1025,7 +1026,8 @@ private fun TableNode(
                         context.contentResolver.openOutputStream(it)?.use { outputStream ->
                             outputStream.write(tableCsv.toByteArray())
                         }
-                    } catch (e: Exception) {
+                    } catch (e: IOException) {
+                        // openOutputStream/write 仅声明 IOException；收窄后 CancellationException 不再被吞
                         e.printStackTrace()
                     }
                 }
