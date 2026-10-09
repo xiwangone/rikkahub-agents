@@ -101,7 +101,7 @@ fun TextArea(
                             }
                         state.setTextAndPlaceCursorAtEnd(content)
                         toaster.show(context.getString(R.string.text_area_import_success), type = ToastType.Success)
-                    } catch (e: Exception) {
+                    } catch (e: IOException) {
                         e.printStackTrace()
                         val errorMessage = e.message ?: context.getString(R.string.text_area_import_failed)
                         onImportError?.invoke(errorMessage) ?: toaster.show(

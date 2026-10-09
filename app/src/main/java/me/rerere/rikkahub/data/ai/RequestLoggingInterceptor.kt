@@ -51,7 +51,7 @@ class RequestLoggingInterceptor : Interceptor {
 
         try {
             response = chain.proceed(request)
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             error = e.message
             Logging.logRequest(
                 LogEntry.RequestLog(

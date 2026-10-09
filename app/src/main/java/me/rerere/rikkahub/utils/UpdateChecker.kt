@@ -21,6 +21,7 @@ import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import kotlinx.serialization.SerializationException
 
 class UpdateChecker(
     private val client: OkHttpClient,
@@ -75,7 +76,8 @@ class UpdateChecker(
                             } else {
                                 throw Exception("Failed to fetch update info")
                             }
-                        } catch (e: Exception) {
+                        } catch (e: IOException) {
+                        } catch (e: SerializationException) {
                             throw Exception("Failed to fetch update info", e)
                         },
                 ),

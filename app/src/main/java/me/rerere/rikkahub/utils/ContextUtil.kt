@@ -213,7 +213,8 @@ fun Context.exportImage(
             sendBroadcast(mediaScanIntent)
         }
         AppLog.i(TAG, "Image saved successfully: $fileName")
-    } catch (e: Exception) {
+    } catch (e: IOException) {
+    } catch (e: IllegalStateException) {
         AppLog.e(TAG, "Failed to save image", e)
         throw e
     } finally {
@@ -270,7 +271,8 @@ fun Context.exportImageFile(
             sendBroadcast(mediaScanIntent)
         }
         AppLog.i(TAG, "Image file saved successfully: $fileName")
-    } catch (e: Exception) {
+    } catch (e: IOException) {
+    } catch (e: IllegalStateException) {
         AppLog.e(TAG, "Failed to save image file", e)
         throw e
     } finally {

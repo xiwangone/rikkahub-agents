@@ -118,7 +118,7 @@ class LocalMcpServerService : Service() {
                 startForeground(NOTIFICATION_ID, buildStartingNotification())
             }
             true
-        } catch (e: Exception) {
+        } catch (e: SecurityException) {
             AppLog.e(TAG, "Failed to start foreground service", e)
             false
         }

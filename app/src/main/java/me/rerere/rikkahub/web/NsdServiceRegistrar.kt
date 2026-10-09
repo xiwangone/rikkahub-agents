@@ -81,7 +81,7 @@ class NsdServiceRegistrar(
                     address = address
                 )
             )
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             AppLog.e(TAG, "Failed to register service", e)
             cleanup()
         }

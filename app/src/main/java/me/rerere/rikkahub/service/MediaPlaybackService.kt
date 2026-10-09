@@ -339,7 +339,8 @@ class MediaPlaybackService : Service() {
                     prepareAsync()
                 }
             mediaPlayer = mp
-        } catch (e: Exception) {
+        } catch (e: IOException) {
+        } catch (e: IllegalStateException) {
             // Logged (was silently swallowed) so a "media won't play" report has a
             // diagnostic — typically a bad source URI / unsupported scheme from
             // setDataSource. Control flow is unchanged: error state, drop foreground, stop.

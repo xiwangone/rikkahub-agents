@@ -7,6 +7,7 @@ import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.db.DatabaseMigrationTracker
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.data.log.AppLog
+import kotlinx.serialization.SerializationException
 
 private const val TAG = "Migration_6_7"
 
@@ -70,7 +71,7 @@ val Migration_6_7 = object : Migration(6, 7) {
                             truncateIndex
                         )
                     )
-                } catch (e: Exception) {
+                } catch (e: SerializationException) {
                     // Parsing failed — old format corrupt or already new format.
                     // Preserve the row as an empty node list rather than aborting the
                     // entire migration (which would leave the user permanently bricked).
