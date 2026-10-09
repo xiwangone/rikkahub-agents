@@ -241,27 +241,8 @@ class MediaPlaybackService : Service() {
         currentSource = source
 
         // Resolve metadata — explicit args win; fall back to MediaMetadataRetriever
-        var resolvedTitle = title
-        var resolvedArtist = artist
-        var resolvedAlbum = album
-        if (resolvedTitle == null || resolvedArtist == null || resolvedAlbum == null) {
-            try {
-                MediaMetadataRetriever().use { retriever ->
-                    retriever.setDataSource(source)
-                    if (resolvedTitle == null) {
-                        resolvedTitle = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
-                    }
-                    if (resolvedArtist == null) {
-                        resolvedArtist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-                    }
-                    if (resolvedAlbum == null) {
-                        resolvedAlbum = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
-                    }
-                }
-            } catch (t: Throwable) {
-                AppLog.d(TAG, "metadata extraction failed (best-effort)", t)
-            }
-        }
+        val (resolvedTitle, resolvedArtist, resolvedAlbum) =
+            resolveMetadata(source = source, title = title, artist = artist, album = album)
 
         currentTitle = resolvedTitle
         currentArtist = resolvedArtist
@@ -341,19 +322,56 @@ class MediaPlaybackService : Service() {
                 }
             mediaPlayer = mp
         } catch (e: IOException) {
-            // Logged (was silently swallowed) so a "media won't play" report has a
-            // diagnostic — typically a bad source URI / unsupported scheme from
-            // setDataSource. Control flow is unchanged: error state, drop foreground, stop.
-            AppLog.w(TAG, "startPlayback failed for source=$source", e)
-            setPlaybackState(PlaybackStateCompat.STATE_ERROR, 0L)
-            stopForeground(STOP_FOREGROUND_DETACH)
-            stopSelf()
+            onStartPlaybackFailure(source, e)
         } catch (e: IllegalStateException) {
-            AppLog.w(TAG, "startPlayback failed for source=$source", e)
-            setPlaybackState(PlaybackStateCompat.STATE_ERROR, 0L)
-            stopForeground(STOP_FOREGROUND_DETACH)
-            stopSelf()
+            onStartPlaybackFailure(source, e)
         }
+    }
+
+    /**
+     * Best-effort failure handling for [startPlayback]. Logged (was silently swallowed) so a
+     * "media won't play" report has a diagnostic — typically a bad source URI / unsupported
+     * scheme from setDataSource. Control flow is unchanged: error state, drop foreground, stop.
+     */
+    private fun onStartPlaybackFailure(source: String, e: Exception) {
+        AppLog.w(TAG, "startPlayback failed for source=$source", e)
+        setPlaybackState(PlaybackStateCompat.STATE_ERROR, 0L)
+        stopForeground(STOP_FOREGROUND_DETACH)
+        stopSelf()
+    }
+
+    /**
+     * Best-effort metadata resolution: explicit args win, missing ones fall back to
+     * [MediaMetadataRetriever]. Failures are swallowed **on purpose** — metadata is cosmetic
+     * and must never break playback (hence the TooGenericExceptionCaught suppression).
+     */
+    @Suppress("TooGenericExceptionCaught")
+    private fun resolveMetadata(
+        source: String,
+        title: String?,
+        artist: String?,
+        album: String?,
+    ): Triple<String?, String?, String?> {
+        var t = title
+        var a = artist
+        var al = album
+        try {
+            MediaMetadataRetriever().use { retriever ->
+                retriever.setDataSource(source)
+                if (t == null) {
+                    t = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
+                }
+                if (a == null) {
+                    a = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
+                }
+                if (al == null) {
+                    al = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
+                }
+            }
+        } catch (e: Throwable) {
+            AppLog.d(TAG, "metadata extraction failed (best-effort)", e)
+        }
+        return Triple(t, a, al)
     }
 
     private fun resumePlayback() {

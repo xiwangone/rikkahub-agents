@@ -161,6 +161,7 @@ private fun compileRegexCached(pattern: String): Regex? {
     return result.getOrNull()
 }
 
+@Suppress("TooGenericExceptionCaught") // String.replace 对不存在的分组引用只抛 IndexOutOfBoundsException，属有意兜底（detekt 默认把它归入过宽类型）
 fun String.replaceRegexes(
     assistant: Assistant?,
     scope: AssistantAffectScope,

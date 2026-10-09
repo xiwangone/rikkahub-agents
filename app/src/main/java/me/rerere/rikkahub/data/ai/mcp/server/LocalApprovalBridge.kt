@@ -165,7 +165,7 @@ class LocalApprovalBridge(private val context: Context) {
                 val raw = v.jsonPrimitive.contentOrNull ?: v.toString()
                 "$k=${raw.take(40)}"
             } ?: input.toString().take(200)
-        } catch (e: IllegalArgumentException) {
+        } catch (_: IllegalArgumentException) {
             // jsonPrimitive 对非 JsonPrimitive 元素抛 IllegalArgumentException，是 try 块唯一异常源
             input.toString().take(200)
         }
