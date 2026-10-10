@@ -3605,4 +3605,6 @@
   <string name="accessibility_export_theme">テーマをエクスポート</string>
   <string name="diff_view_render_capped">… さらに %1$d 行 （内容が長すぎて展開できません）</string>
   <string name="tool_ui_edit_memory">メモリを編集</string>
+  <string name="vault_rename_sync_failed">参照の同期に失敗しました。古い資格情報と新しい資格情報の両方が保持されますが、一部の参照は部分的にしか更新されない可能性があります。古い資格情報を削除する前に確認してください。%1$s</string>
+  <string name="vault_rename_target_exists">この名前の資格情報は既に存在します。ターゲットは上書きされず、ソースも削除されませんでした。</string>
 </resources>

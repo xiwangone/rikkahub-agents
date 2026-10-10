@@ -3605,4 +3605,6 @@
   <string name="accessibility_export_theme">Экспортировать тему</string>
   <string name="diff_view_render_capped">… ещё %1$d строк (содержимое слишком длинное для разворачивания)</string>
   <string name="tool_ui_edit_memory">Редактировать память</string>
+  <string name="vault_rename_sync_failed">Не удалось синхронизировать ссылки. И старые, и новые учётные данные сохранены, но некоторые ссылки могут быть обновлены лишь частично. Пожалуйста, проверьте перед удалением старых учётных данных.%1$s</string>
+  <string name="vault_rename_target_exists">Учётные данные с таким именем уже существуют. Целевые данные не были перезаписаны, а исходные не были удалены.</string>
 </resources>

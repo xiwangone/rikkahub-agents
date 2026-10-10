@@ -3604,4 +3604,6 @@
   <string name="accessibility_export_theme">匯出主題</string>
   <string name="diff_view_render_capped">… 尚有 %1$d 行（內容過長，無法展開）</string>
   <string name="tool_ui_edit_memory">編輯記憶</string>
+  <string name="vault_rename_sync_failed">參考同步失敗。舊憑證與新憑證均會保留，但部分參考可能僅部分更新。移除舊憑證前請先檢查。%1$s</string>
+  <string name="vault_rename_target_exists">已存在同名憑證。目標未被覆寫，來源亦未被刪除。</string>
 </resources>

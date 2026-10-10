@@ -3601,4 +3601,6 @@
   <string name="accessibility_export_theme">导出主题</string>
   <string name="diff_view_render_capped">… 还有 %1$d 行（内容过长，无法展开）</string>
   <string name="tool_ui_edit_memory">编辑记忆</string>
+  <string name="vault_rename_sync_failed">引用同步失败。旧凭据和新凭据均被保留，但部分引用可能仅被部分更新。请在删除旧凭据前进行审查。%1$s</string>
+  <string name="vault_rename_target_exists">已存在同名凭据。目标未被覆盖，源凭据未被删除。</string>
 </resources>

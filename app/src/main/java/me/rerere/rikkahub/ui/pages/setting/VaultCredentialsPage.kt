@@ -365,7 +365,7 @@ fun VaultCredentialsPage() {
                             if (repository.getByName(name) != null) {
                                 android.widget.Toast.makeText(
                                     context,
-                                    "目标凭证名称已存在；未覆盖目标或删除源凭证。",
+                                    context.getString(R.string.vault_rename_target_exists),
                                     android.widget.Toast.LENGTH_LONG,
                                 ).show()
                                 return@launch
@@ -390,7 +390,10 @@ fun VaultCredentialsPage() {
                                 if (syncError is kotlinx.coroutines.CancellationException) throw syncError
                                 android.widget.Toast.makeText(
                                     context,
-                                    "引用同步失败；新旧凭证均保留，引用可能部分更新。请核对后再清理旧凭证。${syncError.message?.let { " ($it)" }.orEmpty()}",
+                                    context.getString(
+                                        R.string.vault_rename_sync_failed,
+                                        syncError.message?.let { " ($it)" }.orEmpty(),
+                                    ),
                                     android.widget.Toast.LENGTH_LONG,
                                 ).show()
                                 return@launch

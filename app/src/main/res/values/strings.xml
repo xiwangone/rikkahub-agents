@@ -3577,6 +3577,8 @@
   <string name="vault_meta_custom_dup_hint">Duplicate hint</string>
   <string name="vault_meta_custom_pub_archive">Public key archive</string>
     <string name="vault_type_filter_all">All</string>
+    <string name="vault_rename_target_exists">A credential with this name already exists. The target was not overwritten and the source was not deleted.</string>
+    <string name="vault_rename_sync_failed">Reference sync failed. Both the old and the new credential are kept, but some references may be updated only partially. Please review before removing the old credential.%1$s</string>
   <string name="setting_page_usage_stats">Usage Statistics</string>
   <string name="setting_page_usage_stats_desc">Usage and cost by provider and model</string>
   <string name="usage_stats_range_today">Today</string>

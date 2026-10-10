@@ -3604,4 +3604,6 @@
   <string name="accessibility_export_theme">تصدير السمة</string>
   <string name="diff_view_render_capped">… %1$d سطرًا إضافيًا (المحتوى طويل جدًا للتوسيع)</string>
   <string name="tool_ui_edit_memory">تحرير الذاكرة</string>
+  <string name="vault_rename_sync_failed">فشل مزامنة المراجع. تم الاحتفاظ بكل من بيانات الاعتماد القديمة والجديدة، ولكن قد يتم تحديث بعض المراجع جزئيًا فقط. يرجى المراجعة قبل إزالة بيانات الاعتماد القديمة.%1$s</string>
+  <string name="vault_rename_target_exists">توجد بالفعل بيانات اعتماد بهذا الاسم. لم يتم استبدال الهدف ولم يتم حذف المصدر.</string>
 </resources>

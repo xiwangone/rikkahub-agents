@@ -3605,4 +3605,6 @@
   <string name="accessibility_export_theme">테마 내보내기</string>
   <string name="diff_view_render_capped">… %1$d줄 더 있음 (내용이 너무 길어 펼칠 수 없음)</string>
   <string name="tool_ui_edit_memory">메모리 편집</string>
+  <string name="vault_rename_sync_failed">참조 동기화에 실패했습니다. 이전 자격 증명과 새 자격 증명이 모두 유지되지만 일부 참조는 부분적으로만 업데이트되었을 수 있습니다. 이전 자격 증명을 제거하기 전에 검토하십시오.%1$s</string>
+  <string name="vault_rename_target_exists">이 이름의 자격 증명이 이미 존재합니다. 대상은 덮어쓰지 않았으며 원본은 삭제되지 않았습니다.</string>
 </resources>
