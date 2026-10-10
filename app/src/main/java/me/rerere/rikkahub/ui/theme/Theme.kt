@@ -31,7 +31,7 @@ val LocalExtendColors = compositionLocalOf { ExtendLightColors }
 
 val LocalDarkMode = compositionLocalOf { false }
 
-private val AMOLED_DARK_BACKGROUND = Color(0xFF000000)
+private val AMOLED_DARK_BACKGROUND = Color.Black
 
 @Serializable
 enum class ColorMode {

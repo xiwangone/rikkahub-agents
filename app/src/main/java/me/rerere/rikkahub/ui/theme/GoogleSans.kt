@@ -5,7 +5,6 @@ import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontVariation
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.sp
 import me.rerere.rikkahub.R
 
 object ExtendedFontVariation {
@@ -43,7 +42,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(57.sp),
+                                FontVariation.opticalSizing(Typography.displayLarge.fontSize),
                             ),
                     ),
                     Font(
@@ -53,7 +52,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(57.sp),
+                                FontVariation.opticalSizing(Typography.displayLarge.fontSize),
                             ),
                     ),
                 )
@@ -73,7 +72,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(45.sp),
+                                FontVariation.opticalSizing(Typography.displayMedium.fontSize),
                             ),
                     ),
                     Font(
@@ -83,7 +82,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(45.sp),
+                                FontVariation.opticalSizing(Typography.displayMedium.fontSize),
                             ),
                     ),
                 )
@@ -103,7 +102,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(36.sp),
+                                FontVariation.opticalSizing(Typography.displaySmall.fontSize),
                             ),
                     ),
                     Font(
@@ -113,7 +112,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(36.sp),
+                                FontVariation.opticalSizing(Typography.displaySmall.fontSize),
                             ),
                     ),
                 )
@@ -136,7 +135,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(57.sp),
+                                FontVariation.opticalSizing(Typography.displayLarge.fontSize),
                             ),
                     ),
                     Font(
@@ -146,7 +145,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(57.sp),
+                                FontVariation.opticalSizing(Typography.displayLarge.fontSize),
                             ),
                     ),
                 )
@@ -167,7 +166,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(45.sp),
+                                FontVariation.opticalSizing(Typography.displayMedium.fontSize),
                             ),
                     ),
                     Font(
@@ -177,7 +176,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(45.sp),
+                                FontVariation.opticalSizing(Typography.displayMedium.fontSize),
                             ),
                     ),
                 )
@@ -198,7 +197,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(36.sp),
+                                FontVariation.opticalSizing(Typography.displaySmall.fontSize),
                             ),
                     ),
                     Font(
@@ -208,7 +207,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(36.sp),
+                                FontVariation.opticalSizing(Typography.displaySmall.fontSize),
                             ),
                     ),
                 )
@@ -232,7 +231,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(32.sp),
+                                FontVariation.opticalSizing(Typography.headlineLarge.fontSize),
                             ),
                     ),
                     Font(
@@ -242,7 +241,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(32.sp),
+                                FontVariation.opticalSizing(Typography.headlineLarge.fontSize),
                             ),
                     ),
                 )
@@ -262,7 +261,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(28.sp),
+                                FontVariation.opticalSizing(Typography.headlineMedium.fontSize),
                             ),
                     ),
                     Font(
@@ -272,7 +271,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(28.sp),
+                                FontVariation.opticalSizing(Typography.headlineMedium.fontSize),
                             ),
                     ),
                 )
@@ -292,7 +291,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(24.sp),
+                                FontVariation.opticalSizing(Typography.headlineSmall.fontSize),
                             ),
                     ),
                     Font(
@@ -302,7 +301,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(24.sp),
+                                FontVariation.opticalSizing(Typography.headlineSmall.fontSize),
                             ),
                     ),
                 )
@@ -325,7 +324,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(32.sp),
+                                FontVariation.opticalSizing(Typography.headlineLarge.fontSize),
                             ),
                     ),
                     Font(
@@ -335,7 +334,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(32.sp),
+                                FontVariation.opticalSizing(Typography.headlineLarge.fontSize),
                             ),
                     ),
                 )
@@ -356,7 +355,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(28.sp),
+                                FontVariation.opticalSizing(Typography.headlineMedium.fontSize),
                             ),
                     ),
                     Font(
@@ -366,7 +365,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(28.sp),
+                                FontVariation.opticalSizing(Typography.headlineMedium.fontSize),
                             ),
                     ),
                 )
@@ -387,7 +386,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(24.sp),
+                                FontVariation.opticalSizing(Typography.headlineSmall.fontSize),
                             ),
                     ),
                     Font(
@@ -397,7 +396,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(24.sp),
+                                FontVariation.opticalSizing(Typography.headlineSmall.fontSize),
                             ),
                     ),
                 )
@@ -420,7 +419,7 @@ object GoogleSansFlex {
                             FontVariation.Settings(
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(22.sp),
+                                FontVariation.opticalSizing(Typography.titleLarge.fontSize),
                             ),
                     ),
                     Font(
@@ -430,7 +429,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(22.sp),
+                                FontVariation.opticalSizing(Typography.titleLarge.fontSize),
                             ),
                     ),
                 )
@@ -450,7 +449,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(16.sp),
+                                FontVariation.opticalSizing(Typography.titleMedium.fontSize),
                             ),
                     ),
                     Font(
@@ -460,7 +459,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(16.sp),
+                                FontVariation.opticalSizing(Typography.titleMedium.fontSize),
                             ),
                     ),
                 )
@@ -480,7 +479,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(14.sp),
+                                FontVariation.opticalSizing(Typography.titleSmall.fontSize),
                             ),
                     ),
                     Font(
@@ -490,7 +489,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(14.sp),
+                                FontVariation.opticalSizing(Typography.titleSmall.fontSize),
                             ),
                     ),
                 )
@@ -513,7 +512,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(22.sp),
+                                FontVariation.opticalSizing(Typography.titleLarge.fontSize),
                             ),
                     ),
                     Font(
@@ -523,7 +522,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(22.sp),
+                                FontVariation.opticalSizing(Typography.titleLarge.fontSize),
                             ),
                     ),
                 )
@@ -544,7 +543,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(16.sp),
+                                FontVariation.opticalSizing(Typography.titleMedium.fontSize),
                             ),
                     ),
                     Font(
@@ -554,7 +553,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(16.sp),
+                                FontVariation.opticalSizing(Typography.titleMedium.fontSize),
                             ),
                     ),
                 )
@@ -575,7 +574,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(14.sp),
+                                FontVariation.opticalSizing(Typography.titleSmall.fontSize),
                             ),
                     ),
                     Font(
@@ -585,7 +584,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(14.sp),
+                                FontVariation.opticalSizing(Typography.titleSmall.fontSize),
                             ),
                     ),
                 )
@@ -609,7 +608,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(16.sp),
+                                FontVariation.opticalSizing(Typography.bodyLarge.fontSize),
                             ),
                     ),
                     Font(
@@ -619,7 +618,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(16.sp),
+                                FontVariation.opticalSizing(Typography.bodyLarge.fontSize),
                             ),
                     ),
                 )
@@ -639,7 +638,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(14.sp),
+                                FontVariation.opticalSizing(Typography.bodyMedium.fontSize),
                             ),
                     ),
                     Font(
@@ -649,7 +648,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(14.sp),
+                                FontVariation.opticalSizing(Typography.bodyMedium.fontSize),
                             ),
                     ),
                 )
@@ -669,7 +668,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(12.sp),
+                                FontVariation.opticalSizing(Typography.bodySmall.fontSize),
                             ),
                     ),
                     Font(
@@ -679,7 +678,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Normal.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(12.sp),
+                                FontVariation.opticalSizing(Typography.bodySmall.fontSize),
                             ),
                     ),
                 )
@@ -702,7 +701,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(16.sp),
+                                FontVariation.opticalSizing(Typography.bodyLarge.fontSize),
                             ),
                     ),
                     Font(
@@ -712,7 +711,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(16.sp),
+                                FontVariation.opticalSizing(Typography.bodyLarge.fontSize),
                             ),
                     ),
                 )
@@ -733,7 +732,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(14.sp),
+                                FontVariation.opticalSizing(Typography.bodyMedium.fontSize),
                             ),
                     ),
                     Font(
@@ -743,7 +742,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(14.sp),
+                                FontVariation.opticalSizing(Typography.bodyMedium.fontSize),
                             ),
                     ),
                 )
@@ -764,7 +763,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(12.sp),
+                                FontVariation.opticalSizing(Typography.bodySmall.fontSize),
                             ),
                     ),
                     Font(
@@ -774,7 +773,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(12.sp),
+                                FontVariation.opticalSizing(Typography.bodySmall.fontSize),
                             ),
                     ),
                 )
@@ -798,7 +797,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(11.sp),
+                                FontVariation.opticalSizing(Typography.labelSmall.fontSize),
                             ),
                     ),
                     Font(
@@ -808,7 +807,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(11.sp),
+                                FontVariation.opticalSizing(Typography.labelSmall.fontSize),
                             ),
                     ),
                 )
@@ -828,7 +827,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(12.sp),
+                                FontVariation.opticalSizing(Typography.labelMedium.fontSize),
                             ),
                     ),
                     Font(
@@ -838,7 +837,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(12.sp),
+                                FontVariation.opticalSizing(Typography.labelMedium.fontSize),
                             ),
                     ),
                 )
@@ -858,7 +857,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(14.sp),
+                                FontVariation.opticalSizing(Typography.labelLarge.fontSize),
                             ),
                     ),
                     Font(
@@ -868,7 +867,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.Medium.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(14.sp),
+                                FontVariation.opticalSizing(Typography.labelLarge.fontSize),
                             ),
                     ),
                 )
@@ -891,7 +890,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(11.sp),
+                                FontVariation.opticalSizing(Typography.labelSmall.fontSize),
                             ),
                     ),
                     Font(
@@ -901,7 +900,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.SemiBold.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(11.sp),
+                                FontVariation.opticalSizing(Typography.labelSmall.fontSize),
                             ),
                     ),
                 )
@@ -922,7 +921,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(12.sp),
+                                FontVariation.opticalSizing(Typography.labelMedium.fontSize),
                             ),
                     ),
                     Font(
@@ -932,7 +931,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.SemiBold.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(12.sp),
+                                FontVariation.opticalSizing(Typography.labelMedium.fontSize),
                             ),
                     ),
                 )
@@ -953,7 +952,7 @@ object GoogleSansFlex {
                                 ExtendedFontVariation.round(100),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(14.sp),
+                                FontVariation.opticalSizing(Typography.labelLarge.fontSize),
                             ),
                     ),
                     Font(
@@ -963,7 +962,7 @@ object GoogleSansFlex {
                                 FontVariation.weight(FontWeight.SemiBold.weight),
                                 FontVariation.width(100f),
                                 FontVariation.grade(0),
-                                FontVariation.opticalSizing(14.sp),
+                                FontVariation.opticalSizing(Typography.labelLarge.fontSize),
                             ),
                     ),
                 )

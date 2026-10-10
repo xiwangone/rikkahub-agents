@@ -36,6 +36,9 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 private val CardGroupCorner = 20.dp
 private val CardGroupItemSpacing = 2.dp
 private val CardGroupInnerCorner = 4.dp
+private val CardGroupTitleHorizontalInset = 4.dp
+private val CardGroupTitleVerticalInset = 8.dp
+private val CardGroupPreviewHorizontalInset = 16.dp
 
 private data class CardGroupItem(
     val onClick: (() -> Unit)?,
@@ -169,7 +172,11 @@ fun CardGroup(
                     Box(
                         modifier =
                             Modifier
-                                .padding(start = 4.dp, top = 8.dp, bottom = 8.dp)
+                                .padding(
+                                    start = CardGroupTitleHorizontalInset,
+                                    top = CardGroupTitleVerticalInset,
+                                    bottom = CardGroupTitleVerticalInset,
+                                )
                                 .then(
                                     if (onClick != null) Modifier.clickable { onClick() } else Modifier,
                                 ),
@@ -210,7 +217,7 @@ private fun CardGroupPreview() {
                     .fillMaxSize(),
         ) {
             CardGroup(
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier.padding(horizontal = CardGroupPreviewHorizontalInset),
                 title = { Text("About") },
             ) {
                 item(

@@ -68,6 +68,21 @@ import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "UIAvatar"
 
+private object AvatarTokens {
+    val size = 32.dp
+    val autoSizeStep = 1.sp
+    val glyphLineHeight = 0.8.em
+    val emojiMinimumFontSize = 15.sp
+    val emojiMaximumFontSize = 30.sp
+    val emojiContentInset = 5.dp
+    val editBadgeSize = 14.dp
+    val editIconSize = 10.dp
+    val editIconInset = 1.dp
+    val editElevation = 4.dp
+    val optionSpacing = 8.dp
+    val sheetContentInset = 16.dp
+}
+
 @Composable
 fun TextAvatar(
     text: String,
@@ -78,7 +93,7 @@ fun TextAvatar(
     Box(
         modifier =
             modifier
-                .then(Modifier.size(32.dp))
+                .then(Modifier.size(AvatarTokens.size))
                 .clip(shape = rememberAvatarShape(loading))
                 .background(color),
         contentAlignment = Alignment.Center,
@@ -90,11 +105,11 @@ fun TextAvatar(
             overflow = TextOverflow.Clip,
             autoSize =
                 TextAutoSize.StepBased(
-                    minFontSize = 8.sp,
-                    maxFontSize = 32.sp,
-                    stepSize = 1.sp,
+                    minFontSize = MaterialTheme.typography.labelSmall.fontSize,
+                    maxFontSize = MaterialTheme.typography.headlineLarge.fontSize,
+                    stepSize = AvatarTokens.autoSizeStep,
                 ),
-            lineHeight = 0.8.em,
+            lineHeight = AvatarTokens.glyphLineHeight,
         )
     }
 }
@@ -171,7 +186,7 @@ fun UIAvatar(
             }
         }
 
-    Box(modifier = modifier.then(Modifier.size(32.dp))) {
+    Box(modifier = modifier.then(Modifier.size(AvatarTokens.size))) {
         Surface(
             shape = rememberAvatarShape(loading),
             modifier = Modifier.fillMaxSize(),
@@ -179,7 +194,7 @@ fun UIAvatar(
                 onClick?.invoke()
                 if (onUpdate != null) showPickOption = true
             },
-            tonalElevation = 4.dp,
+            tonalElevation = AvatarTokens.editElevation,
             color = MaterialTheme.colorScheme.secondaryContainer,
         ) {
             Box(
@@ -201,12 +216,12 @@ fun UIAvatar(
                             text = value.content,
                             autoSize =
                                 TextAutoSize.StepBased(
-                                    minFontSize = 15.sp,
-                                    maxFontSize = 30.sp,
+                                    minFontSize = AvatarTokens.emojiMinimumFontSize,
+                                    maxFontSize = AvatarTokens.emojiMaximumFontSize,
                                 ),
-                            lineHeight = 0.8.em,
+                            lineHeight = AvatarTokens.glyphLineHeight,
                             textAlign = TextAlign.Center,
-                            modifier = Modifier.padding(5.dp),
+                            modifier = Modifier.padding(AvatarTokens.emojiContentInset),
                         )
                     }
 
@@ -226,7 +241,7 @@ fun UIAvatar(
                 modifier =
                     Modifier
                         .align(Alignment.BottomEnd)
-                        .size(14.dp)
+                        .size(AvatarTokens.editBadgeSize)
                         .clip(MaterialTheme.shapes.small)
                         .background(MaterialTheme.colorScheme.tertiaryContainer),
                 contentAlignment = Alignment.Center,
@@ -236,8 +251,8 @@ fun UIAvatar(
                     contentDescription = stringResource(R.string.accessibility_edit_avatar),
                     modifier =
                         Modifier
-                            .size(10.dp)
-                            .padding(1.dp),
+                            .size(AvatarTokens.editIconSize)
+                            .padding(AvatarTokens.editIconInset),
                     tint = MaterialTheme.colorScheme.onTertiaryContainer,
                 )
             }
@@ -254,7 +269,7 @@ fun UIAvatar(
             },
             text = {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(AvatarTokens.optionSpacing),
                 ) {
                     Button(
                         onClick = {
@@ -327,7 +342,7 @@ fun UIAvatar(
                     Modifier
                         .fillMaxWidth()
                         .wrapContentHeight()
-                        .padding(16.dp),
+                        .padding(AvatarTokens.sheetContentInset),
             )
         }
     }
@@ -431,7 +446,7 @@ private fun hslToColor(
 private fun PreviewUIAvatar() {
     var loading by remember { mutableStateOf(true) }
     Column(
-        modifier = Modifier.padding(16.dp),
+        modifier = Modifier.padding(AvatarTokens.sheetContentInset),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         UIAvatar(
