@@ -139,7 +139,7 @@ fun workflowCreateTool(
                     // Caller-supplied "id" must not silently REPLACE an existing workflow
                     // (WorkflowDao upserts with OnConflictStrategy.REPLACE).
                     if (repository.getById(def.id) != null) {
-                        return@when errorResponse(
+                        return@Tool errorResponse(
                             "id_conflict",
                             "a workflow with id '${def.id}' already exists — omit the id field to create a new one, or use workflow_update to modify it",
                         )
