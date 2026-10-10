@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowLeft01
@@ -47,6 +48,7 @@ fun ChatMessageBranchSelector(
                         .clip(CircleShape)
                         .alpha(if (node.selectIndex == 0) 0.5f else 1f)
                         .clickable(
+                            role = Role.Button,
                             interactionSource = remember { MutableInteractionSource() },
                             indication = LocalIndication.current,
                             onClick = {
@@ -77,6 +79,7 @@ fun ChatMessageBranchSelector(
                         .clip(CircleShape)
                         .alpha(if (node.selectIndex == node.messages.lastIndex) 0.5f else 1f)
                         .clickable(
+                            role = Role.Button,
                             interactionSource = remember { MutableInteractionSource() },
                             indication = LocalIndication.current,
                             onClick = {

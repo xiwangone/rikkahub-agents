@@ -13,7 +13,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
@@ -110,7 +110,7 @@ internal fun EditedFilesList(
             val fileName = remember(path) { path.substringAfterLast('/') }
             Surface(
                 onClick = { selectedPath = path },
-                shape = RoundedCornerShape(50),
+                shape = CircleShape,
                 color = MaterialTheme.colorScheme.tertiaryContainer,
             ) {
                 Row(
@@ -136,7 +136,7 @@ internal fun EditedFilesList(
         if (hasMore && !expanded) {
             Surface(
                 onClick = { expanded = true },
-                shape = RoundedCornerShape(50),
+                shape = CircleShape,
                 color = MaterialTheme.colorScheme.surfaceContainerHigh,
             ) {
                 Text(

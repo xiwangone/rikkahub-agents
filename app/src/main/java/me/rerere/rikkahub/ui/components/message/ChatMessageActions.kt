@@ -33,6 +33,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
@@ -102,7 +103,7 @@ fun ColumnScope.ChatMessageActionButtons(
             modifier =
                 Modifier
                     .clip(CircleShape)
-                    .clickable { context.copyMessageToClipboard(message) }
+                    .clickable(role = Role.Button) { context.copyMessageToClipboard(message) }
                     .padding(8.dp)
                     .size(16.dp),
             tint = actionIconColor,
@@ -114,7 +115,7 @@ fun ColumnScope.ChatMessageActionButtons(
             modifier =
                 Modifier
                     .clip(CircleShape)
-                    .clickable {
+                    .clickable(role = Role.Button) {
                         if (message.role == MessageRole.USER) {
                             showRegenerateConfirm = true
                         } else {
@@ -138,6 +139,7 @@ fun ColumnScope.ChatMessageActionButtons(
                         .clip(CircleShape)
                         .clickable(
                             enabled = isAvailable,
+                            role = Role.Button,
                             interactionSource = remember { MutableInteractionSource() },
                             indication = LocalIndication.current,
                             onClick = {
@@ -169,6 +171,7 @@ fun ColumnScope.ChatMessageActionButtons(
                         Modifier
                             .clip(CircleShape)
                             .clickable(
+                                role = Role.Button,
                                 interactionSource = remember { MutableInteractionSource() },
                                 indication = LocalIndication.current,
                                 onClick = {
@@ -188,6 +191,7 @@ fun ColumnScope.ChatMessageActionButtons(
                 Modifier
                     .clip(CircleShape)
                     .clickable(
+                        role = Role.Button,
                         interactionSource = remember { MutableInteractionSource() },
                         indication = LocalIndication.current,
                         onClick = {
