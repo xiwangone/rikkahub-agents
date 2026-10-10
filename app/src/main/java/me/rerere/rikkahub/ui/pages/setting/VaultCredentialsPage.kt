@@ -501,6 +501,9 @@ private fun CredentialRow(
     val biometricBuffer: BiometricResultBuffer = koinInject()
     val context = androidx.compose.ui.platform.LocalContext.current
     val clipboard = androidx.compose.ui.platform.LocalClipboardManager.current
+    // 资源取值走 LocalResources（configuration-aware）：直接 LocalContext.current.getString 会被 lint 的
+    // LocalContextGetResourceValueCall 判为「配置变化后可能返回过期值」（本项目其余页面同此写法）。
+    val resources = androidx.compose.ui.platform.LocalResources.current
     val scope = rememberCoroutineScope()
     var plaintext by remember(entry.id) { mutableStateOf<String?>(null) }
     var biometricEnabled by remember { mutableStateOf(true) }
@@ -526,7 +529,7 @@ private fun CredentialRow(
             val ok = VaultBiometric.authenticate(
                 context = appContext,
                 buffer = biometricBuffer,
-                title = context.getString(R.string.vault_biometric_view_title),
+                title = resources.getString(R.string.vault_biometric_view_title),
                 subtitle = entry.name,
             )
             if (ok) {
@@ -580,7 +583,7 @@ private fun CredentialRow(
                             .padding(top = 2.dp)
                             .clickable {
                                 clipboard.setText(androidx.compose.ui.text.AnnotatedString(entry.publicKey))
-                                android.widget.Toast.makeText(context, context.getString(R.string.vault_pubkey_copied), android.widget.Toast.LENGTH_SHORT).show()
+                                android.widget.Toast.makeText(context, resources.getString(R.string.vault_pubkey_copied), android.widget.Toast.LENGTH_SHORT).show()
                             },
                     )
                 }
