@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.VibrationEffect
 import android.os.Vibrator
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
@@ -69,7 +70,7 @@ fun vibrateTool(context: Context): Tool = Tool(
             }
             val longs = patternParam
                 .take(20)
-                .map { entry -> (entry.jsonPrimitive.intOrNull ?: 0).coerceAtLeast(0).toLong() }
+                .map { entry -> ((entry as? JsonPrimitive)?.intOrNull ?: 0).coerceAtLeast(0).toLong() }
                 .toLongArray()
             VibrationEffect.createWaveform(longs, -1)
         } else {

@@ -135,7 +135,16 @@ class LocalMcpServerManager(
 
     fun start(profile: LocalMcpProfile) {
         currentProfile = profile
-        val host = if (profile.listenScope.equals("loopback", ignoreCase = true)) "127.0.0.1" else "0.0.0.0"
+        // Fail safe: only an explicit "lan"/"any" opens the socket to all interfaces —
+        // an unknown/corrupt scope value must not silently become network-exposed.
+        val host =
+            if (profile.listenScope.equals("lan", ignoreCase = true) ||
+                profile.listenScope.equals("any", ignoreCase = true)
+            ) {
+                "0.0.0.0"
+            } else {
+                "127.0.0.1"
+            }
         val tokenRef = profile.authTokenRef.trim()
         val tokenProvider: (suspend () -> String?)? =
             if (tokenRef.isEmpty()) {

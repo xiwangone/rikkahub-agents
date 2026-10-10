@@ -48,6 +48,10 @@ object MediaSourceNormalizeTransformer : InputMessageTransformer {
             .connectTimeout(REMOTE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(REMOTE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .callTimeout(REMOTE_TIMEOUT_SECONDS * 2, TimeUnit.SECONDS)
+            // 只对原始 URL 的 host 做了公网校验；若允许自动跟随重定向，服务端可用 302
+            // 把请求引到内网/CGNAT 地址（SSRF），OkHttp 会在校验前就发出该连接。禁用重定向以 fail-closed。
+            .followRedirects(false)
+            .followSslRedirects(false)
             .build()
     }
 
@@ -277,6 +281,13 @@ private fun isPublicAddress(address: InetAddress): Boolean {
     if (address.isLinkLocalAddress || address.isSiteLocalAddress) return false
     if (address.isMulticastAddress) return false
     val raw = address.address
+    // v4：isSiteLocalAddress 不含运营商级 NAT 与基准测试段，显式补上，否则会被当成公网放行（SSRF）
+    if (raw.size == 4) {
+        val b0 = raw[0].toInt() and 0xff
+        val b1 = raw[1].toInt() and 0xff
+        if (b0 == 100 && b1 in 64..127) return false // CGNAT 100.64.0.0/10
+        if (b0 == 198 && (b1 == 18 || b1 == 19)) return false // 198.18.0.0/15 (benchmarking)
+    }
     if (raw.size != 16) return true
     val first = raw[0].toInt() and 0xff
     if (first and 0xfe == 0xfc) return false // ULA fc00::/7

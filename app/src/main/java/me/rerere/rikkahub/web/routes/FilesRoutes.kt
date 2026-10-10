@@ -110,7 +110,7 @@ fun Route.filesRoutes(
                 throw NotFoundException("File not found on disk")
             }
 
-            call.response.header("Content-Type", entity.mimeType)
+            call.response.header("Content-Type", sanitizeServedMimeType(entity.mimeType))
             call.respondFile(file)
         }
 
@@ -139,7 +139,7 @@ fun Route.filesRoutes(
             // Use managed file MIME type first because on-disk file names are UUID-only.
             val managedFileMime = filesManager.getByRelativePath(relativePath)?.mimeType
             val contentType = if (!managedFileMime.isNullOrBlank()) {
-                managedFileMime
+                sanitizeServedMimeType(managedFileMime)
             } else {
                 when (file.extension.lowercase()) {
                     "jpg", "jpeg" -> ContentType.Image.JPEG.toString()
@@ -230,6 +230,30 @@ private suspend fun readPartBytes(part: PartData.FileItem, maxBytes: Int): ByteA
     }
 
     return output.toByteArray()
+}
+
+// MIME arrives from the uploader's declared content-type; anything browser-executable
+// (HTML/XML/SVG/script) served same-origin would become stored XSS — force a download
+// type instead.
+private val BROWSER_ACTIVE_MIMES = setOf(
+    "text/html",
+    "application/xhtml+xml",
+    "text/xml",
+    "application/xml",
+    "image/svg+xml",
+    "text/javascript",
+    "application/javascript",
+    "application/x-javascript",
+    "text/ecmascript",
+)
+
+private fun sanitizeServedMimeType(mime: String): String {
+    val base = mime.substringBefore(';').trim().lowercase()
+    return if (base in BROWSER_ACTIVE_MIMES || base.isEmpty()) {
+        ContentType.Application.OctetStream.toString()
+    } else {
+        mime
+    }
 }
 
 private fun sanitizeDisplayName(fileName: String): String {

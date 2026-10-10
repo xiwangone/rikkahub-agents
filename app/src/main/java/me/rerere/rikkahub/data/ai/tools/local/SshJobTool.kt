@@ -70,18 +70,20 @@ fun sshJobPollTool(
             val parts = mutableListOf<String>()
             // 日志尾部（若给了路径且存在）
             logPath?.let { lp ->
-                parts += "if(Test-Path '$lp'){Get-Content '$lp' -Tail $lines}else{'[log-not-found] $lp'}"
+                val w = lp.replace("'", "''")
+                parts += "if(Test-Path '$w'){Get-Content '$w' -Tail $lines}else{'[log-not-found] $w'}"
             }
             // 进程存活检查（可选）
             procHint?.let { ph ->
-                parts += "if(Get-Process $ph -ErrorAction SilentlyContinue){'[alive]'}else{'[exited]'}"
+                val w = ph.replace("'", "''")
+                parts += "if(Get-Process '$w' -ErrorAction SilentlyContinue){'[alive]'}else{'[exited]'}"
             }
             if (parts.isEmpty()) parts += "'[no log path given]'"
             "powershell -NoProfile -Command \"" + parts.joinToString("; ") + "\""
         } else {
             val parts = mutableListOf<String>()
-            logPath?.let { lp -> parts += "tail -n $lines $lp 2>/dev/null || echo '[no-log]'" }
-            procHint?.let { ph -> parts += "pgrep -f $ph >/dev/null && echo '[alive]' || echo '[exited]'" }
+            logPath?.let { lp -> parts += "tail -n $lines ${shellSingleQuote(lp)} 2>/dev/null || echo '[no-log]'" }
+            procHint?.let { ph -> parts += "pgrep -f ${shellSingleQuote(ph)} >/dev/null && echo '[alive]' || echo '[exited]'" }
             if (parts.isEmpty()) parts += "echo '[no log path given]'"
             parts.joinToString("; ")
         }

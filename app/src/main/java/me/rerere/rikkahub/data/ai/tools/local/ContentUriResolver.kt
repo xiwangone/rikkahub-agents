@@ -63,7 +63,12 @@ object ContentUriResolver {
         val target = uri.toString()
         context.contentResolver.persistedUriPermissions.any { perm ->
             val held = perm.uri.toString()
-            target == held || target.startsWith(held)
+            // 前缀匹配要求路径段边界：否则 .../tree/abc 的授权会误命中 .../tree/abcdef
+            target == held || (
+                target.length > held.length &&
+                    target.startsWith(held) &&
+                    target[held.length] == '/'
+                )
         }
     }.getOrDefault(false)
 

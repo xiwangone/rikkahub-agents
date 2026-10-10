@@ -141,7 +141,7 @@ object SecretMasker {
         GENERIC_SECRET_PATTERNS.forEach { out = it.replace(out, MASK) }
         // 1) 结构层：私钥块全掩（容忍折行/多行，兜住精确匹配漏网）
         out = PEM_PRIVATE_KEY.replace(out, MASK)
-        // 2) 精确层：逐条 replace（classify 已只收真机密条目——公钥/非敏感短值已排除，
+        // 2) 精确层：逐条 replace（classify 只收确认为机密的条目——公钥/非敏感短值已排除，
         //    字典量≈机密数；长值优先防短值截断长值错掩）。当前 58 条量级 replace 开销可忽略。
         rules.asSequence()
             .filter { it.exact }
@@ -241,6 +241,16 @@ private suspend fun runVaultHttpExec(
     val url = o["url"]?.jsonPrimitive?.contentOrNull?.trim() ?: return fail("url 必填")
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
         return fail("url 必须是 http(s):// 开头")
+    }
+    // 凭据会以 Authorization 头随请求发出：明文 http 会把密钥泄露在链路上 → 仅允许环回地址走 http
+    if (url.startsWith("http://")) {
+        val host = runCatching { java.net.URI(url).host }.getOrNull()
+        val loopback = host != null && (
+            host == "localhost" || host == "127.0.0.1" || host == "::1" || host.startsWith("127.")
+            )
+        if (!loopback) {
+            return fail("携带凭据的请求必须使用 https://（仅环回地址允许 http://）")
+        }
     }
     val credName = o["credential_name"]?.jsonPrimitive?.contentOrNull ?: return fail("credential_name 必填")
     val scheme = o["auth_scheme"]?.jsonPrimitive?.contentOrNull ?: "Bearer"

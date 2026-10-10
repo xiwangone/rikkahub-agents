@@ -42,7 +42,12 @@ class WorkflowRepository(
     private fun parseCached(row: WorkflowEntity): WorkflowDefinition? {
         val cached = parseCache.get(row.id)
         if (cached != null && cached.first == row.updatedAtMs) return cached.second
-        val parsed = WorkflowJson.parseStored(row.definitionJson) ?: return null
+        // parseStored uses bare jsonPrimitive/jsonArray accessors, which THROW on a
+        // shape-mismatched stored blob (e.g. "name": {"x":1}). An uncaught throw here
+        // propagates through observeAll()'s map and tears down the trigger registry's
+        // collection for every workflow — treat a corrupt row as "unreadable" instead.
+        val parsed = runCatching { WorkflowJson.parseStored(row.definitionJson) }.getOrNull()
+            ?: return null
         parseCache.put(row.id, row.updatedAtMs to parsed)
         return parsed
     }

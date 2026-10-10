@@ -32,13 +32,16 @@ private fun querySmsInbox(
     "date DESC"
 )
 
-private fun Cursor.toSmsArray() = buildJsonArray {
+private fun Cursor.toSmsArray(limit: Int) = buildJsonArray {
     val idIdx = getColumnIndexOrThrow("_id")
     val addrIdx = getColumnIndexOrThrow("address")
     val bodyIdx = getColumnIndexOrThrow("body")
     val dateIdx = getColumnIndexOrThrow("date")
     val readIdx = getColumnIndexOrThrow("read")
+    // 多数内容提供程序忽略 URI 上的 limit 参数：这里自行截断，避免把整表读进上下文
+    var count = 0
     while (moveToNext()) {
+        if (count >= limit) break
         addJsonObject {
             put("id", getLong(idIdx))
             put("address", getString(addrIdx) ?: "")
@@ -46,6 +49,7 @@ private fun Cursor.toSmsArray() = buildJsonArray {
             put("date_ms", getLong(dateIdx))
             put("read", getInt(readIdx) != 0)
         }
+        count++
     }
 }
 
@@ -87,7 +91,7 @@ fun listSmsInboxTool(context: Context): Tool = Tool(
                     .appendQueryParameter("limit", limit.toString())
                     .build()
                 buildJsonObject {
-                    put("messages", querySmsInbox(context, uri, selection, args)?.use { it.toSmsArray() }
+                    put("messages", querySmsInbox(context, uri, selection, args)?.use { it.toSmsArray(limit) }
                         ?: buildJsonArray {})
                 }
             } catch (_: SecurityException) {
@@ -138,7 +142,7 @@ fun searchSmsTool(context: Context): Tool = Tool(
                 buildJsonObject {
                     put("messages", querySmsInbox(
                         context, uri, "body LIKE ?", arrayOf("%$query%")
-                    )?.use { it.toSmsArray() } ?: buildJsonArray {})
+                    )?.use { it.toSmsArray(limit) } ?: buildJsonArray {})
                 }
             } catch (_: SecurityException) {
                 ToolErrors.envelopeFor(error = "permission_denied", message = "permission READ_SMS not granted", hint = "Grant the required permission or choose a different target.")

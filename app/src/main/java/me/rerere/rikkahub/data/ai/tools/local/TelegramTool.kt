@@ -75,6 +75,7 @@ fun telegramSetTokenTool(prefs: TelegramBotPreferences, client: TelegramBotClien
         val token = input.jsonObject["token"]?.jsonPrimitive?.contentOrNull
             ?: error("token is required")
         // Provisionally persist; the client uses tokenProvider() lazily so getMe will use it.
+        val previousToken = prefs.current().token
         prefs.update { it.copy(token = token) }
         // Verify the token. A 401 from Telegram means the token is permanently invalid
         // (don't retry); a network/timeout/non-401 failure is transient (retry OK). The
@@ -89,9 +90,11 @@ fun telegramSetTokenTool(prefs: TelegramBotPreferences, client: TelegramBotClien
         } catch (t: Throwable) {
             classifyTokenVerifyError(t)
         }
-        // If verification failed, roll back the token so we don't leave a bad value behind.
+        // Verification failed → discard the new token. Restore the PREVIOUS value rather than
+        // clearing to "": a transient network_error (or replacing an existing good token with a
+        // bad one) must not wipe the working token the user had configured.
         if (payload["error"] != null) {
-            prefs.update { it.copy(token = "") }
+            prefs.update { it.copy(token = previousToken) }
         }
         textPart(payload)
     }

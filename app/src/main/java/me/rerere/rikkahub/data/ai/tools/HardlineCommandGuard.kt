@@ -118,9 +118,11 @@ object HardlineCommandGuard {
         // is piped straight into a shell. This is how regex-floor circumvention is actually
         // attempted in practice ("echo cm0gLXJmIC8= | base64 -d | sh"). We can't decode the
         // payload, but we can refuse to evaluate the result of a decoder.
-        Regex("\\b(base64|xxd)\\s+(?:-[^\\s]*\\s+)*-[dr]\\b[^|]*\\|\\s*(?:eval\\b|(?:bash|sh|zsh|dash|ksh|csh)\\b)", IGNORE_CASE) to
+        // Long-form --decode/--revert also decode (the old short-flag-only pattern was
+        // bypassed by `base64 --decode | sh`); busybox/toybox wrappers and ash are shells too.
+        Regex("\\b(base64|xxd)\\s+(?:-[^\\s]*\\s+)*(?:-[dr]\\b|--decode\\b|--decod[e]?\\b|--revert\\b|--recover\\b)[^|]*\\|\\s*(?:eval\\b|(?:busybox|toybox)\\s+(?:-[^\\s]*\\s+)*(?:bash|sh|zsh|dash|ksh|csh|ash)\\b|(?:bash|sh|zsh|dash|ksh|csh|ash)\\b)", IGNORE_CASE) to
             "encoded payload piped to shell",
-        Regex("\\bprintf\\s+[\"'][^\"']*\\\\x[^\"']*[\"'][^|]*\\|\\s*(?:eval\\b|(?:bash|sh|zsh|dash|ksh|csh)\\b)", IGNORE_CASE) to
+        Regex("\\bprintf\\s+[\"'][^\"']*\\\\x[^\"']*[\"'][^|]*\\|\\s*(?:eval\\b|(?:busybox|toybox)\\s+(?:-[^\\s]*\\s+)*(?:bash|sh|zsh|dash|ksh|csh|ash)\\b|(?:bash|sh|zsh|dash|ksh|csh|ash)\\b)", IGNORE_CASE) to
             "hex-encoded payload piped to shell",
         // `eval \$(…)` — running the output of an arbitrary subshell as code. The subshell
         // body itself can be anything, by definition opaque to a regex floor.

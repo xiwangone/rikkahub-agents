@@ -710,11 +710,14 @@ fun vaultDeployKeyTool(
 internal fun deployCommandFor(pubKey: String, windows: Boolean): String =
     if (windows) windowsDeployCommand(pubKey) else posixDeployCommand(pubKey)
 
-private fun posixDeployCommand(pubKey: String): String =
-    "umask 077; mkdir -p ~/.ssh; touch ~/.ssh/authorized_keys; " +
-        "if ! grep -qF -- '$pubKey' ~/.ssh/authorized_keys; " +
-        "then echo '$pubKey' >> ~/.ssh/authorized_keys; echo ADDED; else echo EXISTS; fi; " +
+private fun posixDeployCommand(pubKey: String): String {
+    // 公钥（尤其注释字段）可能含单引号：未转义会截断 '...' 造成命令注入。走统一的单引号包裹。
+    val quoted = shellSingleQuote(pubKey)
+    return "umask 077; mkdir -p ~/.ssh; touch ~/.ssh/authorized_keys; " +
+        "if ! grep -qF -- $quoted ~/.ssh/authorized_keys; " +
+        "then echo $quoted >> ~/.ssh/authorized_keys; echo ADDED; else echo EXISTS; fi; " +
         "chmod 700 ~/.ssh; chmod 600 ~/.ssh/authorized_keys"
+}
 
 /**
  * Windows（OpenSSH for Windows）等价部署 —— 此前一律抺 posix 命令，目标为 pc 时

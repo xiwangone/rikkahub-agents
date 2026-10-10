@@ -118,7 +118,10 @@ fun callLogTool(context: Context): Tool = Tool(
                             val typeIdx = c.getColumnIndexOrThrow(CallLog.Calls.TYPE)
                             val dateIdx = c.getColumnIndexOrThrow(CallLog.Calls.DATE)
                             val durIdx = c.getColumnIndexOrThrow(CallLog.Calls.DURATION)
+                            // 提供程序通常忽略 URI 上的 limit：自行截断，避免整表读入上下文
+                            var count = 0
                             while (c.moveToNext()) {
+                                if (count >= limit) break
                                 addJsonObject {
                                     put("id", c.getLong(idIdx))
                                     put("number", c.getString(numIdx) ?: "")
@@ -128,6 +131,7 @@ fun callLogTool(context: Context): Tool = Tool(
                                     put("date_ms", c.getLong(dateIdx))
                                     put("duration_s", c.getLong(durIdx))
                                 }
+                                count++
                             }
                         }
                     })

@@ -143,6 +143,9 @@ class JsSkillRunner(private val context: Context) {
                 val assetLoader = WebViewAssetLoader.Builder()
                     .addPathHandler(SKILL_PATH, htmlEntryHandler)
                     .build()
+                // https://appassets.androidplatform.net/skill/<relPath> — intercepted by the
+                // asset loader and served from the skill root; never touches the network.
+                val skillUrl = "https://$ASSET_DOMAIN$SKILL_PATH$relPath"
                 val wv = WebView(context.applicationContext).apply {
                     @Suppress("SetJavaScriptEnabled")
                     settings.javaScriptEnabled = true
@@ -181,8 +184,27 @@ class JsSkillRunner(private val context: Context) {
                         request: WebResourceRequest,
                     ): WebResourceResponse? = assetLoader.shouldInterceptRequest(request.url)
 
+                    override fun shouldOverrideUrlLoading(
+                        view: WebView?,
+                        request: WebResourceRequest?,
+                    ): Boolean {
+                        // Keep the page on our virtual asset origin; anything else (redirect,
+                        // window.open, anchor to external site) is refused outright.
+                        val url = request?.url?.toString()
+                        if (url?.startsWith("https://$ASSET_DOMAIN$SKILL_PATH") == true) return false
+                        AppLog.w(TAG, "blocked navigation to $url")
+                        return true
+                    }
+
                     override fun onPageFinished(view: WebView?, url: String?) {
                         super.onPageFinished(view, url)
+                        // Only inject the trigger script (which carries the user's secret) on
+                        // our own skill page — a redirect or JS navigation to any other origin
+                        // would otherwise receive the secret via evaluateJavascript.
+                        if (url?.startsWith(skillUrl) != true) {
+                            AppLog.w(TAG, "skip trigger injection, page finished at foreign url: $url")
+                            return
+                        }
                         AppLog.d(TAG, "page finished, evaluating trigger script: $url")
                         // The trigger waits up to 10s for the page's
                         // `ai_edge_gallery_get_result` to be defined, then invokes it and
@@ -213,9 +235,6 @@ class JsSkillRunner(private val context: Context) {
                     }
                 }
                 webView = wv
-                // https://appassets.androidplatform.net/skill/<relPath> — intercepted by the
-                // asset loader and served from the skill root; never touches the network.
-                val skillUrl = "https://$ASSET_DOMAIN$SKILL_PATH$relPath"
                 AppLog.d(TAG, "loading: $skillUrl (data=${data.take(80)}, secret=${if (secret.isNotEmpty()) "<set>" else "<empty>"})")
                 wv.loadUrl(skillUrl)
 

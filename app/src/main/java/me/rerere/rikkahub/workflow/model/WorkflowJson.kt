@@ -31,6 +31,10 @@ import kotlinx.serialization.json.jsonPrimitive
  * pass straight back as their error envelopes.
  */
 object WorkflowJson {
+    /** Tools that must never appear as workflow actions (chaining / unapproved self-mutation). */
+    private val FORBIDDEN_ACTION_TOOLS: Set<String> =
+        setOf("workflow_run", "workflow_create", "workflow_update", "workflow_delete", "workflow_set_enabled")
+
     @OptIn(kotlinx.serialization.ExperimentalSerializationApi::class)
     private val strict: Json =
         Json {
@@ -170,11 +174,13 @@ object WorkflowJson {
             // lists "Workflow chaining (one workflow triggering another)" as out-of-scope
             // for v1 — without this guard, a malicious or hallucinated workflow definition
             // could trigger an unbounded chain across distinct workflow ids that the
-            // per-workflow Mutex doesn't catch.
-            if (toolName == "workflow_run") {
+            // per-workflow Mutex doesn't catch. The workflow_* mutating tools are blocked
+            // for the same reason: the engine runs actions WITHOUT approval, so an action
+            // could otherwise create/edit/delete workflows and bypass needsApproval.
+            if (toolName in FORBIDDEN_ACTION_TOOLS) {
                 return ParseResult.Err(
                     "workflow_chaining_disabled",
-                    "action $idx: workflow_run cannot be used as a workflow action (chaining is out-of-scope in v1)",
+                    "action $idx: '$toolName' cannot be used as a workflow action (chaining / self-mutation is out-of-scope in v1)",
                 )
             }
             val args = ao["args"] as? JsonObject ?: buildJsonObject { }

@@ -7,6 +7,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.workflow.execution.WorkflowEngine
 import me.rerere.rikkahub.workflow.model.WorkflowRun
 import me.rerere.rikkahub.workflow.repository.WorkflowRepository
@@ -25,7 +27,12 @@ class WorkflowsViewModel(
         id: String,
         enabled: Boolean,
     ) {
-        viewModelScope.launch(Dispatchers.IO) { repository.setEnabled(id, enabled) }
+        viewModelScope.launch(Dispatchers.IO) {
+            // A DB/trigger failure here would otherwise propagate to the coroutine's
+            // uncaught handler and crash the app — the switch just no-ops visibly.
+            runCatching { repository.setEnabled(id, enabled) }
+                .onFailure { AppLog.e("WorkflowsViewModel", "setEnabled failed for $id", it) }
+        }
     }
 
     fun delete(
@@ -33,8 +40,10 @@ class WorkflowsViewModel(
         onDone: () -> Unit = {},
     ) {
         viewModelScope.launch(Dispatchers.IO) {
-            repository.deleteCascading(id)
-            onDone()
+            runCatching { repository.deleteCascading(id) }
+                .onFailure { AppLog.e("WorkflowsViewModel", "delete failed for $id", it) }
+            // Callers pass UI work (nav.popBackStack) — must not run on the IO dispatcher.
+            withContext(Dispatchers.Main) { onDone() }
         }
     }
 

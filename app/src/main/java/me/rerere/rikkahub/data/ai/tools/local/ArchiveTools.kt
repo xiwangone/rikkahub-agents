@@ -103,7 +103,7 @@ private fun collectFileSources(raw: String, baseDir: String?): List<ArchiveSourc
     return if (root.isFile) {
         listOf(ArchiveSource(nameOf(root)) { runCatching { root.inputStream() }.getOrNull() })
     } else {
-        root.walkTopDown().filter { it.isFile }.map { f ->
+        root.walkTopDown().maxDepth(64).filter { it.isFile }.map { f ->
             ArchiveSource(nameOf(f)) { runCatching { f.inputStream() }.getOrNull() }
         }.toList()
     }

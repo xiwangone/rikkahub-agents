@@ -234,7 +234,10 @@ object BrowserController {
 
     /** Activity calls this in onDestroy. Only clears if the live ref still points at the same WebView. */
     fun unbindForeground(webView: WebView) {
-        val current = (mode as? Mode.Foreground)?.activityRef?.get()
+        // 仅当当前确实是前台绑定才清理：若已切到 Headless/Idle，旧前台 Activity 的 onDestroy
+        // （其 WeakRef 可能已被回收使 current==null）会把活的 headless 绑定误清成 Idle。
+        val foreground = mode as? Mode.Foreground ?: return
+        val current = foreground.activityRef.get()
         if (current === webView || current == null) {
             mode = Mode.Idle
             // Reset task timer + action log when the visible Activity is torn down. Headless

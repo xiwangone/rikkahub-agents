@@ -289,29 +289,27 @@ class SettingsStore(
             }
         }.map { preferences ->
             Settings(
-                favoriteModels = preferences[FAVORITE_MODELS]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: emptyList(),
-                chatModelId = preferences[SELECT_MODEL]?.let { Uuid.parse(it) }
+                favoriteModels = decodePrefOrDefault(preferences[FAVORITE_MODELS], emptyList()),
+                chatModelId = parseUuidPrefOrNull(preferences[SELECT_MODEL])
                     ?: DEFAULT_AUTO_MODEL_ID,
-                fastModelId = preferences[FAST_MODEL]?.let { Uuid.parse(it) }
+                fastModelId = parseUuidPrefOrNull(preferences[FAST_MODEL])
                     ?: DEFAULT_AUTO_MODEL_ID,
-                titleModelId = preferences[TITLE_MODEL]?.let { Uuid.parse(it) },
-                translateModeId = preferences[TRANSLATE_MODEL]?.let { Uuid.parse(it) }
+                titleModelId = parseUuidPrefOrNull(preferences[TITLE_MODEL]),
+                translateModeId = parseUuidPrefOrNull(preferences[TRANSLATE_MODEL])
                     ?: DEFAULT_AUTO_MODEL_ID,
                 enableSuggestion = preferences[ENABLE_SUGGESTION] != false,
                 responseStreamMaxRetries = preferences[RESPONSE_STREAM_MAX_RETRIES] ?: 5,
                 enableAutoRetry = preferences[ENABLE_AUTO_RETRY] != false,
-                suggestionModelId = preferences[SUGGESTION_MODEL]?.let { Uuid.parse(it) },
-                imageGenerationModelId = preferences[IMAGE_GENERATION_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
+                suggestionModelId = parseUuidPrefOrNull(preferences[SUGGESTION_MODEL]),
+                imageGenerationModelId = parseUuidPrefOrNull(preferences[IMAGE_GENERATION_MODEL]) ?: Uuid.random(),
                 titlePrompt = preferences[TITLE_PROMPT] ?: DEFAULT_TITLE_PROMPT,
                 translatePrompt = preferences[TRANSLATION_PROMPT] ?: DEFAULT_TRANSLATION_PROMPT,
                 translateThinkingBudget = preferences[TRANSLATE_THINKING_BUDGET] ?: 0,
                 suggestionPrompt = preferences[SUGGESTION_PROMPT] ?: DEFAULT_SUGGESTION_PROMPT,
-                ocrModelId = preferences[OCR_MODEL]?.let { Uuid.parse(it) } ?: Uuid.random(),
+                ocrModelId = parseUuidPrefOrNull(preferences[OCR_MODEL]) ?: Uuid.random(),
                 ocrLocalEnabled = preferences[OCR_LOCAL_ENABLED] ?: true,
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
-                compressModelId = preferences[COMPRESS_MODEL]?.let { Uuid.parse(it) } ?: DEFAULT_AUTO_MODEL_ID,
+                compressModelId = parseUuidPrefOrNull(preferences[COMPRESS_MODEL]) ?: DEFAULT_AUTO_MODEL_ID,
                 compressPrompt = preferences[COMPRESS_PROMPT] ?: DEFAULT_COMPRESS_PROMPT,
                 autoCompressEnabled = preferences[AUTO_COMPRESS_ENABLED] ?: false,
                 autoCompressThreshold = preferences[AUTO_COMPRESS_THRESHOLD] ?: 80,
@@ -322,11 +320,9 @@ class SettingsStore(
                 toolOutputEnabled = preferences[TOOL_OUTPUT_ENABLED] ?: true,
                 toolOutputMaxChars = preferences[TOOL_OUTPUT_MAX_CHARS] ?: 8 * 1000,
                 toolOutputCompactMaxChars = preferences[TOOL_OUTPUT_COMPACT_MAX_CHARS] ?: 2 * 1000,
-                assistantId = preferences[SELECT_ASSISTANT]?.let { Uuid.parse(it) }
+                assistantId = parseUuidPrefOrNull(preferences[SELECT_ASSISTANT])
                     ?: DEFAULT_ASSISTANT_ID,
-                assistantTags = preferences[ASSISTANT_TAGS]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: emptyList(),
+                assistantTags = decodePrefOrDefault(preferences[ASSISTANT_TAGS], emptyList()),
                 providers = decodeProvidersTolerant(
                     preferences[PROVIDERS]?.let { raw ->
                         // P0 凭证加密：providers 含 apiKey 等，落盘为 AES-GCM 密文。
@@ -354,25 +350,19 @@ class SettingsStore(
                         emptySet()
                     }
                 } ?: emptySet(),
-                assistants = JsonInstant.decodeFromString(preferences[ASSISTANTS] ?: "[]"),
+                assistants = decodePrefOrDefault(preferences[ASSISTANTS], emptyList()),
                 dynamicColor = preferences[DYNAMIC_COLOR] != false,
                 themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
-                customThemes = preferences[CUSTOM_THEMES]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: emptyList(),
+                customThemes = decodePrefOrDefault(preferences[CUSTOM_THEMES], emptyList()),
                 developerMode = preferences[DEVELOPER_MODE] == true,
-                displaySetting = JsonInstant.decodeFromString(preferences[DISPLAY_SETTING] ?: "{}"),
-                networkSetting = JsonInstant.decodeFromString(preferences[NETWORK_SETTING] ?: "{}"),
+                displaySetting = decodePrefOrDefault(preferences[DISPLAY_SETTING], DisplaySetting()),
+                networkSetting = decodePrefOrDefault(preferences[NETWORK_SETTING], NetworkSetting()),
                 executionBackend = preferences[EXECUTION_BACKEND] ?: "local",
                 backendConnections = preferences[BACKEND_CONNECTIONS]?.let {
                     runCatching { JsonInstant.decodeFromString<kotlin.collections.List<me.rerere.rikkahub.data.model.BackendConnection>>(it) }.getOrNull()
                 } ?: emptyList(),
-                searchServices = preferences[SEARCH_SERVICES]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: listOf(SearchServiceOptions.DEFAULT),
-                searchCommonOptions = preferences[SEARCH_COMMON]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: SearchCommonOptions(),
+                searchServices = decodePrefOrDefault(preferences[SEARCH_SERVICES], listOf(SearchServiceOptions.DEFAULT)),
+                searchCommonOptions = decodePrefOrDefault(preferences[SEARCH_COMMON], SearchCommonOptions()),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
                 mcpServers = decodeEncryptedPrefOrDefault(preferences[MCP_SERVERS], emptyList()),
 subAgents = preferences[SUB_AGENTS]?.let { raw ->
@@ -402,11 +392,11 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 } ?: emptyList(),
                 activeS3ConfigId = preferences[ACTIVE_S3_CONFIG_ID],
                 ttsProviders = decodeEncryptedPrefOrDefault(preferences[TTS_PROVIDERS], emptyList()),
-                selectedTTSProviderId = preferences[SELECTED_TTS_PROVIDER]?.let { Uuid.parse(it) }
+                selectedTTSProviderId = parseUuidPrefOrNull(preferences[SELECTED_TTS_PROVIDER])
                     ?: DEFAULT_SYSTEM_TTS_ID,
                 defaultTTSPlaybackSpeed = preferences[DEFAULT_TTS_PLAYBACK_SPEED]?.coerceIn(0.5f, 2.0f) ?: 1.0f,
                 asrProviders = decodeEncryptedPrefOrDefault(preferences[ASR_PROVIDERS], emptyList()),
-                selectedASRProviderId = preferences[SELECTED_ASR_PROVIDER]?.let { Uuid.parse(it) },
+                selectedASRProviderId = parseUuidPrefOrNull(preferences[SELECTED_ASR_PROVIDER]),
                 modeInjections = decodePrefOrDefault(preferences[MODE_INJECTIONS], emptyList()),
                 lorebooks = decodePrefOrDefault(preferences[LOREBOOKS], emptyList()),
                 quickMessages = decodePrefOrDefault(preferences[QUICK_MESSAGES], emptyList()),
@@ -449,9 +439,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 workspaceStatsCache = preferences[WORKSPACE_STATS_CACHE] ?: "{}",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
                 aiLogLevel = AiLogLevel.fromPreference(preferences[AI_LOG_LEVEL]),
-                backupReminderConfig = preferences[BACKUP_REMINDER_CONFIG]?.let {
-                    JsonInstant.decodeFromString(it)
-                } ?: BackupReminderConfig(),
+                backupReminderConfig = decodePrefOrDefault(preferences[BACKUP_REMINDER_CONFIG], BackupReminderConfig()),
                 backupEncryptionEnabled = preferences[BACKUP_ENCRYPTION_ENABLED] ?: false,
                 backupEncryptionPasswordEnc = preferences[BACKUP_ENCRYPTION_PASSWORD_ENC] ?: "",
                 launchCount = preferences[LAUNCH_COUNT] ?: 0,
@@ -808,6 +796,14 @@ private inline fun <reified T> decodePrefOrDefault(raw: String?, default: T): T 
 }
 
 private fun encryptPrefValue(raw: String): String = ProviderCredentialCipher.encrypt(raw)
+
+/** 非加密 UUID 字段的同类兜底：坏值只回退该字段的默认，不再让 Uuid.parse 抛穿 settings map。 */
+private fun parseUuidPrefOrNull(raw: String?): Uuid? {
+    if (raw.isNullOrBlank()) return null
+    return runCatching { Uuid.parse(raw) }
+        .onFailure { AppLog.w(TAG, "settings 字段（UUID）解析失败，已回退默认值", it) }
+        .getOrNull()
+}
 
 private fun MutablePreferences.putToolOutputLimits(settings: Settings) {
         this[TOOL_OUTPUT_MAX_CHARS] = settings.toolOutputMaxChars

@@ -634,7 +634,8 @@ fun vaultCredentialUpdateTool(
                     if (changed.isEmpty()) {
                         listOf(UIMessagePart.Text("ℹ️ 没有需要更新的字段（当前已是最新）"))
                     } else {
-                        val value = repository.decryptValue(existing) ?: ""
+                        val value = repository.decryptValue(existing)
+                            ?: return@Tool listOf(UIMessagePart.Text("❌ 解密失败，已中止更新以避免用空值覆盖凭据（密钥可能临时不可用，请稍后重试）"))
                         repository.save(
                             name = targetName,
                             value = value,

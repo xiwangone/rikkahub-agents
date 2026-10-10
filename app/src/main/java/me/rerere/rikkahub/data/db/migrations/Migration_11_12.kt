@@ -57,7 +57,14 @@ val Migration_11_12 = object : Migration(11, 12) {
                         // 同时应用类型名映射（与 Migration_13_14 相同的逻辑）
                         val nodesArray = runCatching {
                             JsonInstant.parseToJsonElement(nodesJson) as? JsonArray
-                        }.getOrNull() ?: JsonArray(emptyList())
+                        }.getOrNull()
+                        if (nodesArray == null) {
+                            // 解析失败（非法 JSON / 非数组）：绝不能执行下面清空 nodes 的 UPDATE，
+                            // 否则会把该会话已提交的数据直接销毁。保持原样并跳过，交由人工/上层处理。
+                            AppLog.w(TAG, "migrate: skip conversation $conversationId — nodes not a JSON array")
+                            skippedCount++
+                            continue
+                        }
 
                         nodesArray.forEachIndexed { index, nodeElement ->
                             val nodeObject = nodeElement as? JsonObject ?: return@forEachIndexed

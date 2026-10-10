@@ -399,9 +399,16 @@ class FilesManager(
         val activity = requireNotNull(activityContext.getActivity()) { "Activity not found" }
         when {
             image.startsWith("data:image") -> {
-                val byteArray = Base64.decode(image.substringAfter("base64,").toByteArray())
-                val bitmap = BitmapFactory.decodeByteArray(byteArray, 0, byteArray.size)
-                activityContext.exportImage(activity, bitmap)
+                // Base64.decode throws on malformed payload and BitmapFactory returns null
+                // on non-image bytes; exportImage's bitmap param is non-null, so either
+                // case used to crash the caller. Skip + log instead.
+                val byteArray = runCatching { Base64.decode(image.substringAfter("base64,").toByteArray()) }.getOrNull()
+                val bitmap = byteArray?.let { BitmapFactory.decodeByteArray(it, 0, it.size) }
+                if (bitmap == null) {
+                    AppLog.e(TAG, "saveMessageImage: failed to decode data:image payload (${image.take(64)}…)")
+                } else {
+                    activityContext.exportImage(activity, bitmap)
+                }
             }
 
             image.startsWith("file:") -> {
@@ -421,7 +428,11 @@ class FilesManager(
 
                     if (connection.responseCode == HttpURLConnection.HTTP_OK) {
                         val bitmap = BitmapFactory.decodeStream(connection.inputStream)
-                        activityContext.exportImage(activity, bitmap)
+                        if (bitmap == null) {
+                            AppLog.e(TAG, "saveMessageImage: downloaded content is not a decodable image: $image")
+                        } else {
+                            activityContext.exportImage(activity, bitmap)
+                        }
                     } else {
                         AppLog.e(
                             TAG,

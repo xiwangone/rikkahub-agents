@@ -2060,6 +2060,7 @@ class ChatService(
 
                 return result.message.toText()
                     ?.trim()
+                    ?.takeIf { it.isNotBlank() }
                     ?: throw IllegalStateException("Failed to generate compressed summary")
             }
 

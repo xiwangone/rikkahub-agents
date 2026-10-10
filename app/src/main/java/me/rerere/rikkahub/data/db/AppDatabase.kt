@@ -188,6 +188,10 @@ object TokenUsageConverter {
 
     @TypeConverter
     fun toTokenUsage(usage: String): TokenUsage? {
-        return JsonInstant.decodeFromString(usage)
+        // One corrupt cell must not throw inside Room's cursor mapping and kill every
+        // query touching this column — treat it as "no usage recorded".
+        return runCatching { JsonInstant.decodeFromString<TokenUsage?>(usage) }
+            .onFailure { me.rerere.rikkahub.data.log.AppLog.w("TokenUsageConverter", "Failed to decode TokenUsage column", it) }
+            .getOrNull()
     }
 }

@@ -155,10 +155,11 @@ private fun err(code: String, detail: String): List<UIMessagePart> =
     )
 
 /**
- * Resolve a webview URL emitted by a JS skill. Absolute URIs (http/https/file/data) pass
- * through unchanged. Relative paths are resolved against the script file's parent
- * directory, rewritten to `file://` URIs, and verified to stay inside [skillDir] (path
- * traversal defence). Returns null if the resolved path escapes the skill dir.
+ * Resolve a webview URL emitted by a JS skill. Absolute http/https/data URIs pass through
+ * unchanged; absolute `file://` URIs are confined to [skillDir] like relative paths.
+ * Relative paths are resolved against the script file's parent directory, rewritten to
+ * `file://` URIs, and verified to stay inside [skillDir] (path traversal defence).
+ * Returns null if the resolved path escapes the skill dir.
  */
 internal fun resolveSkillWebviewUrl(
     url: String,
@@ -169,9 +170,25 @@ internal fun resolveSkillWebviewUrl(
     if (raw.isEmpty()) return null
     if (raw.startsWith("http://", ignoreCase = true)
         || raw.startsWith("https://", ignoreCase = true)
-        || raw.startsWith("file://", ignoreCase = true)
         || raw.startsWith("data:", ignoreCase = true)
     ) return raw
+    // Absolute file:// is NOT a trusted passthrough: the browser config allows
+    // file-access-from-file-URLs, so an arbitrary path would expose app-private files.
+    // Confine it to the skill dir subtree, same as relative paths.
+    if (raw.startsWith("file://", ignoreCase = true)) {
+        val withoutScheme = raw.substring(7)
+        val filePath = withoutScheme.substringBefore('?').substringBefore('#')
+        val query = withoutScheme.substring(filePath.length)
+        if (filePath.isBlank()) return null
+        val target = java.io.File(filePath)
+        val targetCanonical = runCatching { target.canonicalPath }.getOrNull() ?: return null
+        val skillCanonical = runCatching { skillDir.canonicalPath }.getOrNull() ?: return null
+        val expectedPrefix = skillCanonical + java.io.File.separator
+        if (targetCanonical != skillCanonical && !targetCanonical.startsWith(expectedPrefix)) {
+            return null
+        }
+        return "file://$targetCanonical$query"
+    }
 
     val pathOnly = raw.substringBefore('?').substringBefore('#')
     val query = raw.substring(pathOnly.length) // includes leading ? or # if present

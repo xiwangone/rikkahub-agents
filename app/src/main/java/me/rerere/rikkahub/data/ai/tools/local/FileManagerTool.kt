@@ -318,17 +318,20 @@ fun listFilesTool(): Tool = Tool(
 
         val collected = mutableListOf<File>()
         var truncated = false
+        val maxDepth = (obj["max_depth"]?.jsonPrimitive?.intOrNull ?: 32).coerceIn(1, 64)
 
-        fun collect(d: File) {
+        fun collect(d: File, depth: Int) {
+            if (depth > maxDepth) { truncated = true; return }
             val entries = try { d.listFiles() ?: emptyArray() } catch (_: SecurityException) { emptyArray() }
             for (f in entries) {
                 if (collected.size >= limit) { truncated = true; return }
                 val matches = patternRegex == null || patternRegex.matches(f.name)
                 if (matches) collected.add(f)
-                if (recursive && f.isDirectory) collect(f)
+                // isDirectory follows symlinks — the depth cap is what bounds symlink cycles.
+                if (recursive && f.isDirectory) collect(f, depth + 1)
             }
         }
-        collect(dir)
+        collect(dir, 1)
 
         fmTextPart(buildJsonObject {
             put("files", buildJsonArray { collected.forEach { add(fileEntryJson(it)) } })
@@ -702,7 +705,7 @@ fun copyFileTool(): Tool = Tool(
         try {
             dst.parentFile?.mkdirs()
             if (src.isDirectory) {
-                src.walkTopDown().forEach { f ->
+                src.walkTopDown().maxDepth(64).forEach { f ->
                     val rel = f.relativeTo(src)
                     val target = File(dst, rel.path)
                     if (f.isDirectory) target.mkdirs()

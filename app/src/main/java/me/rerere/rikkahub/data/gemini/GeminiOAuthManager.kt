@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.common.http.await
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
@@ -161,20 +162,24 @@ class GeminiOAuthManager(
     private suspend fun awaitNetworkUnblocked() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
         val connectivityManager = context.getSystemService(ConnectivityManager::class.java)
-        suspendCancellableCoroutine { continuation ->
-            lateinit var callback: ConnectivityManager.NetworkCallback
-            callback = object : ConnectivityManager.NetworkCallback() {
-                override fun onBlockedStatusChanged(network: Network, blocked: Boolean) {
-                    if (!blocked && continuation.isActive) {
-                        runCatching { connectivityManager.unregisterNetworkCallback(callback) }
-                        continuation.resume(Unit)
+        // 尽力等待「网络由 blocked 转为放行」事件：常态网络从未进入 blocked，回调永不触发，
+        // 无超时会让令牌交换永久挂起。加 5s 上限，到点无论是否收到事件都继续。
+        withTimeoutOrNull(5_000) {
+            suspendCancellableCoroutine { continuation ->
+                lateinit var callback: ConnectivityManager.NetworkCallback
+                callback = object : ConnectivityManager.NetworkCallback() {
+                    override fun onBlockedStatusChanged(network: Network, blocked: Boolean) {
+                        if (!blocked && continuation.isActive) {
+                            runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+                            continuation.resume(Unit)
+                        }
                     }
                 }
+                continuation.invokeOnCancellation {
+                    runCatching { connectivityManager.unregisterNetworkCallback(callback) }
+                }
+                connectivityManager.registerDefaultNetworkCallback(callback)
             }
-            continuation.invokeOnCancellation {
-                runCatching { connectivityManager.unregisterNetworkCallback(callback) }
-            }
-            connectivityManager.registerDefaultNetworkCallback(callback)
         }
     }
 

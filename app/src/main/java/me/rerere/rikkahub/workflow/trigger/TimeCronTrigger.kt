@@ -135,7 +135,11 @@ internal class TimeCronTriggerFamily(
 
     /** Internal — fires the workflow then re-enqueues if needed. Called from worker. */
     suspend fun onWorkerFired(workflowId: String) {
-        val cb = fireCallback ?: return
+        // Cold-start race: the callback can still be null when WorkManager restores a
+        // worker before TriggerRegistry.start() has synced. Don't bail with `?: return` —
+        // that would drop the fire AND kill the one-shot reschedule chain for this
+        // workflow forever. Skip only the fire, keep the bookkeeping below.
+        val cb = fireCallback
         // Post-boot or post-process-death race: WorkManager wakes the worker before
         // [TriggerRegistry.start] has emitted from the repo's flow, leaving `lastSnapshot`
         // empty. Fall back to a direct repository fetch so the fire isn't silently dropped.
@@ -154,6 +158,7 @@ internal class TimeCronTriggerFamily(
         // which fires every day; the day restriction is only honoured here. Without this
         // gate a "Mondays 09:00" workflow fires daily after its first Monday.
         val spec = wf.trigger as? TriggerSpec.TimeCron
+        var skipFire = cb == null
         if (spec != null && !spec.timeOfDay.isNullOrBlank() && spec.daysOfWeek.isNotEmpty()) {
             val zone =
                 spec.timezone?.let { runCatching { ZoneId.of(it) }.getOrNull() }
@@ -161,12 +166,14 @@ internal class TimeCronTriggerFamily(
             val today = ZonedDateTime.now(zone).dayOfWeek
             if (today !in spec.daysOfWeek.map { isoDow(it) }) {
                 AppLog.d(TAG, "time_cron: $workflowId skipped, $today not in days_of_week")
-                return
+                skipFire = true
             }
         }
-        scope.launch(Dispatchers.IO) {
-            runCatching { cb.onFire(wf.id, wf.trigger) }
-                .onFailure { AppLog.w(TAG, "time_cron: fire callback failed for $workflowId", it) }
+        if (!skipFire && cb != null) {
+            scope.launch(Dispatchers.IO) {
+                runCatching { cb.onFire(wf.id, wf.trigger) }
+                    .onFailure { AppLog.w(TAG, "time_cron: fire callback failed for $workflowId", it) }
+            }
         }
         // For one-shot path (period < 15min or null), re-enqueue with the next fire.
         val periodMs = (wf.trigger as? TriggerSpec.TimeCron)?.let { derivePeriodMs(it) }
@@ -221,20 +228,29 @@ internal class TimeCronTriggerFamily(
             nowMs: Long,
         ): Long {
             val now = ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(nowMs), zone)
-            // time_of_day + optional days_of_week
+            // time_of_day + optional days_of_week. Wrapped in runCatching because the
+            // lenient read path (parseStored) can hand us a malformed "09:0" / out-of-range
+            // value — an uncaught throw here kills scheduling for the ENTIRE family.
             if (!spec.timeOfDay.isNullOrBlank()) {
-                val (h, m) = spec.timeOfDay.split(":").let { it[0].toInt() to it[1].toInt() }
-                var candidate = now.toLocalDate().atTime(LocalTime.of(h, m)).atZone(zone)
-                if (!candidate.isAfter(now)) candidate = candidate.plusDays(1)
-                if (spec.daysOfWeek.isNotEmpty()) {
-                    val allowed = spec.daysOfWeek.map { isoDow(it) }.toSet()
-                    var hops = 0
-                    while (candidate.dayOfWeek !in allowed && hops < 8) {
-                        candidate = candidate.plusDays(1)
-                        hops++
+                val parsedTime =
+                    runCatching {
+                        val parts = spec.timeOfDay.split(":")
+                        LocalTime.of(parts[0].trim().toInt(), parts[1].trim().toInt())
+                    }.getOrNull()
+                if (parsedTime != null) {
+                    var candidate = now.toLocalDate().atTime(parsedTime).atZone(zone)
+                    if (!candidate.isAfter(now)) candidate = candidate.plusDays(1)
+                    if (spec.daysOfWeek.isNotEmpty()) {
+                        val allowed = spec.daysOfWeek.map { isoDow(it) }.toSet()
+                        var hops = 0
+                        while (candidate.dayOfWeek !in allowed && hops < 8) {
+                            candidate = candidate.plusDays(1)
+                            hops++
+                        }
                     }
+                    return candidate.toInstant().toEpochMilli()
                 }
-                return candidate.toInstant().toEpochMilli()
+                AppLog.w(TAG, "time_cron: unparseable time_of_day '${spec.timeOfDay}', falling back")
             }
             // @every Ns
             derivePeriodMs(spec)?.let { return nowMs + it }

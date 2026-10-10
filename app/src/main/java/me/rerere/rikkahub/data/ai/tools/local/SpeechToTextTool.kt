@@ -111,6 +111,10 @@ fun speechToTextTool(context: Context): Tool = Tool(
 
                         override fun onResults(results: Bundle?) {
                             if (!cont.isActive) return
+                            // 正常完成也要销毁：invokeOnCancellation 只在取消/超时时触发，
+                            // 成功 resume 不会走它，否则每次识别都泄漏一个 recognizer，
+                            // 后续调用会撞上 ERROR_RECOGNIZER_BUSY。
+                            mainHandler.post { runCatching { rec.cancel(); rec.destroy() } }
                             val text = results
                                 ?.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION)
                                 ?.firstOrNull()
@@ -122,7 +126,10 @@ fun speechToTextTool(context: Context): Tool = Tool(
                         }
 
                         override fun onError(error: Int) {
-                            if (cont.isActive) cont.resume(RecognitionOutcome.Error(error))
+                            if (cont.isActive) {
+                                mainHandler.post { runCatching { rec.cancel(); rec.destroy() } }
+                                cont.resume(RecognitionOutcome.Error(error))
+                            }
                         }
                     })
 

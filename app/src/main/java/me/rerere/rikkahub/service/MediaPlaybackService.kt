@@ -280,7 +280,16 @@ class MediaPlaybackService : Service() {
         releaseMediaPlayer()
         requestAudioFocus() // Still try to play when focus cannot be acquired, as before.
         currentSource = source
+        currentSource = source
+
+        // Post the foreground notification BEFORE the synchronous metadata resolve below --
+        // MediaMetadataRetriever can block for seconds on remote sources, and Android kills
+        // a startForegroundService that hasn't called startForeground within ~10s.
+        postForegroundNotification()
+
+        // Resolve metadata -- explicit args win; fall back to MediaMetadataRetriever
         val metadata = resolvePlaybackMetadata(source, title, artist, album)
+
         currentTitle = metadata.title
         currentArtist = metadata.artist
         currentAlbum = metadata.album

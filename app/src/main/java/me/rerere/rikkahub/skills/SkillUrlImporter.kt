@@ -289,7 +289,7 @@ class SkillUrlImporter(
         val end = nativeMd.indexOf("\r\n---", startIndex = 3).takeIf { it >= 0 }
             ?: nativeMd.indexOf("\n---", startIndex = 3).takeIf { it >= 0 }
             ?: return nativeMd
-        return nativeMd.substring(0, end) + "\nsource-url: $sourceUrl" + nativeMd.substring(end)
+        return nativeMd.substring(0, end) + "\nsource-url: ${yamlQuote(sourceUrl)}" + nativeMd.substring(end)
     }
 
     /** Public for testability. */

@@ -70,7 +70,9 @@ class WebServerService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 val port = intent.getIntExtra(EXTRA_PORT, 8080)
-                val localhostOnly = intent.getBooleanExtra(EXTRA_LOCALHOST_ONLY, false)
+                // Default to loopback when the extra is absent — fail safe, every in-app
+                // sender passes it explicitly.
+                val localhostOnly = intent.getBooleanExtra(EXTRA_LOCALHOST_ONLY, true)
                 if (!startForegroundCompat()) {
                     stopSelf()
                     return START_NOT_STICKY
@@ -104,7 +106,10 @@ class WebServerService : Service() {
                         startObservingState()
                         webServerManager.start(
                             port = settings.webServerPort,
-                            localhostOnly = settings.webServerListenScope.equals("loopback", ignoreCase = true),
+                            // Fail safe: only explicit lan/any opens the socket; unknown scope stays loopback.
+                            localhostOnly =
+                                !settings.webServerListenScope.equals("lan", ignoreCase = true) &&
+                                    !settings.webServerListenScope.equals("any", ignoreCase = true),
                         )
                     } else {
                         stopSelf()

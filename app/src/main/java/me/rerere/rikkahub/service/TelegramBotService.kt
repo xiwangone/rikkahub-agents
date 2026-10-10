@@ -11,6 +11,7 @@ import android.os.Build
 import android.os.IBinder
 import androidx.core.app.NotificationCompat
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -85,7 +86,14 @@ class TelegramBotService : Service() {
     // getUpdates; the stall checker reads it; DoctorChecks reads it.
     private val pollStallTracker: me.rerere.rikkahub.data.telegram.TelegramPollStallTracker by inject()
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    // Uncaught exceptions in scope.launch children would otherwise hit the default handler,
+    // which logs and kills the process (utils/CrashHandler) — swallow + log here instead so a
+    // single bad message task cannot take down the long-poll service.
+    private val scope =
+        CoroutineScope(
+            SupervisorJob() + Dispatchers.IO +
+                CoroutineExceptionHandler { _, e -> AppLog.e(TAG, "uncaught error in bot scope", e) }
+        )
     private var pollJob: Job? = null
     private var externalGenPumpJob: Job? = null
     private val foregroundHelper by lazy { TelegramForegroundHelper(this) }

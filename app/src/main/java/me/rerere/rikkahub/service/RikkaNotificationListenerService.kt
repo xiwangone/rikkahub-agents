@@ -207,7 +207,10 @@ class RikkaNotificationListenerService : NotificationListenerService() {
     fun dismissByKey(key: String): Boolean {
         val active = activeNotifications ?: return false
         if (active.none { it.key == key }) return false
-        cancelNotification(key)
+        // cancelNotification(String) only exists on API 30+; the array overload is present
+        // since API 18 and minSdk here is 26, so the single-key call would NoSuchMethodError.
+        @Suppress("DEPRECATION")
+        cancelNotification(arrayOf(key), null, 0)
         return true
     }
 

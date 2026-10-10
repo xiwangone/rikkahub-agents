@@ -87,7 +87,17 @@ class LocalMcpServer(
                 }
                 // 1) 访问令牌：authTokenRef 非空时强制校验（每次请求解析，支持凭证轮换）
                 val expectedToken = authTokenProvider?.invoke()
-                if (!expectedToken.isNullOrBlank()) {
+                if (authTokenProvider != null) {
+                    // 令牌已启用但解析失败（null/空白，如凭证解析临时出错）：必须拒绝而非跳过，
+                    // 否则等于对绑定了鉴权的（尤其 0.0.0.0）主机 fail-open。
+                    if (expectedToken.isNullOrBlank()) {
+                        call.respondText(
+                            "server access token unavailable",
+                            ContentType.Text.Plain,
+                            HttpStatusCode.ServiceUnavailable,
+                        )
+                        return@post
+                    }
                     val provided =
                         call.request.headers["Authorization"]?.let {
                             if (it.startsWith("Bearer ", ignoreCase = true)) it.substring(7).trim() else it.trim()

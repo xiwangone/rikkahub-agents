@@ -82,6 +82,8 @@ class MigrationExporter(
                 ),
             )
         val plainZip = webDavSync.prepareBackupFile(scope)
+        var withMigration: File? = null
+        var returned: File? = null
         try {
             val (credentials, undecryptable) = collectMigrationCredentials(vaultRepository)
             val entries =
@@ -91,11 +93,13 @@ class MigrationExporter(
                     credentials = credentials,
                     providersJson = providersJson,
                 )
-            val withMigration = File(plainZip.parentFile, "migration_${plainZip.name}")
-            appendTextEntriesToZip(plainZip, entries, withMigration)
-            val encrypted = backupEncryptionManager.maybeEncrypt(withMigration)
-            if (encrypted.absolutePath != withMigration.absolutePath && withMigration.exists()) {
-                withMigration.delete()
+            val migration = File(plainZip.parentFile, "migration_${plainZip.name}")
+            withMigration = migration
+            appendTextEntriesToZip(plainZip, entries, migration)
+            val encrypted = backupEncryptionManager.maybeEncrypt(migration)
+            returned = encrypted
+            if (encrypted.absolutePath != migration.absolutePath && migration.exists()) {
+                migration.delete()
             }
             return MigrationExportResult(
                 file = encrypted,
@@ -105,6 +109,9 @@ class MigrationExporter(
             )
         } finally {
             if (plainZip.exists()) plainZip.delete()
+            // 中间产物含明文凭据：若加密/追加中途抛异常，它既不是返回值也未被删，会连同凭据留在缓存目录 → 兜底清理
+            val migration = withMigration
+            if (migration != null && migration !== returned && migration.exists()) migration.delete()
         }
     }
 }

@@ -621,7 +621,11 @@ class RikkaHubApp : Application() {
                     val intent = Intent(this@RikkaHubApp, WebServerService::class.java).apply {
                         action = WebServerService.ACTION_START
                         putExtra(WebServerService.EXTRA_PORT, settings.webServerPort)
-                        putExtra(WebServerService.EXTRA_LOCALHOST_ONLY, settings.webServerListenScope.equals("loopback", ignoreCase = true))
+                        putExtra(
+                            WebServerService.EXTRA_LOCALHOST_ONLY,
+                            !settings.webServerListenScope.equals("lan", ignoreCase = true) &&
+                                !settings.webServerListenScope.equals("any", ignoreCase = true),
+                        )
                     }
                     startForegroundService(intent)
                 }
