@@ -793,11 +793,13 @@ internal fun lifecycleLogsPayload(context: Context, params: JsonObject): String 
  */
 internal fun fileLogsPayload(context: Context, params: JsonObject): String {
     val lines = (params["lines"]?.jsonPrimitive?.intOrNull ?: 200).coerceIn(1, 2000)
+    val days = (params["days"]?.jsonPrimitive?.intOrNull ?: 7).coerceIn(1, 7)
     val keyword = params["keyword"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
     val raw =
         me.rerere.rikkahub.data.log.FileLogSink.recentLines(
             me.rerere.rikkahub.data.log.FileLogSink.KIND_APP,
             lines,
+            days,
         )
     val filtered =
         if (keyword.isEmpty()) {
@@ -805,7 +807,7 @@ internal fun fileLogsPayload(context: Context, params: JsonObject): String {
         } else {
             raw.lineSequence().filter { it.contains(keyword, ignoreCase = true) }.joinToString("\n")
         }
-    return if (filtered.isBlank()) "(no app log records on disk)" else filtered
+    return if (filtered.isBlank()) "(no app log records on disk in the last $days day(s))" else filtered
 }
 
 // ---------- get_build_info ----------
@@ -1654,6 +1656,10 @@ private fun diagnosticsParameters(): InputSchema =
             put("lines", buildJsonObject {
                 put("type", "integer")
                 put("description", "lifecycle / logs_file only: trailing line count (lifecycle default 60 max 500; logs_file default 200 max 2000).")
+            })
+            put("days", buildJsonObject {
+                put("type", "integer")
+                put("description", "logs_file only: include this many most recent calendar days (default 7; maximum 7, matching disk retention).")
             })
             put("which", buildJsonObject {
                 put("type", "string")

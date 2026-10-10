@@ -464,6 +464,7 @@ private fun exportToMarkdown(
     }
 }
 
+@Suppress("TooGenericExceptionCaught") // Bitmap, FileProvider and Android share intents expose unchecked failures that must still show the export-failure toast.
 private suspend fun exportToImage(
     context: Context,
     scope: CoroutineScope,
@@ -532,7 +533,16 @@ private suspend fun exportToImage(
                 file,
             )
         shareFile(context, uri, "image/png")
-    } catch (e: Exception) {
+    } catch (e: IOException) {
+        e.printStackTrace()
+        withContext(Dispatchers.Main) {
+            Toast.makeText(
+                context,
+                context.getString(R.string.toast_failed_export_image, e.message.orEmpty()),
+                Toast.LENGTH_SHORT,
+            ).show()
+        }
+    } catch (e: RuntimeException) {
         e.printStackTrace()
         withContext(Dispatchers.Main) {
             Toast.makeText(
@@ -1063,5 +1073,4 @@ fun exportToJson(
         e.printStackTrace()
     }
 }
-
 

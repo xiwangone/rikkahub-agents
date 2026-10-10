@@ -14,6 +14,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.datastore.migration.SettingsJsonMigrator
+import me.rerere.rikkahub.data.sync.replaceFilePreservingTarget
 import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
 import me.rerere.rikkahub.utils.fileSizeToString
@@ -156,14 +157,18 @@ class WebDavSync(
             val plainFile =
                 try {
                     backupEncryptionManager.maybeDecrypt(backupFile)
-                } catch (e: Exception) {
-                    if (e is IllegalStateException || e is IllegalArgumentException) {
-                        throw BackupNeedsPasswordException(
-                            message = e.message ?: "Backup is encrypted",
-                            encFile = backupFile,
-                        )
-                    }
-                    throw e
+                } catch (e: IllegalStateException) {
+                    throw BackupNeedsPasswordException(
+                        message = e.message ?: "Backup is encrypted",
+                        encFile = backupFile,
+                        cause = e,
+                    )
+                } catch (e: IllegalArgumentException) {
+                    throw BackupNeedsPasswordException(
+                        message = e.message ?: "Backup is encrypted",
+                        encFile = backupFile,
+                        cause = e,
+                    )
                 }
             try {
                 // Restore from backup file
@@ -672,14 +677,7 @@ class WebDavSync(
             FileOutputStream(tmp).use { outputStream ->
                 zipIn.copyTo(outputStream)
             }
-            if (!tmp.renameTo(targetFile)) {
-                // Some filesystems won't rename onto an existing target; delete + retry.
-                targetFile.delete()
-                if (!tmp.renameTo(targetFile)) {
-                    tmp.delete()
-                    throw java.io.IOException("Failed to place restored file at ${targetFile.absolutePath}")
-                }
-            }
+            replaceFilePreservingTarget(tmp, targetFile)
         } catch (e: Throwable) {
             tmp.delete()
             throw e

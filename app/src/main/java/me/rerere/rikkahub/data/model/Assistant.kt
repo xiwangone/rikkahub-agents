@@ -172,20 +172,7 @@ fun String.replaceRegexes(
     return assistant.regexes.fold(this) { acc, regex ->
         if (regex.enabled && regex.visualOnly == visual && regex.affectingScope.contains(scope)) {
             val compiled = compileRegexCached(regex.findRegex) ?: return@fold acc
-            try {
-                acc.replace(
-                    regex = compiled,
-                    replacement = regex.replaceString,
-                )
-            } catch (e: IndexOutOfBoundsException) {
-                e.printStackTrace()
-                // 替换字符串可能引用不存在的分组，失败时返回原字符串
-                acc
-            } catch (e: IllegalArgumentException) {
-                e.printStackTrace()
-                // 替换字符串可能含非法转义（如结尾裸 \），失败时返回原字符串
-                acc
-            }
+            replaceRegexSafely(acc, compiled, regex.replaceString)
         } else {
             acc
         }

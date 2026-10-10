@@ -4,6 +4,7 @@ import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.JSch
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonArray
 import org.koin.java.KoinJavaComponent.getKoin
 import kotlinx.serialization.json.JsonPrimitive
@@ -546,7 +547,7 @@ private suspend fun runVaultSshExec(
 internal fun String.ensureTrailingNewline(): String = if (endsWith("\n")) this else "$this\n"
 
 /** 更新凭证条目的元数据（名称/描述/分组），值不可被 AI 修改。改名=复制 value 密文到新名后删旧条目。 */
-@Suppress("LongMethod", "CyclomaticComplexMethod") // 工具 schema（名称 / 描述 / 参数与元数据说明）集中一处才读得完整，暂不拆
+@Suppress("LongMethod", "CyclomaticComplexMethod", "TooGenericExceptionCaught") // Schema保持集中；跨DataStore/Room的失败边界保留源凭证并显式重抛取消。
 fun vaultCredentialUpdateTool(
     context: android.content.Context,
     repository: CredentialVaultRepository,
@@ -645,19 +646,27 @@ fun vaultCredentialUpdateTool(
                         )
                         var syncedRefs = 0
                         if (targetName != name) {
-                            repository.delete(existing)
-                            repository.logAccess(name, "ai-tool", "rename_from")
-                            repository.logAccess(targetName, "ai-tool", "rename_to")
-                            // 改名同时同步配置里的引用；否则按名字引用的地方会静默失效
+                            // 保留源凭证直到 DataStore 与所有 SSH 主机引用同步成功。
                             syncedRefs =
-                                runCatching {
+                                try {
                                     VaultReferenceSync.renameEverywhere(
                                         settingsStore = settingsStore,
                                         sshHostRepository = sshHostRepository,
                                         oldName = name,
                                         newName = targetName,
                                     )
-                                }.getOrDefault(0)
+                                } catch (error: kotlinx.coroutines.CancellationException) {
+                                    throw error
+                                } catch (error: Exception) {
+                                    return@Tool listOf(
+                                        UIMessagePart.Text(
+                                            "⚠️ 引用同步失败；源凭证「$name」仍保留，目标「$targetName」也已创建，引用可能部分更新。请核对引用后再执行合并/清理。原因：${error.message ?: error::class.simpleName}",
+                                        ),
+                                    )
+                                }
+                            repository.delete(existing)
+                            repository.logAccess(name, "ai-tool", "rename_from")
+                            repository.logAccess(targetName, "ai-tool", "rename_to")
                         } else {
                             repository.logAccess(name, "ai-tool", "update")
                         }
@@ -680,8 +689,8 @@ fun vaultCredentialUpdateTool(
     },
 )
 
-/** 批量更新多条凭证的元数据（分组/描述/改名）。与单条版同语义，只碰元数据，值不可读写。 */
-@Suppress("CyclomaticComplexMethod", "LongMethod") // 复杂度来自“每条独立校验 + 写回”的批量循环、长度来自工具 schema 平铺，拆函数反而更难读（同 vaultCompareLoadCredsTool 的处理）
+/** 批量更新多条凭证的元数据（分组/描述/改名）。值不向模型返回；改名前先完整预检。 */
+@Suppress("CyclomaticComplexMethod", "LongMethod", "TooGenericExceptionCaught") // 批量边界要捕获每条记录的跨存储失败并继续其它项目。
 fun vaultCredentialBulkUpdateTool(
     context: android.content.Context,
     repository: CredentialVaultRepository,
@@ -690,9 +699,10 @@ fun vaultCredentialBulkUpdateTool(
 ): Tool = Tool(
     name = "vault_credential_bulk_update",
     description =
-        "Batch-update metadata (group / description / new_name) for MULTIPLE credentials in ONE call. " +
+        "Batch-update metadata (group / description / new_name / type) for MULTIPLE credentials in ONE call. " +
             "Same semantics as vault_credential_update, applied to every item of `updates`. " +
-            "The secret VALUE is never readable or writable. Returns a per-item result summary. " +
+            "All items are validated before any write. The secret VALUE is never returned; a rename keeps the old entry until reference synchronization succeeds. " +
+            "Returns a per-item result summary; if sync fails, both names are retained and the item is reported incomplete. " +
             "Use this instead of calling vault_credential_update N times (e.g. re-grouping 30 entries).",
     parameters = {
         InputSchema.Obj(
@@ -736,84 +746,216 @@ fun vaultCredentialBulkUpdateTool(
             if (!sessionManager.hasActiveAuthorization()) {
                 listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
             } else {
-                val lines = mutableListOf<String>()
-                var ok = 0
-                var noChange = 0
-                var failed = 0
-                for (el in items) {
-                    val o = el.jsonObject
-                    val nm = o["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-                    if (nm == null) {
-                        failed++; lines += "❌ 缺 name，跳过一条"; continue
-                    }
-                    val existing = repository.getByName(nm)
-                    if (existing == null) {
-                        failed++; lines += "❌ 不存在：$nm"; continue
-                    }
-                    val newName = o["new_name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-                    val desc = o["description"]?.jsonPrimitive?.contentOrNull
-                    val group = o["group"]?.jsonPrimitive?.contentOrNull
-                    val typeParam = o["type"]?.jsonPrimitive?.contentOrNull
-                    val metaParam = o["meta"]?.let { runCatching { it.jsonObject }.getOrNull() }
-                    val mergedMetaJson =
-                        if (metaParam != null) {
-                            val cur = CredentialMeta.decode(existing.metaJson).toMutableMap()
-                            metaParam.forEach { (k, v) ->
-                                val s = (v as? JsonPrimitive)?.contentOrNull
-                                if (s.isNullOrBlank()) cur.remove(k) else cur[k] = s
-                            }
-                            CredentialMeta.encode(cur)
-                        } else {
-                            existing.metaJson
-                        }
-                    val changed = mutableListOf<String>()
-                    val targetName = newName ?: nm
-                    if (newName != null && newName != nm) {
-                        if (repository.getByName(newName) != null) {
-                            failed++; lines += "❌ $nm → $newName 名称冲突"; continue
-                        }
-                        changed += "改名→$newName"
-                    }
-                    if (desc != null && desc != existing.description) changed += "描述"
-                    if (group != null && group != existing.grp) changed += "分组→$group"
-                    if (typeParam != null && typeParam != existing.type) changed += "类型→$typeParam"
-                    if (metaParam != null && mergedMetaJson != existing.metaJson) changed += "元数据"
-                    if (changed.isEmpty()) {
-                        noChange++; lines += "ℹ️ $nm 无变化"; continue
-                    }
-                    val value = repository.decryptValue(existing) ?: ""
-                    repository.save(
-                        name = targetName,
-                        value = value,
-                        description = desc ?: existing.description,
-                        group = group ?: existing.grp,
-                        publicKey = existing.publicKey,
-                        type = typeParam?.ifBlank { "" } ?: existing.type,
-                        metaJson = mergedMetaJson,
-                    )
-                    if (targetName != nm) {
-                        repository.delete(existing)
-                        repository.logAccess(nm, "ai-tool", "bulk_rename_from")
-                        repository.logAccess(targetName, "ai-tool", "bulk_rename_to")
-                        runCatching {
-                            VaultReferenceSync.renameEverywhere(
-                                settingsStore = settingsStore,
-                                sshHostRepository = sshHostRepository,
-                                oldName = nm,
-                                newName = targetName,
-                            )
-                        }
-                    } else {
-                        repository.logAccess(nm, "ai-tool", "bulk_update")
-                    }
-                    ok++
-                    lines += "✅ $nm（${changed.joinToString("、")}）"
-                }
-                listOf(
-                    UIMessagePart.Text(
-                        "批量更新完成：成功 $ok / 无变化 $noChange / 失败 $failed\n" + lines.joinToString("\n"),
-                    ),
+                data class PreparedUpdate(
+                    val name: String,
+                    val targetName: String,
+                    val description: String,
+                    val group: String,
+                    val type: String,
+                    val publicKey: String,
+                    val metaJson: String,
+                    val secretValue: String,
+                    val expectedUpdatedAt: Long,
+                    val changed: List<String>,
                 )
+
+                val preflightErrors = mutableListOf<String>()
+                val prepared = mutableListOf<PreparedUpdate>()
+                val seenNames = mutableSetOf<String>()
+                val seenTargets = mutableSetOf<String>()
+
+                fun readString(o: JsonObject, key: String, item: Int): String? {
+                    if (key !in o) return null
+                    val value = (o[key] as? JsonPrimitive)?.contentOrNull
+                    if (value == null) preflightErrors += "第${item + 1}条：$key 必须是字符串"
+                    return value
+                }
+
+                items.forEachIndexed { index, element ->
+                    val o = element as? JsonObject
+                    if (o == null) {
+                        preflightErrors += "第${index + 1}条：必须是对象"
+                        return@forEachIndexed
+                    }
+                    val name = readString(o, "name", index)?.ifBlank { null }
+                    if (name == null) {
+                        preflightErrors += "第${index + 1}条：缺少有效 name"
+                        return@forEachIndexed
+                    }
+                    if (!seenNames.add(name)) {
+                        preflightErrors += "重复更新来源：$name"
+                        return@forEachIndexed
+                    }
+
+                    val requestedName = readString(o, "new_name", index)?.ifBlank { null }
+                    val descriptionParam = readString(o, "description", index)
+                    val groupParam = readString(o, "group", index)
+                    val typeParam = readString(o, "type", index)
+                    val metaParam = if ("meta" in o) o["meta"] as? JsonObject else null
+                    if ("meta" in o && metaParam == null) {
+                        preflightErrors += "第${index + 1}条：meta 必须是对象"
+                    }
+                    if (!CredentialVaultRepository.validateCredentialName(name)) {
+                        preflightErrors += "第${index + 1}条：来源名称不符合凭证库命名规范：$name"
+                    }
+                    if (typeParam != null && !CredentialType.isValid(typeParam)) {
+                        preflightErrors += "第${index + 1}条：未知凭证类型 '$typeParam'"
+                    }
+
+                    val existing = runCatching { repository.getByName(name) }.getOrElse {
+                        preflightErrors += "第${index + 1}条：无法读取凭证 $name"
+                        return@forEachIndexed
+                    }
+                    if (existing == null) {
+                        preflightErrors += "第${index + 1}条：不存在凭证 $name"
+                        return@forEachIndexed
+                    }
+
+                    val targetName = requestedName ?: name
+                    if (targetName != name && !CredentialVaultRepository.validateCredentialName(targetName)) {
+                        preflightErrors += "第${index + 1}条：新名称不合规（须大写蛇形且不超过 64 字符）：$targetName"
+                    }
+                    if (!seenTargets.add(targetName)) {
+                        preflightErrors += "多个更新指向同一目标名称：$targetName"
+                    }
+                    if (targetName != name) {
+                        val targetLookup = runCatching { repository.getByName(targetName) }
+                        if (targetLookup.isFailure) {
+                            preflightErrors += "第${index + 1}条：无法检查目标名称是否可用：$targetName"
+                        } else if (targetLookup.getOrNull() != null) {
+                            preflightErrors += "第${index + 1}条：目标名称已存在：$targetName"
+                        }
+                    }
+
+                    val description = descriptionParam?.ifBlank { existing.description } ?: existing.description
+                    val group = groupParam?.ifBlank { existing.grp } ?: existing.grp
+                    val type = typeParam?.ifBlank { existing.type } ?: existing.type
+                    val metaJson = if (metaParam != null) {
+                        val merged = CredentialMeta.decode(existing.metaJson).toMutableMap()
+                        metaParam.forEach { (key, value) ->
+                            val text = (value as? JsonPrimitive)?.contentOrNull
+                            if (text.isNullOrBlank()) merged.remove(key) else merged[key] = text
+                        }
+                        CredentialMeta.encode(merged)
+                    } else {
+                        existing.metaJson
+                    }
+                    val changed = buildList {
+                        if (targetName != name) add("改名→$targetName")
+                        if (description != existing.description) add("描述")
+                        if (group != existing.grp) add("分组→$group")
+                        if (type != existing.type) add("类型→$type")
+                        if (metaJson != existing.metaJson) add("元数据")
+                    }
+                    val secretValue = if (changed.isEmpty() || existing.valueEncrypted.isBlank()) {
+                        ""
+                    } else {
+                        repository.decryptValue(existing) ?: run {
+                            preflightErrors += "第${index + 1}条：无法解密 $name；为避免覆盖成空值已中止"
+                            return@forEachIndexed
+                        }
+                    }
+                    prepared += PreparedUpdate(
+                        name = name,
+                        targetName = targetName,
+                        description = description,
+                        group = group,
+                        type = type,
+                        publicKey = existing.publicKey,
+                        metaJson = metaJson,
+                        secretValue = secretValue,
+                        expectedUpdatedAt = existing.updatedAt,
+                        changed = changed,
+                    )
+                }
+
+                if (preflightErrors.isNotEmpty()) {
+                    listOf(
+                        UIMessagePart.Text(
+                            "批量更新预检失败：未执行任何写入。\n" + preflightErrors.joinToString("\n") { "❌ $it" },
+                        ),
+                    )
+                } else {
+                    val lines = mutableListOf<String>()
+                    var ok = 0
+                    var noChange = 0
+                    var failed = 0
+                    for (update in prepared) {
+                        if (update.changed.isEmpty()) {
+                            noChange++
+                            lines += "ℹ️ ${update.name} 无变化"
+                            continue
+                        }
+                        var targetCreated = false
+                        try {
+                            val current = repository.getByName(update.name)
+                            if (current == null || current.updatedAt != update.expectedUpdatedAt) {
+                                failed++
+                                lines += "❌ ${update.name} 在预检后已变化，请重新读取后重试"
+                                continue
+                            }
+                            if (update.targetName != update.name && repository.getByName(update.targetName) != null) {
+                                failed++
+                                lines += "❌ ${update.name} → ${update.targetName}：目标名称在执行前已被占用"
+                                continue
+                            }
+                            if (update.targetName != update.name) {
+                                repository.insertNew(
+                                    name = update.targetName,
+                                    value = update.secretValue,
+                                    description = update.description,
+                                    group = update.group,
+                                    publicKey = update.publicKey,
+                                    type = update.type,
+                                    metaJson = update.metaJson,
+                                    createdAt = current.createdAt,
+                                )
+                                targetCreated = true
+                                // 保留源凭证，直到所有引用同步成功；失败/进程中断时至少旧、新引用均仍可解析。
+                                VaultReferenceSync.renameEverywhere(
+                                    settingsStore = settingsStore,
+                                    sshHostRepository = sshHostRepository,
+                                    oldName = update.name,
+                                    newName = update.targetName,
+                                )
+                                repository.delete(current)
+                                repository.logAccess(update.name, "ai-tool", "bulk_rename_from")
+                                repository.logAccess(update.targetName, "ai-tool", "bulk_rename_to")
+                            } else {
+                                repository.save(
+                                    name = update.name,
+                                    value = update.secretValue,
+                                    description = update.description,
+                                    group = update.group,
+                                    publicKey = update.publicKey,
+                                    type = update.type,
+                                    metaJson = update.metaJson,
+                                )
+                                repository.logAccess(update.name, "ai-tool", "bulk_update")
+                            }
+                            ok++
+                            lines += "✅ ${update.name}（${update.changed.joinToString("、")}）"
+                        } catch (error: kotlinx.coroutines.CancellationException) {
+                            throw error
+                        } catch (error: Exception) {
+                            failed++
+                            val sourceRemains = runCatching { repository.getByName(update.name) }.getOrNull() != null
+                            val targetRemains = runCatching { repository.getByName(update.targetName) }.getOrNull() != null
+                            lines += if (targetCreated && sourceRemains && targetRemains) {
+                                "⚠️ ${update.name} → ${update.targetName} 未完成：新旧条目均保留且引用可能部分同步；先核对引用，确认一致后再人工清理旧条目。"
+                            } else if (targetCreated && targetRemains) {
+                                "⚠️ ${update.name} → ${update.targetName}：目标条目存在，源条目状态需核对；请检查引用和 Vault 后再处理。"
+                            } else {
+                                "❌ ${update.name} 更新失败（${error::class.simpleName}）"
+                            }
+                        }
+                    }
+                    listOf(
+                        UIMessagePart.Text(
+                            "批量更新完成：成功 $ok / 无变化 $noChange / 失败或待恢复 $failed\n" + lines.joinToString("\n"),
+                        ),
+                    )
+                }
             }
         }
     },
@@ -1012,6 +1154,7 @@ fun vaultExportLoadCredsTool(
  * 先比对**值指纹**（不见值）报告二者是否一致，再统一引用指向并删除多余条目——
  * 这样既不会留下悬空引用，也不会因为"看起来一样"而误删不同内容。
  */
+@Suppress("TooGenericExceptionCaught") // 引用同步横跨DataStore与Room，任何失败时都必须保留源凭证。
 fun vaultCredentialMergeTool(
     repository: CredentialVaultRepository,
     settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
@@ -1056,15 +1199,22 @@ fun vaultCredentialMergeTool(
                     CredentialVaultRepository.fingerprint(targetValue)
 
         val synced =
-            runCatching {
+            try {
                 VaultReferenceSync.renameEverywhere(
                     settingsStore = settingsStore,
                     sshHostRepository = sshHostRepository,
                     oldName = source,
                     newName = target,
                 )
-            }.getOrDefault(0)
-
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                return@Tool listOf(
+                    UIMessagePart.Text(
+                        "⚠️ 引用同步失败；源凭证「$source」仍保留，引用可能部分更新。请核对后重试。原因：${error.message ?: error::class.simpleName}",
+                    ),
+                )
+            }
         repository.delete(sourceEntry)
         repository.logAccess(source, "ai-tool", "merge_from")
         repository.logAccess(target, "ai-tool", "merge_into")
@@ -1106,10 +1256,7 @@ suspend fun renameCredentialWithRefs(
         publicKey = existing.publicKey,
         type = existing.type,
     )
-    val synced =
-        runCatching {
-            VaultReferenceSync.renameEverywhere(settingsStore, sshHostRepository, oldName, newName)
-        }.getOrDefault(0)
+    val synced = VaultReferenceSync.renameEverywhere(settingsStore, sshHostRepository, oldName, newName)
     repository.delete(existing)
     repository.logAccess(oldName, "ai-tool", "rename_from")
     repository.logAccess(newName, "ai-tool", "rename_to")
@@ -1122,6 +1269,7 @@ suspend fun renameCredentialWithRefs(
  * 背景：历史数据里常有小写、连字符、空格甚至中文的名字；手工逐条改既慢又容易漏掉引用。
  * 默认 **dry_run**：先列出"现名 → 建议名"，确认后再执行。
  */
+@Suppress("TooGenericExceptionCaught") // 逐项规范化时跨存储失败必须保留源凭证并继续后续项目。
 fun vaultCredentialNormalizeTool(
     repository: CredentialVaultRepository,
     settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
@@ -1182,24 +1330,33 @@ fun vaultCredentialNormalizeTool(
         var done = 0
         var skipped = 0
         var syncedTotal = 0
+        val failures = mutableListOf<String>()
         plans.forEach { p ->
             if (repository.getByName(p.new) != null) {
                 skipped++
                 return@forEach
             }
-            val synced = runCatching {
-                renameCredentialWithRefs(repository, settingsStore, sshHostRepository, p.old, p.new)
-            }.getOrDefault(0)
-            if (synced > 0 || repository.getByName(p.new) != null) {
+            try {
+                val synced = renameCredentialWithRefs(repository, settingsStore, sshHostRepository, p.old, p.new)
                 done++
                 syncedTotal += synced
-            } else {
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
                 skipped++
+                failures += "${p.old} → ${p.new}：同步失败（${error.message ?: error::class.simpleName}），源凭证保留，引用可能部分更新"
             }
         }
         listOf(
             UIMessagePart.Text(
-                "✅ 已规范化 $done 条（跳过 $skipped 条）\n引用同步：共更新 $syncedTotal 处配置引用",
+                buildString {
+                    append("✅ 已规范化 $done 条（跳过/失败 $skipped 条）\n引用同步：共更新 $syncedTotal 处配置引用")
+                    if (failures.isNotEmpty()) {
+                        appendLine("\n失败项：")
+                        failures.forEach { appendLine("- $it") }
+                        append("目标条目可能已创建；核对引用后再手工合并/清理源条目。")
+                    }
+                },
             ),
         )
     },

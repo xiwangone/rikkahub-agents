@@ -124,8 +124,11 @@ fun vaultDanglingRefsTool(
             checkName("本地 MCP：" + it.name.ifBlank { it.id }, it.authTokenRef.trim())
         }
         checkName("Web 桥", settings.webBridgeCredentialRef.trim())
-        sshHostRepository.getAll().forEach {
-            checkName("SSH 主机：" + it.name, it.vaultCredentialRef?.trim().orEmpty())
+        sshHostRepository.getAll().forEach { host ->
+            checkName("SSH 主机：" + host.name, host.vaultCredentialRef?.trim().orEmpty())
+            checkText("SSH 主机：${host.name} password", host.password.orEmpty())
+            checkText("SSH 主机：${host.name} privateKey", host.privateKey.orEmpty())
+            checkText("SSH 主机：${host.name} passphrase", host.passphrase.orEmpty())
         }
 
         val body =
@@ -153,7 +156,7 @@ fun vaultCredentialRefsTool(
             "renaming or deleting it can be done safely. Read-only: returns locations only, never values. " +
             "Covers model providers (apiKey / backend token+password), MCP server outbound headers, " +
             "local MCP auth token, S3 / WebDAV credentials, the web-bridge credential reference, " +
-            "and saved SSH hosts. " +
+            "and saved SSH hosts (vaultCredentialRef and `$$` references in password/privateKey/passphrase). " +
             "Use before vault_credential_update(rename) or vault_credential_delete; " +
             "an empty result means no configuration references it.",
     parameters = {
@@ -219,12 +222,8 @@ fun vaultCredentialRefsTool(
             hits += "Web 桥：凭证引用"
         }
 
-        // 已保存的 SSH 主机（私钥引用）
-        sshHostRepository.getAll().forEach { host ->
-            if (host.vaultCredentialRef?.trim() == name) {
-                hits += "SSH 主机：${host.name}"
-            }
-        }
+        // 已保存的 SSH 主机（私钥引用及三个支持 $$ 引用的认证字段）
+        hits += findSshHostCredentialReferences(name, sshHostRepository)
 
         val head = "引用「$name」的位置（${hits.size}）："
         val body =
@@ -240,3 +239,24 @@ fun vaultCredentialRefsTool(
         listOf(UIMessagePart.Text(body))
     },
 )
+
+private suspend fun findSshHostCredentialReferences(
+    name: String,
+    sshHostRepository: SshHostRepository,
+): List<String> = buildList {
+    for (host in sshHostRepository.getAll()) {
+        if (host.vaultCredentialRef?.trim() == name) {
+            add("SSH 主机：${host.name}（Vault 私钥引用）")
+        }
+        val fields = listOf(
+            "password" to host.password,
+            "privateKey" to host.privateKey,
+            "passphrase" to host.passphrase,
+        )
+        for ((field, value) in fields) {
+            if (value != null && VaultReferenceLocator.mentions(value, name)) {
+                add("SSH 主机：${host.name}（$field）")
+            }
+        }
+    }
+}

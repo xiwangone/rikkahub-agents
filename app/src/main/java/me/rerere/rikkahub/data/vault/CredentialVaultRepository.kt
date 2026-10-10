@@ -238,6 +238,7 @@ class CredentialVaultRepository(
                     description = description,
                     grp = group,
                     publicKey = publicKey,
+                    type = resolveType(type, existing.type, name, "", publicKey),
                     metaJson = metaJson.ifEmpty { existing.metaJson },
                     updatedAt = now,
                 )
@@ -255,6 +256,49 @@ class CredentialVaultRepository(
         }
         logAccess(name, "repository", if (existing != null) "save_update" else "save_create")
         // provider 可能以 `$$名字` 引用本条目：值变化要反映到解析缓存（增量，避免整库解密）
+        runCatching { VaultProviderKeyRefs.updateOne(this, name) }
+    }
+
+    /** Insert-only write for a rename target: an unexpected name collision must not overwrite data. */
+    suspend fun insertNew(
+        name: String,
+        value: String,
+        description: String,
+        group: String,
+        publicKey: String = "",
+        type: String = "",
+        metaJson: String = "",
+        createdAt: Long? = null,
+    ) {
+        require(validateCredentialName(name)) {
+            "凭证名不合规范：$name（须大写蛇形如 GITHUB_TOKEN；禁止小写/连字符/空格）"
+        }
+        require(CredentialType.isValid(type)) { "未知凭证类型：$type" }
+        val cleanValue = CredentialValueSanitizer.sanitize(value)
+        require(value.isBlank() || cleanValue.isNotEmpty()) {
+            "凭证值只含不可见字符，已拒绝保存：$name"
+        }
+        val now = System.currentTimeMillis()
+        val valueFp = if (cleanValue.isBlank()) null else fingerprint(cleanValue)
+        val finalMeta = CredentialMeta.encode(
+            CredentialMeta.decode(metaJson) + listOfNotNull(valueFp?.let { "value_fp" to it }),
+        )
+        dao.insertIfAbsent(
+            VaultCredentialEntity(
+                name = name,
+                description = description,
+                grp = group.ifBlank { "Other" },
+                publicKey = publicKey,
+                valueEncrypted = ProviderCredentialCipher.encrypt(cleanValue),
+                valueLength = cleanValue.length,
+                type = resolveType(type, "", name, cleanValue, publicKey),
+                metaJson = finalMeta,
+                createdAt = createdAt ?: now,
+                updatedAt = now,
+            ),
+        )
+        // Audit/provider cache failures must not turn a successful insert into an ambiguous rename result.
+        runCatching { logAccess(name, "repository", "save_create") }
         runCatching { VaultProviderKeyRefs.updateOne(this, name) }
     }
 

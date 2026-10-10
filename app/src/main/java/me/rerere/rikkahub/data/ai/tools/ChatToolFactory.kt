@@ -237,11 +237,17 @@ class ChatToolFactory(
             assistant.id.toString()
         }
         return buildMemoryTools(
-            json = json,
+            scopeId = memoryAssistantId,
             onCreation = { content, tier -> memoryRepository.addMemory(memoryAssistantId, content, tier) },
-            onUpdate = { id, content, tier -> memoryRepository.updateContent(id, content, tier) },
-            onDelete = { id -> memoryRepository.deleteMemory(id) },
-            onSearch = { keyword -> memoryRepository.searchConditionalMemories(keyword) },
+            onUpdate = { id, content, tier ->
+                if (tier == null) {
+                    memoryRepository.updateContentKeepingTier(memoryAssistantId, id, content)
+                } else {
+                    memoryRepository.updateContent(memoryAssistantId, id, content, tier)
+                }
+            },
+            onDelete = { id -> memoryRepository.deleteMemory(memoryAssistantId, id) },
+            onSearch = { keyword -> memoryRepository.searchConditionalMemories(memoryAssistantId, keyword) },
             onListAll = { memoryRepository.getMemoriesOfAssistant(memoryAssistantId) },
         )
     }

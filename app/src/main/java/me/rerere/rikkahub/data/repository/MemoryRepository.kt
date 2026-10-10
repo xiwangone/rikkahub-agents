@@ -15,97 +15,88 @@ class MemoryRepository(private val memoryDAO: MemoryDAO) {
 
     fun getMemoriesOfAssistantFlow(assistantId: String): Flow<List<AssistantMemory>> =
         memoryDAO.getMemoriesOfAssistantFlow(assistantId)
-            .map { entities ->
-                entities.map { AssistantMemory(it.id, it.content, it.tier) }
-            }
+            .map { entities -> entities.map { AssistantMemory(it.id, it.content, it.tier) } }
 
-    suspend fun getMemoriesOfAssistant(assistantId: String): List<AssistantMemory> {
-        return memoryDAO.getMemoriesOfAssistant(assistantId)
+    suspend fun getMemoriesOfAssistant(assistantId: String): List<AssistantMemory> =
+        memoryDAO.getMemoriesOfAssistant(assistantId)
             .map { AssistantMemory(it.id, it.content, it.tier) }
-    }
 
     fun getGlobalMemoriesFlow(): Flow<List<AssistantMemory>> =
-        memoryDAO.getMemoriesOfAssistantFlow(GLOBAL_MEMORY_ID)
-            .map { entities ->
-                entities.map { AssistantMemory(it.id, it.content, it.tier) }
-            }
+        getMemoriesOfAssistantFlow(GLOBAL_MEMORY_ID)
 
-    suspend fun getGlobalMemories(): List<AssistantMemory> {
-        return memoryDAO.getMemoriesOfAssistant(GLOBAL_MEMORY_ID)
-            .map { AssistantMemory(it.id, it.content, it.tier) }
-    }
+    suspend fun getGlobalMemories(): List<AssistantMemory> =
+        getMemoriesOfAssistant(GLOBAL_MEMORY_ID)
 
     /** 记忆分层：仅常驻 core（注入用） */
-    suspend fun getCoreMemoriesOfAssistant(assistantId: String): List<AssistantMemory> {
-        return memoryDAO.getCoreMemoriesOfAssistant(assistantId)
+    suspend fun getCoreMemoriesOfAssistant(assistantId: String): List<AssistantMemory> =
+        memoryDAO.getCoreMemoriesOfAssistant(assistantId)
             .map { AssistantMemory(it.id, it.content, it.tier) }
-    }
 
-    /** 记忆检索（AI 按需触发）：匹配 conditional 记忆（全局 + 助手），用于 memory_search 注入 */
-    suspend fun searchConditionalMemories(keyword: String): List<AssistantMemory> {
-        return memoryDAO.searchConditionalMemories(keyword)
+    /** AI 按需检索：只在指定 scope 内匹配 conditional 记忆。 */
+    suspend fun searchConditionalMemories(assistantId: String, keyword: String): List<AssistantMemory> =
+        memoryDAO.searchConditionalMemories(assistantId, keyword)
             .map { AssistantMemory(it.id, it.content, it.tier) }
-    }
 
     suspend fun deleteMemoriesOfAssistant(assistantId: String) {
         memoryDAO.deleteMemoriesOfAssistant(assistantId)
     }
 
-    suspend fun updateContent(id: Int, content: String, tier: String = TIER_CORE): AssistantMemory =
-        updateMemoryContent(id, content, tier)
+    suspend fun updateContent(
+        assistantId: String,
+        id: Int,
+        content: String,
+        tier: String,
+    ): AssistantMemory = updateMemoryContent(assistantId, id, content, tier)
 
-    /**
-     * 只改内容、**保留原有分层**（工具卡上就地编辑用）。
-     * ⚠ 不能走 [updateContent] 的默认 tier —— 那是 TIER_CORE，会把 conditional 记忆误升为 core。
-     */
-    suspend fun updateContentKeepingTier(id: Int, content: String): AssistantMemory =
-        updateMemoryContent(id, content, null)
+    /** 只改内容、保留原有分层；工具卡就地编辑用。 */
+    suspend fun updateContentKeepingTier(
+        assistantId: String,
+        id: Int,
+        content: String,
+    ): AssistantMemory = updateMemoryContent(assistantId, id, content, null)
 
-    /** tier 传 null = 保留记录原有分层。 */
-    private suspend fun updateMemoryContent(id: Int, content: String, tier: String?): AssistantMemory {
-        val old = memoryDAO.getMemoryById(id) ?: error("Memory record #$id not found")
-        val newMemory =
-            old.copy(
-                content = content,
-                tier = tier ?: old.tier,
-            )
-        memoryDAO.updateMemory(newMemory)
+    /** tier=null 表示保留记录原有分层。所有读写均在 assistantId scope 下约束。 */
+    private suspend fun updateMemoryContent(
+        assistantId: String,
+        id: Int,
+        content: String,
+        tier: String?,
+    ): AssistantMemory {
+        require(tier == null || tier == TIER_CORE || tier == TIER_CONDITIONAL) {
+            "Unknown memory tier: $tier"
+        }
+        val old = memoryDAO.getMemoryById(id, assistantId)
+            ?: error("Memory record #$id not found in the requested scope")
+        val rows = memoryDAO.updateMemoryContent(id, assistantId, content, tier)
+        if (rows != 1) error("Memory record #$id was deleted or moved before update")
+        val updated = memoryDAO.getMemoryById(id, assistantId)
+            ?: error("Memory record #$id is no longer available in the requested scope")
         return AssistantMemory(
-            id = newMemory.id,
-            content = newMemory.content,
-            tier = newMemory.tier,
+            id = updated.id,
+            content = updated.content,
+            tier = updated.tier.ifBlank { old.tier },
         )
     }
 
     suspend fun addMemory(assistantId: String, content: String, tier: String = TIER_CORE): AssistantMemory {
-        val memory = AssistantMemory(
-            id = 0,
-            content = content,
-            tier = tier,
+        require(tier == TIER_CORE || tier == TIER_CONDITIONAL) { "Unknown memory tier: $tier" }
+        val memory = memoryDAO.insertMemory(
+            MemoryEntity(assistantId = assistantId, content = content, tier = tier),
         )
-        val newMemory = memory.copy(
-            id = memoryDAO.insertMemory(
-                MemoryEntity(
-                    assistantId = assistantId,
-                    content = memory.content,
-                    tier = memory.tier,
-                )
-            ).toInt()
-        )
-        return newMemory
+        return AssistantMemory(id = memory.toInt(), content = content, tier = tier)
     }
 
     suspend fun copyMemories(fromAssistantId: String, toAssistantId: String) {
         val memories = getMemoriesOfAssistant(fromAssistantId)
         if (memories.isEmpty()) return
         memoryDAO.insertMemories(
-            memories.map {
-                MemoryEntity(assistantId = toAssistantId, content = it.content, tier = it.tier)
-            }
+            memories.map { MemoryEntity(assistantId = toAssistantId, content = it.content, tier = it.tier) },
         )
     }
 
-    suspend fun deleteMemory(id: Int) {
-        memoryDAO.deleteMemory(id)
+    suspend fun deleteMemory(assistantId: String, id: Int) {
+        if (memoryDAO.deleteMemory(id, assistantId) != 1) {
+            error("Memory record #$id not found in the requested scope")
+        }
     }
 }

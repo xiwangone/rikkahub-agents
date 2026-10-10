@@ -139,6 +139,7 @@ class ImgGenVM(
 
     // One-shot purge of gallery entries whose backing file is missing (#39). Room
     // invalidation refreshes the paging flow automatically, so this needs no extra wiring.
+    @Suppress("TooGenericExceptionCaught") // Room and file cleanup are best-effort; coroutine cancellation is handled separately.
     private fun purgeOrphanedGenMedia() {
         viewModelScope.launch(Dispatchers.IO) {
             try {
@@ -148,7 +149,7 @@ class ImgGenVM(
                 if (orphans.isNotEmpty()) {
                     AppLog.i(TAG, "Purged ${orphans.size} orphaned gallery entries")
                 }
-            } catch (e: Exception) {
+            } catch (e: RuntimeException) {
                 if (e is CancellationException) return@launch
                 AppLog.e(TAG, "Failed to purge orphaned gallery entries", e)
             }

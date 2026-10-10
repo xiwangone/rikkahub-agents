@@ -8,6 +8,7 @@ import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.SecretMasker
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.File
+import java.io.IOException
 
 /**
  * 工具输出后处理：超长截断（全文落盘、预览回上下文）与敏感信息掩码。
@@ -34,7 +35,6 @@ internal class ToolOutputProcessor(
         if (toolName in TOOLS_WITHOUT_OUTPUT_TRUNCATION) return output
 
         val textParts = output.filterIsInstance<UIMessagePart.Text>()
-        val nonTextParts = output.filter { it !is UIMessagePart.Text }
         val totalChars = textParts.sumOf { it.text.length }
 
         if (totalChars <= maxChars || !hasShellAccess) return output
@@ -51,43 +51,52 @@ internal class ToolOutputProcessor(
         // toolCallId 来自模型输出，直接拼文件名可能含 ../ 写出目录；只保留安全字符
         val safeId = toolCallId.replace(Regex("[^A-Za-z0-9_-]"), "_").take(64).ifBlank { "tool" }
         val fileName = "$safeId.txt"
-        val outputDir = File(context.filesDir, FileFolders.TOOL_OUTPUTS).apply { mkdirs() }
-        File(outputDir, fileName).writeText(fullText)
+        val outputDir = File(context.filesDir, FileFolders.TOOL_OUTPUTS)
+        val outputFile = File(outputDir, fileName)
+        val writeError = try {
+            if (!outputDir.exists() && !outputDir.mkdirs()) {
+                throw IOException("Could not create tool output directory")
+            }
+            outputFile.writeText(fullText)
+            null
+        } catch (error: IOException) {
+            error
+        } catch (error: SecurityException) {
+            error
+        }
 
-        return listOf(
-            UIMessagePart.Text(
-                buildString {
-                    appendLine("[Tool output truncated: $totalChars characters total]")
-                    appendLine("Full output saved to: /tool_outputs/$fileName")
-                    appendLine("Use shell to read: `cat /tool_outputs/$fileName`")
-                    appendLine("Use shell to search: `grep \"pattern\" /tool_outputs/$fileName`")
-                    // 关键行预览：省一次「落盘后再 grep」的往返（错误行 + 末尾若干行 + 总行数）。
-                    // ⚠ 很多工具输出是 JSON（如 shell 的 {"stdout":"a\nb"}），其中的换行是**字面 `\n`**，
-                    // 直接按真实换行切分会得到「1 行」并失去全部意义 —— 先展开转义换行再统计。
-                    val logical = fullText.replace("\\n", "\n").replace("\\r", "")
-                    val lines = logical.split('\n')
-                    val keywords =
-                        digestKeywords?.takeIf { it.isNotEmpty() } ?: TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS
-                    val hitLimit = if (digestMode) TOOL_OUTPUT_DIGEST_MAX_HITS else 5
-                    val errorLines =
-                        lines.withIndex()
-                            .filter { (_, l) -> keywords.any { k -> l.contains(k, ignoreCase = true) } }
-                            .take(hitLimit)
-                    appendLine(
-                        "Total lines: ${lines.size}" +
-                            if (errorLines.isEmpty()) "" else " · error-like: ${errorLines.size}",
-                    )
-                    errorLines.forEach { (i, l) -> appendLine("  ! line ${i + 1}: ${l.take(160)}") }
-                    val tail = lines.takeLast(5).filter { it.isNotBlank() }
-                    if (tail.isNotEmpty()) {
-                        appendLine("  … last ${tail.size} non-blank line(s):")
-                        tail.forEach { appendLine("  | ${it.take(160)}") }
-                    }
-                    appendLine()
-                    append(preview)
-                }
+        val summary = buildString {
+            appendLine("[Tool output truncated: $totalChars characters total]")
+            if (writeError == null) {
+                appendLine("Full output saved to: /tool_outputs/$fileName")
+                appendLine("Use shell to read: `cat /tool_outputs/$fileName`")
+                appendLine("Use shell to search: `grep \"pattern\" /tool_outputs/$fileName`")
+            } else {
+                appendLine("CACHE_WRITE_FAILED (${writeError::class.simpleName}); full output is unavailable, showing preview only.")
+            }
+            // 关键行预览：省一次「落盘后再 grep」的往返（错误行 + 末尾若干行 + 总行数）。
+            // JSON 中转义的换行先展开，再用于摘要行统计。
+            val logical = fullText.replace("\\n", "\n").replace("\\r", "")
+            val lines = logical.split('\n')
+            val keywords = digestKeywords?.takeIf { it.isNotEmpty() } ?: TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS
+            val hitLimit = if (digestMode) TOOL_OUTPUT_DIGEST_MAX_HITS else 5
+            val errorLines = lines.withIndex()
+                .filter { (_, line) -> keywords.any { keyword -> line.contains(keyword, ignoreCase = true) } }
+                .take(hitLimit)
+            appendLine(
+                "Total lines: ${lines.size}" +
+                    if (errorLines.isEmpty()) "" else " · error-like: ${errorLines.size}",
             )
-        ) + nonTextParts
+            errorLines.forEach { (index, line) -> appendLine("  ! line ${index + 1}: ${line.take(160)}") }
+            val tail = lines.takeLast(5).filter { it.isNotBlank() }
+            if (tail.isNotEmpty()) {
+                appendLine("  … last ${tail.size} non-blank line(s):")
+                tail.forEach { appendLine("  | ${it.take(160)}") }
+            }
+            appendLine()
+        }
+
+        return applyTruncationPreview(output, preview, summary)
     }
 
     suspend fun maskToolOutput(parts: List<UIMessagePart>): List<UIMessagePart> {
@@ -107,6 +116,31 @@ internal class ToolOutputProcessor(
             } else {
                 part
             }
+        }
+    }
+}
+
+/** Put a single preview prefix on the first text part while preserving original part order and metadata. */
+internal fun applyTruncationPreview(
+    output: List<UIMessagePart>,
+    preview: String,
+    summary: String,
+): List<UIMessagePart> {
+    val lastTextIndex = output.indexOfLast { it is UIMessagePart.Text }
+    var cursor = 0
+    var firstText = true
+    return output.mapIndexed { index, part ->
+        if (part !is UIMessagePart.Text) {
+            part
+        } else {
+            val start = cursor
+            val end = (start + part.text.length).coerceAtMost(preview.length)
+            val slice = if (start < preview.length) preview.substring(start, end) else ""
+            cursor += part.text.length
+            // maybeTruncateToolOutput flattens text with exactly one newline separator.
+            if (index != lastTextIndex) cursor += 1
+            val prefix = if (firstText) summary.also { firstText = false } else ""
+            part.copy(text = prefix + slice)
         }
     }
 }

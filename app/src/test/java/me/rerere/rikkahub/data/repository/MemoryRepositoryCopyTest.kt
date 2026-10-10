@@ -10,10 +10,6 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
-/**
- * [MemoryRepository.copyMemories] 回归测试（复制助手时可一并复制记忆）：
- * 复制助手时可勾选「同时复制记忆」，把源助手的记忆复制给新助手。
- */
 class MemoryRepositoryCopyTest {
     private class FakeMemoryDAO : MemoryDAO {
         private val rows = mutableListOf<MemoryEntity>()
@@ -40,10 +36,11 @@ class MemoryRepositoryCopyTest {
 
         override suspend fun getAllMemories(): List<MemoryEntity> = rows.toList()
 
-        override suspend fun getMemoryById(id: Int): MemoryEntity? = rows.find { it.id == id }
+        override suspend fun getMemoryById(id: Int, assistantId: String): MemoryEntity? =
+            rows.find { it.id == id && it.assistantId == assistantId }
 
-        override suspend fun searchConditionalMemories(keyword: String): List<MemoryEntity> =
-            rows.filter { it.tier == "conditional" && it.content.contains(keyword) }
+        override suspend fun searchConditionalMemories(assistantId: String, keyword: String): List<MemoryEntity> =
+            rows.filter { it.assistantId == assistantId && it.tier == "conditional" && it.content.contains(keyword) }
 
         override suspend fun insertMemory(memory: MemoryEntity): Long {
             val entity = memory.copy(id = nextId++)
@@ -56,17 +53,19 @@ class MemoryRepositoryCopyTest {
             memories.forEach { insertMemory(it) }
         }
 
-        override suspend fun updateMemory(memory: MemoryEntity) {
-            val i = rows.indexOfFirst { it.id == memory.id }
-            if (i >= 0) {
-                rows[i] = memory
-                refresh()
-            }
+        override suspend fun updateMemoryContent(id: Int, assistantId: String, content: String, tier: String?): Int {
+            val i = rows.indexOfFirst { it.id == id && it.assistantId == assistantId }
+            if (i < 0) return 0
+            val old = rows[i]
+            rows[i] = old.copy(content = content, tier = tier ?: old.tier)
+            refresh()
+            return 1
         }
 
-        override suspend fun deleteMemory(id: Int) {
-            rows.removeAll { it.id == id }
+        override suspend fun deleteMemory(id: Int, assistantId: String): Int {
+            val removed = rows.removeAll { it.id == id && it.assistantId == assistantId }
             refresh()
+            return if (removed) 1 else 0
         }
 
         override suspend fun deleteMemoriesOfAssistant(assistantId: String) {
@@ -89,7 +88,6 @@ class MemoryRepositoryCopyTest {
         assertEquals(2, copied.size)
         assertEquals(listOf("likes tea", "peanut allergy"), copied.map { it.content })
         assertEquals(listOf("core", "conditional"), copied.map { it.tier })
-        // 新记录必须拿新 id，不能复用源记录 id
         val sourceIds = dao.getMemoriesOfAssistant("a1").map { it.id }.toSet()
         assertTrue(copied.none { it.id in sourceIds })
     }
@@ -97,7 +95,6 @@ class MemoryRepositoryCopyTest {
     @Test
     fun `copyMemories on empty source inserts nothing`() = runBlocking {
         repo.copyMemories(fromAssistantId = "ghost", toAssistantId = "a2")
-
         assertTrue(dao.getAllMemories().isEmpty())
     }
 
@@ -111,5 +108,42 @@ class MemoryRepositoryCopyTest {
         assertEquals(listOf("m1"), dao.getMemoriesOfAssistant("a1").map { it.content })
         assertEquals(listOf("other"), dao.getMemoriesOfAssistant("a9").map { it.content })
         assertEquals(3, dao.getAllMemories().size)
+    }
+
+    @Test
+    fun `conditional search returns only requested scope`() = runBlocking {
+        dao.insertMemory(MemoryEntity(assistantId = "a1", content = "ECS account", tier = "conditional"))
+        dao.insertMemory(MemoryEntity(assistantId = "a2", content = "ECS secret", tier = "conditional"))
+        dao.insertMemory(MemoryEntity(assistantId = MemoryRepository.GLOBAL_MEMORY_ID, content = "ECS global", tier = "conditional"))
+
+        assertEquals(listOf("ECS account"), repo.searchConditionalMemories("a1", "ECS").map { it.content })
+        assertEquals(listOf("ECS global"), repo.searchConditionalMemories(MemoryRepository.GLOBAL_MEMORY_ID, "ECS").map { it.content })
+    }
+
+    @Test
+    fun `content edit without a tier keeps the existing tier`() = runBlocking {
+        val id = dao.insertMemory(
+            MemoryEntity(assistantId = "a1", content = "old", tier = "conditional"),
+        ).toInt()
+
+        val updated = repo.updateContentKeepingTier("a1", id, "new")
+
+        assertEquals("new", updated.content)
+        assertEquals("conditional", updated.tier)
+        assertEquals("conditional", dao.getMemoryById(id, "a1")?.tier)
+    }
+
+    @Test
+    fun `update and delete cannot cross requested scope`() = runBlocking {
+        val target = dao.insertMemory(MemoryEntity(assistantId = "a2", content = "private memory", tier = "conditional")).toInt()
+
+        val updateFailed = runCatching { repo.updateContentKeepingTier("a1", target, "changed") }.isFailure
+        val deleteFailed = runCatching { repo.deleteMemory("a1", target) }.isFailure
+
+        assertTrue(updateFailed)
+        assertTrue(deleteFailed)
+        val untouched = dao.getMemoryById(target, "a2")
+        assertEquals("private memory", untouched?.content)
+        assertEquals("conditional", untouched?.tier)
     }
 }

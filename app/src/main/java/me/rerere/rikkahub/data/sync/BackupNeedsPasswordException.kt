@@ -10,4 +10,5 @@ import java.io.File
 class BackupNeedsPasswordException(
     message: String,
     val encFile: File?,
-) : Exception(message)
+    cause: Throwable? = null,
+) : Exception(message, cause)

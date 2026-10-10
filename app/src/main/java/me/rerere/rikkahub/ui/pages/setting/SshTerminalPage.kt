@@ -54,6 +54,7 @@ fun SshTerminalPage(hostName: String) {
     val hostRepo: SshHostRepository = koinInject()
     val vaultRepo: CredentialVaultRepository = koinInject()
     val appContext = androidx.compose.ui.platform.LocalContext.current
+    val appResources = androidx.compose.ui.platform.LocalResources.current
     val scope = rememberCoroutineScope()
 
     var connected by remember { mutableStateOf(false) }
@@ -130,7 +131,7 @@ fun SshTerminalPage(hostName: String) {
                     // openChannel/ch.connect 只声明 JSchException；流读取只声明 IOException
                     output += appContext.getString(R.string.ssh_terminal_exec_failed, e.message)
                 } catch (e: IOException) {
-                    output += appContext.getString(R.string.ssh_terminal_exec_failed, e.message)
+                    output += appResources.getString(R.string.ssh_terminal_exec_failed, e.message)
                 }
             }
         }

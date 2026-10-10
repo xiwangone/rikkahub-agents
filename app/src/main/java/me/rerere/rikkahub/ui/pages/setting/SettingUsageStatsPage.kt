@@ -18,6 +18,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -67,7 +68,8 @@ fun SettingUsageStatsPage() {
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var range by rememberSaveable { mutableStateOf(UsageRange.ALL_TIME) }
-    val stats = remember(range) { GenerationRunTracker.snapshot(context).rangeStats(range) }
+    val revision by GenerationRunTracker.revision.collectAsState()
+    val stats = remember(range, revision) { GenerationRunTracker.snapshot(context).rangeStats(range) }
 
     Scaffold(
         topBar = {

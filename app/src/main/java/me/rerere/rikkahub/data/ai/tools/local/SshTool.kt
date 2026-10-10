@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.ai.tools.local
 
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.data.sync.replaceFilePreservingTarget
 
 import me.rerere.rikkahub.data.vault.ensureTrailingNewline
 import android.content.Context
@@ -33,6 +34,8 @@ import me.rerere.ai.ui.UIMessagePart
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.FileOutputStream
+import java.io.IOException
 import java.net.Inet4Address
 import java.net.InetAddress
 import java.util.Properties
@@ -895,6 +898,7 @@ internal suspend fun runCancellableSshOp(
  * [sessionRef] so the outer [runCancellableSshOp] can also forcibly disconnect from
  * outside if interrupt isn't honoured by JNI.
  */
+@Suppress("TooGenericExceptionCaught") // The outer connection boundary converts JSch and socket failures into a tool response.
 internal suspend fun execOneShot(
     context: Context,
     host: String,
@@ -928,94 +932,15 @@ internal suspend fun execOneShot(
 
     // Stage 2 (blocking IO, interruptible): JSch handshake + exec.
     return runInterruptible(Dispatchers.IO) {
-        val jsch = newJSch(context)
         val handshakeStart = System.currentTimeMillis()
-        // 跳板隧道代理：先连跳板，隧道对象在目标 connect 时被 JSch 使用
-        var tunnel: JumpTunnelProxy? = null
-        val session = try {
-            // 连接重试（2026-08-14）：认证失败/主机密钥变化不重试（重试无意义），
-            // 超时/网络类错误自动重试 1 次（间隔 800ms），抗网络抖动
-            var attempt = 0
-            var connected: com.jcraft.jsch.Session? = null
-            while (connected == null && attempt < 2) {
-                attempt++
-                try {
-                    // 每次尝试都重新选网：首次失败多为网络切换（WiFi↔蜂窝），复用旧 Network 会让
-                    // 重试仍绑在已失效的网络上（表现为长时间挂到对端关闭）。
-                    val net = if (attempt == 1) outcome.winningNetwork
-                    else probeNetworkForRetry(context, jump, host, port)
-                    if (jump != null) {
-                        // 连跳板
-                        val jumpSession = openSshSession(
-                            jsch, jump.host, jump.port, jump.user, jump.auth,
-                            timeoutMs, network = net,
-                        )
-                        // 隧道：目标 host:port 经跳板直达
-                        tunnel = JumpTunnelProxy(jumpSession, host, port)
-                        val target = jsch.getSession(user, host, port)
-                        if (host != target.host) target.setHostKeyAlias(host) // 已知主机按目标名比对
-                        if (!auth.password.isNullOrBlank()) target.setPassword(auth.password)
-                        target.setConfig(Properties().apply {
-                            setProperty("StrictHostKeyChecking", "accept-new")
-                            setProperty("PreferredAuthentications", "publickey,keyboard-interactive,password")
-                        })
-                        if (!auth.privateKey.isNullOrBlank()) {
-                            val keyBytes = auth.privateKey.ensureTrailingNewline().toByteArray(Charsets.UTF_8)
-                            val passBytes = auth.passphrase?.toByteArray(Charsets.UTF_8)
-                            jsch.addIdentity("rikkahub-ssh-key-${System.nanoTime()}", keyBytes, null, passBytes)
-                        }
-                        target.serverAliveInterval = SERVER_ALIVE_INTERVAL_MS
-                        target.serverAliveCountMax = SERVER_ALIVE_COUNT_MAX
-                        target.setProxy(tunnel)
-                        connected = target
-                    } else {
-                        connected = openSshSession(jsch, host, port, user, auth, timeoutMs, network = net, extraOptions = extraOptions)
-                    }
-                    if (connected != null) {
-                        // 直连/跳板统一在此 connect（openSshSession 内部已连；跳板 target 需显式连）
-                        if (jump != null) {
-                            // 看门狗：见 JUMP_HANDSHAKE_TIMEOUT_MS 注释。到点关闭隧道 → 挂住的读立即
-                            // 抛错 → 进入重试（重试会重新选网），避免长时间干等。
-                            val handshakeDone = java.util.concurrent.atomic.AtomicBoolean(false)
-                            val watchdog = Thread {
-                                try {
-                                    Thread.sleep(JUMP_HANDSHAKE_TIMEOUT_MS.toLong())
-                                    if (!handshakeDone.get()) {
-                                        AppLog.w(
-                                            TAG_SSH,
-                                            "jump handshake watchdog fired after ${JUMP_HANDSHAKE_TIMEOUT_MS}ms, aborting tunnel",
-                                        )
-                                        tunnel?.close()
-                                    }
-                                } catch (_: InterruptedException) {
-                                }
-                            }
-                            watchdog.isDaemon = true
-                            watchdog.start()
-                            try {
-                                connected.connect(timeoutMs)
-                            } finally {
-                                handshakeDone.set(true)
-                                watchdog.interrupt()
-                            }
-                        }
-                    }
-                } catch (e: Throwable) {
-                    val retryable = !isAuthFailure(e.message) && !isHostKeyChange(e.message)
-                    if (attempt < 2 && retryable) {
-                        AppLog.w(TAG_SSH, "ssh handshake attempt $attempt failed, retrying: ${e.message}")
-                        Thread.sleep(800)
-                        continue
-                    }
-                    throw e
-                }
-            }
-            checkNotNull(connected) { "ssh connect failed after retries" }
-        } catch (e: Throwable) {
-            AppLog.w(TAG_SSH, "ssh handshake failed in ${System.currentTimeMillis() - handshakeStart}ms", e)
-            tunnel?.close()
-            return@runInterruptible wrapConnectError(host, e)
+        val connection = try {
+            connectSshWithRetry(context, host, port, user, auth, timeoutMs, outcome.winningNetwork, jump, extraOptions)
+        } catch (error: Throwable) {
+            AppLog.w(TAG_SSH, "ssh handshake failed in ${System.currentTimeMillis() - handshakeStart}ms", error)
+            return@runInterruptible wrapConnectError(host, error)
         }
+        val session = connection.session
+        val tunnel = connection.tunnel
         sessionRef.set(session)
         AppLog.i(TAG_SSH, "ssh session up via ${outcome.winningLabel ?: "default"} in ${System.currentTimeMillis() - handshakeStart}ms")
         // 平台判定回填：banner 结论落盘，供**后续**同主机的命令包装判定使用
@@ -1036,6 +961,127 @@ internal suspend fun execOneShot(
             try { session.disconnect() } catch (_: Throwable) {}
             tunnel?.close()
         }
+    }
+}
+
+private data class SshConnectionResources(
+    val session: com.jcraft.jsch.Session,
+    val tunnel: JumpTunnelProxy?,
+)
+
+@Suppress("TooGenericExceptionCaught") // JSch and network APIs cross several unchecked/checked failure types; preserve retries without catching cancellation.
+private fun connectSshWithRetry(
+    context: Context,
+    host: String,
+    port: Int,
+    user: String,
+    auth: SshAuth,
+    timeoutMs: Int,
+    initialNetwork: android.net.Network?,
+    jump: JumpSpec?,
+    extraOptions: String?,
+): SshConnectionResources {
+    val jsch = newJSch(context)
+    var attempt = 0
+    while (attempt < 2) {
+        attempt++
+        try {
+            // 每次重试重新选网，避免继续绑定已失效的Wi-Fi/蜂窝网络。
+            val network = if (attempt == 1) initialNetwork else probeNetworkForRetry(context, jump, host, port)
+            return connectSingleSshAttempt(jsch, host, port, user, auth, timeoutMs, network, jump, extraOptions)
+        } catch (error: kotlinx.coroutines.CancellationException) {
+            throw error
+        } catch (error: InterruptedException) {
+            throw error
+        } catch (error: Exception) {
+            val retryable = !isAuthFailure(error.message) && !isHostKeyChange(error.message)
+            if (attempt >= 2 || !retryable) throw error
+            AppLog.w(TAG_SSH, "ssh handshake attempt $attempt failed, retrying: ${error.message}")
+            try {
+                Thread.sleep(800)
+            } catch (interrupted: InterruptedException) {
+                Thread.currentThread().interrupt()
+                throw interrupted
+            }
+        }
+    }
+    throw IllegalStateException("ssh connect failed after retries")
+}
+
+private fun connectSingleSshAttempt(
+    jsch: com.jcraft.jsch.JSch,
+    host: String,
+    port: Int,
+    user: String,
+    auth: SshAuth,
+    timeoutMs: Int,
+    network: android.net.Network?,
+    jump: JumpSpec?,
+    extraOptions: String?,
+): SshConnectionResources {
+    var tunnel: JumpTunnelProxy? = null
+    var session: com.jcraft.jsch.Session? = null
+    var keepResources = false
+    try {
+        val connected = if (jump != null) {
+            val jumpSession = openSshSession(jsch, jump.host, jump.port, jump.user, jump.auth, timeoutMs, network = network)
+            val jumpTunnel = JumpTunnelProxy(jumpSession, host, port)
+            tunnel = jumpTunnel
+            jsch.getSession(user, host, port).also { target ->
+                session = target
+                if (host != target.host) target.setHostKeyAlias(host)
+                if (!auth.password.isNullOrBlank()) target.setPassword(auth.password)
+                target.setConfig(Properties().apply {
+                    setProperty("StrictHostKeyChecking", "accept-new")
+                    setProperty("PreferredAuthentications", "publickey,keyboard-interactive,password")
+                })
+                if (!auth.privateKey.isNullOrBlank()) {
+                    val keyBytes = auth.privateKey.ensureTrailingNewline().toByteArray(Charsets.UTF_8)
+                    val passBytes = auth.passphrase?.toByteArray(Charsets.UTF_8)
+                    jsch.addIdentity("rikkahub-ssh-key-${System.nanoTime()}", keyBytes, null, passBytes)
+                }
+                target.serverAliveInterval = SERVER_ALIVE_INTERVAL_MS
+                target.serverAliveCountMax = SERVER_ALIVE_COUNT_MAX
+                target.setProxy(jumpTunnel)
+            }
+        } else {
+            openSshSession(jsch, host, port, user, auth, timeoutMs, network = network, extraOptions = extraOptions)
+        }
+        session = connected
+        if (jump != null) connectJumpTargetWithWatchdog(connected, tunnel, timeoutMs)
+        keepResources = true
+        return SshConnectionResources(connected, tunnel)
+    } finally {
+        if (!keepResources) {
+            runCatching { session?.disconnect() }
+            runCatching { tunnel?.close() }
+        }
+    }
+}
+
+private fun connectJumpTargetWithWatchdog(
+    session: com.jcraft.jsch.Session,
+    tunnel: JumpTunnelProxy?,
+    timeoutMs: Int,
+) {
+    val handshakeDone = java.util.concurrent.atomic.AtomicBoolean(false)
+    val watchdog = Thread {
+        try {
+            Thread.sleep(JUMP_HANDSHAKE_TIMEOUT_MS.toLong())
+            if (!handshakeDone.get()) {
+                AppLog.w(TAG_SSH, "jump handshake watchdog fired after ${JUMP_HANDSHAKE_TIMEOUT_MS}ms, aborting tunnel")
+                tunnel?.close()
+            }
+        } catch (_: InterruptedException) {
+        }
+    }
+    watchdog.isDaemon = true
+    watchdog.start()
+    try {
+        session.connect(timeoutMs)
+    } finally {
+        handshakeDone.set(true)
+        watchdog.interrupt()
     }
 }
 
@@ -1079,6 +1125,23 @@ internal fun wrapConnectError(host: String, e: Throwable): JsonObject {
     return ToolErrors.envelopeFor(error = "connect_failed", message = "Connection failed", hint = "Check the host/port and retry.", extra = ToolErrors.extraOf("host" to host, "reason" to (msg.ifBlank { e::class.simpleName ?: "unknown" })))
 }
 
+private fun writeKnownHostsWithoutHost(
+    tempFile: File,
+    currentKeys: List<com.jcraft.jsch.HostKey>,
+    host: String,
+) {
+    FileOutputStream(tempFile).bufferedWriter(Charsets.UTF_8).use { writer ->
+        for (key in currentKeys) {
+            if (key.host == host) continue
+            val marker = key.marker?.takeIf { it.isNotEmpty() }
+            if (marker != null) writer.append('@').append(marker).append(' ')
+            writer.write(key.host)
+            writer.write(" ${key.type} ${key.key}")
+            writer.newLine()
+        }
+    }
+}
+
 /**
  * Remove all stored host keys for [host] from the persistent known_hosts file. Use after the
  * user confirms they reinstalled the remote — the next connect will trust the new key per
@@ -1094,25 +1157,26 @@ internal fun wrapConnectError(host: String, e: Throwable): JsonObject {
 internal fun forgetHostKey(context: Context, host: String): Int {
     val jsch = newJSch(context)
     val repo = jsch.hostKeyRepository
-    val before = repo.hostKey?.count { it.host == host } ?: 0
-    if (before == 0) return 0
-    repo.remove(host, null)
-    try {
-        knownHostsFile(context).bufferedWriter().use { w ->
-            repo.hostKey?.forEach { hk ->
-                val marker = hk.marker?.takeIf { it.isNotEmpty() }
-                val line = buildString {
-                    if (marker != null) append('@').append(marker).append(' ')
-                    append(hk.host).append(' ')
-                    append(hk.type).append(' ')
-                    append(hk.key)
-                }
-                w.write(line)
-                w.newLine()
-            }
-        }
-    } catch (e: Throwable) {
-        AppLog.w(TAG_SSH, "forgetHostKey: failed to persist known_hosts after remove", e)
+    val currentKeys = repo.hostKey?.toList().orEmpty()
+    val removed = currentKeys.count { it.host == host }
+    if (removed == 0) return 0
+
+    val knownHosts = knownHostsFile(context)
+    val parent = knownHosts.parentFile ?: throw IOException("known_hosts has no parent directory")
+    if (!parent.exists() && !parent.mkdirs()) {
+        throw IOException("Could not create known_hosts directory ${parent.absolutePath}")
     }
-    return before
+    val temp = File(parent, "${knownHosts.name}.tmp-${System.nanoTime()}")
+    try {
+        writeKnownHostsWithoutHost(temp, currentKeys, host)
+        replaceFilePreservingTarget(temp, knownHosts)
+    } finally {
+        if (temp.exists() && !runCatching { temp.delete() }.getOrDefault(false)) {
+            AppLog.w(TAG_SSH, "Could not remove temporary known_hosts file ${temp.name}")
+        }
+    }
+
+    // Keep the in-memory view unchanged unless the durable file update succeeded.
+    repo.remove(host, null)
+    return removed
 }

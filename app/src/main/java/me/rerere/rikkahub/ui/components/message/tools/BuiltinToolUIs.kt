@@ -87,10 +87,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.hugeicons.stroke.PencilEdit01
-import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.repository.MemoryRepository
-import me.rerere.rikkahub.ui.hooks.EditStateContent
-import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.components.ui.FaviconRow
@@ -201,6 +198,7 @@ object MemoryToolUI : ToolUIRenderer {
         }
     }
 
+    @Suppress("TooGenericExceptionCaught") // UI boundary maps any repository failure to an actionable error state; cancellation is rethrown above.
     @Composable
     override fun Preview(
         context: ToolUIContext,
@@ -209,15 +207,14 @@ object MemoryToolUI : ToolUIRenderer {
         val memoryRepo: MemoryRepository = koinInject()
         val scope = rememberCoroutineScope()
         val memoryId = (context.content as? JsonObject)?.get("id")?.jsonPrimitiveOrNull?.intOrNull
+        val memoryScopeId = (context.content as? JsonObject)?.get("scope_id")?.jsonPrimitiveOrNull?.contentOrNull
         // 就地编辑：工具卡正文是历史快照，改完用本地态显示新内容（否则看起来"没保存"）
         var editedContent by remember(memoryId) { mutableStateOf<String?>(null) }
-        val editState =
-            useEditState<AssistantMemory> { updated ->
-                scope.launch {
-                    memoryRepo.updateContentKeepingTier(updated.id, updated.content)
-                    editedContent = updated.content
-                }
-            }
+        var isEditing by remember(memoryId, memoryScopeId) { mutableStateOf(false) }
+        var editDraft by remember(memoryId, memoryScopeId) { mutableStateOf("") }
+        var isSaving by remember(memoryId, memoryScopeId) { mutableStateOf(false) }
+        var isDeleting by remember(memoryId, memoryScopeId) { mutableStateOf(false) }
+        var operationError by remember(memoryId, memoryScopeId) { mutableStateOf<String?>(null) }
         Column(
             modifier =
                 Modifier
@@ -232,16 +229,14 @@ object MemoryToolUI : ToolUIRenderer {
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(title(context), style = MaterialTheme.typography.headlineSmall)
-                if (action(context) in listOf(ACTION_CREATE, ACTION_EDIT) && memoryId != null) {
+                if (action(context) in listOf(ACTION_CREATE, ACTION_EDIT) && memoryId != null && memoryScopeId != null) {
                     IconButton(
                         onClick = {
-                            editState.open(
-                                AssistantMemory(
-                                    id = memoryId,
-                                    content = editedContent ?: context.content.getStringContent("content").orEmpty(),
-                                ),
-                            )
+                            editDraft = editedContent ?: context.content.getStringContent("content").orEmpty()
+                            operationError = null
+                            isEditing = true
                         },
+                        enabled = !isSaving && !isDeleting,
                     ) {
                         Icon(
                             imageVector = HugeIcons.PencilEdit01,
@@ -251,10 +246,21 @@ object MemoryToolUI : ToolUIRenderer {
                     IconButton(
                         onClick = {
                             scope.launch {
-                                memoryRepo.deleteMemory(memoryId)
-                                onDismissRequest()
+                                isDeleting = true
+                                operationError = null
+                                try {
+                                    memoryRepo.deleteMemory(memoryScopeId, memoryId)
+                                    onDismissRequest()
+                                } catch (error: kotlinx.coroutines.CancellationException) {
+                                    throw error
+                                } catch (error: Exception) {
+                                    operationError = error.message ?: "Failed to delete memory"
+                                } finally {
+                                    isDeleting = false
+                                }
                             }
                         },
+                        enabled = !isSaving && !isDeleting,
                     ) {
                         Icon(
                             imageVector = HugeIcons.Delete01,
@@ -262,6 +268,9 @@ object MemoryToolUI : ToolUIRenderer {
                         )
                     }
                 }
+            }
+            operationError?.let { error ->
+                Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.labelSmall)
             }
             if (action(context) == ACTION_LIST) {
                 val list = memories(context)
@@ -290,26 +299,56 @@ object MemoryToolUI : ToolUIRenderer {
                 }
             }
         }
-        editState.EditStateContent { memory, update ->
+        if (isEditing) {
             AlertDialog(
-                onDismissRequest = { editState.dismiss() },
+                onDismissRequest = { if (!isSaving) isEditing = false },
                 title = { Text(stringResource(R.string.tool_ui_edit_memory)) },
                 text = {
-                    TextField(
-                        value = memory.content,
-                        onValueChange = { update(memory.copy(content = it)) },
-                        minLines = 3,
-                        maxLines = 10,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        TextField(
+                            value = editDraft,
+                            onValueChange = { editDraft = it },
+                            minLines = 3,
+                            maxLines = 10,
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !isSaving,
+                        )
+                        if (isSaving) LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                        operationError?.let { error ->
+                            Text(error, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                        }
+                    }
                 },
                 confirmButton = {
-                    TextButton(onClick = { editState.confirm() }) {
+                    TextButton(
+                        enabled = !isSaving,
+                        onClick = {
+                            val scopeId = memoryScopeId
+                            val id = memoryId
+                            if (scopeId != null && id != null) {
+                                scope.launch {
+                                    isSaving = true
+                                    operationError = null
+                                    try {
+                                        memoryRepo.updateContentKeepingTier(scopeId, id, editDraft)
+                                        editedContent = editDraft
+                                        isEditing = false
+                                    } catch (error: kotlinx.coroutines.CancellationException) {
+                                        throw error
+                                    } catch (error: Exception) {
+                                        operationError = error.message ?: "Failed to save memory"
+                                    } finally {
+                                        isSaving = false
+                                    }
+                                }
+                            }
+                        },
+                    ) {
                         Text(stringResource(R.string.assistant_page_save))
                     }
                 },
                 dismissButton = {
-                    TextButton(onClick = { editState.dismiss() }) {
+                    TextButton(enabled = !isSaving, onClick = { isEditing = false }) {
                         Text(stringResource(R.string.assistant_page_cancel))
                     }
                 },

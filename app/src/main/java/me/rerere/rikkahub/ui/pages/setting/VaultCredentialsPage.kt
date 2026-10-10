@@ -362,6 +362,14 @@ fun VaultCredentialsPage() {
                         if (oldName != null && oldName != name) {
                             // 改名：先建新名（沿用编辑框里的值）→ 同步配置引用 → 再删旧名
                             // （同步引用是必须的：配置里按名字引用，漏掉就会静默失效）
+                            if (repository.getByName(name) != null) {
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "目标凭证名称已存在；未覆盖目标或删除源凭证。",
+                                    android.widget.Toast.LENGTH_LONG,
+                                ).show()
+                                return@launch
+                            }
                             repository.save(
                                 name = name,
                                 value = value,
@@ -371,10 +379,21 @@ fun VaultCredentialsPage() {
                                 type = type,
                                 metaJson = metaJson,
                             )
-                            runCatching {
-                                VaultReferenceSync.renameEverywhere(
-                                    settingsStore, sshHostRepository, oldName, name,
-                                )
+                            val syncResult =
+                                runCatching {
+                                    VaultReferenceSync.renameEverywhere(
+                                        settingsStore, sshHostRepository, oldName, name,
+                                    )
+                                }
+                            val syncError = syncResult.exceptionOrNull()
+                            if (syncError != null) {
+                                if (syncError is kotlinx.coroutines.CancellationException) throw syncError
+                                android.widget.Toast.makeText(
+                                    context,
+                                    "引用同步失败；新旧凭证均保留，引用可能部分更新。请核对后再清理旧凭证。${syncError.message?.let { " ($it)" }.orEmpty()}",
+                                    android.widget.Toast.LENGTH_LONG,
+                                ).show()
+                                return@launch
                             }
                             repository.getByName(oldName)?.let { repository.delete(it) }
                             repository.logAccess(oldName, "manual", "rename_from")

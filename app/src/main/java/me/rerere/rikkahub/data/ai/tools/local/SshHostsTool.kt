@@ -350,7 +350,34 @@ fun forgetSshHostKeyTool(context: Context): Tool = Tool(
     execute = { input ->
         val host = input.jsonObject["host"]?.jsonPrimitive?.contentOrNull
             ?: error("host is required")
-        val removed = forgetHostKey(context, host)
+            val removed =
+            try {
+                forgetHostKey(context, host)
+            } catch (error: java.io.IOException) {
+                return@Tool ToolErrors.partsFor(
+                    error = "write_failed",
+                    message = "Could not persist known_hosts update; no keys were removed.",
+                    recovery = ToolErrors.RECOVERY_RETRY,
+                    hint = "Retry after checking storage availability and permissions.",
+                    extra = ToolErrors.extraOf(
+                        "success" to false,
+                        "host" to host,
+                        "keys_removed" to 0,
+                    ),
+                )
+            } catch (error: SecurityException) {
+                return@Tool ToolErrors.partsFor(
+                    error = "write_failed",
+                    message = "Could not persist known_hosts update; no keys were removed.",
+                    recovery = ToolErrors.RECOVERY_RETRY,
+                    hint = "Retry after checking storage availability and permissions.",
+                    extra = ToolErrors.extraOf(
+                        "success" to false,
+                        "host" to host,
+                        "keys_removed" to 0,
+                    ),
+                )
+            }
         listOf(UIMessagePart.Text(buildJsonObject {
             put("success", true)
             put("host", host)

@@ -295,8 +295,18 @@ class AssistantDetailVM(
 
     fun updateMemory(memory: AssistantMemory) {
         viewModelScope.launch {
+            val memoryAssistantId = if (assistant.value.useGlobalMemory) {
+                MemoryRepository.GLOBAL_MEMORY_ID
+            } else {
+                assistantId.toString()
+            }
             runCatching {
-                memoryRepository.updateContent(id = memory.id, content = memory.content, tier = memory.tier)
+                memoryRepository.updateContent(
+                    assistantId = memoryAssistantId,
+                    id = memory.id,
+                    content = memory.content,
+                    tier = memory.tier,
+                )
             }.onFailure {
                 // The record may have been deleted (e.g. by the memory tool) between opening
                 // the editor and saving; don't crash the VM scope, the update is moot.
@@ -307,7 +317,16 @@ class AssistantDetailVM(
 
     fun deleteMemory(memory: AssistantMemory) {
         viewModelScope.launch {
-            memoryRepository.deleteMemory(id = memory.id)
+            val memoryAssistantId = if (assistant.value.useGlobalMemory) {
+                MemoryRepository.GLOBAL_MEMORY_ID
+            } else {
+                assistantId.toString()
+            }
+            runCatching {
+                memoryRepository.deleteMemory(memoryAssistantId, memory.id)
+            }.onFailure {
+                AppLog.e(TAG, "Failed to delete memory #${memory.id}", it)
+            }
         }
     }
 
@@ -320,6 +339,7 @@ class AssistantDetailVM(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught") // URI conversion and file-provider cleanup expose AndroidX/runtime failures; cleanup must remain best-effort.
     fun checkBackgroundDelete(
         old: Assistant,
         new: Assistant,
@@ -333,7 +353,7 @@ class AssistantDetailVM(
                 if (oldUri.scheme == "content" || oldUri.scheme == "file") {
                     filesManager.deleteChatFiles(listOf(oldUri))
                 }
-            } catch (e: Exception) {
+            } catch (e: RuntimeException) {
                 AppLog.w(TAG, "Failed to delete background file: $oldBackground", e)
             }
         }

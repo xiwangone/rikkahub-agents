@@ -19,6 +19,10 @@ interface VaultCredentialDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(entry: VaultCredentialEntity): Long
 
+    /** Strict insert used by rename flows: never replace a concurrent or pre-existing target. */
+    @Insert(onConflict = OnConflictStrategy.ABORT)
+    suspend fun insertIfAbsent(entry: VaultCredentialEntity): Long
+
     @Update
     suspend fun update(entry: VaultCredentialEntity)
 

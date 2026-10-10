@@ -580,6 +580,7 @@ class HighlightCodeVisualTransformation(
     /** 高亮结果缓存容量，由当前渲染档位给出（见 data/perf/RenderProfile.kt） */
     val maxCacheEntries: Int = HIGHLIGHT_CACHE_MAX_ENTRIES,
 ) : VisualTransformation {
+    @Suppress("TooGenericExceptionCaught") // The highlighter is an extension boundary; malformed grammars must fall back to plain text rather than break rendering.
     override fun filter(text: AnnotatedString): TransformedText {
         val annotatedString =
             try {
@@ -589,7 +590,7 @@ class HighlightCodeVisualTransformation(
                 } else {
                     highlightCached(text.text, language, darkMode, highlighter, colorPalette, maxCacheEntries)
                 }
-            } catch (e: Exception) {
+            } catch (e: RuntimeException) {
                 AppLog.e(TAG, "HighlightCodeVisualTransformation: failed to highlight code", e)
                 AnnotatedString(text.text)
             }

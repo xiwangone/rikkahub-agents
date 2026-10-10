@@ -27,6 +27,53 @@ import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "MediaPlaybackSvc"
 
+private data class PlaybackMetadata(val title: String?, val artist: String?, val album: String?)
+
+private fun resolvePlaybackMetadata(
+    source: String,
+    title: String?,
+    artist: String?,
+    album: String?,
+): PlaybackMetadata {
+    val extracted =
+        if (title == null || artist == null || album == null) {
+            readPlaybackMetadata(source)
+        } else {
+            null
+        }
+    return PlaybackMetadata(title ?: extracted?.title, artist ?: extracted?.artist, album ?: extracted?.album)
+}
+
+private fun readPlaybackMetadata(source: String): PlaybackMetadata? {
+    val retriever = MediaMetadataRetriever()
+    return try {
+        retriever.setDataSource(source)
+        PlaybackMetadata(
+            title = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE),
+            artist = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST),
+            album = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM),
+        )
+    } catch (error: IllegalArgumentException) {
+        AppLog.d(TAG, "metadata extraction failed (best-effort)", error)
+        null
+    } catch (error: IllegalStateException) {
+        AppLog.d(TAG, "metadata extraction failed (best-effort)", error)
+        null
+    } catch (error: SecurityException) {
+        AppLog.d(TAG, "metadata extraction failed (best-effort)", error)
+        null
+    } finally {
+        runCatching { retriever.release() }
+    }
+}
+
+private fun buildMediaMetadata(metadata: PlaybackMetadata): MediaMetadataCompat =
+    MediaMetadataCompat.Builder().apply {
+        metadata.title?.let { putString(MediaMetadataCompat.METADATA_KEY_TITLE, it) }
+        metadata.artist?.let { putString(MediaMetadataCompat.METADATA_KEY_ARTIST, it) }
+        metadata.album?.let { putString(MediaMetadataCompat.METADATA_KEY_ALBUM, it) }
+    }.build()
+
 /**
  * Foreground service for audio playback with MediaSession integration.
  *
@@ -230,150 +277,95 @@ class MediaPlaybackService : Service() {
         artworkUri: String?,
         startPositionMs: Long = 0L,
     ) {
-        // Stop any current player cleanly
         releaseMediaPlayer()
-
-        // Request audio focus
-        if (!requestAudioFocus()) {
-            // Could not obtain focus — still try to play (some setups allow it)
-        }
-
+        requestAudioFocus() // Still try to play when focus cannot be acquired, as before.
         currentSource = source
-
-        // Resolve metadata — explicit args win; fall back to MediaMetadataRetriever
-        val (resolvedTitle, resolvedArtist, resolvedAlbum) =
-            resolveMetadata(source = source, title = title, artist = artist, album = album)
-
-        currentTitle = resolvedTitle
-        currentArtist = resolvedArtist
-        currentAlbum = resolvedAlbum
+        val metadata = resolvePlaybackMetadata(source, title, artist, album)
+        currentTitle = metadata.title
+        currentArtist = metadata.artist
+        currentAlbum = metadata.album
         currentArtworkUri = artworkUri
-        // Starting fresh playback invalidates any old "stopped at" snapshot — the user
-        // is moving on to something else. Snapshot is only useful as a fallback for
-        // resume_media after stop_media wiped the live session.
+        // Starting fresh playback invalidates the old "stopped at" snapshot.
         lastStoppedSnapshot = null
-
-        // Build MediaMetadata
-        val meta =
-            MediaMetadataCompat
-                .Builder()
-                .apply {
-                    resolvedTitle?.let { putString(MediaMetadataCompat.METADATA_KEY_TITLE, it) }
-                    resolvedArtist?.let { putString(MediaMetadataCompat.METADATA_KEY_ARTIST, it) }
-                    resolvedAlbum?.let { putString(MediaMetadataCompat.METADATA_KEY_ALBUM, it) }
-                }.build()
-        mediaSession.setMetadata(meta)
-
+        val mediaMetadata = buildMediaMetadata(metadata)
+        mediaSession.setMetadata(mediaMetadata)
         setPlaybackState(PlaybackStateCompat.STATE_BUFFERING, 0L)
         postForegroundNotification()
-
         try {
-            val mp =
-                MediaPlayer().apply {
-                    setAudioAttributes(
-                        AudioAttributes
-                            .Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .build(),
-                    )
-                    setDataSource(this@MediaPlaybackService, Uri.parse(source))
-                    setOnPreparedListener { player ->
-                        // Honor a requested resume position so callers (resume_media's
-                        // post-stop-snapshot recovery) can pick up where the user left off.
-                        if (startPositionMs > 0L && startPositionMs < player.duration) {
-                            player.seekTo(startPositionMs.toInt())
-                            this@MediaPlaybackService.positionMs = startPositionMs
-                        }
-                        player.start()
-                        this@MediaPlaybackService.durationMs = player.duration.toLong()
-
-                        // Update metadata with duration
-                        val metaWithDuration =
-                            MediaMetadataCompat
-                                .Builder(meta)
-                                .putLong(
-                                    MediaMetadataCompat.METADATA_KEY_DURATION,
-                                    this@MediaPlaybackService.durationMs,
-                                ).build()
-                        this@MediaPlaybackService.mediaSession.setMetadata(metaWithDuration)
-
-                        this@MediaPlaybackService.isPlaying = true
-                        this@MediaPlaybackService.setPlaybackState(
-                            PlaybackStateCompat.STATE_PLAYING,
-                            if (startPositionMs > 0L) startPositionMs else 0L,
-                        )
-                        this@MediaPlaybackService.postForegroundNotification()
-                    }
-                    setOnCompletionListener {
-                        this@MediaPlaybackService.isPlaying = false
-                        this@MediaPlaybackService.setPlaybackState(PlaybackStateCompat.STATE_STOPPED, 0L)
-                        stopForeground(STOP_FOREGROUND_DETACH)
-                        stopSelf()
-                    }
-                    setOnErrorListener { _, _, _ ->
-                        this@MediaPlaybackService.isPlaying = false
-                        this@MediaPlaybackService.setPlaybackState(PlaybackStateCompat.STATE_ERROR, 0L)
-                        stopForeground(STOP_FOREGROUND_DETACH)
-                        stopSelf()
-                        true
-                    }
-                    prepareAsync()
-                }
-            mediaPlayer = mp
-        } catch (e: IOException) {
-            onStartPlaybackFailure(source, e)
-        } catch (e: IllegalStateException) {
-            onStartPlaybackFailure(source, e)
+            mediaPlayer = createPreparedMediaPlayer(source, startPositionMs, mediaMetadata)
+        } catch (error: IOException) {
+            handlePlaybackSetupFailure(source, error)
+        } catch (error: IllegalStateException) {
+            handlePlaybackSetupFailure(source, error)
         }
     }
 
-    /**
-     * Best-effort failure handling for [startPlayback]. Logged (was silently swallowed) so a
-     * "media won't play" report has a diagnostic — typically a bad source URI / unsupported
-     * scheme from setDataSource. Control flow is unchanged: error state, drop foreground, stop.
-     */
-    private fun onStartPlaybackFailure(source: String, e: Exception) {
-        AppLog.w(TAG, "startPlayback failed for source=$source", e)
+    private fun createPreparedMediaPlayer(
+        source: String,
+        startPositionMs: Long,
+        metadata: MediaMetadataCompat,
+    ): MediaPlayer =
+        MediaPlayer().apply {
+            setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                    .build(),
+            )
+            setDataSource(this@MediaPlaybackService, Uri.parse(source))
+            setOnPreparedListener { player -> handlePlaybackPrepared(player, startPositionMs, metadata) }
+            setOnCompletionListener { handlePlaybackCompleted() }
+            setOnErrorListener { _, _, _ ->
+                handlePlaybackError()
+                true
+            }
+            prepareAsync()
+        }
+
+    private fun handlePlaybackPrepared(
+        player: MediaPlayer,
+        startPositionMs: Long,
+        metadata: MediaMetadataCompat,
+    ) {
+        if (startPositionMs > 0L && startPositionMs < player.duration) {
+            player.seekTo(startPositionMs.toInt())
+            positionMs = startPositionMs
+        }
+        player.start()
+        durationMs = player.duration.toLong()
+        val metadataWithDuration =
+            MediaMetadataCompat.Builder(metadata)
+                .putLong(MediaMetadataCompat.METADATA_KEY_DURATION, durationMs)
+                .build()
+        mediaSession.setMetadata(metadataWithDuration)
+        isPlaying = true
+        setPlaybackState(
+            PlaybackStateCompat.STATE_PLAYING,
+            if (startPositionMs > 0L) startPositionMs else 0L,
+        )
+        postForegroundNotification()
+    }
+
+    private fun handlePlaybackCompleted() {
+        isPlaying = false
+        setPlaybackState(PlaybackStateCompat.STATE_STOPPED, 0L)
+        stopForeground(STOP_FOREGROUND_DETACH)
+        stopSelf()
+    }
+
+    private fun handlePlaybackError() {
+        isPlaying = false
         setPlaybackState(PlaybackStateCompat.STATE_ERROR, 0L)
         stopForeground(STOP_FOREGROUND_DETACH)
         stopSelf()
     }
 
-    /**
-     * Best-effort metadata resolution: explicit args win, missing ones fall back to
-     * [MediaMetadataRetriever]. Failures are swallowed **on purpose** — metadata is cosmetic
-     * and must never break playback (hence the TooGenericExceptionCaught suppression).
-     */
-    @Suppress("TooGenericExceptionCaught")
-    private fun resolveMetadata(
-        source: String,
-        title: String?,
-        artist: String?,
-        album: String?,
-    ): Triple<String?, String?, String?> {
-        var t = title
-        var a = artist
-        var al = album
-        try {
-            MediaMetadataRetriever().use { retriever ->
-                retriever.setDataSource(source)
-                if (t == null) {
-                    t = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_TITLE)
-                }
-                if (a == null) {
-                    a = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ARTIST)
-                }
-                if (al == null) {
-                    al = retriever.extractMetadata(MediaMetadataRetriever.METADATA_KEY_ALBUM)
-                }
-            }
-        } catch (e: Throwable) {
-            AppLog.d(TAG, "metadata extraction failed (best-effort)", e)
-        }
-        return Triple(t, a, al)
+    private fun handlePlaybackSetupFailure(source: String, error: Exception) {
+        AppLog.w(TAG, "startPlayback failed for source=$source", error)
+        setPlaybackState(PlaybackStateCompat.STATE_ERROR, 0L)
+        stopForeground(STOP_FOREGROUND_DETACH)
+        stopSelf()
     }
-
     private fun resumePlayback() {
         val mp = mediaPlayer ?: return
         if (!mp.isPlaying) {

@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.vault
 import kotlinx.coroutines.flow.first
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.repository.SshHostRepository
 
 /**
@@ -46,6 +47,29 @@ object VaultReferenceSync {
                 )
             else -> provider
         }
+
+    /** Rename all credential references stored on a saved SSH host. */
+    internal fun renameSshHostReferences(
+        host: SshHostEntity,
+        oldName: String,
+        newName: String,
+    ): Pair<SshHostEntity, Int> {
+        val renamed = host.copy(
+            password = host.password?.let { renameInText(it, oldName, newName) },
+            privateKey = host.privateKey?.let { renameInText(it, oldName, newName) },
+            passphrase = host.passphrase?.let { renameInText(it, oldName, newName) },
+            vaultCredentialRef =
+                if (host.vaultCredentialRef?.trim() == oldName) newName else host.vaultCredentialRef,
+        )
+        val changedFields =
+            listOf(
+                host.password to renamed.password,
+                host.privateKey to renamed.privateKey,
+                host.passphrase to renamed.passphrase,
+                host.vaultCredentialRef to renamed.vaultCredentialRef,
+            ).count { (before, after) -> before != after }
+        return renamed to changedFields
+    }
 
     /**
      * 全量同步：把配置中所有 `$$oldName` 引用改为 `$$newName`。
@@ -126,11 +150,12 @@ object VaultReferenceSync {
             )
         }
 
-        // 6) 已保存的 SSH 主机（按名字整体匹配；实体需逐条写回）
+        // 6) 已保存 SSH 主机：Vault 名称引用及三个支持 `$$name` 的认证字段。
         sshHostRepository.getAll().forEach { host ->
-            if (host.vaultCredentialRef?.trim() == oldName) {
-                sshHostRepository.upsert(host.copy(vaultCredentialRef = newName))
-                changed++
+            val (renamedHost, changedFields) = renameSshHostReferences(host, oldName, newName)
+            if (changedFields > 0) {
+                sshHostRepository.upsert(renamedHost)
+                changed += changedFields
             }
         }
 

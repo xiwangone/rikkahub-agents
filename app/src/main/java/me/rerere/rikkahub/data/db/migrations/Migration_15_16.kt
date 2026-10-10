@@ -10,6 +10,7 @@ import me.rerere.rikkahub.data.log.AppLog
 private const val TAG = "Migration_15_16"
 
 val Migration_15_16 = object : Migration(15, 16) {
+    @Suppress("TooGenericExceptionCaught", "NestedBlockDepth") // Per-conversation recovery must stay inside the single database transaction and keep each cursor scoped.
     override fun migrate(db: SupportSQLiteDatabase) {
         AppLog.i(TAG, "migrate: start migrate from 15 to 16 (eager tool message migration)")
         DatabaseMigrationTracker.onMigrationStart(15, 16)
@@ -59,7 +60,7 @@ val Migration_15_16 = object : Migration(15, 16) {
                 // and roll back every conversation already migrated.
                 val migrated = try {
                     migrateConversationNodes(rows, hasUnparsableRow)
-                } catch (e: Exception) {
+                } catch (e: RuntimeException) {
                     AppLog.e(TAG, "migrate: failed to migrate conversation $conversationId, leaving it untouched", e)
                     null
                 }

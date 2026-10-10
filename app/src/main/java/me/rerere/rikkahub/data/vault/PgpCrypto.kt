@@ -1,5 +1,8 @@
 package me.rerere.rikkahub.data.vault
 
+import java.io.IOException
+import org.bouncycastle.openpgp.PGPException
+
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
 import java.io.OutputStream
@@ -115,7 +118,9 @@ object PgpCrypto {
             } else {
                 VerifyResult.Invalid("签名与数据不匹配（数据被篡改或签名者不同）")
             }
-        } catch (e: Exception) {
+        } catch (e: PGPException) {
+            VerifyResult.Invalid("验签过程失败: ${e.message}")
+        } catch (e: RuntimeException) {
             VerifyResult.Invalid("验签过程失败: ${e.message}")
         }
     }
@@ -208,7 +213,11 @@ object PgpCrypto {
             ArmoredInputStream(armoredPrivateKey.byteInputStream()),
             BcKeyFingerprintCalculator(),
         )
-    } catch (e: Exception) {
+    } catch (e: IOException) {
+        throw PgpCryptoException("私钥解析失败（需要 armored 私钥块）: ${e.message}", e)
+    } catch (e: PGPException) {
+        throw PgpCryptoException("私钥解析失败（需要 armored 私钥块）: ${e.message}", e)
+    } catch (e: RuntimeException) {
         throw PgpCryptoException("私钥解析失败（需要 armored 私钥块）: ${e.message}", e)
     }
 
@@ -218,7 +227,9 @@ object PgpCrypto {
             ArmoredInputStream(armoredPublicKey.byteInputStream()),
             BcKeyFingerprintCalculator(),
         )
-    } catch (e: Exception) {
+    } catch (e: IOException) {
+        throw PgpCryptoException("公钥解析失败（需要 armored 公钥块）: ${e.message}", e)
+    } catch (e: RuntimeException) {
         throw PgpCryptoException("公钥解析失败（需要 armored 公钥块）: ${e.message}", e)
     }
 
@@ -241,7 +252,9 @@ object PgpCrypto {
                 ArmoredInputStream(raw.toByteArray().inputStream()),
                 BcKeyFingerprintCalculator(),
             )
-        } catch (e: Exception) {
+        } catch (e: IOException) {
+            throw PgpCryptoException("从私钥块提取公钥失败: ${e.message}", e)
+        } catch (e: RuntimeException) {
             throw PgpCryptoException("从私钥块提取公钥失败: ${e.message}", e)
         }
     }
@@ -268,7 +281,9 @@ object PgpCrypto {
             BcPBESecretKeyDecryptorBuilder(BcPGPDigestCalculatorProvider())
                 .build(passphrase ?: CharArray(0)),
         )
-    } catch (e: Exception) {
+    } catch (e: PGPException) {
+        null
+    } catch (e: RuntimeException) {
         null
     }
 

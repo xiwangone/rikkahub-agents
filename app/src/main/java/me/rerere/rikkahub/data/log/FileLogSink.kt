@@ -6,6 +6,8 @@ import java.io.FileOutputStream
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
@@ -33,6 +35,7 @@ object FileLogSink {
     private const val MAX_FILE_SIZE = 2L * 1024 * 1024 // 2MB
     private const val MAX_FILES = 5
     private const val RETENTION_DAYS = 7L
+    private val fileDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US)
 
     private val executor =
         Executors.newSingleThreadExecutor { r -> Thread(r, "file-log-sink").apply { isDaemon = true } }
@@ -74,30 +77,29 @@ object FileLogSink {
         runCatching { done.await(3, TimeUnit.SECONDS) }
     }
 
-    /** 读最近 N 行（某个类别），用于崩溃快照/页面展示 */
+    /** 读某类别最近 [days] 天的末尾 [maxLines] 行；日期和轮转文件均按时间顺序合并。 */
     fun recentLines(
         kind: String,
         maxLines: Int,
+        days: Int = 1,
     ): String {
         val dir = logsDir ?: return ""
-        val main = File(dir, "${kind}-${dateFormat.format(Date())}.log")
-        val candidates = mutableListOf<File>()
-        if (main.exists()) candidates.add(main)
-        for (i in 1..MAX_FILES) {
-            val f = File(main.path + ".$i")
-            if (f.exists()) candidates.add(f)
+        if (maxLines <= 0) return ""
+        val dayCount = days.coerceIn(1, RETENTION_DAYS.toInt())
+        val collected = mutableListOf<String>()
+        val today = LocalDate.now()
+        for (offset in dayCount - 1 downTo 0) {
+            val date = today.minusDays(offset.toLong()).format(fileDateFormatter)
+            val main = File(dir, "$kind-$date.log")
+            // rotate() 向 .5 推送最老文件，.1 最近，主文件最新。
+            val candidates = (MAX_FILES downTo 1).map { File(main.path + ".$it") } + main
+            for (file in candidates) {
+                if (file.exists()) {
+                    collected += runCatching { file.readLines() }.getOrDefault(emptyList())
+                }
+            }
         }
-        val all = StringBuilder()
-        var remaining = maxLines
-        for (file in candidates) {
-            if (remaining <= 0) break
-            val lines =
-                runCatching { file.readLines() }.getOrDefault(emptyList())
-            val take = lines.size.coerceAtMost(remaining)
-            all.append(lines.takeLast(take).joinToString("\n")).append('\n')
-            remaining -= take
-        }
-        return all.toString().trim()
+        return collected.takeLast(maxLines).joinToString("\n").trim()
     }
 
     private fun appendLineSync(

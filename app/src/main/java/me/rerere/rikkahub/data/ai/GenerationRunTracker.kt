@@ -2,6 +2,9 @@ package me.rerere.rikkahub.data.ai
 
 import android.content.Context
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
@@ -306,6 +309,10 @@ object GenerationRunTracker {
 
     private val lock = Any()
 
+    /** 只用于通知用量页面数据已变化；明细仍通过 [snapshot] 读取。 */
+    private val _revision = MutableStateFlow(0L)
+    val revision: StateFlow<Long> = _revision.asStateFlow()
+
     // @Volatile：收尾协程写、诊断读（跨线程）——不加会读到陈旧快照
     @Volatile
     private var loaded = false
@@ -403,6 +410,7 @@ object GenerationRunTracker {
                     recent = (runState.recent + entry).takeLast(MAX_RECENT),
                 )
             persist(context)
+            _revision.value = _revision.value + 1
         }
     }
 
@@ -426,6 +434,7 @@ object GenerationRunTracker {
             runCatching {
                 context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY_STATE).apply()
             }
+            _revision.value = _revision.value + 1
         }
     }
 }
