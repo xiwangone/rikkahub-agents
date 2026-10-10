@@ -633,7 +633,7 @@ object ShellToolUI : ToolUIRenderer {
                 modifier = Modifier.fillMaxWidth(),
             )
             if (stdout.isNotEmpty()) {
-                Text(text = "stdout", style = MaterialTheme.typography.labelMedium)
+                Text(text = stringResource(R.string.tool_ui_stdout), style = MaterialTheme.typography.labelMedium)
                 HighlightCodeBlock(
                     code = stdout,
                     language = "plaintext",
@@ -642,7 +642,7 @@ object ShellToolUI : ToolUIRenderer {
             }
             if (stderr.isNotEmpty()) {
                 Text(
-                    text = "stderr",
+                    text = stringResource(R.string.tool_ui_stderr),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.error,
                 )

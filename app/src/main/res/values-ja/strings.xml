@@ -261,7 +261,6 @@
   <string name="chat_message_tool_call_generic">ツール %1$s を呼び出しました</string>
   <string name="chat_message_tool_call_label">ツール %1$s を呼び出しました</string>
   <string name="chat_message_tool_call_result">呼び出し結果</string>
-  <string name="chat_message_tool_call_title">ツール呼び出し</string>
   <string name="chat_message_tool_clipboard_read">クリップボードを読み取り</string>
   <string name="chat_message_tool_clipboard_write">クリップボードに書き込み</string>
   <string name="chat_message_tool_create_memory">記憶を作成しました</string>
@@ -3607,4 +3606,24 @@
   <string name="tool_ui_edit_memory">メモリを編集</string>
   <string name="vault_rename_sync_failed">参照の同期に失敗しました。古い資格情報と新しい資格情報の両方が保持されますが、一部の参照は部分的にしか更新されない可能性があります。古い資格情報を削除する前に確認してください。%1$s</string>
   <string name="vault_rename_target_exists">この名前の資格情報は既に存在します。ターゲットは上書きされず、ソースも削除されませんでした。</string>
+  <string name="tool_status_needs_approval">承認が必要</string>
+  <string name="tool_ui_skill_title">スキル: %1$s</string>
+  <string name="tool_ui_skill_path_title">スキル: %1$s · %2$s</string>
+  <string name="tool_ui_js_skill_title">JavaScript スキル: %1$s</string>
+  <string name="tool_ui_js_skill">JavaScript スキル</string>
+  <string name="tool_ui_calendar_event_title">カレンダー予定: %1$s</string>
+  <string name="tool_ui_create_calendar_event">カレンダー予定を作成</string>
+  <string name="tool_ui_contact_title">連絡先: %1$s</string>
+  <string name="tool_ui_create_contact">連絡先を作成</string>
+  <string name="tool_ui_sms_to">SMS の宛先: %1$s</string>
+  <string name="tool_ui_compose_sms">SMS を作成</string>
+  <string name="tool_ui_email_to">メールの宛先: %1$s</string>
+  <string name="tool_ui_compose_email">メールを作成</string>
+  <string name="tool_ui_wifi_settings">Wi-Fi 設定</string>
+  <string name="tool_ui_map_query">地図: %1$s</string>
+  <string name="tool_ui_open_map">地図を開く</string>
+  <string name="tool_ui_stdout">標準出力</string>
+  <string name="tool_ui_stderr">標準エラー</string>
+  <string name="tool_ui_memory_delete_failed">メモリを削除できませんでした</string>
+  <string name="tool_ui_memory_save_failed">メモリを保存できませんでした</string>
 </resources>

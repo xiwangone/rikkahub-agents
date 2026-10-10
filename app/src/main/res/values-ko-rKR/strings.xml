@@ -261,7 +261,6 @@
   <string name="chat_message_tool_call_generic">도구 호출 %1$s</string>
   <string name="chat_message_tool_call_label">도구 %1$s 호출함</string>
   <string name="chat_message_tool_call_result">호출 결과</string>
-  <string name="chat_message_tool_call_title">도구 호출</string>
   <string name="chat_message_tool_clipboard_read">클립보드 읽기</string>
   <string name="chat_message_tool_clipboard_write">클립보드에 쓰기</string>
   <string name="chat_message_tool_create_memory">기억 생성됨</string>
@@ -3607,4 +3606,24 @@
   <string name="tool_ui_edit_memory">메모리 편집</string>
   <string name="vault_rename_sync_failed">참조 동기화에 실패했습니다. 이전 자격 증명과 새 자격 증명이 모두 유지되지만 일부 참조는 부분적으로만 업데이트되었을 수 있습니다. 이전 자격 증명을 제거하기 전에 검토하십시오.%1$s</string>
   <string name="vault_rename_target_exists">이 이름의 자격 증명이 이미 존재합니다. 대상은 덮어쓰지 않았으며 원본은 삭제되지 않았습니다.</string>
+  <string name="tool_status_needs_approval">승인 필요</string>
+  <string name="tool_ui_skill_title">스킬: %1$s</string>
+  <string name="tool_ui_skill_path_title">스킬: %1$s · %2$s</string>
+  <string name="tool_ui_js_skill_title">JavaScript 스킬: %1$s</string>
+  <string name="tool_ui_js_skill">JavaScript 스킬</string>
+  <string name="tool_ui_calendar_event_title">캘린더 일정: %1$s</string>
+  <string name="tool_ui_create_calendar_event">캘린더 일정 만들기</string>
+  <string name="tool_ui_contact_title">연락처: %1$s</string>
+  <string name="tool_ui_create_contact">연락처 만들기</string>
+  <string name="tool_ui_sms_to">SMS 받는 사람: %1$s</string>
+  <string name="tool_ui_compose_sms">SMS 작성</string>
+  <string name="tool_ui_email_to">이메일 받는 사람: %1$s</string>
+  <string name="tool_ui_compose_email">이메일 작성</string>
+  <string name="tool_ui_wifi_settings">Wi-Fi 설정</string>
+  <string name="tool_ui_map_query">지도: %1$s</string>
+  <string name="tool_ui_open_map">지도 열기</string>
+  <string name="tool_ui_stdout">표준 출력</string>
+  <string name="tool_ui_stderr">표준 오류</string>
+  <string name="tool_ui_memory_delete_failed">메모리를 삭제하지 못했습니다</string>
+  <string name="tool_ui_memory_save_failed">메모리를 저장하지 못했습니다</string>
 </resources>

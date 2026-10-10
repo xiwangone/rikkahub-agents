@@ -9,7 +9,7 @@ package me.rerere.rikkahub.ui.components.message.tools
  * ## 一、渲染分层：Default vs 专用渲染器
  *
  * Default（[ToolUIRegistry] 的 fallback）按输出特征分四分支给内联摘要：
- * ① 终端型（`stdout`/`exit_code` → 前 8 行，非零退出码标 `[exit N]`）；
+ * ① 终端型（`stdout`/`exit_code` → 前 8 行，失败由共享状态徽标表达）；
  * ② 列表型（40 个 `GENERIC_LIST_KEYS` 命中或单字段数组兜底 → 逐条取标签，超 8 条折叠）；
  * ③ 长文本型（>200 字符字段 → 取最长字段前 8 行）；
  * ④ 键值型（标量小对象 → 逐行 `k: v`，值截 120 字符，最多 8 行）。

@@ -374,7 +374,6 @@
   <string name="chat_message_tool_call_generic">تم استدعاء الأداة %1$s</string>
   <string name="chat_message_tool_call_label">تم استدعاء الأداة %1$s</string>
   <string name="chat_message_tool_call_result">نتيجة الاستدعاء</string>
-  <string name="chat_message_tool_call_title">استدعاء أداة</string>
   <string name="chat_message_tool_clipboard_read">قراءة الحافظة</string>
   <string name="chat_message_tool_clipboard_write">كتابة في الحافظة</string>
   <string name="chat_message_tool_create_memory">تم إنشاء ذاكرة</string>
@@ -3606,4 +3605,24 @@
   <string name="tool_ui_edit_memory">تحرير الذاكرة</string>
   <string name="vault_rename_sync_failed">فشل مزامنة المراجع. تم الاحتفاظ بكل من بيانات الاعتماد القديمة والجديدة، ولكن قد يتم تحديث بعض المراجع جزئيًا فقط. يرجى المراجعة قبل إزالة بيانات الاعتماد القديمة.%1$s</string>
   <string name="vault_rename_target_exists">توجد بالفعل بيانات اعتماد بهذا الاسم. لم يتم استبدال الهدف ولم يتم حذف المصدر.</string>
+  <string name="tool_status_needs_approval">يتطلب موافقة</string>
+  <string name="tool_ui_skill_title">المهارة: %1$s</string>
+  <string name="tool_ui_skill_path_title">المهارة: %1$s · %2$s</string>
+  <string name="tool_ui_js_skill_title">مهارة JavaScript: %1$s</string>
+  <string name="tool_ui_js_skill">مهارة JavaScript</string>
+  <string name="tool_ui_calendar_event_title">حدث التقويم: %1$s</string>
+  <string name="tool_ui_create_calendar_event">إنشاء حدث في التقويم</string>
+  <string name="tool_ui_contact_title">جهة الاتصال: %1$s</string>
+  <string name="tool_ui_create_contact">إنشاء جهة اتصال</string>
+  <string name="tool_ui_sms_to">رسالة SMS إلى %1$s</string>
+  <string name="tool_ui_compose_sms">إنشاء رسالة SMS</string>
+  <string name="tool_ui_email_to">بريد إلكتروني إلى %1$s</string>
+  <string name="tool_ui_compose_email">إنشاء بريد إلكتروني</string>
+  <string name="tool_ui_wifi_settings">إعدادات Wi-Fi</string>
+  <string name="tool_ui_map_query">الخريطة: %1$s</string>
+  <string name="tool_ui_open_map">فتح الخريطة</string>
+  <string name="tool_ui_stdout">الإخراج القياسي</string>
+  <string name="tool_ui_stderr">الخطأ القياسي</string>
+  <string name="tool_ui_memory_delete_failed">تعذر حذف هذه الذاكرة</string>
+  <string name="tool_ui_memory_save_failed">تعذر حفظ هذه الذاكرة</string>
 </resources>

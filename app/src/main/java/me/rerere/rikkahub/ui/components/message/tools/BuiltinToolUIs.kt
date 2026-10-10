@@ -206,6 +206,8 @@ object MemoryToolUI : ToolUIRenderer {
     ) {
         val memoryRepo: MemoryRepository = koinInject()
         val scope = rememberCoroutineScope()
+        val deleteFailureMessage = stringResource(R.string.tool_ui_memory_delete_failed)
+        val saveFailureMessage = stringResource(R.string.tool_ui_memory_save_failed)
         val memoryId = (context.content as? JsonObject)?.get("id")?.jsonPrimitiveOrNull?.intOrNull
         val memoryScopeId = (context.content as? JsonObject)?.get("scope_id")?.jsonPrimitiveOrNull?.contentOrNull
         // 就地编辑：工具卡正文是历史快照，改完用本地态显示新内容（否则看起来"没保存"）
@@ -254,7 +256,7 @@ object MemoryToolUI : ToolUIRenderer {
                                 } catch (error: kotlinx.coroutines.CancellationException) {
                                     throw error
                                 } catch (error: Exception) {
-                                    operationError = error.message ?: "Failed to delete memory"
+                                    operationError = error.message?.takeIf { it.isNotBlank() } ?: deleteFailureMessage
                                 } finally {
                                     isDeleting = false
                                 }
@@ -336,7 +338,7 @@ object MemoryToolUI : ToolUIRenderer {
                                     } catch (error: kotlinx.coroutines.CancellationException) {
                                         throw error
                                     } catch (error: Exception) {
-                                        operationError = error.message ?: "Failed to save memory"
+                                        operationError = error.message?.takeIf { it.isNotBlank() } ?: saveFailureMessage
                                     } finally {
                                         isSaving = false
                                     }
@@ -655,7 +657,11 @@ object UseSkillToolUI : ToolUIRenderer {
     override fun title(context: ToolUIContext): String {
         val skillName = context.arguments.getStringContent("name") ?: ""
         val path = context.arguments.getStringContent("path")
-        return if (path != null) "Skill: $skillName / $path" else "Skill: $skillName"
+        return if (path != null) {
+            stringResource(R.string.tool_ui_skill_path_title, skillName, path)
+        } else {
+            stringResource(R.string.tool_ui_skill_title, skillName)
+        }
     }
 }
 
@@ -1192,7 +1198,11 @@ object RunJsToolUI : ToolUIRenderer {
     @Composable
     override fun title(context: ToolUIContext): String {
         val skillName = context.arguments.getStringContent("skill_name").orEmpty()
-        return if (skillName.isNotBlank()) "JS skill: $skillName" else "JS skill"
+        return if (skillName.isNotBlank()) {
+            stringResource(R.string.tool_ui_js_skill_title, skillName)
+        } else {
+            stringResource(R.string.tool_ui_js_skill)
+        }
     }
 }
 
@@ -1209,7 +1219,11 @@ object CreateCalendarEventToolUI : ToolUIRenderer {
     override fun title(context: ToolUIContext): String {
         context.content.getStringContent("summary")?.let { return it }
         val t = context.arguments.getStringContent("title").orEmpty()
-        return if (t.isNotBlank()) "Calendar event: $t" else "Create calendar event"
+        return if (t.isNotBlank()) {
+            stringResource(R.string.tool_ui_calendar_event_title, t)
+        } else {
+            stringResource(R.string.tool_ui_create_calendar_event)
+        }
     }
 }
 
@@ -1224,7 +1238,11 @@ object CreateContactToolUI : ToolUIRenderer {
         val first = context.arguments.getStringContent("first_name").orEmpty()
         val last = context.arguments.getStringContent("last_name").orEmpty()
         val name = listOf(first, last).filter { it.isNotBlank() }.joinToString(" ")
-        return if (name.isNotBlank()) "Contact: $name" else "Create contact"
+        return if (name.isNotBlank()) {
+            stringResource(R.string.tool_ui_contact_title, name)
+        } else {
+            stringResource(R.string.tool_ui_create_contact)
+        }
     }
 }
 
@@ -1237,7 +1255,11 @@ object SendSmsIntentToolUI : ToolUIRenderer {
     override fun title(context: ToolUIContext): String {
         context.content.getStringContent("summary")?.let { return it }
         val ph = context.arguments.getStringContent("phone_number").orEmpty()
-        return if (ph.isNotBlank()) "SMS to $ph" else "Compose SMS"
+        return if (ph.isNotBlank()) {
+            stringResource(R.string.tool_ui_sms_to, ph)
+        } else {
+            stringResource(R.string.tool_ui_compose_sms)
+        }
     }
 }
 
@@ -1250,7 +1272,11 @@ object SendEmailIntentToolUI : ToolUIRenderer {
     override fun title(context: ToolUIContext): String {
         context.content.getStringContent("summary")?.let { return it }
         val to = context.arguments.getStringContent("to").orEmpty()
-        return if (to.isNotBlank()) "Email to $to" else "Compose email"
+        return if (to.isNotBlank()) {
+            stringResource(R.string.tool_ui_email_to, to)
+        } else {
+            stringResource(R.string.tool_ui_compose_email)
+        }
     }
 }
 
@@ -1260,7 +1286,8 @@ object OpenWifiSettingsToolUI : ToolUIRenderer {
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Settings03
 
     @Composable
-    override fun title(context: ToolUIContext): String = context.content.getStringContent("summary") ?: "WiFi Settings"
+    override fun title(context: ToolUIContext): String =
+        context.content.getStringContent("summary") ?: stringResource(R.string.tool_ui_wifi_settings)
 }
 
 object ShowLocationOnMapToolUI : ToolUIRenderer {
@@ -1272,6 +1299,10 @@ object ShowLocationOnMapToolUI : ToolUIRenderer {
     override fun title(context: ToolUIContext): String {
         context.content.getStringContent("summary")?.let { return it }
         val q = context.arguments.getStringContent("query").orEmpty()
-        return if (q.isNotBlank()) "Map: $q" else "Open map"
+        return if (q.isNotBlank()) {
+            stringResource(R.string.tool_ui_map_query, q)
+        } else {
+            stringResource(R.string.tool_ui_open_map)
+        }
     }
 }

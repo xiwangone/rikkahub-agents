@@ -19,7 +19,7 @@ import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
  *
  * 输出 `{success, exit_code, stdout, stderr}`。默认标题"调用工具 ssh_exec"
  * 看不出跑了什么命令——标题直接显示命令（截 60 字），摘要保持终端输出
- * 前 8 行（非零退出码带 `[exit N]` 标记），与默认分支行为一致。
+ * 前 8 行；失败状态由聊天工具步骤的共享状态徽标统一表达。
  */
 object SshExecToolUI : ToolUIRenderer {
     override val toolName: String = "ssh_exec"
@@ -52,7 +52,6 @@ object SshExecToolUI : ToolUIRenderer {
         val exit = content.getStringContent("exit_code") ?: content.getStringContent("exitCode")
         if (stdout == null && exit == null) return null
         val body = (stdout ?: "").lineSequence().take(8).joinToString("\n")
-        if (exit != null && exit != "0") return "[exit $exit]\n$body"
         return body.ifBlank { null }
     }
 }

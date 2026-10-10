@@ -47,8 +47,12 @@ import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.components.message.tools.DefaultToolPreview
+import me.rerere.rikkahub.ui.components.message.tools.ToolStatusBadge
+import me.rerere.rikkahub.ui.components.message.tools.ToolSummarySurface
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRegistry
+import me.rerere.rikkahub.ui.components.message.tools.getErrorCode
+import me.rerere.rikkahub.ui.components.message.tools.resolveToolStepStatus
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.components.ui.DotLoading
@@ -140,6 +144,15 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     // Summary detection is delegated to the registered renderer; image output and
     // denial reasons are common to all tools.
     val hasExtraContent = renderer.hasSummary(context) || isDenied || images.isNotEmpty()
+    val stepStatus =
+        resolveToolStepStatus(
+            isPending = isPending,
+            isDenied = isDenied,
+            isExecuted = tool.isExecuted,
+            success = context.content.getStringContent("success")?.toBooleanStrictOrNull(),
+            exitCode = context.content.getStringContent("exit_code") ?: context.content.getStringContent("exitCode"),
+            hasError = context.content.getErrorCode()?.let { it.isNotBlank() && !it.equals("false", ignoreCase = true) } == true,
+        )
 
     ControlledChainOfThoughtStep(
         expanded = expanded,
@@ -159,14 +172,21 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             }
         },
         label = {
-            Text(
-                text = renderer.title(context),
-                style = MaterialTheme.typography.titleSmall,
-                color = MaterialTheme.colorScheme.secondary,
-                modifier = Modifier.shimmer(isLoading = loading),
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(
+                    text = renderer.title(context),
+                    style = MaterialTheme.typography.titleSmall,
+                    color = MaterialTheme.colorScheme.secondary,
+                    modifier = Modifier.weight(1f).shimmer(isLoading = loading),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                ToolStatusBadge(status = stepStatus)
+            }
         },
         extra =
             if (isPending && onToolApproval != null) {
@@ -327,7 +347,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         content =
             if (hasExtraContent) {
                 {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    ToolSummarySurface {
                         renderer.Summary(context)
                         if (images.isNotEmpty()) {
                             LazyRow(
@@ -389,7 +409,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             onDismissRequest = { showResult = false },
             content = {
                 if (outputUnparsable) {
-                    DefaultToolPreview(context = context)
+                    DefaultToolPreview(context = context, title = renderer.title(context))
                 } else {
                     renderer.Preview(
                         context = context,

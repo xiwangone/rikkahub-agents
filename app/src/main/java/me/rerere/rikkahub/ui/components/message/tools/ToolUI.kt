@@ -17,6 +17,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
@@ -137,7 +138,7 @@ interface ToolUIRenderer {
         context: ToolUIContext,
         onDismissRequest: () -> Unit,
     ) {
-        DefaultToolPreview(context = context)
+        DefaultToolPreview(context = context, title = title(context))
     }
 }
 
@@ -240,7 +241,7 @@ private fun defaultTitleDetail(context: ToolUIContext): String? {
 
 /**
  * 从工具输出提炼可读摘要（返回 null = 不给摘要，仍走默认 JSON 详情）：
- *  ① 终端类（含 `stdout` / `exit_code`）→ 输出前若干行（非零退出码带一行标记）
+ *  ① 终端类（含 `stdout` / `exit_code`）→ 输出前若干行；失败状态由共享徽标表达
  *  ② 列表类（`files` / `items` / `results` / `matches` / `children` 等数组）→ 逐条列名
  */
 internal fun defaultSummaryText(context: ToolUIContext): String? = summaryForContent(context.content)
@@ -252,7 +253,6 @@ internal fun summaryForContent(content: JsonElement?): String? {
     val exit = content.getStringContent("exit_code") ?: content.getStringContent("exitCode")
     if (stdout != null || exit != null) {
         val body = (stdout ?: "").lineSequence().take(GENERIC_SUMMARY_MAX_LINES).joinToString("\n")
-        if (exit != null && exit != "0") return "[exit $exit]\n$body"
         return body.ifBlank { null }
     }
     val obj = content.jsonObjectOrNull ?: return null
@@ -445,7 +445,7 @@ internal fun detailTextForContent(content: JsonElement?): String? {
             val exit = content.getStringContent("exit_code") ?: content.getStringContent("exitCode")
             if (stdout != null || exit != null) {
                 val body = (stdout ?: "").lineSequence().take(DETAIL_MAX_LINES).joinToString("\n")
-                (if (exit != null && exit != "0") "[exit $exit]\n$body" else body).takeIf { it.isNotBlank() }
+                body.takeIf { it.isNotBlank() }
             } else {
                 // ② 列表类：优先登记的键名，否则取单字段数组（未登记键名的列表型工具）
                 val obj = content.jsonObjectOrNull
@@ -500,6 +500,7 @@ internal fun JsonElement?.getErrorCode(): String? =
 fun DefaultToolPreview(
     context: ToolUIContext,
     headerActions: (@Composable () -> Unit)? = null,
+    title: String? = null,
 ) {
     Column(
         modifier =
@@ -515,9 +516,11 @@ fun DefaultToolPreview(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = stringResource(R.string.chat_message_tool_call_title),
+                text = title ?: stringResource(R.string.chat_message_tool_call_generic, context.tool.toolName),
                 style = MaterialTheme.typography.headlineSmall,
                 textAlign = TextAlign.Center,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
             )
             headerActions?.invoke()
         }

@@ -381,7 +381,6 @@
   <string name="chat_message_tool_call_generic">Called tool %1$s</string>
   <string name="chat_message_tool_call_label">Called tool %1$s</string>
   <string name="chat_message_tool_call_result">Call result</string>
-  <string name="chat_message_tool_call_title">Tool Call</string>
   <string name="chat_message_tool_clipboard_read">Read clipboard</string>
   <string name="chat_message_tool_clipboard_write">Write clipboard</string>
   <string name="chat_message_tool_create_memory">Created memory</string>
@@ -3603,4 +3602,24 @@
   <string name="tts_audio_format_label">Audio Format</string>
   <string name="tts_audio_format_desc_qwen">Audio encoding returned by Qwen TTS</string>
   <string name="workspace_file_editor_source">Source</string>
+  <string name="tool_status_needs_approval">Needs approval</string>
+  <string name="tool_ui_skill_title">Skill: %1$s</string>
+  <string name="tool_ui_skill_path_title">Skill: %1$s · %2$s</string>
+  <string name="tool_ui_js_skill_title">JavaScript skill: %1$s</string>
+  <string name="tool_ui_js_skill">JavaScript skill</string>
+  <string name="tool_ui_calendar_event_title">Calendar event: %1$s</string>
+  <string name="tool_ui_create_calendar_event">Create calendar event</string>
+  <string name="tool_ui_contact_title">Contact: %1$s</string>
+  <string name="tool_ui_create_contact">Create contact</string>
+  <string name="tool_ui_sms_to">SMS to %1$s</string>
+  <string name="tool_ui_compose_sms">Compose SMS</string>
+  <string name="tool_ui_email_to">Email to %1$s</string>
+  <string name="tool_ui_compose_email">Compose email</string>
+  <string name="tool_ui_wifi_settings">Wi-Fi settings</string>
+  <string name="tool_ui_map_query">Map: %1$s</string>
+  <string name="tool_ui_open_map">Open map</string>
+  <string name="tool_ui_stdout">Standard output</string>
+  <string name="tool_ui_stderr">Standard error</string>
+  <string name="tool_ui_memory_delete_failed">Could not delete this memory</string>
+  <string name="tool_ui_memory_save_failed">Could not save this memory</string>
 </resources>
