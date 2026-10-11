@@ -316,22 +316,8 @@ fun listFilesTool(): Tool = Tool(
         val recursive = obj["recursive"]?.jsonPrimitive?.booleanOrNull ?: false
         val limit = (obj["limit"]?.jsonPrimitive?.intOrNull ?: 50).coerceIn(1, 500)
 
-        val collected = mutableListOf<File>()
-        var truncated = false
         val maxDepth = (obj["max_depth"]?.jsonPrimitive?.intOrNull ?: 32).coerceIn(1, 64)
-
-        fun collect(d: File, depth: Int) {
-            if (depth > maxDepth) { truncated = true; return }
-            val entries = try { d.listFiles() ?: emptyArray() } catch (_: SecurityException) { emptyArray() }
-            for (f in entries) {
-                if (collected.size >= limit) { truncated = true; return }
-                val matches = patternRegex == null || patternRegex.matches(f.name)
-                if (matches) collected.add(f)
-                // isDirectory follows symlinks — the depth cap is what bounds symlink cycles.
-                if (recursive && f.isDirectory) collect(f, depth + 1)
-            }
-        }
-        collect(dir, 1)
+        val (collected, truncated) = collectFilesForList(dir, limit, maxDepth, patternRegex, recursive)
 
         fmTextPart(buildJsonObject {
             put("files", buildJsonArray { collected.forEach { add(fileEntryJson(it)) } })
@@ -339,6 +325,36 @@ fun listFilesTool(): Tool = Tool(
         }.toString())
     },
 )
+
+/**
+ * 按 pattern / recursive / limit 收集条目，返回（命中列表, 是否被截断）。
+ * 从 listFilesTool 的 execute 里提出来：那边分支过多，会超过
+ * CyclomaticComplexMethod 的复杂度阈值（20）—— 行为不变，只是换位置。
+ */
+private fun collectFilesForList(
+    root: File,
+    limit: Int,
+    maxDepth: Int,
+    patternRegex: Regex?,
+    recursive: Boolean,
+): Pair<List<File>, Boolean> {
+    val collected = mutableListOf<File>()
+    var truncated = false
+
+    fun collect(d: File, depth: Int) {
+        if (depth > maxDepth) { truncated = true; return }
+        val entries = try { d.listFiles() ?: emptyArray() } catch (_: SecurityException) { emptyArray() }
+        for (f in entries) {
+            if (collected.size >= limit) { truncated = true; return }
+            val matches = patternRegex == null || patternRegex.matches(f.name)
+            if (matches) collected.add(f)
+            // isDirectory follows symlinks — the depth cap is what bounds symlink cycles.
+            if (recursive && f.isDirectory) collect(f, depth + 1)
+        }
+    }
+    collect(root, 1)
+    return collected to truncated
+}
 
 // ---------- read_file ----------
 

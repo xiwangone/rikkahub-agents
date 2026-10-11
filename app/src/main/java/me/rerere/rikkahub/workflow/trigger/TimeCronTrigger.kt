@@ -228,45 +228,60 @@ internal class TimeCronTriggerFamily(
             nowMs: Long,
         ): Long {
             val now = ZonedDateTime.ofInstant(java.time.Instant.ofEpochMilli(nowMs), zone)
-            // time_of_day + optional days_of_week. Wrapped in runCatching because the
-            // lenient read path (parseStored) can hand us a malformed "09:0" / out-of-range
-            // value — an uncaught throw here kills scheduling for the ENTIRE family.
-            if (!spec.timeOfDay.isNullOrBlank()) {
-                val parsedTime =
-                    runCatching {
-                        val parts = spec.timeOfDay.split(":")
-                        LocalTime.of(parts[0].trim().toInt(), parts[1].trim().toInt())
-                    }.getOrNull()
-                if (parsedTime != null) {
-                    var candidate = now.toLocalDate().atTime(parsedTime).atZone(zone)
-                    if (!candidate.isAfter(now)) candidate = candidate.plusDays(1)
-                    if (spec.daysOfWeek.isNotEmpty()) {
-                        val allowed = spec.daysOfWeek.map { isoDow(it) }.toSet()
-                        var hops = 0
-                        while (candidate.dayOfWeek !in allowed && hops < 8) {
-                            candidate = candidate.plusDays(1)
-                            hops++
-                        }
-                    }
-                    return candidate.toInstant().toEpochMilli()
-                }
-                AppLog.w(TAG, "time_cron: unparseable time_of_day '${spec.timeOfDay}', falling back")
-            }
-            // @every Ns
+            // 三段各自可返回 null（不支持 / 解析失败）→ 落到下一段，最后兜底。
+            timeOfDayNextMs(spec, zone, now)?.let { return it }
             derivePeriodMs(spec)?.let { return nowMs + it }
-            // 5-field cron: compute the exact next execution via the shared parser
-            // (same dialect as scheduled jobs). Without this, "0 9 * * 1" style
-            // expressions silently degraded to hourly fires.
-            spec.cron?.trim()?.takeIf { it.isNotBlank() }?.let { cron ->
-                me.rerere.rikkahub.service.CronExpressionParser.parse(cron).getOrNull()?.let { parsed ->
-                    me.rerere.rikkahub.service.CronExpressionParser
-                        .nextExecution(parsed, now)
-                        ?.let { return it.toInstant().toEpochMilli() }
-                }
-            }
+            cronNextMs(spec.cron, now)?.let { return it }
             // Fallback for unsupported cron — fire roughly hourly so the user gets
             // something useful even with an exotic schedule. Worker will re-evaluate.
             return nowMs + 60L * 60 * 1000
+        }
+
+        /**
+         * time_of_day + 可选 days_of_week → 下一次触发的毫秒；不可解析时返回 null。
+         * Wrapped in runCatching because the lenient read path (parseStored) can hand us a
+         * malformed "09:0" / out-of-range value — an uncaught throw here kills scheduling
+         * for the ENTIRE family.
+         */
+        private fun timeOfDayNextMs(
+            spec: TriggerSpec.TimeCron,
+            zone: ZoneId,
+            now: ZonedDateTime,
+        ): Long? {
+            if (spec.timeOfDay.isNullOrBlank()) return null
+            val parsedTime =
+                runCatching {
+                    val parts = spec.timeOfDay.split(":")
+                    LocalTime.of(parts[0].trim().toInt(), parts[1].trim().toInt())
+                }.getOrNull()
+            if (parsedTime == null) {
+                AppLog.w(TAG, "time_cron: unparseable time_of_day '${spec.timeOfDay}', falling back")
+                return null
+            }
+            var candidate = now.toLocalDate().atTime(parsedTime).atZone(zone)
+            if (!candidate.isAfter(now)) candidate = candidate.plusDays(1)
+            if (spec.daysOfWeek.isNotEmpty()) {
+                val allowed = spec.daysOfWeek.map { isoDow(it) }.toSet()
+                var hops = 0
+                while (candidate.dayOfWeek !in allowed && hops < 8) {
+                    candidate = candidate.plusDays(1)
+                    hops++
+                }
+            }
+            return candidate.toInstant().toEpochMilli()
+        }
+
+        /**
+         * 5-field cron → 下一次触发的毫秒；形式不支持时返回 null。
+         * 走共享解析器（与 scheduled jobs 同一方言）——没有它，"0 9 * * 1" 这类表达式
+         * 会静默退化成按小时触发。
+         */
+        private fun cronNextMs(cron: String?, now: ZonedDateTime): Long? {
+            val expr = cron?.trim()?.takeIf { it.isNotBlank() } ?: return null
+            val parsed = me.rerere.rikkahub.service.CronExpressionParser.parse(expr).getOrNull() ?: return null
+            return me.rerere.rikkahub.service.CronExpressionParser.nextExecution(parsed, now)
+                ?.toInstant()
+                ?.toEpochMilli()
         }
 
         private fun isoDow(iso: Int): DayOfWeek =
