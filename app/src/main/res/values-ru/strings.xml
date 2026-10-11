@@ -447,6 +447,8 @@
   <string name="history_page_delete_all">Удалить все</string>
   <string name="history_page_delete_all_confirmation">Вы уверены, что хотите удалить все диалоги? Это действие нельзя отменить.</string>
   <string name="history_page_delete_all_conversations">Удалить все чаты</string>
+  <string name="history_page_empty_title">Пока нет бесед</string>
+  <string name="history_page_empty_hint">Начните новый диалог — он появится здесь.</string>
   <string name="history_page_new_conversation">Новый диалог</string>
   <string name="history_page_pin">Закрепить</string>
   <string name="history_page_search">Поиск</string>

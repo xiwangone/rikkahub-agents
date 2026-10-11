@@ -563,6 +563,8 @@
   <string name="history_page_delete_all">حذف الكل</string>
   <string name="history_page_delete_all_confirmation">هل أنت متأكد من حذف جميع المحادثات؟ لا يمكن التراجع عن هذا الإجراء.</string>
   <string name="history_page_delete_all_conversations">حذف جميع المحادثات</string>
+  <string name="history_page_empty_title">لا توجد محادثات بعد</string>
+  <string name="history_page_empty_hint">ابدأ محادثة جديدة وستظهر هنا.</string>
   <string name="history_page_new_conversation">محادثة جديدة</string>
   <string name="history_page_pin">تثبيت</string>
   <string name="history_page_search">بحث</string>

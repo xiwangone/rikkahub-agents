@@ -544,6 +544,8 @@
   <string name="history_page_delete_all">Delete All</string>
   <string name="history_page_delete_all_confirmation">Are you sure you want to delete all conversations? This action cannot be undone.</string>
   <string name="history_page_delete_all_conversations">Delete All Conversations</string>
+  <string name="history_page_empty_title">No conversations yet</string>
+  <string name="history_page_empty_hint">Start a conversation and it will appear here.</string>
   <string name="history_page_new_conversation">New Conversation</string>
   <string name="history_page_pin">Pin</string>
   <string name="history_page_search">Search</string>

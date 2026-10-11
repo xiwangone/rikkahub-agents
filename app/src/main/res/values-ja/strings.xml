@@ -454,6 +454,8 @@
   <string name="history_page_delete_all">すべて削除</string>
   <string name="history_page_delete_all_confirmation">すべての会話を削除してもよろしいですか？この操作は元に戻せません。</string>
   <string name="history_page_delete_all_conversations">すべての会話を削除</string>
+  <string name="history_page_empty_title">会話はまだありません</string>
+  <string name="history_page_empty_hint">新しい会話を始めると、ここに表示されます。</string>
   <string name="history_page_new_conversation">新しい会話</string>
   <string name="history_page_pin">ピン留め</string>
   <string name="history_page_search">検索</string>

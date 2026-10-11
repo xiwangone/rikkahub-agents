@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.history
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,6 +12,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -39,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -48,6 +51,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Pin
 import me.rerere.hugeicons.stroke.PinOff
+import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Conversation
@@ -66,6 +70,7 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
     var showDeleteAllDialog by remember { mutableStateOf(false) }
 
     val conversations by vm.conversations.collectAsStateWithLifecycle()
+    val assistant by vm.assistant.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -101,40 +106,46 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
             SnackbarHost(hostState = snackbarHostState)
         },
     ) { contentPadding ->
-        val snackMessageDeleted = stringResource(R.string.history_page_conversation_deleted)
-        val snackMessageUndo = stringResource(R.string.history_page_undo)
-        LazyColumn(
-            contentPadding = contentPadding + PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            items(conversations, key = { it.id }) { conversation ->
-                SwipeableConversationItem(
-                    conversation = conversation,
-                    onClick = {
-                        navigateToChatPage(navController, conversation.id)
-                    },
-                    onDelete = {
-                        scope.launch {
-                            // 先获取完整的对话数据（包含 messageNodes），用于撤销恢复
-                            val fullConversation = vm.getFullConversation(conversation.id) ?: conversation
-                            vm.deleteConversation(conversation)
-                            val result =
-                                snackbarHostState.showSnackbar(
-                                    message = snackMessageDeleted,
-                                    actionLabel = snackMessageUndo,
-                                    withDismissAction = true,
-                                )
-                            if (result == SnackbarResult.ActionPerformed) {
-                                vm.restoreConversation(fullConversation)
+        if (assistant != null && conversations.isEmpty()) {
+            HistoryEmptyState(
+                modifier = Modifier.fillMaxSize().padding(contentPadding),
+            )
+        } else {
+            val snackMessageDeleted = stringResource(R.string.history_page_conversation_deleted)
+            val snackMessageUndo = stringResource(R.string.history_page_undo)
+            LazyColumn(
+                contentPadding = contentPadding + PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                items(conversations, key = { it.id }) { conversation ->
+                    SwipeableConversationItem(
+                        conversation = conversation,
+                        onClick = {
+                            navigateToChatPage(navController, conversation.id)
+                        },
+                        onDelete = {
+                            scope.launch {
+                                // 先获取完整的对话数据（包含 messageNodes），用于撤销恢复
+                                val fullConversation = vm.getFullConversation(conversation.id) ?: conversation
+                                vm.deleteConversation(conversation)
+                                val result =
+                                    snackbarHostState.showSnackbar(
+                                        message = snackMessageDeleted,
+                                        actionLabel = snackMessageUndo,
+                                        withDismissAction = true,
+                                    )
+                                if (result == SnackbarResult.ActionPerformed) {
+                                    vm.restoreConversation(fullConversation)
+                                }
                             }
-                        }
-                    },
-                    onTogglePin = { vm.togglePinStatus(conversation.id) },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .animateItem(),
-                )
+                        },
+                        onTogglePin = { vm.togglePinStatus(conversation.id) },
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .animateItem(),
+                    )
+                }
             }
         }
     }
@@ -161,6 +172,42 @@ fun HistoryPage(vm: HistoryVM = koinViewModel()) {
                     Text(stringResource(R.string.history_page_cancel))
                 }
             },
+        )
+    }
+}
+
+@Composable
+private fun HistoryEmptyState(modifier: Modifier = Modifier) {
+    Column(
+        modifier = modifier.padding(horizontal = 32.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Surface(
+            modifier = Modifier.size(72.dp),
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.secondaryContainer,
+            contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+        ) {
+            Box(contentAlignment = Alignment.Center) {
+                Icon(
+                    imageVector = HugeIcons.TransactionHistory,
+                    contentDescription = null,
+                    modifier = Modifier.size(32.dp),
+                )
+            }
+        }
+        Text(
+            text = stringResource(R.string.history_page_empty_title),
+            style = MaterialTheme.typography.titleMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            text = stringResource(R.string.history_page_empty_hint),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            textAlign = TextAlign.Center,
         )
     }
 }

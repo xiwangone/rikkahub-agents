@@ -444,6 +444,8 @@
   <string name="history_page_delete_all">刪除全部</string>
   <string name="history_page_delete_all_confirmation">確定要刪除所有對話嗎？此操作無法撤銷。</string>
   <string name="history_page_delete_all_conversations">刪除全部對話</string>
+  <string name="history_page_empty_title">尚無對話</string>
+  <string name="history_page_empty_hint">開始新對話後，對話會顯示在此處。</string>
   <string name="history_page_new_conversation">新對話</string>
   <string name="history_page_pin">置頂</string>
   <string name="history_page_search">搜尋</string>
