@@ -120,13 +120,24 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     BackButton()
                 },
                 actions = {
+                    IconButton(
+                        onClick = { navController.navigate(Screen.SettingSearch) },
+                    ) {
+                        Icon(
+                            HugeIcons.GlobalSearch,
+                            contentDescription = stringResource(R.string.settings_search_page_title),
+                        )
+                    }
                     if (settings.developerMode) {
                         IconButton(
                             onClick = {
                                 navController.navigate(Screen.Developer)
                             },
                         ) {
-                            Icon(HugeIcons.Developer, "Developer")
+                            Icon(
+                                HugeIcons.Developer,
+                                contentDescription = stringResource(R.string.accessibility_developer_options),
+                            )
                         }
                     }
                 },

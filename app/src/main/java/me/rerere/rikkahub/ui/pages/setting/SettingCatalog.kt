@@ -46,6 +46,7 @@ enum class SettingGroup(val id: String, val titleRes: Int) {
 
 /**
  * 一个"跳转型"设置入口：[id] 稳定且与文案无关，用于快捷区与埋点；[screen] 为目标路由。
+ * [searchTermsRes] 保留目标页标题等额外本地化检索词，不改变首页展示文案。
  *
  * 说明：带内联控件的项（如颜色模式的 Select）或动作型项（分享）不在此表内，仍在页面内单独渲染。
  */
@@ -56,6 +57,7 @@ data class SettingEntry(
     val titleRes: Int,
     val descRes: Int,
     val screen: Screen,
+    val searchTermsRes: List<Int> = emptyList(),
 )
 
 /** 快捷区最多可放的入口数（3×2 网格，上下对齐）。 */
@@ -81,6 +83,7 @@ object SettingCatalog {
             titleRes = R.string.setting_page_assistant,
             descRes = R.string.setting_page_assistant_desc,
             screen = Screen.Assistant,
+            searchTermsRes = listOf(R.string.assistant_page_title),
         ),
         SettingEntry(
             id = "extensions",
@@ -97,6 +100,7 @@ object SettingCatalog {
             titleRes = R.string.setting_page_default_model,
             descRes = R.string.setting_page_default_model_desc,
             screen = Screen.SettingModels,
+            searchTermsRes = listOf(R.string.setting_model_page_title),
         ),
         SettingEntry(
             id = "providers",
@@ -121,6 +125,7 @@ object SettingCatalog {
             titleRes = R.string.setting_page_tts_service,
             descRes = R.string.setting_page_tts_service_desc,
             screen = Screen.SettingSpeech,
+            searchTermsRes = listOf(R.string.speech_page_title),
         ),
         SettingEntry(
             id = "web_capability",
@@ -129,6 +134,7 @@ object SettingCatalog {
             titleRes = R.string.setting_page_web_capability,
             descRes = R.string.setting_page_web_server_desc,
             screen = Screen.SettingWeb,
+            searchTermsRes = listOf(R.string.setting_page_web_server),
         ),
         SettingEntry(
             id = "backend_service",
@@ -273,6 +279,7 @@ object SettingCatalog {
             titleRes = R.string.setting_page_data_backup,
             descRes = R.string.setting_page_data_backup_desc,
             screen = Screen.Backup,
+            searchTermsRes = listOf(R.string.backup_page_title),
         ),
         SettingEntry(
             id = "usage_stats",

@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -8,6 +9,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -26,9 +31,14 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -40,6 +50,7 @@ import org.koin.androidx.compose.koinViewModel
 fun SettingsSearchPage(vm: SettingVM = koinViewModel()) {
     val navController = LocalNavController.current
     val context = LocalContext.current
+    val keyboardController = LocalSoftwareKeyboardController.current
     val settings by vm.settings.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val focusRequester = remember { FocusRequester() }
@@ -56,12 +67,16 @@ fun SettingsSearchPage(vm: SettingVM = koinViewModel()) {
             entries
         } else {
             entries.filter { entry ->
-                context.getString(entry.titleRes).contains(q, ignoreCase = true) ||
-                    entry.descriptionRes?.let { context.getString(it).contains(q, ignoreCase = true) } == true ||
-                    context.getString(entry.groupRes).contains(q, ignoreCase = true)
+                buildList {
+                    add(context.getString(entry.titleRes))
+                    entry.descriptionRes?.let { add(context.getString(it)) }
+                    add(context.getString(entry.groupRes))
+                    entry.searchTermsRes.forEach { add(context.getString(it)) }
+                }.any { it.contains(q, ignoreCase = true) }
             }
         }
     }
+    val filteredGroups = remember(filtered) { filtered.groupBy { it.groupRes } }
 
     Scaffold(
         topBar = {
@@ -78,7 +93,7 @@ fun SettingsSearchPage(vm: SettingVM = koinViewModel()) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(contentPadding)
+                .padding(contentPadding),
         ) {
             OutlinedTextField(
                 value = query,
@@ -87,16 +102,29 @@ fun SettingsSearchPage(vm: SettingVM = koinViewModel()) {
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp)
                     .focusRequester(focusRequester),
+                leadingIcon = { Icon(HugeIcons.Search01, contentDescription = null) },
                 placeholder = { Text(stringResource(R.string.settings_search_placeholder)) },
+                trailingIcon = {
+                    if (query.isNotEmpty()) {
+                        IconButton(onClick = { query = "" }) {
+                            Icon(
+                                HugeIcons.Cancel01,
+                                contentDescription = stringResource(R.string.accessibility_clear_text),
+                            )
+                        }
+                    }
+                },
                 shape = RoundedCornerShape(50),
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(onSearch = { keyboardController?.hide() }),
             )
 
             Box(modifier = Modifier.weight(1f)) {
                 if (filtered.isEmpty()) {
                     Box(
                         modifier = Modifier.fillMaxSize(),
-                        contentAlignment = Alignment.Center
+                        contentAlignment = Alignment.Center,
                     ) {
                         Text(
                             text = stringResource(R.string.settings_search_no_results),
@@ -107,19 +135,23 @@ fun SettingsSearchPage(vm: SettingVM = koinViewModel()) {
                 } else {
                     LazyColumn(
                         modifier = Modifier.fillMaxSize(),
-                        contentPadding = PaddingValues(8.dp),
+                        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 4.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        item {
-                            CardGroup {
-                                filtered.forEach { entry ->
-                                    item(
-                                        onClick = { navController.navigate(entry.route) },
-                                        overlineContent = { Text(stringResource(entry.groupRes)) },
-                                        headlineContent = { Text(stringResource(entry.titleRes)) },
-                                        supportingContent = entry.descriptionRes?.let { desc ->
-                                            { Text(stringResource(desc)) }
-                                        },
-                                    )
+                        filteredGroups.forEach { (groupRes, groupEntries) ->
+                            item(key = groupRes) {
+                                CardGroup(
+                                    title = { Text(stringResource(groupRes)) },
+                                ) {
+                                    groupEntries.forEach { entry ->
+                                        item(
+                                            onClick = { navController.navigate(entry.route) },
+                                            headlineContent = { Text(stringResource(entry.titleRes)) },
+                                            supportingContent = entry.descriptionRes?.let { desc ->
+                                                { Text(stringResource(desc)) }
+                                            },
+                                        )
+                                    }
                                 }
                             }
                         }
