@@ -6,6 +6,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableFloatStateOf
@@ -20,13 +21,12 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.repeatOnLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
-import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
 /**
- * Gemini 风格动态渐变背景。
+ * 使用当前 Material 3 主题色的动态渐变背景。
  *
  * 原理:
  *  1. 底层一个线性渐变(顶部偏蓝、底部偏白)。
@@ -61,37 +61,23 @@ fun MeshGradientBackground(
         }
     }
 
-    val dark = LocalDarkMode.current
+    val colorScheme = MaterialTheme.colorScheme
     val baseGradient =
-        if (dark) {
-            // 暗色:顶部深蓝,向下渐隐到接近纯黑
-            arrayOf(
-                0.0f to Color(0xFF1B2A45),
-                0.22f to Color(0xFF15223A),
-                0.45f to Color(0xFF0D1626),
-                0.65f to Color(0xFF0A0F18),
-                1.0f to Color(0xFF080B12),
-            )
-        } else {
-            // 亮色:顶部偏蓝,向下渐隐到白
-            arrayOf(
-                0.0f to Color(0xFFAFD0F2),
-                0.22f to Color(0xFFCBE0F6),
-                0.45f to Color(0xFFF1F7FD),
-                0.65f to Color(0xFFFFFFFF),
-                1.0f to Color(0xFFFFFFFF),
-            )
-        }
+        arrayOf(
+            0.0f to colorScheme.surface,
+            0.48f to colorScheme.background,
+            1.0f to colorScheme.background,
+        )
 
-    // 光斑配色(蓝 / 青 / 淡蓝 / 暖色)及浓度,亮暗各一套
-    val blobBlue = if (dark) Color(0xFF3E6FB0) else Color(0xFF9EC5F0)
-    val blobTeal = if (dark) Color(0xFF2E7D74) else Color(0xFFA8E6E0)
-    val blobLightBlue = if (dark) Color(0xFF4A6E96) else Color(0xFFB6D7F2)
-    val blobWarm = if (dark) Color(0xFF7C5F9E) else Color(0xFFFFC8D2)
-    val alphaBlue = if (dark) 0.56f else 0.72f
-    val alphaTeal = if (dark) 0.44f else 0.56f
-    val alphaLightBlue = if (dark) 0.48f else 0.62f
-    val alphaWarm = if (dark) 0.32f else 0.42f
+    // 以主题容器色构成低浓度光斑，适配动态色、预设色和暗色主题。
+    val blobPrimary = colorScheme.primaryContainer
+    val blobSecondary = colorScheme.secondaryContainer
+    val blobTertiary = colorScheme.tertiaryContainer
+    val blobAccent = colorScheme.primary
+    val alphaPrimary = 0.38f
+    val alphaSecondary = 0.32f
+    val alphaTertiary = 0.34f
+    val alphaAccent = 0.24f
 
     Box(
         modifier =
@@ -113,7 +99,7 @@ fun MeshGradientBackground(
             val r = maxOf(w, h)
 
             // 光斑全部聚在顶部,向下渐隐,保留下半屏留白
-            // 顶部蓝(主色,横向缓慢漂移)
+            // 主色光斑横向缓慢漂移
             drawBlob(
                 center =
                     Offset(
@@ -121,10 +107,10 @@ fun MeshGradientBackground(
                         h * 0.08f + cos(p1 * 1.15f) * h * 0.18f,
                     ),
                 radius = r * 0.36f,
-                color = blobBlue,
-                centerAlpha = alphaBlue,
+                color = blobPrimary,
+                centerAlpha = alphaPrimary,
             )
-            // 左上青绿点缀
+            // 左上辅助色点缀
             drawBlob(
                 center =
                     Offset(
@@ -132,10 +118,10 @@ fun MeshGradientBackground(
                         h * 0.24f + cos(p2) * h * 0.20f,
                     ),
                 radius = r * 0.28f,
-                color = blobTeal,
-                centerAlpha = alphaTeal,
+                color = blobSecondary,
+                centerAlpha = alphaSecondary,
             )
-            // 右上淡蓝
+            // 右上第三主题色
             drawBlob(
                 center =
                     Offset(
@@ -143,10 +129,10 @@ fun MeshGradientBackground(
                         h * 0.12f + cos(p3 * 0.9f) * h * 0.18f,
                     ),
                 radius = r * 0.30f,
-                color = blobLightBlue,
-                centerAlpha = alphaLightBlue,
+                color = blobTertiary,
+                centerAlpha = alphaTertiary,
             )
-            // 暖色光斑给运动提供更明显的色彩参照
+            // 低浓度主色光斑丰富层次，不压过消息文字
             drawBlob(
                 center =
                     Offset(
@@ -154,8 +140,8 @@ fun MeshGradientBackground(
                         h * 0.34f + cos(p4 * 1.1f) * h * 0.16f,
                     ),
                 radius = r * 0.26f,
-                color = blobWarm,
-                centerAlpha = alphaWarm,
+                color = blobAccent,
+                centerAlpha = alphaAccent,
             )
         }
 

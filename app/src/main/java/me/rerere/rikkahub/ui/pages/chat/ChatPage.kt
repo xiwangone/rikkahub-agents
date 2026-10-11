@@ -20,7 +20,6 @@ import androidx.compose.material3.DrawerState
 import androidx.compose.material3.DrawerValue
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalNavigationDrawer
@@ -53,7 +52,6 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -1070,7 +1068,10 @@ private fun TopBar(
                         scope.launch { drawerState.open() }
                     },
                 ) {
-                    Icon(HugeIcons.Menu03, "Messages")
+                    Icon(
+                        imageVector = HugeIcons.Menu03,
+                        contentDescription = stringResource(R.string.accessibility_messages),
+                    )
                 }
             }
         },
@@ -1105,22 +1106,16 @@ private fun TopBar(
                         },
                         overflow = TextOverflow.Ellipsis,
                         maxLines = 1,
-                        color = LocalContentColor.current.copy(0.65f),
-                        style =
-                            MaterialTheme.typography.labelSmall.copy(
-                                fontSize = 8.sp,
-                            ),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
                     )
                     if (model != null && provider != null) {
                         Text(
                             text = "${model.displayName} (${providerDisplayName(provider)})",
                             overflow = TextOverflow.Ellipsis,
                             maxLines = 1,
-                            color = LocalContentColor.current.copy(0.65f),
-                            style =
-                                MaterialTheme.typography.labelSmall.copy(
-                                    fontSize = 8.sp,
-                                ),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelSmall,
                         )
                     }
                 }
@@ -1143,7 +1138,10 @@ private fun TopBar(
                     onClickMenu()
                 },
             ) {
-                Icon(if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet, "Chat Options")
+                Icon(
+                    imageVector = if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet,
+                    contentDescription = stringResource(R.string.chat_page_history),
+                )
             }
 
             IconButton(
@@ -1151,7 +1149,10 @@ private fun TopBar(
                     onNewChat()
                 },
             ) {
-                Icon(HugeIcons.MessageAdd01, "New Message")
+                Icon(
+                    imageVector = HugeIcons.MessageAdd01,
+                    contentDescription = stringResource(R.string.chat_page_new_message),
+                )
             }
         },
     )

@@ -28,10 +28,12 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListItemInfo
 import androidx.compose.foundation.lazy.LazyListState
@@ -70,6 +72,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalScrollCaptureInProgress
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -118,6 +121,7 @@ import me.rerere.rikkahub.data.log.AppLog
 private const val TAG = "ChatList"
 private const val LoadingIndicatorKey = "LoadingIndicator"
 private const val ScrollBottomKey = "ScrollBottomKey"
+private val chatListMaxContentWidth = 960.dp
 
 @Composable
 fun ChatList(
@@ -354,7 +358,7 @@ private fun ChatListNormal(
                     items = conversation.messageNodes,
                     key = { index, item -> item.id },
                 ) { index, node ->
-                    Column {
+                    Column(modifier = Modifier.widthIn(max = chatListMaxContentWidth)) {
                         ListSelectableItem(
                             key = node.id,
                             onSelectChange = {
@@ -422,6 +426,7 @@ private fun ChatListNormal(
                                     .joinToString("\n") { it.text }
                             if (rawText.startsWith(diagnosticPrefix)) {
                                 val copyContext = LocalContext.current
+                                val copyLabel = stringResource(R.string.copy)
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
                                     horizontalArrangement = Arrangement.End,
@@ -431,7 +436,10 @@ private fun ChatListNormal(
                                             val clipboard =
                                                 copyContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                             clipboard.setPrimaryClip(
-                                                ClipData.newPlainText("generation_error", rawText)
+                                                ClipData.newPlainText(
+                                                    copyLabel,
+                                                    rawText,
+                                                )
                                             )
                                         },
                                     ) {
@@ -486,12 +494,16 @@ private fun ChatListNormal(
                                     // 重试期间的状态行带着服务端原文（无法本地化）：给一个入口，
                                     // 不必先停止生成、再从头找那段原文
                                     val statusContext = LocalContext.current
+                                    val statusCopyLabel = stringResource(R.string.copy)
                                     IconButton(
                                         onClick = {
                                             val clipboard =
                                                 statusContext.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                             clipboard.setPrimaryClip(
-                                                ClipData.newPlainText("generation_status", processingStatus.orEmpty())
+                                                ClipData.newPlainText(
+                                                    statusCopyLabel,
+                                                    processingStatus.orEmpty(),
+                                                )
                                             )
                                         },
                                         modifier = Modifier.size(24.dp),
@@ -566,7 +578,10 @@ private fun ChatListNormal(
                                 selectedItems.clear()
                             },
                         ) {
-                            Icon(HugeIcons.Cancel01, null)
+                            Icon(
+                                imageVector = HugeIcons.Cancel01,
+                                contentDescription = stringResource(R.string.chat_list_clear_selection),
+                            )
                         }
                     }
                     Tooltip(
@@ -583,7 +598,10 @@ private fun ChatListNormal(
                                 }
                             },
                         ) {
-                            Icon(HugeIcons.CursorPointer01, null)
+                            Icon(
+                                imageVector = HugeIcons.CursorPointer01,
+                                contentDescription = stringResource(R.string.chat_list_select_all),
+                            )
                         }
                     }
                     Tooltip(
@@ -600,7 +618,10 @@ private fun ChatListNormal(
                                 }
                             },
                         ) {
-                            Icon(HugeIcons.Tick01, null)
+                            Icon(
+                                imageVector = HugeIcons.Tick01,
+                                contentDescription = stringResource(R.string.chat_list_confirm),
+                            )
                         }
                     }
                 }
@@ -675,6 +696,7 @@ private fun buildHighlightedText(
     text: String,
     query: String,
     highlightColor: Color,
+    highlightTextColor: Color,
 ): AnnotatedString {
     if (query.isBlank()) {
         return AnnotatedString(text)
@@ -693,7 +715,7 @@ private fun buildHighlightedText(
                 style =
                     SpanStyle(
                         background = highlightColor,
-                        color = Color.Black,
+                        color = highlightTextColor,
                     ),
             ) {
                 append(text.substring(index, index + query.length))
@@ -785,6 +807,7 @@ private fun ChatListPreview(
         LazyColumn(
             contentPadding =
                 PaddingValues(16.dp) + PaddingValues(bottom = 32.dp + innerPadding.calculateBottomPadding()),
+            horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(8.dp),
             modifier =
                 Modifier
@@ -800,6 +823,7 @@ private fun ChatListPreview(
                 Column(
                     modifier =
                         Modifier
+                            .widthIn(max = chatListMaxContentWidth)
                             .fillMaxWidth()
                             .then(
                                 if (!isUser) Modifier.padding(end = 24.dp) else Modifier,
@@ -813,15 +837,16 @@ private fun ChatListPreview(
                         Row(
                             modifier =
                                 Modifier
-                                    .clickable {
+                                    .clickable(role = Role.Button) {
                                         onJumpToMessage(originalIndex)
                                     }.padding(horizontal = 8.dp, vertical = 6.dp),
                             horizontalArrangement = Arrangement.spacedBy(8.dp),
                             verticalAlignment = Alignment.CenterVertically,
                         ) {
                             val highlightColor = MaterialTheme.colorScheme.tertiaryContainer
+                            val highlightTextColor = MaterialTheme.colorScheme.onTertiaryContainer
                             val highlightedText =
-                                remember(searchQuery, message) {
+                                remember(searchQuery, message, highlightColor, highlightTextColor) {
                                     val fullText = message.toText().trim().ifBlank { "[...]" }
                                     val messageText =
                                         extractMatchingSnippet(
@@ -832,6 +857,7 @@ private fun ChatListPreview(
                                         text = messageText,
                                         query = searchQuery,
                                         highlightColor = highlightColor,
+                                        highlightTextColor = highlightTextColor,
                                     )
                                 }
                             Text(
@@ -866,11 +892,12 @@ private fun ChatSuggestionsRow(
             Box(
                 modifier =
                     Modifier
+                        .heightIn(min = 48.dp)
                         .clip(RoundedCornerShape(50))
-                        .clickable {
+                        .clickable(role = Role.Button) {
                             onClickSuggestion(suggestion)
                         }.background(MaterialTheme.colorScheme.surfaceColorAtElevation(2.dp))
-                        .padding(vertical = 4.dp, horizontal = 8.dp),
+                        .padding(vertical = 8.dp, horizontal = 12.dp),
             ) {
                 Text(
                     text = suggestion,

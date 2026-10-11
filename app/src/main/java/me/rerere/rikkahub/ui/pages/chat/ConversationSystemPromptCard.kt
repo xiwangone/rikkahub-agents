@@ -46,9 +46,9 @@ fun ConversationSystemPromptButton(
             Icon(
                 imageVector = HugeIcons.Setting07,
                 contentDescription = null,
-                modifier = Modifier.size(14.dp),
+                modifier = Modifier.size(18.dp),
             )
-            Spacer(Modifier.size(4.dp))
+            Spacer(Modifier.size(8.dp))
             Text(
                 text =
                     if (!customSystemPrompt.isNullOrBlank()) {
