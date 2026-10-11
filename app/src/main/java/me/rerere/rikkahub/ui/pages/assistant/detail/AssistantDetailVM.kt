@@ -123,63 +123,46 @@ class AssistantDetailVM(
         tags: List<Tag>,
     ) {
         viewModelScope.launch {
-            val settings = settings.value
-            settingsStore.update(
-                settings =
-                    settings.copy(
-                        assistantTags = tags,
-                    ),
-            )
-            update(
-                assistant.value.copy(
-                    tags = tagIds.toList(),
-                ),
-            )
+            settingsStore.update { current ->
+                val validTagIds = tags.map { it.id }.toSet()
+                val updatedAssistants =
+                    current.assistants.map { existing ->
+                        val updated =
+                            if (existing.id == assistantId) {
+                                existing.copy(tags = tagIds.toList())
+                            } else {
+                                existing
+                            }
+                        val validTags = updated.tags.filter { it in validTagIds }
+                        if (validTags == updated.tags) updated else updated.copy(tags = validTags)
+                    }
+                val usedTagIds = updatedAssistants.flatMap { it.tags }.toSet()
+                current.copy(
+                    assistants = updatedAssistants,
+                    assistantTags = tags.filter { it.id in usedTagIds },
+                )
+            }
             AppLog.d(TAG, "updateTags: ${tagIds.joinToString(",")}")
-            cleanupUnusedTags()
         }
     }
 
     fun cleanupUnusedTags() {
         viewModelScope.launch {
-            val settings = settings.value
-            val validTagIds = settings.assistantTags.map { it.id }.toSet()
-
-            // 清理 assistant 中的无效 tag id
-            val cleanedAssistants =
-                settings.assistants.map { assistant ->
-                    val validTags =
-                        assistant.tags.filter { tagId ->
-                            validTagIds.contains(tagId)
-                        }
-                    if (validTags.size != assistant.tags.size) {
-                        assistant.copy(tags = validTags)
-                    } else {
-                        assistant
+            settingsStore.update { current ->
+                val validTagIds = current.assistantTags.map { it.id }.toSet()
+                val cleanedAssistants =
+                    current.assistants.map { assistant ->
+                        val validTags = assistant.tags.filter { it in validTagIds }
+                        if (validTags == assistant.tags) assistant else assistant.copy(tags = validTags)
                     }
+                val usedTagIds = cleanedAssistants.flatMap { it.tags }.toSet()
+                val cleanedTags = current.assistantTags.filter { it.id in usedTagIds }
+
+                if (cleanedAssistants == current.assistants && cleanedTags == current.assistantTags) {
+                    current
+                } else {
+                    current.copy(assistants = cleanedAssistants, assistantTags = cleanedTags)
                 }
-
-            // 获取清理后的 assistant 中使用的 tag id
-            val usedTagIds = cleanedAssistants.flatMap { it.tags }.toSet()
-
-            // 清理未使用的 tags
-            val cleanedTags =
-                settings.assistantTags.filter { tag ->
-                    usedTagIds.contains(tag.id)
-                }
-
-            // 检查是否需要更新
-            val needUpdateAssistants = cleanedAssistants != settings.assistants
-            val needUpdateTags = cleanedTags.size != settings.assistantTags.size
-
-            if (needUpdateAssistants || needUpdateTags) {
-                settingsStore.update(
-                    settings =
-                        settings.copy(
-                            assistants = cleanedAssistants,
-                            assistantTags = cleanedTags,
-                        ),
-                )
             }
         }
     }

@@ -108,13 +108,20 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
     var cloneTarget by remember { mutableStateOf<Assistant?>(null) }
     var cloneWithMemories by remember { mutableStateOf(false) }
 
-    // 根据搜索关键词和选中的标签过滤助手
+    // 根据名称、系统提示词、标签名称和选中的标签过滤助手
     val assistantsByQuery =
-        remember(settings.assistants, selectedTagIds, searchQuery) {
+        remember(settings.assistants, settings.assistantTags, selectedTagIds, searchQuery) {
+            val query = searchQuery.trim()
             settings.assistants.filter { assistant ->
                 val matchesSearch =
-                    searchQuery.isBlank() ||
-                        assistant.name.contains(searchQuery, ignoreCase = true)
+                    query.isBlank() ||
+                        assistant.name.contains(query, ignoreCase = true) ||
+                        assistant.systemPrompt.contains(query, ignoreCase = true) ||
+                        assistant.tags.any { tagId ->
+                            settings.assistantTags.any { tag ->
+                                tag.id == tagId && tag.name.contains(query, ignoreCase = true)
+                            }
+                        }
                 val matchesTags =
                     selectedTagIds.isEmpty() ||
                         assistant.tags.any { tagId -> tagId in selectedTagIds }
@@ -185,7 +192,10 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                 trailingIcon = {
                     if (searchQuery.isNotBlank()) {
                         IconButton(onClick = { searchQuery = "" }) {
-                            Icon(HugeIcons.Cancel01, contentDescription = null)
+                            Icon(
+                                HugeIcons.Cancel01,
+                                contentDescription = stringResource(R.string.mcp_page_clear),
+                            )
                         }
                     }
                 },
