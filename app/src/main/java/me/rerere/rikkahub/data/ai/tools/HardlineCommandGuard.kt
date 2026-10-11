@@ -72,6 +72,56 @@ object HardlineCommandGuard {
 
     private val IGNORE_CASE = setOf(RegexOption.IGNORE_CASE)
 
+    /** Stable data.error extra key used only to identify Hardline refusals in chat UI. */
+    const val HARDLINE_REASON_CODE_FIELD = "hardline_reason_code"
+
+    private const val UI_REASON_PREFIX = "hardline-ui:v1:"
+
+    /** Stable machine categories for the existing shell Hardline refusal reasons. */
+    private val UI_REASON_CODES = linkedMapOf(
+        "delete the workspace/skills root" to "workspace_root_delete",
+        "recursive delete of root filesystem" to "root_filesystem_delete",
+        "recursive delete of home root" to "home_root_delete",
+        "recursive delete of system directory" to "system_directory_delete",
+        "recursive delete of home directory" to "home_directory_delete",
+        "format filesystem (mkfs)" to "filesystem_format",
+        "dd to raw block device" to "raw_block_device_dd",
+        "redirect to raw block device" to "raw_block_device_redirect",
+        "fork bomb" to "fork_bomb",
+        "kill all processes" to "kill_all_processes",
+        "system shutdown/reboot" to "system_shutdown_reboot",
+        "init 0/6 (shutdown/reboot)" to "init_zero_six",
+        "systemctl poweroff/reboot" to "systemctl_shutdown_reboot",
+        "telinit 0/6 (shutdown/reboot)" to "telinit_zero_six",
+        "encoded payload piped to shell" to "encoded_payload_to_shell",
+        "hex-encoded payload piped to shell" to "hex_payload_to_shell",
+        "eval of subshell command substitution" to "eval_command_substitution",
+    )
+
+    /** Return the stable category for a known shell Hardline reason; unknown/dynamic text is untouched. */
+    fun reasonCodeForMessage(message: String): String? = UI_REASON_CODES[message]
+
+    /** Store a reversible UI marker while retaining the exact original model-facing message. */
+    fun encodeUiReason(ruleMessage: String, modelMessage: String): String {
+        val code = reasonCodeForMessage(ruleMessage) ?: return modelMessage
+        return "$UI_REASON_PREFIX$code|$modelMessage"
+    }
+
+    /** Read only recognized markers; arbitrary user, tool, and third-party text stays raw. */
+    fun uiReasonCodeFromEncoded(reason: String): String? {
+        if (!reason.startsWith(UI_REASON_PREFIX)) return null
+        val code = reason.removePrefix(UI_REASON_PREFIX).substringBefore('|')
+        return code.takeIf { it in UI_REASON_CODES.values }
+    }
+
+    /** Strip the private UI marker before constructing the unchanged model-facing denial message. */
+    fun modelFacingReason(reason: String): String =
+        if (uiReasonCodeFromEncoded(reason) != null) {
+            reason.removePrefix(UI_REASON_PREFIX).substringAfter('|', reason)
+        } else {
+            reason
+        }
+
     /** (regex, human-readable reason) pairs. Reason is surfaced in the block envelope. */
     private val PATTERNS: List<Pair<Regex, String>> = listOf(
         // 沙箱挂载点（workspace_shell 的执行环境）：只拦「根本身 / 根级通配子树」，

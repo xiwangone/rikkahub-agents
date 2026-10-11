@@ -776,12 +776,14 @@ class GenerationLoop(
                     val transformed = when {
                         hardlineReason != null && tool.approvalState is ToolApprovalState.Auto -> {
                             AppLog.w(TAG, "hardline-blocked ${tool.toolName}: $hardlineReason")
-                            tool.copy(approvalState = ToolApprovalState.Denied(
+                            val modelMessage =
                                 "blocked by safety floor (hardline): $hardlineReason. " +
                                     "This command cannot run via the agent under any " +
                                     "circumstances. If the user genuinely needs it, they " +
                                     "should run it themselves in a terminal outside the agent."
-                            ))
+                            val uiReason = me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
+                                .encodeUiReason(hardlineReason, modelMessage)
+                            tool.copy(approvalState = ToolApprovalState.Denied(uiReason))
                         }
                         // Tool needs approval and state is Auto:
                         needsApprovalResolved &&
@@ -846,12 +848,24 @@ class GenerationLoop(
                 when (tool.approvalState) {
                     is ToolApprovalState.Denied -> {
                         // Tool was denied by user
-                        val reason = (tool.approvalState as ToolApprovalState.Denied).reason
+                        val storedReason = (tool.approvalState as ToolApprovalState.Denied).reason
+                        val hardlineReasonCode = me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
+                            .uiReasonCodeFromEncoded(storedReason)
+                        val reason = me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
+                            .modelFacingReason(storedReason)
+                        val hardlineExtra = hardlineReasonCode?.let {
+                            ToolErrors.extraOf(me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard.HARDLINE_REASON_CODE_FIELD to it)
+                        }.orEmpty()
                         executedTools += tool.copy(
                             output = listOf(
                                 UIMessagePart.Text(
                                     json.encodeToString(
-                                        ToolErrors.envelopeFor(error = "permission_denied", message = "Tool execution denied by user. Reason: ${reason.ifBlank { "No reason provided" }}", hint = "Grant the required permission or choose a different target.")
+                                        ToolErrors.envelopeFor(
+                                            error = "permission_denied",
+                                            message = "Tool execution denied by user. Reason: ${reason.ifBlank { "No reason provided" }}",
+                                            hint = "Grant the required permission or choose a different target.",
+                                            extra = hardlineExtra,
+                                        )
                                     )
                                 )
                             )
@@ -886,13 +900,21 @@ class GenerationLoop(
                             .HardlineCommandGuard.checkTool(tool.toolName, tool.input)
                         if (resumeHardlineReason != null) {
                             AppLog.w(TAG, "generateText: resume-path hardline re-check blocked ${tool.toolName}: $resumeHardlineReason")
+                            val hardlineReasonCode = me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
+                                .reasonCodeForMessage(resumeHardlineReason)
+                            val hardlineExtra = hardlineReasonCode?.let {
+                                ToolErrors.extraOf(me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard.HARDLINE_REASON_CODE_FIELD to it)
+                            }.orEmpty()
                             executedTools += tool.copy(
                                 output = listOf(
                                     UIMessagePart.Text(
-                                        json.encodeToString(ToolErrors.envelopeFor(error = "invalid_argument", message =
-                                                "blocked by safety floor (hardline): $resumeHardlineReason. " +
-                                                    "This command cannot run via the agent under any circumstances.",
-                                            hint = "Check the parameter values and retry with corrected arguments."))
+                                        json.encodeToString(ToolErrors.envelopeFor(
+                                            error = "invalid_argument",
+                                            message = "blocked by safety floor (hardline): $resumeHardlineReason. " +
+                                                "This command cannot run via the agent under any circumstances.",
+                                            hint = "Check the parameter values and retry with corrected arguments.",
+                                            extra = hardlineExtra,
+                                        ))
                                     )
                                 )
                             )

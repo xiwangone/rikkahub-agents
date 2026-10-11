@@ -45,6 +45,7 @@ import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.components.message.tools.DefaultToolPreview
 import me.rerere.rikkahub.ui.components.message.tools.ToolStatusBadge
@@ -70,6 +71,36 @@ private fun JsonElement?.getStringContent(key: String): String? =
         ?.get(key)
         ?.jsonPrimitiveOrNull
         ?.contentOrNull
+
+private fun JsonElement?.getHardlineReasonCode(): String? =
+    this
+        ?.jsonObjectOrNull
+        ?.get("data")
+        ?.jsonObjectOrNull
+        ?.get(HardlineCommandGuard.HARDLINE_REASON_CODE_FIELD)
+        ?.jsonPrimitiveOrNull
+        ?.contentOrNull
+
+private fun hardlineReasonStringResource(code: String?): Int? = when (code) {
+    "workspace_root_delete" -> R.string.chat_message_tool_hardline_reason_workspace_root_delete
+    "root_filesystem_delete" -> R.string.chat_message_tool_hardline_reason_root_filesystem_delete
+    "home_root_delete" -> R.string.chat_message_tool_hardline_reason_home_root_delete
+    "system_directory_delete" -> R.string.chat_message_tool_hardline_reason_system_directory_delete
+    "home_directory_delete" -> R.string.chat_message_tool_hardline_reason_home_directory_delete
+    "filesystem_format" -> R.string.chat_message_tool_hardline_reason_filesystem_format
+    "raw_block_device_dd" -> R.string.chat_message_tool_hardline_reason_raw_block_device_dd
+    "raw_block_device_redirect" -> R.string.chat_message_tool_hardline_reason_raw_block_device_redirect
+    "fork_bomb" -> R.string.chat_message_tool_hardline_reason_fork_bomb
+    "kill_all_processes" -> R.string.chat_message_tool_hardline_reason_kill_all_processes
+    "system_shutdown_reboot" -> R.string.chat_message_tool_hardline_reason_system_shutdown_reboot
+    "init_zero_six" -> R.string.chat_message_tool_hardline_reason_init_zero_six
+    "systemctl_shutdown_reboot" -> R.string.chat_message_tool_hardline_reason_systemctl_shutdown_reboot
+    "telinit_zero_six" -> R.string.chat_message_tool_hardline_reason_telinit_zero_six
+    "encoded_payload_to_shell" -> R.string.chat_message_tool_hardline_reason_encoded_payload_to_shell
+    "hex_payload_to_shell" -> R.string.chat_message_tool_hardline_reason_hex_payload_to_shell
+    "eval_command_substitution" -> R.string.chat_message_tool_hardline_reason_eval_command_substitution
+    else -> null
+}
 
 private const val ASK_USER_TOOL_NAME = "ask_user"
 
@@ -110,15 +141,28 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     }
 
     val renderer = remember(tool.toolName) { ToolUIRegistry.resolve(tool.toolName) }
+    val parsedContent = remember(tool) { parseToolOutputContent(tool) }
+    val outputHardlineReason = parsedContent.getHardlineReasonCode()
+    val outputHardlineReasonRes = hardlineReasonStringResource(outputHardlineReason)
+    val localizedOutputHardlineMessage = outputHardlineReasonRes?.let { reasonRes ->
+        stringResource(R.string.chat_message_tool_hardline_blocked, stringResource(reasonRes))
+    }
+    val displayContent = remember(parsedContent, localizedOutputHardlineMessage) {
+        if (localizedOutputHardlineMessage == null || parsedContent !is JsonObject) {
+            parsedContent
+        } else {
+            JsonObject(parsedContent + ("message" to JsonPrimitive(localizedOutputHardlineMessage)))
+        }
+    }
     // 输出不是 JSON（例如超长被截断后只剩文本预览）时，定制渲染器读不到任何字段，
     // 详情改用默认渲染展示原文
-    val outputUnparsable = remember(tool) { tool.isExecuted && parseToolOutputContent(tool) == null }
+    val outputUnparsable = remember(tool, parsedContent) { tool.isExecuted && parsedContent == null }
     val context =
-        remember(tool, loading) {
+        remember(tool, loading, displayContent) {
             ToolUIContext(
                 tool = tool,
                 arguments = tool.inputAsJson(),
-                content = parseToolOutputContent(tool),
+                content = displayContent,
                 loading = loading,
             )
         }
@@ -367,7 +411,17 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                             }
                         }
                         if (isDenied) {
-                            val reason = (tool.approvalState as ToolApprovalState.Denied).reason
+                            val storedReason = (tool.approvalState as ToolApprovalState.Denied).reason
+                            val hardlineCode = HardlineCommandGuard.uiReasonCodeFromEncoded(storedReason)
+                            val hardlineReasonRes = hardlineReasonStringResource(hardlineCode)
+                            val reason = if (hardlineReasonRes != null) {
+                                stringResource(
+                                    R.string.chat_message_tool_hardline_blocked,
+                                    stringResource(hardlineReasonRes),
+                                )
+                            } else {
+                                storedReason
+                            }
                             Text(
                                 text =
                                     stringResource(R.string.chat_message_tool_denied) +
