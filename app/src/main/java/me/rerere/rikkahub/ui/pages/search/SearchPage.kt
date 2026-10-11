@@ -4,15 +4,19 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -24,12 +28,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -41,15 +45,21 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Refresh01
+import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Sorting01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.fts.MessageSearchResult
@@ -58,17 +68,15 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.navigateToChatPage
-import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.utils.toLocalDateTime
 import org.koin.androidx.compose.koinViewModel
-import java.time.ZoneId
-import java.time.format.DateTimeFormatter
 import kotlin.uuid.Uuid
 
 @Composable
 fun SearchPage(vm: SearchVM = koinViewModel()) {
     val navController = LocalNavController.current
     val focusRequester = remember { FocusRequester() }
+    val keyboardController = LocalSoftwareKeyboardController.current
     var showRebuildDialog by remember { mutableStateOf(false) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -107,7 +115,7 @@ fun SearchPage(vm: SearchVM = koinViewModel()) {
                 actions = {
                     SortMenuButton(
                         current = vm.sortOrder,
-                        onSortChange = { vm.onSortChange(it) },
+                        onSortChange = vm::onSortChange,
                     )
                     IconButton(
                         onClick = { showRebuildDialog = true },
@@ -134,27 +142,47 @@ fun SearchPage(vm: SearchVM = koinViewModel()) {
         ) {
             OutlinedTextField(
                 value = vm.searchQuery,
-                onValueChange = { vm.onQueryChange(it) },
+                onValueChange = vm::onQueryChange,
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp)
                         .focusRequester(focusRequester),
                 placeholder = { Text(stringResource(R.string.search_page_placeholder)) },
-                shape = RoundedCornerShape(50),
+                leadingIcon = {
+                    Icon(
+                        imageVector = HugeIcons.Search01,
+                        contentDescription = null,
+                    )
+                },
+                trailingIcon = {
+                    if (vm.searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { vm.onQueryChange("") }) {
+                            Icon(
+                                imageVector = HugeIcons.Cancel01,
+                                contentDescription = stringResource(R.string.accessibility_clear_text),
+                            )
+                        }
+                    }
+                },
+                shape = RoundedCornerShape(24.dp),
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
                 keyboardActions =
                     KeyboardActions(
-                        onSearch = { vm.search() },
+                        onSearch = {
+                            vm.search()
+                            keyboardController?.hide()
+                        },
                     ),
             )
 
             SingleChoiceSegmentedButtonRow(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp)
-                    .padding(bottom = 8.dp),
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 12.dp),
             ) {
                 MessageSearchScope.entries.forEachIndexed { index, scope ->
                     SegmentedButton(
@@ -170,8 +198,10 @@ fun SearchPage(vm: SearchVM = koinViewModel()) {
                                 when (scope) {
                                     MessageSearchScope.CURRENT_ASSISTANT -> R.string.search_page_scope_current_assistant
                                     MessageSearchScope.ALL_ASSISTANTS -> R.string.search_page_scope_all_assistants
-                                }
-                            )
+                                },
+                            ),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
                 }
@@ -179,63 +209,58 @@ fun SearchPage(vm: SearchVM = koinViewModel()) {
 
             Box(modifier = Modifier.weight(1f)) {
                 if (vm.isLoading || vm.isRebuilding) {
-                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+                    LinearProgressIndicator(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .align(Alignment.TopCenter),
+                    )
                 }
 
                 when {
                     vm.isRebuilding -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            val (current, total) = vm.rebuildProgress
-                            Text(
-                                text =
-                                    if (total > 0) {
-                                        stringResource(
-                                            R.string.search_page_rebuilding,
-                                            current,
-                                            total,
-                                        )
-                                    } else {
-                                        stringResource(R.string.search_page_rebuilding_simple)
-                                    },
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        val (current, total) = vm.rebuildProgress
+                        SearchProgressState(
+                            message =
+                                if (total > 0) {
+                                    stringResource(
+                                        R.string.search_page_rebuilding,
+                                        current,
+                                        total,
+                                    )
+                                } else {
+                                    stringResource(R.string.search_page_rebuilding_simple)
+                                },
+                        )
+                    }
+
+                    vm.isLoading -> {
+                        SearchProgressState()
                     }
 
                     vm.searchQuery.isBlank() -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = stringResource(R.string.search_page_hint),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                        SearchEmptyState(
+                            icon = HugeIcons.Search01,
+                            message = stringResource(R.string.search_page_hint),
+                        )
                     }
 
-                    vm.results.isEmpty() && !vm.isLoading -> {
-                        Box(
-                            modifier = Modifier.fillMaxSize(),
-                            contentAlignment = Alignment.Center,
-                        ) {
-                            Text(
-                                text = stringResource(R.string.search_page_no_results),
-                                style = MaterialTheme.typography.bodyMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
+                    vm.results.isEmpty() -> {
+                        SearchEmptyState(
+                            icon = HugeIcons.Search01,
+                            message = stringResource(R.string.search_page_no_results),
+                        )
                     }
 
                     else -> {
                         LazyColumn(
-                            contentPadding = PaddingValues(horizontal = 16.dp),
-                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                            contentPadding = PaddingValues(
+                                start = 16.dp,
+                                top = 4.dp,
+                                end = 16.dp,
+                                bottom = 24.dp,
+                            ),
+                            verticalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.fillMaxSize(),
                         ) {
                             items(vm.results) { result ->
@@ -254,6 +279,68 @@ fun SearchPage(vm: SearchVM = koinViewModel()) {
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun SearchProgressState(message: String? = null) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(horizontal = 32.dp),
+        ) {
+            CircularProgressIndicator()
+            message?.let {
+                Text(
+                    text = it,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SearchEmptyState(
+    icon: ImageVector,
+    message: String,
+) {
+    Box(
+        modifier = Modifier.fillMaxSize(),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+            modifier = Modifier.padding(horizontal = 32.dp),
+        ) {
+            Surface(
+                modifier = Modifier.size(64.dp),
+                shape = CircleShape,
+                color = MaterialTheme.colorScheme.primaryContainer,
+            ) {
+                Box(contentAlignment = Alignment.Center) {
+                    Icon(
+                        imageVector = icon,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                        modifier = Modifier.size(28.dp),
+                    )
+                }
+            }
+            Text(
+                text = message,
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
@@ -310,6 +397,7 @@ private fun SearchResultItem(
     onClick: () -> Unit,
 ) {
     val highlightColor = MaterialTheme.colorScheme.tertiaryContainer
+    val highlightTextColor = MaterialTheme.colorScheme.onTertiaryContainer
     val untitled = stringResource(R.string.search_page_untitled)
     val snippetText =
         buildAnnotatedString {
@@ -330,7 +418,12 @@ private fun SearchResultItem(
                     break
                 }
                 val matched = snippet.substring(start + 1, end)
-                withStyle(SpanStyle(background = highlightColor)) {
+                withStyle(
+                    SpanStyle(
+                        background = highlightColor,
+                        color = highlightTextColor,
+                    ),
+                ) {
                     append(matched)
                 }
                 index = end + 1
@@ -349,25 +442,35 @@ private fun SearchResultItem(
         Column(
             modifier =
                 Modifier
-                    .padding(16.dp)
-                    .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Text(
                 text = result.title.ifBlank { untitled },
                 style = MaterialTheme.typography.titleSmall,
                 color = MaterialTheme.colorScheme.onSurface,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
             Text(
                 text = snippetText,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurface,
-            )
-            Text(
-                text = formattedTime,
-                style = MaterialTheme.typography.labelSmall,
+                style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 3,
+                overflow = TextOverflow.Ellipsis,
             )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.End,
+            ) {
+                Text(
+                    text = formattedTime,
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
