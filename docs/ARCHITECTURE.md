@@ -64,7 +64,7 @@
 ```bash
 ./gradlew :app:compileDebugKotlin                 # 快验证：只编主源码
 ./gradlew :app:testDebugUnitTest                  # 全量单元测试
-./gradlew :app:assembleRelease -Pandroid.injected.build.abi=arm64-v8a   # 单架构出包（更快）
+./gradlew :app:assembleRelease -PrikkaAbi=arm64-v8a                     # 单架构出包（更快；⚠ 不要用 -Pandroid.injected.*，AGP 会判为测试注入构建并给 APK 打 testOnly=true）
 ./gradlew :app:lintDebug                          # Android Lint
 ```
 
