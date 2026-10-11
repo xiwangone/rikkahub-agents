@@ -3,7 +3,6 @@ package me.rerere.rikkahub.ui.pages.extensions.workspace
 import android.graphics.Typeface
 import androidx.compose.foundation.background
 import androidx.compose.foundation.basicMarquee
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -22,8 +21,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -163,8 +163,8 @@ private fun WorkspaceTerminalContent(
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .height(48.dp)
-                    .background(MaterialTheme.colorScheme.surface),
+                    .height(56.dp)
+                    .background(MaterialTheme.colorScheme.surfaceContainerLow),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 BackButton()
@@ -175,7 +175,7 @@ private fun WorkspaceTerminalContent(
                             modifier = Modifier.fillMaxWidth(),
                             edgePadding = 0.dp,
                             minTabWidth = 160.dp,
-                            containerColor = MaterialTheme.colorScheme.surface,
+                            containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                         ) {
                             state.tabs.forEach { tab ->
                                 val tabDescription = stringResource(
@@ -188,7 +188,7 @@ private fun WorkspaceTerminalContent(
                                     selected = isSelected,
                                     onClick = { onSelectTab(tab.id) },
                                     modifier = Modifier
-                                        .height(48.dp)
+                                        .height(56.dp)
                                         .widthIn(min = 160.dp, max = 240.dp)
                                         .semantics {
                                             contentDescription = tabTitle
@@ -245,6 +245,7 @@ private fun WorkspaceTerminalContent(
                     Text(text = "+", fontSize = 24.sp)
                 }
             }
+            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
             if (selectedTab != null) {
                 WorkspaceTerminalTabContent(
                     tab = selectedTab,
@@ -373,10 +374,10 @@ private fun TerminalExtraKeysBar(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
             .horizontalScroll(rememberScrollState())
-            .padding(horizontal = 8.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
+            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         TerminalExtraKey("ESC") { onSendText("\u001B") }
@@ -401,25 +402,10 @@ private fun TerminalExtraKey(
     selected: Boolean = false,
     onClick: () -> Unit,
 ) {
-    Text(
-        text = label,
-        modifier = Modifier
-            .background(
-                color = if (selected) {
-                    MaterialTheme.colorScheme.primary
-                } else {
-                    MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
-                },
-                shape = RoundedCornerShape(6.dp),
-            )
-            .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 8.dp),
-        style = MaterialTheme.typography.labelMedium,
-        color = if (selected) {
-            MaterialTheme.colorScheme.onPrimary
-        } else {
-            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.9f)
-        },
+    FilterChip(
+        selected = selected,
+        onClick = onClick,
+        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
     )
 }
 

@@ -266,6 +266,7 @@
   <string name="chat_message_tool_create_memory">기억 생성됨</string>
   <string name="chat_message_tool_delete_memory">기억 삭제됨</string>
   <string name="chat_message_tool_denied">거부됨</string>
+  <string name="chat_tool_interrupted_before_execution_detail">이 턴은 이 도구가 실행되기 전에 중단되었습니다. 도구는 실행되지 않았습니다. 부작용이 발생했다고 가정하지 마세요.</string>
   <string name="chat_message_tool_hardline_blocked">Hardline 안전 규칙에 따라 차단되었습니다: %1$s. 이 명령은 어떤 경우에도 에이전트에서 실행할 수 없습니다. 꼭 필요한 경우 에이전트 외부 터미널에서 직접 실행하세요.</string>
   <string name="chat_message_tool_hardline_reason_workspace_root_delete">작업 공간 또는 스킬 루트 삭제</string>
   <string name="chat_message_tool_hardline_reason_root_filesystem_delete">루트 파일 시스템 재귀 삭제</string>
@@ -1812,7 +1813,6 @@
   <string name="workspace_detail_mirror_npm">Node 패키지</string>
   <string name="workspace_detail_workspace_info">작업 공간</string>
   <string name="workspace_detail_name">이름</string>
-  <string name="workspace_detail_shell_status">셸 상태</string>
   <string name="workspace_detail_loading">로딩 중</string>
   <string name="workspace_detail_enable_shell">셸 활성화</string>
   <string name="workspace_detail_enable_shell_desc">이 워크스페이스에서 로컬 Rootfs를 사용하여 터미널 환경을 실행할 수 있도록 허용합니다.</string>
@@ -2287,6 +2287,7 @@
   <string name="workspace_err_import">파일 가져오기 실패</string>
   <string name="workspace_err_export">파일 내보내기 실패</string>
   <string name="workspace_err_rootfs_install">Rootfs 설치 실패</string>
+  <string name="workspace_err_rootfs_shell_missing">Rootfs 아카이브에 Terminal에 필요한 사용 가능한 /bin/sh가 없습니다. 아카이브의 디렉터리 구조를 확인하세요.</string>
   <string name="auto_task_mode_label">트리거 모드(다중 선택 가능, 최소 1개)</string>
   <string name="auto_task_mode_idle">유휴 시</string>
   <string name="auto_task_idle_label">유휴 시간</string>

@@ -17,6 +17,7 @@ import com.termux.view.TerminalViewClient
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.workspace.RootfsPatchOptions
 import me.rerere.workspace.RootfsPatcher
+import me.rerere.workspace.WorkspaceManager
 import java.io.File
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.pages.setting.doctor.DnsProbe
@@ -32,6 +33,7 @@ internal fun createWorkspaceTerminalSession(
     val filesDir = File(workspaceDir, "files")
     val linuxDir = File(workspaceDir, "linux")
     val tempDir = File(workspaceDir, "tmp")
+    val shellPath = WorkspaceManager.rootfsShell(linuxDir)
     val skillsDir = File(appContext.filesDir, FileFolders.SKILLS).apply { mkdirs() }
     val nativeLibraryDir = File(appContext.applicationInfo.nativeLibraryDir)
     val proot = File(nativeLibraryDir, "libproot_exec.so")
@@ -67,8 +69,8 @@ internal fun createWorkspaceTerminalSession(
             "LANG=C.UTF-8",
             "LC_ALL=C.UTF-8",
             "USER=root",
-            "SHELL=/bin/bash",
-            "/bin/bash",
+            "SHELL=$shellPath",
+            shellPath,
         )
 
     val env = mutableListOf(
@@ -114,7 +116,7 @@ internal fun workspaceRootfsReady(
     root: String,
 ): Boolean {
     val linuxDir = File(File(File(context.applicationContext.filesDir, "workspaces"), root), "linux")
-    return linuxDir.isDirectory && File(linuxDir, "bin/sh").isFile
+    return WorkspaceManager.isUsableRootfs(linuxDir)
 }
 
 internal class WorkspaceTerminalSessionClient(

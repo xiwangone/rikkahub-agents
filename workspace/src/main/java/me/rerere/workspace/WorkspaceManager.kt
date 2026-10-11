@@ -5,6 +5,10 @@ import java.io.InputStream
 import java.io.OutputStream
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
+import java.nio.file.Files
+import java.nio.file.LinkOption
+import java.nio.file.Path
+import java.util.ArrayDeque
 
 /**
  * 可选挂载（开关控制，如 /sdcard）：挂载表 + 启用开关 provider + 访问留痕回调。
@@ -36,7 +40,7 @@ class WorkspaceManager(
         if (chrootEnabled() && chrootRunner != null) chrootRunner else shellRunner
 
     /**
-     * chroot 能力探测（root 层实测：SELinux 域 / mount / chroot(2) / 跨 ns / 页大小）。
+     * chroot 能力探测（root 层运行时检查：SELinux 域 / mount / chroot(2) / 跨 ns / 页大小）。
      * 只用设备层能力，不碰任何发行版 rootfs；null = 非 chroot runner（回退 proot 态）。
      */
     fun probeChroot(root: String): ChrootProbeResult? {
@@ -119,7 +123,7 @@ class WorkspaceManager(
 
     fun tempDir(root: String): File = File(workspaceDir(root), TEMP_DIR)
 
-    fun hasRootfs(root: String): Boolean = File(linuxDir(root), "bin/sh").isFile
+    fun hasRootfs(root: String): Boolean = isUsableRootfs(linuxDir(root))
 
     /** 从 rootfs 的 /etc/os-release（或 /usr/lib/os-release、/etc/issue 回退）识别发行版。 */
     fun readDistroInfo(root: String): WorkspaceDistroInfo? {
@@ -455,6 +459,64 @@ class WorkspaceManager(
 
         /** 由宿主机透传的内核伪文件系统, 只能通过 shell 访问 */
         val KERNEL_FS_MOUNTS = listOf("/dev", "/proc", "/sys")
+
+        /** 优先使用 bash，否则用 sh；该路径按 rootfs/chroot 语义返回。 */
+        fun rootfsShell(linuxDir: File): String =
+            if (isUsableRootfsEntry(linuxDir, "bin/bash")) "/bin/bash" else "/bin/sh"
+
+        /** 检查 shell 入口是否最终指向 rootfs 内的普通文件。 */
+        fun isUsableRootfs(linuxDir: File): Boolean =
+            isUsableRootfsEntry(linuxDir, "bin/bash") || isUsableRootfsEntry(linuxDir, "bin/sh")
+
+        private fun isUsableRootfsEntry(linuxDir: File, relativePath: String): Boolean {
+            val root = linuxDir.toPath().toAbsolutePath().normalize()
+            val resolved =
+                runCatching { resolveRootfsPath(root, root.resolve(relativePath)) }
+                    .getOrNull() ?: return false
+            return Files.isRegularFile(resolved, LinkOption.NOFOLLOW_LINKS)
+        }
+
+        /** 将绝对 symlink 视为 chroot 内路径，并拒绝越界与循环链接。 */
+        private fun resolveRootfsPath(root: Path, path: Path): Path? {
+            val normalizedRoot = root.toAbsolutePath().normalize()
+            val normalizedPath = path.toAbsolutePath().normalize()
+            if (!normalizedPath.startsWith(normalizedRoot)) return null
+
+            val pending = ArrayDeque<Path>()
+            normalizedRoot.relativize(normalizedPath).forEach(pending::addLast)
+            var current = normalizedRoot
+            var linkCount = 0
+
+            while (pending.isNotEmpty()) {
+                val component = pending.removeFirst()
+                val name = component.toString()
+                if (name.isEmpty() || name == ".") continue
+                if (name == "..") {
+                    current = current.parent ?: return null
+                    if (!current.startsWith(normalizedRoot)) return null
+                    continue
+                }
+
+                val next = current.resolve(component)
+                if (!next.startsWith(normalizedRoot)) return null
+                if (Files.isSymbolicLink(next)) {
+                    // Linux 对单次路径解析最多跟随 40 个 symlink；该限制同时阻止循环。
+                    if (++linkCount > 40) return null
+                    val link = Files.readSymbolicLink(next)
+                    val remainder = ArrayDeque(pending)
+                    pending.clear()
+                    current = if (link.isAbsolute) normalizedRoot else next.parent ?: return null
+                    link.forEach(pending::addLast)
+                    remainder.forEach(pending::addLast)
+                } else {
+                    current = next
+                }
+            }
+
+            return current.takeIf {
+                it.startsWith(normalizedRoot) && Files.exists(it, LinkOption.NOFOLLOW_LINKS)
+            }
+        }
 
         private val ROOT_NAME_REGEX = Regex("[A-Za-z0-9._-]+")
     }

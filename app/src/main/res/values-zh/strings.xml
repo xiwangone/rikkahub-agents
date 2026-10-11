@@ -386,6 +386,7 @@
   <string name="chat_message_tool_create_memory">创建了记忆</string>
   <string name="chat_message_tool_delete_memory">删除了记忆</string>
   <string name="chat_message_tool_denied">已拒绝</string>
+  <string name="chat_tool_interrupted_before_execution_detail">本轮在此工具运行前已中断；该工具并未执行。请勿假定其副作用已经发生。</string>
   <string name="chat_message_tool_hardline_blocked">已被 Hardline 安全规则拦截：%1$s。代理在任何情况下都不能执行此命令。如确有需要，请在代理之外的终端中自行运行。</string>
   <string name="chat_message_tool_hardline_reason_workspace_root_delete">删除工作区或技能根目录</string>
   <string name="chat_message_tool_hardline_reason_root_filesystem_delete">递归删除根文件系统</string>
@@ -2068,7 +2069,6 @@
   <string name="workspace_detail_mirror_npm">Node 包</string>
   <string name="workspace_detail_workspace_info">工作区</string>
   <string name="workspace_detail_name">名称</string>
-  <string name="workspace_detail_shell_status">Shell 状态</string>
   <string name="workspace_detail_loading">加载中</string>
   <string name="workspace_detail_enable_shell">启用 Shell</string>
   <string name="workspace_detail_enable_shell_desc">允许此工作区使用本地Rootfs运行终端环境</string>
@@ -2527,6 +2527,7 @@
   <string name="workspace_err_import">导入文件失败</string>
   <string name="workspace_err_export">导出文件失败</string>
   <string name="workspace_err_rootfs_install">Rootfs 安装失败</string>
+  <string name="workspace_err_rootfs_shell_missing">Rootfs 压缩包中未找到 Terminal 所需的可用 /bin/sh。请检查压缩包的目录结构。</string>
   <string name="auto_task_mode_label">触发模式（可多选，至少一个）</string>
   <string name="auto_task_mode_idle">空闲触发</string>
   <string name="auto_task_idle_label">空闲触发时长</string>

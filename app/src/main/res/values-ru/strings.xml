@@ -266,6 +266,7 @@
   <string name="chat_message_tool_create_memory">Создана заметка</string>
   <string name="chat_message_tool_delete_memory">Удалённая память</string>
   <string name="chat_message_tool_denied">Отклонено</string>
+  <string name="chat_tool_interrupted_before_execution_detail">Ход был прерван до запуска этого инструмента; инструмент не выполнялся. Не считайте, что побочные эффекты произошли.</string>
   <string name="chat_message_tool_hardline_blocked">Заблокировано правилами безопасности Hardline: %1$s. Агент не может выполнять эту команду ни при каких обстоятельствах. Если она действительно нужна, запустите её самостоятельно в терминале вне агента.</string>
   <string name="chat_message_tool_hardline_reason_workspace_root_delete">удаление корня рабочей области или навыков</string>
   <string name="chat_message_tool_hardline_reason_root_filesystem_delete">рекурсивное удаление корневой файловой системы</string>
@@ -1808,7 +1809,6 @@
   <string name="workspace_detail_mirror_npm">Пакеты Node</string>
   <string name="workspace_detail_workspace_info">Рабочее пространство</string>
   <string name="workspace_detail_name">Имя</string>
-  <string name="workspace_detail_shell_status">Статус оболочки</string>
   <string name="workspace_detail_loading">Загрузка</string>
   <string name="workspace_detail_enable_shell">Включить оболочку</string>
   <string name="workspace_detail_enable_shell_desc">Разрешить этой рабочей области запускать терминальное окружение, используя локальный Rootfs</string>
@@ -2280,6 +2280,7 @@
   <string name="workspace_err_import">Не удалось импортировать файл</string>
   <string name="workspace_err_export">Не удалось экспортировать файл</string>
   <string name="workspace_err_rootfs_install">Не удалось установить Rootfs</string>
+  <string name="workspace_err_rootfs_shell_missing">В архиве Rootfs нет рабочего /bin/sh, необходимого для Terminal. Проверьте структуру каталогов архива.</string>
   <string name="auto_task_mode_label">Режим запуска (можно несколько, минимум один)</string>
   <string name="auto_task_mode_idle">По простою</string>
   <string name="auto_task_idle_label">Длительность простоя</string>

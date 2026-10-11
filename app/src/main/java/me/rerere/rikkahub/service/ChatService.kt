@@ -1752,8 +1752,8 @@ class ChatService(
                 // 结果后保留消息，使其成为合法终态（isExecuted=true）并可安全进入后续上下文。
                 val abandoned =
                     node.currentMessage.abandonUnexecutedTools(
-                        "interrupted_before_execution: the turn was interrupted before this tool ran; " +
-                            "it did NOT execute. Do not assume the side effect happened.",
+                        "interrupted_before_execution: " +
+                            context.getString(R.string.chat_tool_interrupted_before_execution_detail),
                     )
                 if (abandoned !== node.currentMessage) {
                     abandonedMessageIds += abandoned.id

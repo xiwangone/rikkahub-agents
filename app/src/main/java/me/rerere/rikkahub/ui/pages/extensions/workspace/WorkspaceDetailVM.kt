@@ -18,6 +18,7 @@ import me.rerere.rikkahub.data.repository.SettingsError
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.RootfsInstallProgress
 import me.rerere.workspace.RootfsInstallStage
+import me.rerere.workspace.RootfsShellNotFoundException
 import me.rerere.workspace.WorkspaceCommandResult
 import me.rerere.workspace.WorkspaceDistroInfo
 import me.rerere.workspace.WorkspaceFileEntry
@@ -486,8 +487,12 @@ class WorkspaceDetailVM(
                 refresh()
             } catch (e: CancellationException) {
                 throw e
+            } catch (_: RootfsShellNotFoundException) {
+                _installError.value =
+                    context.getString(me.rerere.rikkahub.R.string.workspace_err_rootfs_shell_missing)
             } catch (error: Throwable) {
-                _installError.value = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_rootfs_install)
+                _installError.value =
+                    error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_rootfs_install)
             } finally {
                 _installProgress.value = null
             }
@@ -509,6 +514,9 @@ class WorkspaceDetailVM(
                 refresh()
             } catch (e: CancellationException) {
                 throw e
+            } catch (_: RootfsShellNotFoundException) {
+                _installError.value =
+                    context.getString(me.rerere.rikkahub.R.string.workspace_err_rootfs_shell_missing)
             } catch (error: Throwable) {
                 _installError.value =
                     error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_rootfs_install)

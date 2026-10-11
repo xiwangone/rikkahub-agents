@@ -262,6 +262,7 @@
   <string name="chat_message_tool_create_memory">創建了記憶</string>
   <string name="chat_message_tool_delete_memory">刪除了記憶</string>
   <string name="chat_message_tool_denied">已拒絕</string>
+  <string name="chat_tool_interrupted_before_execution_detail">本輪在此工具執行前已中斷；此工具並未執行。請勿假設其副作用已發生。</string>
   <string name="chat_message_tool_hardline_blocked">已由 Hardline 安全規則攔截：%1$s。代理無法在任何情況下執行此命令。如確有需要，請在代理之外的終端中自行執行。</string>
   <string name="chat_message_tool_hardline_reason_workspace_root_delete">刪除工作區或技能根目錄</string>
   <string name="chat_message_tool_hardline_reason_root_filesystem_delete">遞迴刪除根檔案系統</string>
@@ -1830,7 +1831,6 @@
   <string name="workspace_detail_mirror_npm">Node 套件</string>
   <string name="workspace_detail_workspace_info">工作區</string>
   <string name="workspace_detail_name">名稱</string>
-  <string name="workspace_detail_shell_status">Shell 狀態</string>
   <string name="workspace_detail_loading">載入中</string>
   <string name="workspace_detail_enable_shell">啟用 Shell</string>
   <string name="workspace_detail_enable_shell_desc">允許此工作區使用本地 Rootfs 來執行終端環境</string>
@@ -2617,6 +2617,7 @@
     <string name="workspace_err_import">匯入檔案失敗</string>
     <string name="workspace_err_export">匯出檔案失敗</string>
     <string name="workspace_err_rootfs_install">Rootfs 安裝失敗</string>
+    <string name="workspace_err_rootfs_shell_missing">Rootfs 壓縮檔中找不到 Terminal 所需的可用 /bin/sh。請檢查壓縮檔的目錄結構。</string>
     <string name="auto_task_mode_label">觸發模式（可多選，至少一個）</string>
     <string name="auto_task_mode_idle">空閒觸發</string>
     <string name="auto_task_idle_hint">單位為分鐘：會話空閒達到設定時長後觸發（1-720 分鐘；例如 2 分鐘 = 120 秒）。</string>

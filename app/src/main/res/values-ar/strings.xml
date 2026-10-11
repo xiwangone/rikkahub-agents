@@ -379,6 +379,7 @@
   <string name="chat_message_tool_create_memory">تم إنشاء ذاكرة</string>
   <string name="chat_message_tool_delete_memory">تم حذف ذاكرة</string>
   <string name="chat_message_tool_denied">مرفوض</string>
+  <string name="chat_tool_interrupted_before_execution_detail">تمت مقاطعة هذا الدور قبل تشغيل هذه الأداة؛ لم يتم تنفيذها. لا تفترض أن آثارًا جانبية قد حدثت.</string>
   <string name="chat_message_tool_hardline_blocked">حُظر وفق قواعد أمان Hardline: %1$s. لا يمكن للوكيل تشغيل هذا الأمر تحت أي ظرف. إذا كنت تحتاج إليه فعلًا، فنفّذه بنفسك في طرفية خارج الوكيل.</string>
   <string name="chat_message_tool_hardline_reason_workspace_root_delete">حذف جذر مساحة العمل أو المهارات</string>
   <string name="chat_message_tool_hardline_reason_root_filesystem_delete">الحذف التكراري لنظام الملفات الجذر</string>
@@ -1933,6 +1934,7 @@
   <string name="workspace_err_import">فشل استيراد الملف</string>
   <string name="workspace_err_export">فشل تصدير الملف</string>
   <string name="workspace_err_rootfs_install">فشل تثبيت Rootfs</string>
+  <string name="workspace_err_rootfs_shell_missing">لا يحتوي أرشيف Rootfs على صدفة &#x2066;/bin/sh&#x2069; صالحة يحتاج إليها الطرفية. تحقّق من بنية مجلدات الأرشيف.</string>
   <string name="auto_task_mode_label">وضع التشغيل (يمكن تحديد أكثر من واحد، واحد على الأقل)</string>
   <string name="auto_task_mode_idle">عند الخمول</string>
   <string name="auto_task_idle_label">مدة الخمول</string>
@@ -3132,7 +3134,6 @@
   <string name="workspace_detail_mirror_npm">حزم Node</string>
   <string name="workspace_detail_workspace_info">مساحة العمل</string>
   <string name="workspace_detail_name">الاسم</string>
-  <string name="workspace_detail_shell_status">حالة الصدفة</string>
   <string name="workspace_detail_loading">جارٍ التحميل</string>
   <string name="workspace_detail_enable_shell">تفعيل الصدفة</string>
   <string name="workspace_detail_enable_shell_desc">السماح لمساحة العمل بتشغيل بيئة طرفية عبر Rootfs المحلي</string>

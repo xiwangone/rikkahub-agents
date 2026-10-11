@@ -65,6 +65,7 @@ class ExampleUnitTest {
         val archive =
             tarGz(
                 TarTestEntry("bin/", type = '5'),
+                TarTestEntry("bin/sh", content = "#!/bin/sh\n".toByteArray(), mode = 493),
                 TarTestEntry("bin/hello", content = "echo hello\n".toByteArray(), mode = 493),
                 TarTestEntry("usr/bin/hello-link", type = '2', linkName = "../../bin/hello"),
             )
@@ -80,11 +81,30 @@ class ExampleUnitTest {
 
             val linuxDir = manager.linuxDir(root)
             assertEquals("echo hello\n", File(linuxDir, "bin/hello").readText())
+            assertTrue(File(linuxDir, "bin/sh").canExecute())
             assertTrue(File(linuxDir, "bin/hello").canExecute())
             assertTrue(Files.isSymbolicLink(File(linuxDir, "usr/bin/hello-link").toPath()))
         } finally {
             server.stop(0)
         }
+    }
+
+    @Test
+    fun rootfsInstallerRejectsArchiveWithoutTerminalShell() {
+        val baseDir = Files.createTempDirectory("workspace-manager-test").toFile()
+        val manager = WorkspaceManager(baseDir)
+        val archive = Files.createTempFile("rootfs-without-shell", ".tar.gz").toFile()
+        archive.writeBytes(tarGz(TarTestEntry("etc/os-release", content = "ID=alpine\n".toByteArray())))
+        var installedProgressReported = false
+
+        assertThrows(RootfsShellNotFoundException::class.java) {
+            RootfsInstaller(manager).installFromFile("test-workspace", archive) { progress ->
+                if (progress.stage == RootfsInstallStage.INSTALLED) installedProgressReported = true
+            }
+        }
+
+        assertFalse(manager.hasRootfs("test-workspace"))
+        assertFalse(installedProgressReported)
     }
 
     @Test

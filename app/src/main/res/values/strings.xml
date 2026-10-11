@@ -386,6 +386,7 @@
   <string name="chat_message_tool_create_memory">Created memory</string>
   <string name="chat_message_tool_delete_memory">Deleted memory</string>
   <string name="chat_message_tool_denied">Denied</string>
+  <string name="chat_tool_interrupted_before_execution_detail">This turn was interrupted before this tool ran; the tool did not execute. Do not assume its side effects occurred.</string>
   <string name="chat_message_tool_hardline_blocked">Blocked by Hardline safety rules: %1$s. This command cannot run via the agent under any circumstances. If you genuinely need it, run it yourself in a terminal outside the agent.</string>
   <string name="chat_message_tool_hardline_reason_workspace_root_delete">deletion of the workspace or skills root</string>
   <string name="chat_message_tool_hardline_reason_root_filesystem_delete">recursive deletion of the root filesystem</string>
@@ -2169,7 +2170,6 @@
   <string name="workspace_detail_mirror_npm">Node packages</string>
   <string name="workspace_detail_workspace_info">Workspace</string>
   <string name="workspace_detail_name">Name</string>
-  <string name="workspace_detail_shell_status">Shell Status</string>
   <string name="workspace_detail_loading">Loading</string>
   <string name="workspace_detail_enable_shell">Enable Shell</string>
   <string name="workspace_detail_enable_shell_desc">Allow this workspace to run a terminal environment using local Rootfs</string>
@@ -2561,6 +2561,7 @@
   <string name="workspace_err_import">Import failed</string>
   <string name="workspace_err_export">Export failed</string>
   <string name="workspace_err_rootfs_install">Rootfs install failed</string>
+  <string name="workspace_err_rootfs_shell_missing">The Rootfs archive does not provide a usable /bin/sh for Terminal. Check its directory layout.</string>
   <string name="auto_task_mode_label">Trigger modes (select at least one)</string>
   <string name="auto_task_mode_idle">Idle trigger</string>
   <string name="auto_task_idle_label">Idle trigger duration</string>

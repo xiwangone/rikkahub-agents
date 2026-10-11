@@ -15,6 +15,9 @@ import java.util.zip.GZIPInputStream
 /** tar 时间戳合理上限（9999-12-31，秒）；超出视为非法，避免 *1000 溢出或负数 */
 private const val MAX_TAR_MOD_TIME_SECONDS = 253_402_300_799L
 
+/** 安装流程结束，但 rootfs 未提供 Terminal 所需的可用 shell。 */
+class RootfsShellNotFoundException : IllegalStateException()
+
 class RootfsInstaller(
     private val manager: WorkspaceManager,
     private val patcher: RootfsPatcher = RootfsPatcher(),
@@ -42,6 +45,7 @@ class RootfsInstaller(
                 "Failed to move rootfs into workspace"
             }
             patcher.patch(linuxDir)
+            ensureTerminalShellIsReady(root)
             onProgress(RootfsInstallProgress(stage = RootfsInstallStage.INSTALLED))
         } finally {
             archive.delete()
@@ -71,9 +75,16 @@ class RootfsInstaller(
                 "Failed to move rootfs into workspace"
             }
             patcher.patch(linuxDir)
+            ensureTerminalShellIsReady(root)
             onProgress(RootfsInstallProgress(stage = RootfsInstallStage.INSTALLED))
         } finally {
             stagingDir.deleteRecursively()
+        }
+    }
+
+    private fun ensureTerminalShellIsReady(root: String) {
+        if (!manager.hasRootfs(root)) {
+            throw RootfsShellNotFoundException()
         }
     }
 

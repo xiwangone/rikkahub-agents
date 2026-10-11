@@ -266,6 +266,7 @@
   <string name="chat_message_tool_create_memory">記憶を作成しました</string>
   <string name="chat_message_tool_delete_memory">記憶を削除しました</string>
   <string name="chat_message_tool_denied">拒否されました</string>
+  <string name="chat_tool_interrupted_before_execution_detail">このターンはこのツールの実行前に中断されました。このツールは実行されていません。副作用が発生したと想定しないでください。</string>
   <string name="chat_message_tool_hardline_blocked">Hardline の安全ルールによりブロックされました：%1$s。このコマンドはエージェント経由ではいかなる場合も実行できません。必要な場合は、エージェント外のターミナルでご自身で実行してください。</string>
   <string name="chat_message_tool_hardline_reason_workspace_root_delete">ワークスペースまたはスキルのルート削除</string>
   <string name="chat_message_tool_hardline_reason_root_filesystem_delete">ルートファイルシステムの再帰的削除</string>
@@ -1815,7 +1816,6 @@
   <string name="workspace_detail_mirror_npm">Node パッケージ</string>
   <string name="workspace_detail_workspace_info">ワークスペース</string>
   <string name="workspace_detail_name">名前</string>
-  <string name="workspace_detail_shell_status">Shell ステータス</string>
   <string name="workspace_detail_loading">読み込み中</string>
   <string name="workspace_detail_enable_shell">シェルを有効にする</string>
   <string name="workspace_detail_enable_shell_desc">このワークスペースでローカルのRootfsを使用したターミナル環境の実行を許可します</string>
@@ -2287,6 +2287,7 @@
   <string name="workspace_err_import">ファイルのインポートに失敗</string>
   <string name="workspace_err_export">ファイルのエクスポートに失敗</string>
   <string name="workspace_err_rootfs_install">Rootfs のインストールに失敗</string>
+  <string name="workspace_err_rootfs_shell_missing">Rootfs アーカイブに Terminal が必要とする有効な /bin/sh がありません。アーカイブのディレクトリ構成を確認してください。</string>
   <string name="auto_task_mode_label">トリガーモード（複数選択可、最低1つ）</string>
   <string name="auto_task_mode_idle">アイドル時</string>
   <string name="auto_task_idle_label">アイドル時間</string>

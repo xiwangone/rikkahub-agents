@@ -603,17 +603,9 @@ private fun WorkspaceBasicPage(
                             .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Text(
-                        text = stringResource(R.string.workspace_detail_workspace_info),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
                     WorkspaceInfoRow(
                         stringResource(R.string.workspace_detail_name),
                         workspace?.name ?: stringResource(R.string.workspace_detail_loading),
-                    )
-                    WorkspaceInfoRow(
-                        stringResource(R.string.workspace_detail_shell_status),
-                        workspace?.shellStatus?.toShellStatusLabel() ?: "-",
                     )
                     distro?.let { info ->
                         WorkspaceInfoRow(
@@ -721,16 +713,15 @@ private fun WorkspaceBasicPage(
                             .padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
-                    Text(
-                        text = stringResource(R.string.workspace_detail_enable_shell),
-                        style = MaterialTheme.typography.titleMedium,
+                    ShellStatusPanel(
+                        status = shellStatus,
+                        isInstalling = installing,
                     )
                     Text(
                         text = stringResource(R.string.workspace_detail_enable_shell_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-
                     Button(
                         onClick = onInstallRootfs,
                         enabled = workspace != null && !installing,
@@ -742,7 +733,6 @@ private fun WorkspaceBasicPage(
                             modifier = Modifier.padding(start = 8.dp),
                         )
                     }
-
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -764,9 +754,16 @@ private fun WorkspaceBasicPage(
                             onCheckedChange = onSdcardAccessChange,
                         )
                     }
-
                     installProgress?.let { progress ->
-                        RootfsProgress(progress)
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                            shape = MaterialTheme.shapes.medium,
+                        ) {
+                            Box(modifier = Modifier.padding(12.dp)) {
+                                RootfsProgress(progress)
+                            }
+                        }
                     }
                 }
             }
@@ -992,6 +989,53 @@ private fun workspaceToolApprovalItems() =
         "workspace_background_status" to stringResource(R.string.workspace_detail_tool_background_status),
         "workspace_background_kill" to stringResource(R.string.workspace_detail_tool_background_kill),
     )
+
+@Composable
+private fun ShellStatusPanel(
+    status: String?,
+    isInstalling: Boolean,
+) {
+    val isReady = status == WorkspaceShellStatus.READY.name
+    val isBroken = status == WorkspaceShellStatus.BROKEN.name
+    val colorScheme = MaterialTheme.colorScheme
+    val containerColor =
+        when {
+            isInstalling -> colorScheme.tertiaryContainer
+            isReady -> colorScheme.primaryContainer
+            isBroken -> colorScheme.errorContainer
+            else -> colorScheme.surfaceContainerHigh
+        }
+    val contentColor =
+        when {
+            isInstalling -> colorScheme.onTertiaryContainer
+            isReady -> colorScheme.onPrimaryContainer
+            isBroken -> colorScheme.onErrorContainer
+            else -> colorScheme.onSurfaceVariant
+        }
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = containerColor,
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Box(
+                modifier =
+                    Modifier
+                        .size(8.dp)
+                        .background(contentColor, CircleShape),
+            )
+            Text(
+                text = status?.toShellStatusLabel() ?: stringResource(R.string.workspace_detail_loading),
+                style = MaterialTheme.typography.labelLarge,
+                color = contentColor,
+            )
+        }
+    }
+}
 
 @Composable
 private fun RootfsProgress(progress: RootfsInstallProgress) {

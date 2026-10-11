@@ -49,6 +49,43 @@ class RootfsShellProbeTest {
     }
 
     @Test
+    fun `sh as relative symlink to rootfs binary is usable`() {
+        val dir = linuxDir()
+        val targetDir = File(dir, "usr/bin").apply { mkdirs() }
+        File(targetDir, "busybox").createNewFile()
+        Files.createSymbolicLink(File(dir, "bin/sh").toPath(), File("../usr/bin/busybox").toPath())
+
+        assertTrue(WorkspaceManager.isUsableRootfs(dir))
+        assertEquals("/bin/sh", WorkspaceManager.rootfsShell(dir))
+    }
+
+    @Test
+    fun `symlink escaping rootfs is not usable`() {
+        val dir = linuxDir()
+        Files.createSymbolicLink(File(dir, "bin/sh").toPath(), File("../../outside-busybox").toPath())
+
+        assertFalse(WorkspaceManager.isUsableRootfs(dir))
+    }
+
+    @Test
+    fun `cyclic shell symlinks are not usable`() {
+        val dir = linuxDir()
+        Files.createSymbolicLink(File(dir, "bin/sh").toPath(), File("ash").toPath())
+        Files.createSymbolicLink(File(dir, "bin/ash").toPath(), File("sh").toPath())
+
+        assertFalse(WorkspaceManager.isUsableRootfs(dir))
+    }
+
+    @Test
+    fun `dangling absolute symlink is not usable rootfs`() {
+        val dir = linuxDir()
+        val shLink = File(dir, "bin/sh").toPath()
+        Files.createSymbolicLink(shLink, File("/bin/missing-busybox").toPath())
+
+        assertFalse(WorkspaceManager.isUsableRootfs(dir))
+    }
+
+    @Test
     fun `empty dir is not usable rootfs`() {
         assertFalse(WorkspaceManager.isUsableRootfs(linuxDir()))
     }
