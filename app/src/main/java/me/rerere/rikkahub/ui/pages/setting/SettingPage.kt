@@ -121,7 +121,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 },
                 actions = {
                     IconButton(
-                        onClick = { navController.navigate(Screen.SettingSearch) },
+                        onClick = { navController.navigate(Screen.SettingsSearch) },
                     ) {
                         Icon(
                             HugeIcons.GlobalSearch,
