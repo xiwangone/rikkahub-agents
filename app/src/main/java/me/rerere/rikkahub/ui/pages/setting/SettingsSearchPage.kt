@@ -30,7 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
@@ -49,7 +49,9 @@ import org.koin.androidx.compose.koinViewModel
 @Composable
 fun SettingsSearchPage(vm: SettingVM = koinViewModel()) {
     val navController = LocalNavController.current
-    val context = LocalContext.current
+    // 资源取值走 LocalResources（configuration-aware）：直接 LocalContext.current.getString 会被 lint 的
+    // LocalContextGetResourceValueCall 判为「配置变化后可能返回过期值」（本项目其余页面同此写法）。
+    val resources = LocalResources.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val settings by vm.settings.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -68,10 +70,10 @@ fun SettingsSearchPage(vm: SettingVM = koinViewModel()) {
         } else {
             entries.filter { entry ->
                 buildList {
-                    add(context.getString(entry.titleRes))
-                    entry.descriptionRes?.let { add(context.getString(it)) }
-                    add(context.getString(entry.groupRes))
-                    entry.searchTermsRes.forEach { add(context.getString(it)) }
+                    add(resources.getString(entry.titleRes))
+                    entry.descriptionRes?.let { add(resources.getString(it)) }
+                    add(resources.getString(entry.groupRes))
+                    entry.searchTermsRes.forEach { add(resources.getString(it)) }
                 }.any { it.contains(q, ignoreCase = true) }
             }
         }
