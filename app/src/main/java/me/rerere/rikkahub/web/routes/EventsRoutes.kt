@@ -8,6 +8,13 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.merge
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FolderRepository
@@ -42,8 +49,12 @@ fun Route.eventsRoutes(
         }
 
         // Full settings snapshot; StateFlow emits the current value immediately on connect.
+        // P0-47：原本这里 `encodeToString(settings)` 把**整个 Settings 平铺下发** —— 一条 SSE
+        // 就能拿走 Web 口令、provider apiKey、桥接口令、备份口令密文、代理口令。
+        // 改为按 JSON 结构递归剔除凭证类字段后再发：事件名 `settings` 与其余结构保持不变，
+        // 前端订阅逻辑不受影响（只是这些字段的值变成占位串）。
         val settingsEvents = settingsStore.settingsFlow.map { settings ->
-            EventPayload(event = "settings", json = JsonInstant.encodeToString(settings))
+            EventPayload(event = "settings", json = JsonInstant.encodeToString(redactSecrets(settings)))
         }
 
         // Conversation list invalidation, scoped to the currently selected assistant.
@@ -113,3 +124,54 @@ private data class EventPayload(
     val event: String,
     val json: String,
 )
+
+/** P0-47：被剔除的字段在这里换成占位串（保持 JSON 形状，前端不会撞上"字段消失"） */
+private const val WEB_REDACTED_PLACEHOLDER = "[redacted]"
+
+/**
+ * P0-47：SSE `settings` 快照中必须脱敏的字段名。按 **JSON key 名**递归匹配，
+ * 因此嵌套的 providers / mcpServers / WebDAV / S3 / TTS / ASR / proxy 等配置块里的
+ * 同类凭证同样被覆盖。名单偏保守（宁多剥不误漏），过剥字段的取舍见 results 报告。
+ */
+private val WEB_SECRET_KEY_NAMES: Set<String> = setOf(
+    "webServerAccessPassword",
+    "webBridgePassword",
+    "backupEncryptionPasswordEnc",
+    "proxyPassword",
+    "apiKey",
+    "api_key",
+    "clientSecret",
+    "client_secret",
+    "accessToken",
+    "access_token",
+    "refreshToken",
+    "refresh_token",
+    "password",
+    "secret",
+    "credential",
+    "credentials",
+)
+
+private fun redactSecrets(settings: Settings): JsonElement =
+    redactSecrets(JsonInstant.encodeToJsonElement(settings))
+
+private fun redactSecrets(element: JsonElement): JsonElement = when (element) {
+    is JsonObject -> buildJsonObject {
+        element.forEach { (key, value) ->
+            put(
+                key,
+                if (key in WEB_SECRET_KEY_NAMES) {
+                    JsonPrimitive(WEB_REDACTED_PLACEHOLDER)
+                } else {
+                    redactSecrets(value)
+                }
+            )
+        }
+    }
+
+    is JsonArray -> buildJsonArray {
+        element.forEach { add(redactSecrets(it)) }
+    }
+
+    else -> element
+}

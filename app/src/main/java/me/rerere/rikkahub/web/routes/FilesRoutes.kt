@@ -128,16 +128,26 @@ fun Route.filesRoutes(
             val file = File(filesDir, relativePath)
 
             // Ensure the file is within the app's files directory
-            if (!file.canonicalPath.startsWith(filesDir.canonicalPath)) {
+            // P0-50：这里的"within filesDir"原本只挡得住 `..`，因为**根本身就是整个私有目录** ——
+            // 已鉴权的调用方（以及 P0-46 那个无鉴权窗口）可以直接
+            // GET /api/files/path/datastore/preferences.preferences_pb 拿走整份偏好库
+            // （provider apiKey 的 AES-GCM 密文、webServerAccessPassword 等都在里面）。
+            // 收窄两处：① 前缀比较补上分隔符，避免命中 filesDir 同前缀的兄弟目录
+            val rootPath = filesDir.canonicalPath
+            if (file.canonicalPath != rootPath && !file.canonicalPath.startsWith(rootPath + File.separator)) {
                 throw BadRequestException("Invalid file path")
             }
+
+            // ② 只放行 FilesManager 登记过的托管文件 —— 未登记的（偏好库/数据库/缓存等）一律 404。
+            val managed = filesManager.getByRelativePath(relativePath)
+                ?: throw NotFoundException("File not found")
 
             if (!file.exists() || !file.isFile) {
                 throw NotFoundException("File not found")
             }
 
             // Use managed file MIME type first because on-disk file names are UUID-only.
-            val managedFileMime = filesManager.getByRelativePath(relativePath)?.mimeType
+            val managedFileMime = managed.mimeType
             val contentType = if (!managedFileMime.isNullOrBlank()) {
                 sanitizeServedMimeType(managedFileMime)
             } else {
