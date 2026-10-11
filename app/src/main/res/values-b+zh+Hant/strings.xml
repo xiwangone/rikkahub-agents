@@ -2322,7 +2322,6 @@
     <string name="search_picker_select_provider">選擇搜尋服務商</string>
     <string name="search_picker_turn_off">關閉搜尋</string>
     <string name="setting_files_page_folder_avatars">頭像</string>
-    <string name="setting_page_section_model">模型與內容</string>
     <string name="setting_page_section_tools">外部工具</string>
     <string name="setting_page_section_connection">連線與後端</string>
     <string name="setting_page_section_security">安全與憑證</string>

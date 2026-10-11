@@ -1784,7 +1784,6 @@
   <string name="setting_files_page_folder_avatars">الصور الرمزية</string>
   <string name="setting_page_security_degraded_title">الجهاز لا يدعم التشفير الآمن</string>
   <string name="setting_page_security_degraded_desc">جهازك لا يدعم التشفير الآمن بالعتاد، لذا تُخزَّن البيانات السرية بتشفير ضعيف</string>
-  <string name="setting_page_section_model">النماذج والمحتوى</string>
   <string name="setting_page_section_tools">أدوات خارجية</string>
   <string name="setting_page_section_connection">الاتصال والواجهة الخلفية</string>
   <string name="setting_page_section_security">الأمان والبيانات السرية</string>

@@ -35,7 +35,7 @@ import me.rerere.rikkahub.Screen
  */
 enum class SettingGroup(val id: String, val titleRes: Int) {
     GENERAL("general", R.string.setting_page_general_settings),
-    MODEL("model", R.string.setting_page_section_model),
+    MODEL("model", R.string.setting_page_model_and_services),
     CONNECTION("connection", R.string.setting_page_section_connection),
     TOOLS("tools", R.string.setting_page_section_tools),
     SECURITY("security", R.string.setting_page_section_security),

@@ -181,7 +181,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                     val entries = SettingCatalog.entriesOf(group)
                     CardGroup(
                         modifier = Modifier.padding(horizontal = 8.dp),
-                        title = { Text(stringResource(if (group == SettingGroup.MODEL) R.string.setting_page_model_and_services else group.titleRes)) },
+                        title = { Text(stringResource(group.titleRes)) },
                     ) {
                         when (group) {
                             SettingGroup.GENERAL -> ColorModeRow(navController)
