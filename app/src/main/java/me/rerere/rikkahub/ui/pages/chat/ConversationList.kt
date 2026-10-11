@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
@@ -19,14 +20,15 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.surfaceColorAtElevation
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -39,17 +41,22 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.paging.LoadState
 import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.itemKey
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.Forward02
+import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Pin
 import me.rerere.hugeicons.stroke.PinOff
 import me.rerere.hugeicons.stroke.Refresh01
@@ -123,23 +130,41 @@ fun ColumnScope.ConversationList(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         if (conversations.itemCount == 0) {
-            item {
-                Surface(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceContainerLow,
-                ) {
-                    Text(
-                        text = stringResource(id = R.string.chat_page_no_conversations),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(16.dp),
-                    )
+            when (conversations.loadState.refresh) {
+                is LoadState.Loading -> item(key = "refresh_loading") { PagingLoadingItem() }
+                is LoadState.Error ->
+                    item(key = "refresh_error") {
+                        PagingRetryItem { conversations.retry() }
+                    }
+                is LoadState.NotLoading -> {
+                    item(key = "empty_conversations") {
+                        Surface(
+                            modifier =
+                                Modifier
+                                    .fillMaxWidth()
+                                    .padding(16.dp),
+                            shape = RoundedCornerShape(8.dp),
+                            color = MaterialTheme.colorScheme.surfaceContainerLow,
+                        ) {
+                            Text(
+                                text = stringResource(id = R.string.chat_page_no_conversations),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface,
+                                modifier = Modifier.padding(16.dp),
+                            )
+                        }
+                    }
                 }
             }
+        }
+
+        when (conversations.loadState.append) {
+            is LoadState.Loading -> item(key = "append_loading") { PagingLoadingItem() }
+            is LoadState.Error ->
+                item(key = "append_error") {
+                    PagingRetryItem { conversations.retry() }
+                }
+            is LoadState.NotLoading -> Unit
         }
 
         items(
@@ -237,7 +262,9 @@ private fun DateHeaderItem(
             modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .clickable(onClick = onClick)
+                .semantics { toggleableState = ToggleableState(!collapsed) }
+                .clickable(role = Role.Button, onClick = onClick)
+                .heightIn(min = 48.dp)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -268,7 +295,9 @@ private fun SubAgentHeaderItem(
             modifier
                 .fillMaxWidth()
                 .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .clickable(onClick = onClick)
+                .semantics { toggleableState = ToggleableState(expanded) }
+                .clickable(role = Role.Button, onClick = onClick)
+                .heightIn(min = 48.dp)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -284,15 +313,13 @@ private fun SubAgentHeaderItem(
             style = MaterialTheme.typography.labelLarge,
             color = MaterialTheme.colorScheme.primary,
         )
-        Icon(
-            imageVector = HugeIcons.Delete01,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.primary,
-            modifier =
-                Modifier
-                    .clickable(onClick = onClean)
-                    .padding(4.dp),
-        )
+        IconButton(onClick = onClean) {
+            Icon(
+                imageVector = HugeIcons.Delete01,
+                contentDescription = stringResource(R.string.chat_sub_agent_clean),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+        }
     }
 }
 
@@ -337,12 +364,11 @@ private fun ConversationItem(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
     val backgroundColor =
-        if (selected) {
-            MaterialTheme.colorScheme.surfaceColorAtElevation(8.dp)
-        } else {
-            Color.Transparent
-        }
+        if (selected) MaterialTheme.colorScheme.secondaryContainer else Color.Transparent
+    val contentColor =
+        if (selected) MaterialTheme.colorScheme.onSecondaryContainer else MaterialTheme.colorScheme.onSurface
     val focusManager = LocalFocusManager.current
+    val moreOptionsLabel = stringResource(R.string.accessibility_more_options)
     var showDropdownMenu by remember {
         mutableStateOf(false)
     }
@@ -350,9 +376,12 @@ private fun ConversationItem(
         modifier =
             modifier
                 .clip(RoundedCornerShape(50f))
+                .semantics { toggleableState = ToggleableState(selected) }
                 .combinedClickable(
                     interactionSource = interactionSource,
                     indication = LocalIndication.current,
+                    role = Role.Button,
+                    onLongClickLabel = moreOptionsLabel,
                     onClick = { onClick(conversation) },
                     onLongClick = {
                         // 抽屉常驻时也收起输入焦点，避免键盘闪现
@@ -365,13 +394,15 @@ private fun ConversationItem(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                    .heightIn(min = 48.dp)
+                    .padding(start = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
                 text = conversation.title.ifBlank { stringResource(id = R.string.chat_page_new_message) },
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
+                color = contentColor,
             )
             Spacer(Modifier.weight(1f))
 
@@ -381,7 +412,7 @@ private fun ConversationItem(
                     imageVector = HugeIcons.Pin,
                     contentDescription = stringResource(R.string.accessibility_pinned),
                     modifier = Modifier.size(12.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                    tint = contentColor,
                 )
             }
             AnimatedVisibility(loading) {
@@ -396,6 +427,14 @@ private fun ConversationItem(
                             .semantics {
                                 contentDescription = loadingDescription
                             },
+                )
+            }
+            IconButton(onClick = { showDropdownMenu = true }) {
+                Icon(
+                    imageVector = HugeIcons.MoreVertical,
+                    contentDescription = stringResource(R.string.accessibility_chat_options),
+                    modifier = Modifier.size(20.dp),
+                    tint = contentColor,
                 )
             }
             DropdownMenu(
@@ -478,6 +517,34 @@ private fun ConversationItem(
                     },
                 )
             }
+        }
+    }
+}
+
+@Composable
+private fun PagingLoadingItem() {
+    val loadingDescription = stringResource(R.string.accessibility_loading)
+    Box(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        CircularProgressIndicator(
+            modifier = Modifier.size(24.dp).semantics { contentDescription = loadingDescription },
+            strokeWidth = 2.dp,
+        )
+    }
+}
+
+@Composable
+private fun PagingRetryItem(onRetry: () -> Unit) {
+    Box(
+        modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp),
+        contentAlignment = Alignment.Center,
+    ) {
+        TextButton(onClick = onRetry) {
+            Icon(imageVector = HugeIcons.Refresh01, contentDescription = null)
+            Spacer(Modifier.size(8.dp))
+            Text(stringResource(R.string.accessibility_refresh_page))
         }
     }
 }

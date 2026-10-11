@@ -173,7 +173,9 @@ class ChatDrawerVM(
     }
 
     fun selectFolder(folderId: Uuid?) {
+        if (_selectedFolderId.value == folderId) return
         _selectedFolderId.value = folderId
+        saveScrollPosition(index = 0, offset = 0)
     }
 
     fun toggleSubAgentExpanded() {

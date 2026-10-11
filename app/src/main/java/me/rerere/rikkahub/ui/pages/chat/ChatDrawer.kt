@@ -46,6 +46,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -268,7 +272,12 @@ fun ChatDrawerContent(
             FolderBar(
                 folders = folders,
                 selectedFolderId = selectedFolderId,
-                onSelect = { drawerVm.selectFolder(it) },
+                onSelect = { folderId ->
+                    if (folderId != selectedFolderId) {
+                        drawerVm.selectFolder(folderId)
+                        scope.launch { conversationListState.scrollToItem(0) }
+                    }
+                },
                 onCreate = { showCreateFolderDialog = true },
                 onRename = { folderToRename = it },
                 onDelete = { folderToDelete = it },
@@ -880,6 +889,7 @@ private fun FolderBar(
     onRename: (Folder) -> Unit,
     onDelete: (Folder) -> Unit,
 ) {
+    val moreOptionsLabel = stringResource(R.string.accessibility_more_options)
     LazyRow(
         modifier =
             Modifier
@@ -893,7 +903,7 @@ private fun FolderBar(
                 label = stringResource(R.string.chat_page_folder_default),
                 selected = selectedFolderId == null,
                 onClick = { onSelect(null) },
-                onLongClick = {},
+                onLongClick = null,
             )
         }
         items(folders) { folder ->
@@ -905,6 +915,7 @@ private fun FolderBar(
                     selected = selectedFolderId == folder.id,
                     onClick = { onSelect(folder.id) },
                     onLongClick = { menuExpanded = true },
+                    onLongClickLabel = moreOptionsLabel,
                 )
                 DropdownMenu(
                     expanded = menuExpanded,
@@ -935,7 +946,7 @@ private fun FolderBar(
                 icon = HugeIcons.FolderAdd,
                 selected = false,
                 onClick = onCreate,
-                onLongClick = {},
+                onLongClick = null,
             )
         }
     }
@@ -946,7 +957,8 @@ private fun FolderChip(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
-    onLongClick: () -> Unit,
+    onLongClick: (() -> Unit)?,
+    onLongClickLabel: String? = null,
     icon: ImageVector? = null,
 ) {
     Surface(
@@ -960,8 +972,14 @@ private fun FolderChip(
         modifier =
             Modifier
                 .clip(CircleShape)
+                .heightIn(min = 48.dp)
+                .semantics {
+                    toggleableState = ToggleableState(selected)
+                }
                 .combinedClickable(
+                    role = Role.Button,
                     onClick = onClick,
+                    onLongClickLabel = onLongClickLabel,
                     onLongClick = onLongClick,
                 ),
     ) {
