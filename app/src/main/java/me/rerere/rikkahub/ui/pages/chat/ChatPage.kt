@@ -58,6 +58,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
@@ -969,7 +970,18 @@ private fun ChatFilesPickerSheet(
             assistant = assistant,
             mcpManager = vm.mcpManager,
             onCompressContext = { additionalPrompt, targetTokens, keepRecentMessages ->
-                vm.handleCompressContext(additionalPrompt, targetTokens, keepRecentMessages)
+                if (vm.conversationJob.value != null) {
+                    // 生成中发起压缩会与流式写入互相覆盖：先停下生成再压缩
+                    CompletableDeferred(
+                        Result.failure(
+                            IllegalStateException(
+                                context.getString(R.string.chat_page_compress_blocked_generating),
+                            ),
+                        ),
+                    )
+                } else {
+                    vm.handleCompressContext(additionalPrompt, targetTokens, keepRecentMessages)
+                }
             },
             onUpdateAssistant = {
                 vm.updateSettings(

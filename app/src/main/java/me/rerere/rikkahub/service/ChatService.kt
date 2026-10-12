@@ -1969,6 +1969,35 @@ class ChatService(
 
     // ---- 压缩对话历史 ----
 
+    /** 要压缩的区段含「没有结果的工具调用」时，压缩会把调用链换成摘要 → 阻止并给出可读原因。 */
+    private fun requireNoPendingToolCalls(messages: List<UIMessage>) {
+        val hasPendingToolCall =
+            messages.any { msg ->
+                msg.parts.any { part -> part is UIMessagePart.Tool && part.output.isEmpty() }
+            }
+        if (hasPendingToolCall) {
+            throw IllegalStateException(
+                context.getString(R.string.chat_page_compress_pending_tools),
+            )
+        }
+    }
+
+    /**
+     * 压缩是长任务：写回前确认会话没被改动（判据 = 条数 + 首尾 id），
+     * 避免用旧快照把压缩期间产生的新内容盖掉。
+     */
+    private suspend fun requireConversationUnchanged(conversationId: Uuid, snapshot: List<UIMessage>) {
+        val latest = conversationRepo.getConversationById(conversationId)?.currentMessages ?: return
+        if (latest.size != snapshot.size ||
+            latest.firstOrNull()?.id != snapshot.firstOrNull()?.id ||
+            latest.lastOrNull()?.id != snapshot.lastOrNull()?.id
+        ) {
+            throw IllegalStateException(
+                context.getString(R.string.chat_page_compress_conversation_changed),
+            )
+        }
+    }
+
 
     suspend fun compressConversation(
         conversationId: Uuid,
@@ -2011,6 +2040,8 @@ class ChatService(
                 messagesToCompress = allMessages
                 messagesToKeep = emptyList()
             }
+
+            requireNoPendingToolCalls(messagesToCompress)
 
             // T11: 按 token 预算分块（复用 ContextBudgetPlanner.estimateMessageTokens），
             // 大工具输出块不再因固定 256 消息/块超压缩模型窗口
@@ -2118,6 +2149,8 @@ class ChatService(
             }.onFailure { e ->
                 AppLog.w(TAG, "归档压缩历史失败: ${e.message}")
             }
+
+            requireConversationUnchanged(conversationId, allMessages)
 
             saveConversation(conversationId, newConversation)
         }
