@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.components.ai
 import android.content.Context
 import androidx.compose.runtime.Stable
 import java.io.File
+import java.io.IOException
 
 /**
  * 可触发次数上限：次数 0 = 无限，默认 100，上限 100。
@@ -93,7 +94,7 @@ fun loadTaskListFromFile(
     if (!file.exists()) return emptyList()
     return try {
         file.readLines(Charsets.UTF_8).map { it.trim() }.filter { it.isNotEmpty() }
-    } catch (_: Exception) {
+    } catch (_: IOException) {
         emptyList()
     }
 }
@@ -108,7 +109,7 @@ fun saveTaskListToFile(
     val file = File(taskListDir(context), "$safeName.txt")
     try {
         file.writeText(tasks.joinToString("\n"), Charsets.UTF_8)
-    } catch (_: Exception) {
+    } catch (_: IOException) {
         // 忽略写入失败（如目录异常），配置仍会在 prefs 中保留快照
     }
     return safeName

@@ -25,6 +25,7 @@ import me.rerere.rikkahub.web.dto.UploadFilesResponseDto
 import me.rerere.rikkahub.web.dto.UploadedFileDto
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.io.IOException
 
 private const val MAX_UPLOAD_FILE_SIZE_BYTES = 20 * 1024 * 1024 // 20 MB
 
@@ -214,7 +215,7 @@ fun Route.assetsRoutes(context: Context) {
                 call.respondOutputStream {
                     inputStream.use { it.copyTo(this) }
                 }
-            } catch (_: Exception) {
+            } catch (_: IOException) {
                 throw NotFoundException("Asset not found: $relativePath")
             }
         }

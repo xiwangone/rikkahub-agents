@@ -19,6 +19,7 @@ import me.rerere.rikkahub.utils.fileSizeToString
 import java.io.File
 import java.io.FileInputStream
 import java.io.FileOutputStream
+import java.io.IOException
 import java.time.Instant
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -568,9 +569,9 @@ class S3Sync(
                 zipIn.copyTo(outputStream)
             }
             AppLog.i(TAG, "restoreFromBackupFile: Restored skill file $entryName (${targetFile.length()} bytes)")
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             AppLog.e(TAG, "restoreFromBackupFile: Failed to restore skill file $entryName", e)
-            throw Exception("Failed to restore skill file $entryName: ${e.message}")
+            throw IOException("Failed to restore skill file $entryName: ${e.message}", e)
         }
     }
 
