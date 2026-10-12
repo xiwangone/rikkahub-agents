@@ -42,6 +42,7 @@ import me.rerere.ai.provider.providers.PartGroup
 import me.rerere.ai.provider.providers.groupPartsByToolBoundary
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.StreamChunk
+import me.rerere.ai.ui.GoogleThoughtMetadata
 import me.rerere.ai.ui.OpenRouterReasoningMetadata
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
@@ -792,6 +793,18 @@ class ChatCompletionsAPI(
                                 // 使用 inputAsJson() 归一化，避免流式中断导致的残缺 JSON 被发送
                                 put("arguments", tool.inputAsJson().toString())
                             })
+                            // Google OpenAI 兼容端点：首轮 functionCall 上的 thought_signature
+                            // 必须在同一个 tool_call 上原样回传（缺一个就整轮 400）。
+                            // 只在解析时确实拿到签名时才写该字段，其它供应商的请求体不受影响。
+                            tool.metadataAs<GoogleThoughtMetadata>()?.thoughtSignature
+                                ?.takeIf { it.isNotBlank() }
+                                ?.let { signature ->
+                                    put("extra_content", buildJsonObject {
+                                        put("google", buildJsonObject {
+                                            put("thought_signature", signature)
+                                        })
+                                    })
+                                }
                         })
                     }
                 })
@@ -994,12 +1007,16 @@ class ChatCompletionsAPI(
                         toolCalls.jsonObject["function"]?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull
                     val arguments =
                         toolCalls.jsonObject["function"]?.jsonObject?.get("arguments")?.jsonPrimitive?.contentOrNull
+                    val thoughtSignature = extractGoogleThoughtSignature(toolCalls.jsonObject)
                     add(
                         UIMessagePart.Tool(
                             toolCallId = toolCallId ?: "",
                             toolName = toolName ?: "",
                             input = arguments ?: "",
-                            output = emptyList()
+                            output = emptyList(),
+                            metadata = thoughtSignature?.let {
+                                GoogleThoughtMetadata(thoughtSignature = it).toMetadata()
+                            },
                         )
                     )
                 }
@@ -1073,3 +1090,17 @@ class ChatCompletionsAPI(
         return gonnaSend == texts && texts == 1
     }
 }
+
+/**
+ * Google 的 OpenAI 兼容端点（/chat/completions）会在 functionCall 上返回
+ * `extra_content.google.thought_signature`，第二轮请求必须在同一个 tool_call 上原样回传，
+ * 否则被拒：`Function call is missing a thought_signature in functionCall parts`。
+ *
+ * 流式挂在 `choices[].delta.tool_calls[]`，非流式挂在 `choices[].message.tool_calls[]`，
+ * 两处字段形状相同，故解析路径共用本函数。其它 OpenAI 兼容供应商不返回该对象 -> 返回 null，
+ * 请求体与本批之前完全一致。
+ */
+internal fun extractGoogleThoughtSignature(toolCall: JsonObject): String? =
+    toolCall["extra_content"]?.jsonObjectOrNull
+        ?.get("google")?.jsonObjectOrNull
+        ?.get("thought_signature")?.jsonPrimitiveOrNull?.contentOrNull

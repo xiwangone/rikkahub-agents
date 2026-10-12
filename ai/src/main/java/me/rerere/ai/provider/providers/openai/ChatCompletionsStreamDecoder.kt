@@ -15,6 +15,7 @@ import me.rerere.ai.provider.stream.DecodeResult
 import me.rerere.ai.provider.stream.SseEvent
 import me.rerere.ai.provider.stream.StreamChunkDecoder
 import me.rerere.ai.ui.StreamChunk
+import me.rerere.ai.ui.GoogleThoughtMetadata
 import me.rerere.ai.ui.OpenRouterReasoningMetadata
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
@@ -69,6 +70,7 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
                                         toolName = function?.get("name")?.jsonPrimitive?.contentOrNull ?: "",
                                         input = function?.get("arguments")?.jsonPrimitive?.contentOrNull ?: "",
                                         output = emptyList(),
+                                        metadata = googleThoughtMetadata(toolCall),
                                     )),
                                 ),
                                 responseId,
@@ -90,6 +92,12 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
         finished = true
         return streamState.finish(finishReason, responseId, responseModel)
     }
+
+    /** 把 tool_call 上的 Google 思考签名转成 part metadata；无签名时返回 null。 */
+    private fun googleThoughtMetadata(toolCall: JsonObject): JsonObject? =
+        extractGoogleThoughtSignature(toolCall)?.let {
+            GoogleThoughtMetadata(thoughtSignature = it).toMetadata()
+        }
 
     private fun parseMessage(payload: JsonObject): UIMessage {
         val role = MessageRole.valueOf(
@@ -193,6 +201,10 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
         private val openToolIds = linkedSetOf<String>()
         private var lastToolId: String? = null
 
+        /** tool_call 增量是否需要下发：name/input 任一非空，或本 chunk 带来了 metadata（签名可能单独到达）。 */
+        private fun hasToolDeltaPayload(nameDelta: String, input: String, metadata: JsonObject?): Boolean =
+            nameDelta.isNotEmpty() || input.isNotEmpty() || metadata != null
+
         fun append(message: UIMessage, sourceId: String?): List<StreamChunk> = buildList {
             message.parts.forEach { part ->
                 when (part) {
@@ -219,7 +231,7 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
                             add(StreamChunk.ToolCallStart(id, part.toolName, part.metadata))
                         }
                         lastToolId = id
-                        if (nameDelta.isNotEmpty() || part.input.isNotEmpty()) {
+                        if (hasToolDeltaPayload(nameDelta, part.input, part.metadata)) {
                             add(StreamChunk.ToolCallDelta(id, nameDelta, part.input, part.metadata))
                         }
                     }
