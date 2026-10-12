@@ -38,6 +38,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.ui.pages.setting.doctor.DnsProbe
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
@@ -75,6 +76,17 @@ private const val SERVER_ALIVE_COUNT_MAX = 3
  * 看门狗到点关闭隧道，让挂住的读立即抛错、按既有逻辑（重新选网）重试。
  */
 private const val JUMP_HANDSHAKE_TIMEOUT_MS = 20_000
+
+/**
+ * Bounds for the independent (system-resolver-bypassing) DNS path. Only used once the system
+ * resolver has already returned a reserved fake-IP block address, i.e. in a situation that
+ * could not connect anyway — so a couple of seconds of extra probing costs nothing new.
+ */
+private const val INDEPENDENT_DNS_TIMEOUT_MS = 1_500
+private const val INDEPENDENT_DNS_SERVER_LIMIT = 4
+
+/** Stable error code for "your proxy/VPN hijacked DNS into a fake-IP block". */
+internal const val FAKE_IP_ERROR = "dns_fake_ip"
 
 /**
  * Process-lifetime DNS cache shared by every SSH session-build path. 60s TTL — long enough
@@ -377,27 +389,108 @@ internal fun joinCommandBatch(commands: List<String>): String {
  * the same host on a tight interval doesn't pay a DNS round-trip every connect. A literal IP
  * input bypasses the cache entirely — it's not a name, there's nothing to resolve or stale.
  * Failures are never cached, so a transient DNS hiccup can't poison the next 60s of connects.
+ * The 60s TTL is kept unchanged: an independently-resolved real IP is cached like any other
+ * success (so a hijacked-network retry stays fast), while a fake-IP answer is treated as a
+ * failure and never stored — a fake mapping can flip to a different host at any time.
+ *
+ * When the system resolver hands back an address from a reserved fake-IP block (a proxy/VPN
+ * that owns DNS), the value is reported in [SshResolution.fakeIp] and [resolveViaPublicDns]
+ * is tried once to recover the real address. On a normally-resolving network nothing here
+ * changes: the fake-IP branch is unreachable, so behaviour is byte-for-byte the pre-change one.
  */
-private fun resolveToIPv4(host: String): String? {
+private fun resolveToIPv4(host: String, context: Context? = null): SshResolution {
     sshDnsCache.get(host)?.let { cached ->
         AppLog.i(TAG_SSH, "resolveToIPv4: $host -> $cached (dns cache hit)")
-        return cached
+        return SshResolution(cached)
     }
     return try {
         val addrs = InetAddress.getAllByName(host)
         // Already a literal IP (v4 or v6)? getAllByName returns it as-is and the printed
         // hostAddress equals the input (modulo case). Don't try to "resolve" it further.
-        if (addrs.isNotEmpty() && addrs[0].hostAddress.equals(host, ignoreCase = true)) return null
-        val v4 = addrs.firstOrNull { it is Inet4Address } ?: return null
-        v4.hostAddress?.also {
-            sshDnsCache.put(host, it)
-            AppLog.i(TAG_SSH, "resolveToIPv4: $host -> $it (skipping ${addrs.size - 1} other records)")
+        if (addrs.isNotEmpty() && addrs[0].hostAddress.equals(host, ignoreCase = true)) return SshResolution(null)
+        val v4 = addrs.firstOrNull { it is Inet4Address } ?: return SshResolution(null)
+        val ip = v4.hostAddress ?: return SshResolution(null)
+        if (isFakeIpRange(ip)) {
+            AppLog.w(TAG_SSH, "resolveToIPv4: $host -> $ip is a reserved fake-IP block address, retrying via public DNS")
+            val real = resolveViaPublicDns(host, context)
+            if (real != null) {
+                sshDnsCache.put(host, real)
+                return SshResolution(real, fakeIp = ip)
+            }
+            return SshResolution(null, fakeIp = ip)
         }
+        sshDnsCache.put(host, ip)
+        AppLog.i(TAG_SSH, "resolveToIPv4: $host -> $ip (skipping ${addrs.size - 1} other records)")
+        SshResolution(ip)
     } catch (t: Throwable) {
         AppLog.w(TAG_SSH, "resolveToIPv4: $host failed", t)
-        null
+        SshResolution(null)
     }
 }
+
+/**
+ * What [resolveToIPv4] produced. [ip] = address to dial, null = dial the original host string
+ * instead (literal IP, no A record, or DNS failure — exactly the cases that returned null
+ * before this type existed). [fakeIp] = reserved-block address the system resolver returned,
+ * non-null only when DNS was hijacked.
+ */
+internal data class SshResolution(val ip: String?, val fakeIp: String? = null)
+
+/**
+ * Reserved fake-IP blocks that DNS-hijacking proxies (clash / sing-box `fake-ip` mode) hand out
+ * for domains routed through them. 198.18.0.0/15 spans 198.18.0.0–198.19.255.255 and covers
+ * both blocks seen in the field. Such an address is only reachable *inside* the VPN's own
+ * stack; our SSH sockets are deliberately bound to WiFi/Ethernet/Cellular transports, so the
+ * handshake can never complete.
+ */
+internal fun isFakeIpRange(ip: String): Boolean {
+    val octets = ip.split('.')
+    if (octets.size != 4) return false
+    val first = octets[0].toIntOrNull() ?: return false
+    val second = octets[1].toIntOrNull() ?: return false
+    if (first !in 1..254 || second !in 0..255) return false
+    return first == 198 && (second == 18 || second == 19)
+}
+
+/**
+ * Resolve [host] without touching the system resolver: raw UDP A queries straight at
+ * well-known public resolvers. The system resolver is the component a VPN replaces, so going
+ * around it is the only way to see the real address while DNS is hijacked.
+ *
+ * Servers = the active network's own DNS (when we can read one and it is not itself inside a
+ * reserved block) followed by [DnsProbe.PUBLIC_SERVERS]. Queries are sequential and bounded:
+ * at most [INDEPENDENT_DNS_SERVER_LIMIT] servers × [INDEPENDENT_DNS_TIMEOUT_MS], and this path
+ * only runs in the already-broken fake-IP case. Returns the first non-fake IPv4 answer, else
+ * null (caller then surfaces [FAKE_IP_ERROR] rather than silently dialing the fake address).
+ */
+private fun resolveViaPublicDns(host: String, context: Context?): String? {
+    val linkServers = context?.let { ctx ->
+        runCatching { DnsProbe.activeServers(ctx) }.getOrNull().orEmpty()
+    }.orEmpty()
+    val servers = (linkServers + DnsProbe.PUBLIC_SERVERS)
+        .filterNot { it.isBlank() || isFakeIpRange(it) }
+        .distinct()
+        .take(INDEPENDENT_DNS_SERVER_LIMIT)
+    for (server in servers) {
+        val answer = runCatching { DnsProbe.probe(server, host, INDEPENDENT_DNS_TIMEOUT_MS).answerIp }
+            .getOrNull()
+        if (!answer.isNullOrEmpty() && !isFakeIpRange(answer)) {
+            AppLog.i(TAG_SSH, "resolveViaPublicDns: $host -> $answer (via $server)")
+            return answer
+        }
+    }
+    AppLog.w(TAG_SSH, "resolveViaPublicDns: $host got no real address from ${servers.size} resolver(s)")
+    return null
+}
+
+/** Thrown when DNS came back hijacked and no public resolver could supply the real address. */
+internal class FakeIpResolutionException(
+    val host: String,
+    val fakeIp: String,
+) : IOException(
+    "dns_hijacked: $host resolved to the reserved fake-IP block address $fakeIp, " +
+        "which is only reachable through the VPN that minted it",
+)
 
 /**
  * Returns every Network the device has, ordered for the SSH probe. Each entry is a
@@ -507,7 +600,14 @@ internal fun openSshSession(
     // AAAA first and JSch sits on the IPv6 SYN for the full timeout instead of falling
     // back to v4. setHostKeyAlias keeps known_hosts comparisons keyed by the human-readable
     // hostname so trust-on-first-use still works the same.
-    val ipv4 = resolveToIPv4(host)
+    val resolution = resolveToIPv4(host)
+    if (resolution.ip == null && resolution.fakeIp != null) {
+        // Dialing the fake address (or the raw hostname, which the system resolver would map
+        // to the same fake address) can never succeed from this process — say so precisely
+        // instead of letting JSch time out into a generic connect_failed.
+        throw FakeIpResolutionException(host, resolution.fakeIp)
+    }
+    val ipv4 = resolution.ip
     val effectiveHost = ipv4 ?: host
     val session = jsch.getSession(user, effectiveHost, port)
     if (ipv4 != null && ipv4 != host) {
@@ -653,6 +753,8 @@ internal data class ProbeOutcome(
     val failures: List<Pair<String, String>>,
     val resolvedIp: String,
     val totalMs: Long,
+    /** Non-null when the system resolver returned a reserved fake-IP block address. */
+    val fakeIp: String? = null,
 )
 
 /**
@@ -663,7 +765,9 @@ internal data class ProbeOutcome(
  */
 internal suspend fun probeReachability(context: Context, host: String, port: Int): ProbeOutcome {
     val probeStart = System.currentTimeMillis()
-    val resolvedIp = resolveToIPv4(host) ?: host
+    // withContext(IO): the fake-IP branch may issue several blocking UDP queries.
+    val resolution = withContext(Dispatchers.IO) { resolveToIPv4(host, context) }
+    val resolvedIp = resolution.ip ?: host
     val attempts = enumerateCandidateNetworks(context)
     // Race all candidates in parallel; awaitAll caps total time at one probe-timeout.
     val results = withContext(Dispatchers.IO) {
@@ -693,9 +797,9 @@ internal suspend fun probeReachability(context: Context, host: String, port: Int
     val totalMs = System.currentTimeMillis() - probeStart
     if (winner != null) {
         AppLog.i(TAG_SSH, "tcp probe ok via ${winner.first} in ${totalMs}ms")
-        return ProbeOutcome(winner.second, winner.first, failures, resolvedIp, totalMs)
+        return ProbeOutcome(winner.second, winner.first, failures, resolvedIp, totalMs, resolution.fakeIp)
     }
-    return ProbeOutcome(null, null, failures, resolvedIp, totalMs)
+    return ProbeOutcome(null, null, failures, resolvedIp, totalMs, resolution.fakeIp)
 }
 
 /**
@@ -703,10 +807,33 @@ internal suspend fun probeReachability(context: Context, host: String, port: Int
  * network failure reasons so the LLM can quote them back to the user when explaining what
  * went wrong, plus the recovery hint for the most common Android routing pitfalls.
  */
-internal fun unreachableEnvelope(host: String, port: Int, outcome: ProbeOutcome): JsonObject =
-    ToolErrors.envelopeFor(error = "tcp_unreachable", message = "tcp_unreachable", hint = "Direct TCP to ${outcome.resolvedIp}:$port failed across every available network (${outcome.totalMs}ms total). If Termux ssh from the same device reaches this host, RikkaHub Agents's process is being filtered. Check Settings → Network → Private DNS (try Off), any active VPN's per-app routing, and Settings → Apps → RikkaHub Agents → Mobile data & Wi-Fi (enable Background data and Unrestricted data usage).", extra = ToolErrors.extraOf("host" to host, "ip" to outcome.resolvedIp, "port" to port, "attempts" to buildJsonObject {
+internal fun unreachableEnvelope(host: String, port: Int, outcome: ProbeOutcome): JsonObject {
+    val fakeIp = outcome.fakeIp
+    if (fakeIp != null) {
+        // Distinct from the generic "unreachable" case: the address itself is a virtual one
+        // minted by a DNS-hijacking proxy, so no transport available to this process can
+        // route to it. Re-telling the user to check background data would send them down the
+        // wrong path — name the cause and the two ways out.
+        return ToolErrors.envelopeFor(
+            error = FAKE_IP_ERROR,
+            message = FAKE_IP_ERROR,
+            hint = "$host resolved to $fakeIp, an address from the reserved fake-IP range " +
+                "198.18.0.0/15 — a proxy/VPN on this device is answering DNS for it, and SSH " +
+                "connections from this app are not bound to that VPN, so the virtual address " +
+                "is unreachable here. Use the server's real IP directly, or change the proxy's " +
+                "split-routing rules (or its fake-ip mode) so this domain resolves normally.",
+            extra = ToolErrors.extraOf(
+                "host" to host,
+                "ip" to fakeIp,
+                "port" to port,
+                "resolution" to "fake_ip_block",
+            ),
+        )
+    }
+    return ToolErrors.envelopeFor(error = "tcp_unreachable", message = "tcp_unreachable", hint = "Direct TCP to ${outcome.resolvedIp}:$port failed across every available network (${outcome.totalMs}ms total). If Termux ssh from the same device reaches this host, RikkaHub Agents's process is being filtered. Check Settings → Network → Private DNS (try Off), any active VPN's per-app routing, and Settings → Apps → RikkaHub Agents → Mobile data & Wi-Fi (enable Background data and Unrestricted data usage).", extra = ToolErrors.extraOf("host" to host, "ip" to outcome.resolvedIp, "port" to port, "attempts" to buildJsonObject {
             outcome.failures.forEach { (label, reason) -> put(label, reason) }
         }))
+}
 
 /**
  * PowerShell 引号/编码根治（2026-09-03）：
@@ -1033,7 +1160,8 @@ private fun connectSshWithRetry(
         } catch (error: InterruptedException) {
             throw error
         } catch (error: Exception) {
-            val retryable = !isAuthFailure(error.message) && !isHostKeyChange(error.message)
+            val retryable =
+                error !is FakeIpResolutionException && !isAuthFailure(error.message) && !isHostKeyChange(error.message)
             if (attempt >= 2 || !retryable) throw error
             AppLog.w(TAG_SSH, "ssh handshake attempt $attempt failed, retrying: ${error.message}")
             try {
@@ -1154,6 +1282,22 @@ internal fun isAuthFailure(msg: String?): Boolean {
 }
 
 internal fun wrapConnectError(host: String, e: Throwable): JsonObject {
+    if (e is FakeIpResolutionException) {
+        return ToolErrors.envelopeFor(
+            error = FAKE_IP_ERROR,
+            message = FAKE_IP_ERROR,
+            hint = "${e.host} resolved to ${e.fakeIp}, an address from the reserved fake-IP " +
+                "range 198.18.0.0/15 — a proxy/VPN on this device is answering DNS for it, and " +
+                "SSH from this app does not travel through that VPN, so the virtual address is " +
+                "unreachable. Use the server's real IP, or adjust the proxy's split-routing / " +
+                "fake-ip rules so this domain resolves normally.",
+            extra = ToolErrors.extraOf(
+                "host" to e.host,
+                "ip" to e.fakeIp,
+                "resolution" to "fake_ip_block",
+            ),
+        )
+    }
     val msg = e.message.orEmpty()
     if (isHostKeyChange(msg)) {
         return ToolErrors.envelopeFor(error = "host_key_changed", message = "host_key_changed", hint = "Stored key for $host doesn't match what the server presented. If the user trusts this host (e.g. they just reinstalled it), call ssh_forget_host_key with host=\"$host\" then retry. Do NOT forget the key without explicit user confirmation — a changed key can also indicate an attacker.", extra = ToolErrors.extraOf("host" to host, "raw" to msg))
