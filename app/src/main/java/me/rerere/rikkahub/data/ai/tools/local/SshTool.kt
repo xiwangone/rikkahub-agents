@@ -961,7 +961,7 @@ fun sshExecTool(context: Context): Tool = Tool(
                 put("background", buildJsonObject { put("type", "boolean"); put("description", "If true, launch the command fully detached (nohup, streams redirected) and return immediately with its PID instead of waiting. Use for servers/long jobs that would otherwise block until timeout. Default false.") })
                 put("env", buildJsonObject {
                     put("type", "object")
-                    put("description", "Optional env vars for this call, e.g. {\"TOKEN\":\"abc\"}. Avoids inline `set X=...` quoting. Not supported when background=true. A value starting with `$$` is resolved by name from the credential vault (`$$CRED_NAME` → that credential's plaintext, same as workspace_shell's env); every other value is used literally as-is. Vault lookup requires an authorized vault session; an unresolvable `$$` reference fails the call rather than injecting the name.")
+                    put("description", "Optional env vars for this call, e.g. {\"TOKEN\":\"abc\"}. Avoids inline `set X=...` quoting. Not supported when background=true. A value starting with `\$\$` is resolved by name from the credential vault (`\$\$CRED_NAME` → that credential's plaintext, same as workspace_shell's env); every other value is used literally as-is. Vault lookup requires an authorized vault session; an unresolvable `\$\$` reference fails the call rather than injecting the name.")
                 })
                 put("env_style", buildJsonObject {
                     put("type", "string")
@@ -1159,9 +1159,13 @@ private fun connectSshWithRetry(
             throw error
         } catch (error: InterruptedException) {
             throw error
+        } catch (error: FakeIpResolutionException) {
+            // fake-IP 是确定性失败：重试只会白跑一轮 DNS 探测，直接上抛
+            // （由 wrapConnectError 转成带原因的明确信封）
+            throw error
         } catch (error: Exception) {
             val retryable =
-                error !is FakeIpResolutionException && !isAuthFailure(error.message) && !isHostKeyChange(error.message)
+                !isAuthFailure(error.message) && !isHostKeyChange(error.message)
             if (attempt >= 2 || !retryable) throw error
             AppLog.w(TAG_SSH, "ssh handshake attempt $attempt failed, retrying: ${error.message}")
             try {
