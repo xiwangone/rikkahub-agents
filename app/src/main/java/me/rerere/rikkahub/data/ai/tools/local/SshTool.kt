@@ -4,7 +4,14 @@ import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.sync.replaceFilePreservingTarget
 
+import me.rerere.rikkahub.data.vault.CredentialPurpose
+import me.rerere.rikkahub.data.vault.CredentialResolution
+import me.rerere.rikkahub.data.vault.CredentialResolver
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.VAULT_REF_PREFIX
+import me.rerere.rikkahub.data.vault.VaultSessionManager
 import me.rerere.rikkahub.data.vault.ensureTrailingNewline
+import me.rerere.rikkahub.data.vault.isVaultReference
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
@@ -40,6 +47,7 @@ import java.net.Inet4Address
 import java.net.InetAddress
 import java.util.Properties
 import java.util.concurrent.atomic.AtomicReference
+import org.koin.java.KoinJavaComponent.getKoin
 
 private const val TAG_SSH = "SshTool"
 
@@ -238,14 +246,45 @@ internal fun envPrelude(env: Map<String, String>, windows: Boolean): List<String
             }
         }
 
-/** 读取工具参数里的 `env` 对象（只接受字符串值，其它忽略）。 */
-internal fun readEnvParam(p: kotlinx.serialization.json.JsonObject): Map<String, String> =
-    (p["env"] as? kotlinx.serialization.json.JsonObject)
-        ?.mapNotNull { (k, v) ->
-            (v as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull?.let { k to it }
+/**
+ * 读取工具参数里的 `env` 对象（只接受字符串值，其它忽略）。
+ *
+ * 值的语义与 `workspace_shell` 对齐（见 WorkspaceTools 的 `resolveInjectedEnv`）：
+ * - 以 `$$` 开头 → 按名从凭证库解析（purpose = `ENV_INJECT`，走会话授权门 + 审计）；
+ * - 其余 → 按字面值，行为与本函数支持引用之前逐字一致。
+ *
+ * 解析失败**直接报错**，不回退字面值：静默回退等于把凭证名当值注入远端环境
+ * （`env={"ZT_AI_CODE":"ZT_AI_CODE"}` 在远端变成 10 个字符的字符串），正是这次要修的坑。
+ *
+ * 依赖经 koin 获取（同 `resolveInjectedEnv` 的做法），因此签名不扩参数，
+ * `ssh_exec` 与 `ssh_exec_saved` 两个调用点自动获得同一语义。
+ */
+internal suspend fun readEnvParam(p: kotlinx.serialization.json.JsonObject): Map<String, String> {
+    val envObj = (p["env"] as? kotlinx.serialization.json.JsonObject) ?: return emptyMap()
+    val literals = envObj.mapNotNull { (k, v) ->
+        (v as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull?.let { k to it }
+    }.toMap()
+    val referenced = literals.filter { (_, v) -> isVaultReference(v) }
+    if (referenced.isEmpty()) return literals
+
+    val vaultRepository = runCatching { getKoin().get<CredentialVaultRepository>() }.getOrNull()
+        ?: error("env 注入失败：凭证库不可用")
+    val appContext = runCatching { getKoin().get<Context>() }.getOrNull()
+    // 单点解析器统一处理：会话授权 / 存在性 / 解密 / 审计（成功与拒绝都记）
+    val resolver = CredentialResolver(vaultRepository) {
+        appContext?.let { VaultSessionManager(it) }?.hasActiveAuthorization() == true
+    }
+    return literals.map { (k, v) ->
+        if (!isVaultReference(v)) return@map k to v
+        val credName = v.trim().removePrefix(VAULT_REF_PREFIX).trim()
+        val resolution = resolver.resolve(credName, CredentialPurpose.ENV_INJECT, caller = "ssh-env")
+        when (resolution) {
+            // 只把真值交给 envPrelude；真值不进日志、不进返回给模型的文本
+            is CredentialResolution.Granted -> k to resolution.value
+            else -> error("env 注入失败：$k -> ${resolution.message}")
         }
-        ?.toMap()
-        .orEmpty()
+    }.toMap()
+}
 
 private val ENV_KEY_REGEX = Regex("[A-Za-z_][A-Za-z0-9_]*")
 
@@ -795,7 +834,7 @@ fun sshExecTool(context: Context): Tool = Tool(
                 put("background", buildJsonObject { put("type", "boolean"); put("description", "If true, launch the command fully detached (nohup, streams redirected) and return immediately with its PID instead of waiting. Use for servers/long jobs that would otherwise block until timeout. Default false.") })
                 put("env", buildJsonObject {
                     put("type", "object")
-                    put("description", "Optional env vars for this call, e.g. {\"TOKEN\":\"abc\"}. Avoids inline `set X=...` quoting. Not supported when background=true.")
+                    put("description", "Optional env vars for this call, e.g. {\"TOKEN\":\"abc\"}. Avoids inline `set X=...` quoting. Not supported when background=true. A value starting with `$$` is resolved by name from the credential vault (`$$CRED_NAME` → that credential's plaintext, same as workspace_shell's env); every other value is used literally as-is. Vault lookup requires an authorized vault session; an unresolvable `$$` reference fails the call rather than injecting the name.")
                 })
                 put("env_style", buildJsonObject {
                     put("type", "string")
