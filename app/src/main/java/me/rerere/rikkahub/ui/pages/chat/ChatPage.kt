@@ -798,6 +798,8 @@ private fun ChatFilesPickerSheet(
     val context = LocalContext.current
     val toaster = LocalToaster.current
     val filesManager: FilesManager = koinInject()
+    // 压缩被生成阻塞时的提示：在 Composable 作用域内取好（context.getString 不随配置变化重建，Android Lint 会拦）
+    val compressBlockedGeneratingText = stringResource(R.string.chat_page_compress_blocked_generating)
     var showInjectionSheet by remember { mutableStateOf(false) }
     var showCompressDialog by remember { mutableStateOf(false) }
     var showAutoCompressDialog by remember { mutableStateOf(false) }
@@ -975,7 +977,7 @@ private fun ChatFilesPickerSheet(
                     CompletableDeferred(
                         Result.failure(
                             IllegalStateException(
-                                context.getString(R.string.chat_page_compress_blocked_generating),
+                                compressBlockedGeneratingText,
                             ),
                         ),
                     )
