@@ -76,6 +76,7 @@ import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.LocalTools
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
 import me.rerere.rikkahub.data.ai.tools.AppScene
 import me.rerere.rikkahub.data.preferences.isWorkspaceToolName
@@ -1797,10 +1798,9 @@ class ChatService(
     private fun cancelToolByUser(tool: UIMessagePart.Tool): UIMessagePart.Tool =
         tool.copy(
             output =
-                listOf(
-                    UIMessagePart.Text(
-                        """{"status":"cancelled","error":"Generation cancelled by user before tool execution completed."}""",
-                    ),
+                ToolErrors.partsFor(
+                    error = "user_cancelled",
+                    message = "Generation cancelled by user before tool execution completed.",
                 ),
             approvalState = ToolApprovalState.Denied("Generation cancelled by user"),
         )
