@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
@@ -58,7 +59,7 @@ class SshCommandWrappingTest {
         )
     }
 
-    // ---- 2026-09-10：Windows 误判 / busybox 无 nohup 两个实测坏点的回归 ----
+    // ---- Windows 误判 / busybox 无 nohup 两个坏点的回归 ----
 
     @Test
     fun `pure PowerShell cmdlet commands are recognised as Windows`() {
@@ -187,7 +188,7 @@ class SshCommandWrappingTest {
     }
 
     @Test
-    fun `readEnvParam coerces primitive values to strings`() {
+    fun `readEnvParam coerces primitive values to strings`() = runBlocking {
         val p =
             kotlinx.serialization.json.buildJsonObject {
                 put(
@@ -216,7 +217,7 @@ class SshCommandWrappingTest {
     @Test
     fun `classifySshPayload reads raw and attempts not just the label`() {
         // 标签是抽象词（tcp_unreachable / connect_failed），关键词只出现在 raw / attempts 里，
-        // 只看标签会一律归成 other（实测 ECONNREFUSED 被判 other）。
+        // 只看标签会一律归成 other（ECONNREFUSED 会被判成 other）。
         val refused =
             buildJsonObject {
                 put("error", "tcp_unreachable")
