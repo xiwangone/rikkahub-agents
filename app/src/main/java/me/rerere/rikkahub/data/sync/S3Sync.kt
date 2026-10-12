@@ -394,9 +394,9 @@ class S3Sync(
                                                 TAG,
                                                 "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
                                             )
-                                        } catch (e: Exception) {
+                                        } catch (e: IOException) {
                                             AppLog.e(TAG, "restoreFromBackupFile: Failed to restore file ${zipEntry.name}", e)
-                                            throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")
+                                            throw IOException("Failed to restore file ${zipEntry.name}: ${e.message}", e)
                                         }
                                     }
                                 }
@@ -449,9 +449,9 @@ class S3Sync(
                                                 TAG,
                                                 "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
                                             )
-                                        } catch (e: Exception) {
+                                        } catch (e: IOException) {
                                             AppLog.e(TAG, "restoreFromBackupFile: Failed to restore file ${zipEntry.name}", e)
-                                            throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")
+                                            throw IOException("Failed to restore file ${zipEntry.name}: ${e.message}", e)
                                         }
                                     }
                                 }
