@@ -4,15 +4,15 @@ import android.content.Context
 import com.auth0.jwt.JWT
 import com.auth0.jwt.JWTVerifier
 import com.auth0.jwt.algorithms.Algorithm
-import io.ktor.http.auth.HttpAuthHeader
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
 import io.ktor.serialization.kotlinx.json.json
 import io.ktor.server.application.Application
 import io.ktor.server.application.install
 import io.ktor.server.auth.Authentication
+import io.ktor.server.auth.AuthenticationContext
+import io.ktor.server.auth.AuthenticationFailedCause
 import io.ktor.server.auth.authenticate
-import io.ktor.server.auth.jwt.jwt
 import io.ktor.server.plugins.contentnegotiation.ContentNegotiation
 import io.ktor.server.application.ApplicationCall
 import io.ktor.server.application.createApplicationPlugin
@@ -43,14 +43,14 @@ import me.rerere.rikkahub.web.routes.folderRoutes
 import me.rerere.rikkahub.web.routes.settingsRoutes
 import java.security.MessageDigest
 import java.util.Date
-import java.util.UUID
 
 private const val WEB_JWT_ISSUER = "rikkahub-web"
 private const val WEB_JWT_AUDIENCE = "rikkahub-web-client"
 private const val WEB_JWT_SUBJECT = "web-access"
 private const val WEB_JWT_TTL_MILLIS = 30L * 24 * 60 * 60 * 1000
 private const val WEB_ACCESS_TOKEN_QUERY_KEY = "access_token"
-private const val WEB_AUTH_REALM = "rikkahub-web-api"
+private const val WEB_AUTH_PROVIDER_NAME = "auth-jwt"
+private const val WEB_AUTH_CHALLENGE_KEY = "rikkahub-web-api"
 
 /**
  * Configure Web API for the Ktor application.
@@ -73,8 +73,6 @@ fun Application.configureWebApi(
     vaultRepository: me.rerere.rikkahub.data.vault.CredentialVaultRepository,
     vaultSessionManager: me.rerere.rikkahub.data.vault.VaultSessionManager,
 ) {
-    val jwtEnabled = settingsStore.settingsFlow.value.webServerJwtEnabled
-
     // 网段白名单：webServerAllowedNetworks 非空时，仅放行匹配 CIDR 的来源 IP（默认空 = 不限制）
     // 用插件 + 异常终止（而非 intercept），避免 Ktor 3 pipeline 上下文写法差异
     install(
@@ -113,51 +111,69 @@ fun Application.configureWebApi(
         }
     }
 
-    if (jwtEnabled) {
-        install(Authentication) {
-            jwt("auth-jwt") {
-                realm = WEB_AUTH_REALM
-                verifier { _ ->
-                    // Dynamically read the current password on each request so that
-                    // tokens signed after a password change are validated correctly.
-                    val currentPassword = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveOrNull(settingsStore.settingsFlow.value.webServerAccessPassword) ?: ""
-                    val secret = currentPassword.ifBlank {
-                        // Keep protected routes closed when jwt is enabled but password is missing.
-                        "__missing_password_${UUID.randomUUID()}__"
-                    }
-                    buildWebJwtVerifier(secret)
+    // P0-46：认证不再由「启动时的设置快照」决定装不装。provider 始终注册，路由始终
+    // authenticate(WEB_AUTH_PROVIDER_NAME)；「这次请求要不要校验」逐请求现读设置：
+    //  - 已加载且关闭 JWT → skipWhen 命中，provider 整个跳过（与关闭态旧行为一致：无 principal）
+    //  - 已加载且开启 JWT → 走 authenticate() 校验，口令逐请求现读
+    //  - 尚未加载（Settings.dummy / init=true）→ 不跳过，authenticate() 里 fail-closed 拒绝
+    install(Authentication) {
+        provider(WEB_AUTH_PROVIDER_NAME) {
+            skipWhen { _ ->
+                val settings = settingsStore.settingsFlow.value
+                !settings.init && !settings.webServerJwtEnabled
+            }
+            authenticate { authContext ->
+                val settings = settingsStore.settingsFlow.value
+                if (settings.init) {
+                    // 冷启动窗口：读到 dummy 值不等于「关闭」，一律拒绝直到设置真正加载完成
+                    authContext.denyWebAuth(
+                        AuthenticationFailedCause.NoCredentials,
+                        HttpStatusCode.ServiceUnavailable,
+                        "Web settings are not loaded",
+                    )
+                    return@authenticate
                 }
-                authHeader { call ->
-                    extractAccessToken(
-                        authorizationHeader = call.request.headers[HttpHeaders.Authorization],
-                        queryToken = call.request.queryParameters[WEB_ACCESS_TOKEN_QUERY_KEY]
-                    )?.let { token ->
-                        HttpAuthHeader.Single("Bearer", token)
-                    }
+
+                // 支持 `$$凭证名` 引用；逐请求现读，改口令后旧 token 立即失效
+                val currentPassword =
+                    me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveOrNull(settings.webServerAccessPassword)
+                        ?: ""
+                if (currentPassword.isBlank()) {
+                    authContext.denyWebAuth(
+                        AuthenticationFailedCause.InvalidCredentials,
+                        HttpStatusCode.Forbidden,
+                        "Access password is not configured",
+                    )
+                    return@authenticate
                 }
-                validate { credential ->
-                    val currentPassword = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveOrNull(settingsStore.settingsFlow.value.webServerAccessPassword) ?: ""
-                    if (currentPassword.isBlank()) {
-                        null
-                    } else {
-                        credential.payload.subject?.takeIf { it == WEB_JWT_SUBJECT }?.let {
-                            io.ktor.server.auth.jwt.JWTPrincipal(credential.payload)
-                        }
-                    }
+
+                val call = authContext.call
+                val token = extractAccessToken(
+                    authorizationHeader = call.request.headers[HttpHeaders.Authorization],
+                    queryToken = call.request.queryParameters[WEB_ACCESS_TOKEN_QUERY_KEY],
+                )
+                if (token == null) {
+                    authContext.denyWebAuth(
+                        AuthenticationFailedCause.NoCredentials,
+                        HttpStatusCode.Unauthorized,
+                        "Unauthorized",
+                    )
+                    return@authenticate
                 }
-                challenge { _, _ ->
-                    val currentPassword = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveOrNull(settingsStore.settingsFlow.value.webServerAccessPassword) ?: ""
-                    if (currentPassword.isBlank()) {
-                        call.respond(
-                            HttpStatusCode.Forbidden,
-                            ErrorResponse("Access password is not configured", HttpStatusCode.Forbidden.value)
-                        )
-                    } else {
-                        call.respond(
-                            HttpStatusCode.Unauthorized,
-                            ErrorResponse("Unauthorized", HttpStatusCode.Unauthorized.value)
-                        )
-                    }
+
+                val jwtPrincipal = runCatching { buildWebJwtVerifier(currentPassword).verify(token) }
+                    .getOrNull()
+                    ?.takeIf { it.subject == WEB_JWT_SUBJECT }
+                    ?.let { JWTPrincipal(it) }
+
+                if (jwtPrincipal == null) {
+                    authContext.denyWebAuth(
+                        AuthenticationFailedCause.InvalidCredentials,
+                        HttpStatusCode.Unauthorized,
+                        "Unauthorized",
+                    )
+                } else {
+                    authContext.principal(WEB_AUTH_PROVIDER_NAME, jwtPrincipal)
                 }
             }
         }
@@ -200,16 +216,8 @@ fun Application.configureWebApi(
             // App 内 AI 走 vault_* 直通（不经 Web）；沙箱 vault-get 改用 load-creds.sh 备用。
             // Web 服务恢复纯能力面（chat/files/settings——不含凭证）。
 
-            if (jwtEnabled) {
-                authenticate("auth-jwt") {
-                    conversationRoutes(chatService, conversationRepo, folderRepo, settingsStore)
-                    folderRoutes(chatService, folderRepo, settingsStore)
-                    eventsRoutes(chatService, conversationRepo, folderRepo, settingsStore)
-                    settingsRoutes(settingsStore)
-                    filesRoutes(filesManager, context)
-                    assetsRoutes(context)
-                }
-            } else {
+            // P0-46：结构上只注册一次；开关为关时由 provider 的 skipWhen 逐请求放行
+            authenticate(WEB_AUTH_PROVIDER_NAME) {
                 conversationRoutes(chatService, conversationRepo, folderRepo, settingsStore)
                 folderRoutes(chatService, folderRepo, settingsStore)
                 eventsRoutes(chatService, conversationRepo, folderRepo, settingsStore)
@@ -257,6 +265,22 @@ private fun extractAccessToken(authorizationHeader: String?, queryToken: String?
 
 private fun secureEquals(left: String, right: String): Boolean {
     return MessageDigest.isEqual(left.toByteArray(Charsets.UTF_8), right.toByteArray(Charsets.UTF_8))
+}
+
+/**
+ * 登记一次认证拒绝：状态码与响应体沿用原 `jwt { challenge { … } }` 的形状
+ * （ErrorResponse，不带 WWW-Authenticate）。challenge 函数由 Ktor 在「路由层级没有任何
+ * provider 给出 principal」时才执行，因此这里只登记，不直接 respond。
+ */
+private fun AuthenticationContext.denyWebAuth(
+    cause: AuthenticationFailedCause,
+    status: HttpStatusCode,
+    message: String,
+) {
+    challenge(WEB_AUTH_CHALLENGE_KEY, cause) { challenge, call ->
+        call.respond(status, ErrorResponse(message, status.value))
+        challenge.complete()
+    }
 }
 
 
