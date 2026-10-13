@@ -95,8 +95,8 @@ internal suspend fun awaitQuiet(
 // Framework half: capture from the live service. Kept out of the pure core above so the
 // core stays JVM-testable.
 
-private const val SETTLE_QUIET_MS = 300L
-private const val SETTLE_TIMEOUT_MS = 2_000L
+internal const val SETTLE_QUIET_MS = 300L
+internal const val SETTLE_TIMEOUT_MS = 2_000L
 private const val HASH_NODE_CAP = 500
 
 internal fun surfaceFactsOf(svc: RikkaAccessibilityService): List<SurfaceFacts> =

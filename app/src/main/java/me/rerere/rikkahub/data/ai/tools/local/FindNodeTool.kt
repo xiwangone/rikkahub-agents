@@ -18,9 +18,9 @@ import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
 
-private val ALLOWED_BY = setOf("text", "content_description", "view_id_resource_name")
+internal val ALLOWED_BY = setOf("text", "content_description", "view_id_resource_name")
 
-private fun findMatches(
+internal fun findMatches(
     root: AccessibilityNodeInfo,
     by: String,
     value: String,
@@ -45,7 +45,7 @@ private fun findMatches(
     }
 }
 
-private fun parseSelector(input: kotlinx.serialization.json.JsonElement): Triple<String?, String?, String?> {
+internal fun parseSelector(input: kotlinx.serialization.json.JsonElement): Triple<String?, String?, String?> {
     val by = input.jsonObject["by"]?.jsonPrimitive?.contentOrNull
     val value = input.jsonObject["value"]?.jsonPrimitive?.contentOrNull
     val pkg = input.jsonObject["package_name"]?.jsonPrimitive?.contentOrNull

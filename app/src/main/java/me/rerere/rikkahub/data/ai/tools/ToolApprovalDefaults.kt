@@ -78,6 +78,7 @@ object ToolApprovalDefaults {
         "scroll",
         "set_text",
         "click_node",
+        "click_and_read",  // click + post-click tree read: same side effect as click_node
         "global_action",
         "launch_app",
         "launch_activity",   // launches a specific activity, same trust footprint as launch_app

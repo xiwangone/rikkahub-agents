@@ -20,7 +20,7 @@ import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
 
 private const val DEFAULT_MAX_NODES = 500
-private const val MAX_NODES_HARD_CEILING = 2000
+internal const val MAX_NODES_HARD_CEILING = 2000
 
 internal fun nodeToJson(
     node: AccessibilityNodeInfo,

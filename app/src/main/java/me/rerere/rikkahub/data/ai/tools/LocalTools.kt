@@ -46,9 +46,11 @@ import me.rerere.rikkahub.data.ai.tools.local.diagnosticsTool
 import me.rerere.rikkahub.data.ai.tools.local.callLogTool
 import me.rerere.rikkahub.data.ai.tools.local.cameraPhotoTool
 import me.rerere.rikkahub.data.ai.tools.local.clickNodeTool
+import me.rerere.rikkahub.data.ai.tools.local.clickAndReadTool
 import me.rerere.rikkahub.data.ai.tools.local.downloadTool
 import me.rerere.rikkahub.data.ai.tools.local.fingerprintTool
 import me.rerere.rikkahub.data.ai.tools.local.findNodeTool
+import me.rerere.rikkahub.data.ai.tools.local.waitForTool
 import me.rerere.rikkahub.data.ai.tools.local.getBrightnessTool
 import me.rerere.rikkahub.data.ai.tools.local.getVolumeTool
 import me.rerere.rikkahub.data.ai.tools.local.globalActionTool
@@ -1028,6 +1030,8 @@ class LocalTools(
         tools.add(readWindowTreeTool(invocationContext, interactiveToolStreamer))
         tools.add(findNodeTool(invocationContext, interactiveToolStreamer))
         tools.add(clickNodeTool(invocationContext, interactiveToolStreamer))
+        tools.add(clickAndReadTool(invocationContext, interactiveToolStreamer))
+        tools.add(waitForTool(invocationContext, interactiveToolStreamer))
         tools.add(me.rerere.rikkahub.data.ai.tools.local.setTextTool(invocationContext, interactiveToolStreamer))
         tools.add(scrollTool(invocationContext, interactiveToolStreamer))
         tools.add(globalActionTool(invocationContext, interactiveToolStreamer))
