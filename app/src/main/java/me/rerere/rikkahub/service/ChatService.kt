@@ -1969,11 +1969,18 @@ class ChatService(
 
     // ---- 压缩对话历史 ----
 
-    /** 要压缩的区段含「没有结果的工具调用」时，压缩会把调用链换成摘要 → 阻止并给出可读原因。 */
+    /**
+     * 压缩区段含「仍在等用户审批」的工具调用时阻止 —— 那种调用被折进摘要后审批将无法恢复
+     * （用户点了批准也没对象可执行）。
+     *
+     * ⚠ 判据是 [UIMessagePart.Tool.isPending]（**只算 Pending**），**不是** output 是否为空：
+     * 历史遗留的空 output（被拒后未回填 / 生成中断 / 用户取消）已不可能再执行，
+     * 压缩掉无妨；用 output.isEmpty() 会把这些陈旧条目误判为待处理，从而一直挡住压缩。
+     */
     private fun requireNoPendingToolCalls(messages: List<UIMessage>) {
         val hasPendingToolCall =
             messages.any { msg ->
-                msg.parts.any { part -> part is UIMessagePart.Tool && part.output.isEmpty() }
+                msg.parts.any { part -> part is UIMessagePart.Tool && part.isPending }
             }
         if (hasPendingToolCall) {
             throw IllegalStateException(
