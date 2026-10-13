@@ -67,7 +67,19 @@ object HardlineCommandGuard {
         // slash so the trailing command name is what's matched by the (cmd1|cmd2) group.
         "(?:[\\w./_-]*/)?"
 
-    /** End-of-path anchor — whitespace, end-of-string, or shell-eval closing quote. */
+    /**
+     * End-of-path anchor: whitespace, a shell-eval closing quote, or end of input.
+     *
+     * ⚠ The trailing `\$` is a **Kotlin** escape for a literal `$` character, not a regex
+     * escape. The evaluated pattern therefore ends in the regex anchor `$`, which is what
+     * makes the rm rules catch a path that terminates the command string. Reading the source
+     * text as if it were already a regex (where `\$` would mean "a literal dollar sign")
+     * misparses it one layer too early — judge guards by the evaluated pattern.
+     *
+     * Do NOT swap the anchor for `\z`: `$` also matches immediately before a trailing line
+     * terminator, so a command ending in a newline is still caught, while `\z` (absolute end
+     * of input only) would let it through.
+     */
     private const val PATH_END = "(?:\\s|[\"']|\$)"
 
     private val IGNORE_CASE = setOf(RegexOption.IGNORE_CASE)
