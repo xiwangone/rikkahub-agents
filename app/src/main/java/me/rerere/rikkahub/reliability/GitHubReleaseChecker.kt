@@ -38,6 +38,12 @@ class GitHubReleaseChecker(
         val body: String = "",
     )
 
+    /** GitHub API error envelope — only `message` matters here. */
+    @Serializable
+    private data class ApiError(
+        val message: String = "",
+    )
+
     sealed class CheckResult {
         data class Available(
             val current: String,
@@ -49,6 +55,19 @@ class GitHubReleaseChecker(
             val latest: Release,
         ) : CheckResult()
 
+        /**
+         * 404 Not Found: the repo publishes **no release at all** yet. This is a real answer,
+         * not a broken check — keeping it distinct from [Failed] is the point (issue #13), so
+         * callers don't surface "check failed" for a state that simply means "nothing published".
+         */
+        data class NoRelease(
+            val current: String,
+        ) : CheckResult()
+
+        /**
+         * The check itself did not complete (rate limit, 5xx, network, unparsable body).
+         * Says nothing about whether an update exists.
+         */
         data class Failed(
             val message: String,
         ) : CheckResult()
@@ -74,6 +93,13 @@ class GitHubReleaseChecker(
                 }
             response.use { resp ->
                 if (!resp.isSuccessful) {
+                    // 只在错误分支读 body：用来区分「404 = 没有发布」和「其它失败」
+                    val body = runCatching { resp.body.string() }.getOrDefault("")
+                    if (resp.code == 404 && apiMessage(body).equals("Not Found", ignoreCase = true)) {
+                        AppLog.w(TAG, "no release published yet (404 Not Found): $LATEST_URL")
+                        return@withContext CheckResult.NoRelease(BuildConfig.VERSION_NAME)
+                    }
+                    AppLog.w(TAG, "github responded ${resp.code}: ${body.lines().first().take(200)}")
                     return@withContext CheckResult.Failed("github responded ${resp.code}")
                 }
                 val body = resp.body.string()
@@ -81,6 +107,7 @@ class GitHubReleaseChecker(
                     try {
                         json.decodeFromString<Release>(body)
                     } catch (t: Throwable) {
+                        AppLog.w(TAG, "could not parse github release: ${t.message ?: t.javaClass.simpleName}")
                         return@withContext CheckResult.Failed(
                             "could not parse github response: ${t.message ?: t.javaClass.simpleName}",
                         )
@@ -94,6 +121,15 @@ class GitHubReleaseChecker(
                 }
             }
         }
+
+    /**
+     * GitHub error envelope (`{"message":"Not Found", …}`); null when the body isn't that shape.
+     * Used to tell "nothing published" (404 + Not Found) apart from a proxy/HTML error page.
+     */
+    private fun apiMessage(body: String): String? =
+        runCatching {
+            json.decodeFromString<ApiError>(body).message.ifBlank { null }
+        }.getOrNull()
 
     /**
      * True if [latestRaw] is strictly newer than [currentRaw]. Both expected in the

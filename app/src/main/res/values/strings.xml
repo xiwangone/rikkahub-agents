@@ -374,6 +374,7 @@
   <string name="chat_input_placeholder">Chat with AI</string>
   <string name="chat_input_unsupported_file_type">Unsupported file type: %s</string>
   <string name="chat_input_file_read_failed">Failed to read file: %s</string>
+  <string name="chat_input_paste_long_text_as_file">Long pasted text was attached as a file instead of being typed into the input box.</string>
   <string name="chat_message_add_favorite">Add Favorite</string>
   <string name="chat_message_remove_favorite">Remove Favorite</string>
   <string name="chat_message_tool_approve">Approve</string>
@@ -1424,6 +1425,7 @@
   <string name="tts">TTS</string>
   <string name="unpin_chat">Unpin the Chat</string>
   <string name="update_card_check_failed">Check update failed</string>
+  <string name="update_card_check_unavailable">Update check unavailable right now</string>
   <string name="update_card_close">Close</string>
   <string name="update_card_downloading">Downloading, please check status bar for progress</string>
   <string name="update_card_new_version_found">New version found %s</string>

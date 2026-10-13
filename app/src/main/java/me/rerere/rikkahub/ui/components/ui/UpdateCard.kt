@@ -41,6 +41,7 @@ import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.useThrottle
 import me.rerere.rikkahub.ui.pages.chat.ChatVM
+import me.rerere.rikkahub.utils.UpdateCheckUnavailableException
 import me.rerere.rikkahub.utils.UpdateDownload
 import me.rerere.rikkahub.utils.Version
 import me.rerere.rikkahub.utils.onError
@@ -56,25 +57,36 @@ fun UpdateCard(vm: ChatVM) {
     val state by vm.updateState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val toaster = LocalToaster.current
-    state.onError {
-        Card {
-            Column(
-                modifier =
-                    Modifier
-                        .padding(8.dp)
-                        .fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.update_card_check_failed),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
-                Text(
-                    text = it.message ?: stringResource(R.string.update_card_unknown_error),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.error,
-                )
+    state.onError { checkError ->
+        if (checkError is UpdateCheckUnavailableException) {
+            // B 类「本次未成功」（403 限流 / 5xx / 网络抖动 / 解析失败）：说明不了有没有更新，
+            // 所以不给红色失败横幅，只留一行不打扰的说明；真实原因在 AppLog 里（见 UpdateChecker）。
+            Text(
+                text = stringResource(R.string.update_card_check_unavailable),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+            )
+        } else {
+            Card {
+                Column(
+                    modifier =
+                        Modifier
+                            .padding(8.dp)
+                            .fillMaxWidth(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.update_card_check_failed),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                    Text(
+                        text = checkError.message ?: stringResource(R.string.update_card_unknown_error),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
             }
         }
     }

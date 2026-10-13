@@ -1225,6 +1225,7 @@
   <string name="tts">音声</string>
   <string name="unpin_chat">チャットのピン留めを解除</string>
   <string name="update_card_check_failed">更新チェックに失敗しました</string>
+  <string name="update_card_check_unavailable">現在、更新を確認できません</string>
   <string name="update_card_close">閉じる</string>
   <string name="update_card_downloading">ダウンロード中です。進捗はステータスバーでご確認ください</string>
   <string name="update_card_new_version_found">新しいバージョンが見つかりました %s</string>
@@ -3646,4 +3647,5 @@
   <string name="tool_ui_stderr">標準エラー</string>
   <string name="tool_ui_memory_delete_failed">メモリを削除できませんでした</string>
   <string name="tool_ui_memory_save_failed">メモリを保存できませんでした</string>
+  <string name="chat_input_paste_long_text_as_file">長く貼り付けられたテキストは、入力ボックスに入力される代わりにファイルとして添付されました。</string>
 </resources>

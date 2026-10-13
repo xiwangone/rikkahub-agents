@@ -60,6 +60,15 @@ fun checkAppUpdatesTool(checker: GitHubReleaseChecker): Tool =
                         }
                     }
 
+                    is GitHubReleaseChecker.CheckResult.NoRelease -> {
+                        // 仓库当前没有任何已发布 release：这是结果，不是检查失败，不能走 error 信封
+                        buildJsonObject {
+                            put("update_available", false)
+                            put("current", result.current)
+                            put("no_release_published", true)
+                        }
+                    }
+
                     is GitHubReleaseChecker.CheckResult.Failed -> {
                         ToolErrors.envelopeFor(error = "check_failed", message = "Check failed", extra = ToolErrors.extraOf("detail" to result.message))
                     }

@@ -374,6 +374,7 @@
   <string name="chat_input_placeholder">输入消息与AI聊天</string>
   <string name="chat_input_unsupported_file_type">不支持的文件类型：%s</string>
   <string name="chat_input_file_read_failed">文件读取失败：%s</string>
+  <string name="chat_input_paste_long_text_as_file">粘贴的长文本已转为文件附件，未插入输入框。</string>
   <string name="chat_message_add_favorite">添加收藏</string>
   <string name="chat_message_remove_favorite">取消收藏</string>
   <string name="chat_message_tool_approve">批准</string>
@@ -1387,6 +1388,7 @@
   <string name="tts">语音</string>
   <string name="unpin_chat">取消置顶聊天</string>
   <string name="update_card_check_failed">检查更新失败</string>
+  <string name="update_card_check_unavailable">暂时无法检查更新</string>
   <string name="update_card_close">关闭</string>
   <string name="update_card_downloading">正在下载，请在状态栏查看进度</string>
   <string name="update_card_new_version_found">发现新版本 %s</string>

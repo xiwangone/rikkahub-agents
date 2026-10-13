@@ -1262,6 +1262,7 @@
   <string name="tts">تحويل النص إلى كلام</string>
   <string name="unpin_chat">إلغاء تثبيت الدردشة</string>
   <string name="update_card_check_failed">فشل التحقق من التحديث</string>
+  <string name="update_card_check_unavailable">لا يمكن التحقق من التحديثات الآن</string>
   <string name="update_card_close">إغلاق</string>
   <string name="update_card_downloading">جارٍ التنزيل، من فضلك تحقق من شريط الحالة لمعرفة التقدم</string>
   <string name="update_card_new_version_found">عُثر على إصدار جديد %s</string>
@@ -3645,4 +3646,5 @@
   <string name="tool_ui_stderr">الخطأ القياسي</string>
   <string name="tool_ui_memory_delete_failed">تعذر حذف هذه الذاكرة</string>
   <string name="tool_ui_memory_save_failed">تعذر حفظ هذه الذاكرة</string>
+  <string name="chat_input_paste_long_text_as_file">تم إرفاق النص الطويل الذي تم لصقه كملف بدلاً من كتابته في مربع الإدخال.</string>
 </resources>

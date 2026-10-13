@@ -1225,6 +1225,7 @@
   <string name="tts">語音</string>
   <string name="unpin_chat">取消釘選聊天</string>
   <string name="update_card_check_failed">檢查更新失敗</string>
+  <string name="update_card_check_unavailable">暫時無法檢查更新</string>
   <string name="update_card_close">關閉</string>
   <string name="update_card_downloading">正在下載，請查看狀態列以瞭解進度</string>
   <string name="update_card_new_version_found">發現新版本 %s</string>
@@ -3645,4 +3646,5 @@
   <string name="tool_ui_stderr">標準錯誤</string>
   <string name="tool_ui_memory_delete_failed">無法刪除此記憶</string>
   <string name="tool_ui_memory_save_failed">無法儲存此記憶</string>
+  <string name="chat_input_paste_long_text_as_file">過長的貼上文字已改為附加為檔案，而非直接輸入至輸入框。</string>
 </resources>

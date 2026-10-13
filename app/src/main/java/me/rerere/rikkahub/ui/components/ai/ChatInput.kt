@@ -623,6 +623,10 @@ private fun TextInputRow(
     onSendMessage: () -> Unit,
 ) {
     val settings = LocalSettings.current
+    val toaster = LocalToaster.current
+    // 在组合作用域预先取好文案：粘贴回调不是 composable，在回调里取资源会踩
+    // LocalContextGetResourceValueCall（只有 CI 的 Android Lint 能抓到）。
+    val pasteLongTextAsFileMsg = stringResource(R.string.chat_input_paste_long_text_as_file)
 
     @Suppress("DEPRECATION") // 与项目现有 LocalClipboardManager 用法保持一致
     val clipboardManager = LocalClipboardManager.current
@@ -694,6 +698,12 @@ private fun TextInputRow(
                                 if (text != null && text.length > settings.displaySetting.pasteLongTextThreshold) {
                                     val document = filesManager.createChatTextFile(text)
                                     state.addFiles(listOf(document))
+                                    // 正文不入库输入框而是转为附件，不给提示会被当成“粘贴丢了内容”。
+                                    toaster.show(
+                                        message = pasteLongTextAsFileMsg,
+                                        duration = 2.seconds,
+                                        type = ToastType.Normal,
+                                    )
                                     true
                                 } else {
                                     false
