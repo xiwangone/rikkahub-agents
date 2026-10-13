@@ -61,6 +61,8 @@ import me.rerere.highlight.CodeHighlightText
 import me.rerere.highlight.CodeHighlighter
 import me.rerere.highlight.HighlightTextColorPalette
 import me.rerere.highlight.buildHighlightText
+import me.rerere.highlight.rememberHighlightedCode
+import me.rerere.highlight.splitByLines
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
@@ -81,7 +83,7 @@ import me.rerere.rikkahub.ui.modifier.onClick
 import me.rerere.rikkahub.ui.theme.AtomOneDarkPalette
 import me.rerere.rikkahub.ui.theme.AtomOneLightPalette
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
-import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.ui.theme.rememberCodeColorPalette
 import me.rerere.rikkahub.utils.toDp
 import java.io.IOException
 import kotlin.time.Clock
@@ -147,8 +149,8 @@ fun HighlightCodeBlock(
             lineHeight = 16.sp,
         ),
 ) {
-    val darkMode = LocalDarkMode.current
-    val colorPalette = if (darkMode) AtomOneDarkPalette else AtomOneLightPalette
+    // 调色板跟随 App 主题（含动态取色）：此前用默认 M3 配色，自定义主题下代码高亮与界面脱节
+    val colorPalette = rememberCodeColorPalette()
     val scrollState = rememberScrollState()
     val clipboardManager = LocalClipboard.current
     val scope = rememberCoroutineScope()
@@ -247,6 +249,7 @@ fun HighlightCodeBlock(
                     when {
                         showLineNumbers && autoWrap -> {
                             CodeBlockWithLineNumbersWrapped(
+                                displayCode = displayCode,
                                 displayLines = displayLines,
                                 language = language,
                                 textStyle = textStyle,
@@ -314,6 +317,7 @@ fun HighlightCodeBlock(
 
 @Composable
 private fun CodeBlockWithLineNumbersWrapped(
+    displayCode: String,
     displayLines: List<String>,
     language: String,
     textStyle: TextStyle,
@@ -323,9 +327,18 @@ private fun CodeBlockWithLineNumbersWrapped(
         remember(displayLines.size) {
             displayLines.size.toString().length
         }
+    // 整段高亮后按行拆分：逐行独立高亮会丢失跨行语法（块注释、模板字符串）的延续，
+    // 第二行起就没有注释色；拆行函数与 code.lines() 同语义，行号列不会错位。
+    val highlighted =
+        rememberHighlightedCode(
+            code = displayCode,
+            language = language,
+            colors = colorPalette,
+        )
+    val highlightedLines = remember(highlighted) { highlighted.splitByLines() }
     SelectionContainer {
         Column {
-            displayLines.forEachIndexed { index, line ->
+            highlightedLines.forEachIndexed { index, line ->
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -338,15 +351,17 @@ private fun CodeBlockWithLineNumbersWrapped(
                         softWrap = false,
                         modifier = Modifier.padding(end = 8.dp),
                     )
-                    CodeHighlightText(
-                        code = line,
-                        language = language,
+                    Text(
+                        text = line,
+                        style =
+                            LocalTextStyle.current.copy(
+                                fontFeatureSettings = "'calt' 0, 'liga' 0, 'clig' 0",
+                            ),
                         fontSize = textStyle.fontSize,
                         lineHeight = textStyle.lineHeight,
-                        colors = colorPalette,
+                        fontFamily = JetbrainsMono,
                         overflow = TextOverflow.Visible,
                         softWrap = true,
-                        fontFamily = JetbrainsMono,
                         modifier = Modifier.weight(1f),
                     )
                 }

@@ -15,7 +15,7 @@ class HighlightStrategyTest {
     @Test
     fun `short code highlights synchronously`() {
         assertEquals(HighlightStrategy.Synchronous, highlightStrategyFor(0))
-        assertEquals(HighlightStrategy.Synchronous, highlightStrategyFor(4096))
+        assertEquals(HighlightStrategy.Synchronous, highlightStrategyFor(1024))
     }
 
     @Test
@@ -28,7 +28,7 @@ class HighlightStrategyTest {
 
     @Test
     fun `just past the synchronous threshold goes async, not skipped`() {
-        assertEquals(HighlightStrategy.Asynchronous, highlightStrategyFor(4097))
+        assertEquals(HighlightStrategy.Asynchronous, highlightStrategyFor(1025))
         assertEquals(HighlightStrategy.Asynchronous, highlightStrategyFor(200_000))
     }
 

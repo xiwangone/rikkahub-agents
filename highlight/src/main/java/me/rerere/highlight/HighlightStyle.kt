@@ -24,6 +24,47 @@ fun AnnotatedString.Builder.buildHighlightText(
     }
 }
 
+/**
+ * 按行拆分高亮结果，并保留每行原有的 span 样式。
+ *
+ * 行号模式需要逐行渲染以对齐行号列，但逐行独立高亮会丢失跨行语法
+ * （块注释、模板字符串）的延续——第二行起就没有注释色了。
+ * 因此先整段高亮、再按行拆分，样式随行走。
+ *
+ * 换行语义与 [String.lines] 严格一致（含结尾换行产生的空行）：
+ * 调用方的行号列按 `code.lines()` 计数，两边行数必须对齐。
+ */
+fun AnnotatedString.splitByLines(): List<AnnotatedString> {
+    val text = this.text
+    if (text.isEmpty()) return listOf(AnnotatedString(""))
+    val lineTexts = text.split('\n')
+    val spans = spanStyles.sortedBy { it.start }
+    val result = ArrayList<AnnotatedString>(lineTexts.size)
+    var cursor = 0
+    var spanIndex = 0
+    for (lineText in lineTexts) {
+        val lineEnd = cursor + lineText.length
+        val builder = AnnotatedString.Builder()
+        var pos = cursor
+        // 与本行相交的 span 依次落入；跨行的 span 在后续行重入（spanIndex 不前移）
+        while (spanIndex < spans.size && spans[spanIndex].start < lineEnd) {
+            val span = spans[spanIndex]
+            val start = maxOf(span.start, cursor)
+            val end = minOf(span.end, lineEnd)
+            if (end > start) {
+                if (start > pos) builder.append(text, pos, start)
+                builder.withStyle(span.item) { append(text, start, end) }
+                pos = end
+            }
+            if (span.end <= lineEnd) spanIndex++ else break
+        }
+        if (pos < lineEnd) builder.append(text, pos, lineEnd)
+        result.add(builder.toAnnotatedString())
+        cursor = lineEnd + 1
+    }
+    return result
+}
+
 data class HighlightTextColorPalette(
     val keyword: Color,
     val string: Color,
