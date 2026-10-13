@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -194,6 +195,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
 
                         entries.forEach { entry ->
                             item(
+                                modifier = Modifier.testTag("setting_entry_${entry.id}"),
                                 onClick = { navController.navigate(entry.screen) },
                                 leadingContent = { Icon(entry.icon, null) },
                                 supportingContent = { Text(stringResource(entry.descRes)) },

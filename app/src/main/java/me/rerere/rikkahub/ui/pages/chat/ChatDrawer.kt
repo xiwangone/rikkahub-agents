@@ -45,6 +45,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
@@ -446,6 +447,7 @@ fun ChatDrawerContent(
                 Spacer(Modifier.weight(1f))
 
                 DrawerAction(
+                    modifier = Modifier.testTag("drawer_settings"),
                     icon = {
                         Icon(HugeIcons.Settings03, stringResource(R.string.settings))
                     },
