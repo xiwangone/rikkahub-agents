@@ -40,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
@@ -148,6 +149,7 @@ fun SettingWebServerPage() {
         },
         floatingActionButton = {
             ExtendedFloatingActionButton(
+                modifier = Modifier.testTag("web_server_toggle"),
                 onClick = {
                     if (serverState.isLoading) return@ExtendedFloatingActionButton
                     if (!serverState.isRunning) {
@@ -260,6 +262,7 @@ fun SettingWebServerPage() {
                                 ).forEach { (value, label) ->
                                     Row(verticalAlignment = Alignment.CenterVertically) {
                                         RadioButton(
+                                            modifier = Modifier.testTag("web_server_scope_$value"),
                                             selected = currentScope == value,
                                             onClick = {
                                                 scope.launch {
@@ -298,6 +301,7 @@ fun SettingWebServerPage() {
                         supportingContent = { Text(stringResource(R.string.setting_page_web_server_jwt_enable_desc)) },
                         trailingContent = {
                             Switch(
+                                modifier = Modifier.testTag("web_server_jwt_switch"),
                                 checked = settings.webServerJwtEnabled,
                                 onCheckedChange = { checked ->
                                     scope.launch {
