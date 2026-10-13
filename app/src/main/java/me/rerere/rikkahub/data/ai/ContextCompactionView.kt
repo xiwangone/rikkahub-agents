@@ -26,9 +26,21 @@ object ContextCompactionView {
      *
      * `sourceEndNodeId` 是 MessageNode 的 id（不是消息 id），复用它做这条合成消息的 id 不会
      * 与真实消息冲突。
+     *
+     * 摘要尾部追加一段固定的「执行提示」（校准注）：压缩把结构化的 tool_call/result 对
+     * 文字化之后，摘要里只剩“做过什么”的叙述，模型容易在思考中反复预演计划却不发起工具调用。
+     * 这段提示直接对冲该模式。追加在摘要文本内部而非独立消息：[mergeGeneratedMessages] 的位置
+     * 映射严格依赖 `summary + tail` 的视图结构，插入独立消息会让 tail 整体错位；而文本对同一份
+     * compaction 是确定性的，因此提示词缓存前缀不受影响（与上面用 sourceEndNodeId 做 id 同一考量）。
      */
+    private const val SUMMARY_CALIBRATION_NOTE =
+        "\n\n[执行提示] 以上是此前对话的摘要，仅供回溯。其中记录的工具调用与结果均已真实发生，" +
+            "不要重新执行已成功的调用。工具环境本身没有变化：需要行动时直接发起工具调用，" +
+            "不要在思考中复述计划。若摘要与工具的实际状态不一致，先用只读工具核实再行动。" +
+            "摘要末尾的「## 待办」小节是下一步行动清单，优先处理其中的事项；该小节不存在时忽略此句。"
+
     internal fun summaryMessage(compaction: ConversationCompaction): UIMessage =
-        UIMessage.user(compaction.summary).copy(
+        UIMessage.user(compaction.summary + SUMMARY_CALIBRATION_NOTE).copy(
             createdAt = Instant.fromEpochMilliseconds(compaction.createdAt.toEpochMilli())
                 .toLocalDateTime(TimeZone.currentSystemDefault()),
             id = compaction.sourceEndNodeId,
