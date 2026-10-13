@@ -8,6 +8,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
 import kotlin.uuid.Uuid
 
+@Suppress("LongParameterList") // 上下文对象：开关随能力追加，构造点均为具名传参
 class TransformerContext(
     val context: Context,
     val model: Model,
@@ -17,6 +18,9 @@ class TransformerContext(
     val conversationLorebookIds: Set<Uuid> = emptySet(),
     val processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
     val workspaceCwd: String? = null,
+    // 本轮请求里模型是否真的能按 path 读取文件（下发的工具集中含工作区文件读取工具）。
+    // 由请求装配点从**最终工具列表**算出，transformer 不自己猜助手配置。
+    val hasReadableFileTool: Boolean = false,
 )
 
 interface MessageTransformer {
@@ -76,6 +80,7 @@ interface OutputMessageTransformer : MessageTransformer {
     }
 }
 
+@Suppress("LongParameterList") // 与 TransformerContext 同因：透传参数随能力增长
 suspend fun List<UIMessage>.transforms(
     transformers: List<MessageTransformer>,
     context: Context,
@@ -86,6 +91,7 @@ suspend fun List<UIMessage>.transforms(
     conversationLorebookIds: Set<Uuid> = emptySet(),
     processingStatus: MutableStateFlow<String?> = MutableStateFlow(null),
     workspaceCwd: String? = null,
+    hasReadableFileTool: Boolean = false,
 ): List<UIMessage> {
     val ctx = TransformerContext(
         context = context,
@@ -96,6 +102,7 @@ suspend fun List<UIMessage>.transforms(
         conversationLorebookIds = conversationLorebookIds,
         processingStatus = processingStatus,
         workspaceCwd = workspaceCwd,
+        hasReadableFileTool = hasReadableFileTool,
     )
     return transformers.fold(this) { acc, transformer ->
         transformer.transform(ctx, acc)

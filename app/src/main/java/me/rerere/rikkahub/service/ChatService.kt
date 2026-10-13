@@ -2059,7 +2059,10 @@ class ChatService(
                 var current = mutableListOf<UIMessage>()
                 var currentTokens = 0L
                 for (msg in messages) {
-                    val msgTokens = me.rerere.rikkahub.data.ai.ContextBudgetPlanner.estimateMessageTokens(msg)
+                    val msgTokens = me.rerere.rikkahub.data.ai.ContextBudgetPlanner.estimateMessageTokens(
+                        message = msg,
+                        documentInlineCapChars = settings.displaySetting.attachmentInlineThreshold,
+                    )
                     if (current.isNotEmpty() && currentTokens + msgTokens > targetBlockTokens) {
                         chunks.add(current)
                         current = mutableListOf()

@@ -1258,6 +1258,18 @@ data class DisplaySetting(
     val autoPlayTTSAfterGeneration: Boolean = false,
     val pasteLongTextAsFile: Boolean = false,
     val pasteLongTextThreshold: Int = 1000,
+    /**
+     * 附件**内联**上限（解析后正文的字符数）。
+     *
+     * 不超过该值时照旧把整篇正文内联进提示词（`<UploadFile>` 代码块，零行为变化）；
+     * 超过时改为只发引用（name + path + 首尾摘要），由模型按 path 用工作区文件工具自取全文。
+     *
+     * 默认 8000 字符：仓内压缩块预算为 6000 token/块、长粘贴阈值 1000 字符，
+     * 8000 字符按 3 字符/token 折约 2.7K token，属「内联不心疼」区间；且仅在会话确实拥有
+     * 工作区文件读取工具时才走引用式（否则仍整篇内联，见 `DocumentAsPromptTransformer`），
+     * 默认值本身即是保守上限。
+     */
+    val attachmentInlineThreshold: Int = 8000,
     val sendOnEnter: Boolean = false,
     val enableAutoScroll: Boolean = true,
     val enableLatexRendering: Boolean = true,

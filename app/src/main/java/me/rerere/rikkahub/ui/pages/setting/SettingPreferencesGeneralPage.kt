@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -353,6 +354,41 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                             },
                         )
                     }
+                    item(
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.setting_display_page_attachment_inline_threshold_title),
+                            )
+                        },
+                        supportingContent = {
+                            Column {
+                                Text(
+                                    stringResource(R.string.setting_display_page_attachment_inline_threshold_desc),
+                                )
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Slider(
+                                        value = displaySetting.attachmentInlineThreshold
+                                            .coerceIn(1_000, 50_000)
+                                            .toFloat(),
+                                        onValueChange = {
+                                            updateDisplaySetting(
+                                                displaySetting.copy(
+                                                    attachmentInlineThreshold = it.toInt(),
+                                                ),
+                                            )
+                                        },
+                                        valueRange = 1000f..50000f,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    Text(text = "${displaySetting.attachmentInlineThreshold}")
+                                }
+                            }
+                        },
+                    )
                     item(
                         headlineContent = {
                             Text(

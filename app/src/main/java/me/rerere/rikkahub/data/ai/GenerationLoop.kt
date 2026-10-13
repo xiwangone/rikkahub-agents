@@ -174,6 +174,14 @@ private val FRESHNESS_TTL_MS_BY_TOOL: Map<String, Long> = mapOf(
 )
 
 /**
+ * 能把上传文件按路径读回正文的工具。大附件的「引用式」呈现（见
+ * [me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer]）只在其中任意一个
+ * **确实出现在本轮下发的工具列表**里时才启用：`path` 属性给的是 proot 内的 `/upload/<file>`，
+ * 只有工作区工具看得懂；设备侧的 `read_file` 拿的是设备路径，不在此列。
+ */
+private val FILE_READ_TOOL_NAMES = setOf("workspace_read_file", "workspace_shell")
+
+/**
  * UI-observation tools that read screen/device state without changing it. Used by the loop
  * guard's reset rule below: when the model drives a UI it runs an act-observe cycle and
  * naturally repeats the same observation call (read_window_tree / take_screenshot with
@@ -1421,6 +1429,7 @@ class GenerationLoop(
             conversationLorebookIds = conversationLorebookIds,
             processingStatus = processingStatus,
             workspaceCwd = workspaceCwd,
+            hasReadableFileTool = tools.any { it.name in FILE_READ_TOOL_NAMES },
         )
 
         var messages: List<UIMessage> = messages

@@ -3647,4 +3647,6 @@
   <string name="tool_ui_memory_delete_failed">تعذر حذف هذه الذاكرة</string>
   <string name="tool_ui_memory_save_failed">تعذر حفظ هذه الذاكرة</string>
   <string name="chat_input_paste_long_text_as_file">تم إرفاق النص الطويل الذي تم لصقه كملف بدلاً من كتابته في مربع الإدخال.</string>
+  <string name="setting_display_page_attachment_inline_threshold_desc">الملفات المرفوعة التي يكون نصها المستخرج أطول من هذا لا يتم تضمينها في الطلب: يتلقى النموذج فقط اسم الملف ومساره ومقتطفًا قصيرًا، ويقرأ المحتوى الكامل باستخدام أدوات ملفات مساحة العمل عند الحاجة. ينطبق هذا فقط عندما تحتوي المحادثة فعليًا على هذه الأدوات؛ وإلا، لا يزال الملف مضمّنًا بالكامل.</string>
+  <string name="setting_display_page_attachment_inline_threshold_title">عتبة تضمين المرفقات</string>
 </resources>

@@ -27,7 +27,13 @@ object DocumentAsPromptTransformer : InputMessageTransformer {
                                 val content = readDocumentContent(document)
                                 val path = resolveWorkspacePath(document.url)
                                 val pathAttr = path?.let { " path=\"$it\"" } ?: ""
-                                val prompt = """
+                                val prompt = buildReferencePrompt(
+                                    fileName = document.fileName,
+                                    workspacePath = path,
+                                    content = content,
+                                    inlineLimitChars = ctx.settings.displaySetting.attachmentInlineThreshold,
+                                    hasReadableFileTool = ctx.hasReadableFileTool,
+                                ) ?: """
                                   <UploadFile name="${document.fileName}"$pathAttr>
                                   ```
                                   $content
@@ -50,6 +56,64 @@ object DocumentAsPromptTransformer : InputMessageTransformer {
             }
         }
     }
+
+    /**
+     * 大附件的**引用式**呈现：正文长度超过 [inlineLimitChars] 且本轮确实能按 path 读文件时，
+     * 不再内联正文，只给 `name` + `path` + 首尾摘要 + 一行取用指令（对齐图片 part 的写法）。
+     *
+     * 返回 null = 不满足引用条件，调用方按原样整篇内联。以下三种情况**必须**保持内联，
+     * 否则模型既拿不到正文、也没有任何工具能把正文取回来：
+     *  - 阈值内的小附件（零行为变化）；
+     *  - 本轮没有可读取文件的工作区工具（纯聊天 provider / 工作区未就绪）；
+     *  - `path` 解析不出来（不在 filesDir/upload 下，模型无从按路径读取）。
+     *
+     * 退化保护取任务书的 ②+③ 组合：② 按本轮真实工具集 gate（默认阈值 8000 字符本身也偏保守，
+     * 兼顾 ①）；③ 保留首尾摘要（见 [excerptOf]），模型至少知道文件大概是什么。
+     */
+    internal fun buildReferencePrompt(
+        fileName: String,
+        workspacePath: String?,
+        content: String,
+        inlineLimitChars: Int,
+        hasReadableFileTool: Boolean,
+    ): String? {
+        if (!hasReadableFileTool || workspacePath == null) return null
+        if (content.length <= inlineLimitChars.coerceAtLeast(1)) return null
+        return buildString {
+            append(
+                "This uploaded file is too large to inline, so its content is NOT included below. " +
+                    "Read it with the workspace file tools (workspace_read_file / workspace_shell) " +
+                    "at path `$workspacePath` whenever you need its contents.\n",
+            )
+            append("<UploadFile name=\"$fileName\" path=\"$workspacePath\">\n")
+            append("```\n")
+            append(excerptOf(content))
+            append("\n")
+            append("```\n")
+            append("</UploadFile>")
+        }
+    }
+
+    /**
+     * 首尾摘要：单边上限 [EXCERPT_CHARS_PER_SIDE] 字符，总长有界（≤ 2×M+省略号）；
+     * 头尾相接（正文 ≤ 2M）时给全量、不插省略号。只为让模型知道「文件大致是什么」，
+     * 不是正文替代品。
+     */
+    internal fun excerptOf(content: String): String =
+        if (content.length <= EXCERPT_CHARS_PER_SIDE) {
+            content
+        } else {
+            val head = content.take(EXCERPT_CHARS_PER_SIDE)
+            val tail = content.takeLast(EXCERPT_CHARS_PER_SIDE)
+            if (content.length <= EXCERPT_CHARS_PER_SIDE * 2) {
+                head + tail
+            } else {
+                "$head\n...\n$tail"
+            }
+        }
+
+    // 引用式摘要单边字符数上限。
+    private const val EXCERPT_CHARS_PER_SIDE = 1_000
 
     private fun parsePdfAsText(file: File): String {
         return PdfParser.parserPdf(file)

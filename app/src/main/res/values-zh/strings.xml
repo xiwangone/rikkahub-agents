@@ -916,6 +916,8 @@
   <string name="setting_display_page_paste_long_text_as_file_desc">当粘贴的文本超过阈值时，自动将其保存为文件附件</string>
   <string name="setting_display_page_paste_long_text_as_file_title">粘贴长文本为文件</string>
   <string name="setting_display_page_paste_long_text_threshold_title">文本长度阈值</string>
+  <string name="setting_display_page_attachment_inline_threshold_desc">上传文件解析出的正文超过该字符数时不再整篇内联进提示词：模型只收到文件名、路径与首尾摘要，需要时用工作区文件工具按路径读取全文。仅在会话确实拥有这些工具时生效，否则仍然整篇内联。</string>
+  <string name="setting_display_page_attachment_inline_threshold_title">附件内联阈值</string>
   <string name="setting_display_page_send_on_enter_desc">按 Enter 发送消息而非换行</string>
   <string name="setting_display_page_send_on_enter_title">按Enter发送</string>
   <string name="setting_display_page_show_assistant_bubble_desc">是否为助手消息显示气泡背景</string>

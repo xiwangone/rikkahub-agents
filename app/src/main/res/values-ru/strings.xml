@@ -3648,4 +3648,6 @@
   <string name="tool_ui_memory_delete_failed">Не удалось удалить эту память</string>
   <string name="tool_ui_memory_save_failed">Не удалось сохранить эту память</string>
   <string name="chat_input_paste_long_text_as_file">Длинный вставленный текст был прикреплён как файл, а не введён в поле ввода.</string>
+  <string name="setting_display_page_attachment_inline_threshold_desc">Загруженные файлы, извлечённый текст которых длиннее этого значения, не встраиваются в запрос: модель получает только имя файла, путь и короткий фрагмент, и при необходимости читает полное содержимое с помощью инструментов для работы с файлами рабочей области. Применяется только в том случае, если в разговоре действительно есть эти инструменты; в противном случае файл по-прежнему встраивается полностью.</string>
+  <string name="setting_display_page_attachment_inline_threshold_title">Порог встраивания вложений</string>
 </resources>

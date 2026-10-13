@@ -7,9 +7,15 @@ import me.rerere.ai.ui.UIMessagePart
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import org.junit.Rule
 import org.junit.Test
+import org.junit.rules.TemporaryFolder
+import java.io.File
 
 class ContextBudgetPlannerTest {
+    @get:Rule
+    val tempFolder = TemporaryFolder()
+
     @Test
     fun `reported usage is used as baseline for trailing messages`() {
         val messages = listOf(
@@ -134,5 +140,88 @@ class ContextBudgetPlannerTest {
                 minimumRecentMessages = 4,
             ),
         )
+    }
+
+    // ---- Document 正文估算（附件解耦：预算与实际发送对齐）----
+
+    private fun documentOf(file: File) = UIMessagePart.Document(
+        url = "file://" + file.absolutePath,
+        fileName = "same-name.txt",
+        mime = "text/plain",
+    )
+
+    private fun textFileOfSize(name: String, bytes: Int): File =
+        tempFolder.newFile(name).apply { writeText("x".repeat(bytes)) }
+
+    @Test
+    fun `document body estimate grows monotonically with file size, not with the file name`() {
+        val small = textFileOfSize("doc-small.txt", 300)
+        val medium = textFileOfSize("doc-medium.txt", 3_000)
+        val large = textFileOfSize("doc-large.txt", 30_000)
+
+        fun contextEstimate(file: File): Int = ContextBudgetPlanner.estimateContextTokens(
+            listOf(
+                UIMessage(
+                    role = MessageRole.USER,
+                    parts = listOf(documentOf(file)),
+                ),
+            ),
+        )
+
+        val smallTokens = contextEstimate(small)
+        val mediumTokens = contextEstimate(medium)
+        val largeTokens = contextEstimate(large)
+
+        // 三个附件同名（same-name.txt）：旧口径下估算应完全相同；新口径必须随大小单调上升。
+        assertTrue("$smallTokens < $mediumTokens", smallTokens < mediumTokens)
+        assertTrue("$mediumTokens < $largeTokens", mediumTokens < largeTokens)
+        // 300B/3 = 100 token 正文；30_000B/3 = 10_000 token 但被封顶到默认 8_000。
+        // 另含：消息开销 8 + MEDIA 1_024 + 文件名 "same-name.txt"(13 ASCII => ceil(13/3) = 5)。
+        assertEquals(8 + 1_024 + 5 + 100, smallTokens)
+        assertEquals(8 + 1_024 + 5 + 8_000, largeTokens)
+    }
+
+    @Test
+    fun `document body estimate is capped by the inline threshold`() {
+        val file = textFileOfSize("doc-cap.txt", 30_000)
+        val document = documentOf(file)
+
+        // 30_000 字节 / 3 = 10_000 token，封顶到 8_000（= DisplaySetting 默认内联阈值）
+        assertEquals(8_000L, ContextBudgetPlanner.estimateDocumentBodyTokens(document, 8_000))
+        // 阈值放大后恢复按文件大小估
+        assertEquals(10_000L, ContextBudgetPlanner.estimateDocumentBodyTokens(document, 50_000))
+        // 阈值 0/负值不崩（按 >=0 收敛）
+        assertEquals(0L, ContextBudgetPlanner.estimateDocumentBodyTokens(document, 0))
+    }
+
+    @Test
+    fun `document without a readable local file contributes no body tokens`() {
+        assertEquals(
+            0L,
+            ContextBudgetPlanner.estimateDocumentBodyTokens(
+                UIMessagePart.Document(url = "file:///nonexistent/upload/missing.txt", fileName = "missing.txt"),
+                8_000,
+            ),
+        )
+        assertEquals(
+            0L,
+            ContextBudgetPlanner.estimateDocumentBodyTokens(
+                UIMessagePart.Document(url = "content://media/123", fileName = "picked.txt"),
+                8_000,
+            ),
+        )
+    }
+
+    @Test
+    fun `document body tokens flow into the message estimate`() {
+        val file = textFileOfSize("doc-flow.txt", 9_000)
+        val message = UIMessage(
+            role = MessageRole.USER,
+            parts = listOf(documentOf(file)),
+        )
+
+        // 9_000 字节 / 3 = 3_000 token 正文；+ MEDIA 1_024 + 文件名 "same-name.txt"(13 ASCII => 5)
+        // + 消息开销 8 = 4_037。
+        assertEquals(4_037L, ContextBudgetPlanner.estimateMessageTokens(message))
     }
 }

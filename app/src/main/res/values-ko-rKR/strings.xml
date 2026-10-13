@@ -3648,4 +3648,6 @@
   <string name="tool_ui_memory_delete_failed">메모리를 삭제하지 못했습니다</string>
   <string name="tool_ui_memory_save_failed">메모리를 저장하지 못했습니다</string>
   <string name="chat_input_paste_long_text_as_file">길게 붙여넣은 텍스트가 입력란에 입력되는 대신 파일로 첨부되었습니다.</string>
+  <string name="setting_display_page_attachment_inline_threshold_desc">추출된 텍스트가 이 길이보다 긴 업로드 파일은 프롬프트에 인라인되지 않습니다. 모델은 파일 이름, 경로, 짧은 발췌문만 받고 필요할 때 작업 공간 파일 도구로 전체 내용을 읽습니다. 대화에 실제로 해당 도구가 있는 경우에만 적용되며, 그렇지 않으면 파일이 여전히 전체 인라인됩니다.</string>
+  <string name="setting_display_page_attachment_inline_threshold_title">첨부 파일 인라인 임계값</string>
 </resources>

@@ -330,7 +330,11 @@ class ChatVM(
 
             else -> {
                 ContextBudgetPlanner
-                    .estimateContextTokens(conversation.value.currentMessages)
+                    .estimateContextTokens(
+                        messages = conversation.value.currentMessages,
+                        documentInlineCapChars =
+                            settings.value.displaySetting.attachmentInlineThreshold,
+                    )
                     .toLong()
             }
         }
