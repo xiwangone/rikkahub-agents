@@ -37,12 +37,7 @@ class ContextCompactionViewTest {
 
         val view = ContextCompactionView.build(conversation, compaction)
 
-        // 摘要消息在视图层会追加固定的校准注，因此这里断言**结构**（合成摘要 + 其后 tail）
-        // 与摘要正文的前缀，不把拼接后的全文绑进用例（措辞变动不应破坏位置契约测试）。
-        val viewTexts = view.messages.map { it.toText() }
-        assertEquals(3, viewTexts.size)
-        assertTrue(viewTexts[0].startsWith("summary of one and two"))
-        assertEquals(listOf("three", "four"), viewTexts.subList(1, 3))
+        assertEquals(listOf("summary of one and two", "three", "four"), view.messages.map { it.toText() })
         assertEquals(4, conversation.messageNodes.size)
         conversation.messageNodes.zip(nodes).forEach { (actual, original) ->
             assertSame(original, actual)
