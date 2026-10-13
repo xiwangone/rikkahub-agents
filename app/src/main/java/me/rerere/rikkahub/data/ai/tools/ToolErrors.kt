@@ -71,6 +71,12 @@ object ToolErrors {
     const val INVALID_PATH = "invalid_path"
     const val NOT_FOUND = "not_found"
     const val PERMISSION_DENIED = "permission_denied"
+
+    /**
+     * 撞上 agent 安全底线（hardline floor）。**不是权限问题** —— 任何授权/白名单都无法放行，
+     * 与 [PERMISSION_DENIED] 区分开，调用方（含模型）才能正确决定「换参数重试」还是「放弃」。
+     */
+    const val HARDLINE_BLOCKED = "hardline_blocked"
     const val UNSUPPORTED = "unsupported"
     const val TIMEOUT = "timeout"
     const val INTERNAL = "internal_error"
@@ -161,6 +167,8 @@ object ToolErrors {
         // -- CONTENT_TOO_LARGE：内容超限 --
         "file_too_large_for_telegram_bot" to CONTENT_TOO_LARGE,
         "skill_file_too_large" to CONTENT_TOO_LARGE,
+        // -- SERVER_ERROR：实现自定义桶（无更具体的标准码） --
+        "hardline_blocked" to SERVER_ERROR,
     )
     // CATEGORY_MAP_END
 
@@ -190,6 +198,7 @@ object ToolErrors {
         // -- abort：重试无意义（gRPC PERMISSION_DENIED / UNIMPLEMENTED / INTERNAL /
         // -- CANCELLED / DATA_LOSS / UNAUTHENTICATED） --
         "permission_denied" to RECOVERY_ABORT,
+        "hardline_blocked" to RECOVERY_ABORT,
         "NO_PERMISSION" to RECOVERY_ABORT,
         "shizuku_permission_denied" to RECOVERY_ABORT,
         "termux_permission_denied" to RECOVERY_ABORT,

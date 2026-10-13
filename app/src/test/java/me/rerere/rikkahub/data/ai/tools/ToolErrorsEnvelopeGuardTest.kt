@@ -78,4 +78,14 @@ class ToolErrorsEnvelopeGuardTest {
         assertTrue(data["error"].toString().contains("invalid_argument"))
         assertTrue(data["recovery"].toString().contains("fix_param"))
     }
+
+    @Test fun `hardline refusal carries its own code and abort recovery`() {
+        val env = ToolErrors.envelopeFor(error = ToolErrors.HARDLINE_BLOCKED, message = "blocked by safety floor")
+        val data = env["data"]!!.jsonObject
+        assertTrue(
+            "hardline refusal must not borrow permission_denied",
+            data["error"].toString().contains("hardline_blocked"),
+        )
+        assertTrue("hardline refusal is not retryable", data["recovery"].toString().contains("abort"))
+    }
 }

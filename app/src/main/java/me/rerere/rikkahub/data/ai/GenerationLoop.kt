@@ -847,7 +847,8 @@ class GenerationLoop(
             toolsToProcess.forEach { tool ->
                 when (tool.approvalState) {
                     is ToolApprovalState.Denied -> {
-                        // Tool was denied by user
+                        // Tool was denied — either by the user, or by the hardline safety floor
+                        // (which marks it Denied without ever executing it).
                         val storedReason = (tool.approvalState as ToolApprovalState.Denied).reason
                         val hardlineReasonCode = me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
                             .uiReasonCodeFromEncoded(storedReason)
@@ -861,9 +862,23 @@ class GenerationLoop(
                                 UIMessagePart.Text(
                                     json.encodeToString(
                                         ToolErrors.envelopeFor(
-                                            error = "permission_denied",
-                                            message = "Tool execution denied by user. Reason: ${reason.ifBlank { "No reason provided" }}",
-                                            hint = "Grant the required permission or choose a different target.",
+                                            // A hardline refusal is not a permission decision: no grant can
+                                            // override it, so it gets its own code and a hint that says so.
+                                            error = if (hardlineReasonCode != null) {
+                                                ToolErrors.HARDLINE_BLOCKED
+                                            } else {
+                                                ToolErrors.PERMISSION_DENIED
+                                            },
+                                            message = if (hardlineReasonCode != null) {
+                                                "Blocked by the agent safety floor (hardline): ${reason.ifBlank { "No reason provided" }}"
+                                            } else {
+                                                "Tool execution denied by user. Reason: ${reason.ifBlank { "No reason provided" }}"
+                                            },
+                                            hint = if (hardlineReasonCode != null) {
+                                                "This cannot run through the agent under any circumstances — run it yourself in a terminal if you really need it."
+                                            } else {
+                                                "Grant the required permission or choose a different target."
+                                            },
                                             extra = hardlineExtra,
                                         )
                                     )
