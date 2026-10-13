@@ -26,7 +26,7 @@ const val MAX_AUTO_TASK_IDLE_SECONDS = 43200
  *  - [useFixedMessage]：每次触发发送 [message] 固定消息
  *  - [useTaskList]：每次触发发送列表中下一个任务（与固定消息可同时勾选）
  *
- * @param triggerCount 可触发总次数：0 = 无限，默认 [MAX_AUTO_TASK_TRIGGER_COUNT]，上限 100。
+ * @param triggerCount 可触发总次数：0 = 无限，默认 1，上限 100。
  *   任务列表跑完或达到次数上限时自动停止整个自动任务。
  * @param tasks 当前任务列表内容（每行一条），与任务列表文件（[taskFileName]）对应。
  * @param taskFileName 任务列表文件名（auto_tasks 目录下存储为 <name>.txt）；为空表示未保存到文件。
@@ -43,7 +43,7 @@ data class AutoTaskConfig(
     val useTaskList: Boolean = false,
     val tasks: List<String> = emptyList(),
     val taskFileName: String = "",
-    val triggerCount: Int = MAX_AUTO_TASK_TRIGGER_COUNT, // 0 = 无限，默认 100，上限 100
+    val triggerCount: Int = 1, // 0 = 无限，默认 1，上限 100
     val taskIndex: Int = 0,
 )
 
@@ -164,7 +164,7 @@ fun readAutoTaskConfig(context: Context): AutoTaskConfig {
         useTaskList = prefs.getBoolean(PREF_AUTO_TASK_USE_TASKLIST, false),
         tasks = tasks,
         taskFileName = taskFileName,
-        triggerCount = prefs.getInt(PREF_AUTO_TASK_TRIGGER_COUNT, MAX_AUTO_TASK_TRIGGER_COUNT).coerceIn(0, MAX_AUTO_TASK_TRIGGER_COUNT),
+        triggerCount = prefs.getInt(PREF_AUTO_TASK_TRIGGER_COUNT, 1).coerceIn(0, MAX_AUTO_TASK_TRIGGER_COUNT),
         taskIndex = prefs.getInt(PREF_AUTO_TASK_TASK_INDEX, 0).coerceAtLeast(0),
     )
 }

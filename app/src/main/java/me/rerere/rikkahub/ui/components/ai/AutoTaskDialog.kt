@@ -43,7 +43,7 @@ import me.rerere.rikkahub.R
  * 执行内容（多选，至少一个）：
  *  - 固定消息 / 任务列表（与触发模式中的任务列表联动勾选）
  *
- * 次数：0 = 无限，默认 100，上限 [MAX_AUTO_TASK_TRIGGER_COUNT]；任务列表跑完或到达次数即自动停止。
+ * 次数：0 = 无限，默认 1，上限 [MAX_AUTO_TASK_TRIGGER_COUNT]；任务列表跑完或到达次数即自动停止。
  * 活跃监测：会话正在生成回复或用户 60 秒内有操作时，跳过本次触发。
  */
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
@@ -315,7 +315,7 @@ fun AutoTaskDialog(
                     }
                 }
 
-                // ===== 触发次数（0=无限，默认 100，上限 100） =====
+                // ===== 触发次数（0=无限，默认 1，上限 100） =====
                 OutlinedTextField(
                     value = currentCount,
                     onValueChange = { value ->
@@ -393,7 +393,7 @@ fun AutoTaskDialog(
                             useTaskList = currentTaskListEnabled,
                             tasks = tasks,
                             taskFileName = fileName,
-                            triggerCount = currentCount.toIntOrNull()?.coerceIn(0, MAX_AUTO_TASK_TRIGGER_COUNT) ?: MAX_AUTO_TASK_TRIGGER_COUNT,
+                            triggerCount = currentCount.toIntOrNull()?.coerceIn(0, MAX_AUTO_TASK_TRIGGER_COUNT) ?: 1,
                             taskIndex = 0,
                         ),
                     )

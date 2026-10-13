@@ -1951,7 +1951,7 @@
   <string name="auto_task_exec_fixed">رسالة ثابتة</string>
   <string name="auto_task_exec_tasklist">قائمة المهام</string>
   <string name="auto_task_count_label">عدد مرات التشغيل</string>
-  <string name="auto_task_count_hint">0 = بلا حد؛ الافتراضي 100؛ الحد 100. يتوقف تلقائيًا عند استيفاء العدد أو انتهاء قائمة المهام.</string>
+  <string name="auto_task_count_hint">0 = بلا حد؛ الافتراضي 1؛ الحد 100. يتوقف تلقائيًا عند استيفاء العدد أو انتهاء قائمة المهام.</string>
   <string name="auto_task_taskfile_label">القوائم المحفوظة (اضغط لإعادة الاستخدام)</string>
   <string name="auto_task_taskfile_use">إعادة استخدام</string>
   <string name="auto_task_taskfile_name_label">اسم القائمة الجديدة</string>
@@ -2574,7 +2574,7 @@
   <string name="auto_task_desc">عيّن مهمة تلقائية ليرسل التطبيق الرسائل تلقائيًا عند تحقق الشرط، فيستمر الحوار دون تدخل يدوي.</string>
   <string name="auto_task_reply_label">محتوى الرد</string>
   <string name="auto_task_reply_placeholder">في مهمة تلقائية. حدّد ما يلزم الآن ونفّذه باستقلالية.</string>
-  <string name="auto_task_default_message">في مهمة تلقائية. حدّد ما يلزم الآن ونفّذه باستقلالية.</string>
+  <string name="auto_task_default_message">[مهمة تلقائية] المستخدم غائب مؤقتًا. راجع السياق الحالي بنفسك وقدّم أهم الأمور غير المكتملة؛ لا تسأل المستخدم (لن يرد أحد)، ولا تختلق مهام؛ إذا لم يكن هناك ما يستعجل، فأبلغ بإيجاز ثم انتظر.</string>
   <string name="setting_page_ssh_hosts">مضيفات SSH</string>
   <string name="setting_page_backend_service">خدمة الواجهة الخلفية</string>
   <string name="setting_page_backend_service_desc">خلفية تنفيذ محلية / SSH / مخصّصة</string>
@@ -3337,12 +3337,12 @@
     <item>راجع المهام المعلّقة واذكرها حسب الأولوية</item>
   </string-array>
   <string-array name="auto_task_ai_preset_list">
-    <item>تحقّق من حالة المستودع وآخر عملية بناء ثم أبلغ</item>
-    <item>راجع المهام المعلّقة واذكرها حسب الأولوية</item>
-    <item>حدِّث الوثائق وسجل التغييرات وقاعدة المعرفة بشكل متسق</item>
-    <item>انسخ المخرجات المهمة احتياطيًا وتحقّق من سلامتها</item>
-    <item>نظّف الملفات المؤقتة والمخرجات القديمة</item>
-    <item>راجع نتائج هذه الجولة وحدِّث سجل الحالة</item>
+    <item>راجع الرسائل والإشعارات غير المقروءة وتعامل مع ما يمكن الرد عليه فورًا حسب الأولوية</item>
+    <item>رتّب مواعيد اليوم والغد وذكّر بالمواعيد المهمة القريبة</item>
+    <item>نظّم الملاحظات والملفات الحديثة، وأرشف المحتوى القديم وأكمل العناوين أو الوسوم الناقصة</item>
+    <item>لخّص معلومات اليوم المهمة في ملخص موجز</item>
+    <item>انسخ السجلات المهمة احتياطيًا وتحقّق من سلامتها، ثم نظّف الملفات المؤقتة</item>
+    <item>راجع نتائج هذه الجولة وحدّث حالة المهام</item>
   </string-array>
 
   <string name="chat_generation_network_disconnected">انقطع اتصال الشبكة</string>

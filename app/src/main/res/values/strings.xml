@@ -2470,7 +2470,7 @@
   <string name="auto_task_desc">Set up auto tasks; the app automatically sends a message to keep the conversation going when the conditions are met.</string>
   <string name="auto_task_reply_label">Reply content</string>
   <string name="auto_task_reply_placeholder">Auto task mode. Think autonomously and execute what needs to be done.</string>
-  <string name="auto_task_default_message">Auto task mode. Think autonomously and execute what needs to be done.</string>
+  <string name="auto_task_default_message">[Auto task] The user has stepped away. Review the current context on your own and advance the most valuable unfinished items; do not ask the user questions (no one will answer), and do not invent tasks; if nothing is urgent, give a brief report and stand by.</string>
   <string name="setting_page_ssh_hosts">SSH hosts</string>
   <string name="setting_page_backend_service">Backend services</string>
   <string name="setting_page_backend_service_desc">Backend / ECS / PC execution backends</string>
@@ -2583,7 +2583,7 @@
   <string name="auto_task_exec_fixed">Fixed message</string>
   <string name="auto_task_exec_tasklist">Task list</string>
   <string name="auto_task_count_label">Trigger count</string>
-  <string name="auto_task_count_hint">0 = unlimited; default 100; max 100. Stops after the count or when the task list finishes.</string>
+  <string name="auto_task_count_hint">0 = unlimited; default 1; max 100. Stops after the count or when the task list finishes.</string>
   <string name="auto_task_taskfile_label">Saved lists (tap to reuse)</string>
   <string name="auto_task_taskfile_use">Use</string>
   <string name="auto_task_taskfile_name_label">New list name</string>
@@ -3420,12 +3420,12 @@
     <item>Review pending items and list them by priority</item>
   </string-array>
   <string-array name="auto_task_ai_preset_list">
-    <item>Check repository status and the latest build result, then report</item>
-    <item>Review pending items and list them by priority</item>
-    <item>Update docs, changelog and knowledge base consistently</item>
-    <item>Back up key artifacts and verify integrity</item>
-    <item>Clean up temp files and stale outputs</item>
-    <item>Review this round outcome and update the status record</item>
+    <item>Review unread messages and notifications, and handle what can be answered right away, in priority order</item>
+    <item>Sort out today\'s and tomorrow\'s schedule, and flag upcoming important items</item>
+    <item>Organize recent notes and files, archive stale content and add missing titles or tags</item>
+    <item>Summarize the day\'s noteworthy information into a brief digest</item>
+    <item>Back up important records and verify integrity, then clean up temp files</item>
+    <item>Review this round\'s outcome and update the to-do status</item>
   </string-array>
 
   <string name="setting_provider_page_match_abilities">Match abilities</string>

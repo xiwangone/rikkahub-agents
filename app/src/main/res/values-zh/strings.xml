@@ -2434,7 +2434,7 @@
   <string name="auto_task_desc">设置自动任务，满足条件时 App 自动发送消息保持对话推进，无需手动操作。</string>
   <string name="auto_task_reply_label">回复内容</string>
   <string name="auto_task_reply_placeholder">自动任务中。自主判断并执行当前需要做什么。</string>
-  <string name="auto_task_default_message">自动任务中。自主判断并执行当前需要做什么。</string>
+  <string name="auto_task_default_message">【自动任务】用户暂时离开。请自主回顾当前上下文，推进最有价值的未竟事项；不要向用户提问（无人应答），也不要虚构任务；若无要紧事，简短汇报后待机。</string>
   <string name="setting_page_ssh_hosts">SSH 主机</string>
   <string name="setting_page_backend_service">后端服务</string>
   <string name="setting_page_backend_service_desc">本地 / SSH / 自建执行后端</string>
@@ -2549,7 +2549,7 @@
   <string name="auto_task_exec_fixed">固定消息</string>
   <string name="auto_task_exec_tasklist">任务列表</string>
   <string name="auto_task_count_label">触发次数</string>
-  <string name="auto_task_count_hint">0 = 无限；默认 100；上限 100。触发满次数或任务列表跑完自动停止。</string>
+  <string name="auto_task_count_hint">0 = 无限；默认 1；上限 100。触发满次数或任务列表跑完自动停止。</string>
   <string name="auto_task_taskfile_label">已保存列表（点击复用）</string>
   <string name="auto_task_taskfile_use">复用</string>
   <string name="auto_task_taskfile_name_label">新列表名称</string>
@@ -3396,12 +3396,12 @@
     <item>自查待办与挂起事项，按优先级列出</item>
   </string-array>
   <string-array name="auto_task_ai_preset_list">
-    <item>检查仓库状态与最近构建结果并汇报</item>
-    <item>自查待办与挂起事项，按优先级列出</item>
-    <item>更新文档、变更记录与知识库并保持一致</item>
-    <item>备份关键产物并校验完整性</item>
-    <item>清理临时文件与过期产物</item>
-    <item>回顾本轮成果并更新状态记录</item>
+    <item>查看未读消息与通知，按优先级处理可即时响应的事项</item>
+    <item>梳理今日与明日日程，提醒临近的重要安排</item>
+    <item>整理近期笔记和文件，归档过期内容、补齐标题与标签</item>
+    <item>汇总当天值得关注的信息，生成一份简要摘要</item>
+    <item>备份重要记录并校验完整性，清理临时文件</item>
+    <item>回顾本轮结果并更新待办状态</item>
   </string-array>
 
   <string name="chat_generation_network_disconnected">网络连接已断开</string>

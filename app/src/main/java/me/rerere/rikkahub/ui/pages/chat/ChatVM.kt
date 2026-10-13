@@ -632,6 +632,7 @@ class ChatVM(
                 val triggerChannel = Channel<Unit>(Channel.UNLIMITED)
                 val idleJob = if (config.modeIdle) launch { idleTriggerProducer(config, triggerChannel) } else null
                 val dailyJob = if (config.modeDaily) launch { dailyTriggerProducer(config, triggerChannel) } else null
+                var finished = false
                 try {
                     var triggered = 0
                     var taskIdx = config.taskIndex.coerceIn(0, (config.tasks.size - 1).coerceAtLeast(0))
@@ -659,13 +660,25 @@ class ChatVM(
                         writeAutoTaskConfig(context, config.copy(taskIndex = taskIdx))
 
                         // 停止条件：任务列表跑完，或达到设定次数（0 = 无限）
-                        if (config.useTaskList && config.tasks.isNotEmpty() && taskIdx >= config.tasks.size) done = true
-                        if (config.triggerCount > 0 && triggered >= config.triggerCount) done = true
+                        if (config.useTaskList && config.tasks.isNotEmpty() && taskIdx >= config.tasks.size) {
+                            done = true
+                            finished = true
+                        }
+                        if (config.triggerCount > 0 && triggered >= config.triggerCount) {
+                            done = true
+                            finished = true
+                        }
                     }
                 } finally {
                     idleJob?.cancel()
                     dailyJob?.cancel()
-                    writeAutoTaskConfig(context, AutoTaskConfig())
+                    // 自然跑完（任务列表到底/满次数）：保留全部配置（消息、任务列表、触发模式、
+                    // 间隔时长原样落盘），仅把任务列表进度复位到 0——下次勾选从第一条重跑，不必重填。
+                    // 取消路径（cancelAutoTask / onCleared）走进这里时 finished=false，什么都不写，
+                    // 连任务进度都保留，重新开始可从断点续。
+                    if (finished) {
+                        writeAutoTaskConfig(context, config.copy(taskIndex = 0))
+                    }
                     _autoTaskActive.value = false
                 }
             }

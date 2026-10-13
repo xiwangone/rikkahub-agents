@@ -2304,7 +2304,7 @@
   <string name="auto_task_exec_fixed">固定メッセージ</string>
   <string name="auto_task_exec_tasklist">タスクリスト</string>
   <string name="auto_task_count_label">実行回数</string>
-  <string name="auto_task_count_hint">0 = 無限、既定 100、上限 100。回数に達するかタスクリストを消化すると自動停止します。</string>
+  <string name="auto_task_count_hint">0 = 無限、既定 1、上限 100。回数に達するかタスクリストを消化すると自動停止します。</string>
   <string name="auto_task_taskfile_label">保存済みリスト（タップで再利用）</string>
   <string name="auto_task_taskfile_use">再利用</string>
   <string name="auto_task_taskfile_name_label">新しいリスト名</string>
@@ -2927,7 +2927,7 @@
   <string name="auto_task_desc">自動タスクを設定すると、条件を満たしたときにアプリが自動でメッセージを送り、手動操作なしで会話を進めます。</string>
   <string name="auto_task_reply_label">返信内容</string>
   <string name="auto_task_reply_placeholder">自動タスク中。今必要なことを自主的に判断して実行します。</string>
-  <string name="auto_task_default_message">自動タスク中。今必要なことを自主的に判断して実行します。</string>
+  <string name="auto_task_default_message">【自動タスク】ユーザーは一時的に離席しています。現在の文脈を自主的に振り返り、最も価値のある未完了事項を進めてください。ユーザーに質問してはいけません（応答者はいません）。タスクを作り出してもいけません。緊急の用事がなければ、簡潔に報告して待機してください。</string>
   <string name="setting_page_ssh_hosts">SSH ホスト</string>
   <string name="setting_page_backend_service">バックエンドサービス</string>
   <string name="setting_page_backend_service_desc">ローカル / SSH / 自前の実行バックエンド</string>
@@ -3348,12 +3348,12 @@
     <item>保留項目を確認し優先度順に列挙</item>
   </string-array>
   <string-array name="auto_task_ai_preset_list">
-    <item>リポジトリの状態と直近のビルド結果を確認して報告</item>
-    <item>保留項目を確認し優先度順に列挙</item>
-    <item>ドキュメント・変更履歴・ナレッジを一貫して更新</item>
-    <item>主要な成果物をバックアップして検証</item>
-    <item>一時ファイルと古い出力を整理</item>
-    <item>今回の成果を振り返り状態記録を更新</item>
+    <item>未読のメッセージと通知を確認し、優先度順ですぐ対応できる事項を処理する</item>
+    <item>今日と明日の予定を整理し、直近の重要な予定を提醒する</item>
+    <item>最近のメモとファイルを整理し、古い内容はアーカイブしてタイトルやタグを補完する</item>
+    <item>その日の注目すべき情報をまとめ、簡潔なサマリーを作成する</item>
+    <item>重要な記録をバックアップして整合性を検証し、一時ファイルを整理する</item>
+    <item>今回の結果を振り返り、タスクの状態を更新する</item>
   </string-array>
 
   <string name="setting_update_reminder_enabled">更新通知は有効です</string>

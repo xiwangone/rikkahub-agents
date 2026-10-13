@@ -2519,7 +2519,7 @@
     <string name="vault_sort_updated">最近更新</string>
     <string name="vault_sort_created">最近新增</string>
     <string name="vault_sort_name">名稱</string>
-    <string name="auto_task_default_message">自動任務中。自主判斷並執行當前需要做什麼。</string>
+    <string name="auto_task_default_message">【自動任務】用戶暫時離開。請自主回顧當前上下文，推進最有價值的未竟事項；不要向用戶提問（無人應答），也不要虛構任務；若無要緊事，簡短匯報後待機。</string>
     <string name="setting_page_ssh_hosts">SSH 主機</string>
     <string name="setting_page_backend_service">後端服務</string>
     <string name="setting_page_backend_service_desc">本地 / SSH / 自建執行後端</string>
@@ -2632,7 +2632,7 @@
     <string name="auto_task_exec_label">執行內容（可多選，至少一個）</string>
     <string name="auto_task_exec_fixed">固定訊息</string>
     <string name="auto_task_exec_tasklist">任務列表</string>
-    <string name="auto_task_count_hint">0 = 無限；預設 100；上限 100。觸發滿次數或任務列表跑完自動停止。</string>
+    <string name="auto_task_count_hint">0 = 無限；預設 1；上限 100。觸發滿次數或任務列表跑完自動停止。</string>
     <string name="auto_task_taskfile_label">已儲存列表（點選複用）</string>
     <string name="auto_task_taskfile_use">複用</string>
     <string name="auto_task_taskfile_name_label">新列表名稱</string>
@@ -3324,12 +3324,12 @@
     <item>自查待辦與掛起事項，按優先級列出</item>
   </string-array>
   <string-array name="auto_task_ai_preset_list">
-    <item>檢查倉庫狀態與最近建置結果並匯報</item>
-    <item>自查待辦與掛起事項，按優先級列出</item>
-    <item>更新文件、變更記錄與知識庫並保持一致</item>
-    <item>備份關鍵產物並校驗完整性</item>
-    <item>清理臨時檔案與過期產物</item>
-    <item>回顧本輪成果並更新狀態記錄</item>
+    <item>查看未讀訊息與通知，按優先級處理可即時回應的事項</item>
+    <item>梳理今日與明日日程，提醒臨近的重要安排</item>
+    <item>整理近期筆記和檔案，歸檔過期內容、補齊標題與標籤</item>
+    <item>匯總當天值得關注的資訊，生成一份簡要摘要</item>
+    <item>備份重要記錄並校驗完整性，清理臨時檔案</item>
+    <item>回顧本輪結果並更新待辦狀態</item>
   </string-array>
 
   <string name="chat_generation_network_disconnected">網路連線已中斷</string>
