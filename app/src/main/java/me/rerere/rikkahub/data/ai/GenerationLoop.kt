@@ -946,7 +946,14 @@ class GenerationLoop(
                         // now — they're history, and counting them produces a confusing
                         // "you already called this 3 times in this turn" envelope after
                         // a single fresh call.
-                        val turnStartIndex = messages.indexOfLast { it.role == MessageRole.USER }
+                        // 本轮起点 = 最后一条**真实** user 消息。⚠ 必须排除合成 user：本轮内系统会
+                        // 注入合成 user（墙钟预算将尽的收尾提示 / token 预算越线提示 / 断流续写指令），
+                        // 它们不是“新一轮用户发言”。若不排除，注入一条就把本轮此前已执行的工具调用
+                        // 全部退出重复计数 —— 恰好在“快要跑飞”的时刻清掉记忆，早期止损退化成硬掐到
+                        // 步数上限。请求组装末端的 transformers（如时间提醒）注入的合成 user 不在
+                        // 本处视野（这里读的是未经 transformer 的 messages），故不受其影响。
+                        val turnStartIndex =
+                            messages.indexOfLast { it.role == MessageRole.USER && !it.isSynthetic }
                         val turnSlice = messages.subList(
                             (turnStartIndex + 1).coerceAtLeast(0),
                             messages.size
@@ -1398,7 +1405,12 @@ class GenerationLoop(
             // Keeps this app's multi-part system assembly and tool-image ageing, on top of
             // the renamed field and its stepped truncation (which now preserves
             // prompt caching instead of trimming one message at a time).
-            addAll(messages.limitContext(assistant.contextMessageLimit).ageOldToolImages())
+            addAll(
+                messages
+                    .limitContext(assistant.contextMessageLimit)
+                    .ageOldToolImages()
+                    .withCheckpointCalibration(),
+            )
         }.transforms(
             transformers = transformers,
             context = context,
@@ -1706,4 +1718,38 @@ internal fun appendApprovalProvenance(
             part
         }
     }
+}
+
+/**
+ * 压缩检查点摘要发给模型前，在摘要文本尾部追加一段固定「执行提示」。
+ *
+ * 压缩会把结构化的 tool_call / result 对文字化，上下文里只剩"做过什么"的叙述、缺少
+ * "接下来做什么"的行动锚点 —— 表现可能是模型在思考中反复复述计划却不发起工具调用。
+ * 这段提示直接对冲该模式。
+ *
+ * 只在**请求组装时**拼接：不落库、不进 UI 渲染，对同一份摘要文本是确定性的（因此不破坏
+ * 提示词缓存前缀），存量压缩记录也自动生效。幂等 —— step 循环里 messages 会回流再组装，
+ * 已带提示的文本不再重复追加。
+ */
+private const val CHECKPOINT_CALIBRATION_NOTE =
+    "\n\n[执行提示] 以上是此前对话的摘要，仅供回溯。其中记录的工具调用与结果均已真实发生，" +
+        "不要重新执行已成功的调用。工具环境本身没有变化：需要行动时直接发起工具调用，" +
+        "不要在思考中复述计划。若摘要与工具的实际状态不一致，先用只读工具核实再行动。" +
+        "摘要末尾的「## 待办」小节是下一步行动清单，优先处理其中的事项；该小节不存在时忽略此句。"
+
+internal fun List<UIMessage>.withCheckpointCalibration(): List<UIMessage> {
+    val head = firstOrNull() ?: return this
+    if (!head.isContextCheckpoint) return this
+    var touched = false
+    val parts = head.parts.map { part ->
+        if (!touched && part is UIMessagePart.Text) {
+            touched = true
+            if (part.text.contains(CHECKPOINT_CALIBRATION_NOTE)) part
+            else UIMessagePart.Text(text = part.text + CHECKPOINT_CALIBRATION_NOTE, metadata = part.metadata)
+        } else {
+            part
+        }
+    }
+    if (!touched) return this
+    return listOf(head.copy(parts = parts)) + drop(1)
 }
