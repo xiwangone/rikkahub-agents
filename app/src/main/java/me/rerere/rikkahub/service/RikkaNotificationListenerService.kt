@@ -392,7 +392,7 @@ private fun StatusBarNotification.toEntry(pm: PackageManager): NotificationEntry
     val label =
         try {
             pm.getApplicationLabel(pm.getApplicationInfo(packageName, 0)).toString()
-        } catch (t: Throwable) {
+        } catch (t: PackageManager.NameNotFoundException) {
             // Uninstalled / restricted package — fall back to the raw package name.
             AppLog.d(TAG, "getApplicationLabel failed for $packageName", t)
             packageName

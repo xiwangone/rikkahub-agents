@@ -16,6 +16,7 @@ import me.rerere.rikkahub.data.repository.ScheduledJobRepository
 import me.rerere.rikkahub.data.repository.ScheduledJobRunRepository
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
+import java.io.IOException
 import java.util.concurrent.TimeUnit
 
 /**
@@ -56,7 +57,7 @@ class CronBootReceiver :
                 val cfg =
                     try {
                         telegramPrefs.current()
-                    } catch (_: Throwable) {
+                    } catch (_: IOException) {
                         null
                     }
                 if (cfg != null && cfg.isUsable) {
