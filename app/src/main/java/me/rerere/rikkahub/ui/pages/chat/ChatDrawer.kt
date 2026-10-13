@@ -447,7 +447,7 @@ fun ChatDrawerContent(
 
                 DrawerAction(
                     icon = {
-                        Icon(HugeIcons.Settings03, null)
+                        Icon(HugeIcons.Settings03, stringResource(R.string.settings))
                     },
                     label = { Text(stringResource(R.string.settings)) },
                     onClick = {
@@ -803,7 +803,7 @@ private fun DrawerActions(navController: Navigator) {
             ) {
                 Icon(
                     imageVector = HugeIcons.Search01,
-                    contentDescription = null,
+                    contentDescription = stringResource(R.string.chat_page_search_chats),
                     modifier = Modifier.size(18.dp),
                     tint = MaterialTheme.colorScheme.onSurface,
                 )
