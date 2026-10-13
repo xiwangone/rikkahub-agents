@@ -353,17 +353,28 @@ fun List<UIMessage>.repairToolPairing(reason: String): List<UIMessage> =
  * 不会执行了（含自动批准后被中断的 `Auto`）。
  *
  * 之所以补结果而非丢弃整条消息：整条删除会连带丢掉本轮已生成的 AI 文本与工具调用记录，用户与
- * 模型都失去这段上下文（模型以为什么都没发生，可能重复执行同一副作用）。补一个「未执行」的确定
- * 性 envelope 后，消息成为合法终态（`isExecuted == true`），可安全进入后续上下文。
+ * 模型都失去这段上下文（模型以为什么都没发生，可能重复执行同一副作用）。补一个确定的 envelope
+ * 后，消息成为合法终态（`isExecuted == true`），可安全进入后续上下文。
+ *
+ * 理由按「执行是否开始过」分叉（[UIMessagePart.Tool.executionStartedAt] 有值即开始过）：
+ *  - 从未开始 → [reason]（"未执行"是事实）；
+ *  - 开始过但结果没回来 → [interruptedAttemptReason]（"状态未知、先核实"）。此时副作用可能
+ *    已发生（shell 跑完才被杀、进程回收前结果没落库），告知"未执行"会诱导模型重跑同一条
+ *    命令形成重复副作用。默认 [interruptedAttemptReason] = [reason]，调用方不传时行为不变。
  *
  * 无未执行工具时返回自身（保持引用相等，避免无谓重组与落盘）。
  */
-fun UIMessage.abandonUnexecutedTools(reason: String): UIMessage {
+fun UIMessage.abandonUnexecutedTools(
+    reason: String,
+    interruptedAttemptReason: String = reason,
+): UIMessage {
     var changed = false
     val newParts =
         parts.map { part ->
             if (part is UIMessagePart.Tool && !part.isExecuted) {
                 changed = true
+                val partReason =
+                    if (part.executionStartedAt != null) interruptedAttemptReason else reason
                 part.copy(
                     output =
                         listOf(
@@ -371,12 +382,12 @@ fun UIMessage.abandonUnexecutedTools(reason: String): UIMessage {
                                 json.encodeToString(
                                     buildJsonObject {
                                         put("status", JsonPrimitive("interrupted"))
-                                        put("error", JsonPrimitive(reason))
+                                        put("error", JsonPrimitive(partReason))
                                     },
                                 ),
                             ),
                         ),
-                    approvalState = ToolApprovalState.Denied(reason),
+                    approvalState = ToolApprovalState.Denied(partReason),
                 )
             } else {
                 part

@@ -210,6 +210,24 @@ internal data class LoopGuardDecision(
 )
 
 /**
+ * 「执行已开始但结果未返回」的中断尝试所用的确定性 Denied 理由。
+ *
+ * 与 [UIMessagePart.Tool.isInterruptedAttempt] 配套：executionStartedAt 有值、output 仍空
+ * —— 副作用**可能已发生**（进程在执行中途被杀）。刻意不断言「未执行」：必须告知「状态未知、
+ * 先核实再重试」，否则模型重跑同一条 shell/git 命令就是重复计费/重复发送/重复覆盖。
+ *
+ * 两处消费，必须同文（历史上正是只有一处用对、另一处用错才出的误报）：
+ *  1. 本文件 generateText 顶部的 replay 安全通道（请求路径）；
+ *  2. ChatService.checkInvalidMessages 的生成前清理（持久化路径，先于 replay 通道执行，
+ *     若不在此分叉，replay 的这一句永远轮不到）。
+ */
+internal const val INTERRUPTED_UNKNOWN_OUTCOME_REASON =
+    "interrupted_unknown_outcome: a previous attempt to execute this tool started " +
+        "but did not complete (process killed mid-execute). The side effect MAY OR " +
+        "MAY NOT have happened. Verify the target state before retrying — do not " +
+        "blindly re-run the same call."
+
+/**
  * Pure, testable loop-detection decision, extracted from [GenerationLoop.generateText] so
  * the act-observe reset and freshness-TTL rules can be unit-tested without an Android Context.
  */
@@ -363,12 +381,7 @@ class GenerationLoop(
             val newParts = msg.parts.map { part ->
                 if (part is UIMessagePart.Tool && part.isInterruptedAttempt) {
                     AppLog.w(TAG, "replay: ${part.toolName} (${part.toolCallId}) had executionStartedAt set with empty output → Denied(interrupted_unknown_outcome)")
-                    part.copy(approvalState = ToolApprovalState.Denied(
-                        "interrupted_unknown_outcome: a previous attempt to execute this tool started " +
-                            "but did not complete (process killed mid-execute). The side effect MAY OR " +
-                            "MAY NOT have happened. Verify the target state before retrying — do not " +
-                            "blindly re-run the same call."
-                    ))
+                    part.copy(approvalState = ToolApprovalState.Denied(INTERRUPTED_UNKNOWN_OUTCOME_REASON))
                 } else part
             }
             if (newParts == msg.parts) msg else msg.copy(parts = newParts)

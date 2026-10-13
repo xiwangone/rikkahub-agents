@@ -15,25 +15,44 @@ import org.junit.Test
  *
  * 与 [FinishPendingToolsTest] 的分工：`finishPendingTools` 只改写用户已表态的 Pending/Approved 并
  * 刻意放过 Auto；本函数覆盖**所有未执行工具**（含自动批准后被中断的 Auto）。
+ *
+ * 理由按 `executionStartedAt` 分叉（`interruptedAttemptReason` 参数）：从未开始的告知「未执行」；
+ * 开始过但结果没回来的告知「状态未知、先核实」——后者副作用可能已发生（shell 跑完才被杀），
+ * 误告「未执行」会诱导模型重跑同一条命令。两类都要测，且 Approved / Auto 两条审批态各覆盖
+ * （Auto 曾漏出 needsImmediatePersist 的面包屑落盘，进程被杀后磁盘上无从识别）。
  */
 class AbandonUnexecutedToolsTest {
+    // startedAt == null（从未开始）一路的理由：保持仓内既有文案不动。
     private val reason =
         "interrupted_before_execution: the turn was interrupted before this tool ran; it did NOT execute."
+
+    // startedAt != null（执行中结果丢失）一路的理由：与 GenerationLoop.INTERRUPTED_UNKNOWN_OUTCOME_REASON 同文。
+    private val unknownReason =
+        "interrupted_unknown_outcome: a previous attempt to execute this tool started but did not " +
+            "complete (process killed mid-execute). The side effect MAY OR MAY NOT have happened. " +
+            "Verify the target state before retrying — do not blindly re-run the same call."
 
     private fun tool(
         state: ToolApprovalState,
         executed: Boolean = false,
+        startedAt: Long? = null,
     ) = UIMessagePart.Tool(
         toolCallId = "call_1",
         toolName = "shizuku_exec",
         input = "{}",
         output = if (executed) listOf(UIMessagePart.Text(text = "ok")) else emptyList(),
+        executionStartedAt = startedAt,
         approvalState = state,
     )
 
-    private fun after(tool: UIMessagePart.Tool): UIMessagePart.Tool {
+    private fun after(tool: UIMessagePart.Tool): UIMessagePart.Tool = after(tool, reason)
+
+    private fun after(
+        tool: UIMessagePart.Tool,
+        interruptedAttemptReason: String,
+    ): UIMessagePart.Tool {
         val message = UIMessage(role = MessageRole.ASSISTANT, parts = listOf(tool))
-        val updated = message.abandonUnexecutedTools(reason)
+        val updated = message.abandonUnexecutedTools(reason, interruptedAttemptReason)
         return updated.parts.filterIsInstance<UIMessagePart.Tool>().single()
     }
 
@@ -87,5 +106,49 @@ class AbandonUnexecutedToolsTest {
         assertEquals(ToolApprovalState.Denied(reason), tools[0].approvalState)
         assertTrue(tools[0].isExecuted)
         assertSame(done, tools[1])
+    }
+
+    // ===== 中断二态分叉：executionStartedAt 有值 → 「状态未知、先核实」 =====
+
+    @Test
+    fun `approved interrupted attempt gets unknown-outcome reason`() {
+        val out = after(tool(ToolApprovalState.Approved, startedAt = 1_700_000_000_000L), unknownReason)
+        assertEquals(ToolApprovalState.Denied(unknownReason), out.approvalState)
+        assertTrue(out.isExecuted)
+        val error = out.output.single() as UIMessagePart.Text
+        assertTrue(error.text.contains("interrupted_unknown_outcome"))
+    }
+
+    @Test
+    fun `auto interrupted attempt gets unknown-outcome reason`() {
+        val out = after(tool(ToolApprovalState.Auto, startedAt = 1_700_000_000_000L), unknownReason)
+        assertEquals(ToolApprovalState.Denied(unknownReason), out.approvalState)
+        assertTrue(out.isExecuted)
+        val error = out.output.single() as UIMessagePart.Text
+        assertTrue(error.text.contains("interrupted_unknown_outcome"))
+    }
+
+    @Test
+    fun `unstarted auto tool keeps not-executed reason`() {
+        // startedAt == null：确实从未派发，「未执行」是事实，不得误升级为「状态未知」。
+        val out = after(tool(ToolApprovalState.Auto))
+        assertEquals(ToolApprovalState.Denied(reason), out.approvalState)
+        assertTrue(out.isExecuted)
+        val error = out.output.single() as UIMessagePart.Text
+        assertTrue(error.text.contains("interrupted_before_execution"))
+    }
+
+    @Test
+    fun `mixed interrupted and unstarted tools get respective reasons`() {
+        val started = tool(ToolApprovalState.Auto, startedAt = 1_700_000_000_000L)
+        val unstarted = tool(ToolApprovalState.Approved)
+        val message = UIMessage(role = MessageRole.ASSISTANT, parts = listOf(started, unstarted))
+
+        val updated = message.abandonUnexecutedTools(reason, unknownReason)
+
+        val tools = updated.parts.filterIsInstance<UIMessagePart.Tool>()
+        assertEquals(2, tools.size)
+        assertEquals(ToolApprovalState.Denied(unknownReason), tools[0].approvalState)
+        assertEquals(ToolApprovalState.Denied(reason), tools[1].approvalState)
     }
 }

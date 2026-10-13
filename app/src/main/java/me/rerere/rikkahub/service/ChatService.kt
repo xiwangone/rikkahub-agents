@@ -56,6 +56,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.abandonUnexecutedTools
 import me.rerere.rikkahub.data.ai.FailureKind
+import me.rerere.rikkahub.data.ai.INTERRUPTED_UNKNOWN_OUTCOME_REASON
 import me.rerere.rikkahub.data.ai.classifyFailureKind
 import me.rerere.ai.ui.canResumeToolExecution
 import me.rerere.ai.ui.finishPendingTools
@@ -1562,7 +1563,7 @@ class ChatService(
                             // started but no output yet" — this writes the executionStartedAt
                             // breadcrumb to disk so a process kill mid-execute leaves a clear
                             // signal for the next replay (see GenerationLoop.kt's replay
-                            // safety pass: Approved + executionStartedAt + empty → Denied
+                            // safety pass: executionStartedAt + empty → Denied
                             // interrupted_unknown_outcome). Without this, the marker stays in
                             // memory only and replay can't distinguish "freshly approved,
                             // never tried" from "interrupted mid-execute" → silent re-run.
@@ -1571,12 +1572,18 @@ class ChatService(
                                     p is UIMessagePart.Tool &&
                                         p.output.isEmpty() &&
                                         (
-                                            // 执行刚开始（Approved + executionStartedAt）——落盘面包屑，
-                                            // 供进程被杀后的 replay 安全检查识别「中断的尝试」。
+                                            // 执行刚开始（Approved/Auto + executionStartedAt）——落盘面包屑，
+                                            // 供进程被杀后的 replay 安全检查识别「中断的尝试」。Auto 与
+                                            // Approved 走同一套 mark-then-execute（见 isInterruptedAttempt），
+                                            // 漏了它，被杀的 Auto 工具在磁盘上只剩空 output，无从与「从未
+                                            // 开始」区分，replay 时会被静默重跑。
                                             (
                                                 p.executionStartedAt != null &&
-                                                    p.approvalState is ToolApprovalState.Approved
-                                                ) ||
+                                                    (
+                                                        p.approvalState is ToolApprovalState.Approved ||
+                                                            p.approvalState is ToolApprovalState.Auto
+                                                        )
+                                            ) ||
                                                 // 刚转为「待审批」：这是必须立刻可见的状态迁移。
                                                 // 若被节流吞掉，UI 拿到的仍是 Auto → isPending=false →
                                                 // 审批按钮不渲染；而 Auto 又恰好满足 finishPendingTools 的
@@ -1749,12 +1756,20 @@ class ChatService(
                 // 到这里只剩「未执行且不可续跑」的工具：Pending（等审批却没被处理）或 Auto
                 // （自动批准后在执行前被打断）。**不再整条删除该消息**——那会连带丢掉本轮已生成的
                 // AI 文本与工具调用记录，表现为「用户两条消息之间的 AI 回复凭空消失」，且模型从此
-                // 不知道发生过什么（可能重复执行同一副作用）。改为补一个「未执行（中断）」的合成
-                // 结果后保留消息，使其成为合法终态（isExecuted=true）并可安全进入后续上下文。
+                // 不知道发生过什么（可能重复执行同一副作用）。改为补一个合成的结果后保留消息，
+                // 使其成为合法终态（isExecuted=true）并可安全进入后续上下文。
+                //
+                // 理由按「执行是否开始过」分叉：executionStartedAt 有值 = 派发过、副作用可能
+                // 已发生（shell 跑完才被杀、结果落库前进程被回收），只能告知「状态未知、先核实」；
+                // 只有从未开始的才告知「未执行」。混用会让模型重跑同一条 shell/git 命令，形成
+                // 重复提交/重复发送。本通道先于 GenerationLoop 的 replay 安全通道执行，若不在此
+                // 分叉，replay 的 interrupted_unknown_outcome 永远轮不到（它要求 output 为空，
+                // 而此处已合成 output）。
                 val abandoned =
                     node.currentMessage.abandonUnexecutedTools(
                         "interrupted_before_execution: " +
                             context.getString(R.string.chat_tool_interrupted_before_execution_detail),
+                        INTERRUPTED_UNKNOWN_OUTCOME_REASON,
                     )
                 if (abandoned !== node.currentMessage) {
                     abandonedMessageIds += abandoned.id
