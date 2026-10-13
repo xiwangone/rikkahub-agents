@@ -7,7 +7,6 @@ import io.ktor.server.cio.CIO
 import io.ktor.server.cio.CIOApplicationEngine
 import io.ktor.server.engine.EmbeddedServer
 import io.ktor.server.engine.embeddedServer
-import io.ktor.server.http.content.singlePageApplication
 import io.ktor.server.http.content.staticResources
 import io.ktor.server.plugins.compression.Compression
 import io.ktor.server.plugins.cors.routing.CORS
@@ -39,10 +38,15 @@ fun startWebServer(
         install(SSE)
         install(DefaultHeaders)
         routing {
+            // 静态资源与单页应用兜底都由这一条提供：default("index.html") 让任何未命中
+            // 请求回落到前端入口（classpath 资源 static/index.html），前端深链照常工作。
+            // ⚠ 不要在这里调用 Route.singlePageApplication()：它是 Route 的扩展而不是本配置块
+            // 的成员，会在同一父路由上额外注册一条 staticFiles(File(""))；File("") 解析为进程
+            // 工作目录（应用进程 = 文件系统根），等于把整个文件系统当成静态资源目录，且该路由
+            // 先于本条注册、也在鉴权模块之前 —— 未授权请求可按绝对路径读到设备上的私有数据文件。
             staticResources("/", "static") {
                 default("index.html")
                 enableAutoHeadResponse()
-                singlePageApplication()
             }
         }
         module()
