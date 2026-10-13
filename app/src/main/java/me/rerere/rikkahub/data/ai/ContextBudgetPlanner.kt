@@ -209,10 +209,12 @@ object ContextBudgetPlanner {
      * 非 `file://`（content://、http、解析失败）一律 null，不参与估算。
      */
     private fun documentFileOf(url: String): File? {
-        runCatching { url.toUri().toFile() }.getOrNull()?.let { return it }
+        // 先校 isFile：旧写法把"能构造但文件不存在"的 File 无条件返回，使下面兼容 JVM 单测
+        // （android.net.Uri 为未打桩存根）的 file:// 兜底分支永远走不到，正文估算恒为 0。
+        runCatching { url.toUri().toFile() }.getOrNull()?.takeIf { it.isFile }?.let { return it }
         if (!url.startsWith("file://")) return null
         val path = url.removePrefix("file://")
-        return if (path.startsWith("/")) File(path) else null
+        return if (path.startsWith("/")) File(path).takeIf { it.isFile } else null
     }
 
     private fun estimateTextTokens(text: String): Long {

@@ -100,16 +100,13 @@ object DocumentAsPromptTransformer : InputMessageTransformer {
      * 不是正文替代品。
      */
     internal fun excerptOf(content: String): String =
-        if (content.length <= EXCERPT_CHARS_PER_SIDE) {
+        if (content.length <= EXCERPT_CHARS_PER_SIDE * 2) {
+            // 不超两侧之和：头与尾已覆盖全文，直接给原文；此处拼接会把重叠中段重复一遍。
             content
         } else {
             val head = content.take(EXCERPT_CHARS_PER_SIDE)
             val tail = content.takeLast(EXCERPT_CHARS_PER_SIDE)
-            if (content.length <= EXCERPT_CHARS_PER_SIDE * 2) {
-                head + tail
-            } else {
-                "$head\n...\n$tail"
-            }
+            "$head\n...\n$tail"
         }
 
     // 引用式摘要单边字符数上限。
