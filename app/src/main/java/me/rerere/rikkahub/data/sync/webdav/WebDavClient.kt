@@ -27,6 +27,7 @@ import java.io.StringReader
 import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
 import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "WebDavClient"
@@ -430,15 +431,15 @@ class WebDavClient(
         return try {
             // RFC 1123 format: "Tue, 15 Nov 1994 08:12:31 GMT"
             ZonedDateTime.parse(dateString, DateTimeFormatter.RFC_1123_DATE_TIME).toInstant()
-        } catch (_: Exception) {
+        } catch (_: DateTimeParseException) {
             try {
                 // RFC 850 format: "Tuesday, 15-Nov-94 08:12:31 GMT"
                 ZonedDateTime.parse(dateString, DateTimeFormatter.ofPattern("EEEE, dd-MMM-yy HH:mm:ss zzz")).toInstant()
-            } catch (_: Exception) {
+            } catch (_: DateTimeParseException) {
                 try {
                     // ISO 8601
                     Instant.parse(dateString)
-                } catch (_: Exception) {
+                } catch (_: DateTimeParseException) {
                     AppLog.w(TAG, "Failed to parse date: $dateString")
                     null
                 }

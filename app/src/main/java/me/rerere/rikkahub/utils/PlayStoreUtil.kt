@@ -38,7 +38,7 @@ object PlayStoreUtil {
                 @Suppress("DEPRECATION")
                 context.packageManager.getInstallerPackageName(context.packageName)
             }
-        } catch (_: Exception) {
+        } catch (_: PackageManager.NameNotFoundException) {
             null
         }
 }
