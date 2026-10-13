@@ -214,7 +214,10 @@ object ContextBudgetPlanner {
         runCatching { url.toUri().toFile() }.getOrNull()?.takeIf { it.isFile }?.let { return it }
         if (!url.startsWith("file://")) return null
         val path = url.removePrefix("file://")
-        return if (path.startsWith("/")) File(path).takeIf { it.isFile } else null
+        // 用 isAbsolute 而不是 startsWith("/")：CI/开发机也可能是 Windows，那里 absolutePath
+        // 形如 C:\…，只认斜杠开头会让 Windows 上的路径全被判成无效（三个用例因此恒估 0）。
+        // 仍要求绝对路径：不接受相对片段，避免把 cwd 下的同名文件当附件估。
+        return runCatching { File(path) }.getOrNull()?.takeIf { it.isAbsolute && it.isFile }
     }
 
     private fun estimateTextTokens(text: String): Long {
