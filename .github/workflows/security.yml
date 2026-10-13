@@ -95,7 +95,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: web-ui/node_modules
-          key: webui-${{ hashFiles('web-ui/bun.lock') }}
+          key: webui-${{ hashFiles('web-ui/pnpm-lock.yaml', 'web-ui/package.json') }}
           restore-keys: webui-
 
       - name: 导出运行时依赖清单

@@ -48,11 +48,11 @@ jobs:
           key: ${{ runner.os }}-gradle-buildcache
           save-always: true
 
-      - name: 缓存 web-ui 依赖（bun.lock 变化才重建）
+      - name: 缓存 web-ui 依赖（锁文件 / 依赖清单变化才重建）
         uses: actions/cache@v4
         with:
           path: web-ui/node_modules
-          key: webui-${{ hashFiles('web-ui/bun.lock') }}
+          key: webui-${{ hashFiles('web-ui/pnpm-lock.yaml', 'web-ui/package.json') }}
           restore-keys: webui-
 
       - name: 单元测试（:app + :ai + 8 个模块）
