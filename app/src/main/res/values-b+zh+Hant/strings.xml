@@ -3649,4 +3649,6 @@
   <string name="chat_input_paste_long_text_as_file">過長的貼上文字已改為附加為檔案，而非直接輸入至輸入框。</string>
   <string name="setting_display_page_attachment_inline_threshold_desc">已上傳的檔案，若其擷取的文字長度超過此值，則不會內嵌到提示中：模型僅會收到檔案名稱、路徑及簡短摘錄，並在需要時透過工作區檔案工具讀取完整內容。僅在對話實際具備這些工具時才適用；否則檔案仍會完整內嵌。</string>
   <string name="setting_display_page_attachment_inline_threshold_title">附件內嵌門檻</string>
+  <string name="backup_page_export_failed">匯出失敗：%1$s</string>
+  <string name="imggen_page_prompt_copied">提示詞已複製到剪貼簿</string>
 </resources>

@@ -120,7 +120,7 @@ fun ImportExportTab(
                             // 含明文密钥的包必须加密后才能导出
                             resources.getString(R.string.backup_page_migration_need_encryption)
                         } else {
-                            resources.getString(R.string.backup_page_restore_failed, e.message ?: "")
+                            resources.getString(R.string.backup_page_export_failed, e.message ?: "")
                         },
                         type = ToastType.Error,
                     )

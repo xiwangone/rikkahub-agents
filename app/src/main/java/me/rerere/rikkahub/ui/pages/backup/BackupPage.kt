@@ -134,6 +134,6 @@ fun BackupPage(vm: BackupVM = koinViewModel()) {
     }
 
     if (showRestartDialog) {
-        BackupDialog()
+        BackupDialog(onDismiss = { showRestartDialog = false })
     }
 }

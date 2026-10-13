@@ -282,6 +282,7 @@
   <string name="backup_page_delete_failed">Delete failed: %s</string>
   <string name="backup_page_delete_success">Delete successful</string>
   <string name="backup_page_export_desc">Export app data to a file</string>
+  <string name="backup_page_export_failed">Export failed: %1$s</string>
   <string name="backup_page_exporting">Exporting...</string>
   <string name="backup_page_files">Files</string>
   <string name="backup_page_import_overwrite_confirm">Importing a backup will overwrite app data. Continue?; on a different device the credential vault and model keys must be re-entered</string>
@@ -574,6 +575,7 @@
   <string name="imggen_page_model_selection">Model Selection</string>
   <string name="imggen_page_model_selection_desc">Select AI model for image generation</string>
   <string name="imggen_page_no_generated_images">No generated images</string>
+  <string name="imggen_page_prompt_copied">Prompt copied to clipboard</string>
   <string name="imggen_page_prompt_placeholder">Describe the image you want to generate...</string>
   <string name="imggen_page_save">Save</string>
   <string name="imggen_page_save_failed">Save failed: %1$s</string>

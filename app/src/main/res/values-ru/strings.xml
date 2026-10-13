@@ -3650,4 +3650,6 @@
   <string name="chat_input_paste_long_text_as_file">Длинный вставленный текст был прикреплён как файл, а не введён в поле ввода.</string>
   <string name="setting_display_page_attachment_inline_threshold_desc">Загруженные файлы, извлечённый текст которых длиннее этого значения, не встраиваются в запрос: модель получает только имя файла, путь и короткий фрагмент, и при необходимости читает полное содержимое с помощью инструментов для работы с файлами рабочей области. Применяется только в том случае, если в разговоре действительно есть эти инструменты; в противном случае файл по-прежнему встраивается полностью.</string>
   <string name="setting_display_page_attachment_inline_threshold_title">Порог встраивания вложений</string>
+  <string name="backup_page_export_failed">Ошибка экспорта: %1$s</string>
+  <string name="imggen_page_prompt_copied">Промпт скопирован в буфер обмена</string>
 </resources>

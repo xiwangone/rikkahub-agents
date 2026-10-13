@@ -3650,4 +3650,6 @@
   <string name="chat_input_paste_long_text_as_file">長く貼り付けられたテキストは、入力ボックスに入力される代わりにファイルとして添付されました。</string>
   <string name="setting_display_page_attachment_inline_threshold_desc">アップロードされたファイルの抽出テキストがこの長さを超える場合、プロンプトにインライン化されません。モデルにはファイル名、パス、短い抜粋のみが渡され、必要な場合はワークスペースファイルツールで全文を読み取ります。この設定は、会話が実際にそれらのツールを持っている場合にのみ適用されます。そうでない場合、ファイルは依然として完全にインライン化されます。</string>
   <string name="setting_display_page_attachment_inline_threshold_title">添付ファイルのインライン閾値</string>
+  <string name="backup_page_export_failed">エクスポートに失敗しました: %1$s</string>
+  <string name="imggen_page_prompt_copied">プロンプトをクリップボードにコピーしました</string>
 </resources>

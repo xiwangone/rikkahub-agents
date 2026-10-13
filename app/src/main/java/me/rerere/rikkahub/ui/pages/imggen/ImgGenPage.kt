@@ -77,6 +77,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.LoadState
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemContentType
 import androidx.paging.compose.itemKey
@@ -535,6 +536,7 @@ private fun ImageGalleryScreen(
     val clipboardManager = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
+    val promptCopiedMessage = stringResource(R.string.imggen_page_prompt_copied)
     val pullToRefreshState = rememberPullToRefreshState()
     var selectionMode by remember { mutableStateOf(false) }
     var selectedImages by remember { mutableStateOf<Map<Int, GeneratedImage>>(emptyMap()) }
@@ -641,7 +643,7 @@ private fun ImageGalleryScreen(
         }
 
         PullToRefreshBox(
-            isRefreshing = false,
+            isRefreshing = generatedImages.loadState.refresh is LoadState.Loading,
             onRefresh = { generatedImages.refresh() },
             state = pullToRefreshState,
         ) {
@@ -755,7 +757,7 @@ private fun ImageGalleryScreen(
                                                 onClick = {
                                                     clipboardManager.setText(AnnotatedString(it.prompt))
                                                     toaster.show(
-                                                        message = "Prompt copied to clipboard",
+                                                        message = promptCopiedMessage,
                                                         type = ToastType.Success,
                                                     )
                                                 },
