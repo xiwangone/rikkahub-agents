@@ -1057,6 +1057,8 @@ class ChatService(
                     }
 
                     _generationDoneFlow.emit(conversationId)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     addError(e, conversationId, title = context.getString(R.string.error_title_regenerate_message))
                 } finally {
@@ -1245,6 +1247,8 @@ class ChatService(
                         handleMessageComplete(conversationId)
                     }
                     _generationDoneFlow.emit(conversationId)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     addError(e, conversationId, title = context.getString(R.string.error_title_tool_approval))
                 } finally {
@@ -2373,6 +2377,8 @@ class ChatService(
 
                 // Save the conversation after translation is complete
                 saveConversation(conversationId, getConversationFlow(conversationId).value)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 // Clear translation field on error
                 clearTranslationField(conversationId, message.id)

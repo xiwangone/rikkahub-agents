@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import android.content.Context
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
@@ -112,7 +113,12 @@ fun telegramStatusTool(
     execute = {
         val cfg = prefs.current()
         val botInfo = if (cfg.token.isNotBlank()) {
-            try { client.getMe() } catch (e: Throwable) {
+            // CE 必须放行：用户按停止时这里若把它转成失败信封，取消信号就丢了（1c 批次 1）。
+            try {
+                client.getMe()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
                 ToolErrors.envelopeFor(error = "tool_failed", message = "getMe failed: ${e.message ?: "unknown"}")
             }
         } else null

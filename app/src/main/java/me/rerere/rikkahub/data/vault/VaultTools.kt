@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.vault
 
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.JSch
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -538,6 +539,8 @@ private suspend fun runVaultSshExec(
             ),
         )
         }
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         listOf(UIMessagePart.Text("❌ SSH 执行失败: ${e.message}"))
     }

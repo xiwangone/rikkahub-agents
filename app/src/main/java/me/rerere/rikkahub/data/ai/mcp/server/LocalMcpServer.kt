@@ -11,6 +11,7 @@ import io.ktor.server.response.respond
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.JsonArray
@@ -193,6 +194,8 @@ class LocalMcpServer(
             buildJsonObject {
                 put("content", JsonArray(parts.map { it.toMcpContent() }))
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             errorContent("tool execution failed: ${e.message ?: e::class.simpleName}")
         }

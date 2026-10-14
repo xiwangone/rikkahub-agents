@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.vault
 
 import android.content.Context
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -307,6 +308,8 @@ private suspend fun runVaultHttpExec(
                 )
             }
         }
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
         listOf(UIMessagePart.Text("❌ HTTP 请求失败: ${e.message}"))
     }
