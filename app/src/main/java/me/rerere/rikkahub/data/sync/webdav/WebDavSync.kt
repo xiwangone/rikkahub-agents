@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.sync.webdav
 import me.rerere.rikkahub.data.log.AppLog
 import android.content.Context
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -272,9 +273,11 @@ class WebDavSync(
                     plainFile.delete()
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             AppLog.e(TAG, "restoreFromLocalFile: Failed to restore from local file", e)
-            throw Exception("Restore failed: ${e.message}")
+            throw Exception("Restore failed: ${e.message}", e)
         }
     }
 
@@ -524,9 +527,11 @@ class WebDavSync(
                                     val settings = json.decodeFromString<Settings>(migratedJson)
                                     settingsStore.update(settings)
                                     AppLog.i(TAG, "restoreFromBackupFile: Settings restored successfully")
+                                } catch (e: CancellationException) {
+                                    throw e
                                 } catch (e: Exception) {
                                     AppLog.e(TAG, "restoreFromBackupFile: Failed to restore settings", e)
-                                    throw Exception("Failed to restore settings: ${e.message}")
+                                    throw Exception("Failed to restore settings: ${e.message}", e)
                                 }
                             } else {
                                 AppLog.i(TAG, "restoreFromBackupFile: Skipping settings.json (SETTINGS not selected)")

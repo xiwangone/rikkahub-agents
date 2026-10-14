@@ -439,8 +439,9 @@ class ChatService(
                 if (unusedFiles.isNotEmpty()) {
                     filesManager.deleteChatFiles(unusedFiles.map { it.toUri() })
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 AppLog.w(TAG, "cleanupQueuedAttachments failed, keep files", e)
             }
         }
@@ -738,6 +739,8 @@ class ChatService(
         // 注意：从本轮协程内部调用时 session 里存的可能就是该协程自身的 job，
         // 必须排除，否则会误判为「他人正在生成」而永不放行队列。
         val active = session.getJob()
+        // 协程被取消后 isActive 会转为 false，此守卫随之放行 —— 即「停止生成」仍会派发待发队列的
+        // 下一条。这是产品语义（取消 = 跳过当前这条、队列继续），勿当 bug 修。
         if (active != null && active.isActive && active !== fromJob) return
         val pendingToolExists =
             session.state.value.currentMessages.lastOrNull()?.getTools()?.any { !it.isExecuted } == true

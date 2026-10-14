@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.sync
 import me.rerere.rikkahub.data.log.AppLog
 import android.content.Context
 import io.ktor.client.HttpClient
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -318,9 +319,11 @@ class S3Sync(
                                 val settings = json.decodeFromString<Settings>(migratedJson)
                                 settingsStore.update(settings)
                                 AppLog.i(TAG, "restoreFromBackupFile: Settings restored successfully")
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: Exception) {
                                 AppLog.e(TAG, "restoreFromBackupFile: Failed to restore settings", e)
-                                throw Exception("Failed to restore settings: ${e.message}")
+                                throw Exception("Failed to restore settings: ${e.message}", e)
                             }
                         }
 

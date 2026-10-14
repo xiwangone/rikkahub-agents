@@ -630,7 +630,7 @@
     <ID>TooGenericExceptionThrown:GoogleProvider.kt$GoogleProvider$throw Exception("Failed to get response: ${response.code} ${response.body.string()}")</ID>
     <ID>TooGenericExceptionThrown:ResponseAPI.kt$ResponseAPI$throw Exception("Failed to get response: ${response.code} ${response.body.string()}")</ID>
     <ID>TooGenericExceptionThrown:S3Sync.kt$S3Sync$throw Exception("Failed to restore file ${zipEntry.name}: ${e.message}")</ID>
-    <ID>TooGenericExceptionThrown:S3Sync.kt$S3Sync$throw Exception("Failed to restore settings: ${e.message}")</ID>
+    <ID>TooGenericExceptionThrown:S3Sync.kt$S3Sync$throw Exception("Failed to restore settings: ${e.message}", e)</ID>
     <ID>TooGenericExceptionThrown:S3Sync.kt$S3Sync$throw Exception("Failed to restore skill file $entryName: ${e.message}")</ID>
     <ID>TooGenericExceptionThrown:S3Sync.kt$S3Sync$throw Exception("Invalid skill directory: $entryName")</ID>
     <ID>TooGenericExceptionThrown:S3Sync.kt$S3Sync$throw Exception("Invalid skill file path: $entryName")</ID>
@@ -640,11 +640,11 @@
     <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Backup file does not exist")</ID>
     <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Cannot read backup file")</ID>
     <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Failed to restore ${zipEntry.name}: ${e.message}")</ID>
-    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Failed to restore settings: ${e.message}")</ID>
+    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Failed to restore settings: ${e.message}", e)</ID>
     <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Failed to restore skill file $entryName: ${e.message}")</ID>
     <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Invalid skill directory: $entryName")</ID>
     <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Invalid skill file path: $entryName")</ID>
-    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Restore failed: ${e.message}")</ID>
+    <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Restore failed: ${e.message}", e)</ID>
     <ID>TooGenericExceptionThrown:WebDavSync.kt$WebDavSync$throw Exception("Unsafe backup file name: ${item.displayName}")</ID>
     <ID>TooManyFunctions:AgentRunDao.kt$AgentRunDao</ID>
     <ID>TooManyFunctions:AppLog.kt$AppLog</ID>
