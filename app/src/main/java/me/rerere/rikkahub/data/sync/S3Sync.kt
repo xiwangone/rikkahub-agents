@@ -220,56 +220,24 @@ class S3Sync(
                 }
             }
 
-            // Backup app files
-            if (config.items.any { it.wantsFiles() }) {
-                val uploadFolder = File(context.filesDir, FileFolders.UPLOAD)
-                if (uploadFolder.exists() && uploadFolder.isDirectory) {
-                    AppLog.i(TAG, "prepareBackupFile: Backing up files from ${uploadFolder.absolutePath}")
-                    uploadFolder.listFiles()?.forEach { file ->
-                        if (file.isFile) {
-                            addFileToZip(zipOut, file, "${FileFolders.UPLOAD}/${file.name}")
-                        }
-                    }
-                } else {
-                    AppLog.w(TAG, "prepareBackupFile: Upload folder does not exist or is not a directory")
-                }
+            // 文件类逐项打包：勾一个只打一个目录，避免"勾头像却打包 130MB 聊天附件"。
+            // 旧聚合项 FILES 已由 withLegacyExpanded 展开成 SKILLS+CHAT_FILES+FONTS_IMAGES，
+            // wants() 里的 FILES 分支因此只是语义冗余（与 WebDavSync 保持同一套判断）。
+            if (config.wants(S3Config.BackupItem.AVATARS)) {
+                addFolderFilesToZip(zipOut, FileFolders.AVATARS)
+            }
 
-                val skillsFolder = File(context.filesDir, FileFolders.SKILLS)
-                if (skillsFolder.exists() && skillsFolder.isDirectory) {
-                    AppLog.i(TAG, "prepareBackupFile: Backing up skills from ${skillsFolder.absolutePath}")
-                    addDirectoryToZip(
-                        zipOut = zipOut,
-                        rootDir = skillsFolder,
-                        currentDir = skillsFolder,
-                        entryPrefix = "${FileFolders.SKILLS}/"
-                    )
-                } else {
-                    AppLog.w(TAG, "prepareBackupFile: Skills folder does not exist or is not a directory")
-                }
+            if (config.wants(S3Config.BackupItem.CHAT_FILES)) {
+                addFolderFilesToZip(zipOut, FileFolders.UPLOAD)
+            }
 
-                val fontsFolder = File(context.filesDir, FileFolders.FONTS)
-                if (fontsFolder.exists() && fontsFolder.isDirectory) {
-                    AppLog.i(TAG, "prepareBackupFile: Backing up fonts from ${fontsFolder.absolutePath}")
-                    fontsFolder.listFiles()?.forEach { file ->
-                        if (file.isFile) {
-                            addFileToZip(zipOut, file, "${FileFolders.FONTS}/${file.name}")
-                        }
-                    }
-                } else {
-                    AppLog.w(TAG, "prepareBackupFile: Fonts folder does not exist or is not a directory")
-                }
+            if (config.wants(S3Config.BackupItem.SKILLS)) {
+                addFolderRecursiveToZip(zipOut, FileFolders.SKILLS)
+            }
 
-                val imagesFolder = File(context.filesDir, FileFolders.IMAGES)
-                if (imagesFolder.exists() && imagesFolder.isDirectory) {
-                    AppLog.i(TAG, "prepareBackupFile: Backing up images from ${imagesFolder.absolutePath}")
-                    imagesFolder.listFiles()?.forEach { file ->
-                        if (file.isFile) {
-                            addFileToZip(zipOut, file, "${FileFolders.IMAGES}/${file.name}")
-                        }
-                    }
-                } else {
-                    AppLog.w(TAG, "prepareBackupFile: Images folder does not exist or is not a directory")
-                }
+            if (config.wants(S3Config.BackupItem.FONTS_IMAGES)) {
+                addFolderFilesToZip(zipOut, FileFolders.FONTS)
+                addFolderFilesToZip(zipOut, FileFolders.IMAGES)
             }
         }
 
@@ -367,99 +335,27 @@ class S3Sync(
                         }
 
                         else -> {
-                            if (config.items.any { it.wantsFiles() } &&
-                                zipEntry.name.startsWith("${FileFolders.UPLOAD}/")
-                            ) {
-                                val fileName = zipEntry.name.substringAfter("${FileFolders.UPLOAD}/")
-                                if (fileName.isNotEmpty()) {
-                                    val uploadFolder = File(context.filesDir, FileFolders.UPLOAD)
-                                    if (!uploadFolder.exists()) {
-                                        uploadFolder.mkdirs()
-                                        AppLog.i(TAG, "restoreFromBackupFile: Created upload directory")
-                                    }
+                            // 逐项还原：条目落在哪个目录，就要求本次勾了对应项
+                            val folder = zipEntry.name.substringBefore('/', "")
+                            when (folder) {
+                                FileFolders.AVATARS -> if (config.wants(S3Config.BackupItem.AVATARS)) {
+                                    restoreFolderEntry(zipIn, zipEntry, FileFolders.AVATARS)
+                                } else skipEntry(zipEntry)
 
-                                    // Guard against zip-slip: reject entries that resolve
-                                    // outside the upload folder (e.g. "../../databases/...").
-                                    val targetFile = SkillPaths.resolveSkillFile(uploadFolder, fileName)
-                                    if (targetFile == null) {
-                                        AppLog.w(TAG, "restoreFromBackupFile: Rejected unsafe upload entry ${zipEntry.name}")
-                                    } else {
-                                        AppLog.i(
-                                            TAG,
-                                            "restoreFromBackupFile: Restoring file ${zipEntry.name} to ${targetFile.absolutePath}"
-                                        )
-                                        targetFile.parentFile?.mkdirs()
-                                        try {
-                                            FileOutputStream(targetFile).use { outputStream ->
-                                                zipIn.copyTo(outputStream)
-                                            }
-                                            AppLog.i(
-                                                TAG,
-                                                "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
-                                            )
-                                        } catch (e: IOException) {
-                                            AppLog.e(TAG, "restoreFromBackupFile: Failed to restore file ${zipEntry.name}", e)
-                                            throw IOException("Failed to restore file ${zipEntry.name}: ${e.message}", e)
-                                        }
-                                    }
-                                }
-                            } else if (config.items.any { it.wantsFiles() } &&
-                                zipEntry.name.startsWith("${FileFolders.SKILLS}/")
-                            ) {
-                                restoreSkillEntry(zipIn, zipEntry.name)
-                            } else if (config.items.any { it.wantsFiles() } &&
-                                zipEntry.name.startsWith("${FileFolders.FONTS}/")
-                            ) {
-                                val fileName = zipEntry.name.substringAfter("${FileFolders.FONTS}/")
-                                if (fileName.isNotEmpty() && !fileName.contains('/')) {
-                                    val fontsFolder = File(context.filesDir, FileFolders.FONTS).apply { mkdirs() }
-                                    val targetFile = File(fontsFolder, fileName)
-                                    FileOutputStream(targetFile).use { outputStream ->
-                                        zipIn.copyTo(outputStream)
-                                    }
-                                    AppLog.i(
-                                        TAG,
-                                        "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
-                                    )
-                                }
-                            } else if (config.items.any { it.wantsFiles() } &&
-                                zipEntry.name.startsWith("${FileFolders.IMAGES}/")
-                            ) {
-                                val fileName = zipEntry.name.substringAfter("${FileFolders.IMAGES}/")
-                                if (fileName.isNotEmpty()) {
-                                    val imagesFolder = File(context.filesDir, FileFolders.IMAGES)
-                                    if (!imagesFolder.exists()) {
-                                        imagesFolder.mkdirs()
-                                        AppLog.i(TAG, "restoreFromBackupFile: Created images directory")
-                                    }
+                                FileFolders.UPLOAD -> if (config.wants(S3Config.BackupItem.CHAT_FILES)) {
+                                    restoreFolderEntry(zipIn, zipEntry, FileFolders.UPLOAD)
+                                } else skipEntry(zipEntry)
 
-                                    // Guard against zip-slip: reject entries that resolve
-                                    // outside the images folder (e.g. "../../databases/...").
-                                    val targetFile = SkillPaths.resolveSkillFile(imagesFolder, fileName)
-                                    if (targetFile == null) {
-                                        AppLog.w(TAG, "restoreFromBackupFile: Rejected unsafe images entry ${zipEntry.name}")
-                                    } else {
-                                        AppLog.i(
-                                            TAG,
-                                            "restoreFromBackupFile: Restoring file ${zipEntry.name} to ${targetFile.absolutePath}"
-                                        )
-                                        targetFile.parentFile?.mkdirs()
-                                        try {
-                                            FileOutputStream(targetFile).use { outputStream ->
-                                                zipIn.copyTo(outputStream)
-                                            }
-                                            AppLog.i(
-                                                TAG,
-                                                "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
-                                            )
-                                        } catch (e: IOException) {
-                                            AppLog.e(TAG, "restoreFromBackupFile: Failed to restore file ${zipEntry.name}", e)
-                                            throw IOException("Failed to restore file ${zipEntry.name}: ${e.message}", e)
-                                        }
-                                    }
-                                }
-                            } else {
-                                AppLog.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
+                                FileFolders.SKILLS -> if (config.wants(S3Config.BackupItem.SKILLS)) {
+                                    restoreSkillEntry(zipIn, zipEntry.name)
+                                } else skipEntry(zipEntry)
+
+                                FileFolders.FONTS, FileFolders.IMAGES ->
+                                    if (config.wants(S3Config.BackupItem.FONTS_IMAGES)) {
+                                        restoreFolderEntry(zipIn, zipEntry, folder)
+                                    } else skipEntry(zipEntry)
+
+                                else -> skipEntry(zipEntry)
                             }
                         }
                     }
@@ -546,6 +442,73 @@ class S3Sync(
                 addFileToZip(zipOut, file, "$entryPrefix$relativePath")
             }
         }
+    }
+
+    /** 本次备份是否需要 [item] 对应的内容（旧聚合项 FILES 视为"全量"）。 */
+    private fun S3Config.wants(item: S3Config.BackupItem): Boolean =
+        items.any { it == item || it == S3Config.BackupItem.FILES }
+
+    /** 只打包目录顶层文件（avatars/upload/fonts/images 的旧打包语义）。 */
+    private fun addFolderFilesToZip(zipOut: ZipOutputStream, folder: String) {
+        val dir = File(context.filesDir, folder)
+        if (!dir.exists() || !dir.isDirectory) {
+            AppLog.w(TAG, "addFolderFilesToZip: $folder does not exist or is not a directory")
+            return
+        }
+        AppLog.i(TAG, "addFolderFilesToZip: Backing up $folder from ${dir.absolutePath}")
+        dir.listFiles().orEmpty().forEach { file ->
+            if (file.isFile) {
+                addFileToZip(zipOut, file, "$folder/${file.name}")
+            }
+        }
+    }
+
+    /** 递归打包整个目录（skills 等带子结构的目录）。 */
+    private fun addFolderRecursiveToZip(zipOut: ZipOutputStream, folder: String) {
+        val dir = File(context.filesDir, folder)
+        if (!dir.exists() || !dir.isDirectory) {
+            AppLog.w(TAG, "addFolderRecursiveToZip: $folder does not exist or is not a directory")
+            return
+        }
+        AppLog.i(TAG, "addFolderRecursiveToZip: Backing up $folder from ${dir.absolutePath}")
+        addDirectoryToZip(
+            zipOut = zipOut,
+            rootDir = dir,
+            currentDir = dir,
+            entryPrefix = "$folder/",
+        )
+    }
+
+    /**
+     * 恢复一个普通文件夹条目（upload/avatars/fonts/images）：只认顶层文件，
+     * 并用 zip-slip 防护拒绝逃逸到目录外的条目（如 "../../databases/..."）。
+     */
+    private fun restoreFolderEntry(zipIn: ZipInputStream, zipEntry: ZipEntry, folder: String) {
+        val relative = zipEntry.name.substringAfter("$folder/")
+        if (relative.isEmpty() || relative.contains('/')) {
+            AppLog.i(TAG, "restoreFolderEntry: Skipping $folder entry ${zipEntry.name}")
+            return
+        }
+        val folderRoot = File(context.filesDir, folder).apply { mkdirs() }
+        val targetFile = SkillPaths.resolveSkillFile(folderRoot, relative)
+        if (targetFile == null) {
+            AppLog.w(TAG, "restoreFolderEntry: Rejected unsafe $folder entry ${zipEntry.name}")
+            return
+        }
+        targetFile.parentFile?.mkdirs()
+        try {
+            FileOutputStream(targetFile).use { outputStream ->
+                zipIn.copyTo(outputStream)
+            }
+            AppLog.i(TAG, "restoreFolderEntry: Restored ${zipEntry.name} (${targetFile.length()} bytes)")
+        } catch (e: IOException) {
+            AppLog.e(TAG, "restoreFolderEntry: Failed to restore ${zipEntry.name}", e)
+            throw IOException("Failed to restore ${zipEntry.name}: ${e.message}", e)
+        }
+    }
+
+    private fun skipEntry(zipEntry: ZipEntry) {
+        AppLog.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
     }
 
     private fun restoreSkillEntry(zipIn: ZipInputStream, entryName: String) {

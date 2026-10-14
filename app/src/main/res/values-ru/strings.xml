@@ -180,6 +180,8 @@
   <string name="backup_page_backup_items">Элементы резервной копии</string>
   <string name="backup_page_backup_now">Создать резервную копию</string>
   <string name="backup_page_backup_success">Резервное копирование выполнено успешно</string>
+  <string name="backup_page_backup_failed">Сбой резервного копирования: %1$s</string>
+  <string name="backup_page_backup_oom">Архив резервной копии слишком велик — не хватает памяти. Уменьшите состав архива (файлы чата занимают больше всего) и повторите попытку.</string>
   <string name="backup_page_chat_records">История чатов</string>
   <string name="backup_page_connection_failed">Не удалось подключиться: %s</string>
   <string name="backup_page_connection_success">Соединение успешно</string>

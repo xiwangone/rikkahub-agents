@@ -176,6 +176,8 @@
   <string name="backup_page_backup_items">備份項目</string>
   <string name="backup_page_backup_now">立即備份</string>
   <string name="backup_page_backup_success">備份成功</string>
+  <string name="backup_page_backup_failed">備份失敗：%1$s</string>
+  <string name="backup_page_backup_oom">備份包過大導致記憶體不足，建議減少勾選的備份項目（聊天附件佔用最大）後重試。</string>
   <string name="backup_page_chat_records">聊天記錄</string>
   <string name="backup_page_connection_failed">連線失敗: %s</string>
   <string name="backup_page_connection_success">連線成功</string>

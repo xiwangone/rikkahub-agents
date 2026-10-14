@@ -294,6 +294,8 @@
   <string name="backup_page_backup_items">عناصر النسخ الاحتياطي</string>
   <string name="backup_page_backup_now">نسخ احتياطي الآن</string>
   <string name="backup_page_backup_success">نجح النسخ الاحتياطي</string>
+  <string name="backup_page_backup_failed">فشل النسخ الاحتياطي: %1$s</string>
+  <string name="backup_page_backup_oom">حزمة النسخ الاحتياطي كبيرة جدًا فنَفدت الذاكرة. قلّل عناصر النسخ الاحتياطي (مرفقات الدردشة هي الأكبر) ثم أعد المحاولة.</string>
   <string name="backup_page_chat_records">سجلات الدردشة</string>
   <string name="backup_page_connection_failed">فشل الاتصال: %s</string>
   <string name="backup_page_connection_success">نجح الاتصال</string>

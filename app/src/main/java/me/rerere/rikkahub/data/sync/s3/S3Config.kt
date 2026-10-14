@@ -80,9 +80,5 @@ data class S3Config(
         TOOL_OUTPUTS,
         /** 兼容旧配置的聚合项：等价于旧 FILES 的默认勾选集合（SKILLS+CHAT_FILES+FONTS_IMAGES） */
         FILES;
-
-        /** 是否属于"文件类"（需打包 upload/skills/fonts/images 等）。旧 FILES 聚合与任一拆分项都算。 */
-        fun wantsFiles(): Boolean = this == FILES || this == SKILLS || this == CHAT_FILES ||
-            this == FONTS_IMAGES || this == AVATARS
     }
 }

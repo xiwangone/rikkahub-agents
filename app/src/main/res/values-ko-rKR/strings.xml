@@ -180,6 +180,8 @@
   <string name="backup_page_backup_items">백업 항목</string>
   <string name="backup_page_backup_now">지금 백업</string>
   <string name="backup_page_backup_success">백업 성공</string>
+  <string name="backup_page_backup_failed">백업 실패: %1$s</string>
+  <string name="backup_page_backup_oom">백업 파일이 너무 커서 메모리 부족이 발생했습니다. 백업 항목을 줄인 뒤 다시 시도하세요(채팅 첨부 파일이 용량을 가장 많이 차지합니다).</string>
   <string name="backup_page_chat_records">채팅 기록</string>
   <string name="backup_page_connection_failed">연결 실패: %s</string>
   <string name="backup_page_connection_success">연결 성공</string>

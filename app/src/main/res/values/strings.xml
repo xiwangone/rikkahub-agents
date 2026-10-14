@@ -275,6 +275,8 @@
   <string name="backup_page_config_name">Profile name</string>
   <string name="backup_page_backup_now">Backup Now</string>
   <string name="backup_page_backup_success">Backup successful</string>
+  <string name="backup_page_backup_failed">Backup failed: %1$s</string>
+  <string name="backup_page_backup_oom">The backup package is too large and the app ran out of memory. Reduce the selected backup items (chat attachments are the biggest) and try again.</string>
   <string name="backup_page_chat_records">Chat Records</string>
   <string name="backup_page_connection_failed">Connection failed: %s</string>
   <string name="backup_page_connection_success">Connection successful</string>

@@ -154,6 +154,8 @@ fun S3Tab(
                 Instant.ofEpochMilli(settings.backupReminderConfig.lastBackupTime).toLocalDateTime(),
             )
         }
+    // 备份结果是异步回调，回调里不能再调 stringResource，组合期先取好
+    val backupOomMessage = stringResource(R.string.backup_page_backup_oom)
     val backupFileSummary =
         when (val state = backupItemsState) {
             is UiState.Success -> "${stringResource(R.string.backup_page_files)}: ${state.data.size}"
@@ -395,9 +397,17 @@ fun S3Tab(
                             is BackupRunState.NeedsPassword -> isBackingUp = false
                             is BackupRunState.Failed -> {
                                 isBackingUp = false
+                                val error = state.error
                                 toaster.show(
-                                    state.error?.message
-                                        ?: context.getString(R.string.backup_page_unknown_error),
+                                    if (error.isOutOfMemory()) {
+                                        backupOomMessage
+                                    } else {
+                                        context.getString(
+                                            R.string.backup_page_backup_failed,
+                                            error?.message
+                                                ?: context.getString(R.string.backup_page_unknown_error),
+                                        )
+                                    },
                                     type = ToastType.Error,
                                 )
                             }
@@ -700,3 +710,7 @@ private fun S3BackupItemCard(
         )
     }
 }
+
+/** 异常链里是否有内存溢出（备份包过大时平台 AES/GCM 会把整包缓冲到堆上）。 */
+private fun Throwable?.isOutOfMemory(): Boolean =
+    this is OutOfMemoryError || this?.cause?.isOutOfMemory() == true
