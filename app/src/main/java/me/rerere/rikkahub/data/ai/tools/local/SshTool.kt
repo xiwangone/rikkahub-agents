@@ -263,6 +263,8 @@ internal fun envPrelude(env: Map<String, String>, windows: Boolean): List<String
  *
  * 值的语义与 `workspace_shell` 对齐（见 WorkspaceTools 的 `resolveInjectedEnv`）：
  * - 以 `$$` 开头 → 按名从凭证库解析（purpose = `ENV_INJECT`，走会话授权门 + 审计）；
+ *   其中 `$$名字` 取主值（密文），`$$名字.字段` 取该条目的明文元数据（如 `$$MY_S3.access_key_id`，
+ *   明文字段不过授权门 —— 它本来就是不加密存的，且 `vault_credential_meta` 早已无门可读）；
  * - 其余 → 按字面值，行为与本函数支持引用之前逐字一致。
  *
  * 解析失败**直接报错**，不回退字面值：静默回退等于把凭证名当值注入远端环境
@@ -288,8 +290,10 @@ internal suspend fun readEnvParam(p: kotlinx.serialization.json.JsonObject): Map
     }
     return literals.map { (k, v) ->
         if (!isVaultReference(v)) return@map k to v
-        val credName = v.trim().removePrefix(VAULT_REF_PREFIX).trim()
-        val resolution = resolver.resolve(credName, CredentialPurpose.ENV_INJECT, caller = "ssh-env")
+        // 引用串本体（去前缀后）交给单点解析器：`名字` 取主值、`名字.字段` 取明文元数据字段
+        // （env 注入正是"AK ID 要明文进环境、SK 仍走密文"的主用法）
+        val credRef = v.trim().removePrefix(VAULT_REF_PREFIX).trim()
+        val resolution = resolver.resolveRef(credRef, CredentialPurpose.ENV_INJECT, caller = "ssh-env")
         when (resolution) {
             // 只把真值交给 envPrelude；真值不进日志、不进返回给模型的文本
             is CredentialResolution.Granted -> k to resolution.value
@@ -961,7 +965,7 @@ fun sshExecTool(context: Context): Tool = Tool(
                 put("background", buildJsonObject { put("type", "boolean"); put("description", "If true, launch the command fully detached (nohup, streams redirected) and return immediately with its PID instead of waiting. Use for servers/long jobs that would otherwise block until timeout. Default false.") })
                 put("env", buildJsonObject {
                     put("type", "object")
-                    put("description", "Optional env vars for this call, e.g. {\"TOKEN\":\"abc\"}. Avoids inline `set X=...` quoting. Not supported when background=true. A value starting with `\$\$` is resolved by name from the credential vault (`\$\$CRED_NAME` → that credential's plaintext, same as workspace_shell's env); every other value is used literally as-is. Vault lookup requires an authorized vault session; an unresolvable `\$\$` reference fails the call rather than injecting the name.")
+                    put("description", "Optional env vars for this call, e.g. {\"TOKEN\":\"abc\"}. Avoids inline `set X=...` quoting. Not supported when background=true. A value starting with `\$\$` is resolved by name from the credential vault (`\$\$CRED_NAME` → that credential's plaintext, same as workspace_shell's env; `\$\$CRED.field` → one plaintext metadata field of it, e.g. `\$\$MY_S3.access_key_id`, which needs no vault authorization because such fields are stored unencrypted); every other value is used literally as-is. Vault lookup requires an authorized vault session; an unresolvable `\$\$` reference fails the call rather than injecting the name.")
                 })
                 put("env_style", buildJsonObject {
                     put("type", "string")

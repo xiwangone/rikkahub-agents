@@ -490,7 +490,7 @@ internal fun renderShellPreset(
 }
 
 /**
- * 解析 `env` 参数（{环境变量名: vault凭证名}）并进程内解密注入。
+ * 解析 `env` 参数（{环境变量名: vault凭证名 或 凭证名.字段}）并进程内解密注入。
  *
  * 独立成函数以压低 createShellTool 的圈复杂度；返回（注入映射, 错误消息），
  * 错误消息非空时调用方应直接返回它。
@@ -512,7 +512,7 @@ private suspend fun resolveInjectedEnv(params: JsonObject): Pair<Map<String, Str
     for ((envName, credNameJson) in envObj) {
         val credName = credNameJson.jsonPrimitive.contentOrNull
         if (credName.isNullOrBlank()) continue
-        when (val r = resolver.resolve(credName, CredentialPurpose.ENV_INJECT, caller = "ai-tool")) {
+        when (val r = resolver.resolveRef(credName, CredentialPurpose.ENV_INJECT, caller = "ai-tool")) {
             is CredentialResolution.Granted -> resolved[envName] = r.value
             else -> return emptyMap<String, String>() to "❌ env 注入失败：${r.message}"
         }
@@ -579,6 +579,9 @@ private fun shellToolSchema(defaultCwd: String?): JsonObject =
                     "mapping envVarName -> vaultCredentialName. Values are decrypted in-process and " +
                     "injected ONLY into this command's process environment — never written to disk, " +
                     "never shown to the AI. Requires an active vault authorization. " +
+                    "A plaintext metadata field can be referenced as `credentialName.<field>` " +
+                    "(e.g. {\"AWS_ACCESS_KEY_ID\": \"MY_S3.access_key_id\"}); plaintext fields are not " +
+                    "gated by authorization because they are stored unencrypted. " +
                     "Example: {\"GITHUB_TOKEN\": \"GITHUB_TOKEN\"} makes the token available as \$GITHUB_TOKEN inside the command.",
             )
         })
@@ -764,6 +767,9 @@ private fun createRunBackgroundTool(
                             "mapping envVarName -> vaultCredentialName. Values are decrypted in-process and " +
                             "injected ONLY into this command's process environment — never written to disk, " +
                             "never shown to the AI. Requires an active vault authorization. " +
+                            "A plaintext metadata field can be referenced as `credentialName.<field>` " +
+                            "(e.g. {\"AWS_ACCESS_KEY_ID\": \"MY_S3.access_key_id\"}); plaintext fields are not " +
+                            "gated by authorization because they are stored unencrypted. " +
                             "Example: {\"GITHUB_TOKEN\": \"GITHUB_TOKEN\"} makes the token available as \$GITHUB_TOKEN inside the command.",
                     )
                 })

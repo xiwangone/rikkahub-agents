@@ -44,4 +44,25 @@ class VaultReferenceLocatorTest {
         assertTrue(VaultReferenceLocator.mentions("\$\$KEY_A,\$\$KEY_B", "KEY_B"))
         assertFalse(VaultReferenceLocator.mentions("\$\$KEY_A,\$\$KEY_B", "KEY_C"))
     }
+
+    // ---------- 字段引用（`$$名字.字段`）：反查要认得，否则改名/删除会漏报 ----------
+
+    @Test
+    fun `matches a credential referenced by field`() {
+        // 改名前的反查若漏掉 `$$MY_S3.access_key_id`，改完名这处就静默失效了
+        assertTrue(VaultReferenceLocator.mentions("\$\$MY_S3.access_key_id", "MY_S3"))
+        assertTrue(VaultReferenceLocator.mentions("Bearer \$\$MY_S3.custom.平台", "MY_S3"))
+    }
+
+    @Test
+    fun `does not attribute a field reference to a longer name sharing the prefix`() {
+        assertFalse(VaultReferenceLocator.mentions("\$\$MY_S3.access_key_id", "MY_S3_ACCESS"))
+        assertFalse(VaultReferenceLocator.mentions("\$\$MY_S3.access_key_id", "OTHER_KEY"))
+    }
+
+    @Test
+    fun `still matches when the whole dotted string is itself a stored name`() {
+        // 历史带点名字（整名优先容错）：反查同样认得这个整串，两处口径一致
+        assertTrue(VaultReferenceLocator.mentions("\$\$MY_S3.access_key_id", "MY_S3.access_key_id"))
+    }
 }

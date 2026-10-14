@@ -53,6 +53,14 @@ sealed interface CredentialResolution {
     /** 密文无法解密（密钥变更或密文损坏）。 */
     data class Undecryptable(val name: String) : CredentialResolution
 
+    /**
+     * 字段引用（`$$名字.字段`）取不到值：该条目没有这个明文字段，或该字段不允许引用。
+     *
+     * **不与"字段不存在"区分对外文案**——能分辨两者就等于给了一个"这条凭证里藏了什么"的
+     * 探测面（拿 `$$X.a` 与 `$$X.b` 的结果差即可枚举）。
+     */
+    data class MissingField(val name: String, val field: String) : CredentialResolution
+
     /** 工具层可直接展示的统一文案。 */
     val message: String
         get() = when (this) {
@@ -60,6 +68,9 @@ sealed interface CredentialResolution {
             is Missing -> "凭证不存在: $name（用 vault_credential_names 查看可用名称）"
             is NotAuthorized -> "凭证 $name 需要会话授权：请先完成凭证库授权（30 分钟或一直有效）"
             is Undecryptable -> "凭证解密失败: $name"
+            is MissingField ->
+                "凭证 $name 没有可引用的明文字段「$field」：" +
+                    "\$\$名字 取主值，\$\$名字.字段 只支持明文元数据键（endpoint/access_key_id/region/custom.* 等）"
         }
 }
 
@@ -108,5 +119,64 @@ class CredentialResolver(
 
         if (audit) repository.logAccess(trimmed, caller, purpose.action)
         return CredentialResolution.Granted(value, entry)
+    }
+
+    /**
+     * 解析**引用串本体**（已去掉 `$$` 前缀）：`名字` 取主值、`名字.字段` 取明文元数据字段。
+     *
+     * 与 [resolve] 的分工：
+     * - 不含 `.` 的引用**原样转给 [resolve]**，主值路径的授权门 / 解密 / 审计一字未动
+     *   —— 现存所有引用走的就是这条路；
+     * - 含 `.` 时**先按"整个串就是凭证名"查一次库**，命中仍按主值取（历史脏数据兜底：
+     *   名字校验收紧前入库的带点名字，行为不能从"有值"变成"null"）；查不到才走字段路径。
+     *
+     * 字段路径**不过会话授权门**：这些键本来就是明文，且 `vault_credential_meta` 早已无门打印
+     * 全部元数据（`VaultTools.kt` 的元数据段）。给字段单独加门只会自相矛盾——同一条信息，
+     * 用工具读不要授权、用引用要。审计仍照记（`<action>_field` / `<action>_field_missing`），
+     * 且**只记凭证名，不记字段值**。
+     */
+    suspend fun resolveRef(
+        rawRef: String,
+        purpose: CredentialPurpose,
+        caller: String = "app",
+        audit: Boolean = true,
+    ): CredentialResolution {
+        val whole = rawRef.trim()
+        val ref = parseVaultRef(whole)
+        if (ref.field == null) return resolve(ref.name, purpose, caller, audit)
+        // 整名优先：带点的串若能对上库里某条名字，按老语义取主值
+        if (whole.isNotEmpty() && repository.getByName(whole) != null) {
+            return resolve(whole, purpose, caller, audit)
+        }
+        if (ref.name.isEmpty()) return CredentialResolution.Missing(whole)
+
+        val resolution = fieldResolution(repository.getByName(ref.name), ref.name, ref.field)
+        if (audit) {
+            val action = if (resolution is CredentialResolution.Granted) {
+                "${purpose.action}_field"
+            } else {
+                "${purpose.action}_field_missing"
+            }
+            repository.logAccess(ref.name, caller, action)
+        }
+        return resolution
+    }
+
+    companion object {
+        /**
+         * 字段引用的取值判定：**不碰库、不过门、不写审计**，只做"这条目的这个字段能不能引用"。
+         *
+         * 单测钉住的就是这一处（凭证库带 DataStore/Room 依赖，测试里构造不出来，也没装 mockk）。
+         */
+        internal fun fieldResolution(
+            entry: VaultCredentialEntity?,
+            name: String,
+            field: String,
+        ): CredentialResolution {
+            if (entry == null) return CredentialResolution.Missing(name)
+            val value = CredentialMeta.resolveField(CredentialMeta.decode(entry.metaJson), field)
+                ?: return CredentialResolution.MissingField(name, field)
+            return CredentialResolution.Granted(value, entry)
+        }
     }
 }

@@ -65,4 +65,20 @@ class VaultReferenceSyncTest {
     fun `extractRefs deduplicates`() {
         assertEquals(listOf("A"), VaultReferenceLocator.extractRefs("\$\$A and \$\$A"))
     }
+
+    // ---------- 字段引用（`$$名字.字段`）：改名链路必须认得、且不能改坏 ----------
+
+    @Test
+    fun `renames the credential part of a field reference and keeps the field`() {
+        assertEquals(
+            "\$\$NEW_NAME.access_key_id",
+            VaultReferenceSync.renameInText("\$\$OLD_NAME.access_key_id", "OLD_NAME", "NEW_NAME"),
+        )
+    }
+
+    @Test
+    fun `extractRefs reads the credential name out of a field reference`() {
+        // 悬空引用检查据此判定"这条引用指向哪个凭证"：把 `A.region` 当成一个名叫 A.region 的凭证就漏报了
+        assertEquals(listOf("A"), VaultReferenceLocator.extractRefs("\$\$A.region"))
+    }
 }
