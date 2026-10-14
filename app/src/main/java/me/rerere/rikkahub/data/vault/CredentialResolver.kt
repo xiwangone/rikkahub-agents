@@ -61,18 +61,24 @@ sealed interface CredentialResolution {
      */
     data class MissingField(val name: String, val field: String) : CredentialResolution
 
-    /** 工具层可直接展示的统一文案。 */
-    val message: String
-        get() = when (this) {
-            is Granted -> ""
-            is Missing -> "凭证不存在: $name（用 vault_credential_names 查看可用名称）"
-            is NotAuthorized -> "凭证 $name 需要会话授权：请先完成凭证库授权（30 分钟或一直有效）"
-            is Undecryptable -> "凭证解密失败: $name"
-            is MissingField ->
-                "凭证 $name 没有可引用的明文字段「$field」：" +
-                    "\$\$名字 取主值，\$\$名字.字段 只支持明文元数据键（endpoint/access_key_id/region/custom.* 等）"
-        }
 }
+
+/**
+ * 工具层可直接展示的统一文案。
+ *
+ * 写成扩展属性而非接口成员（在接口内定义该属性无法通过本工程工具链的编译）。
+ * 语义与原来完全一致，调用方写法不变（`resolution.message`）。
+ */
+val CredentialResolution.message: String
+    get() = when (this) {
+        is Granted -> ""
+        is Missing -> "凭证不存在: $name（用 vault_credential_names 查看可用名称）"
+        is NotAuthorized -> "凭证 $name 需要会话授权：请先完成凭证库授权（30 分钟或一直有效）"
+        is Undecryptable -> "凭证解密失败: $name"
+        is MissingField ->
+            "凭证 $name 没有可引用的明文字段「$field」：" +
+                "\$\$名字 取主值，\$\$名字.字段 只支持明文元数据键（endpoint/access_key_id/region/custom.* 等）"
+    }
 
 /**
  * 凭证引用解析器（单点）。
