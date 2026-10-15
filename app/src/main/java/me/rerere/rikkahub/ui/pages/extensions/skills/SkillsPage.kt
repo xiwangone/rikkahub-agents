@@ -51,6 +51,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
@@ -93,6 +94,7 @@ fun SkillsPage() {
     val skills by vm.skills.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val toaster = LocalToaster.current
+    val resources = LocalResources.current
     val context = LocalContext.current
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var showImportDialog by rememberSaveable { mutableStateOf(false) }
@@ -194,7 +196,7 @@ fun SkillsPage() {
                 vm.saveSkill(name, content) { success ->
                     showAddDialog = false
                     if (!success) {
-                        toaster.show(context.getString(R.string.skills_page_save_failed))
+                        toaster.show(resources.getString(R.string.skills_page_save_failed))
                     }
                 }
             },
@@ -212,10 +214,10 @@ fun SkillsPage() {
                 vm.importFromLocalFile(uri) { success, message ->
                     showImportDialog = false
                     if (success) {
-                        toaster.show(context.getString(R.string.skills_page_import_success, message))
+                        toaster.show(resources.getString(R.string.skills_page_import_success, message))
                     } else {
                         val key = mapImportErrorKeyToString(context, message)
-                        toaster.show(context.getString(R.string.skills_page_import_failed, key))
+                        toaster.show(resources.getString(R.string.skills_page_import_failed, key))
                     }
                 }
             }
@@ -228,9 +230,9 @@ fun SkillsPage() {
                 vm.importSkillFromGitHub(repoUrl) { success, message ->
                     showImportDialog = false
                     if (success) {
-                        toaster.show(context.getString(R.string.skills_page_import_success, message))
+                        toaster.show(resources.getString(R.string.skills_page_import_success, message))
                     } else {
-                        toaster.show(context.getString(R.string.skills_page_import_failed, message))
+                        toaster.show(resources.getString(R.string.skills_page_import_failed, message))
                     }
                 }
             },
@@ -277,10 +279,10 @@ fun SkillsPage() {
             onInstall = { entry, onDone ->
                 vm.installFromCatalog(entry) { success, message ->
                     if (success) {
-                        toaster.show(context.getString(R.string.skills_page_import_success, message))
+                        toaster.show(resources.getString(R.string.skills_page_import_success, message))
                     } else {
                         val key = mapImportErrorKeyToString(context, message)
-                        toaster.show(context.getString(R.string.skill_catalog_install_failed, key))
+                        toaster.show(resources.getString(R.string.skill_catalog_install_failed, key))
                     }
                     onDone()
                 }

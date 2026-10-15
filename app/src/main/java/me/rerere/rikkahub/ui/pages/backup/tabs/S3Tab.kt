@@ -46,7 +46,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -88,7 +88,7 @@ fun S3Tab(
     val s3Configs = settings.s3Configs
     val backupItemsState by vm.s3BackupItems.collectAsStateWithLifecycle()
     val toaster = LocalToaster.current
-    val context = LocalContext.current
+    val resources = LocalResources.current
     var showBackupFiles by remember { mutableStateOf(false) }
     var restoringItemId by remember { mutableStateOf<String?>(null) }
     // 恢复加密备份：需输口令的待处理项
@@ -354,12 +354,12 @@ fun S3Tab(
                     vm.runTestS3 { result ->
                         result.onSuccess {
                             toaster.show(
-                                context.getString(R.string.backup_page_connection_success),
+                                resources.getString(R.string.backup_page_connection_success),
                                 type = ToastType.Success,
                             )
                         }.onFailure { e ->
                             toaster.show(
-                                context.getString(
+                                resources.getString(
                                     R.string.backup_page_connection_failed,
                                     e.message ?: "",
                                 ),
@@ -389,7 +389,7 @@ fun S3Tab(
                             is BackupRunState.Success -> {
                                 isBackingUp = false
                                 toaster.show(
-                                    context.getString(R.string.backup_page_backup_success),
+                                    resources.getString(R.string.backup_page_backup_success),
                                     type = ToastType.Success,
                                 )
                             }
@@ -402,10 +402,10 @@ fun S3Tab(
                                     if (error.isOutOfMemory()) {
                                         backupOomMessage
                                     } else {
-                                        context.getString(
+                                        resources.getString(
                                             R.string.backup_page_backup_failed,
                                             error?.message
-                                                ?: context.getString(R.string.backup_page_unknown_error),
+                                                ?: resources.getString(R.string.backup_page_unknown_error),
                                         )
                                     },
                                     type = ToastType.Error,
@@ -475,14 +475,14 @@ fun S3Tab(
                                             when (state) {
                                                 is BackupRunState.Success -> {
                                                     toaster.show(
-                                                        context.getString(R.string.backup_page_delete_success),
+                                                        resources.getString(R.string.backup_page_delete_success),
                                                         type = ToastType.Success,
                                                     )
                                                 }
 
                                                 is BackupRunState.Failed -> {
                                                     toaster.show(
-                                                        context.getString(
+                                                        resources.getString(
                                                             R.string.backup_page_delete_failed,
                                                             state.error?.message ?: "",
                                                         ),
@@ -518,7 +518,7 @@ fun S3Tab(
                                                 is BackupRunState.Failed -> {
                                                     restoringItemId = null
                                                     toaster.show(
-                                                        context.getString(
+                                                        resources.getString(
                                                             R.string.backup_page_restore_failed,
                                                             state.error?.message ?: "",
                                                         ),
@@ -581,14 +581,14 @@ fun S3Tab(
                         is BackupRunState.NeedsPassword -> {
                             restoringItemId = null
                             pendingPasswordError =
-                                context.getString(R.string.backup_page_encryption_wrong_password)
+                                resources.getString(R.string.backup_page_encryption_wrong_password)
                         }
                         is BackupRunState.Failed -> {
                             restoringItemId = null
                             pendingPasswordItem = null
                             pendingPasswordEncFile = null
                             toaster.show(
-                                context.getString(
+                                resources.getString(
                                     R.string.backup_page_restore_failed,
                                     state.error?.message ?: "",
                                 ),
