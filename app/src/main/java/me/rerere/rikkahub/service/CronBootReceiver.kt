@@ -7,6 +7,7 @@ import androidx.work.Data
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.WorkManager
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -34,6 +35,7 @@ class CronBootReceiver :
     private val telegramPrefs: me.rerere.rikkahub.data.telegram.TelegramBotPreferences by inject()
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
+    @Suppress("TooGenericExceptionCaught") // 开机读偏好尽力而为：IOException 之外的解码类 RuntimeException 也降级；刻意不接 Error
     override fun onReceive(
         context: Context,
         intent: Intent,
@@ -58,6 +60,17 @@ class CronBootReceiver :
                     try {
                         telegramPrefs.current()
                     } catch (_: IOException) {
+                        // 读盘失败与损坏解码（CorruptionException、InvalidProtocolBufferException
+                        // 都是 IOException 子类）→ 尽力而为降级
+                        null
+                    } catch (ce: CancellationException) {
+                        throw ce
+                    } catch (_: Exception) {
+                        // IOException 分支罩不住的解码类 RuntimeException：同名键类型漂移
+                        // （ClassCastException）、DataStore 状态异常（IllegalStateException）等。
+                        // 开机读偏好本就是尽力而为：降为 null（不启动 bot），而不是让异常从
+                        // :49 的 try/finally（无 catch）逃逸成未捕获崩溃。刻意不接 Error——
+                        // OOM 级别的问题应当响亮地死。
                         null
                     }
                 if (cfg != null && cfg.isUsable) {

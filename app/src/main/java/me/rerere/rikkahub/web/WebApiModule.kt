@@ -97,6 +97,16 @@ fun Application.configureWebApi(
         exception<ApiException> { call, cause ->
             call.respond(cause.status, ErrorResponse(cause.message, cause.status.value))
         }
+        // 根路径静态路由（web 模块 staticResources("/")）收到带 `..` 的请求时，拒绝由 Ktor 自己
+        // 抛出：StaticContentResolution.normalisedPath → io.ktor.server.plugins.BadRequestException。
+        // 它不是本仓 ApiException 的子类，此前会落进下面的 Throwable 兜底 = 500，用"服务端错误"
+        // 表达"客户端非法请求"。这里只补状态码映射：拒绝行为与越界防护本体（在 Ktor 内部）一字未动。
+        exception<io.ktor.server.plugins.BadRequestException> { call, cause ->
+            call.respond(
+                HttpStatusCode.BadRequest,
+                ErrorResponse(cause.message ?: "Bad request", HttpStatusCode.BadRequest.value),
+            )
+        }
         exception<NetworkNotAllowedException> { call, cause ->
             call.respond(
                 HttpStatusCode.Forbidden,

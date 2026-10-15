@@ -247,6 +247,9 @@ internal fun withUtf8ConsoleEncoding(command: String, windows: Boolean? = null):
  *
  * 由 [joinCommandBatch] 拼在命令之前，与命令在**同一进程**内执行，故后续语句可见；
  * 键名走白名单、值按各自语法转义，免去调用方内联 `set X=...` 的引号困扰。
+ *
+ * 非法键名（不匹配 [ENV_KEY_REGEX]）在此被丢弃——调用方须先用 [invalidEnvKeys] 把它们
+ * 作为错误显式返回给模型，不能依赖本函数静默过滤。
  */
 internal fun envPrelude(env: Map<String, String>, windows: Boolean): List<String> =
     env.entries
@@ -304,6 +307,44 @@ internal suspend fun readEnvParam(p: kotlinx.serialization.json.JsonObject): Map
 }
 
 private val ENV_KEY_REGEX = Regex("[A-Za-z_][A-Za-z0-9_]*")
+
+/**
+ * 挑出不匹配 [ENV_KEY_REGEX] 的 env 键名。
+ *
+ * 背景：[envPrelude] 会静默丢弃非法键（不报错也不告知，模型以为注入成功）。现在两个 ssh 工具
+ * 在执行前用本函数校验，把非法键作为 invalid_argument 显式退回。入参取工具参数 `env` 的**原始
+ * JSON 对象**（而非解析后的 map），使注定被拒的调用不必先走一遍凭证解析。
+ */
+internal fun invalidEnvKeys(envParam: kotlinx.serialization.json.JsonObject?): List<String> =
+    envParam?.keys?.filterNot { ENV_KEY_REGEX.matches(it) }.orEmpty()
+
+/**
+ * env 参数的前置拒绝判定：返回可直接回给模型的错误文本，null = 通过。
+ *
+ * 两种情况此前都是静默的：background=true 时 env 被忽略（与工具描述不符）、键名非法时被
+ * [envPrelude] 丢弃（模型以为注入成功）。入参取原始 JSON 对象，使注定被拒的调用不必先走凭证解析。
+ */
+private fun envParamRejection(
+    background: Boolean,
+    envParam: kotlinx.serialization.json.JsonObject?,
+): String? {
+    if (background && envParam != null && envParam.isNotEmpty()) {
+        return ToolErrors.envelopeFor(
+            error = "invalid_argument",
+            message = "env is not supported when background=true (a detached command gets no same-session prelude assignments)",
+            hint = "Drop env, or run with background=false; for long jobs wrap only the heavy part (nohup it inside the command) and keep env in the foreground call.",
+        ).toString()
+    }
+    val badKeys = invalidEnvKeys(envParam)
+    if (badKeys.isNotEmpty()) {
+        return ToolErrors.envelopeFor(
+            error = "invalid_argument",
+            message = "env key(s) not matching [A-Za-z_][A-Za-z0-9_]*: ${badKeys.joinToString(", ")}",
+            hint = "Rename or drop the offending keys and retry; nothing was executed on the remote host.",
+        ).toString()
+    }
+    return null
+}
 
 /**
  * 平台自适应 detached 包装（POSIX 与 Windows 统一），返回 (detachedCommand, logPath)：
@@ -1015,7 +1056,12 @@ fun sshExecTool(context: Context): Tool = Tool(
         // 平台判定：落盘缓存（banner 结论）优先，未命中再退回命令特征
         val knownPlatform = RemotePlatformStore(context).get(host, port)
         val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(command) else (withUtf8ConsoleEncoding(command, knownPlatform) to null)
-        // env：以「同会话前置赋值语句」注入（background 走 detached 双层包装，不支持 env）
+        // env：以「同会话前置赋值语句」注入（background 走 detached 双层包装，不支持 env）。
+        // 两种情况此前都是静默的（background 带 env 被忽略、非法键名被 envPrelude 丢弃）→ 现执行前显式拒绝。
+        val envParam = p["env"] as? kotlinx.serialization.json.JsonObject
+        envParamRejection(background, envParam)?.let { msg ->
+            return@Tool listOf(UIMessagePart.Text(msg))
+        }
         val env = readEnvParam(p)
         // 远端平台无法从命令内容可靠推断（验证：`cmd /c ...` 曾被判成 POSIX → 远端 pwsh 报错），
         // 因此默认按 Windows($env:) 处理，Linux 远端显式传 env_style=posix。

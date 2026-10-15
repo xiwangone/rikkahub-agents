@@ -459,6 +459,20 @@ fun sshExecSavedTool(
         val background = p["background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
         val timeoutSec = (p["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 300)
         // env：以「同会话前置赋值语句」注入（background 走 detached 双层包装，不支持 env）
+        // 两道拒绝与 ssh_exec 共用 [invalidEnvKeys]：非法键此前被 envPrelude 静默丢弃、
+        // background+env 此前被静默忽略，调用方都收不到任何告知。
+        val envParam = p["env"] as? kotlinx.serialization.json.JsonObject
+        if (background && envParam != null && envParam.isNotEmpty()) {
+            return@Tool listOf(UIMessagePart.Text(
+                ToolErrors.envelopeFor(error = "invalid_argument", message = "env is not supported when background=true (a detached command gets no same-session prelude assignments)", hint = "Drop env, or run with background=false; for long jobs wrap only the heavy part (nohup it inside the command) and keep env in the foreground call.").toString()
+            ))
+        }
+        val badEnvKeys = invalidEnvKeys(envParam)
+        if (badEnvKeys.isNotEmpty()) {
+            return@Tool listOf(UIMessagePart.Text(
+                ToolErrors.envelopeFor(error = "invalid_argument", message = "env key(s) not matching [A-Za-z_][A-Za-z0-9_]*: ${badEnvKeys.joinToString(", ")}", hint = "Rename or drop the offending keys and retry; nothing was executed on the remote host.").toString()
+            ))
+        }
         val env = readEnvParam(p)
         if (env.isNotEmpty() && !background) {
             // 同 ssh_exec：默认按 Windows($env:)，Linux 远端显式传 env_style=posix
