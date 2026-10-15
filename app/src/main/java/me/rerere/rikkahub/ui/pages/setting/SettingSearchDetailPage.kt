@@ -58,7 +58,6 @@ import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.plus
 import me.rerere.search.DoubaoSearchMode
 import me.rerere.search.SearchCommonOptions
-import me.rerere.rikkahub.ui.context.rememberRenderProfile
 import me.rerere.search.SearchResult
 import me.rerere.search.SearchService
 import me.rerere.search.SearchServiceOptions
@@ -1015,7 +1014,6 @@ internal fun CustomJsOptions(
                     language = "javascript",
                     highlighter = highlighter,
                     darkMode = darkMode,
-                    maxCacheEntries = rememberRenderProfile().highlightCacheEntries,
                 ),
             textStyle = MaterialTheme.typography.bodySmall.merge(fontFamily = JetbrainsMono),
         )
@@ -1049,7 +1047,6 @@ internal fun CustomJsOptions(
                     language = "javascript",
                     highlighter = highlighter,
                     darkMode = darkMode,
-                    maxCacheEntries = rememberRenderProfile().highlightCacheEntries,
                 ),
             textStyle = MaterialTheme.typography.bodySmall.merge(fontFamily = JetbrainsMono),
         )

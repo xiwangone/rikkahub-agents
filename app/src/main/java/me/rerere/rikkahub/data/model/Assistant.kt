@@ -161,6 +161,39 @@ private fun compileRegexCached(pattern: String): Regex? {
     return result.getOrNull()
 }
 
+/**
+ * 替换结果缓存的条目上限。键与值都是整段文本，所以必须封顶——
+ * 最坏情况约等于「上限条数 × 2 × [REPLACE_CACHE_MAX_CHARS] 个字符」，
+ * 且长会话 + 多助手下条目只会轮转、不会累积。
+ */
+private const val REPLACE_CACHE_MAX_ENTRIES = 16
+
+/**
+ * 超过此长度的文本不进结果缓存，与 :highlight 模块的 HIGHLIGHT_CACHE_MAX_CHARS 同口径：
+ * 数十 KB 的键 + 值长期占内存，代价高于重跑一遍替换。
+ */
+private const val REPLACE_CACHE_MAX_CHARS = 20_000
+
+/**
+ * 缓存键 = 影响输出的全部输入。[replaceRegexes] 只读 assistant.regexes（不读助手 id），
+ * 所以按「规则集内容」而不是「助手身份」建键：
+ * - 编辑过规则集后键随之改变，不会拿到编辑前的旧结果（只按文本建键就会）
+ * - 两个助手配了同一套规则时共用一条，命中率更高
+ * [scope] 与 [visual] 同样参与过滤，必须进键。
+ */
+private data class ReplaceRegexesKey(
+    val text: String,
+    val scope: AssistantAffectScope,
+    val visual: Boolean,
+    val regexes: List<AssistantRegex>,
+)
+
+// 编译缓存只省掉构造 Regex，替换本身仍要在全文上重跑；这里缓存整轮替换的结果，
+// 命中即 0 次替换。放在文件级：组合期每次重组都会新建的持有者对象里缓存等于没缓存。
+// accessOrder = true：最久未访问的排在前面，超限即从头淘汰
+private val replaceResultCache =
+    LinkedHashMap<ReplaceRegexesKey, String>(REPLACE_CACHE_MAX_ENTRIES, 0.75f, true)
+
 @Suppress("TooGenericExceptionCaught") // String.replace 对不存在的分组引用只抛 IndexOutOfBoundsException，属有意兜底（detekt 默认把它归入过宽类型）
 fun String.replaceRegexes(
     assistant: Assistant?,
@@ -169,13 +202,37 @@ fun String.replaceRegexes(
 ): String {
     if (assistant == null) return this
     if (assistant.regexes.isEmpty()) return this
-    return assistant.regexes.fold(this) { acc, regex ->
-        if (regex.enabled && regex.visualOnly == visual && regex.affectingScope.contains(scope)) {
-            val compiled = compileRegexCached(regex.findRegex) ?: return@fold acc
-            replaceRegexSafely(acc, compiled, regex.replaceString)
-        } else {
-            acc
+    val key = if (length <= REPLACE_CACHE_MAX_CHARS) {
+        ReplaceRegexesKey(this, scope, visual, assistant.regexes)
+    } else {
+        null
+    }
+    if (key != null) {
+        synchronized(replaceResultCache) { replaceResultCache[key]?.let { return it } }
+    }
+    val replaced = applyRegexes(assistant, scope, visual)
+    if (key != null) {
+        synchronized(replaceResultCache) {
+            replaceResultCache[key] = replaced
+            val excess = replaceResultCache.size - REPLACE_CACHE_MAX_ENTRIES
+            if (excess > 0) {
+                replaceResultCache.keys.take(excess).forEach { replaceResultCache.remove(it) }
+            }
         }
+    }
+    return replaced
+}
+
+private fun String.applyRegexes(
+    assistant: Assistant,
+    scope: AssistantAffectScope,
+    visual: Boolean
+): String = assistant.regexes.fold(this) { acc, regex ->
+    if (regex.enabled && regex.visualOnly == visual && regex.affectingScope.contains(scope)) {
+        val compiled = compileRegexCached(regex.findRegex) ?: return@fold acc
+        replaceRegexSafely(acc, compiled, regex.replaceString)
+    } else {
+        acc
     }
 }
 

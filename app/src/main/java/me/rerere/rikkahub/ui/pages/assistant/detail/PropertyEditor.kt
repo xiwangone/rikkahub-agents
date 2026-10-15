@@ -36,7 +36,6 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeVisualTransformation
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.SelectTextField
-import me.rerere.rikkahub.ui.context.rememberRenderProfile
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 
@@ -227,7 +226,6 @@ fun CustomBodies(
                                         language = "json",
                                         highlighter = LocalCodeHighlighter.current,
                                         darkMode = LocalDarkMode.current,
-                                        maxCacheEntries = rememberRenderProfile().highlightCacheEntries,
                                     ),
                                 textStyle = LocalTextStyle.current.merge(fontFamily = JetbrainsMono),
                             )

@@ -45,7 +45,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
@@ -60,7 +59,6 @@ import kotlinx.datetime.toLocalDateTime
 import me.rerere.highlight.CodeHighlightText
 import me.rerere.highlight.CodeHighlighter
 import me.rerere.highlight.HighlightTextColorPalette
-import me.rerere.highlight.buildHighlightText
 import me.rerere.highlight.rememberHighlightedCode
 import me.rerere.highlight.splitByLines
 import me.rerere.hugeicons.HugeIcons
@@ -92,50 +90,6 @@ import me.rerere.rikkahub.data.log.AppLog
 private const val TAG = "HighlightCodeBlock"
 private const val COLLAPSE_LINES = 10
 private val PREVIEWABLE_LANGUAGES = setOf("html", "svg")
-
-// 高亮结果 LRU：filter 在滚动/重组时会被反复调用，
-// 同一段代码重复分词并重建 AnnotatedString 是长会话卡顿的来源之一。
-private const val HIGHLIGHT_CACHE_MAX_ENTRIES = 16
-private const val HIGHLIGHT_CACHE_MAX_CHARS = 20_000
-
-/** accessOrder = true：按访问顺序淘汰，容量在写入后由 [highlightCached] 按当前档位裁剪 */
-private val highlightCacheLru =
-    LinkedHashMap<Triple<String, Boolean, String>, AnnotatedString>(16, 0.75f, true)
-
-/** 带 LRU 的高亮构建：超长代码不走缓存，避免把大对象长期留在内存里。 */
-private fun highlightCached(
-    code: String,
-    language: String,
-    darkMode: Boolean,
-    highlighter: CodeHighlighter,
-    colorPalette: HighlightTextColorPalette,
-    maxEntries: Int = HIGHLIGHT_CACHE_MAX_ENTRIES,
-): AnnotatedString {
-    val build = {
-        val tokens = highlighter.highlight(code, language)
-        buildAnnotatedString {
-            tokens.forEach { token ->
-                buildHighlightText(token, colorPalette)
-            }
-        }
-    }
-    if (code.length > HIGHLIGHT_CACHE_MAX_CHARS) return build()
-    val key = Triple(language, darkMode, code)
-    synchronized(highlightCacheLru) {
-        highlightCacheLru[key]?.let { return it }
-    }
-    val built = build()
-    synchronized(highlightCacheLru) {
-        highlightCacheLru[key] = built
-        // 超出当前档位容量即按访问顺序淘汰（accessOrder 保证最久未访问的排在前面）
-        val limit = maxEntries.coerceAtLeast(1)
-        val excess = highlightCacheLru.size - limit
-        if (excess > 0) {
-            highlightCacheLru.keys.take(excess).forEach { highlightCacheLru.remove(it) }
-        }
-    }
-    return built
-}
 
 @Composable
 fun HighlightCodeBlock(
@@ -592,8 +546,6 @@ class HighlightCodeVisualTransformation(
     val language: String,
     val highlighter: CodeHighlighter,
     val darkMode: Boolean,
-    /** 高亮结果缓存容量，由当前渲染档位给出（见 data/perf/RenderProfile.kt） */
-    val maxCacheEntries: Int = HIGHLIGHT_CACHE_MAX_ENTRIES,
 ) : VisualTransformation {
     @Suppress("TooGenericExceptionCaught") // The highlighter is an extension boundary; malformed grammars must fall back to plain text rather than break rendering.
     override fun filter(text: AnnotatedString): TransformedText {
@@ -603,7 +555,9 @@ class HighlightCodeVisualTransformation(
                 if (text.text.isEmpty()) {
                     AnnotatedString("")
                 } else {
-                    highlightCached(text.text, language, darkMode, highlighter, colorPalette, maxCacheEntries)
+                    // 缓存由 :highlight 的 CodeHighlighter 单点负责（容量 = highlightCacheCapacity，
+                    // 跟随渲染档位，见 RememberRenderProfile.kt）；app 侧不再另建一套 LRU
+                    highlighter.highlightAnnotated(text.text, language, colorPalette)
                 }
             } catch (e: RuntimeException) {
                 AppLog.e(TAG, "HighlightCodeVisualTransformation: failed to highlight code", e)
