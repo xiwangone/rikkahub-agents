@@ -25,7 +25,8 @@ export const LANGUAGES = [
   { name: 'java', module: 'java', aliases: ['jsp'] },
   { name: 'kotlin', module: 'kotlin', aliases: ['kt', 'kts'] },
   { name: 'latex', module: 'latex', aliases: ['tex'] },
-  { name: 'lua', module: 'lua', aliases: ['pluto'] },
+  // highlight.js 11.11.1 的 lua 只带 pluto 一个别名，Kotlin 侧还认 luau，这里补上保持两侧同集
+  { name: 'lua', module: 'lua', aliases: ['pluto', 'luau'] },
   { name: 'ruby', module: 'ruby', aliases: ['rb', 'gemspec', 'podspec', 'thor', 'irb'] },
   { name: 'powershell', module: 'powershell', aliases: ['pwsh', 'ps', 'ps1'] },
   { name: 'properties', module: 'properties', aliases: [] },

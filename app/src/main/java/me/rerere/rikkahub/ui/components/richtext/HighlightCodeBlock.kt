@@ -59,6 +59,7 @@ import kotlinx.datetime.toLocalDateTime
 import me.rerere.highlight.CodeHighlightText
 import me.rerere.highlight.CodeHighlighter
 import me.rerere.highlight.HighlightTextColorPalette
+import me.rerere.highlight.LocalCodeHighlighter
 import me.rerere.highlight.rememberHighlightedCode
 import me.rerere.highlight.splitByLines
 import me.rerere.hugeicons.HugeIcons
@@ -398,6 +399,19 @@ private fun HighlightCodeActions(
     onTogglePreviewMode: () -> Unit = {},
 ) {
     val context = LocalContext.current
+    // 预览页的高亮配色与正文块同源：同一个 palette（rememberCodeColorPalette）+ 同一个分词器实例
+    val colorPalette = rememberCodeColorPalette()
+    val highlighter = LocalCodeHighlighter.current
+    val sourceLabel = stringResource(id = R.string.workspace_file_editor_source)
+    val colorScheme = MaterialTheme.colorScheme
+    val previewTheme =
+        remember(colorScheme, colorPalette) {
+            CodePreviewTheme(
+                background = colorScheme.surfaceContainer,
+                foreground = colorPalette.fallback,
+                outline = colorScheme.outlineVariant,
+            )
+        }
     Row(
         modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
@@ -496,7 +510,15 @@ private fun HighlightCodeActions(
                         Modifier
                             .clip(RoundedCornerShape(4.dp))
                             .onClick {
-                                val content = buildCodePreviewHtml(code = code, language = normalizedLanguage)
+                                val content =
+                                    buildCodePreviewHtml(
+                                        code = code,
+                                        language = normalizedLanguage,
+                                        highlighter = highlighter,
+                                        palette = colorPalette,
+                                        theme = previewTheme,
+                                        sourceLabel = sourceLabel,
+                                    )
                                 val contentId = WebViewContentCache.store(context.cacheDir, content)
                                 navController.navigate(Screen.WebView(contentId = contentId))
                             }.padding(4.dp)
@@ -515,7 +537,7 @@ private fun CodeBlockPreview(
 ) {
     val state =
         rememberWebViewState(
-            data = buildCodePreviewHtml(code = code, language = language),
+            data = buildCodeRenderHtml(code = code, language = language),
             baseUrl = "https://rikkahub.local",
             mimeType = "text/html",
             settings = {
@@ -531,16 +553,6 @@ private fun CodeBlockPreview(
         modifier = modifier.clip(RoundedCornerShape(4.dp)),
     )
 }
-
-private fun buildCodePreviewHtml(
-    code: String,
-    language: String,
-): String =
-    if (language == "svg") {
-        """<!DOCTYPE html><html><body style="margin:0;display:flex;justify-content:center;align-items:center;min-height:100vh;">$code</body></html>"""
-    } else {
-        code
-    }
 
 class HighlightCodeVisualTransformation(
     val language: String,

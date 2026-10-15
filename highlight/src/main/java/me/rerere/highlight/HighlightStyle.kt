@@ -17,7 +17,7 @@ fun AnnotatedString.Builder.buildHighlightText(
         }
 
         is HighlightToken.Styled -> {
-            withStyle(getStyleForTokenType(token.type, colors)) {
+            withStyle(highlightScopeStyle(token.type, colors)) {
                 append(token.content)
             }
         }
@@ -34,6 +34,7 @@ fun AnnotatedString.Builder.buildHighlightText(
  * 换行语义与 [String.lines] 严格一致（含结尾换行产生的空行）：
  * 调用方的行号列按 `code.lines()` 计数，两边行数必须对齐。
  */
+@Suppress("NestedBlockDepth") // 行切分与跳行 span 重入本就是两层循环，拆开反而削弱与 lines() 的行号对齐可读性
 fun AnnotatedString.splitByLines(): List<AnnotatedString> {
     val text = this.text
     if (text.isEmpty()) return listOf(AnnotatedString(""))
@@ -110,8 +111,11 @@ data class HighlightTextColorPalette(
  * Scopes follow the `highlight.js` vocabulary and can be tiered, such as `title.function` or
  * `char.escape`. An unknown tier falls back to its parent scope, which is what the upstream CSS
  * themes do by emitting one class per tier.
+ *
+ * 对外可见：Compose 正文块与 WebView 预览页（HTML 输出）共用这一处解析，
+ * 两条路径的颜色只由 [HighlightTextColorPalette] 决定，不在别处再映射一遍。
  */
-private fun getStyleForTokenType(
+fun highlightScopeStyle(
     type: String,
     colors: HighlightTextColorPalette,
 ): SpanStyle {

@@ -184,6 +184,20 @@
         import mermaid from 'https://esm.sh/mermaid@10.6.1';
         import { Base64 } from 'https://esm.sh/js-base64@3.7.5';
 
+        // 语言覆盖面与原生（Kotlin）高亮器对齐：只有这张表里的语言才上色，其余走纯文本。
+        // 表由 app 在拼装本页时注入，取自 CodeHighlighter.supportedLanguages()，不在这里另抄一份。
+        const NATIVE_LANGS = new Set({{SUPPORTED_LANGUAGES}});
+        // 原生高亮器按 highlight.js 11.11.1 移植，比本页 pin 的 11.9.0 多认几个别名；
+        // 把它们归一到 11.9.0 认识的语法名，两条路径的语言集才是同一个。
+        const HLJS_NORMALIZE = { jsonc: 'json', json5: 'json', zsh: 'bash', shell: 'bash', pluto: 'lua', luau: 'lua' };
+
+        function resolveLanguage(lang) {
+            if (!lang) return null;
+            const name = lang.trim().toLowerCase();
+            if (!NATIVE_LANGS.has(name)) return null;
+            return HLJS_NORMALIZE[name] || name;
+        }
+
         // Configure markdown-it
         const md = new MarkdownIt({
             html: true,         // Enable HTML tags in source
@@ -194,10 +208,12 @@
             typographer: true,  // Enable some language-neutral replacement + quotes beautification
             quotes: '“”‘’',     // Quote chars
             highlight: function (str, lang) {
-                if (lang && hljs.getLanguage(lang)) {
+                // 只给原生高亮器也认识的语言上色，其余与正文块一样降级为纯文本
+                const language = resolveLanguage(lang);
+                if (language && hljs.getLanguage(language)) {
                     try {
                         return '<pre class="hljs"><code>' +
-                               hljs.highlight(str, { language: lang, ignoreIllegals: true }).value +
+                               hljs.highlight(str, { language: language, ignoreIllegals: true }).value +
                                '</code></pre>';
                     } catch (__) {}
                 }

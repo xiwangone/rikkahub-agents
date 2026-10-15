@@ -89,6 +89,14 @@ class CodeHighlighter {
     fun supports(language: String): Boolean = engine.supports(language)
 
     /**
+     * 本高亮器实际注册的语言名集合（语法名 + 全部别名，小写）。
+     *
+     * 供 HTML 输出侧（WebView 预览页）对齐语言覆盖面：只有这里列出的语言才可能有色，
+     * 其余两条路径一律降级为纯文本，不做"一边有色、一边没有"。
+     */
+    fun supportedLanguages(): Set<String> = engine.supportedLanguages()
+
+    /**
      * 带 LRU 的高亮：同一段代码（同语言、同调色板）的重复请求直接复用，
      * 避免滚动/重组时反复分词。超长代码块不缓存（见 [HIGHLIGHT_CACHE_MAX_CHARS]）。
      */

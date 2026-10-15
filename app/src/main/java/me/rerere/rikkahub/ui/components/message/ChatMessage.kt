@@ -72,6 +72,7 @@ import me.rerere.ai.ui.AskQuestion
 import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyUIMessage
+import me.rerere.highlight.LocalCodeHighlighter
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.MusicNote03
@@ -157,6 +158,9 @@ fun ChatMessage(
     val navController = LocalNavController.current
     val context = LocalContext.current
     val colorScheme = MaterialTheme.colorScheme
+    // 预览页的语言集取自原生高亮器的注册表，避免"正文有色、预览没色"两边不一致
+    val codeHighlighter = LocalCodeHighlighter.current
+    val highlightLanguages = remember(codeHighlighter) { codeHighlighter.supportedLanguages() }
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = if (message.role == MessageRole.USER) Alignment.End else Alignment.Start,
@@ -272,6 +276,7 @@ fun ChatMessage(
                             context = context,
                             markdown = textContent,
                             colorScheme = colorScheme,
+                            supportedLanguages = highlightLanguages,
                         )
                     val contentId = WebViewContentCache.store(context.cacheDir, htmlContent)
                     navController.navigate(Screen.WebView(contentId = contentId))

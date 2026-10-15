@@ -36,6 +36,9 @@ internal class HighlightEngine(
 
     fun supports(language: String): Boolean = languagesByAlias.containsKey(language.trim().lowercase())
 
+    /** 引擎实际能答上来的全部语言名（各语法名 + 各自的全部别名），供调用方对齐语言覆盖面。 */
+    fun supportedLanguages(): Set<String> = languagesByAlias.keys.toSet()
+
     /** Highlights [code], or returns `null` when [language] is not registered. */
     fun highlight(
         code: String,
@@ -86,6 +89,7 @@ internal class HighlightEngine(
         private var resumeScanAtSamePosition = false
         private var lastMatch: MultiMatch? = null
 
+        @Suppress("TooGenericExceptionCaught") // 引擎按 safe 模式降级：语法出错要退成纯文本，不能把整页带崩
         fun highlight(
             code: String,
             ignoreIllegals: Boolean,
@@ -367,6 +371,7 @@ internal class HighlightEngine(
         }
 
         /** Returns `null` when the match did not actually end anything. */
+        @Suppress("CyclomaticComplexMethod") // 结束匹配要按 mode 栈 / 作用域 / 回溯逐条判定，拆开反而难看顺序
         private fun doEndMatch(match: MultiMatch): Int? {
             val lexeme = match.value
             val endMode = endOfMode(top, match, code.substring(match.index)) ?: return null
@@ -414,6 +419,7 @@ internal class HighlightEngine(
         }
 
         /** Processes the text since the previous match plus the match itself. */
+        @Suppress("ComplexCondition") // 同一处联合判定 相邻 / 类型 / 位置 / 空匹配 四个条件，拆成临时变量会掩盖联合语义
         private fun processLexeme(
             textBeforeMatch: String,
             match: MultiMatch?,
