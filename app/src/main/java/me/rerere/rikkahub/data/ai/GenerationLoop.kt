@@ -27,6 +27,9 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -228,10 +231,63 @@ internal const val INTERRUPTED_UNKNOWN_OUTCOME_REASON =
         "blindly re-run the same call."
 
 /**
+ * Fixed compact encoder for [LoopGuard.signature] — deliberately NOT the app-injected [Json]
+ * instance: a pretty-printing config there would put formatting whitespace back into the
+ * canonical text and silently undo the L2 normalisation.
+ */
+private val CANONICAL_ARGS_JSON: Json = Json { }
+
+/**
  * Pure, testable loop-detection decision, extracted from [GenerationLoop.generateText] so
  * the act-observe reset and freshness-TTL rules can be unit-tested without an Android Context.
  */
 internal object LoopGuard {
+    /**
+     * The loop signature, with the **representation-layer** noise of [input] normalised away so
+     * the same call written two different ways counts as one call. Two levels, and only two:
+     *  - L1 key order — object keys sorted recursively (arrays stay ordered: their order is data).
+     *  - L2 whitespace — the canonical text is re-emitted from the parsed tree by a compact
+     *    encoder, so formatting spaces/newlines between keys and values vanish while the inside
+     *    of a string literal is passed through verbatim (never byte-stripped).
+     *
+     * Deliberately NOT normalised — accepted, known misses: paging offset / line numbers /
+     * coordinates / node ids / epoch timestamps / random ids. Those values *are* the semantics,
+     * folding them would make genuinely different calls collide and block a legitimate retry.
+     *
+     * [parsedArgs] is the caller's already-parsed [input] (null when parsing failed — a
+     * truncated provider stream leaves `tool.input` as invalid JSON). On failure the raw string
+     * is used as-is: this function must never throw, and a non-object top level (array, scalar,
+     * bare string) is still canonicalised rather than rejected.
+     *
+     * Pure: same input ⇒ same output.
+     */
+    fun signature(toolName: String, input: String, parsedArgs: JsonElement?): String {
+        val canonicalArgs = parsedArgs?.let {
+            CANONICAL_ARGS_JSON.encodeToString(JsonElement.serializer(), canonicalizeArgs(it))
+        } ?: input
+        return "$toolName::$canonicalArgs"
+    }
+
+    /**
+     * [signature] for callers that do not have a parse at hand. Blank args keep the existing
+     * `ifBlank { "{}" }`口径, otherwise `""` and `{}` would split into two signatures.
+     */
+    fun signatureOf(json: Json, toolName: String, input: String): String = signature(
+        toolName = toolName,
+        input = input,
+        parsedArgs = runCatching { json.parseToJsonElement(input.ifBlank { "{}" }) }.getOrNull(),
+    )
+
+    private fun canonicalizeArgs(element: JsonElement): JsonElement = when (element) {
+        is JsonObject -> JsonObject(
+            element.entries.sortedBy { it.key }
+                .associate { (key, value) -> key to canonicalizeArgs(value) },
+        )
+
+        is JsonArray -> JsonArray(element.map { canonicalizeArgs(it) })
+        else -> element
+    }
+
     fun evaluate(
         priorCalls: List<PriorToolCall>,
         toolName: String,
@@ -957,11 +1013,31 @@ class GenerationLoop(
                             return@forEach
                         }
 
+                        // Pre-parse args BEFORE the runCatching block so we can surface a
+                        // clean structured envelope when the LLM provider truncates the
+                        // streaming response mid-string (max_tokens hit, network drop, etc.).
+                        // Without this, kotlinx.serialization's raw exception message —
+                        // which includes the entire failed input — lands in the LLM-facing
+                        // `detail` field, can be thousands of tokens, and the model often
+                        // retries the same too-big call.
+                        // The loop-guard below reuses this same parse (it must not parse the
+                        // same string a second time); its failure branch stays at the original
+                        // spot further down, so the loop_detected envelope still wins over
+                        // invalid_tool_args for a repeated call.
+                        val parsedArgs = runCatching {
+                            json.parseToJsonElement(tool.input.ifBlank { "{}" })
+                        }
                         // Loop-guard: check whether the model has already called this exact
                         // tool with the same args multiple times in this turn. Refuse a
                         // repeat run and inject a "loop_detected" envelope so the model has
                         // to pivot to a different approach. Cost safety net.
-                        val signature = tool.toolName + "::" + tool.input
+                        // Signature is normalised (key order + whitespace) so an identical call
+                        // written with different key order / spacing is not missed.
+                        val signature = LoopGuard.signature(
+                            toolName = tool.toolName,
+                            input = tool.input,
+                            parsedArgs = parsedArgs.getOrNull(),
+                        )
                         // "This turn" = since the most recent user message. Earlier
                         // identical calls in PREVIOUS turns aren't the model flailing
                         // now — they're history, and counting them produces a confusing
@@ -987,7 +1063,7 @@ class GenerationLoop(
                                 .toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds()
                             msg.parts.filterIsInstance<UIMessagePart.Tool>()
                                 .filter { it.isExecuted }
-                                .map { PriorToolCall(it.toolName, it.toolName + "::" + it.input, epochMs) }
+                                .map { PriorToolCall(it.toolName, LoopGuard.signatureOf(json, it.toolName, it.input), epochMs) }
                         }
                         val loopDecision = LoopGuard.evaluate(
                             priorCalls = priorCalls,
@@ -1013,16 +1089,9 @@ class GenerationLoop(
                             // docs) will pivot to a different approach.
                             return@forEach
                         }
-                        // Pre-parse args BEFORE the runCatching block so we can surface a
-                        // clean structured envelope when the LLM provider truncates the
-                        // streaming response mid-string (max_tokens hit, network drop, etc.).
-                        // Without this, kotlinx.serialization's raw exception message —
-                        // which includes the entire failed input — lands in the LLM-facing
-                        // `detail` field, can be thousands of tokens, and the model often
-                        // retries the same too-big call.
-                        val parsedArgs = runCatching {
-                            json.parseToJsonElement(tool.input.ifBlank { "{}" })
-                        }
+                        // parsedArgs was parsed above, before the loop-guard signature — see
+                        // the comment there for why the check itself stays at this point in
+                        // the flow (envelope precedence is unchanged).
                         if (parsedArgs.isFailure) {
                             val cause = parsedArgs.exceptionOrNull()
                             cause?.let { AppLog.w(TAG, "tool ${tool.toolName} args failed to parse (likely truncated stream)", it) }
