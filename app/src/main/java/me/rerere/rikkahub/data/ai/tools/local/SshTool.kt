@@ -198,7 +198,7 @@ internal fun wrapDetachedCommand(command: String): String =
  *
  * 用于 detached 包装与输出编码修复的选路。历史上只看 `powershell`/`pwsh` 前缀与 `C:\`
  * 等字面量，导致 `Start-Sleep -Seconds 5; Write-Output done` 这类**纯 cmdlet 命令**被误判为
- * POSIX → 用 `nohup sh -c …` 包装 → Windows 主机上必然 ParserError（2026-09-10 验证）。
+ * POSIX → 用 `nohup sh -c …` 包装 → Windows 主机上必然 ParserError（已验证）。
  * 现在补上 cmdlet 特征（动词-名词、`-Command`、`$env:`、`$_` 等）。
  *
  * 先排除 POSIX 外壳前缀（cmd/wsl/bash/sh/zsh）——它们即使出现在 Windows 主机上，
@@ -226,7 +226,7 @@ internal const val UTF8_CONSOLE_PREFIX =
 /**
  * 给 Windows/PowerShell 命令补上「输出转 UTF-8」前缀，修中文乱码。
  *
- * 验证（2026-09-10，pwsh 7.7 会话）：远端默认 `[Console]::OutputEncoding` = gb2312，
+ * 验证（pwsh 7.7 会话）：远端默认 `[Console]::OutputEncoding` = gb2312，
  * 中文字节流回到 App 按 UTF-8 解码 → 全是 `????`/乱码；命令前加这一句即恢复。
  * `cmd.exe /c …` 之类显式 POSIX/exe 前缀不动（那是另一套代码页，乱码需 chcp，另行处理）。
  *
@@ -237,7 +237,7 @@ internal fun withUtf8ConsoleEncoding(command: String, windows: Boolean? = null):
     if (!isWindows) return command
     // 幂等只看**开头**是否已有前缀。旧实现用 `contains("[Console]::OutputEncoding")`：
     // 命令里只要“提到”该字符串（例如查当前编码）就被整体跳过 → 反而漏包装、中文照旧乱码
-    // （2026-09-29 验证时踩到）。
+    // （验证时踩到）。
     if (command.startsWith(UTF8_CONSOLE_PREFIX)) return command
     return UTF8_CONSOLE_PREFIX + command
 }
@@ -355,7 +355,7 @@ private fun envParamRejection(
 internal fun wrapDetachedCommandSmart(command: String): Pair<String, String?> {
     if (!looksLikeWindowsCommand(command)) {
         // POSIX：日志落 /tmp（通用可写），输出与错误都进同一日志。
-        // nohup 并非到处都有（2026-09-10 验证：OpenWrt/ash 无 nohup，命令直接失败），
+        // nohup 并非到处都有（验证：OpenWrt/ash 无 nohup，命令直接失败），
         // 因此按 nohup → setsid → 裸后台 逐级降级；整组后台化，$! 即该组的 pid。
         val logPath = "/tmp/rikkahub_bg_${System.currentTimeMillis()}.log"
         val body = shellSingleQuote(command)
@@ -882,7 +882,7 @@ internal fun unreachableEnvelope(host: String, port: Int, outcome: ProbeOutcome)
 }
 
 /**
- * PowerShell 引号/编码根治（2026-09-03）：
+ * PowerShell 引号/编码根治：
  * 把命令转成 pwsh -EncodedCommand <base64>——base64 只含 [A-Za-z0-9+/=]，
  * 穿透 SSH exec 通道/远端 shell 零转义需求；脚本内先强制 UTF-8 输出编码，
  * 远端输出字节流确定为 UTF-8（解决 PowerShell 默认 GBK/ANSI 导致的乱码）。

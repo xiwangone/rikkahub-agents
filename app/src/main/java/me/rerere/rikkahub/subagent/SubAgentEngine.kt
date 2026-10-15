@@ -231,7 +231,7 @@ class SubAgentEngine(
      *   - [SubAgentEngine] needs [ChatService] only at dispatch time (sendMessage), so
      *     eager constructor injection here would close the cycle.
      * Same lazy-Koin pattern as [me.rerere.rikkahub.workflow.execution.WorkflowEngine.localTools].
-     * Verified post-DI-fix 2026-05-08 — installed APK reaches MainActivity without crash.
+     * Verified post-DI-fix — installed APK reaches MainActivity without crash.
      */
     private val chatService: ChatService by lazy {
         org.koin.java.KoinJavaComponent.getKoin().get<ChatService>()
@@ -429,7 +429,7 @@ class SubAgentEngine(
         val basePrompt = profile?.systemPrompt?.trim()?.takeIf { it.isNotEmpty() }
             ?: SubAgentDefaults.DEFAULT_SYSTEM_PROMPT
         // 提示词不再拼进任务文本：它走会话级 system prompt（见 RunTargets.Ready.systemPrompt），
-        // 否则只是「用户消息前缀」，权重低、约束不住（实测两次仍带过程叙述）。
+        // 否则只是「用户消息前缀」，权重低、约束不住（两次仍带过程叙述）。
         val effectiveTask = request.task
         // A-9 互踩可见化：子代理的生效工作区 == 父助手绑定的工作区时标出风险。
         // 注意：父子**都未绑定**不算共享 —— 那时 `createWorkspaceToolsIfReady` 根本不注入
@@ -607,7 +607,7 @@ class SubAgentEngine(
     /**
      * 把子代理的终态回执投递到父会话。
      *
-     * 投递策略（2026-09-20 重做）：
+     * 投递策略：
      *  - **不再轮询等父会话空闲**：[me.rerere.rikkahub.service.ChatService.sendMessage] 自身
      *    已带排队语义——会话忙则 enqueue（不打断本轮，本轮结束自动派发队首），空闲则立即发。
      *    此前的「等空闲最多 5 分钟」是排队机制出现之前写的，只会造成滞后（极端情况还要靠

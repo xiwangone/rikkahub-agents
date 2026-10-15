@@ -178,7 +178,7 @@ private val GENERIC_LIST_KEYS =
     listOf(
         // 文件 / 通用集合
         "files", "items", "results", "matches", "children", "list",
-        // 高频工具的实际键名（2026-10-05 按 usage 统计补：均 >100 次调用）
+        // 高频工具的实际键名（按 usage 统计补：均 >100 次调用）
         "processes",  // workspace_background_status / _list
         "sessions",   // termux_session_list
         "hosts",      // list_ssh_hosts

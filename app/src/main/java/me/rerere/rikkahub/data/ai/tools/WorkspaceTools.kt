@@ -354,7 +354,7 @@ private fun createEditFileTool(
 // —— diff_files：轻量文件对比（复用 generateUnifiedDiff, 超长行/输出截断防撑爆）——
 private const val MAX_DIFF_LINE_CHARS = 400
 // 仅作 fallback（与设置上限 32K 一致）；正常走 settings.toolOutputMaxChars（默认 8K）。
-// 旧值 40_000 > 全局 32K，属互相矛盾的冗余值（2026-09-19 统一）。
+// 旧值 40_000 > 全局 32K，属互相矛盾的冗余值（已统一）。
 private const val MAX_DIFF_TOTAL_CHARS = 32 * 1024
 
 private fun createDiffFileTool(

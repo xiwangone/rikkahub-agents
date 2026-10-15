@@ -415,7 +415,7 @@ fun VaultCredentialsPage() {
                         showEditor = null
                         refresh()
                     } catch (e: IllegalArgumentException) {
-                        // 校验类失败（命名规范/值不可见）：提示并留在编辑器，不崩（2026-09-23 闪退修复）
+                        // 校验类失败（命名规范/值不可见）：提示并留在编辑器，不崩（闪退修复）
                         android.widget.Toast.makeText(context, e.message, android.widget.Toast.LENGTH_SHORT).show()
                     }
                 }

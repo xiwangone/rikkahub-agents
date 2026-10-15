@@ -136,7 +136,7 @@ fun runToolSurfaceReport(
             val largest = sized.sortedByDescending { it.second }.take(topN.coerceIn(1, 40))
 
             // 省幅 = 未裁剪基准 与 实际注入 之差。不再自己“估”裁剪结果：报告拿到的列表本身
-            // 可能已是裁剪后的，再估一遍会双算（2026-09-24 实测踩到）。
+            // 可能已是裁剪后的，再估一遍会双算。
             val baselineTools =
                 (if (baselineInput.isEmpty()) tools else baselineInput).distinctBy { it.name }
             val baselineTokens =

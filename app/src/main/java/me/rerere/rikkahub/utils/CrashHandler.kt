@@ -18,7 +18,7 @@ object CrashHandler {
             if (isEngineBindFailure(throwable)) {
                 // ktor CIO 引擎协程里的端口占用：调用方（DebugApiManager / LocalMcpServerManager /
                 // WebServerManager）对同一次失败已各自拿到受控结果并复位状态，这里只留痕不杀进程 ——
-                // 否则一次端口冲突 = 启动即崩循环（2026-09-28 真机崩溃快照实证）
+                // 否则一次端口冲突 = 启动即崩循环（崩溃快照实证）
                 AppLog.e(TAG, "ignored engine bind failure on thread ${thread.name}: ${throwable.message}")
                 return@setDefaultUncaughtExceptionHandler
             }

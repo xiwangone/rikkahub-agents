@@ -374,7 +374,7 @@ class ConversationRepository(
     /**
      * 会话 → 实体。真实现已上移到文件顶层（[conversationToConversationEntityImpl]），
      * 这样**纯函数可被单测直接调用**（此前它是实例方法，而实例需要 Room DAO，项目又没有
-     * mock 框架 → 字段漏映射这种 bug 无法被测试守住，正是 2026-09-20 踩过的坑）。
+     * mock 框架 → 字段漏映射这种 bug 无法被测试守住，正是此前踩过的坑）。
      */
     fun conversationToConversationEntity(conversation: Conversation): ConversationEntity =
         conversationToConversationEntityImpl(conversation)
@@ -466,7 +466,7 @@ class ConversationRepository(
     }
 
     private suspend fun saveMessageNodes(conversationId: String, nodes: List<MessageNode>) {
-        // 空轮次诊断（2026-09-11）：检测写入历史的空 user 文本消息（无文本/纯空白 part 的 user 节点）
+        // 空轮次诊断：检测写入历史的空 user 文本消息（无文本/纯空白 part 的 user 节点）
         nodes.forEach { node ->
             val hasEmptyUser =
                 node.messages.any { msg ->

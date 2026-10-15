@@ -369,7 +369,7 @@ private fun ChatPageContent(
             runCatching {
                 val ws = workspaceRepository.getAll().firstOrNull() ?: return@launch
                 // 读沙箱 token（LINUX 区/rootfs——授权用 importFile(LINUX) 写入，writeText 的 FILES 区沙箱不可见）
-                // 工具桥模式（2026-08-14）：授权状态 = 存在未过期会话（不再依赖沙箱 vault-token 文件）
+                // 工具桥模式：授权状态 = 存在未过期会话（不再依赖沙箱 vault-token 文件）
                 vaultAuthorized = vaultSessionManager.hasActiveAuthorization()
             }
         }

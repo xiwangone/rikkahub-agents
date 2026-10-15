@@ -22,7 +22,7 @@ class SettingVM(
 
     /**
      * 快捷入口解析结果：稳定流（有变动才变），卡片不再随任何无关设置写入而重建/消失。
-     * 用户报：每次进设置页网格要滑动才出现（2026-09-26）。
+     * 用户报：每次进设置页网格要滑动才出现。
      */
     val shortcutEntries: StateFlow<List<SettingEntry>> =
         settingsStore.settingsFlow

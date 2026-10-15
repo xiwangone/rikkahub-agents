@@ -5,7 +5,7 @@ package me.rerere.rikkahub.data.vault
  *
  * 存在意义：**公钥是公开信息，不该单独占一条凭证** —— 它属于某个私钥条目
  * （`VaultCredentialEntity.publicKey` 字段）。此前"粘贴即入库"会把一段公钥
- * 新建为独立条目，条目列表里于是多出一堆"只有公钥"的项（2026-09-22 用户提出）。
+ * 新建为独立条目，条目列表里于是多出一堆"只有公钥"的项（用户提出）。
  *
  * 本对象只做**纯判定**，不碰存储；并入动作在
  * [CredentialVaultRepository.mergePublicKeyLine] 里按「指纹 → 名称」两级匹配。

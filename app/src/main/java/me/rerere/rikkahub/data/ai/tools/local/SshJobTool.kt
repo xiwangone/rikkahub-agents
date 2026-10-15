@@ -15,7 +15,7 @@ import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 
 /**
- * 后台任务轮询（2026-09-03）。配合 ssh_exec / ssh_exec_saved 的 background=true 使用：
+ * 后台任务轮询。配合 ssh_exec / ssh_exec_saved 的 background=true 使用：
  * - POSIX 主机：nohup 已 detach，轮询看进程是否还活 + 尾巴输出不可得（重定向 /dev/null）
  * - Windows 主机：Start-Process 输出落 C:\Users\Public\rikkahub_bg_*.log，
  *   轮询读日志尾部即可非阻塞拿进度（不占 SSH 长连接）

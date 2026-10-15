@@ -14,7 +14,7 @@ import kotlinx.serialization.json.booleanOrNull
 /**
  * HuggingFace's `gated` field is the JSON boolean `false` for a public repo, or one of the
  * strings "auto" / "manual" for a gated one (verified against the live `/api/models/{repo}`
- * response on 2026-08-03). Decodes to a plain Boolean: false means public, true means
+ * response). Decodes to a plain Boolean: false means public, true means
  * access-gated regardless of which string HF used for the gate kind.
  */
 object HfGatedSerializer : KSerializer<Boolean> {

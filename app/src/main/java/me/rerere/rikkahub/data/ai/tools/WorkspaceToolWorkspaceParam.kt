@@ -13,7 +13,7 @@ import kotlinx.serialization.json.put
  * 可选参数 `workspace`：本次调用要操作的目标工作区 id（取自 `workspace_list`）。
  *
  * 省略时使用助手绑定的工作区；传了未知 id 会报错（**不静默回退**），避免"以为操作 A、
- * 实际落在 B"这类静默失败 —— 2026-09-24 实测踩过：该参数此前未在 schema 中声明，
+ * 实际落在 B"这类静默失败 —— 该参数此前未在 schema 中声明，
  * 传入即被 JSON 丢弃，所有跨区调用静默作用到当前绑定区。
  */
 internal fun JsonObjectBuilder.putWorkspaceProperty() {

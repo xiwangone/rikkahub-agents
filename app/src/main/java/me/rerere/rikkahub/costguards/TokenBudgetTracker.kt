@@ -19,7 +19,7 @@ import me.rerere.rikkahub.data.model.Conversation
  *     model can self-stop or notify the user.
  *   - Future Compose / Telegram surfaces collect the same numbers.
  *
- * Budget classification (v1.1 — 2026-08-07):
+ * Budget classification (v1.1):
  *   classify() uses perMessageMax (single-message peak = real context-window size)
  *   instead of totalTokens (sum of all turns with context overlap → inflated).
  *   totalTokens is still tracked for informational display but is NOT used for caps.

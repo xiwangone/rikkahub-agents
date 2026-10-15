@@ -222,7 +222,7 @@ fun Application.configureWebApi(
 
             aiIconRoutes(context)
 
-            // Vault 解密 API 已退役（2026-08-14）：凭证通道迁出 Web 完成——
+            // Vault 解密 API 已退役：凭证通道迁出 Web 完成——
             // App 内 AI 走 vault_* 直通（不经 Web）；沙箱 vault-get 改用 load-creds.sh 备用。
             // Web 服务恢复纯能力面（chat/files/settings——不含凭证）。
 

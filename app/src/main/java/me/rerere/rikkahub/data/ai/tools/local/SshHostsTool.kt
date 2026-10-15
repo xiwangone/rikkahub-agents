@@ -27,7 +27,7 @@ import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.resolveLiteralOrReference
 
 /**
- * 主机命令预设表（2026-09-03 静态内置版，后续可迁 Room 用户自定义）。
+ * 主机命令预设表（静态内置版，后续可迁 Room 用户自定义）。
  *
  * 设计：按 saved host 名（或其 user/host 特征）匹配预设集；每条预设是
  * 常用操作模板，AI 用 ssh_exec_saved(preset="键") 直接展开执行——
@@ -38,7 +38,7 @@ import me.rerere.rikkahub.data.vault.resolveLiteralOrReference
  */
 internal object SshPresets {
     /**
-     * 命令预设表（2026-09-03）。
+     * 命令预设表。
      *
      * 设计：按 saved host 名匹配预设集；ssh_exec_saved(preset="键") 直接展开执行，
      * 消除每次手写命令的转义/路径错误。预设与 command 参数互斥。
@@ -111,7 +111,7 @@ internal sealed interface JumpResolution {
 /**
  * 解析主机认证（**带原因**版）。
  *
- * 名称容错（2026-09-29）：历史数据里的 `vaultCredentialRef` 可能是归一前的形态
+ * 名称容错：历史数据里的 `vaultCredentialRef` 可能是归一前的形态
  * （如 `PC ED25519 KEY`），与库中现名（`PC_ED25519_KEY`）不一致 → 名字不存在时按
  * [CredentialVaultRepository.normalizeName] 再解析一次，避免“库里明明有这条凭证却连不上”。
  */

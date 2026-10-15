@@ -1206,7 +1206,7 @@ internal suspend fun toolScopePayload(
         }
     val visible = if (tierFilter == null) rows else rows.filter { it.tier.name == tierFilter }
 
-    // 名单校验（2026-09-25）：四份助手级名单都是**精确名匹配**，写错一个字符就静默不生效。
+    // 名单校验：四份助手级名单都是**精确名匹配**，写错一个字符就静默不生效。
     // 这里把「未匹配到任何已注入工具」的项显式列出（工具全集 = injected），供自查。
     val knownNames = injected.toSet()
     val unmatchedLists =

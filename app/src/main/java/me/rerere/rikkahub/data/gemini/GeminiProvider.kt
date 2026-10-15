@@ -420,7 +420,7 @@ private fun parseErrorMessage(body: String?, json: Json): String? {
 // gemini-3.1-pro-high is advertised by fetchAvailableModels but Antigravity's
 // v1internal streamGenerateContent endpoint rejects it as a model name at every
 // reasoning level (400, no fieldViolations to name the field). Confirmed on-device
-// 2026-08-12 and independently by five other projects; gemini-3.1-pro-low works fine on
+// and independently by five other projects; gemini-3.1-pro-low works fine on
 // the same endpoint, so this is scoped to the exact id rather than a `-high` suffix rule
 // (other suffixed models work). Re-test and drop this once the base project fixes it.
 //
@@ -544,7 +544,7 @@ private fun resolveStreamFailureCause(
 
 /**
  * Code Assist rejects any `thinkingConfig` for GPT-OSS with `INVALID_ARGUMENT` (verified on
- * device 2026-09-24); the model still reasons internally. Matched case-insensitively since
+ * device); the model still reasons internally. Matched case-insensitively since
  * Code Assist ids aren't guaranteed to be lowercase. Shared by [mapAvailableModels] (which keeps
  * newly imported GPT-OSS models off [ModelAbility.REASONING]) and [stripThinkingConfigForGptOss]
  * (which covers models already imported with reasoning ticked before this filter existed).

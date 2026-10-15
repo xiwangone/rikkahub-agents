@@ -1646,7 +1646,7 @@ private suspend fun resolveLxcDebianRootfs(): String? =
     withContext(Dispatchers.IO) {
         val bases =
             listOf(
-                // 2026-10-02 核实：清华镜像虽有 lxc-images，但该分支下 rootfs.tar.xz 返回 404（同步不全）；
+                // 核实：清华镜像虽有 lxc-images，但该分支下 rootfs.tar.xz 返回 404（同步不全）；
                 // 南大镜像目录完整且 rootfs.tar.xz 为 200，官方源 302→200 作兜底。
                 "https://mirror.nju.edu.cn/lxc-images/images/debian",
                 "https://images.linuxcontainers.org/images/debian",

@@ -531,7 +531,7 @@ class ChatService(
      * 内存会话里，会随回收一起消失（表现为「切走再回来内容变少」）。这里在移除前补一次
      * NonCancellable 落盘，保证内存与磁盘一致。
      *
-     * 三条纪律（P2-lite，2026-09-20）：
+     * 三条纪律（P2-lite）：
      * 1. **互斥在启动协程之前取**：`removeSession` 紧接着会 `sessionMutexes.remove(id)`，
      *    若等协程真跑起来再 `mutexFor()`，拿到的是另一个新 Mutex 实例，与并发写入者互不串行
      *    （旧快照仍能盖掉新写）；
@@ -1477,7 +1477,7 @@ class ChatService(
                     workspaceCwd = conversation.workspaceCwd,
                     memories =
                         if (assistant.useGlobalMemory) {
-                            // 记忆分层（2026-08-13）：只注入 core 常驻；conditional 由 AI 用 memory_search 按需检索
+                            // 记忆分层：只注入 core 常驻；conditional 由 AI 用 memory_search 按需检索
                             memoryRepository.getCoreMemoriesOfAssistant(me.rerere.rikkahub.data.repository.MemoryRepository.GLOBAL_MEMORY_ID)
                         } else {
                             memoryRepository.getCoreMemoriesOfAssistant(assistant.id.toString())
@@ -2198,7 +2198,7 @@ class ChatService(
      * 压缩后保留消息的工具输出截断。
      *
      * [compactTools] 为助手级「紧凑输出」名单：命中者用 [compactMaxChars]，其余用 [maxChars] ——
-     * 与生成期 `maybeTruncateToolOutput` 的口径保持一致（2026-09-25）。
+     * 与生成期 `maybeTruncateToolOutput` 的口径保持一致。
      */
     // ---- 对话状态更新 ----
 

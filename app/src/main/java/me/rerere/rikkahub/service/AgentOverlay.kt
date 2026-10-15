@@ -26,7 +26,7 @@ import me.rerere.rikkahub.ui.hooks.readBooleanPreference
  * with FLAG_NOT_TOUCHABLE so it never blocks user gestures. No-ops silently if
  * SYSTEM_ALERT_WINDOW has not been granted — overlay is purely informational.
  *
- * Visibility is **state-driven, not edge-triggered**（2026-09-10 修复）：以前的实现只在回合
+ * Visibility is **state-driven, not edge-triggered**：以前的实现只在回合
  * 开始那一瞬判定前后台（`show()` 里判一次），于是「前台发起回合 → 用户退到后台」不会出现
  * 悬浮条，「后台发起回合 → 用户回到前台」也不会消失，表现为时有时无。现在改为：
  *  - 回合生命周期只记录 `active`（`show` / `hide` 由 GenerationLoop 调）；
@@ -68,7 +68,7 @@ object AgentOverlay {
     /**
      * 注册前后台监听（幂等）。必须在**主线程**注册：`LifecycleRegistry.addObserver` 会断言主线程，
      * 而 [show] 是从 GenerationLoop 的 flow `onStart` 调用的，那条链带 `flowOn(Dispatchers.IO)`
-     * —— 也就是说这里默认跑在 IO 线程。2026-09-10 实测：直接注册会抛
+     * —— 也就是说这里默认跑在 IO 线程。直接注册会抛
      * "Method addObserver must be called on the main thread"，被 runCatching 吞掉后
      * 只留下 `observerRegistered = true` 的假状态，于是后台永不显示悬浮条。
      */

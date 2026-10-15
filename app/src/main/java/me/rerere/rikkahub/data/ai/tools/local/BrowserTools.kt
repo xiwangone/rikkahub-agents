@@ -1036,7 +1036,7 @@ fun browserDoneTool(invocationContext: ToolInvocationContext? = null): Tool = To
             BrowserController.appendAction("Done: $summary")
             BrowserController.clearTaskWindow()
             // Pass 3 design originally released the headless WebView here. Live-test feedback
-            // (2026-05-08): users want the session to persist across LLM turns so a follow-up
+            // users want the session to persist across LLM turns so a follow-up
             // "click the next link" doesn't have to re-open from scratch — that broke the
             // page state, cookies-in-flight, and the read screenshots stayed white because
             // we paid the page-load tax twice. browser_done now ONLY clears the per-task

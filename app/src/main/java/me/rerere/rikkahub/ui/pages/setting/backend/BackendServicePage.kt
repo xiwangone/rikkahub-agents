@@ -42,7 +42,7 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
 
 /**
- * 后端服务页（连接管理中枢——2026-08-14 通用化）。
+ * 后端服务页（连接管理中枢——已通用化）。
  *
  * 后端连接可保存/切换/删除：backend（执行后端）/ SSH / 自定义统一模型。
  * 对话页 executionBackend 引用后端连接 id（local 内置）。

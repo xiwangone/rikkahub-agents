@@ -591,7 +591,7 @@ internal fun AssistantBasicContent(
                     Text(stringResource(R.string.assistant_page_token_budget_desc))
                 },
             ) {
-                // 支持「100K / 1M / 100000」三种写法：K=×1000、M=×1,000,000（2026-09-25 用户建议）。
+                // 支持「100K / 1M / 100000」三种写法：K=×1000、M=×1,000,000（用户建议）。
                 fun parseTokens(raw: String): Int? {
                     val t = raw.trim().uppercase()
                     if (t.isEmpty()) return null
@@ -665,7 +665,7 @@ internal fun AssistantBasicContent(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
                     singleLine = true,
                 )
-                // 配置矛盾校验：硬 < 软时，第一次请求就会命中硬上限而直接结束（2026-09-25 踩过）
+                // 配置矛盾校验：硬 < 软时，第一次请求就会命中硬上限而直接结束（踩过）
                 val softValue = parseTokens(tokenSoftInput)
                 val hardValue = parseTokens(tokenHardInput)
                 if (softValue != null && hardValue != null && hardValue < softValue) {

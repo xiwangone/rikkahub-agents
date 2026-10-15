@@ -95,7 +95,7 @@ class RikkaHubApp : Application() {
         // AI 调试接口（实验性，默认关）：构造即拉起 DataStore collector，enabled 时自动恢复服务
         get<DebugApiManager>()
 
-        // ---- 数据库启动自检（2026-09-25）----
+        // ---- 数据库启动自检 ----
         // 迁移失败（例如导入的库已带新列 → duplicate column）会让 Room 首次打开就抛异常，
         // 表现就是"闪退进不去"。这里主动探一次：失败且留有恢复前的备份时，把坏库换回备份并
         // 重启进程，用户再点一次就能进（比永远进不去强）；没有备份可回退时保持原行为。
@@ -124,7 +124,7 @@ class RikkaHubApp : Application() {
         // install crash handler
         CrashHandler.install(this)
 
-        // ---- 日志持久化 + 进程状态记录（2026-09-11）----
+        // ---- 日志持久化 + 进程状态记录 ----
         // 统一文件日志器：app/req/text/lifecycle 四类写 filesDir/logs/*.log，杀进程不丢。
         FileLogSink.init(
             this,

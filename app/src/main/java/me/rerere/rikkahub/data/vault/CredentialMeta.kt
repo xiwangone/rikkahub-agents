@@ -8,7 +8,7 @@ import kotlinx.serialization.json.contentOrNull
 /**
  * 凭证的**非敏感元数据**（明文存储，落 `VaultCredentialEntity.metaJson`）。
  *
- * 设计约束（2026-09-22 定）：
+ * 设计约束：
  * - **白名单**：只有 [ALLOWED_KEYS] 里的键允许落明文。新增字段必须先加白名单，
  *   否则会被 [encode] 静默丢弃 —— 这是"秘密绝不进明文列"的**强制点**，不靠调用方自觉。
  * - 秘密（apiKey / 私钥 / 口令 / token）一律只进 `valueEncrypted`，不进这里。
@@ -26,7 +26,7 @@ object CredentialMeta {
         "algorithm",  // TOTP 算法
         "digits",     // TOTP 位数
         "period",     // TOTP 周期（秒）
-        // 非敏感标识（2026-10-07 加）：账号 / AK / 云侧 ID 这类“标识而非秘密”的信息。
+        // 非敏感标识：账号 / AK / 云侧 ID 这类“标识而非秘密”的信息。
         // 此前只能塞描述（不可结构化）或当密文存（引用方与 AI 都读不到）→ 现归入明文元数据。
         "account",        // 账号 / 登录名 / 邮箱
         "access_key_id",  // 云访问密钥 ID（AK）；配套 SK 仍走密文
@@ -39,7 +39,7 @@ object CredentialMeta {
         "value_fp",
     )
 
-    /** 自定义字段键前缀：`custom.<标签>`。值是**明文备注**，禁止放密钥/口令（2026-09-23 定）。 */
+    /** 自定义字段键前缀：`custom.<标签>`。值是**明文备注**，禁止放密钥/口令。 */
     const val CUSTOM_PREFIX = "custom."
 
     /**

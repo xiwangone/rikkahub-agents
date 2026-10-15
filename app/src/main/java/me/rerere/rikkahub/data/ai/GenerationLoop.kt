@@ -493,7 +493,7 @@ class GenerationLoop(
                 runCtx.abortReason = GenerationOutcome.TIMEOUT
                 break
             }
-            // token 预算（Phase 15.5，2026-09-25）——与时间预算同构的两级处置：
+            // token 预算（Phase 15.5）——与时间预算同构的两级处置：
             //   WARN（越过 softCap）：只注入一次收尾提示（"先警告"，靠提示词收敛）；
             //   OVER_HARD：直接收尾（模型没有继续展开的空间）。
             // 口径 = perMessageMax（单条请求峰值 ≈ 真实上下文窗口），非累计总量；

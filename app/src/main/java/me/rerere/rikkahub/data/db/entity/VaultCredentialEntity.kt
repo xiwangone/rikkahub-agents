@@ -36,7 +36,7 @@ data class VaultCredentialEntity(
     /**
      * 非敏感元数据（**明文** JSON）：endpoint / path / header 名 / 账号名 / 算法参数等。
      *
-     * 两条硬约束（2026-09-22 定）：
+     * 两条硬约束：
      * - **只放非敏感字段**：秘密一律只进 [valueEncrypted]；
      * - 键必须在 [CredentialMeta.ALLOWED_KEYS] 白名单内 —— 写入侧由此强制，不靠自觉。
      *
