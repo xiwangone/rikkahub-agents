@@ -62,6 +62,39 @@ accept_licenses() {
     || log "许可确认未完成（构建时若缺组件会自动补齐）"
 }
 
+# AGP 现场下载 NDK 时既无重试也无完整性校验，包一截断（"Archive is not a ZIP archive"）整条流程就挂；
+# 这里预装一次（带重试 + 装完校验），版本与 llama-cpp 模块要求保持一致。
+ensure_ndk() {
+  local sdk="$1" ver="${NDK_VERSION:-28.2.13676358}"
+  local sm="$sdk/cmdline-tools/latest/bin/sdkmanager"
+  if [ ! -x "$sm" ]; then
+    sm="$(command -v sdkmanager 2>/dev/null || true)"
+  fi
+  if [ -z "$sm" ] || [ ! -x "$sm" ]; then
+    log "未找到 sdkmanager，跳过 NDK 预装"
+    return 0
+  fi
+  if [ -f "$sdk/ndk/$ver/source.properties" ]; then
+    log "NDK $ver 已就绪"
+    return 0
+  fi
+  local i
+  for i in 1 2 3; do
+    log "预装 NDK $ver（第 $i 次）"
+    rm -rf "$sdk/ndk/$ver" 2>/dev/null || true
+    if timeout 1500 bash -c "yes 2>/dev/null | '$sm' --sdk_root='$sdk' 'ndk;$ver'" >/dev/null 2>&1 \
+       && [ -f "$sdk/ndk/$ver/source.properties" ]; then
+      log "NDK $ver 预装完成"
+      return 0
+    fi
+    log "预装失败（多为下载包损坏），清理后重试"
+    rm -rf "$sdk/ndk/$ver" 2>/dev/null || true
+    sleep 5
+  done
+  log "::warning::NDK $ver 预装三次均失败，交由后续构建自行处理"
+  return 0
+}
+
 main() {
   local sdk
   if sdk="$(find_preinstalled)"; then
@@ -77,6 +110,7 @@ main() {
   fi
 
   accept_licenses "$sdk"
+  ensure_ndk "$sdk"
 
   if [ -n "${GITHUB_ENV:-}" ]; then
     {
