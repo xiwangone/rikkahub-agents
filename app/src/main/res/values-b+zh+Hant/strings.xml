@@ -3664,6 +3664,7 @@
   <string name="skill_store_add">新增</string>
   <string name="skill_store_add_name">名稱（選填）</string>
   <string name="skill_store_add_url">Catalog 連結</string>
+  <string name="skill_store_catalog_url_hint">example.com/catalog.json</string>
   <string name="skill_store_invalid_url">連結無效——僅支援 http(s)</string>
   <string name="skill_store_limit">已達來源數量上限</string>
   <string name="skill_store_status_ok">已更新</string>

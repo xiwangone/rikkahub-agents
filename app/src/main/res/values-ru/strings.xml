@@ -3665,6 +3665,7 @@
   <string name="skill_store_add">Добавить</string>
   <string name="skill_store_add_name">Название (необязательно)</string>
   <string name="skill_store_add_url">URL каталога</string>
+  <string name="skill_store_catalog_url_hint">example.com/catalog.json</string>
   <string name="skill_store_invalid_url">Недопустимый URL — только http(s)</string>
   <string name="skill_store_limit">Достигнут лимит источников</string>
   <string name="skill_store_status_ok">Актуально</string>

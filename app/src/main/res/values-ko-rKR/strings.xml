@@ -3665,6 +3665,7 @@
   <string name="skill_store_add">추가</string>
   <string name="skill_store_add_name">이름(선택)</string>
   <string name="skill_store_add_url">Catalog URL</string>
+  <string name="skill_store_catalog_url_hint">example.com/catalog.json</string>
   <string name="skill_store_invalid_url">잘못된 URL — http(s)만</string>
   <string name="skill_store_limit">소스 수 상한에 도달</string>
   <string name="skill_store_status_ok">최신</string>

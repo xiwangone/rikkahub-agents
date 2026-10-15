@@ -3665,6 +3665,7 @@
   <string name="skill_store_add">追加</string>
   <string name="skill_store_add_name">名前（任意）</string>
   <string name="skill_store_add_url">Catalog URL</string>
+  <string name="skill_store_catalog_url_hint">example.com/catalog.json</string>
   <string name="skill_store_invalid_url">URL が無効です（http(s) のみ）</string>
   <string name="skill_store_limit">ソース数の上限に達しました</string>
   <string name="skill_store_status_ok">最新</string>

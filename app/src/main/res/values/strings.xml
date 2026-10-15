@@ -3661,6 +3661,7 @@
   <string name="skill_store_add">Add</string>
   <string name="skill_store_add_name">Name (optional)</string>
   <string name="skill_store_add_url">Catalog URL</string>
+  <string name="skill_store_catalog_url_hint">example.com/catalog.json</string>
   <string name="skill_store_invalid_url">Invalid URL — http(s) only</string>
   <string name="skill_store_limit">Source limit reached</string>
   <string name="skill_store_status_ok">Up to date</string>

@@ -704,7 +704,7 @@ private fun StoreSourcesSheet(
                     value = url,
                     onValueChange = { url = it },
                     label = { Text(stringResource(R.string.skill_store_add_url)) },
-                    placeholder = { Text("example.com/catalog.json") },
+                    placeholder = { Text(stringResource(R.string.skill_store_catalog_url_hint)) },
                     isError = addError != null,
                     supportingText = addError?.let { { Text(stringResource(it)) } },
                     singleLine = true,

@@ -3664,6 +3664,7 @@
   <string name="skill_store_add">إضافة</string>
   <string name="skill_store_add_name">الاسم (اختياري)</string>
   <string name="skill_store_add_url">رابط Catalog</string>
+  <string name="skill_store_catalog_url_hint">example.com/catalog.json</string>
   <string name="skill_store_invalid_url">رابط غير صالح — http(s) فقط</string>
   <string name="skill_store_limit">تم الوصول إلى الحد الأقصى للمصادر</string>
   <string name="skill_store_status_ok">محدث</string>
