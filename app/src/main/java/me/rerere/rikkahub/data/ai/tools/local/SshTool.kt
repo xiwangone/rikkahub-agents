@@ -7,6 +7,7 @@ import me.rerere.rikkahub.data.sync.replaceFilePreservingTarget
 import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.CredentialResolution
 import me.rerere.rikkahub.data.vault.CredentialResolver
+import me.rerere.rikkahub.data.vault.message
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VAULT_REF_PREFIX
 import me.rerere.rikkahub.data.vault.VaultSessionManager
