@@ -5,8 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.material3.SecondaryScrollableTabRow
-import androidx.compose.material3.Tab
+import androidx.compose.ui.graphics.vector.ImageVector
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.BookOpen01
+import me.rerere.hugeicons.stroke.MagicWand01
+import me.rerere.hugeicons.stroke.Message01
+import me.rerere.hugeicons.stroke.Sparkles
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -71,46 +75,37 @@ fun ExtensionSelector(
         }
 
     val pagerState = rememberPagerState { 4 }
-    val scope = rememberCoroutineScope()
 
     Column(
         modifier = modifier,
     ) {
-        SecondaryScrollableTabRow(
-            selectedTabIndex = pagerState.currentPage,
-            containerColor = Color.Transparent,
+        val extTabs = listOf(
+            object : PagerTab {
+                override val icon: ImageVector = HugeIcons.Message01
+                override val label: String
+                    @Composable get() = stringResource(R.string.extension_selector_tab_quick_messages)
+            },
+            object : PagerTab {
+                override val icon: ImageVector = HugeIcons.MagicWand01
+                override val label: String
+                    @Composable get() = stringResource(R.string.extension_selector_tab_mode_injections)
+            },
+            object : PagerTab {
+                override val icon: ImageVector = HugeIcons.BookOpen01
+                override val label: String
+                    @Composable get() = stringResource(R.string.extension_selector_tab_lorebooks)
+            },
+            object : PagerTab {
+                override val icon: ImageVector = HugeIcons.Sparkles
+                override val label: String
+                    @Composable get() = stringResource(R.string.extension_selector_tab_skills)
+            },
+        )
+        PagerTabs(
+            pagerState = pagerState,
+            tabs = extTabs,
             modifier = Modifier.fillMaxWidth(),
-            edgePadding = 4.dp,
-        ) {
-            Tab(
-                selected = pagerState.currentPage == 0,
-                onClick = {
-                    scope.launch { pagerState.animateScrollToPage(0) }
-                },
-                text = { Text(stringResource(R.string.extension_selector_tab_quick_messages)) },
-            )
-            Tab(
-                selected = pagerState.currentPage == 1,
-                onClick = {
-                    scope.launch { pagerState.animateScrollToPage(1) }
-                },
-                text = { Text(stringResource(R.string.extension_selector_tab_mode_injections)) },
-            )
-            Tab(
-                selected = pagerState.currentPage == 2,
-                onClick = {
-                    scope.launch { pagerState.animateScrollToPage(2) }
-                },
-                text = { Text(stringResource(R.string.extension_selector_tab_lorebooks)) },
-            )
-            Tab(
-                selected = pagerState.currentPage == 3,
-                onClick = {
-                    scope.launch { pagerState.animateScrollToPage(3) }
-                },
-                text = { Text(stringResource(R.string.extension_selector_tab_skills)) },
-            )
-        }
+        )
 
         HorizontalPager(
             state = pagerState,

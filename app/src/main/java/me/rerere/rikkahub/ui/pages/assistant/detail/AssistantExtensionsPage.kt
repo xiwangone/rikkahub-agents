@@ -8,12 +8,18 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.Tab
+import me.rerere.rikkahub.ui.components.ui.PagerTabs
+import me.rerere.rikkahub.ui.components.ui.PagerTab
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.graphics.vector.ImageVector
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.BookOpen01
+import me.rerere.hugeicons.stroke.MagicWand01
+import me.rerere.hugeicons.stroke.Message01
+import me.rerere.hugeicons.stroke.Sparkles
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
@@ -43,7 +49,6 @@ fun AssistantExtensionsPage(id: String) {
     val skills by vm.skills.collectAsStateWithLifecycle()
     val navController = LocalNavController.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
-    val scope = rememberCoroutineScope()
     val pagerState = rememberPagerState { 4 }
 
     Scaffold(
@@ -64,31 +69,33 @@ fun AssistantExtensionsPage(id: String) {
                     .fillMaxSize()
                     .padding(innerPadding),
         ) {
-            SecondaryTabRow(
-                selectedTabIndex = pagerState.currentPage,
-                containerColor = Color.Transparent,
-            ) {
-                Tab(
-                    selected = pagerState.currentPage == 0,
-                    onClick = { scope.launch { pagerState.animateScrollToPage(0) } },
-                    text = { Text(stringResource(R.string.assistant_extensions_page_tab_quick_messages)) },
-                )
-                Tab(
-                    selected = pagerState.currentPage == 1,
-                    onClick = { scope.launch { pagerState.animateScrollToPage(1) } },
-                    text = { Text(stringResource(R.string.assistant_extensions_page_tab_mode_injections)) },
-                )
-                Tab(
-                    selected = pagerState.currentPage == 2,
-                    onClick = { scope.launch { pagerState.animateScrollToPage(2) } },
-                    text = { Text(stringResource(R.string.assistant_extensions_page_tab_lorebooks)) },
-                )
-                Tab(
-                    selected = pagerState.currentPage == 3,
-                    onClick = { scope.launch { pagerState.animateScrollToPage(3) } },
-                    text = { Text(stringResource(R.string.assistant_extensions_page_tab_skills)) },
-                )
-            }
+            val extTabs = listOf(
+                object : PagerTab {
+                    override val icon: ImageVector = HugeIcons.Message01
+                    override val label: String
+                        @Composable get() = stringResource(R.string.assistant_extensions_page_tab_quick_messages)
+                },
+                object : PagerTab {
+                    override val icon: ImageVector = HugeIcons.MagicWand01
+                    override val label: String
+                        @Composable get() = stringResource(R.string.assistant_extensions_page_tab_mode_injections)
+                },
+                object : PagerTab {
+                    override val icon: ImageVector = HugeIcons.BookOpen01
+                    override val label: String
+                        @Composable get() = stringResource(R.string.assistant_extensions_page_tab_lorebooks)
+                },
+                object : PagerTab {
+                    override val icon: ImageVector = HugeIcons.Sparkles
+                    override val label: String
+                        @Composable get() = stringResource(R.string.assistant_extensions_page_tab_skills)
+                },
+            )
+            PagerTabs(
+                pagerState = pagerState,
+                tabs = extTabs,
+                modifier = Modifier.fillMaxWidth(),
+            )
 
             HorizontalPager(
                 state = pagerState,

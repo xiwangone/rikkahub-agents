@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
@@ -46,13 +47,13 @@ import me.rerere.rikkahub.service.LocalMcpServerService
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SecondaryTabRow
+import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
 import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.Tab
+import me.rerere.rikkahub.ui.components.ui.PagerTab
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -97,6 +98,7 @@ import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.MessageBlocked
 import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.Tools
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
@@ -750,7 +752,6 @@ private fun McpServerItem(
 private fun McpServerConfigModal(state: EditState<McpServerConfig>) {
     state.EditStateContent { config, updateValue ->
         val pagerState = rememberPagerState { 2 }
-        val scope = rememberCoroutineScope()
         ModalBottomSheet(
             onDismissRequest = {
                 state.dismiss()
@@ -769,33 +770,23 @@ private fun McpServerConfigModal(state: EditState<McpServerConfig>) {
                         .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                SecondaryTabRow(
-                    selectedTabIndex = pagerState.currentPage,
-                    containerColor = Color.Transparent,
-                ) {
-                    Tab(
-                        selected = pagerState.currentPage == 0,
-                        onClick = {
-                            scope.launch {
-                                pagerState.animateScrollToPage(0)
-                            }
-                        },
-                        text = {
-                            Text(stringResource(R.string.setting_mcp_page_basic_settings))
-                        },
-                    )
-                    Tab(
-                        selected = pagerState.currentPage == 1,
-                        onClick = {
-                            scope.launch {
-                                pagerState.animateScrollToPage(1)
-                            }
-                        },
-                        text = {
-                            Text(stringResource(R.string.setting_mcp_page_tools))
-                        },
-                    )
-                }
+                val mcpTabs = listOf(
+                    object : PagerTab {
+                        override val icon: ImageVector = HugeIcons.Settings03
+                        override val label: String
+                            @Composable get() = stringResource(R.string.setting_mcp_page_basic_settings)
+                    },
+                    object : PagerTab {
+                        override val icon: ImageVector = HugeIcons.Tools
+                        override val label: String
+                            @Composable get() = stringResource(R.string.setting_mcp_page_tools)
+                    },
+                )
+                PagerTabs(
+                    pagerState = pagerState,
+                    tabs = mcpTabs,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 HorizontalPager(
                     state = pagerState,
                     modifier =
