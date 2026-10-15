@@ -87,7 +87,7 @@ class LoopGuardSignatureTest {
 
     @Test
     fun unparseableArgs_fallBackToRawAndNeverThrow() {
-        val truncated = """{"command":"rm -rf ""
+        val truncated = """{"command":"rm -rf """
         // Must not throw, and must keep comparing by the raw text (no false equality).
         assertEquals("termux_run_command::$truncated", sig(truncated, "termux_run_command"))
         assertNotEquals(sig(truncated, "termux_run_command"), sig("""{"command":"rm -rf"}""", "termux_run_command"))
