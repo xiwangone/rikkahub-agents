@@ -1763,7 +1763,6 @@
   <string name="skill_catalog_install_failed">インストール失敗：%s</string>
   <string name="skill_catalog_installed">インストール済み</string>
   <string name="skill_catalog_installing">インストール中…</string>
-  <string name="skill_catalog_title">注目のスキル</string>
   <string name="skill_detail_name_immutable">スキル名の変更は許可されていません（name フィールドは &#8220;%1$s&#8221; である必要があります）</string>
   <string name="skill_detail_save_failed">保存に失敗しました</string>
   <string name="skill_import_empty_file">ファイルが空です — インポートする内容がありません。</string>
@@ -3654,4 +3653,27 @@
   <string name="setting_display_page_attachment_inline_threshold_title">添付ファイルのインライン閾値</string>
   <string name="backup_page_export_failed">エクスポートに失敗しました: %1$s</string>
   <string name="imggen_page_prompt_copied">プロンプトをクリップボードにコピーしました</string>
+
+    <!-- Phase 19E: skill store -->
+  <string name="skill_store_title">スキルストア</string>
+  <string name="skill_store_refresh">更新</string>
+  <string name="skill_store_tab_local">内蔵厳選</string>
+  <string name="skill_store_manage">ソース管理</string>
+  <string name="skill_store_manage_title">ストアソース</string>
+  <string name="skill_store_sources_hint">内蔵と同じ形式の catalog JSON を指定できます。</string>
+  <string name="skill_store_sources_empty">リモートソースはまだありません。</string>
+  <string name="skill_store_add">追加</string>
+  <string name="skill_store_add_name">名前（任意）</string>
+  <string name="skill_store_add_url">Catalog URL</string>
+  <string name="skill_store_invalid_url">URL が無効です（http(s) のみ）</string>
+  <string name="skill_store_limit">ソース数の上限に達しました</string>
+  <string name="skill_store_status_ok">最新</string>
+  <string name="skill_store_status_cached">キャッシュを表示中</string>
+  <string name="skill_store_status_failed">接続できません</string>
+  <string name="skill_store_source_local">内蔵</string>
+  <string name="skill_store_status_available">インストール可</string>
+  <string name="skill_store_restore">復元</string>
+  <string name="skill_store_restore_bundled">内蔵版を復元</string>
+  <string name="skill_store_restore_bundled_confirm">ディスク上のコピーを内蔵のオリジナルに置き換えますか？このスキルのローカル編集は失われます。</string>
+  <string name="skill_store_restored">内蔵版を復元しました</string>
 </resources>

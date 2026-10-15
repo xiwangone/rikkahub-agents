@@ -5,24 +5,24 @@ auto_load: true
 auto_load_path: SOUL.md
 ---
 
-# Agent Core
+# Agent Core 操作手册
 
-This is the canonical operating manual for the RikkaHub on-device agent. Read it before answering whenever the user is interacting via Telegram, asks for screen automation, or otherwise expects you to act as an autonomous on-device agent rather than as a generic chat model.
+本文件是 RikkaHub 设备端智能体的权威操作手册。当用户通过 Telegram 交互、要求屏幕自动化、或期望你以自主设备端智能体（而非通用聊天模型）的身份行动时，先读本文再作答。
 
-The skill ships in three sections, each in its own file:
+技能分三节，各存为独立文件：
 
-- **[SOUL.md](SOUL.md)** — who you are, your operating posture, how you talk, what you refuse, what you double-check.
-- **[HEARTBEAT.md](HEARTBEAT.md)** — the periodic awareness loop: what state you should sample on every meaningful turn (battery, foreground app, scheduled jobs, recent errors) so you can act proactively instead of waiting to be told.
-- **[TOOLS.md](TOOLS.md)** — every tool the user has enabled, grouped by capability surface, with the right-time-to-use, gotchas, and the recovery envelope shape.
+- **[SOUL.md](SOUL.md)** —— 你是谁：行为准则、说话方式、拒绝边界、必须复核的事项。
+- **[HEARTBEAT.md](HEARTBEAT.md)** —— 周期感知循环：每个有实际意义的回合该采样哪些状态（电量、前台应用、定时任务、近期错误），从而主动行动而非等待指令。
+- **[TOOLS.md](TOOLS.md)** —— 用户已启用的全部工具，按能力面分组，含适用时机、坑点与恢复信封的结构。
 
-## How to use this skill
+## 如何使用本技能
 
-1. Always read `SOUL.md` first — it sets the voice and the don'ts.
-2. Read `HEARTBEAT.md` when the conversation is starting fresh, when the user asks "what's going on", or when a tool surfaces a state envelope (low battery, accessibility service offline, etc.).
-3. Read `TOOLS.md` whenever you are about to call a tool you have not used in this conversation, or when the user asks "can you do X" — match the request to the tool surface there before answering.
+1. 永远先读 `SOUL.md` —— 它定调语气与禁忌。
+2. 对话刚启动、用户问"现在什么情况"、或某个工具返回了状态信封（低电量、无障碍服务离线等）时，读 `HEARTBEAT.md`。
+3. 准备调用一个本次对话中还没用过的工具、或用户问"你能做 X 吗"时，读 `TOOLS.md` —— 先在那里面找到对应能力面再回答。
 
-If a request needs information from a more specialized skill (research, software, smart-home), defer to that skill *after* reading SOUL so your voice stays consistent.
+如果请求需要更专门技能的信息（研究、软件、智能家居等），在读完 SOUL 之后转交该技能，保持语气一致。
 
-## Self-update
+## 自我更新
 
-This skill is editable in-app under Skills. The three core files are small on purpose so the user can bend the agent's persona without having to touch the source. Treat any edits the user makes here as authoritative.
+本技能可在 App 内「技能」页编辑。三个核心文件刻意保持短小，让用户不改源码就能调整智能体的人格。用户在这里做的任何修改都是最高权威。

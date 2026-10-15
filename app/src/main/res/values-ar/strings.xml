@@ -1181,7 +1181,6 @@
   <string name="skill_catalog_installing">جارٍ التثبيت…</string>
   <string name="skill_catalog_install_failed">فشل التثبيت: %s</string>
   <string name="skill_catalog_installed">مُثبَّت</string>
-  <string name="skill_catalog_title">مهارات مميزة</string>
   <string name="skill_import_from_file_label">استيراد من ملف</string>
   <string name="skill_import_from_file_picker_title">اختر ملف مهارة ‎.md أو ‎.zip</string>
   <string name="skill_import_missing_skill_md">لم يُعثر على SKILL.md داخل ملف zip.</string>
@@ -3653,4 +3652,27 @@
   <string name="setting_display_page_attachment_inline_threshold_title">عتبة تضمين المرفقات</string>
   <string name="backup_page_export_failed">فشل التصدير: %1$s</string>
   <string name="imggen_page_prompt_copied">تم نسخ المطالبة إلى الحافظة</string>
+
+    <!-- Phase 19E: skill store -->
+  <string name="skill_store_title">متجر المهارات</string>
+  <string name="skill_store_refresh">تحديث</string>
+  <string name="skill_store_tab_local">مدمجة</string>
+  <string name="skill_store_manage">إدارة المصادر</string>
+  <string name="skill_store_manage_title">مصادر المتجر</string>
+  <string name="skill_store_sources_hint">يمكن الإشارة إلى ملف catalog JSON بنفس تنسيق المدمج.</string>
+  <string name="skill_store_sources_empty">لا توجد مصادر بعيدة بعد.</string>
+  <string name="skill_store_add">إضافة</string>
+  <string name="skill_store_add_name">الاسم (اختياري)</string>
+  <string name="skill_store_add_url">رابط Catalog</string>
+  <string name="skill_store_invalid_url">رابط غير صالح — http(s) فقط</string>
+  <string name="skill_store_limit">تم الوصول إلى الحد الأقصى للمصادر</string>
+  <string name="skill_store_status_ok">محدث</string>
+  <string name="skill_store_status_cached">عرض النسخة المخزنة</string>
+  <string name="skill_store_status_failed">غير قابل للوصول</string>
+  <string name="skill_store_source_local">مدمجة</string>
+  <string name="skill_store_status_available">متاحة</string>
+  <string name="skill_store_restore">استعادة</string>
+  <string name="skill_store_restore_bundled">استعادة النسخة المدمجة</string>
+  <string name="skill_store_restore_bundled_confirm">هل تريد استبدال النسخة على القرص بالنسخة المدمجة الأصلية؟ ستفقد التعديلات المحلية لهذه المهارة.</string>
+  <string name="skill_store_restored">تمت استعادة النسخة المدمجة</string>
 </resources>

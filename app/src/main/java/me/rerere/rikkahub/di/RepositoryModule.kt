@@ -130,6 +130,15 @@ val repositoryModule =
         single {
             SkillManager(get(), get())
         }
+
+        // Phase 19E: skill store sources + remote catalog fetching
+        single {
+            me.rerere.rikkahub.skills.SkillStoreSourceStore(get())
+        }
+
+        single {
+            me.rerere.rikkahub.skills.RemoteCatalogFetcher(get())
+        }
     }
 
 /**

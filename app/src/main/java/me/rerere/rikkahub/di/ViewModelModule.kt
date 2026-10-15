@@ -77,6 +77,8 @@ val viewModelModule =
                 context = get(),
                 skillManager = get(),
                 urlImporter = get(),
+                sourceStore = get(),
+                fetcher = get(),
             )
         }
         viewModelOf(::SkillDetailVM)

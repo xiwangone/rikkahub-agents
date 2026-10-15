@@ -59,7 +59,9 @@ class SkillDetailVM(
         val items = dir.listFiles()?.toList() ?: return emptyList()
         val files =
             items
-                .filter { it.isFile }
+                // 隐藏内部哨兵文件（.seeded / .core-bundled-hash / .user-overridden），
+                // 用户可见/可误删它们会破坏种入与覆盖安装保护逻辑
+                .filter { it.isFile && !it.name.startsWith(".") }
                 .sortedWith(compareBy({ it.name != "SKILL.md" }, { it.name }))
                 .map { f -> SkillFileNode.FileNode(SkillFile(f, f.relativeTo(root).path)) }
         val dirs =

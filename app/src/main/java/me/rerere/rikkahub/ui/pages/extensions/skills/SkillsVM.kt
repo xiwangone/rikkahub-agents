@@ -7,6 +7,7 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
@@ -17,7 +18,12 @@ import me.rerere.rikkahub.data.files.SkillFrontmatterParser
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.files.SkillMetadata
 import me.rerere.rikkahub.skills.CatalogEntry
+import me.rerere.rikkahub.skills.MergedSkillCatalog
+import me.rerere.rikkahub.skills.RemoteCatalogFetcher
 import me.rerere.rikkahub.skills.SkillCatalog
+import me.rerere.rikkahub.skills.SkillStoreRepository
+import me.rerere.rikkahub.skills.SkillStoreSource
+import me.rerere.rikkahub.skills.SkillStoreSourceStore
 import me.rerere.rikkahub.skills.SkillUrlImporter
 import me.rerere.rikkahub.skills.SkillZipError
 import me.rerere.rikkahub.skills.SkillZipImporter
@@ -35,6 +41,8 @@ class SkillsVM(
     private val context: Context,
     private val skillManager: SkillManager,
     private val urlImporter: SkillUrlImporter,
+    private val sourceStore: SkillStoreSourceStore,
+    private val fetcher: RemoteCatalogFetcher,
 ) : ViewModel() {
     companion object {
         private const val TAG = "SkillsVM"
@@ -55,10 +63,25 @@ class SkillsVM(
             .stateIn(viewModelScope, SharingStarted.Eagerly, emptySet())
 
     /** Phase 19D — bundled catalog. Loaded lazily on first access. */
-    val catalog: SkillCatalog by lazy { loadCatalogFromAssets(context) }
+    private val localCatalog: SkillCatalog by lazy { loadCatalogFromAssets(context) }
+
+    // ---- Phase 19E: store sources + merged catalog ----
+
+    private val repository = SkillStoreRepository(sourceStore, fetcher)
+
+    /** User-configured store sources (insertion order, enabled and disabled alike). */
+    val storeSources: StateFlow<List<SkillStoreSource>> =
+        sourceStore.sources.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    private val _mergedCatalog = MutableStateFlow(MergedSkillCatalog())
+    val mergedCatalog: StateFlow<MergedSkillCatalog> = _mergedCatalog.asStateFlow()
+
+    private val _catalogLoading = MutableStateFlow(false)
+    val catalogLoading: StateFlow<Boolean> = _catalogLoading.asStateFlow()
 
     init {
         loadSkills()
+        refreshCatalog()
     }
 
     private fun loadSkills() {
@@ -208,9 +231,19 @@ class SkillsVM(
         onResult: (success: Boolean, message: String) -> Unit,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (entry.isBundled && entry.archived) {
+                // Phase 19E — archived bundled skill: install on demand from assets.
+                val ok = skillManager.installArchivedSkill(entry.name)
+                _skills.value = skillManager.listSkills()
+                withContext(Dispatchers.Main) {
+                    onResult(ok, if (ok) entry.name else "skill_catalog_install_failed")
+                }
+                return@launch
+            }
             if (entry.isBundled) {
-                // 这里可能是「技能已在磁盘上」，也可能是「用户删过、这次是重新安装」——
-                // reinstallBundledSkill 会清除删除记录并重新种入；没有记录时是空操作。
+                // 无条件从 assets 重装：清除删除记录，删掉磁盘上的旧目录
+                // （含用户覆盖安装留下的 .user-overridden 标记）后重新种入，
+                // 即「恢复内置版」。用户此前的本地改动会被替换掉。
                 skillManager.reinstallBundledSkill(entry.name)
                 _skills.value = skillManager.listSkills()
                 withContext(Dispatchers.Main) { onResult(true, entry.name) }
@@ -236,8 +269,95 @@ class SkillsVM(
         }
     }
 
-    private enum class LocalFileType { Markdown, Zip, Unsupported }
+    // ---- Phase 19E: store source management ----
 
+    /**
+     * Re-fetch every enabled source and rebuild the merged catalog. Safe to call
+     * repeatedly (the sheet calls it on open and on pull-to-refresh); failures never
+     * throw — they surface as per-source statuses in [mergedCatalog].
+     */
+    fun refreshCatalog() {
+        viewModelScope.launch {
+            AppLog.i(TAG, "refreshCatalog: start")
+            _catalogLoading.value = true
+            try {
+                val merged = repository.load(localCatalog)
+                AppLog.i(TAG, "refreshCatalog: loaded entries=${merged.entries.size} statuses=${merged.sourceStatuses}")
+                _mergedCatalog.value = merged
+                AppLog.i(TAG, "refreshCatalog: assigned")
+            } catch (t: Throwable) {
+                AppLog.e(TAG, "refreshCatalog: FAILED", t)
+            } finally {
+                _catalogLoading.value = false
+            }
+        }
+    }
+
+    /**
+     * Add (or re-enable) a store source. Returns false when the URL is unusable or the
+     * source cap is reached — the UI shows the matching error string.
+     */
+    fun addStoreSource(
+        name: String,
+        url: String,
+        onResult: (success: Boolean) -> Unit,
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val created = sourceStore.add(name, url)
+            AppLog.i(TAG, "addStoreSource: url=$url created=${created?.id}")
+            withContext(Dispatchers.Main) { onResult(created != null) }
+            if (created != null) refreshCatalog()
+        }
+    }
+
+    /** Remove a source and drop its cached catalog body. */
+    fun removeStoreSource(id: String) {
+        viewModelScope.launch(Dispatchers.IO) {
+            sourceStore.remove(id)
+            fetcher.invalidateCache(id)
+            refreshCatalog()
+        }
+    }
+
+    /** Toggle a source; disabled sources contribute no entries. */
+    fun setStoreSourceEnabled(
+        id: String,
+        enabled: Boolean,
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            sourceStore.setEnabled(id, enabled)
+            refreshCatalog()
+        }
+    }
+
+    /**
+     * Restore the pristine built-in copy of a bundled skill: wipes the on-disk directory
+     * (including any `.user-overridden` marker from a previous override-install) and
+     * re-copies from assets. The user's local edits to that skill are replaced.
+     *
+     * Archived skills (shipped but not seeded) restore from `assets/skill-archive/`.
+     */
+    fun restoreBundledSkill(
+        name: String,
+        onResult: (success: Boolean) -> Unit,
+    ) {
+        viewModelScope.launch(Dispatchers.IO) {
+            val ok =
+                if (name in skillManager.archivedSkillNames()) {
+                    skillManager.installArchivedSkill(name)
+                } else {
+                    skillManager.reinstallBundledSkill(name)
+                    true
+                }
+            _skills.value = skillManager.listSkills()
+            withContext(Dispatchers.Main) { onResult(ok) }
+        }
+    }
+
+    /** True when [name] is a bundled (restorable) skill in the local catalog. */
+    fun isBundledSkillName(name: String): Boolean = localCatalog.skills.any { it.name == name && it.isBundled }
+
+    private enum class LocalFileType { Markdown, Zip, Unsupported }
     private fun detectFileType(uri: Uri): LocalFileType {
         val mime = context.contentResolver.getType(uri)?.lowercase()
         if (mime != null) {

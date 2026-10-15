@@ -71,6 +71,8 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.skills.SkillTestRunner
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -82,6 +84,7 @@ import org.koin.compose.koinInject
 @Composable
 fun SkillDetailPage(skillName: String) {
     val vm = koinViewModel<SkillDetailVM>()
+    val skillsVm = koinViewModel<SkillsVM>()
     LaunchedEffect(skillName) { vm.init(skillName) }
 
     val tree by vm.tree.collectAsStateWithLifecycle()
@@ -92,7 +95,10 @@ fun SkillDetailPage(skillName: String) {
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<SkillFile?>(null) }
     var showTester by rememberSaveable { mutableStateOf(false) }
+    var showRestoreConfirm by remember { mutableStateOf(false) }
+    val isBundled = skillsVm.isBundledSkillName(skillName)
     val deleteFailedMsg = stringResource(R.string.skill_detail_page_delete_failed)
+    val restoredMsg = stringResource(R.string.skill_store_restored)
 
     val scrollState = rememberScrollState()
     var previousScrollOffset by remember { mutableIntStateOf(0) }
@@ -110,6 +116,14 @@ fun SkillDetailPage(skillName: String) {
                 title = { Text(skillName) },
                 navigationIcon = { BackButton() },
                 actions = {
+                    if (isBundled) {
+                        IconButton(onClick = { showRestoreConfirm = true }) {
+                            Icon(
+                                imageVector = HugeIcons.Refresh01,
+                                contentDescription = stringResource(R.string.skill_store_restore_bundled),
+                            )
+                        }
+                    }
                     IconButton(onClick = { showTester = true }) {
                         Icon(
                             imageVector = Lucide.Play,
@@ -206,6 +220,22 @@ fun SkillDetailPage(skillName: String) {
             skillName = skillName,
             onDismiss = { showTester = false },
         )
+    }
+
+    RikkaConfirmDialog(
+        show = showRestoreConfirm,
+        title = stringResource(R.string.skill_store_restore_bundled),
+        confirmText = stringResource(R.string.skill_store_restore),
+        dismissText = stringResource(R.string.cancel),
+        onConfirm = {
+            skillsVm.restoreBundledSkill(skillName) {
+                toaster.show(restoredMsg)
+            }
+            showRestoreConfirm = false
+        },
+        onDismiss = { showRestoreConfirm = false },
+    ) {
+        Text(stringResource(R.string.skill_store_restore_bundled_confirm))
     }
 }
 

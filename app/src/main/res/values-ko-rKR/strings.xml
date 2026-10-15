@@ -1760,7 +1760,6 @@
   <string name="skill_catalog_install_failed">설치 실패: %s</string>
   <string name="skill_catalog_installed">설치됨</string>
   <string name="skill_catalog_installing">설치 중…</string>
-  <string name="skill_catalog_title">추천 스킬</string>
   <string name="skill_detail_name_immutable">스킬 이름 변경은 허용되지 않습니다(name 필드는 &#8220;%1$s&#8221; 여야 합니다)</string>
   <string name="skill_detail_save_failed">저장 실패</string>
   <string name="skill_import_empty_file">파일이 비어 있습니다 — 가져올 내용이 없습니다.</string>
@@ -3654,4 +3653,27 @@
   <string name="setting_display_page_attachment_inline_threshold_title">첨부 파일 인라인 임계값</string>
   <string name="backup_page_export_failed">내보내기 실패: %1$s</string>
   <string name="imggen_page_prompt_copied">프롬프트가 클립보드에 복사되었습니다</string>
+
+    <!-- Phase 19E: skill store -->
+  <string name="skill_store_title">스킬 스토어</string>
+  <string name="skill_store_refresh">새로고침</string>
+  <string name="skill_store_tab_local">내장 엄선</string>
+  <string name="skill_store_manage">소스 관리</string>
+  <string name="skill_store_manage_title">스토어 소스</string>
+  <string name="skill_store_sources_hint">내장과 동일한 형식의 catalog JSON을 가리킬 수 있습니다.</string>
+  <string name="skill_store_sources_empty">원격 소스가 없습니다.</string>
+  <string name="skill_store_add">추가</string>
+  <string name="skill_store_add_name">이름(선택)</string>
+  <string name="skill_store_add_url">Catalog URL</string>
+  <string name="skill_store_invalid_url">잘못된 URL — http(s)만</string>
+  <string name="skill_store_limit">소스 수 상한에 도달</string>
+  <string name="skill_store_status_ok">최신</string>
+  <string name="skill_store_status_cached">캐시 표시 중</string>
+  <string name="skill_store_status_failed">연결 실패</string>
+  <string name="skill_store_source_local">내장</string>
+  <string name="skill_store_status_available">설치 가능</string>
+  <string name="skill_store_restore">복원</string>
+  <string name="skill_store_restore_bundled">내장 버전 복원</string>
+  <string name="skill_store_restore_bundled_confirm">디스크 사본을 내장 원본으로 교체할까요? 이 스킬의 로컬 수정은 유실됩니다.</string>
+  <string name="skill_store_restored">내장 버전을 복원했습니다</string>
 </resources>

@@ -11,8 +11,10 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.files.SkillFrontmatterParser
+import me.rerere.rikkahub.data.files.SkillLocale
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.files.SkillMetadata
+import me.rerere.rikkahub.data.files.SkillPaths
 
 /**
  * Build the skill tools for an assistant. [skillManager] may be null in JVM unit tests
@@ -39,8 +41,11 @@ fun createSkillTools(
     // skills root; the test list is authoritative for the fallback path).
     fun metaDir(name: String): File? = allSkills.firstOrNull { it.name == name }?.skillDir
     fun fallbackReadBody(name: String): String? =
-        metaDir(name)?.resolve("SKILL.md")?.takeIf { it.exists() }?.readText()?.let {
-            SkillFrontmatterParser.extractBody(it)
+        metaDir(name)?.let { dir ->
+            SkillPaths.resolveLocalizedSkillFile(dir, "SKILL.md", SkillLocale.currentLocaleTag())
+                ?.takeIf { it.exists() }
+                ?.readText()
+                ?.let { SkillFrontmatterParser.extractBody(it) }
         }
 
     // Local accessors; null skillManager routes through the fallback above.
@@ -89,7 +94,11 @@ fun createSkillTools(
                                 readBody(skill.name)
                             } else {
                                 skillManager?.readSkillFileCached(skill.name, path)
-                                    ?: metaDir(skill.name)?.resolve(path)?.takeIf { it.exists() }?.readText()
+                                    ?: metaDir(skill.name)?.let { dir ->
+                                        SkillPaths.resolveLocalizedSkillFile(dir, path, SkillLocale.currentLocaleTag())
+                                            ?.takeIf { it.exists() }
+                                            ?.readText()
+                                    }
                             }
                         }.getOrNull()
                         if (!body.isNullOrBlank()) {
@@ -184,7 +193,10 @@ fun createSkillTools(
                 }
                 val path = it.jsonObject["path"]?.jsonPrimitive?.content
                 if (path.isNullOrBlank()) {
-                    val skillMd = skillManager?.getSkillDir(name)?.resolve("SKILL.md") ?: metaDir(name)?.resolve("SKILL.md")
+                    val skillDir = skillManager?.getSkillDir(name) ?: metaDir(name)
+                    val skillMd = skillDir?.let {
+                        SkillPaths.resolveLocalizedSkillFile(it, "SKILL.md", SkillLocale.currentLocaleTag())
+                    }
                     if (skillMd != null && skillMd.length() > SkillManager.MAX_SKILL_FILE_BYTES) {
                         return@Tool tooLargeErr(skillMd)
                     }
@@ -195,13 +207,26 @@ fun createSkillTools(
                         )
                     return@Tool listOf(UIMessagePart.Text(content))
                 }
-                val target = skillManager?.resolveSkillFile(name, path) ?: metaDir(name)?.resolve(path)?.takeIf {
+                var target = skillManager?.resolveSkillFile(name, path) ?: metaDir(name)?.resolve(path)?.takeIf {
                     it.canonicalPath.startsWith(metaDir(name)!!.canonicalPath)
                 }
-                    ?: return@Tool err(
+                if (target == null || !target.exists()) {
+                    // Locale fallback: markdown links inside the (localized) body point at
+                    // base names like `SOUL.md`; prefer `SOUL.<locale>.md` when the skill
+                    // ships that translation. Containment-checked by SkillPaths.
+                    val dir = skillManager?.getSkillDir(name) ?: metaDir(name)
+                    val localized = dir?.let { d ->
+                        SkillPaths.resolveLocalizedSkillFile(d, path, SkillLocale.currentLocaleTag())
+                            ?.takeIf { it.exists() && it.canonicalPath.startsWith(d.canonicalPath) }
+                    }
+                    if (localized != null) target = localized
+                }
+                if (target == null) {
+                    return@Tool err(
                         "path_outside_skill",
                         "Path '$path' resolves outside the '$name' skill directory.",
                     )
+                }
                 if (!target.exists()) {
                     return@Tool err(
                         "skill_file_not_found",

@@ -60,7 +60,8 @@
       "license": "Apache-2.0",
       "size_kb": 8,
       "compatibility": "js",
-      "is_bundled": true
+      "is_bundled": true,
+      "archived": true
     },
     {
       "name": "kitchen-adventure",
@@ -70,7 +71,8 @@
       "license": "Apache-2.0",
       "size_kb": 4,
       "compatibility": "any",
-      "is_bundled": true
+      "is_bundled": true,
+      "archived": true
     },
     {
       "name": "mood-tracker",
@@ -80,7 +82,8 @@
       "license": "Apache-2.0",
       "size_kb": 36,
       "compatibility": "js",
-      "is_bundled": true
+      "is_bundled": true,
+      "archived": true
     },
     {
       "name": "qr-code",
@@ -110,7 +113,8 @@
       "license": "Apache-2.0",
       "size_kb": 16,
       "compatibility": "js",
-      "is_bundled": true
+      "is_bundled": true,
+      "archived": true
     },
     {
       "name": "virtual-piano",
@@ -120,7 +124,8 @@
       "license": "Apache-2.0",
       "size_kb": 7884,
       "compatibility": "js",
-      "is_bundled": true
+      "is_bundled": true,
+      "archived": true
     }
   ]
 }

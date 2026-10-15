@@ -1778,7 +1778,6 @@
   <string name="skill_catalog_install_failed">安裝失敗：%s</string>
   <string name="skill_catalog_installed">已安裝</string>
   <string name="skill_catalog_installing">正在安裝…</string>
-  <string name="skill_catalog_title">精選技能</string>
   <string name="skill_detail_name_immutable">不允許修改技能名稱（name 欄位必須為 “%1$s”）</string>
   <string name="skill_detail_save_failed">儲存失敗</string>
   <string name="skill_import_empty_file">檔案為空 — 沒有可匯入的內容。</string>
@@ -3653,4 +3652,27 @@
   <string name="setting_display_page_attachment_inline_threshold_title">附件內嵌門檻</string>
   <string name="backup_page_export_failed">匯出失敗：%1$s</string>
   <string name="imggen_page_prompt_copied">提示詞已複製到剪貼簿</string>
+
+    <!-- Phase 19E: skill store -->
+  <string name="skill_store_title">技能商店</string>
+  <string name="skill_store_refresh">重新整理</string>
+  <string name="skill_store_tab_local">內建精選</string>
+  <string name="skill_store_manage">管理商店源</string>
+  <string name="skill_store_manage_title">商店源</string>
+  <string name="skill_store_sources_hint">可指向與內建格式相同的 catalog JSON。</string>
+  <string name="skill_store_sources_empty">尚未新增遠端源。</string>
+  <string name="skill_store_add">新增</string>
+  <string name="skill_store_add_name">名稱（選填）</string>
+  <string name="skill_store_add_url">Catalog 連結</string>
+  <string name="skill_store_invalid_url">連結無效——僅支援 http(s)</string>
+  <string name="skill_store_limit">已達來源數量上限</string>
+  <string name="skill_store_status_ok">已更新</string>
+  <string name="skill_store_status_cached">顯示快取副本</string>
+  <string name="skill_store_status_failed">無法連線</string>
+  <string name="skill_store_source_local">內建</string>
+  <string name="skill_store_status_available">可安裝</string>
+  <string name="skill_store_restore">還原</string>
+  <string name="skill_store_restore_bundled">還原內建版本</string>
+  <string name="skill_store_restore_bundled_confirm">將以內建原始版本取代磁碟上的副本？此技能的本機修改將會遺失。</string>
+  <string name="skill_store_restored">已還原內建版本</string>
 </resources>

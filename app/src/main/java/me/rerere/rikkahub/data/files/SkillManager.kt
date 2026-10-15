@@ -23,6 +23,17 @@ class SkillManager(
          * and the `use_skill` read paths in SkillsTools) rather than silently loaded.
          */
         const val MAX_SKILL_FILE_BYTES: Long = 512L * 1024L
+
+        /**
+         * Sentinel marking a bundled skill whose on-disk copy was explicitly replaced
+         * by the user (overwrite-install, import, or hand-authoring over a bundled
+         * name — see [saveSkillFileBytesAtomically]). While this file exists,
+         * [seedDefaultSkillsIfNeeded] never re-seeds the skill from assets, so the
+         * user's version survives app upgrades instead of being clobbered by the
+         * (possibly older) bundled copy. Cleared together with the directory by
+         * [deleteSkill], and by [reinstallBundledSkill] ("恢复内置版").
+         */
+        private const val USER_OVERRIDE_SENTINEL = ".user-overridden"
     }
 
     /** Thrown by [readCached] when a skill file exceeds [MAX_SKILL_FILE_BYTES]. */
@@ -35,26 +46,37 @@ class SkillManager(
         return dir
     }
 
-    fun listSkills(): List<SkillMetadata> {
+    fun listSkills(localeTag: String? = null): List<SkillMetadata> {
+        val tag = localeTag ?: SkillLocale.currentLocaleTag()
         val skillsDir = getSkillsDir()
         return skillsDir.listFiles()
             ?.filter { it.isDirectory }
             ?.mapNotNull { dir ->
-                val skillFile = dir.resolve("SKILL.md")
-                if (!skillFile.exists()) return@mapNotNull null
-                parseSkillFile(skillFile, dir)
+                val defaultFile = dir.resolve("SKILL.md")
+                if (!defaultFile.exists()) return@mapNotNull null
+                // Prefer the locale-matched SKILL.<lang>.md; fall back to the default
+                // file when the translation is missing or unparsable (a skill must
+                // never disappear from the list just because one translation is bad).
+                val localized = SkillPaths.resolveLocalizedSkillFile(dir, "SKILL.md", tag) ?: defaultFile
+                parseSkillFile(localized, dir) ?: parseSkillFile(defaultFile, dir)
             }
             ?: emptyList()
     }
 
-    fun readSkillBody(skillName: String): String? {
-        val skillFile = resolveSkillDir(skillName)?.resolve("SKILL.md") ?: return null
+    fun readSkillBody(skillName: String, localeTag: String? = null): String? {
+        val skillDir = resolveSkillDir(skillName) ?: return null
+        val skillFile = SkillPaths.resolveLocalizedSkillFile(
+            skillDir, "SKILL.md", localeTag ?: SkillLocale.currentLocaleTag()
+        ) ?: return null
         if (!skillFile.exists()) return null
         return SkillFrontmatterParser.extractBody(readCached(skillFile))
     }
 
-    fun readSkillContent(skillName: String): String? {
-        val skillFile = resolveSkillDir(skillName)?.resolve("SKILL.md") ?: return null
+    fun readSkillContent(skillName: String, localeTag: String? = null): String? {
+        val skillDir = resolveSkillDir(skillName) ?: return null
+        val skillFile = SkillPaths.resolveLocalizedSkillFile(
+            skillDir, "SKILL.md", localeTag ?: SkillLocale.currentLocaleTag()
+        ) ?: return null
         if (!skillFile.exists()) return null
         return readCached(skillFile)
     }
@@ -73,9 +95,17 @@ class SkillManager(
      * object string (the frontmatter parser is line-oriented, so a skill author declares it
      * on a single line); malformed or non-object values are dropped rather than surfaced.
      */
-    fun getContent(skillName: String): SkillContent? {
+    fun getContent(skillName: String, localeTag: String? = null): SkillContent? {
         val skillDir = resolveSkillDir(skillName) ?: return null
-        val skillFile = skillDir.resolve("SKILL.md")
+        val defaultFile = skillDir.resolve("SKILL.md")
+        if (!defaultFile.exists()) return null
+        val localized = SkillPaths.resolveLocalizedSkillFile(
+            skillDir, "SKILL.md", localeTag ?: SkillLocale.currentLocaleTag()
+        ) ?: return parseContentOrNull(defaultFile)
+        return parseContentOrNull(localized) ?: parseContentOrNull(defaultFile)
+    }
+
+    private fun parseContentOrNull(skillFile: File): SkillContent? {
         if (!skillFile.exists()) return null
         val raw = runCatching { readCached(skillFile) }.getOrNull() ?: return null
         val frontmatter = SkillFrontmatterParser.parse(raw)
@@ -103,9 +133,14 @@ class SkillManager(
      * used by [readSkillBody] / [readSkillContent], so the per-turn auto-load reads in
      * `SkillsTools.systemPrompt` are O(stat) on cache hit, not O(read).
      */
-    fun readSkillFileCached(skillName: String, relativePath: String): String? {
+    fun readSkillFileCached(skillName: String, relativePath: String, localeTag: String? = null): String? {
         val skillDir = resolveSkillDir(skillName) ?: return null
-        val target = SkillPaths.resolveSkillFile(skillDir, relativePath) ?: return null
+        // Same locale resolution as SKILL.md, so an auto_load_path like SOUL.md
+        // resolves to SOUL.<lang>.md when the skill ships that translation.
+        // Containment-checked by SkillPaths (an escaping relativePath fails here).
+        val target = SkillPaths.resolveLocalizedSkillFile(
+            skillDir, relativePath, localeTag ?: SkillLocale.currentLocaleTag()
+        ) ?: return null
         if (!target.exists()) return null
         return readCached(target)
     }
@@ -181,12 +216,20 @@ class SkillManager(
     }
 
     /**
-     * 清除 [name] 的删除记录并重新种入，供用户从技能目录重新安装一个此前删掉的内置技能。
-     * 对从未删除过的技能是数据无操作 —— 种入流程会因哈希一致而跳过。
+     * 清除 [name] 的删除记录并**无条件**从 assets 重新种入，供用户从技能目录重新安装一个内置技能。
+     *
+     * 先删掉目标目录再走种入流程：目录一删，`.user-overridden`（用户覆盖安装标记）与
+     * `.core-bundled-hash`（hash 哨兵）随之消失，core 与非 core 分支都会重新播种，
+     * 磁盘上得到的必然是 assets 里的当前版本。对「用户覆盖安装/手改过又后悔」的场景，
+     * 这就是恢复内置版的入口。
      */
     suspend fun reinstallBundledSkill(name: String) {
         settingsStore.update { settings ->
             settings.copy(deletedBundledSkills = settings.deletedBundledSkills - name)
+        }
+        val targetDir = resolveSkillDir(name)
+        if (targetDir != null && targetDir.exists()) {
+            targetDir.deleteRecursively()
         }
         seedDefaultSkillsIfNeeded()
     }
@@ -235,6 +278,37 @@ class SkillManager(
      */
     fun bundledSkillAssetHash(skillName: String): String = computeBundledSkillHash("default-skills", skillName)
 
+    /**
+     * Phase 19E — skills shipped in `assets/skill-archive/<name>/`. These are NOT seeded
+     * on first launch; the user installs them on demand from the store (or restores them
+     * from the skill detail page). Keeping them out of `default-skills` keeps the seeded
+     * set small while the files still ride along in the APK.
+     */
+    fun archivedSkillNames(): Set<String> =
+        runCatching {
+            context.assets.list("skill-archive").orEmpty().toSet()
+        }.getOrDefault(emptySet())
+
+    /**
+     * Install (or restore) an archived bundled skill: wipe any on-disk copy and re-copy
+     * `assets/skill-archive/<name>/` into place. Returns false when the archive has no
+     * such skill or the copy fails. Unlike [reinstallBundledSkill] this never touches
+     * the delete-recorded set — archived skills are not part of the seed loop.
+     */
+    fun installArchivedSkill(name: String): Boolean {
+        if (name !in archivedSkillNames()) return false
+        val targetDir = SkillPaths.resolveSkillDir(getSkillsDir(), name) ?: return false
+        return try {
+            if (targetDir.exists()) targetDir.deleteRecursively()
+            copyAssetSkill("skill-archive", name, targetDir)
+            true
+        } catch (e: IOException) {
+            // deleteRecursively/copyAssetSkill 仅声明 IOException
+            AppLog.w(TAG, "installArchivedSkill: failed to install $name", e)
+            false
+        }
+    }
+
     fun saveSkillFile(skillName: String, relativePath: String, content: String): Boolean {
         val skillDir = resolveSkillDir(skillName) ?: return false
         val target = SkillPaths.resolveSkillFile(skillDir, relativePath) ?: return false
@@ -278,6 +352,7 @@ class SkillManager(
             }
 
             backupDir?.deleteRecursively()
+            markUserOverrideIfBundled(skillName, targetDir)
             return true
         } catch (e: IOException) {
             // try 块内全部为 java.io 文件操作（writeBytes/renameTo/deleteRecursively），仅声明 IOException
@@ -300,6 +375,23 @@ class SkillManager(
         val skillDir = resolveSkillDir(skillName) ?: return false
         val target = SkillPaths.resolveSkillFile(skillDir, relativePath) ?: return false
         return target.delete()
+    }
+
+    /**
+     * After an explicit full-skill save (install / import / hand-authoring over an
+     * existing name), mark the directory as user-owned when the name collides with
+     * a bundled skill. Without this marker the next [seedDefaultSkillsIfNeeded]
+     * would treat the directory as ours and re-seed it from assets — which is how
+     * overwrite-installs of bundled skills (e.g. a localized `agent-core`) used to
+     * silently revert to the bundled English version on the next app launch.
+     */
+    private fun markUserOverrideIfBundled(skillName: String, targetDir: File) {
+        if (skillName !in bundledSkillNames()) return
+        runCatching {
+            targetDir.resolve(USER_OVERRIDE_SENTINEL).writeText(System.currentTimeMillis().toString())
+        }.onFailure {
+            AppLog.w(TAG, "saveSkillFileBytesAtomically: cannot mark $skillName as user-overridden", it)
+        }
     }
 
     /**
@@ -337,42 +429,43 @@ class SkillManager(
 
             val sentinel = targetDir.resolve(".seeded")
             val coreVersionFile = targetDir.resolve(".core-bundled-hash")
+            val userOverridden = targetDir.resolve(USER_OVERRIDE_SENTINEL).exists()
+            // Core skills (auto_load=true) are unconditionally ours to re-seed when the
+            // bundled content changes — except when the user explicitly replaced the
+            // skill (userOverridden). Non-core skills are ours only while our `.seeded`
+            // sentinel survives: a directory without it was created by the user
+            // (manual install, overwrite-install, or a leftover from an older build)
+            // and must never be touched.
+            val ownedByUs = if (isCoreSkill) true else sentinel.exists()
+            val bundledHash = if (isCoreSkill) computeBundledSkillHash(assetRoot, skillName) else ""
+            val storedHash = if (isCoreSkill && coreVersionFile.exists()) coreVersionFile.readText().trim() else ""
 
-            if (isCoreSkill) {
-                // Core skills (auto_load=true) re-seed whenever the bundled content changes
-                // — typically across an APK upgrade. This keeps SOUL/HEARTBEAT/TOOLS in
-                // sync with the app version while still allowing the user to edit between
-                // upgrades (their edits stick until we ship a new bundled version).
-                val bundledHash = computeBundledSkillHash(assetRoot, skillName)
-                val currentHash = if (coreVersionFile.exists()) coreVersionFile.readText().trim() else ""
-                if (bundledHash == currentHash) continue
-                try {
-                    if (targetDir.exists()) targetDir.deleteRecursively()
-                    copyAssetSkill(assetRoot, skillName, targetDir)
-                    sentinel.writeText(System.currentTimeMillis().toString())
-                    coreVersionFile.writeText(bundledHash)
-                    AppLog.i(TAG, "seedDefaultSkillsIfNeeded: re-seeded core skill $skillName (hash=$bundledHash)")
-                } catch (e: IOException) {
-                    // deleteRecursively/copyAssetSkill(assets 拷贝)/writeText 仅声明 IOException
-                    AppLog.w(TAG, "seedDefaultSkillsIfNeeded: failed to re-seed core skill $skillName", e)
+            when (
+                decideSeedAction(
+                    ownedByUs = ownedByUs,
+                    targetDirExists = targetDir.exists(),
+                    targetDirNonEmpty = targetDir.listFiles()?.isNotEmpty() == true,
+                    bundledHash = bundledHash,
+                    storedHash = storedHash,
+                    userOverridden = userOverridden,
+                )
+            ) {
+                SeedDecision.SKIP -> continue
+                SeedDecision.SEED -> {
+                    try {
+                        if (targetDir.exists()) targetDir.deleteRecursively()
+                        copyAssetSkill(assetRoot, skillName, targetDir)
+                        sentinel.writeText(System.currentTimeMillis().toString())
+                        if (isCoreSkill) coreVersionFile.writeText(bundledHash)
+                        AppLog.i(
+                            TAG,
+                            "seedDefaultSkillsIfNeeded: ${if (isCoreSkill) "re-seeded core skill" else "seeded"} $skillName"
+                        )
+                    } catch (e: IOException) {
+                        // deleteRecursively/copyAssetSkill(assets 拷贝)/writeText 仅声明 IOException
+                        AppLog.w(TAG, "seedDefaultSkillsIfNeeded: failed to seed $skillName", e)
+                    }
                 }
-                continue
-            }
-
-            // Non-core (lazy) skills: original behavior — seed once, then leave alone.
-            // The user may have manually installed and then deleted the skill. Detect that
-            // case by checking whether the directory exists at all — if it does and there is
-            // no sentinel, the user owns it; do not overwrite. If the directory does not
-            // exist, this is a fresh install and we can seed.
-            if (sentinel.exists()) continue
-            if (targetDir.exists() && targetDir.listFiles()?.isNotEmpty() == true) continue
-            try {
-                copyAssetSkill(assetRoot, skillName, targetDir)
-                sentinel.writeText(System.currentTimeMillis().toString())
-                AppLog.i(TAG, "seedDefaultSkillsIfNeeded: seeded $skillName")
-            } catch (e: IOException) {
-                // copyAssetSkill(assets 拷贝)/writeText 仅声明 IOException
-                AppLog.w(TAG, "seedDefaultSkillsIfNeeded: failed to seed $skillName", e)
             }
         }
     }
@@ -504,7 +597,30 @@ internal enum class SeedDecision { SKIP, SEED }
  * skills (a directory that exists with no `.seeded` sentinel was never created by us and is
  * user-owned).
  * @param targetDirNonEmpty ignored when [ownedByUs] is `true`.
+ * @param userOverridden the user explicitly replaced this skill (overwrite-install over a
+ * bundled name — [SkillManager] marks `.user-overridden`). Always wins: never re-seed a
+ * directory the user took ownership of. Only meaningful for core skills; non-core skills
+ * never re-seed an existing user directory anyway.
  */
+internal fun decideSeedAction(
+    ownedByUs: Boolean,
+    targetDirExists: Boolean,
+    targetDirNonEmpty: Boolean,
+    bundledHash: String,
+    storedHash: String,
+    userOverridden: Boolean = false,
+): SeedDecision {
+    if (userOverridden) {
+        // Explicit user install beats the bundled version, even across APK upgrades.
+        return SeedDecision.SKIP
+    }
+    if (!ownedByUs) {
+        // Never touch a directory we did not create ourselves.
+        return if (targetDirExists && targetDirNonEmpty) SeedDecision.SKIP else SeedDecision.SEED
+    }
+    return if (bundledHash == storedHash) SeedDecision.SKIP else SeedDecision.SEED
+}
+
 /**
  * 删除内置技能后应记录的名称集合。只有内置技能名会被记录：
  * 用户自建技能不参与种入流程，记录下来没有意义。
@@ -514,20 +630,6 @@ internal fun deletedBundledSkillsAfterDelete(
     deletedName: String,
     isBundled: Boolean,
 ): Set<String> = if (isBundled) current + deletedName else current
-
-internal fun decideSeedAction(
-    ownedByUs: Boolean,
-    targetDirExists: Boolean,
-    targetDirNonEmpty: Boolean,
-    bundledHash: String,
-    storedHash: String,
-): SeedDecision {
-    if (!ownedByUs) {
-        // Never touch a directory we did not create ourselves.
-        return if (targetDirExists && targetDirNonEmpty) SeedDecision.SKIP else SeedDecision.SEED
-    }
-    return if (bundledHash == storedHash) SeedDecision.SKIP else SeedDecision.SEED
-}
 
 /**
  * @property autoLoad If true, the skill's body (or [autoLoadPath] file if set) is injected

@@ -2008,7 +2008,6 @@
   <string name="skill_catalog_install_failed">安装失败：%s</string>
   <string name="skill_catalog_installed">已安装</string>
   <string name="skill_catalog_installing">正在安装…</string>
-  <string name="skill_catalog_title">精选技能</string>
   <string name="skill_detail_name_immutable">不允许修改技能名称（name 字段必须为 “%1$s”）</string>
   <string name="skill_detail_save_failed">保存失败</string>
   <string name="skill_import_empty_file">文件为空 — 没有可导入的内容。</string>
@@ -3650,4 +3649,27 @@
   <string name="tool_ui_stderr">标准错误</string>
   <string name="tool_ui_memory_delete_failed">无法删除此记忆</string>
   <string name="tool_ui_memory_save_failed">无法保存此记忆</string>
+
+    <!-- Phase 19E: skill store -->
+  <string name="skill_store_title">技能商店</string>
+  <string name="skill_store_refresh">刷新</string>
+  <string name="skill_store_tab_local">内置精选</string>
+  <string name="skill_store_manage">管理商店源</string>
+  <string name="skill_store_manage_title">商店源</string>
+  <string name="skill_store_sources_hint">可指向与内置格式相同的 catalog JSON。</string>
+  <string name="skill_store_sources_empty">尚未添加远端源。</string>
+  <string name="skill_store_add">添加</string>
+  <string name="skill_store_add_name">名称（可选）</string>
+  <string name="skill_store_add_url">Catalog 链接</string>
+  <string name="skill_store_invalid_url">链接无效——仅支持 http(s)</string>
+  <string name="skill_store_limit">已达源数量上限</string>
+  <string name="skill_store_status_ok">已更新</string>
+  <string name="skill_store_status_cached">显示缓存副本</string>
+  <string name="skill_store_status_failed">无法访问</string>
+  <string name="skill_store_source_local">内置</string>
+  <string name="skill_store_status_available">可安装</string>
+  <string name="skill_store_restore">恢复</string>
+  <string name="skill_store_restore_bundled">恢复内置版</string>
+  <string name="skill_store_restore_bundled_confirm">将用内置原始版本替换磁盘上的副本？该技能的本地修改会丢失。</string>
+  <string name="skill_store_restored">已恢复内置版</string>
 </resources>

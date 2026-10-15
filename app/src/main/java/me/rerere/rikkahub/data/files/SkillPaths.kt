@@ -27,6 +27,23 @@ internal object SkillPaths {
         return canonicalTarget.takeIf { it.isSameOrInside(canonicalSkillDir) }
     }
 
+    /**
+     * Resolve [fileName] inside [skillDir], preferring the locale-matched variant
+     * (`SKILL.zh.md` for `SKILL.md` under a zh locale — see [SkillLocale]).
+     * Containment-checked exactly like [resolveSkillFile]: a candidate that would
+     * escape the skill directory fails the whole resolution (null).
+     *
+     * Returns the first existing candidate, or the default [fileName] path (which
+     * may not exist — callers check) when no localized variant is present.
+     */
+    fun resolveLocalizedSkillFile(skillDir: File, fileName: String, localeTag: String?): File? {
+        for (candidate in SkillLocale.localizedCandidates(fileName, localeTag)) {
+            val resolved = resolveSkillFile(skillDir, candidate) ?: return null
+            if (resolved.isFile) return resolved
+        }
+        return resolveSkillFile(skillDir, fileName)
+    }
+
     private fun File.isSameOrInside(root: File): Boolean {
         val rootPath = root.canonicalFile.path
         val currentPath = canonicalFile.path

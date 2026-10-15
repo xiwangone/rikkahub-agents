@@ -1668,7 +1668,6 @@
   <string name="skill_catalog_installing">Installing…</string>
   <string name="skill_catalog_install_failed">Install failed: %s</string>
   <string name="skill_catalog_installed">Installed</string>
-  <string name="skill_catalog_title">Featured skills</string>
   <string name="skill_import_from_file_label">Import from file</string>
   <string name="skill_import_from_file_picker_title">Choose a .md or .zip skill file</string>
   <string name="skill_import_missing_skill_md">No SKILL.md found inside the zip.</string>
@@ -3650,4 +3649,27 @@
   <string name="tool_ui_stderr">Standard error</string>
   <string name="tool_ui_memory_delete_failed">Could not delete this memory</string>
   <string name="tool_ui_memory_save_failed">Could not save this memory</string>
+
+    <!-- Phase 19E: skill store -->
+  <string name="skill_store_title">Skill store</string>
+  <string name="skill_store_refresh">Refresh</string>
+  <string name="skill_store_tab_local">Built-in</string>
+  <string name="skill_store_manage">Manage sources</string>
+  <string name="skill_store_manage_title">Store sources</string>
+  <string name="skill_store_sources_hint">Point at a catalog JSON in the same format as the built-in one.</string>
+  <string name="skill_store_sources_empty">No remote sources yet.</string>
+  <string name="skill_store_add">Add</string>
+  <string name="skill_store_add_name">Name (optional)</string>
+  <string name="skill_store_add_url">Catalog URL</string>
+  <string name="skill_store_invalid_url">Invalid URL — http(s) only</string>
+  <string name="skill_store_limit">Source limit reached</string>
+  <string name="skill_store_status_ok">Up to date</string>
+  <string name="skill_store_status_cached">Showing cached copy</string>
+  <string name="skill_store_status_failed">Unreachable</string>
+  <string name="skill_store_source_local">Built-in</string>
+  <string name="skill_store_status_available">Available</string>
+  <string name="skill_store_restore">Restore</string>
+  <string name="skill_store_restore_bundled">Restore built-in version</string>
+  <string name="skill_store_restore_bundled_confirm">Replace the on-disk copy with the pristine built-in version? Local edits to this skill will be lost.</string>
+  <string name="skill_store_restored">Restored built-in version</string>
 </resources>

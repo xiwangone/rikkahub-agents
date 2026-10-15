@@ -1756,7 +1756,6 @@
   <string name="skill_catalog_install_failed">Ошибка установки: %s</string>
   <string name="skill_catalog_installed">Установлено</string>
   <string name="skill_catalog_installing">Установка…</string>
-  <string name="skill_catalog_title">Рекомендуемые навыки</string>
   <string name="skill_detail_name_immutable">Изменение имени навыка не допускается (поле name должно быть &#8220;%1$s&#8221;)</string>
   <string name="skill_detail_save_failed">Не удалось сохранить</string>
   <string name="skill_import_empty_file">Файл пуст — нечего импортировать.</string>
@@ -3654,4 +3653,27 @@
   <string name="setting_display_page_attachment_inline_threshold_title">Порог встраивания вложений</string>
   <string name="backup_page_export_failed">Ошибка экспорта: %1$s</string>
   <string name="imggen_page_prompt_copied">Промпт скопирован в буфер обмена</string>
+
+    <!-- Phase 19E: skill store -->
+  <string name="skill_store_title">Магазин навыков</string>
+  <string name="skill_store_refresh">Обновить</string>
+  <string name="skill_store_tab_local">Встроенные</string>
+  <string name="skill_store_manage">Управление источниками</string>
+  <string name="skill_store_manage_title">Источника магазина</string>
+  <string name="skill_store_sources_hint">Укажите catalog JSON в том же формате, что и встроенный.</string>
+  <string name="skill_store_sources_empty">Удалённых источников пока нет.</string>
+  <string name="skill_store_add">Добавить</string>
+  <string name="skill_store_add_name">Название (необязательно)</string>
+  <string name="skill_store_add_url">URL каталога</string>
+  <string name="skill_store_invalid_url">Недопустимый URL — только http(s)</string>
+  <string name="skill_store_limit">Достигнут лимит источников</string>
+  <string name="skill_store_status_ok">Актуально</string>
+  <string name="skill_store_status_cached">Показана кэшированная копия</string>
+  <string name="skill_store_status_failed">Недоступен</string>
+  <string name="skill_store_source_local">Встроен</string>
+  <string name="skill_store_status_available">Доступен</string>
+  <string name="skill_store_restore">Восстановить</string>
+  <string name="skill_store_restore_bundled">Восстановить встроенную версию</string>
+  <string name="skill_store_restore_bundled_confirm">Заменить копию на диске на оригинальную встроенную версию? Локальные правки этого навыка будут потеряны.</string>
+  <string name="skill_store_restored">Встроенная версия восстановлена</string>
 </resources>
