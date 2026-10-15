@@ -1499,7 +1499,8 @@ class GenerationLoop(
                 messages
                     .limitContext(assistant.contextMessageLimit)
                     .ageOldToolImages()
-                    .withCheckpointCalibration(),
+                    .withCheckpointCalibration()
+                    .mergeCheckpointIntoUserTurn(),
             )
         }.transforms(
             transformers = transformers,
@@ -1843,4 +1844,76 @@ internal fun List<UIMessage>.withCheckpointCalibration(): List<UIMessage> {
     }
     if (!touched) return this
     return listOf(head.copy(parts = parts)) + drop(1)
+}
+
+/**
+ * 把压缩检查点与其后紧邻的连续用户消息折叠成**一条**用户回合。
+ *
+ * 检查点是 USER 角色的散文摘要，它的下一条常常还是用户发言（摘要分块，或保留区的第一条
+ * 正落在用户消息上）。协议按消息条数计回合，请求里出现连续两条 user ⇒ 模型读到「两个连续
+ * 的用户回合」，压缩点那条「assistant 发起 tool_calls → role:tool 回结果」的示范回合被
+ * 割开，表现即压缩后只说不做。本函数只动**回合边界**这一结构，不改任何一个字的内容。
+ *
+ * 边界刻意收窄，未压缩会话的请求体逐字节不变：
+ *  - 只在**最后一条检查点**起始的那一段连续 USER 上生效；无检查点、或检查点后面不是用户
+ *    消息时返回自身（引用相等），不产生新列表；
+ *  - 含工具 part 的消息**不参与**折叠（`ToolCall` / `ToolResult` 是旧形态，此步在
+ *    `ToolPairingRepairTransformer` 之前跑，历史里仍可能出现），绝不触碰
+ *    tool_calls ↔ 结果的配对；
+ *  - 相邻文本块合并为一块（`\n\n` 分隔、空文本丢弃）：provider 侧一条消息若有多个文本块会
+ *    改走 `content` 数组形态，那属请求体形状变化，不是本次要引入的；非文本 part 原样保序；
+ *  - 折叠结果沿用检查点的 id / createdAt 与 `isContextCheckpoint`：摘要文本对同一份压缩记录
+ *    是固定的，紧随其后的用户发言在本轮内也不变，因此请求前缀仍然稳定，不额外破提示词缓存。
+ *
+ * 排在 [withCheckpointCalibration] **之后**：校准注先贴回摘要文本尾部，再与后面的用户发言
+ * 合成一条，模型最后读到的仍是用户的最新指令。
+ *
+ * 只在请求副本上做：本函数位于 `internalMessages` 组装链末端，结果只交给 provider，不回写
+ * 会话、不落库、不进 UI 渲染；LoopGuard 读的是未经组装的 `messages`，因此本轮重复调用计数
+ * 的口径不受影响。
+ */
+internal fun List<UIMessage>.mergeCheckpointIntoUserTurn(): List<UIMessage> {
+    val checkpointIndex = indexOfLast { it.isContextCheckpoint }
+    if (checkpointIndex < 0) return this
+    val checkpoint = this[checkpointIndex]
+    if (checkpoint.role != MessageRole.USER || checkpoint.hasToolPart()) return this
+
+    var endIndex = checkpointIndex + 1
+    while (endIndex < size) {
+        val message = this[endIndex]
+        if (message.role != MessageRole.USER || message.hasToolPart()) break
+        endIndex++
+    }
+    if (endIndex == checkpointIndex + 1) return this
+
+    val run = subList(checkpointIndex, endIndex)
+    val merged = checkpoint.copy(
+        parts = coalesceAdjacentTextParts(run.flatMap { it.parts }),
+        annotations = run.flatMap { it.annotations },
+    )
+    return take(checkpointIndex) + merged + drop(endIndex)
+}
+
+@Suppress("DEPRECATION")
+private fun UIMessage.hasToolPart(): Boolean = parts.any { part ->
+    part is UIMessagePart.Tool ||
+        part is UIMessagePart.ServerTool ||
+        part is UIMessagePart.ToolCall ||
+        part is UIMessagePart.ToolResult
+}
+
+/** 相邻文本块并成一块（`\n\n` 分隔），空白文本丢弃；其余 part 原样保序保留。 */
+private fun coalesceAdjacentTextParts(parts: List<UIMessagePart>): List<UIMessagePart> {
+    val merged = mutableListOf<UIMessagePart>()
+    parts.forEach { part ->
+        if (part is UIMessagePart.Text && part.text.isBlank()) return@forEach
+        val last = merged.lastOrNull()
+        if (part is UIMessagePart.Text && last is UIMessagePart.Text) {
+            // 保留首块的 metadata：同一回合内多块的 metadata 无法同时表达，取先出现者
+            merged[merged.lastIndex] = UIMessagePart.Text(text = "${last.text}\n\n${part.text}", metadata = last.metadata)
+        } else {
+            merged += part
+        }
+    }
+    return merged
 }
