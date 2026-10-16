@@ -169,12 +169,13 @@ class SshKeyGeneratorTest {
             SshKeyGenerator.KeyType.RSA,
             SshKeyGenerator.KeyType.ECDSA,
         ).forEach { type ->
-            val line = SshKeyGenerator.generate(type).publicKeyLine
+            val pair = SshKeyGenerator.generate(type)
+            val line = pair.publicKeyLine
             val fp = SshKeyGenerator.fingerprint(line)!!
             assertTrue("$fp 应以 SHA256: 开头", fp.startsWith("SHA256:"))
             assertEquals(43, fp.removePrefix("SHA256:").length)
             assertArrayEquals(
-                MessageDigest.getInstance("SHA-256").digest(blob(line)),
+                MessageDigest.getInstance("SHA-256").digest(blob(pair)),
                 Base64.getDecoder().decode(fp.removePrefix("SHA256:") + "="),
             )
         }
