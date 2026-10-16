@@ -331,6 +331,9 @@ fun SettingWebBridgePage() {
                                                     value = key.privateKeyPem,
                                                     description = "Web 桥 SSH 私钥（全局，${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())} 生成）",
                                                     group = "SSH",
+                                                    // 必须一起写：公钥留空 = 清空该条目公钥（不写就会与
+                                                    // 刚落库的新私钥失配，指纹匹配/`mergePublicKeyLine` 也找不到它）
+                                                    publicKey = key.publicKeyLine,
                                                 )
                                             }
                                             Triple(key, file.absolutePath, saveToVault)

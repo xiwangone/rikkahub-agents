@@ -189,12 +189,14 @@ object SshKeyGenerator {
 
     private fun b64(b: ByteArray): String = Base64.getEncoder().encodeToString(b)
 
-    /** BigInteger → 裸字节（去多余前导 0）。 */
-    private fun bytes(v: java.math.BigInteger): ByteArray {
-        var b = v.toByteArray()
-        if (b.size > 1 && b[0] == 0.toByte()) b = b.copyOfRange(1, b.size)
-        return b
-    }
+    /**
+     * BigInteger → SSH mpint（RFC 4251 §6：最小长度的大端**有符号**编码）。
+     *
+     * toByteArray() 给的正是这个形状，不要再动它：模数 bitLength 恒等于密钥长度 → 首字节
+     * 必 ≥ 0x80 → 那个前导 0x00 是**符号字节**。剥掉它，按有符号解释读出的是负数，OpenSSH
+     * 会直接判定整条公钥非法（`ssh-keygen -lf` 报 "is not a public key file"）。
+     */
+    private fun bytes(v: java.math.BigInteger): ByteArray = v.toByteArray()
 
     private fun sshString(bytes: ByteArray): ByteArray =
         bigInt(bytes.size.toLong()) + bytes
@@ -233,7 +235,8 @@ object SshKeyGenerator {
         } catch (_: java.security.NoSuchAlgorithmException) {
             return null
         }
+        // OpenSSH 输出的是**标准 base64**（保留 '+' '/'），仅去掉尾部 '='。多做一步
+        // base64url 替换就会与 `ssh-keygen -lf` 的输出对不上。
         return "SHA256:" + Base64.getEncoder().encodeToString(digest).trimEnd('=')
-            .replace('+', '-').replace('/', '_')
     }
 }

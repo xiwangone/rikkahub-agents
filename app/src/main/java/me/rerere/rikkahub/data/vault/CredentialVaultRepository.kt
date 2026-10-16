@@ -398,7 +398,9 @@ class CredentialVaultRepository(
         val valueFp = if (cleanValue.isBlank()) null else fingerprint(cleanValue)
         val existing = dao.getByName(name)
         if (existing != null) {
-            val finalPub = if (keepPub) existing.publicKey else publicKey.ifEmpty { existing.publicKey }
+            // keepPub 是唯一「留空即保留」开关：导入路径自己算（公钥留空 = 防重导清空），
+            // UI 保存路径传 false —— 此时空串就是用户点了清空公钥，不能再回退旧值。
+            val finalPub = if (keepPub) existing.publicKey else publicKey
             dao.update(
                 existing.copy(
                     description = description.ifEmpty { existing.description },
