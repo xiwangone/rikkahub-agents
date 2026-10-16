@@ -17,7 +17,7 @@ import java.util.Base64
  * 支持 RSA（2048/4096）、Ed25519、ECDSA（nistp256/384/521），私钥统一输出
  * **PKCS#8 PEM**（"BEGIN PRIVATE KEY"，Bouncy Castle 标准编码），Ed25519 例外（OpenSSH 格式）：
  * - RSA-2048 / RSA-4096：私钥 PKCS#8，公钥 ssh-rsa
- * - Ed25519：私钥 PKCS#8，公钥 ssh-ed25519（BC 软件生成，可导出）
+ * - Ed25519：私钥 OpenSSH 格式（openssh-key-v1；OpenSSH 不接受该算法的 PKCS#8），公钥 ssh-ed25519（BC 软件生成，可导出）
  * - ECDSA (secp256r1/384r1/521r1)：私钥 PKCS#8，公钥 ecdsa-sha2-nistp256/nistp384/nistp521
  *
  * PKCS#8 是通用标准，OpenSSH / JSch / haevn 等现代客户端均支持。

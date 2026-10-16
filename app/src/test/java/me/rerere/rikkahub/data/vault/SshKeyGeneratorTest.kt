@@ -183,8 +183,9 @@ class SshKeyGeneratorTest {
 
     @Test
     fun `fingerprint rejects malformed lines`() {
-        assertEquals(null, SshKeyGenerator.fingerprint("not base64 at all!"))
+        // 只有一段（没有 blob）与 blob 段不是合法 base64——两种都必须判空
         assertEquals(null, SshKeyGenerator.fingerprint("ssh-rsa"))
+        assertEquals(null, SshKeyGenerator.fingerprint("ssh-rsa !!! definitely not base64 !!!"))
     }
 
     // ================= helpers =================
