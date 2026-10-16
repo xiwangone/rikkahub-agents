@@ -158,12 +158,12 @@ class SshKeyGeneratorTest {
 
     @Test
     fun `fingerprint uses the same base64 alphabet as ssh-keygen`() {
-        // OpenSSH 用**标准** base64，只去掉尾部 '='。多做一步 base64url 替换
-        // （+→- /→_）就会与 `ssh-keygen -lf` 的输出不一致。
-        // 固定向量：该 blob 的 SHA-256 同时含 '+' 与 '/'，替换版必然输出不同字符串。
-        val line = "ssh-rsa c3NoLXJzYQAAAAAAAAAB ${SshKeyGenerator.DEFAULT_COMMENT}"
+        // OpenSSH 用**标准** base64，只去掉尾部 '='；base64url 替换（+→- /→_）会与
+        // `ssh-keygen -lf` 的输出不一致。此向量是合法的最小 ssh-ed25519 公钥，
+        // 其摘要同时含 '+' 与 '/'，替换版必然给出不同字符串。
+        val line = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIKurq6urq6urq6urq6urq6urq6urq6urq6urq6urq6ur"
         assertEquals(
-            "SHA256:WEC+8pipYV0XctwDMmJxZBu/UuO1jQVQDHp2/Jp13Ak",
+            "SHA256:mEwqXdTPoHnFTvEV3e8U+5RuFC2tSO9zs8CTJPIXq/w",
             SshKeyGenerator.fingerprint(line),
         )
     }
