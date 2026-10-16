@@ -23,8 +23,53 @@ class CredentialValueSanitizerTest {
     }
 
     @Test
-    fun `keeps tab newline and carriage return`() {
-        val value = "line1\tX\nline2\r\n"
+    fun `keeps tab and newline normalizes crlf and keeps lone cr`() {
+        // CRLF 归一：OpenSSH 读到 PEM 头/尾行行尾的 \r 会直接报 error in libcrypto
+        assertEquals("line1\tX\nline2\n", CredentialValueSanitizer.sanitize("line1\tX\nline2\r\n"))
+        assertTrue(CredentialValueSanitizer.hasRejectedChars("a\r\nb"))
+        // 单独的 \r 不猜意图：可能是真值内容，原样保留
+        assertEquals("a\rb", CredentialValueSanitizer.sanitize("a\rb"))
+        assertFalse(CredentialValueSanitizer.hasRejectedChars("a\rb"))
+    }
+
+    /**
+     * Cf 格式符必须被剔除 —— 这是旧实现的漏网之鱼：它们代码点 ≥ 0x20，
+     * 于是"剔除不可见控制符"的承诺只覆盖了 ASCII。零宽字符/BOM 会原样入库，
+     * UI 看不出任何异常，而 `ssh-keygen` 读到就报 `error in libcrypto`
+     * （等价于"密钥坏了"），从报错信息完全回溯不到"多了个看不见的字符"。
+     */
+    @Test
+    fun `strips invisible unicode format characters`() {
+        val cases = listOf(
+            "BOM" to "abc\uFEFF",
+            "ZWSP" to "ab\u200Bc",
+            "ZWJ" to "ab\u200Dc",
+            "WORD-JOINER" to "ab\u2060c",
+            "SOFT-HYPHEN" to "ab\u00ADc",
+            "RL-OVERRIDE" to "ab\u202Ec",
+            "LRE" to "ab\u202Ac",
+        )
+        cases.forEach { (label, value) ->
+            assertEquals("$label 应被剔除", "abc", CredentialValueSanitizer.sanitize(value))
+            assertTrue("$label 应报告被拒字符", CredentialValueSanitizer.hasRejectedChars(value))
+        }
+        // 只由这些字符组成 = 等于写入一个空密钥
+        assertEquals("", CredentialValueSanitizer.sanitize("\uFEFF\u200B\u2060"))
+    }
+
+    @Test
+    fun `multi line pem body survives normalization except crlf`() {
+        // 多行值逐字符不变的承诺仍然成立（除了 CRLF 行尾这一处有意归一）
+        val lf = "-----BEGIN SAMPLE BLOCK-----\nYWJjZGVmZ2hpamtsbW5vcHFyc3R1dnd4eXo=\n-----END SAMPLE BLOCK-----\n"
+        assertEquals(lf, CredentialValueSanitizer.sanitize(lf))
+        val crlf = lf.replace("\n", "\r\n")
+        assertEquals(lf, CredentialValueSanitizer.sanitize(crlf))
+    }
+
+    @Test
+    fun `non ascii printable text is not collaterally stripped`() {
+        // 回归护栏：中文/重音/emoji 都不是 Cf，不能因为"剔除不可见字符"被带走
+        val value = "口令-パスワード-비밀번호-café-🔑"
         assertEquals(value, CredentialValueSanitizer.sanitize(value))
         assertFalse(CredentialValueSanitizer.hasRejectedChars(value))
     }

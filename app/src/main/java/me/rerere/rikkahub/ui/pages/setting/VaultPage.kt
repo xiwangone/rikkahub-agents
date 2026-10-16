@@ -250,6 +250,9 @@ fun VaultPage() {
                                     q.group.ifEmpty { "Other" },
                                     q.publicKey,
                                     type = q.type,
+                                    // 备份里带了元数据就必须还原：漏传等于"恢复一次备份，
+                                    // provider 引用处的 endpoint/header 全丢"
+                                    metaJson = q.metaJson,
                                 )
                             }
                         }

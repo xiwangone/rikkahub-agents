@@ -1033,7 +1033,13 @@ fun vaultCredentialMetaTool(repository: CredentialVaultRepository): Tool = Tool(
             if (entry == null) {
                 listOf(UIMessagePart.Text("❌ 凭证不存在: $name（用 vault_credential_names 查看可用名称）"))
             } else {
-                val fp = if (entry.publicKey.isNotBlank()) (SshKeyGenerator.fingerprint(entry.publicKey) ?: "(解析失败)") else "(无公钥)"
+                // 失败时给出**具体原因**：只说"(解析失败)"会让人以为是 App 读不动，
+                // 实际多数是库里那一行公钥本身写坏了（指纹/判重/部署全都会连带失效）
+                val fp = when {
+                    entry.publicKey.isBlank() -> "(无公钥)"
+                    else -> SshKeyGenerator.fingerprint(entry.publicKey)
+                        ?: "(无法解析：${SshKeyGenerator.publicKeyLineIssue(entry.publicKey)})"
+                }
                 val created = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(entry.createdAt))
                 val updated = java.text.SimpleDateFormat("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).format(java.util.Date(entry.updatedAt))
                 listOf(
@@ -1259,6 +1265,9 @@ suspend fun renameCredentialWithRefs(
         group = existing.grp,
         publicKey = existing.publicKey,
         type = existing.type,
+        // 改名必须连元数据一起搬过去：endpoint/path/header/username 是 provider 解析
+        // 引用处要用的，漏传 = 改个名字就把这条凭证的用法信息洗掉了
+        metaJson = existing.metaJson,
     )
     val synced = VaultReferenceSync.renameEverywhere(settingsStore, sshHostRepository, oldName, newName)
     repository.delete(existing)

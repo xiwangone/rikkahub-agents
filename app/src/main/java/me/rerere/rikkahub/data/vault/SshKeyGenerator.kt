@@ -220,26 +220,246 @@ object SshKeyGenerator {
     }
 
     /**
-     * 计算 OpenSSH 公钥行的 SHA256 指纹（格式 "SHA256:xxxx"）。
-     * 与 ssh-keygen -lf 输出一致。公钥行格式：`<type> <b64blob> [comment]`。
-     * 解析失败返回 null（非标准公钥行）。
+     * 计算 OpenSSH 公钥行的 SHA256 指纹（格式 "SHA256:xxxx"），与 `ssh-keygen -lf` 一致。
+     * 公钥行格式：`<type> <b64blob> [comment]`。非法输入返回 null（原因见 [publicKeyLineIssue]）。
      */
     fun fingerprint(publicKeyLine: String): String? {
-        val parts = publicKeyLine.trim().split(Regex("\\s+"))
-        if (parts.size < 2) return null
-        val blob = try {
-            Base64.getDecoder().decode(parts[1])
-        } catch (e: IllegalArgumentException) {
-            return null
-        }
-        val digest = try {
-            java.security.MessageDigest.getInstance("SHA-256").digest(blob)
-        } catch (_: java.security.NoSuchAlgorithmException) {
-            return null
-        }
-        // OpenSSH 输出的是**标准 base64**（保留 '+' '/'），仅去掉尾部 '='。多做一步
-        // base64url 替换就会与 `ssh-keygen -lf` 的输出对不上。
+        val (blob, _, issue) = inspectPublicKey(publicKeyLine)
+        val fpBlob = if (issue == null) blob else null
+        val digest = fpBlob?.let { sha256Blob(it) } ?: return null
         return "SHA256:" + Base64.getEncoder().encodeToString(digest).trimEnd('=')
+    }
+
+    private fun sha256Blob(blob: ByteArray): ByteArray? = try {
+        java.security.MessageDigest.getInstance("SHA-256").digest(blob)
+    } catch (_: java.security.NoSuchAlgorithmException) {
+        null
+    }
+
+    /** 证书行的指纹算的是**内层公钥**，不是整张证书（`ssh-keygen -lf` 行为）。 */
+    private const val CERT_SUFFIX = "-cert-v01@openssh.com"
+
+    /**
+     * 解码公钥行的 base64 段。
+     *
+     * 先严格按 RFC 4648 解；失败时**只**尝试一种修复：剥掉多余的尾部 `=`。
+     * 为什么要有这一步：手工编辑、Markdown 渲染、剪贴板/邮件换行都可能给本不需要
+     * 填充的数据补上一个 `=`，此时长度 %4==1，Java 的严格解码器直接抛异常，而
+     * OpenSSH 自己也会拒绝该行 —— 也就是说这是**坏数据**，不能当作正常公钥用。
+     * 但指纹这类只读展示不应因此变成"(解析失败)"：剥掉填充后重新补正、再编码比对，
+     * 字节完全一致才认定为"仅填充写坏"，可安全修复。其它畸形（截断、插入字符）一律不修。
+     */
+    private fun decodePublicKeyBlob(b64: String): ByteArray? {
+        try {
+            return Base64.getDecoder().decode(b64)
+        } catch (_: IllegalArgumentException) {
+            // fall through：仅下面这一种情形可判定为填充多余
+        }
+        if (!b64.endsWith('=')) return null
+        val stripped = b64.trimEnd('=')
+        if (stripped.isEmpty()) return null
+        val canonical = stripped + "=".repeat((4 - stripped.length % 4) % 4)
+        val raw = try {
+            Base64.getDecoder().decode(canonical)
+        } catch (_: IllegalArgumentException) {
+            return null
+        }
+        // 重新编码必须逐字符相同，否则说明原 base64 不只是填充问题（如非规范末组编码）
+        return if (Base64.getEncoder().encodeToString(raw) == canonical) raw else null
+    }
+
+    /**
+     * 该类型「类型串之后的键体字段」应有的个数；不认识的类型返回 null（只校类型，避免误拒）。
+     *
+     * 证书类型返回 null：其键体字段跟在 nonce 之后、排布不同，交给 [certInnerBlob]。
+     */
+    private fun keyFieldCount(type: String): Int? = when {
+        type.endsWith(CERT_SUFFIX) -> null
+        type == "ssh-rsa" || type == "ssh-rsa-sha2-256" || type == "ssh-rsa-sha2-512" -> 2 // e, n
+        type == "ssh-dss" -> 4 // p, q, g, y
+        type == "ssh-ed25519" -> 1 // 32 字节公钥
+        type.startsWith("ecdsa-sha2-") -> 2 // 曲线名, 点
+        else -> null
+    }
+
+    /**
+     * mpint 符号字节检查（RFC 4251 §6）：只用于 RSA/DSA 这类"键体就是 mpint"的类型。
+     *
+     * 为什么值得单独查：mpint 的首字节是**符号字节**，`n` 少了前导 `0x00` 就变成"负模数"，
+     * 长度前缀照样自洽、字段个数照样对，光靠结构校验看不出来 —— 但 OpenSSH 一定拒读
+     * （RSA-2048/RSA-4096 的 `n`、DSA-1024 的 `p` 各剥掉一个前导 `0x00`，
+     * `ssh-keygen -lf` 全部报 `is not a public key file`）。
+     *
+     * **不做**反向检查（"多了个前导 0x00 = 非最简编码"）：OpenSSH 对这种编码是**容忍**的
+     * （给 RSA 的 `e`/`n` 补前导 `0x00`，`ssh-keygen -lf` 照样输出**同一个指纹**），
+     * 我们据此拒绝就是**误拒**真实可用的数据；正确处理是**先重编成最简形式再取摘要**，
+     * 见 [canonicalBlob]。
+     * ECDSA 的点、ed25519 的公钥是 ssh-string 不是 mpint，不适用。
+     */
+    private fun mpintIssue(field: ByteArray, label: String): String? = when {
+        field.isEmpty() -> "$label 为空"
+        (field[0].toInt() and 0x80) != 0 -> "$label 被解释成负数（缺前导符号字节 0x00）"
+        else -> null
+    }
+
+    /**
+     * 把 blob 里 RSA/DSA 的 mpint 字段重编成**最简形式**，其余类型原样返回。
+     *
+     * 为什么必须重编再取摘要：OpenSSH 的指纹算在"解析后重新序列化"的 key 上，不是存储的原始字节。
+     * （同一条真实 2048 位 RSA）：给 `e` 补 1 个 / 2 个前导 `0x00`、
+     * 给 `n` 补 1 个前导 `0x00`，`ssh-keygen -lf` **四次都输出同一个指纹**
+     * `SHA256:l7xV3DJeXXRlxU6LDccg+Q4pflid7M9Q4Ut60J4+FdA`。我们若直接对存储字节取摘要，
+     * 这种行就会得到一个和服务器、和 `ssh-keygen` 都对不上的指纹 —— 正是本批要消灭的那类问题。
+     * 对已经最简的正常数据，这个函数是**恒等变换**（语料 112 条逐条比对过前后一致）。
+     */
+    private fun canonicalBlob(type: String, blob: ByteArray): ByteArray {
+        val mpintFields = type == "ssh-rsa" || type == "ssh-dss" ||
+            type == "ssh-rsa-sha2-256" || type == "ssh-rsa-sha2-512"
+        if (!mpintFields) return blob
+        val c = SshReader(blob, 0)
+        val typeB = c.str() ?: return blob
+        var out = sshString(typeB)
+        while (!c.end()) {
+            val f = c.str() ?: return blob
+            out += sshString(minimalMpint(f))
+        }
+        return out
+    }
+
+    /**
+     * mpint 最简形式：剥掉"多余"的前导 `0x00`（剥完仍然非负才剥）。
+     * 只往"剥"的方向走：给负数补符号字节是 [mpintIssue] 已经拒绝的情形，这里不猜。
+     */
+    private fun minimalMpint(f: ByteArray): ByteArray {
+        var i = 0
+        while (i < f.size - 1 && f[i] == 0.toByte() && (f[i + 1].toInt() and 0x80) == 0) i++
+        return if (i == 0) f else f.copyOfRange(i, f.size)
+    }
+
+    /** 按 OpenSSH 的字段排布校验一段 public blob；合法返回 null，否则返回原因。 */
+    private fun blobIssue(declaredType: String, blob: ByteArray): String? {
+        val c = SshReader(blob, 0)
+        val typeB = c.str() ?: return "公钥数据的长度前缀越界（内容被截断或插入了字符）"
+        val type = String(typeB, Charsets.ISO_8859_1)
+        if (type != declaredType) return "声明类型 $declaredType 与公钥数据内嵌类型 $type 不一致"
+        val count = keyFieldCount(type) ?: return null
+        val rest = ArrayList<ByteArray>()
+        while (!c.end()) {
+            val s = c.str() ?: return "公钥数据的长度前缀越界（内容被截断或插入了字符）"
+            rest.add(s)
+        }
+        if (rest.size != count) return "$type 应有 $count 个键体字段，实际 ${rest.size} 个"
+        return keyFieldsIssue(type, rest)
+    }
+
+    /** 按公钥类型分派到各自的键体字段校验。 */
+    private fun keyFieldsIssue(type: String, rest: List<ByteArray>): String? = when {
+        type == "ssh-rsa" -> rsaFieldsIssue(rest)
+        type == "ssh-dss" -> dssFieldsIssue(rest)
+        type == "ssh-ed25519" -> ed25519FieldsIssue(rest)
+        type.startsWith("ecdsa-sha2-") -> ecdsaFieldsIssue(type, rest)
+        else -> null
+    }
+
+    /** RSA 键体：e（小指数）+ n（模数），两者都必须是**最简有符号 mpint**。 */
+    private fun rsaFieldsIssue(rest: List<ByteArray>): String? {
+        if (rest[0].isEmpty() || rest[0].size > 8) return "ssh-rsa 的 e 字段长度异常：${rest[0].size}"
+        if (rest[1].size < 64 || rest[1].size > 1024) return "ssh-rsa 的 n 字段长度异常：${rest[1].size}"
+        mpintIssue(rest[0], "e")?.let { return "ssh-rsa 的$it" }
+        mpintIssue(rest[1], "n")?.let { return "ssh-rsa 的$it" }
+        return null
+    }
+
+    /** DSA 键体：p / q / g / y 四个 mpint。 */
+    private fun dssFieldsIssue(rest: List<ByteArray>): String? {
+        listOf("p", "q", "g", "y").forEachIndexed { i, label ->
+            mpintIssue(rest[i], label)?.let { return "ssh-dss 的$it" }
+        }
+        return null
+    }
+
+    /** Ed25519 键体：定长 32 字节裸公钥（不是 mpint，不涉及符号位）。 */
+    private fun ed25519FieldsIssue(rest: List<ByteArray>): String? =
+        if (rest[0].size != 32) "ssh-ed25519 公钥长度应为 32 字节，实际 ${rest[0].size}" else null
+
+    /** ECDSA 键体：曲线名（与声明一致）+ 未压缩点（0x04 + X + Y）。 */
+    private fun ecdsaFieldsIssue(type: String, rest: List<ByteArray>): String? {
+        val expect = when (String(rest[0], Charsets.ISO_8859_1)) {
+            "nistp256" -> 65
+            "nistp384" -> 97
+            "nistp521" -> 133
+            else -> -1
+        }
+        if (expect > 0 && rest[1].size != expect) return "$type 点长度应为 $expect，实际 ${rest[1].size}"
+        if (rest[1].isEmpty() || rest[1][0] != 0x04.toByte()) return "$type 的点必须是未压缩形式（0x04 开头）"
+        return null
+    }
+
+    /** 证书行 → 内层公钥 blob（补回类型串）；无法重建时给出原因。 */
+    private fun certInnerBlob(certType: String, blob: ByteArray): Pair<ByteArray?, String?> {
+        val base = certType.removeSuffix(CERT_SUFFIX)
+        val count = keyFieldCount(base)
+            ?: return null to "暂不支持 $certType 的指纹（OpenSSH 按内层公钥计算，该类型字段排布未实现）"
+        val c = SshReader(blob, 0)
+        if (c.str() == null) return null to "证书线格式非法"
+        if (c.str() == null) return null to "证书线格式非法" // nonce
+        val fields = ArrayList<ByteArray>()
+        while (!c.end() && fields.size < count) {
+            val s = c.str() ?: return null to "证书内层公钥字段越界"
+            fields.add(s)
+        }
+        if (fields.size != count) {
+            return null to "证书内层公钥字段不足：期望 $count 个，实际 ${fields.size} 个"
+        }
+        var inner = sshString(base.toByteArray())
+        for (f in fields) inner += sshString(f)
+        return inner to blobIssue(base, inner)
+    }
+
+    /**
+     * 解析公钥行，返回（指纹所依据的 blob, 整段 public blob, 问题原因）。
+     * 原因为 null 时两个 blob 均可用；否则两者均为 null。
+     */
+    private fun inspectPublicKey(publicKeyLine: String): Triple<ByteArray?, ByteArray?, String?> {
+        val parts = publicKeyLine.trim().split(Regex("\\s+"))
+        if (parts.size < 2) return Triple(null, null, "不是公钥行（缺少 base64 段）")
+        val b64 = parts[1]
+        val blob = decodePublicKeyBlob(b64) ?: return Triple(
+            null,
+            null,
+            "base64 段无法解码（长度 ${b64.length}，%4=${b64.length % 4}：截断或插入了多余字符）",
+        )
+        blobIssue(parts[0], blob)?.let { return Triple(null, null, it) }
+        val isCert = parts[0].endsWith(CERT_SUFFIX)
+        val fpBlob = if (isCert) {
+            val (inner, issue) = certInnerBlob(parts[0], blob)
+            if (issue != null) return Triple(null, null, issue) else inner
+        } else {
+            blob
+        }
+        // 两边都按 OpenSSH 的做法重编一次 mpint：指纹要与 ssh-keygen 一致，
+        // 写回库里的行也要是最简形态（证书类型在 canonicalBlob 里是恒等变换，不会把证书改成内层公钥）
+        val fpType = if (isCert) parts[0].removeSuffix(CERT_SUFFIX) else parts[0]
+        return Triple(
+            fpBlob?.let { canonicalBlob(fpType, it) },
+            canonicalBlob(parts[0], blob),
+            null,
+        )
+    }
+
+    /** 公钥行是否可用；可用返回 null，否则返回**具体**失败原因（供 UI/AI 直接展示，别只说"解析失败"）。 */
+    fun publicKeyLineIssue(publicKeyLine: String): String? = inspectPublicKey(publicKeyLine).third
+
+    /**
+     * 规范化公钥行：base64 段重新按标准编码（顺带修掉"多一个 `=`"这类写坏），保留原注释。
+     * 结构非法返回 null —— 调用方据此拒绝入库，而不是把坏数据存进库再在使用点报错。
+     */
+    fun canonicalizePublicKeyLine(publicKeyLine: String): String? {
+        val (fpBlob, blob, issue) = inspectPublicKey(publicKeyLine)
+        if (issue != null || blob == null || fpBlob == null) return null
+        val parts = publicKeyLine.trim().split(Regex("\\s+"))
+        val comment = if (parts.size > 2) " " + parts.drop(2).joinToString(" ") else ""
+        return parts[0] + " " + Base64.getEncoder().encodeToString(blob) + comment
     }
 
     // ================= 私钥格式转换（导出用） =================
@@ -270,15 +490,15 @@ object SshKeyGenerator {
             PrivateKeyFormat.PKCS8 -> Unit
             PrivateKeyFormat.UNKNOWN -> return null
         }
-        val der = runCatching { pemDer(pem) }.getOrNull() ?: return null
-        return runCatching {
+        val der = catchParse { pemDer(pem) } ?: return null
+        return catchParse {
             when (pkcs8AlgorithmOid(der)) {
                 OID_RSA -> openSshFromPkcs8Rsa(der, comment)
                 OID_EC -> openSshFromPkcs8Ec(der, comment)
                 OID_ED25519 -> openSshFromPkcs8Ed25519(der, comment)
                 else -> null
             }
-        }.getOrNull()
+        }
     }
 
     /**
@@ -293,8 +513,19 @@ object SshKeyGenerator {
             PrivateKeyFormat.OPENSSH -> Unit
             PrivateKeyFormat.UNKNOWN -> return null
         }
-        val seed = runCatching { opensshEd25519Seed(pem) }.getOrNull() ?: return null
+        val seed = catchParse { opensshEd25519Seed(pem) } ?: return null
         return pemWrap("PRIVATE KEY", PKCS8_ED25519_PREFIX + seed)
+    }
+
+    /**
+     * 私钥解析的兜底：只吞**解析类异常**。
+     * 不用 `runCatching` —— 它连 `Throwable` 一起接（含 `OutOfMemoryError`），
+     * 于是"崩在解析中途"会被伪装成"该格式不支持转换"，排查方向直接被带偏。
+     */
+    private inline fun <T> catchParse(block: () -> T?): T? = try {
+        block()
+    } catch (e: Exception) {
+        null
     }
 
     /** RFC 8410 PrivateKeyInfo 固定前缀：SEQUENCE{INTEGER 0, SEQUENCE{OID 1.3.101.112}, OCTET STRING{OCTET STRING}}。 */
@@ -364,41 +595,59 @@ object SshKeyGenerator {
         )
     }
 
-    /** 从 OpenSSH 容器取 Ed25519 的 32 字节 seed；非该算法或结构异常返回 null。 */
+    /**
+     * 从 OpenSSH 容器取 Ed25519 的 32 字节 seed；非该算法或结构异常返回 null。
+     *
+     * **只读未加密容器**：cipher/kdf 必须都是 "none"。带口令的容器（aes256-ctr + bcrypt）
+     * 里私钥段是密文，按明文线格式去读会读到**随机的长度前缀**，旧实现照这个长度直接
+     * `copyOfRange` → 单次分配可达数 GB → `OutOfMemoryError`；而外层
+     * [toPkcs8PrivateKey] 的 `runCatching` 连 Error 一起吞掉，用户看到的是"不支持转换"，
+     * 与实际症状（解析中途崩溃）完全对不上。
+     */
     private fun opensshEd25519Seed(pem: String): ByteArray? {
         val der = pemDer(pem)
         val magic = "openssh-key-v1\u0000"
         if (der.size < magic.length + 4 || String(der, 0, magic.length, Charsets.ISO_8859_1) != magic) return null
         val r = SshReader(der, magic.length)
-        r.str() // cipher
-        r.str() // kdf
-        r.str() // kdf options
+        val cipher = r.str()?.toString(Charsets.ISO_8859_1) ?: return null
+        val kdf = r.str()?.toString(Charsets.ISO_8859_1) ?: return null
+        r.str() // kdf options（none 容器下为空）
+        if (cipher != "none" || kdf != "none") return null // 带口令：私钥段是密文，不能按明文线格式读
         if (r.u32() != 1) return null
         r.str() // public blob
-        val section = r.str()
+        val section = r.str() ?: return null
+        if (section.size < 8) return null
         val s = SshReader(section, 8) // 跳过两个 checkint
-        if (String(s.str(), Charsets.ISO_8859_1) != "ssh-ed25519") return null
-        s.str() // 公钥 32 字节
-        val sk = s.str()
+        if (s.str()?.toString(Charsets.ISO_8859_1) != "ssh-ed25519") return null
+        s.str() ?: return null // 公钥 32 字节
+        val sk = s.str() ?: return null
         return if (sk.size >= 32) sk.copyOfRange(0, 32) else null
     }
 
-    /** OpenSSH 线格式的最小读取器（4 字节大端长度 + 内容）。 */
+    /**
+     * 带边界检查的 OpenSSH 线格式读取器（4 字节大端长度 + 内容）。
+     * 越界返回 null —— 绝不按长度前缀分配内存（见 [opensshEd25519Seed] 的教训）。
+     */
     private class SshReader(private val b: ByteArray, start: Int) {
-        private var pos = start
+        var pos = start
+            private set
 
-        fun u32(): Int {
+        fun u32(): Int? {
+            if (b.size - pos < 4) return null
             var v = 0
             repeat(4) { v = (v shl 8) or (b[pos++].toInt() and 0xFF) }
             return v
         }
 
-        fun str(): ByteArray {
-            val n = u32()
+        fun str(): ByteArray? {
+            val n = u32() ?: return null
+            if (n < 0 || n > b.size - pos) return null
             val v = b.copyOfRange(pos, pos + n)
             pos += n
             return v
         }
+
+        fun end() = pos == b.size
     }
 
     private fun pemDer(pem: String): ByteArray {

@@ -118,7 +118,7 @@ class CredentialVaultRepository(
      * 返回 null = 没找到宿主，调用方自行决定（提示或按普通条目新建）。
      */
     suspend fun mergePublicKeyLine(publicKeyLine: String, preferredName: String = ""): PublicKeyMergeResult? {
-        val value = publicKeyLine.trim()
+        val value = normalizePublicKey(publicKeyLine.trim())
         if (value.isEmpty()) return null
         val now = System.currentTimeMillis()
 
@@ -210,6 +210,20 @@ class CredentialVaultRepository(
     fun decryptValue(entry: VaultCredentialEntity): String? =
         ProviderCredentialCipher.decrypt(entry.valueEncrypted)
 
+    /**
+     * 公钥入库前规范化（所有写入点统一走这里）。
+     *
+     * 为什么要写时规范化：公钥行的 base64 段一旦多了一个 `=`（剪贴板/换行/手工编辑都会
+     * 引入），严格解码直接失败，之后**所有**依赖它的环节一起失效 —— 指纹显示"(解析失败)"、
+     * 公钥并入按指纹匹配不上、部署到 authorized_keys 也报 "is not a public key file"，
+     * 而用户只看到"指纹解析失败"，完全想不到是存储里那一行本身是坏的。
+     * 只在"结构与 OpenSSH 一致、仅填充多余"时重写；解析不了的原样保留（不静默丢用户数据，
+     * 由使用侧通过 [SshKeyGenerator.publicKeyLineIssue] 报出具体原因）。
+     */
+    private fun normalizePublicKey(publicKey: String): String =
+        if (publicKey.isBlank()) publicKey
+        else (SshKeyGenerator.canonicalizePublicKeyLine(publicKey) ?: publicKey)
+
     /** 保存（新增/更新）：加密后落库。value 传空且已有同名条目时保留原值（编辑留空=不改）。 */
     suspend fun save(
         name: String,
@@ -233,12 +247,13 @@ class CredentialVaultRepository(
         if (existing != null && value.isBlank()) {
             // 编辑留空 = 保留原值，仅更新描述/分组
             val now = System.currentTimeMillis()
+            val pub = normalizePublicKey(publicKey)
             dao.update(
                 existing.copy(
                     description = description,
                     grp = group,
-                    publicKey = publicKey,
-                    type = resolveType(type, existing.type, name, "", publicKey),
+                    publicKey = pub,
+                    type = resolveType(type, existing.type, name, "", pub),
                     metaJson = metaJson.ifEmpty { existing.metaJson },
                     updatedAt = now,
                 )
@@ -279,6 +294,7 @@ class CredentialVaultRepository(
             "凭证值只含不可见字符，已拒绝保存：$name"
         }
         val now = System.currentTimeMillis()
+        val cleanPub = normalizePublicKey(publicKey)
         val valueFp = if (cleanValue.isBlank()) null else fingerprint(cleanValue)
         val finalMeta = CredentialMeta.encode(
             CredentialMeta.decode(metaJson) + listOfNotNull(valueFp?.let { "value_fp" to it }),
@@ -288,10 +304,10 @@ class CredentialVaultRepository(
                 name = name,
                 description = description,
                 grp = group.ifBlank { "Other" },
-                publicKey = publicKey,
+                publicKey = cleanPub,
                 valueEncrypted = ProviderCredentialCipher.encrypt(cleanValue),
                 valueLength = cleanValue.length,
-                type = resolveType(type, "", name, cleanValue, publicKey),
+                type = resolveType(type, "", name, cleanValue, cleanPub),
                 metaJson = finalMeta,
                 createdAt = createdAt ?: now,
                 updatedAt = now,
@@ -331,7 +347,11 @@ class CredentialVaultRepository(
                     existing!!.copy(
                         description = e.description.ifEmpty { existing.description },
                         grp = if (e.group.isBlank()) existing.grp else e.group,
-                        publicKey = if (keepPub) existing.publicKey else e.publicKey,
+                        publicKey = if (keepPub) existing.publicKey else normalizePublicKey(e.publicKey),
+                        // 类型要跟着走：导入文件里的 `# type:` 是显式信息，"值留空"只表示
+                        // 不改密钥，不该把类型一起丢掉（旧写法直接沿用 existing.type，
+                        // 于是重导一次带 type 标注的文件仍补不上空类型）
+                        type = e.type.ifBlank { existing.type },
                         metaJson = e.metaJson.ifEmpty { existing.metaJson },
                         updatedAt = System.currentTimeMillis(),
                     )
@@ -393,6 +413,7 @@ class CredentialVaultRepository(
         val now = System.currentTimeMillis()
         // 落库前统一清洗（剔除不可见控制符）；长度字段以清洗后的值为准，避免展示与实际不一致
         val cleanValue = CredentialValueSanitizer.sanitize(value)
+        val cleanPub = normalizePublicKey(publicKey)
         val encrypted = ProviderCredentialCipher.encrypt(cleanValue)
         // 值指纹（不见值比对用）：随元数据落明文列，供 UI 与 AI 侧精确判重；空值/占位条目不写（否则占位之间会互相“重复”）
         val valueFp = if (cleanValue.isBlank()) null else fingerprint(cleanValue)
@@ -400,7 +421,7 @@ class CredentialVaultRepository(
         if (existing != null) {
             // keepPub 是唯一「留空即保留」开关：导入路径自己算（公钥留空 = 防重导清空），
             // UI 保存路径传 false —— 此时空串就是用户点了清空公钥，不能再回退旧值。
-            val finalPub = if (keepPub) existing.publicKey else publicKey
+            val finalPub = if (keepPub) existing.publicKey else cleanPub
             dao.update(
                 existing.copy(
                     description = description.ifEmpty { existing.description },
@@ -423,10 +444,10 @@ class CredentialVaultRepository(
                     name = name,
                     description = description,
                     grp = group.ifEmpty { "Other" },
-                    publicKey = publicKey,
+                    publicKey = cleanPub,
                     valueEncrypted = encrypted,
                     valueLength = cleanValue.length,
-                    type = resolveType(type, "", name, cleanValue, publicKey),
+                    type = resolveType(type, "", name, cleanValue, cleanPub),
                     metaJson = CredentialMeta.encode(
                         CredentialMeta.decode(metaJson) + listOfNotNull(valueFp?.let { "value_fp" to it }),
                     ),

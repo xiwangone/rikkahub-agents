@@ -20,6 +20,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.vault.CredentialPurpose
+import me.rerere.rikkahub.data.vault.SshKeyGenerator
 import me.rerere.rikkahub.data.vault.CredentialResolution
 import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.data.vault.message
@@ -679,6 +680,11 @@ fun vaultDeployKeyTool(
         val pubKey = entry.publicKey?.trim()
         if (pubKey.isNullOrBlank()) {
             return@Tool fail("vault credential '$credName' has no stored public key — generate one with vault_gen_key or add the public key first")
+        }
+        // 先本地校验再部署：写坏的公钥行（多一个 '=' / 被截断）到远端只会得到
+        // "Invalid argument" 之类的模糊报错，排查不到"存的那一行本身就是坏的"
+        SshKeyGenerator.publicKeyLineIssue(pubKey)?.let { issue ->
+            return@Tool fail("vault credential '$credName' public key is malformed: $issue — re-paste the public key")
         }
         val h = repo.getByName(hostName) ?: return@Tool fail("no saved host: $hostName")
         val targetUser = remoteUser ?: h.user
