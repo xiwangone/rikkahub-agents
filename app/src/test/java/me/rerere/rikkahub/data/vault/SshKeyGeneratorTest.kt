@@ -95,7 +95,7 @@ class SshKeyGeneratorTest {
         // seed 要和公钥行一致；再用 seed 签名、公钥行验签坐实配对。
         val priv = parseOpenSshPrivate(pair.privateKeyPem)
         assertEquals("ssh-ed25519", priv.keyType)
-        assertArrayEquals(r.rawPublicKey, priv.publicKey)
+        assertArrayEquals(r.rawPublicKey, priv.embeddedPublicKey)
         assertEquals(64, priv.privateKey.size)
         assertArrayEquals(r.rawPublicKey, priv.privateKey.copyOfRange(32, 64))
 
@@ -198,7 +198,7 @@ class SshKeyGeneratorTest {
             assertEquals(SshKeyGenerator.PrivateKeyFormat.PKCS8, SshKeyGenerator.privateKeyFormat(pair.privateKeyPem))
             val parsed = parseOpenSshPrivate(SshKeyGenerator.toOpenSshPrivateKey(pair.privateKeyPem)!!)
             assertEquals("ssh-rsa", parsed.keyType)
-            assertArrayEquals(blob(pair), parsed.publicKey)
+            assertArrayEquals(blob(pair), parsed.publicBlob)
             val rsa = pkcs8Private(pair.privateKeyPem, "RSA") as RSAPrivateCrtKey
             val w = Wire(parsed.privateKey)
             // OpenSSH 的 RSA 私钥段顺序：n, e, d, iqmp, p, q
@@ -223,7 +223,7 @@ class SshKeyGeneratorTest {
             assertEquals(SshKeyGenerator.PrivateKeyFormat.PKCS8, SshKeyGenerator.privateKeyFormat(pair.privateKeyPem))
             val parsed = parseOpenSshPrivate(SshKeyGenerator.toOpenSshPrivateKey(pair.privateKeyPem)!!)
             assertTrue("类型应为 ecdsa-sha2-*，实际 ${parsed.keyType}", parsed.keyType.startsWith("ecdsa-sha2-"))
-            assertArrayEquals(blob(pair), parsed.publicKey)
+            assertArrayEquals(blob(pair), parsed.publicBlob)
         }
     }
 
@@ -239,7 +239,7 @@ class SshKeyGeneratorTest {
         // 已经是 PKCS#8 的：原样返回
         assertEquals(pkcs8, SshKeyGenerator.toPkcs8PrivateKey(pkcs8))
         // PKCS#8 → OpenSSH 后，公钥段必须与原公钥行一致
-        assertArrayEquals(blob(pair), parseOpenSshPrivate(SshKeyGenerator.toOpenSshPrivateKey(pkcs8)!!).publicKey)
+        assertArrayEquals(blob(pair), parseOpenSshPrivate(SshKeyGenerator.toOpenSshPrivateKey(pkcs8)!!).publicBlob)
     }
 
     @Test
@@ -281,7 +281,10 @@ class SshKeyGeneratorTest {
     /** openssh-key-v1 私钥文件的公钥段/私钥段。 */
     private class OpenSshPrivate(
         val keyType: String,
-        val publicKey: ByteArray,
+        /** 容器头声明的公钥 blob（含类型段；RSA/ECDSA 内部还有参数）。 */
+        val publicBlob: ByteArray,
+        /** 私钥段内嵌的公钥（Ed25519 为 32 字节裸公钥）。 */
+        val embeddedPublicKey: ByteArray,
         val privateKey: ByteArray,
     )
 
@@ -347,23 +350,23 @@ class SshKeyGeneratorTest {
         assertEquals(0, w.string().size)
         assertEquals(1, w.u32())
 
-        val pub = Wire(w.string())
-        val keyType = pub.string().decodeToString()
-        val publicKey = pub.string()
-        pub.expectEnd("publicblob 有未消费字节")
+        // 公钥 blob 整段取用：RSA / ECDSA 的 blob 内部是多段结构（类型 + 参数），
+        // 这里不做二次解释，交给 readBlob() 按类型严格解析。
+        val publicBlob = w.string()
 
         val section = Wire(w.string())
         val check1 = section.bytes(4)
         assertArrayEquals("两个 checkint 必须相同（否则私钥结构不对）", check1, section.bytes(4))
-        assertEquals(keyType, section.string().decodeToString())
-        assertArrayEquals(publicKey, section.string())
+        val keyType = section.string().decodeToString()
+        assertEquals(keyType, Wire(publicBlob).string().decodeToString())
+        val embeddedPublicKey = section.string()
         val privateKey = section.string()
         section.string() // comment
         // 结尾是 1,2,3,... 的定长填充（1..8 字节）
         val padding = section.bytes(section.remaining)
         assertTrue("私钥段填充不合规", padding.size in 1..8)
         padding.forEachIndexed { i, b -> assertEquals((i + 1).toByte(), b) }
-        return OpenSshPrivate(keyType, publicKey, privateKey)
+        return OpenSshPrivate(keyType, publicBlob, embeddedPublicKey, privateKey)
     }
 
     private companion object {
