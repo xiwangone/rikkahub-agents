@@ -14,10 +14,11 @@ import org.bouncycastle.crypto.params.X25519PublicKeyParameters
  * - **SSH 类**（ED25519 / RSA / ECDSA）→ 交给 [SshKeyGenerator]，公钥是 OpenSSH 一行格式；
  * - **X25519 类**（WIREGUARD / AGE）→ 由本文件生成，公钥是各工具认的文本格式。
  *
- * label 采用技术名（不含自然语言），因此新增类型不需要任何本地化文案。
+ * label 采用技术名（不含自然语言），新增类型不需要额外本地化文案；
+ * 需要自然语言提示的（如 Ed25519 的「推荐」）由 UI 层自己补，枚举不揍中文。
  */
 enum class VaultKeyType(val label: String) {
-    ED25519("Ed25519（推荐）"),
+    ED25519("Ed25519"),
     RSA2048("RSA-2048"),
     RSA4096("RSA-4096"),
     ECDSA256("ECDSA (nistp256)"),

@@ -2918,6 +2918,7 @@
   <string name="vault_ref_store">Сохранить в Vault</string>
   <string name="vault_show">Показать</string>
   <string name="vault_keyexport_action">Экспорт закрытого ключа</string>
+  <string name="vault_key_type_ed25519_recommended">Ed25519 (рекомендуется)</string>
   <string name="vault_keyexport_warning_title">Экспортировать закрытый ключ?</string>
   <string name="vault_keyexport_warning_text">В выбранное место будет записан рабочий незашифрованный закрытый ключ. Храните его аккуратно и удалите, когда он больше не нужен.</string>
   <string name="vault_keyexport_format_original">Как есть (%1$s)</string>

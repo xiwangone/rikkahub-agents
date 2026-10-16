@@ -2432,6 +2432,7 @@
   <string name="vault_ref_store">存入凭证库</string>
   <string name="vault_show">显示</string>
   <string name="vault_keyexport_action">导出私钥</string>
+  <string name="vault_key_type_ed25519_recommended">Ed25519（推荐）</string>
   <string name="vault_keyexport_warning_title">导出私钥？</string>
   <string name="vault_keyexport_warning_text">将向你选择的位置写出可用的明文私钥。请妥善保管，不再需要时及时删除。</string>
   <string name="vault_keyexport_format_original">原样（%1$s）</string>

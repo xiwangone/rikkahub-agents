@@ -28,7 +28,7 @@ import java.util.Base64
 object SshKeyGenerator {
 
     enum class KeyType(val label: String) {
-        ED25519("Ed25519（推荐）"),
+        ED25519("Ed25519"),
         RSA("RSA-2048"),
         RSA4096("RSA-4096"),
         ECDSA("ECDSA (nistp256)"),

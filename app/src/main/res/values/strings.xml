@@ -2468,6 +2468,7 @@
   <string name="vault_ref_store">Store in Vault</string>
   <string name="vault_show">Show</string>
   <string name="vault_keyexport_action">Export private key</string>
+  <string name="vault_key_type_ed25519_recommended">Ed25519 (recommended)</string>
   <string name="vault_keyexport_warning_title">Export private key?</string>
   <string name="vault_keyexport_warning_text">A usable, unencrypted private key will be written to the location you choose. Store it carefully and delete it when it is no longer needed.</string>
   <string name="vault_keyexport_format_original">As stored (%1$s)</string>

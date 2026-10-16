@@ -2925,6 +2925,7 @@
   <string name="vault_ref_store">Vault に保存</string>
   <string name="vault_show">表示</string>
   <string name="vault_keyexport_action">秘密鍵をエクスポート</string>
+  <string name="vault_key_type_ed25519_recommended">Ed25519（推奨）</string>
   <string name="vault_keyexport_warning_title">秘密鍵をエクスポートしますか？</string>
   <string name="vault_keyexport_warning_text">使用可能な平文の秘密鍵を選択した場所に書き出します。大切に保管し、不要になったら削除してください。</string>
   <string name="vault_keyexport_format_original">そのまま（%1$s）</string>

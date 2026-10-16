@@ -2572,6 +2572,7 @@
   <string name="vault_ref_store">حفظ في Vault</string>
   <string name="vault_show">إظهار</string>
   <string name="vault_keyexport_action">تصدير المفتاح الخاص</string>
+  <string name="vault_key_type_ed25519_recommended">Ed25519 (موصى به)</string>
   <string name="vault_keyexport_warning_title">تصدير المفتاح الخاص؟</string>
   <string name="vault_keyexport_warning_text">سيُكتب مفتاح خاص غير مشفَّر وقابل للاستخدام في الموقع الذي تختاره. احتفظ به بعناية واحذفه عند عدم الحاجة إليه.</string>
   <string name="vault_keyexport_format_original">كما هو (%1$s)</string>

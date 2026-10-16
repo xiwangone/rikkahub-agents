@@ -121,7 +121,16 @@ fun SshKeyPairDialog(
                                     if (keyType == t) 2.dp else 0.dp,
                                     if (keyType == t) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                                 ),
-                            ) { Text(t.label) }
+                            ) {
+                                // 枚举只带技术名；推荐项的本地化提示在 UI 层补
+                                Text(
+                                    if (t == VaultKeyType.ED25519) {
+                                        stringResource(R.string.vault_key_type_ed25519_recommended)
+                                    } else {
+                                        t.label
+                                    }
+                                )
+                            }
                         }
                     }
                     // 只有需要身份的密钥类型才显示该输入：OpenPGP 用 UID，X.509 用 Subject（CN）
