@@ -6,6 +6,7 @@ import java.security.MessageDigest
 import java.security.PrivateKey
 import java.security.Signature
 import java.security.interfaces.ECPrivateKey
+import java.security.interfaces.RSAPrivateCrtKey
 import java.security.interfaces.RSAPublicKey
 import java.security.spec.ECPoint
 import java.security.spec.ECPublicKeySpec
@@ -187,6 +188,70 @@ class SshKeyGeneratorTest {
         assertEquals(null, SshKeyGenerator.fingerprint("ssh-rsa"))
         assertEquals(null, SshKeyGenerator.fingerprint("ssh-rsa !!! definitely not base64 !!!"))
     }
+
+    // ================= 私钥容器格式转换 =================
+
+    @Test
+    fun `pkcs8 rsa converts to openssh container carrying the same crt parameters`() {
+        listOf(SshKeyGenerator.KeyType.RSA, SshKeyGenerator.KeyType.RSA4096).forEach { type ->
+            val pair = SshKeyGenerator.generate(type)
+            assertEquals(SshKeyGenerator.PrivateKeyFormat.PKCS8, SshKeyGenerator.privateKeyFormat(pair.privateKeyPem))
+            val parsed = parseOpenSshPrivate(SshKeyGenerator.toOpenSshPrivateKey(pair.privateKeyPem)!!)
+            assertEquals("ssh-rsa", parsed.keyType)
+            assertArrayEquals(blob(pair), parsed.publicKey)
+            val rsa = pkcs8Private(pair.privateKeyPem, "RSA") as RSAPrivateCrtKey
+            val w = Wire(parsed.privateKey)
+            // OpenSSH 的 RSA 私钥段顺序：n, e, d, iqmp, p, q
+            assertArrayEquals(mpint(rsa.modulus), w.string())
+            assertArrayEquals(mpint(rsa.publicExponent), w.string())
+            assertArrayEquals(mpint(rsa.privateExponent), w.string())
+            assertArrayEquals(mpint(rsa.crtCoefficient), w.string())
+            assertArrayEquals(mpint(rsa.primeP), w.string())
+            assertArrayEquals(mpint(rsa.primeQ), w.string())
+            w.expectEnd("RSA 私钥段尾部有未消费字节")
+        }
+    }
+
+    @Test
+    fun `pkcs8 ecdsa converts to openssh container carrying the same point`() {
+        listOf(
+            SshKeyGenerator.KeyType.ECDSA,
+            SshKeyGenerator.KeyType.ECDSA384,
+            SshKeyGenerator.KeyType.ECDSA521,
+        ).forEach { type ->
+            val pair = SshKeyGenerator.generate(type)
+            assertEquals(SshKeyGenerator.PrivateKeyFormat.PKCS8, SshKeyGenerator.privateKeyFormat(pair.privateKeyPem))
+            val parsed = parseOpenSshPrivate(SshKeyGenerator.toOpenSshPrivateKey(pair.privateKeyPem)!!)
+            assertTrue("类型应为 ecdsa-sha2-*，实际 ${parsed.keyType}", parsed.keyType.startsWith("ecdsa-sha2-"))
+            assertArrayEquals(blob(pair), parsed.publicKey)
+        }
+    }
+
+    @Test
+    fun `ed25519 openssh converts to pkcs8 and round-trips to the same public key`() {
+        val pair = SshKeyGenerator.generate(SshKeyGenerator.KeyType.ED25519)
+        assertEquals(SshKeyGenerator.PrivateKeyFormat.OPENSSH, SshKeyGenerator.privateKeyFormat(pair.privateKeyPem))
+        // 已经是 OpenSSH 的：原样返回
+        assertEquals(pair.privateKeyPem, SshKeyGenerator.toOpenSshPrivateKey(pair.privateKeyPem))
+        val pkcs8 = SshKeyGenerator.toPkcs8PrivateKey(pair.privateKeyPem)!!
+        assertTrue(pkcs8.startsWith("-----BEGIN PRIVATE KEY-----"))
+        assertEquals(SshKeyGenerator.PrivateKeyFormat.PKCS8, SshKeyGenerator.privateKeyFormat(pkcs8))
+        // 已经是 PKCS#8 的：原样返回
+        assertEquals(pkcs8, SshKeyGenerator.toPkcs8PrivateKey(pkcs8))
+        // PKCS#8 → OpenSSH 后，公钥段必须与原公钥行一致
+        assertArrayEquals(blob(pair), parseOpenSshPrivate(SshKeyGenerator.toOpenSshPrivateKey(pkcs8)!!).publicKey)
+    }
+
+    @Test
+    fun `conversion returns null for unrecognized input`() {
+        val other = "-----BEGIN SOMETHING ELSE-----\nAAAA\n-----END SOMETHING ELSE-----\n"
+        assertEquals(SshKeyGenerator.PrivateKeyFormat.UNKNOWN, SshKeyGenerator.privateKeyFormat(other))
+        assertEquals(null, SshKeyGenerator.toOpenSshPrivateKey(other))
+        assertEquals(null, SshKeyGenerator.toPkcs8PrivateKey(other))
+    }
+
+    /** mpint 是**有符号最小编码**：BigInteger.toByteArray() 的形状即为所需。 */
+    private fun mpint(v: BigInteger): ByteArray = v.toByteArray()
 
     // ================= helpers =================
 
