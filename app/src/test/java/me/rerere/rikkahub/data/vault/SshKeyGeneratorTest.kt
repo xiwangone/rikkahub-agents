@@ -99,6 +99,7 @@ class SshKeyGeneratorTest {
         assertEquals("ssh-ed25519", pw.string().decodeToString())
         assertArrayEquals(r.rawPublicKey, pw.string())
         val sk = pw.string()
+        pw.string() // comment
         pw.expectEnd("Ed25519 私钥段尾部有未消费字节")
         assertEquals(64, sk.size)
         assertArrayEquals(r.rawPublicKey, sk.copyOfRange(32, 64))
@@ -213,6 +214,7 @@ class SshKeyGeneratorTest {
             assertArrayEquals(mpint(rsa.crtCoefficient), w.string())
             assertArrayEquals(mpint(rsa.primeP), w.string())
             assertArrayEquals(mpint(rsa.primeQ), w.string())
+            w.string() // comment
             w.expectEnd("RSA 私钥段尾部有未消费字节")
         }
     }
@@ -235,6 +237,7 @@ class SshKeyGeneratorTest {
             val curve = w.string().decodeToString()
             val point = w.string()
             assertTrue("私钥标量不应为空", w.string().isNotEmpty())
+            w.string() // comment
             w.expectEnd("ECDSA 私钥段尾部有未消费字节")
             // 段内的曲线名与公钥点必须与公钥 blob 一致
             val pb = Wire(parsed.publicBlob)
