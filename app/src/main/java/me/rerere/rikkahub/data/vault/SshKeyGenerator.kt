@@ -1,7 +1,9 @@
 package me.rerere.rikkahub.data.vault
 
+import java.security.KeyFactory
 import java.security.KeyPairGenerator
 import java.security.SecureRandom
+import java.security.spec.PKCS8EncodedKeySpec
 import java.security.interfaces.ECPrivateKey
 import java.security.interfaces.ECPublicKey
 import java.security.interfaces.RSAPrivateCrtKey
@@ -239,4 +241,180 @@ object SshKeyGenerator {
         // base64url 替换就会与 `ssh-keygen -lf` 的输出对不上。
         return "SHA256:" + Base64.getEncoder().encodeToString(digest).trimEnd('=')
     }
+
+    // ================= 私钥格式转换（导出用） =================
+
+    /** 私钥 PEM 的容器格式。 */
+    enum class PrivateKeyFormat(val label: String) {
+        OPENSSH("OpenSSH"),
+        PKCS8("PKCS#8"),
+        UNKNOWN("-"),
+    }
+
+    /** 判定私钥 PEM 的容器格式（只看头部）。 */
+    fun privateKeyFormat(pem: String): PrivateKeyFormat = when {
+        pem.contains("-----BEGIN OPENSSH PRIVATE KEY-----") -> PrivateKeyFormat.OPENSSH
+        pem.contains("-----BEGIN PRIVATE KEY-----") -> PrivateKeyFormat.PKCS8
+        else -> PrivateKeyFormat.UNKNOWN
+    }
+
+    /**
+     * 转成 OpenSSH 私钥文件文本（`BEGIN OPENSSH PRIVATE KEY`，未加密）。
+     *
+     * 覆盖 PKCS#8 的 RSA / ECDSA / Ed25519；已经是 OpenSSH 格式则原样返回；
+     * 无法识别或参数不支持时返回 null（调用方按“不支持转换”提示）。
+     */
+    fun toOpenSshPrivateKey(pem: String, comment: String = DEFAULT_COMMENT): String? {
+        when (privateKeyFormat(pem)) {
+            PrivateKeyFormat.OPENSSH -> return pem
+            PrivateKeyFormat.PKCS8 -> Unit
+            PrivateKeyFormat.UNKNOWN -> return null
+        }
+        val der = runCatching { pemDer(pem) }.getOrNull() ?: return null
+        return runCatching {
+            when (pkcs8AlgorithmOid(der)) {
+                OID_RSA -> openSshFromPkcs8Rsa(der, comment)
+                OID_EC -> openSshFromPkcs8Ec(der, comment)
+                OID_ED25519 -> openSshFromPkcs8Ed25519(der, comment)
+                else -> null
+            }
+        }.getOrNull()
+    }
+
+    /**
+     * 转成 PKCS#8 PEM（`BEGIN PRIVATE KEY`）。
+     *
+     * 目前支持 OpenSSH 容器里的 Ed25519（RFC 8410 结构固定）；
+     * RSA / ECDSA 的 OpenSSH 容器需要重建 ASN.1，暂不支持（返回 null）。
+     */
+    fun toPkcs8PrivateKey(pem: String): String? {
+        when (privateKeyFormat(pem)) {
+            PrivateKeyFormat.PKCS8 -> return pem
+            PrivateKeyFormat.OPENSSH -> Unit
+            PrivateKeyFormat.UNKNOWN -> return null
+        }
+        val seed = runCatching { opensshEd25519Seed(pem) }.getOrNull() ?: return null
+        return pemWrap("PRIVATE KEY", PKCS8_ED25519_PREFIX + seed)
+    }
+
+    /** RFC 8410 PrivateKeyInfo 固定前缀：SEQUENCE{INTEGER 0, SEQUENCE{OID 1.3.101.112}, OCTET STRING{OCTET STRING}}。 */
+    private val PKCS8_ED25519_PREFIX = byteArrayOf(
+        0x30, 0x2e, 0x02, 0x01, 0x00, 0x30, 0x05, 0x06, 0x03, 0x2b, 0x65, 0x70, 0x04, 0x22, 0x04, 0x20,
+    )
+
+    private fun pkcs8AlgorithmOid(der: ByteArray): String? = runCatching {
+        org.bouncycastle.asn1.pkcs.PrivateKeyInfo.getInstance(der).privateKeyAlgorithm.algorithm.id
+    }.getOrNull()
+
+    private fun openSshFromPkcs8Rsa(der: ByteArray, comment: String): String? {
+        val priv = KeyFactory.getInstance("RSA")
+            .generatePrivate(PKCS8EncodedKeySpec(der)) as? RSAPrivateCrtKey ?: return null
+        val type = "ssh-rsa".encodeToByteArray()
+        val publicBlob = sshString(type) + sshString(bytes(priv.publicExponent)) + sshString(bytes(priv.modulus))
+        // OpenSSH 的 RSA 私钥段顺序：n, e, d, iqmp, p, q
+        val privateBlob = sshString(type) +
+            sshString(bytes(priv.modulus)) +
+            sshString(bytes(priv.publicExponent)) +
+            sshString(bytes(priv.privateExponent)) +
+            sshString(bytes(priv.crtCoefficient)) +
+            sshString(bytes(priv.primeP)) +
+            sshString(bytes(priv.primeQ))
+        return encodeOpenSshKeyV1("ssh-rsa", publicBlob, privateBlob, comment)
+    }
+
+    private fun openSshFromPkcs8Ec(der: ByteArray, comment: String): String? {
+        val priv = KeyFactory.getInstance("EC")
+            .generatePrivate(PKCS8EncodedKeySpec(der)) as? ECPrivateKey ?: return null
+        val fieldBits = priv.params.curve.field.fieldSize
+        val sshCurve = when (fieldBits) {
+            256 -> "nistp256"
+            384 -> "nistp384"
+            521 -> "nistp521"
+            else -> return null
+        }
+        val bcName = when (fieldBits) {
+            256 -> "secp256r1"
+            384 -> "secp384r1"
+            521 -> "secp521r1"
+            else -> return null
+        }
+        // EC 私钥不保证携带公钥点 → 由 d·G 现算
+        val g = org.bouncycastle.jce.ECNamedCurveTable.getParameterSpec(bcName).g
+        val point = g.multiply(priv.s).normalize().getEncoded(false)
+        val keyType = "ecdsa-sha2-$sshCurve"
+        val publicBlob = sshString(keyType.encodeToByteArray()) +
+            sshString(sshCurve.encodeToByteArray()) + sshString(point)
+        val privateBlob = sshString(keyType.encodeToByteArray()) +
+            sshString(sshCurve.encodeToByteArray()) + sshString(point) + sshString(bytes(priv.s))
+        return encodeOpenSshKeyV1(keyType, publicBlob, privateBlob, comment)
+    }
+
+    private fun openSshFromPkcs8Ed25519(der: ByteArray, comment: String): String? {
+        val info = org.bouncycastle.asn1.pkcs.PrivateKeyInfo.getInstance(der)
+        val seed = org.bouncycastle.asn1.ASN1OctetString.getInstance(info.parsePrivateKey()).octets
+        if (seed.size != 32) return null
+        val pubBytes = org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters(seed, 0)
+            .generatePublicKey().encoded
+        val type = "ssh-ed25519".encodeToByteArray()
+        return encodeOpenSshKeyV1(
+            keyType = "ssh-ed25519",
+            publicBlob = sshString(type) + sshString(pubBytes),
+            privateBlob = sshString(type) + sshString(pubBytes) + sshString(seed + pubBytes),
+            comment = comment,
+        )
+    }
+
+    /** 从 OpenSSH 容器取 Ed25519 的 32 字节 seed；非该算法或结构异常返回 null。 */
+    private fun opensshEd25519Seed(pem: String): ByteArray? {
+        val der = pemDer(pem)
+        val magic = "openssh-key-v1\u0000"
+        if (der.size < magic.length + 4 || String(der, 0, magic.length, Charsets.ISO_8859_1) != magic) return null
+        val r = SshReader(der, magic.length)
+        r.str() // cipher
+        r.str() // kdf
+        r.str() // kdf options
+        if (r.u32() != 1) return null
+        r.str() // public blob
+        val section = r.str()
+        val s = SshReader(section, 8) // 跳过两个 checkint
+        if (String(s.str(), Charsets.ISO_8859_1) != "ssh-ed25519") return null
+        s.str() // 公钥 32 字节
+        val sk = s.str()
+        return if (sk.size >= 32) sk.copyOfRange(0, 32) else null
+    }
+
+    /** OpenSSH 线格式的最小读取器（4 字节大端长度 + 内容）。 */
+    private class SshReader(private val b: ByteArray, start: Int) {
+        private var pos = start
+
+        fun u32(): Int {
+            var v = 0
+            repeat(4) { v = (v shl 8) or (b[pos++].toInt() and 0xFF) }
+            return v
+        }
+
+        fun str(): ByteArray {
+            val n = u32()
+            val v = b.copyOfRange(pos, pos + n)
+            pos += n
+            return v
+        }
+    }
+
+    private fun pemDer(pem: String): ByteArray {
+        val body = pem.lineSequence()
+            .filterNot { it.startsWith("-----") }
+            .joinToString("")
+            .filterNot { it.isWhitespace() }
+        return Base64.getDecoder().decode(body)
+    }
+
+    private fun pemWrap(type: String, der: ByteArray): String =
+        "-----BEGIN $type-----\n" +
+            Base64.getEncoder().encodeToString(der).chunked(64).joinToString("\n") +
+            "\n-----END $type-----\n"
+
+    private const val OID_RSA = "1.2.840.113549.1.1.1"
+    private const val OID_EC = "1.2.840.10045.2.1"
+    private const val OID_ED25519 = "1.3.101.112"
 }

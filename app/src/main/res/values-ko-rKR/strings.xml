@@ -2924,6 +2924,16 @@
   <string name="vault_ref_missing">참조를 찾을 수 없습니다: %1$s (삭제됨 또는 이름 변경됨)</string>
   <string name="vault_ref_store">Vault에 저장</string>
   <string name="vault_show">표시</string>
+  <string name="vault_keyexport_action">개인 키 내보내기</string>
+  <string name="vault_keyexport_warning_title">개인 키를 내보낼까요?</string>
+  <string name="vault_keyexport_warning_text">사용 가능한 평문 개인 키가 선택한 위치에 저장됩니다. 안전하게 보관하고 더 이상 필요하지 않으면 삭제하세요.</string>
+  <string name="vault_keyexport_format_original">원본 그대로(%1$s)</string>
+  <string name="vault_keyexport_format_converted">변환 후(%1$s)</string>
+  <string name="vault_keyexport_unsupported">이 키는 해당 형식으로 변환할 수 없습니다.</string>
+  <string name="vault_keyexport_chmod_hint">서버로 복사한 뒤 파일에 chmod 600 을 실행하세요.</string>
+  <string name="vault_keyexport_confirm">내보내기</string>
+  <string name="vault_keyexport_done">개인 키를 내보냈습니다</string>
+  <string name="vault_keyexport_failed">내보내기 실패</string>
   <string name="vault_hide">숨기기</string>
   <string name="auto_task_desc">자동 작업을 설정하면 조건을 충족할 때 앱이 자동으로 메시지를 보내 대화를 이어갑니다.</string>
   <string name="auto_task_reply_label">응답 내용</string>

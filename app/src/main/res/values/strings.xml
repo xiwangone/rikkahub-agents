@@ -2467,6 +2467,16 @@
   <string name="vault_ref_missing">Reference not found: %1$s (deleted or renamed)</string>
   <string name="vault_ref_store">Store in Vault</string>
   <string name="vault_show">Show</string>
+  <string name="vault_keyexport_action">Export private key</string>
+  <string name="vault_keyexport_warning_title">Export private key?</string>
+  <string name="vault_keyexport_warning_text">A usable, unencrypted private key will be written to the location you choose. Store it carefully and delete it when it is no longer needed.</string>
+  <string name="vault_keyexport_format_original">As stored (%1$s)</string>
+  <string name="vault_keyexport_format_converted">Converted (%1$s)</string>
+  <string name="vault_keyexport_unsupported">This key cannot be converted to that format.</string>
+  <string name="vault_keyexport_chmod_hint">After copying it to a server, run chmod 600 on the file.</string>
+  <string name="vault_keyexport_confirm">Export</string>
+  <string name="vault_keyexport_done">Private key exported</string>
+  <string name="vault_keyexport_failed">Export failed</string>
   <string name="vault_hide">Hide</string>
   <string name="auto_task_desc">Set up auto tasks; the app automatically sends a message to keep the conversation going when the conditions are met.</string>
   <string name="auto_task_reply_label">Reply content</string>

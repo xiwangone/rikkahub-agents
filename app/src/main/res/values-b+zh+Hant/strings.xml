@@ -2074,6 +2074,16 @@
   <string name="vault_ref_missing">引用不存在：%1$s（可能已刪除或改名）</string>
   <string name="vault_ref_store">存入憑證庫</string>
   <string name="vault_show">顯示</string>
+  <string name="vault_keyexport_action">匯出私鑰</string>
+  <string name="vault_keyexport_warning_title">匯出私鑰？</string>
+  <string name="vault_keyexport_warning_text">將向你選擇的位置寫出可用的明文私鑰。請妥善保管，不再需要時請及時刪除。</string>
+  <string name="vault_keyexport_format_original">原樣（%1$s）</string>
+  <string name="vault_keyexport_format_converted">轉換後（%1$s）</string>
+  <string name="vault_keyexport_unsupported">此金鑰暫不支援轉換為該格式。</string>
+  <string name="vault_keyexport_chmod_hint">複製到伺服器後，請對檔案執行 chmod 600。</string>
+  <string name="vault_keyexport_confirm">匯出</string>
+  <string name="vault_keyexport_done">已匯出私鑰</string>
+  <string name="vault_keyexport_failed">匯出失敗</string>
   <string name="vault_hide">隱藏</string>
   <string name="auto_task_desc">設定自動回覆訊息，App 將在滿足條件時自動發送，無需手動操作。</string>
   <string name="auto_task_reply_label">回覆內容</string>

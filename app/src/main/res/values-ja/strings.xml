@@ -2924,6 +2924,16 @@
   <string name="vault_ref_missing">参照が見つかりません：%1$s（削除または名前変更）</string>
   <string name="vault_ref_store">Vault に保存</string>
   <string name="vault_show">表示</string>
+  <string name="vault_keyexport_action">秘密鍵をエクスポート</string>
+  <string name="vault_keyexport_warning_title">秘密鍵をエクスポートしますか？</string>
+  <string name="vault_keyexport_warning_text">使用可能な平文の秘密鍵を選択した場所に書き出します。大切に保管し、不要になったら削除してください。</string>
+  <string name="vault_keyexport_format_original">そのまま（%1$s）</string>
+  <string name="vault_keyexport_format_converted">変換後（%1$s）</string>
+  <string name="vault_keyexport_unsupported">この鍵はその形式に変換できません。</string>
+  <string name="vault_keyexport_chmod_hint">サーバーへコピーしたら、ファイルに chmod 600 を実行してください。</string>
+  <string name="vault_keyexport_confirm">エクスポート</string>
+  <string name="vault_keyexport_done">秘密鍵をエクスポートしました</string>
+  <string name="vault_keyexport_failed">エクスポートに失敗しました</string>
   <string name="vault_hide">非表示</string>
   <string name="auto_task_desc">自動タスクを設定すると、条件を満たしたときにアプリが自動でメッセージを送り、手動操作なしで会話を進めます。</string>
   <string name="auto_task_reply_label">返信内容</string>

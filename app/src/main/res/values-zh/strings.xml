@@ -2431,6 +2431,16 @@
   <string name="vault_ref_missing">引用不存在：%1$s（可能已删除或改名）</string>
   <string name="vault_ref_store">存入凭证库</string>
   <string name="vault_show">显示</string>
+  <string name="vault_keyexport_action">导出私钥</string>
+  <string name="vault_keyexport_warning_title">导出私钥？</string>
+  <string name="vault_keyexport_warning_text">将向你选择的位置写出可用的明文私钥。请妥善保管，不再需要时及时删除。</string>
+  <string name="vault_keyexport_format_original">原样（%1$s）</string>
+  <string name="vault_keyexport_format_converted">转换后（%1$s）</string>
+  <string name="vault_keyexport_unsupported">该密钥暂不支持转换到该格式。</string>
+  <string name="vault_keyexport_chmod_hint">拷贝到服务器后，请对文件执行 chmod 600。</string>
+  <string name="vault_keyexport_confirm">导出</string>
+  <string name="vault_keyexport_done">已导出私钥</string>
+  <string name="vault_keyexport_failed">导出失败</string>
   <string name="vault_hide">隐藏</string>
   <string name="auto_task_desc">设置自动任务，满足条件时 App 自动发送消息保持对话推进，无需手动操作。</string>
   <string name="auto_task_reply_label">回复内容</string>

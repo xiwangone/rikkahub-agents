@@ -2571,6 +2571,16 @@
   <string name="vault_ref_missing">المرجع غير موجود: %1$s (ربما حُذف أو أُعيدت تسميته)</string>
   <string name="vault_ref_store">حفظ في Vault</string>
   <string name="vault_show">إظهار</string>
+  <string name="vault_keyexport_action">تصدير المفتاح الخاص</string>
+  <string name="vault_keyexport_warning_title">تصدير المفتاح الخاص؟</string>
+  <string name="vault_keyexport_warning_text">سيُكتب مفتاح خاص غير مشفَّر وقابل للاستخدام في الموقع الذي تختاره. احتفظ به بعناية واحذفه عند عدم الحاجة إليه.</string>
+  <string name="vault_keyexport_format_original">كما هو (%1$s)</string>
+  <string name="vault_keyexport_format_converted">بعد التحويل (%1$s)</string>
+  <string name="vault_keyexport_unsupported">لا يمكن تحويل هذا المفتاح إلى هذا التنسيق.</string>
+  <string name="vault_keyexport_chmod_hint">بعد نسخه إلى الخادم، نفِّذ chmod 600 على الملف.</string>
+  <string name="vault_keyexport_confirm">تصدير</string>
+  <string name="vault_keyexport_done">تم تصدير المفتاح الخاص</string>
+  <string name="vault_keyexport_failed">فشل التصدير</string>
   <string name="vault_hide">إخفاء</string>
   <string name="auto_task_desc">عيّن مهمة تلقائية ليرسل التطبيق الرسائل تلقائيًا عند تحقق الشرط، فيستمر الحوار دون تدخل يدوي.</string>
   <string name="auto_task_reply_label">محتوى الرد</string>

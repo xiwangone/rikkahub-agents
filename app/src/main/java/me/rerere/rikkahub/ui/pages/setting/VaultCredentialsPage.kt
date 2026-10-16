@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -22,6 +24,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,7 +41,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AddCircle
 import me.rerere.hugeicons.stroke.ArrowDown01
@@ -58,6 +63,7 @@ import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.vault.CredentialValueSanitizer
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.SshKeyGenerator
 import me.rerere.rikkahub.data.vault.VaultReferenceSync
 import me.rerere.rikkahub.data.vault.CredentialMeta
 import me.rerere.rikkahub.data.vault.CredentialType
@@ -507,6 +513,32 @@ private fun CredentialRow(
     val scope = rememberCoroutineScope()
     var plaintext by remember(entry.id) { mutableStateOf<String?>(null) }
     var biometricEnabled by remember { mutableStateOf(true) }
+    // 导出私钥：弹窗确认后由系统文件选择器选定落地位置
+    var exportDialog by remember { mutableStateOf(false) }
+    var exportContent by remember { mutableStateOf<String?>(null) }
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/x-pem-file")
+    ) { uri ->
+        val content = exportContent
+        exportContent = null
+        if (uri != null && content != null) {
+            scope.launch {
+                val ok = runCatching {
+                    withContext(Dispatchers.IO) {
+                        context.contentResolver.openOutputStream(uri)?.use { out ->
+                            out.write(content.toByteArray(Charsets.UTF_8))
+                            out.flush()
+                        } ?: error("openOutputStream returned null")
+                    }
+                }.isSuccess
+                android.widget.Toast.makeText(
+                    context,
+                    resources.getString(if (ok) R.string.vault_keyexport_done else R.string.vault_keyexport_failed),
+                    android.widget.Toast.LENGTH_SHORT,
+                ).show()
+            }
+        }
+    }
 
     // 读取指纹开关
     LaunchedEffect(Unit) {
@@ -593,6 +625,11 @@ private fun CredentialRow(
                     color = if (revealed) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
+            if (entry.type == CredentialType.SSH_KEY) {
+                IconButton(onClick = { exportDialog = true }) {
+                    Icon(HugeIcons.Download01, stringResource(R.string.vault_keyexport_action))
+                }
+            }
             IconButton(onClick = { requestReveal() }) {
                 Icon(if (revealed) HugeIcons.ViewOff else HugeIcons.View, if (revealed) stringResource(R.string.vault_hide) else stringResource(R.string.vault_show))
             }
@@ -603,6 +640,20 @@ private fun CredentialRow(
                 Icon(HugeIcons.Delete02, stringResource(R.string.vault_delete), tint = MaterialTheme.colorScheme.error)
             }
         }
+    }
+
+    if (exportDialog) {
+        VaultKeyExportDialog(
+            entryName = entry.name,
+            publicKeyLine = entry.publicKey,
+            privateKeyPem = repository.decryptValue(entry).orEmpty(),
+            onDismiss = { exportDialog = false },
+            onExport = { content, fileName ->
+                exportContent = content
+                exportDialog = false
+                exportLauncher.launch(fileName)
+            },
+        )
     }
 }
 
@@ -930,3 +981,89 @@ private fun vaultMetaLabel(context: android.content.Context, key: String): Strin
         }
         else -> key
     }
+
+/**
+ * 导出私钥对话框：说明明文风险 → 选容器格式 → 交给系统文件选择器落地。
+ *
+ * 「转换后」只在目标格式能生成时才可选（PKCS#8 ↔ OpenSSH 的支持范围见 SshKeyGenerator）。
+ */
+@Composable
+private fun VaultKeyExportDialog(
+    entryName: String,
+    publicKeyLine: String,
+    privateKeyPem: String,
+    onDismiss: () -> Unit,
+    onExport: (content: String, suggestedFileName: String) -> Unit,
+) {
+    val sourceFormat = SshKeyGenerator.privateKeyFormat(privateKeyPem)
+    val targetFormat = if (sourceFormat == SshKeyGenerator.PrivateKeyFormat.OPENSSH) {
+        SshKeyGenerator.PrivateKeyFormat.PKCS8
+    } else {
+        SshKeyGenerator.PrivateKeyFormat.OPENSSH
+    }
+    var convert by remember { mutableStateOf(false) }
+    val content = remember(privateKeyPem, convert) {
+        when {
+            !convert -> privateKeyPem
+            targetFormat == SshKeyGenerator.PrivateKeyFormat.OPENSSH ->
+                SshKeyGenerator.toOpenSshPrivateKey(privateKeyPem)
+            else -> SshKeyGenerator.toPkcs8PrivateKey(privateKeyPem)
+        }
+    }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.vault_keyexport_warning_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(
+                    stringResource(R.string.vault_keyexport_warning_text),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(
+                    entryName,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = !convert, onClick = { convert = false })
+                    Text(stringResource(R.string.vault_keyexport_format_original, sourceFormat.label))
+                }
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    RadioButton(selected = convert, onClick = { convert = true })
+                    Text(stringResource(R.string.vault_keyexport_format_converted, targetFormat.label))
+                }
+                if (convert && content == null) {
+                    Text(
+                        stringResource(R.string.vault_keyexport_unsupported),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+                Text(
+                    stringResource(R.string.vault_keyexport_chmod_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+        },
+        confirmButton = {
+            val exportContent = content
+            TextButton(
+                onClick = { onExport(exportContent!!, suggestedPrivateKeyFileName(publicKeyLine)) },
+                enabled = !exportContent.isNullOrBlank(),
+            ) { Text(stringResource(R.string.vault_keyexport_confirm)) }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.vault_cancel)) }
+        },
+    )
+}
+
+/** 按公钥类型给出符合惯例的默认文件名（用户可在系统选择器里改）。 */
+private fun suggestedPrivateKeyFileName(publicKeyLine: String): String = when {
+    publicKeyLine.startsWith("ssh-rsa") -> "id_rsa"
+    publicKeyLine.startsWith("ssh-ed25519") -> "id_ed25519"
+    publicKeyLine.startsWith("ecdsa-sha2-") -> "id_ecdsa"
+    else -> "id_key"
+}

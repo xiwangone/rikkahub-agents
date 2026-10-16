@@ -2917,6 +2917,16 @@
   <string name="vault_ref_missing">Ссылка не найдена: %1$s (удалена или переименована)</string>
   <string name="vault_ref_store">Сохранить в Vault</string>
   <string name="vault_show">Показать</string>
+  <string name="vault_keyexport_action">Экспорт закрытого ключа</string>
+  <string name="vault_keyexport_warning_title">Экспортировать закрытый ключ?</string>
+  <string name="vault_keyexport_warning_text">В выбранное место будет записан рабочий незашифрованный закрытый ключ. Храните его аккуратно и удалите, когда он больше не нужен.</string>
+  <string name="vault_keyexport_format_original">Как есть (%1$s)</string>
+  <string name="vault_keyexport_format_converted">С преобразованием (%1$s)</string>
+  <string name="vault_keyexport_unsupported">Этот ключ нельзя преобразовать в указанный формат.</string>
+  <string name="vault_keyexport_chmod_hint">После копирования на сервер выполните для файла chmod 600.</string>
+  <string name="vault_keyexport_confirm">Экспорт</string>
+  <string name="vault_keyexport_done">Закрытый ключ экспортирован</string>
+  <string name="vault_keyexport_failed">Не удалось выполнить экспорт</string>
   <string name="vault_hide">Скрыть</string>
   <string name="auto_task_desc">Настройте авто-задачу: при выполнении условия приложение само отправит сообщение, продолжая диалог без вашего участия.</string>
   <string name="auto_task_reply_label">Содержание ответа</string>
