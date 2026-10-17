@@ -249,7 +249,7 @@ object SshKeyGenerator {
      * 但指纹这类只读展示不应因此变成"(解析失败)"：剥掉填充后重新补正、再编码比对，
      * 字节完全一致才认定为"仅填充写坏"，可安全修复。其它畸形（截断、插入字符）一律不修。
      */
-    private fun decodePublicKeyBlob(b64: String): ByteArray? {
+    internal fun decodePublicKeyBlob(b64: String): ByteArray? {
         try {
             return Base64.getDecoder().decode(b64)
         } catch (_: IllegalArgumentException) {
@@ -337,7 +337,7 @@ object SshKeyGenerator {
     }
 
     /** 按 OpenSSH 的字段排布校验一段 public blob；合法返回 null，否则返回原因。 */
-    private fun blobIssue(declaredType: String, blob: ByteArray): String? {
+    internal fun blobIssue(declaredType: String, blob: ByteArray): String? {
         val c = SshReader(blob, 0)
         val typeB = c.str() ?: return "公钥数据的长度前缀越界（内容被截断或插入了字符）"
         val type = String(typeB, Charsets.ISO_8859_1)
@@ -625,10 +625,30 @@ object SshKeyGenerator {
     }
 
     /**
+     * 取 `openssh-key-v1` 容器**头部声明**的公钥 blob（类型串 + 键体字段）。
+     *
+     * 只读容器头的明文段：公钥段即便私钥段带口令（cipher/kdf 非 none）也是明文存放，
+     * 所以本函数既能用于未加密容器的公钥推导，也不会像 [opensshEd25519Seed] 那样
+     * 因为读不到明文私钥段而失败——那里的教训（按密文长度前缀分配内存）不适用。
+     * 读取全程走带边界检查的 [SshReader]，结构不合法返回 null。
+     */
+    internal fun opensshPublicBlob(pem: String): ByteArray? {
+        val der = pemDer(pem)
+        val magic = "openssh-key-v1\u0000"
+        if (der.size < magic.length + 4 || String(der, 0, magic.length, Charsets.ISO_8859_1) != magic) return null
+        val r = SshReader(der, magic.length)
+        r.str() // cipher
+        r.str() // kdf
+        r.str() // kdf options
+        if (r.u32() != 1) return null // 只处理单密钥容器
+        return r.str()
+    }
+
+    /**
      * 带边界检查的 OpenSSH 线格式读取器（4 字节大端长度 + 内容）。
      * 越界返回 null —— 绝不按长度前缀分配内存（见 [opensshEd25519Seed] 的教训）。
      */
-    private class SshReader(private val b: ByteArray, start: Int) {
+    internal class SshReader(private val b: ByteArray, start: Int) {
         var pos = start
             private set
 
