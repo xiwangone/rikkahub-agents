@@ -136,6 +136,17 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
                         .joinToString(", ") { (k, v) -> "$k=$v" }
                         .let { if (it.isBlank()) "" else " {$it}" }
                 sb.append("${e.name}  [${e.grp}]$tt len=${e.valueLength}$fp$vfp$metaBrief  ${e.description}\n")
+                // 体检结论：只落 ERROR（WARN 是"写法非标准但可用"，逐条显示会刷屏）。
+                // 列表侧不解密条目值 → 私钥传 null，只覆盖公钥侧的形态/结构问题；
+                // 文本只取 Code 名，不拼 Issue.detail（那是界面文案，工具输出保持中性可机读）。
+                val healthCodes =
+                    VaultKeyHealth.check(e.publicKey, null)
+                        .filter { it.severity == VaultKeyHealth.Severity.ERROR }
+                        .map { it.code.name }
+                        .distinct()
+                if (healthCodes.isNotEmpty()) {
+                    sb.append("  ! health=ERROR:${healthCodes.joinToString(",")}\n")
+                }
             }
         }
         listOf(UIMessagePart.Text(sb.toString().trimEnd()))
