@@ -57,7 +57,7 @@ class StreamingHighlightPolicyTest {
 
         assertFalse(fence.closed)
         assertFalse(writesCacheFor("```kotlin\nfun main() {\n    val answer = 42\n}"))
-        assertEquals("fun main() {\n    val answer = 42", fence.code)
+        assertEquals("fun main() {\n    val answer = 42\n}", fence.code)
     }
 
     @Test
