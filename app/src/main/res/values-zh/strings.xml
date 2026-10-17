@@ -3294,6 +3294,11 @@
   <string name="chat_msg_pending_reply">待回答</string>
   <string name="vault_pubkey_copied">公钥已复制</string>
   <string name="vault_ssh_pubkey_label">SSH 公钥（可选，明文）</string>
+  <string name="vault_keyhealth_label">密钥体检</string>
+  <string name="vault_keyhealth_private_unparseable">私钥无法解析</string>
+  <string name="vault_keyhealth_public_format">公钥行格式不符合预期</string>
+  <string name="vault_keyhealth_public_structure">公钥结构非法</string>
+  <string name="vault_keyhealth_key_mismatch">公钥与该私钥不配对</string>
   <string name="tool_output_tokens_estimate">≈%1$sK–%2$sK tokens</string>
   <string name="tool_output_limit_desc">限制工具输出的最大字符数，防止长输出占用过多上下文</string>
   <string name="tool_output_limit_warning">⚠️ 设置过低可能导致工具输出被截断</string>

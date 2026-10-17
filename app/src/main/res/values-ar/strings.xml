@@ -2355,6 +2355,11 @@
   <string name="chat_msg_pending_reply">بانتظار الرد</string>
   <string name="vault_pubkey_copied">تم نسخ المفتاح العام</string>
   <string name="vault_ssh_pubkey_label">مفتاح SSH العام (اختياري، نص صريح)</string>
+  <string name="vault_keyhealth_label">فحص المفتاح</string>
+  <string name="vault_keyhealth_private_unparseable">تعذر تحليل المفتاح الخاص</string>
+  <string name="vault_keyhealth_public_format">سطر المفتاح العام ليس بالصيغة المتوقعة</string>
+  <string name="vault_keyhealth_public_structure">بنية المفتاح العام غير صالحة</string>
+  <string name="vault_keyhealth_key_mismatch">المفتاح العام لا يطابق هذا المفتاح الخاص</string>
   <string name="tool_output_tokens_estimate">≈ %1$sK–%2$sK رمز</string>
   <string name="tool_output_limit_desc">يحدّ من عدد أحرف مخرجات الأدوات لمنع الإفراط في استهلاك السياق</string>
   <string name="tool_output_limit_warning">⚠️ قد تؤدي القيمة المنخفضة جدًا إلى قطع مخرجات الأدوات</string>

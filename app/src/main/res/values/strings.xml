@@ -3302,6 +3302,11 @@
   <string name="chat_msg_pending_reply">Pending reply</string>
   <string name="vault_pubkey_copied">Public key copied</string>
   <string name="vault_ssh_pubkey_label">SSH public key (optional, plaintext)</string>
+  <string name="vault_keyhealth_label">Key health</string>
+  <string name="vault_keyhealth_private_unparseable">Private key could not be parsed</string>
+  <string name="vault_keyhealth_public_format">Public key line is not in the expected format</string>
+  <string name="vault_keyhealth_public_structure">Public key body is structurally invalid</string>
+  <string name="vault_keyhealth_key_mismatch">Public key does not match this private key</string>
   <string name="tool_output_tokens_estimate">≈%1$sK–%2$sK tokens</string>
   <string name="tool_output_limit_desc">Limit the maximum characters of tool output to prevent long output from occupying too much context</string>
   <string name="tool_output_limit_warning">⚠️ Setting it too low may truncate tool output</string>

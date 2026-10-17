@@ -2708,6 +2708,11 @@
   <string name="chat_msg_pending_reply">回答待ち</string>
   <string name="vault_pubkey_copied">公開鍵をコピーしました</string>
   <string name="vault_ssh_pubkey_label">SSH 公開鍵（任意、平文）</string>
+  <string name="vault_keyhealth_label">鍵の状態</string>
+  <string name="vault_keyhealth_private_unparseable">秘密鍵を解析できません</string>
+  <string name="vault_keyhealth_public_format">公開鍵行の形式が想定外です</string>
+  <string name="vault_keyhealth_public_structure">公開鍵の構造が不正です</string>
+  <string name="vault_keyhealth_key_mismatch">公開鍵がこの秘密鍵と一致しません</string>
   <string name="tool_output_tokens_estimate">≈%1$sK〜%2$sK トークン</string>
   <string name="tool_output_limit_desc">ツール出力の最大文字数を制限し、長い出力がコンテキストを圧迫するのを防ぎます</string>
   <string name="tool_output_limit_warning">⚠️ 低すぎる設定はツール出力の切り捨てを招く可能性があります</string>

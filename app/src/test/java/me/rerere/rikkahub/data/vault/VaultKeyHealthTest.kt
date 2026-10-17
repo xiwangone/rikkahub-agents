@@ -39,7 +39,10 @@ class VaultKeyHealthTest {
 
     @Test
     fun `trailing padding on the public base64 is a format warning only`() {
-        val damaged = rsa.publicKeyLine + "="
+        // 把 `=` 加到 base64 段本身：RSA-2048 的键体是 279 字节（3 的倍数），标准编码不带填充，
+        // 所以这一段多出来的 `=` 是真正的“多余填充”。加在整行末尾会落到注释字段上，base64 段不变。
+        val parts = rsa.publicKeyLine.trim().split(Regex("\\s+"))
+        val damaged = "${parts[0]} ${parts[1]}="
         val issues = VaultKeyHealth.check(damaged, rsa.privateKeyPem)
         assertEquals(setOf(VaultKeyHealth.Code.PUBLIC_FORMAT), codesOf(issues))
         assertEquals(VaultKeyHealth.Severity.WARN, issues.single().severity)

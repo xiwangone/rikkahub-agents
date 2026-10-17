@@ -96,17 +96,9 @@ object VaultKeyHealth {
             return out
         }
         val b64 = parts[1]
-        val pad = b64.length - b64.trimEnd('=').length
-        if (pad > 0) {
-            out += Issue(
-                Code.PUBLIC_FORMAT,
-                Severity.WARN,
-                "base64 末尾有 $pad 个填充符 `=`：公钥行的标准写法不带填充，可规范化修复" +
-                    "（带填充仍可能解析成功，故不判错）",
-            )
-        }
         val blob = SshKeyGenerator.decodePublicKeyBlob(b64)
         if (blob == null) {
+            val pad = b64.length - b64.trimEnd('=').length
             // 长度 %4==1 是 base64 里**不存在**的形状：必然是少字符或被插了字符，连补正都无从下手。
             val reason = if (pad == 0 && b64.length % 4 == 1) {
                 "base64 长度 ${b64.length}（%4=1）无法成组解码：内容被截断或插入了字符"
@@ -115,6 +107,18 @@ object VaultKeyHealth {
             }
             out += Issue(Code.PUBLIC_FORMAT, Severity.ERROR, reason)
             return out
+        }
+        // 仅当填充「多余」时才判形态问题：解码结果重新标准编码后与原文一致，说明这就是
+        // 规范 base64 —— 键体长度不是 3 的倍数时，标准编码本就带 `=`（如 ECDSA nistp256 的
+        // 104 字节键体带 1 个 `=`），那是合法写法，不该报；只有比规范形式多出的 `=`（或非规范
+        // 末组编码）才是可规范化修复的形态问题。
+        if (b64 != Base64.getEncoder().encodeToString(blob)) {
+            out += Issue(
+                Code.PUBLIC_FORMAT,
+                Severity.WARN,
+                "base64 写法非标准（多余的填充符 `=` 或非规范末组）：公钥行的标准写法不带多余填充，" +
+                    "可规范化修复（仍可解析成功，故不判错）",
+            )
         }
         SshKeyGenerator.blobIssue(parts[0], blob)?.let {
             out += Issue(Code.PUBLIC_STRUCTURE, Severity.ERROR, it)

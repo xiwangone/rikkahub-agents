@@ -70,6 +70,7 @@ import me.rerere.rikkahub.data.vault.CredentialMeta
 import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.data.vault.SecretGenerator
 import me.rerere.rikkahub.data.vault.VaultBiometric
+import me.rerere.rikkahub.data.vault.VaultKeyHealth
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.setting.SshKeyPairDialog
@@ -619,6 +620,15 @@ private fun CredentialRow(
                                 android.widget.Toast.makeText(context, resources.getString(R.string.vault_pubkey_copied), android.widget.Toast.LENGTH_SHORT).show()
                             },
                     )
+                    // 体检入参的私钥 = 已解密到内存的明文（仅在点开小眼睛后可用）；
+                    // 未点开时传 null，此时只报公钥侧的形态/结构问题。
+                    // 类型不是 SSH 的条目即使带了公钥字段也不送私钥——否则会把别的凭据
+                    // 值当成"解析不出的私钥"报出来。
+                    val privateKeyForHealth = plaintext.takeIf { entry.type == CredentialType.SSH_KEY }
+                    val healthIssues = remember(entry.publicKey, privateKeyForHealth) {
+                        VaultKeyHealth.check(entry.publicKey, privateKeyForHealth)
+                    }
+                    VaultKeyHealthNotes(healthIssues)
                 }
                 Text(
                     if (revealed && plaintext != null) plaintext!! else CredentialVaultRepository.mask(entry.valueLength.takeIf { it > 0 }?.let { "x".repeat(it) } ?: "******"),
@@ -655,6 +665,55 @@ private fun CredentialRow(
                 exportLauncher.launch(fileName)
             },
         )
+    }
+}
+
+/**
+ * [VaultKeyHealth] 结论的展示：ERROR 用 error 色，WARN 用次级色，无问题不渲染。
+ *
+ * 只按 [VaultKeyHealth.Issue.code] 取资源文案 —— `Issue.detail` 是排查用的自由文本，
+ * 不进界面（否则绕过文案资源化）。
+ */
+@Composable
+private fun VaultKeyHealthNotes(issues: List<VaultKeyHealth.Issue>) {
+    if (issues.isEmpty()) return
+    // 同一 code 只留一条，取该 code 下最严重的等级：PUBLIC_FORMAT 可能同时给出
+    // 「多余填充」(WARN) 与「无法解码」(ERROR)，后者已经涵盖前者。
+    val severityByCode = issues.groupBy { it.code }.map { (code, group) ->
+        code to if (group.any { it.severity == VaultKeyHealth.Severity.ERROR }) {
+            VaultKeyHealth.Severity.ERROR
+        } else {
+            VaultKeyHealth.Severity.WARN
+        }
+    }.toMap()
+    Column(
+        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = Modifier.padding(top = 2.dp),
+    ) {
+        Text(
+            stringResource(R.string.vault_keyhealth_label),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        for (code in VaultKeyHealth.Code.entries) {
+            val severity = severityByCode[code] ?: continue
+            Text(
+                stringResource(
+                    when (code) {
+                        VaultKeyHealth.Code.PRIVATE_UNPARSEABLE -> R.string.vault_keyhealth_private_unparseable
+                        VaultKeyHealth.Code.PUBLIC_FORMAT -> R.string.vault_keyhealth_public_format
+                        VaultKeyHealth.Code.PUBLIC_STRUCTURE -> R.string.vault_keyhealth_public_structure
+                        VaultKeyHealth.Code.KEY_MISMATCH -> R.string.vault_keyhealth_key_mismatch
+                    },
+                ),
+                style = MaterialTheme.typography.bodySmall,
+                color = if (severity == VaultKeyHealth.Severity.ERROR) {
+                    MaterialTheme.colorScheme.error
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
     }
 }
 
