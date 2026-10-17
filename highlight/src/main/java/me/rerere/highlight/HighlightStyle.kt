@@ -3,6 +3,7 @@ package me.rerere.highlight
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
@@ -64,6 +65,26 @@ fun AnnotatedString.splitByLines(): List<AnnotatedString> {
         cursor = lineEnd + 1
     }
     return result
+}
+
+/**
+ * 取高亮结果的前 [lineCount] 行，样式随行走。
+ *
+ * 折叠态只裁显示行数、不改高亮输入，因此同一份完整高亮结果可在折叠/展开之间复用，
+ * 不必为「前 N 行」再请求（再缓存）一条近似结果。
+ */
+fun AnnotatedString.takeLines(
+    lineCount: Int,
+): AnnotatedString {
+    if (lineCount <= 0) return AnnotatedString("")
+    val lines = splitByLines()
+    if (lineCount >= lines.size) return this
+    return buildAnnotatedString {
+        lines.take(lineCount).forEachIndexed { index, line ->
+            if (index > 0) append('\n')
+            append(line)
+        }
+    }
 }
 
 data class HighlightTextColorPalette(

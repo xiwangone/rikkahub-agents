@@ -56,12 +56,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
-import me.rerere.highlight.CodeHighlightText
 import me.rerere.highlight.CodeHighlighter
 import me.rerere.highlight.HighlightTextColorPalette
 import me.rerere.highlight.LocalCodeHighlighter
 import me.rerere.highlight.rememberHighlightedCode
 import me.rerere.highlight.splitByLines
+import me.rerere.highlight.takeLines
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
@@ -196,25 +196,39 @@ fun HighlightCodeBlock(
                 else -> {
                     val textStyle = LocalTextStyle.current.merge(style)
                     val codeLines = remember(code) { code.lines() }
-                    val collapsedCode = remember(codeLines) { codeLines.take(COLLAPSE_LINES).joinToString("\n") }
-                    val displayCode = if (isExpanded) code else collapsedCode
-                    val displayLines = remember(displayCode) { displayCode.lines() }
+                    val collapsible = settings.displaySetting.codeBlockAutoCollapse && codeLines.size > COLLAPSE_LINES
+                    // 折叠只决定“显示多少行”，不决定“高亮什么”：
+                    // 定稿块的高亮输入固定为完整代码，折叠/展开切换因此不会被当成新的缓存键，
+                    // 也不会额外缓存一条“前 N 行”的近似结果。
+                    val collapsed = collapsible && !isExpanded
+                    val displayLines =
+                        remember(codeLines, collapsed) {
+                            if (collapsed) codeLines.take(COLLAPSE_LINES) else codeLines
+                        }
+                    val visibleCode = remember(displayLines) { displayLines.joinToString("\n") }
+                    val cacheWrite = HighlightStreamingPolicy.writesCache(blockClosed = completeCodeBlock)
+                    val highlightCode = HighlightStreamingPolicy.cacheSource(
+                        blockClosed = completeCodeBlock,
+                        fullCode = code,
+                        visibleCode = visibleCode,
+                    )
 
                     // 如果显示行号且自动换行，需要逐行渲染以保持对齐
                     when {
                         showLineNumbers && autoWrap -> {
                             CodeBlockWithLineNumbersWrapped(
-                                displayCode = displayCode,
-                                displayLines = displayLines,
+                                highlightCode = highlightCode,
+                                visibleLineCount = displayLines.size,
                                 language = language,
                                 textStyle = textStyle,
                                 colorPalette = colorPalette,
+                                cacheWrite = cacheWrite,
                             )
                         }
 
                         else -> {
                             CodeBlockDefault(
-                                displayCode = displayCode,
+                                highlightCode = highlightCode,
                                 displayLines = displayLines,
                                 language = language,
                                 textStyle = textStyle,
@@ -222,6 +236,7 @@ fun HighlightCodeBlock(
                                 autoWrap = autoWrap,
                                 showLineNumbers = showLineNumbers,
                                 scrollState = scrollState,
+                                cacheWrite = cacheWrite,
                             )
                         }
                     }
@@ -270,27 +285,35 @@ fun HighlightCodeBlock(
     }
 }
 
+/**
+ * 行号 + 自动换行：逐行渲染以保持行号对齐。
+ *
+ * 整段高亮后按行拆分再裁到 [visibleLineCount]：逐行独立高亮会丢失跨行语法（块注释、
+ * 模板字符串）的延续，第二行起就没有注释色；拆行函数与 code.lines() 同语义，行号列不会错位。
+ */
 @Composable
 private fun CodeBlockWithLineNumbersWrapped(
-    displayCode: String,
-    displayLines: List<String>,
+    highlightCode: String,
+    visibleLineCount: Int,
     language: String,
     textStyle: TextStyle,
     colorPalette: HighlightTextColorPalette,
+    cacheWrite: Boolean,
 ) {
-    val lineNumberWidth =
-        remember(displayLines.size) {
-            displayLines.size.toString().length
-        }
-    // 整段高亮后按行拆分：逐行独立高亮会丢失跨行语法（块注释、模板字符串）的延续，
-    // 第二行起就没有注释色；拆行函数与 code.lines() 同语义，行号列不会错位。
     val highlighted =
         rememberHighlightedCode(
-            code = displayCode,
+            code = highlightCode,
             language = language,
             colors = colorPalette,
+            cacheWrite = cacheWrite,
         )
-    val highlightedLines = remember(highlighted) { highlighted.splitByLines() }
+    val highlightedLines = remember(highlighted, visibleLineCount) {
+        highlighted.splitByLines().take(visibleLineCount)
+    }
+    val lineNumberWidth =
+        remember(highlightedLines.size) {
+            highlightedLines.size.toString().length
+        }
     SelectionContainer {
         Column {
             highlightedLines.forEachIndexed { index, line ->
@@ -327,7 +350,7 @@ private fun CodeBlockWithLineNumbersWrapped(
 
 @Composable
 private fun CodeBlockDefault(
-    displayCode: String,
+    highlightCode: String,
     displayLines: List<String>,
     language: String,
     textStyle: TextStyle,
@@ -335,7 +358,17 @@ private fun CodeBlockDefault(
     autoWrap: Boolean,
     showLineNumbers: Boolean,
     scrollState: ScrollState,
+    cacheWrite: Boolean,
 ) {
+    val highlighted =
+        rememberHighlightedCode(
+            code = highlightCode,
+            language = language,
+            colors = colorPalette,
+            cacheWrite = cacheWrite,
+        )
+    // 折叠态从完整高亮结果切出前 N 行（样式随行走），不额外按“前 N 行文本”再请求一次
+    val shownText = remember(highlighted, displayLines.size) { highlighted.takeLines(displayLines.size) }
     Row(
         modifier =
             Modifier.then(
@@ -370,16 +403,18 @@ private fun CodeBlockDefault(
 
         // 代码列
         SelectionContainer {
-            CodeHighlightText(
-                code = displayCode,
-                language = language,
+            Text(
                 modifier = Modifier.animateContentSize(),
+                text = shownText,
+                style =
+                    LocalTextStyle.current.copy(
+                        fontFeatureSettings = "'calt' 0, 'liga' 0, 'clig' 0",
+                    ),
                 fontSize = textStyle.fontSize,
                 lineHeight = textStyle.lineHeight,
-                colors = colorPalette,
+                fontFamily = JetbrainsMono,
                 overflow = TextOverflow.Visible,
                 softWrap = autoWrap,
-                fontFamily = JetbrainsMono,
             )
         }
     }

@@ -680,34 +680,16 @@ private fun MarkdownNode(
 
         // 代码块
         MarkdownElementTypes.CODE_FENCE -> {
-            // 这里不能直接取CODE_FENCE_CONTENT的内容，因为首行indent没有包含在内
-            // 因此，需要往上找到最后一个EOL元素，用它来作为代码块的起始offset
-            val contentStartIndex = node.children.indexOfFirst { it.type == MarkdownTokenTypes.CODE_FENCE_CONTENT }
-            if (contentStartIndex == -1) return
-            val eolElement =
-                node.children.subList(0, contentStartIndex).findLast { it.type == MarkdownTokenTypes.EOL } ?: return
-            val codeContentStartOffset = eolElement.endOffset
-            val codeContentEndOffset =
-                node.children.findLast { it.type == MarkdownTokenTypes.CODE_FENCE_CONTENT }?.endOffset ?: return
-            val code =
-                content
-                    .substring(
-                        codeContentStartOffset,
-                        codeContentEndOffset,
-                    ).trimIndent()
-
-            val language =
-                node.findChildOfTypeRecursive(MarkdownTokenTypes.FENCE_LANG)?.getTextInNode(content) ?: "plaintext"
-            val hasEnd = node.findChildOfTypeRecursive(MarkdownTokenTypes.CODE_FENCE_END) != null
+            val fence = extractCodeFence(node, content) ?: return
 
             HighlightCodeBlock(
-                code = code,
-                language = language,
+                code = fence.code,
+                language = fence.language,
                 modifier =
                     Modifier
                         .padding(bottom = 4.dp)
                         .fillMaxWidth(),
-                completeCodeBlock = hasEnd,
+                completeCodeBlock = fence.closed,
             )
         }
 
@@ -1416,7 +1398,7 @@ private fun AnnotatedString.Builder.appendMarkdownNodeContent(
     }
 }
 
-private fun ASTNode.getTextInNode(text: String): String = text.substring(startOffset, endOffset)
+internal fun ASTNode.getTextInNode(text: String): String = text.substring(startOffset, endOffset)
 
 private fun ASTNode.nextSibling(): ASTNode? {
     val brother = this.parent?.children ?: return null
@@ -1430,7 +1412,7 @@ private fun ASTNode.nextSibling(): ASTNode? {
     return null
 }
 
-private fun ASTNode.findChildOfTypeRecursive(vararg types: IElementType): ASTNode? {
+internal fun ASTNode.findChildOfTypeRecursive(vararg types: IElementType): ASTNode? {
     if (this.type in types) return this
     for (child in children) {
         val result = child.findChildOfTypeRecursive(*types)
