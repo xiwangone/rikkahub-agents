@@ -105,13 +105,13 @@ class VaultKeyHealthTest {
 
     @Test
     fun `unparseable private key is reported`() {
-        val junk = "-----BEGIN " + "PRIVATE KEY" + "-----"\n!!!!not base64!!!!\n-----END PRIVATE KEY-----\n"
+        val junk = "-----BEGIN " + "PRIVATE KEY" + "-----" + "\n!!!!not base64!!!!\n" + "-----END PRIVATE KEY-----" + "\n"
         assertEquals(
             setOf(VaultKeyHealth.Code.PRIVATE_UNPARSEABLE),
             codesOf(VaultKeyHealth.check(rsa.publicKeyLine, junk)),
         )
         // 容器头不认识（PKCS#1 的 BEGIN RSA PRIVATE KEY 不在转换支持范围内）
-        val pkcs1 = "-----BEGIN " + "RSA PRIVATE KEY" + "-----"\nMIIBOgIBAAJ\n-----END RSA PRIVATE KEY-----\n"
+        val pkcs1 = "-----BEGIN " + "RSA PRIVATE KEY" + "-----" + "\nMIIBOgIBAAJ\n" + "-----END RSA PRIVATE KEY-----" + "\n"
         assertEquals(SshKeyGenerator.PrivateKeyFormat.UNKNOWN, SshKeyGenerator.privateKeyFormat(pkcs1))
         assertEquals(
             setOf(VaultKeyHealth.Code.PRIVATE_UNPARSEABLE),
