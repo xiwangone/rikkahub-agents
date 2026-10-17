@@ -2706,6 +2706,7 @@
   <string name="vault_keyhealth_public_format">Строка открытого ключа не в ожидаемом формате</string>
   <string name="vault_keyhealth_public_structure">Некорректная структура открытого ключа</string>
   <string name="vault_keyhealth_key_mismatch">Открытый ключ не соответствует этому закрытому ключу</string>
+  <string name="vault_keyhealth_save_error">Сохранение невозможно: %1$s</string>
   <string name="tool_output_tokens_estimate">≈%1$sK–%2$sK токенов</string>
   <string name="tool_output_limit_desc">Ограничивает длину вывода инструментов, чтобы он не переполнял контекст</string>
   <string name="tool_output_limit_warning">⚠️ Слишком малое значение может обрезать вывод инструментов</string>

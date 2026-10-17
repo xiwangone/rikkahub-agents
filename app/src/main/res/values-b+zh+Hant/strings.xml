@@ -3256,6 +3256,7 @@
   <string name="vault_keyhealth_public_format">公鑰行格式不符預期</string>
   <string name="vault_keyhealth_public_structure">公鑰結構非法</string>
   <string name="vault_keyhealth_key_mismatch">公鑰與該私鑰不配對</string>
+  <string name="vault_keyhealth_save_error">無法儲存：%1$s</string>
   <string name="tool_output_tokens_estimate">≈%1$sK–%2$sK tokens</string>
   <string name="tool_output_limit_desc">限制工具輸出的最大字符數，防止長輸出佔用過多上下文</string>
   <string name="tool_output_limit_warning">⚠️ 設置過低可能導致工具輸出被截斷</string>

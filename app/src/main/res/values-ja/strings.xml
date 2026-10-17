@@ -2713,6 +2713,7 @@
   <string name="vault_keyhealth_public_format">公開鍵行の形式が想定外です</string>
   <string name="vault_keyhealth_public_structure">公開鍵の構造が不正です</string>
   <string name="vault_keyhealth_key_mismatch">公開鍵がこの秘密鍵と一致しません</string>
+  <string name="vault_keyhealth_save_error">保存できません：%1$s</string>
   <string name="tool_output_tokens_estimate">≈%1$sK〜%2$sK トークン</string>
   <string name="tool_output_limit_desc">ツール出力の最大文字数を制限し、長い出力がコンテキストを圧迫するのを防ぎます</string>
   <string name="tool_output_limit_warning">⚠️ 低すぎる設定はツール出力の切り捨てを招く可能性があります</string>

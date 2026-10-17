@@ -698,14 +698,7 @@ private fun VaultKeyHealthNotes(issues: List<VaultKeyHealth.Issue>) {
         for (code in VaultKeyHealth.Code.entries) {
             val severity = severityByCode[code] ?: continue
             Text(
-                stringResource(
-                    when (code) {
-                        VaultKeyHealth.Code.PRIVATE_UNPARSEABLE -> R.string.vault_keyhealth_private_unparseable
-                        VaultKeyHealth.Code.PUBLIC_FORMAT -> R.string.vault_keyhealth_public_format
-                        VaultKeyHealth.Code.PUBLIC_STRUCTURE -> R.string.vault_keyhealth_public_structure
-                        VaultKeyHealth.Code.KEY_MISMATCH -> R.string.vault_keyhealth_key_mismatch
-                    },
-                ),
+                stringResource(vaultKeyHealthIssueRes(code)),
                 style = MaterialTheme.typography.bodySmall,
                 color = if (severity == VaultKeyHealth.Severity.ERROR) {
                     MaterialTheme.colorScheme.error
@@ -716,6 +709,18 @@ private fun VaultKeyHealthNotes(issues: List<VaultKeyHealth.Issue>) {
         }
     }
 }
+
+/**
+ * 体检结论 -> 资源文案（按 [VaultKeyHealth.Code] 映射，`Issue.detail` 不进界面）。
+ * 普通函数返回资源 id：便于在点击回调里先把 code 存进状态，渲染时再取文案。
+ */
+private fun vaultKeyHealthIssueRes(code: VaultKeyHealth.Code): Int =
+    when (code) {
+        VaultKeyHealth.Code.PRIVATE_UNPARSEABLE -> R.string.vault_keyhealth_private_unparseable
+        VaultKeyHealth.Code.PUBLIC_FORMAT -> R.string.vault_keyhealth_public_format
+        VaultKeyHealth.Code.PUBLIC_STRUCTURE -> R.string.vault_keyhealth_public_structure
+        VaultKeyHealth.Code.KEY_MISMATCH -> R.string.vault_keyhealth_key_mismatch
+    }
 
 /** 新增/编辑对话框 */
 @Composable
@@ -739,6 +744,8 @@ private fun CredentialEditorDialog(
     var showGroupInput by remember { mutableStateOf(false) }
     var nameError by remember { mutableStateOf(false) }
     var valueError by remember { mutableStateOf(false) }
+    // 公钥不合格时记住拦截原因（存 code，文案在渲染处取，避免在点击回调里读资源）
+    var publicKeyError by remember { mutableStateOf<VaultKeyHealth.Code?>(null) }
 
     val isEdit = mode is EditorMode.Edit
 
@@ -811,13 +818,25 @@ private fun CredentialEditorDialog(
                 )
                 // SSH 公钥：只对 ssh-key 类型显示（以前无条件渲染 → 每种类型都冒一个公钥框，容易填错）
                 if (type == CredentialType.SSH_KEY) {
+                    val publicKeyErrorCode = publicKeyError
                     OutlinedTextField(
                         value = publicKey,
-                        onValueChange = { publicKey = it },
+                        onValueChange = { publicKey = it; publicKeyError = null },
                         label = { Text(stringResource(R.string.vault_ssh_pubkey_label)) },
                         singleLine = false,
+                        isError = publicKeyErrorCode != null,
                         modifier = Modifier.fillMaxWidth(),
                     )
+                    if (publicKeyErrorCode != null) {
+                        Text(
+                            stringResource(
+                                R.string.vault_keyhealth_save_error,
+                                stringResource(vaultKeyHealthIssueRes(publicKeyErrorCode)),
+                            ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
                 // 元数据字段：按类型推荐字段集 + **默认折叠**（表单别一屏全是输入框）。
                 // 折叠标题带「已填 N 项」；展开后除推荐键外，还把「已有但不在推荐集」的键一并列出 —— 不隐藏存量值。
@@ -951,6 +970,19 @@ private fun CredentialEditorDialog(
             // 只含不可见字符的值等于空密钥：与 save/importEntries 同语义，前置拦截
             if (value.isNotBlank() && CredentialValueSanitizer.sanitize(value).isEmpty()) {
                 valueError = true; return@Button
+            }
+            // SSH 公钥前置校验：ERROR 拦住保存，WARN（写法非标准但仍可解析）放行。
+            // 公钥为空 = 没有公钥可校验，跳过（允许保存不带公钥的条目）。
+            // 编辑模式下 value 留空表示保留原值，对体检而言等同「没有私钥可比」→ 当 null 传，
+            // 否则会把「留空」误判成坏私钥（PRIVATE_UNPARSEABLE）。
+            if (type == CredentialType.SSH_KEY && publicKey.isNotBlank()) {
+                val blocking = VaultKeyHealth
+                    .check(publicKey, value.ifBlank { null })
+                    .firstOrNull { it.severity == VaultKeyHealth.Severity.ERROR }
+                publicKeyError = blocking?.code
+                if (blocking != null) return@Button
+            } else {
+                publicKeyError = null
             }
             // 编辑模式：value 留空 = 保留原值（在 onSave 里处理）；改名传旧名
             val oldName = (mode as? EditorMode.Edit)?.entry?.name
