@@ -635,7 +635,7 @@ object ModelRegistry {
 
     // ---- 2026-09 补齐：本仓此前完全没有登记的主流模型（能力取自 OpenRouter 目录元数据）----
 
-    private val GEMINI_4 = defineModel {
+    val GEMINI_4 = defineModel {
         tokens("gemini", "4")
         visionInput()
         toolReasoningAbility()
