@@ -1,3 +1,5 @@
+@file:Suppress("TooGenericExceptionCaught", "CyclomaticComplexMethod") // MCP/OAuth 网络与协议边界：底层异常类型不可枚举，统一按失败处理
+
 package me.rerere.rikkahub.data.ai.mcp
 
 import android.content.Context
@@ -24,7 +26,7 @@ private const val TOKEN_REFRESH_LEEWAY_MS = 60_000L
 internal const val MCP_OAUTH_CALLBACK_PORT = 52_134
 internal const val MCP_OAUTH_CALLBACK_PATH = "/oauth/callback"
 internal const val MCP_OAUTH_REDIRECT_URI =
-    "http://127.0.0.1:$MCP_OAUTH_CALLBACK_PORT$MCP_OAUTH_CALLBACK_PATH"
+    "http://localhost:$MCP_OAUTH_CALLBACK_PORT$MCP_OAUTH_CALLBACK_PATH"
 // Client ID Metadata Document 地址，其 redirect_uris 需与 MCP_OAUTH_REDIRECT_URI 一致
 internal const val MCP_OAUTH_CLIENT_METADATA_URL = "https://rikkahub.github.io/oauth/client.json"
 private val OAUTH_CALLBACK_TIMEOUT = 5.minutes
@@ -126,31 +128,47 @@ internal class McpOAuthCoordinator(
     }
 
     suspend fun needsAuthorization(config: McpServerConfig, error: Throwable): Boolean {
-        if (looksUnauthorized(error) && config.commonOptions.oauth?.enabled == true) return true
+        if (error is CancellationException) throw error
+        // A user-supplied bearer/basic credential always wins over OAuth prompts.
         if (config.commonOptions.headers.any { it.first.equals("Authorization", ignoreCase = true) }) {
             return false
         }
-        return runCatching { discoveryClient.discoverProtectedResource(config.serverUrl) }
-            .onFailure {
-                AppLog.i(TAG, "OAuth probe failed for ${config.commonOptions.name}: ${it.message}")
-            }
-            .isSuccess
+        if (looksUnauthorized(error)) return true
+        return try {
+            discoveryClient.discoverProtectedResource(config.serverUrl)
+            true
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            AppLog.i(TAG, "OAuth probe failed for ${config.commonOptions.name}: ${failure.message}")
+            false
+        }
     }
 
     private suspend fun authorize(config: McpServerConfig, context: Context) = withContext(Dispatchers.IO) {
         val serverUrl = config.serverUrl
         require(serverUrl.isNotBlank()) { "Server URL 为空，无法授权" }
 
-        val protectedResource = discoveryClient.discoverProtectedResource(serverUrl)
-        val issuer = protectedResource.authorizationServers.firstOrNull()
-            ?: error("受保护资源未声明授权服务器")
+        // If RFC 9728 protected-resource metadata is absent, probe the server origin
+        // as the authorization-server issuer (legacy MCP OAuth discovery fallback).
+        val protectedResource = try {
+            discoveryClient.discoverProtectedResource(serverUrl)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            AppLog.i(TAG, "Protected-resource discovery failed; trying server origin: ${failure.message}")
+            null
+        }
+        val issuer = protectedResource?.authorizationServers?.firstOrNull()
+            ?: McpOAuthDiscoveryClient.serverOrigin(serverUrl)
+            ?: error("无法确定授权服务器")
         val metadata = discoveryClient.discoverAuthorizationServer(issuer)
         val authorizationEndpoint = metadata.authorizationEndpoint
             ?: error("授权服务器缺少 authorization_endpoint")
         val tokenEndpoint = metadata.tokenEndpoint
             ?: error("授权服务器缺少 token_endpoint")
         val scope = config.commonOptions.oauth?.scope
-            ?: protectedResource.scopesSupported?.joinToString(" ")
+            ?: protectedResource?.scopesSupported?.joinToString(" ")
             ?: metadata.scopesSupported?.joinToString(" ")
 
         val pkce = oauthClient.generatePkce()

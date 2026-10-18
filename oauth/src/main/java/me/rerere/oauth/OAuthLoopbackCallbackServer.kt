@@ -1,3 +1,5 @@
+@file:Suppress("TooGenericExceptionCaught", "LongMethod") // MCP/OAuth 网络与协议边界：底层异常类型不可枚举，统一按失败处理
+
 package me.rerere.oauth
 
 import android.content.Context
@@ -35,6 +37,7 @@ data class OAuthCallback(
  *
  * 服务器只绑定 IPv4 回环地址；首个授权会话打开时启动，最后一个会话关闭时停止。
  * 同一实例可以承载多个并发授权，并通过 state 将回调路由到对应会话。
+ * 广告给授权服务器的 redirect URI 使用 localhost；listener 仍仅绑定 127.0.0.1。
  */
 class OAuthLoopbackCallbackServer(
     private val port: Int = 0,
@@ -126,7 +129,7 @@ class OAuthLoopbackCallbackServer(
         try {
             newServer.startSuspend(wait = false)
             val resolvedPort = newServer.engine.resolvedConnectors().single().port
-            return "http://$LOOPBACK_HOST:$resolvedPort$callbackPath".also {
+            return "http://$REDIRECT_HOST:$resolvedPort$callbackPath".also {
                 server = newServer
                 redirectUri = it
             }
@@ -225,6 +228,7 @@ class OAuthLoopbackCallbackServer(
 
     private companion object {
         const val LOOPBACK_HOST = "127.0.0.1"
+        const val REDIRECT_HOST = "localhost"
     }
 
     private fun successHtml() = callbackPage(

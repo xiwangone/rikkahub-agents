@@ -1,3 +1,5 @@
+@file:Suppress("TooGenericExceptionCaught", "TooManyFunctions", "ComplexCondition") // MCP/OAuth 网络与协议边界：底层异常类型不可枚举，统一按失败处理
+
 package me.rerere.rikkahub.data.ai.mcp
 
 import me.rerere.rikkahub.data.log.AppLog
@@ -20,7 +22,6 @@ import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
 import io.modelcontextprotocol.kotlin.sdk.types.ImageContent
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.TextContent
-import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -43,7 +44,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.ClassDiscriminatorMode
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import me.rerere.ai.core.InputSchema
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.oauth.CustomTabsOAuthAuthorizationLauncher
 import me.rerere.oauth.OAuthHttpClient
@@ -140,7 +140,7 @@ class McpManager(
             settingsStore.settingsFlow
                 .map { settings -> settings.mcpServers }
                 // 任何无关设置变更都会重发 Settings → 不去重的话，MCP 配置没变也会全量重跑 diff
-                // 并打 4 行日志（实测 ~30-60s 一次，to_add/remove/replace 全空）；
+                // 并打 4 行日志（约 30-60s 一次，to_add/remove/replace 全空）；
                 // 子类均为 data class，equals 逐字段比较可靠。
                 .distinctUntilChanged()
                 .collect { mcpServerConfigs ->
@@ -720,27 +720,12 @@ class McpManager(
     /**
      * 判断某次连接/同步失败是否应引导用户进行 OAuth 授权。
      *
-     * 仅靠错误文本匹配 401/invalid_token 并不可靠：很多 MCP server 依赖用户手动填写
-     * Authorization header，缺失时同样返回 401。因此在文本预筛之上进一步区分：
-     * - 已开启 OAuth（此前授权过、令牌失效）→ 直接引导重新授权
-     * - 用户手动配置了 Authorization header → 视为普通错误，尊重手动登录模式
-     * - 其余情况 → 主动探测该 server 是否发布受保护资源元数据 (RFC 9728)，
-     *   能发现才认为其支持 OAuth、需要授权
+     * 手动 Authorization 必须优先于 OAuth。首次 Unauthorized 会引导用户授权；
+     * coordinator 优先发现 RFC 9728 issuer，缺失时再尝试服务 origin 的授权服务器元数据。
+     * 其他连接失败仅在发现受保护资源元数据后才提示 OAuth。
      */
-    private suspend fun needsAuthorization(config: McpServerConfig, error: Throwable): Boolean {
-        if (!looksUnauthorized(error)) return false
-        // 已开启 OAuth：令牌失效，直接引导重新授权
-        if (config.commonOptions.oauth?.enabled == true) return true
-        // 用户手动配置了 Authorization header：属于手动登录模式，header 无效是用户配置问题
-        val hasManualAuth = config.commonOptions.headers.any {
-            it.first.equals("Authorization", ignoreCase = true)
-        }
-        if (hasManualAuth) return false
-        // 主动探测：仅当 server 发布了受保护资源元数据 (protected resource metadata) 时才支持 OAuth
-        return runCatching { oauthDiscoveryClient.discoverProtectedResource(config.serverUrl) }
-            .onFailure { AppLog.i(TAG, "OAuth probe failed for ${config.commonOptions.name}: ${it.message}") }
-            .isSuccess
-    }
+    private suspend fun needsAuthorization(config: McpServerConfig, error: Throwable): Boolean =
+        oauthCoordinator.needsAuthorization(config, error)
 
     /**
      * 是否为 Streamable HTTP 的 SSE 通知流重试耗尽错误。
@@ -836,9 +821,6 @@ internal val McpJson: Json by lazy {
     }
 }
 
-private fun ToolSchema.toSchema(): InputSchema {
-    return InputSchema.Obj(properties = this.properties ?: JsonObject(emptyMap()), required = this.required)
-}
 /**
  * Build the model-facing dispatchable name for one MCP tool:
  * `mcp__<slug>_<serverName>__<toolName>`. Shared by the tool-registration path (ChatService's

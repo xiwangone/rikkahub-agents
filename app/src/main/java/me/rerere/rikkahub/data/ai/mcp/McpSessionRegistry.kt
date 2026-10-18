@@ -1,3 +1,5 @@
+@file:Suppress("TooGenericExceptionCaught") // MCP/OAuth 网络与协议边界：底层异常类型不可枚举，统一按失败处理
+
 package me.rerere.rikkahub.data.ai.mcp
 
 import io.ktor.client.HttpClient
@@ -13,7 +15,6 @@ import io.modelcontextprotocol.kotlin.sdk.types.CallToolRequestParams
 import io.modelcontextprotocol.kotlin.sdk.types.CallToolResult
 import io.modelcontextprotocol.kotlin.sdk.types.Implementation
 import io.modelcontextprotocol.kotlin.sdk.types.Tool
-import io.modelcontextprotocol.kotlin.sdk.types.ToolSchema
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -32,8 +33,6 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.JsonObject
-import me.rerere.ai.core.InputSchema
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import java.util.concurrent.ConcurrentHashMap
@@ -429,8 +428,6 @@ internal class McpSessionRegistry(
                 cancelPendingReconnect = false,
                 forceReconnect = true,
             ) == ConnectResult.Failed
-        } catch (e: CancellationException) {
-            throw e
         } finally {
             withContext(NonCancellable) {
                 session.lifecycleMutex.withLock {
@@ -547,6 +544,3 @@ private fun mergeTools(storedTools: List<McpTool>, serverTools: List<Tool>): Lis
         )
     }
 }
-
-private fun ToolSchema.toSchema(): InputSchema =
-    InputSchema.Obj(properties = properties ?: JsonObject(emptyMap()), required = required)

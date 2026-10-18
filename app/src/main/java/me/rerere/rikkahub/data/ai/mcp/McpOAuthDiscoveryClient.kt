@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.mcp
 
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -58,7 +59,13 @@ internal class McpOAuthDiscoveryClient(
                 addAll(wellKnownProtectedResourceUrls(serverUrl))
             }.distinct()
             for (url in candidates) {
-                val metadata = runCatching { getJson<ProtectedResourceMetadata>(url) }.getOrNull()
+                val metadata = try {
+                    getJson<ProtectedResourceMetadata>(url)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
                 if (metadata != null && metadata.authorizationServers.isNotEmpty()) {
                     Log.i(TAG, "Protected resource metadata: $url -> ${metadata.authorizationServers}")
                     return@withContext metadata
@@ -71,7 +78,13 @@ internal class McpOAuthDiscoveryClient(
     suspend fun discoverAuthorizationServer(issuer: String): AuthorizationServerMetadata =
         withContext(Dispatchers.IO) {
             for (url in wellKnownAuthorizationServerUrls(issuer)) {
-                val metadata = runCatching { getJson<AuthorizationServerMetadata>(url) }.getOrNull()
+                val metadata = try {
+                    getJson<AuthorizationServerMetadata>(url)
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (_: Exception) {
+                    null
+                }
                 if (metadata?.authorizationEndpoint != null && metadata.tokenEndpoint != null) {
                     Log.i(TAG, "Authorization server metadata: $url")
                     return@withContext metadata
@@ -86,13 +99,17 @@ internal class McpOAuthDiscoveryClient(
             .header("Accept", "application/json, text/event-stream")
             .get()
             .build()
-        return runCatching {
+        return try {
             executeRaw(request).use { response ->
                 if (response.code != 401) return null
                 val header = response.header("WWW-Authenticate") ?: return null
                 RESOURCE_METADATA_REGEX.find(header)?.groupValues?.getOrNull(1)
             }
-        }.getOrNull()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            null
+        }
     }
 
     private fun wellKnownProtectedResourceUrls(serverUrl: String): List<String> {
@@ -164,6 +181,13 @@ internal class McpOAuthDiscoveryClient(
 
     companion object {
         private val RESOURCE_METADATA_REGEX = Regex("resource_metadata=\"([^\"]+)\"")
+
+        /** Server origin preserving a non-default port, used as legacy OAuth issuer fallback. */
+        fun serverOrigin(serverUrl: String): String? {
+            val url = serverUrl.toHttpUrlOrNull() ?: return null
+            val port = if (url.port == HttpUrl.defaultPort(url.scheme)) "" else ":${url.port}"
+            return "${url.scheme}://${url.host}$port"
+        }
 
         /** RFC 8707 与 MCP 规范使用的 canonical resource URI。 */
         fun canonicalResource(serverUrl: String): String {
