@@ -46,7 +46,10 @@ class WorkspaceReminderTransformer(
         // 仅在未解析到绑定的 workspace 时才需要查询是否存在其它 workspace (短路避免多余查询)
         val hasAnyWorkspace = workspace != null || workspaceRepository.getAll().isNotEmpty()
 
-        val prompt = buildWorkspaceReminder(workspace, hasAnyWorkspace, ctx.workspaceCwd)
+        val ready = workspace?.takeIf { it.shellStatus == WorkspaceShellStatus.READY.name }
+        val distro = ready?.let { workspaceRepository.readDistroInfo(it.id) }
+        val shellPath = ready?.let { workspaceRepository.readShellPath(it.id) }
+        val prompt = buildWorkspaceReminder(workspace, hasAnyWorkspace, ctx.workspaceCwd, distro?.prettyName, shellPath)
             ?: return messages
         // shell 就绪时附带工作区指令文件 (AGENTS.md)
         val instructions =
@@ -139,9 +142,11 @@ internal fun buildWorkspaceReminder(
     workspace: WorkspaceEntity?,
     hasAnyWorkspace: Boolean,
     cwd: String? = null,
+    distroName: String? = null,
+    shellPath: String? = null,
 ): String? = when {
     workspace != null && workspace.shellStatus == WorkspaceShellStatus.READY.name ->
-        buildWorkspacePrompt(workspace, cwd)
+        buildWorkspacePrompt(workspace, cwd, distroName, shellPath)
 
     workspace != null -> buildWorkspaceNotReadyPrompt(workspace)
 
@@ -150,10 +155,17 @@ internal fun buildWorkspaceReminder(
     else -> null
 }
 
-private fun buildWorkspacePrompt(workspace: WorkspaceEntity, cwd: String? = null): String = buildString {
+private fun buildWorkspacePrompt(
+    workspace: WorkspaceEntity,
+    cwd: String? = null,
+    distroName: String? = null,
+    shellPath: String? = null,
+): String = buildString {
     appendLine("<workspace>")
     appendLine("You have access to a persistent Linux workspace named \"${workspace.name}\", running in a sandboxed proot rootfs environment.")
     appendLine("- The workspace files area is mounted at `/workspace`. Use it as your working directory; files written there persist across turns of this conversation.")
+    distroName?.takeIf { it.isNotBlank() }?.let { appendLine("- Rootfs distribution: $it.") }
+    shellPath?.takeIf { it.isNotBlank() }?.let { appendLine("- The selected shell is `$it`; use POSIX-compatible commands when it is `/bin/sh` and do not assume bash-only syntax.") }
     appendLine("- All paths passed to workspace tools must be absolute and inside the Rootfs (for example `/workspace/notes.md`).")
     appendLine("- Available tools:")
     appendLine("  - `workspace_read_file`: read file contents.")

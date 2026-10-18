@@ -36,12 +36,15 @@ class SkillDetailVM(
 ) : ViewModel() {
     private val _tree = MutableStateFlow<List<SkillFileNode>>(emptyList())
     val tree = _tree.asStateFlow()
+    private val _readOnly = MutableStateFlow(false)
+    val readOnly = _readOnly.asStateFlow()
 
     private var skillName = ""
 
     fun init(name: String) {
         if (skillName == name) return
         skillName = name
+        _readOnly.value = skillManager.isBuiltinSkillName(name)
         loadFiles()
     }
 
@@ -81,6 +84,10 @@ class SkillDetailVM(
         onResult: (String?) -> Unit,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (_readOnly.value) {
+                withContext(Dispatchers.Main) { onResult(context.getString(R.string.skill_detail_builtin_read_only)) }
+                return@launch
+            }
             if (relativePath == "SKILL.md") {
                 val name = SkillFrontmatterParser.parse(content)["name"]
                 if (name != skillName) {
@@ -103,6 +110,10 @@ class SkillDetailVM(
         onResult: (Boolean) -> Unit,
     ) {
         viewModelScope.launch(Dispatchers.IO) {
+            if (_readOnly.value) {
+                withContext(Dispatchers.Main) { onResult(false) }
+                return@launch
+            }
             val success = skillManager.deleteSkillFile(skillName, skillFile.relativePath)
             if (success) loadFiles()
             withContext(Dispatchers.Main) { onResult(success) }

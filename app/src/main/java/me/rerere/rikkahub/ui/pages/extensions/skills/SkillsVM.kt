@@ -4,6 +4,7 @@ import android.content.Context
 import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -47,6 +48,9 @@ class SkillsVM(
     companion object {
         private const val TAG = "SkillsVM"
         private const val MAX_MD_BYTES = 1L * 1024 * 1024 // 1 MB cap on local .md
+        private const val MAX_IMPORT_FILE_BYTES = 20L * 1024 * 1024
+        private const val MAX_IMPORT_TOTAL_BYTES = 20L * 1024 * 1024
+        private const val MAX_IMPORT_FILES = 200
     }
 
     private val _skills = MutableStateFlow<List<SkillMetadata>>(emptyList())
@@ -132,6 +136,10 @@ class SkillsVM(
                     withContext(Dispatchers.Main) { onResult(false, "Failed to list GitHub directory contents") }
                     return@launch
                 }
+                if (files.size > MAX_IMPORT_FILES) {
+                    withContext(Dispatchers.Main) { onResult(false, "Skill contains too many files") }
+                    return@launch
+                }
 
                 val skillMdEntry =
                     files.find { it.first == "SKILL.md" } ?: run {
@@ -139,14 +147,15 @@ class SkillsVM(
                         return@launch
                     }
 
-                val skillMdContent =
-                    downloadText(skillMdEntry.second) ?: run {
+                val skillMdBytes =
+                    downloadBytes(skillMdEntry.second) ?: run {
                         withContext(
                             Dispatchers.Main,
                         ) { onResult(false, "Failed to download SKILL.md — check the URL and your network") }
                         return@launch
                     }
 
+                val skillMdContent = skillMdBytes.toString(Charsets.UTF_8)
                 val frontmatter = SkillFrontmatterParser.parse(skillMdContent)
                 val name = frontmatter["name"]
                 if (name.isNullOrBlank()) {
@@ -154,17 +163,23 @@ class SkillsVM(
                     return@launch
                 }
 
-                val fileContents = LinkedHashMap<String, String>()
+                val fileContents = LinkedHashMap<String, ByteArray>()
+                var totalBytes = 0L
                 for ((relativePath, downloadUrl) in files) {
                     val content = downloadText(downloadUrl)
                     if (content == null) {
                         withContext(Dispatchers.Main) { onResult(false, "Failed to download file: $relativePath") }
                         return@launch
                     }
+                    totalBytes += content.size
+                    if (totalBytes > MAX_IMPORT_TOTAL_BYTES) {
+                        withContext(Dispatchers.Main) { onResult(false, "Skill exceeds the 20 MB import limit") }
+                        return@launch
+                    }
                     fileContents[relativePath] = content
                 }
 
-                val saved = skillManager.saveSkillFilesAtomically(name, fileContents)
+                val saved = skillManager.saveSkillFileBytesAtomically(name, fileContents)
                 if (!saved) {
                     withContext(Dispatchers.Main) { onResult(false, "Failed to save skill files") }
                     return@launch
@@ -172,6 +187,8 @@ class SkillsVM(
 
                 _skills.value = skillManager.listSkills()
                 withContext(Dispatchers.Main) { onResult(true, name) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 withContext(Dispatchers.Main) { onResult(false, e.message ?: "Unknown error") }
             }
@@ -208,6 +225,8 @@ class SkillsVM(
                     }
                 _skills.value = skillManager.listSkills()
                 withContext(Dispatchers.Main) { onResult(outcome.first, outcome.second) }
+            } catch (t: CancellationException) {
+                throw t
             } catch (t: Throwable) {
                 AppLog.w(TAG, "importFromLocalFile failed for $uri", t)
                 withContext(Dispatchers.Main) {
@@ -356,6 +375,8 @@ class SkillsVM(
 
     /** True when [name] is a bundled (restorable) skill in the local catalog. */
     fun isBundledSkillName(name: String): Boolean = localCatalog.skills.any { it.name == name && it.isBundled }
+
+    fun isReadOnlyBuiltin(name: String): Boolean = skillManager.isBuiltinSkillName(name)
 
     private enum class LocalFileType { Markdown, Zip, Unsupported }
     private fun detectFileType(uri: Uri): LocalFileType {
@@ -515,19 +536,33 @@ class SkillsVM(
         return GitHubRepoInfo(owner, repo, branch, subPath)
     }
 
-    private fun downloadText(url: String): String? {
+    private fun downloadText(url: String): String? = downloadBytes(url)?.toString(Charsets.UTF_8)
+
+    private fun downloadBytes(url: String): ByteArray? {
         val connection = URL(url).openConnection() as HttpURLConnection
-        connection.connectTimeout = 10_000
-        connection.readTimeout = 30_000
-        connection.setRequestProperty("Accept", "application/vnd.github+json")
-        return try {
-            if (connection.responseCode == 200) {
-                connection.inputStream.bufferedReader().readText()
-            } else {
-                null
-            }
+        try {
+            connection.connectTimeout = 10_000
+            connection.readTimeout = 30_000
+            connection.setRequestProperty("User-Agent", "RikkaHub")
+            if (connection.responseCode !in 200..299) return null
+            return connection.inputStream.use { readLimited(it) }
         } finally {
             connection.disconnect()
         }
+    }
+
+    /** 读取全部字节；超过 [MAX_IMPORT_FILE_BYTES] 时返回 null，由调用方按失败处理。 */
+    private fun readLimited(input: java.io.InputStream): ByteArray? {
+        val out = java.io.ByteArrayOutputStream()
+        val buffer = ByteArray(8 * 1024)
+        var total = 0L
+        while (true) {
+            val count = input.read(buffer)
+            if (count < 0) break
+            total += count
+            if (total > MAX_IMPORT_FILE_BYTES) return null
+            out.write(buffer, 0, count)
+        }
+        return out.toByteArray()
     }
 }

@@ -88,6 +88,7 @@ fun SkillDetailPage(skillName: String) {
     LaunchedEffect(skillName) { vm.init(skillName) }
 
     val tree by vm.tree.collectAsStateWithLifecycle()
+    val isReadOnly by vm.readOnly.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val toaster = LocalToaster.current
 
@@ -96,7 +97,7 @@ fun SkillDetailPage(skillName: String) {
     var deleteTarget by remember { mutableStateOf<SkillFile?>(null) }
     var showTester by rememberSaveable { mutableStateOf(false) }
     var showRestoreConfirm by remember { mutableStateOf(false) }
-    val isBundled = skillsVm.isBundledSkillName(skillName)
+    val isBundled = skillsVm.isBundledSkillName(skillName) && !isReadOnly
     val deleteFailedMsg = stringResource(R.string.skill_detail_page_delete_failed)
     val restoredMsg = stringResource(R.string.skill_store_restored)
 
@@ -124,6 +125,9 @@ fun SkillDetailPage(skillName: String) {
                             )
                         }
                     }
+                    if (isReadOnly) {
+                        Text(stringResource(R.string.skill_builtin_read_only), style = MaterialTheme.typography.labelMedium)
+                    }
                     IconButton(onClick = { showTester = true }) {
                         Icon(
                             imageVector = Lucide.Play,
@@ -137,7 +141,7 @@ fun SkillDetailPage(skillName: String) {
         },
         floatingActionButton = {
             AnimatedVisibility(
-                visible = fabVisible,
+                visible = fabVisible && !isReadOnly,
                 enter = fadeIn() + scaleIn(),
                 exit = fadeOut() + scaleOut(),
             ) {
@@ -159,8 +163,9 @@ fun SkillDetailPage(skillName: String) {
             FileTree(
                 nodes = tree,
                 depth = 0,
-                onEdit = { editingFile = it },
-                onDelete = { deleteTarget = it },
+                onEdit = { if (!isReadOnly) editingFile = it },
+                onDelete = { if (!isReadOnly) deleteTarget = it },
+                readOnly = isReadOnly,
             )
         }
     }
@@ -377,6 +382,7 @@ private fun FileTree(
     depth: Int,
     onEdit: (SkillFile) -> Unit,
     onDelete: (SkillFile) -> Unit,
+    readOnly: Boolean = false,
 ) {
     nodes.fastForEach { node ->
         when (node) {
@@ -386,6 +392,7 @@ private fun FileTree(
                     depth = depth,
                     onEdit = { onEdit(node.skillFile) },
                     onDelete = { onDelete(node.skillFile) },
+                    readOnly = readOnly,
                 )
             }
 
@@ -395,6 +402,7 @@ private fun FileTree(
                     depth = depth,
                     onEdit = onEdit,
                     onDelete = onDelete,
+                    readOnly = readOnly,
                 )
             }
         }
@@ -407,6 +415,7 @@ private fun FileItem(
     depth: Int,
     onEdit: () -> Unit,
     onDelete: () -> Unit,
+    readOnly: Boolean,
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -439,14 +448,14 @@ private fun FileItem(
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
+            if (!readOnly) IconButton(onClick = onEdit, modifier = Modifier.size(36.dp)) {
                 Icon(
                     imageVector = Lucide.FilePen,
                     contentDescription = stringResource(R.string.edit),
                     modifier = Modifier.size(16.dp),
                 )
             }
-            if (skillFile.relativePath != "SKILL.md") {
+            if (!readOnly && skillFile.relativePath != "SKILL.md") {
                 IconButton(onClick = onDelete, modifier = Modifier.size(36.dp)) {
                     Icon(
                         imageVector = Lucide.Trash2,
@@ -466,6 +475,7 @@ private fun DirItem(
     depth: Int,
     onEdit: (SkillFile) -> Unit,
     onDelete: (SkillFile) -> Unit,
+    readOnly: Boolean,
 ) {
     var expanded by rememberSaveable(node.relativePath) { mutableStateOf(false) }
 
@@ -510,6 +520,7 @@ private fun DirItem(
                         depth = depth + 1,
                         onEdit = onEdit,
                         onDelete = onDelete,
+                        readOnly = readOnly,
                     )
                 }
             }

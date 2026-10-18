@@ -23,6 +23,7 @@ import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -48,6 +49,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Surface
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
@@ -82,6 +84,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.util.fastForEach
@@ -100,6 +104,7 @@ import me.rerere.hugeicons.stroke.ArrowTurnBackward
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Bash
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Delete01
@@ -176,6 +181,24 @@ fun WorkspaceDetailPage(id: String) {
         }
     var exportTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
     var exportFolderTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
+    var exportZipTargets by remember { mutableStateOf<List<WorkspaceFileEntry>>(emptyList()) }
+    var selectedWorkspacePaths by remember { mutableStateOf<Set<String>>(emptySet()) }
+    val clipboard = LocalClipboardManager.current
+    val exportZipLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        val entries = exportZipTargets.also { exportZipTargets = emptyList() }
+        if (uri == null || entries.isEmpty()) return@rememberLauncherForActivityResult
+        val output = runCatching { context.contentResolver.openOutputStream(uri) }.getOrNull()
+        if (output == null) {
+            toaster.show(context.getString(R.string.workspace_detail_export_zip_failed, "cannot open destination"))
+        } else {
+            vm.exportEntriesZip(entries, output, onCancelled = {
+                runCatching { androidx.documentfile.provider.DocumentFile.fromSingleUri(context, uri)?.delete() }
+            }) { result ->
+                selectedWorkspacePaths = emptySet()
+                toaster.show(if (result.isSuccess) context.getString(R.string.workspace_detail_export_zip_done) else context.getString(R.string.workspace_detail_export_zip_failed, result.exceptionOrNull()?.message.orEmpty()))
+            }
+        }
+    }
     val exportFolderLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocumentTree(),
@@ -340,8 +363,8 @@ fun WorkspaceDetailPage(id: String) {
                     WorkspaceFilesPage(
                         state = state,
                         contentPadding = PaddingValues(),
-                        onSelectArea = vm::selectArea,
-                        onGoUp = vm::goUp,
+                        onSelectArea = { selectedWorkspacePaths = emptySet(); vm.selectArea(it) },
+                        onGoUp = { selectedWorkspacePaths = emptySet(); vm.goUp() },
                         onResolveImage = { entry, area -> vm.resolveImageFile(entry, area) },
                         onOpen = { entry ->
                             when {
@@ -406,6 +429,16 @@ fun WorkspaceDetailPage(id: String) {
                             }
                         },
                         onDelete = { deleteTarget = it },
+                        onExportZip = { entry ->
+                            exportZipTargets = listOf(entry)
+                            exportZipLauncher.launch("${entry.name}.zip")
+                        },
+                        onCopyPath = { entry, area ->
+                            val absolutePath = workspaceRootfsAbsolutePath(area, entry.path)
+                            runCatching { clipboard.setText(AnnotatedString(absolutePath)) }
+                                .onSuccess { toaster.show(context.getString(R.string.workspace_detail_path_copied)) }
+                                .onFailure { toaster.show(context.getString(R.string.workspace_detail_path_copy_failed)) }
+                        },
                         onExport = { entry ->
                             if (entry.isDirectory) {
                                 // 目录：整棵子树导出到用户选定的目录（SAF 目录树）
@@ -431,6 +464,22 @@ fun WorkspaceDetailPage(id: String) {
                                         addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
                                     }
                                 context.startActivity(Intent.createChooser(intent, null))
+                            }
+                        },
+                        selectedPaths = selectedWorkspacePaths,
+                        onToggleSelection = { entry ->
+                            val key = "${state.area.name}:${entry.path}"
+                            selectedWorkspacePaths = if (key in selectedWorkspacePaths) selectedWorkspacePaths - key else selectedWorkspacePaths + key
+                        },
+                        onSelectAll = {
+                            selectedWorkspacePaths = if (selectedWorkspacePaths.size == state.entries.size) emptySet()
+                            else state.entries.mapTo(mutableSetOf()) { "${state.area.name}:${it.path}" }
+                        },
+                        onExportSelection = {
+                            val selected = state.entries.filter { "${state.area.name}:${it.path}" in selectedWorkspacePaths }
+                            if (selected.isNotEmpty()) {
+                                exportZipTargets = selected
+                                exportZipLauncher.launch("workspace-selection.zip")
                             }
                         },
                     )
@@ -1241,8 +1290,16 @@ private fun WorkspaceFilesPage(
     onOpen: (WorkspaceFileEntry) -> Unit,
     onDelete: (WorkspaceFileEntry) -> Unit,
     onExport: (WorkspaceFileEntry) -> Unit,
+    onExportZip: (WorkspaceFileEntry) -> Unit,
+    onCopyPath: (WorkspaceFileEntry, WorkspaceStorageArea) -> Unit,
     onShare: (WorkspaceFileEntry) -> Unit,
+    selectedPaths: Set<String>,
+    onToggleSelection: (WorkspaceFileEntry) -> Unit,
+    onSelectAll: () -> Unit,
+    onExportSelection: () -> Unit,
 ) {
+    val currentKeys = state.entries.mapTo(mutableSetOf()) { "${state.area.name}:${it.path}" }
+    val selectedCount = selectedPaths.intersect(currentKeys).size
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = contentPadding + PaddingValues(16.dp),
@@ -1269,6 +1326,20 @@ private fun WorkspaceFilesPage(
             }
         }
 
+        if (state.entries.isNotEmpty()) {
+            item {
+                Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    TextButton(onClick = onSelectAll) {
+                        Text(if (selectedCount == state.entries.size) stringResource(R.string.workspace_selection_cancel) else stringResource(R.string.workspace_selection_all))
+                    }
+                    if (selectedCount > 0) {
+                        Text("$selectedCount/${state.entries.size}", modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodySmall)
+                        Button(onClick = onExportSelection) { Text(stringResource(R.string.workspace_selection_export_zip)) }
+                    }
+                }
+            }
+        }
+
         if (!state.loading && state.entries.isEmpty() && state.error == null) {
             item {
                 EmptyDirectoryState()
@@ -1283,7 +1354,12 @@ private fun WorkspaceFilesPage(
                 onOpen = { onOpen(entry) },
                 onDelete = { onDelete(entry) },
                 onExport = { onExport(entry) },
+                onExportZip = { onExportZip(entry) },
+                onCopyPath = { onCopyPath(entry, state.area) },
                 onShare = { onShare(entry) },
+                selected = "${state.area.name}:${entry.path}" in selectedPaths,
+                selectionMode = selectedCount > 0,
+                onToggleSelection = { onToggleSelection(entry) },
             )
         }
     }
@@ -1348,7 +1424,12 @@ private fun WorkspaceFileCard(
     onOpen: () -> Unit,
     onDelete: () -> Unit,
     onExport: () -> Unit,
+    onExportZip: () -> Unit,
+    onCopyPath: () -> Unit,
     onShare: () -> Unit,
+    selected: Boolean,
+    selectionMode: Boolean,
+    onToggleSelection: () -> Unit,
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
     val isImage = !entry.isDirectory && entry.detectFileType() == WorkspaceFileType.IMAGE
@@ -1373,7 +1454,7 @@ private fun WorkspaceFileCard(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onOpen),
+                .combinedClickable(onClick = { if (selectionMode) onToggleSelection() else onOpen() }, onLongClick = onToggleSelection),
         colors = CustomColors.cardColorsOnSurfaceContainer,
     ) {
         Row(
@@ -1383,6 +1464,9 @@ private fun WorkspaceFileCard(
                     .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            if (selectionMode || selected) {
+                Checkbox(checked = selected, onCheckedChange = { onToggleSelection() })
+            }
             if (isImage) {
                 val context = LocalContext.current
                 val imageRequest = remember(imageFile, entry.updatedAt, entry.sizeBytes) {
@@ -1461,6 +1545,18 @@ private fun WorkspaceFileCard(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
                 ) {
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.workspace_detail_copy_path)) },
+                        leadingIcon = { Icon(HugeIcons.Copy01, contentDescription = null) },
+                        onClick = { menuExpanded = false; onCopyPath() },
+                    )
+                    if (entry.isDirectory) {
+                        DropdownMenuItem(
+                            text = { Text(stringResource(R.string.workspace_detail_export_zip)) },
+                            leadingIcon = { Icon(HugeIcons.FileImport, contentDescription = null) },
+                            onClick = { menuExpanded = false; onExportZip() },
+                        )
+                    }
                     DropdownMenuItem(
                         text = {
                             Text(

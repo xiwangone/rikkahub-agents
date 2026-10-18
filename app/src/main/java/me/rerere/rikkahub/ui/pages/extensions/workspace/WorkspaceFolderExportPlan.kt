@@ -40,3 +40,17 @@ internal fun planWorkspaceFolderExport(
     walk(rootPath)
     return plan
 }
+
+/** Convert a storage-area-relative path into the path understood inside the rootfs. */
+internal fun workspaceRootfsAbsolutePath(area: me.rerere.workspace.WorkspaceStorageArea, path: String): String {
+    val relative = path.trimStart('/')
+    return if (area == me.rerere.workspace.WorkspaceStorageArea.FILES) "/workspace/$relative" else "/$relative"
+}
+
+/** A ZIP entry name must be relative, slash-separated, and free of traversal components. */
+internal fun safeWorkspaceZipEntryName(rootName: String, relativePath: String, directory: Boolean): String? {
+    fun safeSegment(value: String) = value.isNotBlank() && value != "." && value != ".." && '/' !in value && '\\' !in value && '\u0000' !in value
+    val segments = relativePath.split('/')
+    if (!safeSegment(rootName) || segments.isEmpty() || segments.any { !safeSegment(it) }) return null
+    return (listOf(rootName) + segments).joinToString("/") + if (directory) "/" else ""
+}

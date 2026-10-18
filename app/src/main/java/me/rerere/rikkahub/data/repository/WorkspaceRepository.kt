@@ -543,6 +543,13 @@ class WorkspaceRepository(
         manager.exportRootfsFile(workspace.root, path, outputStream)
     }
 
+    /** 返回本次实际将被 runner 使用的 shell；按 rootfs 中 bash 可用性决定 bash 或 sh。 */
+    suspend fun readShellPath(id: String): String? = withContext(Dispatchers.IO) {
+        val workspace = dao.getById(id) ?: return@withContext null
+        if (!manager.hasRootfs(workspace.root)) return@withContext null
+        me.rerere.workspace.WorkspaceManager.rootfsShell(manager.linuxDir(workspace.root))
+    }
+
     /** 读取 rootfs 的发行版信息（无 rootfs 或读取失败时返回 null）。 */
     suspend fun readDistroInfo(id: String): WorkspaceDistroInfo? =
         withContext(Dispatchers.IO) {

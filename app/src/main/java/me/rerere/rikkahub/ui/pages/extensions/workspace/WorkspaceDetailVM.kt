@@ -441,6 +441,76 @@ class WorkspaceDetailVM(
         }
     }
 
+    /** Export selected files and directory subtrees as a single ZIP archive. */
+    fun exportEntriesZip(
+        entries: List<WorkspaceFileEntry>,
+        outputStream: OutputStream,
+        onCancelled: () -> Unit = {},
+        onResult: (Result<Int>) -> Unit,
+    ) {
+        val selected = entries.distinctBy { it.path }.toList()
+        if (selected.isEmpty()) {
+            runCatching { outputStream.close() }
+            onResult(Result.failure(IllegalArgumentException("No workspace entries selected")))
+            return
+        }
+        viewModelScope.launch {
+            val area = state.value.area
+            val result = runCatching {
+                withContext(Dispatchers.IO) {
+                    java.util.zip.ZipOutputStream(outputStream).use { zip ->
+                        var written = 0
+                        for (entry in selected) {
+                            currentCoroutineContext().ensureActive()
+                            if (!entry.isDirectory) {
+                                val zipName = safeWorkspaceZipEntryName(entry.name, "payload", false)
+                                    ?.removeSuffix("/payload") ?: error("Unsafe path in workspace export: ${entry.path}")
+                                zip.putNextEntry(java.util.zip.ZipEntry(zipName))
+                                repository.exportFile(id = id, area = area, path = entry.path, outputStream = zip)
+                                zip.closeEntry()
+                                written++
+                                continue
+                            }
+                            val listing = mutableMapOf<String, List<WorkspaceFileEntry>>()
+                            suspend fun collect(path: String) {
+                                currentCoroutineContext().ensureActive()
+                                val children = repository.listFiles(id = id, area = area, path = path, limit = Int.MAX_VALUE)
+                                listing[path] = children
+                                children.filter { it.isDirectory }.forEach { collect(it.path) }
+                            }
+                            collect(entry.path)
+                            val plan = planWorkspaceFolderExport(entry.path, listing)
+                            // Include an empty directory explicitly; each root gets its own top-level ZIP folder.
+                            val rootName = safeWorkspaceZipEntryName(entry.name, "marker", true)
+                                ?.removeSuffix("marker/") ?: error("Unsafe path in workspace export: ${entry.path}")
+                            zip.putNextEntry(java.util.zip.ZipEntry(rootName))
+                            zip.closeEntry()
+                            for (item in plan) {
+                                currentCoroutineContext().ensureActive()
+                                val relative = item.sourcePath.removePrefix(entry.path.trimEnd('/') + "/")
+                                val zipName = safeWorkspaceZipEntryName(entry.name, relative, item.isDirectory)
+                                    ?: error("Unsafe path in workspace export: ${item.sourcePath}")
+                                zip.putNextEntry(java.util.zip.ZipEntry(zipName))
+                                if (!item.isDirectory) {
+                                    repository.exportFile(id = id, area = area, path = item.sourcePath, outputStream = zip)
+                                    written++
+                                }
+                                zip.closeEntry()
+                            }
+                        }
+                        zip.finish()
+                        written
+                    }
+                }
+            }
+            result.exceptionOrNull()?.let { if (it is CancellationException) { runCatching(onCancelled); throw it } }
+            if (result.isFailure) _state.update { it.copy(error = result.exceptionOrNull()?.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_export)) }
+            onResult(result)
+        }
+    }
+
+    fun exportFolderZip(entry: WorkspaceFileEntry, outputStream: OutputStream, onResult: (Result<Int>) -> Unit) =
+        exportEntriesZip(listOf(entry), outputStream, onResult = onResult)
     /** 文件夹导出进度（仅导出进行中非 null）。 */
     data class FolderExportProgress(
         val folderName: String,

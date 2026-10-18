@@ -100,6 +100,8 @@ fun SkillsPage() {
     var showImportDialog by rememberSaveable { mutableStateOf(false) }
     var showCatalog by rememberSaveable { mutableStateOf(false) }
     var deleteTarget by remember { mutableStateOf<SkillMetadata?>(null) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    val visibleSkills = remember(skills, searchQuery) { filterSkills(skills, searchQuery) }
 
     Scaffold(
         topBar = {
@@ -149,6 +151,16 @@ fun SkillsPage() {
                     ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            item {
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    label = { Text(stringResource(R.string.skills_page_search)) },
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                )
+            }
             if (skills.isEmpty()) {
                 item {
                     Column(
@@ -179,7 +191,16 @@ fun SkillsPage() {
                 }
             }
 
-            items(skills, key = { it.skillDir.absolutePath }) { skill ->
+            if (skills.isNotEmpty() && visibleSkills.isEmpty()) {
+                item {
+                    Text(
+                        text = stringResource(R.string.skills_page_search_empty),
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+            items(visibleSkills, key = { it.skillDir.absolutePath }) { skill ->
                 SkillCard(
                     skill = skill,
                     onClick = { navController.navigate(Screen.SkillDetail(skill.name)) },
@@ -849,6 +870,11 @@ private fun SkillCard(
                     text = skill.name,
                     style = MaterialTheme.typography.titleSmallEmphasized,
                 )
+                when (skill.source) {
+                    me.rerere.rikkahub.data.files.SkillSource.BUILTIN -> Text(stringResource(R.string.skill_builtin_read_only), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
+                    me.rerere.rikkahub.data.files.SkillSource.USER_OVERRIDE -> Text(stringResource(R.string.skill_builtin_user_override), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
+                    me.rerere.rikkahub.data.files.SkillSource.USER -> Unit
+                }
                 Text(
                     text = skill.description,
                     style = MaterialTheme.typography.bodySmall,
@@ -874,7 +900,7 @@ private fun SkillCard(
                     expanded = menuExpanded,
                     onDismissRequest = { menuExpanded = false },
                 ) {
-                    DropdownMenuItem(
+                    if (skill.source != me.rerere.rikkahub.data.files.SkillSource.BUILTIN) DropdownMenuItem(
                         text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
                         leadingIcon = {
                             Icon(

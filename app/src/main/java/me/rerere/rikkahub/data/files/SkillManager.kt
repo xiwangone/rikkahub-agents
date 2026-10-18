@@ -48,19 +48,24 @@ class SkillManager(
 
     fun listSkills(localeTag: String? = null): List<SkillMetadata> {
         val tag = localeTag ?: SkillLocale.currentLocaleTag()
-        val skillsDir = getSkillsDir()
-        return skillsDir.listFiles()
+        val userSkills = getSkillsDir().listFiles()
             ?.filter { it.isDirectory }
             ?.mapNotNull { dir ->
                 val defaultFile = dir.resolve("SKILL.md")
                 if (!defaultFile.exists()) return@mapNotNull null
-                // Prefer the locale-matched SKILL.<lang>.md; fall back to the default
-                // file when the translation is missing or unparsable (a skill must
-                // never disappear from the list just because one translation is bad).
                 val localized = SkillPaths.resolveLocalizedSkillFile(dir, "SKILL.md", tag) ?: defaultFile
-                parseSkillFile(localized, dir) ?: parseSkillFile(defaultFile, dir)
-            }
-            ?: emptyList()
+                parseSkillFile(localized, dir, SkillSource.USER) ?: parseSkillFile(defaultFile, dir, SkillSource.USER)
+            }.orEmpty()
+        // Builtins are loaded from their own APK asset root into a private cache mirror;
+        // unlike default-skills they are never seeded into the editable /skills directory.
+        val builtins = loadBuiltinSkills(tag)
+        val builtinNames = builtins.mapTo(HashSet()) { it.name.normalizedSkillKey() }
+        val markedUsers = userSkills.map { skill ->
+            if (skill.name.normalizedSkillKey() in builtinNames) skill.copy(source = SkillSource.USER_OVERRIDE) else skill
+        }
+        val userNames = markedUsers.mapTo(HashSet()) { it.name.normalizedSkillKey() }
+        // A user copy always wins, and its source marker makes the collision visible in the UI.
+        return markedUsers + builtins.filterNot { it.name.normalizedSkillKey() in userNames }
     }
 
     fun readSkillBody(skillName: String, localeTag: String? = null): String? {
@@ -189,7 +194,8 @@ class SkillManager(
     }
 
     suspend fun deleteSkill(name: String): Boolean = withContext(Dispatchers.IO) {
-        val skillDir = resolveSkillDir(name) ?: return@withContext false
+        val skillDir = resolveUserSkillDir(name)?.takeIf { it.isDirectory && it.resolve("SKILL.md").isFile }
+            ?: return@withContext false
         // 目录一删，里面的 .seeded 哨兵也没了，单看磁盘分不清「没装过」和「装过又删」。
         // 因此删除前先判断是否内置技能，并把这次删除记到技能目录之外。
         val isBundled = name in bundledSkillNames()
@@ -227,7 +233,7 @@ class SkillManager(
         settingsStore.update { settings ->
             settings.copy(deletedBundledSkills = settings.deletedBundledSkills - name)
         }
-        val targetDir = resolveSkillDir(name)
+        val targetDir = resolveUserSkillDir(name)
         if (targetDir != null && targetDir.exists()) {
             targetDir.deleteRecursively()
         }
@@ -310,11 +316,16 @@ class SkillManager(
     }
 
     fun saveSkillFile(skillName: String, relativePath: String, content: String): Boolean {
-        val skillDir = resolveSkillDir(skillName) ?: return false
+        val skillDir = resolveUserSkillDir(skillName)?.takeIf { it.isDirectory && it.resolve("SKILL.md").isFile } ?: return false
         val target = SkillPaths.resolveSkillFile(skillDir, relativePath) ?: return false
-        target.parentFile?.mkdirs()
-        target.writeText(content)
-        return true
+        return try {
+            target.parentFile?.mkdirs()
+            target.writeText(content)
+            true
+        } catch (e: IOException) {
+            AppLog.w(TAG, "saveSkillFile: failed to save $skillName/$relativePath", e)
+            false
+        }
     }
 
     fun saveSkillFilesAtomically(skillName: String, files: Map<String, String>): Boolean {
@@ -326,7 +337,7 @@ class SkillManager(
 
     fun saveSkillFileBytesAtomically(skillName: String, files: Map<String, ByteArray>): Boolean {
         val skillsDir = getSkillsDir()
-        val targetDir = resolveSkillDir(skillName) ?: return false
+        val targetDir = resolveUserSkillDir(skillName) ?: SkillPaths.resolveSkillDir(skillsDir, skillName) ?: return false
         val stagingDir = createTempSkillDir(skillsDir, skillName, "staging") ?: return false
         var backupDir: File? = null
 
@@ -372,7 +383,7 @@ class SkillManager(
     }
 
     fun deleteSkillFile(skillName: String, relativePath: String): Boolean {
-        val skillDir = resolveSkillDir(skillName) ?: return false
+        val skillDir = resolveUserSkillDir(skillName)?.takeIf { it.isDirectory && it.resolve("SKILL.md").isFile } ?: return false
         val target = SkillPaths.resolveSkillFile(skillDir, relativePath) ?: return false
         return target.delete()
     }
@@ -548,9 +559,44 @@ class SkillManager(
         return SkillPaths.resolveSkillFile(skillDir, relativePath)
     }
 
+    private fun resolveUserSkillDir(skillName: String): File? = SkillPaths.resolveSkillDir(getSkillsDir(), skillName)
+
     private fun resolveSkillDir(skillName: String): File? {
-        return SkillPaths.resolveSkillDir(getSkillsDir(), skillName)
+        val userDir = resolveUserSkillDir(skillName)
+        if (userDir != null && userDir.resolve("SKILL.md").isFile) return userDir
+        return findBuiltinSkillDir(skillName)
     }
+
+    private fun builtinCacheDir(): File = context.cacheDir.resolve("builtin-skills")
+
+    private fun loadBuiltinSkills(localeTag: String): List<SkillMetadata> {
+        val root = "builtin-skills"
+        val targetRoot = builtinCacheDir()
+        val names = runCatching { context.assets.list(root).orEmpty() }.getOrDefault(emptyArray())
+        for (name in names) {
+            val target = SkillPaths.resolveSkillDir(targetRoot, name) ?: continue
+            val bundledHash = computeBundledSkillHash(root, name)
+            val marker = target.resolve(".asset-hash")
+            if (marker.isFile && runCatching { marker.readText() }.getOrNull() == bundledHash && target.resolve("SKILL.md").isFile) continue
+            runCatching {
+                if (target.exists()) target.deleteRecursively()
+                copyAssetSkill(root, name, target)
+                target.resolve(".asset-hash").writeText(bundledHash)
+            }.onFailure { AppLog.w(TAG, "loadBuiltinSkills: failed to cache $name", it) }
+        }
+        return targetRoot.listFiles().orEmpty().filter { it.isDirectory && it.name in names }.mapNotNull { dir ->
+            val file = dir.resolve("SKILL.md")
+            if (!file.isFile) return@mapNotNull null
+            val localized = SkillPaths.resolveLocalizedSkillFile(dir, "SKILL.md", localeTag) ?: file
+            parseSkillFile(localized, dir, SkillSource.BUILTIN) ?: parseSkillFile(file, dir, SkillSource.BUILTIN)
+        }
+    }
+
+    private fun findBuiltinSkillDir(skillName: String): File? = loadBuiltinSkills(SkillLocale.currentLocaleTag())
+        .firstOrNull { it.name.normalizedSkillKey() == skillName.normalizedSkillKey() }?.skillDir
+
+    fun isBuiltinSkillName(skillName: String): Boolean =
+        listSkills().any { it.name.normalizedSkillKey() == skillName.normalizedSkillKey() && it.source == SkillSource.BUILTIN }
 
     private fun createTempSkillDir(skillsRoot: File, skillName: String, suffix: String): File? {
         repeat(100) { attempt ->
@@ -562,7 +608,7 @@ class SkillManager(
         return null
     }
 
-    private fun parseSkillFile(skillFile: File, skillDir: File): SkillMetadata? {
+    private fun parseSkillFile(skillFile: File, skillDir: File, source: SkillSource = SkillSource.USER): SkillMetadata? {
         return runCatching {
             val content = skillFile.readText()
             val frontmatter = SkillFrontmatterParser.parse(content)
@@ -575,6 +621,7 @@ class SkillManager(
                 autoLoad = frontmatter["auto_load"]?.equals("true", ignoreCase = true) == true,
                 autoLoadPath = frontmatter["auto_load_path"]?.takeIf { it.isNotBlank() },
                 skillDir = skillDir,
+                source = source,
             )
         }.getOrElse {
             AppLog.w(TAG, "parseSkillFile: Failed to parse ${skillFile.absolutePath}", it)
@@ -640,6 +687,10 @@ internal fun deletedBundledSkillsAfterDelete(
  * @property autoLoadPath Relative path inside the skill directory of the file to auto-load
  * (e.g. "SOUL.md"). Defaults to SKILL.md if not set. Frontmatter: `auto_load_path: SOUL.md`.
  */
+enum class SkillSource { USER, USER_OVERRIDE, BUILTIN }
+
+internal fun String.normalizedSkillKey(): String = trim().lowercase(java.util.Locale.ROOT)
+
 data class SkillMetadata(
     val name: String,
     val description: String,
@@ -653,6 +704,7 @@ data class SkillMetadata(
     val autoLoad: Boolean = false,
     val autoLoadPath: String? = null,
     val skillDir: File,
+    val source: SkillSource = SkillSource.USER,
 ) {
     val skillFile: File get() = skillDir.resolve("SKILL.md")
 }

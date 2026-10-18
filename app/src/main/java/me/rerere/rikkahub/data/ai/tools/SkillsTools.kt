@@ -16,6 +16,15 @@ import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.files.SkillMetadata
 import me.rerere.rikkahub.data.files.SkillPaths
 
+
+private const val MAX_PROMPT_SKILL_NAME_CHARS = 128
+private const val MAX_PROMPT_SKILL_DESCRIPTION_CHARS = 1024
+
+/** Keep metadata from breaking the available_skills XML-like wrapper or bloating the prompt. */
+private fun escapeSkillPromptMetadata(value: String, limit: Int): String =
+    value.take(limit).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
+        .replace("\"", "&quot;").replace("'", "&apos;")
+
 /**
  * Build the skill tools for an assistant. [skillManager] may be null in JVM unit tests
  * (no Android Context); a local fallback reads skill files directly from each
@@ -115,8 +124,8 @@ fun createSkillTools(
                         appendLine("<available_skills>")
                         lazy.forEach { skill ->
                             appendLine("  <skill>")
-                            appendLine("    <name>${skill.name}</name>")
-                            appendLine("    <description>${skill.description}</description>")
+                            appendLine("    <name>${escapeSkillPromptMetadata(skill.name, MAX_PROMPT_SKILL_NAME_CHARS)}</name>")
+                            appendLine("    <description>${escapeSkillPromptMetadata(skill.description, MAX_PROMPT_SKILL_DESCRIPTION_CHARS)}</description>")
                             appendLine("  </skill>")
                         }
                         append("</available_skills>")
