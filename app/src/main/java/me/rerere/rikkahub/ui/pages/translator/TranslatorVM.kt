@@ -110,7 +110,7 @@ class TranslatorVM(
                             sourceText = inputText,
                             translatedText = result,
                             targetLanguage = requestedLanguage.toLanguageTag(),
-                            modelId = requestSettings.translateModeId,
+                            modelId = requestSettings.translateModeId.toString(),
                         )
                     }
                 } catch (cancelled: CancellationException) {
