@@ -379,7 +379,6 @@ private fun TTSProviderList(
                         onEdit(provider)
                     },
                     onDelete = {
-                        val newProviders = settings.ttsProviders - provider
                         val newSelectedId =
                             if (settings.selectedTTSProviderId ==
                                 provider.id
@@ -390,7 +389,7 @@ private fun TTSProviderList(
                             }
                         onUpdateSettings { current ->
                             current.copy(
-                                ttsProviders = current.ttsProviders.map { if (it.id == provider.id) currentProvider else it },
+                                ttsProviders = current.ttsProviders.filter { it.id != provider.id },
                                 selectedTTSProviderId = newSelectedId,
                             )
                         }

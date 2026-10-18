@@ -340,6 +340,7 @@ fun ChatDrawerContent(
             AssistantPicker(
                 settings = settings,
                 onUpdateSettings = { transform ->
+                    val assistantId = transform(settings).getCurrentAssistant().id
                     val updateJob = vm.updateSettings(transform)
                     scope.launch {
                         updateJob.join()
@@ -348,7 +349,7 @@ fun ChatDrawerContent(
                                 Uuid.random()
                             } else {
                                 repo
-                                    .getConversationsOfAssistant(it.assistantId)
+                                    .getConversationsOfAssistant(assistantId)
                                     .first()
                                     .firstOrNull()
                                     ?.id ?: Uuid.random()

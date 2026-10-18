@@ -514,10 +514,10 @@ private fun ChatPageContent(
                         lifetimeTotals = lifetimeTotals,
                         onToggleSearch = {
                             val current = setting.getCurrentAssistant()
-                            vm.updateSettings { current ->
-            current.copy(
+                            vm.updateSettings { next ->
+            next.copy(
                                     assistants =
-                                        current.assistants.map { assistant ->
+                                        next.assistants.map { assistant ->
                                             if (assistant.id == current.id) {
                                                 assistant.copy(enableWebSearch = !enableWebSearch)
                                             } else {
