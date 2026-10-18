@@ -1024,6 +1024,9 @@
   <string name="setting_page_web_server_port_desc">منفذ استماع خادم الويب (1024-65535)</string>
   <string name="setting_page_web_server_start">بدء</string>
   <string name="setting_page_web_server_stop">إيقاف</string>
+  <string name="setting_provider_page_context_window_title">نافذة السياق (الرموز)</string>
+  <string name="setting_provider_page_context_window_custom">نافذة سياق مخصّصة</string>
+  <string name="setting_provider_page_context_window_unknown">مخصّص / غير معروف</string>
   <string name="setting_provider_page_abilities">القدرات</string>
   <string name="setting_provider_page_add">إضافة</string>
   <string name="setting_provider_page_add_model">إضافة نموذج</string>

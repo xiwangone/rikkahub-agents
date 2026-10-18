@@ -1151,6 +1151,9 @@
   <string name="setting_page_web_server_port_desc">Web服务器监听端口（1024-65535）</string>
   <string name="setting_page_web_server_start">启动</string>
   <string name="setting_page_web_server_stop">停止</string>
+  <string name="setting_provider_page_context_window_title">上下文窗口（tokens）</string>
+  <string name="setting_provider_page_context_window_custom">自定义上下文窗口</string>
+  <string name="setting_provider_page_context_window_unknown">自定义 / 未知</string>
   <string name="setting_provider_page_abilities">能力</string>
   <string name="setting_provider_page_add">添加</string>
   <string name="setting_provider_page_add_model">添加模型</string>

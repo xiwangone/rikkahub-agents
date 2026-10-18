@@ -992,6 +992,9 @@
   <string name="setting_page_web_server_port_desc">웹 서버 수신 포트(1024-65535)</string>
   <string name="setting_page_web_server_start">시작</string>
   <string name="setting_page_web_server_stop">중지</string>
+  <string name="setting_provider_page_context_window_title">컨텍스트 창 (토큰)</string>
+  <string name="setting_provider_page_context_window_custom">사용자 지정 컨텍스트 창</string>
+  <string name="setting_provider_page_context_window_unknown">사용자 지정 / 알 수 없음</string>
   <string name="setting_provider_page_abilities">기능</string>
   <string name="setting_provider_page_add">추가</string>
   <string name="setting_provider_page_add_model">모델 추가</string>

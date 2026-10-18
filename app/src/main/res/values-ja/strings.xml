@@ -992,6 +992,9 @@
   <string name="setting_page_web_server_port_desc">Webサーバーリスンポート（1024-65535）</string>
   <string name="setting_page_web_server_start">開始</string>
   <string name="setting_page_web_server_stop">停止</string>
+  <string name="setting_provider_page_context_window_title">コンテキスト ウィンドウ（トークン）</string>
+  <string name="setting_provider_page_context_window_custom">カスタム コンテキスト ウィンドウ</string>
+  <string name="setting_provider_page_context_window_unknown">カスタム / 不明</string>
   <string name="setting_provider_page_abilities">能力</string>
   <string name="setting_provider_page_add">追加</string>
   <string name="setting_provider_page_add_model">モデルを追加</string>

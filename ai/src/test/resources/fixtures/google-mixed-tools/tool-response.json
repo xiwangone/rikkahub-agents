@@ -1,0 +1,1 @@
+{"candidates":[{"content":{"role":"model","parts":[{"toolResponse":{"id":"server-call-17","toolType":"google_search","response":{"results":[{"title":"Forecast","url":"https://weather.example/"}]}}}]},"finishReason":"STOP"}]}

@@ -13,6 +13,9 @@ import me.rerere.ai.provider.stream.DecodeResult
 import me.rerere.ai.provider.stream.SseEvent
 import me.rerere.ai.provider.stream.StreamChunkDecoder
 import me.rerere.ai.ui.GoogleThoughtMetadata
+import me.rerere.ai.ui.ServerToolMetadata
+import me.rerere.ai.ui.ServerToolProtocol
+import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
@@ -64,11 +67,12 @@ internal class GoogleStreamDecoder(
 
     private fun parseMessage(content: JsonObject, groundingMetadata: JsonObject?): UIMessage = UIMessage(
         role = MessageRole.ASSISTANT,
-        parts = content["parts"]?.jsonArray?.mapNotNull { parsePart(it.jsonObject) }.orEmpty(),
+        parts = content["parts"]?.jsonArray?.mapIndexedNotNull { i, part -> parsePart(part.jsonObject, i) }.orEmpty(),
         annotations = parseAnnotations(groundingMetadata),
     )
 
-    private fun parsePart(part: JsonObject): UIMessagePart? = when {
+    @Suppress("CyclomaticComplexMethod") // 流式分片解析各字段平铺直叙，与同目录既有解码器同型
+    private fun parsePart(part: JsonObject, index: Int = 0): UIMessagePart? = when {
         part.containsKey("text") -> {
             val text = part["text"]?.jsonPrimitive?.contentOrNull ?: ""
             if (part["thought"]?.jsonPrimitive?.booleanOrNull == true) {
@@ -87,7 +91,7 @@ internal class GoogleStreamDecoder(
         part.containsKey("functionCall") -> {
             val functionCall = part["functionCall"]!!.jsonObject
             UIMessagePart.Tool(
-                toolCallId = "$responseId:tool-${++toolSequence}",
+                toolCallId = functionCall["id"]?.jsonPrimitive?.contentOrNull ?: "$responseId:tool-${++toolSequence}",
                 toolName = functionCall["name"]?.jsonPrimitive?.contentOrNull ?: "",
                 input = functionCall["args"]?.let(json::encodeToString) ?: "",
                 output = emptyList(),
@@ -95,6 +99,14 @@ internal class GoogleStreamDecoder(
                     thoughtSignature = part["thoughtSignature"]?.jsonPrimitive?.contentOrNull,
                 ).toMetadata(),
             )
+        }
+        part.containsKey("toolCall") -> {
+            val call = part["toolCall"]!!.jsonObject
+            UIMessagePart.ServerTool(call["id"]?.jsonPrimitive?.contentOrNull ?: "$responseId:server-${++toolSequence}", call["toolType"]?.jsonPrimitive?.contentOrNull ?: "", call["args"], status = ServerToolStatus.IN_PROGRESS, metadata = ServerToolMetadata(protocol = ServerToolProtocol.GOOGLE_GENERATE_CONTENT, call = part, callIndex = index).toMetadata())
+        }
+        part.containsKey("toolResponse") -> {
+            val response = part["toolResponse"]!!.jsonObject
+            UIMessagePart.ServerTool(response["id"]?.jsonPrimitive?.contentOrNull ?: "$responseId:server-${++toolSequence}", response["toolType"]?.jsonPrimitive?.contentOrNull ?: "", output = response["response"], status = ServerToolStatus.COMPLETED, metadata = ServerToolMetadata(protocol = ServerToolProtocol.GOOGLE_GENERATE_CONTENT, result = part, resultIndex = index).toMetadata())
         }
         part.containsKey("inlineData") -> {
             val inlineData = part["inlineData"]!!.jsonObject
@@ -173,6 +185,11 @@ internal class GoogleStreamDecoder(
                         if (part.input.isNotEmpty()) {
                             add(StreamChunk.ToolCallDelta(id, inputDelta = part.input, metadata = part.metadata))
                         }
+                    }
+                    is UIMessagePart.ServerTool -> {
+                        addAll(closeText()); addAll(closeReasoning()); addAll(closeImage()); addAll(closeTools())
+                        if (part.status == ServerToolStatus.IN_PROGRESS) add(StreamChunk.ServerToolStart(part.toolCallId, part.toolName, part.input, part.metadata))
+                        else add(StreamChunk.ServerToolEnd(part.toolCallId, part.input, part.output, part.status, part.metadata))
                     }
                     is UIMessagePart.Image -> {
                         addAll(closeText()); addAll(closeReasoning()); addAll(closeTools())

@@ -48,6 +48,9 @@ import me.rerere.ai.provider.providers.groupPartsByToolBoundary
 import me.rerere.ai.provider.stream.SseEvent
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.GoogleThoughtMetadata
+import me.rerere.ai.ui.ServerToolMetadata
+import me.rerere.ai.ui.ServerToolProtocol
+import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.MessageChunk
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessageChoice
@@ -243,7 +246,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         TextGenerationResult(
             id = Uuid.random().toString(),
             model = params.model.modelId,
-            message = parseMessage(candidate),
+            message = parseGoogleMessage(candidate),
             finishReason = candidate["finishReason"]?.jsonPrimitive?.contentOrNull,
             usage = parseUsageMeta(bodyJson["usageMetadata"] as? JsonObject),
         )
@@ -391,7 +394,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 val finishReason = candidateObj["finishReason"]?.jsonPrimitive?.contentOrNull
 
                 val message = content?.let {
-                    parseMessage(buildJsonObject {
+                    parseGoogleMessage(buildJsonObject {
                         put("role", JsonPrimitive("model"))
                         put("content", it)
                         groundingMetadata?.let { groundingMetadata ->
@@ -448,12 +451,13 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
 
                     val isGeminiPro =
                         params.model.modelId.contains(Regex("2\\.5.*pro", RegexOption.IGNORE_CASE))
+                    val useThinkingLevel = ModelRegistry.GEMINI_3_SERIES.match(params.model.modelId) || ModelRegistry.GEMINI_4.match(params.model.modelId)
 
                     when (params.reasoningLevel) {
                         ReasoningLevel.AUTO -> {} // 自动模式，不设置参数
 
                         ReasoningLevel.OFF -> {
-                            if (ModelRegistry.GEMINI_3_SERIES.match(modelId = params.model.modelId)) {
+                            if (useThinkingLevel) {
                                 put("thinkingLevel", "MINIMAL")
                             } else if (!isGeminiPro) {
                                 put("thinkingBudget", 0)
@@ -462,7 +466,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                         }
 
                         else -> {
-                            if (ModelRegistry.GEMINI_3_SERIES.match(modelId = params.model.modelId)) {
+                            if (useThinkingLevel) {
                                 when (params.reasoningLevel) {
                                     ReasoningLevel.LOW -> put("thinkingLevel", "LOW")
                                     ReasoningLevel.MEDIUM -> put("thinkingLevel", "MEDIUM")
@@ -489,7 +493,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         // existing key), so built-in tools silently clobbered every function tool
         // whenever both were present. Build one array covering both.
         val hasFunctionTools = params.tools.isNotEmpty() && params.model.abilities.contains(ModelAbility.TOOL)
-        val hasBuiltInTools = params.model.tools.isNotEmpty()
+        val hasBuiltInTools = params.model.tools.any { it == BuiltInTools.Search || it == BuiltInTools.UrlContext }
         if (hasFunctionTools || hasBuiltInTools) {
             put("tools", buildJsonArray {
                 if (hasFunctionTools) {
@@ -568,14 +572,12 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         }
     }
 
-    private fun parseMessage(message: JsonObject): UIMessage {
+    internal fun parseGoogleMessage(message: JsonObject): UIMessage {
         val role = googleRoleToCommonRole(
             message["role"]?.jsonPrimitive?.contentOrNull ?: "model"
         )
         val content = message["content"]?.jsonObject ?: error("No content")
-        val parts = content["parts"]?.jsonArray?.mapNotNull { part ->
-            parseMessagePart(part.jsonObject)
-        } ?: emptyList()
+        val parts = content["parts"]?.jsonArray?.mapIndexedNotNull { i, part -> parseMessagePart(part.jsonObject, i) } ?: emptyList()
 
         val groundingMetadata = message["groundingMetadata"]?.jsonObject
         AppLogger.i(TAG, "parseMessage: $groundingMetadata")
@@ -604,7 +606,8 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         return chunks
     }
 
-    private fun parseMessagePart(jsonObject: JsonObject): UIMessagePart? {
+    @Suppress("CyclomaticComplexMethod") // 多模态响应的各分片类型平铺分派，拆开反而难与协议字段对照
+    private fun parseMessagePart(jsonObject: JsonObject, index: Int = 0): UIMessagePart? {
         return when {
             jsonObject.containsKey("text") -> {
                 val thought = jsonObject["thought"]?.jsonPrimitive?.booleanOrNull ?: false
@@ -622,7 +625,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
 
             jsonObject.containsKey("functionCall") -> {
                 UIMessagePart.Tool(
-                    toolCallId = Uuid.random().toString(),
+                    toolCallId = jsonObject["functionCall"]!!.jsonObject["id"]?.jsonPrimitive?.contentOrNull ?: Uuid.random().toString(),
                     toolName = jsonObject["functionCall"]!!.jsonObject["name"]!!.jsonPrimitive.content,
                     input = json.encodeToString(jsonObject["functionCall"]!!.jsonObject["args"]),
                     output = emptyList(),
@@ -632,6 +635,14 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 )
             }
 
+            jsonObject.containsKey("toolCall") -> {
+                val call = jsonObject["toolCall"]!!.jsonObject
+                UIMessagePart.ServerTool(call["id"]?.jsonPrimitive?.contentOrNull ?: "google-server-$index", call["toolType"]?.jsonPrimitive?.contentOrNull ?: "", call["args"], status = ServerToolStatus.IN_PROGRESS, metadata = ServerToolMetadata(protocol = ServerToolProtocol.GOOGLE_GENERATE_CONTENT, call = jsonObject, callIndex = index).toMetadata())
+            }
+            jsonObject.containsKey("toolResponse") -> {
+                val response = jsonObject["toolResponse"]!!.jsonObject
+                UIMessagePart.ServerTool(response["id"]?.jsonPrimitive?.contentOrNull ?: "google-server-$index", response["toolType"]?.jsonPrimitive?.contentOrNull ?: "", output = response["response"], status = ServerToolStatus.COMPLETED, metadata = ServerToolMetadata(protocol = ServerToolProtocol.GOOGLE_GENERATE_CONTENT, result = jsonObject, resultIndex = index).toMetadata())
+            }
             jsonObject.containsKey("inlineData") -> {
                 val inlineData = jsonObject["inlineData"]!!.jsonObject
                 val mime = inlineData["mimeType"]?.jsonPrimitive?.content ?: "image/png"
@@ -673,96 +684,110 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                     if (message.role == MessageRole.ASSISTANT) {
                         addModelMessage(message)
                     } else {
-                        addUserMessage(message)
+                        addGoogleUserMessage(message)
                     }
                 }
         }
     }
 
     private fun JsonArrayBuilder.addModelMessage(message: UIMessage) {
-        val groups = groupPartsByToolBoundary(message.parts)
-        val partsBuffer = mutableListOf<JsonObject>()
-        // Forward thoughtSignature from any preceding Reasoning part to the next Tool
-        // part that doesn't already carry one. Gemini emits the signature on the thought
-        // (text + thought=true), but Reasoning parts are not sent back to Gemini in
-        // continuation requests — without forwarding, the next functionCall arrives
-        // unsigned and Gemini rejects with "Function call is missing a thought_signature
-        // in functionCall parts". Tracked across the message's parts list so cross-chunk
-        // streaming (thought in chunk N, functionCall in chunk N+1) still attaches the
-        // signature when the assistant message is finally serialized.
+        val modelParts = mutableListOf<JsonObject>()
+        val responseParts = mutableListOf<JsonObject>()
         var carriedSig: String? = null
 
-        for (group in groups) {
-            when (group) {
-                is PartGroup.Content -> {
-                    // Track most recent reasoning signature for the next tool group.
-                    group.parts.forEach { part ->
-                        if (part is UIMessagePart.Reasoning) {
-                            part.metadata?.get("thoughtSignature")
-                                ?.jsonPrimitive?.contentOrNull
-                                ?.takeIf { it.isNotBlank() }
-                                ?.let { carriedSig = it }
-                        }
-                    }
-                    group.parts.mapNotNull { it.toGooglePart() }.forEach { partsBuffer.add(it) }
-                }
+        fun flushModel() {
+            if (modelParts.isEmpty()) return
+            add(buildJsonObject {
+                put("role", "model")
+                putJsonArray("parts") { modelParts.forEach { add(it) } }
+            })
+            modelParts.clear()
+        }
 
-                is PartGroup.Tools -> {
-                    // 添加 functionCall 到 parts 缓冲
-                    group.tools.forEach { tool ->
-                        val effective = if (
-                            tool.metadata?.get("thoughtSignature")?.jsonPrimitive?.contentOrNull.isNullOrBlank()
-                            && carriedSig != null
-                        ) {
-                            tool.copy(metadata = buildJsonObject {
-                                put("thoughtSignature", JsonPrimitive(carriedSig))
-                            })
-                        } else tool
-                        partsBuffer.add(effective.toFunctionCallPart())
-                    }
-                    carriedSig = null  // consumed by this tool group
+        fun flushResponses() {
+            if (responseParts.isEmpty()) return
+            add(buildJsonObject {
+                put("role", "user")
+                putJsonArray("parts") { responseParts.forEach { add(it) } }
+            })
+            responseParts.clear()
+        }
 
-                    // 输出 model 消息 (skip if every part dropped - an empty "parts" array is an
-                    // invalid Google payload, matching the guard on the tail flush below)
-                    if (partsBuffer.isNotEmpty()) {
-                        add(buildJsonObject {
-                            put("role", "model")
-                            putJsonArray("parts") { partsBuffer.forEach { add(it) } }
-                        })
-                    }
-                    partsBuffer.clear()
-
-                    // 紧跟 functionResponse
-                    add(buildJsonObject {
-                        put("role", "user")
-                        putJsonArray("parts") {
-                            group.tools.forEach { add(it.toFunctionResponsePart()) }
-                        }
-                    })
-                }
+        fun startNextModelContent() {
+            if (responseParts.isNotEmpty()) {
+                flushModel()
+                flushResponses()
             }
         }
 
-        // 输出剩余内容
-        if (partsBuffer.isNotEmpty()) {
+        for (part in message.parts) {
+            when (part) {
+                is UIMessagePart.Tool -> {
+                    // A pending/unexecuted local tool is not a Google result and must
+                    // not be replayed as an empty functionResponse.
+                    if (!part.isExecuted) continue
+                    // All assistant calls (client function and Google-hosted) belong to
+                    // the model turn; their results follow in a user turn. Only this
+                    // Tool type reaches the local tool execution pipeline.
+                    val signature = part.metadataAs<GoogleThoughtMetadata>()?.thoughtSignature
+                    val effective = if (signature.isNullOrBlank() && !carriedSig.isNullOrBlank()) {
+                        part.copy(metadata = GoogleThoughtMetadata(carriedSig).toMetadata())
+                    } else part
+                    modelParts.add(effective.toFunctionCallPart())
+                    responseParts.add(effective.toFunctionResponsePart())
+                    carriedSig = null
+                }
+                is UIMessagePart.ServerTool -> {
+                    val metadata = part.metadataAs<ServerToolMetadata>()
+                        ?.takeIf { it.protocol == ServerToolProtocol.GOOGLE_GENERATE_CONTENT }
+                    // Replay wire parts verbatim. In particular, completed server tools
+                    // remain ServerTool values and are never converted to local Tool calls.
+                    metadata?.call?.let(modelParts::add)
+                    metadata?.result?.let(responseParts::add)
+                }
+                is UIMessagePart.Reasoning -> {
+                    val signature = part.metadata?.get("thoughtSignature")?.jsonPrimitive?.contentOrNull
+                    if (!signature.isNullOrBlank()) carriedSig = signature
+                    startNextModelContent()
+                    part.toGooglePart()?.let(modelParts::add)
+                }
+                else -> {
+                    startNextModelContent()
+                    part.toGooglePart()?.let(modelParts::add)
+                }
+            }
+        }
+        flushModel()
+        flushResponses()
+    }
+    private fun JsonArrayBuilder.addGoogleUserMessage(message: UIMessage) {
+        val serverCalls = mutableListOf<JsonObject>()
+        val userParts = mutableListOf<JsonObject>()
+        message.parts.forEach { part ->
+            if (part is UIMessagePart.ServerTool) {
+                val metadata = part.metadataAs<ServerToolMetadata>()
+                    ?.takeIf { it.protocol == ServerToolProtocol.GOOGLE_GENERATE_CONTENT }
+                metadata?.call?.let(serverCalls::add)
+                metadata?.result?.let(userParts::add)
+            } else {
+                part.toGooglePart()?.let(userParts::add)
+            }
+        }
+        // A provider-owned server tool call is always a model part; its result is
+        // always a user part, regardless of which UI message carried the metadata.
+        if (serverCalls.isNotEmpty()) {
             add(buildJsonObject {
                 put("role", "model")
-                putJsonArray("parts") { partsBuffer.forEach { add(it) } }
+                putJsonArray("parts") { serverCalls.forEach { add(it) } }
             })
         }
-    }
-
-    private fun JsonArrayBuilder.addUserMessage(message: UIMessage) {
-        val parts = message.parts.mapNotNull { it.toGooglePart() }
-        // Skip the turn entirely if every part was dropped (e.g. an unencodable image) - an
-        // empty "parts" array is an invalid Google payload.
-        if (parts.isEmpty()) return
-        add(buildJsonObject {
+        // Skip the turn entirely if every part was dropped (e.g. an unencodable
+        // image) - an empty "parts" array is an invalid Google payload.
+        if (userParts.isNotEmpty()) add(buildJsonObject {
             put("role", commonRoleToGoogleRole(message.role))
-            putJsonArray("parts") { parts.forEach { add(it) } }
+            putJsonArray("parts") { userParts.forEach { add(it) } }
         })
     }
-
     private fun UIMessagePart.toGooglePart(): JsonObject? = when (this) {
         is UIMessagePart.Text -> buildJsonObject {
             put("text", text)

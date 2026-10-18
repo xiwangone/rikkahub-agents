@@ -35,6 +35,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import me.rerere.ai.core.Tool
+import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
@@ -137,6 +138,7 @@ fun ProviderConnectionTester(
                                         ),
                                         params = TextGenerationParams(
                                             model = model!!,
+                                            reasoningLevel = ReasoningLevel.AUTO,
                                             customHeaders = model!!.customHeaders,
                                             customBody = model!!.customBodies
                                         )
@@ -158,6 +160,7 @@ fun ProviderConnectionTester(
                                         ),
                                         params = TextGenerationParams(
                                             model = model!!,
+                                            reasoningLevel = ReasoningLevel.AUTO,
                                             customHeaders = model!!.customHeaders,
                                             customBody = model!!.customBodies
                                         )

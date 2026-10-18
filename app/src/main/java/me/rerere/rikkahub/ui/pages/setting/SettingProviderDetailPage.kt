@@ -1033,6 +1033,10 @@ private fun ModelSettingsForm(
                                     onModelChange(model.copy(abilities = it))
                                 },
                             )
+                            ModelContextWindowEditor(
+                                contextLength = model.contextLength,
+                                onChange = { onModelChange(model.copy(contextLength = it)) },
+                            )
                         }
                     }
                 }
@@ -1541,6 +1545,31 @@ private fun ModelModalitySelector(
 }
 
 @Composable
+private fun ModelContextWindowEditor(contextLength: Int?, onChange: (Int?) -> Unit) {
+    var customValue by remember(contextLength) { mutableStateOf(contextLength?.toString().orEmpty()) }
+    Text(
+        stringResource(R.string.setting_provider_page_context_window_title),
+        style = MaterialTheme.typography.titleSmall,
+    )
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        listOf(128_000, 200_000, 1_000_000).forEach { preset ->
+            TextButton(onClick = { customValue = preset.toString(); onChange(preset) }) { Text(preset.toString()) }
+        }
+        TextButton(onClick = { customValue = ""; onChange(null) }) {
+            Text(stringResource(R.string.setting_provider_page_context_window_unknown))
+        }
+    }
+    OutlinedTextField(
+        value = customValue,
+        onValueChange = { raw ->
+            customValue = raw.filter(Char::isDigit)
+            onChange(customValue.toIntOrNull()?.takeIf { it > 0 })
+        },
+        label = { Text(stringResource(R.string.setting_provider_page_context_window_custom)) },
+        singleLine = true,
+    )
+}
+
 fun ModalAbilitySelector(
     abilities: List<ModelAbility>,
     onUpdateAbilities: (List<ModelAbility>) -> Unit,
