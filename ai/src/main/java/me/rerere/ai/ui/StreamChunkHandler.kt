@@ -363,6 +363,7 @@ fun List<UIMessage>.handleTextGenerationResult(
     require(isNotEmpty()) { "messages must not be empty" }
     val incoming = result.message.copy(
         modelId = model?.id,
+        modelSnapshot = model?.let { ModelSnapshot(it.modelId, it.displayName) } ?: result.message.modelSnapshot,
         usage = result.usage,
         finishedAt = Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault()),
     ).finishReasoning()
@@ -371,6 +372,7 @@ fun List<UIMessage>.handleTextGenerationResult(
     } else {
         dropLast(1) + last().appendMessage(incoming).copy(
             modelId = model?.id ?: last().modelId,
+            modelSnapshot = model?.let { ModelSnapshot(it.modelId, it.displayName) } ?: last().modelSnapshot,
             usage = last().usage.merge(result.usage ?: TokenUsage()),
             finishedAt = incoming.finishedAt,
         ).finishReasoning()

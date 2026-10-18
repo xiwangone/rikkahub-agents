@@ -1,3 +1,5 @@
+@file:Suppress("CyclomaticComplexMethod", "TooGenericExceptionCaught") // 生成标题的分支与网络/解析异常处理平铺；错误路径需在同一处集中上报
+
 package me.rerere.rikkahub.service
 
 import android.app.Application
@@ -169,6 +171,15 @@ internal fun backgroundTextGenerationParams(
         sessionId = conversationId.toString(),
     )
 
+private val forkTitleSuffixRegex = Regex("""\((\d+)\)$""")
+
+internal fun forkConversationTitle(sourceTitle: String, existingTitles: Set<String>): String {
+    val suffix = forkTitleSuffixRegex.find(sourceTitle)
+    val baseTitle = suffix?.let { sourceTitle.removeRange(it.range) } ?: sourceTitle
+    val start = suffix?.groupValues?.get(1)?.toIntOrNull()?.let { it + 1 } ?: 1
+    return generateSequence(start) { it + 1 }.map { "$baseTitle($it)" }.first { it !in existingTitles }
+}
+
 internal fun createForkConversation(
     source: Conversation,
     messageNodes: List<MessageNode>,
@@ -176,9 +187,7 @@ internal fun createForkConversation(
 ): Conversation = Conversation(
     id = Uuid.random(),
     assistantId = source.assistantId,
-    title = generateSequence(1) { it + 1 }
-        .map { "${source.title}($it)" }
-        .first { it !in existingTitles },
+    title = forkConversationTitle(source.title, existingTitles),
     messageNodes = messageNodes,
     customSystemPrompt = source.customSystemPrompt,
     modeInjectionIds = source.modeInjectionIds,
@@ -315,6 +324,8 @@ class ChatService(
 
     // Title/suggestion aux-generation jobs, keyed per conversation - see AuxJobRegistry.
     private val auxJobs = AuxJobRegistry()
+    private val titleFailureLock = Any()
+    private val titleFailureReportedAtMs = mutableMapOf<Uuid, Long>()
 
     /**
      * Per-conversation mutex serialising state-mutating operations: handleToolApproval,
@@ -1879,19 +1890,16 @@ class ChatService(
         }
 
 
-        runCatching {
+        try {
             val settings = settingsStore.settingsFlow.first()
             // Manual regeneration (force=true) remains available when automation is disabled.
             if (!force && !settings.autoGenerateTitle) return@runCatching
             val model = settings.findModelById(settings.titleModelId, fallback = settings.fastModelId)
-                ?: run { applyTitle(fallback); return@runCatching }
+                ?: error("title model is not configured")
             val provider = model.findProvider(settings.providers)
-                ?: run { applyTitle(fallback); return@runCatching }
+                ?: error("title model provider is missing")
             // Same defence as handleLlmTurn: don't burn tokens on a disabled provider.
-            if (!provider.enabled) {
-                applyTitle(fallback)
-                return@runCatching
-            }
+            if (!provider.enabled) error("title model provider is disabled")
 
             val providerHandler = providerManager.getProviderByType(provider)
             val result =
@@ -1914,17 +1922,36 @@ class ChatService(
                 )
 
             applyTitle(result.message.toText().trim().ifBlank { fallback })
-        }.onFailure {
-            // Title generation is auxiliary — a failure here doesn't block the chat
-            // and surfaces visibly as a blank conversation title in the list. Don't
-            // push it onto the user-facing error stream: when the title model 429s,
-            // the next message sees title.isBlank()==true, tries again, 429s again,
-            // and the user gets a popup per message until they switch models. Match
-            // the generateSuggestion pattern (log only) to keep the surface quiet.
-            AppLog.w(TAG, "generateTitle failed", it)
-            // Fallback so a failed generation still leaves a usable title.
-            runCatching { applyTitle(fallback) }
-                .onFailure { e -> AppLog.w(TAG, "generateTitle fallback apply failed", e) }
+        } catch (failure: CancellationException) {
+            throw failure
+        } catch (failure: Throwable) {
+            // Keep diagnostics useful without logging/displaying provider response bodies or credentials.
+            AppLog.w(TAG, "generateTitle failed (${failure.javaClass.simpleName})")
+            try {
+                applyTitle(fallback)
+            } catch (fallbackFailure: CancellationException) {
+                throw fallbackFailure
+            } catch (fallbackFailure: Throwable) {
+                AppLog.w(TAG, "generateTitle fallback apply failed (${fallbackFailure.javaClass.simpleName})")
+            }
+            val now = System.currentTimeMillis()
+            val shouldReport = synchronized(titleFailureLock) {
+                val previous = titleFailureReportedAtMs[conversationId]
+                if (previous == null || now - previous >= 60_000L) {
+                    titleFailureReportedAtMs[conversationId] = now
+                    true
+                } else {
+                    false
+                }
+            }
+            if (shouldReport) {
+                addError(
+                    error = IllegalStateException(context.getString(R.string.chat_title_generation_failed)),
+                    conversationId = conversationId,
+                    title = context.getString(R.string.chat_title_generation_failed_title),
+                    solution = ChatErrorSolution.CheckTitleModelSettings,
+                )
+            }
         }
     }
 

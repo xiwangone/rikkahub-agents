@@ -3705,4 +3705,6 @@
     <string name="conversation_sort_updated">依最近活動排序</string>
     <string name="translator_history_delete">刪除</string>
     <string name="translator_history_title">翻譯歷史</string>
+    <string name="chat_title_generation_failed">標題產生失敗。請檢查標題或快速模型設定。</string>
+    <string name="chat_title_generation_failed_title">無法產生對話標題</string>
 </resources>

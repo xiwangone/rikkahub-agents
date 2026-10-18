@@ -92,10 +92,10 @@ fun ChatMessageAssistantAvatar(
                         )
                     }
                 }
-            } else if (model != null) {
+            } else if (model != null || message.modelSnapshot != null) {
                 if (showIcon) {
                     AutoAIIcon(
-                        name = model.modelId,
+                        name = model?.modelId ?: message.modelSnapshot?.modelId.orEmpty(),
                         modifier = Modifier.size(28.dp),
                         loading = loading,
                     )
@@ -107,7 +107,7 @@ fun ChatMessageAssistantAvatar(
                 ) {
                     if (settings.displaySetting.showModelName) {
                         Text(
-                            text = model.displayName,
+                            text = model?.displayName ?: message.modelSnapshot?.displayName.orEmpty(),
                             style = MaterialTheme.typography.labelLargeEmphasized,
                             maxLines = 2,
                             overflow = TextOverflow.Ellipsis,

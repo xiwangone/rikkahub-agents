@@ -140,7 +140,7 @@ private fun OpenAIRealtimeASRConfiguration(
         OutlinedNumberInput(
             value = setting.vadThreshold,
             onValueChange = { value ->
-                if (value in 0.0f..1.0f) {
+                if (value in -1.0f..1.0f) {
                     onValueChange(setting.copy(vadThreshold = value))
                 }
             },
@@ -172,7 +172,7 @@ private fun OpenAIRealtimeASRConfiguration(
         OutlinedNumberInput(
             value = setting.silenceDurationMs,
             onValueChange = { value ->
-                if (value in 100..5000) {
+                if (value in 200..6000) {
                     onValueChange(setting.copy(silenceDurationMs = value))
                 }
             },

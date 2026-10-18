@@ -424,6 +424,8 @@
   <string name="chat_message_tool_submit">Submit</string>
   <string name="chat_page_cancel">Cancel</string>
   <string name="chat_page_check_title_model_settings">Check title model settings</string>
+  <string name="chat_title_generation_failed_title">Could not generate conversation title</string>
+  <string name="chat_title_generation_failed">Title generation failed. Check your title or fast model settings.</string>
   <string name="chat_page_clear_all_errors">Clear all</string>
   <string name="chat_page_compress_additional_prompt">Additional Instructions (Optional)</string>
   <string name="chat_page_compress_additional_prompt_hint">Specify what to preserve or focus on</string>

@@ -141,14 +141,14 @@ fun ChatMessageNerdLine(
                     }
                     // TPS
                     if (message.finishedAt != null) {
-                        val duration =
-                            Duration.between(
-                                message.createdAt.toJavaLocalDateTime(),
-                                message.finishedAt!!.toJavaLocalDateTime(),
-                            )
-                        val tps = usage.completionTokens.toFloat() / duration.toMillis() * 1000
-                        val seconds = (duration.toMillis() / 1000f).toFixed(1)
-                        StatsItem(
+                        val durationMillis = message.generationTimeMs ?: Duration.between(
+                            message.createdAt.toJavaLocalDateTime(),
+                            message.finishedAt!!.toJavaLocalDateTime(),
+                        ).toMillis()
+                        if (durationMillis > 0) {
+                            val tps = usage.completionTokens.toFloat() / durationMillis * 1000
+                            val seconds = (durationMillis / 1000f).toFixed(1)
+                            StatsItem(
                             icon = {
                                 Icon(
                                     imageVector = HugeIcons.Zap,
@@ -173,6 +173,7 @@ fun ChatMessageNerdLine(
                                 Text(text = "${seconds}s")
                             },
                         )
+                        }
                     }
                     // 一键复制统计信息（与截图格式一致，方便直接粘贴给 AI 分析）
                     var pendingCopyText by remember { mutableStateOf("") }
@@ -190,14 +191,15 @@ fun ChatMessageNerdLine(
                                             append(" ↓${usage.completionTokens.formatNumber()} tokens")
                                             val finish = message.finishedAt
                                             if (finish != null) {
-                                                val duration =
-                                                    Duration.between(
-                                                        message.createdAt.toJavaLocalDateTime(),
-                                                        finish.toJavaLocalDateTime(),
-                                                    )
-                                                val tps = usage.completionTokens.toFloat() / duration.toMillis() * 1000
-                                                val seconds = (duration.toMillis() / 1000f).toFixed(1)
-                                                append(" ⚡${tps.toFixed(1)} tok/s 🕐${seconds}s")
+                                                val durationMillis = message.generationTimeMs ?: Duration.between(
+                                                    message.createdAt.toJavaLocalDateTime(),
+                                                    finish.toJavaLocalDateTime(),
+                                                ).toMillis()
+                                                if (durationMillis > 0) {
+                                                    val tps = usage.completionTokens.toFloat() / durationMillis * 1000
+                                                    val seconds = (durationMillis / 1000f).toFixed(1)
+                                                    append(" ⚡${tps.toFixed(1)} tok/s 🕐${seconds}s")
+                                                }
                                             }
                                         }
                                     pendingCopyText = statsText

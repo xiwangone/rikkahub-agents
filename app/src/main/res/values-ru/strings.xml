@@ -3706,4 +3706,6 @@
     <string name="conversation_sort_updated">Сортировать по недавней активности</string>
     <string name="translator_history_delete">Удалить</string>
     <string name="translator_history_title">История перевода</string>
+    <string name="chat_title_generation_failed">Не удалось создать заголовок. Проверьте настройки заголовка или быстрой модели.</string>
+    <string name="chat_title_generation_failed_title">Не удалось создать заголовок беседы</string>
 </resources>

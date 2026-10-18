@@ -3702,4 +3702,6 @@
     <string name="conversation_sort_updated">按最近活动排序</string>
     <string name="translator_history_delete">删除</string>
     <string name="translator_history_title">翻译历史</string>
+    <string name="chat_title_generation_failed">标题生成失败。请检查标题或快速模型设置。</string>
+    <string name="chat_title_generation_failed_title">无法生成对话标题</string>
 </resources>

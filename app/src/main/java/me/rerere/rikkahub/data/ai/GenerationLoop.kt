@@ -1516,6 +1516,10 @@ class GenerationLoop(
         )
 
         var messages: List<UIMessage> = messages
+        // Preserve elapsed generation time from earlier model/tool rounds. Tool execution,
+        // approval waits, and time-to-first-token are deliberately not included.
+        val priorGenerationTimeMs = messages.lastOrNull()?.generationTimeMs ?: 0L
+        var firstResponseChunkAtMs: Long? = null
         val params = TextGenerationParams(
             model = model,
             temperature = assistant.temperature,
@@ -1568,6 +1572,7 @@ class GenerationLoop(
                 if (pendingStreamChunks.isNotEmpty()) {
                     pendingStreamChunks.forEach { messages = streamChunkHandler.handle(messages, it) }
                     pendingStreamChunks.clear()
+                    messages = messages.withGenerationElapsed(priorGenerationTimeMs, firstResponseChunkAtMs)
                     onUpdateMessages(messages)
                 }
                 // Some SSE implementations report an abruptly closed socket through onClosed
@@ -1598,6 +1603,7 @@ class GenerationLoop(
                     // per-attempt "did anything arrive" flag so onCompletion's transport-failure
                     // check reflects this attempt, not a chunk seen in an earlier one.
                     receivedAnyChunk = false
+                    firstResponseChunkAtMs = null
                     val delayMs = generationStreamRetryDelayMs(retryAttempt)
                     processingStatus.value = retryStatusText(
                         context = context,
@@ -1639,6 +1645,9 @@ class GenerationLoop(
                 }
             }.collect { chunk ->
                 receivedAnyChunk = true
+                if (firstResponseChunkAtMs == null) {
+                    firstResponseChunkAtMs = android.os.SystemClock.elapsedRealtime()
+                }
                 if (isMeaningfulStreamChunk(chunk)) {
                     receivedMeaningfulOutput = true
                     clearRetryStatus(processingStatus)
@@ -1649,6 +1658,7 @@ class GenerationLoop(
                     lastStreamApplyAtMs = nowApplyMs
                     pendingStreamChunks.forEach { messages = streamChunkHandler.handle(messages, it) }
                     pendingStreamChunks.clear()
+                    messages = messages.withGenerationElapsed(priorGenerationTimeMs, firstResponseChunkAtMs)
                     onUpdateMessages(messages)
                 }
             }
@@ -1667,6 +1677,7 @@ class GenerationLoop(
                     stream = false
                 )
             )
+            var requestStartedAtMs = android.os.SystemClock.elapsedRealtime()
             val result = retryGenerationTransportRequest(
                 maxRetries = params.maxStreamRetries,
                 onRetry = { retryNumber, failure ->
@@ -1679,6 +1690,7 @@ class GenerationLoop(
                     )
                 },
             ) {
+                requestStartedAtMs = android.os.SystemClock.elapsedRealtime()
                 providerImpl.generateText(
                     providerSetting = provider,
                     messages = internalMessages,
@@ -1686,6 +1698,7 @@ class GenerationLoop(
                 )
             }
             messages = messages.handleTextGenerationResult(result = result, model = (resolveBackendProvider(settings.executionBackend, model, settings.providers)?.second ?: model))
+            messages = messages.withGenerationElapsed(priorGenerationTimeMs, requestStartedAtMs)
             onUpdateMessages(messages)
         }
         // 请求收尾：本请求期间 provider 取用过的凭据引用落审计（归属 = 本会话/模型/助手）
@@ -1694,6 +1707,18 @@ class GenerationLoop(
             modelId = model.modelId,
             assistantId = assistant.id.toString(),
         )
+    }
+
+    private fun List<UIMessage>.withGenerationElapsed(
+        priorGenerationTimeMs: Long,
+        firstChunkAtMs: Long?,
+        nowMs: Long = android.os.SystemClock.elapsedRealtime(),
+    ): List<UIMessage> {
+        val startedAt = firstChunkAtMs ?: return this
+        if (isEmpty()) return this
+        val elapsed = (nowMs - startedAt).coerceAtLeast(0L)
+        val last = last()
+        return dropLast(1) + last.copy(generationTimeMs = priorGenerationTimeMs + elapsed)
     }
 
     /**

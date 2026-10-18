@@ -3706,4 +3706,6 @@
     <string name="conversation_sort_updated">최근 활동순 정렬</string>
     <string name="translator_history_delete">삭제</string>
     <string name="translator_history_title">번역 기록</string>
+    <string name="chat_title_generation_failed">제목 생성에 실패했습니다. 제목 또는 빠른 모델 설정을 확인하세요.</string>
+    <string name="chat_title_generation_failed_title">대화 제목을 생성할 수 없습니다</string>
 </resources>

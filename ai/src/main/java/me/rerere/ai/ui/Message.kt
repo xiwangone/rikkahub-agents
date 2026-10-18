@@ -25,7 +25,11 @@ data class UIMessage(
         .toLocalDateTime(TimeZone.currentSystemDefault()),
     val finishedAt: LocalDateTime? = null,
     val modelId: Uuid? = null,
+    // Stable display-only provenance; defaults preserve decoding of historical messages.
+    val modelSnapshot: ModelSnapshot? = null,
     val usage: TokenUsage? = null,
+    // Cumulative time spent generating streamed responses; null keeps historical JSON compatible.
+    val generationTimeMs: Long? = null,
     // 上报的终止原因（stop/length/tool_calls 等）；null = 流结束但模型端未报告，
     // 多为中途断开被伪装成正常关闭——排查「回复截断」的关键线索
     val finishReason: String? = null,
@@ -622,6 +626,12 @@ data class MessageChunk(
     val model: String,
     val choices: List<UIMessageChoice>,
     val usage: TokenUsage? = null,
+)
+
+@Serializable
+data class ModelSnapshot(
+    val modelId: String,
+    val displayName: String,
 )
 
 @Serializable
