@@ -3728,4 +3728,5 @@
     <string name="translator_history_title">سجل الترجمة</string>
     <string name="chat_title_generation_failed">فشل إنشاء العنوان. تحقق من إعدادات العنوان أو النموذج السريع.</string>
     <string name="chat_title_generation_failed_title">تعذّر إنشاء عنوان المحادثة</string>
+  <string name="chat_page_export_include_reasoning">تضمين عملية التفكير</string>
 </resources>

@@ -3725,4 +3725,5 @@
     <string name="translator_history_title">翻译历史</string>
     <string name="chat_title_generation_failed">标题生成失败。请检查标题或快速模型设置。</string>
     <string name="chat_title_generation_failed_title">无法生成对话标题</string>
+  <string name="chat_page_export_include_reasoning">包含思考过程</string>
 </resources>

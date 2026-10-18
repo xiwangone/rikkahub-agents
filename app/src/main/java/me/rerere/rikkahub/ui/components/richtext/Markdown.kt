@@ -391,6 +391,60 @@ object HeaderStyle {
         )
 }
 
+/** Locate paired quote spans, ignoring fenced and inline code. Unclosed quotes are ignored. */
+@Suppress("CyclomaticComplexMethod", "NestedBlockDepth") // 行级状态机扫描引号配对（跳代码块与行内码），拆开会割裂与渲染端的行号对齐
+private fun quotedTextRanges(source: String): List<IntRange> {
+    val pairs = mapOf('"' to '"', '“' to '”', '「' to '」', '『' to '』')
+    val result = mutableListOf<IntRange>()
+    var fence: Char? = null
+    var lineStart = 0
+    while (lineStart <= source.length) {
+        val lineEnd = source.indexOf('\n', lineStart).let { if (it < 0) source.length else it }
+        val fenceMarker = Regex("^[ \\t]{0,3}(```+|~~~+)").find(source.substring(lineStart, lineEnd))?.groupValues?.get(1)
+        if (fence != null) {
+            if (fenceMarker != null && fenceMarker.first() == fence) fence = null
+            lineStart = lineEnd + 1
+            if (lineEnd == source.length) break
+            continue
+        }
+        if (fenceMarker != null) {
+            fence = fenceMarker.first()
+            lineStart = lineEnd + 1
+            if (lineEnd == source.length) break
+            continue
+        }
+        var i = lineStart
+        var ticks = 0
+        var quoteOpen: Char? = null
+        var quoteStart = -1
+        while (i < lineEnd) {
+            val c = source[i]
+            if (c == '`' && (i == 0 || source[i - 1] != '\\')) {
+                var j = i + 1
+                while (j < lineEnd && source[j] == '`') j++
+                val count = j - i
+                if (ticks == 0) ticks = count else if (ticks == count) ticks = 0
+                i = j
+                continue
+            }
+            if (ticks == 0 && (i == 0 || source[i - 1] != '\\')) {
+                if (quoteOpen == null && c in pairs) {
+                    quoteOpen = c
+                    quoteStart = i
+                } else if (quoteOpen != null && c == pairs[quoteOpen]) {
+                    if (i > quoteStart + 1) result.add((quoteStart + 1)..(i - 1))
+                    quoteOpen = null
+                    quoteStart = -1
+                }
+            }
+            i++
+        }
+        lineStart = lineEnd + 1
+        if (lineEnd == source.length) break
+    }
+    return result
+}
+
 @Composable
 private fun MarkdownNode(
     node: ASTNode,
@@ -702,10 +756,24 @@ private fun MarkdownNode(
 
         MarkdownTokenTypes.TEXT -> {
             val text = node.getTextInNode(content)
-            Text(
-                text = text,
-                modifier = modifier,
-            )
+            val highlightQuotes = LocalSettings.current.displaySetting.enableQuoteHighlight
+            val quoteColor = MaterialTheme.colorScheme.tertiary
+            val annotatedText = remember(content, node.startOffset, node.endOffset, highlightQuotes, quoteColor) {
+                buildAnnotatedString {
+                    append(text)
+                    if (highlightQuotes) {
+                        val nodeStart = node.startOffset
+                        quotedTextRanges(content).forEach { range ->
+                            val start = maxOf(range.first, nodeStart)
+                            val endExclusive = minOf(range.last + 1, node.endOffset)
+                            if (start < endExclusive) {
+                                addStyle(SpanStyle(color = quoteColor), start - nodeStart, endExclusive - nodeStart)
+                            }
+                        }
+                    }
+                }
+            }
+            Text(text = annotatedText, modifier = modifier)
         }
 
         MarkdownElementTypes.HTML_BLOCK -> {

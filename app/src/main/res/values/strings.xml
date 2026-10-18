@@ -3725,4 +3725,5 @@
     <string name="conversation_sort_updated">Sort by recent activity</string>
     <string name="translator_history_title">Translation history</string>
     <string name="translator_history_delete">Delete</string>
+  <string name="chat_page_export_include_reasoning">Include reasoning</string>
 </resources>

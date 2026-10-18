@@ -3729,4 +3729,5 @@
     <string name="translator_history_title">번역 기록</string>
     <string name="chat_title_generation_failed">제목 생성에 실패했습니다. 제목 또는 빠른 모델 설정을 확인하세요.</string>
     <string name="chat_title_generation_failed_title">대화 제목을 생성할 수 없습니다</string>
+  <string name="chat_page_export_include_reasoning">사고 과정 포함</string>
 </resources>

@@ -3729,4 +3729,5 @@
     <string name="translator_history_title">翻訳履歴</string>
     <string name="chat_title_generation_failed">タイトルの生成に失敗しました。タイトルまたは高速モデルの設定を確認してください。</string>
     <string name="chat_title_generation_failed_title">会話のタイトルを生成できませんでした</string>
+  <string name="chat_page_export_include_reasoning">思考プロセスを含める</string>
 </resources>

@@ -134,6 +134,7 @@ fun ChatExportSheet(
     val density = LocalDensity.current
     val settings = LocalSettings.current
     var imageExportOptions by remember { mutableStateOf(ImageExportOptions()) }
+    var includeReasoning by remember { mutableStateOf(true) }
 
     if (visible) {
         ModalBottomSheet(
@@ -153,12 +154,16 @@ fun ChatExportSheet(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(text = stringResource(id = R.string.chat_page_export_format))
+                ListItem(
+                    headlineContent = { Text(stringResource(R.string.chat_page_export_include_reasoning)) },
+                    trailingContent = { Switch(checked = includeReasoning, onCheckedChange = { includeReasoning = it }) },
+                )
 
                 val markdownSuccessMessage =
                     stringResource(id = R.string.chat_page_export_success, "Markdown")
                 OutlinedCard(
                     onClick = {
-                        exportToMarkdown(context, conversation, selectedMessages)
+                        exportToMarkdown(context, conversation, selectedMessages, includeReasoning)
                         toaster.show(
                             markdownSuccessMessage,
                             type = ToastType.Success,
@@ -183,7 +188,7 @@ fun ChatExportSheet(
                 val textSuccessMessage = stringResource(id = R.string.chat_page_export_success, "TXT")
                 OutlinedCard(
                     onClick = {
-                        exportToText(context, conversation, selectedMessages)
+                        exportToText(context, conversation, selectedMessages, includeReasoning)
                         toaster.show(textSuccessMessage, type = ToastType.Success)
                         onDismissRequest()
                     },
@@ -328,7 +333,12 @@ fun ChatExportSheet(
     }
 }
 
-private fun exportToText(context: Context, conversation: Conversation, messages: List<UIMessage>) {
+private fun exportToText(
+    context: Context,
+    conversation: Conversation,
+    messages: List<UIMessage>,
+    includeReasoning: Boolean = true,
+) {
     val stamp = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
     val filename = "chat-export-$stamp.txt"
     val text = buildString {
@@ -340,7 +350,7 @@ private fun exportToText(context: Context, conversation: Conversation, messages:
             message.parts.forEach { part ->
                 when (part) {
                     is UIMessagePart.Text -> appendLine(part.text)
-                    is UIMessagePart.Reasoning -> appendLine("[Reasoning] ${part.reasoning}")
+                    is UIMessagePart.Reasoning -> if (includeReasoning) appendLine("[Reasoning] ${part.reasoning}")
                     is UIMessagePart.Image -> appendLine("[Image]")
                     is UIMessagePart.Tool -> appendLine("[Tool: ${part.toolName}]")
                     else -> Unit
@@ -359,10 +369,12 @@ private fun exportToText(context: Context, conversation: Conversation, messages:
     catch (e: ActivityNotFoundException) { e.printStackTrace() }
 }
 
+@Suppress("LongMethod", "CyclomaticComplexMethod") // Markdown 各类型分支平铺导出，与 TXT/JSON 路径逐段对照；拆开会打散同一份排布
 private fun exportToMarkdown(
     context: Context,
     conversation: Conversation,
     messages: List<UIMessage>,
+    includeReasoning: Boolean = true,
 ) {
     val filename = "chat-export-${LocalDateTime.now().format(
         java.time.format.DateTimeFormatter
@@ -389,7 +401,7 @@ private fun exportToMarkdown(
                             appendLine()
                         }
 
-                        is UIMessagePart.Reasoning -> {
+                        is UIMessagePart.Reasoning -> if (includeReasoning) {
                             part.reasoning
                                 .lines()
                                 .filter { it.isNotBlank() }
@@ -432,7 +444,7 @@ private fun exportToMarkdown(
                                             appendLine()
                                         }
 
-                                        is UIMessagePart.Reasoning -> {
+                                        is UIMessagePart.Reasoning -> if (includeReasoning) {
                                             outputPart.reasoning
                                                 .lines()
                                                 .filter { it.isNotBlank() }

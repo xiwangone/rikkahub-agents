@@ -3729,4 +3729,5 @@
     <string name="translator_history_title">История перевода</string>
     <string name="chat_title_generation_failed">Не удалось создать заголовок. Проверьте настройки заголовка или быстрой модели.</string>
     <string name="chat_title_generation_failed_title">Не удалось создать заголовок беседы</string>
+  <string name="chat_page_export_include_reasoning">Включать ход рассуждений</string>
 </resources>

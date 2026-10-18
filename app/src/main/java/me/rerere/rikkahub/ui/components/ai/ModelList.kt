@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -357,6 +358,19 @@ private fun ColumnScope.ModelList(
         }
 
     var searchKeywords by remember { mutableStateOf("") }
+    val collapseContext = androidx.compose.ui.platform.LocalContext.current
+    val collapsePreferences = remember(collapseContext) {
+        collapseContext.getSharedPreferences("model_list", android.content.Context.MODE_PRIVATE)
+    }
+    var collapsedProviderIds by remember {
+        mutableStateOf(collapsePreferences.getStringSet("collapsed_provider_ids", emptySet()).orEmpty())
+    }
+    fun toggleProvider(providerId: String) {
+        val updated = collapsedProviderIds.toMutableSet()
+        if (!updated.add(providerId)) updated.remove(providerId)
+        collapsedProviderIds = updated
+        collapsePreferences.edit().putStringSet("collapsed_provider_ids", updated.toSet()).apply()
+    }
 
     val typeFilteredModelsByProvider =
         remember(providers, modelType) {
@@ -377,7 +391,7 @@ private fun ColumnScope.ModelList(
 
     // 计算当前选中模型的位置
     val selectedModelPosition =
-        remember(currentModel, favoriteModels, providers, typeFilteredModelsByProvider) {
+        remember(currentModel, favoriteModels, providers, typeFilteredModelsByProvider, collapsedProviderIds, searchKeywords) {
             if (currentModel == null) return@remember 0
 
             var position = 0
@@ -405,13 +419,14 @@ private fun ColumnScope.ModelList(
 
             // 在providers中查找
             for (provider in providers) {
+                val headerPosition = position
                 position += 1 // provider header
-                val models = typeFilteredModelsByProvider[provider.id].orEmpty()
+                val isCollapsed = searchKeywords.isBlank() && provider.id.toString() in collapsedProviderIds
+                val models = if (isCollapsed) emptyList() else typeFilteredModelsByProvider[provider.id].orEmpty()
+                val selectedInProvider = typeFilteredModelsByProvider[provider.id].orEmpty().any { it.id == currentModel }
                 val modelIndex = models.indexOfFirst { it.id == currentModel }
-                if (modelIndex >= 0) {
-                    position += modelIndex
-                    return@remember position
-                }
+                if (modelIndex >= 0) return@remember position + modelIndex
+                if (isCollapsed && selectedInProvider) return@remember headerPosition
                 position += models.size
             }
 
@@ -606,9 +621,10 @@ private fun ColumnScope.ModelList(
                     verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
-                        text = providerSetting.name,
+                        text = (if (searchKeywords.isNotBlank() || providerSetting.id.toString() !in collapsedProviderIds) "▾ " else "▸ ") + providerSetting.name,
                         style = MaterialTheme.typography.labelMedium,
                         color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.clickable { toggleProvider(providerSetting.id.toString()) },
                     )
 
                     Spacer(modifier = Modifier.weight(1f))
@@ -622,7 +638,7 @@ private fun ColumnScope.ModelList(
             }
 
             items(
-                items = searchFilteredModelsByProvider[providerSetting.id].orEmpty(),
+                items = if (searchKeywords.isNotBlank() || providerSetting.id.toString() !in collapsedProviderIds) searchFilteredModelsByProvider[providerSetting.id].orEmpty() else emptyList(),
                 key = { it.id },
             ) { model ->
                 val favorite = settings.value.favoriteModels.contains(model.id)
