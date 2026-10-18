@@ -80,7 +80,9 @@ fun SettingSearchDetailPage(
     fun save(updated: SearchServiceOptions) {
         options = updated
         vm.updateSettings { current ->
-            current.copy(searchServices = current.searchServices.map { if (it.id == serviceId) updated else it })
+            current.copy(searchServices = current.searchServices.map { service ->
+                if (service.id == serviceId) updated else service
+            })
         }
     }
 
@@ -98,7 +100,9 @@ fun SettingSearchDetailPage(
                         IconButton(
                             onClick = {
                                 vm.updateSettings { current ->
-                                    current.copy(searchServices = current.searchServices.filterNot { it.id == serviceId })
+                                    if (current.searchServices.size > 1) {
+                                        current.copy(searchServices = current.searchServices.filterNot { it.id == serviceId })
+                                    } else current
                                 }
                                 nav.popBackStack()
                             },
@@ -241,6 +245,9 @@ private fun SearchServiceOptionsEditor(
 
         is SearchServiceOptions.SerperOptions -> {
             SerperOptions(options) { onUpdateOptions(it) }
+        }
+        is SearchServiceOptions.DeepSeekOptions -> {
+            DeepSeekOptions(options) { onUpdateOptions(it) }
         }
 
         is SearchServiceOptions.CustomJsOptions -> {
@@ -968,6 +975,20 @@ internal fun GrokOptions(
                 onUpdateOptions(options.copy(systemPrompt = it))
             },
             minLines = 3,
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+internal fun DeepSeekOptions(
+    options: SearchServiceOptions.DeepSeekOptions,
+    onUpdateOptions: (SearchServiceOptions.DeepSeekOptions) -> Unit,
+) {
+    FormItem(label = { Text(stringResource(R.string.search_detail_api_key)) }) {
+        OutlinedTextField(
+            value = options.apiKey,
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
         )
     }

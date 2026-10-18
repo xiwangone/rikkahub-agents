@@ -77,6 +77,7 @@ import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.LocalTools
+import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
 import me.rerere.rikkahub.data.ai.tools.AppScene
@@ -1321,7 +1322,7 @@ class ChatService(
 
             // memory tool
             if (!model.abilities.contains(ModelAbility.TOOL)) {
-                if (assistant.enableWebSearch || mcpManager.getAllAvailableTools().isNotEmpty()) {
+                if (shouldUseExternalWebSearch(assistant.enableWebSearch, model) || mcpManager.getAllAvailableTools().isNotEmpty()) {
                     addError(
                         IllegalStateException(context.getString(R.string.tools_warning)),
                         conversationId,

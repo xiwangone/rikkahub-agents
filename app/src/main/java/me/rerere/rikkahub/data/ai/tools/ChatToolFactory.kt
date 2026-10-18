@@ -70,7 +70,7 @@ class ChatToolFactory(
         // 会话检索：按需查询历史会话，不静态注入（保提示缓存）。
         addAll(createConversationTools(conversationRepository, assistant.id))
 
-        if (assistant.enableWebSearch) {
+        if (shouldUseExternalWebSearch(assistant.enableWebSearch, model)) {
             addAll(createSearchTools(settings))
         }
 

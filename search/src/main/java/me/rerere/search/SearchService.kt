@@ -42,7 +42,7 @@ interface SearchService<T : SearchServiceOptions> {
     ): Result<ScrapedResult>
 
     companion object {
-        @Suppress("UNCHECKED_CAST")
+        @Suppress("UNCHECKED_CAST", "CyclomaticComplexMethod") // 服务名到实现的线性分派；分支随服务数量增长，拆分反而割裂同一张对照表
         fun <T : SearchServiceOptions> getService(options: T): SearchService<T> =
             when (options) {
                 is SearchServiceOptions.TavilyOptions -> TavilySearchService
@@ -64,6 +64,7 @@ interface SearchService<T : SearchServiceOptions> {
                 is SearchServiceOptions.GrokOptions -> GrokSearchService
                 is SearchServiceOptions.TinyfishOptions -> TinyfishSearchService
                 is SearchServiceOptions.SerperOptions -> SerperSearchService
+                is SearchServiceOptions.DeepSeekOptions -> DeepSeekSearchService
                 is SearchServiceOptions.CustomJsOptions -> CustomJsSearchService
             } as SearchService<T>
 
@@ -199,6 +200,7 @@ sealed class SearchServiceOptions {
                 GrokOptions::class to "Grok",
                 TinyfishOptions::class to "Tinyfish",
                 SerperOptions::class to "Serper",
+                DeepSeekOptions::class to "DeepSeek",
                 CustomJsOptions::class to "Custom JS",
             )
     }
@@ -350,6 +352,12 @@ sealed class SearchServiceOptions {
         val apiKey: String = "",
     ) : SearchServiceOptions()
 
+    @Serializable
+    @SerialName("deepseek")
+    data class DeepSeekOptions(
+        override val id: Uuid = Uuid.random(),
+        val apiKey: String = "",
+    ) : SearchServiceOptions()
     @Serializable
     @SerialName("custom_js")
     data class CustomJsOptions(

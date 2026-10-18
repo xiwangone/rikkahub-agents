@@ -433,7 +433,7 @@ class ChatCompletionsAPI(
                         if (level.shouldSendEffort) {
                             val effort = when (level) {
                                 ReasoningLevel.MEDIUM, ReasoningLevel.HIGH -> "high"
-                                ReasoningLevel.MAX -> "max"
+                                ReasoningLevel.MAX, ReasoningLevel.XHIGH -> "max"
                                 else -> level.effort
                             }
                             put("reasoning_effort", effort)
