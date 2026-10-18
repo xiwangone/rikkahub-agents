@@ -3702,4 +3702,8 @@
     <string name="setting_updates_pause_desc">Приостановить напоминания на ограниченное время. Они возобновятся автоматически после истечения срока или перезапуска.</string>
     <string name="setting_updates_pause_title">Приостановить напоминания об обновлениях</string>
     <string name="setting_updates_resume_now">Возобновить сейчас</string>
+    <string name="conversation_sort_created">Сортировать по времени создания</string>
+    <string name="conversation_sort_updated">Сортировать по недавней активности</string>
+    <string name="translator_history_delete">Удалить</string>
+    <string name="translator_history_title">История перевода</string>
 </resources>

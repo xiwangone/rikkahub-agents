@@ -32,6 +32,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -68,6 +69,7 @@ fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val inputText by vm.inputText.collectAsStateWithLifecycle()
     val translatedText by vm.translatedText.collectAsStateWithLifecycle()
+    val history by vm.history.collectAsStateWithLifecycle()
     val targetLanguage by vm.targetLanguage.collectAsStateWithLifecycle()
     val translating by vm.translating.collectAsStateWithLifecycle()
     val clipboard = LocalClipboard.current
@@ -209,6 +211,31 @@ fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
                 ) {
                     Icon(HugeIcons.Clipboard, null)
                     Text(stringResource(R.string.translator_copy_result), modifier = Modifier.padding(start = 4.dp))
+                }
+            }
+
+            if (history.isNotEmpty()) {
+                HorizontalDivider()
+                Text(stringResource(R.string.translator_history_title), style = MaterialTheme.typography.titleMedium)
+                history.forEach { entry ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        TextButton(
+                            modifier = Modifier.weight(1f),
+                            onClick = { vm.reuseHistory(entry) },
+                        ) {
+                            Text(
+                                "${entry.targetLanguage}: ${entry.sourceText.take(48)}",
+                                maxLines = 1,
+                            )
+                        }
+                        TextButton(onClick = { vm.deleteHistory(entry.id) }) {
+                            Text(stringResource(R.string.translator_history_delete))
+                        }
+                    }
                 }
             }
         }

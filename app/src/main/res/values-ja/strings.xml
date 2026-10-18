@@ -3702,4 +3702,8 @@
     <string name="setting_updates_pause_desc">リマインダーを一定期間停止します。期限切れまたは再起動後に自動的に再開します。</string>
     <string name="setting_updates_pause_title">更新リマインダーを一時停止</string>
     <string name="setting_updates_resume_now">今すぐ再開</string>
+    <string name="conversation_sort_created">作成日時で並べ替え</string>
+    <string name="conversation_sort_updated">最近のアクティビティで並べ替え</string>
+    <string name="translator_history_delete">削除</string>
+    <string name="translator_history_title">翻訳履歴</string>
 </resources>

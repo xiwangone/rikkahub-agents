@@ -135,6 +135,7 @@ fun ChatDrawerContent(
     val conversations = drawerVm.conversations.collectAsLazyPagingItems()
     val folders by drawerVm.folders.collectAsStateWithLifecycle()
     val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
+    val sortByCreatedAt by drawerVm.sortByCreatedAt.collectAsStateWithLifecycle()
     // 列表折叠状态：子代理分组展开态 + 日期分组折叠集合。
     // 注意：这里是“会话列表”相关的 UI 状态，必须从 drawerVm 取（不是 vm: ChatVM）。
     val subAgentExpanded by drawerVm.subAgentExpanded.collectAsStateWithLifecycle()
@@ -285,6 +286,19 @@ fun ChatDrawerContent(
                 onRename = { folderToRename = it },
                 onDelete = { folderToDelete = it },
             )
+
+            TextButton(
+                onClick = drawerVm::toggleConversationSortOrder,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    if (sortByCreatedAt) {
+                        stringResource(R.string.conversation_sort_created)
+                    } else {
+                        stringResource(R.string.conversation_sort_updated)
+                    },
+                )
+            }
 
             ConversationList(
                 current = current,

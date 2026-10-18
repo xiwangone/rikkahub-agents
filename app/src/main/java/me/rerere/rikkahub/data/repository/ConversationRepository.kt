@@ -44,19 +44,20 @@ class ConversationRepository(
     suspend fun hasFileReference(fileUrl: String): Boolean =
         messageNodeDAO.hasFileReference(JsonInstant.encodeToString(fileUrl))
 
-    suspend fun getRecentConversations(assistantId: Uuid, limit: Int = 10): List<Conversation> {
+    suspend fun getRecentConversations(assistantId: Uuid, limit: Int = 10, sortByCreatedAt: Boolean = false): List<Conversation> {
         return conversationDAO.getRecentConversationsOfAssistant(
             assistantId = assistantId.toString(),
-            limit = limit
+            limit = limit,
+            sortByCreatedAt = sortByCreatedAt,
         ).map { entity ->
             val nodes = loadMessageNodes(entity.id)
             conversationEntityToConversation(entity, nodes)
         }
     }
 
-    fun getConversationsOfAssistant(assistantId: Uuid): Flow<List<Conversation>> {
+    fun getConversationsOfAssistant(assistantId: Uuid, sortByCreatedAt: Boolean = false): Flow<List<Conversation>> {
         return conversationDAO
-            .getConversationsOfAssistant(assistantId.toString())
+            .getConversationsOfAssistant(assistantId.toString(), sortByCreatedAt)
             .map { flow ->
                 flow.map { entity ->
                     // 列表视图不需要完整的 nodes，使用空列表
@@ -65,39 +66,39 @@ class ConversationRepository(
             }
     }
 
-    fun getConversationsOfAssistantPaging(assistantId: Uuid): Flow<PagingData<Conversation>> = Pager(
+    fun getConversationsOfAssistantPaging(assistantId: Uuid, sortByCreatedAt: Boolean = false): Flow<PagingData<Conversation>> = Pager(
         config = PagingConfig(
             pageSize = PAGE_SIZE,
             initialLoadSize = INITIAL_LOAD_SIZE,
             enablePlaceholders = false
         ),
-        pagingSourceFactory = { conversationDAO.getConversationsOfAssistantPaging(assistantId.toString()) }
+        pagingSourceFactory = { conversationDAO.getConversationsOfAssistantPaging(assistantId.toString(), sortByCreatedAt) }
     ).flow.map { pagingData ->
         pagingData.map { entity ->
             conversationSummaryToConversation(entity)
         }
     }
 
-    fun getUnfiledConversationsOfAssistantPaging(assistantId: Uuid): Flow<PagingData<Conversation>> = Pager(
+    fun getUnfiledConversationsOfAssistantPaging(assistantId: Uuid, sortByCreatedAt: Boolean = false): Flow<PagingData<Conversation>> = Pager(
         config = PagingConfig(
             pageSize = PAGE_SIZE,
             initialLoadSize = INITIAL_LOAD_SIZE,
             enablePlaceholders = false
         ),
-        pagingSourceFactory = { conversationDAO.getUnfiledConversationsOfAssistantPaging(assistantId.toString()) }
+        pagingSourceFactory = { conversationDAO.getUnfiledConversationsOfAssistantPaging(assistantId.toString(), sortByCreatedAt) }
     ).flow.map { pagingData ->
         pagingData.map { entity ->
             conversationSummaryToConversation(entity)
         }
     }
 
-    fun getConversationsOfFolderPaging(folderId: Uuid): Flow<PagingData<Conversation>> = Pager(
+    fun getConversationsOfFolderPaging(folderId: Uuid, sortByCreatedAt: Boolean = false): Flow<PagingData<Conversation>> = Pager(
         config = PagingConfig(
             pageSize = PAGE_SIZE,
             initialLoadSize = INITIAL_LOAD_SIZE,
             enablePlaceholders = false
         ),
-        pagingSourceFactory = { conversationDAO.getConversationsOfFolderPaging(folderId.toString()) }
+        pagingSourceFactory = { conversationDAO.getConversationsOfFolderPaging(folderId.toString(), sortByCreatedAt) }
     ).flow.map { pagingData ->
         pagingData.map { entity ->
             conversationSummaryToConversation(entity)
@@ -108,8 +109,9 @@ class ConversationRepository(
         assistantId: Uuid,
         offset: Int,
         limit: Int,
+        sortByCreatedAt: Boolean = false,
     ): ConversationPageResult {
-        val pagingSource = conversationDAO.getConversationsOfAssistantPaging(assistantId.toString())
+        val pagingSource = conversationDAO.getConversationsOfAssistantPaging(assistantId.toString(), sortByCreatedAt)
         return try {
             when (
                 val result = pagingSource.load(
@@ -140,10 +142,12 @@ class ConversationRepository(
         titleKeyword: String,
         offset: Int,
         limit: Int,
+        sortByCreatedAt: Boolean = false,
     ): ConversationPageResult {
         val pagingSource = conversationDAO.searchConversationsOfAssistantPaging(
             assistantId = assistantId.toString(),
-            searchText = titleKeyword
+            searchText = titleKeyword,
+            sortByCreatedAt = sortByCreatedAt,
         )
         return try {
             when (
@@ -174,8 +178,9 @@ class ConversationRepository(
         assistantId: Uuid,
         offset: Int,
         limit: Int,
+        sortByCreatedAt: Boolean = false,
     ): ConversationPageResult = loadConversationPage(
-        conversationDAO.getUnfiledConversationsOfAssistantPaging(assistantId.toString()),
+        conversationDAO.getUnfiledConversationsOfAssistantPaging(assistantId.toString(), sortByCreatedAt),
         offset,
         limit,
     )
@@ -184,8 +189,9 @@ class ConversationRepository(
         folderId: Uuid,
         offset: Int,
         limit: Int,
+        sortByCreatedAt: Boolean = false,
     ): ConversationPageResult = loadConversationPage(
-        conversationDAO.getConversationsOfFolderPaging(folderId.toString()),
+        conversationDAO.getConversationsOfFolderPaging(folderId.toString(), sortByCreatedAt),
         offset,
         limit,
     )
@@ -220,9 +226,9 @@ class ConversationRepository(
         }
     }
 
-    fun searchConversations(titleKeyword: String): Flow<List<Conversation>> {
+    fun searchConversations(titleKeyword: String, sortByCreatedAt: Boolean = false): Flow<List<Conversation>> {
         return conversationDAO
-            .searchConversations(titleKeyword)
+            .searchConversations(titleKeyword, sortByCreatedAt)
             .map { flow ->
                 flow.map { entity ->
                     conversationEntityToConversation(entity, emptyList())
@@ -230,22 +236,22 @@ class ConversationRepository(
             }
     }
 
-    fun searchConversationsPaging(titleKeyword: String): Flow<PagingData<Conversation>> = Pager(
+    fun searchConversationsPaging(titleKeyword: String, sortByCreatedAt: Boolean = false): Flow<PagingData<Conversation>> = Pager(
         config = PagingConfig(
             pageSize = PAGE_SIZE,
             initialLoadSize = INITIAL_LOAD_SIZE,
             enablePlaceholders = false
         ),
-        pagingSourceFactory = { conversationDAO.searchConversationsPaging(titleKeyword) }
+        pagingSourceFactory = { conversationDAO.searchConversationsPaging(titleKeyword, sortByCreatedAt) }
     ).flow.map { pagingData ->
         pagingData.map { entity ->
             conversationSummaryToConversation(entity)
         }
     }
 
-    fun searchConversationsOfAssistant(assistantId: Uuid, titleKeyword: String): Flow<List<Conversation>> {
+    fun searchConversationsOfAssistant(assistantId: Uuid, titleKeyword: String, sortByCreatedAt: Boolean = false): Flow<List<Conversation>> {
         return conversationDAO
-            .searchConversationsOfAssistant(assistantId.toString(), titleKeyword)
+            .searchConversationsOfAssistant(assistantId.toString(), titleKeyword, sortByCreatedAt)
             .map { flow ->
                 flow.map { entity ->
                     conversationEntityToConversation(entity, emptyList())
@@ -253,7 +259,7 @@ class ConversationRepository(
             }
     }
 
-    fun searchConversationsOfAssistantPaging(assistantId: Uuid, titleKeyword: String): Flow<PagingData<Conversation>> =
+    fun searchConversationsOfAssistantPaging(assistantId: Uuid, titleKeyword: String, sortByCreatedAt: Boolean = false): Flow<PagingData<Conversation>> =
         Pager(
             config = PagingConfig(
                 pageSize = PAGE_SIZE,
@@ -263,7 +269,8 @@ class ConversationRepository(
             pagingSourceFactory = {
                 conversationDAO.searchConversationsOfAssistantPaging(
                     assistantId.toString(),
-                    titleKeyword
+                    titleKeyword,
+                    sortByCreatedAt,
                 )
             }
         ).flow.map { pagingData ->
@@ -390,9 +397,9 @@ class ConversationRepository(
         messageNodes: List<MessageNode>
     ): Conversation = conversationEntityToConversationImpl(conversationEntity, messageNodes)
 
-    fun getPinnedConversations(): Flow<List<Conversation>> {
+    fun getPinnedConversations(sortByCreatedAt: Boolean = false): Flow<List<Conversation>> {
         return conversationDAO
-            .getPinnedConversations()
+            .getPinnedConversations(sortByCreatedAt)
             .map { flow ->
                 flow.map { entity ->
                     conversationEntityToConversation(entity, emptyList())

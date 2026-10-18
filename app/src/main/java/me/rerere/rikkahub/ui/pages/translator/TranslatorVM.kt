@@ -1,3 +1,5 @@
+@file:Suppress("TooGenericExceptionCaught") // 翻译请求跨越网络/解析/取消等多类异常；取消已单独透传，其余统一上报
+
 package me.rerere.rikkahub.ui.pages.translator
 
 import androidx.lifecycle.ViewModel
@@ -9,9 +11,13 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.CancellationException
 import me.rerere.rikkahub.data.ai.GenerationLoop
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.db.entity.TranslationHistoryEntity
+import me.rerere.rikkahub.data.repository.TranslationHistoryRepository
 import java.util.Locale
 
 private const val TAG = "TranslatorVM"
@@ -19,11 +25,14 @@ private const val TAG = "TranslatorVM"
 class TranslatorVM(
     private val settingsStore: SettingsStore,
     private val generationHandler: GenerationLoop,
+    private val historyRepository: TranslationHistoryRepository,
 ) : ViewModel() {
     val settings: StateFlow<Settings> =
         settingsStore.settingsFlow
             .stateIn(viewModelScope, SharingStarted.Lazily, Settings.dummy())
 
+    val history = historyRepository.observeHistory()
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     // 翻译状态
     private val _translating = MutableStateFlow(false)
     val translating: StateFlow<Boolean> = _translating
@@ -46,8 +55,20 @@ class TranslatorVM(
     // 当前任务
     private var currentJob: Job? = null
 
-    fun updateSettings(transform: (Settings) -> Settings) {
-        viewModelScope.launch { settingsStore.update(transform) }
+    fun updateSettings(update: (Settings) -> Settings) {
+        viewModelScope.launch {
+            settingsStore.update(update)
+        }
+    }
+
+    fun reuseHistory(entry: TranslationHistoryEntity) {
+        _inputText.value = entry.sourceText
+        _translatedText.value = entry.translatedText
+        _targetLanguage.value = Locale.forLanguageTag(entry.targetLanguage)
+    }
+
+    fun deleteHistory(id: Long) {
+        viewModelScope.launch { historyRepository.delete(id) }
     }
 
     fun updateInputText(text: String) {
@@ -69,29 +90,46 @@ class TranslatorVM(
         _translating.value = true
         _translatedText.value = ""
 
+        val requestSettings = settings.value
+        val requestedLanguage = targetLanguage.value
         currentJob =
             viewModelScope.launch {
-                runCatching {
+                try {
                     generationHandler
                         .translateText(
-                            settings = settings.value,
+                            settings = requestSettings,
                             sourceText = inputText,
-                            targetLanguage = targetLanguage.value,
+                            targetLanguage = requestedLanguage,
                         ) { translatedText ->
-                            // Update translation in real-time
+                            // Preserve the existing streaming translation chain.
                             _translatedText.value = translatedText
-                        }.collect { /* Final translation already handled in onStreamUpdate */ }
-                }.onFailure {
-                    it.printStackTrace()
-                    errorFlow.emit(it)
+                        }.collect { /* Final translation is delivered by onStreamUpdate. */ }
+                    val result = _translatedText.value
+                    if (result.isNotBlank()) {
+                        historyRepository.add(
+                            sourceText = inputText,
+                            translatedText = result,
+                            targetLanguage = requestedLanguage.toLanguageTag(),
+                            modelId = requestSettings.translateModeId,
+                        )
+                    }
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Exception) {
+                    error.printStackTrace()
+                    errorFlow.emit(error)
+                } finally {
+                    if (currentJob == coroutineContext[Job]) {
+                        currentJob = null
+                        _translating.value = false
+                    }
                 }
-
-                _translating.value = false
             }
     }
 
     fun cancelTranslation() {
         currentJob?.cancel()
+        currentJob = null
         _translating.value = false
     }
 }

@@ -3702,4 +3702,8 @@
     <string name="setting_updates_pause_desc">알림을 일정 기간 일시 중지합니다. 만료되거나 다시 시작하면 자동으로 재개됩니다.</string>
     <string name="setting_updates_pause_title">업데이트 알림 일시 중지</string>
     <string name="setting_updates_resume_now">지금 재개</string>
+    <string name="conversation_sort_created">생성 시간순 정렬</string>
+    <string name="conversation_sort_updated">최근 활동순 정렬</string>
+    <string name="translator_history_delete">삭제</string>
+    <string name="translator_history_title">번역 기록</string>
 </resources>

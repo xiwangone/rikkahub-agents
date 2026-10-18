@@ -3701,4 +3701,8 @@
     <string name="setting_updates_pause_desc">暫停提醒一段時間，期滿或重新啟動後會自動恢復。</string>
     <string name="setting_updates_pause_title">暫停更新提醒</string>
     <string name="setting_updates_resume_now">立即恢復</string>
+    <string name="conversation_sort_created">依建立時間排序</string>
+    <string name="conversation_sort_updated">依最近活動排序</string>
+    <string name="translator_history_delete">刪除</string>
+    <string name="translator_history_title">翻譯歷史</string>
 </resources>

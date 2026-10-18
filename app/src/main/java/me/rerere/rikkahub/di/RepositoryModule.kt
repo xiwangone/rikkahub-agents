@@ -11,6 +11,7 @@ import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.GenMediaRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.data.repository.TranslationHistoryRepository
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.workspace.WorkspaceMountSwitch
 import me.rerere.workspace.OptionalMounts
@@ -28,6 +29,9 @@ val repositoryModule =
             ConversationRepository(get(), get(), get(), get(), get(), get())
         }
 
+        single {
+            TranslationHistoryRepository(get(), get())
+        }
         single {
             FolderRepository(get(), get())
         }

@@ -3701,4 +3701,8 @@
     <string name="setting_updates_pause_desc">إيقاف التذكيرات مؤقتًا لفترة محدودة. تُستأنف تلقائيًا بعد انتهاء المدة أو إعادة التشغيل.</string>
     <string name="setting_updates_pause_title">إيقاف تذكيرات التحديث مؤقتًا</string>
     <string name="setting_updates_resume_now">الاستئناف الآن</string>
+    <string name="conversation_sort_created">الترتيب حسب وقت الإنشاء</string>
+    <string name="conversation_sort_updated">الترتيب حسب النشاط الأخير</string>
+    <string name="translator_history_delete">حذف</string>
+    <string name="translator_history_title">سجل الترجمة</string>
 </resources>

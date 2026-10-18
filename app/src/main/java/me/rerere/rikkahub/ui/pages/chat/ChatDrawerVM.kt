@@ -46,6 +46,23 @@ class ChatDrawerVM(
         settingsStore.settingsFlow
             .map { it.assistantId }
             .distinctUntilChanged()
+    val sortByCreatedAt: StateFlow<Boolean> =
+        settingsStore.settingsFlow
+            .map { it.displaySetting.sortConversationsByCreatedAt }
+            .distinctUntilChanged()
+            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    fun toggleConversationSortOrder() {
+        viewModelScope.launch {
+            settingsStore.update { current ->
+                current.copy(
+                    displaySetting = current.displaySetting.copy(
+                        sortConversationsByCreatedAt = !current.displaySetting.sortConversationsByCreatedAt,
+                    ),
+                )
+            }
+        }
+    }
 
     // 当前选中的文件夹筛选，null 表示「未归类」视图
     private val _selectedFolderId = MutableStateFlow<Uuid?>(null)
@@ -71,19 +88,21 @@ class ChatDrawerVM(
             _selectedFolderId,
             _subAgentExpanded,
             _collapsedDates,
-        ) { assistantId, folderId, subAgentExpanded, collapsedDates ->
+            sortByCreatedAt,
+        ) { assistantId, folderId, subAgentExpanded, collapsedDates, sortByCreatedAt ->
             ConversationListQuery(
                 assistantId = assistantId,
                 folderId = folderId,
                 subAgentExpanded = subAgentExpanded,
                 collapsedDates = collapsedDates,
+                sortByCreatedAt = sortByCreatedAt,
             )
         }.flatMapLatest { query ->
             val pagingSource =
                 if (query.folderId == null) {
-                    conversationRepo.getUnfiledConversationsOfAssistantPaging(query.assistantId)
+                    conversationRepo.getUnfiledConversationsOfAssistantPaging(query.assistantId, query.sortByCreatedAt)
                 } else {
-                    conversationRepo.getConversationsOfFolderPaging(query.folderId)
+                    conversationRepo.getConversationsOfFolderPaging(query.folderId, query.sortByCreatedAt)
                 }
 
             pagingSource.map { pagingData ->
@@ -112,21 +131,21 @@ class ChatDrawerVM(
                                 if (after.conversation.isPinned) {
                                     ConversationListItem.PinnedHeader
                                 } else {
-                                    dateHeaderOf(after.conversation)
+                                    dateHeaderOf(after.conversation, query.sortByCreatedAt)
                                 }
                             }
 
                             before is ConversationListItem.Item && after is ConversationListItem.Item -> {
                                 if (before.conversation.isPinned && !after.conversation.isPinned) {
-                                    dateHeaderOf(after.conversation)
+                                    dateHeaderOf(after.conversation, query.sortByCreatedAt)
                                 } else if (!after.conversation.isPinned) {
                                     val beforeDate =
-                                        before.conversation.localDate()
+                                        before.conversation.localDate(query.sortByCreatedAt)
                                     val afterDate =
-                                        after.conversation.localDate()
+                                        after.conversation.localDate(query.sortByCreatedAt)
 
                                     if (beforeDate != afterDate) {
-                                        dateHeaderOf(after.conversation)
+                                        dateHeaderOf(after.conversation, query.sortByCreatedAt)
                                     } else {
                                         null
                                     }
@@ -146,6 +165,7 @@ class ChatDrawerVM(
                             item = item,
                             subAgentExpanded = query.subAgentExpanded,
                             collapsedDates = query.collapsedDates,
+                            sortByCreatedAt = query.sortByCreatedAt,
                         )
                     }
             }
@@ -271,8 +291,8 @@ class ChatDrawerVM(
     }
 
     /** 会话所属日期的分组标题（折叠 key 与标签均取自该日期）。 */
-    private fun dateHeaderOf(conversation: Conversation): ConversationListItem.DateHeader {
-        val date = conversation.localDate()
+    private fun dateHeaderOf(conversation: Conversation, sortByCreatedAt: Boolean): ConversationListItem.DateHeader {
+        val date = conversation.localDate(sortByCreatedAt)
         return ConversationListItem.DateHeader(date = date, label = getDateLabel(date))
     }
 
@@ -293,6 +313,7 @@ private data class ConversationListQuery(
     val folderId: Uuid?,
     val subAgentExpanded: Boolean,
     val collapsedDates: Set<String>,
+    val sortByCreatedAt: Boolean,
 )
 
 /**
@@ -307,6 +328,7 @@ internal fun isConversationListItemVisible(
     item: ConversationListItem,
     subAgentExpanded: Boolean,
     collapsedDates: Set<String>,
+    sortByCreatedAt: Boolean = false,
 ): Boolean =
     when (item) {
         is ConversationListItem.Item -> {
@@ -314,11 +336,12 @@ internal fun isConversationListItemVisible(
             when {
                 conversation.isSubAgentRun -> subAgentExpanded
                 conversation.isPinned -> true
-                else -> conversation.localDate().toString() !in collapsedDates
+                else -> conversation.localDate(sortByCreatedAt).toString() !in collapsedDates
             }
         }
         else -> true
     }
 
 /** 会话所属的本地日期（列表分组与折叠 key 都用它）。 */
-private fun Conversation.localDate(): LocalDate = updateAt.atZone(ZoneId.systemDefault()).toLocalDate()
+private fun Conversation.localDate(sortByCreatedAt: Boolean = false): LocalDate =
+    (if (sortByCreatedAt) createAt else updateAt).atZone(ZoneId.systemDefault()).toLocalDate()

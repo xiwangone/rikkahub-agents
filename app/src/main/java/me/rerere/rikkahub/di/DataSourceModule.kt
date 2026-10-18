@@ -53,6 +53,7 @@ import me.rerere.rikkahub.data.db.migrations.Migration_32_33
 import me.rerere.rikkahub.data.db.migrations.Migration_33_34
 import me.rerere.rikkahub.data.db.migrations.Migration_34_35
 import me.rerere.rikkahub.data.db.migrations.Migration_35_36
+import me.rerere.rikkahub.data.db.migrations.Migration_44_45
 import me.rerere.rikkahub.data.db.migrations.Migration_6_7
 import me.rerere.rikkahub.data.gemini.GeminiAccountRepository
 import me.rerere.rikkahub.data.gemini.GeminiCredentialStore
@@ -104,6 +105,7 @@ val dataSourceModule =
                     Migration_33_34,
                     Migration_34_35,
                     Migration_35_36,
+                    Migration_44_45,
                 ).addCallback(
                     object : RoomDatabase.Callback() {
                         override fun onOpen(db: SupportSQLiteDatabase) {
@@ -159,6 +161,9 @@ val dataSourceModule =
 
         single { TemplateTransformer(engine = get(), settingsStore = get()) }
 
+        single {
+            get<AppDatabase>().translationHistoryDao()
+        }
         single {
             get<AppDatabase>().conversationDao()
         }

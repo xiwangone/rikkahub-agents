@@ -3698,4 +3698,8 @@
     <string name="setting_updates_pause_3d">3 days</string>
     <string name="setting_updates_pause_7d">7 days</string>
     <string name="setting_updates_resume_now">Resume now</string>
+    <string name="conversation_sort_created">Sort by creation time</string>
+    <string name="conversation_sort_updated">Sort by recent activity</string>
+    <string name="translator_history_title">Translation history</string>
+    <string name="translator_history_delete">Delete</string>
 </resources>

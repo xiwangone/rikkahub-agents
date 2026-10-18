@@ -20,6 +20,7 @@ import me.rerere.rikkahub.data.db.dao.ScheduledJobDao
 import me.rerere.rikkahub.data.db.dao.ScheduledJobRunDao
 import me.rerere.rikkahub.data.db.dao.SshHostDao
 import me.rerere.rikkahub.data.db.dao.TelegramChatDao
+import me.rerere.rikkahub.data.db.dao.TranslationHistoryDao
 import me.rerere.rikkahub.data.db.dao.VaultAuditLogDao
 import me.rerere.rikkahub.data.db.dao.CompressedArchiveDao
 import me.rerere.rikkahub.data.db.dao.VaultCredentialDao
@@ -36,6 +37,7 @@ import me.rerere.rikkahub.data.db.entity.ScheduledJobEntity
 import me.rerere.rikkahub.data.db.entity.ScheduledJobRunEntity
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.db.entity.TelegramChatEntity
+import me.rerere.rikkahub.data.db.entity.TranslationHistoryEntity
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.db.entity.CompressedArchiveEntity
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
@@ -72,8 +74,9 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         VaultCredentialEntity::class,
         VaultAuditLogEntity::class,
         CompressedArchiveEntity::class,
+        TranslationHistoryEntity::class,
     ],
-    version = 44,
+    version = 45,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -178,6 +181,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun vaultAuditLogDao(): VaultAuditLogDao
 
     abstract fun compressedArchiveDao(): CompressedArchiveDao
+
+    abstract fun translationHistoryDao(): TranslationHistoryDao
 }
 
 object TokenUsageConverter {

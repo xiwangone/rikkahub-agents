@@ -1231,6 +1231,8 @@ data class DisplaySetting(
     val showThinkingContent: Boolean = true,
     val autoCloseThinking: Boolean = true,
     val showUpdates: Boolean = true,
+    /** Keep the conversation drawer ordered by its original creation time instead of recent activity. */
+    val sortConversationsByCreatedAt: Boolean = false,
     /** Persisted reminder pause deadline (epoch millis); zero means not paused. */
     val showUpdatesUntilEpochMillis: Long = 0L,
     val showMessageJumper: Boolean = true,
