@@ -522,7 +522,7 @@ private fun ASRProviderList(
                             }
                         onUpdateSettings { current ->
                             current.copy(
-                                asrProviders = current.asrProviders.map { if (it.id == provider.id) currentProvider else it },
+                                asrProviders = current.asrProviders.filter { it.id != provider.id },
                                 selectedASRProviderId = newSelectedId,
                             )
                         }
