@@ -1893,7 +1893,7 @@ class ChatService(
         try {
             val settings = settingsStore.settingsFlow.first()
             // Manual regeneration (force=true) remains available when automation is disabled.
-            if (!force && !settings.autoGenerateTitle) return@runCatching
+            if (!force && !settings.autoGenerateTitle) return
             val model = settings.findModelById(settings.titleModelId, fallback = settings.fastModelId)
                 ?: error("title model is not configured")
             val provider = model.findProvider(settings.providers)
