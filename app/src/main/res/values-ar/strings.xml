@@ -536,8 +536,8 @@
   <string name="export_title">تصدير</string>
   <string name="export_to_file">تصدير إلى ملف</string>
   <string name="export_to_file_desc">حفظ كملف JSON</string>
-  <string name="export_txt_title">نص عادي (TXT)</string>
-  <string name="export_txt_desc">مشاركة الرسائل المحددة كملف .txt</string>
+  <string name="chat_page_export_text">نص عادي (TXT)</string>
+  <string name="chat_page_export_text_desc">مشاركة الرسائل المحددة كملف .txt</string>
   <string name="extension_content_manage">إدارة</string>
   <string name="extension_content_unnamed">بلا اسم</string>
   <string name="extension_content_unnamed_lorebook">كتاب معرفة بلا اسم</string>

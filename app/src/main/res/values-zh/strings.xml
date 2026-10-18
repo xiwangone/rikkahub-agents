@@ -518,8 +518,8 @@
   <string name="export_title">导出</string>
   <string name="export_to_file">导出到文件</string>
   <string name="export_to_file_desc">保存为JSON文件</string>
-  <string name="export_txt_title">纯文本（TXT）</string>
-  <string name="export_txt_desc">将所选消息分享为 .txt 文件</string>
+  <string name="chat_page_export_text">纯文本（TXT）</string>
+  <string name="chat_page_export_text_desc">将所选消息分享为 .txt 文件</string>
   <string name="extension_content_manage">管理</string>
   <string name="extension_content_unnamed">未命名</string>
   <string name="extension_content_unnamed_lorebook">未命名Lorebook</string>

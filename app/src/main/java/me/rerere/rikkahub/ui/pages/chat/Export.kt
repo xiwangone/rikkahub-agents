@@ -195,20 +195,6 @@ fun ChatExportSheet(
                         leadingContent = { Icon(HugeIcons.File02, contentDescription = null) },
                     )
                 }
-                OutlinedCard(
-                    onClick = {
-                        exportToText(context, conversation, selectedMessages)
-                        toaster.show(stringResource(R.string.chat_page_export_success, "TXT"), type = ToastType.Success)
-                        onDismissRequest()
-                    },
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    ListItem(
-                        headlineContent = { Text(stringResource(R.string.export_txt_title)) },
-                        supportingContent = { Text(stringResource(R.string.export_txt_desc)) },
-                        leadingContent = { Icon(HugeIcons.File02, contentDescription = null) },
-                    )
-                }
                 // JSON 导出
                 val jsonSuccessMessage = stringResource(id = R.string.chat_page_export_success, "JSON")
                 OutlinedCard(

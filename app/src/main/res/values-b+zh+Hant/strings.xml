@@ -417,8 +417,8 @@
   <string name="export_title">匯出</string>
   <string name="export_to_file">匯出至檔案</string>
   <string name="export_to_file_desc">另存為 JSON 檔案</string>
-  <string name="export_txt_title">純文字（TXT）</string>
-  <string name="export_txt_desc">將所選訊息分享為 .txt 檔案</string>
+  <string name="chat_page_export_text">純文字（TXT）</string>
+  <string name="chat_page_export_text_desc">將所選訊息分享為 .txt 檔案</string>
   <string name="extension_content_manage">管理</string>
   <string name="extension_content_unnamed">未命名</string>
   <string name="extension_content_unnamed_lorebook">未命名設定集</string>

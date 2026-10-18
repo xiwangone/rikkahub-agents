@@ -427,8 +427,8 @@
   <string name="export_title">내보내기</string>
   <string name="export_to_file">파일로 내보내기</string>
   <string name="export_to_file_desc">JSON 파일로 저장</string>
-  <string name="export_txt_title">일반 텍스트(TXT)</string>
-  <string name="export_txt_desc">선택한 메시지를 .txt 파일로 공유</string>
+  <string name="chat_page_export_text">일반 텍스트(TXT)</string>
+  <string name="chat_page_export_text_desc">선택한 메시지를 .txt 파일로 공유</string>
   <string name="extension_content_manage">관리</string>
   <string name="extension_content_unnamed">이름 없음</string>
   <string name="extension_content_unnamed_lorebook">이름 없는 롤북</string>

@@ -427,8 +427,8 @@
   <string name="export_title">エクスポート</string>
   <string name="export_to_file">ファイルにエクスポート</string>
   <string name="export_to_file_desc">JSONファイルとして保存</string>
-  <string name="export_txt_title">プレーン テキスト（TXT）</string>
-  <string name="export_txt_desc">選択したメッセージを .txt ファイルとして共有</string>
+  <string name="chat_page_export_text">プレーン テキスト（TXT）</string>
+  <string name="chat_page_export_text_desc">選択したメッセージを .txt ファイルとして共有</string>
   <string name="extension_content_manage">管理</string>
   <string name="extension_content_unnamed">名前なし</string>
   <string name="extension_content_unnamed_lorebook">名前なしのルアーブック</string>
