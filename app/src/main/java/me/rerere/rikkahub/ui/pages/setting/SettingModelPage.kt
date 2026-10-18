@@ -127,7 +127,7 @@ private fun ModelSettingsPage(
                 description = stringResource(R.string.setting_model_page_chat_model_desc),
                 modelId = settings.chatModelId,
                 providers = settings.providers,
-                onSelect = { vm.updateSettings(settings.copy(chatModelId = it.id)) },
+                onSelect = { vm.updateSettings { current -> current.copy(chatModelId = it.id) } },
             )
         }
         item {
@@ -136,7 +136,7 @@ private fun ModelSettingsPage(
                 description = stringResource(R.string.setting_model_page_fast_model_desc),
                 modelId = settings.fastModelId,
                 providers = settings.providers,
-                onSelect = { vm.updateSettings(settings.copy(fastModelId = it.id)) },
+                onSelect = { vm.updateSettings { current -> current.copy(fastModelId = it.id) } },
             )
         }
         item {
@@ -145,8 +145,8 @@ private fun ModelSettingsPage(
                 description = stringResource(R.string.setting_model_page_title_model_desc),
                 modelId = settings.titleModelId,
                 providers = settings.providers,
-                onSelect = { vm.updateSettings(settings.copy(titleModelId = it.id)) },
-                onClear = { vm.updateSettings(settings.copy(titleModelId = null)) },
+                onSelect = { vm.updateSettings { current -> current.copy(titleModelId = it.id) } },
+                onClear = { vm.updateSettings { current -> current.copy(titleModelId = null) } },
             )
         }
         item {
@@ -161,7 +161,7 @@ private fun ModelSettingsPage(
                 description = stringResource(R.string.setting_model_page_translate_model_desc),
                 modelId = settings.translateModeId,
                 providers = settings.providers,
-                onSelect = { vm.updateSettings(settings.copy(translateModeId = it.id)) },
+                onSelect = { vm.updateSettings { current -> current.copy(translateModeId = it.id) } },
             )
         }
         item {
@@ -170,7 +170,7 @@ private fun ModelSettingsPage(
                 description = stringResource(R.string.setting_model_page_ocr_model_desc),
                 modelId = settings.ocrModelId,
                 providers = settings.providers,
-                onSelect = { vm.updateSettings(settings.copy(ocrModelId = it.id)) },
+                onSelect = { vm.updateSettings { current -> current.copy(ocrModelId = it.id) } },
             )
         }
         item {
@@ -179,7 +179,7 @@ private fun ModelSettingsPage(
                 description = stringResource(R.string.setting_model_page_compress_model_desc),
                 modelId = settings.compressModelId,
                 providers = settings.providers,
-                onSelect = { vm.updateSettings(settings.copy(compressModelId = it.id)) },
+                onSelect = { vm.updateSettings { current -> current.copy(compressModelId = it.id) } },
             )
         }
         item {
@@ -300,7 +300,7 @@ private fun SuggestionModelSettingItem(
                     Switch(
                         checked = settings.enableSuggestion,
                         onCheckedChange = {
-                            vm.updateSettings(settings.copy(enableSuggestion = it))
+                            vm.updateSettings { current -> current.copy(enableSuggestion = it) }
                         },
                     )
                 },
@@ -325,7 +325,7 @@ private fun SuggestionModelSettingItem(
                             )
                             if (state.currentModel != null) {
                                 IconButton(
-                                    onClick = { vm.updateSettings(settings.copy(suggestionModelId = null)) },
+                                    onClick = { vm.updateSettings { current -> current.copy(suggestionModelId = null) } },
                                     modifier = Modifier.size(20.dp),
                                 ) {
                                     Icon(HugeIcons.Cancel01, contentDescription = null, modifier = Modifier.size(14.dp))
@@ -350,7 +350,7 @@ private fun SuggestionModelSettingItem(
         )
     }
 
-    ModelListSheet(state = state, onSelect = { vm.updateSettings(settings.copy(suggestionModelId = it.id)) })
+    ModelListSheet(state = state, onSelect = { vm.updateSettings { current -> current.copy(suggestionModelId = it.id) } })
 }
 
 @Composable

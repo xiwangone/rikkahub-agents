@@ -285,7 +285,7 @@ class S3Sync(
                             try {
                                 val migratedJson = SettingsJsonMigrator.migrate(settingsJson)
                                 val settings = json.decodeFromString<Settings>(migratedJson)
-                                settingsStore.update(settings)
+                                settingsStore.replaceSettings(settings)
                                 AppLog.i(TAG, "restoreFromBackupFile: Settings restored successfully")
                             } catch (e: CancellationException) {
                                 throw e

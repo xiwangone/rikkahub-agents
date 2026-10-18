@@ -514,18 +514,18 @@ private fun ChatPageContent(
                         lifetimeTotals = lifetimeTotals,
                         onToggleSearch = {
                             val current = setting.getCurrentAssistant()
-                            vm.updateSettings(
-                                setting.copy(
+                            vm.updateSettings { current ->
+            current.copy(
                                     assistants =
-                                        setting.assistants.map { assistant ->
+                                        current.assistants.map { assistant ->
                                             if (assistant.id == current.id) {
                                                 assistant.copy(enableWebSearch = !enableWebSearch)
                                             } else {
                                                 assistant
                                             }
                                         },
-                                ),
-                            )
+                                )
+        }
                         },
                         onSendClick = {
                             if (currentChatModel == null) {
@@ -566,25 +566,25 @@ private fun ChatPageContent(
                             vm.setChatModel(conversationId = conversation.id, model = it)
                         },
                         onUpdateAssistant = {
-                            vm.updateSettings(
-                                setting.copy(
+                            vm.updateSettings { current ->
+            current.copy(
                                     assistants =
-                                        setting.assistants.map { assistant ->
+                                        current.assistants.map { assistant ->
                                             if (assistant.id == it.id) {
                                                 it
                                             } else {
                                                 assistant
                                             }
                                         },
-                                ),
-                            )
+                                )
+        }
                         },
                         onUpdateSearchService = { index ->
-                            vm.updateSettings(
-                                setting.copy(
+                            vm.updateSettings { current ->
+            current.copy(
                                     searchServiceSelected = index,
-                                ),
-                            )
+                                )
+        }
                         },
                         onMoreClick = {
                             showFilesSheet = true
@@ -986,18 +986,18 @@ private fun ChatFilesPickerSheet(
                 }
             },
             onUpdateAssistant = {
-                vm.updateSettings(
-                    setting.copy(
+                vm.updateSettings { current ->
+            current.copy(
                         assistants =
-                            setting.assistants.map { assistant ->
+                            current.assistants.map { assistant ->
                                 if (assistant.id == it.id) {
                                     it
                                 } else {
                                     assistant
                                 }
                             },
-                    ),
-                )
+                    )
+        }
             },
             onUpdateConversation = {
                 vm.updateConversation(it)
@@ -1012,7 +1012,9 @@ private fun ChatFilesPickerSheet(
             onDismiss = { dismissAll() },
             executionBackend = setting.executionBackend,
             onBackendChange = { backend ->
-                vm.updateSettings(setting.copy(executionBackend = backend))
+                vm.updateSettings { current ->
+            current.copy(executionBackend = backend)
+        }
             },
             onTakePic = onLaunchCamera,
             onPickImage = { imagePickerLauncher.launch("image/*") },
@@ -1037,17 +1039,17 @@ private fun ChatFilesPickerSheet(
             tokenLimit = setting.autoCompressTokenLimit,
             onDismiss = { showAutoCompressDialog = false },
             onConfirm = { enabled, mode, base, threshold, tokenLimit ->
-                val newSettings =
-                    setting.copy(
+                vm.updateSettings { current ->
+                    val updated = current.copy(
                         autoCompressEnabled = enabled,
                         autoCompressMode = mode,
                         autoCompressTokenBase = base,
                         autoCompressThreshold = threshold,
                         autoCompressTokenLimit = tokenLimit,
                     )
-                vm.updateSettings(newSettings)
-                // 用户重设阈值/模式 → 触发点 = 当前累计值 + 新阈值
-                vm.resetAutoCompressTriggerPoint(newSettings)
+                    vm.resetAutoCompressTriggerPoint(updated)
+                    updated
+                }
             },
         )
     }

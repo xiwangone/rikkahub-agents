@@ -172,7 +172,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 SettingsShortcutBar(
                     settings = settings,
                     entries = shortcutEntries,
-                    onUpdate = { vm.updateSettings(it) },
+                    onUpdate = { transform -> vm.updateSettings(transform) },
                     navController = navController,
                 )
             }
@@ -422,7 +422,7 @@ private fun CardGroupScope.ShareRow() {
 private fun SettingsShortcutBar(
     settings: Settings,
     entries: List<SettingEntry>,
-    onUpdate: (Settings) -> Unit,
+    onUpdate: ((Settings) -> Settings) -> Unit,
     navController: Navigator,
 ) {
     var showEditor by remember { mutableStateOf(false) }
@@ -523,19 +523,19 @@ private fun ShortcutTile(
 @Composable
 private fun SettingShortcutEditor(
     settings: Settings,
-    onUpdate: (Settings) -> Unit,
+    onUpdate: ((Settings) -> Settings) -> Unit,
     onDismiss: () -> Unit,
 ) {
     val selected = settings.settingShortcutIds
 
     fun toggle(id: String, on: Boolean) {
-        val next =
-            if (on) {
-                if (id in selected || selected.size >= SETTING_SHORTCUT_LIMIT) selected else selected + id
-            } else {
-                selected - id
-            }
-        onUpdate(settings.copy(settingShortcutIds = next))
+        onUpdate { current ->
+            val ids = current.settingShortcutIds
+            val next = if (on) {
+                if (id in ids || ids.size >= SETTING_SHORTCUT_LIMIT) ids else ids + id
+            } else ids - id
+            current.copy(settingShortcutIds = next)
+        }
     }
 
     AlertDialog(

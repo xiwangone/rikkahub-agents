@@ -78,7 +78,7 @@ fun DebugPage(vm: DebugVM = koinViewModel()) {
             )
         },
     ) { contentPadding ->
-        val state = rememberPagerState { 3 }
+        val state = rememberPagerState { 4 }
         Column(
             modifier =
                 Modifier
@@ -121,6 +121,11 @@ fun DebugPage(vm: DebugVM = koinViewModel()) {
                         Text("Logging")
                     },
                 )
+                Tab(
+                    selected = state.currentPage == 3,
+                    onClick = { scope.launch { state.animateScrollToPage(3) } },
+                    text = { Text("Recovery") },
+                )
             }
             HorizontalPager(
                 state = state,
@@ -133,6 +138,7 @@ fun DebugPage(vm: DebugVM = koinViewModel()) {
                     0 -> MainPage(vm)
                     1 -> ColorsPage()
                     2 -> Box {}
+                    3 -> RecoveryAssistantsPage(vm)
                 }
             }
         }
@@ -200,11 +206,11 @@ private fun MainPage(vm: DebugVM) {
         }
         Button(
             onClick = {
-                vm.updateSettings(
-                    settings.copy(
+                vm.updateSettings { current ->
+            current.copy(
                         chatModelId = Uuid.random(),
-                    ),
-                )
+                    )
+        }
             },
         ) {
             Text(stringResource(R.string.debug_reset_chat_model))
@@ -269,7 +275,7 @@ private fun MainPage(vm: DebugVM) {
             )
             Button(onClick = {
                 launchCountInput.toIntOrNull()?.let {
-                    vm.updateSettings(settings.copy(launchCount = it))
+                    vm.updateSettings { current -> current.copy(launchCount = it) }
                 }
             }) {
                 Text("Set")
@@ -394,4 +400,31 @@ private fun ColorTokenItem(
 private fun Color.toHexString(): String {
     val argb = toArgb()
     return "#%08X".format(argb)
+}
+
+
+@Composable
+private fun RecoveryAssistantsPage(vm: DebugVM) {
+    val counts by vm.assistantConversationCounts.collectAsStateWithLifecycle()
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val scope = rememberCoroutineScope()
+    val toast = LocalToaster.current
+    Column(
+        modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text("恢复助手占位项")
+        Text("只依据聊天记录中的助手 ID 创建占位项，不会恢复原模型、提示词或工具配置。")
+        if (settings.init) Text("设置仍在加载；恢复将等待真实设置读取完成。")
+        counts.toList().sortedByDescending { it.second }.forEach { (id, count) ->
+            Text("$id · $count 条聊天")
+        }
+        Button(onClick = {
+            scope.launch {
+                val restored = vm.recoverMissingAssistants()
+                toast.show("已恢复 $restored 个占位助手")
+            }
+        }) { Text("恢复缺失助手") }
+        Button(onClick = { vm.refreshAssistantConversationCounts() }) { Text("刷新扫描") }
+    }
 }

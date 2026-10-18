@@ -96,6 +96,8 @@ interface ConversationDAO {
 
     @Query("SELECT COUNT(*) FROM conversationentity")
     suspend fun countAll(): Int
+    @Query("SELECT assistant_id AS assistantId, COUNT(*) AS count FROM conversationentity GROUP BY assistant_id")
+    suspend fun countByAssistant(): List<AssistantConversationCount>
 
     @Query(
         "SELECT strftime('%Y-%m-%d', create_at/1000, 'unixepoch', 'localtime') AS day, " +
@@ -108,3 +110,4 @@ interface ConversationDAO {
 }
 
 data class ConversationDayCount(val day: String, val count: Int)
+data class AssistantConversationCount(val assistantId: String, val count: Int)

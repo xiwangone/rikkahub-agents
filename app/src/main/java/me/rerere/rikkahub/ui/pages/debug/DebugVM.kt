@@ -16,6 +16,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.DEFAULT_ASSISTANT_ID
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -33,9 +34,12 @@ class DebugVM(
 
     private val _conversationCount = MutableStateFlow<Int?>(null)
     val conversationCount: StateFlow<Int?> = _conversationCount.asStateFlow()
+    private val _assistantConversationCounts = MutableStateFlow<Map<Uuid, Int>>(emptyMap())
+    val assistantConversationCounts: StateFlow<Map<Uuid, Int>> = _assistantConversationCounts.asStateFlow()
 
     init {
         refreshConversationCount()
+        refreshAssistantConversationCounts()
     }
 
     fun refreshConversationCount() {
@@ -44,10 +48,31 @@ class DebugVM(
         }
     }
 
-    fun updateSettings(settings: Settings) {
+    fun refreshAssistantConversationCounts() {
         viewModelScope.launch {
-            settingsStore.update(settings)
+            _assistantConversationCounts.value = conversationRepository.countConversationsByAssistant()
         }
+    }
+
+    /** Adds only placeholder identities for IDs referenced by conversations but absent from Settings. */
+    suspend fun recoverMissingAssistants(): Int {
+        val counts = conversationRepository.countConversationsByAssistant()
+        _assistantConversationCounts.value = counts
+        var recovered = 0
+        settingsStore.update { current ->
+            val existingIds = current.assistants.mapTo(mutableSetOf()) { it.id }
+            val missing = counts.keys.filter { it !in existingIds }.sortedBy { it.toString() }
+            recovered = missing.size
+            // Intentionally do not infer the original model, prompt, or tools from conversation IDs.
+            current.copy(assistants = current.assistants + missing.mapIndexed { index, id ->
+                Assistant(id = id, name = "恢复的占位助手 ${index + 1}")
+            })
+        }
+        return recovered
+    }
+
+    fun updateSettings(transform: (Settings) -> Settings) {
+        viewModelScope.launch { settingsStore.update(transform) }
     }
 
     /**

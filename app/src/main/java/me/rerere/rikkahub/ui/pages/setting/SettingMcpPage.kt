@@ -139,26 +139,26 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
     val mcpConfigs = settings.mcpServers
     val creationState =
         useEditState<McpServerConfig> {
-            vm.updateSettings(
-                settings.copy(
-                    mcpServers = mcpConfigs + it,
-                ),
-            )
+            vm.updateSettings { current ->
+            current.copy(
+                    mcpServers = current.mcpServers + it,
+                )
+        }
         }
     val editState =
         useEditState<McpServerConfig> { newConfig ->
-            vm.updateSettings(
-                settings.copy(
+            vm.updateSettings { current ->
+            current.copy(
                     mcpServers =
-                        mcpConfigs.map {
+                        current.mcpServers.map {
                             if (it.id == newConfig.id) {
                                 newConfig
                             } else {
                                 it
                             }
                         },
-                ),
-            )
+                )
+        }
         }
     val localMcpProfiles = settings.localMcpProfiles
     var showProfileDialog by remember { mutableStateOf(false) }
@@ -238,12 +238,16 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                                     action = if (en) LocalMcpServerService.ACTION_START else LocalMcpServerService.ACTION_STOP
                                 },
                             )
-                            vm.updateSettings(settings.copy(localMcpServerEnabled = en))
+                            vm.updateSettings { current -> current.copy(localMcpServerEnabled = en) }
                         },
                         onAdd = { editingProfile = LocalMcpProfile(id = "local-mcp-${System.currentTimeMillis()}", name = ""); showProfileDialog = true },
                         onEdit = { p -> editingProfile = p; showProfileDialog = true },
-                        onDelete = { p -> vm.updateSettings(settings.copy(localMcpProfiles = localMcpProfiles.filter { it.id != p.id })) },
-                        onSetActive = { p -> vm.updateSettings(settings.copy(activeLocalMcpProfileId = p.id)) },
+                        onDelete = { p -> vm.updateSettings { current ->
+            current.copy(localMcpProfiles = current.localMcpProfiles.filter { it.id != p.id })
+        } },
+                        onSetActive = { p -> vm.updateSettings { current ->
+            current.copy(activeLocalMcpProfileId = p.id)
+        } },
                     )
                 }
 
@@ -254,11 +258,11 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                             editState.open(mcpConfig)
                         },
                         onDelete = {
-                            vm.updateSettings(
-                                settings.copy(
-                                    mcpServers = mcpConfigs.filter { it.id != mcpConfig.id },
-                                ),
-                            )
+                            vm.updateSettings { current ->
+            current.copy(
+                                    mcpServers = current.mcpServers.filter { it.id != mcpConfig.id },
+                                )
+        }
                         },
                         modifier = Modifier.animateItem(),
                     )
@@ -286,21 +290,15 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
         LocalMcpProfileModal(
             initial = editingProfile,
             presets = settings.networkCidrPresets,
-            onPresetsChange = { presets -> vm.updateSettings(settings.copy(networkCidrPresets = presets)) },
+            onPresetsChange = { presets -> vm.updateSettings { current ->
+            current.copy(networkCidrPresets = presets)
+        } },
             onConfirm = { p ->
-                val cur = settings.localMcpProfiles
-                val updated =
-                    if (cur.any { it.id == p.id }) {
-                        cur.map { if (it.id == p.id) p else it }
-                    } else {
-                        cur + p
-                    }
-                vm.updateSettings(
-                    settings.copy(
-                        localMcpProfiles = updated,
-                        activeLocalMcpProfileId = settings.activeLocalMcpProfileId ?: p.id,
-                    ),
-                )
+                vm.updateSettings { current ->
+                    val profiles = current.localMcpProfiles
+                    val updated = if (profiles.any { it.id == p.id }) profiles.map { if (it.id == p.id) p else it } else profiles + p
+                    current.copy(localMcpProfiles = updated, activeLocalMcpProfileId = current.activeLocalMcpProfileId ?: p.id)
+                }
                 showProfileDialog = false
             },
             onDismiss = { showProfileDialog = false },
@@ -310,13 +308,11 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
         McpImportModal(
             onDismiss = { showImportDialog = false },
             onImport = { newConfigs ->
-                val existingIds = mcpConfigs.map { it.commonOptions.name }.toSet()
-                val toAdd =
-                    newConfigs.filter {
-                        it.commonOptions.name.isNotBlank() &&
-                            it.commonOptions.name !in existingIds
-                    }
-                vm.updateSettings(settings.copy(mcpServers = mcpConfigs + toAdd))
+                vm.updateSettings { current ->
+                    val existingIds = current.mcpServers.map { it.commonOptions.name }.toSet()
+                    val toAdd = newConfigs.filter { it.commonOptions.name.isNotBlank() && it.commonOptions.name !in existingIds }
+                    current.copy(mcpServers = current.mcpServers + toAdd)
+                }
                 showImportDialog = false
             },
         )

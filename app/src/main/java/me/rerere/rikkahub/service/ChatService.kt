@@ -1880,6 +1880,8 @@ class ChatService(
 
         runCatching {
             val settings = settingsStore.settingsFlow.first()
+            // Manual regeneration (force=true) remains available when automation is disabled.
+            if (!force && !settings.autoGenerateTitle) return@runCatching
             val model = settings.findModelById(settings.titleModelId, fallback = settings.fastModelId)
                 ?: run { applyTitle(fallback); return@runCatching }
             val provider = model.findProvider(settings.providers)

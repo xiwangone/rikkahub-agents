@@ -3690,4 +3690,12 @@
   <string name="skill_store_restore_bundled">Restore built-in version</string>
   <string name="skill_store_restore_bundled_confirm">Replace the on-disk copy with the pristine built-in version? Local edits to this skill will be lost.</string>
   <string name="skill_store_restored">Restored built-in version</string>
+    <string name="setting_auto_generate_title">Automatically generate conversation titles</string>
+    <string name="setting_auto_generate_title_desc">Automatically create a title when a conversation finishes.</string>
+    <string name="setting_updates_pause_title">Pause update reminders</string>
+    <string name="setting_updates_pause_desc">Pause reminders for a limited time. They resume automatically after expiry or restart.</string>
+    <string name="setting_updates_pause_1d">1 day</string>
+    <string name="setting_updates_pause_3d">3 days</string>
+    <string name="setting_updates_pause_7d">7 days</string>
+    <string name="setting_updates_resume_now">Resume now</string>
 </resources>

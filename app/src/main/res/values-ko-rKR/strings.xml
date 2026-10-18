@@ -3694,4 +3694,12 @@
   <string name="skill_store_restore_bundled">내장 버전 복원</string>
   <string name="skill_store_restore_bundled_confirm">디스크 사본을 내장 원본으로 교체할까요? 이 스킬의 로컬 수정은 유실됩니다.</string>
   <string name="skill_store_restored">내장 버전을 복원했습니다</string>
+    <string name="setting_auto_generate_title">대화 제목 자동 생성</string>
+    <string name="setting_auto_generate_title_desc">대화가 끝나면 제목을 자동으로 만듭니다.</string>
+    <string name="setting_updates_pause_1d">1일</string>
+    <string name="setting_updates_pause_3d">3일</string>
+    <string name="setting_updates_pause_7d">7일</string>
+    <string name="setting_updates_pause_desc">알림을 일정 기간 일시 중지합니다. 만료되거나 다시 시작하면 자동으로 재개됩니다.</string>
+    <string name="setting_updates_pause_title">업데이트 알림 일시 중지</string>
+    <string name="setting_updates_resume_now">지금 재개</string>
 </resources>

@@ -15,9 +15,7 @@ class PromptVM(
         settingsStore.settingsFlow
             .stateIn(viewModelScope, SharingStarted.Lazily, Settings.dummy())
 
-    fun updateSettings(settings: Settings) {
-        viewModelScope.launch {
-            settingsStore.update(settings)
-        }
+    fun updateSettings(transform: (Settings) -> Settings) {
+        viewModelScope.launch { settingsStore.update(transform) }
     }
 }

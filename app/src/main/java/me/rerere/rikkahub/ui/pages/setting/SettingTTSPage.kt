@@ -90,11 +90,11 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                 },
                 actions = {
                     AddTTSProviderButton {
-                        vm.updateSettings(
-                            settings.copy(
-                                ttsProviders = listOf(it) + settings.ttsProviders,
-                            ),
-                        )
+                        vm.updateSettings { current ->
+            current.copy(
+                                ttsProviders = listOf(it) + current.ttsProviders,
+                            )
+        }
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -110,7 +110,7 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
             rememberReorderCommitState(
                 items = settings.ttsProviders,
                 key = { it.id },
-                onCommit = { vm.updateSettings(settings.copy(ttsProviders = it)) },
+                onCommit = { vm.updateSettings { current -> current.copy(ttsProviders = it) } },
             )
         val reorderableState =
             rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -164,27 +164,18 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                         },
                         isSelected = settings.selectedTTSProviderId == provider.id,
                         onSelect = {
-                            vm.updateSettings(settings.copy(selectedTTSProviderId = provider.id))
+                            vm.updateSettings { current -> current.copy(selectedTTSProviderId = provider.id) }
                         },
                         onEdit = {
                             editingProvider = provider
                         },
                         onDelete = {
-                            val newProviders = settings.ttsProviders - provider
-                            val newSelectedId =
-                                if (settings.selectedTTSProviderId ==
-                                    provider.id
-                                ) {
-                                    DEFAULT_SYSTEM_TTS_ID
-                                } else {
-                                    settings.selectedTTSProviderId
-                                }
-                            vm.updateSettings(
-                                settings.copy(
-                                    ttsProviders = newProviders,
-                                    selectedTTSProviderId = newSelectedId,
-                                ),
-                            )
+                            vm.updateSettings { current ->
+                                current.copy(
+                                    ttsProviders = current.ttsProviders.filterNot { it.id == provider.id },
+                                    selectedTTSProviderId = if (current.selectedTTSProviderId == provider.id) DEFAULT_SYSTEM_TTS_ID else current.selectedTTSProviderId,
+                                )
+                            }
                         },
                     )
                 }
@@ -242,11 +233,9 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
 
                     TextButton(
                         onClick = {
-                            val newProviders =
-                                settings.ttsProviders.map {
-                                    if (it.id == provider.id) currentProvider else it
-                                }
-                            vm.updateSettings(settings.copy(ttsProviders = newProviders))
+                            vm.updateSettings { current ->
+                                current.copy(ttsProviders = current.ttsProviders.map { if (it.id == provider.id) currentProvider else it })
+                            }
                             editingProvider = null
                         },
                         modifier = Modifier.weight(1f),

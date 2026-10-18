@@ -169,22 +169,17 @@ class AssistantDetailVM(
 
     fun update(assistant: Assistant) {
         viewModelScope.launch {
-            val settings = settings.value
-            settingsStore.update(
-                settings =
-                    settings.copy(
-                        assistants =
-                            settings.assistants.map {
-                                if (it.id == assistant.id) {
-                                    checkAvatarDelete(old = it, new = assistant) // 删除旧头像
-                                    checkBackgroundDelete(old = it, new = assistant) // 删除旧背景
-                                    assistant
-                                } else {
-                                    it
-                                }
-                            },
-                    ),
-            )
+            settingsStore.update { current ->
+                current.copy(
+                    assistants = current.assistants.map {
+                        if (it.id == assistant.id) {
+                            checkAvatarDelete(old = it, new = assistant) // 删除旧头像
+                            checkBackgroundDelete(old = it, new = assistant) // 删除旧背景
+                            assistant
+                        } else it
+                    },
+                )
+            }
         }
     }
 

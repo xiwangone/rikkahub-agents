@@ -25,10 +25,8 @@ class AssistantVM(
         settingsStore.settingsFlow
             .stateIn(viewModelScope, SharingStarted.Eagerly, Settings.dummy())
 
-    fun updateSettings(settings: Settings) {
-        viewModelScope.launch {
-            settingsStore.update(settings)
-        }
+    fun updateSettings(transform: (Settings) -> Settings) {
+        viewModelScope.launch { settingsStore.update(transform) }
     }
 
     fun addAssistant(assistant: Assistant) {

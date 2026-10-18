@@ -77,6 +77,7 @@ import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.shouldShowUpdateReminders
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
@@ -160,14 +161,14 @@ fun ChatDrawerContent(
     // 昵称编辑状态
     val nicknameEditState =
         useEditState<String> { newNickname ->
-            vm.updateSettings(
-                settings.copy(
+            vm.updateSettings { current ->
+            current.copy(
                     displaySetting =
-                        settings.displaySetting.copy(
+                        current.displaySetting.copy(
                             userNickname = newNickname,
                         ),
-                ),
-            )
+                )
+        }
         }
 
     // 移动对话状态
@@ -194,7 +195,7 @@ fun ChatDrawerContent(
             modifier = Modifier.padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            if (settings.displaySetting.showUpdates && !isPlayStore) {
+            if (settings.displaySetting.shouldShowUpdateReminders() && !isPlayStore) {
                 UpdateCard(vm)
             }
 
@@ -216,14 +217,14 @@ fun ChatDrawerContent(
                     name = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
                     value = settings.displaySetting.userAvatar,
                     onUpdate = { newAvatar ->
-                        vm.updateSettings(
-                            settings.copy(
+                        vm.updateSettings { current ->
+            current.copy(
                                 displaySetting =
-                                    settings.displaySetting.copy(
+                                    current.displaySetting.copy(
                                         userAvatar = newAvatar,
                                     ),
-                            ),
-                        )
+                            )
+        }
                     },
                     modifier = Modifier.size(50.dp),
                 )
@@ -338,8 +339,8 @@ fun ChatDrawerContent(
             // 助手选择器
             AssistantPicker(
                 settings = settings,
-                onUpdateSettings = {
-                    val updateJob = vm.updateSettings(it)
+                onUpdateSettings = { transform ->
+                    val updateJob = vm.updateSettings(transform)
                     scope.launch {
                         updateJob.join()
                         val id =

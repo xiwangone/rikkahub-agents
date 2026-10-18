@@ -117,23 +117,23 @@ fun WebDavTab(
             } else {
                 cfgList + cfg
             }
-        vm.updateSettings(
-            settings.copy(
+        vm.updateSettings { current ->
+            current.copy(
                 webDavConfig = cfg,
                 webDavConfigs = newList,
                 activeWebDavConfigId = effectiveId,
-            ),
-        )
+            )
+        }
     }
 
     /** 切换当前配置。 */
     fun selectWebDavConfig(cfgId: String) {
-        vm.updateSettings(
-            settings.copy(
+        vm.updateSettings { current ->
+            current.copy(
                 activeWebDavConfigId = cfgId,
-                webDavConfig = webDavConfigs.firstOrNull { it.id == cfgId } ?: settings.webDavConfig,
-            ),
-        )
+                webDavConfig = webDavConfigs.firstOrNull { it.id == cfgId } ?: current.webDavConfig,
+            )
+        }
     }
 
     /** 新增配置：填入空表单并切换过去。 */
@@ -142,13 +142,13 @@ fun WebDavTab(
             id = Uuid.random().toString(),
             name = "",
         )
-        vm.updateSettings(
-            settings.copy(
+        vm.updateSettings { current ->
+            current.copy(
                 webDavConfig = newCfg,
                 webDavConfigs = webDavConfigs + newCfg,
                 activeWebDavConfigId = newCfg.id,
-            ),
-        )
+            )
+        }
     }
 
     /** 删除配置（保留至少一个）。 */
@@ -156,13 +156,13 @@ fun WebDavTab(
         if (webDavConfigs.size <= 1 && settings.webDavConfig.id == cfgId) return
         val remaining = webDavConfigs.filterNot { it.id == cfgId }
         val newActive = remaining.firstOrNull()?.id
-        vm.updateSettings(
-            settings.copy(
+        vm.updateSettings { current ->
+            current.copy(
                 webDavConfigs = remaining,
                 activeWebDavConfigId = newActive,
                 webDavConfig = remaining.firstOrNull() ?: WebDavConfig(),
-            ),
-        )
+            )
+        }
     }
 
     val lastBackupText =

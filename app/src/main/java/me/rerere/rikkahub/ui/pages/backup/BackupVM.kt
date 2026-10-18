@@ -74,10 +74,8 @@ class BackupVM(
         loadS3BackupFileItems()
     }
 
-    fun updateSettings(settings: Settings) {
-        viewModelScope.launch {
-            settingsStore.update(settings)
-        }
+    fun updateSettings(transform: (Settings) -> Settings) {
+        viewModelScope.launch { settingsStore.update(transform) }
     }
 
     // ── 备份加密（口令管理，全局开关）──
@@ -391,11 +389,9 @@ class BackupVM(
 
         AppLog.i(TAG, "restoreFromCherryStudio: import ${importProviders.size} providers: $importProviders")
 
-        updateSettings(
-            settings.value.copy(
-                providers = importProviders + settings.value.providers,
-            ),
-        )
+        updateSettings { current ->
+            current.copy(providers = importProviders + current.providers)
+        }
     }
 
     // S3 Backup methods

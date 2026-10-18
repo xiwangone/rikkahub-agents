@@ -108,7 +108,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
             rememberReorderCommitState(
                 items = settings.searchServices,
                 key = { it.id },
-                onCommit = { vm.updateSettings(settings.copy(searchServices = it)) },
+                onCommit = { vm.updateSettings { current -> current.copy(searchServices = it) } },
             )
         val reorderableState =
             rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -140,9 +140,9 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                                 val index = settings.searchServices.indexOf(service)
                                 val newServices = settings.searchServices.toMutableList()
                                 newServices.removeAt(index)
-                                vm.updateSettings(
-                                    settings.copy(searchServices = newServices),
-                                )
+                                vm.updateSettings { current ->
+            current.copy(searchServices = newServices)
+        }
                             }
                         },
                         canDelete = settings.searchServices.size > 1,
@@ -168,9 +168,9 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                 CommonOptions(
                     settings = settings,
                     onUpdate = { options ->
-                        vm.updateSettings(
-                            settings.copy(searchCommonOptions = options),
-                        )
+                        vm.updateSettings { current ->
+            current.copy(searchCommonOptions = options)
+        }
                     },
                 )
             }
@@ -182,11 +182,11 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
             onDismiss = { showAddDialog = false },
             onConfirm = { options ->
                 showAddDialog = false
-                vm.updateSettings(
-                    settings.copy(
-                        searchServices = listOf(options) + settings.searchServices,
-                    ),
-                )
+                vm.updateSettings { current ->
+            current.copy(
+                        searchServices = listOf(options) + current.searchServices,
+                    )
+        }
                 scope.launch {
                     lazyListState.animateScrollToItem(0)
                 }

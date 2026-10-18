@@ -344,10 +344,10 @@ private fun BuiltInSearchSetting(model: Model) {
                 onCheckedChange = { checked ->
                     val settings = settingsStore.settingsFlow.value
                     scope.launch {
-                        settingsStore.update(
-                            settings.copy(
+                        settingsStore.update { current ->
+                            current.copy(
                                 providers =
-                                    settings.providers.map { providerSetting ->
+                                    current.providers.map { providerSetting ->
                                         providerSetting.editModel(
                                             model.copy(
                                                 tools =
@@ -360,8 +360,8 @@ private fun BuiltInSearchSetting(model: Model) {
                                             ),
                                         )
                                     },
-                            ),
-                        )
+                            )
+                        }
                     }
                 },
             )

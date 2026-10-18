@@ -122,13 +122,15 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
     val navController = LocalNavController.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val editState = useEditState<SubAgentProfile> { edited ->
-        val index = profiles.indexOfFirst { it.id == edited.id }
-        val updated = if (index >= 0) {
-            profiles.toMutableList().apply { set(index, edited) }
-        } else {
-            profiles + edited
+        vm.updateSettings { current ->
+            val index = current.subAgents.indexOfFirst { it.id == edited.id }
+            val updated = if (index >= 0) {
+                current.subAgents.toMutableList().apply { set(index, edited) }
+            } else {
+                current.subAgents + edited
+            }
+            current.copy(subAgents = updated)
         }
-        vm.updateSettings(settings.copy(subAgents = updated))
     }
 
     Scaffold(
@@ -200,7 +202,7 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
                                 Switch(
                                     checked = settings.subAgentForegroundReceipt,
                                     onCheckedChange = { checked ->
-                                        vm.updateSettings(settings.copy(subAgentForegroundReceipt = checked))
+                                        vm.updateSettings { current -> current.copy(subAgentForegroundReceipt = checked) }
                                     },
                                 )
                             }
@@ -234,7 +236,7 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
                         SubAgentProfileCard(
                             profile = profile,
                             onEdit = { editState.open(profile) },
-                            onDelete = { vm.updateSettings(settings.copy(subAgents = profiles - profile)) },
+                            onDelete = { vm.updateSettings { current -> current.copy(subAgents = current.subAgents.filterNot { it.id == profile.id }) } },
                         )
                     }
                 }
@@ -268,11 +270,7 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
             assistant = Assistant(workspaceId = settings.subAgentDefaultWorkspaceId),
             workspaces = workspaces,
             onSelect = { id ->
-                vm.updateSettings(
-                    settings.copy(
-                        subAgentDefaultWorkspaceId = id?.let { runCatching { Uuid.parse(it) }.getOrNull() },
-                    )
-                )
+                vm.updateSettings { current -> current.copy(subAgentDefaultWorkspaceId = id?.let { runCatching { Uuid.parse(it) }.getOrNull() },) }
                 showDefaultWorkspaceSheet = false
             },
             onManage = {

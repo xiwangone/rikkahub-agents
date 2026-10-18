@@ -201,28 +201,14 @@ fun SettingProviderDetailPage(
     }
 
     val onEdit = { newProvider: ProviderSetting ->
-        val newSettings =
-            settings.copy(
-                providers =
-                    settings.providers.map {
-                        if (newProvider.id == it.id) {
-                            newProvider
-                        } else {
-                            it
-                        }
-                    },
-            )
-        vm.updateSettings(newSettings)
+        vm.updateSettings { current ->
+            current.copy(providers = current.providers.map { if (it.id == newProvider.id) newProvider else it })
+        }
     }
     val onDelete = {
-        val newSettings =
-            settings.copy(
-                providers = settings.providers - provider,
-            )
-        vm.updateSettings(newSettings)
+        vm.updateSettings { current -> current.copy(providers = current.providers - provider) }
         navController.popBackStack()
     }
-
     Scaffold(
         containerColor = CustomColors.topBarColors.containerColor,
         topBar = {

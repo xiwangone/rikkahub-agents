@@ -114,35 +114,35 @@ fun S3Tab(
             } else {
                 cfgList + cfg
             }
-        vm.updateSettings(
-            settings.copy(
+        vm.updateSettings { current ->
+            current.copy(
                 s3Config = cfg,
                 s3Configs = newList,
                 activeS3ConfigId = effectiveId,
-            ),
-        )
+            )
+        }
     }
 
     /** 切换当前配置。 */
     fun selectS3Config(cfgId: String) {
-        vm.updateSettings(
-            settings.copy(
+        vm.updateSettings { current ->
+            current.copy(
                 activeS3ConfigId = cfgId,
-                s3Config = s3Configs.firstOrNull { it.id == cfgId } ?: settings.s3Config,
-            ),
-        )
+                s3Config = s3Configs.firstOrNull { it.id == cfgId } ?: current.s3Config,
+            )
+        }
     }
 
     /** 新增配置并切换过去。 */
     fun addS3Config() {
         val newCfg = S3Config(id = kotlin.uuid.Uuid.random().toString())
-        vm.updateSettings(
-            settings.copy(
+        vm.updateSettings { current ->
+            current.copy(
                 s3Config = newCfg,
                 s3Configs = s3Configs + newCfg,
                 activeS3ConfigId = newCfg.id,
-            ),
-        )
+            )
+        }
     }
 
     val lastBackupText =

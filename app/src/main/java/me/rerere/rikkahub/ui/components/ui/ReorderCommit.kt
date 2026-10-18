@@ -36,7 +36,7 @@ private const val DragWaitStepMs = 150L
  * val reorder = rememberReorderCommitState(
  *     items = settings.ttsProviders,
  *     key = { it.id },
- *     onCommit = { vm.updateSettings(settings.copy(ttsProviders = it)) },
+ *     onCommit = { vm.updateSettings { current -> current.copy(ttsProviders = it) } },
  * )
  * val state = rememberReorderableLazyListState(lazyListState) { from, to ->
  *     reorder.onMove(from.key, to.key)

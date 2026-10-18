@@ -3693,4 +3693,12 @@
   <string name="skill_store_restore_bundled">استعادة النسخة المدمجة</string>
   <string name="skill_store_restore_bundled_confirm">هل تريد استبدال النسخة على القرص بالنسخة المدمجة الأصلية؟ ستفقد التعديلات المحلية لهذه المهارة.</string>
   <string name="skill_store_restored">تمت استعادة النسخة المدمجة</string>
+    <string name="setting_auto_generate_title">إنشاء عناوين المحادثات تلقائيًا</string>
+    <string name="setting_auto_generate_title_desc">إنشاء عنوان تلقائيًا عند انتهاء المحادثة.</string>
+    <string name="setting_updates_pause_1d">يوم واحد</string>
+    <string name="setting_updates_pause_3d">3 أيام</string>
+    <string name="setting_updates_pause_7d">7 أيام</string>
+    <string name="setting_updates_pause_desc">إيقاف التذكيرات مؤقتًا لفترة محدودة. تُستأنف تلقائيًا بعد انتهاء المدة أو إعادة التشغيل.</string>
+    <string name="setting_updates_pause_title">إيقاف تذكيرات التحديث مؤقتًا</string>
+    <string name="setting_updates_resume_now">الاستئناف الآن</string>
 </resources>

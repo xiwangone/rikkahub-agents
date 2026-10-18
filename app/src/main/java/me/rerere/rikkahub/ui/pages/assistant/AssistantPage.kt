@@ -169,7 +169,7 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
                     items = settings.assistants,
                     key = { it.id },
                     enabled = !isFiltering,
-                    onCommit = { vm.updateSettings(settings.copy(assistants = it)) },
+                    onCommit = { vm.updateSettings { current -> current.copy(assistants = it) } },
                 )
             val reorderableState =
                 rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -342,7 +342,7 @@ private fun AssistantTagsFilterRow(
             rememberReorderCommitState(
                 items = settings.assistantTags,
                 key = { it.id },
-                onCommit = { vm.updateSettings(settings.copy(assistantTags = it)) },
+                onCommit = { vm.updateSettings { current -> current.copy(assistantTags = it) } },
             )
         val tagsReorderableState =
             rememberReorderableLazyListState(tagsListState) { from, to ->

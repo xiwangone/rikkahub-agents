@@ -6,6 +6,8 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -39,7 +41,22 @@ fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
 
     fun updateDisplaySetting(setting: DisplaySetting) {
         displaySetting = setting
-        vm.updateSettings(settings.copy(displaySetting = setting))
+        vm.updateSettings { current ->
+            // Preserve concurrent nested preference edits by applying only values changed by this event.
+            val old = displaySetting
+            current.copy(displaySetting = if (setting.showUpdates != old.showUpdates) {
+                current.displaySetting.copy(showUpdates = setting.showUpdates)
+            } else current.displaySetting)
+        }
+    }
+    var showPauseUpdatesDialog by remember { mutableStateOf(false) }
+    fun pauseUpdatesFor(days: Int) {
+        val until = System.currentTimeMillis() + days * 24L * 60L * 60L * 1000L
+        vm.updateSettings { current ->
+            current.copy(displaySetting = current.displaySetting.copy(showUpdates = true, showUpdatesUntilEpochMillis = until))
+        }
+        displaySetting = displaySetting.copy(showUpdates = true, showUpdatesUntilEpochMillis = until)
+        showPauseUpdatesDialog = false
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -89,10 +106,16 @@ fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
                             Switch(
                                 checked = displaySetting.showUpdates,
                                 onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showUpdates = it))
+                                    displaySetting = displaySetting.copy(showUpdates = it)
+                                    vm.updateSettings { current -> current.copy(displaySetting = current.displaySetting.copy(showUpdates = it)) }
                                 },
                             )
                         },
+                    )
+                    item(
+                        onClick = { showPauseUpdatesDialog = true },
+                        headlineContent = { Text(stringResource(R.string.setting_updates_pause_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_updates_pause_desc)) },
                     )
                     item(
                         headlineContent = {

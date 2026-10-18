@@ -99,23 +99,23 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
 
     fun updateUserAgent(value: String) {
         userAgent = value
-        vm.updateSettings(
-            settings.copy(
-                networkSetting = settings.networkSetting.copy(userAgent = value),
+        vm.updateSettings { current ->
+            current.copy(
+                networkSetting = current.networkSetting.copy(userAgent = value),
             )
-        )
+        }
     }
 
     fun saveProxy() {
-        vm.updateSettings(
-            settings.copy(
-                networkSetting = settings.networkSetting.copy(
+        vm.updateSettings { current ->
+            current.copy(
+                networkSetting = current.networkSetting.copy(
                     proxyUrl = proxyUrlDraft,
                     proxyUsername = proxyUsernameDraft,
                     proxyPassword = proxyPasswordDraft,
                 ),
             )
-        )
+        }
     }
 
     fun resetProxy() {
@@ -276,7 +276,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                             Switch(
                                 checked = settings.enableAutoRetry,
                                 onCheckedChange = { enabled ->
-                                    vm.updateSettings(settings.copy(enableAutoRetry = enabled))
+                                    vm.updateSettings { current -> current.copy(enableAutoRetry = enabled) }
                                 },
                             )
                         },
@@ -295,9 +295,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                                 Slider(
                                     value = settings.responseStreamMaxRetries.toFloat(),
                                     onValueChange = { v ->
-                                        vm.updateSettings(
-                                            settings.copy(responseStreamMaxRetries = v.roundToInt())
-                                        )
+                                        vm.updateSettings { current -> current.copy(responseStreamMaxRetries = v.roundToInt()) }
                                     },
                                     valueRange = 0f..10f,
                                     steps = 9,

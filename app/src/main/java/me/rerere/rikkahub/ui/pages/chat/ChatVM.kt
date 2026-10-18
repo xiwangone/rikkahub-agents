@@ -217,12 +217,14 @@ class ChatVM(
     val mcpManager = chatService.mcpManager
 
     // 更新设置
-    fun updateSettings(newSettings: Settings): Job =
+    fun updateSettings(transform: (Settings) -> Settings): Job =
         viewModelScope.launch {
-            val oldSettings = settings.value
-            // 检查用户头像是否有变化，如果有则删除旧头像
-            checkUserAvatarDelete(oldSettings, newSettings)
-            settingsStore.update(newSettings)
+            settingsStore.update { current ->
+                val updated = transform(current)
+                // Check deletion against the same latest value used for this update.
+                checkUserAvatarDelete(current, updated)
+                updated
+            }
         }
 
     // 检查用户头像删除

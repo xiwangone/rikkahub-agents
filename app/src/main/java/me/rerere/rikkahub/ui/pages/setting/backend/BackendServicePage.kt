@@ -65,35 +65,27 @@ fun BackendServicePage() {
             onSave = { conn ->
                 scope.launch {
                     // 等待真实 settings 加载完成（避免 DataStore 大文件加载慢时 value 仍是 dummy(init=true)，被 update 静默拒绝）
-                    val current = settingsStore.settingsFlow.first { !it.init }
-                    val updated =
+                    settingsStore.settingsFlow.first { !it.init }
+                    settingsStore.update { current ->
                         if (initial == null) {
-                            current.copy(
-                                backendConnections = current.backendConnections + conn,
-                            )
+                            current.copy(backendConnections = current.backendConnections + conn)
                         } else {
-                            current.copy(
-                                backendConnections =
-                                    current.backendConnections.map {
-                                        if (it.id == conn.id) conn else it
-                                    },
-                            )
+                            current.copy(backendConnections = current.backendConnections.map { if (it.id == conn.id) conn else it })
                         }
-                    me.rerere.rikkahub.data.log.AppLog.d("BackendPage", "保存后端: ${conn.name} type=${conn.type} endpoint=${conn.endpoint} 列表=${updated.backendConnections.size} 个")
-                    settingsStore.update(updated)
+                    }
+                    me.rerere.rikkahub.data.log.AppLog.d("BackendPage", "保存后端: ${conn.name} type=${conn.type} endpoint=${conn.endpoint}")
                     showAddDialog = false
                     editing = null
                 }
             },
             onDelete = {
                 scope.launch {
-                    val current = settingsStore.settingsFlow.first { !it.init }
-                    settingsStore.update(
+                    settingsStore.update { current ->
                         current.copy(
                             backendConnections = current.backendConnections.filterNot { c -> c.id == it.id },
                             executionBackend = if (current.executionBackend == it.id) "local" else current.executionBackend,
-                        ),
-                    )
+                        )
+                    }
                     editing = null
                 }
             },
@@ -133,9 +125,7 @@ fun BackendServicePage() {
                         TextButton(
                             onClick = {
                                 scope.launch {
-                                    settingsStore.update(
-                                        settingsStore.settingsFlow.value.copy(executionBackend = BackendTypes.LOCAL),
-                                    )
+                                    settingsStore.update { current -> current.copy(executionBackend = BackendTypes.LOCAL) }
                                 }
                             },
                         ) {
@@ -172,9 +162,7 @@ fun BackendServicePage() {
                                     TextButton(
                                         onClick = {
                                             scope.launch {
-                                                settingsStore.update(
-                                                    settingsStore.settingsFlow.value.copy(executionBackend = conn.id),
-                                                )
+                                                settingsStore.update { current -> current.copy(executionBackend = conn.id) }
                                             }
                                         },
                                     ) {

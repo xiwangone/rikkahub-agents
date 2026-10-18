@@ -3694,4 +3694,12 @@
   <string name="skill_store_restore_bundled">内蔵版を復元</string>
   <string name="skill_store_restore_bundled_confirm">ディスク上のコピーを内蔵のオリジナルに置き換えますか？このスキルのローカル編集は失われます。</string>
   <string name="skill_store_restored">内蔵版を復元しました</string>
+    <string name="setting_auto_generate_title">会話タイトルを自動生成</string>
+    <string name="setting_auto_generate_title_desc">会話が終了したときにタイトルを自動で作成します。</string>
+    <string name="setting_updates_pause_1d">1 日</string>
+    <string name="setting_updates_pause_3d">3 日</string>
+    <string name="setting_updates_pause_7d">7 日</string>
+    <string name="setting_updates_pause_desc">リマインダーを一定期間停止します。期限切れまたは再起動後に自動的に再開します。</string>
+    <string name="setting_updates_pause_title">更新リマインダーを一時停止</string>
+    <string name="setting_updates_resume_now">今すぐ再開</string>
 </resources>

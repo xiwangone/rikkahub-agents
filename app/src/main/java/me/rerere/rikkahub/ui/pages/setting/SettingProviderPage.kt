@@ -115,7 +115,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
             key = { it.id },
             // 过滤态下列表下标与全量 providers 不一致（直接套用会移动错项）→ 仅未过滤时允许排序
             enabled = searchQuery.isBlank(),
-            onCommit = { vm.updateSettings(settings.copy(providers = it)) },
+            onCommit = { vm.updateSettings { current -> current.copy(providers = it) } },
         )
     val reorderableState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
@@ -142,18 +142,18 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 },
                 actions = {
                     ImportProviderButton {
-                        vm.updateSettings(
-                            settings.copy(
-                                providers = listOf(it.copyProvider(Uuid.random())) + settings.providers,
-                            ),
-                        )
+                        vm.updateSettings { current ->
+            current.copy(
+                                providers = listOf(it.copyProvider(Uuid.random())) + current.providers,
+                            )
+        }
                     }
                     AddButton {
-                        vm.updateSettings(
-                            settings.copy(
-                                providers = listOf(it) + settings.providers,
-                            ),
-                        )
+                        vm.updateSettings { current ->
+            current.copy(
+                                providers = listOf(it) + current.providers,
+                            )
+        }
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -264,21 +264,21 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 confirmButton = {
                     TextButton(
                         onClick = {
-                            vm.updateSettings(
-                                settings.copy(
-                                    providers = settings.providers.filter { it.id != target.id },
+                            vm.updateSettings { current ->
+            current.copy(
+                                    providers = current.providers.filter { it.id != target.id },
                                     // If the user removed a built-in default, remember the
                                     // intent so the re-seed pass on settings load doesn't
                                     // resurrect it. Without this gate the row just bobs to
                                     // the bottom of the list on next reload.
                                     deletedBuiltInProviderIds =
                                         if (target.builtIn) {
-                                            settings.deletedBuiltInProviderIds + target.id
+                                            current.deletedBuiltInProviderIds + target.id
                                         } else {
-                                            settings.deletedBuiltInProviderIds
+                                            current.deletedBuiltInProviderIds
                                         },
-                                ),
-                            )
+                                )
+                            }
                             providerToDelete = null
                         },
                     ) {

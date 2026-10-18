@@ -34,9 +34,8 @@ class SettingVM(
     fun shortcutEntriesNow(): List<SettingEntry> =
         settingsStore.settingsFlow.value.let { s -> s.settingShortcutIds.mapNotNull { id -> SettingCatalog.byId(id) } }
 
-    fun updateSettings(settings: Settings) {
-        viewModelScope.launch {
-            settingsStore.update(settings)
-        }
+    /** Queue a change against the store's latest value, never a Compose snapshot. */
+    fun updateSettings(transform: (Settings) -> Settings) {
+        viewModelScope.launch { settingsStore.update(transform) }
     }
 }

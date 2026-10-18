@@ -1,3 +1,4 @@
+@file:Suppress("TooGenericExceptionCaught", "RethrowCaughtException", "LargeClass") // 设置存储集中于单一入口：初始化与落盘失败需记录/回滚内存态后再原样抛出，且该类承载全部字段键表
 package me.rerere.rikkahub.data.datastore
 
 import android.content.Context
@@ -6,7 +7,6 @@ import androidx.datastore.preferences.SharedPreferencesMigration
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.MutablePreferences
 import androidx.datastore.preferences.core.edit
-import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.longPreferencesKey
@@ -17,11 +17,20 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.flow.onEach
+import kotlinx.coroutines.flow.retryWhen
+import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.SerializationException
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.decodeFromJsonElement
@@ -57,7 +66,6 @@ import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.PresetThemes
 import me.rerere.rikkahub.utils.JsonInstant
-import me.rerere.rikkahub.utils.toMutableStateFlow
 import me.rerere.search.SearchCommonOptions
 import me.rerere.search.SearchServiceOptions
 import me.rerere.tts.provider.TTSProviderSetting
@@ -68,36 +76,14 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_OCR_PROMPT
 import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "PreferencesStore"
+private const val SETTINGS_READ_RETRIES = 3
 
-/**
- * Per-entry tolerant decode for the persisted `providers` list.
- *
- * Why this exists: the providers list is stored in DataStore as a single JSON array of
- * polymorphic [ProviderSetting] entries. A single-shot `decodeFromString<List<ProviderSetting>>`
- * throws on the entire list as soon as one element has an unknown polymorphic discriminator.
- *
- * Concrete trigger that motivated this: the never-shipped Phase-22A scaffolding seeded a
- * `"type":"local_llamacpp"` entry into DEFAULT_PROVIDERS for early test installs. Deleting
- * the `LlamaCppLocal` subclass would otherwise make decode-of-list throw on those entries
- * → user loses ALL their saved providers (API keys, custom models, the lot).
- *
- * Per-entry decode lets surviving entries land while the unknown one is logged and skipped.
- * Keep this even after `local_llamacpp` is fully gone — it's good hygiene for any future
- * polymorphic schema change (renamed types, removed types, etc).
- */
+/** Strictly decode stored providers: one invalid entry must fail initialization, never erase the rest on the next write. */
 private fun decodeProvidersTolerant(raw: String): List<ProviderSetting> {
     if (raw.isBlank()) return emptyList()
-    val array = runCatching {
-        JsonInstant.parseToJsonElement(raw) as? JsonArray
-    }.getOrNull() ?: return emptyList()
-    return array.mapNotNull { element ->
-        try {
-            JsonInstant.decodeFromJsonElement<ProviderSetting>(element)
-        } catch (e: SerializationException) {
-            AppLog.w(TAG, "Skipping unrecognised provider entry during decode: ${e.message}")
-            null
-        }
-    }
+    val array = JsonInstant.parseToJsonElement(raw) as? JsonArray
+        ?: error("Persisted providers setting is not a JSON array")
+    return array.map { element -> JsonInstant.decodeFromJsonElement<ProviderSetting>(element) }
 }
 
 private val Context.settingsStore by preferencesDataStore(
@@ -148,6 +134,7 @@ class SettingsStore(
         val TITLE_MODEL = stringPreferencesKey("title_model")
         val TRANSLATE_MODEL = stringPreferencesKey("translate_model")
         val ENABLE_SUGGESTION = booleanPreferencesKey("enable_suggestion")
+        val AUTO_GENERATE_TITLE = booleanPreferencesKey("auto_generate_title")
         val RESPONSE_STREAM_MAX_RETRIES = intPreferencesKey("response_stream_max_retries")
         val ENABLE_AUTO_RETRY = booleanPreferencesKey("enable_auto_retry")
         val SUGGESTION_MODEL = stringPreferencesKey("suggestion_model")
@@ -278,16 +265,22 @@ class SettingsStore(
 
     private val dataStore = context.settingsStore
 
+    // Do not turn a failed disk read into emptyPreferences(): that makes defaults look
+    // authoritative and a subsequent edit can overwrite the user's real settings.
     val settingsFlowRaw = dataStore.data
-        .catch { exception ->
-            if (exception is IOException) {
-                // 文件层异常静默回落默认是排查「设置变默认」时最难定位的路径, 必须留痕
-                AppLog.e(TAG, "settings DataStore 读取失败, 本次回落默认设置(磁盘数据不受影响)", exception)
-                emit(emptyPreferences())
-            } else {
-                throw exception
+        .retryWhen { cause, attempt ->
+            val retry = cause is IOException && attempt < SETTINGS_READ_RETRIES
+            if (retry) {
+                AppLog.w(TAG, "Settings read failed; retry ${attempt + 1}/$SETTINGS_READ_RETRIES", cause)
+                delay(150L shl attempt.toInt())
             }
-        }.map { preferences ->
+            retry
+        }
+        .catch { cause ->
+            AppLog.e(TAG, "Settings read failed permanently; refusing to use defaults", cause)
+            throw cause
+        }
+        .map { preferences ->
             Settings(
                 favoriteModels = decodePrefOrDefault(preferences[FAVORITE_MODELS], emptyList()),
                 chatModelId = parseUuidPrefOrNull(preferences[SELECT_MODEL])
@@ -298,6 +291,7 @@ class SettingsStore(
                 translateModeId = parseUuidPrefOrNull(preferences[TRANSLATE_MODEL])
                     ?: DEFAULT_AUTO_MODEL_ID,
                 enableSuggestion = preferences[ENABLE_SUGGESTION] != false,
+                autoGenerateTitle = preferences[AUTO_GENERATE_TITLE] != false,
                 responseStreamMaxRetries = preferences[RESPONSE_STREAM_MAX_RETRIES] ?: 5,
                 enableAutoRetry = preferences[ENABLE_AUTO_RETRY] != false,
                 suggestionModelId = parseUuidPrefOrNull(preferences[SUGGESTION_MODEL]),
@@ -332,23 +326,14 @@ class SettingsStore(
                 ),
                 deletedBuiltInProviderIds = preferences[DELETED_BUILTIN_PROVIDER_IDS]
                     ?.let { raw ->
-                        runCatching {
-                            JsonInstant.decodeFromString<Set<String>>(raw)
-                                .mapNotNull { runCatching { Uuid.parse(it) }.getOrNull() }
-                                .toSet()
-                        }.getOrNull()
+                        JsonInstant.decodeFromString<Set<String>>(raw).map { Uuid.parse(it) }.toSet()
                     } ?: emptySet(),
                 autoEnabledDefaultSkills = preferences[AUTO_ENABLED_DEFAULT_SKILLS]
                     ?.let { raw ->
-                        runCatching {
-                            JsonInstant.decodeFromString<Set<String>>(raw)
-                        }.getOrNull()
+                        JsonInstant.decodeFromString<Set<String>>(raw)
                     } ?: emptySet(),
                 deletedBundledSkills = preferences[DELETED_BUNDLED_SKILLS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<Set<String>>(raw) }.getOrElse {
-                        AppLog.w(TAG, "Failed to decode deletedBundledSkills, using default", it)
-                        emptySet()
-                    }
+                    JsonInstant.decodeFromString<Set<String>>(raw)
                 } ?: emptySet(),
                 assistants = decodePrefOrDefault(preferences[ASSISTANTS], emptyList()),
                 dynamicColor = preferences[DYNAMIC_COLOR] != false,
@@ -359,36 +344,27 @@ class SettingsStore(
                 networkSetting = decodePrefOrDefault(preferences[NETWORK_SETTING], NetworkSetting()),
                 executionBackend = preferences[EXECUTION_BACKEND] ?: "local",
                 backendConnections = preferences[BACKEND_CONNECTIONS]?.let {
-                    runCatching { JsonInstant.decodeFromString<kotlin.collections.List<me.rerere.rikkahub.data.model.BackendConnection>>(it) }.getOrNull()
+                    JsonInstant.decodeFromString<kotlin.collections.List<me.rerere.rikkahub.data.model.BackendConnection>>(it)
                 } ?: emptyList(),
                 searchServices = decodePrefOrDefault(preferences[SEARCH_SERVICES], listOf(SearchServiceOptions.DEFAULT)),
                 searchCommonOptions = decodePrefOrDefault(preferences[SEARCH_COMMON], SearchCommonOptions()),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
                 mcpServers = decodeEncryptedPrefOrDefault(preferences[MCP_SERVERS], emptyList()),
 subAgents = preferences[SUB_AGENTS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<SubAgentProfile>>(raw) }.getOrElse {
-                        AppLog.w(TAG, "Failed to decode subAgents, using default", it)
-                        emptyList()
-                    }
+                    JsonInstant.decodeFromString<List<SubAgentProfile>>(raw)
                 } ?: emptyList(),
                 subAgentDefaultWorkspaceId = preferences[SUB_AGENT_DEFAULT_WORKSPACE]?.let { raw ->
-                    runCatching { Uuid.parse(raw) }.getOrNull()
+                    Uuid.parse(raw)
                 },
                 subAgentForegroundReceipt = preferences[SUB_AGENT_FOREGROUND_RECEIPT] ?: false,
                 webDavConfig = decodeEncryptedPrefOrDefault(preferences[WEBDAV_CONFIG], WebDavConfig()),
                 s3Config = decodeEncryptedPrefOrDefault(preferences[S3_CONFIG], S3Config()),
                 webDavConfigs = preferences[WEBDAV_CONFIGS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<WebDavConfig>>(decryptPrefValue(raw)) }.getOrElse {
-                        AppLog.w(TAG, "Failed to decode webDavConfigs, using empty", it)
-                        emptyList()
-                    }
+                    JsonInstant.decodeFromString<List<WebDavConfig>>(decryptPrefValue(raw))
                 } ?: emptyList(),
                 activeWebDavConfigId = preferences[ACTIVE_WEBDAV_CONFIG_ID],
                 s3Configs = preferences[S3_CONFIGS]?.let { raw ->
-                    runCatching { JsonInstant.decodeFromString<List<S3Config>>(decryptPrefValue(raw)) }.getOrElse {
-                        AppLog.w(TAG, "Failed to decode s3Configs, using empty", it)
-                        emptyList()
-                    }
+                    JsonInstant.decodeFromString<List<S3Config>>(decryptPrefValue(raw))
                 } ?: emptyList(),
                 activeS3ConfigId = preferences[ACTIVE_S3_CONFIG_ID],
                 ttsProviders = decodeEncryptedPrefOrDefault(preferences[TTS_PROVIDERS], emptyList()),
@@ -404,9 +380,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 webServerPort = preferences[WEB_SERVER_PORT] ?: 8080,
                 localMcpServerEnabled = preferences[LOCAL_MCP_SERVER_ENABLED] == true,
                 localMcpProfiles = preferences[LOCAL_MCP_PROFILES]?.let {
-                    runCatching { JsonInstant.decodeFromString<List<LocalMcpProfile>>(it) }
-                        .onFailure { AppLog.w(TAG, "localMcpProfiles 解析失败, 暂以空列表替代(原始数据保留)", it) }
-                        .getOrElse { emptyList() }
+                    JsonInstant.decodeFromString<List<LocalMcpProfile>>(it)
                 } ?: emptyList(),
                 activeLocalMcpProfileId = preferences[LOCAL_MCP_ACTIVE_PROFILE_ID],
                 webBridgeEcsHost = preferences[WEB_BRIDGE_ECS_HOST] ?: "",
@@ -423,7 +397,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD] ?: "",
                 networkCidrPresets =
                     preferences[NETWORK_CIDR_PRESETS]?.let {
-                        runCatching { JsonInstant.decodeFromString<List<String>>(it) }.getOrDefault(emptyList())
+                        JsonInstant.decodeFromString<List<String>>(it)
                     } ?: emptyList(),
                 settingShortcutIds =
                     preferences[SETTING_SHORTCUT_IDS]
@@ -594,10 +568,43 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
         .onEach {
             get<PebbleEngine>().templateCache.invalidateAll()
         }
+        // Preference decoding includes provider/model JSON and must not run on Main.
+        .flowOn(Dispatchers.IO)
 
-    val settingsFlow = settingsFlowRaw
-        .distinctUntilChanged()
-        .toMutableStateFlow(scope, Settings.dummy())
+    private val transformLock = kotlinx.coroutines.sync.Mutex()
+    private val memoryRevision = AtomicLong(0)
+    private val initialization = CompletableDeferred<Unit>()
+
+    // A disk emission queued before a write may be stale. Revision-check it after
+    // taking the same mutex used by updates, so it cannot overwrite newer memory.
+    val settingsFlow = MutableStateFlow(Settings.dummy())
+
+    init {
+        scope.launch {
+            try {
+                settingsFlowRaw.distinctUntilChanged().collect { decoded ->
+                    val observedRevision = memoryRevision.get()
+                    transformLock.withLock {
+                        if (settingsFlow.value.init || observedRevision == memoryRevision.get()) {
+                            settingsFlow.value = decoded
+                        }
+                        if (!settingsFlow.value.init) initialization.complete(Unit)
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                initialization.completeExceptionally(cancelled)
+                AppLog.e(TAG, "Settings initialization cancelled", cancelled)
+                throw cancelled
+            } catch (failure: Throwable) {
+                initialization.completeExceptionally(failure)
+                AppLog.e(TAG, "Settings initialization failed; stored values were not replaced", failure)
+            }
+        }.invokeOnCompletion { cause ->
+            if (!initialization.isCompleted) {
+                initialization.completeExceptionally(cause ?: IllegalStateException("Settings collector stopped before initialization"))
+            }
+        }
+    }
 
     /**
      * 写入「子代理默认工作区」。独立成函数：update() 已接近静态检查的行数门限。
@@ -617,13 +624,23 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
         }
     }
 
-    suspend fun update(settings: Settings) {
-        if(settings.init) {
-            AppLog.w(TAG, "Cannot update dummy settings")
-            return
-        }
+    /** Wait for the first valid disk decode; propagates permanent read/decode failures. */
+    suspend fun awaitInitialized() = initialization.await()
+
+    /** Explicit whole-settings replacement for backup/import restore flows only. */
+    suspend fun replaceSettings(settings: Settings) {
+        initialization.await()
+        transformLock.withLock { persistSettings(settings) }
+    }
+
+    @Suppress("LongMethod") // 逐字段平铺落盘，拆分会把同一份键清单割裂成多段（与仓内既有写法口径一致）
+    private suspend fun persistSettings(settings: Settings) {
+        if (settings.init) error("Cannot persist dummy Settings")
+        val previous = settingsFlow.value
+        memoryRevision.incrementAndGet()
         settingsFlow.value = settings
-        dataStore.edit { preferences ->
+        try {
+            dataStore.edit { preferences ->
             preferences[DYNAMIC_COLOR] = settings.dynamicColor
             preferences[THEME_ID] = settings.themeId
             preferences[CUSTOM_THEMES] = JsonInstant.encodeToString(settings.customThemes)
@@ -639,6 +656,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             } ?: preferences.remove(TITLE_MODEL)
             preferences[TRANSLATE_MODEL] = settings.translateModeId.toString()
             preferences[ENABLE_SUGGESTION] = settings.enableSuggestion
+            preferences[AUTO_GENERATE_TITLE] = settings.autoGenerateTitle
             preferences[RESPONSE_STREAM_MAX_RETRIES] = settings.responseStreamMaxRetries.coerceIn(0, 10)
             preferences[ENABLE_AUTO_RETRY] = settings.enableAutoRetry
             settings.suggestionModelId?.let {
@@ -743,6 +761,11 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
             preferences[EXECUTION_BACKEND] = settings.executionBackend
             preferences[BACKEND_CONNECTIONS] = JsonInstant.encodeToString(settings.backendConnections)
+            }
+        } catch (failure: Throwable) {
+            settingsFlow.value = previous
+            memoryRevision.incrementAndGet()
+            throw failure
         }
     }
 
@@ -772,37 +795,24 @@ private fun MutablePreferences.putWebServerBlock(settings: Settings) {
  */
 private fun decryptPrefValue(raw: String): String = ProviderCredentialCipher.decrypt(raw) ?: raw
 
-/**
- * 解密 + 反序列化，**失败回退默认值并留痕**。
- *
- * 不能直接写 `decodeFromString(decryptPrefValue(raw))`：解密失败时会回退成“原文”（这个回退本意是兼容历史明文），
- * 而密文形态是 Base64 —— 把它当 JSON 解析必抛 JsonDecodingException；该异常发生在 settings 读取的 map 里
- * → 直接 FATAL、启动即崩（issue #11：`mcp_servers` 的值 `/tVT/…` 解出来正是空列表 `[]` 的密文，密钥失效后解密失败 → 崩）。
- * 回退默认只影响该字段，下次保存即被合法值覆盖（自愈）。
- */
+/** Decrypt and decode a stored field; malformed present values deliberately propagate. */
 private inline fun <reified T> decodeEncryptedPrefOrDefault(raw: String?, default: T): T {
     if (raw == null) return default
-    return runCatching { JsonInstant.decodeFromString<T>(decryptPrefValue(raw)) }
-        .onFailure { AppLog.w(TAG, "settings 字段（加密）解析失败，已回退默认值", it) }
-        .getOrDefault(default)
+    return decodePersistedSetting(decryptPrefValue(raw), default)
 }
 
-/** 非加密字段的同类兜底：坏值只让该字段回退默认，不拖垓整份 Settings。 */
+/** Missing keys use schema defaults; present-but-invalid values fail loading and are never rewritten. */
 private inline fun <reified T> decodePrefOrDefault(raw: String?, default: T): T {
     if (raw == null) return default
-    return runCatching { JsonInstant.decodeFromString<T>(raw) }
-        .onFailure { AppLog.w(TAG, "settings 字段解析失败，已回退默认值", it) }
-        .getOrDefault(default)
+    return decodePersistedSetting(raw, default)
 }
 
 private fun encryptPrefValue(raw: String): String = ProviderCredentialCipher.encrypt(raw)
 
-/** 非加密 UUID 字段的同类兜底：坏值只回退该字段的默认，不再让 Uuid.parse 抛穿 settings map。 */
+/** Malformed stored UUID values fail loading instead of masquerading as absent optional fields. */
 private fun parseUuidPrefOrNull(raw: String?): Uuid? {
     if (raw.isNullOrBlank()) return null
-    return runCatching { Uuid.parse(raw) }
-        .onFailure { AppLog.w(TAG, "settings 字段（UUID）解析失败，已回退默认值", it) }
-        .getOrNull()
+    return Uuid.parse(raw)
 }
 
 private fun MutablePreferences.putToolOutputLimits(settings: Settings) {
@@ -880,18 +890,15 @@ private fun MutablePreferences.putToolOutputLimits(settings: Settings) {
      *  each writes its own delta off the same stale base — last writer wins, the
      *  earlier change is silently dropped. The most-visible repro: rapid-fire taps on
      *  per-assistant tool toggles where every other tap appeared to revert. */
-    private val transformLock = kotlinx.coroutines.sync.Mutex()
-
     suspend fun update(fn: (Settings) -> Settings) {
+        initialization.await()
         transformLock.withLock {
-            update(fn(settingsFlow.value))
+            persistSettings(fn(settingsFlow.value))
         }
     }
 
     suspend fun updateAssistant(assistantId: Uuid) {
-        dataStore.edit { preferences ->
-            preferences[SELECT_ASSISTANT] = assistantId.toString()
-        }
+        update { current -> current.copy(assistantId = assistantId) }
     }
 
     suspend fun updateAssistantModel(assistantId: Uuid, modelId: Uuid) {
@@ -997,6 +1004,8 @@ data class Settings(
     val translatePrompt: String = DEFAULT_TRANSLATION_PROMPT,
     val translateThinkingBudget: Int = 0,
     val enableSuggestion: Boolean = true,
+    /** Automatically create a title when a conversation completes. */
+    val autoGenerateTitle: Boolean = true,
     /** 流式响应失败重试次数上限（0-10，默认 5） */
     val responseStreamMaxRetries: Int = 5,
     /** 流式响应失败自动重试总开关（默认开） */
@@ -1222,6 +1231,8 @@ data class DisplaySetting(
     val showThinkingContent: Boolean = true,
     val autoCloseThinking: Boolean = true,
     val showUpdates: Boolean = true,
+    /** Persisted reminder pause deadline (epoch millis); zero means not paused. */
+    val showUpdatesUntilEpochMillis: Long = 0L,
     val showMessageJumper: Boolean = true,
     val messageJumperOnLeft: Boolean = false,
     val fontSizeRatio: Float = 1.0f,
@@ -1522,3 +1533,7 @@ val DEFAULT_MODE_INJECTIONS = listOf(
     )
 )
 
+
+/** Whether update reminders are currently visible; expired pauses are treated as resumed. */
+fun DisplaySetting.shouldShowUpdateReminders(nowEpochMillis: Long = System.currentTimeMillis()): Boolean =
+    showUpdates && showUpdatesUntilEpochMillis <= nowEpochMillis

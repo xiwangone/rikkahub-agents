@@ -96,11 +96,11 @@ fun SettingToolsPage(
                         Switch(
                             checked = displaySetting.toolSurfaceTrimming,
                             onCheckedChange = { on ->
-                                vm.updateSettings(
-                                    settings.copy(
+                                vm.updateSettings { current ->
+            current.copy(
                                         displaySetting = displaySetting.copy(toolSurfaceTrimming = on),
-                                    ),
-                                )
+                                    )
+        }
                             },
                         )
                     },
@@ -116,11 +116,11 @@ fun SettingToolsPage(
                         Switch(
                             checked = displaySetting.toolStatsEnabled,
                             onCheckedChange = { on ->
-                                vm.updateSettings(
-                                    settings.copy(
+                                vm.updateSettings { current ->
+            current.copy(
                                         displaySetting = displaySetting.copy(toolStatsEnabled = on),
-                                    ),
-                                )
+                                    )
+        }
                             },
                         )
                     },
@@ -135,7 +135,7 @@ fun SettingToolsPage(
                         Switch(
                             checked = settings.toolOutputEnabled,
                             onCheckedChange = { on ->
-                                vm.updateSettings(settings.copy(toolOutputEnabled = on))
+                                vm.updateSettings { current -> current.copy(toolOutputEnabled = on) }
                             },
                         )
                     },
@@ -187,13 +187,13 @@ fun SettingToolsPage(
             compactMaxCharsKB = settings.toolOutputCompactMaxChars / 1000,
             onDismiss = { showOutputDialog = false },
             onConfirm = { enabled, kb, compactKb ->
-                vm.updateSettings(
-                    settings.copy(
+                vm.updateSettings { current ->
+            current.copy(
                         toolOutputEnabled = enabled,
                         toolOutputMaxChars = kb * 1000,
                         toolOutputCompactMaxChars = compactKb * 1000,
-                    ),
-                )
+                    )
+        }
             },
         )
     }

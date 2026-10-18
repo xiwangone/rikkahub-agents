@@ -287,6 +287,10 @@ class ConversationRepository(
     suspend fun countConversations(): Int {
         return conversationDAO.countAll()
     }
+    suspend fun countConversationsByAssistant(): Map<Uuid, Int> =
+        conversationDAO.countByAssistant().mapNotNull { row ->
+            runCatching { Uuid.parse(row.assistantId) }.getOrNull()?.let { id -> id to row.count }
+        }.toMap()
 
     suspend fun insertConversation(conversation: Conversation) {
         database.withTransaction {

@@ -55,7 +55,7 @@ import kotlin.uuid.Uuid
 @Composable
 fun AssistantPicker(
     settings: Settings,
-    onUpdateSettings: (Settings) -> Unit,
+    onUpdateSettings: ((Settings) -> Settings) -> Unit,
     modifier: Modifier = Modifier,
     onClickSetting: () -> Unit,
 ) {

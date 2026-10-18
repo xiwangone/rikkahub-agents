@@ -3694,4 +3694,12 @@
   <string name="skill_store_restore_bundled">Восстановить встроенную версию</string>
   <string name="skill_store_restore_bundled_confirm">Заменить копию на диске на оригинальную встроенную версию? Локальные правки этого навыка будут потеряны.</string>
   <string name="skill_store_restored">Встроенная версия восстановлена</string>
+    <string name="setting_auto_generate_title">Автоматически создавать заголовки бесед</string>
+    <string name="setting_auto_generate_title_desc">Автоматически создавать заголовок при завершении беседы.</string>
+    <string name="setting_updates_pause_1d">1 день</string>
+    <string name="setting_updates_pause_3d">3 дня</string>
+    <string name="setting_updates_pause_7d">7 дней</string>
+    <string name="setting_updates_pause_desc">Приостановить напоминания на ограниченное время. Они возобновятся автоматически после истечения срока или перезапуска.</string>
+    <string name="setting_updates_pause_title">Приостановить напоминания об обновлениях</string>
+    <string name="setting_updates_resume_now">Возобновить сейчас</string>
 </resources>

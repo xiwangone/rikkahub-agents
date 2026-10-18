@@ -87,15 +87,14 @@ class WorkspaceRepository(
 
     /** 保存镜像配置并应用到所有已安装的 rootfs；返回实际写入成功的沙箱数量。 */
     suspend fun setMirrors(mirrors: WorkspaceMirrors): Int = withContext(Dispatchers.IO) {
-        val current = settingsStore.settingsFlow.first()
-        settingsStore.update(
+        settingsStore.update { current ->
             current.copy(
                 workspaceApkMirror = mirrors.apk,
                 workspaceAptMirror = mirrors.apt,
                 workspacePipMirror = mirrors.pip,
                 workspaceNpmMirror = mirrors.npm,
-            ),
-        )
+            )
+        }
         var applied = 0
         for (workspace in dao.getAll()) {
             if (!manager.hasRootfs(workspace.root)) continue
@@ -132,8 +131,7 @@ class WorkspaceRepository(
 
     /** 开关手机存储挂载：写设置 + 同步内存桥（对后续 shell 启动/路径解析即时生效）。 */
     suspend fun setSdcardAccess(enabled: Boolean) {
-        val current = settingsStore.settingsFlow.first()
-        settingsStore.update(current.copy(workspaceSdcardEnabled = enabled))
+        settingsStore.update { current -> current.copy(workspaceSdcardEnabled = enabled) }
         mountSwitch.sdcardEnabled = enabled
     }
 
@@ -178,8 +176,7 @@ class WorkspaceRepository(
                 }
             }
         }
-        val current = settingsStore.settingsFlow.first()
-        settingsStore.update(current.copy(workspaceChrootEnabled = enabled))
+        settingsStore.update { current -> current.copy(workspaceChrootEnabled = enabled) }
         mountSwitch.chrootEnabled = enabled
     }
 
@@ -269,12 +266,13 @@ class WorkspaceRepository(
 
     private suspend fun persistStats(id: String, stats: WorkspaceStats) {
         runCatching {
-            val current = settingsStore.settingsFlow.first()
-            val map = parseCache(current.workspaceStatsCache).toMutableMap()
-            map[id] = CachedStats(stats.rootBytes, stats.packageCount, stats.kernel, System.currentTimeMillis())
-            // 上限保护：只留最近 50 个工作区的画像
-            val trimmed = map.entries.sortedByDescending { it.value.at }.take(50).associate { it.toPair() }
-            settingsStore.update(current.copy(workspaceStatsCache = JsonInstant.encodeToString(trimmed)))
+            settingsStore.update { current ->
+                val map = parseCache(current.workspaceStatsCache).toMutableMap()
+                map[id] = CachedStats(stats.rootBytes, stats.packageCount, stats.kernel, System.currentTimeMillis())
+                // 上限保护：只留最近 50 个工作区的画像
+                val trimmed = map.entries.sortedByDescending { it.value.at }.take(50).associate { it.toPair() }
+                current.copy(workspaceStatsCache = JsonInstant.encodeToString(trimmed))
+            }
         }
     }
 
