@@ -1570,6 +1570,7 @@ private fun ModelContextWindowEditor(contextLength: Int?, onChange: (Int?) -> Un
     )
 }
 
+@Composable
 fun ModalAbilitySelector(
     abilities: List<ModelAbility>,
     onUpdateAbilities: (List<ModelAbility>) -> Unit,
