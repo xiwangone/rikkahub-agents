@@ -417,6 +417,8 @@
   <string name="export_title">匯出</string>
   <string name="export_to_file">匯出至檔案</string>
   <string name="export_to_file_desc">另存為 JSON 檔案</string>
+  <string name="export_txt_title">純文字（TXT）</string>
+  <string name="export_txt_desc">將所選訊息分享為 .txt 檔案</string>
   <string name="extension_content_manage">管理</string>
   <string name="extension_content_unnamed">未命名</string>
   <string name="extension_content_unnamed_lorebook">未命名設定集</string>
@@ -698,6 +700,8 @@
   <string name="setting_asr_page_add_provider">新增 ASR 供應商</string>
   <string name="setting_asr_page_default_name">ASR</string>
   <string name="setting_asr_page_edit_provider">編輯 ASR 供應商</string>
+  <string name="setting_display_page_quote_highlight_title">醒目顯示引用的文字</string>
+  <string name="setting_display_page_quote_highlight_desc">對 Markdown 區塊引用的文字使用主題強調色</string>
   <string name="setting_display_page_amoled_dark_mode_desc">在暗色主題中使用純黑背景，適合 AMOLED 螢幕</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED 暗色模式</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">思考完成自動折疊思考內容</string>

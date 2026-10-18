@@ -536,6 +536,8 @@
   <string name="export_title">تصدير</string>
   <string name="export_to_file">تصدير إلى ملف</string>
   <string name="export_to_file_desc">حفظ كملف JSON</string>
+  <string name="export_txt_title">نص عادي (TXT)</string>
+  <string name="export_txt_desc">مشاركة الرسائل المحددة كملف .txt</string>
   <string name="extension_content_manage">إدارة</string>
   <string name="extension_content_unnamed">بلا اسم</string>
   <string name="extension_content_unnamed_lorebook">كتاب معرفة بلا اسم</string>
@@ -755,6 +757,8 @@
   <string name="search_picker_title">إعدادات البحث</string>
   <string name="select_and_copy">تحديد ونسخ</string>
   <string name="send">إرسال</string>
+  <string name="setting_display_page_quote_highlight_title">إبراز النص المقتبس</string>
+  <string name="setting_display_page_quote_highlight_desc">استخدام لون التمييز في السمة للنص داخل اقتباسات Markdown</string>
   <string name="setting_display_page_amoled_dark_mode_desc">استخدام خلفية سوداء نقية في السمة الداكنة، مناسب لشاشات AMOLED</string>
   <string name="setting_display_page_amoled_dark_mode_title">الوضع الداكن AMOLED</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">طي محتوى التفكير تلقائيًا بعد اكتمال التفكير</string>

@@ -37,6 +37,12 @@
 # java.beans is not available on Android; Jackson references it only on JVM
 -dontwarn java.beans.ConstructorProperties
 -dontwarn java.beans.Transient
+# SnakeYAML JavaBean introspection references types unavailable on Android.
+-dontwarn java.beans.BeanInfo
+-dontwarn java.beans.FeatureDescriptor
+-dontwarn java.beans.IntrospectionException
+-dontwarn java.beans.Introspector
+-dontwarn java.beans.PropertyDescriptor
 
 # auth0/jackson: TypeReference subclasses rely on runtime generic signatures.
 # R8 strips Signature/InnerClasses/EnclosingMethod by default, and its class

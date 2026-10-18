@@ -67,6 +67,12 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawWithCache
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.BlendMode
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.CompositingStrategy
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -78,6 +84,7 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastCoerceAtLeast
 import androidx.compose.ui.zIndex
@@ -205,6 +212,28 @@ fun ChatList(
         }
     }
 }
+
+// Fade the list content instead of painting over the chat backdrop with a solid scrim.
+private fun Modifier.topFadingEdge(height: Dp): Modifier =
+    graphicsLayer { compositingStrategy = CompositingStrategy.Offscreen }
+        .drawWithCache {
+            val fadeHeight = height.toPx().coerceAtMost(size.height)
+            val brush = Brush.verticalGradient(
+                0f to Color.Transparent,
+                0.6f to Color.Black.copy(alpha = 0.15f),
+                1f to Color.Black,
+                startY = 0f,
+                endY = fadeHeight,
+            )
+            onDrawWithContent {
+                drawContent()
+                drawRect(
+                    brush = brush,
+                    size = Size(size.width, fadeHeight),
+                    blendMode = BlendMode.DstIn,
+                )
+            }
+        }
 
 @Composable
 private fun ChatListNormal(
@@ -351,6 +380,7 @@ private fun ChatListNormal(
                 modifier =
                     Modifier
                         .fillMaxSize()
+                        .topFadingEdge(innerPadding.calculateTopPadding() + 24.dp)
                         .hazeSource(state = hazeState)
                         .padding(top = innerPadding.calculateTopPadding()),
             ) {

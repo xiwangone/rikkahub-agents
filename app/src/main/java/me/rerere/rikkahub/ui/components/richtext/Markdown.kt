@@ -496,7 +496,14 @@ private fun MarkdownNode(
 
         // 引用块
         MarkdownElementTypes.BLOCK_QUOTE -> {
-            ProvideTextStyle(LocalTextStyle.current.copy(fontStyle = FontStyle.Italic)) {
+            val quoteHighlightEnabled = LocalSettings.current.displaySetting.enableQuoteHighlight
+            val quoteHighlightColor = MaterialTheme.colorScheme.tertiary
+            ProvideTextStyle(
+                LocalTextStyle.current.copy(
+                    fontStyle = FontStyle.Italic,
+                    color = if (quoteHighlightEnabled) quoteHighlightColor else LocalTextStyle.current.color,
+                ),
+            ) {
                 val borderColor = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.3f)
                 val bgColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.2f)
                 Column(

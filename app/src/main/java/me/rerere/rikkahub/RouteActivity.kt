@@ -151,6 +151,7 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "RouteActivity"
 private const val ACTION_TRANSLATE = "me.rerere.rikkahub.action.TRANSLATE"
+private const val ACTION_IMAGE_GEN = "me.rerere.rikkahub.action.IMAGE_GEN"
 
 class RouteActivity : ComponentActivity() {
     companion object {
@@ -239,6 +240,7 @@ class RouteActivity : ComponentActivity() {
         }
         val destination = when (intent.action) {
             ACTION_TRANSLATE -> Screen.Translator
+            ACTION_IMAGE_GEN -> Screen.ImageGen
             Intent.ACTION_SEND -> Screen.ShareHandler(
                 text = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty(),
                 streamUri = intent.getStringExtra(Intent.EXTRA_STREAM),

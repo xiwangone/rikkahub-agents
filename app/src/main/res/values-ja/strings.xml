@@ -427,6 +427,8 @@
   <string name="export_title">エクスポート</string>
   <string name="export_to_file">ファイルにエクスポート</string>
   <string name="export_to_file_desc">JSONファイルとして保存</string>
+  <string name="export_txt_title">プレーン テキスト（TXT）</string>
+  <string name="export_txt_desc">選択したメッセージを .txt ファイルとして共有</string>
   <string name="extension_content_manage">管理</string>
   <string name="extension_content_unnamed">名前なし</string>
   <string name="extension_content_unnamed_lorebook">名前なしのルアーブック</string>
@@ -708,6 +710,8 @@
   <string name="setting_asr_page_add_provider">ASRプロバイダーを追加</string>
   <string name="setting_asr_page_default_name">ASR</string>
   <string name="setting_asr_page_edit_provider">ASRプロバイダーを編集</string>
+  <string name="setting_display_page_quote_highlight_title">引用テキストを強調</string>
+  <string name="setting_display_page_quote_highlight_desc">Markdown のブロック引用内のテキストにテーマのアクセント カラーを使用します</string>
   <string name="setting_display_page_amoled_dark_mode_desc">ダークテーマで純粋な黒色背景を使用、AMOLED画面に適しています</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED ダークモード</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">思考が完了したら思考内容を自動的に折りたたむ</string>

@@ -518,6 +518,8 @@
   <string name="export_title">导出</string>
   <string name="export_to_file">导出到文件</string>
   <string name="export_to_file_desc">保存为JSON文件</string>
+  <string name="export_txt_title">纯文本（TXT）</string>
+  <string name="export_txt_desc">将所选消息分享为 .txt 文件</string>
   <string name="extension_content_manage">管理</string>
   <string name="extension_content_unnamed">未命名</string>
   <string name="extension_content_unnamed_lorebook">未命名Lorebook</string>
@@ -907,6 +909,8 @@
   <string name="setting_display_page_enable_blur_effect_title">启用模糊效果</string>
   <string name="setting_display_page_enable_latex_rendering_desc">使用 LaTeX 语法渲染数学表达式和公式</string>
   <string name="setting_display_page_enable_latex_rendering_title">启用 LaTeX 渲染</string>
+  <string name="setting_display_page_quote_highlight_title">高亮引用文本</string>
+  <string name="setting_display_page_quote_highlight_desc">使用主题强调色显示 Markdown 引用块中的文字</string>
   <string name="setting_display_page_enable_message_generation_haptic_effect_desc">消息生成时启用触觉反馈效果</string>
   <string name="setting_display_page_enable_message_generation_haptic_effect_title">消息生成触觉反馈</string>
   <string name="setting_display_page_font_size_preview">凌晨四点钟，看到海棠花未眠。我常常这样，在无人的夜里独自醒着，想，若有人此刻也在想我，那就好了。</string>

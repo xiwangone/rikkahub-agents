@@ -427,6 +427,8 @@
   <string name="export_title">내보내기</string>
   <string name="export_to_file">파일로 내보내기</string>
   <string name="export_to_file_desc">JSON 파일로 저장</string>
+  <string name="export_txt_title">일반 텍스트(TXT)</string>
+  <string name="export_txt_desc">선택한 메시지를 .txt 파일로 공유</string>
   <string name="extension_content_manage">관리</string>
   <string name="extension_content_unnamed">이름 없음</string>
   <string name="extension_content_unnamed_lorebook">이름 없는 롤북</string>
@@ -708,6 +710,8 @@
   <string name="setting_asr_page_add_provider">ASR 공급자 추가</string>
   <string name="setting_asr_page_default_name">ASR</string>
   <string name="setting_asr_page_edit_provider">ASR 공급자 편집</string>
+  <string name="setting_display_page_quote_highlight_title">인용문 텍스트 강조</string>
+  <string name="setting_display_page_quote_highlight_desc">Markdown 인용문 안의 텍스트에 테마 강조 색상을 사용합니다</string>
   <string name="setting_display_page_amoled_dark_mode_desc">다크 테마에서 순수 검정 배경 사용, AMOLED 화면에 적합</string>
   <string name="setting_display_page_amoled_dark_mode_title">AMOLED 다크 모드</string>
   <string name="setting_display_page_auto_collapse_thinking_desc">사고 완료 후 자동으로 사고 내용 접기</string>

@@ -180,6 +180,35 @@ fun ChatExportSheet(
                     )
                 }
 
+                val textSuccessMessage = stringResource(id = R.string.chat_page_export_success, "TXT")
+                OutlinedCard(
+                    onClick = {
+                        exportToText(context, conversation, selectedMessages)
+                        toaster.show(textSuccessMessage, type = ToastType.Success)
+                        onDismissRequest()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(id = R.string.chat_page_export_text)) },
+                        supportingContent = { Text(stringResource(id = R.string.chat_page_export_text_desc)) },
+                        leadingContent = { Icon(HugeIcons.File02, contentDescription = null) },
+                    )
+                }
+                OutlinedCard(
+                    onClick = {
+                        exportToText(context, conversation, selectedMessages)
+                        toaster.show(stringResource(R.string.chat_page_export_success, "TXT"), type = ToastType.Success)
+                        onDismissRequest()
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    ListItem(
+                        headlineContent = { Text(stringResource(R.string.export_txt_title)) },
+                        supportingContent = { Text(stringResource(R.string.export_txt_desc)) },
+                        leadingContent = { Icon(HugeIcons.File02, contentDescription = null) },
+                    )
+                }
                 // JSON 导出
                 val jsonSuccessMessage = stringResource(id = R.string.chat_page_export_success, "JSON")
                 OutlinedCard(
@@ -311,6 +340,37 @@ fun ChatExportSheet(
             }
         }
     }
+}
+
+private fun exportToText(context: Context, conversation: Conversation, messages: List<UIMessage>) {
+    val stamp = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
+    val filename = "chat-export-$stamp.txt"
+    val text = buildString {
+        appendLine(conversation.title)
+        appendLine("=".repeat(conversation.title.length.coerceAtLeast(1)))
+        appendLine()
+        messages.forEach { message ->
+            appendLine(if (message.role == MessageRole.USER) "User:" else "Assistant:")
+            message.parts.forEach { part ->
+                when (part) {
+                    is UIMessagePart.Text -> appendLine(part.text)
+                    is UIMessagePart.Reasoning -> appendLine("[Reasoning] ${part.reasoning}")
+                    is UIMessagePart.Image -> appendLine("[Image]")
+                    is UIMessagePart.Tool -> appendLine("[Tool: ${part.toolName}]")
+                    else -> Unit
+                }
+            }
+            appendLine()
+        }
+    }
+    try {
+        val file = context.appTempFolder.resolve(filename)
+        FileOutputStream(file).use { it.write(text.toByteArray(Charsets.UTF_8)) }
+        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+        shareFile(context, uri, "text/plain")
+    } catch (e: IOException) { e.printStackTrace() }
+    catch (e: IllegalArgumentException) { e.printStackTrace() }
+    catch (e: ActivityNotFoundException) { e.printStackTrace() }
 }
 
 private fun exportToMarkdown(

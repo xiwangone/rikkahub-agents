@@ -5,6 +5,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -88,7 +89,8 @@ fun JsonTree(
                     enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
                 ),
         ) {
-            Text(
+            SelectionContainer {
+                Text(
                 text = content,
                 fontFamily = JetbrainsMono,
                 modifier =
@@ -97,7 +99,8 @@ fun JsonTree(
                         .verticalScroll(rememberScrollState())
                         .padding(16.dp),
                 style = MaterialTheme.typography.bodySmall,
-            )
+                )
+            }
         }
     }
 }

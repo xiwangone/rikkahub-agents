@@ -23,6 +23,7 @@ import androidx.compose.ui.unit.dp
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
@@ -42,6 +43,7 @@ internal data class AskPromptQuestion(
     val options: List<String> = emptyList(),
     /** text | single | multi */
     val selectionType: String = "text",
+    val allowCustomInput: Boolean = true,
 )
 
 /** 提问卡的交互阶段：由各来源决定，渲染层据此切换可交互 / 只读。 */
@@ -51,6 +53,14 @@ internal enum class AskPromptStatus {
     Answered,
     Stale,
 }
+
+/** Resolve a single-choice answer without carrying stale custom text when disabled. */
+internal fun resolveAskSingleAnswer(
+    allowCustomInput: Boolean,
+    selectedOption: String?,
+    customText: String?,
+): String =
+    if (allowCustomInput && !customText.isNullOrBlank()) customText else selectedOption.orEmpty()
 
 /** 作答提交方式：显式提交（选完点提交）或点选即答。 */
 internal enum class AskPromptSubmitMode { Explicit, Immediate }
@@ -78,6 +88,7 @@ internal fun AskPromptCard(
     onAnswers: ((answers: Map<String, String>) -> Unit)? = null,
 ) {
     val answers = remember { mutableStateMapOf<String, String>() }
+    val singleOptions = remember { mutableStateMapOf<String, String>() }
     val multiAnswers = remember { mutableStateMapOf<String, Set<String>>() }
     val interactive = status == AskPromptStatus.Pending && onAnswers != null
 
@@ -88,9 +99,9 @@ internal fun AskPromptCard(
                     "multi" ->
                         (
                             multiAnswers[q.id].orEmpty().toList() +
-                                listOfNotNull(answers[q.id]?.takeIf { it.isNotBlank() })
+                                listOfNotNull(answers[q.id]?.takeIf { q.allowCustomInput && it.isNotBlank() })
                         ).joinToString(", ")
-                    else -> answers[q.id] ?: ""
+                    else -> resolveAskSingleAnswer(q.allowCustomInput, singleOptions[q.id] ?: answeredLabels[q.id], answers[q.id])
                 }
         }
 
@@ -114,7 +125,7 @@ internal fun AskPromptCard(
                                 if (q.selectionType == "multi") {
                                     option in selectedOptions
                                 } else {
-                                    (answers[q.id] ?: answeredLabels[q.id]) == option
+                                    (singleOptions[q.id] ?: answeredLabels[q.id]) == option
                                 }
                             FilterChip(
                                 selected = selected,
@@ -125,7 +136,7 @@ internal fun AskPromptCard(
                                             if (option in selectedOptions) selectedOptions - option
                                             else selectedOptions + option
                                     } else {
-                                        answers[q.id] = option
+                                        singleOptions[q.id] = option
                                     }
                                     if (submitMode == AskPromptSubmitMode.Immediate &&
                                         q.selectionType != "multi"
@@ -137,6 +148,24 @@ internal fun AskPromptCard(
                                     Text(option, style = MaterialTheme.typography.labelSmall)
                                 },
                             )
+                        }
+                    }
+                    if (interactive && q.allowCustomInput && q.selectionType != "multi") {
+                        OutlinedTextField(
+                            value = answers[q.id] ?: "",
+                            onValueChange = { answers[q.id] = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            textStyle = MaterialTheme.typography.bodySmall,
+                            singleLine = false,
+                            minLines = 1,
+                            maxLines = 3,
+                        )
+                        if (submitMode == AskPromptSubmitMode.Immediate) {
+                            FilledTonalButton(
+                                onClick = { onAnswers?.invoke(collect()) },
+                                enabled = !answers[q.id].isNullOrBlank(),
+                                modifier = Modifier.align(Alignment.End),
+                            ) { Text(stringResource(R.string.chat_message_tool_submit)) }
                         }
                     }
                 } else {
@@ -232,6 +261,7 @@ internal fun parseAskToolQuestions(arguments: JsonElement): List<AskPromptQuesti
                     obj["options"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
                         ?: emptyList(),
                 selectionType = obj["selection_type"]?.jsonPrimitive?.contentOrNull ?: "text",
+                allowCustomInput = obj["allow_custom_input"]?.jsonPrimitive?.booleanOrNull ?: true,
             )
         } ?: emptyList()
     }.getOrElse { emptyList() }

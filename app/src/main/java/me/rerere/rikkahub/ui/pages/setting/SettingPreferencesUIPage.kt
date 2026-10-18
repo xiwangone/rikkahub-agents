@@ -330,6 +330,18 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         },
                     )
                     item(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_quote_highlight_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_quote_highlight_desc)) },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.enableQuoteHighlight,
+                                onCheckedChange = { enabled ->
+                                    updateDisplaySetting(displaySetting.copy(enableQuoteHighlight = enabled))
+                                },
+                            )
+                        },
+                    )
+                    item(
                         headlineContent = {
                             Text(
                                 stringResource(R.string.setting_display_page_chat_font_family_title),

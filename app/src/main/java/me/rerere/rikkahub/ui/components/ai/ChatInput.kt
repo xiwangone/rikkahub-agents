@@ -131,6 +131,7 @@ import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.utils.SoundEffectPlayer
 import me.rerere.rikkahub.utils.formatK
@@ -206,7 +207,12 @@ fun ChatInput(
         }
     }
     val hazeTintColor = MaterialTheme.colorScheme.surfaceContainerLow
-    val inputHazeStyle = HazeMaterials.thin(containerColor = hazeTintColor)
+    val appDarkMode = LocalDarkMode.current
+    val appHazeBackground =
+        if (appDarkMode) MaterialTheme.colorScheme.background else MaterialTheme.colorScheme.surface
+    val inputHazeStyle =
+        HazeMaterials.thin(containerColor = hazeTintColor)
+            .copy(backgroundColor = appHazeBackground)
 
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
