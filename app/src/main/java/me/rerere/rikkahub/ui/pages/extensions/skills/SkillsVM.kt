@@ -166,7 +166,7 @@ class SkillsVM(
                 val fileContents = LinkedHashMap<String, ByteArray>()
                 var totalBytes = 0L
                 for ((relativePath, downloadUrl) in files) {
-                    val content = downloadText(downloadUrl)
+                    val content = downloadBytes(downloadUrl)
                     if (content == null) {
                         withContext(Dispatchers.Main) { onResult(false, "Failed to download file: $relativePath") }
                         return@launch
