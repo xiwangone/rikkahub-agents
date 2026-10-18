@@ -84,6 +84,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.res.stringResource
@@ -161,6 +162,7 @@ fun WorkspaceDetailPage(id: String) {
     var previewImageUri by remember { mutableStateOf<String?>(null) }
     var openingFileName by remember { mutableStateOf<String?>(null) }
     val context = LocalContext.current
+    val resources = LocalResources.current
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
     val filePicker =
         rememberLauncherForActivityResult(
@@ -189,13 +191,13 @@ fun WorkspaceDetailPage(id: String) {
         if (uri == null || entries.isEmpty()) return@rememberLauncherForActivityResult
         val output = runCatching { context.contentResolver.openOutputStream(uri) }.getOrNull()
         if (output == null) {
-            toaster.show(context.getString(R.string.workspace_detail_export_zip_failed, "cannot open destination"))
+            toaster.show(resources.getString(R.string.workspace_detail_export_zip_failed, "cannot open destination"))
         } else {
             vm.exportEntriesZip(entries, output, onCancelled = {
                 runCatching { androidx.documentfile.provider.DocumentFile.fromSingleUri(context, uri)?.delete() }
             }) { result ->
                 selectedWorkspacePaths = emptySet()
-                toaster.show(if (result.isSuccess) context.getString(R.string.workspace_detail_export_zip_done) else context.getString(R.string.workspace_detail_export_zip_failed, result.exceptionOrNull()?.message.orEmpty()))
+                toaster.show(if (result.isSuccess) resources.getString(R.string.workspace_detail_export_zip_done) else resources.getString(R.string.workspace_detail_export_zip_failed, result.exceptionOrNull()?.message.orEmpty()))
             }
         }
     }
@@ -214,7 +216,7 @@ fun WorkspaceDetailPage(id: String) {
             val targetDir = tree.createDirectory(entry.name) ?: tree
             vm.exportFolder(entry, targetDir) { outcome ->
                 toaster.show(
-                    context.getString(
+                    resources.getString(
                         R.string.workspace_detail_export_folder_done,
                         outcome.fileCount,
                         outcome.failures,
@@ -436,8 +438,8 @@ fun WorkspaceDetailPage(id: String) {
                         onCopyPath = { entry, area ->
                             val absolutePath = workspaceRootfsAbsolutePath(area, entry.path)
                             runCatching { clipboard.setText(AnnotatedString(absolutePath)) }
-                                .onSuccess { toaster.show(context.getString(R.string.workspace_detail_path_copied)) }
-                                .onFailure { toaster.show(context.getString(R.string.workspace_detail_path_copy_failed)) }
+                                .onSuccess { toaster.show(resources.getString(R.string.workspace_detail_path_copied)) }
+                                .onFailure { toaster.show(resources.getString(R.string.workspace_detail_path_copy_failed)) }
                         },
                         onExport = { entry ->
                             if (entry.isDirectory) {
