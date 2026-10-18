@@ -3,8 +3,6 @@
 import json
 from typing import Optional, Callable, TYPE_CHECKING
 
-from openai import AsyncOpenAI
-
 if TYPE_CHECKING:
     from config import Config
     from models.entry import TranslationEntry
@@ -19,11 +17,30 @@ class TranslationError(Exception):
 class AITranslator:
     """AI translation service."""
 
-    def __init__(self, config: "Config"):
+    def __init__(self, config: "Config", client=None):
         self.config = config
-        self.client = AsyncOpenAI(
-            api_key=config.openai_api_key, base_url=config.openai_base_url
+        if client is None:
+            from openai import AsyncOpenAI
+            client = AsyncOpenAI(
+                api_key=config.openai_api_key, base_url=config.openai_base_url
+            )
+        self.client = client
+
+    def build_prompt(self, entries: dict[str, str], target_language: str) -> str:
+        """Format the prompt and append glossary terms for the target language."""
+        prompt = self.config.translation_prompt.format(
+            target_language=target_language,
+            source_strings=json.dumps(entries, ensure_ascii=False, indent=2),
         )
+        get_glossary = getattr(self.config, "get_glossary", None)
+        glossary = get_glossary(target_language) if get_glossary else {}
+        if glossary:
+            items = "\n".join(
+                f"- {term}: {translation}"
+                for term, translation in sorted(glossary.items())
+            )
+            prompt += "\n\nRequired terminology for this language:\n" + items
+        return prompt
 
     async def test_connection(self) -> str | None:
         """Test whether the configured AI service is reachable."""
@@ -54,10 +71,7 @@ class AITranslator:
         target_language: str,
     ) -> dict[str, str]:
         """Translate a batch of entries."""
-        prompt = self.config.translation_prompt.format(
-            target_language=target_language,
-            source_strings=json.dumps(entries, ensure_ascii=False, indent=2),
-        )
+        prompt = self.build_prompt(entries, target_language)
 
         try:
             response = await self.client.chat.completions.create(

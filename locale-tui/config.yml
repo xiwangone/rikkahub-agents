@@ -43,14 +43,45 @@ languages:
     is_source: true
   - code: "values-zh"
     name: "Chinese (Simplified)"
+    glossary:
+      prompt: "提示词（不要译为‘提示’）"
+      context: "上下文"
+      model: "模型"
+      inference: "推理"
   - code: "values-b+zh+Hant"
     name: "Chinese (Traditional)"
+    glossary:
+      prompt: "提示詞（不要譯為‘提示’）"
+      context: "上下文"
+      model: "模型"
+      inference: "推理"
   - code: "values-ja"
     name: "Japanese"
   - code: "values-ko-rKR"
     name: "Korean"
   - code: "values-ru"
     name: "Russian"
+  - code: "values-ar"
+    name: "Arabic"
+    glossary:
+      prompt: "مطالبة (plural مطالبات); never موجه"
+      system prompt: "مطالبة النظام"
+      prompt injection: "حقن مطالبات (definite: حقن المطالبات)"
+      mode injection: "حقن أوضاع (definite: حقن الأوضاع)"
+      lorebook: "كتاب معرفة (plural كتب معرفة; add ال only where grammar requires)"
+      provider: "مزوّد (plural مزوّدون / مزوّدي); never موفر"
+      context: "سياق"
+      model: "نموذج"
+      assistant: "مساعد"
+      agent: "وكيل"
+      tool: "أداة"
+      reasoning: "استدلال"
+      thinking: "تفكير"
+      workspace: "مساحة عمل"
+      skill: "مهارة"
+      extension: "إضافة"
+      memory: "ذاكرة"
+      quick message: "رسالة سريعة"
 
 # AI 翻译配置
 translation:
@@ -69,7 +100,7 @@ translation:
     3. Maintain the same tone and style (formal/informal) as the source
     4. For UI text, keep it concise
     5. Do not translate brand names or technical terms that should remain in English (e.g. OpenAI, Anthropic, Token, API)
-    6. Use AI/LLM-specific terminology: translate "prompt" as "提示词" (not "提示"), "context" as "上下文", "model" as "模型", "inference" as "推理"
+    6. Apply the target language glossary below consistently when terms appear.
 
     Source strings (JSON format):
     {source_strings}

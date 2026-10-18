@@ -3,6 +3,7 @@
 
 import sys
 import asyncio
+import builtins
 from pathlib import Path
 
 # Add src to path for imports
@@ -14,6 +15,7 @@ from app import LocaleTuiApp
 from services.xml_parser import StringsXmlParser
 from services.translator import AITranslator
 from models.entry import TranslationEntry
+from services.validation import escape_android_quotes, validate_translation
 
 
 def load_config() -> Config:
@@ -311,6 +313,159 @@ def list_keys(module: str):
         if len(value) > 60:
             value = value[:57] + "..."
         click.echo(f"  {key:40} {value}")
+
+
+async def _translate_selected(config, module, lang_code, keys, retries):
+    """Translate selected strings and return only placeholder-safe key/value pairs."""
+    from services.validation import validate_translation
+
+    language = config.get_language_name(lang_code)
+    translator = AITranslator(config)
+    source_file = config.project_root / module.res_path / "values" / "strings.xml"
+    target_file = config.project_root / module.res_path / lang_code / "strings.xml"
+    source = StringsXmlParser.parse(source_file)
+    requested = {key: source[key] for key in keys if key in source}
+    successful = {}
+    failed = {}
+    size = max(1, config.batch_size)
+    keys_to_translate = list(requested)
+    for start in range(0, len(keys_to_translate), size):
+        batch_keys = keys_to_translate[start:start + size]
+        remaining = {key: requested[key] for key in batch_keys}
+        for attempt in range(retries + 1):
+            if not remaining:
+                break
+            try:
+                response = await translator.translate_batch(remaining, language)
+            except Exception as error:
+                if attempt == retries:
+                    failed.update({key: str(error) for key in remaining})
+                    break
+                continue
+            for key in list(remaining):
+                value = response.get(key) if isinstance(response, dict) else None
+                issue = validate_translation(remaining[key], value) if isinstance(value, str) else "missing translation"
+                if issue:
+                    if attempt == retries:
+                        failed[key] = issue
+                    continue
+                successful[key] = escape_android_quotes(value)
+                del remaining[key]
+            if attempt == retries:
+                for key in remaining:
+                    failed.setdefault(key, "missing or invalid translation")
+    return successful, failed, target_file
+
+
+def _validate_selection(config, module_names, lang_codes):
+    known_langs = {lang.code for lang in config.languages if not lang.is_source}
+    unknown_langs = builtins.set(lang_codes) - known_langs
+    if unknown_langs:
+        raise click.ClickException(f"未知语言: {', '.join(sorted(unknown_langs))}")
+    known_modules = {module.name for module in config.modules}
+    unknown_modules = builtins.set(module_names) - known_modules
+    if unknown_modules:
+        raise click.ClickException(f"未知模块: {', '.join(sorted(unknown_modules))}")
+    return ([module for module in config.modules if not module_names or module.name in module_names],
+            list(lang_codes) or [lang.code for lang in config.languages if not lang.is_source])
+
+
+@cli.command("translate-missing")
+@click.option("--lang", "langs", multiple=True, help="目标语言代码，可重复")
+@click.option("--module", "module_names", multiple=True, help="模块名称，可重复")
+@click.option("--keys", "keys", multiple=True, help="仅处理指定资源key，可重复")
+@click.option("--retries", type=click.IntRange(min=0), default=2, show_default=True)
+@click.option("--dry-run", is_flag=True, help="仅统计，不调用翻译器或写入")
+@click.option("--no-write", is_flag=True, help="调用翻译器并校验，但不写文件")
+def translate_missing(langs, module_names, keys, retries, dry_run, no_write):
+    """Batch-translate absent strings; existing destination values are never overwritten."""
+    config = load_config()
+    modules, target_langs = _validate_selection(config, module_names, langs)
+    work = []
+    for module in modules:
+        source = StringsXmlParser.parse(config.project_root / module.res_path / "values" / "strings.xml")
+        for lang_code in target_langs:
+            target_path = config.project_root / module.res_path / lang_code / "strings.xml"
+            existing = StringsXmlParser.parse(target_path)
+            selected = builtins.set(keys) if keys else builtins.set(source)
+            missing = [key for key in source if key in selected and key not in existing]
+            click.echo(f"{module.name}/{lang_code}: {len(missing)} missing")
+            if missing:
+                work.append((module, lang_code, missing))
+    if dry_run or not work:
+        return
+    if not config.openai_api_key:
+        raise click.ClickException("未设置 OPENAI_API_KEY；dry-run无需密钥")
+
+    async def run():
+        errors = []
+        for module, lang_code, missing in work:
+            translated, failed, target_path = await _translate_selected(
+                config, module, lang_code, missing, retries
+            )
+            if translated and not no_write:
+                added = StringsXmlParser.update_entries(target_path, translated)
+                click.echo(f"{module.name}/{lang_code}: 写入 {len(added)} 条")
+            else:
+                click.echo(f"{module.name}/{lang_code}: 校验通过 {len(translated)} 条（未写入）")
+            errors.extend((module.name, lang_code, key, message) for key, message in failed.items())
+        return errors
+
+    errors = asyncio.run(run())
+    for module_name, lang_code, key, message in errors:
+        click.echo(f"翻译失败 {module_name}/{lang_code} {key}: {message}", err=True)
+    if errors:
+        raise click.ClickException(f"{len(errors)} 条未写入，原资源文件保持安全")
+
+
+@cli.command("retranslate")
+@click.option("--lang", "langs", multiple=True, required=True, help="目标语言代码，可重复")
+@click.option("--module", "module_names", multiple=True, help="模块名称，可重复")
+@click.option("--keys", "keys", multiple=True, required=True, help="要重译的资源key，可重复")
+@click.option("--retries", type=click.IntRange(min=0), default=2, show_default=True)
+@click.option("--dry-run", is_flag=True, help="仅核对指定key，不调用翻译器或写入")
+@click.option("--no-write", is_flag=True, help="调用翻译器并校验，但不写文件")
+def retranslate(langs, module_names, keys, retries, dry_run, no_write):
+    """Re-translate only explicitly named keys for selected languages."""
+    config = load_config()
+    modules, target_langs = _validate_selection(config, module_names, langs)
+    work = []
+    for module in modules:
+        source = StringsXmlParser.parse(config.project_root / module.res_path / "values" / "strings.xml")
+        target_path = config.project_root / module.res_path / "values" / target_langs[0] / "strings.xml"
+        for lang_code in target_langs:
+            target_path = config.project_root / module.res_path / lang_code / "strings.xml"
+            missing_source = builtins.set(keys) - builtins.set(source)
+            if missing_source:
+                raise click.ClickException(f"{module.name}: 源资源不存在: {', '.join(sorted(missing_source))}")
+            existing = StringsXmlParser.parse(target_path)
+            absent = builtins.set(keys) - builtins.set(existing)
+            if absent:
+                raise click.ClickException(f"{module.name}/{lang_code}: 目标资源不存在: {', '.join(sorted(absent))}；请使用translate-missing")
+            click.echo(f"{module.name}/{lang_code}: 将重译 {len(keys)} 个指定key")
+            work.append((module, lang_code, list(keys)))
+    if dry_run or not work:
+        return
+    if not config.openai_api_key:
+        raise click.ClickException("未设置 OPENAI_API_KEY；dry-run无需密钥")
+
+    async def run():
+        errors = []
+        for module, lang_code, selected in work:
+            translated, failed, target_path = await _translate_selected(config, module, lang_code, selected, retries)
+            if translated and not no_write:
+                updated = StringsXmlParser.replace_entries(target_path, translated)
+                click.echo(f"{module.name}/{lang_code}: 重译 {len(updated)} 条")
+            else:
+                click.echo(f"{module.name}/{lang_code}: 校验通过 {len(translated)} 条（未写入）")
+            errors.extend((module.name, lang_code, key, message) for key, message in failed.items())
+        return errors
+
+    errors = asyncio.run(run())
+    for module_name, lang_code, key, message in errors:
+        click.echo(f"重译失败 {module_name}/{lang_code} {key}: {message}", err=True)
+    if errors:
+        raise click.ClickException(f"{len(errors)} 条未写入")
 
 
 def main():
