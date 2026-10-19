@@ -44,6 +44,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -382,6 +383,7 @@ private fun OutputMenu(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
     var expanded by remember { mutableStateOf(false) }
@@ -439,13 +441,13 @@ private fun OutputMenu(
                     runCatching { saveMediaToGallery(context, file, output.mimeType) }
                         .onSuccess {
                             toaster.show(
-                                context.getString(R.string.media_creation_page_saved_to_gallery),
+                                resources.getString(R.string.media_creation_page_saved_to_gallery),
                                 type = ToastType.Success,
                             )
                         }
                         .onFailure {
                             toaster.show(
-                                it.message ?: context.getString(R.string.media_creation_page_save_failed),
+                                it.message ?: resources.getString(R.string.media_creation_page_save_failed),
                                 type = ToastType.Error,
                             )
                         }
@@ -455,7 +457,7 @@ private fun OutputMenu(
                 runCatching { shareMedia(context, file, output.mimeType) }
                     .onFailure {
                         toaster.show(
-                            it.message ?: context.getString(R.string.media_creation_page_share_failed),
+                            it.message ?: resources.getString(R.string.media_creation_page_share_failed),
                             type = ToastType.Error,
                         )
                     }
@@ -472,6 +474,7 @@ private fun RecordActions(
     val record = node.record
     val hasVersions = node.versionCount > 1
     val context = LocalContext.current
+    val resources = LocalResources.current
     val toaster = LocalToaster.current
     var confirmCancel by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
@@ -545,7 +548,7 @@ private fun RecordActions(
                     ) {
                         context.writeClipboardText(record.prompt)
                         toaster.show(
-                            context.getString(R.string.media_creation_page_prompt_copied),
+                            resources.getString(R.string.media_creation_page_prompt_copied),
                             type = ToastType.Success,
                         )
                     }.takeIf { record.prompt.isNotBlank() },
