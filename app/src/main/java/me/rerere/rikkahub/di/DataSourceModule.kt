@@ -54,6 +54,7 @@ import me.rerere.rikkahub.data.db.migrations.Migration_33_34
 import me.rerere.rikkahub.data.db.migrations.Migration_34_35
 import me.rerere.rikkahub.data.db.migrations.Migration_35_36
 import me.rerere.rikkahub.data.db.migrations.Migration_44_45
+import me.rerere.rikkahub.data.db.migrations.Migration_45_46
 import me.rerere.rikkahub.data.db.migrations.Migration_6_7
 import me.rerere.rikkahub.data.gemini.GeminiAccountRepository
 import me.rerere.rikkahub.data.gemini.GeminiCredentialStore
