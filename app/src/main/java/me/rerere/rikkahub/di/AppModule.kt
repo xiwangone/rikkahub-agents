@@ -31,7 +31,13 @@ import org.koin.dsl.module
 
 val appModule =
     module {
-    single { me.rerere.rikkahub.data.files.RemoteFileStore(get(), get(), get()) }
+        single<me.rerere.rikkahub.data.files.RemoteFileStore> {
+            me.rerere.rikkahub.data.files.RemoteFileStore(
+                get(),
+                get(),
+                get<kotlinx.coroutines.CoroutineScope>(),
+            )
+        }
 
         single<Json> { JsonInstant }
         // com.google.gson.JsonParser：供 Gemini OAuth 等历史兼容代码路径解析（防御性注册，防

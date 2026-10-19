@@ -59,7 +59,7 @@ import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Download01
 import me.rerere.hugeicons.stroke.ImageAdd01
-import me.rerere.hugeicons.stroke.ImageToVideo
+import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Refresh
@@ -427,10 +427,10 @@ private fun OutputMenu(
                 MenuItem(stringResource(R.string.media_creation_page_use_as_reference_image), HugeIcons.ImageAdd01) {
                     vm.useImage(output, ImageRole.REFERENCE)
                 }
-                MenuItem(stringResource(R.string.media_creation_page_use_as_first_frame), HugeIcons.ImageToVideo) {
+                MenuItem(stringResource(R.string.media_creation_page_use_as_first_frame), HugeIcons.Image02) {
                     vm.useImage(output, ImageRole.FIRST_FRAME)
                 }
-                MenuItem(stringResource(R.string.media_creation_page_use_as_last_frame), HugeIcons.ImageToVideo) {
+                MenuItem(stringResource(R.string.media_creation_page_use_as_last_frame), HugeIcons.Image02) {
                     vm.useImage(output, ImageRole.LAST_FRAME)
                 }
             }
@@ -503,7 +503,7 @@ private fun RecordActions(
                             ) { vm.useImage(output, ImageRole.REFERENCE) }
                             ActionChip(
                                 stringResource(R.string.media_creation_page_make_video),
-                                HugeIcons.ImageToVideo,
+                                HugeIcons.Image02,
                             ) { vm.useImage(output, ImageRole.FIRST_FRAME) }
                         }
                     }
