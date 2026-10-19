@@ -417,6 +417,37 @@ class SettingsStore(
             else preferences[SUB_AGENT_DEFAULT_WORKSPACE] = id.toString()
         }
 
+        private fun encryptPrefValue(raw: String): String = ProviderCredentialCipher.encrypt(raw)
+
+        /**
+         * web 服务与「网段预设」一组写入。抽成扩展只为收敛 [update] 的体积（detekt LongMethod 阈值
+         * 贴线），语义与内联写法一致。
+         */
+        private fun MutablePreferences.putWebServerBlock(settings: Settings) {
+            this[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
+            this[WEB_SERVER_LISTEN_SCOPE] = settings.webServerListenScope
+            this[WEB_SERVER_ALLOWED_NETWORKS] = settings.webServerAllowedNetworks
+            this[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
+            this[NETWORK_CIDR_PRESETS] = JsonInstant.encodeToString(settings.networkCidrPresets)
+        }
+
+        private fun MutablePreferences.putToolOutputLimits(settings: Settings) {
+            this[TOOL_OUTPUT_MAX_CHARS] = settings.toolOutputMaxChars
+            this[TOOL_OUTPUT_COMPACT_MAX_CHARS] = settings.toolOutputCompactMaxChars
+        }
+
+        /**
+         * 写回沙箱包管理器镜像（apk/apt/pip/npm）。
+         *
+         * 抽成独立扩展函数同 [putToolOutputLimits]：让 [update] 保持在 detekt LongMethod 阈值内。
+         */
+        private fun MutablePreferences.putWorkspaceMirrors(settings: Settings) {
+            this[WORKSPACE_APK_MIRROR] = settings.workspaceApkMirror
+            this[WORKSPACE_APT_MIRROR] = settings.workspaceAptMirror
+            this[WORKSPACE_PIP_MIRROR] = settings.workspacePipMirror
+            this[WORKSPACE_NPM_MIRROR] = settings.workspaceNpmMirror
+        }
+
     }
 
     private val dataStore = context.settingsStore
@@ -794,17 +825,6 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
      * 抽成独立扩展函数是为了让 [update] 保持在 detekt LongMethod 阈值内
      * （直接内联两行会把它顶到 120 行而报错）。
      */
-    /**
- * web 服务与「网段预设」一组写入。抽成扩展只为收敛 [update] 的体积（detekt LongMethod 阈值
- * 贴线），语义与内联写法一致。
- */
-private fun MutablePreferences.putWebServerBlock(settings: Settings) {
-    this[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
-    this[WEB_SERVER_LISTEN_SCOPE] = settings.webServerListenScope
-    this[WEB_SERVER_ALLOWED_NETWORKS] = settings.webServerAllowedNetworks
-    this[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
-    this[NETWORK_CIDR_PRESETS] = JsonInstant.encodeToString(settings.networkCidrPresets)
-}
 
 /**
  * 敏感 JSON 值落盘加解密（与 `providers` 同一条 Keystore 通道）。
@@ -826,30 +846,11 @@ private inline fun <reified T> decodePrefOrDefault(raw: String?, default: T): T 
     return decodePersistedSetting(raw, default)
 }
 
-private fun encryptPrefValue(raw: String): String = ProviderCredentialCipher.encrypt(raw)
-
 /** Malformed stored UUID values fail loading instead of masquerading as absent optional fields. */
 private fun parseUuidPrefOrNull(raw: String?): Uuid? {
     if (raw.isNullOrBlank()) return null
     return Uuid.parse(raw)
 }
-
-    private fun MutablePreferences.putToolOutputLimits(settings: Settings) {
-        this[TOOL_OUTPUT_MAX_CHARS] = settings.toolOutputMaxChars
-        this[TOOL_OUTPUT_COMPACT_MAX_CHARS] = settings.toolOutputCompactMaxChars
-    }
-
-    /**
-     * 写回沙箱包管理器镜像（apk/apt/pip/npm）。
-     *
-     * 抽成独立扩展函数同 [putToolOutputLimits]：让 [update] 保持在 detekt LongMethod 阈值内。
-     */
-    private fun MutablePreferences.putWorkspaceMirrors(settings: Settings) {
-        this[WORKSPACE_APK_MIRROR] = settings.workspaceApkMirror
-        this[WORKSPACE_APT_MIRROR] = settings.workspaceAptMirror
-        this[WORKSPACE_PIP_MIRROR] = settings.workspacePipMirror
-        this[WORKSPACE_NPM_MIRROR] = settings.workspaceNpmMirror
-    }
 
     // ---------- 会话累计用量（与压缩解耦，见 LifetimeUsage 注释） ----------
 

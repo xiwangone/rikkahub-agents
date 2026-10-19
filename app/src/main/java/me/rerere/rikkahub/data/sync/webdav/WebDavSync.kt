@@ -17,6 +17,9 @@ import me.rerere.rikkahub.data.datastore.migration.SettingsJsonMigrator
 import me.rerere.rikkahub.data.sync.replaceFilePreservingTarget
 import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
+import me.rerere.rikkahub.data.sync.DatabaseBackup
+import me.rerere.rikkahub.data.sync.PendingDatabaseRestore
+import me.rerere.rikkahub.data.sync.RestoreFileTransaction
 import me.rerere.rikkahub.utils.fileSizeToString
 import java.io.File
 import java.io.FileInputStream
