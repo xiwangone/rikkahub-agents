@@ -628,6 +628,7 @@
   <string name="notification_channel_chat_completed">اكتملت الدردشة</string>
   <string name="notification_channel_chat_live_update">تقدم توليد الدردشة</string>
   <string name="notification_channel_web_server">خادم الويب</string>
+  <string name="notification_channel_media_creation">إنشاء الوسائط</string>
   <string name="notification_live_update_chip_thinking">يفكّر</string>
   <string name="notification_live_update_chip_tool">أداة</string>
   <string name="notification_live_update_chip_writing">يكتب</string>

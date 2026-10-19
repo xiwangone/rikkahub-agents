@@ -54,6 +54,7 @@ private const val TAG = "RikkaHubApp"
 const val CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID = "chat_completed"
 const val CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID = "chat_live_update"
 const val WEB_SERVER_NOTIFICATION_CHANNEL_ID = "web_server"
+const val MEDIA_CREATION_NOTIFICATION_CHANNEL_ID = "media_creation"
 
 class RikkaHubApp : Application() {
     private val appStartElapsedMs = android.os.SystemClock.elapsedRealtime()
@@ -688,6 +689,13 @@ class RikkaHubApp : Application() {
             .setShowBadge(false)
             .build()
         notificationManager.createNotificationChannel(webServerChannel)
+
+        val mediaCreationChannel = NotificationChannelCompat
+            .Builder(MEDIA_CREATION_NOTIFICATION_CHANNEL_ID, NotificationManagerCompat.IMPORTANCE_LOW)
+            .setName(getString(R.string.notification_channel_media_creation))
+            .setVibrationEnabled(false)
+            .build()
+        notificationManager.createNotificationChannel(mediaCreationChannel)
     }
 
     override fun onTerminate() {
