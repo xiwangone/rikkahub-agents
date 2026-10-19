@@ -3,6 +3,10 @@ package me.rerere.rikkahub.data.datastore
 
 import android.content.Context
 import androidx.datastore.core.IOException
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import java.io.File
 import androidx.datastore.preferences.SharedPreferencesMigration
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.MutablePreferences
@@ -199,6 +203,7 @@ class SettingsStore(
 
         // S3
         val S3_CONFIG = stringPreferencesKey("s3_config")
+        val UPLOAD_S3_CONFIG = stringPreferencesKey("upload_s3_config")
         val S3_CONFIGS = stringPreferencesKey("s3_configs")
         val ACTIVE_S3_CONFIG_ID = stringPreferencesKey("active_s3_config_id")
 
@@ -263,6 +268,155 @@ class SettingsStore(
 
         // 赞助提醒
         val SPONSOR_ALERT_DISMISSED_AT = intPreferencesKey("sponsor_alert_dismissed_at")
+        internal suspend fun writeColdSettings(context: Context, settings: Settings, stagedFile: File) {
+            require(!settings.init) { "Cannot stage uninitialized settings" }
+            stagedFile.parentFile?.let { check(it.isDirectory || it.mkdirs()) }
+            val coldScope = kotlinx.coroutines.CoroutineScope(Dispatchers.IO + kotlinx.coroutines.SupervisorJob())
+            try {
+                val cold = PreferenceDataStoreFactory.create(scope = coldScope, produceFile = { stagedFile })
+                persistSettingsTo(cold, settings)
+            } finally {
+                coldScope.coroutineContext[kotlinx.coroutines.Job]?.cancel()
+            }
+        }
+
+        private suspend fun persistSettingsTo(dataStore: DataStore<Preferences>, settings: Settings) {
+            dataStore.edit { preferences ->
+            preferences[DYNAMIC_COLOR] = settings.dynamicColor
+            preferences[THEME_ID] = settings.themeId
+            preferences[CUSTOM_THEMES] = JsonInstant.encodeToString(settings.customThemes)
+            preferences[DEVELOPER_MODE] = settings.developerMode
+            preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(settings.displaySetting)
+            preferences[NETWORK_SETTING] = JsonInstant.encodeToString(settings.networkSetting)
+
+            preferences[FAVORITE_MODELS] = JsonInstant.encodeToString(settings.favoriteModels)
+            preferences[SELECT_MODEL] = settings.chatModelId.toString()
+            preferences[FAST_MODEL] = settings.fastModelId.toString()
+            settings.titleModelId?.let {
+                preferences[TITLE_MODEL] = it.toString()
+            } ?: preferences.remove(TITLE_MODEL)
+            preferences[TRANSLATE_MODEL] = settings.translateModeId.toString()
+            preferences[ENABLE_SUGGESTION] = settings.enableSuggestion
+            preferences[AUTO_GENERATE_TITLE] = settings.autoGenerateTitle
+            preferences[RESPONSE_STREAM_MAX_RETRIES] = settings.responseStreamMaxRetries.coerceIn(0, 10)
+            preferences[ENABLE_AUTO_RETRY] = settings.enableAutoRetry
+            settings.suggestionModelId?.let {
+                preferences[SUGGESTION_MODEL] = it.toString()
+            } ?: preferences.remove(SUGGESTION_MODEL)
+            preferences[IMAGE_GENERATION_MODEL] = settings.imageGenerationModelId.toString()
+            preferences[TITLE_PROMPT] = settings.titlePrompt
+            preferences[TRANSLATION_PROMPT] = settings.translatePrompt
+            preferences[TRANSLATE_THINKING_BUDGET] = settings.translateThinkingBudget
+            preferences[SUGGESTION_PROMPT] = settings.suggestionPrompt
+            preferences[OCR_MODEL] = settings.ocrModelId.toString()
+            preferences[OCR_LOCAL_ENABLED] = settings.ocrLocalEnabled
+            preferences[OCR_PROMPT] = settings.ocrPrompt
+            preferences[COMPRESS_MODEL] = settings.compressModelId.toString()
+            preferences[COMPRESS_PROMPT] = settings.compressPrompt
+            preferences[AUTO_COMPRESS_ENABLED] = settings.autoCompressEnabled
+            preferences[AUTO_COMPRESS_THRESHOLD] = settings.autoCompressThreshold
+            preferences[AUTO_COMPRESS_TOKEN_LIMIT] = settings.autoCompressTokenLimit
+            preferences[AUTO_COMPRESS_TOKEN_BASE] = settings.autoCompressTokenBase
+            preferences[AUTO_COMPRESS_MODE] = settings.autoCompressMode
+            preferences[CONTEXT_WINDOW_SIZE] = settings.contextWindowSize
+            preferences[TOOL_OUTPUT_ENABLED] = settings.toolOutputEnabled
+            preferences.putToolOutputLimits(settings)
+
+            // P0 凭证加密：providers 含 apiKey / 服务账号私钥等凭证，以 AES-GCM 密文入库，
+            // 明文 JSON 不再落盘（密钥在 AndroidKeyStore，随应用卸载清除）。
+            preferences[MEDIA_GENERATION_PROVIDERS] = encryptPrefValue(JsonInstant.encodeToString(settings.mediaGenerationProviders))
+            preferences[PROVIDERS] = ProviderCredentialCipher.encrypt(
+                JsonInstant.encodeToString(settings.providers)
+            )
+            preferences[DELETED_BUILTIN_PROVIDER_IDS] = JsonInstant.encodeToString(
+                settings.deletedBuiltInProviderIds.map { it.toString() }.toSet()
+            )
+            preferences[AUTO_ENABLED_DEFAULT_SKILLS] = JsonInstant.encodeToString(
+                settings.autoEnabledDefaultSkills
+            )
+            preferences[DELETED_BUNDLED_SKILLS] = JsonInstant.encodeToString(settings.deletedBundledSkills)
+
+            preferences[ASSISTANTS] = JsonInstant.encodeToString(settings.assistants)
+            preferences[SELECT_ASSISTANT] = settings.assistantId.toString()
+            preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(settings.assistantTags)
+
+            preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(settings.searchServices)
+            preferences[SEARCH_COMMON] = JsonInstant.encodeToString(settings.searchCommonOptions)
+            // maxOf(0, size - 1) guards the empty-list case: a persisted "[]" for
+            // search_services leaves searchServices empty (the ?: default only fires on a
+            // missing key, not on an empty array), and coerceIn(0, -1) throws
+            // IllegalArgumentException because min > max — crashing every settings write.
+            preferences[SEARCH_SELECTED] =
+                settings.searchServiceSelected.coerceIn(0, maxOf(0, settings.searchServices.size - 1))
+
+            preferences[MCP_SERVERS] = encryptPrefValue(JsonInstant.encodeToString(settings.mcpServers))
+            preferences[SUB_AGENTS] = JsonInstant.encodeToString(settings.subAgents)
+            putSubAgentDefaultWorkspace(preferences, settings)
+            putSubAgentForegroundReceipt(preferences, settings)
+            preferences[WEBDAV_CONFIG] = encryptPrefValue(JsonInstant.encodeToString(settings.webDavConfig))
+            preferences[S3_CONFIG] = encryptPrefValue(JsonInstant.encodeToString(settings.s3Config))
+            preferences[UPLOAD_S3_CONFIG] = encryptPrefValue(JsonInstant.encodeToString(settings.uploadS3Config))
+            preferences[WEBDAV_CONFIGS] = encryptPrefValue(JsonInstant.encodeToString(settings.webDavConfigs))
+            settings.activeWebDavConfigId?.let {
+                preferences[ACTIVE_WEBDAV_CONFIG_ID] = it
+            } ?: preferences.remove(ACTIVE_WEBDAV_CONFIG_ID)
+            preferences[S3_CONFIGS] = encryptPrefValue(JsonInstant.encodeToString(settings.s3Configs))
+            settings.activeS3ConfigId?.let {
+                preferences[ACTIVE_S3_CONFIG_ID] = it
+            } ?: preferences.remove(ACTIVE_S3_CONFIG_ID)
+            preferences[TTS_PROVIDERS] = encryptPrefValue(JsonInstant.encodeToString(settings.ttsProviders))
+            settings.selectedTTSProviderId?.let {
+                preferences[SELECTED_TTS_PROVIDER] = it.toString()
+            } ?: preferences.remove(SELECTED_TTS_PROVIDER)
+            preferences[DEFAULT_TTS_PLAYBACK_SPEED] = settings.defaultTTSPlaybackSpeed.coerceIn(0.5f, 2.0f)
+            preferences[ASR_PROVIDERS] = encryptPrefValue(JsonInstant.encodeToString(settings.asrProviders))
+            settings.selectedASRProviderId?.let {
+                preferences[SELECTED_ASR_PROVIDER] = it.toString()
+            } ?: preferences.remove(SELECTED_ASR_PROVIDER)
+            preferences[MODE_INJECTIONS] = JsonInstant.encodeToString(settings.modeInjections)
+            preferences[LOREBOOKS] = JsonInstant.encodeToString(settings.lorebooks)
+            preferences[QUICK_MESSAGES] = JsonInstant.encodeToString(settings.quickMessages)
+            preferences[WEB_SERVER_ENABLED] = settings.webServerEnabled
+            preferences[WEB_SERVER_PORT] = settings.webServerPort
+            preferences[LOCAL_MCP_SERVER_ENABLED] = settings.localMcpServerEnabled
+            preferences[LOCAL_MCP_PROFILES] = JsonInstant.encodeToString(settings.localMcpProfiles)
+            settings.activeLocalMcpProfileId?.let { preferences[LOCAL_MCP_ACTIVE_PROFILE_ID] = it }
+            preferences[WEB_BRIDGE_ECS_HOST] = settings.webBridgeEcsHost
+            preferences[WEB_BRIDGE_ECS_USER] = settings.webBridgeEcsUser
+            preferences[WEB_BRIDGE_ECS_PORT] = settings.webBridgeEcsPort
+            preferences[WEB_BRIDGE_REMOTE_PORT] = settings.webBridgeRemotePort
+            preferences[WEB_BRIDGE_LOCAL_PORT] = settings.webBridgeLocalPort
+            preferences[WEB_BRIDGE_PRIVATE_KEY_PATH] = settings.webBridgePrivateKeyPath
+            preferences[WEB_BRIDGE_PASSWORD] = settings.webBridgePassword
+            preferences[WEB_BRIDGE_CREDENTIAL_REF] = settings.webBridgeCredentialRef
+            preferences.putWebServerBlock(settings)
+            preferences[SETTING_SHORTCUT_IDS] = settings.settingShortcutIds.joinToString("\u0001")
+            preferences.putWorkspaceMirrors(settings)
+            preferences[WORKSPACE_SDCARD_ENABLED] = settings.workspaceSdcardEnabled
+            preferences[WORKSPACE_CHROOT_ENABLED] = settings.workspaceChrootEnabled
+            preferences[WORKSPACE_STATS_CACHE] = settings.workspaceStatsCache
+            preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
+            preferences[AI_LOG_LEVEL] = settings.aiLogLevel.preferenceName
+            preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
+            preferences[BACKUP_ENCRYPTION_ENABLED] = settings.backupEncryptionEnabled
+            preferences[BACKUP_ENCRYPTION_PASSWORD_ENC] = settings.backupEncryptionPasswordEnc
+            preferences[LAUNCH_COUNT] = settings.launchCount
+            preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
+            preferences[EXECUTION_BACKEND] = settings.executionBackend
+            preferences[BACKEND_CONNECTIONS] = JsonInstant.encodeToString(settings.backendConnections)
+            }
+        }
+
+        private fun putSubAgentForegroundReceipt(preferences: MutablePreferences, settings: Settings) {
+            preferences[SUB_AGENT_FOREGROUND_RECEIPT] = settings.subAgentForegroundReceipt
+        }
+
+        private fun putSubAgentDefaultWorkspace(preferences: MutablePreferences, settings: Settings) {
+            val id = settings.subAgentDefaultWorkspaceId
+            if (id == null) preferences.remove(SUB_AGENT_DEFAULT_WORKSPACE)
+            else preferences[SUB_AGENT_DEFAULT_WORKSPACE] = id.toString()
+        }
+
     }
 
     private val dataStore = context.settingsStore
@@ -362,6 +516,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 subAgentForegroundReceipt = preferences[SUB_AGENT_FOREGROUND_RECEIPT] ?: false,
                 webDavConfig = decodeEncryptedPrefOrDefault(preferences[WEBDAV_CONFIG], WebDavConfig()),
                 s3Config = decodeEncryptedPrefOrDefault(preferences[S3_CONFIG], S3Config()),
+                uploadS3Config = decodeEncryptedPrefOrDefault(preferences[UPLOAD_S3_CONFIG], S3Config()),
                 webDavConfigs = preferences[WEBDAV_CONFIGS]?.let { raw ->
                     JsonInstant.decodeFromString<List<WebDavConfig>>(decryptPrefValue(raw))
                 } ?: emptyList(),
@@ -609,24 +764,6 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
         }
     }
 
-    /**
-     * 写入「子代理默认工作区」。独立成函数：update() 已接近静态检查的行数门限。
-     * 未设置时**移除 key**，避免旧值残留（其余生成器只写非空值）。
-     */
-    /** 写入「前台子代理是否回执」。布尔项无「未设置」语义，直接写当前值。 */
-    private fun putSubAgentForegroundReceipt(preferences: MutablePreferences, settings: Settings) {
-        preferences[SUB_AGENT_FOREGROUND_RECEIPT] = settings.subAgentForegroundReceipt
-    }
-
-    private fun putSubAgentDefaultWorkspace(preferences: MutablePreferences, settings: Settings) {
-        val id = settings.subAgentDefaultWorkspaceId
-        if (id == null) {
-            preferences.remove(SUB_AGENT_DEFAULT_WORKSPACE)
-        } else {
-            preferences[SUB_AGENT_DEFAULT_WORKSPACE] = id.toString()
-        }
-    }
-
     /** Wait for the first valid disk decode; propagates permanent read/decode failures. */
     suspend fun awaitInitialized() = initialization.await()
 
@@ -643,129 +780,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
         memoryRevision.incrementAndGet()
         settingsFlow.value = settings
         try {
-            dataStore.edit { preferences ->
-            preferences[DYNAMIC_COLOR] = settings.dynamicColor
-            preferences[THEME_ID] = settings.themeId
-            preferences[CUSTOM_THEMES] = JsonInstant.encodeToString(settings.customThemes)
-            preferences[DEVELOPER_MODE] = settings.developerMode
-            preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(settings.displaySetting)
-            preferences[NETWORK_SETTING] = JsonInstant.encodeToString(settings.networkSetting)
-
-            preferences[FAVORITE_MODELS] = JsonInstant.encodeToString(settings.favoriteModels)
-            preferences[SELECT_MODEL] = settings.chatModelId.toString()
-            preferences[FAST_MODEL] = settings.fastModelId.toString()
-            settings.titleModelId?.let {
-                preferences[TITLE_MODEL] = it.toString()
-            } ?: preferences.remove(TITLE_MODEL)
-            preferences[TRANSLATE_MODEL] = settings.translateModeId.toString()
-            preferences[ENABLE_SUGGESTION] = settings.enableSuggestion
-            preferences[AUTO_GENERATE_TITLE] = settings.autoGenerateTitle
-            preferences[RESPONSE_STREAM_MAX_RETRIES] = settings.responseStreamMaxRetries.coerceIn(0, 10)
-            preferences[ENABLE_AUTO_RETRY] = settings.enableAutoRetry
-            settings.suggestionModelId?.let {
-                preferences[SUGGESTION_MODEL] = it.toString()
-            } ?: preferences.remove(SUGGESTION_MODEL)
-            preferences[IMAGE_GENERATION_MODEL] = settings.imageGenerationModelId.toString()
-            preferences[TITLE_PROMPT] = settings.titlePrompt
-            preferences[TRANSLATION_PROMPT] = settings.translatePrompt
-            preferences[TRANSLATE_THINKING_BUDGET] = settings.translateThinkingBudget
-            preferences[SUGGESTION_PROMPT] = settings.suggestionPrompt
-            preferences[OCR_MODEL] = settings.ocrModelId.toString()
-            preferences[OCR_LOCAL_ENABLED] = settings.ocrLocalEnabled
-            preferences[OCR_PROMPT] = settings.ocrPrompt
-            preferences[COMPRESS_MODEL] = settings.compressModelId.toString()
-            preferences[COMPRESS_PROMPT] = settings.compressPrompt
-            preferences[AUTO_COMPRESS_ENABLED] = settings.autoCompressEnabled
-            preferences[AUTO_COMPRESS_THRESHOLD] = settings.autoCompressThreshold
-            preferences[AUTO_COMPRESS_TOKEN_LIMIT] = settings.autoCompressTokenLimit
-            preferences[AUTO_COMPRESS_TOKEN_BASE] = settings.autoCompressTokenBase
-            preferences[AUTO_COMPRESS_MODE] = settings.autoCompressMode
-            preferences[CONTEXT_WINDOW_SIZE] = settings.contextWindowSize
-            preferences[TOOL_OUTPUT_ENABLED] = settings.toolOutputEnabled
-            preferences.putToolOutputLimits(settings)
-
-            // P0 凭证加密：providers 含 apiKey / 服务账号私钥等凭证，以 AES-GCM 密文入库，
-            // 明文 JSON 不再落盘（密钥在 AndroidKeyStore，随应用卸载清除）。
-            preferences[MEDIA_GENERATION_PROVIDERS] = encryptPrefValue(JsonInstant.encodeToString(settings.mediaGenerationProviders))
-            preferences[PROVIDERS] = ProviderCredentialCipher.encrypt(
-                JsonInstant.encodeToString(settings.providers)
-            )
-            preferences[DELETED_BUILTIN_PROVIDER_IDS] = JsonInstant.encodeToString(
-                settings.deletedBuiltInProviderIds.map { it.toString() }.toSet()
-            )
-            preferences[AUTO_ENABLED_DEFAULT_SKILLS] = JsonInstant.encodeToString(
-                settings.autoEnabledDefaultSkills
-            )
-            preferences[DELETED_BUNDLED_SKILLS] = JsonInstant.encodeToString(settings.deletedBundledSkills)
-
-            preferences[ASSISTANTS] = JsonInstant.encodeToString(settings.assistants)
-            preferences[SELECT_ASSISTANT] = settings.assistantId.toString()
-            preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(settings.assistantTags)
-
-            preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(settings.searchServices)
-            preferences[SEARCH_COMMON] = JsonInstant.encodeToString(settings.searchCommonOptions)
-            // maxOf(0, size - 1) guards the empty-list case: a persisted "[]" for
-            // search_services leaves searchServices empty (the ?: default only fires on a
-            // missing key, not on an empty array), and coerceIn(0, -1) throws
-            // IllegalArgumentException because min > max — crashing every settings write.
-            preferences[SEARCH_SELECTED] =
-                settings.searchServiceSelected.coerceIn(0, maxOf(0, settings.searchServices.size - 1))
-
-            preferences[MCP_SERVERS] = encryptPrefValue(JsonInstant.encodeToString(settings.mcpServers))
-            preferences[SUB_AGENTS] = JsonInstant.encodeToString(settings.subAgents)
-            putSubAgentDefaultWorkspace(preferences, settings)
-            putSubAgentForegroundReceipt(preferences, settings)
-            preferences[WEBDAV_CONFIG] = encryptPrefValue(JsonInstant.encodeToString(settings.webDavConfig))
-            preferences[S3_CONFIG] = encryptPrefValue(JsonInstant.encodeToString(settings.s3Config))
-            preferences[WEBDAV_CONFIGS] = encryptPrefValue(JsonInstant.encodeToString(settings.webDavConfigs))
-            settings.activeWebDavConfigId?.let {
-                preferences[ACTIVE_WEBDAV_CONFIG_ID] = it
-            } ?: preferences.remove(ACTIVE_WEBDAV_CONFIG_ID)
-            preferences[S3_CONFIGS] = encryptPrefValue(JsonInstant.encodeToString(settings.s3Configs))
-            settings.activeS3ConfigId?.let {
-                preferences[ACTIVE_S3_CONFIG_ID] = it
-            } ?: preferences.remove(ACTIVE_S3_CONFIG_ID)
-            preferences[TTS_PROVIDERS] = encryptPrefValue(JsonInstant.encodeToString(settings.ttsProviders))
-            settings.selectedTTSProviderId?.let {
-                preferences[SELECTED_TTS_PROVIDER] = it.toString()
-            } ?: preferences.remove(SELECTED_TTS_PROVIDER)
-            preferences[DEFAULT_TTS_PLAYBACK_SPEED] = settings.defaultTTSPlaybackSpeed.coerceIn(0.5f, 2.0f)
-            preferences[ASR_PROVIDERS] = encryptPrefValue(JsonInstant.encodeToString(settings.asrProviders))
-            settings.selectedASRProviderId?.let {
-                preferences[SELECTED_ASR_PROVIDER] = it.toString()
-            } ?: preferences.remove(SELECTED_ASR_PROVIDER)
-            preferences[MODE_INJECTIONS] = JsonInstant.encodeToString(settings.modeInjections)
-            preferences[LOREBOOKS] = JsonInstant.encodeToString(settings.lorebooks)
-            preferences[QUICK_MESSAGES] = JsonInstant.encodeToString(settings.quickMessages)
-            preferences[WEB_SERVER_ENABLED] = settings.webServerEnabled
-            preferences[WEB_SERVER_PORT] = settings.webServerPort
-            preferences[LOCAL_MCP_SERVER_ENABLED] = settings.localMcpServerEnabled
-            preferences[LOCAL_MCP_PROFILES] = JsonInstant.encodeToString(settings.localMcpProfiles)
-            settings.activeLocalMcpProfileId?.let { preferences[LOCAL_MCP_ACTIVE_PROFILE_ID] = it }
-            preferences[WEB_BRIDGE_ECS_HOST] = settings.webBridgeEcsHost
-            preferences[WEB_BRIDGE_ECS_USER] = settings.webBridgeEcsUser
-            preferences[WEB_BRIDGE_ECS_PORT] = settings.webBridgeEcsPort
-            preferences[WEB_BRIDGE_REMOTE_PORT] = settings.webBridgeRemotePort
-            preferences[WEB_BRIDGE_LOCAL_PORT] = settings.webBridgeLocalPort
-            preferences[WEB_BRIDGE_PRIVATE_KEY_PATH] = settings.webBridgePrivateKeyPath
-            preferences[WEB_BRIDGE_PASSWORD] = settings.webBridgePassword
-            preferences[WEB_BRIDGE_CREDENTIAL_REF] = settings.webBridgeCredentialRef
-            preferences.putWebServerBlock(settings)
-            preferences[SETTING_SHORTCUT_IDS] = settings.settingShortcutIds.joinToString("\u0001")
-            preferences.putWorkspaceMirrors(settings)
-            preferences[WORKSPACE_SDCARD_ENABLED] = settings.workspaceSdcardEnabled
-            preferences[WORKSPACE_CHROOT_ENABLED] = settings.workspaceChrootEnabled
-            preferences[WORKSPACE_STATS_CACHE] = settings.workspaceStatsCache
-            preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
-            preferences[AI_LOG_LEVEL] = settings.aiLogLevel.preferenceName
-            preferences[BACKUP_REMINDER_CONFIG] = JsonInstant.encodeToString(settings.backupReminderConfig)
-            preferences[BACKUP_ENCRYPTION_ENABLED] = settings.backupEncryptionEnabled
-            preferences[BACKUP_ENCRYPTION_PASSWORD_ENC] = settings.backupEncryptionPasswordEnc
-            preferences[LAUNCH_COUNT] = settings.launchCount
-            preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
-            preferences[EXECUTION_BACKEND] = settings.executionBackend
-            preferences[BACKEND_CONNECTIONS] = JsonInstant.encodeToString(settings.backendConnections)
-            }
+            persistSettingsTo(dataStore, settings)
         } catch (failure: Throwable) {
             settingsFlow.value = previous
             memoryRevision.incrementAndGet()
@@ -1100,6 +1115,8 @@ data class Settings(
     val subAgentForegroundReceipt: Boolean = false,
     val webDavConfig: WebDavConfig = WebDavConfig(),
     val s3Config: S3Config = S3Config(),
+    /** Upload destination for generated media; distinct from backup-provider S3 settings. */
+    val uploadS3Config: S3Config = S3Config(),
     /** 多 WebDAV 配置（可保存/切换/删除）。空时回退用 [webDavConfig] 单配置（旧数据兼容）。 */
     val webDavConfigs: List<WebDavConfig> = emptyList(),
     /** 当前生效的 WebDAV 配置 id（空 = 用 [webDavConfig] / 列表首个） */

@@ -83,7 +83,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         MediaCreationNodeEntity::class,
         MediaCreationRecordEntity::class,
     ],
-    version = 46,
+    version = AppDatabase.VERSION,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -151,6 +151,7 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
 )
 @TypeConverters(TokenUsageConverter::class)
 abstract class AppDatabase : RoomDatabase() {
+    companion object { const val VERSION = 46 }
     abstract fun conversationDao(): ConversationDAO
 
     abstract fun conversationCompactionDao(): ConversationCompactionDAO

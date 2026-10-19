@@ -8,7 +8,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.db.AppDatabase
-import me.rerere.rikkahub.data.db.ImportedDatabaseReconciler
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.SkillPaths
 import me.rerere.rikkahub.data.datastore.Settings
@@ -200,23 +199,14 @@ class S3Sync(
 
             // Backup database files
             if (config.items.contains(S3Config.BackupItem.DATABASE)) {
-                // Flush the WAL into the main db first so the copied rikka_hub.db is a
-                // consistent snapshot instead of a torn read against a live WAL.
-                checkpointDatabase()
-
-                val dbFile = context.getDatabasePath("rikka_hub")
-                if (dbFile.exists()) {
-                    addFileToZip(zipOut, dbFile, "rikka_hub.db")
-                }
-
-                val walFile = File(dbFile.parentFile, "rikka_hub-wal")
-                if (walFile.exists()) {
-                    addFileToZip(zipOut, walFile, "rikka_hub-wal")
-                }
-
-                val shmFile = File(dbFile.parentFile, "rikka_hub-shm")
-                if (shmFile.exists()) {
-                    addFileToZip(zipOut, shmFile, "rikka_hub-shm")
+                val snapshot = File.createTempFile("backup-db-", ".sqlite", context.cacheDir)
+                try {
+                    check(snapshot.delete()) { "Cannot prepare database snapshot destination" }
+                    DatabaseBackup.createSnapshot(appDatabase.openHelper.writableDatabase, snapshot)
+                    // Preserve the historic archive member name for existing ZIP/Zip4j readers.
+                    addFileToZip(zipOut, snapshot, DatabaseBackup.ARCHIVE_DATABASE)
+                } finally {
+                    snapshot.delete()
                 }
             }
 
@@ -239,6 +229,8 @@ class S3Sync(
                 addFolderFilesToZip(zipOut, FileFolders.FONTS)
                 addFolderFilesToZip(zipOut, FileFolders.IMAGES)
             }
+            // Media sessions retain their authoritative relativePath files under 06's directory.
+            addFolderRecursiveToZip(zipOut, FileFolders.MEDIA_CREATION)
         }
 
         AppLog.i(
@@ -251,26 +243,10 @@ class S3Sync(
     private suspend fun restoreFromBackupFile(backupFile: File, config: S3Config) = withContext(Dispatchers.IO) {
         AppLog.i(TAG, "restoreFromBackupFile: Starting restore from ${backupFile.absolutePath}")
 
-        // Track whether the backup itself shipped a WAL/SHM. If it didn't, any -wal/-shm
-        // left on disk belongs to the PRE-restore database and must be removed before Room
-        // opens the restored db, or SQLite replays those stale frames over fresh data.
-        var restoredWal = false
-        var restoredShm = false
-
-        // Release the live Room WAL connection BEFORE the zip loop overwrites rikka_hub.db.
-        // The DB is opened in WAL mode, so the close()-time checkpoint folds the OLD connection's
-        // cached WAL frames into whatever rikka_hub.db currently is. If we closed AFTER the
-        // overwrite, that checkpoint would replay pre-restore frames over the freshly restored
-        // bytes and corrupt the import — so the close has to come first. The restore caller
-        // restarts the process afterwards, so Room reopens cleanly on the reconciled file.
-        // (Best-effort: a concurrent DAO access could lazily reopen Room mid-restore; that race
-        // is pre-existing and bounded by the user driving a deliberate, near-idle restore.)
-        if (config.items.contains(S3Config.BackupItem.DATABASE)) {
-            runCatching { appDatabase.close() }
-                .onFailure { AppLog.w(TAG, "restoreFromBackupFile: appDatabase.close() before restore failed", it) }
-            // 覆盖前留后路：万一协调/迁移出问题，还能人工把 .pre-restore-backup 换回去
-            ImportedDatabaseReconciler.backupBeforeRestore(context)
-        }
+        // Do not replace a live database in this process. Database members are validated in a
+        // private staging directory and installed by Application before Room starts next launch.
+        var databaseStage: File? = null
+        fun stage(): File = databaseStage ?: PendingDatabaseRestore.createStage(context).also { databaseStage = it }
 
         ZipInputStream(FileInputStream(backupFile)).use { zipIn ->
             var entry: ZipEntry?
@@ -285,7 +261,7 @@ class S3Sync(
                             try {
                                 val migratedJson = SettingsJsonMigrator.migrate(settingsJson)
                                 val settings = json.decodeFromString<Settings>(migratedJson)
-                                settingsStore.replaceSettings(settings)
+                                PendingDatabaseRestore.stageSettings(context, stage(), settings)
                                 AppLog.i(TAG, "restoreFromBackupFile: Settings restored successfully")
                             } catch (e: CancellationException) {
                                 throw e
@@ -297,40 +273,7 @@ class S3Sync(
 
                         "rikka_hub.db", "rikka_hub-wal", "rikka_hub-shm" -> {
                             if (config.items.contains(S3Config.BackupItem.DATABASE)) {
-                                val dbFile = when (zipEntry.name) {
-                                    "rikka_hub.db" -> context.getDatabasePath("rikka_hub")
-                                    "rikka_hub-wal" -> File(
-                                        context.getDatabasePath("rikka_hub").parentFile,
-                                        "rikka_hub-wal"
-                                    )
-
-                                    "rikka_hub-shm" -> File(
-                                        context.getDatabasePath("rikka_hub").parentFile,
-                                        "rikka_hub-shm"
-                                    )
-
-                                    else -> null
-                                }
-
-                                dbFile?.let { targetFile ->
-                                    AppLog.i(
-                                        TAG,
-                                        "restoreFromBackupFile: Restoring ${zipEntry.name} to ${targetFile.absolutePath}"
-                                    )
-                                    extractEntryAtomically(zipIn, targetFile)
-                                    when (zipEntry.name) {
-                                        "rikka_hub-wal" -> restoredWal = true
-                                        "rikka_hub-shm" -> restoredShm = true
-                                    }
-                                    when (zipEntry.name) {
-                                        "rikka_hub-wal" -> restoredWal = true
-                                        "rikka_hub-shm" -> restoredShm = true
-                                    }
-                                    AppLog.i(
-                                        TAG,
-                                        "restoreFromBackupFile: Restored ${zipEntry.name} (${targetFile.length()} bytes)"
-                                    )
-                                }
+                                PendingDatabaseRestore.extractEntry(stage(), zipEntry.name, zipIn)
                             }
                         }
 
@@ -339,20 +282,22 @@ class S3Sync(
                             val folder = zipEntry.name.substringBefore('/', "")
                             when (folder) {
                                 FileFolders.AVATARS -> if (config.wants(S3Config.BackupItem.AVATARS)) {
-                                    restoreFolderEntry(zipIn, zipEntry, FileFolders.AVATARS)
+                                    if (zipEntry.name.removePrefix("${FileFolders.AVATARS}/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                                 } else skipEntry(zipEntry)
 
                                 FileFolders.UPLOAD -> if (config.wants(S3Config.BackupItem.CHAT_FILES)) {
-                                    restoreFolderEntry(zipIn, zipEntry, FileFolders.UPLOAD)
+                                    if (zipEntry.name.removePrefix("${FileFolders.UPLOAD}/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                                 } else skipEntry(zipEntry)
 
                                 FileFolders.SKILLS -> if (config.wants(S3Config.BackupItem.SKILLS)) {
-                                    restoreSkillEntry(zipIn, zipEntry.name)
+                                    PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                                 } else skipEntry(zipEntry)
+
+                                FileFolders.MEDIA_CREATION -> PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
 
                                 FileFolders.FONTS, FileFolders.IMAGES ->
                                     if (config.wants(S3Config.BackupItem.FONTS_IMAGES)) {
-                                        restoreFolderEntry(zipIn, zipEntry, folder)
+                                        if (zipEntry.name.removePrefix("$folder/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                                     } else skipEntry(zipEntry)
 
                                 else -> skipEntry(zipEntry)
@@ -365,52 +310,17 @@ class S3Sync(
             }
         }
 
-        // A backup exported from the base app lacks app-specific tables; reconcile the
-        // restored file before Room opens it so the import doesn't crash on first launch.
-        if (config.items.contains(S3Config.BackupItem.DATABASE)) {
-            // appDatabase was already closed before the zip loop (see top of this function), so
-            // the delete + reconcile below run with no live writer attached.
-            val dbDir = context.getDatabasePath("rikka_hub").parentFile
-            if (dbDir != null) {
-                if (!restoredWal) File(dbDir, "rikka_hub-wal").delete()
-                if (!restoredShm) File(dbDir, "rikka_hub-shm").delete()
+        @Suppress("TooGenericExceptionCaught") // 发布失败要清理 stage 后原样重抛，底层异常类型不可枚举
+        databaseStage?.let { stage ->
+            try {
+                PendingDatabaseRestore.publish(context, stage)
+            } catch (failure: Throwable) {
+                stage.deleteRecursively()
+                throw failure
             }
-            ImportedDatabaseReconciler.reconcile(context)
         }
 
         AppLog.i(TAG, "restoreFromBackupFile: Restore completed successfully")
-    }
-
-    /**
-     * Extract one zip entry to [targetFile] atomically: write to a temp file in the SAME
-     * directory, then rename over the target. Used for rikka_hub.db/-wal/-shm, which used to
-     * be written straight to their live path: a process kill mid-copy left a torn database
-     * file; a rename is atomic on the same filesystem.
-     */
-    private fun extractEntryAtomically(zipIn: ZipInputStream, targetFile: File) {
-        targetFile.parentFile?.mkdirs()
-        val tmp = File(targetFile.parentFile, "${targetFile.name}.restore-${System.nanoTime()}")
-        try {
-            FileOutputStream(tmp).use { outputStream ->
-                zipIn.copyTo(outputStream)
-            }
-            replaceFilePreservingTarget(tmp, targetFile)
-        } catch (e: Throwable) {
-            tmp.delete()
-            throw e
-        }
-    }
-
-    private fun checkpointDatabase() {
-        try {
-            appDatabase.openHelper.writableDatabase
-                .query("PRAGMA wal_checkpoint(TRUNCATE)").use { it.moveToFirst() }
-            AppLog.i(TAG, "checkpointDatabase: WAL checkpoint(TRUNCATE) done")
-        } catch (e: Exception) {
-            // Non-fatal: the -wal/-shm files are still copied below, so no committed data
-            // is lost — the snapshot just isn't guaranteed torn-free for this run.
-            AppLog.w(TAG, "checkpointDatabase: WAL checkpoint failed; copying db+wal+shm as-is", e)
-        }
     }
 
     private fun addFileToZip(zipOut: ZipOutputStream, file: File, entryName: String) {
@@ -430,6 +340,7 @@ class S3Sync(
         entryPrefix: String,
     ) {
         currentDir.listFiles()?.forEach { file ->
+            if (!RestoreFileTransaction.isSafeTreeEntry(rootDir, file)) return@forEach
             if (file.isDirectory) {
                 addDirectoryToZip(
                     zipOut = zipOut,
@@ -471,6 +382,7 @@ class S3Sync(
             return
         }
         AppLog.i(TAG, "addFolderRecursiveToZip: Backing up $folder from ${dir.absolutePath}")
+        if (!RestoreFileTransaction.isSafeTreeEntry(dir, dir)) return
         addDirectoryToZip(
             zipOut = zipOut,
             rootDir = dir,
@@ -556,3 +468,7 @@ data class S3BackupItem(
     val size: Long,
     val lastModified: Instant,
 )
+
+/** 未勾选的备份项或嵌套目录条目：不解包，遍历由下一次 nextEntry 推进。 */
+@Suppress("UNUSED_PARAMETER")
+private fun skipEntry(entry: ZipEntry) = Unit

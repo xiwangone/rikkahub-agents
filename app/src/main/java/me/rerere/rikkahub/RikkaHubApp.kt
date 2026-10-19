@@ -48,6 +48,7 @@ import org.koin.core.context.startKoin
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.ImportedDatabaseReconciler
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.data.sync.PendingDatabaseRestore
 
 private const val TAG = "RikkaHubApp"
 
@@ -58,6 +59,15 @@ const val MEDIA_CREATION_NOTIFICATION_CHANNEL_ID = "media_creation"
 
 class RikkaHubApp : Application() {
     private val appStartElapsedMs = android.os.SystemClock.elapsedRealtime()
+    private var pendingRestoreInstalled = false
+
+    override fun attachBaseContext(base: android.content.Context) {
+        super.attachBaseContext(base)
+        // Application attachment precedes app ContentProvider.onCreate and Application.onCreate.
+        // Install before either providers or Koin/Room/SettingsStore can touch the database.
+        // Do not catch failures: a failed rollback must prevent this process from starting.
+        pendingRestoreInstalled = PendingDatabaseRestore.applyAtStartup(this)
+    }
 
     companion object {
         /** 进程启动时刻（elapsedRealtime），供诊断 perf kind 读取运行时长 */
@@ -105,7 +115,9 @@ class RikkaHubApp : Application() {
         }.onFailure { t ->
             AppLog.w("RikkaHubApp", "startup: database failed to open", t)
             ImportedDatabaseReconciler.recoverFromUnopenableDatabase(this)
+            if (pendingRestoreInstalled) throw t
         }
+        if (pendingRestoreInstalled) PendingDatabaseRestore.confirmStartup(this)
 
         // Resume durable media tasks after Room and its migrations are available.
         get<me.rerere.rikkahub.service.MediaCreationService>().resumePending()
