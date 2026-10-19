@@ -33,6 +33,14 @@ private const val TAG = "RemoteFileStore"
  * 远程对象只是缓存，本地文件始终是源：key 由文件内容的 SHA-256 决定，相同内容不会重复上传；
  * 调用方不应持久化返回的地址，需要时重新调用 [upload] 即可。超过 [RETENTION] 的对象会被清扫删除。
  */
+/** 没写协议的上传地址一律补 https，避免签出的地址落到 http。 */
+private fun S3Config.withHttpsByDefault(): S3Config =
+    if (endpoint.isBlank() || endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
+        this
+    } else {
+        copy(endpoint = "https://$endpoint")
+    }
+
 class RemoteFileStore internal constructor(
     private val scope: CoroutineScope,
     private val config: () -> S3Config,

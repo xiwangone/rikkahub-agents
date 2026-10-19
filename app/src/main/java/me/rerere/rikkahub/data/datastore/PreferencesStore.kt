@@ -1003,6 +1003,9 @@ data class Settings(
     val backendConnections: List<me.rerere.rikkahub.data.model.BackendConnection> = emptyList(),
     val fastModelId: Uuid = Uuid.random(),    val titleModelId: Uuid? = null,
     val imageGenerationModelId: Uuid = Uuid.random(),
+    /** 媒体创作产物的远端上传配置（与备份用的 S3 配置互相独立） */
+    val uploadS3Config: me.rerere.rikkahub.data.sync.s3.S3Config =
+        me.rerere.rikkahub.data.sync.s3.S3Config(),
     val titlePrompt: String = DEFAULT_TITLE_PROMPT,
     val translateModeId: Uuid = Uuid.random(),
     val translatePrompt: String = DEFAULT_TRANSLATION_PROMPT,
