@@ -42,6 +42,10 @@ import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.db.entity.CompressedArchiveEntity
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.db.dao.MediaCreationDAO
+import me.rerere.rikkahub.data.db.entity.MediaCreationNodeEntity
+import me.rerere.rikkahub.data.db.entity.MediaCreationRecordEntity
+import me.rerere.rikkahub.data.db.entity.MediaCreationSessionEntity
 import me.rerere.rikkahub.data.db.migrations.Migration_16_17
 import me.rerere.rikkahub.data.db.migrations.Migration_20_21
 import me.rerere.rikkahub.data.db.migrations.Migration_21_22
@@ -75,8 +79,11 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         VaultAuditLogEntity::class,
         CompressedArchiveEntity::class,
         TranslationHistoryEntity::class,
+        MediaCreationSessionEntity::class,
+        MediaCreationNodeEntity::class,
+        MediaCreationRecordEntity::class,
     ],
-    version = 45,
+    version = 46,
     autoMigrations = [
         AutoMigration(from = 1, to = 2),
         AutoMigration(from = 2, to = 3),
@@ -183,6 +190,8 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun compressedArchiveDao(): CompressedArchiveDao
 
     abstract fun translationHistoryDao(): TranslationHistoryDao
+
+    abstract fun mediaCreationDao(): MediaCreationDAO
 }
 
 object TokenUsageConverter {

@@ -69,6 +69,22 @@ object SettingCatalog {
     val entries: List<SettingEntry> =
         listOf(
         SettingEntry(
+        id = "media_generation",
+        group = SettingGroup.MODEL,
+        icon = HugeIcons.Image02,
+        titleRes = R.string.media_creation_title,
+        descRes = R.string.media_creation_title,
+        screen = Screen.MediaCreationSessions,
+    ),
+    SettingEntry(
+        id = "media",
+        group = SettingGroup.CONNECTION,
+        icon = HugeIcons.Image02,
+        titleRes = R.string.setting_page_media,
+        descRes = R.string.setting_page_media,
+        screen = Screen.SettingMedia,
+    ),
+    SettingEntry(
             id = "preferences",
             group = SettingGroup.GENERAL,
             icon = HugeIcons.Settings03,

@@ -16,6 +16,7 @@ import me.rerere.rikkahub.data.repository.TelegramChatRepository
 import me.rerere.rikkahub.data.telegram.TelegramBotClient
 import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.service.MediaCreationService
 import me.rerere.rikkahub.service.CronJobScheduler
 import me.rerere.rikkahub.service.debug.DebugApiManager
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalSessionManager
@@ -30,6 +31,8 @@ import org.koin.dsl.module
 
 val appModule =
     module {
+    single { me.rerere.rikkahub.data.files.RemoteFileStore(get(), get(), get()) }
+
         single<Json> { JsonInstant }
         // com.google.gson.JsonParser：供 Gemini OAuth 等历史兼容代码路径解析（防御性注册，防
         // NoDefinitionFoundException；依赖声明见 app/build.gradle.kts implementation(libs.gson)）。
@@ -338,6 +341,12 @@ val appModule =
             )
         }
 
+        single {
+            MediaCreationService(
+                context = get(), appScope = get(), settingsStore = get(), repository = get(),
+                manager = get(), remoteFileStore = get(), okHttpClient = get(),
+            )
+        }
         single {
             ChatService(
                 context = get(),

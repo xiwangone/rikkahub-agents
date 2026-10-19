@@ -106,6 +106,8 @@ class RikkaHubApp : Application() {
             ImportedDatabaseReconciler.recoverFromUnopenableDatabase(this)
         }
 
+        // Resume durable media tasks after Room and its migrations are available.
+        get<me.rerere.rikkahub.service.MediaCreationService>().resumePending()
         // Restore any headless conversation IDs that survived a process kill; must run
         // before any cron worker fires so mark/unmark are consistent.
         HeadlessConversations.init(this)

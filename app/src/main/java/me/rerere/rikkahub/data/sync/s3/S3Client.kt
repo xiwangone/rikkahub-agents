@@ -23,6 +23,7 @@ import java.io.StringReader
 import java.security.MessageDigest
 import java.time.Instant
 import me.rerere.rikkahub.data.log.AppLog
+import kotlin.time.Duration
 
 private const val TAG = "S3Client"
 
@@ -299,6 +300,17 @@ class S3Client(
         }
     }
 
+    /**
+     * 带签名的临时下载地址，桶不需要公开读取。[expires] 最长 7 天。
+     */
+    fun presignGetUrl(key: String, expires: Duration): String {
+        return AwsSignatureV4.presignGetUrl(
+            config = config,
+            path = "/${key.trimStart('/')}",
+            expires = expires,
+        )
+    }
+
     private fun File.sha256Hex(): String {
         val digest = MessageDigest.getInstance("SHA-256")
         inputStream().buffered().use { input ->
@@ -421,6 +433,8 @@ class S3Client(
             keyCount = if (keyCount > 0) keyCount else objects.size,
         )
     }
+
+
 }
 
 data class S3Object(

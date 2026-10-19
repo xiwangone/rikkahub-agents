@@ -38,6 +38,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.rikkahub.subagent.SubAgentProfile
 import me.rerere.rikkahub.AppScope
 import me.rerere.ai.core.TokenUsage
@@ -160,6 +161,7 @@ class SettingsStore(
 
         // 提供商
         val PROVIDERS = stringPreferencesKey("providers")
+        val MEDIA_GENERATION_PROVIDERS = stringPreferencesKey("media_generation_providers")
         // IDs of built-in providers the user explicitly deleted; the re-seed pass
         // skips these so deletions are sticky across app restarts.
         val DELETED_BUILTIN_PROVIDER_IDS = stringPreferencesKey("deleted_builtin_provider_ids")
@@ -317,6 +319,7 @@ class SettingsStore(
                 assistantId = parseUuidPrefOrNull(preferences[SELECT_ASSISTANT])
                     ?: DEFAULT_ASSISTANT_ID,
                 assistantTags = decodePrefOrDefault(preferences[ASSISTANT_TAGS], emptyList()),
+                mediaGenerationProviders = decodePrefOrDefault(preferences[MEDIA_GENERATION_PROVIDERS], emptyList()),
                 providers = decodeProvidersTolerant(
                     preferences[PROVIDERS]?.let { raw ->
                         // P0 凭证加密：providers 含 apiKey 等，落盘为 AES-GCM 密文。
@@ -683,6 +686,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
 
             // P0 凭证加密：providers 含 apiKey / 服务账号私钥等凭证，以 AES-GCM 密文入库，
             // 明文 JSON 不再落盘（密钥在 AndroidKeyStore，随应用卸载清除）。
+            preferences[MEDIA_GENERATION_PROVIDERS] = encryptPrefValue(JsonInstant.encodeToString(settings.mediaGenerationProviders))
             preferences[PROVIDERS] = ProviderCredentialCipher.encrypt(
                 JsonInstant.encodeToString(settings.providers)
             )
@@ -1047,6 +1051,7 @@ data class Settings(
     val toolOutputCompactMaxChars: Int = 2 * 1000,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
+    val mediaGenerationProviders: List<MediaGenerationProviderSetting> = emptyList(),
     /**
      * IDs of built-in providers the user explicitly removed via long-press. The re-seed
      * pass on settings load skips these so deletions stick across app restarts. Without
