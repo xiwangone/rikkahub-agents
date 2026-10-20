@@ -504,7 +504,7 @@ class SettingsStore(
                 assistantId = parseUuidPrefOrNull(preferences[SELECT_ASSISTANT])
                     ?: DEFAULT_ASSISTANT_ID,
                 assistantTags = decodePrefOrDefault(preferences[ASSISTANT_TAGS], emptyList()),
-                mediaGenerationProviders = decodePrefOrDefault(preferences[MEDIA_GENERATION_PROVIDERS], emptyList()),
+                mediaGenerationProviders = decodeEncryptedPrefOrDefault(preferences[MEDIA_GENERATION_PROVIDERS], emptyList()),
                 providers = decodeProvidersTolerant(
                     preferences[PROVIDERS]?.let { raw ->
                         // P0 凭证加密：providers 含 apiKey 等，落盘为 AES-GCM 密文。
