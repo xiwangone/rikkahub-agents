@@ -1733,8 +1733,8 @@ private fun sortWorkspaceEntries(
     val nameThen = compareBy<WorkspaceFileEntry> { it.name.lowercase() }
     val primary: Comparator<WorkspaceFileEntry> = when (sortBy) {
         WorkspaceFileSortBy.NAME -> nameThen
-        WorkspaceFileSortBy.MODIFIED -> compareBy<WorkspaceFileEntry>({ it.updatedAt }).thenComparator(nameThen)
-        WorkspaceFileSortBy.SIZE -> compareBy<WorkspaceFileEntry>({ it.sizeBytes }).thenComparator(nameThen)
+        WorkspaceFileSortBy.MODIFIED -> compareBy<WorkspaceFileEntry>({ it.updatedAt }).then(nameThen)
+        WorkspaceFileSortBy.SIZE -> compareBy<WorkspaceFileEntry>({ it.sizeBytes }).then(nameThen)
     }
     val ordered = if (ascending) primary else primary.reversed()
     return entries.sortedWith(compareBy<WorkspaceFileEntry>({ !it.isDirectory }).thenComparator(ordered))

@@ -114,7 +114,7 @@ fun ProviderConfigure(
                                 count = ProviderSetting.Types.size,
                             ),
                         label = {
-                            Text(type.typeName())
+                            Text(providerTypeName(type))
                         },
                         selected = provider::class == type,
                         onClick = { onEdit(provider.convertTo(type)) },
@@ -175,8 +175,8 @@ fun ProviderConfigure(
 // 故把我方现有 10 个类型逐条列出；将来新增类型未列时退回 simpleName，与改动前行为一致。
 // 订阅型（走 OAuth 登录、不需要 API key）显示成「<类型名> 订阅」。
 @Composable
-internal fun KClass<out ProviderSetting>.typeName(): String =
-    when (this) {
+internal fun providerTypeName(type: KClass<out ProviderSetting>): String =
+    when (type) {
         ProviderSetting.OpenAI::class -> "OpenAI"
         ProviderSetting.Google::class -> "Google"
         ProviderSetting.Claude::class -> "Claude"
@@ -188,7 +188,7 @@ internal fun KClass<out ProviderSetting>.typeName(): String =
         ProviderSetting.AICore::class -> "AICore"
         ProviderSetting.LiteRtLocal::class -> "LiteRtLocal"
         ProviderSetting.LlamaCppLocal::class -> "LlamaCppLocal"
-        else -> this.simpleName ?: ""
+        else -> type.simpleName ?: ""
     }
 
 fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSetting {

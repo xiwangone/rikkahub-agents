@@ -94,7 +94,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderRequirement
-import me.rerere.rikkahub.ui.pages.setting.components.typeName
+import me.rerere.rikkahub.ui.pages.setting.components.providerTypeName
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.ImageUtils
 import me.rerere.rikkahub.utils.plus
@@ -550,7 +550,7 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
             ProviderSetting.Types.forEach { type ->
                 DropdownMenuItem(
                     text = {
-                        Text(type.typeName()),
+                        Text(providerTypeName(type)),
                     },
                     onClick = {
                         showTypeMenu = false
