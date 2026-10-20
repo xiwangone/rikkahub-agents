@@ -66,7 +66,6 @@ import me.rerere.search.SearchServiceOptions
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
-import kotlin.reflect.full.primaryConstructor
 
 @Composable
 fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
@@ -258,8 +257,7 @@ private fun AddProviderDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    val instance = selectedType.primaryConstructor!!.callBy(mapOf())
-                    onConfirm(instance)
+                    onConfirm(SearchServiceOptions.create(selectedType))
                 },
             ) {
                 Text(stringResource(R.string.confirm))

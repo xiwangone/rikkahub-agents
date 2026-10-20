@@ -17,6 +17,7 @@ import okhttp3.internal.closeQuietly
 import okio.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resumeWithException
+import kotlin.reflect.KClass
 import kotlin.uuid.Uuid
 
 interface SearchService<T : SearchServiceOptions> {
@@ -180,8 +181,44 @@ sealed class SearchServiceOptions {
     companion object {
         val DEFAULT = DuckDuckGoOptions()
 
+        /**
+         * 按类型创建实例。
+         *
+         * 不用 `primaryConstructor.callBy()`：它依赖运行时反射读的类元数据，在收缩/混淆后的发行包里不可靠，
+         * 且 `callBy` 不会处理默认参数。这里逐个列出，新增类型时必须同步加一行。
+         */
+        // 每个分支是一次类型映射，线性穷举、无嵌套；拆成多组反而会把“哪个类型归哪组”变成隐式约定，
+        // 新增类型时更容易漏，故保持单层 when.
+        @Suppress("CyclomaticComplexMethod")
+        fun create(type: KClass<out SearchServiceOptions>): SearchServiceOptions =
+            when (type) {
+                DuckDuckGoOptions::class -> DuckDuckGoOptions()
+                BingLocalOptions::class -> BingLocalOptions()
+                RikkaHubOptions::class -> RikkaHubOptions()
+                ZhipuOptions::class -> ZhipuOptions()
+                DoubaoOptions::class -> DoubaoOptions()
+                TavilyOptions::class -> TavilyOptions()
+                ExaOptions::class -> ExaOptions()
+                SearXNGOptions::class -> SearXNGOptions()
+                LinkUpOptions::class -> LinkUpOptions()
+                BraveOptions::class -> BraveOptions()
+                MetasoOptions::class -> MetasoOptions()
+                OllamaOptions::class -> OllamaOptions()
+                PerplexityOptions::class -> PerplexityOptions()
+                FirecrawlOptions::class -> FirecrawlOptions()
+                JinaOptions::class -> JinaOptions()
+                BochaOptions::class -> BochaOptions()
+                GrokOptions::class -> GrokOptions()
+                TinyfishOptions::class -> TinyfishOptions()
+                SerperOptions::class -> SerperOptions()
+                DeepSeekOptions::class -> DeepSeekOptions()
+                CustomJsOptions::class -> CustomJsOptions()
+                else -> DEFAULT
+            }
+
         val TYPES =
             mapOf(
+                DuckDuckGoOptions::class to "DuckDuckGo",
                 BingLocalOptions::class to "Bing",
                 RikkaHubOptions::class to "RikkaHub",
                 ZhipuOptions::class to "智谱",
