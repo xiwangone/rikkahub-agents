@@ -38,6 +38,7 @@ import me.rerere.ai.provider.providers.backend.SessionPathStore
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.data.db.AppDatabase
+import me.rerere.rikkahub.data.db.DatabaseVersionGuard
 import me.rerere.rikkahub.data.db.fts.MessageFtsManager
 import me.rerere.rikkahub.data.db.fts.SimpleDictManager
 import me.rerere.rikkahub.data.db.migrations.Migration_11_12
@@ -88,6 +89,8 @@ val dataSourceModule =
 
         single {
             val context: Context = get()
+            // 结构版本变化前先给库留快照：回滚到旧版本时才有原始数据可恢复
+            DatabaseVersionGuard.beforeOpen(context, AppDatabase.VERSION)
             Room
                 .databaseBuilder(context, AppDatabase::class.java, "rikka_hub")
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
