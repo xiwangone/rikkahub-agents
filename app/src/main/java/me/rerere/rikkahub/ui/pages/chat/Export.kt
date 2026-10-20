@@ -237,21 +237,23 @@ fun ChatExportSheet(
 
                         HorizontalDivider()
 
-                        ListItem(
-                            headlineContent = {
-                                Text(
-                                    stringResource(R.string.chat_page_export_image_expand_reasoning),
-                                )
-                            },
-                            trailingContent = {
-                                Switch(
-                                    checked = imageExportOptions.expandReasoning,
-                                    onCheckedChange = {
-                                        imageExportOptions = imageExportOptions.copy(expandReasoning = it)
-                                    },
-                                )
-                            },
-                        )
+                        if (includeReasoning) {
+                            ListItem(
+                                headlineContent = {
+                                    Text(
+                                        stringResource(R.string.chat_page_export_image_expand_reasoning),
+                                    )
+                                },
+                                trailingContent = {
+                                    Switch(
+                                        checked = imageExportOptions.expandReasoning,
+                                        onCheckedChange = {
+                                            imageExportOptions = imageExportOptions.copy(expandReasoning = it)
+                                        },
+                                    )
+                                },
+                            )
+                        }
 
                         Row(
                             modifier =
