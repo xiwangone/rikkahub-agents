@@ -2492,7 +2492,7 @@
   <string name="auto_task_desc">Set up auto tasks; the app automatically sends a message to keep the conversation going when the conditions are met.</string>
   <string name="auto_task_reply_label">Reply content</string>
   <string name="auto_task_reply_placeholder">Auto task mode. Think autonomously and execute what needs to be done.</string>
-  <string name="auto_task_default_message">[Auto task] The user has stepped away. Review the current context on your own and advance the most valuable unfinished items; do not ask the user questions (no one will answer), and do not invent tasks; if nothing is urgent, give a brief report and stand by.</string>
+  <string name="auto_task_default_message">[Auto task] Continue the most recent unfinished item in this context. When a choice is needed, proceed on the most reasonable assumption and state that assumption at the end. Report briefly once done.</string>
   <string name="setting_page_ssh_hosts">SSH hosts</string>
   <string name="setting_page_backend_service">Backend services</string>
   <string name="setting_page_backend_service_desc">Backend / ECS / PC execution backends</string>

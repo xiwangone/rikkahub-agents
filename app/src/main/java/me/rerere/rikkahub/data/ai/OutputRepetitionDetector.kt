@@ -51,7 +51,13 @@ internal class OutputRepetitionDetector(
         }
 
         sinceLastCheck += delta.length
-        val enoughText = buffer.length >= maxPeriod * minRepeats
+        // Gate on the *smallest* candidate span, not the largest. hasRunawayTail already skips
+        // every period whose span exceeds the buffer (`if (length < span) continue`), so testing
+        // is never done against a span the buffer cannot supply — `maxPeriod * minRepeats` here
+        // only postponed the first possible check from ~200 chars (minCheckIntervalChars, the
+        // other half of this AND) to 800 chars. A short-period loop starting at char 300 ran
+        // unchecked through char 800.
+        val enoughText = buffer.length >= minPeriod * minRepeats
         if (!enoughText || sinceLastCheck < minCheckIntervalChars) return false
         sinceLastCheck = 0
 

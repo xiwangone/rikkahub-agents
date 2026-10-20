@@ -2468,7 +2468,7 @@
   <string name="auto_task_desc">设置自动任务，满足条件时 App 自动发送消息保持对话推进，无需手动操作。</string>
   <string name="auto_task_reply_label">回复内容</string>
   <string name="auto_task_reply_placeholder">自动任务中。自主判断并执行当前需要做什么。</string>
-  <string name="auto_task_default_message">【自动任务】用户暂时离开。请自主回顾当前上下文，推进最有价值的未竟事项；不要向用户提问（无人应答），也不要虚构任务；若无要紧事，简短汇报后待机。</string>
+  <string name="auto_task_default_message">【自动任务】继续推进上下文里最近一件未完成的事；需要抉择时按最合理的假设继续，并在结尾写明该假设；完成后简短汇报。</string>
   <string name="setting_page_ssh_hosts">SSH 主机</string>
   <string name="setting_page_backend_service">后端服务</string>
   <string name="setting_page_backend_service_desc">本地 / SSH / 自建执行后端</string>

@@ -50,6 +50,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.StreamChunkHandler
+import me.rerere.ai.ui.ReasoningType
 import me.rerere.ai.ui.handleTextGenerationResult
 import me.rerere.ai.ui.limitContext
 import me.rerere.ai.ui.mergeApprovalProgress
@@ -1555,7 +1556,30 @@ class GenerationLoop(
             var receivedMeaningfulOutput = false
             var receivedAnyChunk = false
             val streamChunkHandler = StreamChunkHandler(model)
-            val repetitionDetector = OutputRepetitionDetector()
+            // Three buffers, two profiles — see OutputRepetitionDetector for the period maths.
+            //  - One buffer per stream kind, so each stream is judged on its own shape. Strict
+            //    alternation of two fixed segments stays periodic (at the combined period) and
+            //    would be caught either way; what a shared buffer loses is *irregular*
+            //    interleaving, where one stream's varying-length deltas shift the other's repeat
+            //    boundaries out of phase. How often that happens is provider-cadence dependent
+            //    and unmeasured here.
+            //  - reasoning gets the lower floor: the default profile needs minRepeats full copies
+            //    of some candidate period >= minPeriod, so a short loop the model breaks out of
+            //    early (under ~50-70 chars) never satisfies it, while 8/3 fires on a third of
+            //    that run.
+            //  - reasoning also gets a shorter check interval: the guard only *looks* every
+            //    minCheckIntervalChars, so that number is its reaction latency, independent of
+            //    the period floor.
+            //  - text and summary share the conservative profile (reply prose legitimately repeats
+            //    short segments — table rows, list items, code templates; provider reasoning
+            //    summaries are legitimately terse and repetitive), but not the same buffer.
+            val textRepetitionDetector = OutputRepetitionDetector()
+            val summaryRepetitionDetector = OutputRepetitionDetector()
+            val reasoningRepetitionDetector = OutputRepetitionDetector(
+                minPeriod = 8,
+                minRepeats = 3,
+                minCheckIntervalChars = 48,
+            )
             val streamStartedAtMs = System.currentTimeMillis()
             // 流式分块累积：每个 delta 都做字符串拼接与全量投递，长回复下是 O(n²)；
             // 这里按窗口合并后**保序**应用，并在流终止（正常/异常/取消）时补齐最后一批，
@@ -1637,8 +1661,23 @@ class GenerationLoop(
                         is StreamChunk.ReasoningDelta -> chunk.text
                         else -> null
                     }
-                if (deltaText != null && repetitionDetector.feed(deltaText)) {
-                    AppLog.w(TAG, "streamText: runaway repetition detected; ending this turn's stream early")
+                val detector: OutputRepetitionDetector? =
+                    when (chunk) {
+                        is StreamChunk.TextDelta -> textRepetitionDetector
+                        is StreamChunk.ReasoningDelta ->
+                            if (chunk.reasoningType == ReasoningType.SUMMARY_TEXT) summaryRepetitionDetector
+                            else reasoningRepetitionDetector
+                        else -> null
+                    }
+                if (deltaText != null && detector != null && detector.feed(deltaText)) {
+                    // Which stream tripped it is the one piece of attribution the caller cannot
+                    // recover afterwards (all three end the stream the same way), so it goes in the log.
+                    val streamKind = when (detector) {
+                        reasoningRepetitionDetector -> "reasoning"
+                        summaryRepetitionDetector -> "summary"
+                        else -> "text"
+                    }
+                    AppLog.w(TAG, "streamText: runaway repetition detected in $streamKind stream; ending this turn's stream early")
                     false
                 } else {
                     true

@@ -2553,7 +2553,7 @@
     <string name="vault_sort_updated">最近更新</string>
     <string name="vault_sort_created">最近新增</string>
     <string name="vault_sort_name">名稱</string>
-    <string name="auto_task_default_message">【自動任務】用戶暫時離開。請自主回顧當前上下文，推進最有價值的未竟事項；不要向用戶提問（無人應答），也不要虛構任務；若無要緊事，簡短匯報後待機。</string>
+    <string name="auto_task_default_message">【自動任務】繼續推進上下文裡最近一件未完成的事；需要抉擇時按最合理的假設繼續，並在結尾寫明該假設；完成後簡短匯報。</string>
     <string name="setting_page_ssh_hosts">SSH 主機</string>
     <string name="setting_page_backend_service">後端服務</string>
     <string name="setting_page_backend_service_desc">本地 / SSH / 自建執行後端</string>

@@ -2967,7 +2967,7 @@
   <string name="auto_task_desc">자동 작업을 설정하면 조건을 충족할 때 앱이 자동으로 메시지를 보내 대화를 이어갑니다.</string>
   <string name="auto_task_reply_label">응답 내용</string>
   <string name="auto_task_reply_placeholder">자동 작업 중. 지금 필요한 일을 스스로 판단해 실행합니다.</string>
-  <string name="auto_task_default_message">【자동 작업】사용자가 잠시 자리를 비웠습니다. 현재 맥락을 스스로 되짚어 가장 가치 있는 미완료 항목을 진행하세요. 사용자에게 질문하지 마세요(응답자가 없습니다). 작업을 지어내지도 마세요. 급한 일이 없으면 간략히 보고하고 대기하세요.</string>
+  <string name="auto_task_default_message">【자동 작업】맥락에서 가장 최근 미완료 항목부터 계속 진행하세요. 판단이 필요하면 가장 합리적인 가정으로 진행하고, 그 가정을 마지막에 명시하세요. 완료되면 간략히 보고하세요.</string>
   <string name="setting_page_ssh_hosts">SSH 호스트</string>
   <string name="setting_page_backend_service">백엔드 서비스</string>
   <string name="setting_page_backend_service_desc">로컬 / SSH / 자체 실행 백엔드</string>

@@ -2600,7 +2600,7 @@
   <string name="auto_task_desc">عيّن مهمة تلقائية ليرسل التطبيق الرسائل تلقائيًا عند تحقق الشرط، فيستمر الحوار دون تدخل يدوي.</string>
   <string name="auto_task_reply_label">محتوى الرد</string>
   <string name="auto_task_reply_placeholder">في مهمة تلقائية. حدّد ما يلزم الآن ونفّذه باستقلالية.</string>
-  <string name="auto_task_default_message">[مهمة تلقائية] المستخدم غائب مؤقتًا. راجع السياق الحالي بنفسك وقدّم أهم الأمور غير المكتملة؛ لا تسأل المستخدم (لن يرد أحد)، ولا تختلق مهام؛ إذا لم يكن هناك ما يستعجل، فأبلغ بإيجاز ثم انتظر.</string>
+  <string name="auto_task_default_message">[مهمة تلقائية] واصل أحدث بند غير مكتمل في السياق الحالي. إذا لزم الاختيار، امضِ بناءً على أكثر الافتراضات معقولية واذكر هذا الافتراض في النهاية. عند الانتهاء أبلغ بإيجاز.</string>
   <string name="setting_page_ssh_hosts">مضيفات SSH</string>
   <string name="setting_page_backend_service">خدمة الواجهة الخلفية</string>
   <string name="setting_page_backend_service_desc">خلفية تنفيذ محلية / SSH / مخصّصة</string>

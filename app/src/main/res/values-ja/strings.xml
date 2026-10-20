@@ -2967,7 +2967,7 @@
   <string name="auto_task_desc">自動タスクを設定すると、条件を満たしたときにアプリが自動でメッセージを送り、手動操作なしで会話を進めます。</string>
   <string name="auto_task_reply_label">返信内容</string>
   <string name="auto_task_reply_placeholder">自動タスク中。今必要なことを自主的に判断して実行します。</string>
-  <string name="auto_task_default_message">【自動タスク】ユーザーは一時的に離席しています。現在の文脈を自主的に振り返り、最も価値のある未完了事項を進めてください。ユーザーに質問してはいけません（応答者はいません）。タスクを作り出してもいけません。緊急の用事がなければ、簡潔に報告して待機してください。</string>
+  <string name="auto_task_default_message">【自動タスク】文脈内で最も近い未完了の項目を続けて進めてください。判断が必要なら最も合理的な仮定で進め、その仮定を末尾に明記してください。完了したら簡潔に報告してください。</string>
   <string name="setting_page_ssh_hosts">SSH ホスト</string>
   <string name="setting_page_backend_service">バックエンドサービス</string>
   <string name="setting_page_backend_service_desc">ローカル / SSH / 自前の実行バックエンド</string>
