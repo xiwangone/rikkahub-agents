@@ -35,7 +35,7 @@ val appModule =
             me.rerere.rikkahub.data.files.RemoteFileStore(
                 get(),
                 get(),
-                get<kotlinx.coroutines.CoroutineScope>(),
+                get<AppScope>(),
             )
         }
 
@@ -347,6 +347,9 @@ val appModule =
             )
         }
 
+        single {
+            me.rerere.mediagen.provider.MediaGenerationManager(client = get())
+        }
         single {
             MediaCreationService(
                 context = get(), appScope = get(), settingsStore = get(), repository = get(),

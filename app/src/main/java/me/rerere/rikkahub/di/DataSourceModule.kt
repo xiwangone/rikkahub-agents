@@ -191,6 +191,10 @@ val dataSourceModule =
         }
 
         single {
+            get<AppDatabase>().mediaCreationDao()
+        }
+
+        single {
             get<AppDatabase>().workspaceDao()
         }
 
