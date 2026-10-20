@@ -33,6 +33,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -162,6 +163,9 @@ fun WorkspaceDetailPage(id: String) {
     val pagerState = rememberPagerState { 2 }
     val scope = rememberCoroutineScope()
     var deleteTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
+    var renameTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
+    var moveTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
+    var showPasteOverwrite by remember { mutableStateOf(false) }
     var showInstallDialog by remember { mutableStateOf(false) }
     val mirrors by vm.mirrors.collectAsStateWithLifecycle()
     var previewImageUri by remember { mutableStateOf<String?>(null) }
@@ -436,6 +440,12 @@ fun WorkspaceDetailPage(id: String) {
                             }
                         },
                         onDelete = { deleteTarget = it },
+                        onCopy = { entry ->
+                            vm.copyToClipboard(entry)
+                            toaster.show(resources.getString(R.string.workspace_detail_clipboard_copied, entry.name))
+                        },
+                        onMove = { moveTarget = it },
+                        onRename = { renameTarget = it },
                         onExportZip = { entry ->
                             exportZipTargets = listOf(entry)
                             exportZipLauncher.launch("${entry.name}.zip")
@@ -489,6 +499,12 @@ fun WorkspaceDetailPage(id: String) {
                                 exportZipLauncher.launch("workspace-selection.zip")
                             }
                         },
+                        clipboard = state.clipboard,
+                        onPaste = { clip ->
+                            // 同名先二次确认（覆盖是危险操作），无冲突直接落盘
+                            if (state.entries.any { it.name == clip.name }) showPasteOverwrite = true else vm.paste(overwrite = false)
+                        },
+                        onClearClipboard = vm::clearClipboard,
                     )
                 }
             }
@@ -604,6 +620,57 @@ fun WorkspaceDetailPage(id: String) {
             onDismiss = { deleteTarget = null },
         ) {
             Text(stringResource(R.string.workspace_detail_will_delete, entry.path))
+        }
+    }
+
+    renameTarget?.let { entry ->
+        WorkspaceRenameDialog(
+            entry = entry,
+            takenNames = state.entries
+                .filter { it.path != entry.path }
+                .mapTo(mutableSetOf()) { it.name },
+            onSubmit = { newName ->
+                vm.rename(entry, newName)
+                renameTarget = null
+            },
+            onDismiss = { renameTarget = null },
+        )
+    }
+
+    moveTarget?.let { entry ->
+        WorkspaceDirectoryPickerDialog(
+            blockedPath = if (entry.isDirectory) entry.path else null,
+            startPath = state.path,
+            onListDirectories = vm::listSubDirectories,
+            onConfirm = { targetDir ->
+                vm.moveEntry(entry, targetDir)
+                moveTarget = null
+            },
+            onDismiss = { moveTarget = null },
+        )
+    }
+
+    state.clipboard?.let { clip ->
+        if (showPasteOverwrite) {
+            RikkaConfirmDialog(
+                show = true,
+                title = stringResource(R.string.workspace_detail_paste_overwrite_title),
+                confirmText = stringResource(R.string.common_confirm),
+                dismissText = stringResource(R.string.common_cancel),
+                onConfirm = {
+                    vm.paste(overwrite = true)
+                    showPasteOverwrite = false
+                },
+                onDismiss = { showPasteOverwrite = false },
+            ) {
+                Text(
+                    stringResource(
+                        R.string.workspace_detail_paste_overwrite_message,
+                        clip.name,
+                        state.path.ifBlank { "/" },
+                    ),
+                )
+            }
         }
     }
 }
@@ -1296,6 +1363,9 @@ private fun WorkspaceFilesPage(
     onResolveImage: suspend (WorkspaceFileEntry, WorkspaceStorageArea) -> File?,
     onOpen: (WorkspaceFileEntry) -> Unit,
     onDelete: (WorkspaceFileEntry) -> Unit,
+    onCopy: (WorkspaceFileEntry) -> Unit,
+    onMove: (WorkspaceFileEntry) -> Unit,
+    onRename: (WorkspaceFileEntry) -> Unit,
     onExport: (WorkspaceFileEntry) -> Unit,
     onExportZip: (WorkspaceFileEntry) -> Unit,
     onCopyPath: (WorkspaceFileEntry, WorkspaceStorageArea) -> Unit,
@@ -1304,6 +1374,9 @@ private fun WorkspaceFilesPage(
     onToggleSelection: (WorkspaceFileEntry) -> Unit,
     onSelectAll: () -> Unit,
     onExportSelection: () -> Unit,
+    clipboard: WorkspaceClipboard?,
+    onPaste: (WorkspaceClipboard) -> Unit,
+    onClearClipboard: () -> Unit,
 ) {
     val currentKeys = state.entries.mapTo(mutableSetOf()) { "${state.area.name}:${it.path}" }
     val selectedCount = selectedPaths.intersect(currentKeys).size
@@ -1332,6 +1405,17 @@ private fun WorkspaceFilesPage(
                 canGoUp = state.path.isNotBlank(),
                 onGoUp = onGoUp,
             )
+        }
+
+        clipboard?.let { clip ->
+            item {
+                WorkspaceClipboardBar(
+                    clip = clip,
+                    targetPath = state.path,
+                    onPaste = { onPaste(clip) },
+                    onClear = onClearClipboard,
+                )
+            }
         }
 
         if (state.entries.isNotEmpty()) {
@@ -1378,6 +1462,9 @@ private fun WorkspaceFilesPage(
                 onResolveImage = { onResolveImage(entry, state.area) },
                 onOpen = { onOpen(entry) },
                 onDelete = { onDelete(entry) },
+                onCopy = { onCopy(entry) },
+                onMove = { onMove(entry) },
+                onRename = { onRename(entry) },
                 onExport = { onExport(entry) },
                 onExportZip = { onExportZip(entry) },
                 onCopyPath = { onCopyPath(entry, state.area) },
@@ -1442,12 +1529,234 @@ private fun WorkspacePathBar(
 }
 
 @Composable
+private fun WorkspaceClipboardBar(
+    clip: WorkspaceClipboard,
+    targetPath: String,
+    onPaste: () -> Unit,
+    onClear: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CustomColors.cardColorsOnSurfaceContainer,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Icon(
+                imageVector = HugeIcons.Clipboard,
+                contentDescription = null,
+                modifier = Modifier.size(20.dp),
+                tint = MaterialTheme.colorScheme.primary,
+            )
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.workspace_detail_clipboard_item, clip.name),
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = stringResource(R.string.workspace_detail_clipboard_target, targetPath.ifBlank { "/" }),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            TextButton(onClick = onClear) {
+                Text(stringResource(R.string.common_cancel))
+            }
+            Button(onClick = onPaste) {
+                Text(stringResource(R.string.workspace_detail_paste))
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkspaceRenameDialog(
+    entry: WorkspaceFileEntry,
+    takenNames: Set<String>,
+    onSubmit: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf(entry.name) }
+    val trimmed = name.trim()
+    val illegal = workspaceIllegalNameChars.any { trimmed.contains(it) }
+    val conflict = trimmed in takenNames
+    val unchanged = trimmed == entry.name
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.common_rename)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.workspace_detail_rename_new_name)) },
+                    singleLine = true,
+                )
+                Text(
+                    text = entry.path,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                when {
+                    illegal -> Text(
+                        text = stringResource(
+                            R.string.workspace_detail_rename_invalid,
+                            workspaceIllegalNameChars.joinToString(" "),
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+
+                    conflict -> Text(
+                        text = stringResource(R.string.workspace_detail_rename_exists, trimmed),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.error,
+                    )
+
+                    unchanged -> Text(
+                        text = stringResource(R.string.workspace_detail_rename_unchanged),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = trimmed.isNotBlank() && !illegal && !conflict && !unchanged,
+                onClick = { onSubmit(trimmed) },
+            ) {
+                Text(stringResource(R.string.common_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
+}
+
+/**
+ * 逐级浏览的目录选择器（移动目标用）。
+ *
+ * 不用现成的递归 tree 接口：那份只服务 LINUX 区（rootfsTree），且受条目上限截断；
+ * 这里要的是「当前区、当前层的子目录」，逐层列目录既准又省。
+ * [blockedPath] 连同其子树一起隐藏 —— 目录不能移进自己里面。
+ */
+@Composable
+private fun WorkspaceDirectoryPickerDialog(
+    blockedPath: String?,
+    startPath: String,
+    onListDirectories: suspend (String) -> List<WorkspaceFileEntry>,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var path by remember { mutableStateOf(startPath) }
+    var children by remember { mutableStateOf<List<WorkspaceFileEntry>?>(null) }
+    LaunchedEffect(path) { children = onListDirectories(path) }
+    val options = children?.filter { child ->
+        blockedPath == null || (child.path != blockedPath && !child.path.startsWith("$blockedPath/"))
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.workspace_detail_move_title), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    IconButton(
+                        enabled = path.isNotBlank(),
+                        onClick = { path = path.substringBeforeLast('/', missingDelimiterValue = "") },
+                    ) {
+                        Icon(HugeIcons.ArrowTurnBackward, contentDescription = null)
+                    }
+                    Text(
+                        text = path.ifBlank { "/" },
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                when {
+                    options == null -> CircularProgressIndicator(modifier = Modifier.size(22.dp))
+
+                    options.isEmpty() -> Text(
+                        text = stringResource(R.string.workspace_detail_move_no_subdirectory),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
+                    else -> LazyColumn(modifier = Modifier.heightIn(max = 280.dp)) {
+                        items(options, key = { it.path }) { dir ->
+                            TextButton(
+                                onClick = { path = dir.path },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(
+                                    imageVector = HugeIcons.Folder01,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(18.dp),
+                                )
+                                Text(
+                                    text = dir.name,
+                                    modifier = Modifier.padding(start = 8.dp),
+                                    maxLines = 2,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                // 加载中不允许确认：此时还不知道当前目录是否就是被禁用项
+                enabled = options != null,
+                onClick = { onConfirm(path) },
+            ) {
+                Text(stringResource(R.string.workspace_detail_move_here))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
+}
+
+@Composable
 private fun WorkspaceFileCard(
     entry: WorkspaceFileEntry,
     area: WorkspaceStorageArea,
     onResolveImage: suspend () -> File?,
     onOpen: () -> Unit,
     onDelete: () -> Unit,
+    onCopy: () -> Unit,
+    onMove: () -> Unit,
+    onRename: () -> Unit,
     onExport: () -> Unit,
     onExportZip: () -> Unit,
     onCopyPath: () -> Unit,
@@ -1581,6 +1890,21 @@ private fun WorkspaceFileCard(
                         text = { Text(stringResource(R.string.workspace_detail_copy_path)) },
                         leadingIcon = { Icon(HugeIcons.Copy01, contentDescription = null) },
                         onClick = { menuExpanded = false; onCopyPath() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.common_rename)) },
+                        leadingIcon = { Icon(HugeIcons.Edit02, contentDescription = null) },
+                        onClick = { menuExpanded = false; onRename() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.workspace_detail_action_move)) },
+                        leadingIcon = { Icon(HugeIcons.Folder01, contentDescription = null) },
+                        onClick = { menuExpanded = false; onMove() },
+                    )
+                    DropdownMenuItem(
+                        text = { Text(stringResource(R.string.workspace_detail_action_copy)) },
+                        leadingIcon = { Icon(HugeIcons.Clipboard, contentDescription = null) },
+                        onClick = { menuExpanded = false; onCopy() },
                     )
                     if (entry.isDirectory) {
                         DropdownMenuItem(

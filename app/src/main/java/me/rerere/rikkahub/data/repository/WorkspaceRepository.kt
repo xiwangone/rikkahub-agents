@@ -586,10 +586,23 @@ class WorkspaceRepository(
         source: String,
         target: String,
         overwrite: Boolean,
+        area: WorkspaceStorageArea = WorkspaceStorageArea.FILES,
     ): WorkspaceFileEntry = withContext(Dispatchers.IO) {
         val workspace = dao.getById(id) ?: error("Workspace not found: $id")
         manager.ensureWorkspace(workspace.root)
-        manager.moveFile(workspace.root, source, target, overwrite)
+        manager.moveFile(workspace.root, source, target, overwrite, area)
+    }
+
+    suspend fun copyFile(
+        id: String,
+        source: String,
+        target: String,
+        overwrite: Boolean,
+        area: WorkspaceStorageArea = WorkspaceStorageArea.FILES,
+    ): WorkspaceFileEntry = withContext(Dispatchers.IO) {
+        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
+        manager.ensureWorkspace(workspace.root)
+        manager.copyFile(workspace.root, source, target, overwrite, area)
     }
 
     suspend fun executeCommand(

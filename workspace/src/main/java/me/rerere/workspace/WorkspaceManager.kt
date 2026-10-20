@@ -321,7 +321,16 @@ class WorkspaceManager(
         source: String,
         target: String,
         overwrite: Boolean = false,
-    ): WorkspaceFileEntry = fileSystem.move(filesDir(root), source, target, overwrite)
+        area: WorkspaceStorageArea = WorkspaceStorageArea.FILES,
+    ): WorkspaceFileEntry = fileSystem.move(areaDir(root, area), source, target, overwrite)
+
+    fun copyFile(
+        root: String,
+        source: String,
+        target: String,
+        overwrite: Boolean = false,
+        area: WorkspaceStorageArea = WorkspaceStorageArea.FILES,
+    ): WorkspaceFileEntry = fileSystem.copy(areaDir(root, area), source, target, overwrite)
 
     fun glob(
         root: String,

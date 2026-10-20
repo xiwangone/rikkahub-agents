@@ -34,8 +34,11 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.log.AppLog
 
-@Suppress("TooManyFunctions")
-// 详情页单一 VM 固有职责（信息/镜像/CA/挂载/标签/导出等），方法数随功能自然增长；
+/** 名称非法字符集：`/` 与 `\` 是路径分隔符，其余为 Windows 保留字符；页内预检与 VM 校验共用一份。 */
+internal val workspaceIllegalNameChars = charArrayOf('/', '\\', ':', '*', '?', '"', '<', '>', '|')
+
+@Suppress("TooManyFunctions", "LargeClass")
+// 详情页单一 VM 固有职责（信息/镜像/CA/挂载/标签/导出/文件操作等），方法数与体量随功能自然增长；
 // 转发型逻辑已尽量下沉 Repository，此处为局部豁免而非放宽全局阈值。
 class WorkspaceDetailVM(
     private val id: String,
@@ -188,6 +191,8 @@ class WorkspaceDetailVM(
                 path = "",
                 entries = emptyList(),
                 error = null,
+                // 跨存储区粘贴没有意义（files 与 rootfs 是两棵树），切区即丢弃待复制条目
+                clipboard = null,
             )
         }
         refresh()
@@ -256,6 +261,151 @@ class WorkspaceDetailVM(
             }
         }
     }
+
+    /**
+     * 重命名 = 同目录内的 move（数据层无独立 rename 原语）。
+     *
+     * 非法字符/空名在此拦截并给出本地化文案；重名由数据层的「Target already exists」兜底
+     * （UI 侧对话框已做一次预检，走到这里说明是并发或预检漏掉的场景）。
+     */
+    fun rename(
+        entry: WorkspaceFileEntry,
+        rawName: String,
+    ) {
+        val newName = rawName.trim()
+        val invalid = validateEntryName(newName)
+        if (invalid != null) {
+            _state.update { it.copy(error = invalid) }
+            return
+        }
+        if (newName == entry.name) return
+        val parent = entry.path.substringBeforeLast('/', missingDelimiterValue = "")
+        val target = childPath(parent, newName)
+        viewModelScope.launch {
+            runCatching {
+                repository.moveFile(
+                    id = id,
+                    source = entry.path,
+                    target = target,
+                    overwrite = false,
+                    area = state.value.area,
+                )
+            }.onSuccess {
+                refresh()
+            }.onFailure { error ->
+                _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_rename)) }
+            }
+        }
+    }
+
+    /** 把 [entry] 移到 [targetDir]（保持原名）；目标目录由页面上的目录选择器给出。 */
+    fun moveEntry(
+        entry: WorkspaceFileEntry,
+        targetDir: String,
+    ) {
+        val target = childPath(targetDir, entry.name)
+        if (target == entry.path || (entry.isDirectory && target.startsWith("${entry.path}/"))) {
+            _state.update { it.copy(error = context.getString(me.rerere.rikkahub.R.string.workspace_detail_move_same_dir)) }
+            return
+        }
+        viewModelScope.launch {
+            // 选择器只知道目录，看不到目标目录里已有什么 —— 先列一次，把「目标已有同名项」
+            // 变成中文提示（数据层同样会拒，但那是英文原文）
+            val clash = runCatching {
+                repository.listFiles(id = id, area = state.value.area, path = targetDir)
+            }.getOrDefault(emptyList()).any { it.name == entry.name }
+            if (clash) {
+                _state.update {
+                    it.copy(error = context.getString(me.rerere.rikkahub.R.string.workspace_detail_rename_exists, entry.name))
+                }
+                return@launch
+            }
+            runCatching {
+                repository.moveFile(
+                    id = id,
+                    source = entry.path,
+                    target = target,
+                    overwrite = false,
+                    area = state.value.area,
+                )
+            }.onSuccess {
+                refresh()
+            }.onFailure { error ->
+                _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_move)) }
+            }
+        }
+    }
+
+    /** 记入「待复制条目」；粘贴目标是当时的当前目录，跨存储区不允许。 */
+    fun copyToClipboard(entry: WorkspaceFileEntry) {
+        _state.update {
+            it.copy(
+                clipboard = WorkspaceClipboard(
+                    path = entry.path,
+                    name = entry.name,
+                    isDirectory = entry.isDirectory,
+                    area = it.area,
+                ),
+            )
+        }
+    }
+
+    fun clearClipboard() {
+        _state.update { it.copy(clipboard = null) }
+    }
+
+    /**
+     * 把剪贴板条目复制到当前目录（[overwrite] = false 时同名直接失败，由 UI 先弹覆盖确认）。
+     * 成功后清空剪贴板，避免重复粘贴。
+     */
+    fun paste(overwrite: Boolean) {
+        val clip = state.value.clipboard ?: return
+        if (clip.area != state.value.area) {
+            _state.update { it.copy(error = context.getString(me.rerere.rikkahub.R.string.workspace_detail_paste_diff_area)) }
+            return
+        }
+        val target = childPath(state.value.path, clip.name)
+        if (target == clip.path || (clip.isDirectory && target.startsWith("${clip.path}/"))) {
+            _state.update { it.copy(error = context.getString(me.rerere.rikkahub.R.string.workspace_detail_move_same_dir)) }
+            return
+        }
+        viewModelScope.launch {
+            runCatching {
+                repository.copyFile(
+                    id = id,
+                    source = clip.path,
+                    target = target,
+                    overwrite = overwrite,
+                    area = clip.area,
+                )
+            }.onSuccess {
+                _state.update { it.copy(clipboard = null) }
+                refresh()
+            }.onFailure { error ->
+                _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_copy)) }
+            }
+        }
+    }
+
+    /** 目录选择器用：列 [path] 下的子目录（失败回空列表，由对话框显示空态）。 */
+    suspend fun listSubDirectories(path: String): List<WorkspaceFileEntry> =
+        runCatching {
+            repository.listFiles(id = id, area = state.value.area, path = path)
+        }.getOrDefault(emptyList()).filter { it.isDirectory }
+
+    /** Windows 保留字符一并拒：工作区文件常被导出到桌面端，允许了会在对端炸。 */
+    private fun validateEntryName(name: String): String? = when {
+        name.isBlank() || name == "." || name == ".." ->
+            context.getString(me.rerere.rikkahub.R.string.workspace_detail_rename_empty)
+        workspaceIllegalNameChars.any { name.contains(it) } ->
+            context.getString(me.rerere.rikkahub.R.string.workspace_detail_rename_invalid, workspaceIllegalNameChars.joinToString(" "))
+        else -> null
+    }
+
+    private fun childPath(
+        dir: String,
+        name: String,
+    ): String = if (dir.isBlank()) name else "${dir.trimEnd('/')}/$name"
 
     fun importFile(
         inputStream: InputStream,
@@ -664,6 +814,15 @@ data class WorkspaceDetailState(
     val entries: List<WorkspaceFileEntry> = emptyList(),
     val loading: Boolean = false,
     val error: String? = null,
+    val clipboard: WorkspaceClipboard? = null,
+)
+
+/** 页内「复制 → 进目标目录 → 粘贴」用的待复制条目（仅存路径，不搬数据）。 */
+data class WorkspaceClipboard(
+    val path: String,
+    val name: String,
+    val isDirectory: Boolean,
+    val area: WorkspaceStorageArea,
 )
 
 data class WorkspaceTerminalState(

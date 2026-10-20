@@ -135,6 +135,7 @@ class WorkspaceFileSystem(
         val sourceFile = resolvePath(root, source)
         val targetFile = resolvePath(root, target)
         require(sourceFile.exists()) { "Source does not exist: $source" }
+        requireSameOperation(sourceFile, targetFile, source, target, "move")
         if (targetFile.exists()) {
             require(overwrite) { "Target already exists: $target" }
             if (targetFile.isDirectory) {
@@ -148,6 +149,91 @@ class WorkspaceFileSystem(
             "Failed to move $source to $target"
         }
         return targetFile.toEntry(root)
+    }
+
+    /**
+     * 复制一个条目到 [target]（文件或整棵目录树）。
+     *
+     * 与 [move] 的区别：源保留；目录递归；累计字节受 [WorkspaceConfig.maxCopyBytes] 约束
+     * （口径同 [importBytes] 的限流写法，但上限按「整单」而非「单文件」计，
+     * 故用一个跨文件累计的计数器）。
+     */
+    fun copy(
+        root: File,
+        source: String,
+        target: String,
+        overwrite: Boolean = false,
+    ): WorkspaceFileEntry {
+        require(source.isNotBlank() && source != ".") { "Refusing to copy workspace root" }
+        val sourceFile = resolvePath(root, source)
+        val targetFile = resolvePath(root, target)
+        require(sourceFile.exists()) { "Source does not exist: $source" }
+        requireSameOperation(sourceFile, targetFile, source, target, "copy")
+        if (targetFile.exists()) {
+            require(overwrite) { "Target already exists: $target" }
+            if (targetFile.isDirectory) {
+                require(targetFile.deleteRecursively()) { "Failed to clear target directory: $target" }
+            } else {
+                require(targetFile.delete()) { "Failed to replace target file: $target" }
+            }
+        }
+        val budget = longArrayOf(0L)
+        runCatching { copyInto(sourceFile, targetFile, budget) }
+            .onFailure { error ->
+                // 失败不留半成品：走到这里 target 只可能是本次新建的（覆盖场景下原目标已被上面显式删除）
+                runCatching {
+                    if (targetFile.isDirectory) targetFile.deleteRecursively() else targetFile.delete()
+                }
+                throw error
+            }
+        return targetFile.toEntry(root)
+    }
+
+    private fun copyInto(
+        source: File,
+        target: File,
+        copiedBytes: LongArray,
+    ) {
+        if (source.isDirectory) {
+            require(target.mkdirs() || target.isDirectory) { "Failed to create directory: ${target.name}" }
+            source.listFiles()
+                .orEmpty()
+                .sortedBy { it.name.lowercase() }
+                .forEach { copyInto(it, File(target, it.name), copiedBytes) }
+            return
+        }
+        require(source.isFile) { "Unsupported entry type: ${source.name}" }
+        source.inputStream().use { src ->
+            target.outputStream().use { out ->
+                val buffer = ByteArray(64 * 1024)
+                var read = src.read(buffer)
+                while (read >= 0) {
+                    copiedBytes[0] = copiedBytes[0] + read
+                    require(copiedBytes[0] <= config.maxCopyBytes) {
+                        "Copy is too large: more than ${config.maxCopyBytes} bytes in total"
+                    }
+                    out.write(buffer, 0, read)
+                    read = src.read(buffer)
+                }
+            }
+        }
+    }
+
+    /**
+     * move/copy 共同的自嵌套守卫：原地操作会「先删目标再改名」从而丢数据，
+     * 把目录移/复制进自己的子树则在 POSIX 下必然失败（这里换成明确报错）。
+     */
+    private fun requireSameOperation(
+        sourceFile: File,
+        targetFile: File,
+        source: String,
+        target: String,
+        action: String,
+    ) {
+        require(sourceFile != targetFile) { "Refusing to $action onto itself: $source -> $target" }
+        require(!targetFile.path.startsWith(sourceFile.path + File.separator)) {
+            "Refusing to $action '$source' into its own subtree: $target"
+        }
     }
 
     /**
