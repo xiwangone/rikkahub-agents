@@ -218,7 +218,6 @@ sealed class SearchServiceOptions {
 
         val TYPES =
             mapOf(
-                DuckDuckGoOptions::class to "DuckDuckGo",
                 BingLocalOptions::class to "Bing",
                 RikkaHubOptions::class to "RikkaHub",
                 ZhipuOptions::class to "智谱",
@@ -239,7 +238,12 @@ sealed class SearchServiceOptions {
                 SerperOptions::class to "Serper",
                 DeepSeekOptions::class to "DeepSeek",
                 CustomJsOptions::class to "Custom JS",
+                DuckDuckGoOptions::class to "DuckDuckGo",
             )
+
+        /** 可添加的服务类型：DuckDuckGo 是未配置时的默认兜底，不作为「添加」项。 */
+        val ADDABLE_TYPES: Map<KClass<out SearchServiceOptions>, String> =
+            TYPES.filterKeys { it != DuckDuckGoOptions::class }
     }
 
     @Serializable

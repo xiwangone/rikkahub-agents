@@ -200,7 +200,7 @@ private fun AddProviderDialog(
     onConfirm: (SearchServiceOptions) -> Unit,
 ) {
     var selectedType by remember {
-        mutableStateOf(SearchServiceOptions.TYPES.keys.first())
+        mutableStateOf(SearchServiceOptions.ADDABLE_TYPES.keys.first())
     }
 
     AlertDialog(
@@ -212,8 +212,8 @@ private fun AddProviderDialog(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(SearchServiceOptions.TYPES.keys.toList()) { type ->
-                    val name = SearchServiceOptions.TYPES[type] ?: "Unknown"
+                items(SearchServiceOptions.ADDABLE_TYPES.keys.toList()) { type ->
+                    val name = SearchServiceOptions.ADDABLE_TYPES[type] ?: "Unknown"
                     val isSelected = selectedType == type
                     Card(
                         onClick = { selectedType = type },
