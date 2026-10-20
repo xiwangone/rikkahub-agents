@@ -6,7 +6,7 @@ import me.rerere.hugeicons.stroke.AiMagic
 import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Brain02
-import me.rerere.hugeicons.stroke.Image02
+import me.rerere.hugeicons.stroke.Image03
 import me.rerere.hugeicons.stroke.ChartRing
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Connect
@@ -72,7 +72,7 @@ object SettingCatalog {
         SettingEntry(
         id = "media_generation",
         group = SettingGroup.MODEL,
-        icon = HugeIcons.Image02,
+        icon = HugeIcons.Image03,
         titleRes = R.string.media_creation_title,
         descRes = R.string.media_creation_title,
         screen = Screen.MediaCreationSessions,
@@ -80,7 +80,7 @@ object SettingCatalog {
     SettingEntry(
         id = "media",
         group = SettingGroup.CONNECTION,
-        icon = HugeIcons.Image02,
+        icon = HugeIcons.Image03,
         titleRes = R.string.setting_page_media,
         descRes = R.string.setting_page_media,
         screen = Screen.SettingMedia,
