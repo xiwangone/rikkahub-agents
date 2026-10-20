@@ -102,6 +102,10 @@
   <string name="assistant_page_memory">기억 기능</string>
   <string name="assistant_page_memory_count">기억: %d</string>
   <string name="assistant_page_memory_desc">기억 기능 활성화 시, 모델이 대화 중 사용자 정보를 적극적으로 기록하고 이후 대화에서 활용합니다. 이 기능은 모델이 도구 호출을 지원해야 제대로 작동합니다</string>
+  <string name="assistant_page_memory_empty">아직 기억이 없습니다</string>
+  <string name="assistant_page_memory_empty_hint">채팅 중 어시스턴트가 알려 주신 내용을 기억합니다. + 를 눌러 직접 추가할 수도 있습니다</string>
+  <string name="assistant_page_memory_empty_disabled_hint">이 어시스턴트의 기억 기능이 꺼져 있습니다. 켜 두시면 알려 주신 내용을 기억합니다</string>
+  <string name="assistant_page_memory_enable_action">기억 기능 켜기</string>
   <string name="assistant_page_message_template">메시지 내용 템플릿</string>
   <string name="assistant_page_message_template_desc">LLM에 전송되기 전 채팅 메시지 형식을 제어. 일반적으로 수정할 필요 없음</string>
   <string name="assistant_page_message_template_missing_message">템플릿에 {{ message }}가 없어 사용자 메시지가 전송되지 않습니다</string>

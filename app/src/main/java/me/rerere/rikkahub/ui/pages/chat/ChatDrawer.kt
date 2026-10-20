@@ -31,6 +31,7 @@ import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.adaptive.currentWindowDpSize
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -190,11 +191,15 @@ fun ChatDrawerContent(
     // Menu popup 状态
     var showMenuPopup by remember { mutableStateOf(false) }
 
-    ModalDrawerSheet(
-        modifier = Modifier.width(300.dp),
-    ) {
+    // 矮屏（手表、横屏手机）上固定的抽屉顶部会把会话列表挤没 → 顶部改为跟着列表一起滚
+    @Suppress("DEPRECATION") // 替代 API 要等 Compose 升级，取法与聊天页的大屏判定一致
+    val headerWindowSize = currentWindowDpSize()
+    val scrollableHeader = headerWindowSize.height < 640.dp
+
+    // 抽屉顶部：更新/备份提醒、用户信息、常用入口、文件夹栏、排序按钮
+    val drawerHeader: @Composable () -> Unit = {
         Column(
-            modifier = Modifier.padding(8.dp),
+            modifier = Modifier.fillMaxWidth(),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (settings.displaySetting.shouldShowUpdateReminders() && !isPlayStore) {
@@ -279,7 +284,8 @@ fun ChatDrawerContent(
                 onSelect = { folderId ->
                     if (folderId != selectedFolderId) {
                         drawerVm.selectFolder(folderId)
-                        scope.launch { conversationListState.scrollToItem(0) }
+                        // 矮屏时列表第 0 项是顶部区域本身，回到首个会话要再往后一格
+                        scope.launch { conversationListState.scrollToItem(if (scrollableHeader) 1 else 0) }
                     }
                 },
                 onCreate = { showCreateFolderDialog = true },
@@ -299,8 +305,23 @@ fun ChatDrawerContent(
                     },
                 )
             }
+        }
+    }
+
+    ModalDrawerSheet(
+        modifier = Modifier.width(300.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            // 高屏：顶部留在列表外；矮屏：顶部由 ConversationList 当作首个条目渲染，跟着滚
+            if (!scrollableHeader) {
+                drawerHeader()
+            }
 
             ConversationList(
+                header = if (scrollableHeader) drawerHeader else null,
                 current = current,
                 conversations = conversations,
                 conversationJobs = conversationJobs.keys,

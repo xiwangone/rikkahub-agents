@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.components.richtext
 
 import android.content.ClipData
 import android.content.Intent
+import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -42,6 +43,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
@@ -97,8 +99,10 @@ import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Download04
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.ui.components.table.DataTable
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.context.LocalWorkspaceId
 import me.rerere.rikkahub.ui.modifier.onClick
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.toDp
@@ -111,6 +115,7 @@ import org.intellij.markdown.flavours.gfm.GFMElementTypes
 import org.intellij.markdown.flavours.gfm.GFMFlavourDescriptor
 import org.intellij.markdown.flavours.gfm.GFMTokenTypes
 import org.intellij.markdown.parser.MarkdownParser
+import org.koin.compose.koinInject
 import java.io.IOException
 import kotlin.time.Clock
 import android.os.SystemClock
@@ -322,6 +327,27 @@ fun MarkdownBlock(
             }
         }
     }
+}
+
+/**
+ * 把 Rootfs 内的绝对路径（如 `/workspace/out.png`）换成宿主机上的图片地址。
+ *
+ * 只在「当前内容绑定了工作区」且路径是单斜杠开头的绝对路径时介入，其余（http/https、
+ * `//` 协议相对、`file:`、data:）原样交给 Coil；解析期间返回 null，由 Coil 显示占位图。
+ * 路径里的百分号编码（空格、中文等）在这里解码，同时丢掉 query/fragment。
+ */
+@Composable
+internal fun rememberWorkspaceImageUrl(url: String): String? {
+    val workspaceId = LocalWorkspaceId.current
+    if (workspaceId == null || !url.startsWith("/") || url.startsWith("//")) return url
+    val path = remember(url) { url.toUri().path } ?: return url
+    val workspaceRepository: WorkspaceRepository = koinInject()
+    val resolved by produceState<String?>(initialValue = null, workspaceId, path) {
+        value = workspaceRepository.resolveRootfsFile(workspaceId, path)
+            ?.let { Uri.fromFile(it).toString() }
+            ?: url
+    }
+    return resolved
 }
 
 object HeaderStyle {
@@ -668,7 +694,7 @@ private fun MarkdownNode(
             ) {
                 // 这里可以使用Coil等图片加载库加载图片
                 ZoomableAsyncImage(
-                    model = imageUrl,
+                    model = rememberWorkspaceImageUrl(imageUrl),
                     contentDescription = altText,
                     modifier =
                         Modifier

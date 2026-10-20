@@ -102,6 +102,10 @@
   <string name="assistant_page_memory">記憶</string>
   <string name="assistant_page_memory_count">記憶: %d</string>
   <string name="assistant_page_memory_desc">記憶を有効にすると、モデルは会話中にあなたの情報を積極的に記録し、後続の会話で使用しようとします。この機能が正常に動作するには、モデルがツール呼び出しをサポートしている必要があります</string>
+  <string name="assistant_page_memory_empty">まだ記憶がありません</string>
+  <string name="assistant_page_memory_empty_hint">チャット中に伝えた内容をアシスタントが記憶します。+ をタップして追加することもできます</string>
+  <string name="assistant_page_memory_empty_disabled_hint">このアシスタントの記憶はオフになっています。オンにすると、伝えた内容を記憶できるようになります</string>
+  <string name="assistant_page_memory_enable_action">記憶をオンにする</string>
   <string name="assistant_page_message_template">チャットコンテンツテンプレート</string>
   <string name="assistant_page_message_template_desc">チャットメッセージがLLMに送信される前のコンテンツ形式を制御します。通常は変更する必要がありません</string>
   <string name="assistant_page_message_template_missing_message">テンプレートに{{ message }}が含まれていないため、ユーザーのメッセージは送信されません</string>

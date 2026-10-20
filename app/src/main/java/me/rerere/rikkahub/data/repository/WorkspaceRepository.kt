@@ -543,6 +543,17 @@ class WorkspaceRepository(
         manager.exportRootfsFile(workspace.root, path, outputStream)
     }
 
+    /** 按 Rootfs 内绝对路径取宿主机上的文件；工作区不存在、路径非法或不是普通文件时返回 null */
+    suspend fun resolveRootfsFile(
+        id: String,
+        path: String,
+    ): File? = withContext(Dispatchers.IO) {
+        val workspace = dao.getById(id) ?: return@withContext null
+        runCatching { manager.resolveRootfsFile(workspace.root, path) }
+            .getOrNull()
+            ?.takeIf { it.isFile }
+    }
+
     /** 返回本次实际将被 runner 使用的 shell；按 rootfs 中 bash 可用性决定 bash 或 sh。 */
     suspend fun readShellPath(id: String): String? = withContext(Dispatchers.IO) {
         val workspace = dao.getById(id) ?: return@withContext null

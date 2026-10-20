@@ -36,6 +36,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
@@ -376,17 +377,27 @@ private fun AssistantMemoryContent(
             }
         }
 
-        memories.fastForEach { memory ->
-            key(memory.id) {
-                MemoryItem(
-                    memory = memory,
-                    onEditMemory = {
-                        memoryDialogState.open(it)
-                    },
-                    onDeleteMemory = {
-                        pendingDeleteMemory = it
-                    },
-                )
+        if (memories.isEmpty()) {
+            // 列表为空时给一句解释：开了记忆就教怎么加，没开就给出可直接按下的开关
+            MemoryEmptyState(
+                memoryEnabled = assistant.enableMemory,
+                onEnableMemory = {
+                    onUpdateAssistant(assistant.copy(enableMemory = true))
+                },
+            )
+        } else {
+            memories.fastForEach { memory ->
+                key(memory.id) {
+                    MemoryItem(
+                        memory = memory,
+                        onEditMemory = {
+                            memoryDialogState.open(it)
+                        },
+                        onDeleteMemory = {
+                            pendingDeleteMemory = it
+                        },
+                    )
+                }
             }
         }
     }
@@ -409,6 +420,45 @@ private fun AssistantMemoryContent(
             )
         },
     )
+}
+
+@Composable
+private fun MemoryEmptyState(
+    memoryEnabled: Boolean,
+    onEnableMemory: () -> Unit,
+) {
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.assistant_page_memory_empty),
+            style = MaterialTheme.typography.bodyLarge,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text =
+                stringResource(
+                    if (memoryEnabled) {
+                        R.string.assistant_page_memory_empty_hint
+                    } else {
+                        R.string.assistant_page_memory_empty_disabled_hint
+                    },
+                ),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+            textAlign = TextAlign.Center,
+        )
+        if (!memoryEnabled) {
+            TextButton(onClick = onEnableMemory) {
+                Text(stringResource(R.string.assistant_page_memory_enable_action))
+            }
+        }
+    }
 }
 
 @Composable

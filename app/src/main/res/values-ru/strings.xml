@@ -102,6 +102,10 @@
   <string name="assistant_page_memory">Память</string>
   <string name="assistant_page_memory_count">Память: %d</string>
   <string name="assistant_page_memory_desc">Когда память включена, модель будет стараться активно записывать вашу информацию во время разговоров и использовать её в последующих беседах. Для работы этой функции модель должна поддерживать вызовы инструментов</string>
+  <string name="assistant_page_memory_empty">Записей в памяти пока нет</string>
+  <string name="assistant_page_memory_empty_hint">Во время общения ассистент запоминает то, что вы ему рассказываете. Можно также нажать +, чтобы добавить запись</string>
+  <string name="assistant_page_memory_empty_disabled_hint">Память для этого ассистента выключена. Включите её, чтобы он запоминал то, что вы ему рассказываете</string>
+  <string name="assistant_page_memory_enable_action">Включить память</string>
   <string name="assistant_page_message_template">Шаблон содержимого сообщения</string>
   <string name="assistant_page_message_template_desc">Управляет форматом содержимого сообщений чата перед отправкой в LLM, обычно изменять не требуется</string>
   <string name="assistant_page_message_template_missing_message">Шаблон не содержит {{ message }}, сообщения пользователя не будут отправлены</string>

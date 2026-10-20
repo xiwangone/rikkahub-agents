@@ -217,6 +217,10 @@
   <string name="assistant_page_memory">الذاكرة</string>
   <string name="assistant_page_memory_count">الذاكرة: %d</string>
   <string name="assistant_page_memory_desc">عند تمكين الذاكرة، سيحاول النموذج تسجيل معلوماتك بنشاط أثناء المحادثات واستخدامها في المحادثات اللاحقة. تتطلب هذه الميزة دعم النموذج لاستدعاء الأدوات لتعمل بشكل صحيح</string>
+  <string name="assistant_page_memory_empty">لا توجد ذكريات بعد</string>
+  <string name="assistant_page_memory_empty_hint">سيتذكر المساعد ما تخبره به أثناء الدردشة. يمكنك أيضًا الضغط على + لإضافة ذكرى</string>
+  <string name="assistant_page_memory_empty_disabled_hint">الذاكرة معطّلة لهذا المساعد. فعّلها ليتمكن من تذكر ما تخبره به</string>
+  <string name="assistant_page_memory_enable_action">تفعيل الذاكرة</string>
   <string name="assistant_page_message_template">قالب محتوى الرسالة</string>
   <string name="assistant_page_message_template_desc">يتحكم في تنسيق محتوى رسائل الدردشة قبل إرسالها إلى النموذج اللغوي، عادةً لا حاجة للتعديل</string>
   <string name="assistant_page_message_template_missing_message">القالب لا يحتوي على {{ message }}، لن تُرسل رسائل المستخدم</string>

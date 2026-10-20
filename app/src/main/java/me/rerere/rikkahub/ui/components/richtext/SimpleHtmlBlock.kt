@@ -316,7 +316,7 @@ private fun RenderImage(imgElement: Element) {
             contentAlignment = Alignment.Center,
         ) {
             ZoomableAsyncImage(
-                model = src,
+                model = rememberWorkspaceImageUrl(src),
                 contentDescription = alt.takeIf { it.isNotEmpty() },
                 modifier =
                     Modifier

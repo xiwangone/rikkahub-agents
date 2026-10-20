@@ -94,6 +94,7 @@ fun ColumnScope.ConversationList(
     conversationJobs: Collection<Uuid>,
     listState: LazyListState,
     modifier: Modifier = Modifier,
+    header: (@Composable () -> Unit)? = null,
     onClick: (Conversation) -> Unit = {},
     onDelete: (Conversation) -> Unit = {},
     onRename: (Conversation) -> Unit = {},
@@ -108,14 +109,17 @@ fun ColumnScope.ConversationList(
 ) {
     var hasScrolledToCurrent by remember(current.id) { mutableStateOf(false) }
     var showCleanConfirm by remember { mutableStateOf(false) }
+    // 顶部区域进了列表就是第 0 项，会话项在 LazyColumn 里的下标要整体后挪一位
+    val headerCount = if (header != null) 1 else 0
 
     LaunchedEffect(current.id, conversations.itemCount, hasScrolledToCurrent) {
         if (hasScrolledToCurrent) return@LaunchedEffect
-        val currentIndex =
+        val itemIndex =
             conversations.itemSnapshotList.items.indexOfFirst {
                 (it as? ConversationListItem.Item)?.conversation?.id == current.id
             }
-        if (currentIndex >= 0) {
+        if (itemIndex >= 0) {
+            val currentIndex = itemIndex + headerCount
             val isVisible = listState.layoutInfo.visibleItemsInfo.any { it.index == currentIndex }
             if (!isVisible) {
                 listState.scrollToItem(currentIndex)
@@ -129,6 +133,12 @@ fun ColumnScope.ConversationList(
         modifier = modifier,
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        if (header != null) {
+            item(key = "drawer_header", contentType = "drawer_header") {
+                header()
+            }
+        }
+
         if (conversations.itemCount == 0) {
             when (conversations.loadState.refresh) {
                 is LoadState.Loading -> item(key = "refresh_loading") { PagingLoadingItem() }
