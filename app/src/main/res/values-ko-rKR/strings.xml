@@ -1006,6 +1006,7 @@
   <string name="setting_provider_page_add_models_hint">아래 버튼을 눌러 모델 추가</string>
   <string name="setting_provider_page_add_new_model">새 모델 추가</string>
   <string name="setting_provider_page_add_provider">제공업체 추가</string>
+  <string name="setting_provider_page_type_subscription">%s 구독</string>
   <string name="setting_provider_page_add_provider_override">제공업체 재정의 추가</string>
   <string name="setting_provider_page_advanced_settings">고급 설정</string>
   <string name="setting_provider_page_api_base_url">API 기본 URL</string>
@@ -1814,6 +1815,14 @@
   <string name="workspace_selection_all">모두 선택</string>
   <string name="workspace_selection_cancel">선택 취소</string>
   <string name="workspace_selection_export_zip">선택 항목 ZIP 내보내기</string>
+  <string name="workspace_detail_sort_by">정렬</string>
+  <string name="workspace_detail_sort_name">이름</string>
+  <string name="workspace_detail_sort_modified">수정 시간</string>
+  <string name="workspace_detail_sort_size">크기</string>
+  <string name="workspace_detail_sort_ascending">오름차순</string>
+  <string name="workspace_detail_sort_descending">내림차순</string>
+  <string name="workspace_detail_date_today">오늘</string>
+  <string name="workspace_detail_date_yesterday">어제</string>
   <string name="skill_builtin_read_only">기본 제공 · 읽기 전용, 같은 이름의 사용자 스킬이 우선합니다</string>
   <string name="skill_builtin_user_override">기본 제공 스킬의 사용자 재정의</string>
   <string name="skill_detail_builtin_read_only">기본 제공 스킬은 읽기 전용입니다. 같은 이름의 사용자 스킬을 만들면 재정의됩니다.</string>

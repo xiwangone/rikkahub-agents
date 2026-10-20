@@ -114,9 +114,7 @@ fun ProviderConfigure(
                                 count = ProviderSetting.Types.size,
                             ),
                         label = {
-                            Text(
-                                if (type == ProviderSetting.Backend::class) stringResource(R.string.backend_service) else type.simpleName ?: ""
-                            )
+                            Text(type.typeName())
                         },
                         selected = provider::class == type,
                         onClick = { onEdit(provider.convertTo(type)) },
@@ -171,6 +169,27 @@ fun ProviderConfigure(
         }
     }
 }
+
+// 类型的显示名：与用户可自行改名的 ProviderSetting.name 分开，添加/切换类型处只出稳定的类型名。
+// 这里按 KClass 匹配（Types 给的就是 KClass 列表，不是实例），sealed 的穷尽检查用不上，
+// 故把我方现有 10 个类型逐条列出；将来新增类型未列时退回 simpleName，与改动前行为一致。
+// 订阅型（走 OAuth 登录、不需要 API key）显示成「<类型名> 订阅」。
+@Composable
+internal fun KClass<out ProviderSetting>.typeName(): String =
+    when (this) {
+        ProviderSetting.OpenAI::class -> "OpenAI"
+        ProviderSetting.Google::class -> "Google"
+        ProviderSetting.Claude::class -> "Claude"
+        ProviderSetting.Backend::class -> stringResource(R.string.backend_service)
+        ProviderSetting.Codex::class -> stringResource(R.string.setting_provider_page_type_subscription, "Codex")
+        ProviderSetting.Grok::class -> stringResource(R.string.setting_provider_page_type_subscription, "Grok")
+        ProviderSetting.GeminiOAuth::class -> stringResource(R.string.setting_provider_page_type_subscription, "Gemini")
+        // 端侧/内置类型：保持原名，不加「订阅」后缀
+        ProviderSetting.AICore::class -> "AICore"
+        ProviderSetting.LiteRtLocal::class -> "LiteRtLocal"
+        ProviderSetting.LlamaCppLocal::class -> "LlamaCppLocal"
+        else -> this.simpleName ?: ""
+    }
 
 fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSetting {
     if (this::class == type) return this

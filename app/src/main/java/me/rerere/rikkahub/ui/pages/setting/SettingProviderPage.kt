@@ -46,9 +46,11 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -92,6 +94,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderRequirement
+import me.rerere.rikkahub.ui.pages.setting.components.typeName
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.ImageUtils
 import me.rerere.rikkahub.utils.plus
@@ -131,6 +134,31 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
     // 非过滤态用拖动本地顺序（拖动即时反馈）；过滤态下标与全量不一致 → 不参与排序
     val filteredProviders = if (searchQuery.isBlank()) reorderCommit.items else providersByQuery
 
+    // 新增的提供商插在列表最前，用户若已滚到下面就看不见；搜索词还可能把它整个过滤掉。
+    // 设置是异步写入的 → 先记下待滚的 id，等新项真的进了 filteredProviders 再滚，滚完即清。
+    // 用 rememberSaveable：本组合被重建（如进详情页再返回、配置变更）时，待滚意图不能丢
+    var pendingScrollId by rememberSaveable { mutableStateOf<String?>(null) }
+    LaunchedEffect(pendingScrollId, filteredProviders) {
+        val id = pendingScrollId ?: return@LaunchedEffect
+        val index = filteredProviders.indexOfFirst { it.id.toString() == id }
+        if (index >= 0) {
+            lazyListState.animateScrollToItem(index)
+            pendingScrollId = null
+        }
+    }
+
+    // 新建与导入走同一条路：清搜索词 → 记待滚 id → 插到列表最前
+    // 本页只有「新建」与「导入」两个入口，统一走 addProvider
+    fun addProvider(provider: ProviderSetting) {
+        searchQuery = ""
+        pendingScrollId = provider.id.toString()
+        vm.updateSettings { current ->
+            current.copy(
+                providers = listOf(provider) + current.providers,
+            )
+        }
+    }
+
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
@@ -142,18 +170,10 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 },
                 actions = {
                     ImportProviderButton {
-                        vm.updateSettings { current ->
-            current.copy(
-                                providers = listOf(it.copyProvider(Uuid.random())) + current.providers,
-                            )
-        }
+                        addProvider(it.copyProvider(Uuid.random()))
                     }
                     AddButton {
-                        vm.updateSettings { current ->
-            current.copy(
-                                providers = listOf(it) + current.providers,
-                            )
-        }
+                        addProvider(it)
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -530,9 +550,7 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
             ProviderSetting.Types.forEach { type ->
                 DropdownMenuItem(
                     text = {
-                        Text(
-                            if (type == ProviderSetting.Backend::class) stringResource(R.string.backend_service) else type.simpleName ?: "",
-                        )
+                        Text(type.typeName()),
                     },
                     onClick = {
                         showTypeMenu = false

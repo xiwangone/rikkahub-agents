@@ -1165,6 +1165,7 @@
   <string name="setting_provider_page_add_models_hint">点击下方按钮添加模型</string>
   <string name="setting_provider_page_add_new_model">添加新模型</string>
   <string name="setting_provider_page_add_provider">添加提供商</string>
+  <string name="setting_provider_page_type_subscription">%s 订阅</string>
   <string name="setting_provider_page_add_provider_override">添加提供商重写</string>
   <string name="setting_provider_page_advanced_settings">高级设置</string>
   <string name="setting_provider_page_api_base_url">API Base Url</string>
@@ -2062,6 +2063,14 @@
   <string name="workspace_selection_all">全选</string>
   <string name="workspace_selection_cancel">取消选择</string>
   <string name="workspace_selection_export_zip">导出所选 ZIP</string>
+  <string name="workspace_detail_sort_by">排序</string>
+  <string name="workspace_detail_sort_name">名称</string>
+  <string name="workspace_detail_sort_modified">修改时间</string>
+  <string name="workspace_detail_sort_size">大小</string>
+  <string name="workspace_detail_sort_ascending">升序</string>
+  <string name="workspace_detail_sort_descending">降序</string>
+  <string name="workspace_detail_date_today">今天</string>
+  <string name="workspace_detail_date_yesterday">昨天</string>
   <string name="skill_builtin_read_only">内置 · 只读；同名用户技能优先</string>
   <string name="skill_builtin_user_override">用户对内置技能的覆盖</string>
   <string name="skill_detail_builtin_read_only">内置技能为只读。创建同名用户技能即可覆盖。</string>

@@ -1201,6 +1201,7 @@
   <string name="setting_provider_page_add_models_hint">Click the button below to add models</string>
   <string name="setting_provider_page_add_new_model">Add New Model</string>
   <string name="setting_provider_page_add_provider">Add Provider</string>
+  <string name="setting_provider_page_type_subscription">%s Subscription</string>
   <string name="setting_provider_page_add_provider_override">Add Provider Override</string>
   <string name="setting_provider_page_advanced_settings">Advanced Settings</string>
   <string name="setting_provider_page_api_base_url">API Base Url</string>
@@ -3470,6 +3471,14 @@
   <string name="workspace_selection_all">Select all</string>
   <string name="workspace_selection_cancel">Cancel selection</string>
   <string name="workspace_selection_export_zip">Export selected ZIP</string>
+  <string name="workspace_detail_sort_by">Sort by</string>
+  <string name="workspace_detail_sort_name">Name</string>
+  <string name="workspace_detail_sort_modified">Modified</string>
+  <string name="workspace_detail_sort_size">Size</string>
+  <string name="workspace_detail_sort_ascending">Ascending</string>
+  <string name="workspace_detail_sort_descending">Descending</string>
+  <string name="workspace_detail_date_today">Today</string>
+  <string name="workspace_detail_date_yesterday">Yesterday</string>
   <string name="skill_builtin_read_only">Built-in · read-only; a same-name user skill takes precedence</string>
   <string name="skill_builtin_user_override">User override of built-in</string>
   <string name="skill_detail_builtin_read_only">Built-in skills are read-only. Create a user skill with the same name to override.</string>

@@ -1038,6 +1038,7 @@
   <string name="setting_provider_page_add_models_hint">انقر الزر أدناه لإضافة نماذج</string>
   <string name="setting_provider_page_add_new_model">إضافة نموذج جديد</string>
   <string name="setting_provider_page_add_provider">إضافة مزوّد</string>
+  <string name="setting_provider_page_type_subscription">اشتراك %s</string>
   <string name="setting_provider_page_add_provider_override">إضافة تجاوز مزوّد</string>
   <string name="setting_provider_page_advanced_settings">الإعدادات المتقدمة</string>
   <string name="setting_provider_page_api_base_url">رابط API الأساسي</string>
@@ -3152,6 +3153,14 @@
   <string name="workspace_selection_all">تحديد الكل</string>
   <string name="workspace_selection_cancel">إلغاء التحديد</string>
   <string name="workspace_selection_export_zip">تصدير المحدد بصيغة ZIP</string>
+  <string name="workspace_detail_sort_by">ترتيب حسب</string>
+  <string name="workspace_detail_sort_name">الاسم</string>
+  <string name="workspace_detail_sort_modified">وقت التعديل</string>
+  <string name="workspace_detail_sort_size">الحجم</string>
+  <string name="workspace_detail_sort_ascending">تصاعدي</string>
+  <string name="workspace_detail_sort_descending">تنازلي</string>
+  <string name="workspace_detail_date_today">اليوم</string>
+  <string name="workspace_detail_date_yesterday">أمس</string>
   <string name="skill_builtin_read_only">مدمج · للقراءة فقط؛ تُرجَّح أولوية مهارة المستخدم بالاسم نفسه</string>
   <string name="skill_builtin_user_override">تجاوز المستخدم للمهارة المدمجة</string>
   <string name="skill_detail_builtin_read_only">المهارات المدمجة للقراءة فقط. أنشئ مهارة مستخدم بالاسم نفسه للتجاوز.</string>

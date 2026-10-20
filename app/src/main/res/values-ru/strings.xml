@@ -999,6 +999,7 @@
   <string name="setting_provider_page_add_models_hint">Нажмите кнопку ниже, чтобы добавить модели</string>
   <string name="setting_provider_page_add_new_model">Добавить новую модель</string>
   <string name="setting_provider_page_add_provider">Добавить поставщика</string>
+  <string name="setting_provider_page_type_subscription">Подписка %s</string>
   <string name="setting_provider_page_add_provider_override">Добавить переопределение поставщика</string>
   <string name="setting_provider_page_advanced_settings">Расширенные настройки</string>
   <string name="setting_provider_page_api_base_url">Базовый URL API</string>
@@ -1810,6 +1811,14 @@
   <string name="workspace_selection_all">Выбрать все</string>
   <string name="workspace_selection_cancel">Отменить выбор</string>
   <string name="workspace_selection_export_zip">Экспортировать выбранное в ZIP</string>
+  <string name="workspace_detail_sort_by">Сортировка</string>
+  <string name="workspace_detail_sort_name">Имя</string>
+  <string name="workspace_detail_sort_modified">Изменён</string>
+  <string name="workspace_detail_sort_size">Размер</string>
+  <string name="workspace_detail_sort_ascending">По возрастанию</string>
+  <string name="workspace_detail_sort_descending">По убыванию</string>
+  <string name="workspace_detail_date_today">Сегодня</string>
+  <string name="workspace_detail_date_yesterday">Вчера</string>
   <string name="skill_builtin_read_only">Встроенный · только чтение; пользовательский навык с тем же именем имеет приоритет</string>
   <string name="skill_builtin_user_override">Замена встроенного навыка пользовательским</string>
   <string name="skill_detail_builtin_read_only">Встроенные навыки доступны только для чтения. Создайте пользовательский навык с тем же именем, чтобы заменить его.</string>

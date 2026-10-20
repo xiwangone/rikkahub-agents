@@ -139,6 +139,11 @@ import me.rerere.workspace.WorkspaceStats
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.io.File
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @Composable
 fun WorkspaceDetailPage(id: String) {
@@ -1302,6 +1307,13 @@ private fun WorkspaceFilesPage(
 ) {
     val currentKeys = state.entries.mapTo(mutableSetOf()) { "${state.area.name}:${it.path}" }
     val selectedCount = selectedPaths.intersect(currentKeys).size
+    // 排序偏好按本仓同类页做法存 rememberSaveable（枚举名存字符串，避免 Bundle 直接存枚举）
+    var sortByKey by rememberSaveable { mutableStateOf(WorkspaceFileSortBy.NAME.name) }
+    var sortAscending by rememberSaveable { mutableStateOf(true) }
+    val sortBy = WorkspaceFileSortBy.fromName(sortByKey)
+    val sortedEntries = remember(state.entries, sortBy, sortAscending) {
+        sortWorkspaceEntries(state.entries, sortBy, sortAscending)
+    }
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         contentPadding = contentPadding + PaddingValues(16.dp),
@@ -1320,6 +1332,17 @@ private fun WorkspaceFilesPage(
                 canGoUp = state.path.isNotBlank(),
                 onGoUp = onGoUp,
             )
+        }
+
+        if (state.entries.isNotEmpty()) {
+            item {
+                WorkspaceSortBar(
+                    sortBy = sortBy,
+                    ascending = sortAscending,
+                    onSortByChange = { sortByKey = it.name },
+                    onToggleAscending = { sortAscending = !sortAscending },
+                )
+            }
         }
 
         state.error?.let { error ->
@@ -1348,7 +1371,7 @@ private fun WorkspaceFilesPage(
             }
         }
 
-        items(state.entries, key = { "${state.area.name}:${it.path}" }) { entry ->
+        items(sortedEntries, key = { "${state.area.name}:${it.path}" }) { entry ->
             WorkspaceFileCard(
                 entry = entry,
                 area = state.area,
@@ -1528,11 +1551,18 @@ private fun WorkspaceFileCard(
                 Text(
                     text = entry.name,
                     style = MaterialTheme.typography.titleSmallEmphasized,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Text(
+                    text = entry.path,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )
                 Text(
-                    text = if (entry.isDirectory) entry.path else "${entry.path} · ${entry.sizeBytes.fileSizeToString()}",
+                    text = fileMetaLine(entry),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 1,
@@ -1616,6 +1646,130 @@ private fun WorkspaceFileCard(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun WorkspaceSortBar(
+    sortBy: WorkspaceFileSortBy,
+    ascending: Boolean,
+    onSortByChange: (WorkspaceFileSortBy) -> Unit,
+    onToggleAscending: () -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box {
+            TextButton(onClick = { menuExpanded = true }) {
+                Text(
+                    text = "${stringResource(R.string.workspace_detail_sort_by)} · ${workspaceSortLabel(sortBy)}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            DropdownMenu(
+                expanded = menuExpanded,
+                onDismissRequest = { menuExpanded = false },
+            ) {
+                WorkspaceFileSortBy.entries.forEach { option ->
+                    DropdownMenuItem(
+                        text = { Text(workspaceSortLabel(option)) },
+                        leadingIcon = { RadioButton(selected = option == sortBy, onClick = null) },
+                        onClick = {
+                            menuExpanded = false
+                            onSortByChange(option)
+                        },
+                    )
+                }
+            }
+        }
+        TextButton(onClick = onToggleAscending) {
+            Text(
+                text = stringResource(
+                    if (ascending) R.string.workspace_detail_sort_ascending else R.string.workspace_detail_sort_descending,
+                ),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+        }
+    }
+}
+
+@Composable
+private fun workspaceSortLabel(sortBy: WorkspaceFileSortBy): String =
+    stringResource(
+        when (sortBy) {
+            WorkspaceFileSortBy.NAME -> R.string.workspace_detail_sort_name
+            WorkspaceFileSortBy.MODIFIED -> R.string.workspace_detail_sort_modified
+            WorkspaceFileSortBy.SIZE -> R.string.workspace_detail_sort_size
+        },
+    )
+
+private enum class WorkspaceFileSortBy {
+    NAME,
+    MODIFIED,
+    SIZE,
+    ;
+
+    companion object {
+        /** 存档恢复时枚举可能已改名：查不到就回落名称排序，不要抛异常。 */
+        fun fromName(name: String): WorkspaceFileSortBy =
+            WorkspaceFileSortBy.entries.firstOrNull { it.name == name } ?: WorkspaceFileSortBy.NAME
+    }
+}
+
+/** 排序：目录恒在前（升降序只翻转组内顺序），同维度再按名称兜底。 */
+private fun sortWorkspaceEntries(
+    entries: List<WorkspaceFileEntry>,
+    sortBy: WorkspaceFileSortBy,
+    ascending: Boolean,
+): List<WorkspaceFileEntry> {
+    if (entries.size < 2) return entries
+    val nameThen = compareBy<WorkspaceFileEntry> { it.name.lowercase() }
+    val primary: Comparator<WorkspaceFileEntry> = when (sortBy) {
+        WorkspaceFileSortBy.NAME -> nameThen
+        WorkspaceFileSortBy.MODIFIED -> compareBy<WorkspaceFileEntry>({ it.updatedAt }).thenComparator(nameThen)
+        WorkspaceFileSortBy.SIZE -> compareBy<WorkspaceFileEntry>({ it.sizeBytes }).thenComparator(nameThen)
+    }
+    val ordered = if (ascending) primary else primary.reversed()
+    return entries.sortedWith(compareBy<WorkspaceFileEntry>({ !it.isDirectory }).thenComparator(ordered))
+}
+
+@Composable
+private fun fileMetaLine(entry: WorkspaceFileEntry): String {
+    val modified = formatFileUpdatedAt(
+        updatedAt = entry.updatedAt,
+        todayLabel = stringResource(R.string.workspace_detail_date_today),
+        yesterdayLabel = stringResource(R.string.workspace_detail_date_yesterday),
+    )
+    return if (entry.isDirectory) modified else "$modified · ${entry.sizeBytes.fileSizeToString()}"
+}
+
+/** 文件修改时间四档显示：今天 HH:mm / 昨天 HH:mm / MM-dd / yyyy-MM-dd。 */
+private fun formatFileUpdatedAt(
+    updatedAt: Long,
+    todayLabel: String,
+    yesterdayLabel: String,
+): String {
+    // File.lastModified() 取不到时间时返回 0，此时不显示日期
+    if (updatedAt <= 0L) return "-"
+    val zone = ZoneId.systemDefault()
+    val timestamp = Instant.ofEpochMilli(updatedAt).atZone(zone)
+    val date = timestamp.toLocalDate()
+    val today = LocalDate.now(zone)
+    val locale = Locale.getDefault()
+    val timeFormatter = DateTimeFormatter.ofPattern("HH:mm", locale)
+    return when (date) {
+        today -> "$todayLabel ${timeFormatter.format(timestamp)}"
+        today.minusDays(1) -> "$yesterdayLabel ${timeFormatter.format(timestamp)}"
+        else -> DateTimeFormatter
+            .ofPattern(if (date.year == today.year) "MM-dd" else "yyyy-MM-dd", locale)
+            .format(date)
     }
 }
 
