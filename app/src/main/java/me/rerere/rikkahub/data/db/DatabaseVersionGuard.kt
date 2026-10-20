@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.db
 
 import android.content.Context
+import android.os.StatFs
 import android.util.Log
 import java.io.File
 import java.io.RandomAccessFile
@@ -12,16 +13,19 @@ import java.io.RandomAccessFile
  * 1. **升级前快照** —— 磁盘版本 < 代码版本时，把 `db` + `-wal` + `-shm` 原样复制一份，
  *    让"回滚到旧版本 App"有可恢复的原始数据（回滚 = 用快照恢复，而不是让 Room 倒着迁移）。
  * 2. **降级检测** —— 磁盘版本 > 代码版本（用户装回了旧版），照样快照并记录。
- *    不删除、不重建、不做 destructive fallback：数据安全优先，是否继续交给上层决定。
+ *    不删除、不重建、不做 destructive fallback：数据安全优先。
  *
  * 版本号直接读 SQLite 文件头（offset 60，大端 4 字节），**不打开数据库** ——
  * 打开会触发 WAL 恢复等副作用，这里要零副作用。
+ *
+ * 快照只写**外部可见目录** `/sdcard/Android/data/<pkg>/files/db-snapshots/`：
+ * 内部私有目录在没有 root 时取不出来，App 起不来时等于白存。外部目录无需权限，
+ * 电脑或文件管理器就能拷走。只保留最近一次，空间不足时跳过（不把存储写满）。
  */
 internal object DatabaseVersionGuard {
     private const val TAG = "DatabaseVersionGuard"
     private const val DB_NAME = "rikka_hub"
     private const val SNAPSHOT_DIR = "db-snapshots"
-    private const val MAX_SNAPSHOTS = 3
     private const val USER_VERSION_OFFSET = 60L
     private const val SQLITE_HEADER = "SQLite format 3\u0000"
 
@@ -32,14 +36,14 @@ internal object DatabaseVersionGuard {
         val installed = readUserVersion(dbFile) ?: return false
         if (installed == codeVersion) return false
         val kind = if (installed < codeVersion) "upgrade" else "downgrade"
-        return runCatching {
-            val dir = snapshot(context, dbFile, installed, codeVersion, kind)
-            Log.w(TAG, "database $kind $installed -> $codeVersion, snapshot at ${dir.name}")
-            true
-        }.getOrElse {
-            Log.w(TAG, "database snapshot failed ($kind $installed -> $codeVersion)", it)
-            false
-        }
+        val dir =
+            runCatching { snapshot(context, dbFile, installed, codeVersion, kind) }
+                .getOrElse {
+                    Log.w(TAG, "database snapshot failed ($kind $installed -> $codeVersion)", it)
+                    null
+                } ?: return false
+        Log.w(TAG, "database $kind $installed -> $codeVersion, snapshot at ${dir.absolutePath}")
+        return true
     }
 
     /** 读 SQLite 文件头的 user_version；不是 SQLite 文件或读不到时返回 null。 */
@@ -65,22 +69,24 @@ internal object DatabaseVersionGuard {
         installed: Int,
         codeVersion: Int,
         kind: String,
-    ): File {
-        val root = File(context.filesDir, SNAPSHOT_DIR)
-        val dir = File(root, "v${installed}-to-v${codeVersion}-$kind-${System.currentTimeMillis()}")
+    ): File? {
+        val root = context.getExternalFilesDir(SNAPSHOT_DIR) ?: return null
+        // WAL / SHM 必须一起带走：只复制主库会丢未 checkpoint 的事务
+        val sidecars =
+            listOf("-wal", "-shm")
+                .map { File(dbFile.parentFile, dbFile.name + it) }
+                .filter { it.isFile }
+        val totalBytes = dbFile.length() + sidecars.sumOf { it.length() }
+        val available = runCatching { StatFs(root.absolutePath).availableBytes }.getOrDefault(Long.MAX_VALUE)
+        if (available < (totalBytes * 1.2).toLong()) {
+            Log.w(TAG, "skip snapshot: need ${totalBytes / 1024 / 1024}MB, available ${available / 1024 / 1024}MB")
+            return null
+        }
+        val dir = File(root, "v${installed}-to-v${codeVersion}-$kind")
+        dir.deleteRecursively() // 只保留最近一次
         dir.mkdirs()
         dbFile.copyTo(File(dir, dbFile.name), overwrite = true)
-        // WAL / SHM 必须一起带走：只复制主库会丢未 checkpoint 的事务
-        for (suffix in listOf("-wal", "-shm")) {
-            val side = File(dbFile.parentFile, dbFile.name + suffix)
-            if (side.isFile) side.copyTo(File(dir, dbFile.name + suffix), overwrite = true)
-        }
-        pruneOldSnapshots(root)
+        sidecars.forEach { it.copyTo(File(dir, it.name), overwrite = true) }
         return dir
-    }
-
-    private fun pruneOldSnapshots(root: File) {
-        val all = root.listFiles()?.filter { it.isDirectory }?.sortedByDescending { it.name } ?: return
-        all.drop(MAX_SNAPSHOTS).forEach { old -> runCatching { old.deleteRecursively() } }
     }
 }

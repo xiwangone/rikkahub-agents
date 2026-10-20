@@ -1737,7 +1737,7 @@ private fun sortWorkspaceEntries(
         WorkspaceFileSortBy.SIZE -> compareBy<WorkspaceFileEntry>({ it.sizeBytes }).then(nameThen)
     }
     val ordered = if (ascending) primary else primary.reversed()
-    return entries.sortedWith(compareBy<WorkspaceFileEntry>({ !it.isDirectory }).thenComparator(ordered))
+    return entries.sortedWith(compareBy<WorkspaceFileEntry>({ !it.isDirectory }).then(ordered))
 }
 
 @Composable

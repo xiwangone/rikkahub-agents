@@ -550,7 +550,7 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
             ProviderSetting.Types.forEach { type ->
                 DropdownMenuItem(
                     text = {
-                        Text(providerTypeName(type)),
+                        Text(providerTypeName(type))
                     },
                     onClick = {
                         showTypeMenu = false
