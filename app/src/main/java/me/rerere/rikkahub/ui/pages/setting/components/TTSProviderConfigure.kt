@@ -85,109 +85,109 @@ fun TTSProviderConfigure(
                     expanded = expanded,
                     onDismissRequest = { expanded = false },
                 ) {
-                    providers.forEach { providerClass ->
+                    providers.forEach { typeKey ->
                         DropdownMenuItem(
                             text = {
                                 Text(
-                                    when (providerClass) {
-                                        TTSProviderSetting.OpenAI::class -> "OpenAI"
-                                        TTSProviderSetting.Gemini::class -> "Gemini"
-                                        TTSProviderSetting.SystemTTS::class -> "System TTS"
-                                        TTSProviderSetting.MiniMax::class -> "MiniMax"
-                                        TTSProviderSetting.Qwen::class -> "Qwen"
-                                        TTSProviderSetting.Groq::class -> "Groq"
-                                        TTSProviderSetting.XAI::class -> "xAI"
-                                        TTSProviderSetting.MiMo::class -> "MiMo"
-                                        TTSProviderSetting.ElevenLabs::class -> "ElevenLabs"
-                                        TTSProviderSetting.FishAudio::class -> "Fish Audio"
-                                        TTSProviderSetting.Step::class -> "Step"
-                                        TTSProviderSetting.Volcengine::class -> stringResource(R.string.setting_tts_page_provider_volcengine)
-                                        else -> providerClass.simpleName ?: "Unknown"
+                                    when (typeKey) {
+                                        "openai" -> "OpenAI"
+                                        "gemini" -> "Gemini"
+                                        "system" -> "System TTS"
+                                        "minimax" -> "MiniMax"
+                                        "qwen" -> "Qwen"
+                                        "groq" -> "Groq"
+                                        "xai" -> "xAI"
+                                        "mimo" -> "MiMo"
+                                        "elevenlabs" -> "ElevenLabs"
+                                        "fish-audio" -> "Fish Audio"
+                                        "step" -> "Step"
+                                        "volcengine" -> stringResource(R.string.setting_tts_page_provider_volcengine)
+                                        else -> typeKey
                                     },
                                 )
                             },
                             onClick = {
                                 expanded = false
                                 val newSetting =
-                                    when (providerClass) {
-                                        TTSProviderSetting.OpenAI::class -> {
+                                    when (typeKey) {
+                                        "openai" -> {
                                             TTSProviderSetting.OpenAI(
                                                 id = setting.id,
                                                 name = "OpenAI TTS",
                                             )
                                         }
 
-                                        TTSProviderSetting.Gemini::class -> {
+                                        "gemini" -> {
                                             TTSProviderSetting.Gemini(
                                                 id = setting.id,
                                                 name = "Gemini TTS",
                                             )
                                         }
 
-                                        TTSProviderSetting.SystemTTS::class -> {
+                                        "system" -> {
                                             TTSProviderSetting.SystemTTS(
                                                 id = setting.id,
                                                 name = "System TTS",
                                             )
                                         }
 
-                                        TTSProviderSetting.MiniMax::class -> {
+                                        "minimax" -> {
                                             TTSProviderSetting.MiniMax(
                                                 id = setting.id,
                                                 name = "MiniMax TTS",
                                             )
                                         }
 
-                                        TTSProviderSetting.Qwen::class -> {
+                                        "qwen" -> {
                                             TTSProviderSetting.Qwen(
                                                 id = setting.id,
                                                 name = "Qwen TTS",
                                             )
                                         }
 
-                                        TTSProviderSetting.Groq::class -> {
+                                        "groq" -> {
                                             TTSProviderSetting.Groq(
                                                 id = setting.id,
                                                 name = "Groq TTS",
                                             )
                                         }
 
-                                        TTSProviderSetting.XAI::class -> {
+                                        "xai" -> {
                                             TTSProviderSetting.XAI(
                                                 id = setting.id,
                                                 name = "xAI TTS",
                                             )
                                         }
 
-                                        TTSProviderSetting.MiMo::class -> {
+                                        "mimo" -> {
                                             TTSProviderSetting.MiMo(
                                                 id = setting.id,
                                                 name = "MiMo TTS",
                                             )
                                         }
 
-                                        TTSProviderSetting.ElevenLabs::class -> {
+                                        "elevenlabs" -> {
                                             TTSProviderSetting.ElevenLabs(
                                                 id = setting.id,
                                                 name = "ElevenLabs TTS",
                                             )
                                         }
 
-                                        TTSProviderSetting.FishAudio::class -> {
+                                        "fish-audio" -> {
                                             TTSProviderSetting.FishAudio(
                                                 id = setting.id,
                                                 name = "Fish Audio TTS",
                                             )
                                         }
 
-                                        TTSProviderSetting.Step::class -> {
+                                        "step" -> {
                                             TTSProviderSetting.Step(
                                                 id = setting.id,
                                                 name = "Step TTS",
                                             )
                                         }
 
-                                        TTSProviderSetting.Volcengine::class -> {
+                                        "volcengine" -> {
                                             TTSProviderSetting.Volcengine(
                                                 id = setting.id,
                                                 name = "Volcengine TTS",

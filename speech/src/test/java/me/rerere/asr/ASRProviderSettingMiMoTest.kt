@@ -20,7 +20,7 @@ class ASRProviderSettingMiMoTest {
 
     @Test
     fun mimo_is_registered_in_provider_types() {
-        assertTrue(ASRProviderSetting.Types.contains(ASRProviderSetting.MiMo::class))
+        assertTrue(ASRProviderSetting.Types.contains("mimo"))
     }
 
     @Test

@@ -23,7 +23,7 @@ class ASRProviderSettingStepTest {
 
     @Test
     fun step_is_registered_in_provider_types() {
-        assertTrue(ASRProviderSetting.Types.contains(ASRProviderSetting.Step::class))
+        assertTrue(ASRProviderSetting.Types.contains("step"))
     }
 
     @Test

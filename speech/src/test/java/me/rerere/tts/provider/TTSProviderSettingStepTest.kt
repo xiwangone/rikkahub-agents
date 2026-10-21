@@ -24,7 +24,7 @@ class TTSProviderSettingStepTest {
     @Test
     fun step_is_registered_in_provider_types() {
         // 没有注册到 Types 列表的话, 设置页的下拉菜单里就不会出现 Step 选项, 也没法新建
-        assertTrue(TTSProviderSetting.Types.contains(TTSProviderSetting.Step::class))
+        assertTrue(TTSProviderSetting.Types.contains("step"))
     }
 
     @Test

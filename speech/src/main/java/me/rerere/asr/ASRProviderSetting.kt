@@ -9,6 +9,13 @@ sealed class ASRProviderSetting {
     abstract val id: Uuid
     abstract val name: String
 
+    /**
+     * 稳定类型键：与各子类 `@SerialName` 字面量一致。
+     * KClass 相等匹配（`when(x::class)`、`List<KClass>` 的 `contains`）在 R8 优化后的 release 包里
+     * 不可靠，类型查找一律用该稳定字符串。**新增类型时：`@SerialName` 与 `typeKey` 两处字面量必须相同。**
+     */
+    abstract val typeKey: String
+
     // Describes our adapter, not every API offered by this vendor.
     val supportsServerVadVoiceMode: Boolean
         get() = this is OpenAIRealtime || this is DashScope || this is Volcengine
@@ -33,6 +40,8 @@ sealed class ASRProviderSetting {
         val prefixPaddingMs: Int = 300,
         val silenceDurationMs: Int = 500,
     ) : ASRProviderSetting() {
+        override val typeKey: String get() = "openai_realtime"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -56,6 +65,8 @@ sealed class ASRProviderSetting {
         val vadThreshold: Float = 0.0f,
         val silenceDurationMs: Int = 400,
     ) : ASRProviderSetting() {
+        override val typeKey: String get() = "dashscope"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -77,6 +88,8 @@ sealed class ASRProviderSetting {
         val language: String = "",
         val silenceDurationMs: Int = 800,
     ) : ASRProviderSetting() {
+        override val typeKey: String get() = "volcengine"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -114,6 +127,8 @@ sealed class ASRProviderSetting {
         // 16kHz/16bit/mono 下约 234 秒)。
         val segmentDurationSec: Int = 30,
     ) : ASRProviderSetting() {
+        override val typeKey: String get() = "mimo"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -159,6 +174,8 @@ sealed class ASRProviderSetting {
         // 热词列表, 提升专有名词/术语识别准确率
         val hotwords: List<String> = emptyList(),
     ) : ASRProviderSetting() {
+        override val typeKey: String get() = "step"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -172,11 +189,11 @@ sealed class ASRProviderSetting {
     companion object {
         val Types by lazy {
             listOf(
-                OpenAIRealtime::class,
-                DashScope::class,
-                Volcengine::class,
-                MiMo::class,
-                Step::class,
+                "openai_realtime",
+                "dashscope",
+                "volcengine",
+                "mimo",
+                "step",
             )
         }
     }

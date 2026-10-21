@@ -18,6 +18,6 @@ class TTSProviderSettingMiMoTest {
 
     @Test
     fun mimo_is_registered_in_provider_types() {
-        assertTrue(TTSProviderSetting.Types.contains(TTSProviderSetting.MiMo::class))
+        assertTrue(TTSProviderSetting.Types.contains("mimo"))
     }
 }

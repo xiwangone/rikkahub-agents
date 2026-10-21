@@ -9,6 +9,14 @@ sealed class TTSProviderSetting {
     abstract val id: Uuid
     abstract val name: String
 
+    /**
+     * 稳定类型键：与各子类 `@SerialName` 字面量一致。
+     * KClass 相等匹配（`when(x::class)`、`List<KClass>` 的 `contains`）在 R8 优化后的 release 包里
+     * 不可靠，类型下拉的显示/构造一律用该稳定字符串。**新增类型时：`@SerialName` 与 `typeKey`
+     * 两处字面量必须相同。**
+     */
+    abstract val typeKey: String
+
     abstract fun copyProvider(
         id: Uuid = this.id,
         name: String = this.name,
@@ -24,6 +32,8 @@ sealed class TTSProviderSetting {
         val model: String = "gpt-4o-mini-tts",
         val voice: String = "alloy",
     ) : TTSProviderSetting() {
+        override val typeKey: String get() = "openai"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -44,6 +54,8 @@ sealed class TTSProviderSetting {
         val model: String = "gemini-2.5-flash-preview-tts",
         val voiceName: String = "Kore",
     ) : TTSProviderSetting() {
+        override val typeKey: String get() = "gemini"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -62,6 +74,8 @@ sealed class TTSProviderSetting {
         val speechRate: Float = 1.0f,
         val pitch: Float = 1.0f,
     ) : TTSProviderSetting() {
+        override val typeKey: String get() = "system"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -83,6 +97,8 @@ sealed class TTSProviderSetting {
         val voiceId: String = "female-shaonv",
         val speed: Float = 1.0f,
     ) : TTSProviderSetting() {
+        override val typeKey: String get() = "minimax"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -105,6 +121,8 @@ sealed class TTSProviderSetting {
         val format: String = "wav",
         val sampleRate: Int = 24000,
     ) : TTSProviderSetting() {
+        override val typeKey: String get() = "qwen"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -125,6 +143,8 @@ sealed class TTSProviderSetting {
         val model: String = "canopylabs/orpheus-v1-english",
         val voice: String = "austin",
     ) : TTSProviderSetting() {
+        override val typeKey: String get() = "groq"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -145,6 +165,8 @@ sealed class TTSProviderSetting {
         val voiceId: String = "eve",
         val language: String = "auto",
     ) : TTSProviderSetting() {
+        override val typeKey: String get() = "xai"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -166,6 +188,8 @@ sealed class TTSProviderSetting {
         val model: String = "mimo-v2.5-tts",
         val voice: String = "mimo_default",
     ) : TTSProviderSetting() {
+        override val typeKey: String get() = "mimo"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -188,6 +212,8 @@ sealed class TTSProviderSetting {
         val stability: Float = 0.5f,
         val similarityBoost: Float = 0.75f,
     ) : TTSProviderSetting() {
+        override val typeKey: String get() = "elevenlabs"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -235,6 +261,8 @@ sealed class TTSProviderSetting {
         // 仅 stepaudio-2.5-tts 生效; ≤200 字符, 留空时不下发
         val instruction: String = "",
     ) : TTSProviderSetting() {
+        override val typeKey: String get() = "step"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -262,6 +290,8 @@ sealed class TTSProviderSetting {
         val normalize: Boolean = true,
         val latency: String = "normal",
     ) : TTSProviderSetting() {
+        override val typeKey: String get() = "fish-audio"
+
         override fun copyProvider(
             id: Uuid,
             name: String,
@@ -283,6 +313,8 @@ sealed class TTSProviderSetting {
         val speaker: String = "zh_female_vv_uranus_bigtts",
         val speechRate: Int = 0,
     ) : TTSProviderSetting() {
+        override val typeKey: String get() = "volcengine"
+
         override fun copyProvider(id: Uuid, name: String): TTSProviderSetting =
             copy(id = id, name = name)
     }
@@ -290,18 +322,18 @@ sealed class TTSProviderSetting {
     companion object {
         val Types by lazy {
             listOf(
-                OpenAI::class,
-                Gemini::class,
-                SystemTTS::class,
-                MiniMax::class,
-                Qwen::class,
-                Groq::class,
-                XAI::class,
-                MiMo::class,
-                ElevenLabs::class,
-                Step::class,
-                FishAudio::class,
-                Volcengine::class,
+                "openai",
+                "gemini",
+                "system",
+                "minimax",
+                "qwen",
+                "groq",
+                "xai",
+                "mimo",
+                "elevenlabs",
+                "step",
+                "fish-audio",
+                "volcengine",
             )
         }
     }
