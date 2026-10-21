@@ -612,12 +612,14 @@ sealed class ProviderSetting {
         // the Add-Provider dialog and ProviderConfigure should not offer it as a choice.
         // Including it overflowed the dialog width and wrapped the OpenAI / Google labels
         // onto two lines on a Pixel 10 Pro.
+        // 元素是 providerKey 字符串（= 各子类 @SerialName 字面量，与子类里 `override val providerKey`
+        // 一致）：KClass 相等匹配在 R8 优化后的 release 包里不可靠，查找/显示一律用该稳定字符串。
         val Types by lazy {
             listOf(
-                OpenAI::class,
-                Google::class,
-                Claude::class,
-                Backend::class,
+                "openai",
+                "google",
+                "claude",
+                "backend",
             )
         }
     }

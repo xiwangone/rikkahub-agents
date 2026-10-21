@@ -89,7 +89,6 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 import java.io.FileOutputStream
 import java.io.IOException
-import kotlin.reflect.KClass
 
 @Composable
 fun ProviderConfigure(
@@ -116,7 +115,7 @@ fun ProviderConfigure(
                         label = {
                             Text(providerTypeName(type))
                         },
-                        selected = provider::class == type,
+                        selected = provider.providerKey == type,
                         onClick = { onEdit(provider.convertTo(type)) },
                     )
                 }
@@ -171,28 +170,32 @@ fun ProviderConfigure(
 }
 
 // 类型的显示名：与用户可自行改名的 ProviderSetting.name 分开，添加/切换类型处只出稳定的类型名。
-// 这里按 KClass 匹配（Types 给的就是 KClass 列表，不是实例），sealed 的穷尽检查用不上，
-// 故把我方现有 10 个类型逐条列出；将来新增类型未列时退回 simpleName，与改动前行为一致。
+// typeKey 是 providerKey 字符串（= @SerialName 字面量）：原先按 KClass 匹配在 R8 优化后的
+// release 包里失效（when(x::class) 全落 else），故改为字符串 when；Types 给的也是同一串 key。
+// 把我方现有 10 个类型逐条列出；将来新增类型未列时退回 key 本身，与改动前退回 simpleName 的行为同型。
 // 订阅型（走 OAuth 登录、不需要 API key）显示成「<类型名> 订阅」。
 @Composable
-internal fun providerTypeName(type: KClass<out ProviderSetting>): String =
-    when (type) {
-        ProviderSetting.OpenAI::class -> "OpenAI"
-        ProviderSetting.Google::class -> "Google"
-        ProviderSetting.Claude::class -> "Claude"
-        ProviderSetting.Backend::class -> stringResource(R.string.backend_service)
-        ProviderSetting.Codex::class -> stringResource(R.string.setting_provider_page_type_subscription, "Codex")
-        ProviderSetting.Grok::class -> stringResource(R.string.setting_provider_page_type_subscription, "Grok")
-        ProviderSetting.GeminiOAuth::class -> stringResource(R.string.setting_provider_page_type_subscription, "Gemini")
+internal fun providerTypeName(typeKey: String): String =
+    when (typeKey) {
+        "openai" -> "OpenAI"
+        "google" -> "Google"
+        "claude" -> "Claude"
+        "backend" -> stringResource(R.string.backend_service)
+        "codex" -> stringResource(R.string.setting_provider_page_type_subscription, "Codex")
+        "grok" -> stringResource(R.string.setting_provider_page_type_subscription, "Grok")
+        "gemini_oauth" -> stringResource(R.string.setting_provider_page_type_subscription, "Gemini")
         // 端侧/内置类型：保持原名，不加「订阅」后缀
-        ProviderSetting.AICore::class -> "AICore"
-        ProviderSetting.LiteRtLocal::class -> "LiteRtLocal"
-        ProviderSetting.LlamaCppLocal::class -> "LlamaCppLocal"
-        else -> type.simpleName ?: ""
+        "aicore" -> "AICore"
+        "local_litert" -> "LiteRtLocal"
+        "local_llamacpp" -> "LlamaCppLocal"
+        else -> typeKey
     }
 
-fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSetting {
-    if (this::class == type) return this
+// 每个分支是一次类型映射，线性穷举、无嵌套；拆成多组会把「哪个类型归哪组」变成隐式约定，
+// 新增类型时更容易漏，故保持单层 when。
+@Suppress("CyclomaticComplexMethod")
+fun ProviderSetting.convertTo(typeKey: String): ProviderSetting {
+    if (this.providerKey == typeKey) return this
 
     val apiKey =
         when (this) {
@@ -243,19 +246,19 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             is ProviderSetting.LlamaCppLocal -> ""
         }
     val targetDefaultBaseUrl =
-        when (type) {
-            ProviderSetting.OpenAI::class -> ProviderSetting.OpenAI().baseUrl
-            ProviderSetting.Google::class -> ProviderSetting.Google().baseUrl
-            ProviderSetting.Claude::class -> ProviderSetting.Claude().baseUrl
-            ProviderSetting.AICore::class -> ""
-            ProviderSetting.LiteRtLocal::class -> ""
-            ProviderSetting.Backend::class -> ProviderSetting.Backend().baseUrl
-            else -> error("Unsupported provider type: $type")
+        when (typeKey) {
+            "openai" -> ProviderSetting.OpenAI().baseUrl
+            "google" -> ProviderSetting.Google().baseUrl
+            "claude" -> ProviderSetting.Claude().baseUrl
+            "aicore" -> ""
+            "local_litert" -> ""
+            "backend" -> ProviderSetting.Backend().baseUrl
+            else -> error("Unsupported provider type: $typeKey")
         }
     val convertedBaseUrl = sourceBaseUrl.convertToTargetBaseUrl(targetDefaultBaseUrl)
 
-    return when (type) {
-        ProviderSetting.OpenAI::class -> {
+    return when (typeKey) {
+        "openai" -> {
             ProviderSetting.OpenAI(
                 id = this.id,
                 enabled = this.enabled,
@@ -269,7 +272,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             )
         }
 
-        ProviderSetting.Google::class -> {
+        "google" -> {
             ProviderSetting.Google(
                 id = this.id,
                 enabled = this.enabled,
@@ -283,7 +286,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             )
         }
 
-        ProviderSetting.Claude::class -> {
+        "claude" -> {
             ProviderSetting.Claude(
                 id = this.id,
                 enabled = this.enabled,
@@ -297,7 +300,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             )
         }
 
-        ProviderSetting.AICore::class -> {
+        "aicore" -> {
             ProviderSetting.AICore(
                 id = this.id,
                 enabled = this.enabled,
@@ -308,7 +311,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             )
         }
 
-        ProviderSetting.LiteRtLocal::class -> {
+        "local_litert" -> {
             ProviderSetting.LiteRtLocal(
                 id = this.id,
                 enabled = this.enabled,
@@ -319,7 +322,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
             )
         }
 
-        ProviderSetting.Backend::class -> {
+        "backend" -> {
             ProviderSetting.Backend(
                 id = this.id,
                 enabled = this.enabled,
@@ -332,7 +335,7 @@ fun ProviderSetting.convertTo(type: KClass<out ProviderSetting>): ProviderSettin
         }
 
         else -> {
-            error("Unsupported provider type: $type")
+            error("Unsupported provider type: $typeKey")
         }
     }
 }

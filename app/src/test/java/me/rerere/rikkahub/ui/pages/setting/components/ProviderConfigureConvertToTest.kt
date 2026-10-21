@@ -35,7 +35,7 @@ class ProviderConfigureConvertToTest {
             baseUrl = "https://api.openai.com/v1"
         )
 
-        val converted = original.convertTo(ProviderSetting.Google::class)
+        val converted = original.convertTo("google")
         assertTrue(converted is ProviderSetting.Google)
         val google = converted as ProviderSetting.Google
 
@@ -57,7 +57,7 @@ class ProviderConfigureConvertToTest {
             baseUrl = "https://gateway.example.com/api/v1"
         )
 
-        val converted = original.convertTo(ProviderSetting.Google::class) as ProviderSetting.Google
+        val converted = original.convertTo("google") as ProviderSetting.Google
         assertEquals("https://gateway.example.com/api/v1beta", converted.baseUrl)
         assertEquals("gateway.example.com", converted.baseUrl.toHttpUrlOrNull()?.host)
     }
@@ -70,7 +70,7 @@ class ProviderConfigureConvertToTest {
             baseUrl = "https://proxy.example.com/vendor/gemini"
         )
 
-        val converted = original.convertTo(ProviderSetting.OpenAI::class) as ProviderSetting.OpenAI
+        val converted = original.convertTo("openai") as ProviderSetting.OpenAI
         assertEquals("https://proxy.example.com/vendor/gemini/v1", converted.baseUrl)
         assertEquals("proxy.example.com", converted.baseUrl.toHttpUrlOrNull()?.host)
     }
@@ -83,7 +83,7 @@ class ProviderConfigureConvertToTest {
             baseUrl = "https://gateway.example.com/proxy/v1beta"
         )
 
-        val converted = original.convertTo(ProviderSetting.Claude::class) as ProviderSetting.Claude
+        val converted = original.convertTo("claude") as ProviderSetting.Claude
         assertEquals("https://gateway.example.com/proxy/v1", converted.baseUrl)
         assertEquals("gateway.example.com", converted.baseUrl.toHttpUrlOrNull()?.host)
     }
@@ -96,7 +96,7 @@ class ProviderConfigureConvertToTest {
             baseUrl = "https://api.openai.com/v1"
         )
 
-        val converted = original.convertTo(ProviderSetting.OpenAI::class)
+        val converted = original.convertTo("openai")
         assertSame(original, converted)
     }
 
@@ -108,7 +108,7 @@ class ProviderConfigureConvertToTest {
             baseUrl = "not-a-url"
         )
 
-        val converted = original.convertTo(ProviderSetting.OpenAI::class) as ProviderSetting.OpenAI
+        val converted = original.convertTo("openai") as ProviderSetting.OpenAI
         assertEquals("not-a-url", converted.baseUrl)
     }
 }

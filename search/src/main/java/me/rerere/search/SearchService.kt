@@ -17,7 +17,6 @@ import okhttp3.internal.closeQuietly
 import okio.IOException
 import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resumeWithException
-import kotlin.reflect.KClass
 import kotlin.uuid.Uuid
 
 interface SearchService<T : SearchServiceOptions> {
@@ -175,8 +174,18 @@ data class ScrapedResultMetadata(
 sealed class SearchServiceOptions {
     abstract val id: Uuid
 
+    /**
+     * 稳定类型键：与子类 `@SerialName` 字面量一致。
+     *
+     * KClass 相等匹配（`when(x::class)`、`Map<KClass,_>` 取键）在 R8 优化后的 release 包里失效、
+     * 全部落到 else（实证：用户选 Exa，存储里 type 写成 "duckduckgo"——即 create() 走了
+     * `else -> DEFAULT`）。序列化名是数据契约，R8 必须保留，故显示名/创建/可添加列表一律改按
+     * 该字符串匹配。**新增类型时：`@SerialName` 与 `typeKey` 两处字面量必须相同。**
+     */
+    abstract val typeKey: String
+
     open val displayName: String
-        get() = TYPES[this::class] ?: "Unknown"
+        get() = TYPES[typeKey] ?: "Unknown"
 
     companion object {
         val DEFAULT = DuckDuckGoOptions()
@@ -190,80 +199,87 @@ sealed class SearchServiceOptions {
         // 每个分支是一次类型映射，线性穷举、无嵌套；拆成多组反而会把“哪个类型归哪组”变成隐式约定，
         // 新增类型时更容易漏，故保持单层 when.
         @Suppress("CyclomaticComplexMethod")
-        fun create(type: KClass<out SearchServiceOptions>): SearchServiceOptions =
-            when (type) {
-                DuckDuckGoOptions::class -> DuckDuckGoOptions()
-                BingLocalOptions::class -> BingLocalOptions()
-                RikkaHubOptions::class -> RikkaHubOptions()
-                ZhipuOptions::class -> ZhipuOptions()
-                DoubaoOptions::class -> DoubaoOptions()
-                TavilyOptions::class -> TavilyOptions()
-                ExaOptions::class -> ExaOptions()
-                SearXNGOptions::class -> SearXNGOptions()
-                LinkUpOptions::class -> LinkUpOptions()
-                BraveOptions::class -> BraveOptions()
-                MetasoOptions::class -> MetasoOptions()
-                OllamaOptions::class -> OllamaOptions()
-                PerplexityOptions::class -> PerplexityOptions()
-                FirecrawlOptions::class -> FirecrawlOptions()
-                JinaOptions::class -> JinaOptions()
-                BochaOptions::class -> BochaOptions()
-                GrokOptions::class -> GrokOptions()
-                TinyfishOptions::class -> TinyfishOptions()
-                SerperOptions::class -> SerperOptions()
-                DeepSeekOptions::class -> DeepSeekOptions()
-                CustomJsOptions::class -> CustomJsOptions()
+        fun create(typeKey: String): SearchServiceOptions =
+            when (typeKey) {
+                "duckduckgo" -> DuckDuckGoOptions()
+                "bing_local" -> BingLocalOptions()
+                "rikkahub" -> RikkaHubOptions()
+                "zhipu" -> ZhipuOptions()
+                "doubao" -> DoubaoOptions()
+                "tavily" -> TavilyOptions()
+                "exa" -> ExaOptions()
+                "searxng" -> SearXNGOptions()
+                "linkup" -> LinkUpOptions()
+                "brave" -> BraveOptions()
+                "metaso" -> MetasoOptions()
+                "ollama" -> OllamaOptions()
+                "perplexity" -> PerplexityOptions()
+                "firecrawl" -> FirecrawlOptions()
+                "jina" -> JinaOptions()
+                "bocha" -> BochaOptions()
+                "grok" -> GrokOptions()
+                "tinyfish" -> TinyfishOptions()
+                "serper" -> SerperOptions()
+                "deepseek" -> DeepSeekOptions()
+                "custom_js" -> CustomJsOptions()
                 else -> DEFAULT
             }
 
+        /** typeKey（= @SerialName 字面量）→ 显示名。顺序即「添加服务」对话框的展示顺序。 */
         val TYPES =
             mapOf(
-                BingLocalOptions::class to "Bing",
-                RikkaHubOptions::class to "RikkaHub",
-                ZhipuOptions::class to "智谱",
-                DoubaoOptions::class to "豆包",
-                TavilyOptions::class to "Tavily",
-                ExaOptions::class to "Exa",
-                SearXNGOptions::class to "SearXNG",
-                LinkUpOptions::class to "LinkUp",
-                BraveOptions::class to "Brave",
-                MetasoOptions::class to "秘塔",
-                OllamaOptions::class to "Ollama",
-                PerplexityOptions::class to "Perplexity",
-                FirecrawlOptions::class to "Firecrawl",
-                JinaOptions::class to "Jina",
-                BochaOptions::class to "博查",
-                GrokOptions::class to "Grok",
-                TinyfishOptions::class to "Tinyfish",
-                SerperOptions::class to "Serper",
-                DeepSeekOptions::class to "DeepSeek",
-                CustomJsOptions::class to "Custom JS",
-                DuckDuckGoOptions::class to "DuckDuckGo",
+                "bing_local" to "Bing",
+                "rikkahub" to "RikkaHub",
+                "zhipu" to "智谱",
+                "doubao" to "豆包",
+                "tavily" to "Tavily",
+                "exa" to "Exa",
+                "searxng" to "SearXNG",
+                "linkup" to "LinkUp",
+                "brave" to "Brave",
+                "metaso" to "秘塔",
+                "ollama" to "Ollama",
+                "perplexity" to "Perplexity",
+                "firecrawl" to "Firecrawl",
+                "jina" to "Jina",
+                "bocha" to "博查",
+                "grok" to "Grok",
+                "tinyfish" to "Tinyfish",
+                "serper" to "Serper",
+                "deepseek" to "DeepSeek",
+                "custom_js" to "Custom JS",
+                "duckduckgo" to "DuckDuckGo",
             )
 
         /** 可添加的服务类型：DuckDuckGo 是未配置时的默认兜底，不作为「添加」项。 */
-        val ADDABLE_TYPES: Map<KClass<out SearchServiceOptions>, String> =
-            TYPES.filterKeys { it != DuckDuckGoOptions::class }
+        val ADDABLE_TYPES: Map<String, String> =
+            TYPES.filterKeys { it != "duckduckgo" }
     }
 
     @Serializable
     @SerialName("bing_local")
     class BingLocalOptions(
         override val id: Uuid = Uuid.random(),
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "bing_local"
+    }
 
     @Serializable
     @SerialName("duckduckgo")
     data class DuckDuckGoOptions(
         override val id: Uuid = Uuid.random(),
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "duckduckgo"
+    }
 
     @Serializable
     @SerialName("zhipu")
     data class ZhipuOptions(
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "zhipu"
+    }
 
     @Serializable
     @SerialName("doubao")
@@ -271,7 +287,9 @@ sealed class SearchServiceOptions {
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
         val mode: DoubaoSearchMode = DoubaoSearchMode.CUSTOM,
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "doubao"
+    }
 
     @Serializable
     @SerialName("tavily")
@@ -279,14 +297,18 @@ sealed class SearchServiceOptions {
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
         val depth: String = "advanced",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "tavily"
+    }
 
     @Serializable
     @SerialName("exa")
     data class ExaOptions(
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "exa"
+    }
 
     @Serializable
     @SerialName("searxng")
@@ -297,7 +319,9 @@ sealed class SearchServiceOptions {
         val language: String = "",
         val username: String = "",
         val password: String = "",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "searxng"
+    }
 
     @Serializable
     @SerialName("linkup")
@@ -305,28 +329,36 @@ sealed class SearchServiceOptions {
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
         val depth: String = "standard",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "linkup"
+    }
 
     @Serializable
     @SerialName("brave")
     data class BraveOptions(
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "brave"
+    }
 
     @Serializable
     @SerialName("metaso")
     data class MetasoOptions(
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "metaso"
+    }
 
     @Serializable
     @SerialName("ollama")
     data class OllamaOptions(
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "ollama"
+    }
 
     @Serializable
     @SerialName("perplexity")
@@ -335,14 +367,18 @@ sealed class SearchServiceOptions {
         val apiKey: String = "",
         val maxTokens: Int? = null,
         val maxTokensPerPage: Int? = null,
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "perplexity"
+    }
 
     @Serializable
     @SerialName("firecrawl")
     data class FirecrawlOptions(
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "firecrawl"
+    }
 
     @Serializable
     @SerialName("jina")
@@ -351,7 +387,9 @@ sealed class SearchServiceOptions {
         val apiKey: String = "",
         val searchUrl: String = "https://s.jina.ai/",
         val scrapeUrl: String = "https://r.jina.ai/",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "jina"
+    }
 
     @Serializable
     @SerialName("bocha")
@@ -359,7 +397,9 @@ sealed class SearchServiceOptions {
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
         val summary: Boolean = true,
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "bocha"
+    }
 
     @Serializable
     @SerialName("rikkahub")
@@ -367,7 +407,9 @@ sealed class SearchServiceOptions {
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
         val depth: String = "standard",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "rikkahub"
+    }
 
     @Serializable
     @SerialName("grok")
@@ -377,28 +419,36 @@ sealed class SearchServiceOptions {
         val model: String = "grok-4-1-fast-non-reasoning",
         val customUrl: String = "https://api.x.ai/v1/responses",
         val systemPrompt: String = "You are a helpful search assistant. Search the web to find accurate and up-to-date information for the user's query. Provide a comprehensive answer with citations.",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "grok"
+    }
 
     @Serializable
     @SerialName("tinyfish")
     data class TinyfishOptions(
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "tinyfish"
+    }
 
     @Serializable
     @SerialName("serper")
     data class SerperOptions(
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "serper"
+    }
 
     @Serializable
     @SerialName("deepseek")
     data class DeepSeekOptions(
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
-    ) : SearchServiceOptions()
+    ) : SearchServiceOptions() {
+        override val typeKey: String get() = "deepseek"
+    }
     @Serializable
     @SerialName("custom_js")
     data class CustomJsOptions(
@@ -407,6 +457,7 @@ sealed class SearchServiceOptions {
         val searchScript: String = DEFAULT_SEARCH_SCRIPT,
         val scrapeScript: String = "",
     ) : SearchServiceOptions() {
+        override val typeKey: String get() = "custom_js"
         override val displayName: String
             get() = name.ifBlank { "Custom JS" }
 
