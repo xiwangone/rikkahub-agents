@@ -1001,9 +1001,12 @@ class WorkspaceRepository(
         return true
     }
 
-    private suspend fun <T> readFromBackend(workspace: WorkspaceEntity, block: suspend (WorkspaceBackend) -> T): T {
+    private suspend fun <T> readFromBackend(workspace: WorkspaceEntity, block: (WorkspaceBackend) -> T): T {
+        // backendOf 是 suspend（可能需要解析 SSH 凭证），必须在协程体内取；
+        // 后端方法本身都是阻塞调用，所以 block 不需要 suspend —— runInterruptible 的 lambda 是非 suspend 的。
+        val backend = backendOf(workspace)
         return try {
-            runInterruptible(Dispatchers.IO) { block(backendOf(workspace)) }
+            runInterruptible(Dispatchers.IO) { block(backend) }
         } catch (e: Exception) {
             // 被中断的读取会抛出 JSch 包装过的 IO 异常, 已取消时统一按取消处理, 免得被当成连接失败
             currentCoroutineContext().ensureActive()
