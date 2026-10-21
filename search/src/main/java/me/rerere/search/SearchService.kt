@@ -177,10 +177,13 @@ sealed class SearchServiceOptions {
     /**
      * 稳定类型键：与子类 `@SerialName` 字面量一致。
      *
-     * KClass 相等匹配（`when(x::class)`、`Map<KClass,_>` 取键）在 R8 优化后的 release 包里失效、
-     * 全部落到 else（实证：用户选 Exa，存储里 type 写成 "duckduckgo"——即 create() 走了
-     * `else -> DEFAULT`）。序列化名是数据契约，R8 必须保留，故显示名/创建/可添加列表一律改按
-     * 该字符串匹配。**新增类型时：`@SerialName` 与 `typeKey` 两处字面量必须相同。**
+     * 序列化名是数据契约，显示名/创建/可添加列表一律按该字符串匹配。
+     * **新增类型时：`@SerialName` 与 `typeKey` 两处字面量必须相同。**
+     *
+     * （原注释把「添加后全变 DuckDuckGo」归因于 R8 破坏 KClass 相等匹配，已否证：本机用
+     * Kotlin 2.4.20 + kotlinx-serialization 1.11.0 + R8 8.5.35、按 app/proguard-rules.pro
+     * 现有规则收缩后，create/typeKey/displayName/多态序列化往返全部正确。真因见
+     * `DEFAULT` 的声明类型注释与 PreferencesStore 的 search_services 解码处。）
      */
     abstract val typeKey: String
 
@@ -188,7 +191,20 @@ sealed class SearchServiceOptions {
         get() = TYPES[typeKey] ?: "Unknown"
 
     companion object {
-        val DEFAULT = DuckDuckGoOptions()
+        /**
+         * **声明类型必须写死成 `SearchServiceOptions`，不能省。**
+         *
+         * 省略时它推断为 `DuckDuckGoOptions`。而设置读取用
+         * `decodePrefOrDefault(raw, listOf(SearchServiceOptions.DEFAULT))` 这种形状：泛型 `T`
+         * 同时由「返回值槽位」和「default 实参」决定，Kotlin 取最具体的 `List<DuckDuckGoOptions>`
+         * （赋值给 `List<SearchServiceOptions>` 靠协变通过，不会把 T 放宽回基类）。于是
+         * reified 解码拿到的是 **DuckDuckGoOptions 的具体序列化器**：`type` 判别键被
+         * `ignoreUnknownKeys` 当成未知键忽略，**盘上任何类型都静默解成 DuckDuckGoOptions**，
+         * 连 apiKey / 脚本等子类字段一起丢。这就是「添加任何搜索服务都变 DuckDuckGo」的根因
+         * （写入侧 `encodeToString(settings.searchServices)` 静态类型是基类，所以盘上的
+         * `"type":"exa"` 一直是对的 —— 读写不对称恰好掩盖了它）。
+         */
+        val DEFAULT: SearchServiceOptions = DuckDuckGoOptions()
 
         /**
          * 按类型创建实例。

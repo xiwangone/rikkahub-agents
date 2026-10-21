@@ -37,6 +37,8 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.decodeFromJsonElement
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
@@ -534,7 +536,14 @@ class SettingsStore(
                 backendConnections = preferences[BACKEND_CONNECTIONS]?.let {
                     JsonInstant.decodeFromString<kotlin.collections.List<me.rerere.rikkahub.data.model.BackendConnection>>(it)
                 } ?: emptyList(),
-                searchServices = decodePrefOrDefault(preferences[SEARCH_SERVICES], listOf(SearchServiceOptions.DEFAULT)),
+                // 显式类型实参：不能让 T 由 default 实参推。DEFAULT 一旦声明成具体子类
+                // （DuckDuckGoOptions），T 就窄化成 List<DuckDuckGoOptions>，多态判别键 `type`
+                // 被 ignoreUnknownKeys 吞掉 → 所有搜索服务静默解成 DuckDuckGo。
+                // SearchServiceOptions.DEFAULT 已修声明类型，这里再钉一次作双保险。
+                searchServices = decodePrefOrDefault<List<SearchServiceOptions>>(
+                    preferences[SEARCH_SERVICES],
+                    listOf(SearchServiceOptions.DEFAULT),
+                ).also { logSearchServicesDecode(preferences[SEARCH_SERVICES], it) }, // TEMP-DIAG(SearchTypeDiag)：验收后删掉这个 .also{} 片段
                 searchCommonOptions = decodePrefOrDefault(preferences[SEARCH_COMMON], SearchCommonOptions()),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
                 mcpServers = decodeEncryptedPrefOrDefault(preferences[MCP_SERVERS], emptyList()),
@@ -840,10 +849,40 @@ private inline fun <reified T> decodeEncryptedPrefOrDefault(raw: String?, defaul
     return decodePersistedSetting(decryptPrefValue(raw), default)
 }
 
-/** Missing keys use schema defaults; present-but-invalid values fail loading and are never rewritten. */
+/**
+ * Missing keys use schema defaults; present-but-invalid values fail loading and are never rewritten.
+ *
+ * ⚠ `default` 同时是 **泛型 T 的类型见证**：Kotlin 取最具体解、不会按赋值目标放宽。所以
+ * 对「声明为 sealed 基类的列表」不能传具体子类实例当 default ——
+ * `decodePrefOrDefault<List<X>>(raw, listOf(XxxSubclass()))` 会把 T 窄化成
+ * `List<XxxSubclass>`，多态判别键 `type` 被 `ignoreUnknownKeys` 静默忽略，**所有条目都解成那个
+ * 子类**（写入侧仍正确，读写不对称掩盖问题）。这类调用一律**显式写类型实参**，并保证默认值
+ * 的声明类型是基类（见 `SearchServiceOptions.DEFAULT`）。
+ */
 private inline fun <reified T> decodePrefOrDefault(raw: String?, default: T): T {
     if (raw == null) return default
     return decodePersistedSetting(raw, default)
+}
+
+// TEMP-DIAG(SearchTypeDiag) —— 出包核对「盘上 type」与「读回实例类」是否一致用；验收后连同
+// 上面 searchServices 里的那行 .also{} 一起删掉（全仓搜一次 SearchTypeDiag 即可清干净）。
+/**
+ * 打一条「解码保真」自检：JSON 里出现的 `type` 判别值 vs 读回实例的 typeKey/displayName。
+ * 两者不一致（或实例类与 type 不匹配）即说明又有人把多态列表的泛型窄化成了具体子类。
+ */
+private fun logSearchServicesDecode(raw: String?, services: List<SearchServiceOptions>) {
+    if (raw.isNullOrBlank()) return
+    val diskTypes = runCatching {
+        (JsonInstant.parseToJsonElement(raw) as? JsonArray)
+            ?.mapNotNull { (it as? JsonObject)?.get("type") as? JsonPrimitive }
+            ?.map { it.content }
+    }.getOrDefault(emptyList())
+    val memoryTypes = services.map { it.typeKey }
+    AppLog.i(
+        "SearchTypeDiag",
+        "disk=$diskTypes memory=$memoryTypes classes=${services.map { it.javaClass.simpleName }} " +
+            "display=${services.map { it.displayName }} fidelity=${diskTypes == memoryTypes}",
+    )
 }
 
 /** Malformed stored UUID values fail loading instead of masquerading as absent optional fields. */

@@ -50,6 +50,7 @@ import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.FormItem
@@ -257,7 +258,14 @@ private fun AddProviderDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    onConfirm(SearchServiceOptions.create(selectedType))
+                    val created = SearchServiceOptions.create(selectedType)
+                    // TEMP-DIAG(SearchTypeDiag) 验收后删掉下面这行（全仓搜 SearchTypeDiag 清理）
+                    AppLog.i(
+                        "SearchTypeDiag",
+                        "create(in=$selectedType) -> ${created.javaClass.simpleName} " +
+                            "typeKey=${created.typeKey} display=${created.displayName}",
+                    )
+                    onConfirm(created)
                 },
             ) {
                 Text(stringResource(R.string.confirm))
