@@ -914,9 +914,12 @@ class WorkspaceRepository(
             "Environment variables are only supported for local workspaces"
         }
         // runInterruptible 让协程取消转化为线程中断，从而打断阻塞的 Process.waitFor 并杀掉进程
+        // ⚠ backendOf 是 suspend（可能要解析 SSH 凭证），必须在 runInterruptible 之外先取好；
+        //   后端方法本身都是阻塞调用，所以 lambda 里只放非 suspend 的调用。
+        val sshBackend = if (workspace.isSsh()) backendOf(workspace) else null
         return runInterruptible(Dispatchers.IO) {
-            if (workspace.isSsh()) {
-                backendOf(workspace).executeCommand(command, cwd, timeoutMillis, stdin)
+            if (sshBackend != null) {
+                sshBackend.executeCommand(command, cwd, timeoutMillis, stdin)
             } else {
                 manager.executeCommand(
                     workspace.root, command, cwd, timeoutMillis, stdin,
