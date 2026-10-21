@@ -100,9 +100,19 @@ class WorkspaceManager(
     private fun sortedActiveMounts(): List<WorkspaceBindMount> =
         activeBindMounts().sortedByDescending { it.target.trimEnd('/').length }
 
+    /** 本机工作区在执行环境内的目录约定; 可写目录跟着挂载表走 */
+    val layout = WorkspaceLayout(
+        workspaceDir = ROOTFS_WORKSPACE_DIR,
+        writableRoots = listOf(ROOTFS_WORKSPACE_DIR, "/tmp") +
+            bindMounts.filter { it.writable }.map { it.target.trimEnd('/') },
+    )
+
     init {
         baseDir.mkdirs()
     }
+
+    fun backend(root: String, shellCompatibilityMode: Boolean = false): WorkspaceBackend =
+        LocalWorkspaceBackend(this, root, shellCompatibilityMode)
 
     fun ensureWorkspace(root: String): File {
         val dir = workspaceDir(root)
@@ -135,28 +145,7 @@ class WorkspaceManager(
                 .getOrNull()
                 ?.takeIf { it.isNotBlank() }
                 ?: return null
-        if (file.name == "issue") {
-            val line = text.lineSequence().firstOrNull { it.isNotBlank() }?.trim() ?: return null
-            return WorkspaceDistroInfo(name = line, version = null, prettyName = line)
-        }
-        val fields =
-            text
-                .lineSequence()
-                .mapNotNull { line ->
-                    val index = line.indexOf('=')
-                    if (index <= 0) return@mapNotNull null
-                    val key = line.substring(0, index).trim()
-                    val value = line.substring(index + 1).trim().trim('"', '\'')
-                    if (key.isEmpty() || value.isEmpty()) null else key to value
-                }
-                .toMap()
-        val name = fields["NAME"] ?: fields["ID"]?.replaceFirstChar { it.uppercase() } ?: return null
-        val version = fields["VERSION_ID"]
-        return WorkspaceDistroInfo(
-            name = name,
-            version = version,
-            prettyName = fields["PRETTY_NAME"] ?: listOfNotNull(name, version).joinToString(" "),
-        )
+        return parseDistroInfo(text, fallbackToIssue = file.name == "issue")
     }
 
     fun deleteWorkspace(root: String): Boolean = synchronized(backgroundLifecycleLock) {
@@ -467,12 +456,46 @@ class WorkspaceManager(
         /** Rootfs 内工作区文件区的挂载点 */
         const val ROOTFS_WORKSPACE_DIR = "/workspace"
 
+        /** Rootfs 内的 HOME 目录 (ProotShellRunner 固定注入 HOME= 该值) */
+        const val ROOTFS_HOME_DIR = "/root"
+
         /** 由宿主机透传的内核伪文件系统, 只能通过 shell 访问 */
         val KERNEL_FS_MOUNTS = listOf("/dev", "/proc", "/sys")
 
         /** 优先使用 bash，否则用 sh；该路径按 rootfs/chroot 语义返回。 */
         fun rootfsShell(linuxDir: File): String =
             if (isUsableRootfsEntry(linuxDir, "bin/bash")) "/bin/bash" else "/bin/sh"
+
+        /**
+         * 解析 os-release 文本（`/etc/os-release` 的内容）识别发行版。
+         *
+         * 单独成函数：本机 Rootfs 直接读文件，远程工作区经 SFTP 读，两边共用同一套解析。
+         * [fallbackToIssue] 对应 `/etc/issue` 回退：那里只有一行发行版描述，没有键值对。
+         */
+        fun parseDistroInfo(text: String, fallbackToIssue: Boolean = false): WorkspaceDistroInfo? {
+            if (fallbackToIssue) {
+                val line = text.lineSequence().firstOrNull { it.isNotBlank() }?.trim() ?: return null
+                return WorkspaceDistroInfo(name = line, version = null, prettyName = line)
+            }
+            val fields =
+                text
+                    .lineSequence()
+                    .mapNotNull { line ->
+                        val index = line.indexOf('=')
+                        if (index <= 0) return@mapNotNull null
+                        val key = line.substring(0, index).trim()
+                        val value = line.substring(index + 1).trim().trim('"', '\'')
+                        if (key.isEmpty() || value.isEmpty()) null else key to value
+                    }
+                    .toMap()
+            val name = fields["NAME"] ?: fields["ID"]?.replaceFirstChar { it.uppercase() } ?: return null
+            val version = fields["VERSION_ID"]
+            return WorkspaceDistroInfo(
+                name = name,
+                version = version,
+                prettyName = fields["PRETTY_NAME"] ?: listOfNotNull(name, version).joinToString(" "),
+            )
+        }
 
         /** 检查 shell 入口是否最终指向 rootfs 内的普通文件。 */
         fun isUsableRootfs(linuxDir: File): Boolean =

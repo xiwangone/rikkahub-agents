@@ -97,7 +97,7 @@ fun Process.readResult(
     }
 }
 
-private class StreamWriter(
+internal class StreamWriter(
     private val stream: java.io.OutputStream,
     private val bytes: ByteArray,
 ) {
@@ -119,7 +119,7 @@ private class StreamWriter(
     fun join(millis: Long) = thread.join(millis)
 }
 
-private class StreamCollector(
+internal class StreamCollector(
     stream: InputStream,
     private val maxChars: Int = MAX_OUTPUT_CHARS,
 ) {
@@ -162,4 +162,37 @@ private class StreamCollector(
     fun join(millis: Long) = thread.join(millis)
 
     fun text(): String = synchronized(builder) { builder.toString() }
+}
+
+/** POSIX shell 单引号转义 */
+internal fun String.shellQuote(): String =
+    "'" + replace("'", "'\"'\"'") + "'"
+
+/**
+ * 输出 [path] 的条目信息: 类型、字节数、mtime (秒)、绝对路径, 以 \0 分隔,
+ * 供 shell 侧写入/移动文件后取回文件条目, 见 [parseShellEntries]。
+ */
+internal fun statEntryCommand(path: String): String {
+    val quoted = path.shellQuote()
+    return """
+        if [ -d $quoted ]; then entry_type=d; else entry_type=f; fi
+        entry_size=${'$'}(stat -c '%s' -- $quoted) || exit 1
+        entry_mtime=${'$'}(stat -c '%Y' -- $quoted) || exit 1
+        printf '%s\0%s\0%s\0%s\0' "${'$'}entry_type" "${'$'}entry_size" "${'$'}entry_mtime" $quoted
+    """.trimIndent()
+}
+
+/** 解析 [statEntryCommand] 的输出 */
+internal fun String.parseShellEntries(): List<WorkspaceFileEntry> {
+    val fields = split('\u0000').dropLastWhile { it.isEmpty() }
+    require(fields.size % 4 == 0) { "Invalid file metadata output" }
+    return fields.chunked(4).map { (type, size, mtime, path) ->
+        WorkspaceFileEntry(
+            path = path,
+            name = path.trimEnd('/').substringAfterLast('/').ifBlank { "/" },
+            isDirectory = type == "d",
+            sizeBytes = size.toLongOrNull() ?: error("Invalid file size: $size"),
+            updatedAt = (mtime.toLongOrNull() ?: error("Invalid file mtime: $mtime")) * 1_000L,
+        )
+    }
 }

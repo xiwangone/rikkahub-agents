@@ -5,6 +5,8 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.ui.UIMessage
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.workspace.WorkspaceLayout
+import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspaceShellStatus
 import java.io.ByteArrayOutputStream
 import java.nio.file.Paths
@@ -23,6 +25,7 @@ private val absentInstructionsNotified: MutableSet<String> =
  * Workspace 系统提示注入转换器
  *
  * 根据 workspace 状态向系统提示注入不同内容, 让模型"认知"到 workspace 并能在需要时指导用户:
+ * - 远程 (SSH) 工作区: 提示按远程环境写, 不提 Rootfs / 挂载点 / 后台任务, 路径前缀取工作区目录。
  * - 已绑定且 shell 就绪: 注入完整 <workspace> 引导 (workspace_* 工具可用)。
  * - 已绑定但 shell 未就绪: 注入 <workspace-setup>, 告知模型如何引导用户让 shell 就绪。
  * - 未绑定但存在至少一个 workspace: 注入 <workspace-setup>, 告知模型如何引导用户绑定。
@@ -47,14 +50,21 @@ class WorkspaceReminderTransformer(
         val hasAnyWorkspace = workspace != null || workspaceRepository.getAll().isNotEmpty()
 
         val ready = workspace?.takeIf { it.shellStatus == WorkspaceShellStatus.READY.name }
-        val distro = ready?.let { workspaceRepository.readDistroInfo(it.id) }
-        val shellPath = ready?.let { workspaceRepository.readShellPath(it.id) }
-        val prompt = buildWorkspaceReminder(workspace, hasAnyWorkspace, ctx.workspaceCwd, distro?.prettyName, shellPath)
-            ?: return messages
+        // layout 不含凭据、也不建连接, 远程工作区用它拿到工作区目录
+        val layout = ready?.let { workspaceRepository.layout(it.id) }
+        val environment = ready?.let { workspaceRepository.readEnvironmentInfo(it.id) }
+        val prompt = buildWorkspaceReminder(
+            workspace = workspace,
+            hasAnyWorkspace = hasAnyWorkspace,
+            cwd = ctx.workspaceCwd,
+            distroName = environment?.distroName,
+            shellPath = environment?.shellPath,
+            layout = layout,
+        ) ?: return messages
         // shell 就绪时附带工作区指令文件 (AGENTS.md)
         val instructions =
-            if (workspaceId != null && workspace?.shellStatus == WorkspaceShellStatus.READY.name) {
-                buildAgentsPrompt(workspaceId, ctx.workspaceCwd)
+            if (ready != null && layout != null) {
+                buildAgentsPrompt(ready.id, ctx.workspaceCwd, layout, remote = ready.isSsh())
             } else {
                 ""
             }
@@ -69,22 +79,28 @@ class WorkspaceReminderTransformer(
     // 先 catch (Exception) 再按类型/文案判定「文件不存在」是既定策略：需要同时识别
     // FileNotFoundException 与不同 provider 的 message 文案，多 catch 无法表达，故豁免该规则。
     @Suppress("InstanceOfCheckForException")
-    private suspend fun buildAgentsPrompt(workspaceId: String, cwd: String?): String {
-        // ProotShellRunner 将 HOME 固定为 /root；相对 PWD 按 /workspace 解析。
-        val workingDirectory = Paths.get("/workspace")
+    private suspend fun buildAgentsPrompt(
+        workspaceId: String,
+        cwd: String?,
+        layout: WorkspaceLayout,
+        remote: Boolean,
+    ): String {
+        // 本机 Rootfs 里 ProotShellRunner 把 HOME 固定在 /root, 相对 PWD 按文件区路径解析;
+        // 远程工作区的主机 home 目录不在配置里, 只按工作区目录找指令文件。
+        val workingDirectory = Paths.get(layout.workspaceDir)
             .resolve(cwd?.takeIf { it.isNotBlank() } ?: ".")
             .normalize()
-        val paths = linkedSetOf(
-            "/root/.agents/AGENTS.md",
-            "/workspace/AGENTS.md",
-            workingDirectory.resolve("AGENTS.md").toString(),
-        )
+        val paths = buildList {
+            if (!remote) add("${WorkspaceManager.ROOTFS_HOME_DIR}/.agents/AGENTS.md")
+            add("${layout.workspaceDir}/AGENTS.md")
+            add(workingDirectory.resolve("AGENTS.md").toString())
+        }.distinct()
         val instructions = paths.mapNotNull { path ->
             try {
-                val size = workspaceRepository.rootfsFileSize(workspaceId, path)
+                val size = workspaceRepository.absoluteFileSize(workspaceId, path)
                 require(size <= MAX_AGENTS_BYTES) { "AGENTS.md exceeds $MAX_AGENTS_BYTES bytes" }
                 val content = ByteArrayOutputStream().use { output ->
-                    workspaceRepository.exportRootfsFile(workspaceId, path, output)
+                    workspaceRepository.exportAbsoluteFile(workspaceId, path, output)
                     output.toString(Charsets.UTF_8.name())
                 }
                 content.takeIf { it.isNotBlank() }?.let { path to it }
@@ -133,7 +149,7 @@ class WorkspaceReminderTransformer(
  * 纯函数: 根据 workspace 状态选择要注入的系统提示, 返回 null 表示不注入。
  * 抽离出来以便单元测试, 不依赖 Android / Repository。
  *
- * - workspace 就绪 (READY): 完整工具引导。
+ * - workspace 就绪 (READY): 完整工具引导; 远程工作区按远程环境另写一版。
  * - workspace 已绑定但未就绪: 指导用户安装/修复 rootfs。
  * - 未绑定但存在 workspace: 指导用户绑定。
  * - 其它 (无 workspace): null。
@@ -144,9 +160,14 @@ internal fun buildWorkspaceReminder(
     cwd: String? = null,
     distroName: String? = null,
     shellPath: String? = null,
+    layout: WorkspaceLayout? = null,
 ): String? = when {
     workspace != null && workspace.shellStatus == WorkspaceShellStatus.READY.name ->
-        buildWorkspacePrompt(workspace, cwd, distroName, shellPath)
+        if (workspace.isSsh()) {
+            buildRemoteWorkspacePrompt(workspace, cwd, distroName, shellPath, layout)
+        } else {
+            buildWorkspacePrompt(workspace, cwd, distroName, shellPath)
+        }
 
     workspace != null -> buildWorkspaceNotReadyPrompt(workspace)
 
@@ -180,6 +201,46 @@ private fun buildWorkspacePrompt(
     appendLine("- To preview web files in the browser, start a static server with `workspace_run_background` (for example `python3 -m http.server 8000`) and then open it, since file:// breaks ES modules and fetch.")
     appendLine("- The skills directory is mounted at `/skills`. Each skill is a subdirectory `/skills/<skill-name>/` containing a `SKILL.md` (with `name` and `description` frontmatter) plus any supporting files. Read a skill's `SKILL.md` before using it, and follow its instructions.")
     appendLine("- Files the user uploaded are mounted at `/upload`. Treat `/upload` as READ-ONLY: read uploaded files from `/upload/<file-name>`, but never modify, overwrite, or delete anything there. If you need to change an uploaded file, copy it into `/workspace` first and edit the copy.")
+    if (!cwd.isNullOrBlank()) {
+        appendLine("- Current working directory: `$cwd`. Use this as the default context for file operations and shell commands.")
+    }
+    append("</workspace>")
+}
+
+/**
+ * 远程 (SSH) 工作区的提示词：环境是宿主机而非 Rootfs，所以不提挂载点、技能/上传目录，
+ * 也不提只跑在本机 Rootfs 进程里的后台任务。
+ */
+private fun buildRemoteWorkspacePrompt(
+    workspace: WorkspaceEntity,
+    cwd: String?,
+    distroName: String?,
+    shellPath: String?,
+    layout: WorkspaceLayout?,
+): String = buildString {
+    val settings = workspace.sshSettings()
+    val filesDir = layout?.workspaceDir ?: settings?.remoteDir ?: "the workspace directory"
+    val address = settings?.let { "${it.username}@${it.host}:${it.port}" } ?: "a remote host"
+    appendLine("<workspace>")
+    appendLine("You have access to a persistent workspace named \"${workspace.name}\" on a real machine, reached over SSH as `$address`.")
+    appendLine("- The workspace directory is `$filesDir`. Use it as your working directory; files written there persist across turns of this conversation.")
+    appendLine("- All paths passed to workspace tools must be absolute paths on that machine (for example `$filesDir/notes.md`).")
+    appendLine("- This is NOT a sandbox: commands run with the SSH user's real permissions and can affect other data and services on that machine. Do not make destructive or system-wide changes unless the user asks for them.")
+    if (shellPath.isNullOrBlank()) {
+        appendLine("- The remote machine is not reachable right now, so the workspace tools below will fail. If the user asks you to work in this workspace, tell them it is unreachable instead of retrying.")
+    } else {
+        distroName?.takeIf { it.isNotBlank() }?.let { appendLine("- The remote operating system is $it.") }
+        appendLine("- Commands run with `$shellPath`; use POSIX-compatible syntax when it is `/bin/sh` and do not assume bash-only features.")
+    }
+    appendLine("- Available tools:")
+    appendLine("  - `workspace_read_file`: read file contents.")
+    appendLine("  - `workspace_write_file` / `workspace_edit_file` / `workspace_apply_edits`: create files, or make precise edits to existing files.")
+    appendLine("  - `workspace_create_folder`: create a directory (and missing parents).")
+    appendLine("  - `workspace_read_folder`: recursively list a directory as an indented tree.")
+    appendLine("  - `workspace_search_code`: search file contents for matching lines.")
+    appendLine("  - `workspace_shell`: run shell commands on the remote machine (defaults to the workspace directory).")
+    appendLine("- Prefer `workspace_shell` for tasks that standard Unix tools handle well, and prefer `workspace_edit_file` for targeted edits over rewriting whole files.")
+    appendLine("- Background task tools are not available here: they run in the app's own Linux environment, not on the remote machine. Run long commands with `workspace_shell` and a timeout instead.")
     if (!cwd.isNullOrBlank()) {
         appendLine("- Current working directory: `$cwd`. Use this as the default context for file operations and shell commands.")
     }

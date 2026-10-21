@@ -11,6 +11,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.workspace.WorkspaceLayout
 
 /**
  * `workspace_search_code` —— 结构化内容搜索（P33）。
@@ -20,6 +21,7 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
  */
 internal fun createSearchCodeTool(
     workspaceId: String,
+    layout: WorkspaceLayout,
     needsApproval: (String) -> Boolean,
     workspaceRepository: WorkspaceRepository,
     defaultCwd: String? = null,
@@ -63,8 +65,7 @@ internal fun createSearchCodeTool(
         val pattern =
             params["pattern"]?.jsonPrimitive?.contentOrNull?.takeIf { s -> s.isNotBlank() }
                 ?: error("pattern is required")
-        val relPath = (params["path"]?.jsonPrimitive?.contentOrNull ?: defaultCwd.orEmpty())
-            .removePrefix("/workspace/").removePrefix("/workspace")
+        val relPath = layout.relativeToWorkspace(params["path"]?.jsonPrimitive?.contentOrNull ?: defaultCwd.orEmpty())
         val glob = params["glob"]?.jsonPrimitive?.contentOrNull?.takeIf { s -> s.isNotBlank() }
         val max = (params["max_results"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 100)
             .coerceIn(1, 500)

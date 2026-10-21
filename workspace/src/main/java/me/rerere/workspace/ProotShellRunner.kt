@@ -5,6 +5,8 @@ import java.io.File
 data class WorkspaceBindMount(
     val source: File,
     val target: String,
+    /** AI 写入该目录时免强制审批 */
+    val writable: Boolean = false,
 ) {
     init {
         require(target.startsWith("/")) { "Bind mount target must be absolute: $target" }
@@ -125,7 +127,7 @@ class ProotShellRunner(
             listOf(
                 "/usr/bin/env",
                 "-i",
-                "HOME=/root",
+                "HOME=${WorkspaceManager.ROOTFS_HOME_DIR}",
                 "PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin",
                 "TERM=xterm-256color",
                 "LANG=C.UTF-8",
@@ -137,7 +139,7 @@ class ProotShellRunner(
             )
 
         // ⚠️ 注入的变量必须作为 env 的参数传入：`env -i` 会清空继承来的整个环境，
-        // 只在 ProcessBuilder.environment() 里 set 是无效的（2026-09-10 实测：
+        // 只在 ProcessBuilder.environment() 里 set 是无效的：
         // workspace_shell(env=…) 静默失败，命令里 $VAR 恒为空）。
         command += buildEnvAssignments(context.env)
 

@@ -147,11 +147,14 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         AutoMigration(from = 42, to = 43),
         // v44: 工作区画像标签（workspaces 表新增 tags，JSON 数组带默认值 "[]" 可自动迁移）
         AutoMigration(from = 43, to = 44),
+        // v47: 远程工作区（workspaces 表新增 type 带默认值 "LOCAL" 与可空的 ssh_config，
+        // 纯加列可自动迁移；ssh_config 只存连接参数与凭证库条目名，不含凭据明文）
+        AutoMigration(from = 46, to = 47),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
 abstract class AppDatabase : RoomDatabase() {
-    companion object { const val VERSION = 46 }
+    companion object { const val VERSION = 47 }
     abstract fun conversationDao(): ConversationDAO
 
     abstract fun conversationCompactionDao(): ConversationCompactionDAO

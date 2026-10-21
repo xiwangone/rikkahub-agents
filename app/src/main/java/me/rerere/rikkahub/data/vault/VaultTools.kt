@@ -1420,7 +1420,7 @@ fun vaultImportLoadCredsTool(
             val content =
                 runCatching {
                     val buf = java.io.ByteArrayOutputStream()
-                    wsRepository.exportRootfsFile(ws.id, path, buf)
+                    wsRepository.exportAbsoluteFile(ws.id, path, buf)
                     buf.toString(Charsets.UTF_8.name())
                 }.getOrNull()
             if (content == null) {
@@ -1485,7 +1485,7 @@ fun vaultCompareLoadCredsTool(
             val content =
                 runCatching {
                     val buf = java.io.ByteArrayOutputStream()
-                    wsRepository.exportRootfsFile(ws.id, path, buf)
+                    wsRepository.exportAbsoluteFile(ws.id, path, buf)
                     buf.toString(Charsets.UTF_8.name())
                 }.getOrNull()
             if (content == null) {

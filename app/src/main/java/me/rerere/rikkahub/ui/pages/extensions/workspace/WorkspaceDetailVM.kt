@@ -449,7 +449,7 @@ class WorkspaceDetailVM(
     suspend fun resolveImageFile(
         entry: WorkspaceFileEntry,
         area: WorkspaceStorageArea,
-    ): File = repository.resolveFile(id, area, entry.path)
+    ): File? = repository.resolveFile(id, area, entry.path)
 
     /**
      * 把当前区域下的文件导出到 cacheDir 的临时文件, 完成后回调 [onReady].

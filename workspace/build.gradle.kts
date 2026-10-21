@@ -27,6 +27,8 @@ dependencies {
     implementation(libs.material)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.xz)
+    // 远程工作区后端: 命令走 exec channel, 文件走 SFTP
+    implementation(libs.jsch)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(libs.androidx.junit)

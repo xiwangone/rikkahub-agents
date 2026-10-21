@@ -391,7 +391,7 @@ dependencies {
     implementation(kotlin("reflect"))
 
     // SSH client (Mwiede fork — maintained, Android-friendly)
-    implementation("com.github.mwiede:jsch:2.28.7")
+    implementation(libs.jsch)
     // JSch 使用 ed25519/ed448 OPENSSH 私钥必需（否则 Auth fail publickey）
     implementation("org.bouncycastle:bcprov-jdk18on:1.86")
     // OpenPGP（GPG）密钥环生成与 armored 导出（凭证库「生成密钥」用）

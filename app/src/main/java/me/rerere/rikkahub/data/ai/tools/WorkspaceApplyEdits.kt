@@ -14,6 +14,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.workspace.WorkspaceLayout
 
 /**
  * 跨文件事务编辑工具（App 侧对应物：`工具/multi-edit.py` 的工作区版本）。
@@ -26,6 +27,7 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
  */
 internal fun createApplyEditsTool(
     workspaceId: String,
+    layout: WorkspaceLayout,
     needsApproval: (String) -> Boolean,
     workspaceRepository: WorkspaceRepository,
 ) = Tool(
@@ -34,7 +36,7 @@ internal fun createApplyEditsTool(
         Apply text edits across MULTIPLE files transactionally: every edit must match (staged
         in memory) before ANY file is written; if one fails, no file changes at all. Prefer
         this over repeated workspace_edit_file calls when one change spans several files.
-        Per file: {path, edits: [{old_text, new_text}], replace_all?}. Paths absolute in Rootfs.
+        Per file: {path, edits: [{old_text, new_text}], replace_all?}. Paths absolute inside the workspace.
     """.trimIndent().replace("\n", " "),
     parameters = { applyEditsParameters() },
     needsApproval = { needsApproval("workspace_apply_edits") },
@@ -58,7 +60,7 @@ private fun applyEditsParameters(): InputSchema.Obj =
                     put("properties", buildJsonObject {
                         put("path", buildJsonObject {
                             put("type", "string")
-                            put("description", "Absolute path inside the workspace Rootfs.")
+                            put("description", "Absolute path inside the workspace environment (e.g. ${layout.workspaceDir}/notes.md).")
                         })
                         put("replace_all", buildJsonObject {
                             put("type", "boolean")
@@ -120,7 +122,7 @@ private suspend fun runApplyEdits(
             )
         }
         val replaceAll = file["replace_all"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
-        var working = staged[path]?.first ?: workspaceRepository.readTextInRootfs(workspaceId, path)
+        var working = staged[path]?.first ?: workspaceRepository.readAbsoluteText(workspaceId, path)
         var count = staged[path]?.second ?: 0
         edits.forEachIndexed { editIndex, editElement ->
             val item = editElement.jsonObject
@@ -156,7 +158,7 @@ private suspend fun runApplyEdits(
     val written = buildJsonArray {
         for ((path, pair) in staged) {
             val entry = runCatching {
-                workspaceRepository.writeTextInRootfs(workspaceId, path, pair.first, overwrite = true)
+                workspaceRepository.writeAbsoluteText(workspaceId, path, pair.first, overwrite = true)
             }.getOrElse { e ->
                 return ToolErrors.partsFor(ToolErrors.INTERNAL,
                     "write failed for $path after all edits matched: ${e.message}",

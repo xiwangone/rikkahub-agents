@@ -21,7 +21,9 @@ import me.rerere.workspace.ProotShellRunner
 import me.rerere.workspace.RootfsInstaller
 import me.rerere.workspace.WorkspaceBindMount
 import me.rerere.workspace.WorkspaceManager
+import me.rerere.workspace.ssh.SshConnectionPool
 import org.koin.dsl.module
+import org.koin.dsl.onClose
 import java.io.File
 
 val repositoryModule =
@@ -69,12 +71,14 @@ val repositoryModule =
                     ),
                 chrootRunner = chrootShellRunnerOf(context),
                 chrootEnabled = { mountSwitch.chrootEnabled },
-                // 同一份挂载表既用于 PRoot 的 -b 参数, 也用于文件工具的路径解析, 避免两处漂移
+                // 同一份挂载表既用于 PRoot 的 -b 参数, 也用于文件工具的路径解析和写入免审批目录, 避免两处漂移
                 bindMounts =
                     listOf(
                         WorkspaceBindMount(
                             source = File(context.filesDir, FileFolders.SKILLS).apply { mkdirs() },
                             target = "/skills",
+                            // 技能目录由 AI 自己维护, 写入不额外追问
+                            writable = true,
                         ),
                         WorkspaceBindMount(
                             source = File(context.filesDir, FileFolders.TOOL_OUTPUTS).apply { mkdirs() },
@@ -126,7 +130,12 @@ val repositoryModule =
         }
 
         single {
-            WorkspaceRepository(get(), get(), get(), get(), get())
+            // 空闲连接由池内的清扫线程关掉, App 退出时随 Koin 释放
+            SshConnectionPool()
+        } onClose { it?.close() }
+
+        single {
+            WorkspaceRepository(get(), get(), get(), get(), get(), get(), get())
         }
 
         single {

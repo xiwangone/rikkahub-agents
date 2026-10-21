@@ -316,7 +316,7 @@ fun WorkspaceDetailPage(id: String) {
                     IconButton(onClick = { vm.refreshStats() }) {
                         Icon(HugeIcons.Refresh01, contentDescription = null)
                     }
-                    if (state.workspace?.shellStatus != WorkspaceShellStatus.DISABLED.name) {
+                    if (state.workspace?.supportsTerminal() == true) {
                         IconButton(onClick = { navController.navigate(Screen.WorkspaceTerminal(id)) }) {
                             Icon(HugeIcons.ComputerTerminal01, contentDescription = null)
                         }
@@ -357,6 +357,7 @@ fun WorkspaceDetailPage(id: String) {
                         distro = state.distro,
                         stats = stats,
                         installProgress = installProgress,
+                        onEditSsh = { navController.navigate(Screen.WorkspaceSshEditor(id)) },
                         mirrors = mirrors,
                         onInstallRootfs = { showInstallDialog = true },
                         onToolApprovalChange = vm::setToolApproval,
@@ -683,6 +684,7 @@ private fun WorkspaceBasicPage(
     distro: WorkspaceDistroInfo?,
     stats: WorkspaceStats?,
     installProgress: RootfsInstallProgress?,
+    onEditSsh: () -> Unit,
     mirrors: WorkspaceMirrors,
     onInstallRootfs: () -> Unit,
     onToolApprovalChange: (String, Boolean) -> Unit,
@@ -703,6 +705,9 @@ private fun WorkspaceBasicPage(
     var tagEditing by remember { mutableStateOf(false) }
     var showChrootConfirm by remember { mutableStateOf(false) }
     val shellStatus = workspace?.shellStatus
+    // 远程工作区没有本机 Rootfs：镜像源、安装 Shell、兼容模式、chroot 这些都不适用
+    val remote = workspace?.isSsh() == true
+    val remoteSettings = if (remote) workspace?.sshSettings() else null
     val installing = installProgress != null || shellStatus == WorkspaceShellStatus.INSTALLING.name
     val rootfsReady = shellStatus == WorkspaceShellStatus.READY.name
     val installButtonText =
@@ -738,18 +743,33 @@ private fun WorkspaceBasicPage(
                             info.prettyName,
                         )
                     }
-                    WorkspaceInfoRow(
-                        stringResource(R.string.workspace_detail_stats_disk),
-                        stats?.rootBytes?.fileSizeToString() ?: "-",
-                    )
-                    WorkspaceInfoRow(
-                        stringResource(R.string.workspace_detail_stats_packages),
-                        stats?.packageCount?.toString() ?: "-",
-                    )
-                    WorkspaceInfoRow(
-                        stringResource(R.string.workspace_detail_stats_kernel),
-                        stats?.kernel ?: "-",
-                    )
+                    if (remote) {
+                        WorkspaceInfoRow(
+                            stringResource(R.string.workspace_ssh_host),
+                            remoteSettings?.let { "${it.username}@${it.host}:${it.port}" } ?: "-",
+                        )
+                        WorkspaceInfoRow(
+                            stringResource(R.string.workspace_ssh_remote_dir),
+                            remoteSettings?.remoteDir ?: workspace?.workspaceDir() ?: "-",
+                        )
+                        WorkspaceInfoRow(
+                            stringResource(R.string.workspace_ssh_host_key_column),
+                            remoteSettings?.hostKey?.fingerprint ?: stringResource(R.string.workspace_ssh_host_key_missing),
+                        )
+                    } else {
+                        WorkspaceInfoRow(
+                            stringResource(R.string.workspace_detail_stats_disk),
+                            stats?.rootBytes?.fileSizeToString() ?: "-",
+                        )
+                        WorkspaceInfoRow(
+                            stringResource(R.string.workspace_detail_stats_packages),
+                            stats?.packageCount?.toString() ?: "-",
+                        )
+                        WorkspaceInfoRow(
+                            stringResource(R.string.workspace_detail_stats_kernel),
+                            stats?.kernel ?: "-",
+                        )
+                    }
                     Row(
                         modifier =
                             Modifier
@@ -787,193 +807,201 @@ private fun WorkspaceBasicPage(
                             }
                         }
                     }
+                    if (remote) {
+                        OutlinedButton(onClick = onEditSsh, modifier = Modifier.fillMaxWidth()) {
+                            Text(stringResource(R.string.workspace_ssh_edit_connection))
+                        }
+                    }
                 }
             }
         }
 
-        item {
-            CardGroup(
-                title = { Text(stringResource(R.string.workspace_detail_mirrors)) },
-            ) {
-                MirrorRow(
-                    title = stringResource(R.string.workspace_detail_mirror_apk),
-                    current = mirrors.apk,
-                    presets = WorkspaceMirrorPresets.APK,
-                    onClick = { mirrorPicker = MirrorPick.APK },
-                )
-                MirrorRow(
-                    title = stringResource(R.string.workspace_detail_mirror_apt),
-                    current = mirrors.apt,
-                    presets = WorkspaceMirrorPresets.APT,
-                    onClick = { mirrorPicker = MirrorPick.APT },
-                )
-                MirrorRow(
-                    title = stringResource(R.string.workspace_detail_mirror_pip),
-                    current = mirrors.pip,
-                    presets = WorkspaceMirrorPresets.PIP,
-                    onClick = { mirrorPicker = MirrorPick.PIP },
-                )
-                MirrorRow(
-                    title = stringResource(R.string.workspace_detail_mirror_npm),
-                    current = mirrors.npm,
-                    presets = WorkspaceMirrorPresets.NPM,
-                    onClick = { mirrorPicker = MirrorPick.NPM },
-                )
-                item(
-                    onClick = onRepairCaCerts,
-                    headlineContent = { Text(stringResource(R.string.workspace_detail_repair_cacerts)) },
-                    supportingContent = { Text(stringResource(R.string.workspace_detail_repair_cacerts_desc)) },
-                )
-            }
-        }
-
-        item {
-            CardGroup(
-                title = { Text(stringResource(R.string.workspace_detail_enable_shell)) },
-            ) {
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
+        // 以下四张卡片只作用于本机 Rootfs，远程工作区不显示
+        if (!remote) {
+            item {
+                CardGroup(
+                    title = { Text(stringResource(R.string.workspace_detail_mirrors)) },
                 ) {
-                    ShellStatusPanel(
-                        status = shellStatus,
-                        isInstalling = installing,
+                    MirrorRow(
+                        title = stringResource(R.string.workspace_detail_mirror_apk),
+                        current = mirrors.apk,
+                        presets = WorkspaceMirrorPresets.APK,
+                        onClick = { mirrorPicker = MirrorPick.APK },
                     )
-                    Text(
-                        text = stringResource(R.string.workspace_detail_enable_shell_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    MirrorRow(
+                        title = stringResource(R.string.workspace_detail_mirror_apt),
+                        current = mirrors.apt,
+                        presets = WorkspaceMirrorPresets.APT,
+                        onClick = { mirrorPicker = MirrorPick.APT },
                     )
-                    Button(
-                        onClick = onInstallRootfs,
-                        enabled = workspace != null && !installing,
-                        modifier = Modifier.fillMaxWidth(),
+                    MirrorRow(
+                        title = stringResource(R.string.workspace_detail_mirror_pip),
+                        current = mirrors.pip,
+                        presets = WorkspaceMirrorPresets.PIP,
+                        onClick = { mirrorPicker = MirrorPick.PIP },
+                    )
+                    MirrorRow(
+                        title = stringResource(R.string.workspace_detail_mirror_npm),
+                        current = mirrors.npm,
+                        presets = WorkspaceMirrorPresets.NPM,
+                        onClick = { mirrorPicker = MirrorPick.NPM },
+                    )
+                    item(
+                        onClick = onRepairCaCerts,
+                        headlineContent = { Text(stringResource(R.string.workspace_detail_repair_cacerts)) },
+                        supportingContent = { Text(stringResource(R.string.workspace_detail_repair_cacerts_desc)) },
+                    )
+                }
+            }
+
+            item {
+                CardGroup(
+                    title = { Text(stringResource(R.string.workspace_detail_enable_shell)) },
+                ) {
+                    Column(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
-                        Icon(HugeIcons.Bash, contentDescription = null)
-                        Text(
-                            text = installButtonText,
-                            modifier = Modifier.padding(start = 8.dp),
+                        ShellStatusPanel(
+                            status = shellStatus,
+                            isInstalling = installing,
                         )
-                    }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.workspace_detail_enable_shell_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        Button(
+                            onClick = onInstallRootfs,
+                            enabled = workspace != null && !installing,
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Icon(HugeIcons.Bash, contentDescription = null)
                             Text(
-                                text = stringResource(R.string.workspace_detail_sdcard_access),
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Text(
-                                text = stringResource(R.string.workspace_detail_sdcard_access_desc),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                text = installButtonText,
+                                modifier = Modifier.padding(start = 8.dp),
                             )
                         }
-                        Switch(
-                            checked = sdcardEnabled,
-                            onCheckedChange = onSdcardAccessChange,
-                        )
-                    }
-                    installProgress?.let { progress ->
-                        Surface(
+                        Row(
                             modifier = Modifier.fillMaxWidth(),
-                            color = MaterialTheme.colorScheme.surfaceContainerLow,
-                            shape = MaterialTheme.shapes.medium,
+                            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                            verticalAlignment = Alignment.CenterVertically,
                         ) {
-                            Box(modifier = Modifier.padding(12.dp)) {
-                                RootfsProgress(progress)
+                            Column(modifier = Modifier.weight(1f)) {
+                                Text(
+                                    text = stringResource(R.string.workspace_detail_sdcard_access),
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                                Text(
+                                    text = stringResource(R.string.workspace_detail_sdcard_access_desc),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            Switch(
+                                checked = sdcardEnabled,
+                                onCheckedChange = onSdcardAccessChange,
+                            )
+                        }
+                        installProgress?.let { progress ->
+                            Surface(
+                                modifier = Modifier.fillMaxWidth(),
+                                color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                shape = MaterialTheme.shapes.medium,
+                            ) {
+                                Box(modifier = Modifier.padding(12.dp)) {
+                                    RootfsProgress(progress)
+                                }
                             }
                         }
                     }
                 }
             }
-        }
 
-        item {
-            CardGroup(
-                title = {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(stringResource(R.string.workspace_detail_compatibility_mode))
-                        Text(
-                            text = stringResource(R.string.workspace_detail_compatibility_mode_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-            ) {
-                item(
-                    headlineContent = { Text(stringResource(R.string.workspace_detail_compatibility_mode)) },
-                    trailingContent = {
-                        Switch(
-                            checked = workspace?.shellCompatibilityMode ?: false,
-                            onCheckedChange = onShellCompatibilityModeChange,
-                            enabled = workspace != null,
-                        )
-                    },
-                )
-            }
-        }
-
-        item {
-            CardGroup(
-                title = {
-                    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                        Text(stringResource(R.string.workspace_detail_chroot))
-                        Text(
-                            text = stringResource(R.string.workspace_detail_chroot_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                },
-            ) {
-                item(
-                    headlineContent = { Text(stringResource(R.string.workspace_detail_chroot)) },
-                    trailingContent = {
-                        Switch(
-                            checked = chrootEnabled,
-                            onCheckedChange = { enabled ->
-                                if (enabled) showChrootConfirm = true else onChrootEnabledChange(false)
-                            },
-                        )
-                    },
-                )
-                // 开关开着但后端未就绪（脚本缺失）= 实际在跑 proot：显性提示，不静默
-                if (chrootEnabled && !chrootBackendReady) {
-                    item(
-                        headlineContent = {
+            item {
+                CardGroup(
+                    title = {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(stringResource(R.string.workspace_detail_compatibility_mode))
                             Text(
-                                text = stringResource(R.string.workspace_detail_chroot_fallback),
+                                text = stringResource(R.string.workspace_detail_compatibility_mode_desc),
                                 style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.error,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    },
+                ) {
+                    item(
+                        headlineContent = { Text(stringResource(R.string.workspace_detail_compatibility_mode)) },
+                        trailingContent = {
+                            Switch(
+                                checked = workspace?.shellCompatibilityMode ?: false,
+                                onCheckedChange = onShellCompatibilityModeChange,
+                                enabled = workspace != null,
                             )
                         },
                     )
                 }
             }
-            if (showChrootConfirm) {
-                AlertDialog(
-                    onDismissRequest = { showChrootConfirm = false },
-                    title = { Text(stringResource(R.string.workspace_detail_chroot)) },
-                    text = { Text(stringResource(R.string.workspace_detail_chroot_confirm)) },
-                    confirmButton = {
-                        TextButton(onClick = {
-                            showChrootConfirm = false
-                            onChrootEnabledChange(true)
-                        }) { Text(stringResource(android.R.string.ok)) }
-                    },
-                    dismissButton = {
-                        TextButton(onClick = { showChrootConfirm = false }) {
-                            Text(stringResource(android.R.string.cancel))
+
+            item {
+                CardGroup(
+                    title = {
+                        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(stringResource(R.string.workspace_detail_chroot))
+                            Text(
+                                text = stringResource(R.string.workspace_detail_chroot_desc),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                     },
-                )
+                ) {
+                    item(
+                        headlineContent = { Text(stringResource(R.string.workspace_detail_chroot)) },
+                        trailingContent = {
+                            Switch(
+                                checked = chrootEnabled,
+                                onCheckedChange = { enabled ->
+                                    if (enabled) showChrootConfirm = true else onChrootEnabledChange(false)
+                                },
+                            )
+                        },
+                    )
+                    // 开关开着但后端未就绪（脚本缺失）= 实际在跑 proot：显性提示，不静默
+                    if (chrootEnabled && !chrootBackendReady) {
+                        item(
+                            headlineContent = {
+                                Text(
+                                    text = stringResource(R.string.workspace_detail_chroot_fallback),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            },
+                        )
+                    }
+                }
+                if (showChrootConfirm) {
+                    AlertDialog(
+                        onDismissRequest = { showChrootConfirm = false },
+                        title = { Text(stringResource(R.string.workspace_detail_chroot)) },
+                        text = { Text(stringResource(R.string.workspace_detail_chroot_confirm)) },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                showChrootConfirm = false
+                                onChrootEnabledChange(true)
+                            }) { Text(stringResource(android.R.string.ok)) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { showChrootConfirm = false }) {
+                                Text(stringResource(android.R.string.cancel))
+                            }
+                        },
+                    )
+                }
             }
         }
 
@@ -2146,6 +2174,17 @@ internal fun String.toShellStatusLabel(): String =
         WorkspaceShellStatus.READY.name -> stringResource(R.string.workspace_detail_shell_ready)
         WorkspaceShellStatus.BROKEN.name -> stringResource(R.string.workspace_detail_shell_broken)
         else -> lowercase()
+    }
+
+/** 列表里的一行状态：远程工作区显示连的是哪台机器，本地显示 Rootfs 状态 */
+@Composable
+internal fun WorkspaceEntity.statusLabel(): String =
+    if (isSsh()) {
+        sshSettings()?.let { settings ->
+            stringResource(R.string.workspace_status_ssh, settings.username, settings.host)
+        } ?: stringResource(R.string.workspace_type_ssh)
+    } else {
+        shellStatus.toShellStatusLabel()
     }
 
 private const val DEFAULT_ROOTFS_URL =

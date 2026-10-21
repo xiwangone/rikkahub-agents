@@ -12,6 +12,7 @@ import me.rerere.rikkahub.ui.pages.extensions.QuickMessagesVM
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillDetailVM
 import me.rerere.rikkahub.ui.pages.extensions.skills.SkillsVM
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceDetailVM
+import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceSshEditorVM
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceVM
 import me.rerere.rikkahub.ui.pages.favorite.FavoriteVM
 import me.rerere.rikkahub.ui.pages.history.HistoryVM
@@ -98,6 +99,12 @@ val viewModelModule =
                 repository = get(),
                 context = get(),
                 terminalSessionManager = get(),
+            )
+        }
+        viewModel<WorkspaceSshEditorVM> {
+            WorkspaceSshEditorVM(
+                id = it.getOrNull(),
+                repository = get(),
             )
         }
         viewModelOf(::FavoriteVM)

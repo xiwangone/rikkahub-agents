@@ -20,6 +20,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -34,6 +35,7 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -45,6 +47,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Edit01
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.MoreVertical
+import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
@@ -61,6 +64,7 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
     val workspaces by vm.workspaces.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
+    var showTypePicker by rememberSaveable { mutableStateOf(false) }
     var editTarget by remember { mutableStateOf<WorkspaceEntity?>(null) }
     var deleteTarget by remember { mutableStateOf<WorkspaceEntity?>(null) }
 
@@ -74,7 +78,7 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(onClick = { showAddDialog = true }) {
+            FloatingActionButton(onClick = { showTypePicker = true }) {
                 Icon(HugeIcons.Add01, contentDescription = null)
             }
         },
@@ -96,11 +100,46 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
                 WorkspaceCard(
                     workspace = workspace,
                     onRename = { editTarget = workspace },
+                    onEditSsh = { navController.navigate(Screen.WorkspaceSshEditor(workspace.id)) },
                     onDelete = { deleteTarget = workspace },
                     onOpen = { navController.navigate(Screen.WorkspaceDetail(workspace.id)) },
                 )
             }
         }
+    }
+
+    if (showTypePicker) {
+        AlertDialog(
+            onDismissRequest = { showTypePicker = false },
+            title = { Text(stringResource(R.string.workspace_type_dialog_title)) },
+            text = {
+                Column {
+                    WorkspaceTypeOption(
+                        icon = HugeIcons.File02,
+                        title = stringResource(R.string.workspace_type_local),
+                        description = stringResource(R.string.workspace_type_local_desc),
+                        onClick = {
+                            showTypePicker = false
+                            showAddDialog = true
+                        },
+                    )
+                    WorkspaceTypeOption(
+                        icon = HugeIcons.ServerStack01,
+                        title = stringResource(R.string.workspace_type_ssh),
+                        description = stringResource(R.string.workspace_type_ssh_desc),
+                        onClick = {
+                            showTypePicker = false
+                            navController.navigate(Screen.WorkspaceSshEditor())
+                        },
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTypePicker = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
     }
 
     if (showAddDialog) {
@@ -174,9 +213,25 @@ private fun EmptyWorkspaceState() {
 }
 
 @Composable
+private fun WorkspaceTypeOption(
+    icon: ImageVector,
+    title: String,
+    description: String,
+    onClick: () -> Unit,
+) {
+    ListItem(
+        headlineContent = { Text(title) },
+        supportingContent = { Text(description, style = MaterialTheme.typography.bodySmall) },
+        leadingContent = { Icon(icon, contentDescription = null) },
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+    )
+}
+
+@Composable
 private fun WorkspaceCard(
     workspace: WorkspaceEntity,
     onRename: () -> Unit,
+    onEditSsh: () -> Unit,
     onDelete: () -> Unit,
     onOpen: () -> Unit,
 ) {
@@ -200,7 +255,7 @@ private fun WorkspaceCard(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Icon(
-                    imageVector = HugeIcons.File02,
+                    imageVector = if (workspace.isSsh()) HugeIcons.ServerStack01 else HugeIcons.File02,
                     contentDescription = null,
                     modifier = Modifier.size(22.dp),
                     tint = MaterialTheme.colorScheme.primary,
@@ -219,7 +274,7 @@ private fun WorkspaceCard(
                         overflow = TextOverflow.Ellipsis,
                     )
                     Text(
-                        text = workspace.shellStatus.toShellStatusLabel(),
+                        text = workspace.statusLabel(),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,
@@ -242,6 +297,16 @@ private fun WorkspaceCard(
                                 onRename()
                             },
                         )
+                        if (workspace.isSsh()) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workspace_ssh_edit_connection)) },
+                                leadingIcon = { Icon(HugeIcons.ServerStack01, contentDescription = null) },
+                                onClick = {
+                                    menuExpanded = false
+                                    onEditSsh()
+                                },
+                            )
+                        }
                         DropdownMenuItem(
                             text = {
                                 Text(
