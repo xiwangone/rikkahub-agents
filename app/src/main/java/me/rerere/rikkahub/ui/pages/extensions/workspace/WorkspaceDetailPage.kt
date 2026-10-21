@@ -106,10 +106,12 @@ import me.rerere.hugeicons.stroke.ArrowTurnBackward
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Bash
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Clipboard
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Edit02
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Folder01
