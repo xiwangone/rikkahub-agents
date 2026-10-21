@@ -29,6 +29,7 @@ import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VAULT_REF_PREFIX
 import me.rerere.rikkahub.data.vault.ensureTrailingNewline
 import me.rerere.rikkahub.data.vault.isVaultReference
+import me.rerere.rikkahub.data.vault.message
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.workspace.RootfsInstallProgress
 import java.io.File

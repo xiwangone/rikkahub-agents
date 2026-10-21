@@ -60,7 +60,7 @@ private fun applyEditsParameters(): InputSchema.Obj =
                     put("properties", buildJsonObject {
                         put("path", buildJsonObject {
                             put("type", "string")
-                            put("description", "Absolute path inside the workspace environment (e.g. ${layout.workspaceDir}/notes.md).")
+                            put("description", "Absolute path inside the workspace files area (e.g. /workspace/notes.md).")
                         })
                         put("replace_all", buildJsonObject {
                             put("type", "boolean")
