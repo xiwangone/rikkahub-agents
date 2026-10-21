@@ -74,6 +74,8 @@ import me.rerere.rikkahub.data.vault.VaultKeyHealth
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.setting.SshKeyPairDialog
+import me.rerere.rikkahub.ui.components.vault.vaultGroupLabel
+import me.rerere.rikkahub.ui.components.vault.vaultTypeLabel
 import me.rerere.rikkahub.ui.components.ui.Select
 import org.koin.compose.koinInject
 
@@ -998,33 +1000,7 @@ private fun CredentialEditorDialog(
     )
 }
 
-/** 分组显示名：存储值（英文 id）→ 本地化标签；未知分组回退原值。（普通函数：便于在排序 lambda 里调用） */
-private fun vaultGroupLabel(context: android.content.Context, grp: String): String =
-    when (grp) {
-        "Git" -> context.getString(R.string.vault_group_git)
-        "AI" -> context.getString(R.string.vault_group_ai)
-        "ECS" -> context.getString(R.string.vault_group_ecs)
-        "SSH" -> context.getString(R.string.vault_group_ssh)
-        "Network" -> context.getString(R.string.vault_group_network)
-        "MCP" -> context.getString(R.string.vault_group_mcp)
-        "Backend" -> context.getString(R.string.vault_group_backend)
-        "System" -> context.getString(R.string.vault_group_system)
-        "Notification" -> context.getString(R.string.vault_group_notification)
-        "Other" -> context.getString(R.string.vault_group_other)
-        else -> grp
-    }
-
-/** 类型显示名：存储值（与交换格式对齐的英文标识）→ 本地化标签；未知值回退原值。 */
-private fun vaultTypeLabel(context: android.content.Context, type: String): String =
-    when (type) {
-        CredentialType.SSH_KEY -> context.getString(R.string.vault_type_ssh_key)
-        CredentialType.API_KEY -> context.getString(R.string.vault_type_api_key)
-        CredentialType.BASIC_AUTH -> context.getString(R.string.vault_type_basic_auth)
-        CredentialType.TOTP -> context.getString(R.string.vault_type_totp)
-        CredentialType.CUSTOM -> context.getString(R.string.vault_type_custom_fields)
-        CredentialType.CLOUD_AK -> context.getString(R.string.vault_type_cloud_ak)
-        else -> type
-    }
+/** 类型显示名（与交换格式对齐的英文标识）→ 本地化标签：见 VaultLabels.kt 的 vaultTypeLabel。 */
 
 /** 固定元数据键 → 本地化标签。 */
 private val FIXED_META_LABELS: Map<String, Int> =

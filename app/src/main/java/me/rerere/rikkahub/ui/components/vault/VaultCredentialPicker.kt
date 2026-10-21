@@ -90,13 +90,13 @@ fun VaultCredentialPickerDialog(
                         FilterChip(
                             selected = groupFilter == FILTER_ALL,
                             onClick = { groupFilter = FILTER_ALL },
-                            label = { Text(FILTER_ALL) },
+                            label = { Text(stringResource(R.string.vault_type_filter_all)) },
                         )
                         groups.forEach { g ->
                             FilterChip(
                                 selected = groupFilter == g,
                                 onClick = { groupFilter = g },
-                                label = { Text(g) },
+                                label = { Text(vaultGroupLabelText(g)) },
                             )
                         }
                     }
@@ -112,13 +112,13 @@ fun VaultCredentialPickerDialog(
                             FilterChip(
                                 selected = typeFilter == FILTER_ALL,
                                 onClick = { typeFilter = FILTER_ALL },
-                                label = { Text(FILTER_ALL) },
+                                label = { Text(stringResource(R.string.vault_type_filter_all)) },
                             )
                             types.forEach { t ->
                                 FilterChip(
                                     selected = typeFilter == t,
                                     onClick = { typeFilter = t },
-                                    label = { Text(t) },
+                                    label = { Text(vaultTypeLabelText(t)) },
                                 )
                             }
                         }
