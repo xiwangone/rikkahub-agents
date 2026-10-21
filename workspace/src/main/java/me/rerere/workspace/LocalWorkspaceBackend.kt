@@ -108,6 +108,7 @@ class LocalWorkspaceBackend(
                 mkdir -p -- $pathArg || exit 1
                 ${statEntryCommand(path)}
             """.trimIndent(),
+            stdin = null,
         )
         return result.stdout.parseShellEntries().single()
     }
