@@ -1810,6 +1810,7 @@
   <string name="workspace_page_empty">아직 워크스페이스가 없습니다</string>
   <string name="workspace_page_empty_desc">파일 도구와 샌드박스 환경을 사용하려면 워크스페이스를 생성하세요.</string>
   <string name="workspace_page_name">이름</string>
+  <string name="workspace_detail_terminal">터미널</string>
   <string name="workspace_detail_copy_path">경로 복사</string>
   <string name="workspace_detail_path_copied">경로를 복사했습니다</string>
   <string name="workspace_detail_path_copy_failed">경로를 복사할 수 없습니다</string>

@@ -343,14 +343,22 @@ private fun WorkspaceTerminalTabContent(
                 },
             )
             if (tab.finished) {
-                Text(
-                    text = stringResource(R.string.workspace_terminal_exited),
+                // 退出态做成 chip：终端输出是深底滚屏，淡色裸文字很容易被输出淹没看不出来。
+                Surface(
                     modifier = Modifier
                         .align(Alignment.BottomCenter)
                         .padding(12.dp),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                )
+                    shape = MaterialTheme.shapes.small,
+                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                    tonalElevation = 2.dp,
+                ) {
+                    Text(
+                        text = stringResource(R.string.workspace_terminal_exited),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                    )
+                }
             }
         }
         TerminalExtraKeysBar(
@@ -384,6 +392,11 @@ private fun TerminalExtraKeysBar(
         TerminalExtraKey("TAB") { onSendText("\t") }
         TerminalExtraKey("CTRL", selected = controlDown, onClick = onControlToggle)
         TerminalExtraKey("ALT", selected = altDown, onClick = onAltToggle)
+        // 触屏上最高频的三个控制键：中断 / EOF / 清屏。有了直发键就不必「先按 CTRL 再点字母」，
+        // 长按拖动选词等操作也不会被 CTRL 粘滞态干扰。
+        TerminalExtraKey("⌃C") { onSendText("\u0003") }
+        TerminalExtraKey("⌃D") { onSendText("\u0004") }
+        TerminalExtraKey("⌃L") { onSendText("\u000C") }
         TerminalExtraKey("-") { onSendText("-") }
         TerminalExtraKey("/") { onSendText("/") }
         TerminalExtraKey("|") { onSendText("|") }

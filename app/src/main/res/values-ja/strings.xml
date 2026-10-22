@@ -1813,6 +1813,7 @@
   <string name="workspace_page_empty">ワークスペースはまだありません</string>
   <string name="workspace_page_empty_desc">ファイルツールとサンドボックス環境を利用するには、ワークスペースを作成してください</string>
   <string name="workspace_page_name">名前</string>
+  <string name="workspace_detail_terminal">ターミナル</string>
   <string name="workspace_detail_copy_path">パスをコピー</string>
   <string name="workspace_detail_path_copied">パスをコピーしました</string>
   <string name="workspace_detail_path_copy_failed">パスをコピーできません</string>

@@ -2104,6 +2104,7 @@
   <string name="workspace_detail_title">工作区详情</string>
   <string name="workspace_detail_tab_basic">基本</string>
   <string name="workspace_detail_tab_files">文件</string>
+  <string name="workspace_detail_terminal">终端</string>
   <string name="workspace_detail_import_file">导入文件</string>
   <string name="workspace_detail_rootfs_install_failed">Rootfs 安装失败</string>
   <string name="workspace_detail_delete_directory">删除目录</string>

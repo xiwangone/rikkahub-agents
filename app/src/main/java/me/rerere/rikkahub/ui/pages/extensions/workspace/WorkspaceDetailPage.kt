@@ -318,7 +318,10 @@ fun WorkspaceDetailPage(id: String) {
                     }
                     if (state.workspace?.supportsTerminal() == true) {
                         IconButton(onClick = { navController.navigate(Screen.WorkspaceTerminal(id)) }) {
-                            Icon(HugeIcons.ComputerTerminal01, contentDescription = null)
+                            Icon(
+                                HugeIcons.ComputerTerminal01,
+                                contentDescription = stringResource(R.string.workspace_detail_terminal),
+                            )
                         }
                     }
                 },

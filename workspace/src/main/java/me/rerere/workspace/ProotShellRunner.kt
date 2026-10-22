@@ -143,9 +143,24 @@ class ProotShellRunner(
         // workspace_shell(env=…) 静默失败，命令里 $VAR 恒为空）。
         command += buildEnvAssignments(context.env)
 
+        // shell 入口按 rootfs 实际形态解析：bash 优先，缺失则回落 sh。
+        // 【为何不能硬编码 /bin/bash】Alpine 系 minirootfs 只带 busybox
+        // （/bin/sh → /bin/busybox），根本没有 bash——硬编码 bash 会让 Alpine
+        // 工作区每条命令 exit 127（2026-10-22 e2b run31 实证：补丁 D 修好 rootfs
+        // 判定后，ws-beta 的子代理汇报原话「the underlying ws-beta shell
+        // environment is broken ( /bin/bash missing → exit 127 on every
+        // command), which blocked both the file creation and the cat
+        // commands」——写文件与 cat 全被堵死）。Ubuntu 系自带 bash 所以此前
+        // 无一例失败，与补丁 D 的 symlink 坑同属「Ubuntu 假设」。
+        // [WorkspaceManager.isUsableRootfs] 本就接受 bin/bash || bin/sh 二者
+        // 其一，这里按同一优先级解析，两处口径合一。busybox ash 对
+        // `-l` / `cd --` / `eval` 均支持（exit 0），Ubuntu 路径不变。
+        val shellPath =
+            if (WorkspaceManager.hasRootfsEntry(context.linuxDir, "bin/bash")) "/bin/bash" else "/bin/sh"
+
         command +=
             listOf(
-                "/bin/bash",
+                shellPath,
                 "-l",
                 "-c",
                 // 命令通过位置参数传入, 避免任何转义; eval "$2" 对命令文本只求值一次, 等价于 bash -c "$cmd"
@@ -166,7 +181,22 @@ class ProotShellRunner(
         }
     }
 
-    private fun File.hasUsableRootfs(): Boolean = isDirectory && File(this, "bin/sh").isFile
+    /**
+     * rootfs 可用性判定——必须复用 [WorkspaceManager.isUsableRootfs] 的符号链接感知逻辑。
+     *
+     * 【为什么不能自己写】老实现 `isDirectory && File(this, "bin/sh").isFile` 按**宿主机**
+     * 解析 symlink：Alpine 系发行版的 `bin/sh` 是指向**绝对路径** `/bin/busybox` 的链接，
+     * 在 Android 宿主机上必然不存在 → `isFile` 恒 false → 每个 workspace 工具都报
+     * `IllegalStateException: Rootfs is not installed`（2026-10-22 e2b run29 实证：
+     * ws-beta/Alpine 的 write_file 与 shell 全废，而 UI 状态是 READY、W4/W5 断言全过——
+     * 安装完成判定用的是 [WorkspaceManager.hasRootfs]，两套口径不一致）。
+     * Ubuntu 系 `bin/sh → dash` 是**相对**链接所以侥幸无事——这正是「多发行版共存」
+     * 场景下只有 Alpine 中招的原因。
+     *
+     * [WorkspaceManager.isUsableRootfs] 用 `Files.readSymbolicLink` + NOFOLLOW_LINKS，
+     * 并把绝对 symlink 按 chroot 内路径解析（越界/循环拒绝），与 proot `-r` 的视角一致。
+     */
+    private fun File.hasUsableRootfs(): Boolean = isDirectory && WorkspaceManager.isUsableRootfs(this)
 
     private companion object {
         private const val PROOT_EXEC = "libproot_exec.so"

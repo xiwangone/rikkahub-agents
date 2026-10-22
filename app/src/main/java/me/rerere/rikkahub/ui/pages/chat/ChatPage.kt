@@ -76,6 +76,7 @@ import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
@@ -528,7 +529,17 @@ private fun ChatPageContent(
         }
                         },
                         onSendClick = {
-                            if (currentChatModel == null) {
+                            // 发送前置校验必须与生成链路口径一致（ChatService 生成时用
+                            // conversation.chatModelId ?: assistant.chatModelId ?: settings.chatModelId）：
+                            // 会话级模型覆盖也算「已选模型」。此前只查全局 currentChatModel，
+                            // 用户在会话里选了模型、助手/全局默认未配时照样被「请先选择模型」
+                            // toast 挡掉，且输入框不清空（E2B Run5 P8 实证——真 bug）。
+                            val effectiveChatModel =
+                                currentChatModel
+                                    ?: conversation.chatModelId
+                                        ?.takeIf { setting.getCurrentAssistant().allowPerConversationModel }
+                                        ?.let { id -> setting.findModelById(id) }
+                            if (effectiveChatModel == null) {
                                 toaster.show(
                                     context.getString(R.string.chat_select_model_first),
                                     type = ToastType.Error,

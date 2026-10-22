@@ -338,6 +338,32 @@ class WorkspaceRepository(
     /** 所有工作区（按创建顺序）。授权写沙箱 token 时取第一个（主工作区）。 */
     suspend fun getAll(): List<WorkspaceEntity> = dao.getAll()
 
+    /**
+     * 把「工作区 id 或名字」解析成工作区 id；解析不了返回 null。
+     *
+     * 模型在 `subagent_dispatch(workspace=…)` / `workspace_shell(workspace=…)` 里经常把
+     * `workspace_list` 返回的 **name**（乃至发行版名）当 id 传。只认 id 的老逻辑会让这种
+     * 调用直接失败：子代理路径上 uuid 解析再把名字吞成 null ⇒ 一个工作区工具都注入不了，
+     * 模型按「无法完成就只回一段说明」收尾 —— 用户看到的就是「零产物 + 一句话」。
+     *
+     * 顺序：id 精确命中 → 名字大小写不敏感唯一命中。名字不唯一时返回 null，由调用方
+     * 报错并列候选（[describeWorkspaces]）—— UI 创建时名字唯一（[create] 有
+     * isNameTaken 校验），重名只可能是外部导入的数据，防御性不猜。
+     */
+    suspend fun resolveWorkspaceId(requested: String): String? {
+        val query = requested.trim()
+        if (query.isEmpty()) return null
+        getById(query)?.let { return it.id }
+        return getAll()
+            .filter { it.name.equals(query, ignoreCase = true) }
+            .singleOrNull()
+            ?.id
+    }
+
+    /** `id(name)` 清单，供「未知工作区」报错时给模型/用户列候选。 */
+    suspend fun describeWorkspaces(): String =
+        getAll().joinToString(", ") { "${it.id}(${it.name})" }
+
     suspend fun create(name: String): WorkspaceEntity {
         val id = Uuid.random().toString()
         val now = System.currentTimeMillis()

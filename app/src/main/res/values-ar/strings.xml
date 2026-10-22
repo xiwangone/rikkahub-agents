@@ -3148,6 +3148,7 @@
   <string name="workspace_page_empty">لا توجد مساحات عمل</string>
   <string name="workspace_page_empty_desc">أنشئ واحدة لاستخدام أدوات الملفات والبيئة المعزولة</string>
   <string name="workspace_page_name">الاسم</string>
+  <string name="workspace_detail_terminal">الطرفية</string>
   <string name="workspace_detail_copy_path">نسخ المسار</string>
   <string name="workspace_detail_path_copied">تم نسخ المسار</string>
   <string name="workspace_detail_path_copy_failed">تعذّر نسخ المسار</string>

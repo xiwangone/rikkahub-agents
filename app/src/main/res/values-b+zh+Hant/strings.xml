@@ -1828,6 +1828,7 @@
   <string name="workspace_page_empty">尚無工作區</string>
   <string name="workspace_page_empty_desc">建立一個以使用檔案工具和沙盒環境</string>
   <string name="workspace_page_name">名稱</string>
+  <string name="workspace_detail_terminal">終端機</string>
   <string name="workspace_detail_copy_path">複製路徑</string>
   <string name="workspace_detail_path_copied">路徑已複製</string>
   <string name="workspace_detail_path_copy_failed">無法複製路徑</string>

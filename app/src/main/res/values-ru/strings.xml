@@ -1806,6 +1806,7 @@
   <string name="workspace_page_empty">Пока нет рабочих пространств</string>
   <string name="workspace_page_empty_desc">Создайте рабочее пространство для использования файловых инструментов и сред песочницы.</string>
   <string name="workspace_page_name">Имя</string>
+  <string name="workspace_detail_terminal">Терминал</string>
   <string name="workspace_detail_copy_path">Копировать путь</string>
   <string name="workspace_detail_path_copied">Путь скопирован</string>
   <string name="workspace_detail_path_copy_failed">Не удалось скопировать путь</string>

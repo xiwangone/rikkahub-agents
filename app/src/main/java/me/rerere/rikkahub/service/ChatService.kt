@@ -762,6 +762,9 @@ class ChatService(
         sendMessageNow(conversationId, next.parts, next.answer, next.reply)
     }
 
+    // catch 内要先统一做 completeExceptionally 与日志，再按「是否取消 / 是否 headless」分流放行 rethrow；
+    // 多个 catch 会重复这两步且拿不到同一个 e，故保留类型判断。
+    @Suppress("InstanceOfCheckForException")
     private fun sendMessageNow(
         conversationId: Uuid,
         content: List<UIMessagePart>,
@@ -856,6 +859,19 @@ class ChatService(
                         AppLog.w(TAG, "msg-fail conv=$conversationId err=${e.message}", e)
                     }
                     e.printStackTrace()
+                    // 修复：headless 会话（子代理/cron/工作流/外部自动化）的调用方靠「协程
+                    // 正常结束」判定成功——异常被吞 → SubAgentEngine.executeRun 的
+                    // first { it == null } 立即满足 → 误判 SUCCEEDED 空转。对 headless 且
+                    // 非取消的异常放行 rethrow，让调用方 catch 走 FAILED 路径；交互会话
+                    // 保持现状（addError 提示用户，不崩 UI）。
+                    // 注：sendMessageNow 的 conversationId 签名即非空 Uuid，无需 null 判据；
+                    // HeadlessConversations.isHeadless 查内存 ConcurrentHashMap 集合
+                    // （SharedPreferences 只在启动 init() 时读一次），catch 内调用无 I/O。
+                    if (e !is kotlinx.coroutines.CancellationException &&
+                        me.rerere.rikkahub.data.ai.tools.HeadlessConversations.isHeadless(conversationId)
+                    ) {
+                        throw e
+                    }
                     addError(e, conversationId, title = context.getString(R.string.error_title_send_message))
                 } finally {
                     // 无论正常结束、取消还是失败，都尝试派发队首排队消息，

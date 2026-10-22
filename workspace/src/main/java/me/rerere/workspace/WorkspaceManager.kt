@@ -501,6 +501,14 @@ class WorkspaceManager(
         fun isUsableRootfs(linuxDir: File): Boolean =
             isUsableRootfsEntry(linuxDir, "bin/bash") || isUsableRootfsEntry(linuxDir, "bin/sh")
 
+        /**
+         * rootfs 内某相对路径是否可解析为普通文件（symlink 感知：绝对链接按 chroot 内
+         * 路径解析，越界/循环拒绝）。供 [ProotShellRunner] 解析实际存在的 shell 入口
+         * （bash 优先、sh 兜底）——与 [isUsableRootfs] 同一判定口径。
+         */
+        fun hasRootfsEntry(linuxDir: File, relativePath: String): Boolean =
+            isUsableRootfsEntry(linuxDir, relativePath)
+
         private fun isUsableRootfsEntry(linuxDir: File, relativePath: String): Boolean {
             val root = linuxDir.toPath().toAbsolutePath().normalize()
             val resolved =

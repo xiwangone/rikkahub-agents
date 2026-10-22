@@ -18,9 +18,13 @@ import me.rerere.rikkahub.data.agentrun.AgentRunKind
 import me.rerere.rikkahub.data.agentrun.AgentRunRepository
 import me.rerere.rikkahub.data.agentrun.AgentRunStatus
 import me.rerere.rikkahub.data.ai.tools.HeadlessConversations
+import me.rerere.rikkahub.data.ai.transformers.buildWorkspaceReminder
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.repository.ConversationRepository
+import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.service.ChatService
 import kotlin.uuid.Uuid
 
@@ -238,6 +242,14 @@ class SubAgentEngine(
     }
 
     /**
+     * 同 [chatService] 的惰性 Koin 取用：只为给子代理注入「我被分配了哪个工作区」的上下文，
+     * 不值得为它改构造函数动 DI 图（构造函数加参要同步改 [me.rerere.rikkahub.di.RepositoryModule]）。
+     */
+    private val workspaceRepository: WorkspaceRepository by lazy {
+        org.koin.java.KoinJavaComponent.getKoin().get<WorkspaceRepository>()
+    }
+
+    /**
      * Phase 24 — maps a sub-agent run id to its `agent_runs` ledger row id. Populated when
      * the run is dispatched, consulted by [executeRun] / [markTerminal] when transitioning
      * the ledger row, removed when the run reaches a terminal status. A run with no entry
@@ -275,7 +287,26 @@ class SubAgentEngine(
         if (validation is SubAgentRequestValidator.Result.Reject) {
             return@withContext DispatchResult.Reject(validation.error, validation.detail)
         }
-        val cleaned = (validation as SubAgentRequestValidator.Result.Ok).request
+        val validated = (validation as SubAgentRequestValidator.Result.Ok).request
+
+        // 【工作区参数名字兜底】模型常把 workspace_list 里的 **name** 当 id 传给
+        // `subagent_dispatch(workspace=…)`。老路径只认 uuid：非 uuid 的值在
+        // resolveRunTargets 里仅记一行日志，随后 executeRun 的
+        // `Uuid.parse(workspaceIdOverride)` 把它吞成 null ⇒ 子代理会话丢工作区绑定，
+        // createWorkspaceToolsIfReady 直接返回空集 ⇒ 模型「无法完成就只回一段说明」。
+        // 这里同步解析：唯一名字命中就地改写为 uuid；解析不了同步 Reject 并列出候选，
+        // 父模型立刻能看到错误换个 id 重试（对照 agent 参数的未知名处理）。
+        val cleaned = validated.workspaceId
+            ?.takeIf { it.isNotBlank() }
+            ?.takeIf { runCatching { Uuid.parse(it) }.isFailure }
+            ?.let { raw ->
+                workspaceRepository.resolveWorkspaceId(raw)?.let { validated.copy(workspaceId = it) }
+                    ?: return@withContext DispatchResult.Reject(
+                        "unknown_workspace",
+                        "unknown workspace id or name: $raw. known: ${workspaceRepository.describeWorkspaces()}",
+                    )
+            }
+            ?: validated
 
         // Concurrency cap. Global first (cheaper), then per-assistant.
         if (registry.globalActiveCount() >= SubAgentDefaults.GLOBAL_CONCURRENCY_CAP) {
@@ -375,17 +406,49 @@ class SubAgentEngine(
     }
 
     /**
+     * 「继承父助手」（request.model_id 与 profile.modelId 均未给）时，子代理该用哪个模型。
+     * 与生成链 [ChatService.handleMessageComplete] 同口径：会话级（助手允许时）>
+     * 助手级 > 全局默认。
+     *
+     * 【为何不能直接给 null】父模型的常见选法是聊天页选择器——它只写
+     * `conversation.chatModelId`（e2b run28 的 P7 走的就是这条路，助手级/全局两级
+     * 均为 null）。子代理会话若 `chatModelId=null`，生成链一路解析到全局默认仍为
+     * null → `IllegalStateException("No chat model selected")` 被 `sendMessageNow`
+     * 的 catch 吞掉 → 0 trips / 0 tokens 空跑：旧代码误判 SUCCEEDED 空 result，
+     * 补丁 A 把它翻成真 FAILED，但根因是这条继承断链——在此补上。
+     */
+    private suspend fun resolveInheritedChatModelId(
+        parentAssistant: Assistant?,
+        parentChatId: String?,
+        settings: Settings,
+    ): Uuid? {
+        val parentConversationModelId = parentChatId
+            ?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+            ?.let { conversationRepo.getConversationById(it) }
+            ?.chatModelId
+            ?.takeIf { parentAssistant?.allowPerConversationModel == true }
+        return parentConversationModelId
+            ?: parentAssistant?.chatModelId
+            ?: settings.chatModelId
+    }
+
+    /**
      * 解析子代理的运行目标（agent profile → 模型 → 会话级作用域 → 任务文本）。
      * 抽成独立函数只为让 [executeRun] 的主流程保持可读：解析失败分三类原因，堆在一起
      * 会让分支数超出静态检查门限（detekt CyclomaticComplexMethod）。
      *
-     * 优先级：显式 request > agent profile > 父助手（null/空 = 继承父助手）。
+     * 优先级：显式 request > agent profile > 父会话的生效模型（null/空 = 继承，见
+     * [resolveInheritedChatModelId]）。
      */
+    // 目标解析是一条线性判定链（工作区 id/名字、父助手、模型继承），拆开会把同一口径割裂成多段。
+    @Suppress("CyclomaticComplexMethod")
     private suspend fun resolveRunTargets(
         request: SubAgentRequest,
         parentAssistantId: Uuid,
+        parentChatId: String?,
     ): RunTargets {
         val settings = settingsStore.settingsFlow.first()
+        val parentAssistant = settings.assistants.firstOrNull { it.id == parentAssistantId }
         val profile = when (
             val r = SubAgentProfileResolver.resolve(request.agentName, settings.subAgents)
         ) {
@@ -393,14 +456,16 @@ class SubAgentEngine(
             is SubAgentProfileResolver.Result.Resolved -> r.profile
             is SubAgentProfileResolver.Result.Failed -> return RunTargets.Rejected(r.message)
         }
-        // model_id 先解析，缺省时回落到 profile 的模型；都未给则继承父助手。
+        // model_id 先解析，缺省时回落到 profile 的模型；都未给则继承父会话的生效模型
+        // （resolveInheritedChatModelId：与生成链同口径，杜绝 0-token 空跑）。
         val chatModelId = when (
             val r = resolveSubAgentModel(
                 SubAgentModelResolver.resolve(request.modelId, settings.providers),
                 profile,
             )
         ) {
-            is SubAgentModelResolver.Result.Inherit -> null
+            is SubAgentModelResolver.Result.Inherit ->
+                resolveInheritedChatModelId(parentAssistant, parentChatId, settings)
             is SubAgentModelResolver.Result.Resolved -> r.modelId
             is SubAgentModelResolver.Result.Failed -> return RunTargets.Rejected(r.message)
         }
@@ -426,16 +491,29 @@ class SubAgentEngine(
         // profile 的系统提示词优先；否则用内置默认。
         // 【为何必要】子代理会话用的是**父助手**（继承其系统提示词，含父助手的汇报纪律），
         // 而子代理只需要一个最终结论 → 在此前置一份“子代理宪法”（含“不要逐段播报进度”）。
-        val basePrompt = profile?.systemPrompt?.trim()?.takeIf { it.isNotEmpty() }
-            ?: SubAgentDefaults.DEFAULT_SYSTEM_PROMPT
+        //
+        // 【工作区上下文 · 修复「没有产物 / 只回一句话」】
+        // `ChatToolFactory.createWorkspaceToolsIfReady` 只在 shellStatus == READY 时注入
+        // workspace_* 工具：工作区未就绪（没装 rootfs / 安装中 / BROKEN）时子代理**一个文件工具都没有**。
+        // 而此前子代理的 system prompt 里完全没有提及工作区，模型只知道“任务做不了”，
+        // 于是按默认宪法「无法完成就只回一段说明」收尾 —— 用户看到的就是「零产物 + 一句话」。
+        // 这里复用主聊天同一份提示（buildWorkspaceReminder），让子代理明确知道：
+        // 自己被分配到哪个工作区、它的发行版/路径约定、以及未就绪时该怎么让用户把它变就绪。
+        val workspacePrompt = workspaceId
+            ?.let { id -> runCatching { workspaceRepository.getById(id) }.getOrNull() }
+            ?.let { ws -> buildWorkspaceReminder(workspace = ws, hasAnyWorkspace = true) }
+        val basePrompt = listOfNotNull(
+            profile?.systemPrompt?.trim()?.takeIf { it.isNotEmpty() }
+                ?: SubAgentDefaults.DEFAULT_SYSTEM_PROMPT,
+            workspacePrompt,
+        ).joinToString("\n\n")
         // 提示词不再拼进任务文本：它走会话级 system prompt（见 RunTargets.Ready.systemPrompt），
         // 否则只是「用户消息前缀」，权重低、约束不住（两次仍带过程叙述）。
         val effectiveTask = request.task
         // A-9 互踩可见化：子代理的生效工作区 == 父助手绑定的工作区时标出风险。
         // 注意：父子**都未绑定**不算共享 —— 那时 `createWorkspaceToolsIfReady` 根本不注入
         // workspace_* 工具（id 为空即返回空集），双方没有可互踩的工作区。
-        val parentWorkspaceId = settings.assistants.firstOrNull { it.id == parentAssistantId }
-            ?.workspaceId?.toString()
+        val parentWorkspaceId = parentAssistant?.workspaceId?.toString()
         val effectiveWorkspaceId = workspaceId ?: parentWorkspaceId
         val sameWorkspaceAsParent =
             effectiveWorkspaceId != null && effectiveWorkspaceId == parentWorkspaceId
@@ -464,7 +542,7 @@ class SubAgentEngine(
                 markTerminal(runId, SubAgentStatus.FAILED, "bad parent assistant id")
                 return
             }
-        val targets = when (val resolution = resolveRunTargets(request, parentAsstUuid)) {
+        val targets = when (val resolution = resolveRunTargets(request, parentAsstUuid, parentChatId)) {
             is RunTargets.Rejected -> {
                 markTerminal(runId, SubAgentStatus.FAILED, resolution.message)
                 return
@@ -538,6 +616,23 @@ class SubAgentEngine(
             val finalText = harvestFinalText(conv.id)
             // B2 用量回传：子代理本身就是一次会话，直接聚合它自己的 usage（父会话不受影响）。
             val usage = measureRunUsage(conv.id)
+            // 修复：子代理 LLM 执行空转不得判 SUCCEEDED。
+            // 失效链（发送异常被吞时协程正常结束）：ChatService.sendMessageNow 的 catch
+            // 吞掉发送异常（只 addError 不 rethrow），协程「正常」结束 → 下方 withTimeoutOrNull
+            // 的 first { it == null } 立即满足 → harvest 空文本 → 旧代码判 SUCCEEDED 空 result
+            // 回传父模型（表现为极短时间内 SUCCEEDED、0 trips、0 tokens、空 result）。
+            // 空执行判 FAILED，父模型与用户才能看到真实失败并可重试/换模型。
+            if (finalText.isBlank()) {
+                markTerminal(
+                    runId,
+                    SubAgentStatus.FAILED,
+                    "sub-agent LLM run produced no output (trips=${usage.trips}, " +
+                        "tokensIn=${usage.inputTokens}); check the sub-agent model/provider " +
+                        "(app log tag: msg-fail conv=...)",
+                )
+                postRunResultToParent(parentChatId, registry.get(runId))
+                return
+            }
             registry.update(runId) {
                 it.copy(
                     status = SubAgentStatus.SUCCEEDED,

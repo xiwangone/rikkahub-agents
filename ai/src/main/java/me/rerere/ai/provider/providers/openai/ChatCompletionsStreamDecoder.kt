@@ -36,6 +36,11 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
     private var finishReason: String? = null
     private var finished = false
 
+    /** XML tool_call 文本兜底：跨 SSE delta 的未闭合残串缓冲 */
+    private val pendingXml = StringBuilder()
+    /** 兜底路径是否解析出过 tool call（决定 finish_reason 归一） */
+    private var xmlToolCallSeen = false
+
     @Suppress("CyclomaticComplexMethod") // 流式解码各字段平铺直叙；拆分成多段反而不好与既有实现对照
     override fun accept(event: SseEvent): DecodeResult {
         if (finished) return DecodeResult(completed = true)
@@ -52,7 +57,22 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
                 payload["choices"]?.jsonArrayOrNull?.firstOrNull()?.jsonObjectOrNull?.let { choice ->
                     (choice["delta"]?.jsonObjectOrNull ?: choice["message"]?.jsonObjectOrNull)?.let { message ->
                         val messageWithoutTools = JsonObject(message.filterKeys { it != "tool_calls" })
-                        addAll(streamState.append(parseMessage(messageWithoutTools), responseId))
+                        val xmlParts = extractXmlToolCallParts(messageWithoutTools)
+                        if (xmlParts != null) {
+                            // XML tool_call 文本兜底：逐段喂给 streamState，
+                            // Text/Tool 交替时的流开关由它统一负责
+                            xmlParts.forEach { part ->
+                                addAll(streamState.append(
+                                    UIMessage(
+                                        role = MessageRole.ASSISTANT,
+                                        parts = listOf(part),
+                                    ),
+                                    responseId,
+                                ))
+                            }
+                        } else {
+                            addAll(streamState.append(parseMessage(messageWithoutTools), responseId))
+                        }
 
                         message["tool_calls"]?.jsonArrayOrNull?.forEachIndexed { fallbackIndex, element ->
                             val toolCall = element.jsonObjectOrNull ?: return@forEachIndexed
@@ -91,7 +111,49 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
     private fun finish(): List<StreamChunk> {
         if (finished) return emptyList()
         finished = true
-        return streamState.finish(finishReason, responseId, responseModel)
+        return buildList {
+            if (pendingXml.isNotEmpty()) {
+                // 流结束仍有未闭合 XML tool_call：按用户可见文本刷出，绝不静默吞掉
+                val tail = pendingXml.toString()
+                pendingXml.clear()
+                addAll(streamState.append(
+                    UIMessage(
+                        role = MessageRole.ASSISTANT,
+                        parts = listOf(UIMessagePart.Text(tail)),
+                    ),
+                    responseId,
+                ))
+            }
+            // 兜底解析出过 tool call 时把 finish_reason 归一为 tool_calls，
+            // 与结构化 tool_calls 路径的上层表现保持一致
+            val effectiveReason = if (xmlToolCallSeen) "tool_calls" else finishReason
+            addAll(streamState.finish(effectiveReason, responseId, responseModel))
+        }
+    }
+
+    /**
+     * XML tool_call 文本兜底入口：部分 OpenAI 兼容端点的模型把工具调用以 XML 文本
+     * 形式混在 content 里返回（不遵守结构化 tool_calls 协议）。仅当 content 含开标签
+     * （或其前缀，防跨 delta 切断）或已有未闭合残串时才介入；正常模型的正文不含该
+     * 字样，走原解析路径零损耗。
+     *
+     * 返回 null = 本段无需 XML 拆分；返回 list = 拆分结果（为空表示整段都在
+     * pendingXml 里等闭合，流结束时由 [finish] 刷成文本）。
+     */
+    private fun extractXmlToolCallParts(message: JsonObject): List<UIMessagePart>? {
+        val content = message["content"]?.jsonPrimitiveOrNull?.contentOrNull ?: return null
+        // 任一提炼标签（tool_call / tool_use）或其 delta 切断前缀出现即介入
+        val mightContainOpenTag = XmlToolCallParser.OPEN_TAGS.any { openTag ->
+            content.contains(openTag) || (1 until openTag.length).any { len ->
+                content.length >= len && content.endsWith(openTag.substring(0, len))
+            }
+        }
+        if (!mightContainOpenTag && pendingXml.isEmpty()) return null
+        pendingXml.append(content)
+        val result = XmlToolCallParser.split(pendingXml.toString())
+        pendingXml.clear().append(result.remainder)
+        if (result.parts.any { it is UIMessagePart.Tool }) xmlToolCallSeen = true
+        return result.parts
     }
 
     /** 把 tool_call 上的 Google 思考签名转成 part metadata；无签名时返回 null。 */

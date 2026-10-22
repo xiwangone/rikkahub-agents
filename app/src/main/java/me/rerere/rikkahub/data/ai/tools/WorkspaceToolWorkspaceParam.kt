@@ -31,6 +31,7 @@ internal fun JsonObjectBuilder.putWorkspaceProperty() {
  *
  * - 未传或与绑定区相同 → 返回 [boundId]（零开销，不查库）
  * - 传了其他 id → 必须是**已存在**的工作区，否则抛错（**不静默回退**）
+ * - 传了名字 → 唯一命中按名字解析（[WorkspaceRepository.resolveWorkspaceId]）
  */
 internal suspend fun resolveTargetWorkspaceId(
     workspaceRepository: WorkspaceRepository,
@@ -39,9 +40,23 @@ internal suspend fun resolveTargetWorkspaceId(
 ): String {
     val requested = args["workspace"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
     if (requested.isEmpty() || requested == boundId) return boundId
-    if (workspaceRepository.getById(requested) == null) {
-        error("unknown workspace id: $requested (use workspace_list to see available ids)")
-    }
-    return requested
+    if (workspaceRepository.getById(requested) != null) return requested
+
+    // 名字兜底：模型经常把 `workspace_list` 里的 **name**（乃至发行版名）当 id 传进来。
+    // 老逻辑只认 id，这种调用会直接 error → 子代理按宪法「无法完成就只回一段说明」收尾，
+    // 用户看到的就是「零产物 + 一句话」。名字唯一命中时按名字解析；不唯一/无命中才报错，
+    // 并把可用「id → name」列进错误里，让模型下一次能传对。
+    workspaceRepository.resolveWorkspaceId(requested)?.let { return it }
+
+    val all = workspaceRepository.getAll()
+    val byName = all.filter { it.name.equals(requested, ignoreCase = true) }
+    val known = all.joinToString(", ") { "${it.id}(${it.name})" }
+    error(
+        if (byName.size > 1) {
+            "ambiguous workspace name: $requested matches ${byName.size} workspaces; pass an id. known: $known"
+        } else {
+            "unknown workspace id or name: $requested (use workspace_list to see available ids). known: $known"
+        },
+    )
 }
 
