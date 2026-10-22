@@ -12,7 +12,6 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.onCompletion
@@ -426,7 +425,7 @@ class GenerationLoop(
         // 本次生成的归因上下文：flow 体内更新，收尾（onCompletion）时统一落一条记录。
         // 只收集枚举与计数（不含任何内容）；统计开关关闭时记录为空操作。
         val runCtx = GenerationRunContext(android.os.SystemClock.elapsedRealtime())
-        return channelFlow {
+        return flow {
         val resolvedExecution = resolveBackendProvider(settings.executionBackend, model, settings.providers) ?: error("Provider not found")
         val provider = resolvedExecution.first
         val execModel = resolvedExecution.second
