@@ -2,14 +2,11 @@ package me.rerere.rikkahub.data.ai
 
 import android.content.Context
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.onCompletion
-import kotlinx.coroutines.flow.retryWhen
 import kotlinx.coroutines.flow.takeWhile
-import kotlinx.coroutines.withContext
 import kotlinx.coroutines.delay
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
@@ -38,7 +35,6 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.ReasoningType
 import me.rerere.ai.ui.StreamChunk
-import me.rerere.ai.ui.StreamChunkHandler
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
@@ -65,7 +61,6 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.vault.AuditContext
 import me.rerere.ai.util.redactSecrets
 import java.io.IOException
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
 
