@@ -5,7 +5,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.channelFlow
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.delay
 import kotlin.time.Clock
@@ -61,7 +60,6 @@ import me.rerere.rikkahub.data.perf.RenderProfile
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.vault.AuditContext
 import me.rerere.ai.util.redactSecrets
-import java.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
 
@@ -136,8 +134,7 @@ internal class GenerationAgentRun(
 
     // 本次（重）订阅的状态：与逐块投递判定一一对应
     private var streamAttempt = 0
-    private var receivedAnyChunk = false
-    private var receivedMeaningfulOutput = false
+    private val streamProgress = GenerationStreamProgress()
     private var streamStartedAtMs = 0L
     private var lastStreamApplyAtMs = 0L
     private val pendingStreamChunks = mutableListOf<StreamChunk>()
@@ -153,7 +150,7 @@ internal class GenerationAgentRun(
                 failure = failure,
                 retryAttempt = streamAttempt.toLong(),
                 maxRetries = maxStreamRetries,
-                receivedMeaningfulOutput = receivedMeaningfulOutput,
+                receivedMeaningfulOutput = streamProgress.receivedMeaningfulOutput,
             )
         },
         delayFor = { retry -> generationStreamRetryDelayMs((retry - 1).toLong()).milliseconds },
@@ -493,18 +490,17 @@ internal class GenerationAgentRun(
     @Suppress("CyclomaticComplexMethod")
     override fun interceptStream(chunks: Flow<StreamChunk>): Flow<StreamChunk> = chunks
         .withIdleWatchdog(idleMs = assistant.streamIdleTimeoutMs)
-        .onCompletion { cause ->
-            if (cause == null && shouldReportEmptyGenerationStream(receivedAnyChunk)) {
-                throw IOException("Model stream closed without meaningful output")
-            }
-            if (cause == null && receivedAnyChunk && !receivedMeaningfulOutput) {
+        .trackGenerationStreamProgress(
+            progress = streamProgress,
+            onMeaningfulOutput = { clearRetryStatus(processingStatus) },
+            onNonMeaningfulCompletion = {
                 AppLog.w(
                     TAG,
                     "streamText: stream closed after chunks arrived but none contained " +
                         "parseable parts; ending without retry",
                 )
-            }
-        }.takeWhile { chunk ->
+            },
+        ).takeWhile { chunk ->
             // 墙钟上限：永不结束的流（无限「思考」）只能在这里掐掉，重复检测对它无感
             if (System.currentTimeMillis() - streamStartedAtMs > MAX_STREAM_DURATION_MS) {
                 AppLog.w(TAG, "streamText: stream exceeded max duration; ending this turn's stream early")
@@ -537,8 +533,7 @@ internal class GenerationAgentRun(
 
     override suspend fun onStreamAttemptReset(attempt: Int) {
         streamAttempt = attempt
-        receivedAnyChunk = false
-        receivedMeaningfulOutput = false
+        streamProgress.reset()
         streamStartedAtMs = System.currentTimeMillis()
         lastStreamApplyAtMs = 0L
         pendingStreamChunks.clear()
