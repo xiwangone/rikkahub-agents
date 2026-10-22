@@ -45,6 +45,18 @@ jobs:
 
       - name: 准备构建环境
         uses: ./.github/actions/setup-build-env
+      - name: 审计本次测试进程的 TLS 信任库
+        env:
+          LC_ALL: C
+        run: python3 .github/scripts/audit-test-tls-trust.py
+      - name: 上传 TLS 信任库审计证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: tls-trust-audit
+          path: tls-trust-audit.json
+          retention-days: 14
+          if-no-files-found: ignore
       - name: Ktlint 静态检查（不阻断，输出风格报告）
         run: |
           # 固定版本避免每次下载 latest 波动
@@ -156,4 +168,3 @@ jobs:
           path: |
             app/build/outputs/apk/release/*.apk
             app/build/outputs/apk/*/release/*.apk
-

@@ -253,6 +253,13 @@
   <string name="cancel_edit">取消編輯</string>
   <string name="chain_of_thought_collapse">收合</string>
   <string name="chain_of_thought_show_more_steps">顯示更多 %d 個步驟</string>
+  <plurals name="chain_of_thought_step_count">
+    <item quantity="one">%1$d 個步驟</item>
+    <item quantity="other">%1$d 個步驟</item>
+  </plurals>
+  <string name="chain_of_thought_running">執行中</string>
+  <string name="chain_of_thought_expanded">已展開</string>
+  <string name="chain_of_thought_collapsed">已收合</string>
   <string name="chat_input_placeholder">輸入訊息與AI聊天</string>
   <string name="chat_input_unsupported_file_type">不支援的檔案類型：%s</string>
   <string name="chat_input_file_read_failed">檔案讀取失敗：%s</string>

@@ -713,14 +713,7 @@ private fun ExportedChatMessage(
             model?.displayName?.isNotBlank() == true -> model.displayName
             else -> "AI"
         }
-    val partsKey =
-        message.parts.size.toString() + (
-            message.parts
-                .lastOrNull()
-                ?.hashCode()
-                ?.toString() ?: ""
-        )
-    val groupedParts = remember(partsKey) { message.parts.groupMessageParts() }
+    val groupedParts = remember(message.parts) { message.parts.groupMessageParts() }
     val messageContent: @Composable () -> Unit = {
         Column(
             modifier =
@@ -1133,4 +1126,3 @@ fun exportToJson(
         e.printStackTrace()
     }
 }
-

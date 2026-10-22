@@ -378,6 +378,13 @@
   <string name="cancel_edit">取消编辑</string>
   <string name="chain_of_thought_collapse">收起</string>
   <string name="chain_of_thought_show_more_steps">再显示 %d 步</string>
+  <plurals name="chain_of_thought_step_count">
+    <item quantity="one">%1$d 步</item>
+    <item quantity="other">%1$d 步</item>
+  </plurals>
+  <string name="chain_of_thought_running">运行中</string>
+  <string name="chain_of_thought_expanded">已展开</string>
+  <string name="chain_of_thought_collapsed">已收起</string>
   <string name="chat_input_placeholder">输入消息与AI聊天</string>
   <string name="chat_input_unsupported_file_type">不支持的文件类型：%s</string>
   <string name="chat_input_file_read_failed">文件读取失败：%s</string>

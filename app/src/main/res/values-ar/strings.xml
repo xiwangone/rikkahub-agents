@@ -371,6 +371,17 @@
   <string name="cancel_edit">إلغاء التعديل</string>
   <string name="chain_of_thought_collapse">طي</string>
   <string name="chain_of_thought_show_more_steps">عرض %d خطوات إضافية</string>
+  <plurals name="chain_of_thought_step_count">
+    <item quantity="zero">لا توجد خطوات</item>
+    <item quantity="one">خطوة واحدة</item>
+    <item quantity="two">خطوتان</item>
+    <item quantity="few">%1$d خطوات</item>
+    <item quantity="many">%1$d خطوة</item>
+    <item quantity="other">%1$d خطوة</item>
+  </plurals>
+  <string name="chain_of_thought_running">قيد التشغيل</string>
+  <string name="chain_of_thought_expanded">موسّع</string>
+  <string name="chain_of_thought_collapsed">مطوي</string>
   <string name="chat_input_placeholder">دردِش مع الذكاء الاصطناعي</string>
   <string name="chat_input_unsupported_file_type">نوع ملف غير مدعوم: %s</string>
   <string name="chat_message_add_favorite">إضافة إلى المفضلة</string>
