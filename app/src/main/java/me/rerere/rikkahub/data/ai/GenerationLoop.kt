@@ -131,10 +131,10 @@ private const val LOOP_GUARD_REPEAT_THRESHOLD = 3
  * pattern that produced the 27-step / 141K-token disaster: one trip means the model is
  * confused; six trips means it's not coming back.
  */
-private const val MAX_LOOP_GUARD_TRIPS_PER_TURN = 6
+internal const val MAX_LOOP_GUARD_TRIPS_PER_TURN = 6
 
 // 轮预算将尽时提前注入收尾指令的宽限窗口：让模型总结收场，而不是被硬掐在半句话上
-private const val WRAP_UP_GRACE_MS = 120_000L
+internal const val WRAP_UP_GRACE_MS = 120_000L
 
 // 流式期间「输出变换 + 界面投递」的合并窗口由当前渲染档位给出（见 data/perf/RenderProfile.kt）：
 // 每个 token 都做一次全量变换，在长会话下开销随消息数增长。同一窗口内只保留最新快照，
@@ -146,7 +146,7 @@ private const val WRAP_UP_GRACE_MS = 120_000L
 
 // 断流续写：服务端未给出结束原因（finish_reason 缺失）时，说明流被中途切断，
 // 自动再请求一次把内容接上；每个回合最多续写次数，以及续写时注入的合成指令。
-private const val MAX_AUTO_CONTINUE = 1
+internal const val MAX_AUTO_CONTINUE = 1
 
 
 /**
@@ -154,7 +154,7 @@ private const val MAX_AUTO_CONTINUE = 1
  * failure mode, which no chunk-level check can catch (the stream stays alive and looks productive
  * the whole time). Deliberately generous so ordinary long generations are never cut short.
  */
-private const val MAX_STREAM_DURATION_MS = 15 * 60 * 1000L
+internal const val MAX_STREAM_DURATION_MS = 15 * 60 * 1000L
 
 /**
  * Some read-only tools measure a real-time signal where re-calling after a TTL is
