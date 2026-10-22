@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.ai
 
 import android.content.Context
+import java.util.Collections
+import java.util.IdentityHashMap
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,14 +40,35 @@ internal val USER_CANCELLATION_MARKERS = listOf(
 // is permanently invalid.
 internal val RETRYABLE_4XX_STATUS_CODES = setOf(408, 409, 425, 429)
 
-internal fun isCancellationFailure(failure: Throwable): Boolean =
-    generateSequence(failure) { it.cause }
+internal fun isCancellationFailure(failure: Throwable): Boolean {
+    val seen = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
+    var current: Throwable? = failure
+    while (current != null && seen.add(current)) {
+        val cause = current
+        if (cause is CancellationException ||
+            USER_CANCELLATION_MARKERS.any { marker ->
+                cause.message?.contains(marker, ignoreCase = true) == true
+            }
+        ) {
+            return true
+        }
+        current = current.cause
+    }
+    return false
+}
+
+/**
+ * Defensive detection of SafeCollector's exception-transparency diagnostic.
+ * A failed emit must not be followed by another emit on that collector. The previous
+ * exception is embedded in the message, not necessarily attached as a cause. This is
+ * an unrecoverable delivery failure, not proof that the user cancelled the generation.
+ */
+internal fun Throwable.isFlowTransparencyViolation(): Boolean =
+    generateSequence(this) { it.cause }
         .take(8)
         .any { cause ->
-            cause is CancellationException ||
-                USER_CANCELLATION_MARKERS.any { marker ->
-                    cause.message?.contains(marker, ignoreCase = true) == true
-                }
+            cause is IllegalStateException &&
+                cause.message?.contains("transparency is violated", ignoreCase = true) == true
         }
 
 /**
@@ -123,6 +146,11 @@ internal fun shouldRetryGenerationStreamFailure(
     }
     // 内容风控是确定性拒绝（同一份上下文重发，结论不变），重试只会白等一轮
     if (classifyFailureKind(failure, retryFailureReason(failure)) == FailureKind.CONTENT_SAFETY) {
+        return false
+    }
+    // 事件出口已损坏（flow 透明度违规，见 isFlowTransparencyViolation）：collector 处于
+    // 脏态，重试期间的每次 emit 都会再抛一次 IllegalStateException，重放请求毫无意义
+    if (failure.isFlowTransparencyViolation()) {
         return false
     }
     // Retry provider, parsing, and local processing failures alike. Cancellation is kept

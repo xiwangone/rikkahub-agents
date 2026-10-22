@@ -15,6 +15,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
+import me.rerere.ai.agent.FailureTrackingCollector
 import me.rerere.ai.agent.AgentEvent
 import me.rerere.ai.agent.AgentFinishReason
 import me.rerere.ai.agent.AgentHooks
@@ -81,7 +82,7 @@ internal class GenerationAgentRun(
     private val aiLoggingManager: AILoggingManager,
     private val systemPromptBuilder: SystemPromptBuilder,
     private val conversationRepo: ConversationRepository,
-    private val emitter: FlowCollector<GenerationChunk>,
+    emitter: FlowCollector<GenerationChunk>,
     private val runCtx: GenerationRunContext,
     private val settings: Settings,
     private val model: Model,
@@ -109,6 +110,8 @@ internal class GenerationAgentRun(
     private val conversationLorebookIds: Set<Uuid>,
     private val workspaceCwd: String?,
 ) : AgentHooks {
+
+    private val emitter = FailureTrackingCollector(emitter)
 
     private var messages: List<UIMessage> = initialMessages
 
@@ -177,6 +180,7 @@ internal class GenerationAgentRun(
     suspend fun start() {
         while (true) {
             val requestStartedAtMs = android.os.SystemClock.elapsedRealtime()
+            var skipFinalDelivery = false
             try {
                 runAgent(request, this).collect { event ->
                     when (event) {
@@ -203,7 +207,15 @@ internal class GenerationAgentRun(
                 }
                 return
             } catch (t: Throwable) {
-                if (t is CancellationException) throw t
+                skipFinalDelivery = emitter.failure != null || t is Error ||
+                    isCancellationFailure(t) || t.isFlowTransparencyViolation()
+                emitter.throwIfFailed()
+                if (t is Error || isCancellationFailure(t)) throw t
+                if (t.isFlowTransparencyViolation()) {
+                    // Do not attempt recovery emissions on a collector that violated transparency.
+                    AppLog.e(TAG, "streamText: event sink broken (flow transparency violation), generation aborted", t)
+                    throw t
+                }
                 runCtx.modelMs += android.os.SystemClock.elapsedRealtime() - requestStartedAtMs
                 if (!imageDowngradeApplied &&
                     shouldDowngradeImagesOnFailure(t, t.message.orEmpty()) &&
@@ -245,7 +257,8 @@ internal class GenerationAgentRun(
                 throw t
             } finally {
                 // 收尾投递：合并窗口里被跳过的最后一批快照补上（审批状态单调回贴）
-                runCatching {
+                if (skipFinalDelivery || emitter.failure != null) pendingOutputMessages = null
+                try {
                     pendingOutputMessages?.let { pending ->
                         pendingOutputMessages = null
                         messages = pending
@@ -269,6 +282,9 @@ internal class GenerationAgentRun(
                             ),
                         )
                     }
+                } catch (error: Throwable) {
+                    emitter.throwIfFailed()
+                    if (error is Error || isCancellationFailure(error)) throw error
                 }
             }
         }

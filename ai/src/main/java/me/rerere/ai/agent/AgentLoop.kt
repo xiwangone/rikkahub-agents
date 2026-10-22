@@ -9,6 +9,8 @@ import kotlin.time.TimeMark
 import kotlin.time.TimeSource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.TimeoutCancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeout
@@ -38,8 +40,12 @@ internal class StreamChunkHandlingException(override val cause: Throwable) : Run
 internal class AgentLoop(
     private val request: AgentRequest,
     private val hooks: AgentHooks,
-    private val events: FlowCollector<AgentEvent>,
+    events: FlowCollector<AgentEvent>,
 ) {
+    private val events = FailureTrackingCollector(events)
+    private val retryPolicy = request.retry.copy(
+        nonRetryable = { failure -> this.events.failure != null || request.retry.nonRetryable(failure) },
+    )
     private val runStartedAt = TimeSource.Monotonic.markNow()
     private val history: MutableList<UIMessage>
     private var workingMessage: UIMessage?
@@ -149,7 +155,7 @@ internal class AgentLoop(
         update(hooks.finishStep(generated, newPartsFrom = base.parts.size).copy(finishedAt = now()))
     }
 
-    // 有意 catch Throwable：合并/下游处理失败要包装成 StreamChunkHandlingException，以区分“非网络故障、不可重放”；
+    // 合并失败保留原有包装；下游投递失败由 events 单独锁存并禁止重试。
     // 外层再解包 throw e.cause!! 抛原始异常（cause 不会丢失）。
     @Suppress("TooGenericExceptionCaught", "SwallowedException")
     private suspend fun stream(
@@ -162,7 +168,10 @@ internal class AgentLoop(
         val stepStart = base.copy(usage = null, generationTimeMs = null)
         var subscriptions = 0
         return try {
-            withRetry(request.retry, onRetry = { events.emit(AgentEvent.Retrying(it)) }) {
+            withRetry(retryPolicy, onRetry = { attempt ->
+                currentCoroutineContext().ensureActive()
+                events.emit(AgentEvent.Retrying(attempt))
+            }) {
                 // 每次重试都从本步开始时的消息重新合并，不会把重试的响应接在已经展示的半截回复后面；
                 // 各次尝试共用同一个消息 id，调用方直接覆盖即可。
                 hooks.onStreamAttemptReset(subscriptions++)
@@ -171,21 +180,28 @@ internal class AgentLoop(
                 var firstChunk: TimeMark? = null
                 hooks.interceptStream(request.provider.streamText(request.providerSetting, messages, params))
                     .collect { chunk ->
-                        try {
-                            val mark = firstChunk ?: TimeSource.Monotonic.markNow().also { firstChunk = it }
-                            attempt = handler.handle(listOf(attempt), chunk).single()
-                            preview(attempt.withStepStats(base, mark.elapsedNow()), newPartsFrom = base.parts.size)
+                        val mark = firstChunk ?: TimeSource.Monotonic.markNow().also { firstChunk = it }
+                        attempt = try {
+                            handler.handle(listOf(attempt), chunk).single()
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Throwable) {
-                            // 合并失败或下游处理失败都不是网络故障，不能重放模型请求
+                            // 合并失败不是网络故障，不能重放模型请求
                             throw StreamChunkHandlingException(e)
                         }
+                        // Delivery failures are latched by events and excluded from retryPolicy.
+                        // Never replay a model request to repair a broken downstream collector.
+                        preview(attempt.withStepStats(base, mark.elapsedNow()), newPartsFrom = base.parts.size)
                     }
+                events.throwIfFailed()
                 attempt.withStepStats(base, firstChunk?.elapsedNow() ?: ZERO)
             }
-        } catch (e: StreamChunkHandlingException) {
-            throw e.cause!!
+        } catch (error: Throwable) {
+            // A provider adapter may have caught a downstream cancellation and replaced it
+            // with an IOException. Preserve the first delivery failure, not that replacement.
+            events.throwIfFailed()
+            if (error is StreamChunkHandlingException) throw error.cause
+            throw error
         }
     }
 
@@ -196,7 +212,10 @@ internal class AgentLoop(
     ): UIMessage {
         // 非流式拿不到首 token 时间，只能统计最后一次尝试的整个请求耗时
         var requestMark = TimeSource.Monotonic.markNow()
-        val result = withRetry(request.retry, onRetry = { events.emit(AgentEvent.Retrying(it)) }) {
+        val result = withRetry(retryPolicy, onRetry = { attempt ->
+            currentCoroutineContext().ensureActive()
+            events.emit(AgentEvent.Retrying(attempt))
+        }) {
             requestMark = TimeSource.Monotonic.markNow()
             request.provider.generateText(request.providerSetting, messages, params)
         }
@@ -311,7 +330,7 @@ internal class AgentLoop(
 
     // 生成中途的内容只发给调用方，这一步结束前循环内部一直基于原始内容合并
     private suspend fun preview(generating: UIMessage, newPartsFrom: Int) {
-        events.emit(AgentEvent.MessageUpdated(hooks.previewStep(generating, newPartsFrom)))
+        events.emitFrom { AgentEvent.MessageUpdated(hooks.previewStep(generating, newPartsFrom)) }
     }
 
     private suspend fun finish(reason: AgentFinishReason) {
