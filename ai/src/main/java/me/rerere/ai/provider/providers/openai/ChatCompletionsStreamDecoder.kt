@@ -142,11 +142,14 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
      */
     private fun extractXmlToolCallParts(message: JsonObject): List<UIMessagePart>? {
         val content = message["content"]?.jsonPrimitiveOrNull?.contentOrNull ?: return null
-        // 任一提炼标签（tool_call / tool_use）或其 delta 切断前缀出现即介入
-        val mightContainOpenTag = XmlToolCallParser.OPEN_TAGS.any { openTag ->
-            content.contains(openTag) || (1 until openTag.length).any { len ->
-                content.length >= len && content.endsWith(openTag.substring(0, len))
-            }
+        // 真正的标签必须以 '<' 开头（与 split() 的 `<\s*tag(?=[\s>])` 一致）。
+        // 普通文本尾巴被 split 的 remainder 扣住（2026-10-22 StreamTraceReplayTest：
+        // DeepSeek 回放的 "Compose Multiplatform." 被截成 "Compose Multip"）。
+        val mightContainOpenTag = content.contains('<') && XmlToolCallParser.OPEN_TAGS.any { openTag ->
+            Regex("<\\s*" + Regex.escape(openTag)).containsMatchIn(content) ||
+                content.substringAfterLast('<')
+                    .replace(Regex("^\\s+"), "")
+                    .let { tail -> tail.isNotEmpty() && openTag.startsWith(tail) }
         }
         if (!mightContainOpenTag && pendingXml.isEmpty()) return null
         pendingXml.append(content)
