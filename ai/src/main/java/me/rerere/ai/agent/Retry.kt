@@ -1,6 +1,8 @@
 package me.rerere.ai.agent
 
 import java.io.IOException
+import java.util.Collections
+import java.util.IdentityHashMap
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlinx.coroutines.CancellationException
@@ -45,6 +47,9 @@ data class RetryAttempt(
  *
  * 有意 catch Throwable：任何失败都交给 policy 决定是否重试；取消经 ensureActive() 与类型判断双重排除。
  * 四个终态（取消 / 次数用尽 / 策略拒绝 / 继续重试）写在同一处条件里，是为了一致地处理“抛还是重试”。
+ *
+ * [onRetry] is outside the request block: a failed notification aborts retry and
+ * propagates unchanged. In particular, never swallow cancellation, Error, or delivery failures.
  */
 @Suppress("TooGenericExceptionCaught", "InstanceOfCheckForException", "ComplexCondition")
 suspend fun <T> withRetry(
@@ -60,7 +65,7 @@ suspend fun <T> withRetry(
             // 用户主动停止生成时，底层连接也可能以 IOException("canceled") 收尾；
             // 先检查协程状态，确保取消不会被当作网络波动重新拉起。
             currentCoroutineContext().ensureActive()
-            if (error is CancellationException || retries >= policy.maxRetries ||
+            if (error is Error || error.hasCancellationCause() || retries >= policy.maxRetries ||
                 policy.nonRetryable(error) || !policy.retryOn(error)
             ) {
                 throw error
@@ -71,4 +76,15 @@ suspend fun <T> withRetry(
             delay(backoff)
         }
     }
+}
+
+/** Inspect causes without losing the original wrapper or looping on malformed cause cycles. */
+internal fun Throwable.hasCancellationCause(): Boolean {
+    val seen = Collections.newSetFromMap(IdentityHashMap<Throwable, Boolean>())
+    var current: Throwable? = this
+    while (current != null && seen.add(current)) {
+        if (current is CancellationException) return true
+        current = current.cause
+    }
+    return false
 }
