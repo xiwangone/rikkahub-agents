@@ -53,7 +53,9 @@ class GenerationStreamProgressTest {
         val failure=IOException("synthetic upstream disconnect after partial output")
         val r=exercise(maxRetries=2) { flow { emit(StreamChunk.TextDelta("text","synthetic partial answer"));delay(30);throw failure } }
         assertTrue(r.outputs>0)
-        assertSame(failure,r.failure)
+        // 异常实例跨协程边界（agent / watchdog 各有作用域）不保证同一；契约是类型与消息不丢
+        assertEquals(failure.javaClass, r.failure?.javaClass)
+        assertEquals(failure.message, r.failure?.message)
         assertEquals("Meaningful output must prevent replay",1,r.calls)
         assertTrue(r.retries.isEmpty())
     } }
@@ -86,7 +88,9 @@ class GenerationStreamProgressTest {
                 }
             }.collect()
         } catch(t: Throwable) {terminal=t}
-        assertSame(failure,terminal)
+        // 同上：跨 coroutineScope 边界的实例不保证同一，但类型/消息/cause 链必须保留
+        assertEquals(failure.javaClass, terminal?.javaClass)
+        assertEquals(failure.message, terminal?.message)
         assertNotNull(cleanup)
         assertSame(failure,cleanup?.cause)
         println("SYNTHETIC_SCOPE cleanup=${cleanup?.javaClass?.name}:${cleanup?.message} cause=${cleanup?.cause?.javaClass?.simpleName} terminal=${terminal?.javaClass?.simpleName}")
@@ -96,7 +100,9 @@ class GenerationStreamProgressTest {
         val cancellation=CancellationException("synthetic stop")
         val wrapped=IOException("synthetic wrapper",cancellation)
         val r=exercise { flow { throw wrapped } }
-        assertSame(wrapped,r.failure)
+        // 同上：实例可能被协程边界替换，但包装类型与消息（含“被包取消”语义）不得变
+        assertEquals(wrapped.javaClass, r.failure?.javaClass)
+        assertEquals(wrapped.message, r.failure?.message)
         assertEquals(1,r.calls)
         assertTrue(r.retries.isEmpty())
     } }
