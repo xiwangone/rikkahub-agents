@@ -671,6 +671,11 @@ class ChatService(
 
     fun getConversationFlow(conversationId: Uuid): StateFlow<Conversation> = getOrCreateSession(conversationId).state
 
+    /** Reacquired overlay sessions may have been evicted while permission was absent. */
+    internal suspend fun hydrateFloatingConversation(conversationId: Uuid) {
+        ensureHydrated(conversationId)
+    }
+
     fun getGenerationJobStateFlow(conversationId: Uuid): Flow<Job?> {
         val session = sessions[conversationId] ?: return flowOf(null)
         return session.generationJob
