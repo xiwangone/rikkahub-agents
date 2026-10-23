@@ -495,13 +495,19 @@ class ChatService(
             }
         }
 
+    private val floatingOverlayController by lazy(LazyThreadSafetyMode.NONE) {
+        ChatFloatingOverlayController(context, appScope, settingsStore, this)
+    }
+
     init {
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+        floatingOverlayController.start()
     }
 
     fun cleanup() =
         runCatching {
             ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
+            floatingOverlayController.close()
             sessions.values.forEach { it.cleanup() }
             sessions.clear()
             sessionMutexes.clear()
@@ -675,6 +681,12 @@ class ChatService(
         return session.processingStatus
     }
 
+    fun getFloatingReplyMessageIdFlow(conversationId: Uuid): StateFlow<Uuid?> =
+        getOrCreateSession(conversationId).floatingReplyMessageId
+
+    fun getFloatingGenerationStartedAtFlow(conversationId: Uuid): StateFlow<Long?> =
+        getOrCreateSession(conversationId).floatingGenerationStartedAt
+
     fun getConversationJobs(): Flow<Map<Uuid, Job?>> =
         _sessionsVersion.flatMapLatest {
             val currentSessions = sessions.values.toList()
@@ -781,6 +793,7 @@ class ChatService(
         )
 
         val session = getOrCreateSession(conversationId)
+        session.beginFloatingTurn()
         val previousJob = session.getJob()
         if (previousJob?.isActive == true) {
             AppLog.i(
@@ -1049,6 +1062,7 @@ class ChatService(
         regenerateAssistantMsg: Boolean = true,
     ) {
         val session = getOrCreateSession(conversationId)
+        session.beginFloatingTurn()
         session.getJob()?.cancel()
 
         val job =
@@ -1579,6 +1593,12 @@ class ChatService(
                         }
 
                         is GenerationChunk.Messages -> {
+                            // Bind the floating surface to the assistant message emitted by
+                            // this run. The conversation tail can belong to a different branch
+                            // when regenerating an older message.
+                            chunk.messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.let {
+                                getOrCreateSession(conversationId).recordFloatingReply(it.id)
+                            }
                             val updatedConversation =
                                 getConversationFlow(conversationId)
                                     .value

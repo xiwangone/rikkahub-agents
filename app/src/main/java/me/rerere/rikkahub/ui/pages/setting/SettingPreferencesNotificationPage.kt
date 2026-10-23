@@ -1,6 +1,9 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import android.os.Build
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,11 +17,13 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -33,20 +38,37 @@ import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 
 @Composable
 fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
+    val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
     val settings by vm.settings.collectAsStateWithLifecycle()
     var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
+    var hasOverlayAccess by remember { mutableStateOf(runCatching { Settings.canDrawOverlays(context) }.getOrDefault(false)) }
+
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) hasOverlayAccess = runCatching { Settings.canDrawOverlays(context) }.getOrDefault(false)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     fun updateDisplaySetting(setting: DisplaySetting) {
+        val old = displaySetting
         displaySetting = setting
         vm.updateSettings { current ->
             // Preserve concurrent nested preference edits by applying only values changed by this event.
-            val old = displaySetting
-            current.copy(displaySetting = if (setting.showUpdates != old.showUpdates) {
-                current.displaySetting.copy(showUpdates = setting.showUpdates)
-            } else current.displaySetting)
+            val currentDisplay = current.displaySetting
+            current.copy(displaySetting = currentDisplay.copy(
+                enableNotificationOnMessageGeneration = if (old.enableNotificationOnMessageGeneration != setting.enableNotificationOnMessageGeneration) setting.enableNotificationOnMessageGeneration else currentDisplay.enableNotificationOnMessageGeneration,
+                enableLiveUpdateNotification = if (old.enableLiveUpdateNotification != setting.enableLiveUpdateNotification) setting.enableLiveUpdateNotification else currentDisplay.enableLiveUpdateNotification,
+                enableFloatingChatWindow = if (old.enableFloatingChatWindow != setting.enableFloatingChatWindow) setting.enableFloatingChatWindow else currentDisplay.enableFloatingChatWindow,
+            ))
         }
     }
     var showPauseUpdatesDialog by remember { mutableStateOf(false) }
@@ -164,6 +186,35 @@ fun SettingPreferencesNotificationPage(vm: SettingVM = koinViewModel()) {
                             },
                         )
                     }
+                    item(
+                        headlineContent = { Text(stringResource(R.string.floating_chat_setting_title)) },
+                        supportingContent = {
+                            Text(
+                                stringResource(
+                                    if (hasOverlayAccess) R.string.floating_chat_setting_desc
+                                    else R.string.floating_chat_setting_permission_desc,
+                                ),
+                            )
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = displaySetting.enableFloatingChatWindow,
+                                onCheckedChange = { enabled ->
+                                    updateDisplaySetting(displaySetting.copy(enableFloatingChatWindow = enabled))
+                                    if (enabled && !runCatching { Settings.canDrawOverlays(context) }.getOrDefault(false)) {
+                                        runCatching {
+                                            context.startActivity(
+                                                Intent(
+                                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                                    Uri.parse("package:${context.packageName}"),
+                                                ),
+                                            )
+                                        }
+                                    }
+                                },
+                            )
+                        },
+                    )
                 }
             }
         }
