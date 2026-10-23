@@ -64,70 +64,42 @@ sealed interface MessagePartBlock {
 }
 
 /**
- * 将 parts 分组成 ThinkingBlock 和 ContentBlock。
- *
- * 分组策略：连续 Reasoning 归入同一个 ThinkingBlock（思考独立成卡）；
- * 连续 Tool/ServerTool 归入另一个 ThinkingBlock（工具链折叠）；
- * 二者相邻时各自独立、互不合并。
- * 成功执行的 chart_display 工具调用原地替换为 ChartBlock（会切断所在的思考块）；
- * 生成中或失败的调用仍作为普通 ToolStep 展示。
+ * 将连续的 Reasoning、Tool 和 ServerTool 合并成一个时间线块。普通正文和成功图表
+ * 会结束当前块；成功 chart_display 仍在原位置渲染为独立图表卡片。
  */
 fun List<UIMessagePart>.groupMessageParts(): List<MessagePartBlock> {
     val result = mutableListOf<MessagePartBlock>()
-    var pendingReasoning = mutableListOf<UIMessagePart.Reasoning>()
-    var pendingTools = mutableListOf<ThinkingStep>()
+    var pendingSteps = mutableListOf<ThinkingStep>()
 
-    fun flushReasoning() {
-        if (pendingReasoning.isNotEmpty()) {
-            result.add(
-                MessagePartBlock.ThinkingBlock(
-                    pendingReasoning.map { ThinkingStep.ReasoningStep(it) },
-                ),
-            )
-            pendingReasoning = mutableListOf()
-        }
-    }
-
-    fun flushTools() {
-        if (pendingTools.isNotEmpty()) {
-            result.add(MessagePartBlock.ThinkingBlock(pendingTools.toList()))
-            pendingTools = mutableListOf()
+    fun flushSteps() {
+        if (pendingSteps.isNotEmpty()) {
+            result.add(MessagePartBlock.ThinkingBlock(pendingSteps.toList()))
+            pendingSteps = mutableListOf()
         }
     }
 
     this.fastForEachIndexed { index, part ->
         when (part) {
-            is UIMessagePart.Reasoning -> {
-                // 思考前若累积了工具,先落盘工具块,保证思考不与工具混合
-                flushTools()
-                pendingReasoning.add(part)
-            }
+            is UIMessagePart.Reasoning -> pendingSteps.add(ThinkingStep.ReasoningStep(part))
 
             is UIMessagePart.Tool -> {
-                flushReasoning()
                 if (part.isSuccessfulChartDisplay()) {
-                    // 图表卡片原地展示，切断工具链
-                    flushTools()
+                    flushSteps()
                     result.add(MessagePartBlock.ChartBlock(part, index))
                 } else {
-                    pendingTools.add(ThinkingStep.ToolStep(part))
+                    pendingSteps.add(ThinkingStep.ToolStep(part))
                 }
             }
 
-            is UIMessagePart.ServerTool -> {
-                flushReasoning()
-                pendingTools.add(ThinkingStep.ServerToolStep(part))
-            }
+            is UIMessagePart.ServerTool -> pendingSteps.add(ThinkingStep.ServerToolStep(part))
 
             else -> {
-                flushReasoning()
-                flushTools()
+                flushSteps()
                 result.add(MessagePartBlock.ContentBlock(part, index))
             }
         }
     }
-    flushReasoning()
-    flushTools()
+    flushSteps()
     return result
 }
 
@@ -140,4 +112,3 @@ private fun UIMessagePart.Tool.isSuccessfulChartDisplay(): Boolean {
     val result = runCatching { JsonInstant.parseToJsonElement(payload) }.getOrNull() as? JsonObject
     return (result?.get("success") as? JsonPrimitive)?.booleanOrNull == true
 }
-

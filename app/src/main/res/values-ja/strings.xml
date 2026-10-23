@@ -257,6 +257,13 @@
   <string name="cancel_edit">編集をキャンセル</string>
   <string name="chain_of_thought_collapse">折りたたむ</string>
   <string name="chain_of_thought_show_more_steps">あと %d ステップを表示</string>
+  <plurals name="chain_of_thought_step_count">
+    <item quantity="one">%1$d ステップ</item>
+    <item quantity="other">%1$d ステップ</item>
+  </plurals>
+  <string name="chain_of_thought_running">実行中</string>
+  <string name="chain_of_thought_expanded">展開済み</string>
+  <string name="chain_of_thought_collapsed">折りたたみ済み</string>
   <string name="chat_input_placeholder">AIとチャットするメッセージを入力</string>
   <string name="chat_input_unsupported_file_type">サポートされていないファイルタイプ: %s</string>
   <string name="chat_input_file_read_failed">ファイルの読み取りに失敗しました: %s</string>

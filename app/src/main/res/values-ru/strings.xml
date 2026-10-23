@@ -257,6 +257,15 @@
   <string name="cancel_edit">Отменить редактирование</string>
   <string name="chain_of_thought_collapse">Свернуть</string>
   <string name="chain_of_thought_show_more_steps">Показать ещё %d шагов</string>
+  <plurals name="chain_of_thought_step_count">
+    <item quantity="one">%1$d шаг</item>
+    <item quantity="few">%1$d шага</item>
+    <item quantity="many">%1$d шагов</item>
+    <item quantity="other">%1$d шага</item>
+  </plurals>
+  <string name="chain_of_thought_running">Выполняется</string>
+  <string name="chain_of_thought_expanded">Развёрнуто</string>
+  <string name="chain_of_thought_collapsed">Свёрнуто</string>
   <string name="chat_input_placeholder">Общайтесь с ИИ</string>
   <string name="chat_input_unsupported_file_type">Неподдерживаемый тип файла: %s</string>
   <string name="chat_input_file_read_failed">Не удалось прочитать файл: %s</string>
