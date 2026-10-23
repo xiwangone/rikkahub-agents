@@ -4,6 +4,7 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -17,10 +18,32 @@ import java.util.concurrent.atomic.AtomicLong
  */
 class StreamIdleTimeoutException(
     val idleMs: Long,
-) : IllegalStateException("Stream idle for more than ${idleMs}ms; aborted by watchdog")
+    /** true = 首包前的等待超限；false = 已出流后静默超限。 */
+    val awaitingFirstChunk: Boolean = false,
+) : IllegalStateException(
+    if (awaitingFirstChunk) {
+        "Stream produced no first chunk within ${idleMs}ms; aborted by watchdog"
+    } else {
+        "Stream idle for more than ${idleMs}ms; aborted by watchdog"
+    },
+)
 
 /** 空闲阈值默认值：120s（助手基础设定可按助手覆盖；0 = 关闭）。 */
 const val DEFAULT_STREAM_IDLE_MS = 120_000L
+
+/**
+ * 首包阶段（首 token 之前）的等待上限。
+ *
+ * prefill 与本机/网关排队不产生任何 chunk，但它不是"卡死"：长上下文下首包耗时可
+ * 达数分钟，远超 [DEFAULT_STREAM_IDLE_MS]。因此首包阶段改用独立上限——取
+ * `idleMs × 4`，夹在 `idleMs` 与 [DEFAULT_STREAM_FIRST_CHUNK_MS] 之间；收到首个
+ * chunk 后立刻切回 `idleMs` 判据。**上限依然存在**：超过它照样按超时中断，避免把
+ * 真正卡在首包的请求永久挂住。
+ */
+const val DEFAULT_STREAM_FIRST_CHUNK_MS = 600_000L
+
+/** 首包阶段相对 idleMs 的放宽倍数（配合上限使用，见上）。 */
+private const val FIRST_CHUNK_BUDGET_FACTOR = 4L
 
 private const val IDLE_POLL_INTERVAL_MS = 5_000L
 
@@ -31,24 +54,33 @@ private const val IDLE_POLL_INTERVAL_MS = 5_000L
  */
 fun <T> Flow<T>.withIdleWatchdog(
     idleMs: Long = DEFAULT_STREAM_IDLE_MS,
+    firstChunkMs: Long = DEFAULT_STREAM_FIRST_CHUNK_MS,
     clock: () -> Long = System::currentTimeMillis,
     pollMs: Long = IDLE_POLL_INTERVAL_MS,
 ): Flow<T> {
     if (idleMs <= 0L) return this
+    // 首包阶段放宽，但不超过 idleMs × 4，也不低于 idleMs（用户设得更大时尊重其设置）
+    val firstChunkLimitMs = (idleMs * FIRST_CHUNK_BUDGET_FACTOR)
+        .coerceAtMost(maxOf(idleMs, firstChunkMs))
+        .coerceAtLeast(idleMs)
     return channelFlow {
         val lastChunkAt = AtomicLong(clock())
+        val seenFirstChunk = AtomicBoolean(false)
         val sentinel = launch {
             while (true) {
                 delay(pollMs)
+                val awaitingFirstChunk = !seenFirstChunk.get()
+                val limit = if (awaitingFirstChunk) firstChunkLimitMs else idleMs
                 val idle = clock() - lastChunkAt.get()
-                if (idle > idleMs) {
-                    close(StreamIdleTimeoutException(idle))
+                if (idle > limit) {
+                    close(StreamIdleTimeoutException(idle, awaitingFirstChunk))
                     return@launch
                 }
             }
         }
         try {
             collect { chunk ->
+                if (!seenFirstChunk.get()) seenFirstChunk.set(true)
                 lastChunkAt.set(clock())
                 send(chunk)
             }
