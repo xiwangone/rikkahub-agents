@@ -1492,6 +1492,28 @@ fun Settings.getCurrentChatModel(): Model? {
     return findModelById(this.getCurrentAssistant().chatModelId ?: this.chatModelId)
 }
 
+/**
+ * 该会话实际生效的助手 —— 与生成链路同口径：会话绑定的助手优先，取不到才回退当前助手。
+ */
+fun Settings.resolveAssistantFor(assistantId: Uuid?): Assistant {
+    return assistantId?.let { getAssistantById(it) } ?: getCurrentAssistant()
+}
+
+/**
+ * 会话内 UI（标题、发送前置校验、输入区能力门）统一采用的模型解析口径 —— 与生成链路同序：
+ * 会话指定（仅当助手允许会话级模型）→ 助手指定 → 全局默认；助手按会话绑定解析。
+ * 缺了会话一级就会“标题显示 A、实际用 B”，故这里做成单一来源。
+ */
+fun Settings.findChatModelFor(
+    conversationChatModelId: Uuid?,
+    conversationAssistantId: Uuid? = null,
+): Model? {
+    val assistant = resolveAssistantFor(conversationAssistantId)
+    val id = conversationChatModelId?.takeIf { assistant.allowPerConversationModel }
+        ?: assistant.chatModelId ?: chatModelId
+    return findModelById(id)
+}
+
 fun Settings.getCurrentAssistant(): Assistant {
     return this.assistants.find { it.id == assistantId } ?: this.assistants.first()
 }

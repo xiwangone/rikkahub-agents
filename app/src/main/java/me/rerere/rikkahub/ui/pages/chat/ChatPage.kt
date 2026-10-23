@@ -76,11 +76,10 @@ import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.datastore.findModelById
+import me.rerere.rikkahub.data.datastore.findChatModelFor
 import me.rerere.rikkahub.data.datastore.findProvider
-import me.rerere.rikkahub.data.datastore.getCurrentAssistant
-import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
+import me.rerere.rikkahub.data.datastore.resolveAssistantFor
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
@@ -432,7 +431,7 @@ private fun ChatPageContent(
     LaunchedEffect(Unit) { checkVaultAuth() }
     var previewMode by rememberSaveable { mutableStateOf(false) }
     val hazeState = rememberHazeState()
-    val assistant = setting.getCurrentAssistant()
+    val assistant = setting.resolveAssistantFor(conversation.assistantId)
     // 该会话是否在用独立模型（助手允许 + 会话有覆盖）：决定「恢复为助手模型」提示是否出现
     val hasConversationModelOverride = assistant.allowPerConversationModel && conversation.chatModelId != null
     var showFilesSheet by remember { mutableStateOf(false) }
@@ -499,6 +498,7 @@ private fun ChatPageContent(
                         onStopVoiceMode = vm.voiceSession::stop,
                         settings = setting,
                         conversationModelId = conversation.chatModelId,
+                        conversationAssistantId = conversation.assistantId,
                     onResetConversationModel =
                         if (hasConversationModelOverride) {
                             { vm.clearChatModel(conversation.id) }
@@ -514,7 +514,7 @@ private fun ChatPageContent(
                         sessionTotals = sessionTotals,
                         lifetimeTotals = lifetimeTotals,
                         onToggleSearch = {
-                            val current = setting.getCurrentAssistant()
+                            val current = setting.resolveAssistantFor(conversation.assistantId)
                             vm.updateSettings { next ->
             next.copy(
                                     assistants =
@@ -535,10 +535,7 @@ private fun ChatPageContent(
                             // 用户在会话里选了模型、助手/全局默认未配时照样被「请先选择模型」
                             // toast 挡掉，且输入框不清空（E2B Run5 P8 实证——真 bug）。
                             val effectiveChatModel =
-                                currentChatModel
-                                    ?: conversation.chatModelId
-                                        ?.takeIf { setting.getCurrentAssistant().allowPerConversationModel }
-                                        ?.let { id -> setting.findModelById(id) }
+                                setting.findChatModelFor(conversation.chatModelId, conversation.assistantId)
                             if (effectiveChatModel == null) {
                                 toaster.show(
                                     context.getString(R.string.chat_select_model_first),
@@ -1115,8 +1112,8 @@ private fun TopBar(
                 color = Color.Transparent,
             ) {
                 Column {
-                    val assistant = settings.getCurrentAssistant()
-                    val model = settings.getCurrentChatModel()
+                    val assistant = settings.resolveAssistantFor(conversation.assistantId)
+                    val model = settings.findChatModelFor(conversation.chatModelId, conversation.assistantId)
                     val provider = model?.findProvider(providers = settings.providers, checkOverwrite = false)
                     Text(
                         text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },

@@ -112,9 +112,10 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.costguards.TokenBudgetTracker
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.findChatModelFor
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
-import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
+import me.rerere.rikkahub.data.datastore.resolveAssistantFor
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.QuickMessage
@@ -158,6 +159,8 @@ fun ChatInput(
     settings: Settings,
     /** 当前会话的模型覆盖（null = 跟随助手默认）；用于在输入框正确显示会话实际使用的模型。 */
     conversationModelId: Uuid? = null,
+    /** 当前会话绑定的助手；据此解析助手/模型口径（与生成链路一致）。 */
+    conversationAssistantId: Uuid? = null,
     hazeState: HazeState,
     enableSearch: Boolean,
     sessionTotals: TokenBudgetTracker.Totals? = null,
@@ -181,7 +184,7 @@ fun ChatInput(
     @Suppress("DEPRECATION") // 与项目现有 LocalClipboardManager 用法保持一致
     val clipboardManager = LocalClipboardManager.current
     val toaster = LocalToaster.current
-    val assistant = settings.getCurrentAssistant()
+    val assistant = settings.resolveAssistantFor(conversationAssistantId)
     val settingsStore = koinInject<SettingsStore>()
     val coroutineScope = rememberCoroutineScope()
     val modelListState =
@@ -440,7 +443,7 @@ fun ChatInput(
                                 // Search
                                 val enableSearchMsg = stringResource(R.string.web_search_enabled)
                                 val disableSearchMsg = stringResource(R.string.web_search_disabled)
-                                val chatModel = settings.getCurrentChatModel()
+                                val chatModel = settings.findChatModelFor(conversationModelId, conversationAssistantId)
                                 SearchPickerButton(
                                     enableSearch = enableSearch,
                                     settings = settings,
@@ -462,7 +465,7 @@ fun ChatInput(
                                 )
 
                                 // Reasoning
-                                val model = settings.getCurrentChatModel()
+                                val model = settings.findChatModelFor(conversationModelId, conversationAssistantId)
                                 if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
                                     ReasoningButton(
                                         reasoningLevel = assistant.reasoningLevel,
