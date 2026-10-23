@@ -356,20 +356,19 @@ internal fun clearRetryStatus(processingStatus: MutableStateFlow<String?>) {
     processingStatus.value = null
 }
 
-// Marks the retry loop's "meaningful output already arrived" flag. Only chunks that carry
-// actual model output (text/reasoning/tool/image content, or annotations) count - the bare
-// Start/End markers and Usage/Finish bookkeeping chunks don't, mirroring the old
-// choice.delta/message.parts.isNotEmpty() check against the pre-refactor chunk shape.
+// Marks actual model output that must not be replayed. Empty deltas and protocol markers do not
+// count, but a tool name/input already received is content: retrying could execute it twice.
 internal fun isMeaningfulStreamChunk(chunk: StreamChunk): Boolean = when (chunk) {
-    is StreamChunk.TextDelta,
-    is StreamChunk.ReasoningDelta,
-    is StreamChunk.ToolCallDelta,
-    is StreamChunk.ImageDelta,
-    is StreamChunk.ImageSnapshot,
-    is StreamChunk.ServerToolStart,
-    is StreamChunk.ServerToolInputDelta,
-    is StreamChunk.ServerToolEnd,
-    is StreamChunk.Annotations -> true
+    is StreamChunk.TextDelta -> chunk.text.isNotEmpty()
+    is StreamChunk.ReasoningDelta -> chunk.text.isNotEmpty()
+    is StreamChunk.ToolCallStart -> chunk.toolName.isNotEmpty()
+    is StreamChunk.ToolCallDelta -> chunk.toolNameDelta.isNotEmpty() || chunk.inputDelta.isNotEmpty()
+    is StreamChunk.ImageDelta -> chunk.data.isNotEmpty()
+    is StreamChunk.ImageSnapshot -> chunk.data.isNotEmpty()
+    is StreamChunk.ServerToolStart -> chunk.toolName.isNotEmpty() || chunk.input != null
+    is StreamChunk.ServerToolInputDelta -> chunk.inputDelta.isNotEmpty()
+    is StreamChunk.ServerToolEnd -> chunk.input != null || chunk.output != null
+    is StreamChunk.Annotations -> chunk.annotations.isNotEmpty()
     else -> false
 }
 

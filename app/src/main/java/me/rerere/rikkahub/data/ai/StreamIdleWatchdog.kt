@@ -1,9 +1,14 @@
 package me.rerere.rikkahub.data.ai
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.async
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.supervisorScope
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 
@@ -79,11 +84,27 @@ fun <T> Flow<T>.withIdleWatchdog(
             }
         }
         try {
-            collect { chunk ->
-                if (!seenFirstChunk.get()) seenFirstChunk.set(true)
-                lastChunkAt.set(clock())
-                send(chunk)
+            supervisorScope {
+                // Isolate provider failure from the channel producer. Awaiting the
+                // child surfaces its original failure here without canceling the
+                // producer, so close(failure) can drain already-buffered chunks.
+                async {
+                    this@withIdleWatchdog.collect { chunk ->
+                        if (!seenFirstChunk.get()) seenFirstChunk.set(true)
+                        lastChunkAt.set(clock())
+                        send(chunk)
+                    }
+                }.await()
             }
+        } catch (failure: Throwable) {
+            // Fail the channel rather than its producer scope. Throwing here cancels the
+            // outer collector while it may be delivering a MessageUpdated event, drops
+            // queued chunks, and makes a subsequent Retrying emit violate Flow transparency.
+            // Parent/downstream cancellation must still cancel the provider immediately.
+            if (failure is CancellationException && !currentCoroutineContext().isActive) {
+                throw failure
+            }
+            close(failure)
         } finally {
             // 被包裹的 Flow 完成/异常时取消定时检查协程：producer scope 完成会等待子协程，
             // while(true) 不退出则 collect 永远不结束，调用方 toList/collect 永挂

@@ -1,50 +1,57 @@
-name: 01 编译 APK（验证 / 出包）
+name: 01 编译 APK（正式 Release 出包）
 
-# 合并自 build-debug.yml（push master 自动快速验证）与 build-apk.yml（手动触发，可选 release 出包）。
-# 手动出包：Actions → 本 workflow → Run workflow → build_type = debug | release
-
+# 正式 APK 唯一入口：手动选择 build_type=release。
+# 编译/JVM 回归由 tests.yml 执行；不再自动或手动构建 Debug APK。
 on:
-  push:
-    branches: [master]
-    paths-ignore:
-      - 'docs/**'
-      - '*.md'
-      - '.github/workflows/*.yml'
-      - '.github/dependabot.yml'
-      - '.github/scripts/**'
-      - '.github/ISSUE_TEMPLATE/**'
   workflow_dispatch:
     inputs:
       build_type:
-        description: '编译类型：debug（快速验证，默认） / release（R8 全量正式签名出包，慢）'
+        description: '正式 Release（R8 全量签名出包）'
         required: true
         type: choice
         options:
-          - debug
           - release
-        default: debug
+        default: release
 
 concurrency:
-  group: build-${{ github.ref }}-${{ inputs.build_type || 'debug' }}
+  group: build-release-${{ github.ref }}
   cancel-in-progress: true
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   build:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_type == 'release' }}
     runs-on: ubuntu-latest
     timeout-minutes: 60
     env:
-      BUILD_TYPE: ${{ inputs.build_type || 'debug' }}
+      BUILD_TYPE: release
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           submodules: true
 
+      - name: 记录本次待验证 ref 与精确提交（不改分支、不发布 Release）
+        run: |
+          printf 'ref=%s\ncommit=%s\nbuild_type=release\n' "$GITHUB_REF" "$(git rev-parse HEAD)" | tee build-ref.txt
+          cat build-ref.txt >> "$GITHUB_STEP_SUMMARY"
+
       - name: 准备构建环境
         uses: ./.github/actions/setup-build-env
+      - name: 校验移植新增资源的七语言覆盖（静态检查）
+        run: python3 .github/scripts/check-port-resources.py
+      - name: 执行移植定向 JVM 回归（不是仅编译，也不替代 Android 验收）
+        run: python3 .github/scripts/run-port-regressions.py
+      - name: 上传移植回归执行证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: port-jvm-regressions
+          path: port-regression-results/
+          retention-days: 14
+          if-no-files-found: error
       - name: 审计本次测试进程的 TLS 信任库
         env:
           LC_ALL: C
@@ -59,27 +66,23 @@ jobs:
           if-no-files-found: ignore
       - name: Ktlint 静态检查（不阻断，输出风格报告）
         run: |
-          # 固定版本避免每次下载 latest 波动
           curl -sSLO https://github.com/pinterest/ktlint/releases/download/1.5.0/ktlint
           chmod +x ktlint
           ./ktlint app/src/main/java 2>&1 | tail -30 || true
 
       - name: 未使用 import 守卫（只拦增长，不拦存量）
         run: |
-          # 风格存量（约 2.6 万条）有意不阻断，见上一步；这里只把「未使用 import」这类零风险
-          # 死代码拦住不增长。基线就是一个数字：.github/ktlint-unused-imports.baseline。
-          # 清理后请同步下调；把该文件清空则守卫自动暂停（只报告）。
           COUNT=$(./ktlint app/src/main/java 2>&1 | grep -c 'no-unused-imports' || true)
           echo "未使用 import 告警数: ${COUNT:-0}"
           if [ -s .github/ktlint-unused-imports.baseline ]; then
             LIMIT=$(tr -dc '0-9' < .github/ktlint-unused-imports.baseline)
             if [ "${COUNT:-0}" -gt "$LIMIT" ]; then
-              echo "❌ 未使用 import 由 $LIMIT 增至 ${COUNT}：请清理新增项（ktlint -F 可自动删除）"
+              echo "未使用 import 由 $LIMIT 增至 ${COUNT}：请清理新增项"
               exit 1
             fi
-            echo "✅ 未超过基线 $LIMIT"
+            echo "未超过基线 $LIMIT"
           else
-            echo "ℹ️ 基线文件为空或缺失 → 本轮仅报告（写入数字即启用守卫）"
+            echo "基线文件为空或缺失，本轮仅报告"
           fi
 
       - name: 缓存 Gradle 依赖（libs 变化才重建）
@@ -104,60 +107,107 @@ jobs:
           key: webui-${{ hashFiles('web-ui/pnpm-lock.yaml', 'web-ui/package.json') }}
           restore-keys: webui-
 
-      - name: 编译（debug=快速验证 / release=R8 正式签名出包）
+      - name: 执行真实慢分块 Flow 与工具重试边界 JVM 测试（不生成 Debug APK）
+        run: |
+          set -euo pipefail
+          mkdir -p streaming-regression-results
+          cp build-ref.txt streaming-regression-results/
+          chmod +x gradlew
+          ./gradlew :app:testDebugUnitTest --tests 'me.rerere.rikkahub.data.ai.GenerationStreamProgressTest' --tests 'me.rerere.rikkahub.data.ai.StreamIdleWatchdogTest' --tests 'me.rerere.rikkahub.data.ai.PendingOutputFlushTest' --tests 'me.rerere.rikkahub.service.StreamUiUpdatePolicyTest' --no-configuration-cache --console=plain --max-workers=2 2>&1 | tee streaming-regression-results/gradle-streaming-tests.log
+          python3 - <<'PY'
+          import glob, json, xml.etree.ElementTree as ET
+          patterns = ('*GenerationStreamProgressTest*', '*StreamIdleWatchdogTest*', '*PendingOutputFlushTest*', '*StreamUiUpdatePolicyTest*')
+          matches = {pattern: glob.glob('app/build/test-results/testDebugUnitTest/TEST-' + pattern + '.xml') for pattern in patterns}
+          assert all(matches.values()), matches
+          files = [file for matched in matches.values() for file in matched]
+          counts = dict(tests=0, failures=0, errors=0, skipped=0)
+          for file in files:
+              root = ET.parse(file).getroot()
+              for key in counts:
+                  counts[key] += int(root.get(key, '0'))
+          assert counts['tests'] > 0 and not any(counts[key] for key in ('failures', 'errors', 'skipped')), counts
+          with open('streaming-regression-results/junit-summary.json', 'w') as out:
+              json.dump(counts, out, indent=2)
+              out.write('\n')
+          print(counts)
+          PY
+
+      - name: 上传慢流与不可重放回归证据
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: streaming-flow-regressions
+          path: |
+            streaming-regression-results/
+            app/build/test-results/testDebugUnitTest/TEST-*GenerationStreamProgressTest*.xml
+            app/build/test-results/testDebugUnitTest/TEST-*StreamIdleWatchdogTest*.xml
+            app/build/test-results/testDebugUnitTest/TEST-*PendingOutputFlushTest*.xml
+            app/build/test-results/testDebugUnitTest/TEST-*StreamUiUpdatePolicyTest*.xml
+          retention-days: 14
+          if-no-files-found: ignore
+
+      - name: 编译 Release（R8 正式签名出包）
         env:
           KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
         run: |
+          test "$BUILD_TYPE" = release
           chmod +x gradlew
-          set -o pipefail
-          set +e   # 关掉 -e：失败要自己接管，否则第一次失败就退出、根本没机会重试
-          # 依赖下载受网络抽风影响 → 失败重试一次（编译错误重试无用，代价只是多等一轮）
-          if [ "$BUILD_TYPE" = "release" ]; then
-            KEYSTORE="$HOME/rikkahub.jks"
-            echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
-            echo "storeFile=$KEYSTORE" >> local.properties
-            echo "storePassword=$KEYSTORE_PASSWORD" >> local.properties
-            echo "keyAlias=$KEY_ALIAS" >> local.properties
-            echo "keyPassword=$KEY_PASSWORD" >> local.properties
-            for i in 1 2; do
-              ./gradlew assembleRelease --parallel --build-cache --configuration-cache 2>&1 | tee gradle-build.log
-              [ "${PIPESTATUS[0]}" = "0" ] && break
-              if [ "$i" = "2" ]; then echo "❌ 两次均失败"; exit 1; fi
-              echo "⚠️ 第 $i 次失败（可能是依赖下载超时），10 秒后重试…"; sleep 10
-            done
-          else
-            # debug 不签名不发版，仅验证编译通过
-            for i in 1 2; do
-              ./gradlew assembleDebug --parallel --build-cache --configuration-cache 2>&1 | tee gradle-build.log
-              [ "${PIPESTATUS[0]}" = "0" ] && break
-              if [ "$i" = "2" ]; then echo "❌ 两次均失败"; exit 1; fi
-              echo "⚠️ 第 $i 次失败（可能是依赖下载超时），10 秒后重试…"; sleep 10
-            done
-          fi
+          set -euo pipefail
+          test -n "$KEYSTORE_BASE64" && test -n "$KEYSTORE_PASSWORD"
+          test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD"
+          KEYSTORE="$RUNNER_TEMP/rikkahub.jks"
+          trap 'rm -f "$KEYSTORE"' EXIT
+          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
+          test -s "$KEYSTORE"
+          echo "storeFile=$KEYSTORE" >> local.properties
+          echo "storePassword=$KEYSTORE_PASSWORD" >> local.properties
+          echo "keyAlias=$KEY_ALIAS" >> local.properties
+          echo "keyPassword=$KEY_PASSWORD" >> local.properties
+          set +e
+          for i in 1 2; do
+            ./gradlew assembleRelease --parallel --build-cache --configuration-cache 2>&1 | tee gradle-build.log
+            [ "${PIPESTATUS[0]}" = "0" ] && break
+            if [ "$i" = "2" ]; then echo "两次均失败"; exit 1; fi
+            echo "第 $i 次失败，10 秒后重试"; sleep 10
+          done
 
-      - name: 编译单元测试代码（仅验证可编译，不执行）
-        if: env.BUILD_TYPE == 'debug'
-        run: ./gradlew compileDebugUnitTestKotlin --parallel --build-cache --configuration-cache || true
+      - name: 记录正式 APK 身份、签名与混淆映射
+        run: |
+          set -euo pipefail
+          SDK="${ANDROID_SDK_ROOT:-${ANDROID_HOME:-$HOME/Android/Sdk}}"
+          TOOLS=$(find "$SDK/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          mkdir -p release-evidence
+          cp build-ref.txt release-evidence/
+          find app/build/outputs/apk -type f -name '*.apk' -path '*/release/*' -print0 | while IFS= read -r -d '' apk; do
+            name=$(basename "$apk")
+            sha256sum "$apk" | tee "release-evidence/$name.sha256"
+            "$TOOLS/aapt" dump badging "$apk" > "release-evidence/$name.badging.txt"
+            "$TOOLS/apksigner" verify --verbose --print-certs "$apk" > "release-evidence/$name.signature.txt"
+          done
+          test -s app/build/outputs/mapping/release/mapping.txt
+          cp app/build/outputs/mapping/release/mapping.txt release-evidence/
+          sha256sum release-evidence/mapping.txt > release-evidence/mapping.txt.sha256
+          head -20 release-evidence/mapping.txt > release-evidence/mapping-header.txt
 
-      - name: 上传编译日志（完整 gradle 输出）
+      - name: 上传正式产物身份与 mapping（不创建 GitHub Release）
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-identity-and-mapping
+          path: release-evidence/
+          retention-days: 14
+          if-no-files-found: error
+
+      - name: 上传编译日志与精确 ref
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: build-log
-          path: gradle-build.log
-          retention-days: 14
-
-      - name: 上传 APK（debug，可做破坏性测试）
-        if: env.BUILD_TYPE == 'debug'
-        uses: actions/upload-artifact@v4
-        with:
-          name: rikkahub-agents-debug
           path: |
-            app/build/outputs/apk/debug/*.apk
-            app/build/outputs/apk/*/debug/*.apk
+            gradle-build.log
+            build-ref.txt
           retention-days: 14
 
       - name: 上传 APK（release）
@@ -168,3 +218,5 @@ jobs:
           path: |
             app/build/outputs/apk/release/*.apk
             app/build/outputs/apk/*/release/*.apk
+          retention-days: 14
+          if-no-files-found: error

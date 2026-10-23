@@ -26,6 +26,7 @@ import me.rerere.common.android.Logging
 import me.rerere.common.android.appTempFolder
 import me.rerere.rikkahub.data.log.AppLifecycleRecorder
 import me.rerere.rikkahub.data.log.FileLogSink
+import me.rerere.rikkahub.data.remote.ModelsDevUpdater
 import me.rerere.rikkahub.di.appModule
 import me.rerere.rikkahub.di.dataSourceModule
 import me.rerere.rikkahub.di.repositoryModule
@@ -288,6 +289,11 @@ class RikkaHubApp : Application() {
             }
         }.onFailure {
             me.rerere.rikkahub.data.log.AppLog.w(TAG, "model catalog init failed: ${it.message}")
+        }
+
+        // models.dev adds capability coverage; ModelCatalogBridge manual overrides remain authoritative.
+        get<AppScope>().launch {
+            get<ModelsDevUpdater>().start()
         }
 
         // Phase-17 stability — register a network-change monitor that evicts OkHttp's

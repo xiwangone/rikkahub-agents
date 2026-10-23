@@ -85,6 +85,15 @@ class ToolIndexTest {
     }
 
     @Test
+    fun `automatic compaction renderer is indexed as display only`() {
+        val entry = ToolIndex.find("context_compaction")
+        assertNotNull(entry)
+        assertEquals(ToolIndex.InvocationKind.DISPLAY_ONLY, entry!!.invocation)
+        assertEquals("ContextCompactionToolUI", entry.renderer)
+        assertEquals("ContextCompactionPresentation", entry.registeredVia)
+    }
+
+    @Test
     fun `index lookups work`() {
         val entry = ToolIndex.find("telegram_send_message")
         assertNotNull(entry)
