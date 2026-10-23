@@ -117,7 +117,7 @@ internal class GenerationAgentRun(
     private val outputTransformCache = OutputTransformCache()
 
     private var lastOutputFlushAtMs = 0L
-    private var pendingOutputMessages: List<UIMessage>? = null
+    private val pendingOutputFlush = PendingOutputFlush<List<UIMessage>>()
     // All persisted assistant messages are baselines, including history before a new user turn.
     private val usageLedger = me.rerere.rikkahub.costguards.CompletedUsageLedger(initialMessages)
 
@@ -249,29 +249,7 @@ internal class GenerationAgentRun(
             } finally {
                 // 收尾投递：合并窗口里被跳过的最后一批快照补上（审批状态单调回贴）
                 runCatching {
-                    pendingOutputMessages?.let { pending ->
-                        pendingOutputMessages = null
-                        messages = pending
-                            .transforms(
-                                transformers = outputTransformers,
-                                context = context,
-                                model = model,
-                                assistant = assistant,
-                                settings = settings,
-                            ).mergeApprovalProgress(messages)
-                        emitter.emit(
-                            GenerationChunk.Messages(
-                                messages.visualTransformsIncremental(
-                                    transformers = outputTransformers,
-                                    cache = outputTransformCache,
-                                    context = context,
-                                    model = model,
-                                    assistant = assistant,
-                                    settings = settings,
-                                ),
-                            ),
-                        )
-                    }
+                    flushPendingOutput()
                 }
             }
         }
@@ -317,7 +295,7 @@ internal class GenerationAgentRun(
         val nowFlushMs = android.os.SystemClock.elapsedRealtime()
         if (nowFlushMs - lastOutputFlushAtMs >= renderProfile.outputFlushIntervalMs) {
             lastOutputFlushAtMs = nowFlushMs
-            pendingOutputMessages = null
+            pendingOutputFlush.clear()
             messages = messages
                 .transforms(
                     transformers = outputTransformers,
@@ -343,7 +321,34 @@ internal class GenerationAgentRun(
             // 审批状态单调：该快照不含本轮写入的审批迁移，回灌时必须回贴，
             // 否则会把 Pending 打回 Auto（审批按钮一闪即没）。
             messages = messages.mergeApprovalProgress(previous)
-            pendingOutputMessages = messages.mergeApprovalProgress(previous)
+            pendingOutputFlush.set(messages.mergeApprovalProgress(previous))
+        }
+    }
+
+    /** Deliver the latest coalesced snapshot through the normal transforms and approval merge. */
+    private suspend fun flushPendingOutput() {
+        pendingOutputFlush.flush { pending ->
+            lastOutputFlushAtMs = android.os.SystemClock.elapsedRealtime()
+            messages = pending
+                .transforms(
+                    transformers = outputTransformers,
+                    context = context,
+                    model = model,
+                    assistant = assistant,
+                    settings = settings,
+                ).mergeApprovalProgress(messages)
+            emitter.emit(
+                GenerationChunk.Messages(
+                    messages.visualTransformsIncremental(
+                        transformers = outputTransformers,
+                        cache = outputTransformCache,
+                        context = context,
+                        model = model,
+                        assistant = assistant,
+                        settings = settings,
+                    ),
+                ),
+            )
         }
     }
 
@@ -374,6 +379,10 @@ internal class GenerationAgentRun(
             reasoningRepetitionDetector = newReasoningRepetitionDetector()
         }
         outputTransformCache.clear()
+
+        // Tool execution can finish after beforeStep has already run. Flush at the
+        // final boundary before asking the provider for the next step.
+        flushPendingOutput()
 
         // 清零点：丢弃上一次请求（异常/取消路径可能）遗留的引用命中，避免归属串档
         ProviderKeyAudit.reset()
@@ -740,31 +749,7 @@ internal class GenerationAgentRun(
         step.messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.let { accountCompletedUsage(it) }
         runCtx.steps = step.stepIndex + 1
         outputTransformCache.clear()
-
-        pendingOutputMessages?.let { pending ->
-            pendingOutputMessages = null
-            lastOutputFlushAtMs = android.os.SystemClock.elapsedRealtime()
-            messages = pending
-                .transforms(
-                    transformers = outputTransformers,
-                    context = context,
-                    model = model,
-                    assistant = assistant,
-                    settings = settings,
-                ).mergeApprovalProgress(messages)
-            emitter.emit(
-                GenerationChunk.Messages(
-                    messages.visualTransformsIncremental(
-                        transformers = outputTransformers,
-                        cache = outputTransformCache,
-                        context = context,
-                        model = model,
-                        assistant = assistant,
-                        settings = settings,
-                    ),
-                ),
-            )
-        }
+        flushPendingOutput()
 
         if (step.stepIndex > 0) {
             if (executedToolsLastStep) {
@@ -788,7 +773,9 @@ internal class GenerationAgentRun(
                             ),
                         ),
                     )
-                    pendingOutputMessages = null
+                    // A queued user message replaces this snapshot; do not later publish
+                    // an obsolete pre-injection state.
+                    pendingOutputFlush.clear()
                 }
             }
 
@@ -889,7 +876,7 @@ internal class GenerationAgentRun(
         messages = upsertMessage(messages, withFinishedAt)
         val finished = messages.last()
         emitter.emit(GenerationChunk.Messages(messages))
-        pendingOutputMessages = null
+        pendingOutputFlush.clear()
 
         // 断流续写：服务端没给出结束原因、文本非空且没有待执行工具 → 判定为中途被切断
         val truncatedNoFinish = finished.role == MessageRole.ASSISTANT &&

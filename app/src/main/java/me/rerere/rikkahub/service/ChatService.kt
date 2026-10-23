@@ -1579,16 +1579,24 @@ class ChatService(
                         }
 
                         is GenerationChunk.Messages -> {
-                            val updatedConversation =
-                                getConversationFlow(conversationId)
-                                    .value
-                                    .updateCurrentMessages(chunk.messages)
+                            val currentConversation = getConversationFlow(conversationId).value
+                            val completedToolOutput = hasCompletedToolOutput(
+                                currentConversation.currentMessages,
+                                chunk.messages,
+                            )
+                            val updatedConversation = currentConversation.updateCurrentMessages(chunk.messages)
                             // 界面提交节流（见 STREAM_UI_INTERVAL_MS）：落盘与通知逻辑不受影响。
                             // 被跳过的快照记入 pending，流结束时兜底提交（见 onCompletion），
                             // 避免最后一个数据块恰好落在窗口内时丢失尾部内容。
                             pendingUiConversation = updatedConversation
                             val nowUiMs = System.currentTimeMillis()
-                            if (nowUiMs - lastUiCommitAtMs >= STREAM_UI_INTERVAL_MS) {
+                            if (shouldCommitStreamUiUpdate(
+                                    nowMs = nowUiMs,
+                                    lastCommitAtMs = lastUiCommitAtMs,
+                                    intervalMs = STREAM_UI_INTERVAL_MS,
+                                    completedToolOutput = completedToolOutput,
+                                )
+                            ) {
                                 lastUiCommitAtMs = nowUiMs
                                 pendingUiConversation = null
                                 updateConversation(conversationId, updatedConversation)

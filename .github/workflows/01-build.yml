@@ -113,11 +113,13 @@ jobs:
           mkdir -p streaming-regression-results
           cp build-ref.txt streaming-regression-results/
           chmod +x gradlew
-          ./gradlew :app:testDebugUnitTest --tests 'me.rerere.rikkahub.data.ai.GenerationStreamProgressTest' --tests 'me.rerere.rikkahub.data.ai.StreamIdleWatchdogTest' --no-configuration-cache --console=plain --max-workers=2 2>&1 | tee streaming-regression-results/gradle-streaming-tests.log
+          ./gradlew :app:testDebugUnitTest --tests 'me.rerere.rikkahub.data.ai.GenerationStreamProgressTest' --tests 'me.rerere.rikkahub.data.ai.StreamIdleWatchdogTest' --tests 'me.rerere.rikkahub.data.ai.PendingOutputFlushTest' --tests 'me.rerere.rikkahub.service.StreamUiUpdatePolicyTest' --no-configuration-cache --console=plain --max-workers=2 2>&1 | tee streaming-regression-results/gradle-streaming-tests.log
           python3 - <<'PY'
           import glob, json, xml.etree.ElementTree as ET
-          files = [file for pattern in ('*GenerationStreamProgressTest*', '*StreamIdleWatchdogTest*') for file in glob.glob('app/build/test-results/testDebugUnitTest/TEST-' + pattern + '.xml')]
-          assert len(files) >= 2, files
+          patterns = ('*GenerationStreamProgressTest*', '*StreamIdleWatchdogTest*', '*PendingOutputFlushTest*', '*StreamUiUpdatePolicyTest*')
+          matches = {pattern: glob.glob('app/build/test-results/testDebugUnitTest/TEST-' + pattern + '.xml') for pattern in patterns}
+          assert all(matches.values()), matches
+          files = [file for matched in matches.values() for file in matched]
           counts = dict(tests=0, failures=0, errors=0, skipped=0)
           for file in files:
               root = ET.parse(file).getroot()
@@ -139,6 +141,8 @@ jobs:
             streaming-regression-results/
             app/build/test-results/testDebugUnitTest/TEST-*GenerationStreamProgressTest*.xml
             app/build/test-results/testDebugUnitTest/TEST-*StreamIdleWatchdogTest*.xml
+            app/build/test-results/testDebugUnitTest/TEST-*PendingOutputFlushTest*.xml
+            app/build/test-results/testDebugUnitTest/TEST-*StreamUiUpdatePolicyTest*.xml
           retention-days: 14
           if-no-files-found: ignore
 
