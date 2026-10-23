@@ -4,10 +4,13 @@ import android.content.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.transform
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -59,7 +62,6 @@ import me.rerere.rikkahub.data.perf.RenderProfile
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.vault.AuditContext
 import me.rerere.ai.util.redactSecrets
-import java.io.IOException
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.uuid.Uuid
 
@@ -133,8 +135,7 @@ internal class GenerationAgentRun(
 
     // 本次（重）订阅的状态：与逐块投递判定一一对应
     private var streamAttempt = 0
-    private var receivedAnyChunk = false
-    private var receivedMeaningfulOutput = false
+    private val streamProgress = GenerationStreamProgress()
     private var streamStartedAtMs = 0L
     private var lastStreamApplyAtMs = 0L
     private val pendingStreamChunks = mutableListOf<StreamChunk>()
@@ -150,7 +151,7 @@ internal class GenerationAgentRun(
                 failure = failure,
                 retryAttempt = streamAttempt.toLong(),
                 maxRetries = maxStreamRetries,
-                receivedMeaningfulOutput = receivedMeaningfulOutput,
+                receivedMeaningfulOutput = streamProgress.receivedMeaningfulOutput,
             )
         },
         delayFor = { retry -> generationStreamRetryDelayMs((retry - 1).toLong()).milliseconds },
@@ -480,18 +481,17 @@ internal class GenerationAgentRun(
     @Suppress("CyclomaticComplexMethod")
     override fun interceptStream(chunks: Flow<StreamChunk>): Flow<StreamChunk> = chunks
         .withIdleWatchdog(idleMs = assistant.streamIdleTimeoutMs)
-        .onCompletion { cause ->
-            if (cause == null && shouldReportEmptyGenerationStream(receivedAnyChunk)) {
-                throw IOException("Model stream closed without meaningful output")
-            }
-            if (cause == null && receivedAnyChunk && !receivedMeaningfulOutput) {
+        .trackGenerationStreamProgress(
+            progress = streamProgress,
+            onMeaningfulOutput = { clearRetryStatus(processingStatus) },
+            onNonMeaningfulCompletion = {
                 AppLog.w(
                     TAG,
                     "streamText: stream closed after chunks arrived but none contained " +
                         "parseable parts; ending without retry",
                 )
-            }
-        }.takeWhile { chunk ->
+            },
+        ).takeWhile { chunk ->
             // 墙钟上限：永不结束的流（无限「思考」）只能在这里掐掉，重复检测对它无感
             if (System.currentTimeMillis() - streamStartedAtMs > MAX_STREAM_DURATION_MS) {
                 AppLog.w(TAG, "streamText: stream exceeded max duration; ending this turn's stream early")
@@ -524,8 +524,7 @@ internal class GenerationAgentRun(
 
     override suspend fun onStreamAttemptReset(attempt: Int) {
         streamAttempt = attempt
-        receivedAnyChunk = false
-        receivedMeaningfulOutput = false
+        streamProgress.reset()
         streamStartedAtMs = System.currentTimeMillis()
         lastStreamApplyAtMs = 0L
         pendingStreamChunks.clear()
@@ -924,38 +923,51 @@ private fun newReasoningRepetitionDetector(): OutputRepetitionDetector = OutputR
  * 按窗口合并相邻的同轨增量：每个 delta 都做一次折叠 + 全量投递，长回复下是 O(n²)。
  * 合并保持顺序与内容完全一致（同一 id 的连续增量拼接成一条），窗口为 0 时逐块透出。
  */
-private fun Flow<StreamChunk>.coalesceStreamDeltas(windowMs: Long): Flow<StreamChunk> = channelFlow {
-    if (windowMs <= 0L) {
-        collect { send(it) }
-        return@channelFlow
-    }
-    val buffer = mutableListOf<StreamChunk>()
-    var lastFlushMs = android.os.SystemClock.elapsedRealtime()
-    suspend fun flush() {
-        if (buffer.isEmpty()) return
-        val merged = mergeAdjacentDeltas(buffer)
-        buffer.clear()
-        merged.forEach { send(it) }
-        lastFlushMs = android.os.SystemClock.elapsedRealtime()
-    }
-    try {
-        collect { chunk ->
-            val coalescable = chunk is StreamChunk.TextDelta || chunk is StreamChunk.ReasoningDelta
-            if (!coalescable) {
-                flush()
-                send(chunk)
-                return@collect
-            }
-            buffer.add(chunk)
-            if (android.os.SystemClock.elapsedRealtime() - lastFlushMs >= windowMs) flush()
+internal fun Flow<StreamChunk>.coalesceStreamDeltas(
+    windowMs: Long,
+    clock: () -> Long = { android.os.SystemClock.elapsedRealtime() },
+): Flow<StreamChunk> {
+    if (windowMs <= 0L) return this
+    return flow {
+        val buffer = mutableListOf<StreamChunk>()
+        var lastFlushMs = clock()
+        suspend fun flush(send: suspend (StreamChunk) -> Unit) {
+            if (buffer.isEmpty()) return
+            // The single-chunk fast path returns its input list; snapshot before clearing
+            // the live buffer or that final/partial chunk silently disappears.
+            val merged = mergeAdjacentDeltas(buffer.toList())
+            buffer.clear()
+            merged.forEach { send(it) }
+            lastFlushMs = clock()
         }
-    } finally {
-        // 终止（正常/异常/取消）都补齐窗口内未透出的分块，尾部内容不丢
-        runCatching { flush() }
+        // Keep this a sequential Flow operator: channelFlow cancelled its producer when the
+        // provider failed, so buffered partial text could not reliably be sent before the error.
+        // catch handles upstream failures only; downstream cancellation/errors remain transparent.
+        this@coalesceStreamDeltas
+            .transform { chunk ->
+                val coalescable = chunk is StreamChunk.TextDelta || chunk is StreamChunk.ReasoningDelta
+                if (!coalescable) {
+                    flush { emit(it) }
+                    emit(chunk)
+                } else {
+                    buffer.add(chunk)
+                    if (clock() - lastFlushMs >= windowMs) flush { emit(it) }
+                }
+            }
+            .onCompletion { cause ->
+                if (cause == null) flush { emit(it) }
+            }
+            .catch { failure ->
+                // A provider error is not cancellation: deliver already-received partial text
+                // before propagating the original failure. Flow.catch doesn't catch downstream
+                // failures, so never emit into a cancelled/failed consumer from this branch.
+                if (kotlin.coroutines.coroutineContext.isActive) flush { emit(it) }
+                throw failure
+            }
+            .collect { emit(it) }
     }
 }
-
-private fun mergeAdjacentDeltas(chunks: List<StreamChunk>): List<StreamChunk> {
+internal fun mergeAdjacentDeltas(chunks: List<StreamChunk>): List<StreamChunk> {
     if (chunks.size < 2) return chunks
     val out = mutableListOf<StreamChunk>()
     for (chunk in chunks) {
