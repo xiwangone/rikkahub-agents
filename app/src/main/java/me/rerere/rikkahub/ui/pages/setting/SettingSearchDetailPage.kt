@@ -423,6 +423,16 @@ internal fun TavilyOptions(
             }
         }
     }
+    FormItem(
+        label = { Text(stringResource(R.string.search_detail_tavily_include_answer)) },
+        description = { Text(stringResource(R.string.search_detail_tavily_include_answer_desc)) },
+        tail = {
+            Switch(
+                checked = options.includeAnswer,
+                onCheckedChange = { checked -> onUpdateOptions(options.copy(includeAnswer = checked)) },
+            )
+        },
+    )
 }
 
 @Composable

@@ -36,6 +36,8 @@ object ToolIndex {
         STANDARD,
         /** 独立交互分支：不走 Tool.execute，如 ask_user */
         INTERACTIVE,
+        /** 自动流程生成的展示卡片，不注入模型、不可执行。 */
+        DISPLAY_ONLY,
     }
 
     /** 单条索引 */
@@ -85,6 +87,7 @@ Entry("browser_back", "browser/BrowserToolDefaults.kt#ALL_TOOLS", "LocalToolOpti
         Entry("check_token_usage", "costguards/CostGuardTools.kt#checkTokenUsageTool", "LocalToolOption.CostGuards", "AUTOMATION", "TitledToolUI", InvocationKind.STANDARD),
         Entry("click_node", "local/FindNodeTool.kt#clickNodeTool", "LocalToolOption.ScreenAutomation", "DEVICE_CONTROL", "ClickNodeToolUI", InvocationKind.STANDARD),
         Entry("clipboard_tool", "LocalTools.kt#clipboardTool", "LocalToolOption.Clipboard", "DEVICE_CONTROL", "ClipboardToolUI", InvocationKind.STANDARD),
+        Entry("context_compaction", "../ContextCompactionPresentation.kt#createTool", "ContextCompactionPresentation", "CONVERSATION", "ContextCompactionToolUI", InvocationKind.DISPLAY_ONLY),
         Entry("conversation_search", "ConversationTools.kt#createConversationTools", "ChatToolFactory", "CONVERSATION", "ConversationSearchToolUI", InvocationKind.STANDARD),
         Entry("copy_file", "local/FileManagerTool.kt#copyFileTool", "LocalToolOption.Files", "FILES", "FileOpToolUI", InvocationKind.STANDARD),
         Entry("create_calendar_event", "local/SystemIntentTools.kt#createCalendarEventTool", "LocalToolOption.SystemIntents", "DEVICE_CONTROL", "CreateCalendarEventToolUI", InvocationKind.STANDARD),

@@ -7,11 +7,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
@@ -24,8 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,9 +39,15 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.fastForEachIndexed
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
@@ -73,16 +84,27 @@ fun <T> ChainOfThought(
     collapsedVisibleCount: Int = 2,
     collapsedAdaptiveWidth: Boolean = false,
     forceExpanded: Boolean = false,
+    statusLabel: String? = null,
+    isRunning: Boolean = false,
+    stepKey: ((Int, T) -> Any)? = null,
     content: @Composable ChainOfThoughtScope.(T) -> Unit,
 ) {
-    var userExpanded by remember { mutableStateOf(false) }
+    if (steps.isEmpty()) return
+    val stateKey = stepKey?.invoke(0, steps.first())
+    var userExpanded by rememberSaveable(stateKey) { mutableStateOf(false) }
     // forceExpanded overrides the user's collapse — used when one of the steps
     // demands attention (e.g. a tool with a pending approval). Without this, on
     // 3+ pending tool calls only the last 2 rows render and the first sits
     // hidden under the "show more" arrow until the user notices and clicks it.
     val expanded = userExpanded || forceExpanded
-    val canCollapse = steps.size > collapsedVisibleCount
-    val shouldFillCollapseControlWidth = expanded || !collapsedAdaptiveWidth
+    // Forced-open attention/interaction blocks must not advertise an unavailable collapse action.
+    val visibleCount = collapsedVisibleCount.coerceAtLeast(1)
+    val canCollapse = steps.size > visibleCount && !forceExpanded
+    val resolvedStatusLabel =
+        statusLabel ?: pluralStringResource(R.plurals.chain_of_thought_step_count, steps.size, steps.size)
+    val runningLabel = stringResource(R.string.chain_of_thought_running)
+    val expandedDescription = stringResource(R.string.chain_of_thought_expanded)
+    val collapsedDescription = stringResource(R.string.chain_of_thought_collapsed)
 
     Card(
         modifier = modifier,
@@ -97,33 +119,68 @@ fun <T> ChainOfThought(
                         animationSpec = MaterialTheme.motionScheme.defaultSpatialSpec(),
                     ),
         ) {
+            val firstVisibleIndex =
+                if (expanded || !canCollapse) {
+                    0
+                } else {
+                    (steps.size - visibleCount).coerceAtLeast(0)
+                }
             val visibleSteps =
                 if (expanded || !canCollapse) {
                     steps
                 } else {
-                    steps.takeLast(collapsedVisibleCount)
+                    steps.takeLast(visibleCount)
                 }
 
-            // 显示展开/折叠按钮（统一在顶部）
-            if (canCollapse) {
-                Row(
-                    modifier =
-                        Modifier
-                            .then(
-                                if (shouldFillCollapseControlWidth) {
-                                    Modifier.fillMaxWidth()
-                                } else {
-                                    Modifier
-                                },
-                            ).clip(MaterialTheme.shapes.small)
-                            .clickable { userExpanded = !expanded }
-                            .padding(vertical = 4.dp),
-                    verticalAlignment = Alignment.CenterVertically,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
                 ) {
-                    // 左侧：图标区域（24.dp，和步骤图标对齐）
-                    Box(
-                        modifier = Modifier.width(24.dp),
-                        contentAlignment = Alignment.Center,
+                    Text(
+                        text = resolvedStatusLabel,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    if (isRunning) {
+                        Text(
+                            text = runningLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                }
+                if (canCollapse) {
+                    val toggleLabel =
+                        if (expanded) {
+                            stringResource(R.string.chain_of_thought_collapse)
+                        } else {
+                            stringResource(R.string.chain_of_thought_show_more_steps, steps.size - visibleCount)
+                        }
+                    Row(
+                        modifier =
+                            Modifier
+                                .defaultMinSize(minWidth = 48.dp, minHeight = 48.dp)
+                                .heightIn(min = 48.dp)
+                                .clip(MaterialTheme.shapes.small)
+                                .toggleable(
+                                    value = expanded,
+                                    role = Role.Button,
+                                    onValueChange = { userExpanded = it },
+                                ).semantics {
+                                    contentDescription = toggleLabel
+                                    stateDescription =
+                                        if (expanded) {
+                                            expandedDescription
+                                        } else {
+                                            collapsedDescription
+                                        }
+                                }.padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
                         Icon(
                             imageVector = if (expanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
@@ -131,23 +188,13 @@ fun <T> ChainOfThought(
                             modifier = Modifier.size(16.dp),
                             tint = MaterialTheme.colorScheme.primary,
                         )
+                        Text(
+                            modifier = Modifier.padding(start = 8.dp),
+                            text = toggleLabel,
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                     }
-
-                    // 右侧：文字区域（8.dp 间距后开始，和步骤 label 对齐）
-                    Text(
-                        modifier = Modifier.padding(start = 8.dp),
-                        text =
-                            if (expanded) {
-                                stringResource(R.string.chain_of_thought_collapse)
-                            } else {
-                                stringResource(
-                                    R.string.chain_of_thought_show_more_steps,
-                                    steps.size - collapsedVisibleCount,
-                                )
-                            },
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
                 }
             }
 
@@ -164,7 +211,9 @@ fun <T> ChainOfThought(
                                 lineColor = lineColor,
                             )
                         }
-                    scope.content(step)
+                    key(stepKey?.invoke(firstVisibleIndex + index, step) ?: (firstVisibleIndex + index)) {
+                        scope.content(step)
+                    }
                 }
             }
         }
@@ -312,7 +361,12 @@ private class ChainOfThoughtScopeImpl(
                     Modifier
                         .drawBehind {
                             // 节点上下的连线分段，节点（20.dp）区域留空
-                            val x = 12.dp.toPx()
+                            val x =
+                                if (layoutDirection == LayoutDirection.Ltr) {
+                                    12.dp.toPx()
+                                } else {
+                                    size.width - 12.dp.toPx()
+                                }
                             val centerY = size.height / 2
                             val gap = 10.dp.toPx()
                             val strokeWidth = 1.dp.toPx()

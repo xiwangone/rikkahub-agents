@@ -39,3 +39,22 @@ fun TokenUsage?.merge(other: TokenUsage): TokenUsage {
         cost = cost,
     )
 }
+
+/** Add usage from distinct model requests; unlike [merge], this never treats one as a snapshot. */
+fun TokenUsage?.sum(other: TokenUsage?): TokenUsage? {
+    val left = this
+    if (left == null) return other
+    if (other == null) return left
+    return TokenUsage(
+        promptTokens = left.promptTokens + other.promptTokens,
+        completionTokens = left.completionTokens + other.completionTokens,
+        cachedTokens = left.cachedTokens + other.cachedTokens,
+        totalTokens = (left.totalTokens.takeIf { it > 0 } ?: (left.promptTokens + left.completionTokens)) +
+            (other.totalTokens.takeIf { it > 0 } ?: (other.promptTokens + other.completionTokens)),
+        cost = when {
+            left.cost == null -> other.cost
+            other.cost == null -> left.cost
+            else -> left.cost + other.cost
+        },
+    )
+}

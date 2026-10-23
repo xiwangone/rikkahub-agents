@@ -253,6 +253,13 @@
   <string name="cancel_edit">取消編輯</string>
   <string name="chain_of_thought_collapse">收合</string>
   <string name="chain_of_thought_show_more_steps">顯示更多 %d 個步驟</string>
+  <plurals name="chain_of_thought_step_count">
+    <item quantity="one">%1$d 個步驟</item>
+    <item quantity="other">%1$d 個步驟</item>
+  </plurals>
+  <string name="chain_of_thought_running">執行中</string>
+  <string name="chain_of_thought_expanded">已展開</string>
+  <string name="chain_of_thought_collapsed">已收合</string>
   <string name="chat_input_placeholder">輸入訊息與AI聊天</string>
   <string name="chat_input_unsupported_file_type">不支援的檔案類型：%s</string>
   <string name="chat_input_file_read_failed">檔案讀取失敗：%s</string>
@@ -3343,6 +3350,12 @@
   <string name="chat_nerd_input_tokens">%1$s 輸入</string>
   <string name="chat_nerd_cached_hit">(%1$s 命中 · %2$s)</string>
   <string name="chat_nerd_output_tokens">%1$s 輸出</string>
+  <string name="chat_nerd_message_total">訊息總計</string>
+  <string name="chat_nerd_latest_usage">最近請求：%1$s 輸入 · %2$s 輸出</string>
+  <plurals name="chat_nerd_model_request_count">
+    <item quantity="one">%1$d 次模型請求</item>
+    <item quantity="other">%1$d 次模型請求</item>
+  </plurals>
   <string name="chat_msg_context_compacted">上下文已壓縮</string>
   <string name="chat_msg_context_compacted_trigger">（%1$s）</string>
   <string name="chat_msg_pending_approval">待審批：%1$s%2$s</string>
@@ -3743,6 +3756,7 @@
   <string name="vault_rename_sync_failed">參考同步失敗。舊憑證與新憑證均會保留，但部分參考可能僅部分更新。移除舊憑證前請先檢查。%1$s</string>
   <string name="vault_rename_target_exists">已存在同名憑證。目標未被覆寫，來源亦未被刪除。</string>
   <string name="tool_status_needs_approval">需要核准</string>
+  <string name="tool_status_interrupted">已中斷</string>
   <string name="tool_ui_skill_title">技能：%1$s</string>
   <string name="tool_ui_skill_path_title">技能：%1$s · %2$s</string>
   <string name="tool_ui_js_skill_title">JavaScript 技能：%1$s</string>
@@ -4043,4 +4057,6 @@
   <string name="suixiang_provider_short_description">Claude、Codex、Gemini 等中繼服務，1:1 充值</string>
   <string name="ackai_provider_description">所有AI大模型全都可以用！無需翻牆！價格是官方5折！\n官網：</string>
   <string name="unifyllm_provider_description">一站式LLM API中轉平台貨源站\n官網：</string>
+  <string name="search_detail_tavily_include_answer">包含答案</string>
+  <string name="search_detail_tavily_include_answer_desc">允許 Tavily 在搜尋結果旁產生答案摘要</string>
 </resources>

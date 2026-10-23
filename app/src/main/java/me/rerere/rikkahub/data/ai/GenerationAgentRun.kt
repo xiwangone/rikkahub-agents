@@ -28,7 +28,6 @@ import me.rerere.ai.agent.ToolCallScope
 import me.rerere.ai.agent.runAgent
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
-import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
@@ -117,7 +116,8 @@ internal class GenerationAgentRun(
 
     private var lastOutputFlushAtMs = 0L
     private var pendingOutputMessages: List<UIMessage>? = null
-    private var reportedUsage: TokenUsage? = null
+    // All persisted assistant messages are baselines, including history before a new user turn.
+    private val usageLedger = me.rerere.rikkahub.costguards.CompletedUsageLedger(initialMessages)
 
     private var loopGuardTripCount = 0
     private var wrapUpInjected = false
@@ -197,8 +197,10 @@ internal class GenerationAgentRun(
                             onRetryDiagnosed?.invoke(diagnoseFailure(context, event.attempt.cause))
                         }
 
-                        is AgentEvent.Finished -> runCtx.finishReason =
-                            event.message.finishReason ?: runCtx.finishReason
+                        is AgentEvent.Finished -> {
+                            accountCompletedUsage(event.message)
+                            runCtx.finishReason = event.message.finishReason ?: runCtx.finishReason
+                        }
                     }
                 }
                 return
@@ -276,6 +278,10 @@ internal class GenerationAgentRun(
 
     /** 用户主动停止时的收尾：与正常完成走同一条变换链，让落盘的形状与逐次生成一致 */
     suspend fun finalizeCancellation() {
+        // Cancellation can arrive after a request completed but before the loop's
+        // next boundary/Finished event accounts it. Partial previews keep the prior
+        // stepCount, so this remains idempotent and never bills an interrupted attempt.
+        messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.let { accountCompletedUsage(it) }
         messages = messages.visualTransformsIncremental(
             transformers = outputTransformers,
             cache = outputTransformCache,
@@ -307,24 +313,6 @@ internal class GenerationAgentRun(
         val previous = messages
         messages = upsertMessage(previous, last)
 
-        // 每次请求的用量单独上报（不受下方 UI 提交节流影响）：见 GenerationChunk.UsageIncurred
-        last.usage?.let { incurred ->
-            if (incurred != reportedUsage) {
-                // 按**请求**累加（与平台账单、会话累计同口径）：一轮里的多步请求各按其**完整** prompt
-                // 计费 —— 第 N 步的 prompt 已含前 N-1 步的历史，这是计费口径、不是重复
-                val stepPromptTokens = incurred.promptTokens.coerceAtLeast(0)
-                runCtx.promptTokens += stepPromptTokens
-                runCtx.completionTokens += incurred.completionTokens.coerceAtLeast(0)
-                // 单步内先夹一次：缓存命中量不可能超过该步输入量
-                runCtx.cachedTokens += incurred.cachedTokens.coerceIn(0, stepPromptTokens)
-                incurred.cost?.let { stepCost ->
-                    runCtx.cost += stepCost.coerceAtLeast(0.0)
-                    runCtx.costReported = true
-                }
-                reportedUsage = incurred
-                emitter.emit(GenerationChunk.UsageIncurred(incurred))
-            }
-        }
         val nowFlushMs = android.os.SystemClock.elapsedRealtime()
         if (nowFlushMs - lastOutputFlushAtMs >= renderProfile.outputFlushIntervalMs) {
             lastOutputFlushAtMs = nowFlushMs
@@ -356,6 +344,21 @@ internal class GenerationAgentRun(
             messages = messages.mergeApprovalProgress(previous)
             pendingOutputMessages = messages.mergeApprovalProgress(previous)
         }
+    }
+
+    /** Account each completed request delta; [UIMessage.usage] is already cumulative. */
+    private suspend fun accountCompletedUsage(message: UIMessage) {
+        val incurred = usageLedger.takeDelta(message) ?: return
+        // Each request's full prompt is billable even though later prompts overlap prior context.
+        val stepPromptTokens = incurred.promptTokens.coerceAtLeast(0)
+        runCtx.promptTokens += stepPromptTokens
+        runCtx.completionTokens += incurred.completionTokens.coerceAtLeast(0)
+        runCtx.cachedTokens += incurred.cachedTokens.coerceIn(0, stepPromptTokens)
+        incurred.cost?.let { stepCost ->
+            runCtx.cost += stepCost.coerceAtLeast(0.0)
+            runCtx.costReported = true
+        }
+        emitter.emit(GenerationChunk.UsageIncurred(incurred))
     }
 
     // ── AgentHooks ────────────────────────────────────────────────────────────
@@ -734,6 +737,8 @@ internal class GenerationAgentRun(
     // 步前决策是一条线性清单（预算/续写/循环/注入），拆分会把同一份口径割裂成多段并增加每次请求的往返。
     @Suppress("LongMethod", "CyclomaticComplexMethod")
     override suspend fun beforeStep(step: StepContext): StepDecision {
+        // The preceding request (and its tools) has completed before this boundary.
+        step.messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.let { accountCompletedUsage(it) }
         runCtx.steps = step.stepIndex + 1
         outputTransformCache.clear()
 

@@ -23,16 +23,12 @@ fun FloatingWindow(
     val context = LocalContext.current
     var window: IFxAppControl? by remember { mutableStateOf(null) }
 
-    LaunchedEffect(visibility) {
-        if (visibility) {
-            window?.show()
-        } else {
-            window?.hide()
-        }
+    LaunchedEffect(window, visibility) {
+        window?.setVisible(tag, visibility)
     }
 
-    DisposableEffect(context) {
-        window =
+    DisposableEffect(context, tag) {
+        val control =
             FloatingX.install {
                 setTag(tag)
                 setContext(context)
@@ -49,9 +45,17 @@ fun FloatingWindow(
                     },
                 )
             }
-        if (visibility) window?.show() else window?.hide()
+        window = control
+        control.setVisible(tag, visibility)
         onDispose {
-            window?.cancel()
+            control.cancel()
         }
     }
+}
+
+// FloatingX 2.3.7 exposes no cancellation-state property on IFxAppControl.
+// A same-tag install cancels the previous handle and replaces it in this registry.
+private fun IFxAppControl.setVisible(tag: String, visible: Boolean) {
+    if (FloatingX.controlOrNull(tag) !== this) return
+    if (visible) show() else hide()
 }

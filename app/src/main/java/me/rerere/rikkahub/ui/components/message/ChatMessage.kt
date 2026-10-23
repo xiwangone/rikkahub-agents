@@ -374,13 +374,10 @@ private fun MessagePartsBlock(
             }
     }
 
-    // Render parts in original order (group thinking/tool as chain-of-thought)
-    // Key by size + last-part identity to avoid Compose's O(N) list-comparison on every
-    // recomposition. During streaming the list grows one element at a time so size alone is
-    // sufficient to detect a meaningful change; the lastOrNull() hash catches in-place edits
-    // on the tail part (e.g. streaming text appended to the final Text part).
-    val partsKey = parts.size.toString() + (parts.lastOrNull()?.hashCode()?.toString() ?: "")
-    val groupedParts = remember(partsKey) { parts.groupMessageParts() }
+    // Part state can change in-place semantically (for example an earlier tool becoming
+    // executed while a later part remains unchanged), so the entire immutable parts list is
+    // the cache key rather than only its size and tail hash.
+    val groupedParts = remember(parts) { parts.groupMessageParts() }
     groupedParts.fastForEach { block ->
         when (block) {
             is MessagePartBlock.ThinkingBlock -> {
@@ -390,27 +387,32 @@ private fun MessagePartsBlock(
                     // this, on 3+ pending tool calls only the last 2 rows are visible
                     // and the first sits hidden behind the "show more" arrow — easy to
                     // miss when the agent is asking for the user's go-ahead.
-                    val hasPendingApproval =
+                    val mustRemainVisible =
                         block.steps.any {
                             it is ThinkingStep.ToolStep &&
-                                it.tool.approvalState is ToolApprovalState.Pending
+                                (
+                                    it.tool.approvalState is ToolApprovalState.Pending ||
+                                        (it.tool.toolName == "ask_user" && !it.tool.isExecuted)
+                                )
                         }
-                    ChainOfThought(
-                        modifier = Modifier.animateContentSize(),
-                        steps = block.steps,
-                        collapsedAdaptiveWidth = isReasoningOnlyBlock,
-                        forceExpanded = hasPendingApproval,
-                        cardColors =
-                            CardDefaults.cardColors(
-                                containerColor =
-                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(
-                                        alpha = settings.displaySetting.bubbleOpacity,
+                    key(block.startIndex) {
+                        ChainOfThought(
+                            modifier = Modifier.animateContentSize(),
+                            steps = block.steps,
+                            collapsedAdaptiveWidth = isReasoningOnlyBlock,
+                            forceExpanded = mustRemainVisible,
+                            isRunning = loading,
+                            stepKey = ::timelineStepComposeKey,
+                            cardColors =
+                                CardDefaults.cardColors(
+                                    containerColor =
+                                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(
+                                            alpha = settings.displaySetting.bubbleOpacity,
+                                        ),
                                     ),
-                            ),
-                    ) { step ->
-                        when (step) {
-                            is ThinkingStep.ReasoningStep -> {
-                                key(step.reasoning.createdAt) {
+                        ) { step ->
+                            when (step) {
+                                is ThinkingStep.ReasoningStep -> {
                                     ChatMessageReasoningStep(
                                         reasoning = step.reasoning,
                                         model = model,
@@ -418,10 +420,8 @@ private fun MessagePartsBlock(
                                         collapsedAdaptiveWidth = isReasoningOnlyBlock,
                                     )
                                 }
-                            }
 
-                            is ThinkingStep.ToolStep -> {
-                                key(step.tool.toolCallId.ifBlank { step.hashCode().toString() }) {
+                                is ThinkingStep.ToolStep -> {
                                     ChatMessageToolStep(
                                         tool = step.tool,
                                         loading = loading && !step.tool.isExecuted,
@@ -429,10 +429,8 @@ private fun MessagePartsBlock(
                                         onToolAnswer = onToolAnswer,
                                     )
                                 }
-                            }
 
-                            is ThinkingStep.ServerToolStep -> {
-                                key(step.tool.toolCallId.ifBlank { step.hashCode().toString() }) {
+                                is ThinkingStep.ServerToolStep -> {
                                     ChatMessageServerToolStep(
                                         tool = step.tool,
                                         loading = loading && !step.tool.isFinished,

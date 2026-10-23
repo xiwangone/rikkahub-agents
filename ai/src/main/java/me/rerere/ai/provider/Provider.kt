@@ -59,7 +59,12 @@ data class TextGenerationResult(
     val model: String,
     val message: UIMessage,
     val finishReason: String? = null,
+    /** Usage summed across all wire requests represented by this logical result. */
     val usage: TokenUsage? = null,
+    /** Snapshot for the final wire request; legacy providers naturally use [usage]. */
+    val lastUsage: TokenUsage? = usage,
+    /** Number of wire requests represented by this result; legacy providers make one. */
+    val requestCount: Int = 1,
 )
 
 @Serializable

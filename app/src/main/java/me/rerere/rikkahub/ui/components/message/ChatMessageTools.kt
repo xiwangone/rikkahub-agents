@@ -45,6 +45,7 @@ import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.tools.ASK_USER_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.components.message.tools.DefaultToolPreview
@@ -101,8 +102,6 @@ private fun hardlineReasonStringResource(code: String?): Int? = when (code) {
     "eval_command_substitution" -> R.string.chat_message_tool_hardline_reason_eval_command_substitution
     else -> null
 }
-
-private const val ASK_USER_TOOL_NAME = "ask_user"
 
 /** 非 JSON 工具结果（例如截断提示）返回 null，交给默认渲染器显示原始文本。 */
 internal fun parseToolOutputContent(tool: UIMessagePart.Tool): JsonElement? {
@@ -196,6 +195,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             success = context.content.getStringContent("success")?.toBooleanStrictOrNull(),
             exitCode = context.content.getStringContent("exit_code") ?: context.content.getStringContent("exitCode"),
             hasError = context.content.getErrorCode()?.let { it.isNotBlank() && !it.equals("false", ignoreCase = true) } == true,
+            isInterruptedAttempt = tool.isInterruptedAttempt && !loading,
         )
 
     ControlledChainOfThoughtStep(

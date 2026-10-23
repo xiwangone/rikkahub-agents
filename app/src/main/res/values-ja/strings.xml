@@ -257,6 +257,13 @@
   <string name="cancel_edit">編集をキャンセル</string>
   <string name="chain_of_thought_collapse">折りたたむ</string>
   <string name="chain_of_thought_show_more_steps">あと %d ステップを表示</string>
+  <plurals name="chain_of_thought_step_count">
+    <item quantity="one">%1$d ステップ</item>
+    <item quantity="other">%1$d ステップ</item>
+  </plurals>
+  <string name="chain_of_thought_running">実行中</string>
+  <string name="chain_of_thought_expanded">展開済み</string>
+  <string name="chain_of_thought_collapsed">折りたたみ済み</string>
   <string name="chat_input_placeholder">AIとチャットするメッセージを入力</string>
   <string name="chat_input_unsupported_file_type">サポートされていないファイルタイプ: %s</string>
   <string name="chat_input_file_read_failed">ファイルの読み取りに失敗しました: %s</string>
@@ -2800,6 +2807,12 @@
   <string name="chat_nerd_input_tokens">%1$s 入力</string>
   <string name="chat_nerd_cached_hit">(%1$s ヒット · %2$s)</string>
   <string name="chat_nerd_output_tokens">%1$s 出力</string>
+  <string name="chat_nerd_message_total">メッセージ合計</string>
+  <string name="chat_nerd_latest_usage">最新リクエスト：%1$s 入力 · %2$s 出力</string>
+  <plurals name="chat_nerd_model_request_count">
+    <item quantity="one">%1$d 回のモデルリクエスト</item>
+    <item quantity="other">%1$d 回のモデルリクエスト</item>
+  </plurals>
   <string name="chat_msg_context_compacted">コンテキストを圧縮しました</string>
   <string name="chat_msg_context_compacted_trigger">（%1$s）</string>
   <string name="chat_msg_pending_approval">承認待ち: %1$s%2$s</string>
@@ -3744,6 +3757,7 @@
   <string name="vault_rename_sync_failed">参照の同期に失敗しました。古い資格情報と新しい資格情報の両方が保持されますが、一部の参照は部分的にしか更新されない可能性があります。古い資格情報を削除する前に確認してください。%1$s</string>
   <string name="vault_rename_target_exists">この名前の資格情報は既に存在します。ターゲットは上書きされず、ソースも削除されませんでした。</string>
   <string name="tool_status_needs_approval">承認が必要</string>
+  <string name="tool_status_interrupted">中断しました</string>
   <string name="tool_ui_skill_title">スキル: %1$s</string>
   <string name="tool_ui_skill_path_title">スキル: %1$s · %2$s</string>
   <string name="tool_ui_js_skill_title">JavaScript スキル: %1$s</string>
@@ -4044,4 +4058,6 @@
   <string name="suixiang_provider_short_description">Claude、Codex、Gemini などの中継サービス、チャージ1:1</string>
   <string name="ackai_provider_description">主要AIモデルがすべて利用可能！VPN不要！価格は公式の半額！\n公式サイト:</string>
   <string name="unifyllm_provider_description">LLM API中継プラットフォームのワンストップ調達サイト\n公式サイト:</string>
+  <string name="search_detail_tavily_include_answer">回答を含める</string>
+  <string name="search_detail_tavily_include_answer_desc">Tavily に検索結果とともに回答の要約を生成させます</string>
 </resources>

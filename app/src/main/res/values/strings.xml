@@ -378,6 +378,13 @@
   <string name="cancel_edit">Cancel Edit</string>
   <string name="chain_of_thought_collapse">Collapse</string>
   <string name="chain_of_thought_show_more_steps">Show %d more steps</string>
+  <plurals name="chain_of_thought_step_count">
+    <item quantity="one">%1$d step</item>
+    <item quantity="other">%1$d steps</item>
+  </plurals>
+  <string name="chain_of_thought_running">Running</string>
+  <string name="chain_of_thought_expanded">Expanded</string>
+  <string name="chain_of_thought_collapsed">Collapsed</string>
   <string name="chat_input_placeholder">Chat with AI</string>
   <string name="chat_input_unsupported_file_type">Unsupported file type: %s</string>
   <string name="chat_input_file_read_failed">Failed to read file: %s</string>
@@ -3353,6 +3360,12 @@
   <string name="chat_nerd_input_tokens">%1$s input</string>
   <string name="chat_nerd_cached_hit">(%1$s cached · %2$s)</string>
   <string name="chat_nerd_output_tokens">%1$s output</string>
+  <string name="chat_nerd_message_total">Message total</string>
+  <string name="chat_nerd_latest_usage">Last request: %1$s input · %2$s output</string>
+  <plurals name="chat_nerd_model_request_count">
+    <item quantity="one">%1$d model request</item>
+    <item quantity="other">%1$d model requests</item>
+  </plurals>
   <string name="chat_msg_context_compacted">Context compacted</string>
   <string name="chat_msg_context_compacted_trigger"> (%1$s)</string>
   <string name="chat_msg_pending_approval">Pending approval: %1$s%2$s</string>
@@ -3747,6 +3760,7 @@
   <string name="tts_audio_format_desc_qwen">Audio encoding returned by Qwen TTS</string>
   <string name="workspace_file_editor_source">Source</string>
   <string name="tool_status_needs_approval">Needs approval</string>
+  <string name="tool_status_interrupted">Interrupted</string>
   <string name="tool_ui_skill_title">Skill: %1$s</string>
   <string name="tool_ui_skill_path_title">Skill: %1$s · %2$s</string>
   <string name="tool_ui_js_skill_title">JavaScript skill: %1$s</string>
@@ -4040,4 +4054,6 @@
   <string name="suixiang_provider_short_description">Relay services for Claude, Codex, Gemini &amp; more — 1:1 top-up credit</string>
   <string name="ackai_provider_description">Every major AI model, all in one — no VPN needed, half the official price!\nWebsite:</string>
   <string name="unifyllm_provider_description">One-stop sourcing site for LLM API relay platforms\nWebsite:</string>
+  <string name="search_detail_tavily_include_answer">Include Answer</string>
+  <string name="search_detail_tavily_include_answer_desc">Let Tavily generate an answer summary alongside the search results</string>
 </resources>

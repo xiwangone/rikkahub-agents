@@ -1,5 +1,6 @@
 name: 02 发布 Release
 
+# 已禁用，仅保留历史。正式出包唯一入口是 01-build.yml / build_type=release。
 on:
   workflow_dispatch:
     inputs:
@@ -19,6 +20,7 @@ permissions:
 
 jobs:
   release:
+    if: ${{ false }}
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:

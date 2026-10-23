@@ -32,6 +32,7 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.core.merge
+import me.rerere.ai.core.sum
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.ClaudePromptCacheTtl
@@ -99,6 +100,7 @@ internal suspend fun generateClaudeWithPauseTurn(
     var requestMessages = messages
     var combinedMessage = UIMessage(role = MessageRole.ASSISTANT, parts = emptyList())
     var combinedUsage: TokenUsage? = null
+    var lastRequestUsage: TokenUsage? = null
     var nextServerToolBlockIndex = 0
 
     repeat(maxContinuations + 1) { continuationCount ->
@@ -113,11 +115,16 @@ internal suspend fun generateClaudeWithPauseTurn(
             .handleTextGenerationResult(result, model)
             .last()
         combinedUsage = combinedUsage.sum(result.usage)
+        // A wrapped result may carry cumulative usage while explicitly lacking the final
+        // request snapshot. Never reinterpret that cumulative value as last-request usage.
+        lastRequestUsage = result.lastUsage ?: result.usage.takeIf { result.requestCount == 1 }
 
         if (result.finishReason != CLAUDE_PAUSE_TURN || continuationCount == maxContinuations) {
             return result.copy(
                 message = combinedMessage.copy(usage = combinedUsage),
                 usage = combinedUsage,
+                lastUsage = lastRequestUsage,
+                requestCount = continuationCount + 1,
             )
         }
 
@@ -145,6 +152,7 @@ internal fun streamClaudeWithPauseTurn(
         var responseMessages = requestMessages
         var passUsage: TokenUsage? = null
         var finish: StreamChunk.Finish? = null
+        var usageEmitted = false
         val responseIndexOffset = nextServerToolBlockIndex
 
         request(requestMessages).collect { rawChunk ->
@@ -156,27 +164,40 @@ internal fun streamClaudeWithPauseTurn(
             when (chunk) {
                 is StreamChunk.Usage -> {
                     passUsage = passUsage.merge(chunk.usage)
-                    completedUsage.sum(passUsage)?.let { emit(StreamChunk.Usage(it)) }
+                    val cumulative = completedUsage.sum(passUsage) ?: passUsage!!
+                    emit(StreamChunk.Usage(
+                        usage = cumulative,
+                        lastUsage = passUsage,
+                        requestCount = continuationCount + 1,
+                        latestUsageReported = passUsage != null,
+                    ))
+                    usageEmitted = true
                 }
 
                 is StreamChunk.Finish -> {
                     finish = chunk
-                    if (chunk.finishReason != CLAUDE_PAUSE_TURN ||
-                        continuationCount == maxContinuations
-                    ) {
-                        emit(chunk)
-                    }
                 }
 
                 else -> emit(chunk)
             }
         }
 
+        val finalPassUsage = passUsage ?: TokenUsage()
+        val cumulativeUsage = completedUsage.sum(finalPassUsage) ?: finalPassUsage
+        if (!usageEmitted) {
+            emit(StreamChunk.Usage(
+                usage = cumulativeUsage,
+                lastUsage = passUsage,
+                requestCount = continuationCount + 1,
+                latestUsageReported = passUsage != null,
+            ))
+        }
         if (finish?.finishReason != CLAUDE_PAUSE_TURN || continuationCount == maxContinuations) {
+            finish?.let { emit(it) }
             return@flow
         }
 
-        completedUsage = completedUsage.sum(passUsage)
+        completedUsage = cumulativeUsage
         requestMessages = responseMessages
     }
 }
@@ -234,17 +255,6 @@ private fun StreamChunk.maxClaudeServerToolIndex(): Int? {
 }
 
 private fun ServerToolMetadata.maxIndex(): Int? = listOfNotNull(callIndex, resultIndex).maxOrNull()
-
-private fun TokenUsage?.sum(other: TokenUsage?): TokenUsage? {
-    if (this == null) return other
-    if (other == null) return this
-    return TokenUsage(
-        promptTokens = promptTokens + other.promptTokens,
-        completionTokens = completionTokens + other.completionTokens,
-        cachedTokens = cachedTokens + other.cachedTokens,
-        totalTokens = totalTokens + other.totalTokens,
-    )
-}
 
 // Minimax's /anthropic/v1/models returns `{"data": null}` (and the OpenAI-shape
 // /v1/models returns `{"object":"","data":null}`) even with a valid API key,

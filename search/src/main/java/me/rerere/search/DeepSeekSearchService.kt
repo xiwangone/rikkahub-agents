@@ -41,7 +41,7 @@ object DeepSeekSearchService : SearchService<SearchServiceOptions.DeepSeekOption
     }
 
     override fun parameters(options: SearchServiceOptions.DeepSeekOptions) = InputSchema.Obj(
-        properties = buildJsonObject { put("query", buildJsonObject { put("type", "string"); put("description", "Search query (1-128 characters)") }) },
+        properties = buildJsonObject { put("query", buildJsonObject { put("type", "string"); put("description", "$SEARCH_QUERY_DESCRIPTION Search query must be 1-128 characters.") }) },
         required = listOf("query"),
     )
 
