@@ -7,7 +7,10 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class GenerationPhaseTest {
-    private fun tool(name: String, pending: Boolean = true) = UIMessagePart.Tool(
+    private fun tool(
+        name: String,
+        pending: Boolean = true,
+    ) = UIMessagePart.Tool(
         toolCallId = "synthetic-call",
         toolName = name,
         input = "{}",
@@ -60,5 +63,29 @@ class GenerationPhaseTest {
     fun earlierPendingApprovalIsNotHiddenByLaterCompletedTool() {
         val complete = tool("shell", false).copy(output = listOf(UIMessagePart.Text("done")))
         assertTrue(listOf(tool("sensitive"), complete).generationPhase() is GenerationPhase.AwaitingApproval)
+    }
+
+    @Test
+    fun completionNotificationsRequireNormalCompletionAndThisTurnsReply() {
+        assertEquals(
+            CompletionNotification.COMPLETED,
+            completionNotification(true, true, GenerationPhase.Writing("reply")),
+        )
+        assertEquals(
+            CompletionNotification.NEEDS_APPROVAL,
+            completionNotification(true, true, GenerationPhase.AwaitingApproval("shell", "{}")),
+        )
+        assertEquals(
+            CompletionNotification.NEEDS_ANSWER,
+            completionNotification(true, true, GenerationPhase.AwaitingAnswer("question")),
+        )
+        assertEquals(
+            CompletionNotification.NONE,
+            completionNotification(false, true, GenerationPhase.Writing("partial")),
+        )
+        assertEquals(
+            CompletionNotification.NONE,
+            completionNotification(true, false, GenerationPhase.Writing("old turn")),
+        )
     }
 }

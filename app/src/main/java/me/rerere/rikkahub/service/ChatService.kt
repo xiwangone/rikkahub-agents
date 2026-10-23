@@ -115,6 +115,7 @@ import me.rerere.rikkahub.data.model.localFileUrls
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.model.toMessageNode
+import me.rerere.rikkahub.data.model.generationPhase
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
@@ -1444,6 +1445,9 @@ class ChatService(
             // 节流窗口内被跳过的最后一次快照：流结束时必须补一次提交，
             // 否则尾部内容既不会进内存态也不会落盘（只有后续数据块才会覆盖它）。
             var pendingUiConversation: Conversation? = null
+            // Capture the assistant emitted by this invocation; session state may already be reset
+            // if another turn starts before completion handling runs.
+            var floatingReplyMessageId: Uuid? = null
             generationLoop
                 .generateText(
                     settings = settings,
@@ -1595,7 +1599,29 @@ class ChatService(
 
                     // Show notification if app is not in foreground
                     if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
-                        notificationHelper.sendGenerationDoneNotification(conversationId, senderName)
+                        val replyId = floatingReplyMessageId
+                        val reply =
+                            replyId?.let { wanted ->
+                                updatedConversation.messageNodes.asSequence()
+                                    .flatMap { it.messages.asSequence() }
+                                    .firstOrNull { it.id == wanted && it.role == MessageRole.ASSISTANT }
+                            }
+                        val phase = reply?.generationPhase() ?: me.rerere.rikkahub.data.model.GenerationPhase.Waiting
+                        when (
+                            me.rerere.rikkahub.data.model.completionNotification(
+                                completedNormally = cause == null,
+                                hasCurrentTurnReply = replyId != null && reply != null,
+                                phase = phase,
+                            )
+                        ) {
+                            me.rerere.rikkahub.data.model.CompletionNotification.COMPLETED ->
+                                notificationHelper.sendGenerationDoneNotification(conversationId, senderName, replyId!!)
+                            me.rerere.rikkahub.data.model.CompletionNotification.NEEDS_APPROVAL ->
+                                notificationHelper.sendNeedsApprovalNotification(conversationId, senderName, replyId!!)
+                            me.rerere.rikkahub.data.model.CompletionNotification.NEEDS_ANSWER ->
+                                notificationHelper.sendNeedsAnswerNotification(conversationId, senderName, replyId!!)
+                            me.rerere.rikkahub.data.model.CompletionNotification.NONE -> Unit
+                        }
                     } else if (isForeground.value) {
                         // 用户正在前台查看该会话，无通知意义；清掉残留的旧通知
                         notificationHelper.cancelLiveUpdateNotification(conversationId)
@@ -1615,6 +1641,7 @@ class ChatService(
                             // this run. The conversation tail can belong to a different branch
                             // when regenerating an older message.
                             chunk.messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.let {
+                                floatingReplyMessageId = it.id
                                 getOrCreateSession(conversationId).recordFloatingReply(it.id)
                             }
                             val updatedConversation =

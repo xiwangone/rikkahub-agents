@@ -30,6 +30,28 @@ sealed interface GenerationPhase {
     data object Waiting : GenerationPhase
 }
 
+/** Notification outcome after a generation flow closes. A missing current-turn reply is never inferred from history. */
+enum class CompletionNotification {
+    NONE,
+    COMPLETED,
+    NEEDS_APPROVAL,
+    NEEDS_ANSWER,
+}
+
+/** Pure policy shared with JVM tests; [completedNormally] is false for cancellation and failures. */
+fun completionNotification(
+    completedNormally: Boolean,
+    hasCurrentTurnReply: Boolean,
+    phase: GenerationPhase,
+): CompletionNotification {
+    if (!completedNormally || !hasCurrentTurnReply) return CompletionNotification.NONE
+    return when (phase) {
+        is GenerationPhase.AwaitingApproval -> CompletionNotification.NEEDS_APPROVAL
+        is GenerationPhase.AwaitingAnswer -> CompletionNotification.NEEDS_ANSWER
+        else -> CompletionNotification.COMPLETED
+    }
+}
+
 fun UIMessage.generationPhase(): GenerationPhase = parts.generationPhase()
 
 fun List<UIMessagePart>.generationPhase(): GenerationPhase {
