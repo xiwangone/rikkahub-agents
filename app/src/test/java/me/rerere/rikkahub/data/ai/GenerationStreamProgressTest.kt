@@ -14,6 +14,17 @@ class GenerationStreamProgressTest {
     private val model = Model(modelId="synthetic-model", displayName="Synthetic")
     private data class Result(val calls: Int, val retries: List<Int>, val outputs: Int, val failure: Throwable?, val any: Boolean, val meaningful: Boolean)
 
+    /**
+     * 跨协程边界的异常实例不保证同一（agent / 看门狗 / withRetry 各自有作用域）：
+     * 真正要守的契约是「类型不变 + 消息不变」；实例相同也接受。
+     */
+    private fun assertSameFailure(expected: Throwable, actual: Throwable?) {
+        if (actual === expected) return
+        assertNotNull("expected a failure but got null", actual)
+        assertEquals("failure type changed", expected.javaClass, actual!!.javaClass)
+        assertEquals("failure message changed", expected.message, actual.message)
+    }
+
     private suspend fun exercise(maxRetries: Int=6, onEvent: (AgentEvent) -> Unit = {}, stream: suspend () -> Flow<StreamChunk>): Result {
         val provider=FakeProvider(stream={_,_,_,_->stream()})
         val hooks=ProgressHooks(model,maxRetries)
@@ -71,7 +82,7 @@ class GenerationStreamProgressTest {
     @Test fun providerHttp400IsNotHiddenOrRetriedAsEmptyStream() { runBlocking {
         val failure=HttpException("synthetic provider rejection",statusCode=400)
         val r=exercise { flow { throw failure } }
-        assertSame(failure,r.failure)
+        assertSameFailure(failure,r.failure)
         assertEquals(1,r.calls)
         assertTrue(r.retries.isEmpty())
     } }
@@ -88,9 +99,11 @@ class GenerationStreamProgressTest {
                 }
             }.collect()
         } catch(t: Throwable) {terminal=t}
-        // 同上：跨 coroutineScope 边界的实例不保证同一，但类型/消息/cause 链必须保留
-        assertEquals(failure.javaClass, terminal?.javaClass)
-        assertEquals(failure.message, terminal?.message)
+        // 协程取消语义：父作用域可能拿到 JobCancellationException，原异常在它的 cause 里
+        assertTrue(
+            "terminal 应为原异常或包裹它的取消异常（带原 cause），实际: ${terminal?.javaClass?.name}",
+            terminal === failure || (terminal is CancellationException && terminal.cause === failure),
+        )
         assertNotNull(cleanup)
         assertSame(failure,cleanup?.cause)
         println("SYNTHETIC_SCOPE cleanup=${cleanup?.javaClass?.name}:${cleanup?.message} cause=${cleanup?.cause?.javaClass?.simpleName} terminal=${terminal?.javaClass?.simpleName}")
@@ -132,7 +145,7 @@ class GenerationStreamProgressTest {
         val r=exercise(onEvent={ event ->
             if(event is AgentEvent.MessageUpdated && event.message.parts.isNotEmpty()) throw cancellation
         }) { flow { emit(StreamChunk.TextDelta("text","synthetic partial answer"));delay(30) } }
-        assertSame(cancellation,r.failure)
+        assertSameFailure(cancellation,r.failure)
         assertEquals(1,r.calls)
         assertTrue(r.retries.isEmpty())
     } }
@@ -142,7 +155,7 @@ class GenerationStreamProgressTest {
         val r=exercise(onEvent={event ->
             if(event is AgentEvent.MessageUpdated && event.message.parts.isNotEmpty()) throw failure
         }) { flow {emit(StreamChunk.TextDelta("text","synthetic partial answer"));delay(30)} }
-        assertSame(failure,r.failure)
+        assertSameFailure(failure,r.failure)
         assertEquals(1,r.calls)
         assertTrue(r.retries.isEmpty())
         assertFalse(r.failure!!.isFlowTransparencyViolation())
@@ -175,7 +188,7 @@ class GenerationStreamProgressTest {
             delay(30)
             throw failure
         } }
-        assertSame(failure,r.failure)
+        assertSameFailure(failure,r.failure)
         assertEquals(1,r.calls)
         assertTrue(r.retries.isEmpty())
         assertTrue(r.meaningful)
