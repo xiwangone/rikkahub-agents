@@ -173,7 +173,7 @@ fun WebViewPage(
                         .padding(16.dp),
             ) {
                 Text(
-                    text = "Console Logs",
+                    text = stringResource(R.string.webview_console_logs),
                     style = MaterialTheme.typography.headlineSmall,
                     modifier = Modifier.padding(bottom = 16.dp),
                 )
@@ -204,7 +204,7 @@ fun WebViewPage(
 
                 if (state.consoleMessages.isEmpty()) {
                     Text(
-                        text = "No console messages",
+                        text = stringResource(R.string.webview_console_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(16.dp),

@@ -70,7 +70,7 @@ fun DebugPage(vm: DebugVM = koinViewModel()) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text("Debug Mode")
+                    Text(stringResource(R.string.debug_page_title))
                 },
                 navigationIcon = {
                     BackButton()
@@ -96,7 +96,7 @@ fun DebugPage(vm: DebugVM = koinViewModel()) {
                         }
                     },
                     text = {
-                        Text("Main")
+                        Text(stringResource(R.string.debug_tab_main))
                     },
                 )
                 Tab(
@@ -107,7 +107,7 @@ fun DebugPage(vm: DebugVM = koinViewModel()) {
                         }
                     },
                     text = {
-                        Text("Colors")
+                        Text(stringResource(R.string.debug_tab_colors))
                     },
                 )
                 Tab(
@@ -118,13 +118,13 @@ fun DebugPage(vm: DebugVM = koinViewModel()) {
                         }
                     },
                     text = {
-                        Text("Logging")
+                        Text(stringResource(R.string.debug_tab_logging))
                     },
                 )
                 Tab(
                     selected = state.currentPage == 3,
                     onClick = { scope.launch { state.animateScrollToPage(3) } },
-                    text = { Text("Recovery") },
+                    text = { Text(stringResource(R.string.debug_tab_recovery)) },
                 )
             }
             HorizontalPager(
@@ -229,7 +229,7 @@ private fun MainPage(vm: DebugVM) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text(
-                text = context.getString(R.string.debug_conversation_count, conversationCount?.toString() ?: "..."),
+                text = stringResource(R.string.debug_conversation_count, conversationCount?.toString() ?: "..."),
                 modifier = Modifier.weight(1f),
             )
             Button(onClick = { vm.refreshConversationCount() }) {
@@ -257,7 +257,7 @@ private fun MainPage(vm: DebugVM) {
 
         HorizontalDivider()
 
-        Text("Launch Stats", style = MaterialTheme.typography.labelMedium)
+        Text(stringResource(R.string.debug_launch_stats), style = MaterialTheme.typography.labelMedium)
 
         var launchCountInput by remember(settings.launchCount) {
             mutableStateOf(settings.launchCount.toString())
@@ -269,7 +269,7 @@ private fun MainPage(vm: DebugVM) {
             OutlinedTextField(
                 value = launchCountInput,
                 onValueChange = { launchCountInput = it },
-                label = { Text("launchCount (current: ${settings.launchCount})") },
+                label = { Text(stringResource(R.string.debug_launch_count_current, settings.launchCount)) },
                 modifier = Modifier.weight(1f),
                 singleLine = true,
             )
@@ -278,7 +278,7 @@ private fun MainPage(vm: DebugVM) {
                     vm.updateSettings { current -> current.copy(launchCount = it) }
                 }
             }) {
-                Text("Set")
+                Text(stringResource(R.string.debug_btn_set))
             }
         }
 
@@ -409,22 +409,23 @@ private fun RecoveryAssistantsPage(vm: DebugVM) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val scope = rememberCoroutineScope()
     val toast = LocalToaster.current
+    val resources = androidx.compose.ui.platform.LocalResources.current
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp).verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("恢复助手占位项")
-        Text("只依据聊天记录中的助手 ID 创建占位项，不会恢复原模型、提示词或工具配置。")
-        if (settings.init) Text("设置仍在加载；恢复将等待真实设置读取完成。")
+        Text(stringResource(R.string.debug_recovery_title))
+        Text(stringResource(R.string.debug_recovery_desc))
+        if (settings.init) Text(stringResource(R.string.debug_recovery_loading))
         counts.toList().sortedByDescending { it.second }.forEach { (id, count) ->
-            Text("$id · $count 条聊天")
+            Text(stringResource(R.string.debug_recovery_item, id.toString(), count))
         }
         Button(onClick = {
             scope.launch {
                 val restored = vm.recoverMissingAssistants()
-                toast.show("已恢复 $restored 个占位助手")
+                toast.show(resources.getString(R.string.debug_recovery_done, restored))
             }
-        }) { Text("恢复缺失助手") }
-        Button(onClick = { vm.refreshAssistantConversationCounts() }) { Text("刷新扫描") }
+        }) { Text(stringResource(R.string.debug_recovery_action)) }
+        Button(onClick = { vm.refreshAssistantConversationCounts() }) { Text(stringResource(R.string.debug_refresh_scan)) }
     }
 }

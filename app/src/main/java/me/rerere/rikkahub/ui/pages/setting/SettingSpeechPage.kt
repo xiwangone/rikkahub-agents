@@ -71,6 +71,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.rememberReorderCommitState
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.ui.pages.setting.components.ASRProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.TTSProviderConfigure
@@ -322,12 +323,16 @@ private fun TTSProviderList(
     modifier: Modifier = Modifier,
 ) {
     val lazyListState = rememberLazyListState()
+    // 拖动只改本地顺序，停手后统一提交一次（每格都写设置会让整列重组、拖动明显卡顿）
+    val reorderCommit =
+        rememberReorderCommitState(
+            items = settings.ttsProviders,
+            key = { it.id },
+            onCommit = { providers -> onUpdateSettings { current -> current.copy(ttsProviders = providers) } },
+        )
     val reorderableState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
-            onUpdateSettings { current ->
-                val providers = current.ttsProviders.toMutableList().apply { add(to.index, removeAt(from.index)) }
-                current.copy(ttsProviders = providers)
-            }
+            reorderCommit.onMove(from.key, to.key)
         }
 
     LazyColumn(
@@ -339,7 +344,7 @@ private fun TTSProviderList(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         state = lazyListState,
     ) {
-        items(settings.ttsProviders, key = { it.id }) { provider ->
+        items(reorderCommit.items, key = { it.id }) { provider ->
             ReorderableItem(
                 state = reorderableState,
                 key = provider.id,
@@ -359,9 +364,11 @@ private fun TTSProviderList(
                                     .longPressDraggableHandle(
                                         onDragStarted = {
                                             haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                            reorderCommit.onDragStart()
                                         },
                                         onDragStopped = {
                                             haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                            reorderCommit.onDragStop()
                                         },
                                     ),
                         ) {
@@ -456,12 +463,16 @@ private fun ASRProviderList(
     modifier: Modifier = Modifier,
 ) {
     val lazyListState = rememberLazyListState()
+    // 拖动只改本地顺序，停手后统一提交一次（每格都写设置会让整列重组、拖动明显卡顿）
+    val reorderCommit =
+        rememberReorderCommitState(
+            items = settings.asrProviders,
+            key = { it.id },
+            onCommit = { providers -> onUpdateSettings { current -> current.copy(asrProviders = providers) } },
+        )
     val reorderableState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
-            onUpdateSettings { current ->
-                val providers = current.asrProviders.toMutableList().apply { add(to.index, removeAt(from.index)) }
-                current.copy(asrProviders = providers)
-            }
+            reorderCommit.onMove(from.key, to.key)
         }
 
     LazyColumn(
@@ -473,7 +484,7 @@ private fun ASRProviderList(
         verticalArrangement = Arrangement.spacedBy(8.dp),
         state = lazyListState,
     ) {
-        items(settings.asrProviders, key = { it.id }) { provider ->
+        items(reorderCommit.items, key = { it.id }) { provider ->
             ReorderableItem(
                 state = reorderableState,
                 key = provider.id,
@@ -493,9 +504,11 @@ private fun ASRProviderList(
                                     .longPressDraggableHandle(
                                         onDragStarted = {
                                             haptic.performHapticFeedback(HapticFeedbackType.GestureThresholdActivate)
+                                            reorderCommit.onDragStart()
                                         },
                                         onDragStopped = {
                                             haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                            reorderCommit.onDragStop()
                                         },
                                     ),
                         ) {

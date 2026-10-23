@@ -79,7 +79,10 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showTypePicker = true }) {
-                Icon(HugeIcons.Add01, contentDescription = null)
+                Icon(
+                    HugeIcons.Add01,
+                    contentDescription = stringResource(R.string.accessibility_add_workspace),
+                )
             }
         },
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),

@@ -1,9 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-<style name="Theme.Rikkahub" parent="Theme.Material3.DayNight.NoActionBar" />
+<style name="Theme.Rikkahub" parent="android:Theme.Material.Light.NoActionBar">
+    <item name="android:windowBackground">#FFFEF7FF</item>
+</style>
 
-<style name="Theme.Rikkahub.ToolHost" parent="Theme.Rikkahub">
+<!-- ToolHostActivity 是 AppCompatActivity，而 AppCompat 要求主题必须是 Theme.AppCompat 的后裔，
+     框架主题（android:Theme.Material.*）不满足该约束，会在该活动上抛
+     IllegalStateException("You need to use a Theme.AppCompat theme...")。
+     故这里显式写出它原本生效的父主题，而不是继承 Theme.Rikkahub。 -->
+<style name="Theme.Rikkahub.ToolHost" parent="Theme.Material3.DayNight.NoActionBar">
     <item name="android:windowBackground">@android:color/transparent</item>
     <item name="android:windowIsTranslucent">true</item>
     <item name="android:windowNoTitle">true</item>

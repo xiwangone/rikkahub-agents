@@ -714,6 +714,7 @@ fun VaultPage() {
                             )
                         } else {
                             sessionListState.forEach { s ->
+                                val labelFallback = stringResource(R.string.vault_session_label_default)
                                 androidx.compose.material3.Surface(
                                     modifier = Modifier.fillMaxWidth(),
                                     shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
@@ -726,15 +727,15 @@ fun VaultPage() {
                                     ) {
                                         Column(Modifier.weight(1f)) {
                                             Text(
-                                                text = s.label.ifBlank { context.getString(R.string.vault_session_label_default) },
+                                                text = s.label.ifBlank { labelFallback },
                                                 style = MaterialTheme.typography.bodySmall,
                                             )
                                             val remaining = s.remainingMs()
                                             Text(
                                                 text = when {
-                                                    remaining == Long.MAX_VALUE -> context.getString(R.string.vault_session_remaining_session)
-                                                    remaining >= 24L * 60 * 60 * 1000 -> context.getString(R.string.vault_session_remaining_day, remaining / (24L * 60 * 60 * 1000))
-                                                    else -> context.getString(R.string.vault_session_remaining_min, (remaining / 60000L).toInt())
+                                                    remaining == Long.MAX_VALUE -> stringResource(R.string.vault_session_remaining_session)
+                                                    remaining >= 24L * 60 * 60 * 1000 -> stringResource(R.string.vault_session_remaining_day, remaining / (24L * 60 * 60 * 1000))
+                                                    else -> stringResource(R.string.vault_session_remaining_min, (remaining / 60000L).toInt())
                                                 },
                                                 style = MaterialTheme.typography.labelSmall,
                                                 color = MaterialTheme.colorScheme.onSurfaceVariant,

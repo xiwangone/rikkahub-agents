@@ -132,7 +132,10 @@ fun SkillsPage() {
                     )
                 }
                 FloatingActionButton(onClick = { showAddDialog = true }) {
-                    Icon(HugeIcons.Add01, contentDescription = null)
+                    Icon(
+                        HugeIcons.Add01,
+                        contentDescription = stringResource(R.string.accessibility_add_skill),
+                    )
                 }
             }
         },

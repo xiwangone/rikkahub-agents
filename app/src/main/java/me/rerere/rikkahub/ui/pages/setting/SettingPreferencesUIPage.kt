@@ -471,18 +471,23 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                             )
                         },
                         supportingContent = {
-                            Select(
-                                options = RenderPerformance.entries,
-                                selectedOption = displaySetting.renderPerformance,
-                                onOptionSelected = { value ->
-                                    updateDisplaySetting(displaySetting.copy(renderPerformance = value))
-                                },
-                                modifier =
-                                    Modifier
-                                        .padding(top = 4.dp)
-                                        .fillMaxWidth(),
-                                optionToString = { it.labelUI() },
-                            )
+                            Column {
+                                Text(
+                                    stringResource(R.string.setting_display_page_render_performance_desc),
+                                )
+                                Select(
+                                    options = RenderPerformance.entries,
+                                    selectedOption = displaySetting.renderPerformance,
+                                    onOptionSelected = { value ->
+                                        updateDisplaySetting(displaySetting.copy(renderPerformance = value))
+                                    },
+                                    modifier =
+                                        Modifier
+                                            .padding(top = 4.dp)
+                                            .fillMaxWidth(),
+                                    optionToString = { it.labelUI() },
+                                )
+                            }
                         },
                     )
                 }

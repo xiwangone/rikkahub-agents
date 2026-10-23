@@ -314,7 +314,10 @@ fun WorkspaceDetailPage(id: String) {
                         }
                     }
                     IconButton(onClick = { vm.refreshStats() }) {
-                        Icon(HugeIcons.Refresh01, contentDescription = null)
+                        Icon(
+                            HugeIcons.Refresh01,
+                            contentDescription = stringResource(R.string.accessibility_refresh_workspace),
+                        )
                     }
                     if (state.workspace?.supportsTerminal() == true) {
                         IconButton(onClick = { navController.navigate(Screen.WorkspaceTerminal(id)) }) {

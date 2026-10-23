@@ -405,6 +405,8 @@ object ToolUIRegistry {
             WorkspaceListToolUI,
             FileInfoToolUI,
             SubagentDispatchToolUI,
+            // 上下文压缩卡片：合成工具，只出现在消息里，不会被注入给模型
+            ContextCompactionToolUI,
         ).associateBy { it.toolName }
 
     /**

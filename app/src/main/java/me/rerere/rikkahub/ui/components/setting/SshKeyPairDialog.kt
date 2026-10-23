@@ -64,7 +64,8 @@ fun SshKeyPairDialog(
 
     var name by remember { mutableStateOf(credentialName.ifBlank { "SSH_KEY_${System.currentTimeMillis() % 100000}" }) }
     var group by remember { mutableStateOf(defaultGroup.ifBlank { "SSH" }) }
-    var description by remember { mutableStateOf(context.getString(R.string.ssh_key_default_desc)) }
+    val defaultDescription = stringResource(R.string.ssh_key_default_desc)
+    var description by remember { mutableStateOf(defaultDescription) }
     var keyType by remember { mutableStateOf(VaultKeyType.RSA2048) }
     // OpenPGP 的 UID / X.509 的 Subject；留空时由生成器按类型取默认值
     var uid by remember { mutableStateOf("") }

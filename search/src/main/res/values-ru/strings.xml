@@ -5,5 +5,6 @@
   <string name="searxng_desc_1">в settings.yml нужно включить поддержку формата json:</string>
   <string name="searxng_desc_2">поиск:\n  форматы:\n    - html\n    - json</string>
   <string name="custom_js_desc">Пользовательский поисковый провайдер на базе QuickJS. Реализуйте функции search(query, resultSize) и при необходимости scrape(urls). Используйте fetch(url, options?) для HTTP-запросов.</string>
+  <string name="doubao_search_api_key">API-ключ Doubao Search</string>
 </resources>
 

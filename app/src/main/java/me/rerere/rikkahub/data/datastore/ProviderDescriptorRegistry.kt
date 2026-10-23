@@ -54,16 +54,16 @@ object ProviderDescriptors {
             description = {
                 Text(
                     text = buildAnnotatedString {
-                        append("提供 OpenAI、Claude、Google Gemini 等主流模型的高并发和稳定服务")
+                        append(stringResource(R.string.aihubmix_provider_description))
                         appendLine()
-                        append("官网：")
+                        append(stringResource(R.string.aihubmix_provider_website))
                         withLink(LinkAnnotation.Url("https://aihubmix.com?aff=pG7r")) {
                             withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
                                 append("https://aihubmix.com")
                             }
                         }
                         appendLine()
-                        append("充值: ")
+                        append(stringResource(R.string.aihubmix_provider_topup))
                         withLink(LinkAnnotation.Url("https://console.aihubmix.com/topup")) {
                             withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
                                 append("https://console.aihubmix.com/topup")
@@ -74,7 +74,7 @@ object ProviderDescriptors {
             },
             shortDescription = {
                 Text(
-                    text = "支持gpt, claude, gemini等200+模型"
+                    text = stringResource(R.string.aihubmix_provider_short_description)
                 )
             },
         ),
@@ -92,8 +92,8 @@ object ProviderDescriptors {
             description = {
                 MarkdownBlock(
                     content = """
-                    小马算力是一家提供国产模型的API网关服务，使用统一接口接入多种模型
-                    官网: [tokenpony.cn](https://www.tokenpony.cn/79clb)
+                    ${stringResource(R.string.tokenpony_provider_description)}
+                    ${stringResource(R.string.tokenpony_provider_website)}
                 """.trimIndent()
                 )
             },
@@ -102,7 +102,7 @@ object ProviderDescriptors {
             description = {
                 Text(
                     text = buildAnnotatedString {
-                        append("企业级AI服务, 官网：")
+                        append(stringResource(R.string.ai302_provider_description))
                         withLink(LinkAnnotation.Url("https://302.ai/")) {
                             withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
                                 append("https://302.ai/")
@@ -116,8 +116,8 @@ object ProviderDescriptors {
             description = {
                 Text(
                     text = buildAnnotatedString {
-                        append("可靠高效的 API 中继服务，提供 Claude、Codex、Gemini 等中继服务。注重隐私·无数据倒卖·无模型掺水，充值额度 1:1，按量付费。多线路冗余、跨区域容灾、自动故障切换，长链路 SSE 不中断。\n")
-                        append("官网：")
+                        append(stringResource(R.string.suixiang_provider_description))
+                        append(stringResource(R.string.suixiang_provider_website))
                         withLink(LinkAnnotation.Url("https://sui-xiang.com")) {
                             withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
                                 append("https://sui-xiang.com")
@@ -128,7 +128,7 @@ object ProviderDescriptors {
             },
             shortDescription = {
                 Text(
-                    text = "Claude、Codex、Gemini 等中继服务，1:1 充值"
+                    text = stringResource(R.string.suixiang_provider_short_description)
                 )
             },
         ),
@@ -137,8 +137,7 @@ object ProviderDescriptors {
                 Text(
                     text = buildAnnotatedString {
                         append(
-                            "所有AI大模型全都可以用！无需翻墙！价格是官方5折！\n" +
-                                "官网："
+                            stringResource(R.string.ackai_provider_description)
                         )
                         withLink(LinkAnnotation.Url("https://ackai.fun/register?aff=jxpP")) {
                             withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
@@ -153,7 +152,7 @@ object ProviderDescriptors {
             description = {
                 Text(
                     text = buildAnnotatedString {
-                        append("一站式LLM API中转平台货源站\n官网：")
+                        append(stringResource(R.string.unifyllm_provider_description))
                         withLink(LinkAnnotation.Url("https://www.unifyllm.com/")) {
                             withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
                                 append("https://www.unifyllm.com/")

@@ -71,7 +71,7 @@ fun MediaGenerationProviderConfigure(
             )
         }
 
-        FormItem(label = { Text("API Key") }) {
+        FormItem(label = { Text(stringResource(R.string.setting_media_page_api_key)) }) {
             OutlinedTextField(
                 value = setting.apiKey,
                 onValueChange = { onValueChange(setting.copyProvider(apiKey = it.trim())) },
@@ -80,7 +80,7 @@ fun MediaGenerationProviderConfigure(
             )
         }
 
-        FormItem(label = { Text("Base URL") }) {
+        FormItem(label = { Text(stringResource(R.string.setting_media_page_base_url)) }) {
             OutlinedTextField(
                 value = setting.baseUrl,
                 onValueChange = { onValueChange(setting.copyProvider(baseUrl = it.trim())) },

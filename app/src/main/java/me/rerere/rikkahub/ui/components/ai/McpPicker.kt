@@ -364,13 +364,13 @@ fun McpPicker(
                         Text(
                             text =
                                 when (val s = status) {
-                                    is McpStatus.Idle -> "Idle"
-                                    is McpStatus.Connecting -> "Connecting"
-                                    is McpStatus.Connected -> "Connected"
-                                    is McpStatus.Reconnecting -> "Reconnecting (${s.attempt}/${s.maxAttempts})"
-                                    is McpStatus.Error -> "Error: ${s.message}"
-                                    is McpStatus.NeedsAuthorization -> "Needs authorization"
-                                    is McpStatus.Authorizing -> "Authorizing"
+                                    is McpStatus.Idle -> stringResource(R.string.mcp_picker_status_idle)
+                                    is McpStatus.Connecting -> stringResource(R.string.mcp_picker_status_connecting)
+                                    is McpStatus.Connected -> stringResource(R.string.mcp_picker_status_connected)
+                                    is McpStatus.Reconnecting -> stringResource(R.string.mcp_picker_status_reconnecting, s.attempt, s.maxAttempts)
+                                    is McpStatus.Error -> stringResource(R.string.mcp_picker_status_error, s.message)
+                                    is McpStatus.NeedsAuthorization -> stringResource(R.string.mcp_picker_status_needs_auth)
+                                    is McpStatus.Authorizing -> stringResource(R.string.mcp_picker_status_authorizing)
                                 },
                             style = MaterialTheme.typography.labelSmall,
                             color = LocalContentColor.current.copy(alpha = 0.8f),
@@ -382,7 +382,7 @@ fun McpPicker(
                             Tag(
                                 type = TagType.INFO,
                             ) {
-                                Text("${enabledTools.size}/${tools.size} tools")
+                                Text(stringResource(R.string.mcp_picker_tools_enabled, enabledTools.size, tools.size))
                             }
                         }
                     }

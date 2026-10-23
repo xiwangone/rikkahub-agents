@@ -165,6 +165,14 @@ fun ReasoningPicker(
                     text = reasoningLevel.label(),
                     style = MaterialTheme.typography.titleMedium,
                 )
+                reasoningLevel.descriptionRes()?.let { descRes ->
+                    Text(
+                        text = stringResource(descRes),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                    )
+                }
             }
 
             Column(
@@ -309,6 +317,21 @@ private fun ReasoningLevel.label(): String =
         ReasoningLevel.HIGH -> stringResource(R.string.reasoning_heavy)
         ReasoningLevel.XHIGH -> stringResource(R.string.reasoning_xhigh)
         ReasoningLevel.MAX -> stringResource(R.string.reasoning_max)
+    }
+
+/**
+ * 等级说明文案。XHIGH / MAX 是后加的档位，仓里没有对应文案键，
+ * 返回 null 让界面省略这一行，而不是造一条对不上其它档位的说法。
+ */
+private fun ReasoningLevel.descriptionRes(): Int? =
+    when (this) {
+        ReasoningLevel.OFF -> R.string.reasoning_off_desc
+        ReasoningLevel.AUTO -> R.string.reasoning_auto_desc
+        ReasoningLevel.LOW -> R.string.reasoning_light_desc
+        ReasoningLevel.MEDIUM -> R.string.reasoning_medium_desc
+        ReasoningLevel.HIGH -> R.string.reasoning_heavy_desc
+        ReasoningLevel.XHIGH -> null
+        ReasoningLevel.MAX -> null
     }
 
 @Composable
