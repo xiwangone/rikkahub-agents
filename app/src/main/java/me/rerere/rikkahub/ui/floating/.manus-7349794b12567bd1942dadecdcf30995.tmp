@@ -1,0 +1,28 @@
+package me.rerere.rikkahub.ui.floating
+
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleOwner
+import androidx.lifecycle.LifecycleRegistry
+import androidx.savedstate.SavedStateRegistry
+import androidx.savedstate.SavedStateRegistryController
+import androidx.savedstate.SavedStateRegistryOwner
+
+/** A visible overlay remains resumed while the application's activities are stopped. */
+internal class FloatingWindowLifecycleOwner : LifecycleOwner, SavedStateRegistryOwner {
+    private val registry = LifecycleRegistry(this)
+    private val savedState = SavedStateRegistryController.create(this)
+    override val lifecycle: Lifecycle get() = registry
+    override val savedStateRegistry: SavedStateRegistry get() = savedState.savedStateRegistry
+
+    init {
+        savedState.performAttach()
+        savedState.performRestore(null)
+        registry.handleLifecycleEvent(Lifecycle.Event.ON_CREATE)
+        registry.handleLifecycleEvent(Lifecycle.Event.ON_START)
+        registry.handleLifecycleEvent(Lifecycle.Event.ON_RESUME)
+    }
+
+    fun destroy() {
+        registry.currentState = Lifecycle.State.DESTROYED
+    }
+}

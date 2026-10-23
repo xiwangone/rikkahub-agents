@@ -5,11 +5,28 @@ import me.rerere.ai.ui.UIMessagePart
 
 /** Shared by live notifications and the background overlay. Approval is not execution. */
 sealed interface GenerationPhase {
-    data class AwaitingApproval(val toolName: String, val input: String) : GenerationPhase
-    data class AwaitingAnswer(val input: String) : GenerationPhase
-    data class RunningTool(val toolName: String, val input: String) : GenerationPhase
-    data class Thinking(val reasoning: String) : GenerationPhase
-    data class Writing(val text: String) : GenerationPhase
+    data class AwaitingApproval(
+        val toolName: String,
+        val input: String,
+    ) : GenerationPhase
+
+    data class AwaitingAnswer(
+        val input: String,
+    ) : GenerationPhase
+
+    data class RunningTool(
+        val toolName: String,
+        val input: String,
+    ) : GenerationPhase
+
+    data class Thinking(
+        val reasoning: String,
+    ) : GenerationPhase
+
+    data class Writing(
+        val text: String,
+    ) : GenerationPhase
+
     data object Waiting : GenerationPhase
 }
 
@@ -19,9 +36,12 @@ fun List<UIMessagePart>.generationPhase(): GenerationPhase {
     val tool = filterIsInstance<UIMessagePart.Tool>().lastOrNull { !it.isExecuted }
     val reasoning = filterIsInstance<UIMessagePart.Reasoning>().lastOrNull()
     val text = filterIsInstance<UIMessagePart.Text>().lastOrNull()
-    val name = tool?.toolName?.let { raw ->
-        if (raw.startsWith("mcp__")) raw.removePrefix("mcp__").substringAfter("__") else raw
-    }.orEmpty()
+    val name =
+        tool
+            ?.toolName
+            ?.let { raw ->
+                if (raw.startsWith("mcp__")) raw.removePrefix("mcp__").substringAfter("__") else raw
+            }.orEmpty()
     return when {
         tool?.isPending == true && tool.toolName == "ask_user" -> GenerationPhase.AwaitingAnswer(tool.input)
         tool?.isPending == true -> GenerationPhase.AwaitingApproval(name, tool.input)
