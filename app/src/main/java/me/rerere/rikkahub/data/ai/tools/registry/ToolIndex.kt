@@ -85,6 +85,7 @@ Entry("browser_back", "browser/BrowserToolDefaults.kt#ALL_TOOLS", "LocalToolOpti
         Entry("check_token_usage", "costguards/CostGuardTools.kt#checkTokenUsageTool", "LocalToolOption.CostGuards", "AUTOMATION", "TitledToolUI", InvocationKind.STANDARD),
         Entry("click_node", "local/FindNodeTool.kt#clickNodeTool", "LocalToolOption.ScreenAutomation", "DEVICE_CONTROL", "ClickNodeToolUI", InvocationKind.STANDARD),
         Entry("clipboard_tool", "LocalTools.kt#clipboardTool", "LocalToolOption.Clipboard", "DEVICE_CONTROL", "ClipboardToolUI", InvocationKind.STANDARD),
+        Entry("context_compaction", "ContextCompactionPresentation.kt#TOOL_NAME", "ContextCompactionPresentation", "—", "ContextCompactionToolUI", InvocationKind.STANDARD),
         Entry("conversation_search", "ConversationTools.kt#createConversationTools", "ChatToolFactory", "CONVERSATION", "ConversationSearchToolUI", InvocationKind.STANDARD),
         Entry("copy_file", "local/FileManagerTool.kt#copyFileTool", "LocalToolOption.Files", "FILES", "FileOpToolUI", InvocationKind.STANDARD),
         Entry("create_calendar_event", "local/SystemIntentTools.kt#createCalendarEventTool", "LocalToolOption.SystemIntents", "DEVICE_CONTROL", "CreateCalendarEventToolUI", InvocationKind.STANDARD),
