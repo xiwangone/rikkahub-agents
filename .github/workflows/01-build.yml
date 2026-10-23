@@ -168,3 +168,33 @@ jobs:
           path: |
             app/build/outputs/apk/release/*.apk
             app/build/outputs/apk/*/release/*.apk
+
+      - name: 记录正式 APK 身份与 R8 映射（不创建 Release）
+        if: env.BUILD_TYPE == 'release'
+        run: |
+          set -euo pipefail
+          mkdir -p release-evidence
+          printf 'commit=%s\nref=%s\nbuild_type=%s\nrun_id=%s\n' "$GITHUB_SHA" "$GITHUB_REF" "$BUILD_TYPE" "$GITHUB_RUN_ID" > release-evidence/build-ref.txt
+          TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          test -x "$TOOLS/apksigner"
+          count=0
+          while IFS= read -r -d '' apk; do
+            name=$(basename "$apk")
+            sha256sum "$apk" > "release-evidence/$name.sha256"
+            "$TOOLS/aapt" dump badging "$apk" > "release-evidence/$name.badging.txt"
+            "$TOOLS/apksigner" verify --verbose --print-certs "$apk" > "release-evidence/$name.signature.txt"
+            count=$((count+1))
+          done < <(find app/build/outputs/apk -type f -name '*release*.apk' -print0)
+          test "$count" -gt 0
+          test -s app/build/outputs/mapping/release/mapping.txt
+          cp app/build/outputs/mapping/release/mapping.txt release-evidence/
+          sha256sum release-evidence/mapping.txt > release-evidence/mapping.txt.sha256
+          head -20 release-evidence/mapping.txt > release-evidence/mapping-header.txt
+      - name: 上传正式 APK 身份与映射
+        if: env.BUILD_TYPE == 'release'
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-identity-and-mapping
+          path: release-evidence/
+          retention-days: 14
+          if-no-files-found: error
