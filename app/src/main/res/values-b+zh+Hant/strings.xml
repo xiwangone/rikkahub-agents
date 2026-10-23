@@ -4081,4 +4081,8 @@
     <string name="floating_chat_switch_session">切換作用中的對話</string>
     <string name="floating_chat_resume_queue">恢復傳送佇列</string>
     <string name="floating_chat_denied_reason">已在懸浮視窗中拒絕</string>
+    <string name="floating_chat_failed">生成失敗</string>
+    <string name="floating_chat_needs_answer">請在會話中回答</string>
+    <string name="floating_chat_usage">用量 · 輸入 %1$d / 輸出 %2$d / 總計 %3$d</string>
+    <string name="floating_chat_answer_in_conversation">開啟會話以回答</string>
 </resources>

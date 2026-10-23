@@ -4078,4 +4078,8 @@
     <string name="floating_chat_switch_session">Switch active conversation</string>
     <string name="floating_chat_resume_queue">Resume queued messages</string>
     <string name="floating_chat_denied_reason">Denied in floating window</string>
+    <string name="floating_chat_failed">Generation failed</string>
+    <string name="floating_chat_needs_answer">Please answer in conversation</string>
+    <string name="floating_chat_usage">Usage · input %1$d / output %2$d / total %3$d</string>
+    <string name="floating_chat_answer_in_conversation">Open conversation to answer</string>
 </resources>

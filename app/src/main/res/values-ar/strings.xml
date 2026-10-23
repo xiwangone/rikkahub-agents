@@ -4085,4 +4085,8 @@
     <string name="floating_chat_switch_session">التبديل إلى محادثة نشطة</string>
     <string name="floating_chat_resume_queue">استئناف قائمة الانتظار</string>
     <string name="floating_chat_denied_reason">تم الرفض في النافذة العائمة</string>
+    <string name="floating_chat_failed">فشل التوليد</string>
+    <string name="floating_chat_needs_answer">يرجى الإجابة في المحادثة</string>
+    <string name="floating_chat_usage">الاستخدام · إدخال %1$d / إخراج %2$d / الإجمالي %3$d</string>
+    <string name="floating_chat_answer_in_conversation">افتح المحادثة للإجابة</string>
 </resources>

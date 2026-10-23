@@ -4078,4 +4078,8 @@
     <string name="floating_chat_switch_session">切换活动会话</string>
     <string name="floating_chat_resume_queue">恢复发送队列</string>
     <string name="floating_chat_denied_reason">已在悬浮窗中拒绝</string>
+    <string name="floating_chat_failed">生成失败</string>
+    <string name="floating_chat_needs_answer">请在会话中回答</string>
+    <string name="floating_chat_usage">用量 · 输入 %1$d / 输出 %2$d / 总计 %3$d</string>
+    <string name="floating_chat_answer_in_conversation">打开会话以回答</string>
 </resources>

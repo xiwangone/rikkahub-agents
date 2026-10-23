@@ -4082,4 +4082,8 @@
     <string name="floating_chat_switch_session">実行中の会話を切り替え</string>
     <string name="floating_chat_resume_queue">キューを再開</string>
     <string name="floating_chat_denied_reason">フローティングウィンドウで拒否されました</string>
+    <string name="floating_chat_failed">生成に失敗しました</string>
+    <string name="floating_chat_needs_answer">会話を開いて回答してください</string>
+    <string name="floating_chat_usage">使用量 · 入力 %1$d / 出力 %2$d / 合計 %3$d</string>
+    <string name="floating_chat_answer_in_conversation">会話を開いて回答</string>
 </resources>

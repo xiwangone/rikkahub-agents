@@ -4082,4 +4082,8 @@
     <string name="floating_chat_switch_session">활성 대화 전환</string>
     <string name="floating_chat_resume_queue">대기열 재개</string>
     <string name="floating_chat_denied_reason">플로팅 창에서 거부됨</string>
+    <string name="floating_chat_failed">생성 실패</string>
+    <string name="floating_chat_needs_answer">대화에서 답변해 주세요</string>
+    <string name="floating_chat_usage">사용량 · 입력 %1$d / 출력 %2$d / 합계 %3$d</string>
+    <string name="floating_chat_answer_in_conversation">대화를 열어 답변</string>
 </resources>

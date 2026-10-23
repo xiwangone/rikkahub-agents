@@ -26,10 +26,11 @@ internal data class FloatingOverlayPolicyState(
 
     fun updateRunning(ids: Set<String>): FloatingOverlayPolicyState {
         val started = ids - runningConversationIds
+        if (!enabled || foreground) return copy(runningConversationIds = ids, targetConversationId = null)
         val target = when {
-            started.isNotEmpty() -> started.last()
+            started.isNotEmpty() -> started.sorted().last()
             targetConversationId != null && (ids.isNotEmpty() || !dismissedUntilNextGeneration) -> targetConversationId
-            targetConversationId == null && !dismissedUntilNextGeneration && ids.isNotEmpty() -> ids.last()
+            targetConversationId == null && !dismissedUntilNextGeneration && ids.isNotEmpty() -> ids.sorted().last()
             else -> targetConversationId
         }
         return copy(runningConversationIds = ids, targetConversationId = target, dismissedUntilNextGeneration = if (started.isNotEmpty()) false else dismissedUntilNextGeneration)
