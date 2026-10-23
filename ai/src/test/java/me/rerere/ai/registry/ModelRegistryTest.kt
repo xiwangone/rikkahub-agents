@@ -261,4 +261,29 @@ class ModelRegistryTest {
         assertEquals(toolReasoning, ModelRegistry.MODEL_ABILITIES.getData("step-5"))
         assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("step-3"))
     }
+
+    @Test
+    fun testQwenParamSizeNotTreatedAsVersion() {
+        val visionInput = listOf(Modality.TEXT, Modality.IMAGE)
+        val textOnly = listOf(Modality.TEXT)
+        val toolReasoning = listOf(ModelAbility.TOOL, ModelAbility.REASONING)
+        installEmptyCatalog()
+        try {
+            // qwen3-8b：8b 是参数量而非版本号 → 不得命中带视觉的 QWEN_3_8
+            assertEquals(textOnly, ModelRegistry.MODEL_INPUT_MODALITIES.getData("qwen3-8b"))
+            assertFalse(
+                ModelRegistry.MODEL_INPUT_MODALITIES.getData("qwen3-8b").contains(Modality.IMAGE),
+            )
+            // qwen3-vl-*：Qwen3-VL 必须保住视觉输入
+            assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("qwen3-vl"))
+            assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("qwen3-vl-8b"))
+            // qwen2.5-3b：3b 是参数量 → 不得借该数字命中 QWEN_3（QWEN_3 携 TOOL+REASONING）
+            assertEquals(emptyList<ModelAbility>(), ModelRegistry.MODEL_ABILITIES.getData("qwen2.5-3b"))
+            // 真实版本号仍生效：qwen3.8 的 8 后不接 b/k，仍视为版本 → 保留视觉
+            assertEquals(visionInput, ModelRegistry.MODEL_INPUT_MODALITIES.getData("qwen3.8"))
+            assertEquals(toolReasoning, ModelRegistry.MODEL_ABILITIES.getData("qwen3"))
+        } finally {
+            installEmptyCatalog()
+        }
+    }
 }

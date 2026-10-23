@@ -165,8 +165,10 @@ private class TokenSequenceMatcher(
     override fun score(modelId: String, tokens: List<String>): Int? {
         if (specs.isEmpty()) return null
         var specIndex = 0
-        for (token in tokens) {
-            if (specs[specIndex].matches(token)) {
+        for (index in tokens.indices) {
+            // 参数量/上下文量数字（如 8b、32k、a3b 中的数字）不是版本号，跳过不匹配
+            if (isParamSizeNumber(tokens, index)) continue
+            if (specs[specIndex].matches(tokens[index])) {
                 specIndex += 1
                 if (specIndex == specs.size) return specs.size
             }
@@ -195,7 +197,18 @@ private fun parseTokenSpec(spec: String): TokenSpec {
 
 private const val EXACT_ID_BONUS = 1000
 
-private fun tokenize(modelId: String): List<String> {
+/** 纯数字 token 且紧邻的下一 token 为 b/k ⇒ 参数量或上下文量（如 8b、32k、a3b），不作版本号。 */
+private fun isParamSizeNumber(
+    tokens: List<String>,
+    index: Int,
+): Boolean {
+    val token = tokens[index]
+    if (token.isEmpty() || !token.all { it.isDigit() }) return false
+    val next = tokens.getOrNull(index + 1) ?: return false
+    return next == "b" || next == "k"
+}
+
+internal fun tokenize(modelId: String): List<String> {
     val tokens = mutableListOf<String>()
     val input = modelId.lowercase()
     var index = 0
