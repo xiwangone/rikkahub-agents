@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
@@ -36,6 +37,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
@@ -86,8 +88,14 @@ fun ChatMessageNerdLine(
                 itemVerticalAlignment = Alignment.CenterVertically,
                 modifier = modifier.padding(horizontal = 4.dp),
             ) {
-                val usage = message.usage
+                val usagePresentation = remember(message.usage, message.lastUsage, message.stepCount) {
+                    message.messageUsagePresentation()
+                }
+                val usage = usagePresentation.messageTotal
                 if (settings.showTokenUsage && usage != null) {
+                    if (usagePresentation.multipleModelRequestCount != null) {
+                        Text(text = stringResource(R.string.chat_nerd_message_total))
+                    }
                     // Input tokens
                     StatsItem(
                         icon = {
@@ -180,7 +188,7 @@ fun ChatMessageNerdLine(
                     Box(
                         modifier =
                             Modifier
-                                .clickable(onClick = {
+                                .clickable(role = Role.Button, onClick = {
                                     val statsText =
                                         buildString {
                                             append("↑${usage.promptTokens.formatNumber()} tokens")
@@ -204,6 +212,7 @@ fun ChatMessageNerdLine(
                                         }
                                     pendingCopyText = statsText
                                 })
+                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                                 .padding(2.dp),
                     ) {
                         Icon(
@@ -219,8 +228,40 @@ fun ChatMessageNerdLine(
                         }
                     }
                 }
-            }
-            if (sessionTotals != null) {
+                // For a multi-request message use only explicitly recorded lastUsage;
+                // the legacy fallback is safe only when stepCount is zero (one old request).
+                val latestUsage = usagePresentation.latestRequest
+                if (settings.showTokenUsage && usagePresentation.multipleModelRequestCount != null && latestUsage != null) {
+                    StatsItem(
+                        icon = {
+                            Icon(
+                                imageVector = HugeIcons.Upload02,
+                                contentDescription = null,
+                                tint = color,
+                                modifier = Modifier.size(12.dp),
+                            )
+                        },
+                        content = {
+                            Text(
+                                text = stringResource(
+                                    R.string.chat_nerd_latest_usage,
+                                    latestUsage.promptTokens.formatNumber(),
+                                    latestUsage.completionTokens.formatNumber(),
+                                ),
+                            )
+                        },
+                    )
+                }
+                usagePresentation.multipleModelRequestCount?.takeIf { settings.showTokenUsage }?.let { count ->
+                    Text(
+                        text = androidx.compose.ui.res.pluralStringResource(
+                            R.plurals.chat_nerd_model_request_count,
+                            count,
+                            count,
+                        ),
+                    )
+                }
+                if (sessionTotals != null) {
                 var sessionPendingCopy by remember { mutableStateOf("") }
                 Row(
                     modifier = Modifier.padding(top = 2.dp),
@@ -245,10 +286,11 @@ fun ChatMessageNerdLine(
                     Box(
                         modifier =
                             Modifier
-                                .clickable(onClick = {
+                                .clickable(role = Role.Button, onClick = {
                                     sessionPendingCopy =
                                         "↑${sessionTotals.inputTokens.toInt().formatNumber()} tokens (${sessionTotals.cachedTokens.toInt().formatNumber()} cached) ↓${sessionTotals.outputTokens.toInt().formatNumber()} tokens"
                                 })
+                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                                 .padding(2.dp),
                     ) {
                         Icon(
@@ -266,7 +308,8 @@ fun ChatMessageNerdLine(
                 }
             }
             // 上下文占用：已用 / 窗口 · 已用比例（进度条）。点击可填写窗口大小（选填）
-            val contextUsage = message.usage
+            // Context usage is a per-request prompt size, not cumulative usage across tool turns.
+            val contextUsage = message.lastRequestUsage()
             if (settings.showTokenUsage && contextUsage != null && contextUsage.promptTokens > 0) {
                 val ctxTokens = contextUsage.promptTokens.toLong()
                 // 窗口取手动填写值，其次是模型上报值；两者都没有时只显示占用量。
@@ -414,6 +457,7 @@ fun ChatMessageNerdLine(
             }
         }
     }
+}
 }
 
 // Generation cost is often a tiny fraction of a cent, so a fixed decimal count would show

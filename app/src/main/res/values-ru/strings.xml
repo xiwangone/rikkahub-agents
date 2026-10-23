@@ -2802,6 +2802,14 @@
   <string name="chat_nerd_input_tokens">%1$s ввод</string>
   <string name="chat_nerd_cached_hit">(%1$s попадание · %2$s)</string>
   <string name="chat_nerd_output_tokens">%1$s вывод</string>
+  <string name="chat_nerd_message_total">Итого по сообщению</string>
+  <string name="chat_nerd_latest_usage">Последний запрос: вход %1$s · выход %2$s</string>
+  <plurals name="chat_nerd_model_request_count">
+    <item quantity="one">%1$d запрос модели</item>
+    <item quantity="few">%1$d запроса модели</item>
+    <item quantity="many">%1$d запросов модели</item>
+    <item quantity="other">%1$d запроса модели</item>
+  </plurals>
   <string name="chat_msg_context_compacted">Контекст сжат</string>
   <string name="chat_msg_context_compacted_trigger">(%1$s)</string>
   <string name="chat_msg_pending_approval">Ожидает одобрения: %1$s%2$s</string>
@@ -3753,6 +3761,7 @@
   <string name="vault_rename_sync_failed">Не удалось синхронизировать ссылки. И старые, и новые учётные данные сохранены, но некоторые ссылки могут быть обновлены лишь частично. Пожалуйста, проверьте перед удалением старых учётных данных.%1$s</string>
   <string name="vault_rename_target_exists">Учётные данные с таким именем уже существуют. Целевые данные не были перезаписаны, а исходные не были удалены.</string>
   <string name="tool_status_needs_approval">Требуется подтверждение</string>
+  <string name="tool_status_interrupted">Прервано</string>
   <string name="tool_ui_skill_title">Навык: %1$s</string>
   <string name="tool_ui_skill_path_title">Навык: %1$s · %2$s</string>
   <string name="tool_ui_js_skill_title">Навык JavaScript: %1$s</string>
@@ -4053,4 +4062,6 @@
   <string name="suixiang_provider_short_description">Релей Claude, Codex, Gemini и др. — пополнение 1:1</string>
   <string name="ackai_provider_description">Все крупные AI-модели доступны! Без VPN, цена — 50% от официальной!\nСайт:</string>
   <string name="unifyllm_provider_description">Комплексный сайт-источник платформ-релеев LLM API\nСайт:</string>
+  <string name="search_detail_tavily_include_answer">Включать ответ</string>
+  <string name="search_detail_tavily_include_answer_desc">Позволяет Tavily создавать краткий ответ вместе с результатами поиска</string>
 </resources>

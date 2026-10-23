@@ -50,7 +50,7 @@ object FirecrawlSearchService : SearchService<SearchServiceOptions.FirecrawlOpti
                         "query",
                         buildJsonObject {
                             put("type", "string")
-                            put("description", "Search query string")
+                            put("description", SEARCH_QUERY_DESCRIPTION)
                         },
                     )
                     put(

@@ -137,7 +137,16 @@ sealed class StreamChunk {
 
     @Serializable
     @SerialName("usage")
-    data class Usage(val usage: TokenUsage) : StreamChunk()
+    data class Usage(
+        /** Cumulative snapshot for the logical generation represented by this stream. */
+        val usage: TokenUsage,
+        /** Latest wire request snapshot; null normally means [usage] is also the latest request. */
+        val lastUsage: TokenUsage? = null,
+        /** Wire requests represented by this stream; legacy chunks represent one. */
+        val requestCount: Int = 1,
+        /** False when a provider knows the final wire request reported no usage at all. */
+        val latestUsageReported: Boolean = true,
+    ) : StreamChunk()
 
     @Serializable
     @SerialName("finish")

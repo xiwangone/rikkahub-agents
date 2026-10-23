@@ -76,20 +76,24 @@ object TokenBudgetTracker {
             output += usage.completionTokens.toLong()
             // 命中是 prompt 的子集；个别 provider / 中转会报出 cached > prompt，直接累加会把
             // 命中率抬到 100% 以上（口径失真）→ 这里收敛到 prompt。
-            cached += usage.cachedTokens.coerceAtMost(usage.promptTokens).toLong()
+            cached += usage.cachedTokens.coerceIn(0, usage.promptTokens.coerceAtLeast(0)).toLong()
             cost += usage.cost ?: 0.0
-            val totalThis =
-                (
-                    usage.totalTokens.takeIf { it > 0 }
-                        ?: (usage.promptTokens + usage.completionTokens)
-                ).toLong()
+            // usage is cumulative across model steps and remains the correct billable/session total.
+            val totalThis = (usage.totalTokens.takeIf { it > 0 } ?: (usage.promptTokens + usage.completionTokens)).toLong()
             total += totalThis
-            if (totalThis > perMax) perMax = totalThis
+            // The context-window peak and hit rate, however, belong to the latest request only.
+            val requestUsage = msg.lastRequestUsage()
+            val contextThis = requestUsage?.let {
+                (it.totalTokens.takeIf { total -> total > 0 } ?: (it.promptTokens + it.completionTokens)).toLong()
+            } ?: 0L
+            if (contextThis > perMax) perMax = contextThis
             count++
-            // 最近一条（按节点遍历顺序最后出现）的命中率 = 本轮命中率
-            if (usage.promptTokens > 0) {
-                lastHitPct =
-                    usage.cachedTokens.toDouble() / usage.promptTokens.toDouble()
+            // 最近一条（按节点遍历顺序最后出现）的命中率 = 最新模型请求命中率。
+            lastHitPct = if (requestUsage != null && requestUsage.promptTokens > 0) {
+                requestUsage.cachedTokens.coerceIn(0, requestUsage.promptTokens)
+                    .toDouble() / requestUsage.promptTokens.toDouble()
+            } else {
+                0.0
             }
         }
         return Totals(

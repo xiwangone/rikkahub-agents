@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -31,8 +32,9 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.positionInParent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.Earth
@@ -44,6 +46,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.easteregg.EmojiBurstHost
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.drawAppLogo
+import me.rerere.rikkahub.ui.components.ui.rememberAppLogoLayers
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -55,6 +59,8 @@ fun SettingAboutPage() {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val context = LocalContext.current
     val navController = LocalNavController.current
+    val logoLayers = rememberAppLogoLayers()
+    val logoContentDescription = stringResource(R.string.accessibility_app_logo)
     val emojiOptions =
         remember {
             listOf(
@@ -146,13 +152,13 @@ fun SettingAboutPage() {
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        AsyncImage(
-                            model = R.mipmap.ic_launcher,
-                            contentDescription = stringResource(R.string.accessibility_app_logo),
+                        Box(
                             modifier =
                                 Modifier
                                     .clip(CircleShape)
                                     .size(150.dp)
+                                    .drawAppLogo(logoLayers)
+                                    .semantics { contentDescription = logoContentDescription }
                                     .onGloballyPositioned { coordinates ->
                                         val position = coordinates.positionInParent()
                                         val size = coordinates.size
@@ -164,6 +170,7 @@ fun SettingAboutPage() {
                                     }.clickable {
                                         onBurst(logoCenterPx)
                                     },
+                            content = {},
                         )
 
                         Text(

@@ -65,6 +65,17 @@ class StreamChunkHandlerTest {
     }
 
     @Test
+    fun `usage events within one request update snapshots instead of counting them twice`() {
+        val handler = StreamChunkHandler(model)
+        var messages = listOf(UIMessage.assistant(""))
+        messages = handler.handle(messages, StreamChunk.Usage(TokenUsage(promptTokens = 100, completionTokens = 5)))
+        messages = handler.handle(messages, StreamChunk.Usage(TokenUsage(promptTokens = 120, completionTokens = 8)))
+
+        assertEquals(120, messages.last().usage?.promptTokens)
+        assertEquals(8, messages.last().usage?.completionTokens)
+    }
+
+    @Test
     fun `interleaved text chunks should be merged by id`() {
         var messages = listOf(UIMessage.user("hello"))
         val handler = StreamChunkHandler(model)

@@ -15,6 +15,14 @@ class LenientLocalToolListSerializerTest {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
     @Test
+    fun sharedAskUserName_preservesLegacyWireIdentity() {
+        assertEquals("ask_user", ASK_USER_TOOL_NAME)
+        val encoded = json.encodeToString(LocalToolOption.serializer(), LocalToolOption.AskUser)
+        assertEquals("""{"type":"ask_user"}""", encoded)
+        assertEquals(LocalToolOption.AskUser, json.decodeFromString(LocalToolOption.serializer(), encoded))
+    }
+
+    @Test
     fun decode_dropsUnknownToolTypes_keepsKnownOnesInOrder() {
         // `legacy_removed_tool` 在任何 build 里都不存在 —— 用它当“本 build 未定义的工具类型”的样本。
         // （曾用 `screen_time` 当样本，后来本 build 新增了该工具 → 样本变已知，测试就挂了。）

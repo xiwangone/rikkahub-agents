@@ -2373,6 +2373,16 @@
   <string name="chat_nerd_input_tokens">%1$s إدخال</string>
   <string name="chat_nerd_cached_hit">(%1$s إصابة · %2$s)</string>
   <string name="chat_nerd_output_tokens">%1$s إخراج</string>
+  <string name="chat_nerd_message_total">إجمالي الرسالة</string>
+  <string name="chat_nerd_latest_usage">آخر طلب: إدخال %1$s · إخراج %2$s</string>
+  <plurals name="chat_nerd_model_request_count">
+    <item quantity="zero">%1$d طلب نموذج</item>
+    <item quantity="one">طلب نموذج واحد</item>
+    <item quantity="two">طلبان نموذجيان</item>
+    <item quantity="few">%1$d طلبات نموذج</item>
+    <item quantity="many">%1$d طلب نموذج</item>
+    <item quantity="other">%1$d طلب نموذج</item>
+  </plurals>
   <string name="chat_msg_context_compacted">تم ضغط السياق</string>
   <string name="chat_msg_context_compacted_trigger">(%1$s)</string>
   <string name="chat_msg_pending_approval">بانتظار الموافقة: %1$s%2$s</string>
@@ -3754,6 +3764,7 @@
   <string name="vault_rename_sync_failed">فشل مزامنة المراجع. تم الاحتفاظ بكل من بيانات الاعتماد القديمة والجديدة، ولكن قد يتم تحديث بعض المراجع جزئيًا فقط. يرجى المراجعة قبل إزالة بيانات الاعتماد القديمة.%1$s</string>
   <string name="vault_rename_target_exists">توجد بالفعل بيانات اعتماد بهذا الاسم. لم يتم استبدال الهدف ولم يتم حذف المصدر.</string>
   <string name="tool_status_needs_approval">يتطلب موافقة</string>
+  <string name="tool_status_interrupted">تمت المقاطعة</string>
   <string name="tool_ui_skill_title">المهارة: %1$s</string>
   <string name="tool_ui_skill_path_title">المهارة: %1$s · %2$s</string>
   <string name="tool_ui_js_skill_title">مهارة JavaScript: %1$s</string>
@@ -4054,4 +4065,6 @@
   <string name="suixiang_provider_short_description">تحويل Claude وCodex وGemini وغيرها — رصيد شحن 1:1</string>
   <string name="ackai_provider_description">جميع نماذج الذكاء الاصطناعي الرئيسية متاحة! بلا VPN والسعر نصف الرسمي!\nالموقع:</string>
   <string name="unifyllm_provider_description">موقع مصدر موحد لمنصات تحويل LLM API\nالموقع:</string>
+  <string name="search_detail_tavily_include_answer">تضمين الإجابة</string>
+  <string name="search_detail_tavily_include_answer_desc">السماح لـ Tavily بإنشاء ملخص للإجابة إلى جانب نتائج البحث</string>
 </resources>

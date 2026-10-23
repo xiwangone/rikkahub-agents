@@ -809,13 +809,22 @@ object ModelRegistry {
         QWEN_MT
     )
 
+    @Volatile
+    private var modelsDevCatalog: ModelsDevCatalog? = null
+
+    /** Installs the bundled or cached models.dev catalog; null restores built-in-only lookup. */
+    fun installCatalog(catalog: ModelsDevCatalog?) {
+        modelsDevCatalog = catalog
+    }
+
     /**
-     * 能力解析口径（2026-10-02 改）：**内置登记表与外部目录取并集**。
+     * 能力解析口径：**人工强覆盖优先；其余能力由内置登记表、Bridge 外部目录与 models.dev 取并集**。
      *
      * 为什么不是“内置命中就完全跳过目录”：内置规则是 token 匹配且允许跳号，
      * 存在**宽泛规则吃掉新版本**的情况（实例：`mimo-v2` 会匹配 `mimo-v2.6-flash`，
      * 于是新版本沿用 v2 的能力、漏掉视觉）。目录来自公开模型目录、模态信息更精确，
-     * 取并集可避免“新模型漏标能力”，而内置表已有的能力不会被目录覆盖掉。
+     * 取并集可避免“新模型漏标能力”，而内置表已有的能力不会被目录覆盖掉。只有
+     * ModelCatalogBridge 的人工强覆盖命中时才直接采用覆盖值，以保留人工纠错能力。
      */
     val MODEL_INPUT_MODALITIES = ModelData { modelId ->
         val override = ModelCatalogBridge.overrideInputModalities(modelId)
@@ -826,6 +835,7 @@ object ModelRegistry {
             val merged = buildSet {
                 addAll(resolveModalities(modelId) { it.inputModalities })
                 addAll(ModelCatalogBridge.inputModalities(modelId).orEmpty())
+                addAll(modelsDevCatalog?.find(modelId)?.inputModalities.orEmpty())
             }
             listOf(Modality.TEXT, Modality.IMAGE).filter { it in merged }
         }
@@ -839,6 +849,7 @@ object ModelRegistry {
             val merged = buildSet {
                 addAll(resolveModalities(modelId) { it.outputModalities })
                 addAll(ModelCatalogBridge.outputModalities(modelId).orEmpty())
+                addAll(modelsDevCatalog?.find(modelId)?.outputModalities.orEmpty())
             }
             listOf(Modality.TEXT, Modality.IMAGE).filter { it in merged }
         }
@@ -852,13 +863,15 @@ object ModelRegistry {
             val merged = buildSet {
                 addAll(resolveModels(modelId).flatMap { it.abilities })
                 addAll(ModelCatalogBridge.abilities(modelId).orEmpty())
+                addAll(modelsDevCatalog?.find(modelId)?.abilities.orEmpty())
             }
             listOf(ModelAbility.TOOL, ModelAbility.REASONING).filter { it in merged }
         }
     }
 
     val MODEL_CONTEXT_LENGTH = ModelData { modelId ->
-        resolveModels(modelId).firstNotNullOfOrNull { it.contextLength }
+        modelsDevCatalog?.find(modelId)?.contextLength
+            ?: resolveModels(modelId).firstNotNullOfOrNull { it.contextLength }
     }
 
     private fun resolveModels(modelId: String): List<ModelDefinition> {

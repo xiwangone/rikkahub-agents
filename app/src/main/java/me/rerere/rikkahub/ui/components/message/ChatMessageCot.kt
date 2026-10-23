@@ -43,12 +43,22 @@ sealed interface ThinkingStep {
     ) : ThinkingStep
 }
 
+/** A stable, unique Compose key within one timeline, even for repeated or blank tool IDs. */
+internal fun timelineStepComposeKey(index: Int, step: ThinkingStep): String =
+    when (step) {
+        is ThinkingStep.ReasoningStep -> "reasoning:${step.reasoning.createdAt}:$index"
+        is ThinkingStep.ToolStep -> "tool:${step.tool.toolCallId}:$index"
+        is ThinkingStep.ServerToolStep -> "server-tool:${step.tool.toolCallId}:$index"
+    }
+
 /**
  * 消息部分块类型，用于保持渲染顺序
  */
 sealed interface MessagePartBlock {
     data class ThinkingBlock(
         val steps: List<ThinkingStep>,
+        /** Original message-part position, stable as streamed parts are appended. */
+        val startIndex: Int,
     ) : MessagePartBlock
 
     data class ContentBlock(
@@ -70,28 +80,35 @@ sealed interface MessagePartBlock {
 fun List<UIMessagePart>.groupMessageParts(): List<MessagePartBlock> {
     val result = mutableListOf<MessagePartBlock>()
     var pendingSteps = mutableListOf<ThinkingStep>()
+    var pendingStartIndex: Int? = null
+
+    fun appendStep(step: ThinkingStep, partIndex: Int) {
+        if (pendingSteps.isEmpty()) pendingStartIndex = partIndex
+        pendingSteps.add(step)
+    }
 
     fun flushSteps() {
         if (pendingSteps.isNotEmpty()) {
-            result.add(MessagePartBlock.ThinkingBlock(pendingSteps.toList()))
+            result.add(MessagePartBlock.ThinkingBlock(pendingSteps.toList(), pendingStartIndex!!))
             pendingSteps = mutableListOf()
+            pendingStartIndex = null
         }
     }
 
     this.fastForEachIndexed { index, part ->
         when (part) {
-            is UIMessagePart.Reasoning -> pendingSteps.add(ThinkingStep.ReasoningStep(part))
+            is UIMessagePart.Reasoning -> appendStep(ThinkingStep.ReasoningStep(part), index)
 
             is UIMessagePart.Tool -> {
                 if (part.isSuccessfulChartDisplay()) {
                     flushSteps()
                     result.add(MessagePartBlock.ChartBlock(part, index))
                 } else {
-                    pendingSteps.add(ThinkingStep.ToolStep(part))
+                    appendStep(ThinkingStep.ToolStep(part), index)
                 }
             }
 
-            is UIMessagePart.ServerTool -> pendingSteps.add(ThinkingStep.ServerToolStep(part))
+            is UIMessagePart.ServerTool -> appendStep(ThinkingStep.ServerToolStep(part), index)
 
             else -> {
                 flushSteps()
