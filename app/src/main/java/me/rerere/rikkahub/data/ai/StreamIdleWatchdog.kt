@@ -1,8 +1,9 @@
 package me.rerere.rikkahub.data.ai
 
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.launch
 import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
@@ -63,31 +64,34 @@ fun <T> Flow<T>.withIdleWatchdog(
     val firstChunkLimitMs = (idleMs * FIRST_CHUNK_BUDGET_FACTOR)
         .coerceAtMost(maxOf(idleMs, firstChunkMs))
         .coerceAtLeast(idleMs)
-    return channelFlow {
+    return flow {
         val lastChunkAt = AtomicLong(clock())
         val seenFirstChunk = AtomicBoolean(false)
-        val sentinel = launch {
-            while (true) {
-                delay(pollMs)
-                val awaitingFirstChunk = !seenFirstChunk.get()
-                val limit = if (awaitingFirstChunk) firstChunkLimitMs else idleMs
-                val idle = clock() - lastChunkAt.get()
-                if (idle > limit) {
-                    close(StreamIdleTimeoutException(idle, awaitingFirstChunk))
-                    return@launch
+        // 用 coroutineScope + 哨兵协程而不是 channelFlow：异常直接沿原 Flow 传播，
+        // 不经过 channel 中转，流内失败/取消的实例与 cause 链原样交给调用方。
+        coroutineScope {
+            val sentinel = launch {
+                while (true) {
+                    delay(pollMs)
+                    val awaitingFirstChunk = !seenFirstChunk.get()
+                    val limit = if (awaitingFirstChunk) firstChunkLimitMs else idleMs
+                    val idle = clock() - lastChunkAt.get()
+                    if (idle > limit) {
+                        throw StreamIdleTimeoutException(idle, awaitingFirstChunk)
+                    }
                 }
             }
-        }
-        try {
-            collect { chunk ->
-                if (!seenFirstChunk.get()) seenFirstChunk.set(true)
-                lastChunkAt.set(clock())
-                send(chunk)
+            try {
+                this@withIdleWatchdog.collect { chunk ->
+                    if (!seenFirstChunk.get()) seenFirstChunk.set(true)
+                    lastChunkAt.set(clock())
+                    emit(chunk)
+                }
+            } finally {
+                // 被包裹的 Flow 完成/异常时取消哨兵：coroutineScope 会等待子协程，
+                // while(true) 不退出则 collect 永远不结束
+                sentinel.cancel()
             }
-        } finally {
-            // 被包裹的 Flow 完成/异常时取消定时检查协程：producer scope 完成会等待子协程，
-            // while(true) 不退出则 collect 永远不结束，调用方 toList/collect 永挂
-            sentinel.cancel()
         }
     }
 }
