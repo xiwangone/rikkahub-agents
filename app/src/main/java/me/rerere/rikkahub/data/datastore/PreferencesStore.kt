@@ -1304,6 +1304,7 @@ data class DisplaySetting(
     val skipCropImage: Boolean = true,
     val enableNotificationOnMessageGeneration: Boolean = false,
     val enableLiveUpdateNotification: Boolean = false,
+    val enableFloatingChatWindow: Boolean = false,
     /**
      * 工具面裁剪（冷档空 schema 拦截 + 温档描述收敛）。
      *

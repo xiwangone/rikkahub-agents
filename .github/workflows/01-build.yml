@@ -107,16 +107,16 @@ jobs:
           key: webui-${{ hashFiles('web-ui/pnpm-lock.yaml', 'web-ui/package.json') }}
           restore-keys: webui-
 
-      - name: 执行真实慢分块 Flow 与工具重试边界 JVM 测试（不生成 Debug APK）
+      - name: 执行慢流、队列与浮窗策略 JVM 回归（不生成 Debug APK）
         run: |
           set -euo pipefail
           mkdir -p streaming-regression-results
           cp build-ref.txt streaming-regression-results/
           chmod +x gradlew
-          ./gradlew :app:testDebugUnitTest --tests 'me.rerere.rikkahub.data.ai.GenerationStreamProgressTest' --tests 'me.rerere.rikkahub.data.ai.StreamIdleWatchdogTest' --tests 'me.rerere.rikkahub.data.ai.PendingOutputFlushTest' --tests 'me.rerere.rikkahub.service.StreamUiUpdatePolicyTest' --no-configuration-cache --console=plain --max-workers=2 2>&1 | tee streaming-regression-results/gradle-streaming-tests.log
+          ./gradlew :app:testDebugUnitTest --tests 'me.rerere.rikkahub.data.ai.GenerationStreamProgressTest' --tests 'me.rerere.rikkahub.data.ai.StreamIdleWatchdogTest' --tests 'me.rerere.rikkahub.data.ai.PendingOutputFlushTest' --tests 'me.rerere.rikkahub.service.StreamUiUpdatePolicyTest' --tests 'me.rerere.rikkahub.data.model.GenerationPhaseTest' --tests 'me.rerere.rikkahub.service.ChatMessageQueuePolicyTest' --tests 'me.rerere.rikkahub.service.FloatingOverlayPolicyTest' --no-configuration-cache --console=plain --max-workers=2 2>&1 | tee streaming-regression-results/gradle-streaming-tests.log
           python3 - <<'PY'
           import glob, json, xml.etree.ElementTree as ET
-          patterns = ('*GenerationStreamProgressTest*', '*StreamIdleWatchdogTest*', '*PendingOutputFlushTest*', '*StreamUiUpdatePolicyTest*')
+          patterns = ('*GenerationStreamProgressTest*', '*StreamIdleWatchdogTest*', '*PendingOutputFlushTest*', '*StreamUiUpdatePolicyTest*', '*GenerationPhaseTest*', '*ChatMessageQueuePolicyTest*', '*FloatingOverlayPolicyTest*')
           matches = {pattern: glob.glob('app/build/test-results/testDebugUnitTest/TEST-' + pattern + '.xml') for pattern in patterns}
           assert all(matches.values()), matches
           files = [file for matched in matches.values() for file in matched]
@@ -143,6 +143,9 @@ jobs:
             app/build/test-results/testDebugUnitTest/TEST-*StreamIdleWatchdogTest*.xml
             app/build/test-results/testDebugUnitTest/TEST-*PendingOutputFlushTest*.xml
             app/build/test-results/testDebugUnitTest/TEST-*StreamUiUpdatePolicyTest*.xml
+            app/build/test-results/testDebugUnitTest/TEST-*GenerationPhaseTest*.xml
+            app/build/test-results/testDebugUnitTest/TEST-*ChatMessageQueuePolicyTest*.xml
+            app/build/test-results/testDebugUnitTest/TEST-*FloatingOverlayPolicyTest*.xml
           retention-days: 14
           if-no-files-found: ignore
 

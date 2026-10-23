@@ -115,6 +115,7 @@ import me.rerere.rikkahub.data.model.localFileUrls
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.model.toMessageNode
+import me.rerere.rikkahub.data.model.generationPhase
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
@@ -495,13 +496,19 @@ class ChatService(
             }
         }
 
+    private val floatingOverlayController by lazy(LazyThreadSafetyMode.NONE) {
+        ChatFloatingOverlayController(context, appScope, settingsStore, this)
+    }
+
     init {
         ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+        floatingOverlayController.start()
     }
 
     fun cleanup() =
         runCatching {
             ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
+            floatingOverlayController.close()
             sessions.values.forEach { it.cleanup() }
             sessions.clear()
             sessionMutexes.clear()
@@ -665,6 +672,11 @@ class ChatService(
 
     fun getConversationFlow(conversationId: Uuid): StateFlow<Conversation> = getOrCreateSession(conversationId).state
 
+    /** Reacquired overlay sessions may have been evicted while permission was absent. */
+    internal suspend fun hydrateFloatingConversation(conversationId: Uuid) {
+        ensureHydrated(conversationId)
+    }
+
     fun getGenerationJobStateFlow(conversationId: Uuid): Flow<Job?> {
         val session = sessions[conversationId] ?: return flowOf(null)
         return session.generationJob
@@ -674,6 +686,12 @@ class ChatService(
         val session = sessions[conversationId] ?: return MutableStateFlow(null)
         return session.processingStatus
     }
+
+    fun getFloatingReplyMessageIdFlow(conversationId: Uuid): StateFlow<Uuid?> =
+        getOrCreateSession(conversationId).floatingReplyMessageId
+
+    fun getFloatingGenerationStartedAtFlow(conversationId: Uuid): StateFlow<Long?> =
+        getOrCreateSession(conversationId).floatingGenerationStartedAt
 
     fun getConversationJobs(): Flow<Map<Uuid, Job?>> =
         _sessionsVersion.flatMapLatest {
@@ -726,7 +744,15 @@ class ChatService(
         // 生成中再次发送：入队而不是打断当前生成，待本轮结束后按序发出。
         // 这样「发送键在生成中依然可用」，用户无需等待或手动停止。
         val session = getOrCreateSession(conversationId)
-        if (session.getJob()?.isActive == true) {
+        val hasPendingTools = session.state.value.messageNodes.any { node ->
+            node.currentMessage.getTools().any { it.isPending }
+        }
+        if (shouldQueueChatMessage(
+                isGenerating = session.getJob()?.isActive == true,
+                hasPendingTools = hasPendingTools,
+                queuePaused = messageQueues[conversationId]?.state?.value?.paused == true,
+            )
+        ) {
             messageQueues.getOrPut(conversationId) { MessageQueue() }.enqueue(content, answer)
             AppLog.i(
                 TAG,
@@ -796,6 +822,8 @@ class ChatService(
             appScope.launch {
                 try {
                     runCatching { previousJob?.join() }
+                    // Do not let a final chunk from the replaced job overwrite this turn's binding.
+                    session.beginFloatingTurn()
                     finishInterruptedPendingTools(conversationId)
                     // 被「新消息」打断的上一轮不走 stopGeneration，此前从不落库：
                     // 内容只存在内存，会话一旦重建/刷新就整轮消失（工具还会被重放改成「拒绝」）。
@@ -995,15 +1023,17 @@ class ChatService(
             }
 
         // Inject synthetic assistant message into the conversation.
+        val fastReply = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(UIMessagePart.Text(rendered)),
+        )
         val withAssistant =
             afterUserSave.copy(
                 messageNodes =
                     afterUserSave.messageNodes +
-                        UIMessage(
-                            role = MessageRole.ASSISTANT,
-                            parts = listOf(UIMessagePart.Text(rendered)),
-                        ).toMessageNode(),
+                        fastReply.toMessageNode(),
             )
+        getOrCreateSession(conversationId).recordFloatingReply(fastReply.id)
         saveConversation(conversationId, withAssistant)
         me.rerere.rikkahub.skills.FastPathRouterLog.record(
             me.rerere.rikkahub.skills.FastPathRouterLog.Entry(
@@ -1049,11 +1079,14 @@ class ChatService(
         regenerateAssistantMsg: Boolean = true,
     ) {
         val session = getOrCreateSession(conversationId)
-        session.getJob()?.cancel()
+        val previousJob = session.getJob()
+        previousJob?.cancel()
 
         val job =
             appScope.launch {
                 try {
+                    previousJob?.join()
+                    session.beginFloatingTurn()
                     val conversation = session.state.value
 
                     // Locate the message's node up front. indexOf returns -1 when the node is no
@@ -1412,6 +1445,9 @@ class ChatService(
             // 节流窗口内被跳过的最后一次快照：流结束时必须补一次提交，
             // 否则尾部内容既不会进内存态也不会落盘（只有后续数据块才会覆盖它）。
             var pendingUiConversation: Conversation? = null
+            // Capture the assistant emitted by this invocation; session state may already be reset
+            // if another turn starts before completion handling runs.
+            var floatingReplyMessageId: Uuid? = null
             generationLoop
                 .generateText(
                     settings = settings,
@@ -1563,7 +1599,29 @@ class ChatService(
 
                     // Show notification if app is not in foreground
                     if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
-                        notificationHelper.sendGenerationDoneNotification(conversationId, senderName)
+                        val replyId = floatingReplyMessageId
+                        val reply =
+                            replyId?.let { wanted ->
+                                updatedConversation.messageNodes.asSequence()
+                                    .flatMap { it.messages.asSequence() }
+                                    .firstOrNull { it.id == wanted && it.role == MessageRole.ASSISTANT }
+                            }
+                        val phase = reply?.generationPhase() ?: me.rerere.rikkahub.data.model.GenerationPhase.Waiting
+                        when (
+                            me.rerere.rikkahub.data.model.completionNotification(
+                                completedNormally = cause == null,
+                                hasCurrentTurnReply = replyId != null && reply != null,
+                                phase = phase,
+                            )
+                        ) {
+                            me.rerere.rikkahub.data.model.CompletionNotification.COMPLETED ->
+                                notificationHelper.sendGenerationDoneNotification(conversationId, senderName, replyId!!)
+                            me.rerere.rikkahub.data.model.CompletionNotification.NEEDS_APPROVAL ->
+                                notificationHelper.sendNeedsApprovalNotification(conversationId, senderName, replyId!!)
+                            me.rerere.rikkahub.data.model.CompletionNotification.NEEDS_ANSWER ->
+                                notificationHelper.sendNeedsAnswerNotification(conversationId, senderName, replyId!!)
+                            me.rerere.rikkahub.data.model.CompletionNotification.NONE -> Unit
+                        }
                     } else if (isForeground.value) {
                         // 用户正在前台查看该会话，无通知意义；清掉残留的旧通知
                         notificationHelper.cancelLiveUpdateNotification(conversationId)
@@ -1579,6 +1637,13 @@ class ChatService(
                         }
 
                         is GenerationChunk.Messages -> {
+                            // Bind the floating surface to the assistant message emitted by
+                            // this run. The conversation tail can belong to a different branch
+                            // when regenerating an older message.
+                            chunk.messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.let {
+                                floatingReplyMessageId = it.id
+                                getOrCreateSession(conversationId).recordFloatingReply(it.id)
+                            }
                             val currentConversation = getConversationFlow(conversationId).value
                             val completedToolOutput = hasCompletedToolOutput(
                                 currentConversation.currentMessages,
