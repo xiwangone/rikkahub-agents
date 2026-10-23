@@ -738,7 +738,15 @@ class ChatService(
         // 生成中再次发送：入队而不是打断当前生成，待本轮结束后按序发出。
         // 这样「发送键在生成中依然可用」，用户无需等待或手动停止。
         val session = getOrCreateSession(conversationId)
-        if (session.getJob()?.isActive == true) {
+        val hasPendingTools = session.state.value.messageNodes.any { node ->
+            node.currentMessage.getTools().any { it.isPending }
+        }
+        if (shouldQueueChatMessage(
+                isGenerating = session.getJob()?.isActive == true,
+                hasPendingTools = hasPendingTools,
+                queuePaused = messageQueues[conversationId]?.state?.value?.paused == true,
+            )
+        ) {
             messageQueues.getOrPut(conversationId) { MessageQueue() }.enqueue(content, answer)
             AppLog.i(
                 TAG,
@@ -793,7 +801,6 @@ class ChatService(
         )
 
         val session = getOrCreateSession(conversationId)
-        session.beginFloatingTurn()
         val previousJob = session.getJob()
         if (previousJob?.isActive == true) {
             AppLog.i(
@@ -809,6 +816,8 @@ class ChatService(
             appScope.launch {
                 try {
                     runCatching { previousJob?.join() }
+                    // Do not let a final chunk from the replaced job overwrite this turn's binding.
+                    session.beginFloatingTurn()
                     finishInterruptedPendingTools(conversationId)
                     // 被「新消息」打断的上一轮不走 stopGeneration，此前从不落库：
                     // 内容只存在内存，会话一旦重建/刷新就整轮消失（工具还会被重放改成「拒绝」）。
@@ -1008,15 +1017,17 @@ class ChatService(
             }
 
         // Inject synthetic assistant message into the conversation.
+        val fastReply = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(UIMessagePart.Text(rendered)),
+        )
         val withAssistant =
             afterUserSave.copy(
                 messageNodes =
                     afterUserSave.messageNodes +
-                        UIMessage(
-                            role = MessageRole.ASSISTANT,
-                            parts = listOf(UIMessagePart.Text(rendered)),
-                        ).toMessageNode(),
+                        fastReply.toMessageNode(),
             )
+        getOrCreateSession(conversationId).recordFloatingReply(fastReply.id)
         saveConversation(conversationId, withAssistant)
         me.rerere.rikkahub.skills.FastPathRouterLog.record(
             me.rerere.rikkahub.skills.FastPathRouterLog.Entry(
@@ -1062,12 +1073,14 @@ class ChatService(
         regenerateAssistantMsg: Boolean = true,
     ) {
         val session = getOrCreateSession(conversationId)
-        session.beginFloatingTurn()
-        session.getJob()?.cancel()
+        val previousJob = session.getJob()
+        previousJob?.cancel()
 
         val job =
             appScope.launch {
                 try {
+                    previousJob?.join()
+                    session.beginFloatingTurn()
                     val conversation = session.state.value
 
                     // Locate the message's node up front. indexOf returns -1 when the node is no
