@@ -12,6 +12,8 @@ import me.rerere.rikkahub.CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.GenerationPhase
+import me.rerere.rikkahub.data.model.generationPhase
 import me.rerere.rikkahub.utils.cancelNotification
 import me.rerere.rikkahub.utils.sendNotification
 import kotlin.uuid.Uuid
@@ -91,65 +93,37 @@ internal class ChatNotificationHelper(
     }
 
     private fun determineNotificationContent(parts: List<UIMessagePart>): Triple<String, String, String> {
-        // 检查最近的 part 来确定状态：倒序扫描一次即可拿到各类 part 的最后一项，
-        // 原先三次 filterIsInstance 每次都会新建列表，在长回复下被逐块调用开销明显。
-        var lastReasoning: UIMessagePart.Reasoning? = null
-        var lastTool: UIMessagePart.Tool? = null
-        var lastText: UIMessagePart.Text? = null
-        for (index in parts.indices.reversed()) {
-            when (val part = parts[index]) {
-                is UIMessagePart.Reasoning -> if (lastReasoning == null) lastReasoning = part
-                is UIMessagePart.Tool -> if (lastTool == null) lastTool = part
-                is UIMessagePart.Text -> if (lastText == null) lastText = part
-                else -> {}
-            }
-            if (lastReasoning != null && lastTool != null && lastText != null) break
-        }
-
-        return when {
-            // 正在执行工具
-            lastTool != null && !lastTool.isExecuted -> {
-                // MCP tools are exposed as `mcp__<serverSlug>_<serverName>__<toolName>`; strip
-                // both the prefix and the server segment so the notification shows the bare tool
-                // name. Non-MCP tool names (no `mcp__` prefix) fall through unchanged via the
-                // missingDelimiterValue, instead of being truncated at an embedded `__`.
-                val toolName =
-                    lastTool.toolName
-                        .removePrefix("mcp__")
-                        .substringAfter("__", missingDelimiterValue = lastTool.toolName.removePrefix("mcp__"))
-                Triple(
-                    context.getString(R.string.notification_live_update_chip_tool),
-                    context.getString(R.string.notification_live_update_tool, toolName),
-                    lastTool.input.take(100),
-                )
-            }
-
-            // 正在思考（Reasoning 未结束）
-            lastReasoning != null && lastReasoning.finishedAt == null -> {
-                Triple(
-                    context.getString(R.string.notification_live_update_chip_thinking),
-                    context.getString(R.string.notification_live_update_thinking),
-                    lastReasoning.reasoning.takeLast(200),
-                )
-            }
-
-            // 正在写回复
-            lastText != null -> {
-                Triple(
-                    context.getString(R.string.notification_live_update_chip_writing),
-                    context.getString(R.string.notification_live_update_writing),
-                    lastText.text.takeLast(200),
-                )
-            }
-
-            // 默认状态
-            else -> {
-                Triple(
-                    context.getString(R.string.notification_live_update_chip_writing),
-                    context.getString(R.string.notification_live_update_title),
-                    "",
-                )
-            }
+        return when (val phase = parts.generationPhase()) {
+            is GenerationPhase.AwaitingApproval -> Triple(
+                context.getString(R.string.notification_live_update_chip_tool),
+                context.getString(R.string.floating_chat_tool_needs_approval),
+                phase.toolName,
+            )
+            is GenerationPhase.AwaitingAnswer -> Triple(
+                context.getString(R.string.notification_live_update_chip_tool),
+                context.getString(R.string.floating_chat_answer),
+                phase.input.take(100),
+            )
+            is GenerationPhase.RunningTool -> Triple(
+                context.getString(R.string.notification_live_update_chip_tool),
+                context.getString(R.string.notification_live_update_tool, phase.toolName),
+                phase.input.take(100),
+            )
+            is GenerationPhase.Thinking -> Triple(
+                context.getString(R.string.notification_live_update_chip_thinking),
+                context.getString(R.string.notification_live_update_thinking),
+                phase.reasoning.takeLast(200),
+            )
+            is GenerationPhase.Writing -> Triple(
+                context.getString(R.string.notification_live_update_chip_writing),
+                context.getString(R.string.notification_live_update_writing),
+                phase.text.takeLast(200),
+            )
+            GenerationPhase.Waiting -> Triple(
+                context.getString(R.string.notification_live_update_chip_writing),
+                context.getString(R.string.notification_live_update_title),
+                "",
+            )
         }
     }
 
