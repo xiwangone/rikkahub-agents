@@ -340,7 +340,7 @@ internal class ChatFloatingOverlayController(
     }
 
     private fun switchSession() {
-        val ids = previousJobs.toList()
+        val ids = previousJobs.sorted()
         if (ids.size < 2) return
         val current = targetId?.toString()
         val next = ids[(ids.indexOf(current).let { if (it < 0) -1 else it } + 1) % ids.size]
