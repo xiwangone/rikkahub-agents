@@ -346,6 +346,8 @@ internal class ChatFloatingOverlayController(
             }
         bubble = icon
         val owner = FloatingWindowLifecycleOwner().also { windowLifecycleOwner = it }
+        frame.setViewTreeLifecycleOwner(owner)
+        frame.setViewTreeSavedStateRegistryOwner(owner)
         val compose =
             ComposeView(overlayContext).apply {
                 setViewCompositionStrategy(ViewCompositionStrategy.DisposeOnDetachedFromWindow)
