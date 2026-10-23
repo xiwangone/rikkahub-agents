@@ -99,10 +99,13 @@ class GenerationStreamProgressTest {
                 }
             }.collect()
         } catch(t: Throwable) {terminal=t}
-        // 协程取消语义：父作用域可能拿到 JobCancellationException，原异常在它的 cause 里
+        // 父作用域可能拿到：原实例 / 包裹它的取消异常 / 同类型同消息的副本（协程边界行为）
+        val followedFailure = terminal === failure ||
+            (terminal is CancellationException && terminal.cause === failure) ||
+            (terminal != null && terminal.javaClass == failure.javaClass && terminal.message == failure.message)
         assertTrue(
-            "terminal 应为原异常或包裹它的取消异常（带原 cause），实际: ${terminal?.javaClass?.name}",
-            terminal === failure || (terminal is CancellationException && terminal.cause === failure),
+            "terminal 应为原异常、包裹它的取消异常，或同类型同消息的失败，实际: ${terminal?.javaClass?.name}",
+            followedFailure,
         )
         assertNotNull(cleanup)
         assertSame(failure,cleanup?.cause)
