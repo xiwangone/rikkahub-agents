@@ -33,6 +33,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.generationPhase
+import me.rerere.rikkahub.ui.components.message.groupMessageParts
 import me.rerere.rikkahub.ui.floating.FloatingChatWindow
 import me.rerere.rikkahub.ui.floating.FloatingToolAction
 import me.rerere.rikkahub.ui.floating.FloatingWindowLifecycleOwner
@@ -466,13 +467,7 @@ internal class ChatFloatingOverlayController(
                 else -> overlayContext.getString(R.string.floating_chat_waiting)
             }
         val elapsed = snapshot.startedAt?.let { ((System.currentTimeMillis() - it).coerceAtLeast(0) / 1000).toInt() }
-        val steps =
-            reply
-                ?.parts
-                ?.filter { it is UIMessagePart.Tool || it is UIMessagePart.Reasoning }
-                ?.takeLast(
-                    8,
-                ).orEmpty()
+        val steps = reply?.parts?.groupMessageParts().orEmpty()
         val tools =
             reply
                 ?.parts

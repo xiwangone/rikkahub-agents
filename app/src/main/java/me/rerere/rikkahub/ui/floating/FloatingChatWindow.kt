@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.ui.floating
 
+import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Arrangement
@@ -30,12 +32,17 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.ui.components.message.MessagePartBlock
+import me.rerere.rikkahub.ui.components.message.ThinkingStep
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.rememberCurrentColorMode
@@ -60,7 +67,7 @@ internal data class FloatingWindowState(
     val status: String,
     val reply: UIMessage?,
     val elapsedLabel: String?,
-    val steps: List<UIMessagePart>,
+    val steps: List<MessagePartBlock>,
     val queuedLabel: String,
     val queuePaused: Boolean,
     val multiSession: Boolean,
@@ -93,6 +100,22 @@ internal fun FloatingChatWindow(
             ColorMode.DARK -> true
         }
     val context = LocalContext.current
+    val uriHandler =
+        remember(context) {
+            object : UriHandler {
+                override fun openUri(uri: String) {
+                    runCatching {
+                        val target = Uri.parse(uri)
+                        val scheme = target.scheme?.lowercase()
+                        if ((scheme == "http" || scheme == "https") && !target.host.isNullOrBlank()) {
+                            context.applicationContext.startActivity(
+                                Intent(Intent.ACTION_VIEW, target).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+                            )
+                        }
+                    }
+                }
+            }
+        }
     val appTheme =
         remember(settings.themeId, settings.customThemes, settings.dynamicColor, dark) {
             when {
@@ -117,6 +140,7 @@ internal fun FloatingChatWindow(
         LocalSettings provides settings,
         LocalDarkMode provides dark,
         LocalExtendColors provides if (dark) darkExtendColors() else lightExtendColors(),
+        LocalUriHandler provides uriHandler,
     ) {
         MaterialExpressiveTheme(
             colorScheme = appTheme,
@@ -170,25 +194,154 @@ internal fun FloatingChatWindow(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        val text =
-                            state.reply
-                                ?.parts
-                                ?.filterIsInstance<UIMessagePart.Text>()
-                                ?.joinToString("\n\n") {
-                                    it.text
-                                }?.takeIf(String::isNotBlank)
-                        if (text != null) {
-                            Surface(
-                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
-                                shape = RoundedCornerShape(16.dp),
-                            ) {
-                                MarkdownBlock(content = text, modifier = Modifier.fillMaxWidth().padding(10.dp))
-                            }
-                        } else if (state.reply == null) {
+                        if (state.reply == null) {
                             Text(
                                 stringResource(R.string.floating_chat_no_reply),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
+                        }
+                        state.steps.forEach { block ->
+                            when (block) {
+                                is MessagePartBlock.ContentBlock -> {
+                                    when (val part = block.part) {
+                                        is UIMessagePart.Text ->
+                                            Surface(
+                                                color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                                                shape = RoundedCornerShape(16.dp),
+                                            ) {
+                                                MarkdownBlock(
+                                                    content = part.text,
+                                                    modifier = Modifier.fillMaxWidth().padding(10.dp),
+                                                )
+                                            }
+                                        // Media cards are intentionally not embedded in this background-only surface.
+                                        else -> Unit
+                                    }
+                                }
+                                is MessagePartBlock.ThinkingBlock ->
+                                    block.steps.forEach { step ->
+                                        when (step) {
+                                            is ThinkingStep.ReasoningStep -> {
+                                                val reasoning = step.reasoning.reasoning
+                                                if (reasoning.isNotBlank()) {
+                                                    Surface(
+                                                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                                        shape = RoundedCornerShape(12.dp),
+                                                    ) {
+                                                        Column(Modifier.fillMaxWidth().padding(10.dp)) {
+                                                            Text(
+                                                                stringResource(R.string.floating_chat_thinking),
+                                                                style = MaterialTheme.typography.labelMedium,
+                                                                color = MaterialTheme.colorScheme.secondary,
+                                                            )
+                                                            MarkdownBlock(
+                                                                content = reasoning,
+                                                                modifier = Modifier.padding(top = 4.dp),
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            is ThinkingStep.ToolStep -> {
+                                                val tool = step.tool
+                                                val label =
+                                                    when {
+                                                        tool.isPending && tool.toolName == "ask_user" ->
+                                                            stringResource(R.string.floating_chat_needs_answer)
+                                                        tool.isPending ->
+                                                            stringResource(
+                                                                R.string.floating_chat_tool_needs_approval,
+                                                            )
+                                                        else -> stringResource(R.string.floating_chat_tool_step)
+                                                    }
+                                                Surface(
+                                                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                                    shape = RoundedCornerShape(12.dp),
+                                                ) {
+                                                    Column(Modifier.fillMaxWidth().padding(10.dp)) {
+                                                        Text(
+                                                            "$label · ${tool.toolName}",
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                            color = MaterialTheme.colorScheme.secondary,
+                                                        )
+                                                        val detail =
+                                                            tool.output
+                                                                .filterIsInstance<UIMessagePart.Text>()
+                                                                .joinToString("\n") { it.text }
+                                                                .ifBlank { tool.input }
+                                                        if (detail.isNotBlank()) {
+                                                            Text(
+                                                                detail.take(500),
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                            is ThinkingStep.ServerToolStep -> {
+                                                val tool = step.tool
+                                                val status =
+                                                    when (tool.status) {
+                                                        ServerToolStatus.IN_PROGRESS ->
+                                                            stringResource(
+                                                                R.string.chat_server_tool_in_progress,
+                                                            )
+                                                        ServerToolStatus.COMPLETED ->
+                                                            stringResource(
+                                                                R.string.chat_server_tool_completed,
+                                                            )
+                                                        ServerToolStatus.FAILED ->
+                                                            stringResource(
+                                                                R.string.chat_server_tool_failed,
+                                                            )
+                                                    }
+                                                Surface(
+                                                    color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                                    shape = RoundedCornerShape(12.dp),
+                                                ) {
+                                                    Column(Modifier.fillMaxWidth().padding(10.dp)) {
+                                                        Text(
+                                                            "${tool.toolName} · $status",
+                                                            style = MaterialTheme.typography.labelMedium,
+                                                            color = MaterialTheme.colorScheme.secondary,
+                                                        )
+                                                        tool.input?.let {
+                                                            Text(
+                                                                it.toString().take(300),
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                            )
+                                                        }
+                                                        tool.output?.let {
+                                                            Text(
+                                                                it.toString().take(300),
+                                                                style = MaterialTheme.typography.bodySmall,
+                                                            )
+                                                        }
+                                                    }
+                                                }
+                                            }
+                                        }
+                                    }
+                                is MessagePartBlock.ChartBlock -> {
+                                    Surface(
+                                        color = MaterialTheme.colorScheme.surfaceContainerLow,
+                                        shape = RoundedCornerShape(12.dp),
+                                    ) {
+                                        Column(Modifier.fillMaxWidth().padding(10.dp)) {
+                                            Text(block.tool.toolName, style = MaterialTheme.typography.labelMedium)
+                                            if (block.tool.input.isNotBlank()) {
+                                                Text(
+                                                    block.tool.input.take(500),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                )
+                                            }
+                                            TextButton(onClick = onOpen) {
+                                                Text(stringResource(R.string.floating_chat_open_session))
+                                            }
+                                        }
+                                    }
+                                }
+                            }
                         }
                         state.reply?.usage?.let { usage ->
                             Text(
@@ -201,63 +354,6 @@ internal fun FloatingChatWindow(
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
-                        }
-                        state.steps.forEach { part ->
-                            when (part) {
-                                is UIMessagePart.Reasoning ->
-                                    if (part.reasoning.isNotBlank()) {
-                                        Surface(
-                                            color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                            shape = RoundedCornerShape(12.dp),
-                                        ) {
-                                            Column(Modifier.fillMaxWidth().padding(10.dp)) {
-                                                Text(
-                                                    stringResource(R.string.floating_chat_thinking),
-                                                    style = MaterialTheme.typography.labelMedium,
-                                                    color = MaterialTheme.colorScheme.secondary,
-                                                )
-                                                MarkdownBlock(
-                                                    content = part.reasoning,
-                                                    modifier = Modifier.padding(top = 4.dp),
-                                                )
-                                            }
-                                        }
-                                    }
-                                is UIMessagePart.Tool -> {
-                                    val label =
-                                        if (part.isPending) {
-                                            stringResource(
-                                                R.string.floating_chat_tool_needs_approval,
-                                            )
-                                        } else {
-                                            stringResource(R.string.floating_chat_tool_step)
-                                        }
-                                    Surface(
-                                        color = MaterialTheme.colorScheme.surfaceContainerLow,
-                                        shape = RoundedCornerShape(12.dp),
-                                    ) {
-                                        Column(Modifier.fillMaxWidth().padding(10.dp)) {
-                                            Text(
-                                                "$label · ${part.toolName}",
-                                                style = MaterialTheme.typography.labelMedium,
-                                                color = MaterialTheme.colorScheme.secondary,
-                                            )
-                                            val detail =
-                                                part.output
-                                                    .filterIsInstance<UIMessagePart.Text>()
-                                                    .joinToString("\n") { it.text }
-                                                    .ifBlank { part.input }
-                                            if (detail.isNotBlank()) {
-                                                Text(
-                                                    detail.take(500),
-                                                    style = MaterialTheme.typography.bodySmall,
-                                                )
-                                            }
-                                        }
-                                    }
-                                }
-                                else -> Unit
-                            }
                         }
                         state.tools.forEach { tool ->
                             Surface(
