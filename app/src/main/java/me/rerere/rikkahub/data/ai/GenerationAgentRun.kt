@@ -173,7 +173,15 @@ internal class GenerationAgentRun(
      */
     // 有意 catch Throwable：降级/重试要按失败原因分流；取消用类型判断单独上抛（降级判定本身需要先拿到异常对象，
     // 无法用多 catch 表达顺序）。
-    @Suppress("TooGenericExceptionCaught", "InstanceOfCheckForException")
+    // CyclomaticComplexMethod/NestedBlockDepth：单轮生成的分支由协议差异与降级策略共同决定，拆函数会让同一次失败被多处裁定；
+    // ThrowingExceptionFromFinally：收尾阶段必须把已锁存的投递失败上抛，否则会被静默吞掉。
+    @Suppress(
+        "TooGenericExceptionCaught",
+        "InstanceOfCheckForException",
+        "CyclomaticComplexMethod",
+        "NestedBlockDepth",
+        "ThrowingExceptionFromFinally",
+    )
     suspend fun start() {
         while (true) {
             val requestStartedAtMs = android.os.SystemClock.elapsedRealtime()

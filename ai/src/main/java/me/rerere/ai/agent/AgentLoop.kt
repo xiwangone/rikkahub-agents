@@ -157,7 +157,8 @@ internal class AgentLoop(
 
     // 合并失败保留原有包装；下游投递失败由 events 单独锁存并禁止重试。
     // 外层再解包 throw e.cause!! 抛原始异常（cause 不会丢失）。
-    @Suppress("TooGenericExceptionCaught", "SwallowedException")
+    // InstanceOfCheckForException：需要先拿异常对象再判类型（区分“合并失败包装”与原始失败），无法用多 catch 表达。
+    @Suppress("TooGenericExceptionCaught", "SwallowedException", "InstanceOfCheckForException")
     private suspend fun stream(
         messages: List<UIMessage>,
         params: TextGenerationParams,
