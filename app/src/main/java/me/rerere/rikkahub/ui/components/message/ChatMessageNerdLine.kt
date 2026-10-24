@@ -5,8 +5,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,11 +51,17 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.PopupPositionProvider
 import kotlinx.coroutines.launch
 import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.ui.UIMessage
@@ -134,10 +144,64 @@ fun ChatMessageNerdLine(
                         stringResource(
                             if (tooltipVisible) R.string.chat_message_usage_expanded else R.string.chat_message_usage_collapsed,
                         )
+                    val density = LocalDensity.current
+                    val configuration = LocalConfiguration.current
+                    val layoutDirection = LocalLayoutDirection.current
+                    val windowInfo = LocalWindowInfo.current
+                    val safeInsets = WindowInsets.safeDrawing
+                    val leftInset = safeInsets.getLeft(density, layoutDirection)
+                    val topInset = safeInsets.getTop(density)
+                    val rightInset = safeInsets.getRight(density, layoutDirection)
+                    val bottomInset = safeInsets.getBottom(density)
+                    val screenWidth =
+                        windowInfo.containerSize.width.takeIf { it > 0 }
+                            ?: with(density) { configuration.screenWidthDp.dp.roundToPx() }
+                    val screenHeight =
+                        windowInfo.containerSize.height.takeIf { it > 0 }
+                            ?: with(density) { configuration.screenHeightDp.dp.roundToPx() }
+                    val edgeMarginPx = with(density) { 8.dp.roundToPx() }
+                    val safeLeft = leftInset + edgeMarginPx
+                    val safeTop = topInset + edgeMarginPx
+                    val safeRight = (screenWidth - rightInset - edgeMarginPx).coerceAtLeast(safeLeft)
+                    val safeBottom = (screenHeight - bottomInset - edgeMarginPx).coerceAtLeast(safeTop)
+                    val maxTooltipWidth = with(density) { (safeRight - safeLeft).toDp() }
+                    val maxTooltipHeight = with(density) { (safeBottom - safeTop).toDp() }
+                    val maxDetailsHeight = (maxTooltipHeight - 88.dp).coerceAtLeast(0.dp)
+                    val defaultPositionProvider =
+                        TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above)
+                    val safePositionProvider =
+                        remember(defaultPositionProvider, safeLeft, safeTop, safeRight, safeBottom) {
+                            object : PopupPositionProvider {
+                                override fun calculatePosition(
+                                    anchorBounds: androidx.compose.ui.unit.IntRect,
+                                    windowSize: androidx.compose.ui.unit.IntSize,
+                                    layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+                                    popupContentSize: androidx.compose.ui.unit.IntSize,
+                                ): IntOffset {
+                                    val preferred =
+                                        defaultPositionProvider.calculatePosition(
+                                            anchorBounds,
+                                            windowSize,
+                                            layoutDirection,
+                                            popupContentSize,
+                                        )
+                                    val maxX = (safeRight - popupContentSize.width).coerceAtLeast(safeLeft)
+                                    val maxY = (safeBottom - popupContentSize.height).coerceAtLeast(safeTop)
+                                    return IntOffset(
+                                        x = preferred.x.coerceIn(safeLeft, maxX),
+                                        y = preferred.y.coerceIn(safeTop, maxY),
+                                    )
+                                }
+                            }
+                        }
                     TooltipBox(
-                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                        positionProvider = safePositionProvider,
                         tooltip = {
                             RichTooltip(
+                                modifier =
+                                    Modifier
+                                        .widthIn(max = maxTooltipWidth)
+                                        .heightIn(max = maxTooltipHeight),
                                 title = { Text(stringResource(R.string.chat_message_usage_title)) },
                             ) {
                                 MessageUsageDetails(
@@ -146,6 +210,8 @@ fun ChatMessageNerdLine(
                                     multipleModelRequestCount = usagePresentation.multipleModelRequestCount,
                                     contextWindowTokens = contextWindowTokens,
                                     durationMillis = detailsDurationMillis,
+                                    maxWidth = maxTooltipWidth,
+                                    maxHeight = maxDetailsHeight,
                                 )
                             }
                         },

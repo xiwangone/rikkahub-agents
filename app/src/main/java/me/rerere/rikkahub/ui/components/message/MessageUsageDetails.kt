@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
@@ -31,6 +32,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.style.TextAlign
 import me.rerere.ai.core.TokenUsage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.utils.formatK
@@ -47,6 +49,8 @@ internal fun MessageUsageDetails(
     multipleModelRequestCount: Int?,
     contextWindowTokens: Long?,
     durationMillis: Long?,
+    maxWidth: androidx.compose.ui.unit.Dp,
+    maxHeight: androidx.compose.ui.unit.Dp,
 ) {
     val latest = latestRequestUsage
     val latestCached = latest?.let { it.cachedTokens.coerceIn(0, it.promptTokens.coerceAtLeast(0)) } ?: 0
@@ -62,7 +66,8 @@ internal fun MessageUsageDetails(
         modifier =
             Modifier
                 .widthIn(max = 360.dp)
-                .heightIn(max = 420.dp)
+                .widthIn(max = maxWidth)
+                .heightIn(max = maxHeight)
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 2.dp, vertical = 4.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -320,16 +325,38 @@ private fun UsageDetailRow(
     label: String,
     value: String,
 ) {
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Text(
-            text = label,
-            color = LocalContentColor.current.copy(alpha = 0.7f),
-            modifier = Modifier.weight(1f),
-        )
-        Text(text = value)
+    if (LocalDensity.current.fontScale >= 1.3f) {
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            verticalArrangement = Arrangement.spacedBy(2.dp),
+        ) {
+            Text(
+                text = label,
+                color = LocalContentColor.current.copy(alpha = 0.7f),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                text = value,
+                modifier = Modifier.fillMaxWidth(),
+                textAlign = TextAlign.End,
+            )
+        }
+    } else {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                text = label,
+                color = LocalContentColor.current.copy(alpha = 0.7f),
+                modifier = Modifier.weight(0.55f),
+            )
+            Text(
+                text = value,
+                modifier = Modifier.weight(0.45f),
+                textAlign = TextAlign.End,
+            )
+        }
     }
 }
 
