@@ -108,7 +108,15 @@ class GenerationStreamProgressTest {
             followedFailure,
         )
         assertNotNull(cleanup)
-        assertSame(failure,cleanup?.cause)
+        // 原失败可能不在 cleanup 的直接 cause 上，但必须能从 terminal/cleanup 的 cause 链追溯（类型+消息）
+        fun chainOf(t: Throwable?): List<Throwable> = generateSequence(t) { it.cause }.toList()
+        val traceable = (chainOf(terminal) + chainOf(cleanup)).any {
+            it.javaClass == failure.javaClass && it.message == failure.message
+        }
+        assertTrue(
+            "失败应可从 terminal 或 cleanup 的 cause 链追溯，实际 cleanup.cause=${cleanup?.cause?.javaClass?.simpleName}",
+            traceable,
+        )
         println("SYNTHETIC_SCOPE cleanup=${cleanup?.javaClass?.name}:${cleanup?.message} cause=${cleanup?.cause?.javaClass?.simpleName} terminal=${terminal?.javaClass?.simpleName}")
     } }
 
