@@ -2,7 +2,9 @@ package me.rerere.rikkahub.ui.pages.mediacreation
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -18,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -43,12 +46,19 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -65,6 +75,7 @@ import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Refresh
 import me.rerere.hugeicons.stroke.Share01
+import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.hugeicons.stroke.Video01
 import me.rerere.mediagen.model.ImageRole
 import me.rerere.rikkahub.R
@@ -95,43 +106,86 @@ private data class MediaPreview(val file: File, val isVideo: Boolean)
  * 时间线上的一项，显示它当前选中的版本：上面是这次生成的输入，下面是进度或产出，
  * 最后一行是可以对它做的操作，有多个版本时右下角可以切换。
  *
- * [editing] 表示输入区正在修改这一项。
+ * [editing] 表示输入区正在修改这一项；[selected] 非空时处于多选模式，点按卡片可切换状态。
+ * 不在多选模式时，长按卡片会选择它。
  */
 @Composable
 internal fun MediaCreationRecordItem(
     node: MediaCreationNode,
     editing: Boolean,
+    selected: Boolean?,
     vm: MediaCreationVM,
     modifier: Modifier = Modifier,
 ) {
     val record = node.record
     var preview by remember { mutableStateOf<MediaPreview?>(null) }
+    val haptic = LocalHapticFeedback.current
 
     Card(
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier
+            .fillMaxWidth()
+            .then(
+                if (selected == null) {
+                    Modifier.pointerInput(node.id) {
+                        detectTapGestures(
+                            onLongPress = {
+                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                vm.startSelection(node.id)
+                            },
+                        )
+                    }
+                } else {
+                    Modifier
+                }
+            ),
         colors = CustomColors.cardColors,
-        border = if (editing) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
+        border = if (selected ?: editing) BorderStroke(1.dp, MaterialTheme.colorScheme.primary) else null,
     ) {
-        Column(
-            modifier = Modifier.padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 4.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            RecordInput(
-                record = record,
-                resolve = vm::resolve,
-                onPreview = { preview = it },
-            )
-            when {
-                record.status.isActive -> RecordProgress(record)
-                record.status == MediaCreationStatus.SUCCEEDED -> RecordOutputs(
+        Box {
+            Column(
+                modifier = Modifier
+                    .then(if (selected != null) Modifier.clearAndSetSemantics {} else Modifier)
+                    .padding(start = 12.dp, end = 12.dp, top = 12.dp, bottom = 4.dp),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                RecordInput(
                     record = record,
-                    vm = vm,
+                    resolve = vm::resolve,
                     onPreview = { preview = it },
                 )
+                when {
+                    record.status.isActive -> RecordProgress(record)
+                    record.status == MediaCreationStatus.SUCCEEDED -> RecordOutputs(
+                        record = record,
+                        vm = vm,
+                        onPreview = { preview = it },
+                    )
 
-                else -> RecordFailure(record)
+                    else -> RecordFailure(record)
+                }
+                RecordActions(node = node, vm = vm)
             }
-            RecordActions(node = node, vm = vm)
+            if (selected != null) {
+                Box(
+                    modifier = Modifier
+                        .matchParentSize()
+                        .toggleable(
+                            value = selected,
+                            role = Role.Checkbox,
+                            onValueChange = { vm.toggleSelection(node.id) },
+                        )
+                        .semantics {
+                            contentDescription = record.prompt.ifBlank { record.modelId }
+                        },
+                ) {
+                    SelectionMark(
+                        selected = selected,
+                        modifier = Modifier
+                            .align(Alignment.TopEnd)
+                            .padding(12.dp),
+                    )
+                }
+            }
         }
     }
 
@@ -140,6 +194,35 @@ internal fun MediaCreationRecordItem(
             VideoPlayerDialog(file = target.file, onDismissRequest = { preview = null })
         } else {
             ImagePreviewDialog(images = listOf(target.file.absolutePath), onDismissRequest = { preview = null })
+        }
+    }
+}
+
+/** 多选时卡片角上的勾选标记；选择状态由覆盖层的 checkbox 语义播报。 */
+@Composable
+private fun SelectionMark(selected: Boolean, modifier: Modifier = Modifier) {
+    Box(
+        modifier = modifier
+            .size(24.dp)
+            .clip(CircleShape)
+            .then(
+                if (selected) {
+                    Modifier.background(MaterialTheme.colorScheme.primary)
+                } else {
+                    Modifier
+                        .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+                        .border(2.dp, MaterialTheme.colorScheme.outline, CircleShape)
+                }
+            ),
+        contentAlignment = Alignment.Center,
+    ) {
+        if (selected) {
+            Icon(
+                imageVector = HugeIcons.Tick02,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimary,
+                modifier = Modifier.size(16.dp),
+            )
         }
     }
 }

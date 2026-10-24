@@ -150,6 +150,7 @@ sealed class ProviderSetting {
         var serviceAccountEmail: String = "", // only for vertex AI service account
         var location: String = "us-central1", // only for vertex AI service account
         var projectId: String = "", // only for vertex AI service account
+        var useInteractionsApi: Boolean = false, // Gemini Developer API only; ignored for Vertex AI
     ) : ProviderSetting() {
         override val providerKey = "google"
 

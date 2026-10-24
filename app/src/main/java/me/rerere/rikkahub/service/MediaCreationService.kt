@@ -20,6 +20,8 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.rerere.common.http.await
 import me.rerere.mediagen.model.MediaGenerationModel
@@ -95,6 +97,8 @@ class MediaCreationService(
     private val okHttpClient: OkHttpClient,
 ) {
     private val jobs = ConcurrentHashMap<Uuid, Job>()
+    // Serialize record/node mutations so delete snapshots cannot miss a concurrent submit or retry.
+    private val nodeMutationMutex = Mutex()
 
     /**
      * 新建一条记录并开始生成。提交过程放在应用级作用域里，调用方中途被取消也不会留下半条记录。
@@ -116,24 +120,34 @@ class MediaCreationService(
             params = submission.params.supportedBy(capabilities),
             inputs = copyInputs(submission.sessionId, recordId, assets),
         )
-        // 先登记任务再写入记录：恢复逻辑把「进行中但没有任务」的记录当作被中断，不能让它看到这个空档
-        val job = register(record.id, record.sessionId)
-            ?: error(context.getString(R.string.media_creation_error_task_exists))
         try {
-            repository.insertRecord(record)
-            repository.updateSession(record.sessionId) { session ->
-                session.copy(
-                    title = session.title.ifBlank { deriveMediaCreationTitle(record.prompt) },
-                    updateAt = Instant.now(),
-                )
+            nodeMutationMutex.withLock {
+                // 删除先完成时，不允许迟到的重生成重新创建已删除的节点。
+                if (submission.nodeId != null && !repository.hasNode(submission.nodeId)) {
+                    throw kotlinx.coroutines.CancellationException()
+                }
+                // 先登记任务再写入记录：恢复逻辑不能看到「进行中但没有任务」的空档。
+                val job = register(record.id, record.sessionId)
+                    ?: error(context.getString(R.string.media_creation_error_task_exists))
+                try {
+                    repository.insertRecord(record)
+                    repository.updateSession(record.sessionId) { session ->
+                        session.copy(
+                            title = session.title.ifBlank { deriveMediaCreationTitle(record.prompt) },
+                            updateAt = Instant.now(),
+                        )
+                    }
+                } catch (e: Throwable) {
+                    jobs.remove(record.id, job)
+                    job.cancel()
+                    throw e
+                }
+                job.start()
             }
         } catch (e: Throwable) {
-            jobs.remove(record.id, job)
-            job.cancel()
             withContext(Dispatchers.IO) { repository.recordDir(record.sessionId, record.id).deleteRecursively() }
             throw e
         }
-        job.start()
         record
     }
 
@@ -141,30 +155,32 @@ class MediaCreationService(
      * 重新执行失败或已取消的记录。服务端还有任务时接着查询，否则重新提交。
      */
     suspend fun retry(recordId: Uuid) = inAppScope {
-        val sessionId = repository.getRecord(recordId)?.sessionId ?: return@inAppScope
-        // 和 submit 一样先登记任务，再把记录改成进行中
-        val job = register(recordId, sessionId) ?: return@inAppScope
-        var started = false
-        try {
-            val record = repository.updateRecord(recordId) { record ->
-                if (record.status == MediaCreationStatus.SUCCEEDED) {
-                    record
-                } else {
-                    record.copy(
-                        status = if (record.taskId != null) MediaCreationStatus.RUNNING else MediaCreationStatus.PREPARING,
-                        error = null,
-                        outputs = emptyList(),
-                    )
+        nodeMutationMutex.withLock {
+            val sessionId = repository.getRecord(recordId)?.sessionId ?: return@withLock
+            // 和 submit 一样先登记任务，再把记录改成进行中
+            val job = register(recordId, sessionId) ?: return@withLock
+            var started = false
+            try {
+                val record = repository.updateRecord(recordId) { record ->
+                    if (record.status == MediaCreationStatus.SUCCEEDED) {
+                        record
+                    } else {
+                        record.copy(
+                            status = if (record.taskId != null) MediaCreationStatus.RUNNING else MediaCreationStatus.PREPARING,
+                            error = null,
+                            outputs = emptyList(),
+                        )
+                    }
                 }
-            }
-            if (record != null && record.status != MediaCreationStatus.SUCCEEDED) {
-                job.start()
-                started = true
-            }
-        } finally {
-            if (!started) {
-                jobs.remove(recordId, job)
-                job.cancel()
+                if (record != null && record.status != MediaCreationStatus.SUCCEEDED) {
+                    job.start()
+                    started = true
+                }
+            } finally {
+                if (!started) {
+                    jobs.remove(recordId, job)
+                    job.cancel()
+                }
             }
         }
     }
@@ -173,20 +189,36 @@ class MediaCreationService(
      * 停止等待一条记录。已经提交给服务端的任务无法撤回，[MediaCreationRecord.taskId] 会保留，之后可以重试接着查询。
      */
     suspend fun cancel(recordId: Uuid) = inAppScope {
-        jobs[recordId]?.cancelAndJoin()
-        repository.updateRecord(recordId) { record ->
-            if (record.status.isActive) record.copy(status = MediaCreationStatus.CANCELLED) else record
+        nodeMutationMutex.withLock {
+            jobs[recordId]?.cancelAndJoin()
+            repository.updateRecord(recordId) { record ->
+                if (record.status.isActive) record.copy(status = MediaCreationStatus.CANCELLED) else record
+            }
         }
     }
 
     suspend fun deleteRecord(recordId: Uuid) = inAppScope {
-        jobs[recordId]?.cancelAndJoin()
-        repository.getRecord(recordId)?.let { repository.deleteRecord(it) }
+        nodeMutationMutex.withLock {
+            jobs[recordId]?.cancelAndJoin()
+            repository.getRecord(recordId)?.let { repository.deleteRecord(it) }
+        }
+    }
+
+    /** 删除时间线上的若干项及所有版本；先取消任务，避免结果在删除后重新写回。 */
+    suspend fun deleteNodes(sessionId: Uuid, nodeIds: Collection<Uuid>): List<Uuid> = inAppScope {
+        nodeMutationMutex.withLock {
+            val uniqueNodeIds = nodeIds.distinct()
+            val versionIds = uniqueNodeIds.flatMap { repository.getVersionIdsForNodeInSession(sessionId, it) }
+            versionIds.forEach { jobs[it]?.cancelAndJoin() }
+            uniqueNodeIds.flatMap { repository.deleteNode(sessionId, it) }
+        }
     }
 
     suspend fun deleteSession(sessionId: Uuid) = inAppScope {
-        repository.getRecordsOfSession(sessionId).forEach { jobs[it.id]?.cancelAndJoin() }
-        repository.deleteSession(sessionId)
+        nodeMutationMutex.withLock {
+            repository.getRecordsOfSession(sessionId).forEach { jobs[it.id]?.cancelAndJoin() }
+            repository.deleteSession(sessionId)
+        }
     }
 
     /**
@@ -194,22 +226,24 @@ class MediaCreationService(
      */
     fun resumePending() {
         appScope.launch {
-            runCatching {
-                repository.getActiveRecords().forEach { record ->
-                    if (jobs.containsKey(record.id)) return@forEach
-                    if (record.taskId != null) {
-                        register(record.id, record.sessionId)?.start()
-                    } else {
-                        repository.updateRecord(record.id) {
-                            it.copy(
-                                status = MediaCreationStatus.FAILED,
-                                error = context.getString(R.string.media_creation_error_interrupted),
-                            )
+            nodeMutationMutex.withLock {
+                runCatching {
+                    repository.getActiveRecords().forEach { record ->
+                        if (jobs.containsKey(record.id)) return@forEach
+                        if (record.taskId != null) {
+                            register(record.id, record.sessionId)?.start()
+                        } else {
+                            repository.updateRecord(record.id) {
+                                it.copy(
+                                    status = MediaCreationStatus.FAILED,
+                                    error = context.getString(R.string.media_creation_error_interrupted),
+                                )
+                            }
                         }
                     }
+                }.onFailure {
+                    Log.e(TAG, "resumePending failed", it)
                 }
-            }.onFailure {
-                Log.e(TAG, "resumePending failed", it)
             }
         }
     }

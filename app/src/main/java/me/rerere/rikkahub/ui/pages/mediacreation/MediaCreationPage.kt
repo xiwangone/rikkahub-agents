@@ -1,5 +1,8 @@
 package me.rerere.rikkahub.ui.pages.mediacreation
 
+import android.content.Context
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -9,24 +12,32 @@ import androidx.compose.foundation.layout.calculateStartPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -38,6 +49,13 @@ import androidx.paging.compose.LazyPagingItems
 import androidx.paging.compose.collectAsLazyPagingItems
 import androidx.paging.compose.itemKey
 import com.dokar.sonner.ToastType
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.CheckList
+import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Download01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.MediaCreationNode
@@ -65,8 +83,15 @@ fun MediaCreationPage(id: String) {
     val selection by vm.selection.collectAsStateWithLifecycle()
     val uploadConfigured by vm.uploadConfigured.collectAsStateWithLifecycle()
     val recentOutputs by vm.recentOutputs.collectAsStateWithLifecycle()
+    val selectedNodes by vm.selectedNodes.collectAsStateWithLifecycle()
+    val nodes = vm.nodes.collectAsLazyPagingItems()
 
     var showUploadDialog by remember { mutableStateOf(false) }
+    var confirmDeleteSelected by remember { mutableStateOf(false) }
+
+    BackHandler(enabled = selectedNodes != null) {
+        vm.endSelection()
+    }
 
     LaunchedEffect(vm) {
         vm.events.collect { event ->
@@ -83,13 +108,30 @@ fun MediaCreationPage(id: String) {
             TopAppBar(
                 title = {
                     Text(
-                        text = session?.title?.ifBlank { null } ?: stringResource(R.string.media_creation_title),
+                        text = selectedNodes?.let { stringResource(R.string.media_creation_page_selected_count, it.size) }
+                            ?: session?.title?.ifBlank { null }
+                            ?: stringResource(R.string.media_creation_title),
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 },
                 navigationIcon = {
-                    BackButton()
+                    if (selectedNodes != null) {
+                        val exitLabel = stringResource(R.string.media_creation_page_exit_selection)
+                        IconButton(onClick = vm::endSelection) {
+                            Icon(HugeIcons.Cancel01, contentDescription = exitLabel)
+                        }
+                    } else {
+                        BackButton()
+                    }
+                },
+                actions = {
+                    if (selectedNodes == null && nodes.itemCount > 0) {
+                        val label = stringResource(R.string.media_creation_page_select)
+                        IconButton(onClick = { vm.startSelection() }) {
+                            Icon(HugeIcons.CheckList, contentDescription = label)
+                        }
+                    }
                 },
             )
         },
@@ -112,21 +154,47 @@ fun MediaCreationPage(id: String) {
             ) {
                 MediaCreationTimeline(
                     vm = vm,
+                    nodes = nodes,
                     editingNodeId = draft.editingNodeId,
+                    selectedNodes = selectedNodes,
                     hasModels = settings.mediaGenerationProviders.any { it.models.isNotEmpty() },
                     onOpenMediaSettings = { navController.navigate(Screen.SettingMedia) },
                 )
             }
-            MediaCreationComposer(
-                vm = vm,
-                draft = draft,
-                selection = selection,
-                providers = settings.mediaGenerationProviders,
-                recentOutputs = recentOutputs,
-                uploadConfigured = uploadConfigured,
-                onOpenMediaSettings = { navController.navigate(Screen.SettingMedia) },
-            )
+            val selected = selectedNodes
+            if (selected != null) {
+                MediaCreationSelectionBar(
+                    vm = vm,
+                    selectedCount = selected.size,
+                    allSelected = nodes.itemCount > 0 && selected.size >= nodes.itemCount,
+                    onDelete = { confirmDeleteSelected = true },
+                )
+            } else {
+                MediaCreationComposer(
+                    vm = vm,
+                    draft = draft,
+                    selection = selection,
+                    providers = settings.mediaGenerationProviders,
+                    recentOutputs = recentOutputs,
+                    uploadConfigured = uploadConfigured,
+                    onOpenMediaSettings = { navController.navigate(Screen.SettingMedia) },
+                )
+            }
         }
+    }
+
+    RikkaConfirmDialog(
+        show = confirmDeleteSelected,
+        title = stringResource(R.string.confirm_delete),
+        confirmText = stringResource(R.string.delete),
+        dismissText = stringResource(R.string.cancel),
+        onConfirm = {
+            confirmDeleteSelected = false
+            vm.deleteSelected()
+        },
+        onDismiss = { confirmDeleteSelected = false },
+    ) {
+        Text(stringResource(R.string.media_creation_page_delete_selected_text, selectedNodes?.size ?: 0))
     }
 
     RikkaConfirmDialog(
@@ -147,11 +215,12 @@ fun MediaCreationPage(id: String) {
 @Composable
 private fun MediaCreationTimeline(
     vm: MediaCreationVM,
+    nodes: LazyPagingItems<MediaCreationNode>,
     editingNodeId: Uuid?,
+    selectedNodes: Set<Uuid>?,
     hasModels: Boolean,
     onOpenMediaSettings: () -> Unit,
 ) {
-    val nodes = vm.nodes.collectAsLazyPagingItems()
     val listState = rememberLazyListState()
 
     // 列表是倒序排布的，第 0 项就是最下面那条最新的记录。停在底部时，新记录出现后跟着露出来；
@@ -189,7 +258,12 @@ private fun MediaCreationTimeline(
         ) { index ->
             val node = nodes[index]
             if (node != null) {
-                MediaCreationRecordItem(node = node, editing = node.id == editingNodeId, vm = vm)
+                MediaCreationRecordItem(
+                    node = node,
+                    editing = node.id == editingNodeId,
+                    selected = selectedNodes?.let { node.id in it },
+                    vm = vm,
+                )
             } else {
                 // 还没加载到的记录先占位，保证列表总长度和滚动位置稳定
                 Surface(
@@ -238,4 +312,128 @@ private fun TimelineEmpty(
             }
         }
     }
+}
+
+/** 多选时代替输入区：退出选择、全选/取消全选，以及对所选产出的批量操作。 */
+@Composable
+// IO/权限/空间类异常都会落到这里展示；按具体类型枚举无收益
+@Suppress("TooGenericExceptionCaught")
+private fun MediaCreationSelectionBar(
+    vm: MediaCreationVM,
+    selectedCount: Int,
+    allSelected: Boolean,
+    onDelete: () -> Unit,
+) {
+    val context = LocalContext.current
+    val toaster = LocalToaster.current
+    val scope = rememberCoroutineScope()
+    var saving by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier
+            .navigationBarsPadding()
+            .padding(horizontal = 8.dp)
+            .padding(bottom = 8.dp)
+            .fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
+    ) {
+        Row(
+            modifier = Modifier.padding(4.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            val exitLabel = stringResource(R.string.media_creation_page_exit_selection)
+            IconButton(onClick = vm::endSelection, enabled = !saving) {
+                Icon(HugeIcons.Cancel01, contentDescription = exitLabel)
+            }
+            TextButton(
+                onClick = { if (allSelected) vm.clearSelection() else vm.selectAll() },
+                enabled = !saving,
+            ) {
+                Text(stringResource(if (allSelected) R.string.media_creation_page_deselect_all else R.string.media_creation_page_select_all))
+            }
+            Spacer(Modifier.weight(1f))
+            val saveLabel = stringResource(if (saving) R.string.media_creation_page_saving else R.string.media_creation_page_save)
+            IconButton(
+                onClick = {
+                    scope.launch {
+                        saving = true
+                        try {
+                            val result = saveSelected(context, vm)
+                            when {
+                                result.total == 0 -> toaster.show(
+                                    context.getString(R.string.media_creation_page_nothing_to_save),
+                                    type = ToastType.Info,
+                                )
+                                result.failures.isEmpty() -> toaster.show(
+                                    context.getString(R.string.media_creation_page_saved_files, result.saved),
+                                    type = ToastType.Success,
+                                )
+                                result.saved == 0 -> toaster.show(
+                                    result.failures.first().message ?: context.getString(R.string.media_creation_page_gallery_write_failed),
+                                    type = ToastType.Error,
+                                )
+                                else -> toaster.show(
+                                    context.getString(
+                                        R.string.media_creation_page_saved_files_partial,
+                                        result.saved,
+                                        result.failures.size,
+                                        result.failures.first().message ?: context.getString(R.string.media_creation_page_gallery_write_failed),
+                                    ),
+                                    type = ToastType.Error,
+                                )
+                            }
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            toaster.show(
+                                e.message ?: context.getString(R.string.media_creation_page_gallery_write_failed),
+                                type = ToastType.Error,
+                            )
+                        } finally {
+                            saving = false
+                        }
+                    }
+                },
+                enabled = selectedCount > 0 && !saving,
+            ) {
+                Icon(HugeIcons.Download01, contentDescription = saveLabel)
+            }
+            val deleteLabel = stringResource(R.string.delete)
+            IconButton(
+                onClick = onDelete,
+                enabled = selectedCount > 0 && !saving,
+            ) {
+                Icon(HugeIcons.Delete01, contentDescription = deleteLabel, tint = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+/** 逐项保存当前成功版本的产出；单项失败不会阻止其余文件写入。 */
+private data class MediaCreationSaveResult(
+    val total: Int,
+    val saved: Int,
+    val failures: List<Exception>,
+)
+
+// 批量保存：单个失败只记入 failures 不中断后续，宽捕获是有意的
+@Suppress("TooGenericExceptionCaught")
+private suspend fun saveSelected(context: Context, vm: MediaCreationVM): MediaCreationSaveResult {
+    val outputs = vm.getSelectedOutputs()
+    var saved = 0
+    val failures = mutableListOf<Exception>()
+    outputs.forEach { output ->
+        try {
+            saveMediaToGallery(context, vm.resolve(output.path), output.mimeType)
+            saved++
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            failures += e
+        }
+    }
+    return MediaCreationSaveResult(outputs.size, saved, failures)
 }

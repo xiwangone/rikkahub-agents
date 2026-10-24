@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -49,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
@@ -960,6 +962,27 @@ private fun ProviderConfigureGoogle(
             checked = provider.vertexAI,
             onCheckedChange = { onEdit(provider.copy(vertexAI = it)) },
         )
+    }
+
+    if (!provider.vertexAI) {
+        val interactionsLabel = stringResource(R.string.setting_provider_page_google_interactions_api)
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .toggleable(
+                    value = provider.useInteractionsApi,
+                    role = Role.Switch,
+                    onValueChange = { onEdit(provider.copy(useInteractionsApi = it)) },
+                ),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(interactionsLabel)
+            Switch(
+                checked = provider.useInteractionsApi,
+                onCheckedChange = null,
+            )
+        }
     }
 
     if (provider.vertexAI) {

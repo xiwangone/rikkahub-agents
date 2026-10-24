@@ -240,6 +240,8 @@ internal fun MediaThumbnail(
 /**
  * 把生成的图片或视频存进系统相册。
  */
+// 任意异常都要先把半成品文件清掉再重抛，此处宽捕获是有意的
+@Suppress("TooGenericExceptionCaught")
 internal suspend fun saveMediaToGallery(context: Context, file: File, mimeType: String) = withContext(Dispatchers.IO) {
     check(file.isFile) { context.getString(R.string.media_creation_page_file_missing) }
     val isVideo = mimeType.startsWith("video/")
@@ -275,8 +277,13 @@ internal suspend fun saveMediaToGallery(context: Context, file: File, mimeType: 
             context.getActivity()?.let { ActivityCompat.requestPermissions(it, arrayOf(permission), 1) }
             error(context.getString(R.string.media_creation_page_storage_permission_required))
         }
-        val target = File(Environment.getExternalStoragePublicDirectory(directory), name)
-        file.copyTo(target, overwrite = true)
+        val target = createUniqueMediaTarget(Environment.getExternalStoragePublicDirectory(directory), name)
+        try {
+            file.inputStream().use { input -> target.outputStream().use { output -> input.copyTo(output) } }
+        } catch (e: Exception) {
+            target.delete()
+            throw e
+        }
         MediaScannerConnection.scanFile(context, arrayOf(target.absolutePath), arrayOf(mimeType), null)
     }
 }

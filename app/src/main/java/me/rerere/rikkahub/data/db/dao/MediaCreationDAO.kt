@@ -88,6 +88,17 @@ interface MediaCreationDAO {
     )
     suspend fun getNodePosition(id: String): Int
 
+    /** 会话时间线上每一项当前显示的版本，从最早的一项排起。 */
+    @Query(
+        """
+        SELECT r.* FROM media_creation_node n
+        JOIN media_creation_record r ON r.id = n.selected_record_id
+        WHERE n.session_id = :sessionId
+        ORDER BY n.create_at, n.rowid
+        """
+    )
+    suspend fun getSelectedRecordsOfSession(sessionId: String): List<MediaCreationRecordEntity>
+
     @Query("SELECT * FROM media_creation_node WHERE id = :id")
     suspend fun getNode(id: String): MediaCreationNodeEntity?
 
@@ -99,6 +110,16 @@ interface MediaCreationDAO {
 
     @Query("DELETE FROM media_creation_node WHERE id = :id")
     suspend fun deleteNode(id: String)
+
+    @Query(
+        """
+        SELECT r.id FROM media_creation_node n
+        JOIN media_creation_record r ON r.node_id = n.id
+        WHERE n.id = :nodeId AND n.session_id = :sessionId
+        ORDER BY r.create_at, r.rowid
+        """
+    )
+    suspend fun getVersionIdsForNodeInSession(nodeId: String, sessionId: String): List<String>
 
     /** 一项的所有版本，按创建顺序。 */
     @Query("SELECT id FROM media_creation_record WHERE node_id = :nodeId ORDER BY create_at, rowid")

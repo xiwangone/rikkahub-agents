@@ -4101,4 +4101,18 @@
     <string name="floating_chat_needs_answer">請在會話中回答</string>
     <string name="floating_chat_usage">用量 · 輸入 %1$d / 輸出 %2$d / 總計 %3$d</string>
     <string name="floating_chat_answer_in_conversation">開啟會話以回答</string>
+
+  <string name="media_creation_page_selected_count">已選取 %1$d 項</string>
+  <string name="media_creation_page_select">多選</string>
+  <string name="media_creation_page_exit_selection">結束多選</string>
+  <string name="media_creation_page_select_all">全選</string>
+  <string name="media_creation_page_deselect_all">取消全選</string>
+  <string name="media_creation_page_save">儲存</string>
+  <string name="media_creation_page_saving">儲存中…</string>
+  <string name="media_creation_page_delete_selected_text">所選取的 %1$d 個項目，連同其所有版本與生成的檔案，將被永久刪除。仍在執行中的任務，其結果將不再取得。</string>
+  <string name="media_creation_page_nothing_to_save">所選項目沒有可儲存的圖片或影片</string>
+  <string name="media_creation_page_saved_files">已將 %1$d 個檔案儲存至相簿</string>
+  <string name="media_creation_page_saved_files_partial">已儲存 %1$d 個檔案，%2$d 個失敗：%3$s</string>
+  <string name="media_creation_page_delete_failed">無法刪除所選項目</string>
+  <string name="setting_provider_page_google_interactions_api">Gemini Interactions API（測試版）</string>
 </resources>
