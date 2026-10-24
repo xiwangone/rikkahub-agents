@@ -744,20 +744,30 @@ class ChatService(
         // 生成中再次发送：入队而不是打断当前生成，待本轮结束后按序发出。
         // 这样「发送键在生成中依然可用」，用户无需等待或手动停止。
         val session = getOrCreateSession(conversationId)
+        val activeGeneration = session.getJob()?.takeIf { it.isActive }
         val hasPendingTools = session.state.value.messageNodes.any { node ->
             node.currentMessage.getTools().any { it.isPending }
         }
         if (shouldQueueChatMessage(
-                isGenerating = session.getJob()?.isActive == true,
+                isGenerating = activeGeneration != null,
                 hasPendingTools = hasPendingTools,
                 queuePaused = messageQueues[conversationId]?.state?.value?.paused == true,
             )
         ) {
-            messageQueues.getOrPut(conversationId) { MessageQueue() }.enqueue(content, answer)
+            val queue = messageQueues.getOrPut(conversationId) { MessageQueue() }
+            queue.enqueue(content, answer)
             AppLog.i(
                 TAG,
-                "msg-queued conv=$conversationId pending=${messageQueues[conversationId]?.size}",
+                "msg-queued conv=$conversationId pending=${queue.size}",
             )
+            // The finishing job may have checked an empty queue just before
+            // enqueue(). Retry dispatch after that job fully completes so this
+            // message cannot be stranded in the completion race.
+            if (activeGeneration != null) {
+                scheduleQueueDispatchAfter(activeGeneration, appScope) {
+                    dispatchNextQueuedMessage(conversationId)
+                }
+            }
             return
         }
         sendMessageNow(conversationId, content, answer)

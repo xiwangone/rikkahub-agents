@@ -1,8 +1,11 @@
 package me.rerere.rikkahub.service
 
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.rikkahub.data.model.Conversation
@@ -31,6 +34,24 @@ data class MessageQueueState(
     val messages: List<QueuedMessage> = emptyList(),
     val paused: Boolean = false,
 )
+
+/**
+ * Retry queue dispatch after an active generation has fully completed.
+ *
+ * A queued send can race with the generation's final queue check: registering
+ * this callback guarantees a second dispatch attempt after that check. Job
+ * completion handlers also run immediately if completion wins the registration
+ * race.
+ */
+internal fun scheduleQueueDispatchAfter(
+    activeGeneration: Job,
+    scope: CoroutineScope,
+    dispatch: () -> Unit,
+) {
+    activeGeneration.invokeOnCompletion {
+        scope.launch { dispatch() }
+    }
+}
 
 /**
  * 计算 [previous] 的本地附件在移除后是否已无人引用。
